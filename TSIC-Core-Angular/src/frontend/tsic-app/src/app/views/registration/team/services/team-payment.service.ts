@@ -1,7 +1,12 @@
 import { Injectable, signal, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, tap, catchError, throwError } from 'rxjs';
-import type { RegisteredTeamDto, ApplyTeamDiscountRequestDto, ApplyTeamDiscountResponseDto, TeamPaymentResponseDto } from '@core/api';
+import type {
+    RegisteredTeamDto,
+    ApplyTeamDiscountRequestDto, ApplyTeamDiscountResponseDto,
+    TeamPaymentResponseDto,
+    TeamArbTrialPaymentRequestDto, TeamArbTrialPaymentResponseDto,
+} from '@core/api';
 import { environment } from '@environments/environment';
 import { formatHttpError } from '../../shared/utils/error-utils';
 
@@ -39,8 +44,19 @@ export class TeamPaymentService {
     private readonly _bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
     /** Per-job opt-in for eCheck (ACH). Independent of paymentMethodsAllowedCode. */
     private readonly _bEnableEcheck = signal<boolean>(false);
+    /** Per-job opt-in for ARB-Trial scheduled payments (deposit tomorrow, balance on configured date). */
+    private readonly _adnArbTrial = signal<boolean>(false);
+    /** Configured balance-charge date for ARB-Trial subscriptions (ISO yyyy-MM-dd). Null when not set. */
+    private readonly _adnStartDateAfterTrial = signal<string | null>(null);
     private readonly _jobPath = signal<string>('');
-    private readonly _selectedPaymentMethod = signal<'CC' | 'Echeck' | 'Check'>('CC');
+    private readonly _selectedPaymentMethod = signal<'CC' | 'Echeck' | 'ArbTrial' | 'Check'>('CC');
+    /**
+     * When ARB-Trial is the selected method, this picks which payment instrument
+     * the trial subscription will be funded by (card vs bank). Independent of the
+     * top-level method tile — we keep it on a separate signal so toggling between
+     * "Pay Now" and "ARB-Trial" doesn't lose the rep's CC/eCheck pick.
+     */
+    private readonly _arbTrialSource = signal<'CC' | 'Echeck'>('CC');
     private readonly _payTo = signal<string | null>(null);
     private readonly _mailTo = signal<string | null>(null);
     private readonly _mailinPaymentWarning = signal<string | null>(null);
@@ -53,8 +69,11 @@ export class TeamPaymentService {
     readonly bAddProcessingFees = this._bAddProcessingFees.asReadonly();
     readonly bApplyProcessingFeesToTeamDeposit = this._bApplyProcessingFeesToTeamDeposit.asReadonly();
     readonly bEnableEcheck = this._bEnableEcheck.asReadonly();
+    readonly adnArbTrial = this._adnArbTrial.asReadonly();
+    readonly adnStartDateAfterTrial = this._adnStartDateAfterTrial.asReadonly();
     readonly jobPath = this._jobPath.asReadonly();
     readonly selectedPaymentMethod = this._selectedPaymentMethod.asReadonly();
+    readonly arbTrialSource = this._arbTrialSource.asReadonly();
     readonly payTo = this._payTo.asReadonly();
     readonly mailTo = this._mailTo.asReadonly();
     readonly mailinPaymentWarning = this._mailinPaymentWarning.asReadonly();
@@ -70,7 +89,7 @@ export class TeamPaymentService {
     setTeams(value: RegisteredTeamDto[]): void { this._teams.set(value); }
     setPaymentConfig(code: number, addFees: boolean, applyToDeposit: boolean,
         payTo?: string | null, mailTo?: string | null, mailinPaymentWarning?: string | null,
-        enableEcheck = false): void {
+        enableEcheck = false, adnArbTrial = false, adnStartDateAfterTrial: string | null = null): void {
         this._paymentMethodsAllowedCode.set(code);
         this._bAddProcessingFees.set(addFees);
         this._bApplyProcessingFeesToTeamDeposit.set(applyToDeposit);
@@ -78,8 +97,11 @@ export class TeamPaymentService {
         this._mailTo.set(mailTo ?? null);
         this._mailinPaymentWarning.set(mailinPaymentWarning ?? null);
         this._bEnableEcheck.set(enableEcheck);
+        this._adnArbTrial.set(adnArbTrial);
+        this._adnStartDateAfterTrial.set(adnStartDateAfterTrial);
         // Default to the first visible button in priority order CC > Echeck > Check
         // so we never land on a hidden method (e.g. check-only + eCheck enabled).
+        // ArbTrial is opt-in, so we don't auto-select it on load.
         if (code !== 3) {
             this._selectedPaymentMethod.set('CC');
         } else if (enableEcheck) {
@@ -87,9 +109,12 @@ export class TeamPaymentService {
         } else {
             this._selectedPaymentMethod.set('Check');
         }
+        // ARB-Trial source defaults to CC unless the only available source is eCheck.
+        this._arbTrialSource.set(code !== 3 ? 'CC' : (enableEcheck ? 'Echeck' : 'CC'));
     }
     setJobPath(value: string): void { this._jobPath.set(value); }
-    selectPaymentMethod(method: 'CC' | 'Echeck' | 'Check'): void { this._selectedPaymentMethod.set(method); }
+    selectPaymentMethod(method: 'CC' | 'Echeck' | 'ArbTrial' | 'Check'): void { this._selectedPaymentMethod.set(method); }
+    selectArbTrialSource(src: 'CC' | 'Echeck'): void { this._arbTrialSource.set(src); }
 
     // Line items for all registered teams
     lineItems = computed<TeamLineItem[]>(() => {
@@ -150,23 +175,58 @@ export class TeamPaymentService {
     isCheckPayment = computed(() => this.selectedPaymentMethod() === 'Check');
     isCcPayment = computed(() => this.selectedPaymentMethod() === 'CC');
     isEcheckPayment = computed(() => this.selectedPaymentMethod() === 'Echeck');
+    isArbTrialPayment = computed(() => this.selectedPaymentMethod() === 'ArbTrial');
     isCheckOnly = computed(() => this.paymentMethodsAllowedCode() === 3);
 
     // Method visibility:
     //   • CC button: shown unless the job is check-only (code 3).
     //   • eCheck button: per-job opt-in.
+    //   • ARB-Trial button: per-job opt-in AND a configured balance date AND at least one
+    //     electronic source enabled (CC unless check-only, or eCheck when opted in).
     //   • Mail-in Check button: hidden when eCheck is enabled — eCheck is the
     //     online replacement for paper check, so admins shouldn't offer both.
     showCcButton = computed(() => this.paymentMethodsAllowedCode() !== 3);
     showEcheckButton = computed(() => this.bEnableEcheck());
+    showArbTrialButton = computed(() => {
+        if (!this.adnArbTrial()) return false;
+        if (!this.adnStartDateAfterTrial()) return false;
+        // Need at least one electronic source — check-only jobs without eCheck can't run ARB-Trial.
+        return this.showCcButton() || this.showEcheckButton();
+    });
     showCheckButton = computed(() =>
         this.paymentMethodsAllowedCode() !== 1 && !this.bEnableEcheck()
     );
 
+    /**
+     * True when today is on/after the configured balance date — submitting ARB-Trial
+     * in this state will fall back to a single full charge per team (backend handles
+     * the redirect; this signal lets the UI explain the change up-front).
+     */
+    arbTrialIsFallback = computed(() => {
+        const balanceIso = this.adnStartDateAfterTrial();
+        if (!balanceIso) return false;
+        const balance = new Date(balanceIso);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        balance.setHours(0, 0, 0, 0);
+        return today.getTime() >= balance.getTime();
+    });
+
+    /** ISO date string for the deposit charge (always today + 1 day). */
+    arbTrialDepositDate = computed(() => {
+        const tomorrow = new Date();
+        tomorrow.setHours(0, 0, 0, 0);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return tomorrow.toISOString().slice(0, 10);
+    });
+
     // Column visibility flags. Selector appears when more than one method is available
-    // (eCheck adds a second option even on CC-only jobs).
+    // (eCheck and ARB-Trial each add an option even on CC-only jobs).
     showPaymentMethodSelector = computed(() =>
-        (this.showCcButton() ? 1 : 0) + (this.showEcheckButton() ? 1 : 0) + (this.showCheckButton() ? 1 : 0) >= 2
+        (this.showCcButton() ? 1 : 0)
+        + (this.showEcheckButton() ? 1 : 0)
+        + (this.showArbTrialButton() ? 1 : 0)
+        + (this.showCheckButton() ? 1 : 0) >= 2
     );
     showFeeProcessingColumn = computed(() => this.bAddProcessingFees());
     showCcOwedColumn = computed(() => this.paymentMethodsAllowedCode() !== 3); // Hide if Check only
@@ -257,13 +317,28 @@ export class TeamPaymentService {
         );
     }
 
+    /**
+     * ARB-Trial submission. Backend creates one ADN ARB subscription per team
+     * (deposit tomorrow, balance on the configured date). Capture-what-you-can:
+     * partial-success responses still carry the per-team result rows the UI renders.
+     */
+    submitArbTrialPayment(request: TeamArbTrialPaymentRequestDto): Observable<TeamArbTrialPaymentResponseDto> {
+        return this.http.post<TeamArbTrialPaymentResponseDto>(
+            `${environment.apiUrl}/team-payment/process-arb-trial`,
+            request
+        );
+    }
+
     reset(): void {
         this._teams.set([]);
         this._paymentMethodsAllowedCode.set(1);
         this._bAddProcessingFees.set(false);
         this._bApplyProcessingFeesToTeamDeposit.set(false);
         this._bEnableEcheck.set(false);
+        this._adnArbTrial.set(false);
+        this._adnStartDateAfterTrial.set(null);
         this._selectedPaymentMethod.set('CC');
+        this._arbTrialSource.set('CC');
         this._jobPath.set('');
         this._payTo.set(null);
         this._mailTo.set(null);

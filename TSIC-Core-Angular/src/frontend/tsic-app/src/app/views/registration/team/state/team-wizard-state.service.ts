@@ -99,6 +99,8 @@ export class TeamWizardStateService {
             meta.mailTo,
             meta.mailinPaymentWarning,
             meta.bEnableEcheck,
+            meta.adnArbTrial ?? false,
+            meta.adnStartDateAfterTrial ?? null,
         );
         this._hasActiveDiscountCodes.set(meta.hasActiveDiscountCodes);
         this._fullPaymentRequired.set(meta.bTeamsFullPaymentRequired ?? true);

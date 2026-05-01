@@ -14,19 +14,26 @@ import { BankAccountFormComponent } from '@views/registration/shared/components/
 import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
-import type { BankAccountInfo, TeamEcheckPaymentRequestDto } from '@core/api';
+import { DatePipe } from '@angular/common';
+import type {
+    BankAccountInfo, CreditCardInfo,
+    TeamEcheckPaymentRequestDto,
+    TeamArbTrialPaymentRequestDto, TeamArbTrialPaymentResponseDto,
+} from '@core/api';
 import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
 
 /**
- * Team Payment step — CC form, check payment, discount codes.
- * Teams only support Pay-In-Full (no ARB/Deposit).
- * Respects PaymentMethodsAllowedCode: 1=CC only, 2=CC or Check, 3=Check only.
+ * Team Payment step — supports CC, eCheck (ACH), ARB-Trial scheduled payments,
+ * and mail-in check. Per-job availability:
+ *   • PaymentMethodsAllowedCode: 1=CC only, 2=CC or Check, 3=Check only
+ *   • bEnableEcheck: per-job opt-in
+ *   • adnArbTrial + adnStartDateAfterTrial: per-job opt-in for the deposit/balance schedule
  */
 @Component({
     selector: 'app-trw-payment-step',
     standalone: true,
-    imports: [CurrencyPipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, RegisteredTeamsGridComponent],
+    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, RegisteredTeamsGridComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -118,6 +125,13 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                     <i class="bi bi-bank me-2"></i>eCheck (ACH)
                   </button>
                 }
+                @if (showArbTrialButton()) {
+                  <button type="button" class="method-btn"
+                          [class.active]="isArbTrial()"
+                          (click)="selectMethod('ArbTrial')">
+                    <i class="bi bi-calendar2-range me-2"></i>Pay in 2 (Deposit + Balance)
+                  </button>
+                }
                 @if (showCheckButton()) {
                   <button type="button" class="method-btn"
                           [class.active]="isCheck()"
@@ -181,6 +195,146 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                     [disabled]="!canSubmitEcheck()">
               {{ submitting() ? 'Processing...' : 'Pay ' + (balanceDue() | currency) + ' by eCheck' }}
             </button>
+          }
+
+          <!-- ═══ ARB-TRIAL (Deposit tomorrow + Balance on configured date) ═══ -->
+          @if (isArbTrial()) {
+            <section class="arb-trial-panel p-3 p-sm-4 mb-3 rounded-3">
+              @if (arbTrialIsFallback()) {
+                <div class="alert alert-warning border-0 d-flex align-items-start gap-2 mb-3">
+                  <i class="bi bi-exclamation-triangle fs-5"></i>
+                  <div>
+                    <div class="fw-semibold mb-1">Balance date already passed</div>
+                    <div class="small">
+                      Today is on or after the configured balance date
+                      ({{ arbTrialBalanceDate() | date:'mediumDate' }}). Submitting will charge the
+                      full amount now as a single transaction — no payment plan will be created.
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <div class="schedule-banner mb-3">
+                  <div class="schedule-row">
+                    <span class="schedule-label">
+                      <i class="bi bi-1-circle me-2"></i>Deposit (charged tomorrow)
+                    </span>
+                    <span class="schedule-value">{{ arbTrialDepositDate() | date:'mediumDate' }}</span>
+                  </div>
+                  <div class="schedule-row">
+                    <span class="schedule-label">
+                      <i class="bi bi-2-circle me-2"></i>Balance
+                    </span>
+                    <span class="schedule-value">{{ arbTrialBalanceDate() | date:'mediumDate' }}</span>
+                  </div>
+                  <div class="schedule-row total">
+                    <span class="schedule-label">Total across {{ arbTrialTeamCount() }} team(s)</span>
+                    <span class="schedule-value fw-bold">{{ balanceDue() | currency }}</span>
+                  </div>
+                </div>
+                <div class="text-muted small mb-3">
+                  <i class="bi bi-info-circle me-1"></i>
+                  One subscription per team — refunds and cancellations are handled team-by-team.
+                </div>
+              }
+
+              <!-- Sub-source picker shown only when both CC and eCheck are available for this job. -->
+              @if (showArbTrialSourcePicker()) {
+                <div class="mb-3">
+                  <label class="form-label fw-semibold mb-2">Fund this with:</label>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="method-btn"
+                            [class.active]="arbTrialSource() === 'CC'"
+                            (click)="selectArbTrialSource('CC')">
+                      <i class="bi bi-credit-card me-2"></i>Credit Card
+                    </button>
+                    <button type="button" class="method-btn"
+                            [class.active]="arbTrialSource() === 'Echeck'"
+                            (click)="selectArbTrialSource('Echeck')">
+                      <i class="bi bi-bank me-2"></i>eCheck (ACH)
+                    </button>
+                  </div>
+                </div>
+              }
+
+              @if (arbTrialSource() === 'CC') {
+                <app-credit-card-form
+                  [defaultFirstName]="clubRepContact()?.firstName ?? null"
+                  [defaultLastName]="clubRepContact()?.lastName ?? null"
+                  [defaultAddress]="clubRepContact()?.streetAddress ?? null"
+                  [defaultZip]="clubRepContact()?.postalCode ?? null"
+                  [defaultEmail]="clubRepContact()?.email ?? null"
+                  [defaultPhone]="clubRepContact()?.cellphone ?? clubRepContact()?.phone ?? null"
+                  (validChange)="onCcValidChange($event)"
+                  (valueChange)="onCcValueChange($event)" />
+              } @else {
+                <app-bank-account-form
+                  [defaultFirstName]="clubRepContact()?.firstName ?? null"
+                  [defaultLastName]="clubRepContact()?.lastName ?? null"
+                  [defaultAddress]="clubRepContact()?.streetAddress ?? null"
+                  [defaultZip]="clubRepContact()?.postalCode ?? null"
+                  [defaultEmail]="clubRepContact()?.email ?? null"
+                  [defaultPhone]="clubRepContact()?.cellphone ?? clubRepContact()?.phone ?? null"
+                  (validChange)="onBaValidChange($event)"
+                  (valueChange)="onBaValueChange($event)" />
+              }
+            </section>
+
+            <button type="button" class="btn btn-primary"
+                    (click)="submitArbTrial()"
+                    [disabled]="!canSubmitArbTrial()">
+              {{ submitting()
+                  ? 'Processing...'
+                  : (arbTrialIsFallback()
+                      ? 'Charge ' + (balanceDue() | currency) + ' Now'
+                      : 'Schedule ' + (balanceDue() | currency) + ' (Deposit + Balance)') }}
+            </button>
+
+            <!-- Per-team results panel — shown only after a partial-success or all-failed submit. -->
+            @if (arbTrialResult(); as r) {
+              @if (!r.success) {
+                <section class="arb-trial-results mt-3 p-3 rounded-3">
+                  <h6 class="fw-semibold mb-2">Results by team</h6>
+                  <table class="table table-sm mb-0">
+                    <thead>
+                      <tr>
+                        <th>Team</th>
+                        <th>Status</th>
+                        <th>Detail</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (team of r.teams; track team.teamId) {
+                        <tr [class.table-success]="team.registered" [class.table-danger]="!team.registered">
+                          <td>{{ teamName(team.teamId) }}</td>
+                          <td>
+                            @if (team.registered) {
+                              <span class="badge bg-success">Registered</span>
+                            } @else {
+                              <span class="badge bg-danger">Failed</span>
+                            }
+                          </td>
+                          <td class="small">
+                            @if (team.registered) {
+                              Deposit {{ team.depositCharge | currency }} on {{ team.depositDate | date:'mediumDate' }};
+                              Balance {{ team.balanceCharge | currency }} on {{ team.balanceDate | date:'mediumDate' }}
+                            } @else {
+                              {{ team.failureReason }}
+                            }
+                          </td>
+                        </tr>
+                      }
+                      @for (notId of r.notAttempted; track notId) {
+                        <tr class="table-secondary">
+                          <td>{{ teamName(notId) }}</td>
+                          <td><span class="badge bg-secondary">Not attempted</span></td>
+                          <td class="small text-muted">Batch stopped at first failure — earlier successes were kept.</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </section>
+              }
+            }
           }
 
           <!-- ═══ CHECK PAYMENT INSTRUCTIONS ═══ -->
@@ -271,6 +425,50 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
         border: 1px solid rgba(var(--bs-info-rgb), 0.15);
       }
 
+      .arb-trial-panel {
+        background: var(--bs-secondary-bg);
+        border: 1px solid var(--bs-border-color-translucent);
+      }
+
+      .schedule-banner {
+        background: rgba(var(--bs-primary-rgb), 0.05);
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+        border-radius: var(--radius-md);
+        padding: var(--space-3);
+      }
+
+      .schedule-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--space-2) 0;
+        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.1);
+
+        &:last-of-type { border-bottom: none; }
+        &.total {
+          margin-top: var(--space-2);
+          padding-top: var(--space-3);
+          border-top: 2px solid rgba(var(--bs-primary-rgb), 0.2);
+          border-bottom: none;
+        }
+      }
+
+      .schedule-label {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+      }
+
+      .schedule-value {
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        font-weight: var(--font-weight-medium);
+      }
+
+      .arb-trial-results {
+        background: var(--bs-secondary-bg);
+        border: 1px solid var(--bs-border-color-translucent);
+      }
+
       .check-field {
         display: flex;
         gap: var(--space-2);
@@ -321,6 +519,7 @@ export class TeamPaymentStepV2Component {
     readonly submitting = signal(false);
     readonly lastError = signal<string | null>(null);
     readonly discountCode = signal('');
+    readonly arbTrialResult = signal<TeamArbTrialPaymentResponseDto | null>(null);
     private lastIdemKey: string | null = null;
 
     readonly clubRepContact = computed(() => this.state.clubRepContact());
@@ -334,10 +533,19 @@ export class TeamPaymentStepV2Component {
     readonly showMethodSelector = computed(() => this.state.teamPayment.showPaymentMethodSelector());
     readonly showCcButton = computed(() => this.state.teamPayment.showCcButton());
     readonly showEcheckButton = computed(() => this.state.teamPayment.showEcheckButton());
+    readonly showArbTrialButton = computed(() => this.state.teamPayment.showArbTrialButton());
     readonly showCheckButton = computed(() => this.state.teamPayment.showCheckButton());
     readonly isCc = computed(() => this.state.teamPayment.isCcPayment());
     readonly isEcheck = computed(() => this.state.teamPayment.isEcheckPayment());
+    readonly isArbTrial = computed(() => this.state.teamPayment.isArbTrialPayment());
     readonly isCheck = computed(() => this.state.teamPayment.isCheckPayment());
+    readonly arbTrialIsFallback = computed(() => this.state.teamPayment.arbTrialIsFallback());
+    readonly arbTrialDepositDate = computed(() => this.state.teamPayment.arbTrialDepositDate());
+    readonly arbTrialBalanceDate = computed(() => this.state.teamPayment.adnStartDateAfterTrial());
+    readonly arbTrialTeamCount = computed(() => this.state.teamPayment.teamIdsWithBalance().length);
+    readonly arbTrialSource = computed(() => this.state.teamPayment.arbTrialSource());
+    /** Show the CC/eCheck sub-picker only when both sources are available on this job. */
+    readonly showArbTrialSourcePicker = computed(() => this.showCcButton() && this.showEcheckButton());
     readonly processingFeeSavings = computed(() => this.state.teamPayment.processingFeeSavings());
     readonly checkAmount = computed(() => this.state.teamPayment.totalCkOwed());
     readonly payTo = computed(() => this.state.teamPayment.payTo());
@@ -367,9 +575,27 @@ export class TeamPaymentStepV2Component {
         this.hasBalance() && this.bankAccountValid() && !this.submitting(),
     );
 
-    selectMethod(method: 'CC' | 'Echeck' | 'Check'): void {
+    /** ARB-Trial submit gate — needs balance + the form valid for the chosen sub-source. */
+    readonly canSubmitArbTrial = computed(() => {
+        if (!this.hasBalance() || this.submitting()) return false;
+        return this.arbTrialSource() === 'CC' ? this.ccValid() : this.bankAccountValid();
+    });
+
+    selectMethod(method: 'CC' | 'Echeck' | 'ArbTrial' | 'Check'): void {
         this.state.teamPayment.selectPaymentMethod(method);
         this.lastError.set(null);
+        this.arbTrialResult.set(null);
+    }
+
+    selectArbTrialSource(src: 'CC' | 'Echeck'): void {
+        this.state.teamPayment.selectArbTrialSource(src);
+        this.lastError.set(null);
+    }
+
+    /** Lookup helper for the per-team result table — falls back to short id when team rolls off the list. */
+    teamName(teamId: string): string {
+        const t = this.registeredTeams().find(x => x.teamId === teamId);
+        return t?.teamName ?? teamId.slice(0, 8);
     }
 
     onCcValidChange(valid: boolean): void { this.ccValid.set(!!valid); }
@@ -514,6 +740,93 @@ export class TeamPaymentStepV2Component {
                     } else {
                         this.lastError.set(resp?.message || 'eCheck submission failed.');
                         this.toast.show(resp?.message || 'eCheck submission failed.', 'danger', 6000);
+                    }
+                },
+                error: (err: HttpErrorResponse) => {
+                    this.submitting.set(false);
+                    const msg = (err.error && typeof err.error === 'object')
+                        ? (err.error.message || JSON.stringify(err.error))
+                        : (err.message || 'Network error');
+                    this.lastError.set(msg);
+                    this.toast.show(msg, 'danger', 6000);
+                },
+            });
+    }
+
+    /**
+     * ARB-Trial submission. Posts to /team-payment/process-arb-trial; capture-what-you-can
+     * means partial-success responses still carry per-team rows we render to the rep.
+     * On full success we refresh metadata so AdnSubscription* fields land on the team rows.
+     */
+    submitArbTrial(): void {
+        if (this.submitting() || !this.canSubmitArbTrial()) return;
+        this.submitting.set(true);
+        this.lastError.set(null);
+        this.arbTrialResult.set(null);
+
+        const teamIds = this.state.teamPayment.teamIdsWithBalance();
+        let creditCard: CreditCardInfo | null = null;
+        let bankAccount: BankAccountInfo | null = null;
+
+        if (this.arbTrialSource() === 'CC') {
+            const cc = this._creditCard();
+            creditCard = {
+                number: cc.number?.trim() || null,
+                expiry: sanitizeExpiry(cc.expiry),
+                code: cc.code?.trim() || null,
+                firstName: cc.firstName?.trim() || null,
+                lastName: cc.lastName?.trim() || null,
+                address: cc.address?.trim() || null,
+                zip: cc.zip?.trim() || null,
+                email: cc.email?.trim() || null,
+                phone: sanitizePhone(cc.phone),
+            };
+        } else {
+            const ba = this._bankAccount();
+            bankAccount = {
+                accountType: (ba['accountType'] || '').trim() || null,
+                routingNumber: sanitizeRouting(ba['routingNumber']),
+                accountNumber: sanitizeAccount(ba['accountNumber']),
+                nameOnAccount: sanitizeNameOnAccount(ba['nameOnAccount']) || null,
+                firstName: ba['firstName']?.trim() || null,
+                lastName: ba['lastName']?.trim() || null,
+                address: ba['address']?.trim() || null,
+                zip: ba['zip']?.trim() || null,
+                email: ba['email']?.trim() || null,
+                phone: sanitizePhone(ba['phone']),
+            };
+        }
+
+        const request: TeamArbTrialPaymentRequestDto = { teamIds, creditCard, bankAccount };
+
+        this.state.teamPayment.submitArbTrialPayment(request)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: (resp: TeamArbTrialPaymentResponseDto) => {
+                    this.submitting.set(false);
+                    this.arbTrialResult.set(resp);
+                    if (resp.success) {
+                        this.state.teamPaymentState.setLastPayment({
+                            amount: this.balanceDue(),
+                            message: resp.message ?? (resp.mode === 'FALLBACK_FULL_CHARGE'
+                                ? 'Payment processed (fallback full charge — balance date had passed)'
+                                : 'Payment plan scheduled — deposit charges tomorrow'),
+                            paymentMethod: this.arbTrialSource() === 'Echeck' ? 'Echeck' : 'CC',
+                        });
+                        // Refresh teams metadata so AdnSubscription* fields appear on the team rows.
+                        this.teamReg.getTeamsMetadata()
+                            .pipe(takeUntilDestroyed(this.destroyRef))
+                            .subscribe({
+                                next: meta => {
+                                    this.state.applyTeamsMetadata(meta);
+                                    this.submitted.emit();
+                                },
+                                error: () => this.submitted.emit(),
+                            });
+                    } else {
+                        const msg = resp.message ?? 'ARB-Trial submission failed.';
+                        this.lastError.set(msg);
+                        this.toast.show(msg, 'danger', 6000);
                     }
                 },
                 error: (err: HttpErrorResponse) => {
