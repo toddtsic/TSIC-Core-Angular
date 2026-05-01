@@ -82,6 +82,15 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams.FindAsync(new object[] { teamId }, cancellationToken);
     }
 
+    public async Task<Teams?> GetByAdnSubscriptionIdAsync(
+        string adnSubscriptionId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .Include(t => t.Job)
+            .FirstOrDefaultAsync(t => t.AdnSubscriptionId == adnSubscriptionId, cancellationToken);
+    }
+
     public void Add(Teams team)
     {
         _context.Teams.Add(team);

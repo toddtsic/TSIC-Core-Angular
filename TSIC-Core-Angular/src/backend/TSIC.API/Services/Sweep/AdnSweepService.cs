@@ -31,6 +31,7 @@ public sealed class AdnSweepService : IAdnSweepService
     private readonly IEcheckSettlementRepository _settleRepo;
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IRegistrationRepository _regRepo;
+    private readonly ITeamRepository _teamRepo;
     private readonly IArbSubscriptionRepository _arbRepo;
     private readonly IAdnApiService _adn;
     private readonly IRegistrationFeeAdjustmentService _feeAdj;
@@ -43,6 +44,7 @@ public sealed class AdnSweepService : IAdnSweepService
         IEcheckSettlementRepository settleRepo,
         IRegistrationAccountingRepository accountingRepo,
         IRegistrationRepository regRepo,
+        ITeamRepository teamRepo,
         IArbSubscriptionRepository arbRepo,
         IAdnApiService adn,
         IRegistrationFeeAdjustmentService feeAdj,
@@ -54,6 +56,7 @@ public sealed class AdnSweepService : IAdnSweepService
         _settleRepo = settleRepo;
         _accountingRepo = accountingRepo;
         _regRepo = regRepo;
+        _teamRepo = teamRepo;
         _arbRepo = arbRepo;
         _adn = adn;
         _feeAdj = feeAdj;
@@ -234,15 +237,32 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
-        // Resolve registration via subscription id.
-        var reg = await _regRepo.GetByAdnSubscriptionIdAsync(tx.subscription.id.ToString(), ct);
-        if (reg == null)
+        var subId = tx.subscription.id.ToString();
+
+        // Two ARB sub flavors share the same subscription-id namespace at ADN:
+        //   1. Player ARB (legacy) — sub stamped on Registrations.AdnSubscriptionId.
+        //   2. Team ARB-Trial      — sub stamped on Teams.AdnSubscriptionId (per-team).
+        // Try registration first (covers the long-standing player flow), then team.
+        var reg = await _regRepo.GetByAdnSubscriptionIdAsync(subId, ct);
+        if (reg != null)
         {
-            _logger.LogWarning("ARB tx {TxId} has no matching registration for subscription {SubId}",
-                tx.transId, tx.subscription.id);
-            return null;
+            return await ImportRegistrationArbTransactionAsync(tx, reg, env, creds, ct);
         }
 
+        var team = await _teamRepo.GetByAdnSubscriptionIdAsync(subId, ct);
+        if (team != null)
+        {
+            return await ImportTeamArbTransactionAsync(tx, team, env, creds, ct);
+        }
+
+        _logger.LogWarning("ARB tx {TxId} has no matching registration or team for subscription {SubId}",
+            tx.transId, subId);
+        return null;
+    }
+
+    private async Task<ArbDigestRow?> ImportRegistrationArbTransactionAsync(
+        transactionSummaryType tx, Registrations reg, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
+    {
         // Sync ADN-known subscription status to registration record (only on Ok response).
         var subStatusResp = _adn.GetSubscriptionStatus(env, creds.AdnLoginId!, creds.AdnTransactionKey!, reg.AdnSubscriptionId!);
         if (subStatusResp?.messages?.resultCode == messageTypeEnum.Ok)
@@ -260,7 +280,6 @@ public sealed class AdnSweepService : IAdnSweepService
                 tx.transId, subStatusResp?.messages?.resultCode);
         }
 
-        // Pull tx details for CC last-4 / expiry.
         var txDetail = _adn.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, tx.transId);
         if (txDetail?.messages?.resultCode != messageTypeEnum.Ok || txDetail.transaction == null)
         {
@@ -305,7 +324,6 @@ public sealed class AdnSweepService : IAdnSweepService
 
         await _accountingRepo.SaveChangesAsync(ct);
 
-        // Compute installment math for digest.
         var (owedNow, paymentXofY, nextInstallment) = ComputeInstallmentMath(reg);
 
         return new ArbDigestRow
@@ -323,6 +341,121 @@ public sealed class AdnSweepService : IAdnSweepService
             RegistrantAssignment = reg.Assignment
         };
     }
+
+    private async Task<ArbDigestRow?> ImportTeamArbTransactionAsync(
+        transactionSummaryType tx, Domain.Entities.Teams team, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
+    {
+        // Sync ADN-known subscription status onto the team row (no separate ARB repo
+        // method for teams — direct mutation on the tracked entity).
+        var subStatusResp = _adn.GetSubscriptionStatus(env, creds.AdnLoginId!, creds.AdnTransactionKey!, team.AdnSubscriptionId!);
+        if (subStatusResp?.messages?.resultCode == messageTypeEnum.Ok)
+        {
+            var liveSubStatus = subStatusResp.status.ToString();
+            if (!string.IsNullOrEmpty(liveSubStatus) && team.AdnSubscriptionStatus != liveSubStatus)
+            {
+                team.AdnSubscriptionStatus = liveSubStatus;
+                team.Modified = DateTime.Now;
+                team.LebUserId = SystemUserId;
+            }
+        }
+        else
+        {
+            _logger.LogWarning("ARB-Trial tx {TxId}: GetSubscriptionStatus returned non-Ok ({Code}); leaving local status as-is",
+                tx.transId, subStatusResp?.messages?.resultCode);
+        }
+
+        var txDetail = _adn.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, tx.transId);
+        if (txDetail?.messages?.resultCode != messageTypeEnum.Ok || txDetail.transaction == null)
+        {
+            _logger.LogWarning("ARB-Trial tx {TxId}: GetTransactionDetails returned no data", tx.transId);
+            return null;
+        }
+
+        // ARB-Trial subs can be CC or eCheck. Pull last-4 from whichever payment shape applies.
+        string? cc4 = null, ccExp = null, acctLast4 = null;
+        switch (txDetail.transaction.payment?.Item)
+        {
+            case creditCardMaskedType cc:
+                cc4 = cc.cardNumber?.Length >= 4 ? cc.cardNumber[^4..] : null;
+                ccExp = cc.expirationDate;
+                break;
+            case bankAccountMaskedType ba:
+                acctLast4 = ba.accountNumber?.Length >= 4 ? ba.accountNumber[^4..] : null;
+                break;
+        }
+
+        var settleAmount = tx.transactionStatus == "settledSuccessfully" ? tx.settleAmount : 0;
+        var clubRepRegId = team.ClubrepRegistrationid;
+
+        // Write the per-tx accounting row against the rep's Registrations row but
+        // tag it with TeamId so refunds/audits can resolve back to the originating
+        // team without a DB scan.
+        _accountingRepo.Add(new RegistrationAccounting
+        {
+            RegistrationId = clubRepRegId ?? Guid.Empty,
+            TeamId = team.TeamId,
+            Active = true,
+            AdnCc4 = cc4,
+            AdnCcexpDate = ccExp,
+            AdnInvoiceNo = tx.invoiceNumber,
+            AdnTransactionId = tx.transId,
+            Dueamt = settleAmount,
+            Payamt = settleAmount,
+            Paymeth = cc4 != null
+                ? $"paid by cc: {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}"
+                : $"paid by eCheck (****{acctLast4}): {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}",
+            PaymentMethodId = CcPaymentMethodId,
+            Comment = $"{tx.transactionStatus} (team subscriptionId: {tx.subscription.id} {txDetail.transaction.responseReasonDescription})",
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now,
+            LebUserId = SystemUserId
+        });
+
+        if (tx.transactionStatus == "settledSuccessfully")
+        {
+            team.PaidTotal = (team.PaidTotal ?? 0m) + settleAmount;
+            team.OwedTotal = (team.OwedTotal ?? 0m) - settleAmount;
+            if ((team.OwedTotal ?? 0m) < 0m) team.OwedTotal = 0m;
+            team.Modified = DateTime.Now;
+            team.LebUserId = SystemUserId;
+        }
+
+        await _accountingRepo.SaveChangesAsync(ct);
+        await _teamRepo.SaveChangesAsync(ct);
+
+        // Roll team-level deltas (PaidTotal, OwedTotal, status changes) onto the rep's
+        // Registrations row so search/balance UI shows the post-sweep aggregate.
+        if (clubRepRegId.HasValue && clubRepRegId.Value != Guid.Empty)
+        {
+            await _registrations_SyncRep(clubRepRegId.Value, ct);
+        }
+
+        var (owedNow, paymentXofY, nextInstallment) = ComputeTeamInstallmentMath(team);
+
+        var registrant = team.ClubrepId ?? "";
+        var assignment = $"{team.TeamName ?? team.DisplayName ?? team.TeamFullName}";
+
+        return new ArbDigestRow
+        {
+            JobName = team.Job?.DisplayName ?? team.Job?.JobName ?? "",
+            TransId = tx.transId,
+            SubscriptionId = tx.subscription.id.ToString(),
+            SubscriptionStatus = team.AdnSubscriptionStatus,
+            SettleAmount = settleAmount,
+            TransactionStatus = tx.transactionStatus,
+            OwedNow = owedNow,
+            PaymentXofY = paymentXofY,
+            NextInstallment = nextInstallment,
+            Registrant = registrant,
+            RegistrantAssignment = assignment
+        };
+    }
+
+    // Small wrapper to keep the team ARB / NSF paths agnostic about which Registrations
+    // method does the rep aggregation. SynchronizeClubRepFinancialsAsync is the single
+    // canonical roll-up point.
+    private Task _registrations_SyncRep(Guid clubRepRegistrationId, CancellationToken ct)
+        => _regRepo.SynchronizeClubRepFinancialsAsync(clubRepRegistrationId, SystemUserId, ct);
 
     // ── eCheck Pending → Settled ─────────────────────────────────────
 
@@ -418,13 +551,44 @@ public sealed class AdnSweepService : IAdnSweepService
         settlement.LastCheckedAt = now;
         settlement.Modified = now;
 
-        // Reverse payment on the registration; recompute totals after fee restore.
-        reg.PaidTotal -= amount;
-        await _feeAdj.ReverseProcessingFeeForEcheckAsync(reg, amount, reg.JobId, SystemUserId);
-        reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
-        reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-        reg.Modified = now;
-        reg.LebUserId = SystemUserId;
+        // Two NSF flavors share this method:
+        //   - Player eCheck:    RA.TeamId is null → reverse on the player Registration directly.
+        //   - Team eCheck/ARB-Trial fallback: RA.TeamId is set → reverse on the Teams row,
+        //     then re-aggregate onto the rep's Registration via SynchronizeClubRepFinancialsAsync.
+        // The earlier ReduceTeamProcessingFeeForEcheckAsync (applied at submit) is mirrored
+        // here by ReverseTeamProcessingFeeForEcheckAsync. ARB-Trial fallback follows the same
+        // pattern, so this single branch covers both.
+        if (ra.TeamId.HasValue)
+        {
+            var team = await _teamRepo.GetTeamFromTeamId(ra.TeamId.Value, ct);
+            if (team == null)
+            {
+                _logger.LogWarning("Settlement {Id}: RA.TeamId {TeamId} not found — falling back to registration-side reversal",
+                    settlement.SettlementId, ra.TeamId);
+            }
+            else
+            {
+                team.PaidTotal = (team.PaidTotal ?? 0m) - amount;
+                await _feeAdj.ReverseTeamProcessingFeeForEcheckAsync(team, amount, reg.JobId, SystemUserId);
+                team.FeeTotal = (team.FeeBase ?? 0m)
+                    + (team.FeeProcessing ?? 0m)
+                    - (team.FeeDiscount ?? 0m) - (team.FeeDiscountMp ?? 0m)
+                    + (team.FeeDonation ?? 0m) + (team.FeeLatefee ?? 0m);
+                team.OwedTotal = (team.FeeTotal ?? 0m) - (team.PaidTotal ?? 0m);
+                team.Modified = now;
+                team.LebUserId = SystemUserId;
+            }
+        }
+        else
+        {
+            // Reverse payment on the registration; recompute totals after fee restore.
+            reg.PaidTotal -= amount;
+            await _feeAdj.ReverseProcessingFeeForEcheckAsync(reg, amount, reg.JobId, SystemUserId);
+            reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
+            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+            reg.Modified = now;
+            reg.LebUserId = SystemUserId;
+        }
 
         // Write the reversal RA row.
         _accountingRepo.Add(new RegistrationAccounting
@@ -443,6 +607,14 @@ public sealed class AdnSweepService : IAdnSweepService
         });
 
         await _settleRepo.SaveChangesAsync(ct);
+
+        // For team-side reversals, roll the team delta onto the rep aggregate. Doing
+        // this AFTER SaveChanges so the team's reversed PaidTotal/OwedTotal are visible
+        // to SynchronizeClubRepFinancialsAsync's sum query.
+        if (ra.TeamId.HasValue && ra.RegistrationId.HasValue && ra.RegistrationId.Value != Guid.Empty)
+        {
+            await _registrations_SyncRep(ra.RegistrationId.Value, ct);
+        }
 
         // Best-effort director email — capture success for the digest.
         bool directorNotified;
@@ -499,6 +671,33 @@ public sealed class AdnSweepService : IAdnSweepService
     }
 
     // ── Installment math (legacy parity) ──────────────────────────────
+
+    // Team ARB-Trial subs run on day-based intervals (deposit today+1, balance on
+    // AdnStartDateAfterTrial), so the schedule is always exactly two charges and
+    // the next-installment math operates on AddDays, not AddMonths.
+    private (decimal OwedNow, string PaymentXofY, DateTime? NextInstallment) ComputeTeamInstallmentMath(Domain.Entities.Teams team)
+    {
+        if (team.AdnSubscriptionStartDate == null
+            || team.AdnSubscriptionIntervalLength == null
+            || team.AdnSubscriptionBillingOccurences == null
+            || team.AdnSubscriptionAmountPerOccurence == null)
+        {
+            return (Math.Max(team.OwedTotal ?? 0m, 0m), "", null);
+        }
+
+        var totalOcc = team.AdnSubscriptionBillingOccurences.Value;
+        var startDate = team.AdnSubscriptionStartDate.Value;
+        var intervalDays = team.AdnSubscriptionIntervalLength.Value;
+
+        // Deposit happens at startDate; subsequent occurrences at startDate + N*intervalDays.
+        var dates = Enumerable.Range(0, totalOcc).Select(i => startDate.AddDays(i * intervalDays)).ToList();
+        var occAsOfNow = dates.Count(d => d.Date <= DateTime.Now.Date);
+
+        var paymentXofY = $"{occAsOfNow}/{totalOcc}";
+        var nextInstallment = occAsOfNow < dates.Count ? dates[occAsOfNow] : (DateTime?)null;
+        var owedNow = Math.Max(team.OwedTotal ?? 0m, 0m);
+        return (owedNow, paymentXofY, nextInstallment);
+    }
 
     private (decimal OwedNow, string PaymentXofY, DateTime? NextInstallment) ComputeInstallmentMath(Registrations reg)
     {

@@ -143,6 +143,16 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get tracked team by ADN ARB subscription ID. Used by the daily sweep to resolve
+    /// team-side subscription transactions (ARB-Trial deposits/balances) back to the
+    /// team that owns them. Returns null when the subscription belongs to a player
+    /// registration instead — caller should fall back to <see cref="IRegistrationRepository.GetByAdnSubscriptionIdAsync"/>.
+    /// </summary>
+    Task<Teams?> GetByAdnSubscriptionIdAsync(
+        string adnSubscriptionId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Add new team (does NOT call SaveChanges).
     /// </summary>
     void Add(Teams team);

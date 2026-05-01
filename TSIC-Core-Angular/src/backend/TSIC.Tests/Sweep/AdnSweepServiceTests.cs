@@ -39,6 +39,7 @@ public class AdnSweepServiceTests
     private readonly Mock<IEcheckSettlementRepository> _settleRepo = new();
     private readonly Mock<IRegistrationAccountingRepository> _accountingRepo = new();
     private readonly Mock<IRegistrationRepository> _regRepo = new();
+    private readonly Mock<ITeamRepository> _teamRepo = new();
     private readonly Mock<IArbSubscriptionRepository> _arbRepo = new();
     private readonly Mock<IAdnApiService> _adn = new();
     private readonly Mock<IRegistrationFeeAdjustmentService> _feeAdj = new();
@@ -51,6 +52,7 @@ public class AdnSweepServiceTests
         _settleRepo.Object,
         _accountingRepo.Object,
         _regRepo.Object,
+        _teamRepo.Object,
         _arbRepo.Object,
         _adn.Object,
         _feeAdj.Object,
@@ -732,6 +734,218 @@ public class AdnSweepServiceTests
 
         reg.AdnSubscriptionStatus.Should().Be("active", "non-Ok ADN response must not overwrite local status");
         _arbRepo.Verify(a => a.UpdateSubscriptionStatusAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    // ── Team-side ARB-Trial subscription handling ─────────────────────
+
+    private static Teams BuildTeam(decimal owed = 510m, string subId = "888", string subStatus = "active", string jobName = "Trial Tournament")
+    {
+        var jobId = Guid.NewGuid();
+        return new Teams
+        {
+            TeamId = Guid.NewGuid(),
+            JobId = jobId,
+            AgegroupId = Guid.NewGuid(),
+            ClubrepRegistrationid = Guid.NewGuid(),
+            ClubrepId = "club-rep-user",
+            TeamName = "U10 Red",
+            AdnSubscriptionId = subId,
+            AdnSubscriptionStatus = subStatus,
+            AdnSubscriptionStartDate = DateTime.Now.Date.AddDays(-1),
+            AdnSubscriptionIntervalLength = 30,
+            AdnSubscriptionBillingOccurences = 2,
+            AdnSubscriptionAmountPerOccurence = 310.50m,
+            FeeBase = 500m,
+            FeeProcessing = 10.50m,
+            FeeTotal = 510.50m,
+            OwedTotal = owed,
+            PaidTotal = 0m,
+            Active = true,
+            TeamAi = 1,
+            Modified = DateTime.UtcNow,
+            Job = new Jobs { JobId = jobId, JobName = jobName, DisplayName = jobName }
+        };
+    }
+
+    [Fact(DisplayName = "ARB tx for team-side sub → team financials updated, rep aggregate synced")]
+    public async Task Arb_TeamSide_Settled_UpdatesTeamAndSyncsRep()
+    {
+        var team = BuildTeam(owed: 510m, subId: "888");
+        StubSweepLogAndCreds();
+        var tx = ArbTxSummary("settledSuccessfully", 200m, "888", "TX-TEAM-DEPOSIT", "TSIC_100_1");
+        StubBatchListWith(tx);
+        StubArbTxDetails("TX-TEAM-DEPOSIT", "888", 200m);
+        StubSubStatus("888", ARBSubscriptionStatusEnum.active);
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("TX-TEAM-DEPOSIT", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        // Registration lookup MISSES (sub belongs to a team)
+        _regRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("888", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Registrations?)null);
+        _teamRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("888", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(team);
+
+        RegistrationAccounting? capturedRa = null;
+        _accountingRepo.Setup(a => a.Add(It.IsAny<RegistrationAccounting>()))
+            .Callback<RegistrationAccounting>(ra => capturedRa = ra);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.ArbImported.Should().Be(1);
+        result.Errored.Should().Be(0);
+        team.PaidTotal.Should().Be(200m, "settled deposit increments team PaidTotal");
+        team.OwedTotal.Should().Be(310m, "OwedTotal drops by the settled amount");
+        // RA tagged with both rep RegistrationId AND TeamId so refunds/audits resolve cleanly.
+        capturedRa.Should().NotBeNull();
+        capturedRa!.RegistrationId.Should().Be(team.ClubrepRegistrationid);
+        capturedRa.TeamId.Should().Be(team.TeamId);
+        capturedRa.AdnTransactionId.Should().Be("TX-TEAM-DEPOSIT");
+        // Rep aggregate sync fires AFTER the team save so it reads the new team totals.
+        _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(
+            team.ClubrepRegistrationid!.Value, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "ARB tx subId belongs to neither registration nor team → logged + skipped")]
+    public async Task Arb_OrphanSub_NoRegOrTeam_Skipped()
+    {
+        StubSweepLogAndCreds();
+        var tx = ArbTxSummary("settledSuccessfully", 100m, "999", "TX-ORPHAN", "TSIC_100_1");
+        StubBatchListWith(tx);
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("TX-ORPHAN", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _regRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("999", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Registrations?)null);
+        _teamRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("999", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Teams?)null);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.ArbImported.Should().Be(0);
+        result.Errored.Should().Be(0);
+        _accountingRepo.Verify(a => a.Add(It.IsAny<RegistrationAccounting>()), Times.Never);
+        _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "ARB tx for team-side: registration lookup tried first, team lookup is fallback")]
+    public async Task Arb_TeamSide_RegistrationCheckedFirst()
+    {
+        var team = BuildTeam(owed: 510m, subId: "888");
+        StubSweepLogAndCreds();
+        var tx = ArbTxSummary("settledSuccessfully", 200m, "888", "TX-LOOKUP", "TSIC_100_1");
+        StubBatchListWith(tx);
+        StubArbTxDetails("TX-LOOKUP", "888", 200m);
+        StubSubStatus("888");
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _regRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("888", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Registrations?)null);
+        _teamRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("888", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(team);
+
+        await BuildSut().RunAsync("Test");
+
+        _regRepo.Verify(r => r.GetByAdnSubscriptionIdAsync("888", It.IsAny<CancellationToken>()), Times.Once);
+        _teamRepo.Verify(r => r.GetByAdnSubscriptionIdAsync("888", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "eCheck NSF on RA with TeamId → team financials reversed + rep aggregate synced")]
+    public async Task EcheckReturn_TeamSide_ReversesOnTeamAndSyncsRep()
+    {
+        var team = BuildTeam(owed: 0m, subId: "888"); // optimistic credit applied at submit
+        team.PaidTotal = 510.50m;
+        team.OwedTotal = 0m;
+
+        // Build a Settlement whose RA carries a TeamId — this is the team eCheck path.
+        var ra = new RegistrationAccounting
+        {
+            AId = 42,
+            RegistrationId = team.ClubrepRegistrationid,
+            TeamId = team.TeamId,
+            Payamt = 510.50m,
+            Registration = new Registrations
+            {
+                RegistrationId = team.ClubrepRegistrationid!.Value,
+                JobId = team.JobId,
+                UserId = "club-rep-user",
+                FeeBase = 500m,
+                FeeProcessing = 10.50m,
+                FeeTotal = 510.50m,
+                PaidTotal = 510.50m,
+                OwedTotal = 0m,
+                Job = new Jobs { JobName = "Trial Tournament", DisplayName = "Trial Tournament" }
+            }
+        };
+        var settlement = new Settlement
+        {
+            SettlementId = Guid.NewGuid(),
+            RegistrationAccountingId = 42,
+            RegistrationAccounting = ra,
+            AdnTransactionId = "ORIG-TEAM-100",
+            Status = "Pending",
+            SubmittedAt = DateTime.UtcNow.AddDays(-3)
+        };
+
+        StubSweepLogAndCreds();
+        var tx = EcheckReturnSummary("RETURN-TEAM-200");
+        StubBatchListWith(tx);
+        StubEcheckReturnDetails("RETURN-TEAM-200", originalTxId: "ORIG-TEAM-100", reasonCode: 252, reasonDesc: "NSF");
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("RETURN-TEAM-200", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
+                It.Is<IEnumerable<string>>(ids => ids.Contains("ORIG-TEAM-100")), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([settlement]);
+        _teamRepo.Setup(r => r.GetTeamFromTeamId(team.TeamId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(team);
+        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DirectorContactInfo?)null);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.EcheckReturnsProcessed.Should().Be(1);
+        settlement.Status.Should().Be("Returned");
+
+        // Reversal lands on the TEAM, not the rep registration directly.
+        team.PaidTotal.Should().Be(0m);
+        _feeAdj.Verify(f => f.ReverseTeamProcessingFeeForEcheckAsync(
+            team, 510.50m, team.JobId, It.IsAny<string>()), Times.Once);
+        // Player-side reversal must NOT run for team-side NSFs.
+        _feeAdj.Verify(f => f.ReverseProcessingFeeForEcheckAsync(
+            It.IsAny<Registrations>(), It.IsAny<decimal>(), It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
+        // Rep aggregate is rolled up after the team reversal.
+        _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(
+            team.ClubrepRegistrationid.Value, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "eCheck NSF on player RA (no TeamId) → existing player path runs, no team sync")]
+    public async Task EcheckReturn_PlayerSide_RegressionGuard()
+    {
+        // Use the existing BuildSettlement helper (no TeamId) to confirm we didn't break the
+        // long-standing player path while adding the team branch.
+        var settlement = BuildSettlement("ORIG-PLAYER", payAmount: 75m);
+        var reg = settlement.RegistrationAccounting.Registration!;
+        StubSweepLogAndCreds();
+        var tx = EcheckReturnSummary("RETURN-PLAYER");
+        StubBatchListWith(tx);
+        StubEcheckReturnDetails("RETURN-PLAYER", originalTxId: "ORIG-PLAYER");
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("RETURN-PLAYER", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
+                It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([settlement]);
+        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((DirectorContactInfo?)null);
+
+        await BuildSut().RunAsync("Test");
+
+        // Player-side reversal runs.
+        _feeAdj.Verify(f => f.ReverseProcessingFeeForEcheckAsync(
+            reg, 75m, reg.JobId, It.IsAny<string>()), Times.Once);
+        // Team-side reversal does NOT run.
+        _feeAdj.Verify(f => f.ReverseTeamProcessingFeeForEcheckAsync(
+            It.IsAny<Teams>(), It.IsAny<decimal>(), It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
+        // No rep aggregate sync for the player path.
+        _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(
             It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }
