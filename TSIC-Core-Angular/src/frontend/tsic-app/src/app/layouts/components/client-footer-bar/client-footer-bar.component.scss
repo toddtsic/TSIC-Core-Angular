@@ -30,6 +30,21 @@
                 font-weight: var(--font-weight-medium);
             }
 
+            .env-badge {
+                font-size: var(--font-size-xs);
+                font-weight: var(--font-weight-bold);
+                letter-spacing: 0.05em;
+                padding: 2px var(--space-2);
+                border-radius: var(--radius-sm, 4px);
+                color: var(--brand-text-on-warning, #000);
+                background: var(--bs-warning);
+                border: 1px solid var(--brand-border);
+
+                &.env-badge--development {
+                    background: var(--bs-info);
+                }
+            }
+
             .separator {
                 color: var(--brand-border);
                 user-select: none;

@@ -5,6 +5,7 @@ using MimeKit;
 using System.Net;
 using System.IO;
 using System.Linq;
+using TSIC.API.Extensions;
 using TSIC.Domain.Constants;
 using TSIC.Contracts.Services;
 
@@ -47,9 +48,9 @@ public sealed class EmailService : IEmailService
             return true;
         }
 
-        if (_env.IsDevelopment() && !sendInDevelopment)
+        if (_env.IsSandbox() && !sendInDevelopment)
         {
-            _logger.LogInformation("Development environment and sendInDevelopment flag false; skipping SES transmission.");
+            _logger.LogInformation("Sandbox environment (non-Phoenix) and sendInDevelopment flag false; skipping SES transmission.");
             return true;
         }
 

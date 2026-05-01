@@ -43,10 +43,10 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "API build complete!" -ForegroundColor Green
 Write-Host ""
 
-# ── Step 2: Build Angular ───────────────────────────────────────────
-Write-Host "Step 2: Building Angular..." -ForegroundColor Yellow
+# ── Step 2: Build Angular (Staging configuration) ──────────────────
+Write-Host "Step 2: Building Angular (configuration=staging)..." -ForegroundColor Yellow
 $scriptPath = Join-Path $PSScriptRoot "1b-Build-Angular.ps1"
-& $scriptPath
+& $scriptPath -Configuration staging
 if ($LASTEXITCODE -ne 0) {
     Write-Host "Angular build failed!" -ForegroundColor Red
     exit 1
@@ -104,10 +104,13 @@ Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue | Where-Object { $
 Write-Host "  Copying API files..." -ForegroundColor White
 Copy-Item "$ApiSource\*" $ApiTarget -Recurse -Force
 
-# Copy web.config template if available
-$apiConfigSrc = Join-Path $PSScriptRoot "web.config.api"
+# Copy web.config template (staging variant declares ASPNETCORE_ENVIRONMENT=Staging)
+$apiConfigSrc = Join-Path $PSScriptRoot "web.config.api.staging"
 if (Test-Path $apiConfigSrc) {
     Copy-Item $apiConfigSrc (Join-Path $ApiTarget "web.config") -Force
+} else {
+    Write-Host "  web.config.api.staging template not found at $apiConfigSrc" -ForegroundColor Red
+    exit 1
 }
 
 # Deploy Angular

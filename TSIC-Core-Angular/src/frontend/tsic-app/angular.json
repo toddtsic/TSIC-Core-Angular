@@ -66,7 +66,28 @@
               "fileReplacements": [
                 {
                   "replace": "src/environments/environment.ts",
-                  "with": "src/environments/environment.prod.ts"
+                  "with": "src/environments/environment.production.ts"
+                }
+              ]
+            },
+            "staging": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "5.0MB",
+                  "maximumError": "6.0MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "32kB",
+                  "maximumError": "48kB"
+                }
+              ],
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.staging.ts"
                 }
               ]
             },
@@ -82,7 +103,7 @@
               ]
             }
           },
-          "defaultConfiguration": "production"
+          "defaultConfiguration": "staging"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
@@ -97,6 +118,9 @@
           "configurations": {
             "production": {
               "buildTarget": "tsic-app:build:production"
+            },
+            "staging": {
+              "buildTarget": "tsic-app:build:staging"
             },
             "development": {
               "buildTarget": "tsic-app:build:development"

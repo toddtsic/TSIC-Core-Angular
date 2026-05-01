@@ -1,6 +1,10 @@
 <footer class="client-footer">
     <div class="footer-content">
         <div class="footer-info">
+            @if (envBadge) {
+                <span class="env-badge env-badge--{{ envName }}">{{ envBadge }}</span>
+                <span class="separator">•</span>
+            }
             <span class="copyright">© {{ currentYear }} TeamSportsInfo.com</span>
             <span class="separator">•</span>
             <span class="tagline">Stay connected on and off the field</span>

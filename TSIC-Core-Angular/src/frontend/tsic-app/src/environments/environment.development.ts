@@ -1,4 +1,5 @@
 ﻿export const environment = {
+  envName: 'development',
   production: false,
   apiUrl: 'https://localhost:7215/api',
   staticsUrl: 'https://statics.teamsportsinfo.com',

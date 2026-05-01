@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.VerticalInsure;
 using TSIC.Domain.Entities;
@@ -335,7 +336,7 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         // Hard-coded client id selection (dev vs prod)
         const string DEV_CLIENT_ID = "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U";
         const string PROD_CLIENT_ID = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
-        var clientId = _env.IsDevelopment() ? DEV_CLIENT_ID : PROD_CLIENT_ID;
+        var clientId = _env.IsSandbox() ? DEV_CLIENT_ID : PROD_CLIENT_ID;
         return new VIPlayerObjectResponse
         {
             ClientId = clientId,
@@ -361,7 +362,7 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
     private (string clientId, string clientSecret) ResolveCredentials()
     {
         var s = _options.Value;
-        if (_env.IsDevelopment())
+        if (_env.IsSandbox())
         {
             var clientId = s.DevClientId ?? Environment.GetEnvironmentVariable("VI_DEV_CLIENT_ID") ?? string.Empty;
             var clientSecret = s.DevSecret ?? Environment.GetEnvironmentVariable("VI_DEV_SECRET") ?? string.Empty;

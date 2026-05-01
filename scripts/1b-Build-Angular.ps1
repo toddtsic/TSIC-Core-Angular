@@ -3,12 +3,15 @@
 
 param(
     [string]$AngularPath = "$PSScriptRoot\..\TSIC-Core-Angular\src\frontend\tsic-app",
-    [string]$OutputPath = "$PSScriptRoot\..\publish\angular"
+    [string]$OutputPath = "$PSScriptRoot\..\publish\angular",
+    [ValidateSet("staging", "production")]
+    [string]$Configuration = "staging"
 )
 
 Write-Host "Building TSIC Angular Application..." -ForegroundColor Green
-Write-Host "Angular Path: $AngularPath" -ForegroundColor Yellow
-Write-Host "Output Path: $OutputPath" -ForegroundColor Yellow
+Write-Host "Angular Path:  $AngularPath" -ForegroundColor Yellow
+Write-Host "Output Path:   $OutputPath" -ForegroundColor Yellow
+Write-Host "Configuration: $Configuration" -ForegroundColor Yellow
 
 # Check if Angular project exists
 if (!(Test-Path $AngularPath)) {
@@ -48,8 +51,8 @@ Get-ChildItem $envDir -Filter "environment*.ts" | ForEach-Object {
 }
 
 # Build Angular application
-Write-Host "Building Angular application for production..." -ForegroundColor Cyan
-npm run build -- --configuration production
+Write-Host "Building Angular application (configuration=$Configuration)..." -ForegroundColor Cyan
+npm run build -- --configuration $Configuration
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Angular build failed!"
     exit 1

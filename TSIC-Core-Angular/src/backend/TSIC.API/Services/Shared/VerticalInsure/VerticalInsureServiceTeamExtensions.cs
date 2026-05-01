@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.VerticalInsure;
 using TSIC.Domain.Entities;
@@ -328,7 +329,7 @@ public partial class VerticalInsureService
     {
         const string DEV_CLIENT_ID = "test_GREVHKFHJY87CGWW9RF15JD50W5PPQ7U";
         const string PROD_CLIENT_ID = "live_VJ8O8O81AZQ8MCSKWM98928597WUHSMS";
-        var clientId = _env.IsDevelopment() ? DEV_CLIENT_ID : PROD_CLIENT_ID;
+        var clientId = _env.IsSandbox() ? DEV_CLIENT_ID : PROD_CLIENT_ID;
 
         return new VITeamObjectResponse
         {

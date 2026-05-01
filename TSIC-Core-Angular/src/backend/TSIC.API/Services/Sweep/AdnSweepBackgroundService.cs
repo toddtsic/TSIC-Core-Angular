@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using TSIC.API.Configuration;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Services.Sweep;
@@ -13,20 +14,35 @@ public sealed class AdnSweepBackgroundService : BackgroundService
 {
     private readonly IServiceProvider _services;
     private readonly AdnSweepOptions _options;
+    private readonly IHostEnvironment _env;
     private readonly ILogger<AdnSweepBackgroundService> _logger;
 
     public AdnSweepBackgroundService(
         IServiceProvider services,
         IOptions<AdnSweepOptions> options,
+        IHostEnvironment env,
         ILogger<AdnSweepBackgroundService> logger)
     {
         _services = services;
         _options = options.Value;
+        _env = env;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Hard guard: this sweep walks settled batches in REAL prod authorize.net. Only TSIC-PHOENIX
+        // may run it. Any other host (dev box / Staging, local, CI) self-disables regardless of
+        // ASPNETCORE_ENVIRONMENT or AdnSweepOptions.Enabled.
+        if (!_env.IsLiveProduction())
+        {
+            _logger.LogInformation(
+                "AdnSweepBackgroundService skipped: host is not TSIC-PHOENIX (machine={MachineName}, env={EnvName}).",
+                System.Environment.MachineName,
+                _env.EnvironmentName);
+            return;
+        }
+
         if (!_options.Enabled)
         {
             _logger.LogInformation("AdnSweepBackgroundService disabled via config; exiting.");

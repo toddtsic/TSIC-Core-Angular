@@ -11,4 +11,8 @@ import { environment } from '../../../../environments/environment';
 export class ClientFooterBarComponent {
     readonly currentYear = new Date().getFullYear();
     readonly buildVersion = environment.buildVersion;
+    readonly envName = environment.envName;
+    readonly envBadge = this.envName === 'production' ? null
+        : this.envName === 'staging' ? 'STAGING'
+        : 'DEV';
 }

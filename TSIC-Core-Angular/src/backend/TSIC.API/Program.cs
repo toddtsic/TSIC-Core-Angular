@@ -69,6 +69,34 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ── Environment ↔ machine guard ─────────────────────────────────────
+// The host machine name must agree with ASPNETCORE_ENVIRONMENT. Production runs
+// only on TSIC-PHOENIX; Staging/Development run anywhere else. Catches deployments
+// where appsettings overlay is wrong (e.g., a Phoenix-aimed bundle on the dev box).
+{
+    var envName = builder.Environment.EnvironmentName;
+    var machine = System.Environment.MachineName;
+    const string ProdMachine = "TSIC-PHOENIX";
+    var isProdMachine = string.Equals(machine, ProdMachine, StringComparison.OrdinalIgnoreCase);
+
+    var ok = envName switch
+    {
+        "Production" => isProdMachine,
+        "Staging" or "Development" => !isProdMachine,
+        "Testing" => true,
+        _ => false
+    };
+
+    if (!ok)
+    {
+        throw new InvalidOperationException(
+            $"Environment/machine mismatch: ASPNETCORE_ENVIRONMENT='{envName}' but MachineName='{machine}'. "
+            + $"Production must run on '{ProdMachine}'; Staging/Development must NOT run on it.");
+    }
+
+    Console.WriteLine($"[startup] env={envName} machine={machine}");
+}
+
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache(); // Add memory cache for refresh tokens
@@ -600,6 +628,20 @@ Log.Logger = new LoggerConfiguration()
     .CreateLogger();
 
 builder.Host.UseSerilog();
+
+// ── Startup config snapshot to Seq (verification handle for env-overlay refactor) ─
+{
+    var connStr = builder.Configuration.GetConnectionString("DefaultConnection") ?? "(none)";
+    var serverPart = connStr.Split(';')
+        .FirstOrDefault(p => p.TrimStart().StartsWith("Server=", StringComparison.OrdinalIgnoreCase))
+        ?.Trim() ?? "(no Server= in connection string)";
+    Log.Information(
+        "Startup snapshot: Env={EnvName} Machine={MachineName} DbServer={DbServer} Frontend={FrontendBaseUrl}",
+        builder.Environment.EnvironmentName,
+        System.Environment.MachineName,
+        serverPart,
+        builder.Configuration.GetSection("FrontendSettings")["BaseUrl"] ?? "(unset)");
+}
 
 var app = builder.Build();
 
