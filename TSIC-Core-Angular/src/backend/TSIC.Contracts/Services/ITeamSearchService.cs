@@ -88,9 +88,8 @@ public interface ITeamSearchService
 
     /// <summary>
     /// Send "your scheduled payment failed" reminder emails to ClubReps owning flagged teams.
-    /// Groups teams by rep so each rep gets one rolled-up email. Throttles per-team:
-    /// teams with LastInvoiceResend within the last hour are skipped silently. Stamps
-    /// LastInvoiceResend on each team that was successfully emailed.
+    /// Groups teams by rep so each rep gets one rolled-up email. Reps with no email or
+    /// who have opted out are skipped; the response counts surface this back to the UI.
     /// </summary>
     Task<ResendInvoicesResponse> ResendInvoicesAsync(
         Guid jobId, string userId, ResendInvoicesRequest request, CancellationToken ct = default);

@@ -6887,7 +6887,6 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.AdnSubscriptionId).IsUnicode(false);
             entity.Property(e => e.AdnSubscriptionStartDate).HasColumnType("datetime");
             entity.Property(e => e.AdnSubscriptionStatus).IsUnicode(false);
-            entity.Property(e => e.LastInvoiceResend).HasColumnType("datetime");
             entity.Property(e => e.AgegroupId).HasColumnName("agegroupID");
             entity.Property(e => e.AgegroupRequested).HasColumnName("agegroupRequested");
             entity.Property(e => e.BAllowSelfRostering)

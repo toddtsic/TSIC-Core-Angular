@@ -391,18 +391,10 @@ public interface ITeamRepository
     /// <summary>
     /// Find flagged teams (broken ARB autopay + balance owed) joined with rep contact info,
     /// for the admin "Send Invoice Reminders" action. When teamIds is empty/null, returns
-    /// every flagged team for the job. AsNoTracking — caller throttles in memory then issues
-    /// a separate ExecuteUpdateAsync to stamp LastInvoiceResend.
+    /// every flagged team for the job. AsNoTracking.
     /// </summary>
     Task<List<TeamResendProbe>> FindFlaggedTeamsForResendAsync(
         Guid jobId, List<Guid>? teamIds, CancellationToken ct = default);
-
-    /// <summary>
-    /// Bulk-stamp LastInvoiceResend on the given teamIds. Used after a successful
-    /// resend send so the next click skips them within the throttle window.
-    /// </summary>
-    Task UpdateLastInvoiceResendAsync(
-        List<Guid> teamIds, DateTime timestamp, string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Get active team counts grouped by DivId for a job.
@@ -520,8 +512,7 @@ public record TeamDetailQueryResult
 
 /// <summary>
 /// Projection used by the AUTOPAY FAILED triage queue's resend action. Carries
-/// every field the email builder needs (team identity, owed amount, rep contact)
-/// and the throttle column so the caller can skip recently-emailed teams.
+/// every field the email builder needs (team identity, owed amount, rep contact).
 /// </summary>
 public record TeamResendProbe
 {
@@ -529,7 +520,6 @@ public record TeamResendProbe
     public required string TeamName { get; init; }
     public required string AgegroupName { get; init; }
     public required decimal OwedTotal { get; init; }
-    public DateTime? LastInvoiceResend { get; init; }
     public required Guid RepRegistrationId { get; init; }
     public string? RepEmail { get; init; }
     public string? RepFirstName { get; init; }

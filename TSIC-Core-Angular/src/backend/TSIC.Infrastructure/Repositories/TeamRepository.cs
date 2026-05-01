@@ -1235,7 +1235,6 @@ public class TeamRepository : ITeamRepository
                 TeamName = x.t.TeamName ?? "",
                 AgegroupName = x.ag.AgegroupName ?? "",
                 OwedTotal = x.t.OwedTotal ?? 0m,
-                LastInvoiceResend = x.t.LastInvoiceResend,
                 RepRegistrationId = x.t.ClubrepRegistrationid!.Value,
                 RepEmail = u != null ? u.Email : null,
                 RepFirstName = u != null ? u.FirstName : null,
@@ -1243,19 +1242,6 @@ public class TeamRepository : ITeamRepository
                 RepEmailOptOut = x.r != null && x.r.BemailOptOut
             })
             .ToListAsync(ct);
-    }
-
-    public async Task UpdateLastInvoiceResendAsync(
-        List<Guid> teamIds, DateTime timestamp, string userId, CancellationToken ct = default)
-    {
-        if (teamIds.Count == 0) return;
-
-        await _context.Teams
-            .Where(t => teamIds.Contains(t.TeamId))
-            .ExecuteUpdateAsync(s => s
-                .SetProperty(t => t.LastInvoiceResend, timestamp)
-                .SetProperty(t => t.Modified, timestamp)
-                .SetProperty(t => t.LebUserId, userId), ct);
     }
 
     public async Task<Dictionary<Guid, int>> GetTeamCountsByDivisionAsync(Guid jobId, CancellationToken ct = default)

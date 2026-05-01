@@ -757,14 +757,10 @@ public sealed class TeamSearchService : ITeamSearchService
                 Message = "Job path missing — cannot build payment link."
             };
 
-        var now = DateTime.UtcNow;
-        var cutoff = now.AddHours(-1);
-
         var teamsTargeted = probes.Count;
         var teamsSkipped = 0;
         var teamsEmailed = 0;
         var repsEmailed = 0;
-        var stampedTeamIds = new List<Guid>();
 
         var paymentUrl = $"https://www.teamsportsinfo.com/{jobPath}/registration/team?step=payment";
 
@@ -774,16 +770,9 @@ public sealed class TeamSearchService : ITeamSearchService
             var repTeams = repGroup.ToList();
             var rep = repTeams[0];
 
-            // Throttle: drop teams emailed within the last hour
-            var eligible = repTeams.Where(t =>
-                !t.LastInvoiceResend.HasValue || t.LastInvoiceResend.Value < cutoff).ToList();
-            teamsSkipped += repTeams.Count - eligible.Count;
-            if (eligible.Count == 0) continue;
-
-            // Rep-level skips count every team in the group as skipped
             if (rep.RepEmailOptOut || string.IsNullOrWhiteSpace(rep.RepEmail))
             {
-                teamsSkipped += eligible.Count;
+                teamsSkipped += repTeams.Count;
                 continue;
             }
 
@@ -791,14 +780,14 @@ public sealed class TeamSearchService : ITeamSearchService
                 ? rep.RepFirstName
                 : "Club Rep";
 
-            var rows = string.Join("", eligible.Select(t => $"""
+            var rows = string.Join("", repTeams.Select(t => $"""
                 <tr>
                     <td style="padding:6px 12px; border-bottom:1px solid #eee;">{System.Net.WebUtility.HtmlEncode(t.TeamName)}</td>
                     <td style="padding:6px 12px; border-bottom:1px solid #eee;">{System.Net.WebUtility.HtmlEncode(t.AgegroupName)}</td>
                     <td style="padding:6px 12px; border-bottom:1px solid #eee; text-align:right;">{t.OwedTotal:C}</td>
                 </tr>
                 """));
-            var totalOwed = eligible.Sum(t => t.OwedTotal);
+            var totalOwed = repTeams.Sum(t => t.OwedTotal);
 
             var html = $"""
                 <p>Hi {System.Net.WebUtility.HtmlEncode(greetingName)},</p>
@@ -846,25 +835,21 @@ public sealed class TeamSearchService : ITeamSearchService
                 if (sent)
                 {
                     repsEmailed++;
-                    teamsEmailed += eligible.Count;
-                    stampedTeamIds.AddRange(eligible.Select(t => t.TeamId));
+                    teamsEmailed += repTeams.Count;
                 }
                 else
                 {
-                    teamsSkipped += eligible.Count;
+                    teamsSkipped += repTeams.Count;
                     _logger.LogWarning("Resend invoice failed for rep {RegId} ({Email})",
                         rep.RepRegistrationId, rep.RepEmail);
                 }
             }
             catch (Exception ex)
             {
-                teamsSkipped += eligible.Count;
+                teamsSkipped += repTeams.Count;
                 _logger.LogError(ex, "Resend invoice exception for rep {RegId}", rep.RepRegistrationId);
             }
         }
-
-        if (stampedTeamIds.Count > 0)
-            await _teamRepo.UpdateLastInvoiceResendAsync(stampedTeamIds, now, userId, ct);
 
         var summary = $"Sent {teamsEmailed} team reminder(s) to {repsEmailed} rep(s)"
                     + (teamsSkipped > 0 ? $"; skipped {teamsSkipped}." : ".");

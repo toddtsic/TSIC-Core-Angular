@@ -121,7 +121,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		const repWord = reps === 1 ? 'rep' : 'reps';
 		return `Send a payment-reminder email to <strong>${reps}</strong> club ${repWord} `
 			+ `covering <strong>${teams}</strong> flagged ${teamWord}? `
-			+ `Recently-emailed teams (within the last hour) and opted-out reps will be skipped.`;
+			+ `Reps with no email on file or who have opted out will be skipped.`;
 	});
 
 	// Grid configuration
