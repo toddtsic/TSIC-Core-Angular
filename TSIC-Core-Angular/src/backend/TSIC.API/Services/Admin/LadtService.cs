@@ -241,6 +241,8 @@ public sealed class LadtService : ILadtService
         var league = await _leagueRepo.GetByIdAsync(leagueId, cancellationToken)
             ?? throw new KeyNotFoundException($"League {leagueId} not found.");
 
+        var nameChanged = league.LeagueName != request.LeagueName;
+
         league.LeagueName = request.LeagueName;
         league.SportId = request.SportId;
         league.BHideContacts = request.BHideContacts;
@@ -250,6 +252,9 @@ public sealed class LadtService : ILadtService
         league.Modified = DateTime.UtcNow;
 
         await _leagueRepo.SaveChangesAsync(cancellationToken);
+
+        if (nameChanged)
+            await _scheduleRepo.SynchronizeScheduleLeagueNameAsync(leagueId, request.LeagueName, cancellationToken);
 
         return await _leagueRepo.GetByIdWithSportAsync(leagueId, cancellationToken)
             ?? throw new InvalidOperationException("Failed to retrieve updated league.");

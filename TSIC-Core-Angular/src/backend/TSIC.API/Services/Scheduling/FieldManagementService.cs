@@ -133,6 +133,9 @@ public sealed class FieldManagementService : IFieldManagementService
 
         await _fieldRepo.SaveChangesAsync(ct);
 
+        // Replaces legacy reference.Field_AfterEdit_UpdateScheduleFieldName trigger.
+        await _scheduleRepo.SynchronizeScheduleFieldNameAsync(field.FieldId, field.FName ?? string.Empty, ct);
+
         _logger.LogInformation("Field {FieldId} '{FName}' updated by {UserId}", field.FieldId, field.FName, userId);
     }
 

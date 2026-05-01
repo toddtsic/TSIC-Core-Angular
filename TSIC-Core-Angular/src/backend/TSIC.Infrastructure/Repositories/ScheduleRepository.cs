@@ -124,6 +124,20 @@ public sealed class ScheduleRepository : IScheduleRepository
             await _context.SaveChangesAsync(ct);
     }
 
+    public async Task SynchronizeScheduleFieldNameAsync(Guid fieldId, string newName, CancellationToken ct = default)
+    {
+        await _context.Schedule
+            .Where(s => s.FieldId == fieldId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(s => s.FName, newName), ct);
+    }
+
+    public async Task SynchronizeScheduleLeagueNameAsync(Guid leagueId, string newName, CancellationToken ct = default)
+    {
+        await _context.Schedule
+            .Where(s => s.LeagueId == leagueId)
+            .ExecuteUpdateAsync(setters => setters.SetProperty(s => s.LeagueName, newName), ct);
+    }
+
     public async Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default)
     {
         // 1. Get active teams in the division with their DivRank and club-rep link

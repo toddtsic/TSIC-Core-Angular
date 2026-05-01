@@ -39,6 +39,21 @@ public interface IScheduleRepository
     Task SynchronizeScheduleDivisionNameAsync(Guid divId, Guid jobId, string newName, CancellationToken ct = default);
 
     /// <summary>
+    /// Update denormalized FName on all Schedule records where FieldId matches.
+    /// Called when a field is renamed in Field Management. Cross-job: a single
+    /// reference.Fields row is shared across jobs, so no jobId scope.
+    /// Replaces legacy trigger reference.Field_AfterEdit_UpdateScheduleFieldName.
+    /// </summary>
+    Task SynchronizeScheduleFieldNameAsync(Guid fieldId, string newName, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update denormalized LeagueName on all Schedule records where LeagueId matches.
+    /// Called when a league is renamed in LADT. Cross-job: a single Leagues row
+    /// can back schedules across multiple jobs.
+    /// </summary>
+    Task SynchronizeScheduleLeagueNameAsync(Guid leagueId, string newName, CancellationToken ct = default);
+
+    /// <summary>
     /// Re-resolve T1Id/T1Name and T2Id/T2Name for every round-robin schedule record
     /// in a division based on current DivRank assignments. Called after a DivRank swap
     /// or team rename to keep denormalized fields in sync.
