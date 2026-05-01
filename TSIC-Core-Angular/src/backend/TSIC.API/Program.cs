@@ -597,16 +597,13 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularApp", policy =>
     {
-        // Allow any *.teamsportsinfo.com subdomain (customer-branded subdomains like
-        // mylaxclub.teamsportsinfo.com hit the catchall site post-cutover). The wildcard
-        // pattern needs SetIsOriginAllowedToAllowWildcardSubdomains() to take effect.
-        // Bare domain listed separately because *.teamsportsinfo.com does not match it.
+        // HTTPS-only. Allow any *.teamsportsinfo.com subdomain (customer-branded subdomains
+        // like mylaxclub.teamsportsinfo.com hit the catchall site post-cutover). Wildcard
+        // pattern needs SetIsOriginAllowedToAllowWildcardSubdomains() to take effect; bare
+        // domain listed separately because *.teamsportsinfo.com does not match it.
         policy.WithOrigins(
-                  "http://localhost:4200",
                   "https://localhost:4200",
-                  "http://*.teamsportsinfo.com",
                   "https://*.teamsportsinfo.com",
-                  "http://teamsportsinfo.com",
                   "https://teamsportsinfo.com")
               .SetIsOriginAllowedToAllowWildcardSubdomains()
               .AllowAnyHeader()
