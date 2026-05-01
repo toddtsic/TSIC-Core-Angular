@@ -1,7 +1,8 @@
 import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
-import { environment } from '@environments/environment';
+import { ReportingService } from '@infrastructure/services/reporting.service';
+
+type ReportKind = 'full' | 'summaries';
 
 @Component({
     selector: 'app-produce-job-invoices',
@@ -12,30 +13,38 @@ import { environment } from '@environments/environment';
     styleUrls: ['./produce-job-invoices.component.scss'],
 })
 export class ProduceJobInvoicesComponent {
-    private readonly http = inject(HttpClient);
-    private readonly endpoint = `${environment.apiUrl}/reporting/Produce_Job_Invoices_LastMonth`;
+    private readonly reportingService = inject(ReportingService);
 
-    readonly isRunning = signal(false);
-    readonly success = signal<boolean | null>(null);
+    readonly running = signal<ReportKind | null>(null);
     readonly errorMessage = signal('');
 
-    run(): void {
-        this.isRunning.set(true);
+    download(kind: ReportKind): void {
         this.errorMessage.set('');
-        this.success.set(null);
+        this.running.set(kind);
 
-        this.http.get<boolean>(this.endpoint).subscribe({
-            next: ok => {
-                this.isRunning.set(false);
-                this.success.set(ok);
-                if (!ok) this.errorMessage.set('Crystal Reports service reported failure. Check server logs.');
+        const endpoint = kind === 'full'
+            ? 'Get_Invoices_LastMonth'
+            : 'Get_Invoices_LastMonthSummariesOnly';
+
+        const fallback = kind === 'full'
+            ? 'TSIC-Last-Month-Invoices'
+            : 'TSIC-Last-Month-Invoice-Summaries';
+
+        this.reportingService.downloadReport(endpoint).subscribe({
+            next: response => {
+                this.reportingService.triggerDownload(response, fallback);
+                this.running.set(null);
             },
             error: err => {
-                this.isRunning.set(false);
-                this.success.set(false);
-                const msg = err.error?.message || 'Failed to invoke invoice production.';
-                this.errorMessage.set(msg);
-            },
+                this.running.set(null);
+                if (err.status === 401) {
+                    this.errorMessage.set('You must be logged in to run this report.');
+                } else if (err.status === 403) {
+                    this.errorMessage.set('You do not have permission to run this report.');
+                } else {
+                    this.errorMessage.set('Report failed to generate. Please try again.');
+                }
+            }
         });
     }
 }

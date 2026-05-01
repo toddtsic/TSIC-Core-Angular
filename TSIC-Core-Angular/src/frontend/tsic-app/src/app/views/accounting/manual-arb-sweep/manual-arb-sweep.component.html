@@ -1,20 +1,29 @@
 <div class="accounting-page">
-    <h2 class="page-title">Manual ARB Sweep</h2>
-    <p class="page-subtitle">
-        Pulls Authorize.Net settled batches for the last <em>N</em> days and applies any
-        new ARB charges, eCheck settlements, and eCheck returns to the database.
-        Mirrors the nightly background sweep but runs on demand.
-    </p>
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-arrow-repeat page-title-icon"></i>
+                Manual ARB Sweep
+            </h2>
+            <p class="page-subtitle">
+                Pulls Authorize.Net settled batches for the last <em>N</em> days and applies any
+                new ARB charges, eCheck settlements, and eCheck returns to the database.
+                Mirrors the nightly background sweep but runs on demand.
+            </p>
+        </div>
+    </div>
 
-    <div class="card run-card">
-        <div class="card-body">
-            <h5 class="card-title">Run sweep</h5>
-            <p class="text-muted small mb-3">
-                Default <strong>1 day</strong> matches the nightly cadence. Increase for backfill —
+    <section class="action-panel" [class.is-running]="isRunning()">
+        <div class="action-panel__icon" aria-hidden="true">
+            <i class="bi bi-arrow-clockwise"></i>
+        </div>
+        <div class="action-panel__body">
+            <h3 class="action-panel__title">Run sweep</h3>
+            <p class="action-panel__desc">
+                Default <strong>1 day</strong> matches the nightly cadence. Increase for backfill &mdash;
                 e.g. after a settlement service outage or to verify a missed window.
             </p>
-
-            <div class="run-controls">
+            <div class="action-panel__field">
                 <label for="daysPrior" class="form-label">Days prior</label>
                 <input
                     id="daysPrior"
@@ -24,34 +33,40 @@
                     max="60"
                     [(ngModel)]="daysPrior"
                     [disabled]="isRunning()" />
-                <button
-                    class="btn btn-primary"
-                    [disabled]="isRunning()"
-                    (click)="run()">
-                    @if (isRunning()) {
-                        <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                        Running...
-                    } @else {
-                        <i class="bi bi-arrow-clockwise me-1"></i>Run Sweep
-                    }
-                </button>
             </div>
         </div>
-    </div>
+        <div class="action-panel__cta">
+            <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                [disabled]="isRunning()"
+                (click)="run()">
+                @if (isRunning()) {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Running&hellip;
+                } @else {
+                    <i class="bi bi-play-fill me-1"></i>Run sweep
+                }
+            </button>
+        </div>
+    </section>
 
     @if (errorMessage()) {
-        <div class="alert alert-danger mt-3" role="alert">
-            <i class="bi bi-exclamation-triangle me-1"></i>{{ errorMessage() }}
-        </div>
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Sweep failed</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
     }
 
     @if (result(); as r) {
-        <div class="card results-card mt-4">
-            <div class="card-header">
-                <h5 class="mb-0">Sweep Result</h5>
-            </div>
-            <div class="card-body">
-                <div class="result-summary">
+        <section class="result-panel result-panel--success" role="status">
+            <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Sweep complete</h4>
+                <div class="result-stats">
                     <div class="result-stat">
                         <span class="result-stat__value">{{ r.checked }}</span>
                         <span class="result-stat__label">Checked</span>
@@ -74,6 +89,6 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
     }
 </div>

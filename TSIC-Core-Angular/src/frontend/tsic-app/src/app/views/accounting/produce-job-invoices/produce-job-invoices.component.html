@@ -1,44 +1,76 @@
 <div class="accounting-page">
-    <h2 class="page-title">Produce Last Month Job Invoices</h2>
-    <p class="page-subtitle">
-        Triggers the Crystal Reports service to build last month's per-job invoices
-        as RTF files on the report server. Run after the monthly close once
-        reconciliation has cleared.
-    </p>
-
-    <div class="card run-card">
-        <div class="card-body">
-            <h5 class="card-title">Build invoices</h5>
-            <p class="text-muted small mb-3">
-                This kicks off invoice generation on the report server. It returns when the
-                build is complete; large months can take a minute. Re-running overwrites the
-                prior batch.
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-file-earmark-ruled page-title-icon"></i>
+                Last Month Job Invoices
+            </h2>
+            <p class="page-subtitle">
+                Downloads last month's customer invoices as PDF. Use these for the
+                beginning-of-month reconciliation.
             </p>
-
-            <button
-                class="btn btn-primary"
-                [disabled]="isRunning()"
-                (click)="run()">
-                @if (isRunning()) {
-                    <span class="spinner-border spinner-border-sm me-1" role="status"></span>
-                    Building...
-                } @else {
-                    <i class="bi bi-file-earmark-text me-1"></i>Build Last Month's Invoices
-                }
-            </button>
         </div>
     </div>
 
-    @if (success() === true) {
-        <div class="alert alert-success mt-3" role="alert">
-            <i class="bi bi-check-circle me-1"></i>
-            Invoices built successfully. RTF files are now available on the report server.
+    <section class="action-panel">
+        <div class="action-panel__icon" aria-hidden="true">
+            <i class="bi bi-file-earmark-pdf"></i>
         </div>
-    }
+        <div class="action-panel__body">
+            <h3 class="action-panel__title">Full invoices</h3>
+            <p class="action-panel__desc">
+                One row per invoice line item across every billable job for the prior month.
+            </p>
+        </div>
+        <div class="action-panel__cta">
+            <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                [disabled]="running() !== null"
+                (click)="download('full')">
+                @if (running() === 'full') {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Generating&hellip;
+                } @else {
+                    <i class="bi bi-download me-1"></i>Download PDF
+                }
+            </button>
+        </div>
+    </section>
+
+    <section class="action-panel">
+        <div class="action-panel__icon" aria-hidden="true">
+            <i class="bi bi-file-earmark-text"></i>
+        </div>
+        <div class="action-panel__body">
+            <h3 class="action-panel__title">Summaries only</h3>
+            <p class="action-panel__desc">
+                One row per job &mdash; totals only, no line-item detail. Faster to scan during reconciliation.
+            </p>
+        </div>
+        <div class="action-panel__cta">
+            <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                [disabled]="running() !== null"
+                (click)="download('summaries')">
+                @if (running() === 'summaries') {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Generating&hellip;
+                } @else {
+                    <i class="bi bi-download me-1"></i>Download PDF
+                }
+            </button>
+        </div>
+    </section>
 
     @if (errorMessage()) {
-        <div class="alert alert-danger mt-3" role="alert">
-            <i class="bi bi-exclamation-triangle me-1"></i>{{ errorMessage() }}
-        </div>
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Download failed</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
     }
 </div>
