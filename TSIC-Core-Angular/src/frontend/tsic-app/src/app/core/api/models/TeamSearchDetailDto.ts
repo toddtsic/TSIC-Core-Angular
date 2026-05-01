@@ -32,5 +32,6 @@ export type TeamSearchDetailDto = {
     clubTeamSummaries: Array<ClubTeamSummaryDto>;
     paymentScheduled?: boolean;
     nextChargeDate?: string | null;
+    paymentFlagged?: boolean;
 };
 

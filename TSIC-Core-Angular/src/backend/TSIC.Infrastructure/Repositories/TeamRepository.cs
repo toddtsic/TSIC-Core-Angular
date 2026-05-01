@@ -22,6 +22,12 @@ public class TeamRepository : ITeamRepository
 {
     private readonly SqlDbContext _context;
 
+    // Canonical reference.Accounting_PaymentMethods row for NSF reversals
+    // (mirrors AdnSweepService.FailedEcheckPaymentMethodId). Used to detect
+    // teams with returned-eCheck reversals so they read as "Autopay Failed"
+    // instead of "Scheduled" in admin search.
+    private static readonly Guid FailedEcheckPaymentMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
+
     public TeamRepository(SqlDbContext context)
     {
         _context = context;
@@ -750,7 +756,17 @@ public class TeamRepository : ITeamRepository
             query = query.Where(x =>
                 (request.PayStatuses.Contains("PAID IN FULL") && x.t.OwedTotal == 0)
                 || (request.PayStatuses.Contains("UNDER PAID") && x.t.OwedTotal > 0)
-                || (request.PayStatuses.Contains("OVER PAID") && x.t.OwedTotal < 0));
+                || (request.PayStatuses.Contains("OVER PAID") && x.t.OwedTotal < 0)
+                || (request.PayStatuses.Contains("AUTOPAY FAILED")
+                    && x.t.AdnSubscriptionId != null
+                    && (x.t.OwedTotal ?? 0m) > 0m
+                    && (
+                        (x.t.AdnSubscriptionStatus != null && x.t.AdnSubscriptionStatus != "active")
+                        || _context.RegistrationAccounting.Any(a =>
+                            a.TeamId == x.t.TeamId
+                            && a.PaymentMethodId == FailedEcheckPaymentMethodId
+                            && a.Active == true)
+                    )));
         }
 
         // Payment Method / Discount Code combined filter
@@ -858,7 +874,11 @@ public class TeamRepository : ITeamRepository
                 AdnStatus = x.t.AdnSubscriptionStatus,
                 AdnStart = x.t.AdnSubscriptionStartDate,
                 AdnInterval = x.t.AdnSubscriptionIntervalLength,
-                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences
+                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences,
+                HasNsfReversal = _context.RegistrationAccounting.Any(a =>
+                    a.TeamId == x.t.TeamId
+                    && a.PaymentMethodId == FailedEcheckPaymentMethodId
+                    && a.Active == true)
             })
             .ToListAsync(ct);
 
@@ -867,7 +887,22 @@ public class TeamRepository : ITeamRepository
         {
             var (scheduled, nextDate) = ArbScheduleHelper.ComputeDayBasedSchedule(
                 r.AdnSubId, r.AdnStatus, r.AdnStart, r.AdnInterval, r.AdnOccurrences, today);
-            return r.Dto with { PaymentScheduled = scheduled, NextChargeDate = nextDate };
+            // NSF reversal trumps a still-"active" sub status — Phase 5's badge would
+            // otherwise misread these as "Scheduled" until ADN gets around to suspending.
+            if (r.HasNsfReversal) scheduled = false;
+
+            var statusBroken = !string.IsNullOrEmpty(r.AdnStatus)
+                && !string.Equals(r.AdnStatus, "active", StringComparison.OrdinalIgnoreCase);
+            var flagged = !string.IsNullOrEmpty(r.AdnSubId)
+                && r.Dto.OwedTotal > 0m
+                && (statusBroken || r.HasNsfReversal);
+
+            return r.Dto with
+            {
+                PaymentScheduled = scheduled,
+                NextChargeDate = nextDate,
+                PaymentFlagged = flagged
+            };
         }).ToList();
     }
 
@@ -921,6 +956,31 @@ public class TeamRepository : ITeamRepository
             .GroupBy(s => s)
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
+
+        // "Autopay Failed" is a triage cut of UNDER PAID — same set, narrower lens.
+        // Surfaced as its own filter so admins can quickly land on the queue.
+        var autopayFailedCount = await baseQuery
+            .Where(t => t.Active == true
+                && t.AdnSubscriptionId != null
+                && (t.OwedTotal ?? 0m) > 0m
+                && (
+                    (t.AdnSubscriptionStatus != null && t.AdnSubscriptionStatus != "active")
+                    || _context.RegistrationAccounting.Any(a =>
+                        a.TeamId == t.TeamId
+                        && a.PaymentMethodId == FailedEcheckPaymentMethodId
+                        && a.Active == true)
+                ))
+            .CountAsync(ct);
+
+        if (autopayFailedCount > 0)
+        {
+            payStatuses.Add(new FilterOption
+            {
+                Value = "AUTOPAY FAILED",
+                Text = "AUTOPAY FAILED",
+                Count = autopayFailedCount
+            });
+        }
 
         // Waitlist / Scheduled status counts (active teams only)
         var activeTeams = baseQuery.Where(t => t.Active == true);
@@ -1033,7 +1093,11 @@ public class TeamRepository : ITeamRepository
                 AdnStatus = x.t.AdnSubscriptionStatus,
                 AdnStart = x.t.AdnSubscriptionStartDate,
                 AdnInterval = x.t.AdnSubscriptionIntervalLength,
-                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences
+                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences,
+                HasNsfReversal = _context.RegistrationAccounting.Any(a =>
+                    a.TeamId == x.t.TeamId
+                    && a.PaymentMethodId == FailedEcheckPaymentMethodId
+                    && a.Active == true)
             })
             .FirstOrDefaultAsync(ct);
 
@@ -1041,7 +1105,20 @@ public class TeamRepository : ITeamRepository
 
         var (scheduled, nextDate) = ArbScheduleHelper.ComputeDayBasedSchedule(
             row.AdnSubId, row.AdnStatus, row.AdnStart, row.AdnInterval, row.AdnOccurrences, DateTime.Today);
-        return row.Result with { PaymentScheduled = scheduled, NextChargeDate = nextDate };
+        if (row.HasNsfReversal) scheduled = false;
+
+        var statusBroken = !string.IsNullOrEmpty(row.AdnStatus)
+            && !string.Equals(row.AdnStatus, "active", StringComparison.OrdinalIgnoreCase);
+        var flagged = !string.IsNullOrEmpty(row.AdnSubId)
+            && row.Result.OwedTotal > 0m
+            && (statusBroken || row.HasNsfReversal);
+
+        return row.Result with
+        {
+            PaymentScheduled = scheduled,
+            NextChargeDate = nextDate,
+            PaymentFlagged = flagged
+        };
     }
 
     public async Task<int> GetDistinctClubCountAsync(Guid jobId, CancellationToken ct = default)
@@ -1096,7 +1173,11 @@ public class TeamRepository : ITeamRepository
                 AdnStatus = x.t.AdnSubscriptionStatus,
                 AdnStart = x.t.AdnSubscriptionStartDate,
                 AdnInterval = x.t.AdnSubscriptionIntervalLength,
-                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences
+                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences,
+                HasNsfReversal = _context.RegistrationAccounting.Any(a =>
+                    a.TeamId == x.t.TeamId
+                    && a.PaymentMethodId == FailedEcheckPaymentMethodId
+                    && a.Active == true)
             })
             .ToListAsync(ct);
 
@@ -1105,7 +1186,20 @@ public class TeamRepository : ITeamRepository
         {
             var (scheduled, nextDate) = ArbScheduleHelper.ComputeDayBasedSchedule(
                 r.AdnSubId, r.AdnStatus, r.AdnStart, r.AdnInterval, r.AdnOccurrences, today);
-            return r.Dto with { PaymentScheduled = scheduled, NextChargeDate = nextDate };
+            if (r.HasNsfReversal) scheduled = false;
+
+            var statusBroken = !string.IsNullOrEmpty(r.AdnStatus)
+                && !string.Equals(r.AdnStatus, "active", StringComparison.OrdinalIgnoreCase);
+            var flagged = !string.IsNullOrEmpty(r.AdnSubId)
+                && r.Dto.OwedTotal > 0m
+                && (statusBroken || r.HasNsfReversal);
+
+            return r.Dto with
+            {
+                PaymentScheduled = scheduled,
+                NextChargeDate = nextDate,
+                PaymentFlagged = flagged
+            };
         }).ToList();
     }
 

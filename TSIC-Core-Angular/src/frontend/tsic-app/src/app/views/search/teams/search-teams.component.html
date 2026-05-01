@@ -354,7 +354,12 @@
           </e-column>
           <e-column field="owedTotal" headerText="Owed" width="100" textAlign="Right">
             <ng-template #template let-data>
-              @if (data.paymentScheduled && data.owedTotal > 0) {
+              @if (data.paymentFlagged) {
+                <span class="money-cell money-flagged"
+                      title="Autopay failed — please follow up. The ARB subscription is suspended/canceled or had a returned eCheck.">
+                  <i class="bi bi-exclamation-triangle-fill flagged-icon"></i>{{ data.owedTotal | currency }}
+                </span>
+              } @else if (data.paymentScheduled && data.owedTotal > 0) {
                 <span class="money-cell money-scheduled"
                       [attr.title]="data.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (data.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
                   <i class="bi bi-calendar-event scheduled-icon"></i>{{ data.owedTotal | currency }}

@@ -497,4 +497,7 @@ public record TeamDetailQueryResult
 
     /// <summary>Next scheduled ARB charge date (informational, used in the badge tooltip).</summary>
     public DateTime? NextChargeDate { get; init; }
+
+    /// <summary>True when the team's balance is on a broken ARB subscription.</summary>
+    public bool PaymentFlagged { get; init; }
 }

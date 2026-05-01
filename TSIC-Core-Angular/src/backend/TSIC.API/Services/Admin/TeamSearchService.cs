@@ -142,7 +142,8 @@ public sealed class TeamSearchService : ITeamSearchService
             AccountingRecords = accountingRecords,
             ClubTeamSummaries = clubTeamSummaries,
             PaymentScheduled = detail.PaymentScheduled,
-            NextChargeDate = detail.NextChargeDate
+            NextChargeDate = detail.NextChargeDate,
+            PaymentFlagged = detail.PaymentFlagged
         };
     }
 

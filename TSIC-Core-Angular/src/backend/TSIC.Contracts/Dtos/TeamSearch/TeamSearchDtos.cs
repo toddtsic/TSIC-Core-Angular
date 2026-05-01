@@ -63,6 +63,13 @@ public record TeamSearchResultDto
     /// Null when no future charge is scheduled.
     /// </summary>
     public DateTime? NextChargeDate { get; init; }
+
+    /// <summary>
+    /// True when the team's outstanding balance is on a broken ARB subscription
+    /// (status not active, or an NSF reversal RA exists). Drives the admin triage
+    /// queue: admins filter to these rows to follow up on failed autopay.
+    /// </summary>
+    public bool PaymentFlagged { get; init; }
 }
 
 /// <summary>

@@ -20,5 +20,6 @@ export type TeamSearchResultDto = {
     teamComments?: string | null;
     paymentScheduled?: boolean;
     nextChargeDate?: string | null;
+    paymentFlagged?: boolean;
 };
 
