@@ -24,7 +24,7 @@ FROM Leagues.agegroups ag
 JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
 JOIN Jobs.Jobs j ON jl.JobId = j.JobId
 WHERE j.JobTypeId = 4
-  AND j.Year IN ('2025', '2026')
+  AND j.Year IN ('2025', '2026', '2027')
   AND ag.RosterFee IS NOT NULL AND ag.RosterFee > 0
   AND ag.TeamFee IS NOT NULL AND ag.TeamFee > 0;
 PRINT '1A Camp deposit rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
@@ -42,7 +42,7 @@ FROM Leagues.agegroups ag
 JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
 JOIN Jobs.Jobs j ON jl.JobId = j.JobId
 WHERE j.JobTypeId IN (1, 4, 6)
-  AND j.Year IN ('2025', '2026')
+  AND j.Year IN ('2025', '2026', '2027')
   AND ag.RosterFee IS NOT NULL AND ag.RosterFee > 0
   AND NOT (j.JobTypeId = 4 AND ag.TeamFee IS NOT NULL AND ag.TeamFee > 0);
 PRINT '1B Player-only agegroup rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
@@ -60,7 +60,7 @@ FROM Leagues.teams t
 JOIN Leagues.agegroups ag ON t.AgegroupId = ag.AgegroupId
 JOIN Jobs.Jobs j ON t.JobId = j.JobId
 WHERE j.JobTypeId IN (1, 4, 6)
-  AND j.Year IN ('2025', '2026')
+  AND j.Year IN ('2025', '2026', '2027')
   AND t.PerRegistrantFee IS NOT NULL AND t.PerRegistrantFee > 0
   AND t.PerRegistrantFee != ISNULL(ag.RosterFee, 0);
 PRINT '2  Player-only team override rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
@@ -78,7 +78,7 @@ FROM Leagues.agegroups ag
 JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
 JOIN Jobs.Jobs j ON jl.JobId = j.JobId
 WHERE j.JobTypeId IN (2, 3)
-  AND j.Year IN ('2025', '2026')
+  AND j.Year IN ('2025', '2026', '2027')
   AND ((ag.RosterFee IS NOT NULL AND ag.RosterFee > 0)
     OR (ag.TeamFee IS NOT NULL AND ag.TeamFee > 0));
 PRINT '3  Team-only agegroup rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
@@ -95,7 +95,7 @@ SELECT
 FROM Leagues.teams t
 JOIN Jobs.Jobs j ON t.JobId = j.JobId
 WHERE j.JobTypeId = 2
-  AND j.Year IN ('2025', '2026')
+  AND j.Year IN ('2025', '2026', '2027')
   AND t.PerRegistrantFee IS NOT NULL AND t.PerRegistrantFee > 0;
 PRINT '4  Tournament player fee team rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
@@ -111,7 +111,7 @@ SELECT
 FROM Leagues.teams t
 JOIN Jobs.Jobs j ON t.JobId = j.JobId
 WHERE j.JobTypeId = 3
-  AND j.Year IN ('2025', '2026')
+  AND j.Year IN ('2025', '2026', '2027')
   AND t.PerRegistrantFee IS NOT NULL AND t.PerRegistrantFee > 0;
 PRINT '5  League player fee team rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
@@ -130,7 +130,7 @@ FROM Leagues.agegroups ag
 JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
 JOIN Jobs.Jobs j ON jl.JobId = j.JobId
 WHERE j.JobTypeId = 3
-  AND j.Year IN ('2025', '2026')
+  AND j.Year IN ('2025', '2026', '2027')
   AND ag.RosterFee IS NOT NULL AND ag.RosterFee > 0
   -- Director-managed: no distinct ClubRepRegistrationId pairs exist
   AND NOT EXISTS (
@@ -164,7 +164,7 @@ FROM Leagues.leagues l
 JOIN Jobs.Job_Leagues jl ON l.LeagueId = jl.LeagueId
 JOIN Jobs.Jobs j ON jl.JobId = j.JobId
 WHERE j.JobTypeId = 3
-  AND j.Year IN ('2025', '2026')
+  AND j.Year IN ('2025', '2026', '2027')
   AND l.PlayerFeeOverride IS NOT NULL AND l.PlayerFeeOverride > 0;
 PRINT '6  League player fee job-level rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
@@ -206,7 +206,7 @@ GO
     FROM Jobs.Jobs j
     JOIN reference.JobTypes jt ON j.JobTypeId = jt.JobTypeId
     WHERE j.JobTypeId IN (1, 2, 3, 4, 6)
-      AND j.Year IN ('2025', '2026')
+      AND j.Year IN ('2025', '2026', '2027')
       AND EXISTS (SELECT 1 FROM fees.JobFees jf WHERE jf.JobId = j.JobId)
 )
 SELECT
