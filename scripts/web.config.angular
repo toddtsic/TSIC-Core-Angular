@@ -34,9 +34,18 @@
         <clientCache cacheControlMode="UseMaxAge" cacheControlMaxAge="365.00:00:00" />
       </staticContent>
 
-      <!-- URL Rewrite for Angular routing -->
+      <!-- URL Rewrite: force HTTPS first, then Angular SPA routing -->
       <rewrite>
         <rules>
+          <!-- Force HTTPS: any HTTP hit redirects to HTTPS (301). Wildcard cert
+               on *.teamsportsinfo.com makes this safe for any subdomain. -->
+          <rule name="Force HTTPS" stopProcessing="true">
+            <match url="(.*)" />
+            <conditions>
+              <add input="{HTTPS}" pattern="off" ignoreCase="true" />
+            </conditions>
+            <action type="Redirect" url="https://{HTTP_HOST}/{R:1}" redirectType="Permanent" />
+          </rule>
           <rule name="Angular Routes" stopProcessing="true">
             <match url=".*" />
             <conditions logicalGrouping="MatchAll">
@@ -53,6 +62,9 @@
       <!-- Security headers -->
       <httpProtocol>
         <customHeaders>
+          <!-- HSTS: 1 year, includeSubDomains. Wildcard *.teamsportsinfo.com cert
+               covers all customer-branded subdomains. -->
+          <add name="Strict-Transport-Security" value="max-age=31536000; includeSubDomains" />
           <add name="X-Frame-Options" value="SAMEORIGIN" />
           <add name="X-Content-Type-Options" value="nosniff" />
           <add name="Referrer-Policy" value="strict-origin-when-cross-origin" />

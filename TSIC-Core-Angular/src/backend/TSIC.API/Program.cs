@@ -592,6 +592,15 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
+// HSTS: 1 year, includeSubDomains. Wildcard *.teamsportsinfo.com cert on prod
+// covers every subdomain including customer-branded ones. Enabled below for
+// non-Development environments only (Staging + Production).
+builder.Services.AddHsts(options =>
+{
+    options.MaxAge = TimeSpan.FromDays(365);
+    options.IncludeSubDomains = true;
+});
+
 // CORS for Angular
 builder.Services.AddCors(options =>
 {
@@ -651,7 +660,14 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi("/swagger/v1/swagger.json");
 }
 
-// Conditionally use HTTPS redirection only when HTTPS is configured
+// HTTPS enforcement: HSTS for non-Development (Staging + Production), then redirect
+// any incoming HTTP to HTTPS when HTTPS is configured. HSTS belongs before redirect
+// so the response carries the header.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 if (app.Urls.Any(url => url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
 {
     app.UseHttpsRedirection();
