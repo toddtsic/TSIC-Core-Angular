@@ -41,4 +41,21 @@ public interface IPaymentService
         IReadOnlyCollection<Guid> teamIds,
         decimal totalAmount,
         BankAccountInfo bankAccount);
+
+    /// <summary>
+    /// ARB-Trial team registration payment. Creates one ADN ARB subscription per team:
+    /// deposit billed tomorrow (trial occurrence), balance billed on the job's configured
+    /// AdnStartDateAfterTrial (post-trial occurrence). Capture-what-you-can: stops at
+    /// first per-team failure, prior successes persist (ARB subs stay live).
+    ///
+    /// Fallback: when today is on/after AdnStartDateAfterTrial, a single full-amount
+    /// CC/eCheck charge replaces the ARB flow (no sub created). Caller passes either
+    /// CreditCard or BankAccount, never both.
+    /// </summary>
+    Task<TeamArbTrialPaymentResponseDto> ProcessTeamArbTrialPaymentAsync(
+        Guid regId,
+        string userId,
+        IReadOnlyCollection<Guid> teamIds,
+        CreditCardInfo? creditCard,
+        BankAccountInfo? bankAccount);
 }

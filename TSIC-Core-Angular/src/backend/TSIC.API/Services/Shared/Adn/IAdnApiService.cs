@@ -49,6 +49,14 @@ public interface IAdnApiService
     ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription(AdnArbCreateRequest request);
     AdnArbCreateResult ADN_ARB_CreateMonthlySubscription_Result(AdnArbCreateRequest request);
 
+    // ARB-Trial: deposit (trial) + balance (post-trial) — interval expressed in days.
+    // CC variant. Use ADN_VerifyCardWithPennyAuth before this for card validity.
+    AdnArbCreateResult ADN_ARB_CreateTrialSubscription_Cc(AdnArbCreateTrialRequest request);
+
+    // ARB-Trial via eCheck (bankAccount). No upfront verify available — failures
+    // surface days later through the existing batch sweep.
+    AdnArbCreateResult ADN_ARB_CreateTrialSubscription_Bank(AdnArbCreateTrialBankAccountRequest request);
+
     getSettledBatchListResponse GetSettleBatchList_FromDateRange(
         AuthorizeNet.Environment env,
         string adnLoginId,

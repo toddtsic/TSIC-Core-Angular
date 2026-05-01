@@ -121,4 +121,52 @@ public class TeamPaymentController : ControllerBase
             return StatusCode(500, new { Message = "An error occurred while processing eCheck payment" });
         }
     }
+
+    /// <summary>
+    /// Process team registration via ARB-Trial: one ADN ARB subscription per team
+    /// (deposit billed tomorrow, balance billed on the job's configured AdnStartDateAfterTrial).
+    /// Capture-what-you-can on per-team failure. Falls back to a single full charge when
+    /// today is on/after the configured balance date. CreditCard or BankAccount must be supplied
+    /// (not both).
+    /// </summary>
+    [HttpPost("process-arb-trial")]
+    [ProducesResponseType(typeof(TeamArbTrialPaymentResponseDto), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> ProcessTeamArbTrialPayment([FromBody] TeamArbTrialPaymentRequestDto request)
+    {
+        var regIdClaim = User.FindFirst("regId")?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return Unauthorized(new { Message = "Registration ID not found in token. Please select a club first." });
+        }
+
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+        }
+
+        try
+        {
+            var response = await _paymentService.ProcessTeamArbTrialPaymentAsync(
+                regId,
+                userId,
+                request.TeamIds,
+                request.CreditCard,
+                request.BankAccount);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Failed to process team ARB-Trial for user {UserId}, regId {RegId}", userId, regId);
+            return BadRequest(new { Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing team ARB-Trial for user {UserId}, regId {RegId}", userId, regId);
+            return StatusCode(500, new { Message = "An error occurred while processing ARB-Trial payment" });
+        }
+    }
 }

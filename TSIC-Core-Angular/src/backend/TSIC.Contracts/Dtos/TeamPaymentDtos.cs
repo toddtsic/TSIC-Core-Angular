@@ -64,6 +64,69 @@ public sealed record TeamPaymentResponseDto
 }
 
 /// <summary>
+/// Request payload for ARB-Trial team registration payment.
+/// One ADN ARB subscription per team is created — deposit billed tomorrow,
+/// balance billed on the job's configured AdnStartDateAfterTrial. Either
+/// CreditCard or BankAccount must be supplied (not both). When the rep
+/// registers after the configured balance date, the backend falls back to
+/// a single full-amount charge (no ARB sub created).
+/// </summary>
+public sealed record TeamArbTrialPaymentRequestDto
+{
+    public required List<Guid> TeamIds { get; init; }
+    public CreditCardInfo? CreditCard { get; init; }
+    public BankAccountInfo? BankAccount { get; init; }
+}
+
+public class TeamArbTrialPaymentRequestDtoValidator : AbstractValidator<TeamArbTrialPaymentRequestDto>
+{
+    public TeamArbTrialPaymentRequestDtoValidator()
+    {
+        RuleFor(x => x.TeamIds).NotEmpty().WithMessage("At least one team is required for payment");
+        RuleFor(x => x).Must(x => x.CreditCard != null || x.BankAccount != null)
+            .WithMessage("Either credit card or bank account information is required");
+        RuleFor(x => x).Must(x => !(x.CreditCard != null && x.BankAccount != null))
+            .WithMessage("Provide either credit card or bank account, not both");
+    }
+}
+
+/// <summary>
+/// Per-team result of an ARB-Trial submission.
+/// </summary>
+public sealed record TeamArbTrialResultDto
+{
+    public required Guid TeamId { get; init; }
+    /// <summary>true = ADN sub created and stamped on the team; false = batch stopped here, this team did not register.</summary>
+    public required bool Registered { get; init; }
+    public string? AdnSubscriptionId { get; init; }
+    public decimal? DepositCharge { get; init; }
+    public decimal? BalanceCharge { get; init; }
+    public DateTime? DepositDate { get; init; }
+    public DateTime? BalanceDate { get; init; }
+    /// <summary>Populated only on the team that stopped the batch.</summary>
+    public string? FailureReason { get; init; }
+}
+
+/// <summary>
+/// Response from ARB-Trial team payment processing. Capture-what-you-can
+/// semantics: the loop stops on the first failure but already-registered
+/// teams are kept (ARB subs left active so money flows to the tournament).
+/// </summary>
+public sealed record TeamArbTrialPaymentResponseDto
+{
+    /// <summary>true if every team in the batch was registered; false if any team failed (including a partial-success outcome).</summary>
+    public required bool Success { get; init; }
+    /// <summary>"FALLBACK_FULL_CHARGE" when balance date is in the past — single CC charge replaces the trial flow.</summary>
+    public string? Mode { get; init; }
+    public string? Error { get; init; }
+    public string? Message { get; init; }
+    /// <summary>Per-team results in the order they were submitted. The first non-Registered entry is the team that stopped the batch.</summary>
+    public required List<TeamArbTrialResultDto> Teams { get; init; } = new();
+    /// <summary>Team IDs that were not attempted because an earlier team in the batch failed.</summary>
+    public required List<Guid> NotAttempted { get; init; } = new();
+}
+
+/// <summary>
 /// Request to fetch pre-submit insurance offer for teams.
 /// </summary>
 public sealed record PreSubmitTeamInsuranceRequestDto

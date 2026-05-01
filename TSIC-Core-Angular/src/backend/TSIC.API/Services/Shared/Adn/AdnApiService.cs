@@ -743,6 +743,190 @@ public class AdnApiService : IAdnApiService
         var raw = ADN_ARB_CreateMonthlySubscription(request);
         return ParseArbCreateResponse(raw, request.CardNumber);
     }
+
+    public AdnArbCreateResult ADN_ARB_CreateTrialSubscription_Cc(AdnArbCreateTrialRequest request)
+    {
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = request.Env;
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
+        {
+            name = request.LoginId,
+            ItemElementName = ItemChoiceType.transactionKey,
+            Item = request.TransactionKey,
+        };
+
+        // Trial schedule: 1 trial occurrence (deposit) + 1 post-trial occurrence (balance).
+        // Interval unit is days so caller controls the exact gap between deposit and balance dates.
+        var interval = new paymentScheduleTypeInterval
+        {
+            length = request.IntervalLengthDays,
+            unit = ARBSubscriptionUnitEnum.days,
+        };
+        var schedule = new paymentScheduleType
+        {
+            interval = interval,
+            startDate = request.StartDate,
+            totalOccurrences = 2,
+            trialOccurrences = 1,
+        };
+
+        var cardNumber = request.CardNumber;
+        if (request.Env == AuthorizeNet.Environment.SANDBOX)
+            cardNumber = MapSandboxTestCard(cardNumber);
+        var normalizedExpiry = NormalizeExpiry(request.Expiry);
+        var creditCard = new creditCardType
+        {
+            cardNumber = cardNumber,
+            expirationDate = normalizedExpiry,
+            cardCode = string.IsNullOrWhiteSpace(request.CardCode) ? null : request.CardCode,
+        };
+        var payment = new paymentType { Item = creditCard };
+        var customerInfo = new customerType { email = request.Email };
+        var addressInfo = new nameAndAddressType
+        {
+            firstName = request.FirstName,
+            lastName = request.LastName,
+            address = request.Address,
+            zip = request.Zip,
+        };
+        var safeInvoice = (request.InvoiceNumber ?? string.Empty).Trim();
+        if (safeInvoice.Length > 20) safeInvoice = safeInvoice.Substring(0, 20);
+        var orderInfo = new orderType { invoiceNumber = safeInvoice, description = request.Description };
+
+        var subscriptionType = new ARBSubscriptionType
+        {
+            amount = request.PerIntervalCharge,
+            trialAmount = request.TrialAmount,
+            paymentSchedule = schedule,
+            billTo = addressInfo,
+            payment = payment,
+            order = orderInfo,
+            customer = customerInfo,
+        };
+        var apiReq = new ARBCreateSubscriptionRequest { subscription = subscriptionType };
+
+        var raw = ExecuteArbCreate(apiReq);
+        return ParseArbCreateResponse(raw, request.CardNumber);
+    }
+
+    public AdnArbCreateResult ADN_ARB_CreateTrialSubscription_Bank(AdnArbCreateTrialBankAccountRequest request)
+    {
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = request.Env;
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
+        {
+            name = request.LoginId,
+            ItemElementName = ItemChoiceType.transactionKey,
+            Item = request.TransactionKey,
+        };
+
+        var interval = new paymentScheduleTypeInterval
+        {
+            length = request.IntervalLengthDays,
+            unit = ARBSubscriptionUnitEnum.days,
+        };
+        var schedule = new paymentScheduleType
+        {
+            interval = interval,
+            startDate = request.StartDate,
+            totalOccurrences = 2,
+            trialOccurrences = 1,
+        };
+
+        var bankAccountType = ParseBankAccountType(request.AccountType);
+        var bankAccount = new bankAccountType
+        {
+            accountType = bankAccountType,
+            routingNumber = request.RoutingNumber,
+            accountNumber = request.AccountNumber,
+            nameOnAccount = request.NameOnAccount,
+            echeckType = echeckTypeEnum.WEB,
+        };
+        var payment = new paymentType { Item = bankAccount };
+        var customerInfo = new customerType { email = request.Email };
+        var addressInfo = new nameAndAddressType
+        {
+            firstName = request.FirstName,
+            lastName = request.LastName,
+            address = request.Address,
+            zip = request.Zip,
+        };
+        var safeInvoice = (request.InvoiceNumber ?? string.Empty).Trim();
+        if (safeInvoice.Length > 20) safeInvoice = safeInvoice.Substring(0, 20);
+        var orderInfo = new orderType { invoiceNumber = safeInvoice, description = request.Description };
+
+        var subscriptionType = new ARBSubscriptionType
+        {
+            amount = request.PerIntervalCharge,
+            trialAmount = request.TrialAmount,
+            paymentSchedule = schedule,
+            billTo = addressInfo,
+            payment = payment,
+            order = orderInfo,
+            customer = customerInfo,
+        };
+        var apiReq = new ARBCreateSubscriptionRequest { subscription = subscriptionType };
+
+        var raw = ExecuteArbCreate(apiReq);
+        // No CC number for the result helper — it embeds last-4 only on success and we don't have one here.
+        return ParseArbCreateResponse(raw, string.Empty);
+    }
+
+    private static ARBCreateSubscriptionResponse ExecuteArbCreate(ARBCreateSubscriptionRequest apiReq)
+    {
+        try
+        {
+            var controller = new ARBCreateSubscriptionController(apiReq);
+            controller.Execute();
+            var response = controller.GetApiResponse();
+            if (response == null)
+            {
+                var err = controller.GetErrorResponse();
+                if (err != null)
+                {
+                    return new ARBCreateSubscriptionResponse
+                    {
+                        messages = new messagesType
+                        {
+                            resultCode = err.messages?.resultCode ?? messageTypeEnum.Error,
+                            message = err.messages?.message != null && err.messages.message.Length > 0
+                                ? err.messages.message
+                                : new[] { new messagesTypeMessage { code = "NULLRESP", text = "Authorize.Net returned no subscription response." } }
+                        }
+                    };
+                }
+                return new ARBCreateSubscriptionResponse
+                {
+                    messages = new messagesType
+                    {
+                        resultCode = messageTypeEnum.Error,
+                        message = new[] { new messagesTypeMessage { code = "NULLRESP", text = "Authorize.Net returned no subscription response." } }
+                    }
+                };
+            }
+            return response;
+        }
+        catch (Exception ex)
+        {
+            return new ARBCreateSubscriptionResponse
+            {
+                messages = new messagesType
+                {
+                    resultCode = messageTypeEnum.Error,
+                    message = new[] { new messagesTypeMessage { code = "EX", text = "Authorize.Net ARB create failed: " + ex.Message } }
+                }
+            };
+        }
+    }
+
+    private static bankAccountTypeEnum ParseBankAccountType(string accountType)
+    {
+        return accountType?.Trim().ToLowerInvariant() switch
+        {
+            "checking" => bankAccountTypeEnum.checking,
+            "savings" => bankAccountTypeEnum.savings,
+            "businesschecking" => bankAccountTypeEnum.businessChecking,
+            _ => bankAccountTypeEnum.checking,
+        };
+    }
     private static string MapSandboxTestCard(string cardNumber)
     {
         if (string.IsNullOrWhiteSpace(cardNumber)) return cardNumber;

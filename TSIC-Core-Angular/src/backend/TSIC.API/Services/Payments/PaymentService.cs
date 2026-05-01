@@ -3,9 +3,11 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Contracts.Services;
+using TSIC.API.Services.Fees;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Players;
+using TSIC.Domain.Constants;
 
 
 namespace TSIC.API.Services.Payments;
@@ -412,6 +414,600 @@ public class PaymentService : IPaymentService
             Message = "All team eCheck submissions failed"
         };
     }
+
+    /// <summary>
+    /// ARB-Trial team registration payment. Creates one ADN ARB subscription per team:
+    /// deposit billed tomorrow (trial occurrence), balance billed on the job's configured
+    /// AdnStartDateAfterTrial. Capture-what-you-can: stops at first per-team failure,
+    /// prior successes persist (subs stay live so money flows to the tournament).
+    /// Falls back to a single full-amount charge when today is on/after AdnStartDateAfterTrial.
+    /// </summary>
+    public async Task<TeamArbTrialPaymentResponseDto> ProcessTeamArbTrialPaymentAsync(
+        Guid regId,
+        string userId,
+        IReadOnlyCollection<Guid> teamIds,
+        CreditCardInfo? creditCard,
+        BankAccountInfo? bankAccount)
+    {
+        if (creditCard != null && bankAccount != null)
+            return FailTrial("PAYMENT_METHOD_AMBIGUOUS", "Provide either credit card or bank account, not both");
+        if (creditCard == null && bankAccount == null)
+            return FailTrial("PAYMENT_METHOD_REQUIRED", "Credit card or bank account information is required");
+
+        var jobId = await _registrations.GetRegistrationJobIdAsync(regId);
+        if (jobId == null)
+            return FailTrial("REG_NOT_FOUND", "Registration not found");
+        var jobIdValue = jobId.Value;
+
+        var feeSettings = await _jobs.GetJobFeeSettingsAsync(jobIdValue);
+        if (feeSettings == null)
+            return FailTrial("INVALID_JOB", "Invalid job");
+        if (feeSettings.AdnArbTrial != true)
+            return FailTrial("ARB_TRIAL_NOT_ENABLED", "ARB-Trial is not enabled for this job.");
+        if (!feeSettings.AdnStartDateAfterTrial.HasValue)
+            return FailTrial("ARB_TRIAL_BALANCE_DATE_MISSING", "ARB-Trial balance date is not configured.");
+        if (bankAccount != null && !feeSettings.BEnableEcheck)
+            return FailTrial("ECHECK_NOT_ENABLED", "eCheck payments are not enabled for this job.");
+
+        if (bankAccount != null)
+        {
+            var (bankErr, bankCode) = NormalizeAndValidateBankAccount(bankAccount);
+            if (bankErr != null) return FailTrial(bankCode!, bankErr);
+        }
+        else
+        {
+            var (ccErr, ccCode) = ValidateAndSanitizeCreditCard(creditCard!);
+            if (ccErr != null) return FailTrial(ccCode!, ccErr);
+        }
+
+        var teams = await _teams.GetTeamsWithJobAndCustomerAsync(jobIdValue, teamIds);
+        if (teams.Count != teamIds.Count)
+            return FailTrial("TEAM_NOT_FOUND", "One or more teams not found");
+
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobIdValue);
+        if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
+            return FailTrial("MISSING_GATEWAY_CREDS", "Payment gateway credentials not configured");
+        var env = _adnApiService.GetADNEnvironment();
+
+        // Deposit billed tomorrow; balance billed on the job-config date.
+        var today = DateTime.Now.Date;
+        var depositDate = today.AddDays(1);
+        var balanceDate = feeSettings.AdnStartDateAfterTrial.Value.Date;
+
+        // Effective processing rate per payment method — fed straight into the splitter
+        // so the per-charge math reflects the customer's actual rate (CC vs eCheck).
+        var processingRate = bankAccount != null
+            ? await _feeService.GetEffectiveEcheckProcessingRateAsync(jobIdValue)
+            : await _feeService.GetEffectiveProcessingRateAsync(jobIdValue);
+
+        // Fallback: today on/after balance date → single full-amount charge per team.
+        // No subscription is created; the standard CC/eCheck per-team loop runs instead.
+        if (today >= balanceDate)
+        {
+            return await ProcessArbTrialFallbackAsync(
+                regId, userId, teams, jobIdValue, credentials, env, feeSettings, creditCard, bankAccount);
+        }
+
+        var intervalDays = (short)(balanceDate - depositDate).Days;
+        if (intervalDays < 1)
+            return FailTrial("INVALID_INTERVAL", "Balance date must be at least 2 days after today");
+
+        // Penny-verify CC up front: ARB sub create only schema-validates the card, so a
+        // declined card wouldn't surface until tomorrow's batch. Forces a sync decline now.
+        if (creditCard != null)
+        {
+            var verifyResult = _adnApiService.ADN_VerifyCardWithPennyAuth(new AdnAuthorizeRequest
+            {
+                Env = env,
+                LoginId = credentials.AdnLoginId!,
+                TransactionKey = credentials.AdnTransactionKey!,
+                CardNumber = creditCard.Number!,
+                CardCode = creditCard.Code!,
+                Expiry = FormatExpiry(creditCard.Expiry!),
+                FirstName = creditCard.FirstName!,
+                LastName = creditCard.LastName!,
+                Address = creditCard.Address!,
+                Zip = creditCard.Zip!,
+                Amount = 0.01m
+            });
+            if (!verifyResult.Success)
+                return FailTrial("CARD_VERIFY_FAILED", $"Card validation failed: {verifyResult.ErrorMessage}");
+        }
+
+        var bAddProcessing = feeSettings.BAddProcessingFees ?? true;
+        var bApplyToDeposit = feeSettings.BApplyProcessingFeesToTeamDeposit ?? false;
+
+        var results = new List<TeamArbTrialResultDto>();
+        var notAttempted = new List<Guid>();
+        var teamsList = teams.ToList();
+        var stoppedAt = -1;
+
+        for (int i = 0; i < teamsList.Count; i++)
+        {
+            var team = teamsList[i];
+
+            // Pull raw deposit + balance straight from the JobFees cascade for ClubRep.
+            var resolved = await _feeService.ResolveFeeAsync(
+                jobIdValue, RoleConstants.ClubRep, team.AgegroupId, team.TeamId);
+            var rawDeposit = resolved?.EffectiveDeposit ?? 0m;
+            var rawBalance = resolved?.EffectiveBalanceDue ?? 0m;
+
+            // Modifiers are frozen on the team row from registration time.
+            var discount = (team.FeeDiscount ?? 0m) + (team.FeeDiscountMp ?? 0m);
+            var lateFee = team.FeeLatefee ?? 0m;
+
+            var split = ArbTrialFeeSplitter.Split(
+                rawDeposit, rawBalance, discount, lateFee, processingRate,
+                bAddProcessingFees: bAddProcessing,
+                bApplyProcessingFeesToTeamDeposit: bApplyToDeposit);
+
+            // ARB-Trial requires two non-zero charges. A team configured with only a
+            // deposit OR only a balance can't meaningfully be put on this schedule —
+            // surface that as a failure and stop the batch.
+            if (split.DepositCharge <= 0m || split.BalanceCharge <= 0m)
+            {
+                results.Add(new TeamArbTrialResultDto
+                {
+                    TeamId = team.TeamId,
+                    Registered = false,
+                    FailureReason = "Team fee config does not support trial schedule (deposit and balance must both be > 0)"
+                });
+                stoppedAt = i;
+                break;
+            }
+
+            var invoiceNumber = BuildTeamInvoiceNumber(team);
+            var description = $"Team Registration: {team.TeamName ?? team.DisplayName}";
+
+            AdnArbCreateResult arbResult;
+            if (creditCard != null)
+            {
+                arbResult = _adnApiService.ADN_ARB_CreateTrialSubscription_Cc(new AdnArbCreateTrialRequest
+                {
+                    Env = env,
+                    LoginId = credentials.AdnLoginId!,
+                    TransactionKey = credentials.AdnTransactionKey!,
+                    CardNumber = creditCard.Number!,
+                    CardCode = creditCard.Code!,
+                    Expiry = FormatExpiry(creditCard.Expiry!),
+                    FirstName = creditCard.FirstName!,
+                    LastName = creditCard.LastName!,
+                    Address = creditCard.Address!,
+                    Zip = creditCard.Zip!,
+                    Email = creditCard.Email!,
+                    Phone = creditCard.Phone!,
+                    InvoiceNumber = invoiceNumber,
+                    Description = description,
+                    TrialAmount = split.DepositCharge,
+                    PerIntervalCharge = split.BalanceCharge,
+                    StartDate = depositDate,
+                    IntervalLengthDays = intervalDays
+                });
+            }
+            else
+            {
+                arbResult = _adnApiService.ADN_ARB_CreateTrialSubscription_Bank(new AdnArbCreateTrialBankAccountRequest
+                {
+                    Env = env,
+                    LoginId = credentials.AdnLoginId!,
+                    TransactionKey = credentials.AdnTransactionKey!,
+                    AccountType = bankAccount!.AccountType!,
+                    RoutingNumber = bankAccount.RoutingNumber!,
+                    AccountNumber = bankAccount.AccountNumber!,
+                    NameOnAccount = bankAccount.NameOnAccount!.Trim(),
+                    FirstName = bankAccount.FirstName!,
+                    LastName = bankAccount.LastName!,
+                    Address = bankAccount.Address!,
+                    Zip = bankAccount.Zip!,
+                    Email = bankAccount.Email!,
+                    Phone = bankAccount.Phone!,
+                    InvoiceNumber = invoiceNumber,
+                    Description = description,
+                    TrialAmount = split.DepositCharge,
+                    PerIntervalCharge = split.BalanceCharge,
+                    StartDate = depositDate,
+                    IntervalLengthDays = intervalDays
+                });
+            }
+
+            if (!arbResult.Success || string.IsNullOrWhiteSpace(arbResult.SubscriptionId))
+            {
+                results.Add(new TeamArbTrialResultDto
+                {
+                    TeamId = team.TeamId,
+                    Registered = false,
+                    FailureReason = string.IsNullOrWhiteSpace(arbResult.MessageForUser)
+                        ? "Gateway subscription create failed"
+                        : arbResult.MessageForUser
+                });
+                stoppedAt = i;
+                _logger.LogWarning("ARB-Trial sub failed: Team={TeamId} Reason={Reason}",
+                    team.TeamId, arbResult.MessageForUser);
+                break;
+            }
+
+            // Stamp full schedule onto the team row. FeeBase is the raw service amount
+            // (deposit + balance) — discount/latefee stay in their dedicated columns;
+            // FeeProcessing carries the splitter-computed processing total.
+            team.FeeBase = rawDeposit + rawBalance;
+            team.FeeProcessing = split.TotalProcessing;
+            team.FeeTotal = split.DepositCharge + split.BalanceCharge;
+            team.OwedTotal = team.FeeTotal - (team.PaidTotal ?? 0m);
+
+            team.AdnSubscriptionId = arbResult.SubscriptionId;
+            team.AdnSubscriptionStatus = "active";
+            team.AdnSubscriptionStartDate = depositDate;
+            team.AdnSubscriptionBillingOccurences = 2;
+            team.AdnSubscriptionAmountPerOccurence = split.BalanceCharge;
+            team.AdnSubscriptionIntervalLength = intervalDays;
+            team.Modified = DateTime.Now;
+            team.LebUserId = userId;
+
+            results.Add(new TeamArbTrialResultDto
+            {
+                TeamId = team.TeamId,
+                Registered = true,
+                AdnSubscriptionId = arbResult.SubscriptionId,
+                DepositCharge = split.DepositCharge,
+                BalanceCharge = split.BalanceCharge,
+                DepositDate = depositDate,
+                BalanceDate = balanceDate
+            });
+
+            _logger.LogInformation(
+                "ARB-Trial sub created: Team={TeamId} Sub={SubId} Deposit={Deposit} on {DepositDate}; Balance={Balance} on {BalanceDate}",
+                team.TeamId, arbResult.SubscriptionId, split.DepositCharge, depositDate, split.BalanceCharge, balanceDate);
+        }
+
+        if (stoppedAt >= 0)
+        {
+            for (int j = stoppedAt + 1; j < teamsList.Count; j++)
+                notAttempted.Add(teamsList[j].TeamId);
+        }
+
+        var anySuccess = results.Any(r => r.Registered);
+        if (anySuccess)
+        {
+            await _teams.SaveChangesAsync();
+            // Roll team financial deltas onto the rep's Registrations row so the
+            // search/balance-due UI reflects the new aggregate immediately.
+            await _registrations.SynchronizeClubRepFinancialsAsync(regId, userId);
+        }
+
+        var successCount = results.Count(r => r.Registered);
+        var allOk = stoppedAt < 0 && successCount == teamIds.Count;
+
+        return new TeamArbTrialPaymentResponseDto
+        {
+            Success = allOk,
+            Error = allOk ? null : (anySuccess ? "PARTIAL_SUCCESS" : "ALL_FAILED"),
+            Message = allOk
+                ? $"All {successCount} ARB-Trial subscription(s) created"
+                : (anySuccess
+                    ? $"{successCount} of {teamIds.Count} subscription(s) created; batch stopped at first failure"
+                    : "All ARB-Trial submissions failed"),
+            Teams = results,
+            NotAttempted = notAttempted
+        };
+    }
+
+    /// <summary>
+    /// Fallback path for ARB-Trial when today is on/after the configured balance date.
+    /// Charges each team the full netBase + processing as a single ADN transaction
+    /// (CC or eCheck depending on which payment method was supplied). No subscription
+    /// is created. Capture-what-you-can semantics mirror the trial loop.
+    ///
+    /// Aligns with the existing team eCheck pattern: stamp team with CC-rate schedule,
+    /// then apply the (CC − EC) processing-fee credit via _feeAdj before charging. This
+    /// keeps NSF reversal in <see cref="AdnSweepService.ProcessEcheckReturnAsync"/>
+    /// uniform with the regular team eCheck flow.
+    /// </summary>
+    private async Task<TeamArbTrialPaymentResponseDto> ProcessArbTrialFallbackAsync(
+        Guid regId,
+        string userId,
+        List<Domain.Entities.Teams> teams,
+        Guid jobId,
+        AdnCredentialsViewModel credentials,
+        AuthorizeNet.Environment env,
+        JobFeeSettings feeSettings,
+        CreditCardInfo? creditCard,
+        BankAccountInfo? bankAccount)
+    {
+        var bAddProcessing = feeSettings.BAddProcessingFees ?? true;
+        var bApplyToDeposit = feeSettings.BApplyProcessingFeesToTeamDeposit ?? false;
+        var ccProcessingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
+        var ccExpiryDate = creditCard != null ? FormatExpiry(creditCard.Expiry!) : null;
+        var last4 = bankAccount?.AccountNumber is { Length: >= 4 } an ? an[^4..] : bankAccount?.AccountNumber;
+        var nameOnAcct = bankAccount?.NameOnAccount?.Trim();
+
+        var results = new List<TeamArbTrialResultDto>();
+        var notAttempted = new List<Guid>();
+        var pendingSettlements = new List<(RegistrationAccounting Ra, string TxId)>();
+        var stoppedAt = -1;
+
+        for (int i = 0; i < teams.Count; i++)
+        {
+            var team = teams[i];
+
+            var resolved = await _feeService.ResolveFeeAsync(
+                jobId, RoleConstants.ClubRep, team.AgegroupId, team.TeamId);
+            var rawDeposit = resolved?.EffectiveDeposit ?? 0m;
+            var rawBalance = resolved?.EffectiveBalanceDue ?? 0m;
+            var discount = (team.FeeDiscount ?? 0m) + (team.FeeDiscountMp ?? 0m);
+            var lateFee = team.FeeLatefee ?? 0m;
+
+            // Always splits at CC rate. For eCheck, the (CC−EC) credit is applied below
+            // via _feeAdj so the team row carries the same processing-fee history that
+            // ProcessTeamEcheckPaymentAsync would have written — sweep NSF reversal is
+            // identical for both paths.
+            var split = ArbTrialFeeSplitter.Split(
+                rawDeposit, rawBalance, discount, lateFee, ccProcessingRate,
+                bAddProcessingFees: bAddProcessing,
+                bApplyProcessingFeesToTeamDeposit: bApplyToDeposit);
+
+            var ccFullCharge = split.DepositCharge + split.BalanceCharge;
+            if (ccFullCharge <= 0m)
+            {
+                results.Add(new TeamArbTrialResultDto
+                {
+                    TeamId = team.TeamId,
+                    Registered = false,
+                    FailureReason = "No charge amount derived from team fees"
+                });
+                stoppedAt = i;
+                break;
+            }
+
+            // Stamp full CC schedule on the team.
+            team.FeeBase = rawDeposit + rawBalance;
+            team.FeeProcessing = split.TotalProcessing;
+            team.FeeTotal = ccFullCharge;
+            team.OwedTotal = ccFullCharge - (team.PaidTotal ?? 0m);
+            team.Modified = DateTime.Now;
+            team.LebUserId = userId;
+
+            // For eCheck, drop the (CC − EC) credit onto the team (mutates FeeProcessing,
+            // FeeTotal, OwedTotal in-place) and recompute the charge amount. The
+            // ReverseTeamProcessingFeeForEcheckAsync path runs symmetrically on NSF.
+            decimal chargeAmount = ccFullCharge;
+            if (bankAccount != null)
+            {
+                await _feeAdj.ReduceTeamProcessingFeeForEcheckAsync(team, ccFullCharge, jobId, userId);
+                chargeAmount = (team.FeeTotal ?? ccFullCharge) - (team.PaidTotal ?? 0m);
+            }
+
+            var invoiceNumber = BuildTeamInvoiceNumber(team);
+            var description = $"Team Registration (ARB-Trial fallback): {team.TeamName ?? team.DisplayName}";
+
+            createTransactionResponse? adnResponse;
+            if (creditCard != null)
+            {
+                adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest
+                {
+                    Env = env,
+                    LoginId = credentials.AdnLoginId!,
+                    TransactionKey = credentials.AdnTransactionKey!,
+                    CardNumber = creditCard.Number!,
+                    CardCode = creditCard.Code!,
+                    Expiry = ccExpiryDate!,
+                    FirstName = creditCard.FirstName!,
+                    LastName = creditCard.LastName!,
+                    Address = creditCard.Address!,
+                    Zip = creditCard.Zip!,
+                    Email = creditCard.Email!,
+                    Phone = creditCard.Phone!,
+                    Amount = chargeAmount,
+                    InvoiceNumber = invoiceNumber,
+                    Description = description
+                });
+            }
+            else
+            {
+                adnResponse = _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
+                {
+                    Env = env,
+                    LoginId = credentials.AdnLoginId!,
+                    TransactionKey = credentials.AdnTransactionKey!,
+                    AccountType = bankAccount!.AccountType!,
+                    RoutingNumber = bankAccount.RoutingNumber!,
+                    AccountNumber = bankAccount.AccountNumber!,
+                    NameOnAccount = nameOnAcct!,
+                    FirstName = bankAccount.FirstName!,
+                    LastName = bankAccount.LastName!,
+                    Address = bankAccount.Address!,
+                    Zip = bankAccount.Zip!,
+                    Email = bankAccount.Email!,
+                    Phone = bankAccount.Phone!,
+                    Amount = chargeAmount,
+                    InvoiceNumber = invoiceNumber,
+                    Description = description
+                });
+            }
+
+            var ok = adnResponse?.messages?.resultCode == messageTypeEnum.Ok
+                && adnResponse.transactionResponse?.messages != null
+                && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId);
+
+            if (!ok)
+            {
+                var errMsg = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+                    ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
+                    ?? "Gateway transaction failed";
+                results.Add(new TeamArbTrialResultDto
+                {
+                    TeamId = team.TeamId,
+                    Registered = false,
+                    FailureReason = errMsg
+                });
+                stoppedAt = i;
+                _logger.LogWarning("ARB-Trial fallback charge failed: Team={TeamId} Error={Err}",
+                    team.TeamId, errMsg);
+                break;
+            }
+
+            var transId = adnResponse!.transactionResponse.transId;
+
+            // Optimistic credit at submit (mirrors ProcessTeamEcheckPaymentAsync): for
+            // eCheck the actual settlement clears days later but the rep's UI shows the
+            // payment immediately. NSF reversal in the sweep undoes both PaidTotal and
+            // the processing-fee credit if the bank returns the item.
+            team.PaidTotal = (team.PaidTotal ?? 0m) + chargeAmount;
+            team.OwedTotal = (team.OwedTotal ?? 0m) - chargeAmount;
+            if ((team.OwedTotal ?? 0m) < 0m) team.OwedTotal = 0m;
+            team.Modified = DateTime.Now;
+            team.LebUserId = userId;
+
+            var fullCharge = chargeAmount;
+
+            var pmId = creditCard != null
+                ? Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D") // CC payment method
+                : EcheckPaymentMethodId;
+            var paymeth = creditCard != null
+                ? $"paid by cc: {fullCharge:C} on {DateTime.Now:G} txID: {transId}"
+                : $"eCheck pending settlement: {fullCharge:C} on {DateTime.Now:G} txID: {transId}";
+
+            var ra = new RegistrationAccounting
+            {
+                RegistrationId = regId,
+                TeamId = team.TeamId,
+                Payamt = fullCharge,
+                Dueamt = fullCharge,
+                Paymeth = paymeth,
+                PaymentMethodId = pmId,
+                Active = true,
+                Createdate = DateTime.Now,
+                Modified = DateTime.Now,
+                LebUserId = userId,
+                AdnTransactionId = transId,
+                AdnInvoiceNo = invoiceNumber,
+                AdnCc4 = creditCard?.Number is { Length: >= 4 } cn ? cn[^4..] : null,
+                AdnCcexpDate = ccExpiryDate,
+                Comment = description
+            };
+            _acct.Add(ra);
+            if (bankAccount != null) pendingSettlements.Add((ra, transId));
+
+            results.Add(new TeamArbTrialResultDto
+            {
+                TeamId = team.TeamId,
+                Registered = true,
+                DepositCharge = fullCharge,
+                BalanceCharge = 0m,
+                DepositDate = DateTime.Now.Date
+            });
+
+            _logger.LogInformation("ARB-Trial fallback charge succeeded: Team={TeamId} Amount={Amount} TransId={TransId}",
+                team.TeamId, fullCharge, transId);
+        }
+
+        if (stoppedAt >= 0)
+        {
+            for (int j = stoppedAt + 1; j < teams.Count; j++)
+                notAttempted.Add(teams[j].TeamId);
+        }
+
+        var anySuccess = results.Any(r => r.Registered);
+        if (anySuccess)
+        {
+            await _teams.SaveChangesAsync();
+            await _acct.SaveChangesAsync();
+
+            if (pendingSettlements.Count > 0)
+            {
+                // Settlement.RegistrationAccountingId = identity-generated AId on the RA;
+                // requires the RA inserts above to be saved first.
+                var nextCheckAt = DateTime.UtcNow.AddDays(1);
+                foreach (var (ra, txId) in pendingSettlements)
+                {
+                    _settleRepo.Add(new Settlement
+                    {
+                        SettlementId = Guid.NewGuid(),
+                        RegistrationAccountingId = ra.AId,
+                        AdnTransactionId = txId,
+                        Status = "Pending",
+                        SubmittedAt = DateTime.UtcNow,
+                        NextCheckAt = nextCheckAt,
+                        AccountLast4 = last4,
+                        AccountType = bankAccount!.AccountType,
+                        NameOnAccount = nameOnAcct,
+                        Modified = DateTime.UtcNow,
+                        LebUserId = userId
+                    });
+                }
+                await _settleRepo.SaveChangesAsync();
+            }
+
+            await _registrations.SynchronizeClubRepFinancialsAsync(regId, userId);
+        }
+
+        var successCount = results.Count(r => r.Registered);
+        var allOk = stoppedAt < 0 && successCount == teams.Count;
+
+        return new TeamArbTrialPaymentResponseDto
+        {
+            Success = allOk,
+            Mode = "FALLBACK_FULL_CHARGE",
+            Error = allOk ? null : (anySuccess ? "PARTIAL_SUCCESS" : "ALL_FAILED"),
+            Message = allOk
+                ? $"All {successCount} team(s) charged in full (balance date already passed)"
+                : (anySuccess
+                    ? $"{successCount} of {teams.Count} team(s) charged; batch stopped at first failure"
+                    : "All ARB-Trial fallback charges failed"),
+            Teams = results,
+            NotAttempted = notAttempted
+        };
+    }
+
+    /// <summary>
+    /// Build invoice number for a team payment (pattern: customerAi_jobAi_teamAi),
+    /// truncating fallback variants to satisfy the ADN 20-char limit.
+    /// </summary>
+    private static string BuildTeamInvoiceNumber(Domain.Entities.Teams team)
+    {
+        var primary = $"{team.Job.Customer.CustomerAi}_{team.Job.JobAi}_{team.TeamAi}";
+        if (primary.Length <= 20) return primary;
+        var alt = $"{team.Job.JobAi}_{team.TeamAi}";
+        if (alt.Length <= 20) return alt;
+        return team.TeamAi.ToString();
+    }
+
+    /// <summary>
+    /// Sanitize-in-place + validate a customer-supplied credit card. Used by the team
+    /// ARB-Trial path; mirrors the field-level checks in <see cref="ValidatePaymentRequestInternalAsync"/>.
+    /// Returns null Error on success.
+    /// </summary>
+    private static (string? Error, string? Code) ValidateAndSanitizeCreditCard(CreditCardInfo cc)
+    {
+        var fields = new (string Name, string? Value)[]
+        {
+            ("number", cc.Number), ("expiry", cc.Expiry), ("code", cc.Code),
+            ("firstName", cc.FirstName), ("lastName", cc.LastName),
+            ("address", cc.Address), ("zip", cc.Zip),
+            ("email", cc.Email), ("phone", cc.Phone)
+        };
+        var missing = fields.Where(f => string.IsNullOrWhiteSpace(f.Value)).Select(f => f.Name).ToList();
+        if (missing.Count > 0)
+            return ("Missing card field(s): " + string.Join(", ", missing), "CARD_FIELDS_MISSING");
+        cc.Expiry = new string((cc.Expiry ?? "").Where(char.IsDigit).ToArray());
+        if (cc.Expiry?.Length != 4)
+            return ("Invalid expiry format (expected MMYY)", "CARD_EXPIRY_INVALID");
+        cc.Phone = new string((cc.Phone ?? "").Where(char.IsDigit).ToArray());
+        if (string.IsNullOrWhiteSpace(cc.Phone))
+            return ("Invalid phone (digits required)", "CARD_PHONE_INVALID");
+        if (string.IsNullOrWhiteSpace(cc.Email) || !cc.Email.Contains('@') || !cc.Email.Contains('.'))
+            return ("Invalid email format", "CARD_EMAIL_INVALID");
+        return (null, null);
+    }
+
+    private static TeamArbTrialPaymentResponseDto FailTrial(string code, string msg) =>
+        new TeamArbTrialPaymentResponseDto
+        {
+            Success = false,
+            Error = code,
+            Message = msg,
+            Teams = new List<TeamArbTrialResultDto>(),
+            NotAttempted = new List<Guid>()
+        };
 
     /// <summary>
     /// Overload that accepts jobId and familyUserId extracted from JWT claims.
