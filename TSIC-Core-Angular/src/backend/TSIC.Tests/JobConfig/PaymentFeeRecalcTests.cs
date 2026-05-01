@@ -190,6 +190,7 @@ public class PaymentFeeRecalcTests
             configRepo,
             teamRegService,
             playerMock.Object,
+            new ScheduleRepository(ctx),
             new Mock<ILogger<JobConfigService>>().Object);
 
         return (configService, ctx, job.JobId, playerMock);
@@ -337,6 +338,7 @@ public class PaymentFeeRecalcTests
             configRepo,
             teamRegService,
             new Mock<IPlayerRegistrationService>().Object,
+            new ScheduleRepository(ctx),
             new Mock<ILogger<JobConfigService>>().Object);
 
         return (configService, ctx, job.JobId, teams);

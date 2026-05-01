@@ -54,6 +54,15 @@ public interface IScheduleRepository
     Task SynchronizeScheduleLeagueNameAsync(Guid leagueId, string newName, CancellationToken ct = default);
 
     /// <summary>
+    /// Recompose T1Name/T2Name on every round-robin schedule row in a job using
+    /// the job's current BShowTeamNameOnlyInSchedules flag. Called when the flag
+    /// flips, since SynchronizeScheduleNamesForTeamAsync only handles per-team
+    /// rename events. Single bulk pass: builds teamId→displayName map for all
+    /// teams in the job, then updates every game in one SaveChanges.
+    /// </summary>
+    Task SynchronizeAllScheduleNamesForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Re-resolve T1Id/T1Name and T2Id/T2Name for every round-robin schedule record
     /// in a division based on current DivRank assignments. Called after a DivRank swap
     /// or team rename to keep denormalized fields in sync.

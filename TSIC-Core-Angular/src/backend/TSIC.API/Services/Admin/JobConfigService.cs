@@ -19,17 +19,20 @@ public class JobConfigService : IJobConfigService
     private readonly IJobConfigRepository _repo;
     private readonly ITeamRegistrationService _teamRegService;
     private readonly IPlayerRegistrationService _playerRegService;
+    private readonly IScheduleRepository _scheduleRepo;
     private readonly ILogger<JobConfigService> _logger;
 
     public JobConfigService(
         IJobConfigRepository repo,
         ITeamRegistrationService teamRegService,
         IPlayerRegistrationService playerRegService,
+        IScheduleRepository scheduleRepo,
         ILogger<JobConfigService> logger)
     {
         _repo = repo;
         _teamRegService = teamRegService;
         _playerRegService = playerRegService;
+        _scheduleRepo = scheduleRepo;
         _logger = logger;
     }
 
@@ -264,6 +267,8 @@ public class JobConfigService : IJobConfigService
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
+        var prevShowTeamNameOnly = job.BShowTeamNameOnlyInSchedules;
+
         // Admin-editable
         job.BRegistrationAllowTeam = req.BRegistrationAllowTeam;
         job.BteamRegRequiresToken = req.BTeamRegRequiresToken ?? false;
@@ -288,6 +293,14 @@ public class JobConfigService : IJobConfigService
 
         job.Modified = DateTime.UtcNow;
         await _repo.SaveChangesAsync(ct);
+
+        if (prevShowTeamNameOnly != req.BShowTeamNameOnlyInSchedules)
+        {
+            _logger.LogInformation(
+                "BShowTeamNameOnlyInSchedules flipped on Job {JobId} ({Prev}→{New}) — recomposing schedule team names.",
+                jobId, prevShowTeamNameOnly, req.BShowTeamNameOnlyInSchedules);
+            await _scheduleRepo.SynchronizeAllScheduleNamesForJobAsync(jobId, ct);
+        }
     }
 
     public async Task UpdateCoachesAsync(Guid jobId, UpdateJobConfigCoachesRequest req, CancellationToken ct = default)

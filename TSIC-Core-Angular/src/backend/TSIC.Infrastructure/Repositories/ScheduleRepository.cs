@@ -138,6 +138,53 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ExecuteUpdateAsync(setters => setters.SetProperty(s => s.LeagueName, newName), ct);
     }
 
+    public async Task SynchronizeAllScheduleNamesForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var showTeamNameOnly = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BShowTeamNameOnlyInSchedules)
+            .FirstOrDefaultAsync(ct);
+
+        var teamRows = await (
+            from t in _context.Teams.AsNoTracking()
+            where t.JobId == jobId
+            join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId into rg
+            from r in rg.DefaultIfEmpty()
+            select new
+            {
+                t.TeamId,
+                t.TeamName,
+                ClubName = r != null ? r.ClubName : null
+            }
+        ).ToListAsync(ct);
+
+        if (teamRows.Count == 0) return;
+
+        var nameByTeamId = teamRows.ToDictionary(
+            t => t.TeamId,
+            t => (!string.IsNullOrEmpty(t.ClubName) && !showTeamNameOnly)
+                ? $"{t.ClubName}:{t.TeamName}"
+                : t.TeamName ?? string.Empty);
+
+        var schedules = await _context.Schedule
+            .Where(s => s.JobId == jobId
+                && ((s.T1Id != null && s.T1Type == "T")
+                 || (s.T2Id != null && s.T2Type == "T")))
+            .ToListAsync(ct);
+
+        foreach (var s in schedules)
+        {
+            if (s.T1Id.HasValue && s.T1Type == "T" && nameByTeamId.TryGetValue(s.T1Id.Value, out var t1Name))
+                s.T1Name = t1Name;
+            if (s.T2Id.HasValue && s.T2Type == "T" && nameByTeamId.TryGetValue(s.T2Id.Value, out var t2Name))
+                s.T2Name = t2Name;
+        }
+
+        if (schedules.Count > 0)
+            await _context.SaveChangesAsync(ct);
+    }
+
     public async Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default)
     {
         // 1. Get active teams in the division with their DivRank and club-rep link
