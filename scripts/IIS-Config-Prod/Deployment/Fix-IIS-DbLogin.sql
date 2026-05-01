@@ -8,7 +8,8 @@
 --      logins. The IIS app pool identity (a Windows virtual account) needs
 --      both to connect. This is called "orphaned users."
 --
--- Unified naming: uses claude-api (same pool name on Dev and Prod).
+-- Prod-only: uses claude-api (the prod pool name). Dev's equivalent
+-- (dev-api) lives in scripts/00-postdev-db-restore-apppooluser.sql.
 --
 -- Usage: Open SSMS -> connect as sysadmin -> run this script
 -- ============================================================================

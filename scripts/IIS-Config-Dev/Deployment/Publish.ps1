@@ -15,12 +15,12 @@ $ErrorActionPreference = "Stop"
 # ---------------------------------------------------------------------------
 # Configuration (Dev - all local, C:\ drive)
 # ---------------------------------------------------------------------------
-$ApiPoolName     = 'claude-api'
-$AngularPoolName = 'claude-app'
-$ApiSiteName     = 'claude-api'
-$AngularSiteName = 'claude-app'
-$ApiTarget       = 'C:\Websites\claude-api'
-$AngularTarget   = 'C:\Websites\claude-app'
+$ApiPoolName     = 'dev-api'
+$AngularPoolName = 'dev-app'
+$ApiSiteName     = 'dev-api'
+$AngularSiteName = 'dev-app'
+$ApiTarget       = 'C:\Websites\dev-api'
+$AngularTarget   = 'C:\Websites\dev-app'
 $BackupsPath     = 'C:\Websites\Backups'
 $SqlInstance     = '.\SS2016'
 $ApiHostname     = 'devapi.teamsportsinfo.com'
@@ -193,7 +193,7 @@ if (!(Test-Path $BackupsPath)) { New-Item -ItemType Directory -Path $BackupsPath
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 
 if ((Test-Path $ApiTarget) -and (Get-ChildItem $ApiTarget -ErrorAction SilentlyContinue)) {
-    $apiBackup = Join-Path $BackupsPath "claude-api-$Timestamp"
+    $apiBackup = Join-Path $BackupsPath "dev-api-$Timestamp"
     New-Item -ItemType Directory -Path $apiBackup -Force | Out-Null
     Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue |
         Where-Object { $_.Name -notin $PreservedDirs } |
@@ -202,7 +202,7 @@ if ((Test-Path $ApiTarget) -and (Get-ChildItem $ApiTarget -ErrorAction SilentlyC
 }
 
 if ((Test-Path $AngularTarget) -and (Get-ChildItem $AngularTarget -ErrorAction SilentlyContinue)) {
-    $angBackup = Join-Path $BackupsPath "claude-app-$Timestamp"
+    $angBackup = Join-Path $BackupsPath "dev-app-$Timestamp"
     New-Item -ItemType Directory -Path $angBackup -Force | Out-Null
     Get-ChildItem $AngularTarget -Force -ErrorAction SilentlyContinue |
         ForEach-Object { Copy-Item $_.FullName $angBackup -Recurse -Force -ErrorAction SilentlyContinue }
@@ -210,7 +210,7 @@ if ((Test-Path $AngularTarget) -and (Get-ChildItem $AngularTarget -ErrorAction S
 }
 
 # Prune old backups (keep 3 most recent per site)
-foreach ($prefix in @('claude-api-', 'claude-app-')) {
+foreach ($prefix in @('dev-api-', 'dev-app-')) {
     $old = Get-ChildItem $BackupsPath -Directory -Filter "$prefix*" -ErrorAction SilentlyContinue |
         Sort-Object Name -Descending | Select-Object -Skip 3
     foreach ($dir in $old) {

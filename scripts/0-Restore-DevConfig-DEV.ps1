@@ -879,7 +879,7 @@ $sb.AppendLine("-- =============================================================
 $sb.AppendLine("-- SECTION 3: IIS APP POOL DB LOGIN -- DEFERRED") | Out-Null
 $sb.AppendLine("-- IIS app pool DB user provisioning lives in a single canonical script:") | Out-Null
 $sb.AppendLine("--     scripts\00-postdev-db-restore-apppooluser.sql") | Out-Null
-$sb.AppendLine("-- That script creates dev-api + claude-api logins/users with the correct") | Out-Null
+$sb.AppendLine("-- That script creates the dev-api login/user with the correct") | Out-Null
 $sb.AppendLine("-- role + EXECUTE grants. Run it BEFORE or AFTER this script -- both are") | Out-Null
 $sb.AppendLine("-- idempotent.") | Out-Null
 $sb.AppendLine("-- ========================================================================") | Out-Null

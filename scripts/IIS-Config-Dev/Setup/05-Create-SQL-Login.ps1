@@ -1,7 +1,7 @@
 # ============================================================================
 # 05-Create-SQL-Login.ps1 — Create SQL Server login for IIS app pool identity
 # ============================================================================
-# Grants the app pool identity (IIS APPPOOL\claude-api) access to the database.
+# Grants the app pool identity (IIS APPPOOL\dev-api) access to the database.
 # Also run after database restores to fix orphaned users.
 # ============================================================================
 
@@ -38,7 +38,8 @@ END
 
 ALTER ROLE [db_datareader] ADD MEMBER [$loginName];
 ALTER ROLE [db_datawriter] ADD MEMBER [$loginName];
-PRINT 'Granted db_datareader and db_datawriter roles.';
+GRANT EXECUTE TO [$loginName];
+PRINT 'Granted db_datareader, db_datawriter, and EXECUTE (db-wide).';
 "@
 
 # Try Invoke-Sqlcmd first, fall back to sqlcmd
@@ -84,6 +85,7 @@ else {
     Write-Host "  CREATE USER [$loginName] FOR LOGIN [$loginName];" -ForegroundColor White
     Write-Host "  ALTER ROLE [db_datareader] ADD MEMBER [$loginName];" -ForegroundColor White
     Write-Host "  ALTER ROLE [db_datawriter] ADD MEMBER [$loginName];" -ForegroundColor White
+    Write-Host "  GRANT EXECUTE TO [$loginName];" -ForegroundColor White
 }
 
 Write-Host "[Step 5] Complete." -ForegroundColor Green

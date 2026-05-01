@@ -2,7 +2,7 @@
 # 00-Remove-Sites.ps1 — Remove old TSIC.Api and TSIC.App from IIS
 # ============================================================================
 # ONE-TIME script to remove the old IIS sites and app pools before
-# running Run-Full-Setup.ps1 to create the new claude-api/claude-app sites.
+# running Run-Full-Setup.ps1 to create the new dev-api/dev-app sites.
 #
 # This script is hardcoded to ONLY remove:
 #   - Site: TSIC.Api    + App Pool: TSIC.Api

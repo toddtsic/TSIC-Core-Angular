@@ -5,7 +5,7 @@
 # Each step is idempotent — safe to re-run.
 #
 # IMPORTANT: Run 00-Remove-Sites.ps1 FIRST if old TSIC.Api/TSIC.App sites
-# exist — their hostname bindings conflict with the new claude-api/claude-app.
+# exist — their hostname bindings conflict with the new dev-api/dev-app.
 #
 # Usage:
 #   .\Run-Full-Setup.ps1

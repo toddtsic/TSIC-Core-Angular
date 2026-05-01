@@ -10,18 +10,19 @@
 
 $Config = @{
     Environment     = 'Dev'
-    ApiPoolName     = 'claude-api'
-    AngularPoolName = 'claude-app'
-    ApiSiteName     = 'claude-api'
-    AngularSiteName = 'claude-app'
+    ApiPoolName     = 'dev-api'
+    AngularPoolName = 'dev-app'
+    ApiSiteName     = 'dev-api'
+    AngularSiteName = 'dev-app'
     ApiHostname     = 'devapi.teamsportsinfo.com'
     AngularHostname = 'dev.teamsportsinfo.com'
     BasePath        = 'C:\Websites'
-    ApiPath         = 'C:\Websites\claude-api'
-    AngularPath     = 'C:\Websites\claude-app'
+    ApiPath         = 'C:\Websites\dev-api'
+    AngularPath     = 'C:\Websites\dev-app'
+    StaticsPath     = 'C:\Websites\TSIC-STATICS'
     BackupsPath     = 'C:\Websites\Backups'
-    DeployApiPath     = 'C:\Websites\claude-api'
-    DeployAngularPath = 'C:\Websites\claude-app'
+    DeployApiPath     = 'C:\Websites\dev-api'
+    DeployAngularPath = 'C:\Websites\dev-app'
     DeployBackupsPath = 'C:\Websites\Backups'
     DatabaseName    = 'TSICV5'
     SqlInstance     = '.\SS2016'
@@ -37,6 +38,7 @@ function Show-Config {
     Write-Host "  Angular Pool:   $($Config.AngularPoolName)" -ForegroundColor White
     Write-Host "  Angular Host:   $($Config.AngularHostname)" -ForegroundColor White
     Write-Host "  Angular Path:   $($Config.AngularPath)" -ForegroundColor White
+    Write-Host "  Statics:        $($Config.StaticsPath)" -ForegroundColor White
     Write-Host "  Backups:        $($Config.BackupsPath)" -ForegroundColor White
     Write-Host "  SQL:            $($Config.SqlInstance) / $($Config.DatabaseName)" -ForegroundColor White
     Write-Host ""

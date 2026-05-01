@@ -985,7 +985,7 @@ SELECT 'widgets.Widget.DefaultConfig',
 -- SECTION 3: IIS APP POOL DB LOGIN -- DEFERRED
 -- IIS app pool DB user provisioning lives in a single canonical script:
 --     scripts\00-postdev-db-restore-apppooluser.sql
--- That script creates dev-api + claude-api logins/users with the correct
+-- That script creates the dev-api login/user with the correct
 -- role + EXECUTE grants. Run it BEFORE or AFTER this script -- both are
 -- idempotent.
 -- ========================================================================
