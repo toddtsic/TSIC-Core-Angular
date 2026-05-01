@@ -150,8 +150,25 @@ $adminManifest = @(
     (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'       'grid'            'scheduling/schedule-hub'       12 1 1 1)
     (New-AdminItem 'Scheduling' 'calendar' 5 'QA Results'         'check2-square'   'scheduling/qa-results'         13 1 1 1)
 
-    # -- Reports (L1 stub; reporting/% items reattached at step 13) --------
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Report Library' 'collection' 'reporting/reports-library' 1 1 1 1)
+    # -- Reports (legacy /tsic SU menu items 1-10 mirrored as direct links;   -
+    #    Report Library remains for D/SD job-scoped catalogue browsing.       -
+    #    SP runners use bUseJobId=false (cross-customer) and are SU-only.) ---
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Report Library'                          'collection'           'reporting/reports-library'                                                                          1  1 1 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Daily Registration Counts (PDF)'         'file-earmark-pdf'     'reporting/Get_JobPlayers_TSICDAILY'                                                                 2  0 0 1)
+    # NB: legacy display says "Purchases" but the action targets reporting.RegsaverRegistrants_ALL
+    # — display/SP-name mismatch is preserved from legacy for menu fidelity.
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Regsaver Purchases (Excel)'              'file-earmark-excel'   'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false'                       3  0 0 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Expired Player Reg Bulletins'            'person-x'             'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false'                   4  0 0 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Expired Team Reg Bulletins'              'shield-x'             'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false'                     5  0 0 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'List of Suspicious ARBs'                 'exclamation-triangle' 'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false'                               6  0 0 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Regsaver Purchases - Raw Data (Excel)'   'file-earmark-excel'   'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false'                 7  0 0 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Job Key Attributes (All)'                'list-columns'         'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false'                          8  0 0 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'ClubRep Contacts (All)'                  'people'               'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false'                           9  0 0 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Tournament Keys (All)'                   'trophy'               'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false'                  10  0 0 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Expiring Bulletins (3 months)'           'clock-history'        'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false'                              11  0 0 1)
+    # NB: legacy invokes this with bUseJobId=true even though the SP name says "rollups across customers";
+    # SP appears to ignore the JobId or use it for filtering. Mirroring legacy.
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Last Month X-Customer Revenue Summary'   'cash-stack'           'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true'                              12  0 0 1)
 
     # -- ARB (section-gated on adnArb flag via $sectionRules) -------------
     (New-AdminItem 'ARB' 'credit-card' 7 'Health Check' 'heart-pulse' 'arb/health' 1 1 1 1)
@@ -159,11 +176,25 @@ $adminManifest = @(
     # -- Store (single item; Store L1 inherits rulesStoreEnabled) ---------
     (New-AdminItem 'Store' 'shop' 8 'Store Admin' 'speedometer2' 'store/admin' 1 1 1 1 $rulesStoreEnabled)
 
-    # -- Accounting (SU-only, monthly-close workflows) --------------------
-    # Pure reports (Crystal + cross-customer SP runners) live in the reports
-    # library, NOT here. This section is for stateful workflow screens only.
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Manual ARB Sweep'             'arrow-clockwise' 'accounting/manual-arb-sweep'      1 0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Produce Last Month Invoices'  'file-earmark-text' 'accounting/produce-job-invoices' 2 0 0 1)
+    # -- Accounting (SU-only, mirrors legacy /tsic SU Accounting menu) -----
+    # 15 items, ordered to match the legacy view. Numeric prefixes ("1)", "2)",
+    # "2M)", "3)", "4)") are preserved from legacy display names. Items routing
+    # to accounting/* with no built component yet share a coming-soon stub.
+    (New-AdminItem 'Accounting' 'cash-stack' 10 '1) New Jobs Last Month (with txs)'        'plus-square'        'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false'    1  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 '2) Get Reconciliation Records'            'arrow-left-right'   'accounting/get-reconciliation-records'                                     2  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 '2M) Get MERCH Reconciliation Records'     'receipt'            'accounting/merch-reconciliation-records'                                   3  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 "4) Last Month's Grand Totals (Excel)"     'calculator'         'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false'    4  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Last Months Invoices SUMMARIES ONLY (pdf)' 'file-earmark-pdf'   'reporting/Get_Invoices_LastMonthSummariesOnly'                              5  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Manual ARB Sweep (ALL)'                   'arrow-clockwise'    'accounting/manual-arb-sweep'                                                6  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'TSIC Fees YTD By Customer'                'graph-up'           'reporting/TSICFeesYTDByCustomer'                                            7  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'TSIC Fees YTD By Customer and Job'        'graph-up'           'reporting/TSICFeesYTDByCustomerAndJob'                                      8  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Last Months Invoices (pdf)'               'file-earmark-pdf'   'reporting/Get_Invoices_LastMonth'                                           9  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Produce Last Month Job Invoices Per Job (rtf)' 'file-earmark-text' 'accounting/produce-job-invoices'                                       10  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Job Admin Fees Summary'                   'cash-coin'          'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false'      11  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Upload Nuvei Funding/Batches'             'upload'             'accounting/upload-nuvei'                                                   12  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'Import RegSaver Monthly Payouts'          'cloud-download'     'accounting/upload-regsaver'                                                13  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 'ADN-Nuvei Reconcile (Excel)'              'arrow-left-right'   'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false'             14  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 10 '3) Last Months Job Stats'                 'bar-chart-line'     'accounting/last-months-job-stats'                                          15  0 0 1)
 
     # -- Tools -------------------------------------------------------------
     (New-AdminItem 'Tools' 'tools' 9 'US Lax Test'          'check-circle'  'tools/uslax-test'           1 1 1 1 $rulesLacrosse)
@@ -537,22 +568,40 @@ BEGIN
         ELSE
             SELECT @rptParentId = NavItemId FROM nav.NavItem WHERE NavId = @rptNavId AND [Text] = @rptParentText AND ParentNavItemId IS NULL;
 
+        -- Skip preserved items whose display Text already exists under the
+        -- same parent (manifest item wins). This makes re-runs idempotent
+        -- after an SP rename — the old RouterLink would otherwise survive
+        -- as a same-name orphan.
         INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
         SELECT @rptNavId, @rptParentId, ri.Active, ri.SortOrder, ri.[Text], ri.IconName, ri.RouterLink, ri.NavigateUrl, ri.[Target], GETDATE()
         FROM #ReportingItems ri
-        WHERE ri.RoleId = @rptRoleId AND ri.ParentText = @rptParentText;
+        WHERE ri.RoleId = @rptRoleId AND ri.ParentText = @rptParentText
+          AND NOT EXISTS (
+              SELECT 1 FROM nav.NavItem ex
+              WHERE ex.NavId = @rptNavId
+                AND ex.ParentNavItemId = @rptParentId
+                AND ex.[Text] = ri.[Text]
+          );
 
         FETCH NEXT FROM rpt_cursor INTO @rptRoleId, @rptParentText, @rptParentIcon, @rptParentSort;
     END
     CLOSE rpt_cursor;
     DEALLOCATE rpt_cursor;
 
-    -- Restore orphaned reporting items (no parent — top-level leaves)
+    -- Restore orphaned reporting items (no parent — top-level leaves).
+    -- Same Text-conflict guard: don't re-create a top-level row whose Text
+    -- already lives at the top level for this role.
     INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
     SELECT n.NavId, NULL, ri.Active, ri.SortOrder, ri.[Text], ri.IconName, ri.RouterLink, ri.NavigateUrl, ri.[Target], GETDATE()
     FROM #ReportingItems ri
     JOIN nav.Nav n ON n.RoleId = ri.RoleId AND n.JobId IS NULL
-    WHERE ri.ParentText IS NULL;
+    WHERE ri.ParentText IS NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM nav.NavItem ex
+          WHERE ex.NavId = n.NavId
+            AND ex.ParentNavItemId IS NULL
+            AND ex.[Text] = ri.[Text]
+      );
 
     PRINT CONCAT('Restored ', @cnt, ' reporting item(s) with original role + parent grouping');
 END

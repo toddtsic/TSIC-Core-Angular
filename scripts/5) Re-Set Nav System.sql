@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-04-28 03:24:13 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-05-01 15:05:51 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -69,7 +69,7 @@ FROM nav.NavItem ni
 JOIN nav.Nav n ON ni.NavId = n.NavId
 LEFT JOIN nav.NavItem parent ON ni.ParentNavItemId = parent.NavItemId
 WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%'
-  AND ni.RouterLink NOT IN (N'reporting/report-catalogue-editor', N'reporting/reports-library');
+  AND ni.RouterLink NOT IN (N'reporting/report-catalogue-editor', N'reporting/reports-library', N'reporting/Get_JobPlayers_TSICDAILY', N'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false', N'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false', N'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false', N'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false', N'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false', N'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false', N'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false', N'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false', N'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false', N'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', N'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false', N'reporting/Get_Invoices_LastMonthSummariesOnly', N'reporting/TSICFeesYTDByCustomer', N'reporting/TSICFeesYTDByCustomerAndJob', N'reporting/Get_Invoices_LastMonth', N'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false', N'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false');
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 PRINT CONCAT('Preserved ', @cnt, ' reporting item(s)');
 
@@ -147,10 +147,34 @@ INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Timeslots', 
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', 12, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'QA Results', N'check2-square', N'scheduling/qa-results', 13, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Daily Registration Counts (PDF)', N'file-earmark-pdf', N'reporting/Get_JobPlayers_TSICDAILY', 2, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Regsaver Purchases (Excel)', N'file-earmark-excel', N'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false', 3, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expired Player Reg Bulletins', N'person-x', N'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false', 4, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expired Team Reg Bulletins', N'shield-x', N'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false', 5, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'List of Suspicious ARBs', N'exclamation-triangle', N'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false', 6, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Regsaver Purchases - Raw Data (Excel)', N'file-earmark-excel', N'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false', 7, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Job Key Attributes (All)', N'list-columns', N'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false', 8, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'ClubRep Contacts (All)', N'people', N'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false', 9, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Tournament Keys (All)', N'trophy', N'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false', 10, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expiring Bulletins (3 months)', N'clock-history', N'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false', 11, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Last Month X-Customer Revenue Summary', N'cash-stack', N'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true', 12, 0, 0, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 7, N'Health Check', N'heart-pulse', N'arb/health', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Store', N'shop', 8, N'Store Admin', N'speedometer2', N'store/admin', 1, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}');
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Manual ARB Sweep', N'arrow-clockwise', N'accounting/manual-arb-sweep', 1, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Produce Last Month Invoices', N'file-earmark-text', N'accounting/produce-job-invoices', 2, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'1) New Jobs Last Month (with txs)', N'plus-square', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', 1, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'2) Get Reconciliation Records', N'arrow-left-right', N'accounting/get-reconciliation-records', 2, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'2M) Get MERCH Reconciliation Records', N'receipt', N'accounting/merch-reconciliation-records', 3, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'4) Last Month''s Grand Totals (Excel)', N'calculator', N'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false', 4, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Last Months Invoices SUMMARIES ONLY (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonthSummariesOnly', 5, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Manual ARB Sweep (ALL)', N'arrow-clockwise', N'accounting/manual-arb-sweep', 6, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'TSIC Fees YTD By Customer', N'graph-up', N'reporting/TSICFeesYTDByCustomer', 7, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'TSIC Fees YTD By Customer and Job', N'graph-up', N'reporting/TSICFeesYTDByCustomerAndJob', 8, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Last Months Invoices (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonth', 9, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Produce Last Month Job Invoices Per Job (rtf)', N'file-earmark-text', N'accounting/produce-job-invoices', 10, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Job Admin Fees Summary', N'cash-coin', N'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false', 11, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Upload Nuvei Funding/Batches', N'upload', N'accounting/upload-nuvei', 12, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Import RegSaver Monthly Payouts', N'cloud-download', N'accounting/upload-regsaver', 13, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'ADN-Nuvei Reconcile (Excel)', N'arrow-left-right', N'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false', 14, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'3) Last Months Job Stats', N'bar-chart-line', N'accounting/last-months-job-stats', 15, 0, 0, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}');
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}');
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}');
@@ -292,22 +316,40 @@ BEGIN
         ELSE
             SELECT @rptParentId = NavItemId FROM nav.NavItem WHERE NavId = @rptNavId AND [Text] = @rptParentText AND ParentNavItemId IS NULL;
 
+        -- Skip preserved items whose display Text already exists under the
+        -- same parent (manifest item wins). This makes re-runs idempotent
+        -- after an SP rename — the old RouterLink would otherwise survive
+        -- as a same-name orphan.
         INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
         SELECT @rptNavId, @rptParentId, ri.Active, ri.SortOrder, ri.[Text], ri.IconName, ri.RouterLink, ri.NavigateUrl, ri.[Target], GETDATE()
         FROM #ReportingItems ri
-        WHERE ri.RoleId = @rptRoleId AND ri.ParentText = @rptParentText;
+        WHERE ri.RoleId = @rptRoleId AND ri.ParentText = @rptParentText
+          AND NOT EXISTS (
+              SELECT 1 FROM nav.NavItem ex
+              WHERE ex.NavId = @rptNavId
+                AND ex.ParentNavItemId = @rptParentId
+                AND ex.[Text] = ri.[Text]
+          );
 
         FETCH NEXT FROM rpt_cursor INTO @rptRoleId, @rptParentText, @rptParentIcon, @rptParentSort;
     END
     CLOSE rpt_cursor;
     DEALLOCATE rpt_cursor;
 
-    -- Restore orphaned reporting items (no parent — top-level leaves)
+    -- Restore orphaned reporting items (no parent — top-level leaves).
+    -- Same Text-conflict guard: don't re-create a top-level row whose Text
+    -- already lives at the top level for this role.
     INSERT INTO nav.NavItem(NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, NavigateUrl, [Target], Modified)
     SELECT n.NavId, NULL, ri.Active, ri.SortOrder, ri.[Text], ri.IconName, ri.RouterLink, ri.NavigateUrl, ri.[Target], GETDATE()
     FROM #ReportingItems ri
     JOIN nav.Nav n ON n.RoleId = ri.RoleId AND n.JobId IS NULL
-    WHERE ri.ParentText IS NULL;
+    WHERE ri.ParentText IS NULL
+      AND NOT EXISTS (
+          SELECT 1 FROM nav.NavItem ex
+          WHERE ex.NavId = n.NavId
+            AND ex.ParentNavItemId IS NULL
+            AND ex.[Text] = ri.[Text]
+      );
 
     PRINT CONCAT('Restored ', @cnt, ' reporting item(s) with original role + parent grouping');
 END

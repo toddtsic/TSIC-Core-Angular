@@ -360,7 +360,7 @@ export const routes: Routes = [
 				data: { roles: [Roles.Superuser, Roles.Director, Roles.StoreAdmin] },
 				loadComponent: () => import('./views/store/admin/store-admin.component').then(m => m.StoreAdminComponent)
 			},
-			// Accounting (SuperUser-only workflow screens)
+			// Accounting (SuperUser-only workflow screens — mirrors legacy /tsic SU menu)
 			{
 				path: 'accounting',
 				children: [
@@ -375,6 +375,57 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser] },
 						loadComponent: () => import('./views/accounting/produce-job-invoices/produce-job-invoices.component').then(m => m.ProduceJobInvoicesComponent)
+					},
+					// --- legacy ports parked behind a shared coming-soon stub ---
+					{
+						path: 'get-reconciliation-records',
+						canActivate: [authGuard],
+						data: {
+							roles: [Roles.Superuser],
+							title: 'Get Reconciliation Records',
+							legacyController: 'AdnReconciliation/Index',
+						},
+						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+					},
+					{
+						path: 'merch-reconciliation-records',
+						canActivate: [authGuard],
+						data: {
+							roles: [Roles.Superuser],
+							title: 'Get MERCH Reconciliation Records',
+							legacyController: 'AdnReconciliation/BuildMerchIIFs',
+						},
+						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+					},
+					{
+						path: 'upload-nuvei',
+						canActivate: [authGuard],
+						data: {
+							roles: [Roles.Superuser],
+							title: 'Upload Nuvei Funding/Batches',
+							legacyController: 'UploadNuveiMonthlyExports/Index',
+						},
+						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+					},
+					{
+						path: 'upload-regsaver',
+						canActivate: [authGuard],
+						data: {
+							roles: [Roles.Superuser],
+							title: 'Import RegSaver Monthly Payouts',
+							legacyController: 'UploadRegSaverMonthlyPayouts/Index',
+						},
+						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+					},
+					{
+						path: 'last-months-job-stats',
+						canActivate: [authGuard],
+						data: {
+							roles: [Roles.Superuser],
+							title: 'Last Months Job Stats',
+							legacyController: 'Home/LastMonthsJobStats',
+						},
+						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
 					}
 				]
 			},
