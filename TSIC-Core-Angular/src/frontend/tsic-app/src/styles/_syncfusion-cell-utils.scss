@@ -79,6 +79,22 @@
 .money-owed { color: var(--bs-danger); font-weight: 700; }
 .money-zero { color: var(--bs-success); }
 
+/* Scheduled (auto-pay in flight) — soft visual treatment so admins don't
+   read pending-autopay balances as delinquency. Pairs with a tooltip
+   showing the next charge date. */
+.money-scheduled {
+  color: var(--bs-info);
+  font-weight: 500;
+  font-style: italic;
+  cursor: help;
+
+  .scheduled-icon {
+    margin-right: var(--space-1);
+    font-size: 0.85em;
+    vertical-align: baseline;
+  }
+}
+
 .assignment-tag {
   display: inline-flex;
   align-items: center;

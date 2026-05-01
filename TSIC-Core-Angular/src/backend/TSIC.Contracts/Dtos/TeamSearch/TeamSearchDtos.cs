@@ -50,6 +50,19 @@ public record TeamSearchResultDto
     public string? ClubRepCellphone { get; init; }
     public bool ClubRepEmailOptOut { get; init; }
     public string? TeamComments { get; init; }
+
+    /// <summary>
+    /// True when the team has an active ARB subscription with a charge still scheduled
+    /// in the future. Drives the "Scheduled" badge on OwedTotal so admins don't read
+    /// pending-autopay balances as delinquency.
+    /// </summary>
+    public bool PaymentScheduled { get; init; }
+
+    /// <summary>
+    /// Next scheduled ARB charge date (informational, used in the badge tooltip).
+    /// Null when no future charge is scheduled.
+    /// </summary>
+    public DateTime? NextChargeDate { get; init; }
 }
 
 /// <summary>

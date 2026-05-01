@@ -140,7 +140,9 @@ public sealed class TeamSearchService : ITeamSearchService
             ClubRepState = detail.ClubRepState,
             ClubRepPostalCode = detail.ClubRepPostalCode,
             AccountingRecords = accountingRecords,
-            ClubTeamSummaries = clubTeamSummaries
+            ClubTeamSummaries = clubTeamSummaries,
+            PaymentScheduled = detail.PaymentScheduled,
+            NextChargeDate = detail.NextChargeDate
         };
     }
 

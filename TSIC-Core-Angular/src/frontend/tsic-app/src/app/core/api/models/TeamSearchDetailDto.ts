@@ -30,5 +30,7 @@ export type TeamSearchDetailDto = {
     clubRepPostalCode?: string | null;
     accountingRecords: Array<AccountingRecordDto>;
     clubTeamSummaries: Array<ClubTeamSummaryDto>;
+    paymentScheduled?: boolean;
+    nextChargeDate?: string | null;
 };
 

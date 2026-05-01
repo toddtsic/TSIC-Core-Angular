@@ -115,6 +115,22 @@ public record RegistrationSearchResultDto
 
     // Email opt-out
     public required bool EmailOptOut { get; init; }
+
+    /// <summary>
+    /// True when the registration's outstanding balance is on autopay via an active ARB
+    /// subscription with a charge still scheduled in the future. For player ARB this
+    /// reflects the registration's own subscription; for club rep aggregate rows this
+    /// is true only when ALL the rep's teams (with OwedTotal &gt; 0) are themselves
+    /// on healthy ARB subs. Drives the "Scheduled" badge on OwedTotal so admins don't
+    /// read pending-autopay balances as delinquency.
+    /// </summary>
+    public bool PaymentScheduled { get; init; }
+
+    /// <summary>
+    /// Next scheduled ARB charge date (player ARB only — null for rep aggregate rows
+    /// since teams may stagger).
+    /// </summary>
+    public DateTime? NextChargeDate { get; init; }
 }
 
 /// <summary>

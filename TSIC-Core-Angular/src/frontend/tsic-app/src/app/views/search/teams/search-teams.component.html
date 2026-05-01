@@ -354,9 +354,16 @@
           </e-column>
           <e-column field="owedTotal" headerText="Owed" width="100" textAlign="Right">
             <ng-template #template let-data>
-              <span class="money-cell" [class.money-owed]="data.owedTotal > 0" [class.money-zero]="data.owedTotal === 0">
-                {{ data.owedTotal | currency }}
-              </span>
+              @if (data.paymentScheduled && data.owedTotal > 0) {
+                <span class="money-cell money-scheduled"
+                      [attr.title]="data.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (data.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
+                  <i class="bi bi-calendar-event scheduled-icon"></i>{{ data.owedTotal | currency }}
+                </span>
+              } @else {
+                <span class="money-cell" [class.money-owed]="data.owedTotal > 0" [class.money-zero]="data.owedTotal === 0">
+                  {{ data.owedTotal | currency }}
+                </span>
+              }
             </ng-template>
           </e-column>
           <e-column field="regDate" headerText="RegDate" width="145" type="date" format="M/d/yyyy h:mm a" textAlign="Center"></e-column>

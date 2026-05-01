@@ -42,9 +42,16 @@
               <td>{{ ct.teamName }}</td>
               <td class="text-end">{{ ct.feeTotal | currency }}</td>
               <td class="text-end">{{ ct.paidTotal | currency }}</td>
-              <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
-                {{ ct.owedTotal | currency }}
-              </td>
+              @if (ct.paymentScheduled && ct.owedTotal > 0) {
+                <td class="text-end money-scheduled"
+                    [attr.title]="ct.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (ct.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
+                  <i class="bi bi-calendar-event scheduled-icon"></i>{{ ct.owedTotal | currency }}
+                </td>
+              } @else {
+                <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
+                  {{ ct.owedTotal | currency }}
+                </td>
+              }
             </tr>
           }
           @if (otherTeams().length) {
@@ -57,9 +64,16 @@
                 <td>{{ ct.teamName }}</td>
                 <td class="text-end">{{ ct.feeTotal | currency }}</td>
                 <td class="text-end">{{ ct.paidTotal | currency }}</td>
-                <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
-                  {{ ct.owedTotal | currency }}
-                </td>
+                @if (ct.paymentScheduled && ct.owedTotal > 0) {
+                  <td class="text-end money-scheduled"
+                      [attr.title]="ct.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (ct.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
+                    <i class="bi bi-calendar-event scheduled-icon"></i>{{ ct.owedTotal | currency }}
+                  </td>
+                } @else {
+                  <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
+                    {{ ct.owedTotal | currency }}
+                  </td>
+                }
               </tr>
             }
           }
@@ -96,9 +110,16 @@
             <td>{{ team.teamName }}</td>
             <td class="text-end">{{ team.feeTotal | currency }}</td>
             <td class="text-end">{{ team.paidTotal | currency }}</td>
-            <td class="text-end" [class.owed-positive]="team.owedTotal > 0" [class.owed-zero]="team.owedTotal === 0">
-              {{ team.owedTotal | currency }}
-            </td>
+            @if (team.paymentScheduled && team.owedTotal > 0) {
+              <td class="text-end money-scheduled"
+                  [attr.title]="team.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (team.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
+                <i class="bi bi-calendar-event scheduled-icon"></i>{{ team.owedTotal | currency }}
+              </td>
+            } @else {
+              <td class="text-end" [class.owed-positive]="team.owedTotal > 0" [class.owed-zero]="team.owedTotal === 0">
+                {{ team.owedTotal | currency }}
+              </td>
+            }
           </tr>
         </tbody>
       </table>

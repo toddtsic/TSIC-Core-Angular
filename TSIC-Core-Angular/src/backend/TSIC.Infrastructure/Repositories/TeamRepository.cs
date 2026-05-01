@@ -11,6 +11,7 @@ using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Infrastructure.Utilities;
 
 namespace TSIC.Infrastructure.Repositories;
 
@@ -828,30 +829,46 @@ public class TeamRepository : ITeamRepository
             }
         }
 
-        return await query
+        var rows = await query
             .OrderBy(x => x.r != null ? x.r.ClubName : "")
             .ThenBy(x => x.ag.AgegroupName)
             .ThenBy(x => x.d != null ? x.d.DivName : "")
             .ThenBy(x => x.t.TeamName)
-            .Select(x => new TeamSearchResultDto
+            .Select(x => new
             {
-                TeamId = x.t.TeamId,
-                Active = x.t.Active ?? false,
-                ClubName = x.r != null ? x.r.ClubName : null,
-                TeamName = x.t.TeamName ?? "",
-                AgegroupName = x.ag.AgegroupName ?? "",
-                DivName = x.d != null ? x.d.DivName : null,
-                LevelOfPlay = x.t.LevelOfPlay,
-                PaidTotal = x.t.PaidTotal ?? 0,
-                OwedTotal = x.t.OwedTotal ?? 0,
-                RegDate = x.t.Createdate,
-                ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
-                ClubRepEmail = x.u != null ? x.u.Email : null,
-                ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
-                ClubRepEmailOptOut = x.r != null && (x.r.BemailOptOut),
-                TeamComments = x.t.TeamComments
+                Dto = new TeamSearchResultDto
+                {
+                    TeamId = x.t.TeamId,
+                    Active = x.t.Active ?? false,
+                    ClubName = x.r != null ? x.r.ClubName : null,
+                    TeamName = x.t.TeamName ?? "",
+                    AgegroupName = x.ag.AgegroupName ?? "",
+                    DivName = x.d != null ? x.d.DivName : null,
+                    LevelOfPlay = x.t.LevelOfPlay,
+                    PaidTotal = x.t.PaidTotal ?? 0,
+                    OwedTotal = x.t.OwedTotal ?? 0,
+                    RegDate = x.t.Createdate,
+                    ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
+                    ClubRepEmail = x.u != null ? x.u.Email : null,
+                    ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
+                    ClubRepEmailOptOut = x.r != null && (x.r.BemailOptOut),
+                    TeamComments = x.t.TeamComments
+                },
+                AdnSubId = x.t.AdnSubscriptionId,
+                AdnStatus = x.t.AdnSubscriptionStatus,
+                AdnStart = x.t.AdnSubscriptionStartDate,
+                AdnInterval = x.t.AdnSubscriptionIntervalLength,
+                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences
             })
             .ToListAsync(ct);
+
+        var today = DateTime.Today;
+        return rows.Select(r =>
+        {
+            var (scheduled, nextDate) = ArbScheduleHelper.ComputeDayBasedSchedule(
+                r.AdnSubId, r.AdnStatus, r.AdnStart, r.AdnInterval, r.AdnOccurrences, today);
+            return r.Dto with { PaymentScheduled = scheduled, NextChargeDate = nextDate };
+        }).ToList();
     }
 
     public async Task<TeamFilterOptionsDto> GetTeamSearchFilterOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -975,7 +992,7 @@ public class TeamRepository : ITeamRepository
 
     public async Task<TeamDetailQueryResult?> GetTeamDetailAsync(Guid teamId, CancellationToken ct = default)
     {
-        return await _context.Teams
+        var row = await _context.Teams
             .AsNoTracking()
             .Where(t => t.TeamId == teamId)
             .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => new { t, ag })
@@ -985,32 +1002,46 @@ public class TeamRepository : ITeamRepository
             .SelectMany(x => x.regs.DefaultIfEmpty(), (x, r) => new { x.t, x.ag, x.d, r })
             .GroupJoin(_context.AspNetUsers, x => x.r != null ? x.r.UserId : null, u => u.Id, (x, users) => new { x.t, x.ag, x.d, x.r, users })
             .SelectMany(x => x.users.DefaultIfEmpty(), (x, u) => new { x.t, x.ag, x.d, x.r, u })
-            .Select(x => new TeamDetailQueryResult
+            .Select(x => new
             {
-                TeamId = x.t.TeamId,
-                TeamName = x.t.TeamName ?? "",
-                ClubName = x.r != null ? x.r.ClubName : null,
-                AgegroupName = x.ag.AgegroupName ?? "",
-                DivName = x.d != null ? x.d.DivName : null,
-                LevelOfPlay = x.t.LevelOfPlay,
-                Active = x.t.Active ?? false,
-                FeeBase = x.t.FeeBase ?? 0,
-                FeeProcessing = x.t.FeeProcessing ?? 0,
-                FeeTotal = x.t.FeeTotal ?? 0,
-                PaidTotal = x.t.PaidTotal ?? 0,
-                OwedTotal = x.t.OwedTotal ?? 0,
-                TeamComments = x.t.TeamComments,
-                ClubRepRegistrationId = x.t.ClubrepRegistrationid,
-                ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
-                ClubRepEmail = x.u != null ? x.u.Email : null,
-                ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
-                ClubRepStreetAddress = x.u != null ? x.u.StreetAddress : null,
-                ClubRepCity = x.u != null ? x.u.City : null,
-                ClubRepState = x.u != null ? x.u.State : null,
-                ClubRepPostalCode = x.u != null ? x.u.PostalCode : null,
-                JobId = x.t.JobId
+                Result = new TeamDetailQueryResult
+                {
+                    TeamId = x.t.TeamId,
+                    TeamName = x.t.TeamName ?? "",
+                    ClubName = x.r != null ? x.r.ClubName : null,
+                    AgegroupName = x.ag.AgegroupName ?? "",
+                    DivName = x.d != null ? x.d.DivName : null,
+                    LevelOfPlay = x.t.LevelOfPlay,
+                    Active = x.t.Active ?? false,
+                    FeeBase = x.t.FeeBase ?? 0,
+                    FeeProcessing = x.t.FeeProcessing ?? 0,
+                    FeeTotal = x.t.FeeTotal ?? 0,
+                    PaidTotal = x.t.PaidTotal ?? 0,
+                    OwedTotal = x.t.OwedTotal ?? 0,
+                    TeamComments = x.t.TeamComments,
+                    ClubRepRegistrationId = x.t.ClubrepRegistrationid,
+                    ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
+                    ClubRepEmail = x.u != null ? x.u.Email : null,
+                    ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
+                    ClubRepStreetAddress = x.u != null ? x.u.StreetAddress : null,
+                    ClubRepCity = x.u != null ? x.u.City : null,
+                    ClubRepState = x.u != null ? x.u.State : null,
+                    ClubRepPostalCode = x.u != null ? x.u.PostalCode : null,
+                    JobId = x.t.JobId
+                },
+                AdnSubId = x.t.AdnSubscriptionId,
+                AdnStatus = x.t.AdnSubscriptionStatus,
+                AdnStart = x.t.AdnSubscriptionStartDate,
+                AdnInterval = x.t.AdnSubscriptionIntervalLength,
+                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences
             })
             .FirstOrDefaultAsync(ct);
+
+        if (row == null) return null;
+
+        var (scheduled, nextDate) = ArbScheduleHelper.ComputeDayBasedSchedule(
+            row.AdnSubId, row.AdnStatus, row.AdnStart, row.AdnInterval, row.AdnOccurrences, DateTime.Today);
+        return row.Result with { PaymentScheduled = scheduled, NextChargeDate = nextDate };
     }
 
     public async Task<int> GetDistinctClubCountAsync(Guid jobId, CancellationToken ct = default)
@@ -1041,25 +1072,41 @@ public class TeamRepository : ITeamRepository
 
     public async Task<List<ClubTeamSummaryDto>> GetClubTeamSummariesAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default)
     {
-        return await _context.Teams
+        var rows = await _context.Teams
             .AsNoTracking()
             .Where(t => t.JobId == jobId
                 && t.ClubrepRegistrationid == clubRepRegistrationId)
             .Join(_context.Agegroups, t => t.AgegroupId, ag => ag.AgegroupId, (t, ag) => new { t, ag })
             .OrderBy(x => x.ag.AgegroupName)
             .ThenBy(x => x.t.TeamName)
-            .Select(x => new ClubTeamSummaryDto
+            .Select(x => new
             {
-                TeamId = x.t.TeamId,
-                TeamName = x.t.TeamName ?? "",
-                AgegroupName = x.ag.AgegroupName ?? "",
-                FeeTotal = x.t.FeeTotal ?? 0,
-                PaidTotal = x.t.PaidTotal ?? 0,
-                OwedTotal = x.t.OwedTotal ?? 0,
-                FeeProcessing = x.t.FeeProcessing ?? 0,
-                Active = x.t.Active ?? false
+                Dto = new ClubTeamSummaryDto
+                {
+                    TeamId = x.t.TeamId,
+                    TeamName = x.t.TeamName ?? "",
+                    AgegroupName = x.ag.AgegroupName ?? "",
+                    FeeTotal = x.t.FeeTotal ?? 0,
+                    PaidTotal = x.t.PaidTotal ?? 0,
+                    OwedTotal = x.t.OwedTotal ?? 0,
+                    FeeProcessing = x.t.FeeProcessing ?? 0,
+                    Active = x.t.Active ?? false
+                },
+                AdnSubId = x.t.AdnSubscriptionId,
+                AdnStatus = x.t.AdnSubscriptionStatus,
+                AdnStart = x.t.AdnSubscriptionStartDate,
+                AdnInterval = x.t.AdnSubscriptionIntervalLength,
+                AdnOccurrences = x.t.AdnSubscriptionBillingOccurences
             })
             .ToListAsync(ct);
+
+        var today = DateTime.Today;
+        return rows.Select(r =>
+        {
+            var (scheduled, nextDate) = ArbScheduleHelper.ComputeDayBasedSchedule(
+                r.AdnSubId, r.AdnStatus, r.AdnStart, r.AdnInterval, r.AdnOccurrences, today);
+            return r.Dto with { PaymentScheduled = scheduled, NextChargeDate = nextDate };
+        }).ToList();
     }
 
     public async Task<Dictionary<Guid, int>> GetTeamCountsByDivisionAsync(Guid jobId, CancellationToken ct = default)

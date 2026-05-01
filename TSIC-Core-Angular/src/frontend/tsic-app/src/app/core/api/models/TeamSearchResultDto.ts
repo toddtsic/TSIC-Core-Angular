@@ -18,5 +18,7 @@ export type TeamSearchResultDto = {
     clubRepCellphone?: string | null;
     clubRepEmailOptOut?: boolean;
     teamComments?: string | null;
+    paymentScheduled?: boolean;
+    nextChargeDate?: string | null;
 };
 

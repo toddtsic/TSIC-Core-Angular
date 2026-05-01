@@ -10,6 +10,7 @@ using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Infrastructure.Utilities;
 
 namespace TSIC.Infrastructure.Repositories;
 
@@ -1338,56 +1339,132 @@ public class RegistrationRepository : IRegistrationRepository
             })
             .FirstOrDefaultAsync(ct);
 
-        // Project to DTO with joins
-        var projected = query.Select(r => new RegistrationSearchResultDto
+        // Project to DTO + raw ARB schedule fields for post-materialization paymentScheduled compute.
+        var projected = query.Select(r => new
         {
-            RegistrationId = r.RegistrationId,
-            RegistrationAi = r.RegistrationAi,
-            FirstName = r.User != null ? r.User.FirstName ?? "" : "",
-            LastName = r.User != null ? r.User.LastName ?? "" : "",
-            Email = r.User != null ? r.User.Email ?? "" : "",
-            Phone = r.User != null ? r.User.Cellphone : null,
-            Dob = r.User != null ? r.User.Dob : null,
-            RoleName = r.Role != null ? r.Role.Name ?? "" : "",
-            Active = r.BActive ?? false,
-            Position = r.Position,
-            TeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
-            AgegroupName = r.AssignedTeam != null && r.AssignedTeam.Agegroup != null
-                ? r.AssignedTeam.Agegroup.AgegroupName : null,
-            DivisionName = r.AssignedTeam != null && r.AssignedTeam.Div != null
-                ? r.AssignedTeam.Div.DivName : null,
-            ClubName = r.ClubName,
-            ClubRepClubName = r.AssignedTeam != null && r.AssignedTeam.ClubrepRegistration != null
-                ? r.AssignedTeam.ClubrepRegistration.ClubName : null,
-            FeeTotal = r.FeeTotal,
-            PaidTotal = r.PaidTotal,
-            OwedTotal = r.OwedTotal,
-            RegistrationTs = r.RegistrationTs,
-            Modified = r.Modified,
-            DiscountCodeName = r.DiscountCode != null ? r.DiscountCode.CodeName : null,
-            EmailOptOut = r.BemailOptOut
+            Dto = new RegistrationSearchResultDto
+            {
+                RegistrationId = r.RegistrationId,
+                RegistrationAi = r.RegistrationAi,
+                FirstName = r.User != null ? r.User.FirstName ?? "" : "",
+                LastName = r.User != null ? r.User.LastName ?? "" : "",
+                Email = r.User != null ? r.User.Email ?? "" : "",
+                Phone = r.User != null ? r.User.Cellphone : null,
+                Dob = r.User != null ? r.User.Dob : null,
+                RoleName = r.Role != null ? r.Role.Name ?? "" : "",
+                Active = r.BActive ?? false,
+                Position = r.Position,
+                TeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
+                AgegroupName = r.AssignedTeam != null && r.AssignedTeam.Agegroup != null
+                    ? r.AssignedTeam.Agegroup.AgegroupName : null,
+                DivisionName = r.AssignedTeam != null && r.AssignedTeam.Div != null
+                    ? r.AssignedTeam.Div.DivName : null,
+                ClubName = r.ClubName,
+                ClubRepClubName = r.AssignedTeam != null && r.AssignedTeam.ClubrepRegistration != null
+                    ? r.AssignedTeam.ClubrepRegistration.ClubName : null,
+                FeeTotal = r.FeeTotal,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+                RegistrationTs = r.RegistrationTs,
+                Modified = r.Modified,
+                DiscountCodeName = r.DiscountCode != null ? r.DiscountCode.CodeName : null,
+                EmailOptOut = r.BemailOptOut
+            },
+            RoleId = r.RoleId,
+            AdnSubId = r.AdnSubscriptionId,
+            AdnStatus = r.AdnSubscriptionStatus,
+            AdnStart = r.AdnSubscriptionStartDate,
+            AdnInterval = r.AdnSubscriptionIntervalLength,
+            AdnOccurrences = r.AdnSubscriptionBillingOccurences
         });
 
         // Default sort (sorting done client-side)
-        var results = await projected
-            .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
+        var rows = await projected
+            .OrderBy(r => r.Dto.LastName).ThenBy(r => r.Dto.FirstName)
             .ToListAsync(ct);
 
-        // Post-materialization: format phones + compute assignment display string
-        for (var i = 0; i < results.Count; i++)
+        // Bulk-fetch team ARB info for all club rep rows with an outstanding balance —
+        // a rep aggregate row is only "scheduled" when ALL its owing teams are themselves
+        // on healthy ARB-Trial subs. One query covers the whole result set.
+        var clubRepIds = rows
+            .Where(r => r.RoleId == RoleConstants.ClubRep && r.Dto.OwedTotal > 0)
+            .Select(r => r.Dto.RegistrationId)
+            .Distinct()
+            .ToList();
+
+        var teamArbByRep = new Dictionary<Guid, List<(string? SubId, string? Status, DateTime? Start, int? Interval, int? Occurrences)>>();
+        if (clubRepIds.Count > 0)
         {
-            var r = results[i];
-            var parts = new[] { r.ClubRepClubName, r.AgegroupName, r.TeamName }
+            var teamRows = await _context.Teams
+                .AsNoTracking()
+                .Where(t => t.ClubrepRegistrationid != null
+                    && clubRepIds.Contains(t.ClubrepRegistrationid.Value)
+                    && (t.OwedTotal ?? 0m) > 0m)
+                .Select(t => new
+                {
+                    RepId = t.ClubrepRegistrationid!.Value,
+                    AdnSubId = t.AdnSubscriptionId,
+                    AdnStatus = t.AdnSubscriptionStatus,
+                    AdnStart = t.AdnSubscriptionStartDate,
+                    AdnInterval = t.AdnSubscriptionIntervalLength,
+                    AdnOccurrences = t.AdnSubscriptionBillingOccurences
+                })
+                .ToListAsync(ct);
+
+            teamArbByRep = teamRows
+                .GroupBy(t => t.RepId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(t => (
+                        SubId: t.AdnSubId,
+                        Status: t.AdnStatus,
+                        Start: t.AdnStart,
+                        Interval: t.AdnInterval,
+                        Occurrences: t.AdnOccurrences)).ToList());
+        }
+
+        var today = DateTime.Today;
+        var results = new List<RegistrationSearchResultDto>(rows.Count);
+
+        // Post-materialization: phones + assignment + paymentScheduled compute.
+        foreach (var row in rows)
+        {
+            var dto = row.Dto;
+            var parts = new[] { dto.ClubRepClubName, dto.AgegroupName, dto.TeamName }
                 .Where(s => !string.IsNullOrWhiteSpace(s));
             // If no team assignment, fall back to registration's own ClubName (club reps)
             var assignment = parts.Any()
                 ? string.Join(" ", parts)
-                : !string.IsNullOrWhiteSpace(r.ClubName) ? r.ClubName : null;
-            results[i] = r with
+                : !string.IsNullOrWhiteSpace(dto.ClubName) ? dto.ClubName : null;
+
+            var (scheduled, nextDate) = (false, (DateTime?)null);
+            if (dto.OwedTotal > 0m)
             {
-                Phone = r.Phone.FormatPhone(),
-                Assignment = assignment
-            };
+                if (row.RoleId == RoleConstants.Player)
+                {
+                    // Player ARB: month-based occurrence schedule on the registration row itself.
+                    (scheduled, nextDate) = ArbScheduleHelper.ComputeMonthBasedSchedule(
+                        row.AdnSubId, row.AdnStatus, row.AdnStart, row.AdnInterval, row.AdnOccurrences, today);
+                }
+                else if (row.RoleId == RoleConstants.ClubRep
+                    && teamArbByRep.TryGetValue(dto.RegistrationId, out var teamProbes)
+                    && teamProbes.Count > 0)
+                {
+                    // Rep aggregate: scheduled iff every owing team is itself on a healthy ARB-Trial sub.
+                    // NextChargeDate left null — teams may stagger; per-team detail lives in the team panel.
+                    scheduled = teamProbes.All(t =>
+                        ArbScheduleHelper.ComputeDayBasedSchedule(
+                            t.SubId, t.Status, t.Start, t.Interval, t.Occurrences, today).PaymentScheduled);
+                }
+            }
+
+            results.Add(dto with
+            {
+                Phone = dto.Phone.FormatPhone(),
+                Assignment = assignment,
+                PaymentScheduled = scheduled,
+                NextChargeDate = nextDate
+            });
         }
 
         return new RegistrationSearchResponse

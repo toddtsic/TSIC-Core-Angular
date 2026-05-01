@@ -45,6 +45,17 @@ public record TeamSearchDetailDto
 
     // Club-level summary (for scope selector: all club teams)
     public required List<ClubTeamSummaryDto> ClubTeamSummaries { get; init; }
+
+    /// <summary>
+    /// True when the team has an active ARB subscription with a charge still scheduled
+    /// in the future. Mirrors TeamSearchResultDto.PaymentScheduled.
+    /// </summary>
+    public bool PaymentScheduled { get; init; }
+
+    /// <summary>
+    /// Next scheduled ARB charge date (informational, used in the badge tooltip).
+    /// </summary>
+    public DateTime? NextChargeDate { get; init; }
 }
 
 /// <summary>
@@ -68,6 +79,17 @@ public record ClubTeamSummaryDto
     /// Frontend uses this for the allocation preview — NOT the raw FeeProcessing.
     /// </summary>
     public decimal CheckFeeReduction { get; init; }
+
+    /// <summary>
+    /// True when this team has an active ARB subscription with a charge still scheduled
+    /// in the future. Used by the team-detail panel's club-summary list.
+    /// </summary>
+    public bool PaymentScheduled { get; init; }
+
+    /// <summary>
+    /// Next scheduled ARB charge date for this team (informational, used in the badge tooltip).
+    /// </summary>
+    public DateTime? NextChargeDate { get; init; }
 }
 
 /// <summary>

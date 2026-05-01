@@ -26,5 +26,7 @@ export type RegistrationSearchResultDto = {
     modified?: string | null;
     discountCodeName?: string | null;
     emailOptOut: boolean;
+    paymentScheduled?: boolean;
+    nextChargeDate?: string | null;
 };
 

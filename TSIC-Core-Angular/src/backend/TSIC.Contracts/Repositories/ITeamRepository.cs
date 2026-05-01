@@ -488,4 +488,13 @@ public record TeamDetailQueryResult
     public string? ClubRepState { get; init; }
     public string? ClubRepPostalCode { get; init; }
     public Guid JobId { get; init; }
+
+    /// <summary>
+    /// True when the team has an active ARB subscription with a charge still scheduled
+    /// in the future. Computed by the repository from the ARB schedule fields.
+    /// </summary>
+    public bool PaymentScheduled { get; init; }
+
+    /// <summary>Next scheduled ARB charge date (informational, used in the badge tooltip).</summary>
+    public DateTime? NextChargeDate { get; init; }
 }
