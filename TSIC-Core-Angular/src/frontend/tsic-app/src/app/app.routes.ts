@@ -400,12 +400,8 @@ export const routes: Routes = [
 					{
 						path: 'upload-nuvei',
 						canActivate: [authGuard],
-						data: {
-							roles: [Roles.Superuser],
-							title: 'Upload Nuvei Funding/Batches',
-							legacyController: 'UploadNuveiMonthlyExports/Index',
-						},
-						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/accounting/upload-nuvei/upload-nuvei.component').then(m => m.UploadNuveiComponent)
 					},
 					{
 						path: 'upload-regsaver',

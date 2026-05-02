@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <PackageReference Include="AuthorizeNet.Core" />
+    <PackageReference Include="CsvHelper" />
     <PackageReference Include="EPPlus" />
     <PackageReference Include="FirebaseAdmin" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />

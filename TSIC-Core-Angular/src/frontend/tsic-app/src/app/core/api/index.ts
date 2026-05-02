@@ -377,6 +377,8 @@ export type { NavEditorNavItemDto } from './models/NavEditorNavItemDto';
 export type { NavItemDto } from './models/NavItemDto';
 export type { NavVisibilityOptionsDto } from './models/NavVisibilityOptionsDto';
 export type { NextProfileTypeResult } from './models/NextProfileTypeResult';
+export type { NuveiUploadResultDto } from './models/NuveiUploadResultDto';
+export type { NuveiUploadRowError } from './models/NuveiUploadRowError';
 export type { OptionSet } from './models/OptionSet';
 export type { OptionSetUpdateRequest } from './models/OptionSetUpdateRequest';
 export type { PairingDto } from './models/PairingDto';

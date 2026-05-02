@@ -34,6 +34,8 @@
     <PackageVersion Include="NetTopologySuite" Version="2.6.0" />
     <!-- HTML parsing (US Lacrosse rankings scraping) -->
     <PackageVersion Include="HtmlAgilityPack" Version="1.12.4" />
+    <!-- CSV parsing (Nuvei monthly funding/batches uploads) -->
+    <PackageVersion Include="CsvHelper" Version="33.0.1" />
     <!-- Image processing (branding image resize) -->
     <PackageVersion Include="Serilog.Sinks.Seq" Version="9.0.0" />
     <PackageVersion Include="SixLabors.ImageSharp" Version="3.1.12" />
