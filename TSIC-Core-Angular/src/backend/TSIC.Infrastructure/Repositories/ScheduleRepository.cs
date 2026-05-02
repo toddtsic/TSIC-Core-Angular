@@ -858,10 +858,12 @@ public sealed class ScheduleRepository : IScheduleRepository
             })
             .FirstOrDefaultAsync(ct);
 
-        // Get BHideContacts from the primary league
+        // Get BHideContacts: prefer the primary league, fall back to the only/first
+        // league when no row is marked primary (mirrors JobLeagueRepository.GetPrimaryLeagueForJobAsync).
         var hideContacts = await _context.JobLeagues
             .AsNoTracking()
-            .Where(jl => jl.JobId == jobId && jl.BIsPrimary)
+            .Where(jl => jl.JobId == jobId)
+            .OrderByDescending(jl => jl.BIsPrimary)
             .Select(jl => jl.League.BHideContacts)
             .FirstOrDefaultAsync(ct);
 
