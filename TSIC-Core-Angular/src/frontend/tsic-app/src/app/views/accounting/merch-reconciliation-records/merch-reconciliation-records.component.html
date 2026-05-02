@@ -1,0 +1,69 @@
+<div class="accounting-page">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-receipt page-title-icon"></i>
+                Get MERCH Reconciliation Records
+            </h2>
+            <p class="page-subtitle">
+                Generates last month's MERCH reconciliation Excel from <code>Txs</code> rows
+                already imported by <strong>Get Reconciliation Records</strong>. This screen does
+                <em>not</em> hit Authorize.Net &mdash; if last month's regular reconciliation
+                hasn't been run yet, run it first or this export will be empty.
+            </p>
+        </div>
+    </div>
+
+    <section class="action-panel" [class.is-running]="isRunning()">
+        <div class="action-panel__icon" aria-hidden="true">
+            <i class="bi bi-file-earmark-spreadsheet"></i>
+        </div>
+        <div class="action-panel__body">
+            <h3 class="action-panel__title">
+                Export MERCH reconciliation &mdash; {{ targetMonth | date:'MMMM yyyy' }}
+            </h3>
+            <p class="action-panel__desc">
+                Settlement window:
+                <strong>{{ targetMonth | date:'MMM d, yyyy' }}</strong> &mdash;
+                <strong>{{ endOfMonth | date:'MMM d, yyyy' }}</strong> (the entire month).
+            </p>
+        </div>
+        <div class="action-panel__cta">
+            <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                [disabled]="isRunning()"
+                (click)="run()">
+                @if (isRunning()) {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Building Excel&hellip;
+                } @else {
+                    <i class="bi bi-download me-1"></i>Download Excel
+                }
+            </button>
+        </div>
+    </section>
+
+    @if (errorMessage()) {
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Export failed</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
+    }
+
+    @if (downloaded()) {
+        <section class="result-panel result-panel--success" role="status">
+            <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Excel downloaded</h4>
+                <p class="result-panel__desc">
+                    MERCH reconciliation for {{ targetMonth | date:'MMMM yyyy' }} has been
+                    saved to your Downloads folder.
+                </p>
+            </div>
+        </section>
+    }
+</div>

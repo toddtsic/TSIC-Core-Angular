@@ -153,7 +153,7 @@ public class ReportingController : ControllerBase
     }
 
     [HttpGet("export-monthly-reconciliation")]
-    [Authorize]
+    [Authorize(Roles = "Superuser")]
     public async Task<ActionResult> ExportMonthlyReconciliationDataToExcel(
         [FromQuery] int settlementMonth,
         [FromQuery] int settlementYear)
@@ -165,7 +165,7 @@ public class ReportingController : ControllerBase
     }
 
     [HttpGet("export-monthly-reconciliation-merch")]
-    [Authorize]
+    [Authorize(Roles = "Superuser")]
     public async Task<ActionResult> ExportMonthlyReconciliationDataToExcelMerch(
         [FromQuery] int settlementMonth,
         [FromQuery] int settlementYear)

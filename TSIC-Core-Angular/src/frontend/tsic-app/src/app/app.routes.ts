@@ -386,12 +386,8 @@ export const routes: Routes = [
 					{
 						path: 'merch-reconciliation-records',
 						canActivate: [authGuard],
-						data: {
-							roles: [Roles.Superuser],
-							title: 'Get MERCH Reconciliation Records',
-							legacyController: 'AdnReconciliation/BuildMerchIIFs',
-						},
-						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/accounting/merch-reconciliation-records/merch-reconciliation-records.component').then(m => m.MerchReconciliationRecordsComponent)
 					},
 					{
 						path: 'upload-nuvei',
