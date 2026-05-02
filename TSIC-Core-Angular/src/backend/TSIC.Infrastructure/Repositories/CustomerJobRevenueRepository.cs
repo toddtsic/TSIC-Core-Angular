@@ -101,17 +101,20 @@ public class CustomerJobRevenueRepository : ICustomerJobRevenueRepository
         await reader.NextResultAsync(ct);
         var checkRecords = await ReadPaymentRecords(reader, ct);
 
-        // Result set 6: E-Check records
-        await reader.NextResultAsync(ct);
-        var echeckRecords = await ReadPaymentRecords(reader, ct);
-
-        // Result set 7: Available jobs
+        // Result set 6: Available jobs (legacy SP shape places this at #6 so the
+        // legacy TSIC_Unify CustomerJobRevenueController stays compatible).
         await reader.NextResultAsync(ct);
         var availableJobs = new List<string>();
         while (await reader.ReadAsync(ct))
         {
             availableJobs.Add(reader.GetString(reader.GetOrdinal("JobName")));
         }
+
+        // Result set 7: E-Check records (only the new system reads this — legacy
+        // closes the reader after set #6). Empty list when the merchant doesn't
+        // process e-check.
+        await reader.NextResultAsync(ct);
+        var echeckRecords = await ReadPaymentRecords(reader, ct);
 
         return new JobRevenueDataDto
         {

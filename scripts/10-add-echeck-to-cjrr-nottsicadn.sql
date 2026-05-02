@@ -1,52 +1,45 @@
 -- =====================================================================
--- eCheck additions to CustomerJobRevenueRollups
+-- eCheck additions to CustomerJobRevenueRollups_NotTSICADN
 -- =====================================================================
--- Builds on top of script #8 (which fixed the ProcessingFeePercent unit
--- bug). Re-defines [reporting].[CustomerJobRevenueRollups] to add:
---   - 3 new rollup INSERTs into @txRawData:
---       E-Check Payments        (4-space indent, sorts after CC Payments)
---       Failed E-Check Payments (4-space indent, sorts after E-Check Payments)
---       E-Check Fees            (2-space indent, sorts after CC Fees)
---   - 1 new INSERT into @rawPaymentRecords for E-Check details
---   - 1 new SELECT result set #7 (JOB ECHECK RECORDS)
+-- Companion to script #9. Re-defines [reporting].[CustomerJobRevenueRollups_NotTSICADN]
+-- so its result-set shape matches the (post-#9) TSICADN variant exactly:
 --
--- Result-set ordering — IMPORTANT (legacy compat):
---   Set #1: Revenue rollup pivot (gains e-check pay-method columns)
+--   Set #1: Revenue rollup pivot (gains e-check pay-method columns when present)
 --   Set #2: Monthly counts
 --   Set #3: Admin fees
 --   Set #4: CC records
 --   Set #5: Check records
 --   Set #6: AVAILABLE JOBS               -- legacy stops reading here
---   Set #7: E-Check records              -- legacy never reads (only new system)
+--   Set #7: E-Check records              -- new system reads this; empty when absent
 --
--- AvailableJobs is intentionally placed at set #6 so legacy
--- TSIC_Unify CustomerJobRevenueController (which reads exactly 6 result
--- sets and treats #6 as Available Jobs) keeps working unmodified. The
--- new system reads 7 sets — companion repo update reads AvailableJobs
--- at #6 and E-Check at #7. This makes the SP shape backward-compatible
--- with legacy AND forward-compatible with the new system, allowing both
--- to run concurrently against the same DB.
+-- Why the symmetry matters:
+--   - Both legacy and the new system can hit BOTH SP variants
+--   - Identical 7-set shape means the new repo needs no isTsicAdn branching
+--     for result-set count
+--   - Legacy still reads only 6 sets (its #6 is AvailableJobs in both variants)
+--   - For non-TSIC merchants who don't process e-check, set #7 is empty —
+--     correct semantics, no special-casing
 --
--- Rollup pivot (Syncfusion PivotView, payMethod as column dimension)
--- automatically displays the new pay-method values as new columns in
--- both legacy and new — no frontend pivot config change required.
---
--- E-Check Fees apply ONLY to positive E-Check Payments (filter:
--- payment > 0). Per business rule: ADN does NOT refund the original
--- 1.5% transaction fee on an NSF return, so no negative fee row is
--- generated against Failed E-Check Payments — the merchant eats it.
+-- Differences from script #9 (these reflect non-TSIC ADN reality):
+--   - Payments come from Registration_Accounting (ra.payamt), NOT adn.vtxs.
+--     Non-TSIC merchants have no visibility into TSIC's ADN settlement table.
+--   - PayAmount is float (Registration_Accounting.payamt). Repo handles via
+--     reader.GetDouble().
+--   - NO CC processing fees rollup (block remains commented out, as before).
+--     Non-TSIC merchants pay their own CC processing fees, not TSIC's.
+--   - NO E-Check fees rollup, for the same reason.
+--   - Failed E-Check Payments are filtered by 'Failed E-Check Payment' in
+--     paymentMethod, same as script #9.
 --
 -- Idempotent ALTER PROCEDURE; safe to re-run.
--- NOTE: this script SUPERSEDES script #8's CJRR ALTER. Re-running #8
--- after this would revert the eCheck additions.
 -- =====================================================================
 
 
-ALTER procedure [reporting].[CustomerJobRevenueRollups]
+ALTER procedure [reporting].[CustomerJobRevenueRollups_NotTSICADN]
 (
-	@jobID uniqueidentifier = '27d4112e-a6e7-4e91-9a7a-94c749d4de33',
-	@startDate datetime = '4/1/2024',
-	@endDate datetime = '4/30/2024',
+	@jobID uniqueidentifier = '2f1e82d9-59b3-406f-9924-21b92b7cc6f1',
+	@startDate datetime,
+	@endDate datetime,
 	@listJobsString varchar(max)
 )
 as
@@ -96,8 +89,7 @@ declare @txRawData table(
 	year int,
 	month int,
 	paymentMethod varchar(80),
-	payment float,
-	processingFeePercent decimal(8,3) default(0.035)  -- added; replaces hardcoded 0.03500
+	payment float
 )
 
 --insert cc payments
@@ -109,39 +101,35 @@ insert into @txRawData(
 	year,
 	month,
 	paymentMethod,
-	payment,
-	processingFeePercent
+	payment
 )
 select
 	c.customerName,
 	c.customerId,
 	j.jobName,
 	j.jobId,
-	year(adn.SettlementTS),
-	month(adn.SettlementTS),
+	year(ra.createdate),
+	month(ra.createdate),
 	replicate(' ', 4) + 'CC Payments',
-	sum(adn.[Settlement Amount]),
-	coalesce(j.ProcessingFeePercent, 3.5) / 100
+	sum(ra.payamt)
 from
 	Jobs.Registration_Accounting ra
 	inner join reference.Accounting_PaymentMethods apm on ra.paymentMethodID = apm.paymentMethodID
 	inner join Jobs.Registrations r on ra.RegistrationId = r.RegistrationId
 	inner join Jobs.Jobs j on r.jobID = j.jobId
 	inner join Jobs.Customers c on j.customerId = c.customerId
-	inner join adn.vtxs adn on ra.adntransactionid = adn.[transaction id]
 	inner join @listCustomerIds lc on j.customerID = lc.customerId
 where
 	apm.paymentMethod in ('Credit Card Payment')
-	and ( adn.SettlementTS >= @startDate and adn.SettlementTS < @endDate)
-	and not adn.[transaction status] in ('Declined', 'Voided')
+	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
+	and ra.active = 1
 group by
 	c.customerId,
 	c.customerName,
 	j.jobId,
 	j.jobName,
-	j.ProcessingFeePercent,
-	year(adn.SettlementTS),
-	month(adn.SettlementTS)
+	year(ra.createdate),
+	month(ra.createdate)
 
 --insert cc credits
 insert into @txRawData(
@@ -152,39 +140,35 @@ insert into @txRawData(
 	year,
 	month,
 	paymentMethod,
-	payment,
-	processingFeePercent
+	payment
 )
 select
 	c.customerName,
 	c.customerId,
 	j.jobName,
 	j.jobId,
-	year(adn.SettlementTS),
-	month(adn.SettlementTS),
+	year(ra.createdate),
+	month(ra.createdate),
 	replicate(' ', 3) + 'CC Credits',
-	sum(adn.[Settlement Amount]),
-	coalesce(j.ProcessingFeePercent, 3.5) / 100
+	sum(ra.payamt)
 from
 	Jobs.Registration_Accounting ra
 	inner join reference.Accounting_PaymentMethods apm on ra.paymentMethodID = apm.paymentMethodID
 	inner join Jobs.Registrations r on ra.RegistrationId = r.RegistrationId
 	inner join Jobs.Jobs j on r.jobID = j.jobId
 	inner join Jobs.Customers c on j.customerId = c.customerId
-	inner join adn.vtxs adn on ra.adntransactionid = adn.[transaction id]
 	inner join @listCustomerIds lc on j.customerID = lc.customerId
 where
 	apm.paymentMethod in ('Credit Card Credit')
-	and ( adn.SettlementTS >= @startDate and adn.SettlementTS < @endDate)
-	and not adn.[transaction status] in ('Declined', 'Voided')
+	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
+	and ra.active = 1
 group by
 	c.customerId,
 	c.customerName,
 	j.jobId,
 	j.jobName,
-	j.ProcessingFeePercent,
-	year(adn.SettlementTS),
-	month(adn.SettlementTS)
+	year(ra.createdate),
+	month(ra.createdate)
 
 --insert echeck payments
 insert into @txRawData(
@@ -195,41 +179,37 @@ insert into @txRawData(
 	year,
 	month,
 	paymentMethod,
-	payment,
-	processingFeePercent
+	payment
 )
 select
 	c.customerName,
 	c.customerId,
 	j.jobName,
 	j.jobId,
-	year(adn.SettlementTS),
-	month(adn.SettlementTS),
+	year(ra.createdate),
+	month(ra.createdate),
 	replicate(' ', 4) + 'E-Check Payments',
-	sum(adn.[Settlement Amount]),
-	coalesce(j.ECProcessingFeePercent, 1.5) / 100
+	sum(ra.payamt)
 from
 	Jobs.Registration_Accounting ra
 	inner join reference.Accounting_PaymentMethods apm on ra.paymentMethodID = apm.paymentMethodID
 	inner join Jobs.Registrations r on ra.RegistrationId = r.RegistrationId
 	inner join Jobs.Jobs j on r.jobID = j.jobId
 	inner join Jobs.Customers c on j.customerId = c.customerId
-	inner join adn.vtxs adn on ra.adntransactionid = adn.[transaction id]
 	inner join @listCustomerIds lc on j.customerID = lc.customerId
 where
 	apm.paymentMethod in ('E-Check Payment')
-	and ( adn.SettlementTS >= @startDate and adn.SettlementTS < @endDate)
-	and not adn.[transaction status] in ('Declined', 'Voided')
+	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
+	and ra.active = 1
 group by
 	c.customerId,
 	c.customerName,
 	j.jobId,
 	j.jobName,
-	j.ECProcessingFeePercent,
-	year(adn.SettlementTS),
-	month(adn.SettlementTS)
+	year(ra.createdate),
+	month(ra.createdate)
 
---insert failed echeck payments (NSF returns; merchant eats original fee, no fee credit row)
+--insert failed echeck payments
 insert into @txRawData(
 	customerName,
 	customerId,
@@ -238,39 +218,35 @@ insert into @txRawData(
 	year,
 	month,
 	paymentMethod,
-	payment,
-	processingFeePercent
+	payment
 )
 select
 	c.customerName,
 	c.customerId,
 	j.jobName,
 	j.jobId,
-	year(adn.SettlementTS),
-	month(adn.SettlementTS),
+	year(ra.createdate),
+	month(ra.createdate),
 	replicate(' ', 4) + 'Failed E-Check Payments',
-	sum(adn.[Settlement Amount]),
-	coalesce(j.ECProcessingFeePercent, 1.5) / 100
+	sum(ra.payamt)
 from
 	Jobs.Registration_Accounting ra
 	inner join reference.Accounting_PaymentMethods apm on ra.paymentMethodID = apm.paymentMethodID
 	inner join Jobs.Registrations r on ra.RegistrationId = r.RegistrationId
 	inner join Jobs.Jobs j on r.jobID = j.jobId
 	inner join Jobs.Customers c on j.customerId = c.customerId
-	inner join adn.vtxs adn on ra.adntransactionid = adn.[transaction id]
 	inner join @listCustomerIds lc on j.customerID = lc.customerId
 where
 	apm.paymentMethod in ('Failed E-Check Payment')
-	and ( adn.SettlementTS >= @startDate and adn.SettlementTS < @endDate)
-	and not adn.[transaction status] in ('Declined', 'Voided')
+	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
+	and ra.active = 1
 group by
 	c.customerId,
 	c.customerName,
 	j.jobId,
 	j.jobName,
-	j.ECProcessingFeePercent,
-	year(adn.SettlementTS),
-	month(adn.SettlementTS)
+	year(ra.createdate),
+	month(ra.createdate)
 
 --insert check data
 insert into @txRawData(
@@ -303,7 +279,6 @@ where
 	ra.active = 1
 	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
 	and apm.paymentMethod in ('Check Payment By Client', 'Check Payment By TSIC')
-	and not exists (select * from adn.vtxs adn where ra.adntransactionId = adn.[transaction id] and adn.[transaction status] in ('Declined', 'Voided'))
 group by
 	c.customerId,
 	c.customerName,
@@ -344,7 +319,6 @@ where
 	ra.active = 1
 	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
 	and apm.paymentMethod in ('Check Payment By Client', 'Check Payment By TSIC')
-	and not exists (select * from adn.vtxs adn where ra.adntransactionId = adn.[transaction id] and adn.[transaction status] in ('Declined', 'Voided'))
 group by
 	c.customerId,
 	c.customerName,
@@ -389,64 +363,10 @@ group by
 	jc.year,
 	jc.month
 
--- insert CC Processing Fees
-insert into @txRawData(
-	customerName,
-	customerId,
-	jobName,
-	jobId,
-	year,
-	month,
-	paymentMethod,
-	payment
-)
-select distinct
-	rd.customerName,
-	rd.customerID,
-	rd.jobName,
-	rd.jobId,
-	rd.year,
-	rd.month,
-	replicate(' ', 2) + 'CC Fees',
-	-(
-		abs(
-			rd.payment * rd.processingFeePercent
-		)
-	)
-from
-	@txRawData rd
-where
-	rd.paymentMethod like '%CC%'
-
--- insert E-Check Processing Fees (only on positive eCheck payments - ADN doesn't refund the fee on NSF)
-insert into @txRawData(
-	customerName,
-	customerId,
-	jobName,
-	jobId,
-	year,
-	month,
-	paymentMethod,
-	payment
-)
-select distinct
-	rd.customerName,
-	rd.customerID,
-	rd.jobName,
-	rd.jobId,
-	rd.year,
-	rd.month,
-	replicate(' ', 2) + 'E-Check Fees',
-	-(
-		abs(
-			rd.payment * rd.processingFeePercent
-		)
-	)
-from
-	@txRawData rd
-where
-	rd.paymentMethod like '%E-Check%'
-	and rd.payment > 0
+-- (intentionally omitted) CC Processing Fees rollup
+-- (intentionally omitted) E-Check Processing Fees rollup
+--   Non-TSIC ADN merchants pay their own processing fees; they don't surface
+--   in TSIC's reporting. Mirrors the legacy behavior of this SP.
 
 -- insert TSIC Fees
 insert into @txRawData(
@@ -482,7 +402,7 @@ select
 	rd.year as Year,
 	rd.month as Month,
 	paymentMethod as PayMethod,
-	convert(decimal(8,2), sum(rd.payment)) as PayAmount
+	rd.payment as PayAmount
 from
 	@txRawData rd
 	inner join Jobs.Jobs j on rd.jobID = j.jobId
@@ -491,11 +411,6 @@ where
 		exists(select * from @listJobs) and exists (select * from @listJobs lj where j.JobName = lj.jobName)
 		or not exists(select * from @listJobs)
 	)
-group by
-	rd.jobName,
-	rd.year,
-	rd.month,
-	paymentMethod
 order by
 	rd.jobName,
 	rd.year,
@@ -590,10 +505,10 @@ select
 	j.jobName as JobName,
 	case when r.club_name is null then u.FirstName + ' ' + u.LastName else u.FirstName + ' ' + u.LastName + ' (' + r.club_name + ')' end as Registrant,
 	apm.paymentMethod as PaymentMethod,
-	adn.[SettlementTS] as PaymentDate,
-	year(adn.[SettlementTS]) as [Year],
-	month(adn.[SettlementTS]) as [Month],
-	adn.[Settlement Amount] as PaymentAmount
+	ra.createdate as PaymentDate,
+	year(ra.createdate),
+	month(ra.createdate),
+	ra.payamt as PaymentAmount
 from
 	Jobs.Registration_Accounting ra
 	inner join reference.Accounting_PaymentMethods apm on ra.paymentMethodID = apm.paymentMethodID
@@ -601,12 +516,11 @@ from
 	inner join dbo.AspNetUsers u on r.UserId = u.Id
 	inner join Jobs.Jobs j on r.jobID = j.jobId
 	inner join Jobs.Customers c on j.customerId = c.customerId
-	inner join adn.vtxs adn on ra.adntransactionid = adn.[transaction id]
 	inner join @listCustomerIds lc on j.customerID = lc.customerId
 where
 	apm.paymentMethod in ('Credit Card Payment')
-	and ( adn.SettlementTS >= @startDate and adn.SettlementTS < @endDate)
-	and not adn.[transaction status] in ('Declined', 'Voided')
+	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
+	and ra.active = 1
 
 insert into @rawPaymentRecords(
 	id,
@@ -639,7 +553,6 @@ where
 	ra.active = 1
 	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
 	and apm.paymentMethod in ('Check Payment By Client', 'Check Payment By TSIC')
-	and not exists (select * from adn.vtxs adn where ra.adntransactionId = adn.[transaction id] and adn.[transaction status] in ('Declined', 'Voided'))
 order by j.jobName
 
 insert into @rawPaymentRecords(
@@ -657,10 +570,10 @@ select
 	j.jobName as JobName,
 	case when r.club_name is null then u.FirstName + ' ' + u.LastName else u.FirstName + ' ' + u.LastName + ' (' + r.club_name + ')' end as Registrant,
 	apm.paymentMethod as PaymentMethod,
-	adn.[SettlementTS] as PaymentDate,
-	year(adn.[SettlementTS]) as [Year],
-	month(adn.[SettlementTS]) as [Month],
-	adn.[Settlement Amount] as PaymentAmount
+	ra.createdate as PaymentDate,
+	year(ra.createdate) as [Year],
+	month(ra.createdate) as [Month],
+	ra.payamt as PaymentAmount
 from
 	Jobs.Registration_Accounting ra
 	inner join reference.Accounting_PaymentMethods apm on ra.paymentMethodID = apm.paymentMethodID
@@ -668,12 +581,11 @@ from
 	inner join dbo.AspNetUsers u on r.UserId = u.Id
 	inner join Jobs.Jobs j on r.jobID = j.jobId
 	inner join Jobs.Customers c on j.customerId = c.customerId
-	inner join adn.vtxs adn on ra.adntransactionid = adn.[transaction id]
 	inner join @listCustomerIds lc on j.customerID = lc.customerId
 where
 	apm.paymentMethod in ('E-Check Payment', 'Failed E-Check Payment')
-	and ( adn.SettlementTS >= @startDate and adn.SettlementTS < @endDate)
-	and not adn.[transaction status] in ('Declined', 'Voided')
+	and ( ra.createdate >= @startDate and ra.createdate < @endDate)
+	and ra.active = 1
 
 --EXPORT JOB CC RECORDS  (set #4)
 select
