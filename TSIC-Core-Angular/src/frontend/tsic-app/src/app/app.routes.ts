@@ -380,12 +380,8 @@ export const routes: Routes = [
 					{
 						path: 'get-reconciliation-records',
 						canActivate: [authGuard],
-						data: {
-							roles: [Roles.Superuser],
-							title: 'Get Reconciliation Records',
-							legacyController: 'AdnReconciliation/Index',
-						},
-						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/accounting/get-reconciliation-records/get-reconciliation-records.component').then(m => m.GetReconciliationRecordsComponent)
 					},
 					{
 						path: 'merch-reconciliation-records',

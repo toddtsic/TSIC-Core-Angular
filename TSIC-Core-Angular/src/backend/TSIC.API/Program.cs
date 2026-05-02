@@ -320,6 +320,9 @@ builder.Services.AddScoped<IRegSaverUploadService, RegSaverUploadService>();
 builder.Services.AddScoped<INuveiBatchesRepository, NuveiBatchesRepository>();
 builder.Services.AddScoped<INuveiFundingRepository, NuveiFundingRepository>();
 builder.Services.AddScoped<INuveiUploadService, NuveiUploadService>();
+// ADN Monthly Reconciliation (SuperUser; pulls prod ADN by design — see project memory)
+builder.Services.AddScoped<IAdnReconciliationRepository, AdnReconciliationRepository>();
+builder.Services.AddScoped<IAdnReconciliationService, AdnReconciliationService>();
 // Customer Job Revenue (SuperUser financial dashboard)
 builder.Services.AddScoped<ICustomerJobRevenueService, CustomerJobRevenueService>();
 // Reporting
@@ -625,7 +628,13 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials()
-              .WithExposedHeaders("Content-Disposition");
+              .WithExposedHeaders(
+                  "Content-Disposition",
+                  // ADN reconciliation run-monthly counts (read by frontend after blob download)
+                  "X-Imported-Count",
+                  "X-Skipped-Duplicates",
+                  "X-Batches-Pulled",
+                  "X-Transactions-Pulled");
     });
 });
 

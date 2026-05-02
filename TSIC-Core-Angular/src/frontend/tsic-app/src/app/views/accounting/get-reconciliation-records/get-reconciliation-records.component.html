@@ -1,0 +1,90 @@
+<div class="accounting-page">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-cloud-download page-title-icon"></i>
+                Get Reconciliation Records
+            </h2>
+            <p class="page-subtitle">
+                Pulls last month's Authorize.Net settled batches into <code>Txs</code> and downloads
+                the QBP reconciliation Excel. Idempotent — re-running for the same month wipes that
+                month's <code>Txs</code> rows then repopulates from a fresh ADN pull. The pull always
+                hits production ADN (even when running on dev) so the dev <code>Txs</code> table
+                mirrors prod for debugging.
+            </p>
+        </div>
+    </div>
+
+    <section class="action-panel" [class.is-running]="isRunning()">
+        <div class="action-panel__icon" aria-hidden="true">
+            <i class="bi bi-arrow-clockwise"></i>
+        </div>
+        <div class="action-panel__body">
+            <h3 class="action-panel__title">
+                Reconcile {{ targetMonth | date:'MMMM yyyy' }}
+            </h3>
+            <p class="action-panel__desc">
+                Settlement window:
+                <strong>{{ targetMonth | date:'MMM d, yyyy' }}</strong> &mdash;
+                <strong>{{ endOfMonth | date:'MMM d, yyyy' }}</strong>
+                (the entire month). The pull also looks back one day to catch settlements that
+                crossed midnight.
+            </p>
+        </div>
+        <div class="action-panel__cta">
+            <button
+                type="button"
+                class="btn btn-primary btn-lg"
+                [disabled]="isRunning()"
+                (click)="run()">
+                @if (isRunning()) {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    Pulling from ADN&hellip;
+                } @else {
+                    <i class="bi bi-play-fill me-1"></i>Run reconciliation
+                }
+            </button>
+        </div>
+    </section>
+
+    @if (errorMessage()) {
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Reconciliation failed</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
+    }
+
+    @if (stats(); as s) {
+        <section class="result-panel result-panel--success" role="status">
+            <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Reconciliation complete &mdash; Excel downloaded</h4>
+                <p class="result-panel__desc">
+                    Pulled {{ s.batchesPulled }} batch{{ s.batchesPulled === 1 ? '' : 'es' }} containing
+                    {{ s.transactionsPulled }} transaction{{ s.transactionsPulled === 1 ? '' : 's' }}.
+                </p>
+                <div class="result-stats">
+                    <div class="result-stat result-stat--success">
+                        <span class="result-stat__value">{{ s.imported }}</span>
+                        <span class="result-stat__label">Imported</span>
+                    </div>
+                    <div class="result-stat result-stat--muted">
+                        <span class="result-stat__value">{{ s.skippedDuplicates }}</span>
+                        <span class="result-stat__label">Duplicates Skipped</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-stat__value">{{ s.batchesPulled }}</span>
+                        <span class="result-stat__label">Batches</span>
+                    </div>
+                    <div class="result-stat">
+                        <span class="result-stat__value">{{ s.transactionsPulled }}</span>
+                        <span class="result-stat__label">Transactions</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    }
+</div>
