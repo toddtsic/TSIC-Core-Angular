@@ -30,14 +30,28 @@ export class ClientMenuComponent {
     menusLoading = computed(() => this.jobService.navLoading());
     menusError = computed(() => this.jobService.navError());
 
-    // Current URL path (lowercase, no query string) — reacts to every navigation
+    // Current URL split into lowercase path + lowercase query params — reacts to every navigation.
+    // Query params are kept so isParentActive() can disambiguate Type-2 report children that differ
+    // only by ?spName=... (e.g. Reports vs Accounting both contain reporting/export-sp children).
     private readonly currentUrl = toSignal(
         this.router.events.pipe(
             filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-            map(e => e.urlAfterRedirects.split('?')[0].replace(/^\/+/, '').toLowerCase())
+            map(e => this.parseUrl(e.urlAfterRedirects))
         ),
-        { initialValue: this.router.url.split('?')[0].replace(/^\/+/, '').toLowerCase() }
+        { initialValue: this.parseUrl(this.router.url) }
     );
+
+    private parseUrl(url: string): { path: string; params: URLSearchParams } {
+        const [rawPath, rawQuery] = url.split('?');
+        const path = rawPath.replace(/^\/+/, '').toLowerCase();
+        const params = new URLSearchParams();
+        if (rawQuery) {
+            for (const [k, v] of new URLSearchParams(rawQuery)) {
+                params.append(k.toLowerCase(), v.toLowerCase());
+            }
+        }
+        return { path, params };
+    }
 
     // Offcanvas state from shared service
     offcanvasOpen = this.menuState.offcanvasOpen;
@@ -121,18 +135,32 @@ export class ClientMenuComponent {
      */
     isParentActive(item: NavItemDto): boolean {
         if (!item.children?.length) return false;
-        const url = this.currentUrl();
+        const { path, params: urlParams } = this.currentUrl();
+        const segments = path.split('/').filter(Boolean);
+
         return item.children.some(child => {
-            const link = child.routerLink?.split('?')[0].replace(/^\/+/, '').toLowerCase();
-            if (!link) return false;
+            if (!child.routerLink) return false;
+            const [rawLinkPath, linkQuery] = child.routerLink.split('?');
+            const linkPath = rawLinkPath.replace(/^\/+/, '').toLowerCase();
+            if (!linkPath) return false;
+
             // Match against URL segments to avoid substring collisions
             // e.g. "rosters/public" should not match "rosters/club"
-            const segments = url.split('/').filter(Boolean);
-            const linkSegments = link.split('/').filter(Boolean);
-            // Check if the URL ends with the link segments (path-suffix match)
-            if (linkSegments.length > segments.length) return false;
+            const linkSegments = linkPath.split('/').filter(Boolean);
+            if (linkSegments.length === 0 || linkSegments.length > segments.length) return false;
             const tail = segments.slice(segments.length - linkSegments.length);
-            return tail.every((seg, i) => seg === linkSegments[i]);
+            if (!tail.every((seg, i) => seg === linkSegments[i])) return false;
+
+            // If the child link has query params, every param must match the current URL.
+            // Disambiguates Type-2 reports (e.g. reporting/export-sp?spName=A vs ?spName=B):
+            // without this, every L1 with such children lights up on any export-sp URL.
+            if (linkQuery) {
+                const linkParams = new URLSearchParams(linkQuery);
+                for (const [k, v] of linkParams) {
+                    if ((urlParams.get(k.toLowerCase()) ?? '') !== v.toLowerCase()) return false;
+                }
+            }
+            return true;
         });
     }
 
