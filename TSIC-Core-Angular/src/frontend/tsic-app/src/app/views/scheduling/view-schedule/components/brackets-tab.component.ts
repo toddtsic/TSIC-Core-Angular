@@ -9,7 +9,7 @@ import {
     HierarchicalTree, DataBinding
 } from '@syncfusion/ej2-diagrams';
 import { DataManager } from '@syncfusion/ej2-data';
-import { contrastText } from '../../shared/utils/scheduling-helpers';
+import { contrastText, agBg } from '../../shared/utils/scheduling-helpers';
 
 // Register Syncfusion modules for imperative Diagram creation
 Diagram.Inject(HierarchicalTree, DataBinding);
@@ -203,10 +203,11 @@ export class BracketsTabComponent implements OnDestroy {
             this.activeTabIndex.set(0);
         });
 
-        // Rebuild diagram when active bracket or canScore changes
+        // Rebuild diagram when active bracket, canScore, or agegroup colors change
         effect(() => {
             const bracket = this.activeBracket();
             this.canScore(); // track — rebuild when capabilities resolve
+            this.agegroupColors(); // track — rebuild when LADT tree loads
             // Use setTimeout to ensure ViewChild is available after template renders
             setTimeout(() => this.buildDiagram(bracket), 0);
         });
@@ -240,6 +241,11 @@ export class BracketsTabComponent implements OnDestroy {
         // Clear any previous content and create a fresh div
         host.innerHTML = '<div id="bracket-diagram"></div>';
         const container = host.querySelector('#bracket-diagram') as HTMLElement;
+
+        // Resolve agegroup color for card tinting (12% over body-bg) + left stripe
+        const agColor = this.agegroupColors()[bracket.agegroupName] ?? null;
+        const cardBg = agBg(agColor);
+        const stripeColor = agColor ?? 'var(--bs-border-color)';
 
         // Normalize parentGid: 0 → null (legacy: Pgid == 0 ? null : Pgid)
         const games: BracketNode[] = bracket.matches.map(m => ({
@@ -423,7 +429,7 @@ export class BracketsTabComponent implements OnDestroy {
                 node.shape = {
                     type: 'HTML',
                     content: `
-                        <div style="position:relative;background:var(--bs-body-bg);border:1px solid var(--bs-border-color);border-radius:6px;overflow:hidden;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:6px 8px;">
+                        <div style="position:relative;background:${cardBg};border:1px solid var(--bs-border-color);border-left:5px solid ${stripeColor};border-radius:6px;overflow:hidden;width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;padding:6px 8px 6px 6px;">
                             ${pencilHtml}
                             <div style="text-align:center;font-size:10px;color:var(--bs-secondary-color);margin-bottom:3px;line-height:1.2;">${locHtml}</div>
                             <div style="display:flex;justify-content:space-between;align-items:center;padding:2px 4px;${t1RowStyle}">
