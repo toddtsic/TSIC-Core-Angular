@@ -9,6 +9,7 @@ import {
     HierarchicalTree, DataBinding
 } from '@syncfusion/ej2-diagrams';
 import { DataManager } from '@syncfusion/ej2-data';
+import { contrastText } from '../../shared/utils/scheduling-helpers';
 
 // Register Syncfusion modules for imperative Diagram creation
 Diagram.Inject(HierarchicalTree, DataBinding);
@@ -48,6 +49,10 @@ interface BracketNode {
                 @for (tab of tabItems(); track tab.index) {
                     <button class="ag-tab"
                             [class.active]="activeTabIndex() === tab.index"
+                            [class.has-color]="!!tab.color"
+                            [style.background]="tab.color ?? null"
+                            [style.color]="tab.color ? tab.contrastColor : null"
+                            [style.border-color]="tab.color ?? null"
                             (click)="selectTab(tab.index)">
                         {{ tab.label }}
                     </button>
@@ -101,7 +106,7 @@ interface BracketNode {
             font-weight: 500;
             cursor: pointer;
             white-space: nowrap;
-            transition: background-color 0.15s, color 0.15s, border-color 0.15s;
+            transition: background-color 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
         }
 
         .ag-tab:hover {
@@ -109,10 +114,30 @@ interface BracketNode {
             color: var(--bs-body-color);
         }
 
-        .ag-tab.active {
+        /* Colored (agegroup) tabs: full-bleed colored background, contrast text from inline style.
+           Inactive colored tabs are dimmed; active colored tab pops with a focus ring. */
+        .ag-tab.has-color { opacity: 0.55; }
+        .ag-tab.has-color:hover { opacity: 0.85; }
+        .ag-tab.has-color.active {
+            opacity: 1;
+            font-weight: 700;
+            box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 4px var(--bs-body-color);
+        }
+
+        /* Fallback when no agegroup color is set */
+        .ag-tab:not(.has-color).active {
             background: var(--bs-primary);
             color: white;
             border-color: var(--bs-primary);
+        }
+
+        .ag-tab:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ag-tab { transition: none !important; }
         }
 
         /* ── Diagram container ── */
@@ -130,6 +155,7 @@ export class BracketsTabComponent implements OnDestroy {
     brackets = input<DivisionBracketResponse[]>([]);
     canScore = input<boolean>(false);
     isLoading = input<boolean>(false);
+    agegroupColors = input<Record<string, string | null>>({});
 
     @Output() editBracketScore = new EventEmitter<{
         gid: number;
@@ -151,11 +177,17 @@ export class BracketsTabComponent implements OnDestroy {
 
     readonly tabItems = computed(() => {
         const data = this.brackets();
-        return data.map((b, i) => ({
-            index: i,
-            label: b.divName ? `${b.agegroupName} — ${b.divName}` : b.agegroupName,
-            champion: b.champion ?? null
-        }));
+        const colors = this.agegroupColors();
+        return data.map((b, i) => {
+            const color = colors[b.agegroupName] ?? null;
+            return {
+                index: i,
+                label: b.divName ? `${b.agegroupName} — ${b.divName}` : b.agegroupName,
+                champion: b.champion ?? null,
+                color,
+                contrastColor: contrastText(color)
+            };
+        });
     });
 
     readonly activeBracket = computed(() => {

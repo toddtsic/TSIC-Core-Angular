@@ -262,6 +262,7 @@ interface FilterChip {
                             [brackets]="brackets()"
                             [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
+                            [agegroupColors]="agegroupColors()"
                             (editBracketScore)="onBracketScoreEdit($event)"
                             (viewTeamResults)="onViewTeamResults($event)"
                             (viewFieldInfo)="onViewFieldInfo($event)" />
@@ -1008,6 +1009,15 @@ export class ViewScheduleComponent implements OnInit {
 
     readonly hasCadtData = computed(() => this.cadtTree().length > 0);
     readonly hasLadtData = computed(() => this.ladtTree().length > 0);
+
+    /** Map of agegroupName → color hex, sourced from the LADT tree. */
+    readonly agegroupColors = computed(() => {
+        const map: Record<string, string | null> = {};
+        for (const ag of this.ladtTree()) {
+            map[ag.agegroupName] = ag.color ?? null;
+        }
+        return map;
+    });
 
     /** Flat team list for edit-game modal team picker (grouped by division) */
     readonly flatTeamList = computed(() => {
