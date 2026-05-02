@@ -1,7 +1,7 @@
 import {
     ChangeDetectionStrategy, Component, inject, OnInit, signal, computed
 } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { JobService } from '../../../infrastructure/services/job.service';
 import { FormsModule } from '@angular/forms';
@@ -1105,7 +1105,14 @@ export class ViewScheduleComponent implements OnInit {
     ngOnInit(): void {
         const data = this.route.snapshot.data;
         if (data['publicMode']) {
-            this.jobPath = this.route.snapshot.params['jobPath'];
+            // jobPath lives on the parent :jobPath route; default paramsInheritanceStrategy
+            // ('emptyOnly') doesn't inherit it onto a non-empty-path child like 'schedule'.
+            let r: ActivatedRouteSnapshot | null = this.route.snapshot;
+            while (r) {
+                const jp = r.paramMap.get('jobPath');
+                if (jp) { this.jobPath = jp; break; }
+                r = r.parent;
+            }
         }
 
         this.svc.getFilterOptions(this.jobPath).subscribe(opts => {

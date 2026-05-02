@@ -37,6 +37,7 @@ const COLOR_CLASSES: ReadonlyMap<string, string> = new Map([
  * - StartARegistration + bStaff=true → /{jobPath}/registration/adult?role={unassigned|coach}
  *   Same site-aware key choice based on BAllowRosterViewAdult.
  * - Rosters/RostersPublicLookupTourny → /{jobPath}/rosters/public
+ * - Schedules/Index (any query string) → /{jobPath}/schedule (public, anonymous-accessible)
  *
  * Site-awareness: pipe reads JobService.currentJob().bAllowRosterViewAdult to decide
  * the URL key. true (tournament with public adult roster) → coach (resolves to Staff).
@@ -227,6 +228,10 @@ export class TranslateLegacyUrlsPipe implements PipeTransform {
 
         if (lower.includes('rosters/rosterspubliclookuptourny') || lower.includes('rosters/rosterpubliclookup')) {
             return `<a href="/${jobPath}/rosters/public">CLICK HERE</a>`;
+        }
+
+        if (lower.includes('schedules/index')) {
+            return `<a href="/${jobPath}/schedule">${linkText}</a>`;
         }
 
         if (lower.includes('playerwaiverupdate')) {
