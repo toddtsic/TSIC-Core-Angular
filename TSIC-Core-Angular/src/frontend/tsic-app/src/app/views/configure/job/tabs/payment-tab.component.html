@@ -125,38 +125,10 @@
       </div>
     </div>
 
-    <!-- Check / Mail-in / Balance -->
+    <!-- Payment Policy -->
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-envelope-paper me-2"></i>Check / Mail-in / Balance</h6>
-      <div class="row g-2">
-        <div class="col-md-4">
-          <label class="field-label">Pay To</label>
-          <input type="text" class="field-input"
-            [ngModel]="payTo()"
-            (ngModelChange)="payTo.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-4">
-          <label class="field-label">Mail To</label>
-          <input type="text" class="field-input"
-            [ngModel]="mailTo()"
-            (ngModelChange)="mailTo.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-4">
-          <label class="field-label">Balance Due %</label>
-          <input type="text" class="field-input"
-            [ngModel]="balancedueaspercent()"
-            (ngModelChange)="balancedueaspercent.set($event); onFieldChange()" />
-        </div>
-      </div>
-      <div class="row g-2 mt-1">
-        <div class="col-12">
-          <label class="field-label">Mail-in Payment Warning</label>
-          <textarea class="field-input" rows="2"
-            [ngModel]="mailinPaymentWarning()"
-            (ngModelChange)="mailinPaymentWarning.set($event); onFieldChange()"></textarea>
-        </div>
-      </div>
-      <div class="field-check-row mt-2">
+      <h6 class="section-title"><i class="bi bi-clipboard-check me-2"></i>Payment Policy</h6>
+      <div class="field-check-row">
         <label class="field-check" [class.is-disabled]="arbControlsBalance()">
           <input type="checkbox"
             [ngModel]="bTeamsFullPaymentRequired()"
@@ -170,18 +142,6 @@
             (ngModelChange)="bPlayersFullPaymentRequired.set($event); onFieldChange()"
             [disabled]="arbControlsBalance()" />
           <span class="field-label mb-0">Players Full Payment Required</span>
-        </label>
-        <label class="field-check">
-          <input type="checkbox"
-            [ngModel]="bAllowRefundsInPriorMonths()"
-            (ngModelChange)="bAllowRefundsInPriorMonths.set($event); onFieldChange()" />
-          <span class="field-label mb-0">Refunds in Prior Months</span>
-        </label>
-        <label class="field-check">
-          <input type="checkbox"
-            [ngModel]="bAllowCreditAll()"
-            (ngModelChange)="bAllowCreditAll.set($event); onFieldChange()" />
-          <span class="field-label mb-0">Allow Credit All</span>
         </label>
       </div>
     </div>
@@ -277,6 +237,39 @@
         </div>
       </div>
     }
+
+    <!-- Check / Mail-in / Balance -->
+    <div class="form-section">
+      <h6 class="section-title"><i class="bi bi-envelope-paper me-2"></i>Check / Mail-in / Balance</h6>
+      <div class="row g-2">
+        <div class="col-md-4">
+          <label class="field-label">Pay To</label>
+          <input type="text" class="field-input"
+            [ngModel]="payTo()"
+            (ngModelChange)="payTo.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <label class="field-label">Mail To</label>
+          <input type="text" class="field-input"
+            [ngModel]="mailTo()"
+            (ngModelChange)="mailTo.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-4">
+          <label class="field-label">Balance Due %</label>
+          <input type="text" class="field-input"
+            [ngModel]="balancedueaspercent()"
+            (ngModelChange)="balancedueaspercent.set($event); onFieldChange()" />
+        </div>
+      </div>
+      <div class="row g-2 mt-1">
+        <div class="col-12">
+          <label class="field-label">Mail-in Payment Warning</label>
+          <textarea class="field-input" rows="2"
+            [ngModel]="mailinPaymentWarning()"
+            (ngModelChange)="mailinPaymentWarning.set($event); onFieldChange()"></textarea>
+        </div>
+      </div>
+    </div>
 
   </div>
 }
