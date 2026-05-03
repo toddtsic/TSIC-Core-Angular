@@ -42,6 +42,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [config]="shellConfig()"
       [canContinue]="canContinue()"
       [showContinue]="showContinue()"
+      [showActionBarOnFirstStep]="hasWizardSession()"
       [continueLabel]="continueLabel()"
       [detailsBadgeLabel]="detailsBadge()"
       [detailsBadgeClass]="detailsBadgeClass()"
@@ -150,10 +151,20 @@ export class TeamWizardV2Component implements OnInit {
     /** Event name displayed as page-top context across every step. */
     readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? '');
 
+    /**
+     * "Full session" = authenticated as Club Rep with a Phase 2 token (regId + jobPath claims)
+     * for the current job. When true, the wizard chrome stays unlocked on the login tab —
+     * the user can use the action bar Continue and step indicator like any other step.
+     */
+    readonly hasWizardSession = computed(() => {
+        const u = this.auth.currentUser();
+        return u?.role === 'Club Rep' && !!u.regId && u.jobPath === this.state.jobPath();
+    });
+
     // ── canContinue ─────────────────────────────────────────────────
     readonly canContinue = computed(() => {
         switch (this.currentStepId()) {
-            case 'login': return false; // login step has own CTAs
+            case 'login': return this.hasWizardSession();
             case 'teams': return true; // validation in proceedToPayment()
             case 'waivers': return this.state.waiverAccepted();
             case 'payment': return !this.state.teamPayment.hasBalance();
@@ -166,7 +177,11 @@ export class TeamWizardV2Component implements OnInit {
         const id = this.currentStepId();
         // Teams step manages its own internal navigation (micro-steps + proceedToPayment output).
         // Showing the outer shell button during teams causes a confusing duplicate "Proceed to Payment".
-        return id !== 'login' && id !== 'teams';
+        if (id === 'teams') return false;
+        // Login: only show wizard Continue when the user has a full session (returning rep).
+        // First-time / anonymous visitors use the in-step sign-in form's own CTA.
+        if (id === 'login') return this.hasWizardSession();
+        return true;
     });
 
     readonly continueLabel = computed(() => {
@@ -235,11 +250,10 @@ export class TeamWizardV2Component implements OnInit {
                 }
             });
 
-        // Deep-link past login: hydrate cross-cutting state (payment config, waiver,
-        // refund policy, contact info) so payment/review steps render correctly even
-        // when the user bypasses login + teams. Teams-step does its own richer load
-        // when mounted, so arriving at step=teams also gets this state populated.
-        if (this._currentStepId() !== 'login' && currentUser?.role === 'Club Rep') {
+        // Hydrate cross-cutting state (payment config, waiver, refund policy, contact info)
+        // whenever we have a full session — covers both deep links past login and returning
+        // users who land on login but should be able to navigate forward immediately.
+        if (this.hasWizardSession()) {
             this.hydrateForDeepLink();
         }
     }
@@ -278,7 +292,9 @@ export class TeamWizardV2Component implements OnInit {
 
     goToStep(stepIndex: number): void {
         const active = this.activeSteps();
-        if (stepIndex >= 0 && stepIndex < active.length && stepIndex < this.currentIndex()) {
+        if (stepIndex < 0 || stepIndex >= active.length) return;
+        // Backward nav: always allowed. Forward nav: only with a full session.
+        if (stepIndex < this.currentIndex() || this.hasWizardSession()) {
             this._currentStepId.set(active[stepIndex].id);
         }
     }

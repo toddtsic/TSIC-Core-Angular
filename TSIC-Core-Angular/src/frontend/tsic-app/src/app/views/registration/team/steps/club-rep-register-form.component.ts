@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, OnInit, output, signal, computed } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, computed, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, tap } from 'rxjs/operators';
@@ -8,7 +8,6 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { TosContentComponent } from '../../shared/components/tos-content.component';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdateRequest, ClubSearchResult } from '@core/api';
 
 /**
@@ -21,7 +20,8 @@ import type { ClubRepRegistrationRequest, ClubRepProfileDto, ClubRepProfileUpdat
 type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
 
 /**
- * Club rep self-registration modal with two-tier club name validation.
+ * Club rep self-registration / profile-edit form with two-tier club name validation.
+ * Renders form fields only — the consumer owns the title and card chrome.
  *
  * Tier 1 (85%+ match)  — HARD BLOCK: club almost certainly exists. Shows
  *   existing rep's contact info so the registrant can reach out directly.
@@ -35,19 +35,22 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
 @Component({
     selector: 'app-club-rep-register-form',
     standalone: true,
-    imports: [ReactiveFormsModule, TsicDialogComponent, TosContentComponent],
+    imports: [ReactiveFormsModule, TosContentComponent],
     styles: [`
+      :host { display: block; }
+
       /* ── Blocked panel (Tier 1: 85%+) ────────────────────── */
       .club-blocked-panel {
-        border: 1px solid rgba(var(--bs-danger-rgb), 0.25);
+        border: 2px solid var(--bs-danger);
         border-radius: var(--radius-md);
         margin-top: var(--space-2);
         overflow: hidden;
+        background: var(--neutral-0);
       }
       .club-blocked-header {
         padding: var(--space-3);
-        background: rgba(var(--bs-danger-rgb), 0.06);
-        border-bottom: 1px solid rgba(var(--bs-danger-rgb), 0.15);
+        background: rgba(var(--bs-danger-rgb), 0.18);
+        border-bottom: 1px solid rgba(var(--bs-danger-rgb), 0.25);
       }
       .club-blocked-header h6 {
         font-size: var(--font-size-sm);
@@ -93,15 +96,16 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
 
       /* ── Warning panel (Tier 2: 65-84%) ──────────────────── */
       .club-warning-panel {
-        border: 1px solid rgba(var(--bs-warning-rgb), 0.3);
+        border: 2px solid var(--bs-warning);
         border-radius: var(--radius-md);
         margin-top: var(--space-2);
         overflow: hidden;
+        background: var(--neutral-0);
       }
       .club-warning-header {
         padding: var(--space-2) var(--space-3);
-        background: rgba(var(--bs-warning-rgb), 0.06);
-        border-bottom: 1px solid rgba(var(--bs-warning-rgb), 0.15);
+        background: rgba(var(--bs-warning-rgb), 0.18);
+        border-bottom: 1px solid rgba(var(--bs-warning-rgb), 0.25);
       }
       .club-warning-header h6 {
         font-size: var(--font-size-sm);
@@ -162,6 +166,15 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
 
       /* ── Shared ──────────────────────────────────────────── */
       .form-divider { border-color: var(--border-color); opacity: 0.5; }
+      .form-section-title {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        margin: 0 0 var(--space-2);
+        display: flex;
+        align-items: center;
+      }
+      .form-section-title i { color: var(--bs-primary); }
       .value-prop {
         font-size: var(--font-size-xs);
         color: var(--brand-text-muted);
@@ -250,32 +263,19 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
       }
     `],
     template: `
-    <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">
-            @if (isEdit()) {
-              <i class="bi bi-person-gear me-2"></i>Edit Profile
-            } @else {
-              <i class="bi bi-shield-plus me-2"></i>Create Club Rep Account
-            }
-          </h5>
-          <button type="button" class="btn-close" (click)="closed.emit()" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-            <form [formGroup]="form" (ngSubmit)="onSubmit()">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
               @if (!isEdit()) {
               <!-- ═══ CLUB NAME INPUT ═══ -->
               <div class="mb-2">
-                <label class="form-label fw-medium small mb-1">Club Name</label>
-                <input class="form-control form-control-sm" formControlName="clubName"
+                <label class="field-label">Club Name <span class="req-star">*</span></label>
+                <input #clubNameInput class="field-input" formControlName="clubName"
                        placeholder="Start typing your club name..."
                        autocomplete="off"
                        [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
                 <div class="value-prop mt-1">
                   <i class="bi bi-lightning-charge me-1"></i>
-                  Your club keeps a team library across all tournaments administered with TeamSportsInfo — enter team details once, then select from the list at every future event.
+                  Your TeamSportsInfo <strong>Club Team Library</strong> is permanent. Add each team once, register from the list at every future event.
                 </div>
               </div>
 
@@ -404,164 +404,172 @@ type ClubDecision = 'pending' | 'blocked' | 'new' | 'clear';
                   </button>
                 </div>
               }
-
-              <hr class="form-divider my-2">
-
-              <!-- ═══ CREDENTIALS ═══ -->
-              <div class="row g-2 mb-2">
-                <div class="col-12">
-                  <input class="form-control form-control-sm" formControlName="username"
-                         placeholder="Username" autocomplete="username"
-                         [class.is-required]="!form.controls.username.value?.trim()"
-                         [class.is-invalid]="submitted() && form.controls.username.invalid" />
-                </div>
-                <div class="col-6">
-                  <div class="position-relative">
-                    <input [type]="showPassword() ? 'text' : 'password'" class="form-control form-control-sm pe-5" formControlName="password"
-                           placeholder="Password" autocomplete="new-password"
-                           [class.is-required]="!form.controls.password.value"
-                           [class.is-invalid]="submitted() && form.controls.password.invalid" />
-                    <button type="button" class="password-toggle"
-                            (click)="showPassword.set(!showPassword())"
-                            [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
-                      <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
-                    </button>
-                  </div>
-                </div>
-                <div class="col-6">
-                  <div class="position-relative">
-                    <input [type]="showConfirm() ? 'text' : 'password'" class="form-control form-control-sm pe-5" formControlName="confirmPassword"
-                           placeholder="Confirm Password" autocomplete="new-password"
-                           [class.is-invalid]="submitted() && passwordMismatch()" />
-                    <button type="button" class="password-toggle"
-                            (click)="showConfirm.set(!showConfirm())"
-                            [attr.aria-label]="showConfirm() ? 'Hide password' : 'Show password'" tabindex="-1">
-                      <i class="bi" [class.bi-eye]="!showConfirm()" [class.bi-eye-slash]="showConfirm()"></i>
-                    </button>
-                  </div>
-                </div>
-                @if (submitted() && passwordMismatch()) {
-                  <div class="col-12">
-                    <div class="field-error">Passwords do not match.</div>
-                  </div>
-                }
-              </div>
-
-              <hr class="form-divider my-2">
               }
 
-              <!-- ═══ PERSONAL INFO ═══ -->
-              <div class="row g-2 mb-2">
-                <div class="col-6">
-                  <input class="form-control form-control-sm" formControlName="firstName"
-                         placeholder="First Name"
-                         [class.is-required]="!form.controls.firstName.value?.trim()"
-                         [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
-                </div>
-                <div class="col-6">
-                  <input class="form-control form-control-sm" formControlName="lastName"
-                         placeholder="Last Name"
-                         [class.is-required]="!form.controls.lastName.value?.trim()"
-                         [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
-                </div>
-              </div>
-              <div class="row g-2 mb-2">
-                <div class="col-7">
-                  <input type="email" class="form-control form-control-sm" formControlName="email"
-                         placeholder="Email"
-                         [class.is-required]="!form.controls.email.value?.trim()"
-                         [class.is-invalid]="submitted() && form.controls.email.invalid" />
-                </div>
-                <div class="col-5">
-                  <input type="tel" inputmode="numeric" class="form-control form-control-sm"
-                         formControlName="cellphone" (input)="digitsOnly('cellphone', $event)"
-                         placeholder="Phone (digits only)"
-                         [class.is-required]="!form.controls.cellphone.value?.trim()" />
-                </div>
-              </div>
-              <div class="row g-2 mb-2">
-                <div class="col-12">
-                  <input class="form-control form-control-sm" formControlName="streetAddress"
-                         placeholder="Street Address"
-                         [class.is-required]="!form.controls.streetAddress.value?.trim()"
-                         [class.is-invalid]="submitted() && form.controls.streetAddress.invalid" />
-                </div>
-              </div>
-              <div class="row g-2 mb-2">
-                <div class="col-5">
-                  <input class="form-control form-control-sm" formControlName="city"
-                         placeholder="City"
-                         [class.is-required]="!form.controls.city.value?.trim()"
-                         [class.is-invalid]="submitted() && form.controls.city.invalid" />
-                </div>
-                <div class="col-4">
-                  <select class="form-select form-select-sm" formControlName="state"
-                          [class.is-required]="!form.controls.state.value"
-                          [class.is-invalid]="submitted() && form.controls.state.invalid">
-                    <option value="">State</option>
-                    @for (s of stateOptions; track s.value) {
-                      <option [value]="s.value">{{ s.label }}</option>
-                    }
-                  </select>
-                </div>
-                <div class="col-3">
-                  <input class="form-control form-control-sm" formControlName="postalCode"
-                         placeholder="Zip"
-                         [class.is-required]="!form.controls.postalCode.value?.trim()"
-                         [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
-                </div>
-              </div>
+              @if (isEdit() || clubDecision() === 'clear' || clubDecision() === 'new') {
+                <hr class="form-divider my-3">
+                <h6 class="form-section-title">
+                  <i class="bi bi-person-vcard me-2"></i>Club Rep Details
+                </h6>
 
-              @if (errorMsg()) {
-                <div class="alert alert-danger py-2 small mb-2">{{ errorMsg() }}</div>
-              }
-
-              @if (!isEdit()) {
-                <div class="tos-acceptance-row">
-                  <input id="clubRepTosAccept" type="checkbox" formControlName="agreeToTos"
-                         [class.is-invalid]="submitted() && form.controls.agreeToTos.invalid" />
-                  <label for="clubRepTosAccept">
-                    I have read and agree to the
-                    <button type="button" class="tos-link-btn"
-                            [attr.aria-expanded]="tosExpanded()"
-                            aria-controls="clubRepTosPanel"
-                            (click)="tosExpanded.set(!tosExpanded())">
-                      Terms of Service<i class="bi ms-1"
-                        [class.bi-chevron-down]="!tosExpanded()"
-                        [class.bi-chevron-up]="tosExpanded()"></i>
-                    </button>.
-                  </label>
-                </div>
-                @if (tosExpanded()) {
-                  <div id="clubRepTosPanel" class="tos-inline-panel">
-                    <div class="tos-inline-scroll">
-                      <app-tos-content />
+                @if (!isEdit()) {
+                  <!-- ═══ CREDENTIALS ═══ -->
+                  <div class="row g-2 mb-2">
+                    <div class="col-12">
+                      <input class="field-input" formControlName="username"
+                             placeholder="Username" autocomplete="username"
+                             [class.is-required]="!form.controls.username.value?.trim()"
+                             [class.is-invalid]="submitted() && form.controls.username.invalid" />
                     </div>
+                    <div class="col-6">
+                      <div class="position-relative">
+                        <input [type]="showPassword() ? 'text' : 'password'" class="field-input pe-5" formControlName="password"
+                               placeholder="Password" autocomplete="new-password"
+                               [class.is-required]="!form.controls.password.value"
+                               [class.is-invalid]="submitted() && form.controls.password.invalid" />
+                        <button type="button" class="password-toggle"
+                                (click)="showPassword.set(!showPassword())"
+                                [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
+                          <i class="bi" [class.bi-eye]="!showPassword()" [class.bi-eye-slash]="showPassword()"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="position-relative">
+                        <input [type]="showConfirm() ? 'text' : 'password'" class="field-input pe-5" formControlName="confirmPassword"
+                               placeholder="Confirm Password" autocomplete="new-password"
+                               [class.is-invalid]="submitted() && passwordMismatch()" />
+                        <button type="button" class="password-toggle"
+                                (click)="showConfirm.set(!showConfirm())"
+                                [attr.aria-label]="showConfirm() ? 'Hide password' : 'Show password'" tabindex="-1">
+                          <i class="bi" [class.bi-eye]="!showConfirm()" [class.bi-eye-slash]="showConfirm()"></i>
+                        </button>
+                      </div>
+                    </div>
+                    @if (submitted() && passwordMismatch()) {
+                      <div class="col-12">
+                        <div class="field-error">Passwords do not match.</div>
+                      </div>
+                    }
                   </div>
-                }
-              }
 
-              <button type="submit" class="btn btn-primary w-100 fw-semibold mt-3"
-                      [disabled]="saving() || (!isEdit() && !canSubmit())">
-                @if (saving()) {
-                  <span class="spinner-border spinner-border-sm me-1"></span>
-                  @if (isEdit()) { Saving... } @else { Creating... }
-                } @else {
-                  @if (isEdit()) {
-                    <i class="bi bi-check-lg me-1"></i>Save Changes
-                  } @else {
-                    <i class="bi bi-person-plus-fill me-1"></i>Create Account
+                  <hr class="form-divider my-2">
+                }
+
+                <!-- ═══ PERSONAL INFO ═══ -->
+                <div class="row g-2 mb-2">
+                  <div class="col-6">
+                    <input #firstNameInput class="field-input" formControlName="firstName"
+                           placeholder="First Name"
+                           [class.is-required]="!form.controls.firstName.value?.trim()"
+                           [class.is-invalid]="submitted() && form.controls.firstName.invalid" />
+                  </div>
+                  <div class="col-6">
+                    <input class="field-input" formControlName="lastName"
+                           placeholder="Last Name"
+                           [class.is-required]="!form.controls.lastName.value?.trim()"
+                           [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
+                  </div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-7">
+                    <input type="email" class="field-input" formControlName="email"
+                           placeholder="Email"
+                           [class.is-required]="!form.controls.email.value?.trim()"
+                           [class.is-invalid]="submitted() && form.controls.email.invalid" />
+                  </div>
+                  <div class="col-5">
+                    <input type="tel" inputmode="numeric" class="field-input"
+                           formControlName="cellphone" (input)="digitsOnly('cellphone', $event)"
+                           placeholder="Phone (digits only)"
+                           [class.is-required]="!form.controls.cellphone.value?.trim()" />
+                  </div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-12">
+                    <input class="field-input" formControlName="streetAddress"
+                           autocomplete="address-line1"
+                           placeholder="Street Address"
+                           [class.is-required]="!form.controls.streetAddress.value?.trim()"
+                           [class.is-invalid]="submitted() && form.controls.streetAddress.invalid" />
+                  </div>
+                </div>
+                <div class="row g-2 mb-2">
+                  <div class="col-5">
+                    <input class="field-input" formControlName="city"
+                           autocomplete="address-level2"
+                           placeholder="City"
+                           [class.is-required]="!form.controls.city.value?.trim()"
+                           [class.is-invalid]="submitted() && form.controls.city.invalid" />
+                  </div>
+                  <div class="col-4">
+                    <select class="field-select" formControlName="state"
+                            autocomplete="address-level1"
+                            [class.is-required]="!form.controls.state.value"
+                            [class.is-invalid]="submitted() && form.controls.state.invalid">
+                      <option value="">State</option>
+                      @for (s of stateOptions; track s.value) {
+                        <option [value]="s.value">{{ s.label }}</option>
+                      }
+                    </select>
+                  </div>
+                  <div class="col-3">
+                    <input class="field-input" formControlName="postalCode"
+                           autocomplete="postal-code"
+                           placeholder="Zip"
+                           [class.is-required]="!form.controls.postalCode.value?.trim()"
+                           [class.is-invalid]="submitted() && form.controls.postalCode.invalid" />
+                  </div>
+                </div>
+
+                @if (errorMsg()) {
+                  <div class="alert alert-danger py-2 small mb-2">{{ errorMsg() }}</div>
+                }
+
+                @if (!isEdit()) {
+                  <div class="tos-acceptance-row">
+                    <input id="clubRepTosAccept" type="checkbox" formControlName="agreeToTos"
+                           [class.is-invalid]="submitted() && form.controls.agreeToTos.invalid" />
+                    <label for="clubRepTosAccept">
+                      I have read and agree to the
+                      <button type="button" class="tos-link-btn"
+                              [attr.aria-expanded]="tosExpanded()"
+                              aria-controls="clubRepTosPanel"
+                              (click)="tosExpanded.set(!tosExpanded())">
+                        Terms of Service<i class="bi ms-1"
+                          [class.bi-chevron-down]="!tosExpanded()"
+                          [class.bi-chevron-up]="tosExpanded()"></i>
+                      </button>.
+                    </label>
+                  </div>
+                  @if (tosExpanded()) {
+                    <div id="clubRepTosPanel" class="tos-inline-panel">
+                      <div class="tos-inline-scroll">
+                        <app-tos-content />
+                      </div>
+                    </div>
                   }
                 }
-              </button>
-            </form>
-        </div>
-      </div>
-    </tsic-dialog>
+
+                <button type="submit" class="btn btn-primary w-100 fw-semibold mt-3"
+                        [disabled]="saving() || (!isEdit() && !canSubmit())">
+                  @if (saving()) {
+                    <span class="spinner-border spinner-border-sm me-1"></span>
+                    @if (isEdit()) { Saving... } @else { Creating... }
+                  } @else {
+                    @if (isEdit()) {
+                      <i class="bi bi-check-lg me-1"></i>Save Changes
+                    } @else {
+                      <i class="bi bi-person-plus-fill me-1"></i>Create Account
+                    }
+                  }
+                </button>
+              }
+      </form>
   `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ClubRepRegisterFormComponent implements OnInit {
+export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
     /** 'create' = self-register a new ClubRep (default). 'edit' = update current profile. */
     readonly mode = input<'create' | 'edit'>('create');
     /** Existing profile data to prefill in edit mode. */
@@ -569,7 +577,6 @@ export class ClubRepRegisterFormComponent implements OnInit {
 
     readonly registered = output<{ username: string; password: string }>();
     readonly saved = output<void>();
-    readonly closed = output<void>();
 
     readonly isEdit = computed(() => this.mode() === 'edit');
 
@@ -579,6 +586,10 @@ export class ClubRepRegisterFormComponent implements OnInit {
     private readonly fieldData = inject(FormFieldDataService);
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
+
+    // First input refs — focused on view init to drop the user straight into the form.
+    private readonly clubNameInput = viewChild<ElementRef<HTMLInputElement>>('clubNameInput');
+    private readonly firstNameInput = viewChild<ElementRef<HTMLInputElement>>('firstNameInput');
 
     readonly stateOptions: SelectOption[] = this.fieldData.getOptionsForDataSource('states');
 
@@ -632,27 +643,23 @@ export class ClubRepRegisterFormComponent implements OnInit {
     });
 
     constructor() {
-        // Live search with immediate stale-state clear.
-        // - tap() fires on every new value: clears panels before debounce so the
-        //   user never sees a prior match lingering while they type.
-        // - debounceTime/switchMap batches the actual HTTP call.
-        // - The final subscribe sets decision unambiguously from new results
-        //   (every prior-state transition is handled, not just some).
+        // Live search — keep prior results visible while typing to avoid stutter.
+        // Only clear when the input drops below the search threshold.
         this.form.controls.clubName.valueChanges.pipe(
             distinctUntilChanged(),
-            tap(() => {
-                this.clubSearchResults.set([]);
-                this.clubDecision.set('pending');
-                this.clubSearchLoading.set(false);
+            tap((v) => {
+                if (!v || v.trim().length < 3) {
+                    this.clubSearchResults.set([]);
+                    this.clubDecision.set('pending');
+                    this.clubSearchLoading.set(false);
+                }
             }),
             debounceTime(300),
             filter((v): v is string => !!v && v.trim().length >= 3),
-            switchMap(name => {
-                this.clubSearchLoading.set(true);
-                return this.clubService.searchClubs(name.trim()).pipe(
-                    catchError(() => of([] as ClubSearchResult[]))
-                );
-            }),
+            tap(() => this.clubSearchLoading.set(true)),
+            switchMap(name => this.clubService.searchClubs(name.trim()).pipe(
+                catchError(() => of([] as ClubSearchResult[]))
+            )),
             takeUntilDestroyed(this.destroyRef)
         ).subscribe(results => {
             this.clubSearchLoading.set(false);
@@ -684,6 +691,10 @@ export class ClubRepRegisterFormComponent implements OnInit {
         this.form.controls.password.disable();
         this.form.controls.confirmPassword.disable();
         this.form.controls.agreeToTos.disable();
+        // Identity fields are locked too: free name edits would let one rep "hand off"
+        // an account by renaming it instead of creating a proper new club rep account.
+        this.form.controls.firstName.disable();
+        this.form.controls.lastName.disable();
 
         // canSubmit() gates on clubDecision; 'clear' skips the club-search gate entirely.
         this.clubDecision.set('clear');
@@ -701,6 +712,15 @@ export class ClubRepRegisterFormComponent implements OnInit {
                 postalCode: data.postalCode,
             });
         }
+    }
+
+    ngAfterViewInit(): void {
+        // Drop the user straight into the form: clubName for create, firstName for edit.
+        // setTimeout defers past the change-detection tick so the @if branch is in the DOM.
+        setTimeout(() => {
+            const target = this.isEdit() ? this.firstNameInput() : this.clubNameInput();
+            target?.nativeElement.focus();
+        });
     }
 
     /** Pre-fill a mailto body to make contacting the rep as easy as possible */
