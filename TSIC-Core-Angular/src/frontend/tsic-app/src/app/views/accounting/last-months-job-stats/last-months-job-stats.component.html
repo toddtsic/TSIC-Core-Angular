@@ -45,12 +45,12 @@
                 <e-column field="aid" headerText="Id" [isPrimaryKey]="true" [visible]="false" [allowEditing]="false"></e-column>
                 <e-column field="customerName" headerText="Customer" width="180" [allowEditing]="false"></e-column>
                 <e-column field="jobName" headerText="Job" width="180" [allowEditing]="false"></e-column>
-                <e-column field="countActivePlayersToDate" headerText="P-TD" width="80" textAlign="Right" editType="numericedit"></e-column>
-                <e-column field="countActivePlayersToDateLastMonth" headerText="P-TD-LM" width="90" textAlign="Right" editType="numericedit"></e-column>
-                <e-column field="countNewPlayersThisMonth" headerText="NP-TM" width="80" textAlign="Right" editType="numericedit"></e-column>
-                <e-column field="countActiveTeamsToDate" headerText="T-TD" width="80" textAlign="Right" editType="numericedit"></e-column>
-                <e-column field="countActiveTeamsToDateLastMonth" headerText="T-TD-LM" width="90" textAlign="Right" editType="numericedit"></e-column>
-                <e-column field="countNewTeamsThisMonth" headerText="NT-TM" width="80" textAlign="Right" editType="numericedit"></e-column>
+                <e-column field="countActivePlayersToDate" headerText="P-TD" width="80" textAlign="Right" format="N0" editType="numericedit" [edit]="{ params: { format: 'N0', decimals: 0, validateDecimalOnType: true } }"></e-column>
+                <e-column field="countActivePlayersToDateLastMonth" headerText="P-TD-LM" width="90" textAlign="Right" format="N0" editType="numericedit" [edit]="{ params: { format: 'N0', decimals: 0, validateDecimalOnType: true } }"></e-column>
+                <e-column field="countNewPlayersThisMonth" headerText="NP-TM" width="80" textAlign="Right" format="N0" editType="numericedit" [edit]="{ params: { format: 'N0', decimals: 0, validateDecimalOnType: true } }"></e-column>
+                <e-column field="countActiveTeamsToDate" headerText="T-TD" width="80" textAlign="Right" format="N0" editType="numericedit" [edit]="{ params: { format: 'N0', decimals: 0, validateDecimalOnType: true } }"></e-column>
+                <e-column field="countActiveTeamsToDateLastMonth" headerText="T-TD-LM" width="90" textAlign="Right" format="N0" editType="numericedit" [edit]="{ params: { format: 'N0', decimals: 0, validateDecimalOnType: true } }"></e-column>
+                <e-column field="countNewTeamsThisMonth" headerText="NT-TM" width="80" textAlign="Right" format="N0" editType="numericedit" [edit]="{ params: { format: 'N0', decimals: 0, validateDecimalOnType: true } }"></e-column>
             </e-columns>
         </ejs-grid>
     }
