@@ -1293,6 +1293,14 @@ public sealed class LadtService : ILadtService
             targetClub = await _clubRepo.GetByNameAsync(targetReg.ClubName, ct);
         }
 
+        // Snapshot source ClubTeamIds before the loop overwrites them — used in step 9.5
+        // to clean up any source library entries that have no remaining team references.
+        var sourceClubTeamIds = teamsToMove
+            .Where(t => t.ClubTeamId.HasValue)
+            .Select(t => t.ClubTeamId!.Value)
+            .Distinct()
+            .ToList();
+
         // 8. Update each team
         foreach (var t in teamsToMove)
         {
@@ -1339,6 +1347,29 @@ public sealed class LadtService : ILadtService
 
         // 9. Save all team changes
         await _teamRepo.SaveChangesAsync(ct);
+
+        // 9.5. Drop any source library entries the move left orphaned. A ClubTeam
+        //      that no longer has ANY Teams row pointing at it (across all events)
+        //      is dead weight in the source rep's library — they didn't reorganize
+        //      to keep it, the move took it. Skip the delete if any other Teams
+        //      row still references it (different event, duplicate registration,
+        //      partial move-all that left siblings behind).
+        var sourceLibraryRemoved = 0;
+        foreach (var sourceClubTeamId in sourceClubTeamIds)
+        {
+            var stillReferenced = await _clubTeamRepo.HasAnyTeamRegistrationsAsync(sourceClubTeamId, ct);
+            if (stillReferenced) continue;
+
+            var orphan = await _clubTeamRepo.GetByIdAsync(sourceClubTeamId, ct);
+            if (orphan == null) continue;
+
+            _clubTeamRepo.Remove(orphan);
+            sourceLibraryRemoved++;
+        }
+        if (sourceLibraryRemoved > 0)
+        {
+            await _clubTeamRepo.SaveChangesAsync(ct);
+        }
 
         // 10. Recalculate club rep financials for BOTH clubs
         await _registrationRepo.SynchronizeClubRepFinancialsAsync(sourceRegistrationId, userId, ct);
