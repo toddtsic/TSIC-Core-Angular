@@ -235,7 +235,7 @@ type LoginView = 'sign-in' | 'create' | 'account-summary' | 'edit-profile';
                   <button type="button" class="btn btn-outline-primary" (click)="onEditClick()">
                     <i class="bi bi-pencil me-1"></i>Edit Profile
                   </button>
-                  <button type="button" class="btn btn-outline-secondary" (click)="onSignOut()">
+                  <button type="button" class="btn btn-outline-secondary" (click)="goHome()">
                     <i class="bi bi-box-arrow-right me-1"></i>Sign Out
                   </button>
                 </div>
@@ -332,17 +332,16 @@ export class TeamLoginStepComponent implements OnInit {
         this.loadProfile(() => this.view.set('account-summary'));
     }
 
-    onSignOut(): void {
+    /**
+     * Exit the wizard back to the public job landing page.
+     * Always clears the session — "Back to home" from the Login tab signals
+     * end-of-session intent, and Sign Out routes through here too so we don't
+     * leave a half-cleared state behind on either path.
+     */
+    goHome(): void {
         this.auth.logoutLocal();
         this.profileForEdit.set(null);
         this.error.set(null);
-        // Exit the wizard entirely. Re-entering from home gives a clean sign-in start;
-        // looping back to the sign-in view inside the wizard feels like a restart, not an exit.
-        this.goHome();
-    }
-
-    /** Exit the wizard back to the public job landing page. */
-    goHome(): void {
         const jobPath = this.state.jobPath();
         if (jobPath) this.router.navigate(['/', jobPath]);
     }
