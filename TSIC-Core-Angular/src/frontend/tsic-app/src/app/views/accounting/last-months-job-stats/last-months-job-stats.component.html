@@ -1,0 +1,57 @@
+<div class="accounting-page">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-bar-chart-line page-title-icon"></i>
+                Last Months Job Stats
+            </h2>
+            <p class="page-subtitle">
+                Cross-customer review and edit of <strong>{{ targetMonth | date:'MMMM yyyy' }}</strong>
+                player and team counts on <code>MonthlyJobStats</code>. Double-click a row to edit.
+                Customer and Job columns are read-only. Counts auto-save when you click Update.
+            </p>
+        </div>
+    </div>
+
+    @if (errorMessage()) {
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Could not complete</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
+    }
+
+    @if (isLoading()) {
+        <div class="text-center py-4">
+            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+            <span class="text-muted">Loading...</span>
+        </div>
+    } @else {
+        <div class="text-center text-muted mb-2 small">
+            P=Player&nbsp;&nbsp;&nbsp;&nbsp;T=Team&nbsp;&nbsp;|&nbsp;&nbsp;TD=To Date&nbsp;&nbsp;&nbsp;&nbsp;TD-LM=To Date Last Month&nbsp;&nbsp;&nbsp;&nbsp;TM=This Month
+        </div>
+        <ejs-grid #grid
+            [dataSource]="rows()"
+            cssClass="tsic-grid-tight"
+            [allowExcelExport]="true"
+            [allowSorting]="true"
+            [toolbar]="toolbar"
+            [editSettings]="editSettings"
+            (toolbarClick)="onToolbarClick($event)"
+            (actionComplete)="onActionComplete($event)">
+            <e-columns>
+                <e-column field="aid" headerText="Id" [isPrimaryKey]="true" [visible]="false" [allowEditing]="false"></e-column>
+                <e-column field="customerName" headerText="Customer" width="180" [allowEditing]="false"></e-column>
+                <e-column field="jobName" headerText="Job" width="180" [allowEditing]="false"></e-column>
+                <e-column field="countActivePlayersToDate" headerText="P-TD" width="80" textAlign="Right" editType="numericedit"></e-column>
+                <e-column field="countActivePlayersToDateLastMonth" headerText="P-TD-LM" width="90" textAlign="Right" editType="numericedit"></e-column>
+                <e-column field="countNewPlayersThisMonth" headerText="NP-TM" width="80" textAlign="Right" editType="numericedit"></e-column>
+                <e-column field="countActiveTeamsToDate" headerText="T-TD" width="80" textAlign="Right" editType="numericedit"></e-column>
+                <e-column field="countActiveTeamsToDateLastMonth" headerText="T-TD-LM" width="90" textAlign="Right" editType="numericedit"></e-column>
+                <e-column field="countNewTeamsThisMonth" headerText="NT-TM" width="80" textAlign="Right" editType="numericedit"></e-column>
+            </e-columns>
+        </ejs-grid>
+    }
+</div>

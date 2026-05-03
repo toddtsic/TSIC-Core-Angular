@@ -323,6 +323,9 @@ builder.Services.AddScoped<INuveiUploadService, NuveiUploadService>();
 // ADN Monthly Reconciliation (SuperUser; pulls prod ADN by design — see project memory)
 builder.Services.AddScoped<IAdnReconciliationRepository, AdnReconciliationRepository>();
 builder.Services.AddScoped<IAdnReconciliationService, AdnReconciliationService>();
+// Last Months Job Stats (SuperUser cross-customer review/edit grid)
+builder.Services.AddScoped<ILastMonthsJobStatsRepository, LastMonthsJobStatsRepository>();
+builder.Services.AddScoped<ILastMonthsJobStatsService, LastMonthsJobStatsService>();
 // Customer Job Revenue (SuperUser financial dashboard)
 builder.Services.AddScoped<ICustomerJobRevenueService, CustomerJobRevenueService>();
 // Reporting

@@ -404,12 +404,8 @@ export const routes: Routes = [
 					{
 						path: 'last-months-job-stats',
 						canActivate: [authGuard],
-						data: {
-							roles: [Roles.Superuser],
-							title: 'Last Months Job Stats',
-							legacyController: 'Home/LastMonthsJobStats',
-						},
-						loadComponent: () => import('./views/accounting/coming-soon/coming-soon.component').then(m => m.AccountingComingSoonComponent)
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/accounting/last-months-job-stats/last-months-job-stats.component').then(m => m.LastMonthsJobStatsComponent)
 					}
 				]
 			},

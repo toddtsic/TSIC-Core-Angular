@@ -340,6 +340,7 @@ export type { LadtDivisionNode } from './models/LadtDivisionNode';
 export type { LadtTeamNode } from './models/LadtTeamNode';
 export type { LadtTreeNodeDto } from './models/LadtTreeNodeDto';
 export type { LadtTreeRootDto } from './models/LadtTreeRootDto';
+export type { LastMonthsJobStatRowDto } from './models/LastMonthsJobStatRowDto';
 export type { LeagueDetailDto } from './models/LeagueDetailDto';
 export type { LeagueSeasonFieldDto } from './models/LeagueSeasonFieldDto';
 export type { LoginRequest } from './models/LoginRequest';
@@ -675,6 +676,7 @@ export type { UpdateJobConfigPaymentRequest } from './models/UpdateJobConfigPaym
 export type { UpdateJobConfigPlayerRequest } from './models/UpdateJobConfigPlayerRequest';
 export type { UpdateJobConfigSchedulingRequest } from './models/UpdateJobConfigSchedulingRequest';
 export type { UpdateJobConfigTeamsRequest } from './models/UpdateJobConfigTeamsRequest';
+export type { UpdateLastMonthsJobStatRequest } from './models/UpdateLastMonthsJobStatRequest';
 export type { UpdateLeagueRequest } from './models/UpdateLeagueRequest';
 export type { UpdateMenuActiveRequest } from './models/UpdateMenuActiveRequest';
 export type { UpdateMenuItemRequest } from './models/UpdateMenuItemRequest';
