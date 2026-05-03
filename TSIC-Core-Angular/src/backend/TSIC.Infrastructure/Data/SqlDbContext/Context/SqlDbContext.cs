@@ -5813,7 +5813,7 @@ public partial class SqlDbContext : DbContext
 
             entity.Property(e => e.ReportId).HasDefaultValueSql("(newid())");
             entity.Property(e => e.Active).HasDefaultValue(true);
-            entity.Property(e => e.Description).HasMaxLength(1000);
+            entity.Property(e => e.CategoryCode).HasMaxLength(50);
             entity.Property(e => e.IconName).HasMaxLength(50);
             entity.Property(e => e.LebUserId).HasMaxLength(450);
             entity.Property(e => e.Modified)

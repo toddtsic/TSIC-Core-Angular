@@ -27,5 +27,7 @@ public partial class ReportCatalogue
 
     public string? LebUserId { get; set; }
 
+    public string? CategoryCode { get; set; }
+
     public virtual AspNetUsers? LebUser { get; set; }
 }
