@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
@@ -26,7 +27,7 @@ interface AgePickerTeam {
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
+    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent, LibraryFlyinComponent, CurrencyPipe],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -42,40 +43,90 @@ interface AgePickerTeam {
       <div class="step-card step-card-registered">
         <div class="section-header section-registered">
           <i class="bi bi-check-circle-fill me-1"></i>
-          Registered Teams ({{ enteredTeams().length }})
-          <button type="button" class="btn btn-outline-primary btn-sm ms-auto section-action"
-                  (click)="openLibraryFlyin()">
-            <i class="bi bi-plus-circle me-1"></i>Register a <strong>Library Team</strong> for <strong>this Event</strong>
-          </button>
+          @if (enteredTeams().length === 0) {
+            Registered Teams
+          } @else {
+            {{ enteredTeams().length }}
+            {{ enteredTeams().length === 1 ? 'Team' : 'Teams' }} Registered
+
+            <button type="button" class="btn btn-outline-primary btn-sm ms-auto section-action"
+                    (click)="openLibraryFlyin()">
+              <i class="bi bi-plus-circle me-1"></i>
+              Register <strong>Another</strong> Team for <strong>this Event</strong>
+            </button>
+          }
         </div>
 
         @if (enteredTeams().length === 0) {
-          <div class="wizard-empty-state" style="padding: var(--space-6) var(--space-4)">
-            <i class="bi bi-clipboard-plus"></i>
-            @if (allLibraryTeams().length === 0) {
-              <strong>Two quick steps to register</strong>
-              <span>
-                First add teams to your <strong>club library</strong> (saved across all TSIC events),
-                then register them for <strong>this event</strong>.
-                Tap <strong>Register a Library Team for this Event</strong> above &mdash;
-                we'll prompt you to add your first <strong>library team</strong>.
-              </span>
-            } @else {
-              <strong>No teams registered yet</strong>
-              <span>
-                Tap <strong>Register a Library Team for this Event</strong> above
-                to register your first team.
-              </span>
-            }
-          </div>
+          @if (allLibraryTeams().length === 0) {
+            <div class="two-step-hero">
+              <div class="two-step-eyebrow">
+                <span>How Team Registration Works</span>
+              </div>
+              <h3 class="two-step-headline">
+                Two steps to get your teams into <span class="event-name">{{ jobName() }}</span>
+              </h3>
+
+              <div class="two-step-cards">
+                <div class="step-mini step-mini-library">
+                  <div class="step-mini-head">
+                    <span class="step-mini-num">1</span>
+                    <i class="bi bi-collection-fill" aria-hidden="true"></i>
+                  </div>
+                  <strong>Build your Club Library</strong>
+                  <span>
+                    Add your teams once. They're saved for <em>every</em> TSIC event
+                    you'll participate in &mdash; you'll never re-enter them.
+                  </span>
+                </div>
+
+                <div class="two-step-arrow" aria-hidden="true">
+                  <i class="bi bi-arrow-right"></i>
+                </div>
+
+                <div class="step-mini step-mini-event">
+                  <div class="step-mini-head">
+                    <span class="step-mini-num">2</span>
+                    <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                  </div>
+                  <strong>Register for this event</strong>
+                  <span>
+                    Pick from your library to enter
+                    <strong>{{ jobName() }}</strong> &mdash; pay fees, get a schedule slot.
+                  </span>
+                </div>
+              </div>
+
+              <button type="button" class="btn btn-primary btn-lg cta-empty cta-empty-library"
+                      (click)="openLibraryFlyin()">
+                <i class="bi bi-plus-circle-fill me-2"></i>
+                Add Your First Library Team
+                <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
+              </button>
+            </div>
+          } @else {
+            <div class="wizard-empty-state cta-empty-wrap" style="padding: var(--space-6) var(--space-4)">
+              <i class="bi bi-clipboard-plus"></i>
+              <strong>{{ allLibraryTeams().length }} library
+                {{ allLibraryTeams().length === 1 ? 'team' : 'teams' }}
+                ready &mdash; none registered for {{ jobName() }} yet</strong>
+              <span>Pick from your library to enter <strong>{{ jobName() }}</strong>.</span>
+              <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
+                      (click)="openLibraryFlyin()">
+                <i class="bi bi-trophy-fill me-2"></i>
+                Register Your First Team for this Event
+                <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
+              </button>
+            </div>
+          }
         } @else {
           <div style="padding: var(--space-2) var(--space-3)">
             <app-registered-teams-grid
               [teams]="enteredTeams()"
               [showDeposit]="!fullPaymentRequired() && anyDepositDue()"
               [showBalance]="!fullPaymentRequired() && anyBalanceDue()"
-              [showOwed]="fullPaymentRequired() && anyOwed()"
-              [showPaid]="anyPaid()"
+              [showOwed]="true"
+              [showPaid]="false"
               [showProcessing]="false"
               [showCcOwed]="false"
               [showCkOwed]="false"
@@ -90,9 +141,20 @@ interface AgePickerTeam {
           </div>
 
           <div class="step-card-footer">
-            <span class="footer-hint">
-              <i class="bi bi-shield-check me-1"></i>Your library is saved across all events
-            </span>
+            @if (sumOwed() > 0) {
+              <span class="footer-hint footer-hint-warning">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                <strong>{{ sumOwed() | currency }}</strong> owed across
+                {{ teamsWithBalance() }}
+                {{ teamsWithBalance() === 1 ? 'team' : 'teams' }}
+              </span>
+            } @else {
+              <span class="footer-hint footer-hint-success">
+                <i class="bi bi-check-circle-fill me-1"></i>
+                All {{ enteredTeams().length }}
+                {{ enteredTeams().length === 1 ? 'team' : 'teams' }} paid in full
+              </span>
+            }
             <button type="button" class="btn btn-sm btn-success fw-semibold"
                     (click)="proceedToPayment.emit()">
               {{ proceedButtonLabel() }} <i class="bi bi-arrow-right ms-1"></i>
@@ -211,8 +273,21 @@ interface AgePickerTeam {
       }
 
       .footer-hint {
+        display: inline-flex;
+        align-items: center;
         font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
         color: var(--brand-text-muted);
+
+        strong { font-weight: var(--font-weight-bold); }
+      }
+
+      .footer-hint-success {
+        color: var(--bs-success);
+      }
+
+      .footer-hint-warning {
+        color: var(--bs-danger);
       }
 
       /* ── Section banner header ── */
@@ -241,6 +316,194 @@ interface AgePickerTeam {
         font-weight: var(--font-weight-semibold);
         text-transform: none;
         letter-spacing: 0;
+      }
+
+      /* ── Two-step hero (library=0, registered=0) ────────────────────
+         Library → Event story, told visually as two side-by-side cards
+         with an arrow between. Color-coded: library = primary, event = success
+         (matches the green border of the parent Registered card). */
+      .two-step-hero {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: var(--space-3);
+        padding: var(--space-6) var(--space-4);
+      }
+
+      .two-step-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-3);
+        font-size: 11px;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--brand-text-muted);
+
+        &::before,
+        &::after {
+          content: '';
+          display: block;
+          width: 56px;
+          height: 1px;
+        }
+
+        &::before {
+          background: linear-gradient(to right,
+            transparent,
+            rgba(var(--bs-success-rgb), 0.45));
+        }
+
+        &::after {
+          background: linear-gradient(to left,
+            transparent,
+            rgba(var(--bs-success-rgb), 0.45));
+        }
+
+        > span {
+          display: inline-flex;
+          align-items: center;
+          gap: var(--space-2);
+        }
+
+        > span::before,
+        > span::after {
+          content: '';
+          display: inline-block;
+          width: 4px;
+          height: 4px;
+          border-radius: 50%;
+          background: rgba(var(--bs-success-rgb), 0.55);
+        }
+      }
+
+      .two-step-headline {
+        margin: 0 0 var(--space-2);
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        line-height: var(--line-height-tight);
+        max-width: 640px;
+
+        .event-name { color: var(--bs-success); white-space: nowrap; }
+      }
+
+      .two-step-cards {
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        gap: var(--space-3);
+        width: 100%;
+        max-width: 720px;
+      }
+
+      .step-mini {
+        flex: 1 1 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+        padding: var(--space-4) var(--space-3);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        text-align: center;
+        box-shadow: var(--shadow-xs);
+
+        strong {
+          color: var(--brand-text);
+          font-size: var(--font-size-base);
+          line-height: var(--line-height-tight);
+        }
+
+        > span {
+          font-size: var(--font-size-sm);
+          color: var(--brand-text-muted);
+          line-height: var(--line-height-normal);
+        }
+
+        em { font-style: italic; }
+      }
+
+      .step-mini-library {
+        border-top: 3px solid var(--bs-primary);
+
+        .step-mini-num { background: var(--bs-primary); }
+        .step-mini-head > i { color: var(--bs-primary); }
+      }
+
+      .step-mini-event {
+        border-top: 3px solid var(--bs-success);
+
+        .step-mini-num { background: var(--bs-success); }
+        .step-mini-head > i { color: var(--bs-success); }
+      }
+
+      .step-mini-head {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+      }
+
+      .step-mini-num {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        color: var(--neutral-0);
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-xs);
+        line-height: 1;
+        flex-shrink: 0;
+      }
+
+      .step-mini-head > i { font-size: var(--font-size-xl); }
+
+      .two-step-arrow {
+        display: flex;
+        align-items: center;
+        color: var(--brand-text-muted);
+        opacity: 0.6;
+
+        i { font-size: var(--font-size-2xl); }
+      }
+
+      /* ── Empty-state primary CTA ────────────────────────────────────
+         Replaces the "tap above" pointer. Lives where the eye is. */
+      .cta-empty {
+        display: inline-flex;
+        align-items: center;
+        margin-top: var(--space-3);
+        padding: var(--space-2) var(--space-5);
+        font-weight: var(--font-weight-semibold);
+        font-size: var(--font-size-base);
+        box-shadow: var(--shadow-md);
+        transition: transform 0.12s ease, box-shadow 0.12s ease;
+
+        &:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+        &:active { transform: translateY(0); }
+      }
+
+      .cta-empty-arrow { transition: transform 0.18s ease; }
+      .cta-empty:hover .cta-empty-arrow { transform: translateX(3px); }
+
+      .cta-empty-wrap {
+        align-items: center;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .cta-empty,
+        .cta-empty-arrow { transition: none !important; }
+        .cta-empty:hover { transform: none; }
+      }
+
+      @media (max-width: 575.98px) {
+        .two-step-cards { flex-direction: column; }
+        .two-step-arrow { transform: rotate(90deg); margin: 0 auto; }
+        .two-step-headline { font-size: var(--font-size-base); }
       }
 
       /* ── Mobile ── */
@@ -287,9 +550,8 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly pendingArchive = signal<ClubTeamDto | null>(null);
     /** When set, the restore-confirm dialog is open for this team. */
     readonly pendingRestore = signal<ClubTeamDto | null>(null);
-    /** Library fly-in open state. Auto-opens once on entry when library is empty. */
+    /** Library fly-in open state. Opens only on explicit user action — never auto-opened. */
     readonly showLibraryFlyin = signal(false);
-    private libraryFlyinAutoOpened = false;
 
     /** Which team's age picker modal is open (null = closed). */
     readonly agePickerTeam = signal<AgePickerTeam | null>(null);
@@ -334,13 +596,20 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly anyBalanceDue = computed(() => this._registeredTeams().some(t => t.additionalDue > 0));
     readonly anyPaid       = computed(() => this._registeredTeams().some(t => t.paidTotal > 0));
     readonly anyOwed       = computed(() => this._registeredTeams().some(t => t.owedTotal > 0));
+    readonly sumOwed       = computed(() => this._registeredTeams().reduce((s, t) => s + t.owedTotal, 0));
+    readonly teamsWithBalance = computed(() => this._registeredTeams().filter(t => t.owedTotal > 0).length);
 
     /** Count of teams not yet paid for — drives the Proceed-to-Payment label. */
     readonly newTeamsCount = computed(() => this._registeredTeams().filter(t => t.paidTotal === 0).length);
 
     readonly proceedButtonLabel = computed(() => {
+        // PIF — nothing owed, just moving through the wizard.
+        // (VI insurance is still purchasable on the payment step regardless.)
+        if (this.sumOwed() === 0) return 'Continue';
+
         const n = this.newTeamsCount();
         if (n === 0) return 'Proceed to Payment';
+
         const noun = n === 1 ? 'team' : 'teams';
         return `Submit the ${n} new ${noun} and Proceed to Payment`;
     });
@@ -425,8 +694,9 @@ export class TeamTeamsStepComponent implements OnInit {
                             ? `${team.clubTeamName} waitlisted for ${resp.waitlistAgegroupName ?? ''}`
                             : `${team.clubTeamName} registered for the event!`;
                         this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000);
-                        // Close the flyin so the user sees the team land in the registered list.
-                        this.showLibraryFlyin.set(false);
+                        // Keep the flyin open: the row transitions in-place to a green "Registered"
+                        // badge, reinforcing that the library team is now ALSO an event registration.
+                        // Lets the rep register multiple teams in a row without re-opening the drawer.
                         this.loadTeamsMetadata();
                     },
                     error: () => {
@@ -614,15 +884,6 @@ export class TeamTeamsStepComponent implements OnInit {
                     this.ageGroups.set(meta.ageGroups || []);
                     this.lopOptions.set(meta.lopOptions || []);
                     this.state.applyTeamsMetadata(meta);
-
-                    // Auto-open the flyin once on entry when the library is empty —
-                    // first-time clubs need a clear "add your first team" prompt.
-                    if (!this.libraryFlyinAutoOpened
-                        && (meta.clubTeams?.length ?? 0) === 0
-                        && (meta.registeredTeams?.length ?? 0) === 0) {
-                        this.showLibraryFlyin.set(true);
-                        this.libraryFlyinAutoOpened = true;
-                    }
                 },
                 error: () => {
                     this.loading.set(false);

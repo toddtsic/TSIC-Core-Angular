@@ -31,9 +31,20 @@ import type { ClubTeamDto } from '@core/api';
       <div class="panel-body">
         @if (activeTeams().length === 0 && archivedTeams().length === 0) {
           <div class="lib-empty">
+            <span class="step-pill">Step 1 of 2</span>
             <i class="bi bi-plus-circle-dotted"></i>
-            <strong>Build your Team Library</strong>
-            <span>Add every team your club runs — they stay saved, so you add once and register in any event.</span>
+            <strong>Build your Club Library</strong>
+            <span class="lib-empty-desc">
+              Add every team your club runs &mdash; they're saved across
+              <em>every</em> TSIC event you'll participate in.
+            </span>
+            <div class="lib-empty-note">
+              <i class="bi bi-info-circle-fill"></i>
+              <span>
+                Adding a team here is <strong>not</strong> event registration.
+                You'll register library teams for this event next.
+              </span>
+            </div>
             <button type="button" class="btn btn-primary btn-sm mt-2" (click)="addNew.emit()">
               <i class="bi bi-plus-circle me-1"></i>Add Your First Library Team
             </button>
@@ -123,9 +134,11 @@ import type { ClubTeamDto } from '@core/api';
       </div>
 
       <div class="panel-footer">
-        <button type="button" class="btn-flyin-add" (click)="addNew.emit()">
-          <i class="bi bi-plus-circle me-1"></i>Add Team to Library
-        </button>
+        @if (activeTeams().length > 0) {
+          <button type="button" class="btn-flyin-add" (click)="addNew.emit()">
+            <i class="bi bi-plus-circle me-1"></i>Add Team to Library
+          </button>
+        }
         <button type="button" class="btn-flyin-done" (click)="onClose()">Done</button>
       </div>
     </aside>
@@ -225,8 +238,10 @@ import type { ClubTeamDto } from '@core/api';
         border-top: 1px solid var(--bs-border-color);
         background: var(--bs-body-bg);
         display: flex;
-        justify-content: space-between;
+        align-items: center;
         gap: var(--space-2);
+
+        .btn-flyin-done { margin-left: auto; }
       }
 
       .btn-flyin-add {
@@ -473,9 +488,54 @@ import type { ClubTeamDto } from '@core/api';
         padding: var(--space-6) var(--space-4);
         color: var(--brand-text-muted);
 
-        i { font-size: 32px; color: var(--bs-primary); opacity: 0.6; }
-        strong { color: var(--brand-text); }
+        > i { font-size: 32px; color: var(--bs-primary); opacity: 0.6; }
+        strong { color: var(--brand-text); font-size: var(--font-size-base); }
         span { font-size: var(--font-size-sm); }
+        em { font-style: italic; }
+      }
+
+      .step-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--space-2);
+        font-size: 11px;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        border-radius: var(--radius-full);
+      }
+
+      .lib-empty-desc {
+        max-width: 380px;
+        line-height: var(--line-height-normal);
+      }
+
+      .lib-empty-note {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        margin-top: var(--space-2);
+        max-width: 420px;
+        background: rgba(var(--bs-warning-rgb), 0.08);
+        border: 1px solid rgba(var(--bs-warning-rgb), 0.25);
+        border-radius: var(--radius-sm);
+        color: var(--brand-text);
+        text-align: left;
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-normal);
+
+        i {
+          color: var(--bs-warning);
+          font-size: var(--font-size-base);
+          flex-shrink: 0;
+          margin-top: 1px;
+          opacity: 1;
+        }
+
+        strong { color: var(--brand-text); }
       }
 
       .lib-link {

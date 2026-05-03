@@ -42,7 +42,11 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
             </ng-template>
           </e-column>
           <e-column field="ageGroupName" headerText="Age Group" width="95"></e-column>
-          <e-column field="levelOfPlay" headerText="LOP" width="60" [visible]="showLop()"></e-column>
+          <e-column field="levelOfPlay" headerText="LOP" width="60" [visible]="showLop()">
+            <ng-template #template let-data>
+              <span [attr.title]="data.levelOfPlay">{{ formatLop(data.levelOfPlay) }}</span>
+            </ng-template>
+          </e-column>
           <e-column field="registrationTs" headerText="Reg Date" width="100" type="date" format="yMd"
                     [visible]="showRegDate()"></e-column>
           <e-column field="depositDue" headerText="Deposit Due" width="110" textAlign="Right" format="C2"
@@ -229,6 +233,17 @@ export class RegisteredTeamsGridComponent {
     // Conditional column visibility — only surface Discount / Fee-Adj when any team has non-zero value
     readonly showDiscount = computed(() => this.teams().some(t => (t.feeDiscount ?? 0) > 0));
     readonly showFeeAdj = computed(() => this.teams().some(t => (t.feeLatefee ?? 0) > 0));
+
+    /**
+     * LOP display: strip parenthetical/textual modifier from a numbered value.
+     * "5 (strongest)" → "5"; "Recreational" → "Recreational" (passthrough).
+     * Full string is preserved on the cell as a tooltip via [attr.title].
+     */
+    formatLop(lop: string | null | undefined): string {
+        if (!lop) return '';
+        const match = lop.match(/^\s*(\d+)/);
+        return match ? match[1] : lop;
+    }
 
     // Aggregates
     readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.feeBase, 0));
