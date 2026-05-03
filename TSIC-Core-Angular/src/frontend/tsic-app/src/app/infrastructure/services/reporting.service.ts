@@ -58,52 +58,24 @@ export class ReportingService {
     }
 
     /**
-     * Triggers a browser file download from a blob response.
+     * Opens a blob response in a new tab. Browser then routes by content-type:
+     * viewable types (PDF, text, iCal) render inline; binary types (Excel) trigger
+     * the save dialog. Filename is derived from Content-Disposition for the save
+     * path; we don't set anchor.download because that forces "save" and skips the
+     * inline view that callers expect for PDFs.
      */
     triggerDownload(response: HttpResponse<Blob>, fallbackFilename = 'TSIC-Export'): void {
         const blob = response.body;
         if (!blob) return;
 
-        // Extract filename from Content-Disposition header if available
-        const contentDisposition = response.headers.get('Content-Disposition');
-        let filename = fallbackFilename;
-
-        if (contentDisposition) {
-            const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-            if (match && match[1]) {
-                filename = match[1].replace(/['"]/g, '');
-            }
-        }
-
-        // If no extension in filename, derive from content type
-        if (!filename.includes('.')) {
-            const contentType = response.headers.get('Content-Type') ?? blob.type;
-            const ext = this.getExtensionFromContentType(contentType);
-            if (ext) {
-                filename += ext;
-            }
-        }
-
         const url = window.URL.createObjectURL(blob);
         const anchor = document.createElement('a');
         anchor.href = url;
-        anchor.download = filename;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener';
         anchor.click();
-        window.URL.revokeObjectURL(url);
+        // Defer revoke so Firefox has time to fetch the blob URL for the new tab.
+        setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
     }
 
-    private getExtensionFromContentType(contentType: string | null): string | null {
-        if (!contentType) return null;
-        const type = contentType.split(';')[0].trim().toLowerCase();
-        const map: Record<string, string> = {
-            'application/pdf': '.pdf',
-            'application/rtf': '.rtf',
-            'application/ms-excel': '.xls',
-            'application/vnd.ms-excel': '.xls',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
-            'text/calendar': '.ics',
-            'text/plain': '.txt',
-        };
-        return map[type] ?? null;
-    }
 }
