@@ -88,7 +88,7 @@ describe('TeamTeamsStepComponent — register response handling', () => {
         component.onSelectAgeGroup(testTeam, 'ag-1');
 
         expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('Storm U12 entered!'),
+            expect.stringContaining('Storm U12 registered for the event!'),
             'success',
             expect.any(Number),
         );

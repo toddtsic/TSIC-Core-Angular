@@ -33,7 +33,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                   <button type="button" class="btn-inline-remove"
                           [disabled]="actionInProgress()"
                           (click)="removeTeam.emit(data)"
-                          title="Remove {{ data.teamName }}">
+                          title="Remove {{ data.teamName }} from event">
                     <i class="bi bi-trash3"></i>
                   </button>
                 }
@@ -48,8 +48,16 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
           <e-column field="depositDue" headerText="Deposit Due" width="110" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
           <e-column field="additionalDue" headerText="Bal Due" width="90" textAlign="Right" format="C2"
-                    [visible]="showDeposit()"></e-column>
+                    [visible]="showBalance()"></e-column>
           <e-column field="feeBase" headerText="Total Fee" width="95" textAlign="Right" format="C2"></e-column>
+          <e-column field="owedTotal" headerText="Owed" width="95" textAlign="Right" format="C2"
+                    [visible]="showOwed()">
+            <ng-template #template let-data>
+              <span [style.color]="data.owedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.owedTotal > 0">
+                {{ data.owedTotal | currency }}
+              </span>
+            </ng-template>
+          </e-column>
           <e-column field="feeProcessing" headerText="Proc Fee" width="85" textAlign="Right" format="C2"
                     [visible]="showProcessing()"></e-column>
           <e-column field="feeDiscount" headerText="Discount" width="90" textAlign="Right" format="C2"
@@ -117,6 +125,13 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
               <e-column field="additionalDue" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
                   <div class="aggregate-value">{{ sumAdditionalDue() | currency }}</div>
+                </ng-template>
+              </e-column>
+              <e-column field="owedTotal" type="Sum" format="C2">
+                <ng-template #footerTemplate let-data>
+                  <div class="aggregate-value" [style.color]="sumOwed() > 0 ? 'var(--bs-danger)' : ''">
+                    {{ sumOwed() | currency }}
+                  </div>
                 </ng-template>
               </e-column>
               <e-column field="feeProcessing" type="Sum" format="C2">
@@ -193,6 +208,8 @@ export class RegisteredTeamsGridComponent {
 
     // Column visibility flags
     readonly showDeposit = input(false);
+    readonly showBalance = input(false);
+    readonly showOwed = input(false);
     readonly showProcessing = input(false);
     readonly showPaid = input(true);
     readonly showCcOwed = input(true);
@@ -218,6 +235,7 @@ export class RegisteredTeamsGridComponent {
     readonly sumPaid = computed(() => this.teams().reduce((s, t) => s + t.paidTotal, 0));
     readonly sumDepositDue = computed(() => this.teams().reduce((s, t) => s + t.depositDue, 0));
     readonly sumAdditionalDue = computed(() => this.teams().reduce((s, t) => s + t.additionalDue, 0));
+    readonly sumOwed = computed(() => this.teams().reduce((s, t) => s + t.owedTotal, 0));
     readonly sumProcessing = computed(() => this.teams().reduce((s, t) => s + (t.feeProcessing ?? 0), 0));
     readonly sumDiscount = computed(() => this.teams().reduce((s, t) => s + (t.feeDiscount ?? 0), 0));
     readonly sumFeeAdj = computed(() => this.teams().reduce((s, t) => s + (t.feeLatefee ?? 0), 0));

@@ -23,9 +23,9 @@ import type { ClubTeamDto } from '@core/api';
         <div class="form-hero">
           <h5 class="form-hero-title mb-0">
             @if (isEdit()) {
-              <i class="bi bi-pencil-square me-1"></i>Edit Team
+              <i class="bi bi-pencil-square me-1"></i>Edit Library Team
             } @else {
-              <i class="bi bi-plus-circle me-1"></i>Add Team
+              <i class="bi bi-plus-circle me-1"></i>Add Team to Library
             }
           </h5>
           <button type="button" class="form-hero-close" (click)="closed.emit()" aria-label="Close">
@@ -112,7 +112,7 @@ import type { ClubTeamDto } from '@core/api';
             } @else if (isEdit()) {
               <i class="bi bi-check-lg me-1"></i>Save Changes
             } @else {
-              <i class="bi bi-plus-circle me-1"></i>Add Team
+              <i class="bi bi-plus-circle me-1"></i>Add to Library
             }
           </button>
         </div>
@@ -282,7 +282,7 @@ export class TeamFormModalComponent implements OnInit {
                 .subscribe({
                     next: () => {
                         this.saving.set(false);
-                        this.toast.show('Team updated.', 'success', 2000);
+                        this.toast.show('Library team updated.', 'success', 2000);
                         this.saved.emit();
                     },
                     error: (err: unknown) => {

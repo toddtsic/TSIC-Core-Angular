@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { CurrencyPipe } from '@angular/common';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
@@ -9,6 +8,7 @@ import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
 import { AgeGroupPickerModalComponent, type AgeGroupSelection } from './age-group-picker-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { LibraryFlyinComponent } from '../components/library-flyin.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
 interface AgePickerTeam {
@@ -26,7 +26,7 @@ interface AgePickerTeam {
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [CurrencyPipe, RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent],
+    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -38,36 +38,48 @@ interface AgePickerTeam {
       <div class="alert alert-danger">{{ error() }}</div>
     } @else {
 
-      <!-- Coach card — only shown when library is empty; the populated-library
-           variant migrated to a wizard-tip inside the Library card header. -->
-      @if (allLibraryTeams().length === 0) {
-        <div class="coach-card coach-primary">
-          <p class="coach-intro">Welcome! Your club's team library carries across all TeamSportsInfo events — enter your teams once, then register from the list at every future tournament.</p>
-          <ul class="coach-list">
-            <li>
-              <i class="bi bi-plus-circle text-primary"></i>
-              <span>Click <strong>Add Team</strong> to get started</span>
-            </li>
-          </ul>
+      <!-- ── Registered teams for THIS event (single primary card) ── -->
+      <div class="step-card step-card-registered">
+        <div class="section-header section-registered">
+          <i class="bi bi-check-circle-fill me-1"></i>
+          Registered Teams ({{ enteredTeams().length }})
+          <button type="button" class="btn btn-outline-primary btn-sm ms-auto section-action"
+                  (click)="openLibraryFlyin()">
+            <i class="bi bi-plus-circle me-1"></i>Register a <strong>Library Team</strong> for <strong>this Event</strong>
+          </button>
         </div>
-      }
 
-      <!-- ── Registered for this event (top section) ── -->
-      @if (enteredTeams().length > 0) {
-        <div class="step-card step-card-registered">
-          <div class="section-header section-registered">
-            <i class="bi bi-check-circle-fill me-1"></i>
-            Registered Teams ({{ enteredTeams().length }})
-            <span class="registered-total">{{ totalFee() | currency }}</span>
+        @if (enteredTeams().length === 0) {
+          <div class="wizard-empty-state" style="padding: var(--space-6) var(--space-4)">
+            <i class="bi bi-clipboard-plus"></i>
+            @if (allLibraryTeams().length === 0) {
+              <strong>Two quick steps to register</strong>
+              <span>
+                First add teams to your <strong>club library</strong> (saved across all TSIC events),
+                then register them for <strong>this event</strong>.
+                Tap <strong>Register a Library Team for this Event</strong> above &mdash;
+                we'll prompt you to add your first <strong>library team</strong>.
+              </span>
+            } @else {
+              <strong>No teams registered yet</strong>
+              <span>
+                Tap <strong>Register a Library Team for this Event</strong> above
+                to register your first team.
+              </span>
+            }
           </div>
-
+        } @else {
           <div style="padding: var(--space-2) var(--space-3)">
             <app-registered-teams-grid
               [teams]="enteredTeams()"
-              [showDeposit]="true"
-              [showProcessing]="showProcessingColumn()"
-              [showCcOwed]="allowsCc()"
-              [showCkOwed]="showProcessingColumn()"
+              [showDeposit]="!fullPaymentRequired() && anyDepositDue()"
+              [showBalance]="!fullPaymentRequired() && anyBalanceDue()"
+              [showOwed]="fullPaymentRequired() && anyOwed()"
+              [showPaid]="anyPaid()"
+              [showProcessing]="false"
+              [showCcOwed]="false"
+              [showCkOwed]="false"
+              [showRegDate]="false"
               [showLop]="true"
               [showRemove]="canRemoveTeam()"
               [actionInProgress]="actionInProgress()"
@@ -78,140 +90,31 @@ interface AgePickerTeam {
           </div>
 
           <div class="step-card-footer">
-            <span></span>
+            <span class="footer-hint">
+              <i class="bi bi-shield-check me-1"></i>Your library is saved across all events
+            </span>
             <button type="button" class="btn btn-sm btn-success fw-semibold"
                     (click)="proceedToPayment.emit()">
               {{ proceedButtonLabel() }} <i class="bi bi-arrow-right ms-1"></i>
             </button>
           </div>
-        </div>
-      } @else {
-        <div class="step-card">
-          <div class="wizard-empty-state" style="padding: var(--space-6) var(--space-4)">
-            <i class="bi bi-clipboard-plus"></i>
-            <strong>No teams registered yet</strong>
-            <span>Tap <strong>Register</strong> next to a team below to get started.</span>
-          </div>
-        </div>
-      }
-
-      <!-- ── Team Library (bottom section) ── -->
-      <div class="step-card step-card-library">
-
-        <!-- Library header — mirrors Registered section banner -->
-        <div class="section-header section-library">
-          <i class="bi bi-collection-fill me-1"></i>
-          Library Teams ({{ activeLibraryTeams().length }})
-          <button type="button" class="btn btn-outline-primary btn-sm ms-auto section-action"
-                  (click)="showAddModal.set(true)">
-            <i class="bi bi-plus-circle me-1"></i>Add Team
-          </button>
-        </div>
-
-        @if (activeLibraryTeams().length > 0) {
-          <div class="wizard-tip library-tip">
-            Your library is permanent — teams you add here carry to every TSIC event. Click <strong>Register</strong> next to a team to enter it in this event, or <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">Add Team</button> if the one you need isn't in the library yet.
-          </div>
         }
-
-        @if (activeLibraryTeams().length === 0 && archivedLibraryTeams().length === 0) {
-          <div class="wizard-empty-state">
-            <i class="bi bi-plus-circle-dotted"></i>
-            <strong>Build your Team Library</strong>
-            <span>Add every team your club runs — they stay saved, so you add once and register in any event.</span>
-            <button type="button" class="btn btn-primary btn-sm mt-2"
-                    (click)="showAddModal.set(true)">
-              <i class="bi bi-plus-circle me-1"></i>Add Your First Team
-            </button>
-          </div>
-        } @else if (activeLibraryTeams().length === 0) {
-          <div class="wizard-empty-state">
-            <i class="bi bi-archive"></i>
-            <strong>All teams are archived</strong>
-            <span>Restore a team below, or <button type="button" class="wizard-callout-link" (click)="showAddModal.set(true)">add a new one</button> to start fresh.</span>
-          </div>
-        } @else {
-          <div class="scroll-list">
-            @for (team of activeLibraryTeams(); track team.clubTeamId) {
-              <div class="lib-row" [class.lib-row-registered]="isEnteredTeam(team.clubTeamId)">
-                <i class="bi bi-people-fill lib-icon"></i>
-                <span class="lib-name">{{ team.clubTeamName }}</span>
-                <span class="lib-actions">
-                  @if (team.bHasBeenScheduled) {
-                    @if (!isEnteredTeam(team.clubTeamId)) {
-                      <button type="button" class="lib-icon-btn" title="Archive — hide from library, keep history"
-                              [disabled]="actionInProgress()"
-                              (click)="askArchiveTeam(team)">
-                        <i class="bi bi-box-arrow-in-down"></i>
-                      </button>
-                    }
-                    <i class="bi bi-lock-fill lib-lock" title="Locked — this team has event history"></i>
-                  } @else {
-                    @if (!isEnteredTeam(team.clubTeamId)) {
-                      <button type="button" class="lib-icon-btn lib-icon-danger" title="Delete team"
-                              [disabled]="actionInProgress()"
-                              (click)="askDeleteTeam(team)">
-                        <i class="bi bi-trash"></i>
-                      </button>
-                    }
-                    <button type="button" class="lib-icon-btn" title="Edit team"
-                            [disabled]="actionInProgress()"
-                            (click)="openEditModal(team)">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                  }
-                </span>
-                @if (isEnteredTeam(team.clubTeamId)) {
-                  <span class="lib-badge"><i class="bi bi-check-circle-fill me-1"></i>Registered</span>
-                } @else if (canRegisterTeam()) {
-                  <button type="button" class="btn-register"
-                          [disabled]="actionInProgress()"
-                          (click)="openAgePicker({clubTeamId: team.clubTeamId, clubTeamName: team.clubTeamName, gradYear: team.clubTeamGradYear, levelOfPlay: team.clubTeamLevelOfPlay}, false)">
-                    Register
-                  </button>
-                } @else {
-                  <span class="lib-badge lib-badge-muted"><i class="bi bi-lock-fill me-1"></i>Closed</span>
-                }
-              </div>
-            }
-          </div>
-        }
-
-        <!-- ── Archived sub-section (collapsible) ── -->
-        @if (archivedLibraryTeams().length > 0) {
-          <button type="button" class="archived-header" (click)="showArchived.set(!showArchived())">
-            <i class="bi" [class.bi-chevron-right]="!showArchived()" [class.bi-chevron-down]="showArchived()"></i>
-            <i class="bi bi-archive-fill"></i>
-            Archived ({{ archivedLibraryTeams().length }})
-            <span class="archived-hint">teams hidden from registration</span>
-          </button>
-          @if (showArchived()) {
-            <div class="scroll-list archived-list">
-              @for (team of archivedLibraryTeams(); track team.clubTeamId) {
-                <div class="lib-row lib-row-archived">
-                  <i class="bi bi-archive-fill lib-icon"></i>
-                  <span class="lib-name">{{ team.clubTeamName }}</span>
-                  <span class="lib-actions">
-                    <i class="bi bi-lock-fill lib-lock" title="Locked — archived team retains event history"></i>
-                    <button type="button" class="lib-icon-btn" title="Restore to library"
-                            [disabled]="actionInProgress()"
-                            (click)="askRestoreTeam(team)">
-                      <i class="bi bi-arrow-counterclockwise"></i>
-                    </button>
-                  </span>
-                  <span class="lib-badge lib-badge-muted"><i class="bi bi-archive me-1"></i>Archived</span>
-                </div>
-              }
-            </div>
-          }
-        }
-
-        <div class="step-card-footer">
-          <span class="footer-hint">
-            <i class="bi bi-shield-check me-1"></i>Your library is saved across all events
-          </span>
-        </div>
       </div>
+
+      <!-- ── Library fly-in (left-side drawer; shows on demand) ── -->
+      <app-library-flyin
+        [isOpen]="showLibraryFlyin()"
+        [clubTeams]="allLibraryTeams()"
+        [canRegister]="canRegisterTeam()"
+        [actionInProgress]="actionInProgress()"
+        [enteredTeamIds]="enteredTeamIds()"
+        (closed)="closeLibraryFlyin()"
+        (register)="onFlyinRegister($event)"
+        (addNew)="showAddModal.set(true)"
+        (edit)="openEditModal($event)"
+        (archive)="askArchiveTeam($event)"
+        (delete)="askDeleteTeam($event)"
+        (restore)="askRestoreTeam($event)" />
     }
 
     <!-- ═══ MODALS ═══ -->
@@ -287,97 +190,7 @@ interface AgePickerTeam {
     styles: [`
       :host { display: flex; flex-direction: column; gap: var(--space-4); }
 
-      /* ── Coach Card — detached contextual guidance ── */
-      .coach-card {
-        border-radius: var(--radius-md);
-        border: 1px solid var(--border-color);
-        border-left: 4px solid var(--bs-primary);
-        padding: var(--space-4);
-        box-shadow: var(--shadow-xs);
-        background: rgba(var(--bs-info-rgb), 0.04);
-      }
-
-      .coach-primary { border-left-color: var(--bs-primary); }
-      .coach-info    { border-left-color: var(--bs-info); }
-      .coach-success { border-left-color: var(--bs-success); }
-
-      .coach-intro {
-        margin: 0 0 var(--space-3);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        line-height: var(--line-height-relaxed);
-        color: var(--brand-text);
-
-        &:last-child { margin-bottom: 0; }
-
-        i {
-          font-size: var(--font-size-sm);
-          vertical-align: -1px;
-        }
-      }
-
-      .coach-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
-        font-size: var(--font-size-sm);
-        color: var(--brand-text-muted);
-        line-height: var(--line-height-normal);
-      }
-
-      .coach-list li {
-        display: flex;
-        align-items: baseline;
-        gap: var(--space-2);
-      }
-
-      .coach-list li i {
-        flex-shrink: 0;
-        font-size: var(--font-size-sm);
-      }
-
-      .coach-list li strong {
-        color: var(--brand-text);
-      }
-
-      /* ── Year Group Headers ──────────────────────── */
-      .year-group-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-1) var(--space-3);
-        background: rgba(var(--bs-primary-rgb), 0.04);
-        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.08);
-      }
-
-      .year-label {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        color: var(--bs-primary);
-        letter-spacing: 0.02em;
-
-        > i {
-          font-size: var(--font-size-sm);
-          -webkit-text-stroke: 0.5px currentColor;
-          width: 16px;
-          text-align: center;
-          flex-shrink: 0;
-        }
-      }
-
-      .year-count {
-        font-size: 10px;
-        color: var(--brand-text-muted);
-      }
-
-
-      /* ── Step Card ───────────────────────────────── */
+      /* ── Step Card (single primary card — registered teams) ── */
       .step-card {
         border: 1px solid var(--border-color);
         border-radius: var(--radius-lg);
@@ -385,6 +198,8 @@ interface AgePickerTeam {
         overflow: hidden;
         box-shadow: var(--shadow-sm);
       }
+
+      .step-card-registered { border-left: 4px solid var(--bs-success); }
 
       .step-card-footer {
         display: flex;
@@ -400,294 +215,7 @@ interface AgePickerTeam {
         color: var(--brand-text-muted);
       }
 
-      /* ── Step Hero Banner ────────────────────────── */
-      .step-hero {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-3);
-        padding: var(--space-3) var(--space-4);
-        background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), 0.06) 0%, rgba(var(--bs-primary-rgb), 0.02) 100%);
-        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.1);
-      }
-
-      .step-hero-success {
-        background: linear-gradient(135deg, rgba(var(--bs-success-rgb), 0.06) 0%, rgba(var(--bs-success-rgb), 0.02) 100%);
-        border-bottom-color: rgba(var(--bs-success-rgb), 0.1);
-      }
-
-      .hero-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        min-width: 40px;
-        border-radius: var(--radius-md);
-        font-size: var(--font-size-lg);
-        flex-shrink: 0;
-      }
-
-      .hero-icon-library {
-        background: rgba(var(--bs-primary-rgb), 0.12);
-        color: var(--bs-primary);
-      }
-
-      .hero-icon-select {
-        background: rgba(var(--bs-info-rgb), 0.12);
-        color: var(--bs-info);
-      }
-
-      .hero-icon-review {
-        background: rgba(var(--bs-success-rgb), 0.12);
-        color: var(--bs-success);
-      }
-
-      .hero-text {
-        flex: 1;
-        min-width: 0;
-      }
-
-      .hero-title {
-        margin: 0;
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-      }
-
-      .hero-desc {
-        margin: 2px 0 0;
-        font-size: var(--font-size-xs);
-        color: var(--brand-text-muted);
-        line-height: var(--line-height-normal);
-      }
-
-      .hero-stat {
-        display: inline-flex;
-        align-items: center;
-        margin-left: var(--space-1);
-        font-weight: var(--font-weight-semibold);
-        color: var(--bs-success);
-      }
-
-      .hero-cta {
-        flex-shrink: 0;
-        font-weight: var(--font-weight-semibold);
-        align-self: center;
-      }
-
-      /* ── Scroll List (shared) ────────────────────── */
-      .scroll-list {
-        max-height: min(400px, 55vh);
-        overflow-y: auto;
-      }
-
-      /* ── Step 1: Library Rows ────────────────────── */
-      .lib-row {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-1) var(--space-3);
-        min-height: 32px;
-        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
-        font-size: var(--font-size-xs);
-
-        &:last-child { border-bottom: none; }
-      }
-
-      .lib-icon {
-        color: rgba(var(--bs-primary-rgb), 0.4);
-        font-size: var(--font-size-sm);
-        flex-shrink: 0;
-        width: 16px;
-        text-align: center;
-      }
-
-      .lib-name {
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        min-width: 0;
-      }
-
-      .lib-row-registered {
-        background: rgba(var(--bs-success-rgb), 0.06);
-
-        .lib-icon { color: var(--bs-success); }
-        .lib-name { color: var(--bs-success); }
-      }
-
-      .lib-meta {
-        color: var(--brand-text-muted);
-        white-space: nowrap;
-        margin-left: auto;
-      }
-
-      .lib-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 96px;
-        font-size: 10px;
-        font-weight: var(--font-weight-semibold);
-        padding: 2px var(--space-2);
-        border-radius: var(--radius-full);
-        background: rgba(var(--bs-success-rgb), 0.1);
-        color: var(--bs-success);
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-
-      .lib-badge-muted {
-        background: rgba(var(--bs-secondary-rgb), 0.1);
-        color: var(--brand-text-muted);
-      }
-
-      /* ── Library row actions (edit / delete / archive / lock) ──
-         Fixed width so that rows with only a lock align column-wise with rows
-         that also have an archive or edit/delete. Lock pins to the right. */
-      .lib-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 2px;
-        width: 64px;
-        margin-left: auto;
-        flex-shrink: 0;
-      }
-
-      .lib-icon-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        padding: 0;
-        border: 1px solid transparent;
-        border-radius: var(--radius-sm);
-        background: transparent;
-        color: var(--brand-text-muted);
-        font-size: var(--font-size-sm);
-        cursor: pointer;
-        transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
-
-        &:hover:not(:disabled) {
-          background: rgba(var(--bs-primary-rgb), 0.08);
-          border-color: rgba(var(--bs-primary-rgb), 0.2);
-          color: var(--bs-primary);
-        }
-
-        &:focus-visible {
-          outline: none;
-          box-shadow: var(--shadow-focus);
-        }
-
-        &:disabled { opacity: 0.3; cursor: default; }
-      }
-
-      .lib-icon-danger:hover:not(:disabled) {
-        background: rgba(var(--bs-danger-rgb), 0.08);
-        border-color: rgba(var(--bs-danger-rgb), 0.25);
-        color: var(--bs-danger);
-      }
-
-      .lib-lock {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 28px;
-        height: 28px;
-        color: var(--brand-text-muted);
-        font-size: var(--font-size-sm);
-        opacity: 0.55;
-      }
-
-      /* ── Card border distinction (Registered vs Library) ── */
-      .step-card-registered { border-left: 4px solid var(--bs-success); }
-      .step-card-library    { border-left: 4px solid var(--bs-primary); }
-
-      /* ── Archived sub-section ── */
-      .archived-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        width: 100%;
-        padding: var(--space-2) var(--space-3);
-        background: rgba(var(--bs-dark-rgb), 0.03);
-        border-top: 1px solid var(--border-color);
-        border-bottom: 1px solid var(--border-color);
-        color: var(--brand-text-muted);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        cursor: pointer;
-        transition: background-color 0.1s ease;
-
-        &:hover { background: rgba(var(--bs-dark-rgb), 0.05); }
-
-        &:focus-visible {
-          outline: none;
-          box-shadow: var(--shadow-focus);
-        }
-      }
-
-      .archived-hint {
-        margin-left: auto;
-        text-transform: none;
-        letter-spacing: 0;
-        font-weight: var(--font-weight-normal);
-        font-size: 11px;
-        opacity: 0.75;
-      }
-
-      .archived-list {
-        background: rgba(var(--bs-dark-rgb), 0.015);
-      }
-
-      .lib-row-archived {
-        opacity: 0.75;
-        .lib-name { color: var(--brand-text-muted); font-style: italic; }
-        .lib-icon { color: var(--brand-text-muted); }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .lib-icon-btn { transition: none; }
-      }
-
-      /* ── Register button (library rows) ── */
-      .btn-register {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 96px;
-        padding: var(--space-1) var(--space-3);
-        border: 1.5px solid rgba(var(--bs-primary-rgb), 0.3);
-        border-radius: var(--radius-sm);
-        background: rgba(var(--bs-primary-rgb), 0.06);
-        color: var(--bs-primary);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        cursor: pointer;
-        flex-shrink: 0;
-        white-space: nowrap;
-        transition: background-color 0.1s ease, border-color 0.1s ease;
-
-        &:hover:not(:disabled) {
-          background: rgba(var(--bs-primary-rgb), 0.14);
-          border-color: var(--bs-primary);
-        }
-
-        &:focus-visible {
-          outline: none;
-          box-shadow: var(--shadow-focus);
-        }
-
-        &:disabled { opacity: 0.4; cursor: default; }
-      }
-
-      /* ── Step 2: Section Headers ──────────────────── */
+      /* ── Section banner header ── */
       .section-header {
         display: flex;
         align-items: center;
@@ -705,13 +233,7 @@ interface AgePickerTeam {
         border-bottom: 1px solid rgba(var(--bs-success-rgb), 0.12);
       }
 
-      .section-library {
-        color: var(--bs-primary);
-        background: rgba(var(--bs-primary-rgb), 0.06);
-        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.12);
-      }
-
-      /* Action button nested inside a .section-header banner — compact, matches banner height */
+      /* Compact action button nested inside a .section-header banner */
       .section-action {
         margin-left: auto;
         padding: 2px var(--space-2);
@@ -721,185 +243,13 @@ interface AgePickerTeam {
         letter-spacing: 0;
       }
 
-      /* Library tip directly under the banner header */
-      .library-tip {
-        margin: var(--space-2) var(--space-3);
-      }
-
-      .section-available {
-        color: var(--brand-text-muted);
-        background: rgba(var(--bs-dark-rgb), 0.03);
-        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.08);
-      }
-
-      .registered-card {
-        max-height: 220px;
-        overflow-y: auto;
-      }
-
-      .registered-total {
-        margin-left: auto;
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text);
-        text-transform: none;
-        letter-spacing: 0;
-      }
-
-      /* ── Step 2: Row Wrapper (holds header + expansion panel) ── */
-      .select-row-wrapper {
-        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
-
-        &:last-child { border-bottom: none; }
-      }
-
-      /* ── Step 2: Select Rows ─────────────────────── */
-      .select-row {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        min-height: 40px;
-        font-size: var(--font-size-xs);
-        cursor: pointer;
-        transition: background-color 0.1s ease;
-
-        &:hover:not(.is-paid) {
-          background: rgba(var(--bs-primary-rgb), 0.03);
-        }
-
-        &:focus-visible {
-          outline: none;
-          box-shadow: inset 0 0 0 2px rgba(var(--bs-primary-rgb), 0.2);
-        }
-
-        &.is-checked {
-          background: rgba(var(--bs-success-rgb), 0.04);
-        }
-
-        &.is-paid {
-          opacity: 0.7;
-          cursor: default;
-        }
-      }
-
-      /* ── Visual checkbox indicator ── */
-      .select-indicator {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 20px;
-        height: 20px;
-        min-width: 20px;
-        border: 2px solid var(--neutral-300);
-        border-radius: 4px;
-        font-size: 11px;
-        color: transparent;
-        flex-shrink: 0;
-        transition: all 0.1s ease;
-
-        &.checked {
-          background: var(--bs-success);
-          border-color: var(--bs-success);
-          color: var(--neutral-0);
-        }
-
-        &.locked {
-          background: var(--neutral-400);
-          border-color: var(--neutral-400);
-          color: var(--neutral-0);
-        }
-      }
-
-      .select-name {
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        min-width: 0;
-      }
-
-
-      .select-lop {
-        font-size: 10px;
-        font-weight: var(--font-weight-semibold);
-        padding: 2px var(--space-2);
-        border-radius: var(--radius-full);
-        background: rgba(var(--bs-dark-rgb), 0.06);
-        color: var(--brand-text-muted);
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-
-      .select-age {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        padding: var(--space-1) var(--space-2);
-        border-radius: var(--radius-sm);
-        background: rgba(var(--bs-primary-rgb), 0.1);
-        color: var(--bs-primary);
-        white-space: nowrap;
-        flex-shrink: 0;
-        margin-left: auto;
-      }
-
-      .select-fee {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-medium);
-        color: var(--brand-text);
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-
-      .paid-badge {
-        font-size: 10px;
-        font-weight: var(--font-weight-semibold);
-        padding: 2px var(--space-2);
-        border-radius: var(--radius-full);
-        background: rgba(var(--bs-success-rgb), 0.1);
-        color: var(--bs-success);
-        white-space: nowrap;
-        flex-shrink: 0;
-      }
-
-      /* ── Mobile ──────────────────────────────────── */
+      /* ── Mobile ── */
       @media (max-width: 575.98px) {
-        .step-hero {
-          flex-wrap: wrap;
-          padding: var(--space-2) var(--space-3);
-          gap: var(--space-2);
-        }
-
-        .hero-cta { width: 100%; }
-
-        .coach-card {
-          padding: var(--space-2) var(--space-3);
-        }
-
-        .year-group-header {
-          padding-left: var(--space-3);
-          padding-right: var(--space-3);
-        }
-
         .step-card-footer {
           padding: var(--space-2);
           flex-wrap: wrap;
           gap: var(--space-2);
         }
-
-        .lib-row, .select-row {
-          padding-left: var(--space-2);
-          padding-right: var(--space-2);
-        }
-
-        .btn-register {
-          min-height: 44px;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .select-row, .select-indicator, .btn-register { transition: none; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -919,6 +269,9 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly canRegisterTeam = this.state.canRegisterTeam;
     readonly canRemoveTeam = this.state.canRemoveTeam;
 
+    /** Job-config flag — drives phase-aware grid column visibility. */
+    readonly fullPaymentRequired = this.state.fullPaymentRequired;
+
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);
     readonly clubName = signal('your club');
@@ -934,15 +287,9 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly pendingArchive = signal<ClubTeamDto | null>(null);
     /** When set, the restore-confirm dialog is open for this team. */
     readonly pendingRestore = signal<ClubTeamDto | null>(null);
-    /** Collapsible archived sub-section. Default collapsed. */
-    readonly showArchived = signal(false);
-
-    /** Conditional column visibility based on job config. */
-    readonly showProcessingColumn = signal(false);
-
-    // paymentMethodsAllowedCode: 1=CC only, 2=CC or Check, 3=Check only
-    readonly allowsCc = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() !== 3);
-    readonly allowsCheck = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() >= 2);
+    /** Library fly-in open state. Auto-opens once on entry when library is empty. */
+    readonly showLibraryFlyin = signal(false);
+    private libraryFlyinAutoOpened = false;
 
     /** Which team's age picker modal is open (null = closed). */
     readonly agePickerTeam = signal<AgePickerTeam | null>(null);
@@ -974,25 +321,19 @@ export class TeamTeamsStepComponent implements OnInit {
         return [...available, ...enteredOnly];
     });
 
-    /** Active (non-archived) library teams, sorted alphabetically. */
-    readonly activeLibraryTeams = computed(() =>
-        this.allLibraryTeams()
-            .filter(t => !t.bArchived)
-            .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName)),
-    );
-
-    /** Archived library teams, sorted alphabetically. */
-    readonly archivedLibraryTeams = computed(() =>
-        this.allLibraryTeams()
-            .filter(t => t.bArchived)
-            .sort((a, b) => a.clubTeamName.localeCompare(b.clubTeamName)),
-    );
-
     /** Entered teams (registered for this event). */
     readonly enteredTeams = computed(() => this._registeredTeams());
 
-    readonly totalFee = computed(() => this._registeredTeams().reduce((s, t) => s + t.feeBase, 0));
-    readonly totalOwed = computed(() => this._registeredTeams().reduce((s, t) => s + t.owedTotal, 0));
+    /** Set of clubTeamIds that are entered — flyin uses this to mark rows as Registered. */
+    readonly enteredTeamIds = computed(() =>
+        new Set(this._registeredTeams().map(r => r.clubTeamId).filter((id): id is number => id != null)),
+    );
+
+    // Phase-aware grid column gating — derived from per-team data + bTeamsFullPaymentRequired.
+    readonly anyDepositDue = computed(() => this._registeredTeams().some(t => t.depositDue > 0));
+    readonly anyBalanceDue = computed(() => this._registeredTeams().some(t => t.additionalDue > 0));
+    readonly anyPaid       = computed(() => this._registeredTeams().some(t => t.paidTotal > 0));
+    readonly anyOwed       = computed(() => this._registeredTeams().some(t => t.owedTotal > 0));
 
     /** Count of teams not yet paid for — drives the Proceed-to-Payment label. */
     readonly newTeamsCount = computed(() => this._registeredTeams().filter(t => t.paidTotal === 0).length);
@@ -1020,6 +361,20 @@ export class TeamTeamsStepComponent implements OnInit {
     openAgePicker(team: AgePickerTeam, paid: boolean): void {
         if (paid) return;
         this.agePickerTeam.set(team);
+    }
+
+    /** Library fly-in open/close. */
+    openLibraryFlyin(): void { this.showLibraryFlyin.set(true); }
+    closeLibraryFlyin(): void { this.showLibraryFlyin.set(false); }
+
+    /** Flyin emits a ClubTeamDto when the user clicks Register; route to age picker. */
+    onFlyinRegister(team: ClubTeamDto): void {
+        this.openAgePicker({
+            clubTeamId: team.clubTeamId,
+            clubTeamName: team.clubTeamName,
+            gradYear: team.clubTeamGradYear,
+            levelOfPlay: team.clubTeamLevelOfPlay,
+        }, false);
     }
 
     /** Handle age group + LOP selection from the modal. */
@@ -1068,8 +423,10 @@ export class TeamTeamsStepComponent implements OnInit {
                         }
                         const msg = resp.isWaitlisted
                             ? `${team.clubTeamName} waitlisted for ${resp.waitlistAgegroupName ?? ''}`
-                            : `${team.clubTeamName} entered!`;
+                            : `${team.clubTeamName} registered for the event!`;
                         this.toast.show(msg, resp.isWaitlisted ? 'warning' : 'success', 3000);
+                        // Close the flyin so the user sees the team land in the registered list.
+                        this.showLibraryFlyin.set(false);
                         this.loadTeamsMetadata();
                     },
                     error: () => {
@@ -1157,7 +514,7 @@ export class TeamTeamsStepComponent implements OnInit {
             .subscribe({
                 next: () => {
                     this.actionInProgress.set(false);
-                    this.toast.show(`${team.clubTeamName} archived.`, 'success', 3000);
+                    this.toast.show(`${team.clubTeamName} archived from library.`, 'success', 3000);
                     this.loadTeamsMetadata();
                 },
                 error: (err: unknown) => {
@@ -1188,7 +545,7 @@ export class TeamTeamsStepComponent implements OnInit {
             .subscribe({
                 next: () => {
                     this.actionInProgress.set(false);
-                    this.toast.show(`${team.clubTeamName} restored.`, 'success', 3000);
+                    this.toast.show(`${team.clubTeamName} restored to library.`, 'success', 3000);
                     this.loadTeamsMetadata();
                 },
                 error: (err: unknown) => {
@@ -1231,7 +588,7 @@ export class TeamTeamsStepComponent implements OnInit {
             .subscribe({
                 next: () => {
                     this.actionInProgress.set(false);
-                    this.toast.show(`${teamName} removed.`, 'success', 3000);
+                    this.toast.show(`${teamName} removed from event.`, 'success', 3000);
                     this.loadTeamsMetadata();
                 },
                 error: () => {
@@ -1256,8 +613,16 @@ export class TeamTeamsStepComponent implements OnInit {
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
                     this.lopOptions.set(meta.lopOptions || []);
-                    this.showProcessingColumn.set(meta.bAddProcessingFees ?? false);
                     this.state.applyTeamsMetadata(meta);
+
+                    // Auto-open the flyin once on entry when the library is empty —
+                    // first-time clubs need a clear "add your first team" prompt.
+                    if (!this.libraryFlyinAutoOpened
+                        && (meta.clubTeams?.length ?? 0) === 0
+                        && (meta.registeredTeams?.length ?? 0) === 0) {
+                        this.showLibraryFlyin.set(true);
+                        this.libraryFlyinAutoOpened = true;
+                    }
                 },
                 error: () => {
                     this.loading.set(false);
