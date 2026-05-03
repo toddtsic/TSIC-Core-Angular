@@ -4,6 +4,7 @@ import { ReportingService } from '@infrastructure/services/reporting.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { ToastService } from '@shared-ui/toast.service';
 import type { ReportCatalogueEntryDto } from '@core/api';
 import { TYPE1_REPORT_CATALOG, Type1ReportEntry } from '@core/reporting/type1-report-catalog';
 import { buildJobVisibilityContext, passesVisibilityRules } from '@core/reporting/visibility-rules';
@@ -55,6 +56,7 @@ export class ReportsLibraryComponent implements OnInit {
     private readonly jobService = inject(JobService);
     private readonly pulseService = inject(JobPulseService);
     private readonly authService = inject(AuthService);
+    private readonly toast = inject(ToastService);
 
     readonly type2Entries = signal<ReportCatalogueEntryDto[]>([]);
     readonly catalogueLoading = signal(false);
@@ -128,21 +130,22 @@ export class ReportsLibraryComponent implements OnInit {
                 });
             })();
 
+        this.toast.show(`Generating ${card.title}...`, 'info', 3000);
+
         download$.subscribe({
             next: response => {
                 const fallback = `TSIC-${card.title.replace(/\W+/g, '-')}`;
                 this.reportingService.triggerDownload(response, fallback);
+                this.toast.show(`${card.title} downloaded`, 'success');
                 this.runningId.set(null);
             },
             error: err => {
                 this.runningId.set(null);
-                if (err.status === 401) {
-                    this.runError.set('You must be logged in to run this report.');
-                } else if (err.status === 403) {
-                    this.runError.set('You do not have permission to run this report.');
-                } else {
-                    this.runError.set('Report failed to generate. Please try again.');
-                }
+                const msg = err?.status === 401 ? 'You must be logged in to run this report.'
+                    : err?.status === 403 ? 'You do not have permission to run this report.'
+                    : 'Report failed to generate. Please try again.';
+                this.runError.set(msg);
+                this.toast.show(msg, 'danger');
             }
         });
     }

@@ -50,9 +50,10 @@
                             </a>
                             } @else if (getLink(child)) {
                             <a class="dropdown-panel__item" role="menuitem"
-                                [routerLink]="getLink(child)" [queryParams]="getQueryParams(child)"
+                                [routerLink]="isReportDownload(child) ? null : getLink(child)"
+                                [queryParams]="isReportDownload(child) ? null : getQueryParams(child)"
                                 routerLinkActive="dropdown-panel__item--active"
-                                (click)="collapseAll()">
+                                (click)="onLinkClick($event, child); collapseAll()">
                                 <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
                                 <span class="dropdown-panel__item-text">{{ child.text }}</span>
                             </a>
@@ -83,9 +84,11 @@
                 <span>{{ item.text }}</span>
             </a>
             } @else if (getLink(item)) {
-            <a class="pill-nav__item" [routerLink]="getLink(item)" [queryParams]="getQueryParams(item)"
+            <a class="pill-nav__item"
+                [routerLink]="isReportDownload(item) ? null : getLink(item)"
+                [queryParams]="isReportDownload(item) ? null : getQueryParams(item)"
                 routerLinkActive="pill-nav__item--active"
-                (click)="collapseAll()">
+                (click)="onLinkClick($event, item); collapseAll()">
                 <i class="bi bi-{{ getMenuIcon(item) }}" aria-hidden="true"></i>
                 <span>{{ item.text }}</span>
             </a>
@@ -152,8 +155,11 @@
                                     {{ child.text }}
                                 </a>
                                 } @else if (getLink(child)) {
-                                <a class="nav-link" [routerLink]="getLink(child)" [queryParams]="getQueryParams(child)"
-                                    routerLinkActive="active" (click)="closeOffcanvas()">
+                                <a class="nav-link"
+                                    [routerLink]="isReportDownload(child) ? null : getLink(child)"
+                                    [queryParams]="isReportDownload(child) ? null : getQueryParams(child)"
+                                    routerLinkActive="active"
+                                    (click)="onLinkClick($event, child); closeOffcanvas()">
                                     <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                                     {{ child.text }}
                                 </a>
@@ -185,8 +191,11 @@
                         {{ item.text }}
                     </a>
                     } @else if (getLink(item)) {
-                    <a class="nav-link" [routerLink]="getLink(item)" [queryParams]="getQueryParams(item)"
-                        routerLinkActive="active" (click)="closeOffcanvas()">
+                    <a class="nav-link"
+                        [routerLink]="isReportDownload(item) ? null : getLink(item)"
+                        [queryParams]="isReportDownload(item) ? null : getQueryParams(item)"
+                        routerLinkActive="active"
+                        (click)="onLinkClick($event, item); closeOffcanvas()">
                         <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
                         {{ item.text }}
                     </a>

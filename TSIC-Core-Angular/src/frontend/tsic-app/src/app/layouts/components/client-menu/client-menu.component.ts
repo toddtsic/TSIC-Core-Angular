@@ -3,6 +3,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { NavigationEnd, Route, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import type { NavItemDto } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
+import { ReportingService } from '@infrastructure/services/reporting.service';
+import { ToastService } from '@shared-ui/toast.service';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map } from 'rxjs';
 import { MenuStateService } from '../../services/menu-state.service';
@@ -19,6 +21,8 @@ export class ClientMenuComponent {
     private readonly jobService = inject(JobService);
     private readonly menuState = inject(MenuStateService);
     private readonly router = inject(Router);
+    private readonly reporting = inject(ReportingService);
+    private readonly toast = inject(ToastService);
 
     // Known child routes under :jobPath — includes both literal paths and wildcard prefixes
     // (e.g., 'reporting' from 'reporting/:action' so that 'reporting/get_netusers' matches)
@@ -231,6 +235,61 @@ export class ClientMenuComponent {
      */
     isExternalLink(item: NavItemDto): boolean {
         return !!item.navigateUrl;
+    }
+
+    /**
+     * True if the routerLink resolves to the report-launcher (file download) instead of a real screen.
+     * Heuristic: path starts with `reporting/` AND is NOT in knownRoutes (which only contains literal
+     * routes like `reporting/reports-library`). Anything else under `reporting/` falls through to the
+     * `reporting/:action` wildcard, which means it's a file-download action.
+     */
+    isReportDownload(item: NavItemDto): boolean {
+        const link = this.getLink(item);
+        if (!link) return false;
+        const path = link.split('?')[0].replace(/^\/+/, '').toLowerCase();
+        if (!path.startsWith('reporting/')) return false;
+        return !this.knownRoutes.has(path);
+    }
+
+    /** Click handler shared by every routerLink-rendered nav item. Intercepts download links. */
+    onLinkClick(event: MouseEvent, item: NavItemDto): void {
+        if (this.isReportDownload(item)) {
+            event.preventDefault();
+            this.triggerReportDownload(item);
+        }
+    }
+
+    private triggerReportDownload(item: NavItemDto): void {
+        const raw = item.routerLink ?? '';
+        if (!raw) return;
+        const [rawPath, queryStr] = raw.split('?');
+        const action = rawPath.replace(/^\/+/, '').replace(/^reporting\//i, '');
+
+        const params: Record<string, string> = {};
+        if (queryStr) {
+            for (const [k, v] of new URLSearchParams(queryStr)) {
+                params[k] = v;
+            }
+        }
+
+        this.toast.show(`Generating ${item.text}...`, 'info', 3000);
+
+        this.reporting.downloadReport(action, params).subscribe({
+            next: response => {
+                const lower = action.toLowerCase();
+                const fallback = lower.includes('excel') ? `TSIC-${action}.xlsx`
+                    : lower.includes('ical') ? `TSIC-${action}.ics`
+                    : `TSIC-${action}`;
+                this.reporting.triggerDownload(response, fallback);
+                this.toast.show(`${item.text} downloaded`, 'success');
+            },
+            error: err => {
+                const msg = err?.status === 401 ? 'You must be logged in to access this report.'
+                    : err?.status === 403 ? 'You do not have permission to access this report.'
+                    : `Report failed: ${err?.error?.message ?? 'check server logs and try again'}`;
+                this.toast.show(msg, 'danger');
+            },
+        });
     }
 
     /**
