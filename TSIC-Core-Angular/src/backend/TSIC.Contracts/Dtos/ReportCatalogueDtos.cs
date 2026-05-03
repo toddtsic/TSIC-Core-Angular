@@ -26,6 +26,10 @@ public record ReportCatalogueEntryDto
     /// <summary>Same JSON shape as <c>NavItemVisibilityRules</c>. Informational only.</summary>
     public string? VisibilityRules { get; init; }
 
+    /// <summary>Presentation-layer grouping for the reports library UI. Allowed values
+    /// are enforced in the frontend ReportCategory union. Null = uncategorized.</summary>
+    public string? CategoryCode { get; init; }
+
     public required int SortOrder { get; init; }
     public required bool Active { get; init; }
 }
@@ -43,6 +47,7 @@ public record ReportCatalogueWriteDto
     public required string StoredProcName { get; init; }
     public string? ParametersJson { get; init; }
     public string? VisibilityRules { get; init; }
+    public string? CategoryCode { get; init; }
     public required int SortOrder { get; init; }
     public required bool Active { get; init; }
 }

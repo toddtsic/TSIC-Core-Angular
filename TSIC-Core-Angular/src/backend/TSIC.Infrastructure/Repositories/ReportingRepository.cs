@@ -34,6 +34,7 @@ public class ReportingRepository : IReportingRepository
                 StoredProcName = r.StoredProcName,
                 ParametersJson = r.ParametersJson,
                 VisibilityRules = r.VisibilityRules,
+                CategoryCode = r.CategoryCode,
                 SortOrder = r.SortOrder,
                 Active = r.Active
             })
@@ -55,6 +56,7 @@ public class ReportingRepository : IReportingRepository
                 StoredProcName = r.StoredProcName,
                 ParametersJson = r.ParametersJson,
                 VisibilityRules = r.VisibilityRules,
+                CategoryCode = r.CategoryCode,
                 SortOrder = r.SortOrder,
                 Active = r.Active
             })
@@ -75,6 +77,7 @@ public class ReportingRepository : IReportingRepository
             StoredProcName = dto.StoredProcName,
             ParametersJson = dto.ParametersJson,
             VisibilityRules = dto.VisibilityRules,
+            CategoryCode = dto.CategoryCode,
             SortOrder = dto.SortOrder,
             Active = dto.Active,
             Modified = DateTime.Now,
@@ -104,6 +107,7 @@ public class ReportingRepository : IReportingRepository
         entity.StoredProcName = dto.StoredProcName;
         entity.ParametersJson = dto.ParametersJson;
         entity.VisibilityRules = dto.VisibilityRules;
+        entity.CategoryCode = dto.CategoryCode;
         entity.SortOrder = dto.SortOrder;
         entity.Active = dto.Active;
         entity.Modified = DateTime.Now;
@@ -158,6 +162,7 @@ public class ReportingRepository : IReportingRepository
         StoredProcName = r.StoredProcName,
         ParametersJson = r.ParametersJson,
         VisibilityRules = r.VisibilityRules,
+        CategoryCode = r.CategoryCode,
         SortOrder = r.SortOrder,
         Active = r.Active
     };

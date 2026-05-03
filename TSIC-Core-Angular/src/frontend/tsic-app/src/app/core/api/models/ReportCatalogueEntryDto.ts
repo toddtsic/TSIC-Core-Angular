@@ -10,6 +10,7 @@ export type ReportCatalogueEntryDto = {
     storedProcName: string;
     parametersJson?: string | null;
     visibilityRules?: string | null;
+    categoryCode?: string | null;
     sortOrder: number;
     active: boolean;
 };
