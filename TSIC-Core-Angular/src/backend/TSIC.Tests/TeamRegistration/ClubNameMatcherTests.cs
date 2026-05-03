@@ -17,8 +17,11 @@ namespace TSIC.Tests.TeamRegistration;
 ///   3. Token/Jaccard similarity -- catches word reordering ("Baltimore Lax" vs "Lax Baltimore")
 ///   4. Mega-club detection -- same root org across states ("3 Point - VA" / "3 Point - NC")
 ///
-/// The composite score (max of Levenshtein and Jaccard) determines whether
-/// registration is blocked (85%+), warned (65-84%), or allowed (below 65%).
+/// The composite score (max of Levenshtein and Jaccard) drives the
+/// registration UX: 65%+ surfaces existing clubs and requires explicit
+/// confirmation; below 65% creates the new club without friction.
+/// (No hard block — regional siblings of national orgs legitimately
+/// register against high-similarity matches.)
 /// </summary>
 public class ClubNameMatcherTests
 {
@@ -167,9 +170,9 @@ public class ClubNameMatcherTests
 
     /// <summary>
     /// SCENARIO: Word-reordered name that Levenshtein alone would miss
-    /// EXPECTED: Composite score catches it via token matching (85%+ = Tier 1 block)
-    /// WHY IT MATTERS: A club rep typing "Lacrosse Baltimore" when "Baltimore Lacrosse"
-    ///   exists should be blocked -- it's the same club
+    /// EXPECTED: Composite score catches it via token matching (high-similarity band)
+    /// WHY IT MATTERS: "Lacrosse Baltimore" vs "Baltimore Lacrosse" should surface
+    ///   the existing club so the rep can confirm vs. contact the existing rep.
     /// </summary>
     [Fact(DisplayName = "Composite: word reorder caught even though Levenshtein is low")]
     public void Composite_WordReorderCaught()
@@ -277,17 +280,16 @@ public class ClubNameMatcherTests
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  TIER BOUNDARY TESTS (verify thresholds used by registration gate)
+    //  SCORING BAND TESTS (verify thresholds used by registration gate)
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>
     /// SCENARIO: Exact same club name
-    /// EXPECTED: Scores in Tier 1 range (85%+) -- registration should be BLOCKED
-    /// WHY IT MATTERS: This is the hijacking scenario -- someone types the exact
-    ///   name of an existing club to gain access to its team library
+    /// EXPECTED: Scores in the high-similarity band (85%+).
+    ///   Surfaces the existing club; registrant must confirm to proceed.
     /// </summary>
-    [Fact(DisplayName = "Tier boundary: exact name match is in BLOCK range (85%+)")]
-    public void TierBoundary_ExactMatch_IsBlocked()
+    [Fact(DisplayName = "Scoring: exact name match is in high-similarity band (85%+)")]
+    public void Scoring_ExactMatch_HighSimilarity()
     {
         ClubNameMatcher.CalculateCompositeScore("Charlotte Fury", "Charlotte Fury")
             .Should().BeGreaterThanOrEqualTo(85);
@@ -300,11 +302,11 @@ public class ClubNameMatcherTests
     /// WHY IT MATTERS: Distinct chapters of a mega-club use STATE suffixes ("Aacme - CA",
     ///   "Aacme - NC") and are handled by mega-club root extraction. An "LC" suffix is
     ///   industry boilerplate, not a chapter marker — every lacrosse club could write
-    ///   itself with or without it. Treating the two forms as different would split
-    ///   team libraries and win-loss records across duplicate club records.
+    ///   itself with or without it. Without filler-stripping the two forms would split
+    ///   team libraries across duplicate records.
     /// </summary>
-    [Fact(DisplayName = "Tier boundary: 'LC' suffix is filler — same club, hard block")]
-    public void TierBoundary_WithSuffix_BlocksAsDuplicate()
+    [Fact(DisplayName = "Scoring: 'LC' suffix collapses to same normalized name")]
+    public void Scoring_LcSuffix_ScoresAsSameClub()
     {
         ClubNameMatcher.CalculateCompositeScore("Charlotte Fury", "Charlotte Fury LC")
             .Should().BeGreaterThanOrEqualTo(85, "'LC' is sport-industry boilerplate — this is the same club");
@@ -312,13 +314,13 @@ public class ClubNameMatcherTests
 
     /// <summary>
     /// SCENARIO: Similar but clearly different clubs sharing a city name
-    /// EXPECTED: Below 85% -- should NOT block, but may warn
+    /// EXPECTED: Below 85% — falls into the mid-similarity band rather than high.
     /// </summary>
-    [Fact(DisplayName = "Tier boundary: same-city different-name is NOT in BLOCK range")]
-    public void TierBoundary_SameCityDifferentName_NotBlocked()
+    [Fact(DisplayName = "Scoring: same-city different-name is NOT in high-similarity band")]
+    public void Scoring_SameCityDifferentName_BelowHighBand()
     {
         ClubNameMatcher.CalculateCompositeScore("Charlotte Fury", "Charlotte Thunder")
-            .Should().BeLessThan(85, "sharing a city name alone should not block registration");
+            .Should().BeLessThan(85, "sharing a city name alone should not score as same club");
     }
 
     /// <summary>

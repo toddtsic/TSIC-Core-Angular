@@ -91,44 +91,24 @@ public sealed class ClubService : IClubService
             }
         }
 
-        // ── Club name validation gate (two-tier) ────────────────────────
+        // ── Club name similarity gate (single tier) ────────────────────
         //
-        // Tier 1 — HARD BLOCK (85%+): Club almost certainly exists.
-        //   Registrant could hijack another club's teams. Block entirely
-        //   and show the existing rep's contact info so they can sort it out.
-        //   This block cannot be overridden by ConfirmedNewClub.
-        //
-        // Tier 2 — WARNING (65-84%): Similar name but not certain.
-        //   Show matches, require ConfirmedNewClub to proceed.
-        //
-        // Below 65%: no friction, create new club.
+        // Any 65%+ match surfaces existing clubs to the registrant and
+        // requires ConfirmedNewClub to proceed. No hard block: regional
+        // chapters of national orgs (e.g. "Aacme Lax NJ" vs "Aacme Lax MA")
+        // legitimately register as siblings — the UX educates the rep
+        // and the explicit confirmation is the gate.
 
         var similarClubs = await SearchClubsAsync(request.ClubName, null);
-        var highConfidenceMatch = similarClubs.FirstOrDefault(c => c.MatchScore >= 85);
+        var nearMatches = similarClubs.Where(c => c.MatchScore >= 65).ToList();
 
-        if (highConfidenceMatch != null)
+        if (nearMatches.Count > 0 && !request.ConfirmedNewClub)
         {
-            // Tier 1: HARD BLOCK — cannot be bypassed by self-registration
-            return new ClubRepRegistrationResponse
-            {
-                Success = false, ClubId = null, UserId = null,
-                Message = $"A club named \"{highConfidenceMatch.ClubName}\" is already registered. "
-                        + "If this is your club, please contact the existing rep to be added. "
-                        + "If you believe this is a different club, contact the tournament director.",
-                SimilarClubs = similarClubs
-            };
-        }
-
-        var warningMatches = similarClubs.Where(c => c.MatchScore >= 65).ToList();
-
-        if (warningMatches.Count > 0 && !request.ConfirmedNewClub)
-        {
-            // Tier 2: WARNING — require explicit confirmation
             return new ClubRepRegistrationResponse
             {
                 Success = false, ClubId = null, UserId = null,
                 Message = "We found clubs with similar names. If none of these are yours, confirm below to create a new club.",
-                SimilarClubs = warningMatches
+                SimilarClubs = nearMatches
             };
         }
 

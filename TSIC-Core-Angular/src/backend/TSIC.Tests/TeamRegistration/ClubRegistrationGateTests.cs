@@ -14,26 +14,14 @@ namespace TSIC.Tests.TeamRegistration;
 /// <summary>
 /// CLUB REGISTRATION GATE TESTS
 ///
-/// Validates the two-tier security gate that prevents duplicate clubs and
-/// protects against unauthorized access to another club's team library.
+/// Single-tier similarity gate. Any 65%+ match surfaces existing clubs and
+/// requires explicit ConfirmedNewClub to proceed. There is no hard block —
+/// regional chapters of national organizations (e.g. "Aacme Lax NJ" vs
+/// "Aacme Lax MA") legitimately register as siblings, so the UX educates
+/// the rep and the confirmation flag is the gate.
 ///
-/// Tier 1 (85%+ match) = HARD BLOCK
-///   Cannot be bypassed, even with ConfirmedNewClub = true.
-///   Shows existing rep contact so registrant can reach out directly.
-///   Prevents: hijacking another club's teams by registering with their name.
-///
-/// Tier 2 (65-84% match) = WARNING
-///   Requires explicit ConfirmedNewClub = true to proceed.
-///   Prevents: accidental duplicate from typos or abbreviation differences.
-///
-/// Below 65% = CLEAN PATH
-///   No friction -- new club created automatically.
-///
-/// Each test verifies:
-///   1. Success/failure of registration attempt
-///   2. Presence of SimilarClubs in response when matches found
-///   3. Rep contact info (RepName, RepEmail) in blocked results
-///   4. That ConfirmedNewClub cannot bypass Tier 1
+/// 65%+ match  → SimilarClubs returned, ConfirmedNewClub required
+/// Below 65%   → no friction
 /// </summary>
 public class ClubRegistrationGateTests
 {
@@ -130,66 +118,66 @@ public class ClubRegistrationGateTests
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    //  TIER 1: HARD BLOCK (85%+ match)
+    //  SIMILARITY GATE (65%+ match — any tier)
     // ═══════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// SCENARIO: Registrant types exact name of existing club ("Charlotte Fury")
-    /// EXPECTED: Registration BLOCKED -- returns similar clubs with rep email
-    /// WHY IT MATTERS: Without this gate, anyone could type "Charlotte Fury" and
-    ///   get access to that club's 12-team library and game history
+    /// SCENARIO: Registrant types exact name of existing club without confirming
+    /// EXPECTED: Registration rejected with SimilarClubs returned for review
     /// </summary>
-    [Fact(DisplayName = "Tier 1: exact name match blocks registration")]
-    public async Task Tier1_ExactMatch_Blocked()
+    [Fact(DisplayName = "Exact match without confirmation is rejected")]
+    public async Task ExactMatch_WithoutConfirmation_Rejected()
     {
         var (svc, _) = CreateService(ExistingClub);
         var request = MakeRequest("Charlotte Fury");
 
         var result = await svc.RegisterAsync(request);
 
-        result.Success.Should().BeFalse("exact match must block registration");
-        result.SimilarClubs.Should().NotBeNullOrEmpty("blocked result must include matching clubs");
-        result.Message.Should().Contain("already registered");
+        result.Success.Should().BeFalse("similar match must require explicit confirmation");
+        result.SimilarClubs.Should().NotBeNullOrEmpty("response must include matching clubs");
     }
 
     /// <summary>
-    /// SCENARIO: Registrant types exact name AND sets ConfirmedNewClub = true
-    /// EXPECTED: STILL BLOCKED -- Tier 1 cannot be bypassed by any client-side flag
-    /// WHY IT MATTERS: This is the security property. A malicious client could
-    ///   always send ConfirmedNewClub = true -- the backend must reject it anyway.
+    /// SCENARIO: Registrant types name matching an existing club AND confirms new club
+    /// EXPECTED: Gate passes — this is the regional-sibling case (e.g. "Aacme Lax BC"
+    ///   when "Aacme Lax BA" exists). The educational UX is what guides the decision;
+    ///   the backend trusts the confirmation flag.
     /// </summary>
-    [Fact(DisplayName = "Tier 1: CANNOT be bypassed by ConfirmedNewClub flag")]
-    public async Task Tier1_CannotBypassWithConfirmation()
+    [Fact(DisplayName = "Exact match WITH confirmation passes the gate (regional sibling case)")]
+    public async Task ExactMatch_WithConfirmation_PassesGate()
     {
         var (svc, _) = CreateService(ExistingClub);
         var request = MakeRequest("Charlotte Fury", confirmedNewClub: true);
 
         var result = await svc.RegisterAsync(request);
 
-        result.Success.Should().BeFalse("Tier 1 block must NOT be bypassed by ConfirmedNewClub");
+        var wasGateBlocked = !result.Success && result.SimilarClubs?.Any() == true;
+        wasGateBlocked.Should().BeFalse(
+            "confirmed registration must pass the gate even on a near-exact match");
     }
 
     /// <summary>
-    /// SCENARIO: Registrant types a near-exact typo ("Charlote Fury")
-    /// EXPECTED: Registration BLOCKED -- typos should not bypass the gate
+    /// SCENARIO: Near-exact typo ("Charlote Fury") without confirmation
+    /// EXPECTED: Rejected — single-char typo still scores in the similarity band
     /// </summary>
-    [Fact(DisplayName = "Tier 1: typo variant ('Charlote Fury') still blocked")]
-    public async Task Tier1_TypoVariant_StillBlocked()
+    [Fact(DisplayName = "Typo variant without confirmation is rejected")]
+    public async Task TypoVariant_WithoutConfirmation_Rejected()
     {
         var (svc, _) = CreateService(ExistingClub);
         var request = MakeRequest("Charlote Fury");
 
         var result = await svc.RegisterAsync(request);
 
-        result.Success.Should().BeFalse("single-char typo should still trigger Tier 1");
+        result.Success.Should().BeFalse("single-char typo should surface similar clubs");
+        result.SimilarClubs.Should().NotBeNullOrEmpty();
     }
 
     /// <summary>
-    /// SCENARIO: Blocked result must include existing rep's contact info
-    /// EXPECTED: RepName and RepEmail present -- registrant can contact them directly
+    /// SCENARIO: Similar-clubs response must include existing rep contact info
+    /// EXPECTED: RepName and RepEmail present so the registrant can reach out
     /// </summary>
-    [Fact(DisplayName = "Tier 1: blocked result includes rep email for self-service")]
-    public async Task Tier1_IncludesRepContact()
+    [Fact(DisplayName = "Similar clubs response includes rep contact for self-service")]
+    public async Task SimilarClubs_IncludeRepContact()
     {
         var (svc, _) = CreateService(ExistingClub);
         var request = MakeRequest("Charlotte Fury");
@@ -202,48 +190,39 @@ public class ClubRegistrationGateTests
         match.RepEmail.Should().Be("j.smith@email.com");
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    //  TIER 2: WARNING (65-84% match)
-    // ═══════════════════════════════════════════════════════════════════
-
     /// <summary>
-    /// SCENARIO: Registrant types a name that scores in warning band (65-84%)
-    ///   without confirming they want a new club
-    /// EXPECTED: Registration NOT allowed -- returns similar clubs for review
+    /// SCENARIO: Mid-similarity match (shared city, different mascot) without confirmation
+    /// EXPECTED: Rejected — warning-band matches still require ConfirmedNewClub
     /// </summary>
-    [Fact(DisplayName = "Tier 2: warning-band match without confirmation is rejected")]
-    public async Task Tier2_WithoutConfirmation_Rejected()
+    [Fact(DisplayName = "Mid-similarity match without confirmation is rejected")]
+    public async Task MidSimilarity_WithoutConfirmation_Rejected()
     {
         var (svc, _) = CreateService(SimilarClub);
-        // "Charlotte Hawks" shares city with "Charlotte Eagles" -- warning band, not block
         var request = MakeRequest("Charlotte Hawks");
 
         var result = await svc.RegisterAsync(request);
 
         if (result.SimilarClubs?.Any() == true)
         {
-            result.Success.Should().BeFalse("warning-band match without confirmation should be rejected");
+            result.Success.Should().BeFalse("similar match without confirmation should be rejected");
         }
     }
 
     /// <summary>
-    /// SCENARIO: Registrant types a name in the warning band AND confirms "create new"
-    /// EXPECTED: Gate passes -- user made an informed decision.
-    ///   "Charlotte Hawks" vs "Charlotte Eagles" shares a city but different mascot
-    ///   (~70% token overlap) -- solidly in warning band, not block range.
+    /// SCENARIO: Mid-similarity match WITH confirmation
+    /// EXPECTED: Gate passes — confirmation is what unlocks creation
     /// </summary>
-    [Fact(DisplayName = "Tier 2: warning-band match WITH confirmation passes the gate")]
-    public async Task Tier2_WithConfirmation_PassesGate()
+    [Fact(DisplayName = "Mid-similarity match WITH confirmation passes the gate")]
+    public async Task MidSimilarity_WithConfirmation_PassesGate()
     {
         var (svc, _) = CreateService(SimilarClub);
         var request = MakeRequest("Charlotte Hawks", confirmedNewClub: true);
 
         var result = await svc.RegisterAsync(request);
 
-        // If it returned SimilarClubs, the gate blocked it -- that's wrong for confirmed
         var wasGateBlocked = !result.Success && result.SimilarClubs?.Any() == true;
         wasGateBlocked.Should().BeFalse(
-            "confirmed new club in warning band should pass the gate (not return SimilarClubs)");
+            "confirmed new club should pass the gate (not return SimilarClubs)");
     }
 
     // ═══════════════════════════════════════════════════════════════════
