@@ -277,14 +277,18 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                     @if (exactMatch(); as exact) {
                       <h6><i class="bi bi-shield-exclamation me-2 text-danger"></i>This club is already registered</h6>
                       <p>
-                        <strong>"{{ exact.clubName }}" is already in our system.</strong>
-                        If this is your club, please contact the existing rep below to be added —
-                        duplicate clubs can't share team history.
+                        <strong>"{{ exact.clubName }}" already has a registered rep</strong> —
+                        that rep is responsible for registering teams under this club. Creating a
+                        duplicate account would bypass them and split team history.
+                      </p>
+                      <p>
+                        If you have a team that should play for this club, contact the existing
+                        rep below — they handle the registration.
                       </p>
                       <p>
                         <strong>If you're a different regional chapter</strong> of a national
                         organization, register with a name that distinguishes your region
-                        (e.g. add a state suffix like "{{ exact.clubName }} NJ").
+                        (e.g. "Aacme Lacrosse NJ").
                       </p>
                     } @else {
                       <h6><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Similar clubs already on file</h6>
@@ -304,7 +308,7 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                       </p>
                     }
                   </div>
-                  @for (club of similarMatches(); track club.clubId) {
+                  @for (club of displayedMatches(); track club.clubId) {
                     <div class="similar-club-row">
                       <div class="d-flex justify-content-between align-items-center">
                         <div>
@@ -586,6 +590,13 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
     readonly exactMatch = computed(() =>
         this.clubSearchResults().find(c => c.isExactMatch) ?? null
     );
+
+    /** Rows to render in the panel: only the exact match when blocked (the other
+     *  similars are noise once the user can't proceed); otherwise all 65%+ matches. */
+    readonly displayedMatches = computed(() => {
+        const exact = this.exactMatch();
+        return exact ? [exact] : this.similarMatches();
+    });
 
     readonly form = this.fb.group({
         clubName: ['', Validators.required],
