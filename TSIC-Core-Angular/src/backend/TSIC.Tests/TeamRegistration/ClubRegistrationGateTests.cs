@@ -14,14 +14,15 @@ namespace TSIC.Tests.TeamRegistration;
 /// <summary>
 /// CLUB REGISTRATION GATE TESTS
 ///
-/// Single-tier similarity gate. Any 65%+ match surfaces existing clubs and
-/// requires explicit ConfirmedNewClub to proceed. There is no hard block —
-/// regional chapters of national organizations (e.g. "Aacme Lax NJ" vs
-/// "Aacme Lax MA") legitimately register as siblings, so the UX educates
-/// the rep and the confirmation flag is the gate.
-///
-/// 65%+ match  → SimilarClubs returned, ConfirmedNewClub required
-/// Below 65%   → no friction
+/// Two-layer gate:
+///   1. HARD BLOCK on exact-normalized match (token sets identical) —
+///      cannot be bypassed by ConfirmedNewClub. Catches duplicate-creation
+///      / hijacking attempts including filler-only suffixes ("Charlotte
+///      Fury" vs "Charlotte Fury LC") and word reordering.
+///   2. SIMILARITY SURFACE for any other 65%+ match — requires
+///      ConfirmedNewClub. Allows regional chapters of national orgs
+///      (e.g. "Aacme Lax NJ" vs "Aacme Lax MA") to register as siblings.
+/// Below 65% → no friction.
 /// </summary>
 public class ClubRegistrationGateTests
 {
@@ -123,37 +124,70 @@ public class ClubRegistrationGateTests
 
     /// <summary>
     /// SCENARIO: Registrant types exact name of existing club without confirming
-    /// EXPECTED: Registration rejected with SimilarClubs returned for review
+    /// EXPECTED: Hard-blocked with SimilarClubs returned (cannot create a duplicate)
     /// </summary>
-    [Fact(DisplayName = "Exact match without confirmation is rejected")]
-    public async Task ExactMatch_WithoutConfirmation_Rejected()
+    [Fact(DisplayName = "Exact-name match is hard-blocked")]
+    public async Task ExactMatch_HardBlocked()
     {
         var (svc, _) = CreateService(ExistingClub);
         var request = MakeRequest("Charlotte Fury");
 
         var result = await svc.RegisterAsync(request);
 
-        result.Success.Should().BeFalse("similar match must require explicit confirmation");
-        result.SimilarClubs.Should().NotBeNullOrEmpty("response must include matching clubs");
+        result.Success.Should().BeFalse("exact name match must be hard-blocked");
+        result.SimilarClubs.Should().NotBeNullOrEmpty("response must include the matching club");
+        result.Message.Should().Contain("already registered");
     }
 
     /// <summary>
-    /// SCENARIO: Registrant types name matching an existing club AND confirms new club
-    /// EXPECTED: Gate passes — this is the regional-sibling case (e.g. "Aacme Lax BC"
-    ///   when "Aacme Lax BA" exists). The educational UX is what guides the decision;
-    ///   the backend trusts the confirmation flag.
+    /// SCENARIO: Registrant types EXACT name AND sets ConfirmedNewClub = true
+    /// EXPECTED: STILL BLOCKED — exact-match bypass via client flag is a security hole.
+    ///   Confirmation only allows similar-but-different names (regional siblings).
     /// </summary>
-    [Fact(DisplayName = "Exact match WITH confirmation passes the gate (regional sibling case)")]
-    public async Task ExactMatch_WithConfirmation_PassesGate()
+    [Fact(DisplayName = "Exact-name match CANNOT be bypassed by ConfirmedNewClub")]
+    public async Task ExactMatch_CannotBypassWithConfirmation()
     {
         var (svc, _) = CreateService(ExistingClub);
         var request = MakeRequest("Charlotte Fury", confirmedNewClub: true);
 
         var result = await svc.RegisterAsync(request);
 
+        result.Success.Should().BeFalse("exact match block must NOT be bypassed by ConfirmedNewClub");
+    }
+
+    /// <summary>
+    /// SCENARIO: Filler-only suffix difference ("Charlotte Fury" vs "Charlotte Fury LC")
+    /// EXPECTED: Hard-blocked even with confirmation — "LC" expands to filler so the
+    ///   normalized token sets are identical (same club).
+    /// </summary>
+    [Fact(DisplayName = "Filler-suffix variant ('Fury LC' vs 'Fury') is hard-blocked")]
+    public async Task FillerSuffixVariant_HardBlocked()
+    {
+        var (svc, _) = CreateService(ExistingClub);
+        var request = MakeRequest("Charlotte Fury LC", confirmedNewClub: true);
+
+        var result = await svc.RegisterAsync(request);
+
+        result.Success.Should().BeFalse("filler-only suffix difference must be hard-blocked");
+    }
+
+    /// <summary>
+    /// SCENARIO: Regional sibling — different distinctive token, same root
+    ///   ("Charlotte Fury North" vs existing "Charlotte Fury") with confirmation
+    /// EXPECTED: Passes — token sets differ ("north" added), so this is NOT
+    ///   an exact match. The regional chapter use case must work.
+    /// </summary>
+    [Fact(DisplayName = "Regional sibling ('Fury North') with confirmation passes")]
+    public async Task RegionalSibling_WithConfirmation_PassesGate()
+    {
+        var (svc, _) = CreateService(ExistingClub);
+        var request = MakeRequest("Charlotte Fury North", confirmedNewClub: true);
+
+        var result = await svc.RegisterAsync(request);
+
         var wasGateBlocked = !result.Success && result.SimilarClubs?.Any() == true;
         wasGateBlocked.Should().BeFalse(
-            "confirmed registration must pass the gate even on a near-exact match");
+            "regional sibling with a distinguishing token must pass when confirmed");
     }
 
     /// <summary>

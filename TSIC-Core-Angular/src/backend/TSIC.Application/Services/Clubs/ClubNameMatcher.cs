@@ -231,6 +231,20 @@ public static partial class ClubNameMatcher
     }
 
     /// <summary>
+    /// True when two names normalize to the same token set (Jaccard == 100).
+    /// Catches exact text, case/whitespace differences, filler-only suffixes
+    /// (e.g. "Charlotte Fury" vs "Charlotte Fury LC"), and word reordering
+    /// (e.g. "Aacme Lions" vs "Lions Aacme"). Used as the duplicate-creation
+    /// hard block — cannot be bypassed by self-registration confirmation flags.
+    /// </summary>
+    public static bool IsExactNormalizedMatch(string name1, string name2)
+    {
+        var n1 = NormalizeClubName(name1);
+        var n2 = NormalizeClubName(name2);
+        return CalculateTokenSimilarity(n1, n2) == 100;
+    }
+
+    /// <summary>
     /// Extracts the root organization name by stripping trailing location patterns.
     /// Detects mega-club relationships:
     ///   "3 Point Lacrosse - VA" → "3 Point Lacrosse"

@@ -9,6 +9,7 @@ export type ClubSearchResult = {
     teamCount: number;
     matchScore: number;
     isRelatedClub?: boolean;
+    isExactMatch?: boolean;
     repName?: string | null;
     repEmail?: string | null;
 };

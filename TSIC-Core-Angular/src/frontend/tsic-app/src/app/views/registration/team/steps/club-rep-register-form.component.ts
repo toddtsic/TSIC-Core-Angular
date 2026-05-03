@@ -35,13 +35,33 @@ type ClubDecision = 'pending' | 'new' | 'clear';
     styles: [`
       :host { display: block; }
 
-      /* ── Similar-clubs panel (single tier, 65%+) ─────────── */
+      /* Hero-sized variant of .field-input — used for the Club Name input,
+         which is the primary action target of the create form. */
+      .field-input--hero {
+        padding: var(--space-2) var(--space-3);
+        font-size: var(--font-size-base);
+        line-height: 1.4;
+      }
+
+      /* ── Similar-clubs panel (single tier, 65%+) ────────────────────────
+         Mode-adaptive: panel surface inherits from .card-body (white in light,
+         dark in dark). Text uses --brand-text. The yellow/red tints are rgba
+         overlays that work over either surface. Do NOT force a palette-locked
+         background here — the dark theme overrides .card-body with !important
+         and a locked-white panel breaks the cascade for descendant text.
+         See feedback_neutral0_text_color_trap.md.
+      */
       .club-similar-panel {
         border: 2px solid var(--bs-warning);
         border-radius: var(--radius-md);
         margin-top: var(--space-2);
         overflow: hidden;
-        background: var(--neutral-0);
+      }
+      /* Hard-block modifier: exact-normalized duplicate. Cannot be created. */
+      .club-similar-panel--exact { border-color: var(--bs-danger); }
+      .club-similar-panel--exact .club-similar-header {
+        background: rgba(var(--bs-danger-rgb), 0.18);
+        border-bottom-color: rgba(var(--bs-danger-rgb), 0.3);
       }
       .club-similar-header {
         padding: var(--space-3);
@@ -71,7 +91,7 @@ type ClubDecision = 'pending' | 'new' | 'clear';
         gap: var(--space-2);
         margin-top: var(--space-2);
         padding: var(--space-2) var(--space-3);
-        background: rgba(var(--bs-primary-rgb), 0.04);
+        background: rgba(var(--bs-primary-rgb), 0.08);
         border-radius: var(--radius-sm);
         font-size: var(--font-size-sm);
       }
@@ -84,7 +104,7 @@ type ClubDecision = 'pending' | 'new' | 'clear';
       .rep-contact a:hover { text-decoration: underline; }
       .similar-confirm-bar {
         padding: var(--space-3);
-        background: rgba(var(--bs-warning-rgb), 0.03);
+        background: rgba(var(--bs-warning-rgb), 0.06);
         text-align: center;
       }
 
@@ -146,12 +166,16 @@ type ClubDecision = 'pending' | 'new' | 'clear';
         border-radius: var(--radius-full);
         white-space: nowrap;
       }
+      .confidence-exact {
+        background: var(--bs-danger);
+        color: var(--neutral-0);
+      }
       .confidence-high {
-        background: rgba(var(--bs-danger-rgb), 0.1);
+        background: rgba(var(--bs-danger-rgb), 0.15);
         color: var(--bs-danger);
       }
       .confidence-medium {
-        background: rgba(var(--bs-warning-rgb), 0.12);
+        background: rgba(var(--bs-warning-rgb), 0.18);
         color: var(--bs-warning);
       }
       .mega-club-tag {
@@ -223,10 +247,10 @@ type ClubDecision = 'pending' | 'new' | 'clear';
     <form [formGroup]="form" (ngSubmit)="onSubmit()">
 
               @if (!isEdit()) {
-              <!-- ═══ CLUB NAME INPUT ═══ -->
+              <!-- ═══ CLUB NAME INPUT (hero of the form) ═══ -->
               <div class="mb-2">
                 <label class="field-label">Club Name <span class="req-star">*</span></label>
-                <input #clubNameInput class="field-input" formControlName="clubName"
+                <input #clubNameInput class="field-input field-input--hero" formControlName="clubName"
                        placeholder="Start typing your club name..."
                        autocomplete="off"
                        [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
@@ -244,25 +268,41 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                 </div>
               }
 
-              <!-- ═══ SIMILAR CLUBS PANEL (single tier, 65%+ match) ═══ -->
+              <!-- ═══ SIMILAR / EXACT MATCH PANEL ═══
+                   Exact-normalized match → hard block (no Create-new button, danger framing).
+                   Otherwise → similarity surface with Create-new available. -->
               @if (similarMatches().length > 0 && !clubSearchLoading() && clubDecision() !== 'new') {
-                <div class="club-similar-panel">
+                <div class="club-similar-panel" [class.club-similar-panel--exact]="exactMatch() !== null">
                   <div class="club-similar-header">
-                    <h6><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Similar clubs already on file</h6>
-                    <p>
-                      <strong>If one of these IS your club</strong>, please contact that rep below
-                      instead of creating a duplicate — duplicate clubs can't share team history.
-                    </p>
-                    <p>
-                      <strong>If you're a different regional chapter</strong> of a national organization
-                      (e.g. "Aacme Lax NJ" vs "Aacme Lax MA"), that's expected — each chapter has its
-                      own account so families and tournament directors reach the right rep. Go ahead
-                      and create yours.
-                    </p>
-                    <p>
-                      <strong>National-org reps:</strong> please don't register on behalf of local
-                      chapters. Local reps need to own their teams and contact info directly.
-                    </p>
+                    @if (exactMatch(); as exact) {
+                      <h6><i class="bi bi-shield-exclamation me-2 text-danger"></i>This club is already registered</h6>
+                      <p>
+                        <strong>"{{ exact.clubName }}" is already in our system.</strong>
+                        If this is your club, please contact the existing rep below to be added —
+                        duplicate clubs can't share team history.
+                      </p>
+                      <p>
+                        <strong>If you're a different regional chapter</strong> of a national
+                        organization, register with a name that distinguishes your region
+                        (e.g. add a state suffix like "{{ exact.clubName }} NJ").
+                      </p>
+                    } @else {
+                      <h6><i class="bi bi-exclamation-triangle me-2 text-warning"></i>Similar clubs already on file</h6>
+                      <p>
+                        <strong>If one of these IS your club</strong>, please contact that rep below
+                        instead of creating a duplicate — duplicate clubs can't share team history.
+                      </p>
+                      <p>
+                        <strong>If you're a different regional chapter</strong> of a national organization
+                        (e.g. "Aacme Lax NJ" vs "Aacme Lax MA"), that's expected — each chapter has its
+                        own account so families and tournament directors reach the right rep. Go ahead
+                        and create yours.
+                      </p>
+                      <p>
+                        <strong>National-org reps:</strong> please don't register on behalf of local
+                        chapters. Local reps need to own their teams and contact info directly.
+                      </p>
+                    }
                   </div>
                   @for (club of similarMatches(); track club.clubId) {
                     <div class="similar-club-row">
@@ -280,7 +320,9 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                           @if (club.isRelatedClub) {
                             <span class="mega-club-tag"><i class="bi bi-diagram-3 me-1"></i>Same org</span>
                           }
-                          @if (club.matchScore >= 85) {
+                          @if (club.isExactMatch) {
+                            <span class="match-confidence confidence-exact">Already registered</span>
+                          } @else if (club.matchScore >= 85) {
                             <span class="match-confidence confidence-high">Very similar</span>
                           } @else {
                             <span class="match-confidence confidence-medium">Similar</span>
@@ -305,13 +347,15 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                       }
                     </div>
                   }
-                  <div class="similar-confirm-bar">
-                    <button type="button" class="btn btn-sm btn-outline-primary fw-medium"
-                            (click)="confirmNewClub()">
-                      <i class="bi bi-plus-circle me-1"></i>None of these are my club — create new
-                    </button>
-                    <div class="small text-muted mt-1">This starts a new account for your club.</div>
-                  </div>
+                  @if (exactMatch() === null) {
+                    <div class="similar-confirm-bar">
+                      <button type="button" class="btn btn-sm btn-outline-primary fw-medium"
+                              (click)="confirmNewClub()">
+                        <i class="bi bi-plus-circle me-1"></i>None of these are my club — create new
+                      </button>
+                      <div class="small text-muted mt-1">This starts a new account for your club.</div>
+                    </div>
+                  }
                 </div>
               }
 
@@ -538,6 +582,11 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.clubSearchResults().filter(c => c.matchScore >= 65)
     );
 
+    /** First exact-normalized match if any. When present, registration is hard-blocked. */
+    readonly exactMatch = computed(() =>
+        this.clubSearchResults().find(c => c.isExactMatch) ?? null
+    );
+
     readonly form = this.fb.group({
         clubName: ['', Validators.required],
         firstName: ['', Validators.required],
@@ -658,8 +707,10 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         this.clubDecision.set('pending');
     }
 
-    /** Submit is allowed when: clear (no matches), or new (confirmed against similar matches), passwords match, and ToS accepted */
+    /** Submit is allowed when: clear (no matches), or new (confirmed against similar matches), passwords match, and ToS accepted.
+     *  Exact-normalized match always blocks (cannot be bypassed — backend agrees). */
     canSubmit(): boolean {
+        if (this.exactMatch() !== null) return false;
         const decision = this.clubDecision();
         return (decision === 'clear' || decision === 'new')
             && !this.passwordMismatch()

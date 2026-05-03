@@ -114,6 +114,14 @@ public record ClubSearchResult
     public bool IsRelatedClub { get; init; }
 
     /// <summary>
+    /// True when this club's normalized name is identical to the query's
+    /// (token sets match — covers exact text, case/whitespace differences,
+    /// filler-only suffixes like "LC", and word reordering). Drives the
+    /// hard block on duplicate creation; cannot be bypassed by ConfirmedNewClub.
+    /// </summary>
+    public bool IsExactMatch { get; init; }
+
+    /// <summary>
     /// Primary rep's full name (from Clubs.LebUserId → AspNetUsers).
     /// Shown to registrant so they can contact the existing rep directly.
     /// </summary>

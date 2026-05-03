@@ -91,15 +91,34 @@ public sealed class ClubService : IClubService
             }
         }
 
-        // ── Club name similarity gate (single tier) ────────────────────
+        // ── Club name gate ─────────────────────────────────────────────
         //
-        // Any 65%+ match surfaces existing clubs to the registrant and
-        // requires ConfirmedNewClub to proceed. No hard block: regional
-        // chapters of national orgs (e.g. "Aacme Lax NJ" vs "Aacme Lax MA")
-        // legitimately register as siblings — the UX educates the rep
-        // and the explicit confirmation is the gate.
+        // Two layers:
+        //  1. HARD BLOCK on exact-normalized match (token sets identical):
+        //     catches the duplicate-creation / hijacking scenario. Cannot
+        //     be bypassed by ConfirmedNewClub. Covers exact text, case &
+        //     whitespace differences, filler-only suffixes ("Charlotte
+        //     Fury LC"), and word reordering ("Lions Aacme" vs "Aacme Lions").
+        //  2. SIMILARITY SURFACE for any 65%+ non-exact match: requires
+        //     ConfirmedNewClub. Allows regional chapters of national orgs
+        //     (e.g. "Aacme Lax NJ" vs "Aacme Lax MA") to register as siblings.
 
         var similarClubs = await SearchClubsAsync(request.ClubName, null);
+        var exactMatch = similarClubs.FirstOrDefault(c => c.IsExactMatch);
+
+        if (exactMatch != null)
+        {
+            return new ClubRepRegistrationResponse
+            {
+                Success = false, ClubId = null, UserId = null,
+                Message = $"A club named \"{exactMatch.ClubName}\" is already registered. "
+                        + "If this is your club, please contact the existing rep to be added. "
+                        + "If you're a different chapter, register with a name that distinguishes "
+                        + "your region (e.g. add a state suffix).",
+                SimilarClubs = similarClubs
+            };
+        }
+
         var nearMatches = similarClubs.Where(c => c.MatchScore >= 65).ToList();
 
         if (nearMatches.Count > 0 && !request.ConfirmedNewClub)
@@ -305,6 +324,7 @@ public sealed class ClubService : IClubService
             {
                 var compositeScore = ClubNameMatcher.CalculateCompositeScore(query, c.ClubName);
                 var isRelated = ClubNameMatcher.AreRelatedClubs(query, c.ClubName);
+                var isExact = ClubNameMatcher.IsExactNormalizedMatch(query, c.ClubName);
 
                 return new ClubSearchResult
                 {
@@ -314,6 +334,7 @@ public sealed class ClubService : IClubService
                     TeamCount = c.TeamCount,
                     MatchScore = compositeScore,
                     IsRelatedClub = isRelated,
+                    IsExactMatch = isExact,
                     RepName = c.RepName,
                     RepEmail = c.RepEmail
                 };
