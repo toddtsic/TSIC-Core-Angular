@@ -312,8 +312,10 @@
 // ============================================================================
 // Environment-aware chrome — dramatic non-prod marker.
 // Driven by `document.body.dataset.env` set in main.ts ('development'|'staging'|
-// 'production'). Production gets nothing. Dev = red hazard stripes + pulsing chip;
-// staging = amber hazard stripes + solid chip.
+// 'production'). Production gets nothing; both development AND staging get the
+// same caution-yellow hazard treatment + pulsing "DEV" chip. (Pre-release client
+// previews run on the staging build at dev.teamsportsinfo.com — no need to
+// draw a line between the two non-prod environments visually.)
 //
 // Two pieces:
 //   1. Hazard-stripe tint on header surfaces (.header-surface in client-layout,
@@ -336,17 +338,14 @@ body[data-env="staging"] .lp-nav {
 }
 
 body[data-env="development"] .header-surface,
-body[data-env="development"] .lp-nav {
-    --env-accent: rgba(220, 38, 38, 0.85);
-    --env-stripe: rgba(220, 38, 38, 0.10);
-    --env-tint: rgba(220, 38, 38, 0.06);
-}
-
 body[data-env="staging"] .header-surface,
+body[data-env="development"] .lp-nav,
 body[data-env="staging"] .lp-nav {
-    --env-accent: rgba(245, 158, 11, 0.85);
-    --env-stripe: rgba(245, 158, 11, 0.12);
-    --env-tint: rgba(245, 158, 11, 0.06);
+    // Caution yellow — high-vis, reads as "warning, non-prod" without the
+    // emergency/error connotation of red.
+    --env-accent: rgba(234, 179, 8, 0.95);
+    --env-stripe: rgba(234, 179, 8, 0.18);
+    --env-tint: rgba(234, 179, 8, 0.10);
 }
 
 body[data-env="development"] .header-surface::before,
@@ -414,19 +413,16 @@ body[data-env="staging"] .lp-nav__inner {
 }
 
 // Chip text comes from CSS so host components don't need to import `environment`.
-body[data-env="development"] .env-chip-inline {
-    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+// Both development AND staging render identically — same caution-yellow chip
+// reading "DEV". Production hides the chip entirely.
+body[data-env="development"] .env-chip-inline,
+body[data-env="staging"] .env-chip-inline {
+    background: linear-gradient(135deg, #eab308 0%, #a16207 100%);
+    color: #1a1a1a;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
     animation: envChipPulse 2.4s ease-in-out infinite;
 
     &::before { content: 'DEV'; }
-}
-
-body[data-env="staging"] .env-chip-inline {
-    background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
-    color: #1a1a1a;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
-
-    &::before { content: 'STAGING'; }
 }
 
 body[data-env="production"] .env-chip-inline {
@@ -440,8 +436,8 @@ body[data-env="production"] .env-chip-inline {
 }
 
 @keyframes envChipPulse {
-    0%, 100% { box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4); }
-    50%      { box-shadow: 0 2px 14px rgba(220, 38, 38, 0.85); }
+    0%, 100% { box-shadow: 0 2px 6px rgba(234, 179, 8, 0.45); }
+    50%      { box-shadow: 0 2px 14px rgba(234, 179, 8, 0.90); }
 }
 
 // Shimmer animation - used by header-surface
