@@ -791,6 +791,14 @@ export interface RegisteredInfo {
         &:disabled {
           color: var(--brand-text-muted);
           cursor: default;
+          opacity: 0.5;
+
+          .lib-menu-label {
+            font-style: italic;
+            text-decoration: line-through;
+            text-decoration-color: color-mix(in srgb, var(--brand-text-muted) 60%, transparent);
+            text-decoration-thickness: 1px;
+          }
         }
       }
 
@@ -1025,7 +1033,6 @@ export class LibraryFlyinComponent {
     readonly actionInProgress = input(false);
     /** Map of clubTeamId → registration info. Drives the Registered badge content. */
     readonly enteredTeams = input<ReadonlyMap<number, RegisteredInfo>>(new Map());
-    readonly eventName = input('this event');
 
     readonly closed = output<void>();
     readonly register = output<ClubTeamDto>();
@@ -1163,23 +1170,8 @@ export class LibraryFlyinComponent {
     readonly statusText = computed(() => {
         const total = this.activeTeams().length;
         const reg = this.registeredCount();
-        const event = this.eventName();
-        switch (this.statusState()) {
-            case 'all-registered':
-                return total === 1
-                    ? `Your team is registered for ${event}`
-                    : `All ${total} teams registered for ${event}`;
-            case 'partial': {
-                const remaining = total - reg;
-                return `${reg} of ${total} registered — ${remaining} still ${remaining === 1 ? 'needs' : 'need'} to be entered for ${event}`;
-            }
-            case 'none-registered':
-                return total === 1
-                    ? `Your team is NOT yet registered for ${event}`
-                    : `0 of ${total} registered — none entered for ${event} yet`;
-            default:
-                return '';
-        }
+        if (this.statusState() === 'empty') return '';
+        return `${reg} of ${total} registered`;
     });
 
     isEntered(clubTeamId: number): boolean {

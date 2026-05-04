@@ -170,7 +170,6 @@ interface AgePickerTeam {
         [canRegister]="canRegisterTeam()"
         [actionInProgress]="actionInProgress()"
         [enteredTeams]="enteredTeamsMap()"
-        [eventName]="eventName()"
         (closed)="closeLibraryFlyin()"
         (register)="onFlyinRegister($event)"
         (addNew)="showAddModal.set(true)"
