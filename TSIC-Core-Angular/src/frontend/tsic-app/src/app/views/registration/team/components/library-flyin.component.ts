@@ -3,6 +3,7 @@ import type { ClubTeamDto } from '@core/api';
 
 export interface RegisteredInfo {
     ageGroupName: string;
+    levelOfPlay: string;
 }
 
 /**
@@ -30,30 +31,28 @@ export interface RegisteredInfo {
     <aside class="library-panel" [class.open]="isOpen()" role="dialog" aria-modal="true" aria-labelledby="library-flyin-title">
 
       <!-- ── Header ─────────────────────────────────────────────────── -->
+      <!-- Identity moment + ALERT chip (not a status chip). The chip only
+           appears when there's a problem to flag — partial coverage or zero
+           registered. All-registered state = no chip; row-level "Registered"
+           badges already say everything's fine, narrating it again at the
+           top would be redundant and gets worse as team count grows. -->
       <div class="panel-header">
         <div class="header-top-row">
-          <h2 class="panel-title" id="library-flyin-title">
-            <i class="bi bi-collection-fill"></i>
-            Your Team Library
-          </h2>
+          <div class="header-identity">
+            <i class="bi bi-collection-fill panel-eyebrow-icon" aria-hidden="true"></i>
+            <div class="header-identity-text">
+              <p class="panel-eyebrow">Team Library</p>
+              <h2 class="panel-title" id="library-flyin-title">Your re-usable Club Team Library</h2>
+            </div>
+          </div>
           <button type="button" class="btn-close" aria-label="Close library" (click)="onClose()">&times;</button>
         </div>
 
-        <!-- Operational status line — adapts to library state -->
-        @if (activeTeams().length === 0) {
-          <p class="tip">Your library is permanent &mdash; teams you add here carry to every TSIC event.</p>
-        } @else if (registeredCount() === 0) {
-          <p class="tip">
-            <strong>{{ activeTeams().length }}</strong>
-            {{ activeTeams().length === 1 ? 'team' : 'teams' }} ready
-            &mdash; pick to register for <strong>{{ eventName() }}</strong>.
-          </p>
-        } @else {
-          <p class="tip">
-            <strong class="tip-success">{{ registeredCount() }}</strong>
-            of <strong>{{ activeTeams().length }}</strong>
-            registered for <strong>{{ eventName() }}</strong>.
-          </p>
+        @if (statusState() === 'partial' || statusState() === 'none-registered') {
+          <div class="status-chip" [class]="'status-chip-' + statusState()">
+            <i class="bi" [class]="statusIcon()" aria-hidden="true"></i>
+            <span class="status-chip-text">{{ statusText() }}</span>
+          </div>
         }
       </div>
 
@@ -85,92 +84,111 @@ export interface RegisteredInfo {
             </button>
           </div>
         } @else {
-          <!-- State C — populated active list (with optional archived sub-section) -->
-          <div class="lib-list">
-            @for (team of sortedActiveTeams(); track team.clubTeamId) {
-              @let registered = registeredInfo(team.clubTeamId);
-              @let canAct = !registered && canRegister();
-              <div class="lib-row"
-                   [class.lib-row-registered]="!!registered"
-                   [class.lib-row-actionable]="canAct">
-
-                <!-- Left: identity (icon + name + meta sub-line) -->
-                <div class="lib-identity">
-                  <i class="bi lib-icon"
-                     [class.bi-trophy-fill]="!!registered"
-                     [class.bi-people-fill]="!registered"></i>
-                  <div class="lib-identity-text">
-                    <span class="lib-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
-                    <span class="lib-meta">
-                      <span class="lib-meta-item">
-                        <i class="bi bi-mortarboard"></i>
-                        {{ team.clubTeamGradYear || '—' }}
+          <!-- State C — populated active list rendered as audit table -->
+          <table class="lib-table">
+            <thead>
+              <tr>
+                <th class="lib-th-team">Lib-Team</th>
+                <th class="lib-th-age">Lib-GradYr</th>
+                <th class="lib-th-lop">Lib-LOP</th>
+                <th class="lib-th-status">Reg AgeGroup/LOP</th>
+                <th class="lib-th-actions">Manage</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (team of sortedActiveTeams(); track team.clubTeamId) {
+                @let registered = registeredInfo(team.clubTeamId);
+                <tr class="lib-tr" [class.is-registered]="!!registered">
+                  <td class="lib-td-team">
+                    <span class="team-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
+                  </td>
+                  <td class="lib-td-age">{{ team.clubTeamGradYear || '—' }}</td>
+                  <td class="lib-td-lop">{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</td>
+                  <td class="lib-td-status">
+                    @if (registered) {
+                      @let regDisplay = formatRegisteredDisplay(registered);
+                      <span class="status-yes">
+                        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                        @if (regDisplay) {
+                          <span class="status-yes-detail">{{ regDisplay }}</span>
+                        }
                       </span>
-                      @if (team.clubTeamLevelOfPlay) {
-                        <span class="lib-meta-divider">·</span>
-                        <span class="lib-meta-item" [attr.title]="'Level of Play: ' + team.clubTeamLevelOfPlay">
-                          LOP {{ formatLop(team.clubTeamLevelOfPlay) }}
-                        </span>
-                      }
-                    </span>
-                  </div>
-                </div>
-
-                <!-- Middle: management actions (edit / archive / delete) -->
-                <span class="lib-actions">
-                  @if (team.bHasBeenScheduled) {
-                    @if (!registered) {
-                      <button type="button" class="lib-icon-btn"
-                              title="Archive — hide from library, keep history"
+                    } @else if (canRegister()) {
+                      <button type="button" class="btn-register-cell"
                               [disabled]="actionInProgress()"
-                              (click)="archive.emit(team)">
-                        <i class="bi bi-box-arrow-in-down"></i>
+                              (click)="register.emit(team)">
+                        <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                        <span>Register</span>
                       </button>
-                    }
-                    <i class="bi bi-clock-history lib-lock"
-                       title="Has event history — name and grad-year are locked"></i>
-                  } @else {
-                    @if (!registered) {
-                      <button type="button" class="lib-icon-btn lib-icon-danger"
-                              title="Delete from library"
-                              [disabled]="actionInProgress()"
-                              (click)="delete.emit(team)">
-                        <i class="bi bi-trash"></i>
-                      </button>
-                    }
-                    <button type="button" class="lib-icon-btn"
-                            title="Edit library team"
-                            [disabled]="actionInProgress()"
-                            (click)="edit.emit(team)">
-                      <i class="bi bi-pencil"></i>
-                    </button>
-                  }
-                </span>
-
-                <!-- Right: status badge OR Register button -->
-                @if (registered) {
-                  <span class="lib-badge lib-badge-success">
-                    <i class="bi bi-check-circle-fill me-1"></i>
-                    @if (registered.ageGroupName) {
-                      Registered: {{ registered.ageGroupName }}
                     } @else {
-                      Registered
+                      <span class="status-closed">
+                        <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                        Closed
+                      </span>
                     }
-                  </span>
-                } @else if (canRegister()) {
-                  <button type="button" class="btn-register"
-                          [disabled]="actionInProgress()"
-                          (click)="register.emit(team)">
-                    <i class="bi bi-trophy-fill me-1"></i>Register
-                  </button>
-                } @else {
-                  <span class="lib-badge lib-badge-muted">
-                    <i class="bi bi-lock-fill me-1"></i>Closed
-                  </span>
-                }
+                  </td>
+                  <td class="lib-td-actions">
+                    <div class="lib-menu-anchor">
+                      <button type="button" class="lib-kebab"
+                              [class.is-open]="openMenuTeamId() === team.clubTeamId"
+                              [disabled]="actionInProgress()"
+                              aria-label="Manage team"
+                              aria-haspopup="menu"
+                              [attr.aria-expanded]="openMenuTeamId() === team.clubTeamId"
+                              (click)="toggleMenu($event, team.clubTeamId)">
+                        <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                      </button>
+                      @if (openMenuTeamId() === team.clubTeamId) {
+                        @let editLock = editLockReason(team);
+                        @let archiveLock = archiveLockReason(team, !!registered);
+                        @let deleteLock = deleteLockReason(team, !!registered);
+                        <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
+                          <button type="button" class="lib-menu-item" role="menuitem"
+                                  [disabled]="!!editLock"
+                                  (click)="handleMenuEdit(team)">
+                            <i class="bi bi-pencil lib-menu-icon" aria-hidden="true"></i>
+                            <span class="lib-menu-label">Edit team</span>
+                            @if (editLock) {
+                              <span class="lib-menu-reason">{{ editLock }}</span>
+                            }
+                          </button>
+                          <button type="button" class="lib-menu-item" role="menuitem"
+                                  [disabled]="!!archiveLock"
+                                  (click)="handleMenuArchive(team, !!registered)">
+                            <i class="bi bi-box-arrow-in-down lib-menu-icon" aria-hidden="true"></i>
+                            <span class="lib-menu-label">Archive team</span>
+                            @if (archiveLock) {
+                              <span class="lib-menu-reason">{{ archiveLock }}</span>
+                            }
+                          </button>
+                          <button type="button" class="lib-menu-item lib-menu-item-danger" role="menuitem"
+                                  [disabled]="!!deleteLock"
+                                  (click)="handleMenuDelete(team, !!registered)">
+                            <i class="bi bi-trash lib-menu-icon" aria-hidden="true"></i>
+                            <span class="lib-menu-label">Delete team</span>
+                            @if (deleteLock) {
+                              <span class="lib-menu-reason">{{ deleteLock }}</span>
+                            }
+                          </button>
+                        </div>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+
+          @if (activeTeams().length <= 3) {
+            <div class="lib-tip" role="note">
+              <i class="bi bi-lightbulb-fill" aria-hidden="true"></i>
+              <div class="lib-tip-text">
+                <strong>Library teams carry across events.</strong>
+                Add a team once and it stays available for every TSIC event you
+                participate in &mdash; you'll never re-enter it.
               </div>
-            }
-          </div>
+            </div>
+          }
 
           <!-- Archived sub-section (collapsible) -->
           @if (archivedTeams().length > 0) {
@@ -181,58 +199,42 @@ export interface RegisteredInfo {
               <span class="archived-hint">teams hidden from registration</span>
             </button>
             @if (showArchived()) {
-              <div class="lib-list lib-list-archived">
-                @for (team of archivedTeams(); track team.clubTeamId) {
-                  <div class="lib-row lib-row-archived">
-                    <div class="lib-identity">
-                      <i class="bi bi-archive-fill lib-icon"></i>
-                      <div class="lib-identity-text">
-                        <span class="lib-name">{{ team.clubTeamName }}</span>
-                        <span class="lib-meta">
-                          <span class="lib-meta-item">
-                            <i class="bi bi-mortarboard"></i>
-                            {{ team.clubTeamGradYear || '—' }}
-                          </span>
-                          @if (team.clubTeamLevelOfPlay) {
-                            <span class="lib-meta-divider">·</span>
-                            <span class="lib-meta-item">LOP {{ formatLop(team.clubTeamLevelOfPlay) }}</span>
-                          }
+              <table class="lib-table lib-table-archived">
+                <tbody>
+                  @for (team of archivedTeams(); track team.clubTeamId) {
+                    <tr class="lib-tr is-archived">
+                      <td class="lib-td-team">
+                        <span class="team-name">{{ team.clubTeamName }}</span>
+                      </td>
+                      <td class="lib-td-age">{{ team.clubTeamGradYear || '—' }}</td>
+                      <td class="lib-td-lop">{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</td>
+                      <td class="lib-td-status">
+                        <span class="status-archived">
+                          <i class="bi bi-archive-fill" aria-hidden="true"></i>
+                          Archived
                         </span>
-                      </div>
-                    </div>
-                    <span class="lib-actions">
-                      <i class="bi bi-clock-history lib-lock" title="Archived — name and grad-year locked"></i>
-                      <button type="button" class="lib-icon-btn"
-                              title="Restore to active library"
-                              [disabled]="actionInProgress()"
-                              (click)="restore.emit(team)">
-                        <i class="bi bi-arrow-counterclockwise"></i>
-                      </button>
-                    </span>
-                    <span class="lib-badge lib-badge-muted">
-                      <i class="bi bi-archive me-1"></i>Archived
-                    </span>
-                  </div>
-                }
-              </div>
+                      </td>
+                      <td class="lib-td-actions">
+                        <button type="button" class="lib-icon-btn"
+                                title="Restore to active library"
+                                [disabled]="actionInProgress()"
+                                (click)="restore.emit(team)">
+                          <i class="bi bi-arrow-counterclockwise"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
             }
           }
         }
       </div>
 
       <!-- ── Footer ─────────────────────────────────────────────────── -->
+      <!-- Footer warning was dropped — the header status chip carries the
+           same signal (and louder, since it's at the top of the panel). -->
       <div class="panel-footer">
-        @if (showNoneRegisteredWarning()) {
-          <div class="footer-warning">
-            <i class="bi bi-exclamation-triangle-fill"></i>
-            <span>
-              You have <strong>{{ activeTeams().length }}</strong>
-              {{ activeTeams().length === 1 ? 'team' : 'teams' }}
-              in your library but <strong>none registered</strong> for
-              {{ eventName() }} yet.
-            </span>
-          </div>
-        }
         <div class="footer-buttons">
           @if (activeTeams().length > 0) {
             <button type="button" class="btn-flyin-add" (click)="addNew.emit()">
@@ -281,28 +283,57 @@ export interface RegisteredInfo {
 
       /* ── Header ────────────────────────────────────────────────────── */
       .panel-header {
-        padding: var(--space-2) var(--space-3);
-        border-bottom: 1px solid var(--bs-border-color);
-        background: var(--bs-body-bg);
+        padding: var(--space-3);
+        border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 22%, transparent);
+        background: color-mix(in srgb, var(--bs-primary) 6%, var(--bs-body-bg));
         flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-3);
 
         .header-top-row {
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: space-between;
+          gap: var(--space-2);
+        }
+
+        .header-identity {
+          display: flex;
+          align-items: center;
+          gap: var(--space-2);
+          min-width: 0;
+        }
+
+        .panel-eyebrow-icon {
+          color: var(--bs-primary);
+          font-size: 1.5rem;
+          line-height: 1;
+          flex-shrink: 0;
+        }
+
+        .header-identity-text {
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          min-width: 0;
+        }
+
+        .panel-eyebrow {
+          margin: 0;
+          font-size: 11px;
+          font-weight: var(--font-weight-bold);
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--bs-primary);
         }
 
         .panel-title {
           margin: 0;
-          display: inline-flex;
-          align-items: center;
-          gap: var(--space-2);
-          font-size: var(--font-size-base);
-          font-weight: var(--font-weight-semibold);
-          color: var(--bs-body-color);
-          line-height: 1;
-
-          i { color: var(--bs-primary); font-size: var(--font-size-lg); }
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-medium);
+          color: var(--brand-text-muted);
+          line-height: 1.2;
         }
 
         .btn-close {
@@ -315,6 +346,7 @@ export interface RegisteredInfo {
           opacity: 0.55;
           cursor: pointer;
           transition: opacity 0.2s ease;
+          flex-shrink: 0;
 
           &:hover { opacity: 1; }
 
@@ -324,16 +356,45 @@ export interface RegisteredInfo {
             border-radius: var(--radius-sm);
           }
         }
+      }
 
-        .tip {
-          margin: var(--space-1) 0 0;
-          font-size: var(--font-size-xs);
-          color: var(--brand-text-muted);
-          line-height: var(--line-height-normal);
+      /* ── Status chip — registration coverage check, state-driven ──── */
+      .status-chip {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border-radius: var(--radius-md);
+        border: 1px solid transparent;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        line-height: var(--line-height-normal);
 
-          strong { color: var(--brand-text); font-weight: var(--font-weight-bold); }
-          .tip-success { color: var(--bs-success); }
+        > i {
+          flex-shrink: 0;
+          font-size: 1.1em;
+          line-height: 1.2;
         }
+      }
+
+      .status-chip-text { min-width: 0; }
+
+      .status-chip-all-registered {
+        background: color-mix(in srgb, var(--bs-success) 12%, transparent);
+        border-color: color-mix(in srgb, var(--bs-success) 30%, transparent);
+        color: var(--bs-success);
+      }
+
+      .status-chip-partial {
+        background: color-mix(in srgb, var(--bs-warning) 14%, transparent);
+        border-color: color-mix(in srgb, var(--bs-warning) 35%, transparent);
+        color: color-mix(in srgb, var(--bs-warning) 70%, var(--brand-text));
+      }
+
+      .status-chip-none-registered {
+        background: color-mix(in srgb, var(--bs-danger) 12%, transparent);
+        border-color: color-mix(in srgb, var(--bs-danger) 35%, transparent);
+        color: var(--bs-danger);
       }
 
       /* ── Body container ────────────────────────────────────────────── */
@@ -346,9 +407,9 @@ export interface RegisteredInfo {
       /* ── Footer ────────────────────────────────────────────────────── */
       .panel-footer {
         flex-shrink: 0;
-        padding: var(--space-2) var(--space-3);
-        border-top: 1px solid var(--bs-border-color);
-        background: var(--bs-body-bg);
+        padding: var(--space-3);
+        border-top: 1px solid color-mix(in srgb, var(--bs-primary) 18%, transparent);
+        background: color-mix(in srgb, var(--bs-primary) 4%, var(--bs-body-bg));
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
@@ -362,34 +423,14 @@ export interface RegisteredInfo {
         .btn-flyin-done { margin-left: auto; }
       }
 
-      .footer-warning {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        background: rgba(var(--bs-warning-rgb), 0.1);
-        border: 1px solid rgba(var(--bs-warning-rgb), 0.3);
-        border-radius: var(--radius-sm);
-        font-size: var(--font-size-xs);
-        color: var(--brand-text);
-        line-height: var(--line-height-normal);
-
-        > i {
-          color: var(--bs-warning);
-          font-size: var(--font-size-base);
-          flex-shrink: 0;
-          margin-top: 1px;
-        }
-
-        strong { color: var(--brand-text); font-weight: var(--font-weight-bold); }
-      }
-
+      /* Add Team — primary action of the panel. Solid bordered + filled tint
+         so it reads as a real button, not a quiet text link. */
       .btn-flyin-add {
         display: inline-flex;
         align-items: center;
         padding: var(--space-2) var(--space-3);
-        background: transparent;
-        border: 1px solid rgba(var(--bs-primary-rgb), 0.3);
+        background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+        border: 1.5px solid var(--bs-primary);
         border-radius: var(--radius-sm);
         color: var(--bs-primary);
         font-size: var(--font-size-sm);
@@ -397,7 +438,9 @@ export interface RegisteredInfo {
         cursor: pointer;
         transition: background-color 0.1s ease, border-color 0.1s ease;
 
-        &:hover { background: rgba(var(--bs-primary-rgb), 0.08); border-color: var(--bs-primary); }
+        &:hover {
+          background: color-mix(in srgb, var(--bs-primary) 20%, transparent);
+        }
 
         &:focus-visible {
           outline: none;
@@ -434,95 +477,207 @@ export interface RegisteredInfo {
         }
       }
 
-      /* ── Library list rows ─────────────────────────────────────────── */
-      .lib-list {
+      /* ── Tip card (fills sparse-list dead space + reinforces the
+         library-vs-event-registration distinction) ────────────────── */
+      .lib-tip {
         display: flex;
-        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--space-2);
+        margin: var(--space-3);
+        padding: var(--space-3);
+        background: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+        border: 1px solid color-mix(in srgb, var(--bs-primary) 18%, transparent);
+        border-radius: var(--radius-md);
+
+        > i {
+          color: var(--bs-primary);
+          font-size: 1.25rem;
+          flex-shrink: 0;
+          line-height: 1.2;
+        }
       }
 
-      .lib-row {
-        display: grid;
-        grid-template-columns: 1fr auto auto;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        min-height: 56px;
-        border-bottom: 1px solid rgba(var(--bs-dark-rgb), 0.04);
+      .lib-tip-text {
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-normal);
+        color: var(--brand-text-muted);
+
+        strong {
+          display: block;
+          color: var(--brand-text);
+          font-weight: var(--font-weight-semibold);
+          margin-bottom: 2px;
+        }
+      }
+
+      /* ── Library audit table ───────────────────────────────────────
+         Hand-rolled compact table for the team list. Status column does
+         double duty: shows ✓ + age group when registered, Register button
+         when not. Actions column carries library-lifecycle (edit / archive
+         / delete) — separated from the event-axis Status column. */
+      .lib-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--font-size-sm);
+        table-layout: fixed;
+      }
+
+      .lib-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        padding: var(--space-2) var(--space-2);
+        text-align: left;
+        font-size: 10px;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--brand-text-muted);
+        background: color-mix(in srgb, var(--bs-body-color) 5%, var(--bs-body-bg));
+        border-bottom: 1px solid var(--border-color);
+        white-space: nowrap;
+      }
+
+      /* Column widths sized for the 520px panel.
+         Lib-* columns hold library-intrinsic data; Reg column holds this
+         event's registration data. Headers carry the prefix so the rep can
+         tell which axis each cell is on. */
+      .lib-th-team    { width: auto; }
+      .lib-th-age     { width: 80px; text-align: center !important; }
+      .lib-th-lop     { width: 60px; text-align: center !important; }
+      .lib-th-status  { width: 130px; text-align: left !important; }
+      .lib-th-actions { width: 56px; text-align: center !important; }
+
+      .lib-tr {
+        border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color) 6%, transparent);
         transition: background-color 0.1s ease;
 
         &:last-child { border-bottom: none; }
+        &:hover:not(.is-archived) {
+          background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
+        }
       }
 
-      .lib-row-actionable:hover {
-        background: rgba(var(--bs-success-rgb), 0.04);
+      /* Subtle green wash on registered rows — the Status column carries
+         most of the signal, but a faint row tint confirms it row-wide. */
+      .lib-tr.is-registered {
+        background: color-mix(in srgb, var(--bs-success) 5%, transparent);
+
+        &:hover { background: color-mix(in srgb, var(--bs-success) 9%, transparent); }
       }
 
-      .lib-identity {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        min-width: 0;
+      .lib-table td {
+        padding: var(--space-2);
+        vertical-align: middle;
       }
 
-      .lib-icon {
-        font-size: var(--font-size-lg);
-        flex-shrink: 0;
-        width: 22px;
+      .lib-td-age,
+      .lib-td-lop {
         text-align: center;
-        color: rgba(var(--bs-primary-rgb), 0.55);
+        color: var(--brand-text-muted);
+        font-variant-numeric: tabular-nums;
       }
 
-      .lib-identity-text {
-        display: flex;
-        flex-direction: column;
-        gap: 1px;
+      .lib-td-team {
         min-width: 0;
       }
 
-      .lib-name {
+      .team-name {
+        display: block;
         font-weight: var(--font-weight-semibold);
         color: var(--brand-text);
-        font-size: var(--font-size-sm);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        line-height: 1.25;
+        min-width: 0;
       }
 
-      .lib-meta {
+      /* ── Status column — three states ───────────────────────────── */
+      .status-yes {
         display: inline-flex;
         align-items: center;
-        gap: var(--space-1);
+        gap: 4px;
+        color: var(--bs-success);
+        font-weight: var(--font-weight-semibold);
+        white-space: nowrap;
+
+        > i { font-size: 1em; }
+      }
+
+      .status-yes-detail {
         font-size: 11px;
-        color: var(--brand-text-muted);
-        line-height: 1.2;
-
-        i { font-size: 10px; opacity: 0.75; }
+        font-weight: var(--font-weight-medium);
       }
 
-      .lib-meta-item {
+      .status-closed {
         display: inline-flex;
         align-items: center;
-        gap: 3px;
+        gap: 4px;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+
+        > i { font-size: 0.95em; }
+      }
+
+      .status-archived {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+        font-style: italic;
+        font-weight: var(--font-weight-medium);
+      }
+
+      /* Register button — primary-blue CTA. Distinct from the green "done"
+         pill so a row scan reads cleanly: green ✓ = registered, blue button
+         = action needed. Reusing green for the CTA (earlier draft) made every
+         unregistered row look "done." */
+      .btn-register-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px var(--space-2);
+        background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+        border: 1px solid color-mix(in srgb, var(--bs-primary) 45%, transparent);
+        border-radius: var(--radius-sm);
+        color: var(--bs-primary);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        white-space: nowrap;
+        transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+
+        &:hover:not(:disabled) {
+          background: var(--bs-primary);
+          color: var(--neutral-0);
+          border-color: var(--bs-primary);
+          transform: translateY(-1px);
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+
+        &:disabled { opacity: 0.4; cursor: default; }
+      }
+
+      .lib-td-actions {
+        text-align: right;
         white-space: nowrap;
       }
 
-      .lib-meta-divider { opacity: 0.55; }
-
-      /* Registered row — green tint, trophy icon, success palette */
-      .lib-row-registered {
-        background: rgba(var(--bs-success-rgb), 0.05);
-
-        .lib-icon { color: var(--bs-success); }
-        .lib-name { color: var(--bs-success); }
+      /* Archived table — no thead, italicized rows */
+      .lib-table-archived {
+        background: color-mix(in srgb, var(--bs-body-color) 2%, transparent);
       }
 
-      .lib-actions {
-        display: inline-flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 4px;
-        flex-shrink: 0;
+      .lib-tr.is-archived {
+        opacity: 0.78;
+
+        .team-name { color: var(--brand-text-muted); font-style: italic; }
       }
 
       .lib-icon-btn {
@@ -554,10 +709,117 @@ export interface RegisteredInfo {
         &:disabled { opacity: 0.3; cursor: default; }
       }
 
-      .lib-icon-danger:hover:not(:disabled) {
-        background: rgba(var(--bs-danger-rgb), 0.08);
-        border-color: rgba(var(--bs-danger-rgb), 0.25);
+      /* ── Manage kebab menu ──────────────────────────────────────
+         Replaces the per-row Edit/Archive/Delete icon stack so every
+         row has a single icon (visual calm). Menu opens with all three
+         lifecycle actions; unavailable ones show their lock reason. */
+      .lib-menu-anchor {
+        position: relative;
+        display: inline-block;
+      }
+
+      .lib-kebab {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border: 1px solid transparent;
+        border-radius: var(--radius-sm);
+        background: transparent;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-base);
+        cursor: pointer;
+        transition: background-color 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+
+        &:hover:not(:disabled),
+        &.is-open {
+          background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+          border-color: color-mix(in srgb, var(--bs-primary) 22%, transparent);
+          color: var(--bs-primary);
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+
+        &:disabled { opacity: 0.3; cursor: default; }
+      }
+
+      .lib-menu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 4px);
+        min-width: 260px;
+        background: var(--bs-body-bg);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        padding: 4px;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .lib-menu-item {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        width: 100%;
+        padding: var(--space-2);
+        background: transparent;
+        border: none;
+        border-radius: var(--radius-sm);
+        text-align: left;
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        cursor: pointer;
+        transition: background-color 0.1s ease;
+
+        &:hover:not(:disabled) {
+          background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+
+        &:disabled {
+          color: var(--brand-text-muted);
+          cursor: default;
+        }
+      }
+
+      .lib-menu-icon {
+        font-size: var(--font-size-base);
+        flex-shrink: 0;
+        width: 18px;
+        text-align: center;
+      }
+
+      .lib-menu-label {
+        font-weight: var(--font-weight-medium);
+      }
+
+      .lib-menu-reason {
+        margin-left: auto;
+        font-size: var(--font-size-xs);
+        font-style: italic;
+        color: var(--brand-text-muted);
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .lib-menu-item-danger:not(:disabled) {
         color: var(--bs-danger);
+
+        &:hover {
+          background: color-mix(in srgb, var(--bs-danger) 10%, transparent);
+        }
       }
 
       .lib-lock {
@@ -773,9 +1035,62 @@ export class LibraryFlyinComponent {
     readonly delete = output<ClubTeamDto>();
     readonly restore = output<ClubTeamDto>();
 
-    /** Local UI state for collapsible archived sub-section (default collapsed). */
-    readonly showArchived = signal(false);
+    /** Local UI state for collapsible archived sub-section. Default expanded
+     *  so the restore action is reachable without an extra click. */
+    readonly showArchived = signal(true);
     toggleArchived(): void { this.showArchived.set(!this.showArchived()); }
+
+    /** Active row whose kebab menu is open (null = none). */
+    readonly openMenuTeamId = signal<number | null>(null);
+
+    toggleMenu(event: MouseEvent, teamId: number): void {
+        event.stopPropagation();
+        this.openMenuTeamId.set(this.openMenuTeamId() === teamId ? null : teamId);
+    }
+
+    closeMenu(): void {
+        this.openMenuTeamId.set(null);
+    }
+
+    /** Returns the lock reason for Edit, or null if available. */
+    editLockReason(team: ClubTeamDto): string | null {
+        if (team.bHasBeenScheduled) return 'Has event history';
+        return null;
+    }
+
+    /** Returns the lock reason for Archive, or null if available. */
+    archiveLockReason(team: ClubTeamDto, registered: boolean): string | null {
+        if (!team.bHasBeenScheduled) return 'Use Delete — no event history';
+        if (registered) return 'Registered for this event';
+        return null;
+    }
+
+    /** Returns the lock reason for Delete, or null if available. */
+    deleteLockReason(team: ClubTeamDto, registered: boolean): string | null {
+        if (team.bHasBeenScheduled) return 'Use Archive — has event history';
+        if (registered) return 'Registered for this event';
+        return null;
+    }
+
+    handleMenuEdit(team: ClubTeamDto): void {
+        this.closeMenu();
+        if (!this.editLockReason(team)) this.edit.emit(team);
+    }
+
+    handleMenuArchive(team: ClubTeamDto, registered: boolean): void {
+        this.closeMenu();
+        if (!this.archiveLockReason(team, registered)) this.archive.emit(team);
+    }
+
+    handleMenuDelete(team: ClubTeamDto, registered: boolean): void {
+        this.closeMenu();
+        if (!this.deleteLockReason(team, registered)) this.delete.emit(team);
+    }
+
+    @HostListener('document:click')
+    onDocumentClick(): void {
+        if (this.openMenuTeamId() !== null) this.closeMenu();
+    }
 
     readonly activeTeams = computed(() =>
         this.clubTeams()
@@ -790,25 +1105,13 @@ export class LibraryFlyinComponent {
     );
 
     /**
-     * Active teams sorted by status priority — surfaces what the rep can act
-     * on. Order: not-yet-registered (Register button) → registered → closed.
-     * Within each group, alphabetical.
+     * Active teams in alphabetical order. Stable position is the goal —
+     * registering a team should NOT move it (status-priority sort would shift
+     * rows mid-session and break the rep's spatial memory of their library).
+     * Visual cues (green ✓ vs blue Register button) already surface action
+     * state without re-ordering.
      */
-    readonly sortedActiveTeams = computed(() => {
-        const entered = this.enteredTeams();
-        const canReg = this.canRegister();
-        const statusOf = (t: ClubTeamDto): number => {
-            if (entered.has(t.clubTeamId)) return 1;       // Registered (done)
-            if (canReg) return 0;                          // Action needed (top)
-            return 2;                                      // Closed (informational)
-        };
-        return [...this.activeTeams()].sort((a, b) => {
-            const sa = statusOf(a);
-            const sb = statusOf(b);
-            if (sa !== sb) return sa - sb;
-            return a.clubTeamName.localeCompare(b.clubTeamName);
-        });
-    });
+    readonly sortedActiveTeams = this.activeTeams;
 
     readonly registeredCount = computed(() => {
         const entered = this.enteredTeams();
@@ -831,6 +1134,54 @@ export class LibraryFlyinComponent {
 
     readonly doneLabel = computed(() => this.showNoneRegisteredWarning() ? 'Close' : 'Done');
 
+    /**
+     * Header status state. Drives chip color, icon, and message — the rep's
+     * registration-coverage check at a glance.
+     *   - 'empty'           → library is empty (or all-archived); chip hidden, body shows hero
+     *   - 'none-registered' → library has teams, none entered for this event (urgent — likely no-show trap)
+     *   - 'partial'         → some entered, some not (action needed — see which are unregistered below)
+     *   - 'all-registered'  → every active team is entered (reassuring — green ✓)
+     */
+    readonly statusState = computed<'empty' | 'none-registered' | 'partial' | 'all-registered'>(() => {
+        const active = this.activeTeams().length;
+        if (active === 0) return 'empty';
+        const registered = this.registeredCount();
+        if (registered === 0) return 'none-registered';
+        if (registered < active) return 'partial';
+        return 'all-registered';
+    });
+
+    readonly statusIcon = computed(() => {
+        switch (this.statusState()) {
+            case 'all-registered':  return 'bi-check-circle-fill';
+            case 'partial':         return 'bi-exclamation-triangle-fill';
+            case 'none-registered': return 'bi-exclamation-octagon-fill';
+            default:                return '';
+        }
+    });
+
+    readonly statusText = computed(() => {
+        const total = this.activeTeams().length;
+        const reg = this.registeredCount();
+        const event = this.eventName();
+        switch (this.statusState()) {
+            case 'all-registered':
+                return total === 1
+                    ? `Your team is registered for ${event}`
+                    : `All ${total} teams registered for ${event}`;
+            case 'partial': {
+                const remaining = total - reg;
+                return `${reg} of ${total} registered — ${remaining} still ${remaining === 1 ? 'needs' : 'need'} to be entered for ${event}`;
+            }
+            case 'none-registered':
+                return total === 1
+                    ? `Your team is NOT yet registered for ${event}`
+                    : `0 of ${total} registered — none entered for ${event} yet`;
+            default:
+                return '';
+        }
+    });
+
     isEntered(clubTeamId: number): boolean {
         return this.enteredTeams().has(clubTeamId);
     }
@@ -849,12 +1200,27 @@ export class LibraryFlyinComponent {
         return match ? match[1] : lop;
     }
 
+    /**
+     * Compact display for the Reg AgeGroup/LOP cell — "U10 / 3", "U10", "3",
+     * or empty when both missing. Falls back gracefully when only one is set.
+     */
+    formatRegisteredDisplay(info: RegisteredInfo): string {
+        const age = info.ageGroupName?.trim() ?? '';
+        const lop = this.formatLop(info.levelOfPlay);
+        if (age && lop) return `${age} / ${lop}`;
+        return age || lop;
+    }
+
     onClose(): void {
         this.closed.emit();
     }
 
     @HostListener('document:keydown.escape')
     onEscape(): void {
+        if (this.openMenuTeamId() !== null) {
+            this.closeMenu();
+            return;
+        }
         if (this.isOpen()) this.onClose();
     }
 }

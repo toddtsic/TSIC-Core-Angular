@@ -36,7 +36,9 @@ export interface AgeGroupSelection {
 
         <!-- LOP selector — pre-filled from the library team, rep can override for this event -->
         @if (lopOptions.length > 0) {
-          <div class="lop-selector" [class.is-active-region]="!selectedLop()">
+          <div class="lop-selector"
+               [class.is-active-region]="!selectedLop()"
+               [class.is-completed]="!!selectedLop()">
             <label class="lop-label">Level of Play</label>
             <div class="lop-pills" role="radiogroup" aria-label="Level of play">
               @for (lop of lopOptions; track lop) {
@@ -263,14 +265,27 @@ export interface AgeGroupSelection {
         }
       }
 
-      /* ── Active-region frame ── guides the eye through the two-step flow */
+      /* ── Active-region frame ── guides the eye through the two-step flow.
+         Whichever section is currently actionable gets the primary-blue frame
+         + a single entrance pulse (one-shot, no loop). The completed section
+         softens to a "done" green frame so the eye reads the hierarchy:
+            done → ACT NOW → (next will pulse when its turn comes) */
       .lop-selector.is-active-region,
       .picker-body.is-active-region {
         border: 3px solid var(--bs-primary);
-        background: rgba(var(--bs-primary-rgb), 0.12);
+        background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
         border-radius: var(--radius-md);
         margin: 0 var(--space-3);
-        transition: border-color 0.2s ease, background 0.2s ease;
+        transition: border-color 0.3s ease, background 0.3s ease;
+        animation: activeRegionEntrance 700ms ease-out 1 both;
+      }
+
+      .lop-selector.is-completed {
+        border: 1.5px solid color-mix(in srgb, var(--bs-success) 35%, transparent);
+        background: color-mix(in srgb, var(--bs-success) 5%, transparent);
+        border-radius: var(--radius-md);
+        margin: 0 var(--space-3);
+        transition: border-color 0.3s ease, background 0.3s ease;
       }
 
       .picker-pill-grid {
@@ -433,6 +448,16 @@ export interface AgeGroupSelection {
         100% { transform: scale(1); box-shadow: var(--shadow-xs); }
       }
 
+      /* Single-cycle attention pulse for whichever section is currently
+         actionable. Expands an outer ring then fades to nothing — does NOT
+         loop. Fires when the section first gains .is-active-region (modal
+         open for LOP, LOP-selection moment for picker-body). */
+      @keyframes activeRegionEntrance {
+        0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--bs-primary) 45%, transparent); }
+        50%  { box-shadow: 0 0 0 10px color-mix(in srgb, var(--bs-primary) 18%, transparent); }
+        100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--bs-primary)  0%, transparent); }
+      }
+
       /* ── Mobile ── */
       @media (max-width: 575.98px) {
         .pill-flip-wrapper {
@@ -449,7 +474,7 @@ export interface AgeGroupSelection {
       @media (prefers-reduced-motion: reduce) {
         .picker-hero, .picker-tip, .pill-flip-wrapper { animation: none; }
         .picker-pill { transition: none; }
-        .lop-selector, .picker-body { transition: none; }
+        .lop-selector, .picker-body { transition: none; animation: none; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,

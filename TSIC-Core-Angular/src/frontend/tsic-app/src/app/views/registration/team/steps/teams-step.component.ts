@@ -63,7 +63,7 @@ interface AgePickerTeam {
                 <span>How Team Registration Works</span>
               </div>
               <h3 class="two-step-headline">
-                Two steps to get your teams into <span class="event-name">{{ jobName() }}</span>
+                Two steps to get your teams into <span class="event-name">{{ eventName() }}</span>
               </h3>
 
               <div class="two-step-cards">
@@ -91,7 +91,7 @@ interface AgePickerTeam {
                   <strong>Register for this event</strong>
                   <span>
                     Pick from your library to enter
-                    <strong>{{ jobName() }}</strong> &mdash; pay fees, get a schedule slot.
+                    <strong>{{ eventName() }}</strong> &mdash; pay fees, get a schedule slot.
                   </span>
                 </div>
               </div>
@@ -108,8 +108,8 @@ interface AgePickerTeam {
               <i class="bi bi-clipboard-plus"></i>
               <strong>{{ allLibraryTeams().length }} library
                 {{ allLibraryTeams().length === 1 ? 'team' : 'teams' }}
-                ready &mdash; none registered for {{ jobName() }} yet</strong>
-              <span>Pick from your library to enter <strong>{{ jobName() }}</strong>.</span>
+                ready &mdash; none registered for {{ eventName() }} yet</strong>
+              <span>Pick from your library to enter <strong>{{ eventName() }}</strong>.</span>
               <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
                       (click)="openLibraryFlyin()">
                 <i class="bi bi-trophy-fill me-2"></i>
@@ -170,7 +170,7 @@ interface AgePickerTeam {
         [canRegister]="canRegisterTeam()"
         [actionInProgress]="actionInProgress()"
         [enteredTeams]="enteredTeamsMap()"
-        [eventName]="jobName()"
+        [eventName]="eventName()"
         (closed)="closeLibraryFlyin()"
         (register)="onFlyinRegister($event)"
         (addNew)="showAddModal.set(true)"
@@ -191,7 +191,7 @@ interface AgePickerTeam {
     @if (showAddAndRegisterModal()) {
       <app-add-and-register-team-modal
         [clubName]="clubName()"
-        [eventName]="jobName()"
+        [eventName]="eventName()"
         [ageGroups]="ageGroups()"
         (saved)="onAddAndRegisterSaved()"
         (closed)="showAddAndRegisterModal.set(false)" />
@@ -208,7 +208,7 @@ interface AgePickerTeam {
     @if (agePickerTeam(); as pickerTeam) {
       <app-age-group-picker-modal
         [teamName]="pickerTeam.clubTeamName"
-        [eventName]="jobName()"
+        [eventName]="eventName()"
         [gradYear]="pickerTeam.gradYear"
         [levelOfPlay]="pickerTeam.levelOfPlay"
         [currentAgeGroupId]="pickerTeam.currentAgeGroupId ?? ''"
@@ -680,7 +680,14 @@ export class TeamTeamsStepComponent implements OnInit {
     private readonly jobService = inject(JobService);
     private readonly destroyRef = inject(DestroyRef);
 
-    readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? 'this event');
+    /** Clean event name with the org-prefix and colon stripped — same split as
+        team.component.ts page hero, so child components see only the headline
+        portion ("Carolina Clash 2026" not "Top Threat Tournaments:Carolina Clash 2026"). */
+    readonly eventName = computed(() => {
+        const raw = this.jobService.currentJob()?.jobName ?? 'this event';
+        const idx = raw.indexOf(':');
+        return idx > 0 ? raw.substring(idx + 1).trim() : raw;
+    });
 
     /** Capability flags from job pulse — gate the Register/Remove UI controls. */
     readonly canRegisterTeam = this.state.canRegisterTeam;
@@ -744,13 +751,16 @@ export class TeamTeamsStepComponent implements OnInit {
 
     /**
      * Map of clubTeamId → registration info — flyin uses this to mark rows as
-     * Registered AND to display *which* age group each is registered as.
+     * Registered AND to display *which* age group + LOP each is registered as.
      */
     readonly enteredTeamsMap = computed(() => {
-        const map = new Map<number, { ageGroupName: string }>();
+        const map = new Map<number, { ageGroupName: string; levelOfPlay: string }>();
         for (const r of this._registeredTeams()) {
             if (r.clubTeamId != null) {
-                map.set(r.clubTeamId, { ageGroupName: r.ageGroupName ?? '' });
+                map.set(r.clubTeamId, {
+                    ageGroupName: r.ageGroupName ?? '',
+                    levelOfPlay: r.levelOfPlay ?? '',
+                });
             }
         }
         return map;
