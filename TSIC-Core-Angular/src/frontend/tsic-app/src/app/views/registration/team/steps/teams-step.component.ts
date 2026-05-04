@@ -8,6 +8,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
 import { AgeGroupPickerModalComponent, type AgeGroupSelection } from './age-group-picker-modal.component';
+import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { LibraryFlyinComponent } from '../components/library-flyin.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
@@ -27,7 +28,7 @@ interface AgePickerTeam {
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, ConfirmDialogComponent, LibraryFlyinComponent, CurrencyPipe],
+    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent, CurrencyPipe],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -97,10 +98,10 @@ interface AgePickerTeam {
                 </div>
               </div>
 
-              <button type="button" class="btn btn-primary btn-lg cta-empty cta-empty-library"
-                      (click)="openLibraryFlyin()">
-                <i class="bi bi-plus-circle-fill me-2"></i>
-                Add Your First Library Team
+              <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-library"
+                      (click)="showAddAndRegisterModal.set(true)">
+                <i class="bi bi-trophy-fill me-2"></i>
+                Register Your First Team for this Event
                 <i class="bi bi-arrow-right ms-2 cta-empty-arrow"></i>
               </button>
             </div>
@@ -185,6 +186,15 @@ interface AgePickerTeam {
         [clubName]="clubName()"
         (saved)="onTeamAdded()"
         (closed)="showAddModal.set(false)" />
+    }
+
+    @if (showAddAndRegisterModal()) {
+      <app-add-and-register-team-modal
+        [clubName]="clubName()"
+        [eventName]="jobName()"
+        [ageGroups]="ageGroups()"
+        (saved)="onAddAndRegisterSaved()"
+        (closed)="showAddAndRegisterModal.set(false)" />
     }
 
     @if (editingTeam(); as editing) {
@@ -542,6 +552,8 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly lopOptions = signal<string[]>([]);
     readonly actionInProgress = signal(false);
     readonly showAddModal = signal(false);
+    /** Combined add+register modal — only used for the empty-empty first-team flow. */
+    readonly showAddAndRegisterModal = signal(false);
     /** When set, the edit modal is open for this team. */
     readonly editingTeam = signal<ClubTeamDto | null>(null);
     /** When set, the delete-confirm dialog is open for this team. */
@@ -723,6 +735,12 @@ export class TeamTeamsStepComponent implements OnInit {
 
     onTeamAdded(): void {
         this.showAddModal.set(false);
+        this.loadTeamsMetadata();
+    }
+
+    /** Combined add+register modal succeeded — close it and refresh state. */
+    onAddAndRegisterSaved(): void {
+        this.showAddAndRegisterModal.set(false);
         this.loadTeamsMetadata();
     }
 
