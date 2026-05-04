@@ -6,6 +6,10 @@ import { environment } from './environments/environment';
 
 assertEnvironmentMatches(environment.envName, environment.apiUrl);
 
+// Drives env-aware chrome (header tint + chip in client-header-bar). Set on <body>
+// so global SCSS in _elevated-components.scss can key off it without component scope.
+document.body.dataset['env'] = environment.envName;
+
 registerLicense('Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWXtccHZUQ2JeWER2XERWYEo=');
 
 bootstrapApplication(AppComponent, appConfig)

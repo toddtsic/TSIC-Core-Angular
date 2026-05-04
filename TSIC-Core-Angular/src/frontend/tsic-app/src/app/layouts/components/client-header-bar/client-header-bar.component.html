@@ -30,6 +30,9 @@
                     <img src="images/tsic-notext-logo.png" alt="TSIC" class="mobile-logo" />
                 </button>
 
+                <!-- Environment chip — text + colors driven by body[data-env] in global SCSS. -->
+                <span class="env-chip-inline" aria-label="Environment indicator" title="Non-production environment"></span>
+
                 <!-- Job Logo — click navigates to role landing page -->
                 @if (jobLogoPath()) {
                 <div class="job-logo-box logo-box d-none d-md-block" role="button" tabindex="0"
