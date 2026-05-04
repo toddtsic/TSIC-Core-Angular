@@ -80,7 +80,9 @@
   }
 }
 
-/* Tight — toolbar overrides */
+/* Tight — toolbar overrides
+   Selectors match base's depth (.e-toolbar-items .e-toolbar-item button.e-tbar-btn)
+   so density wins via later source order; the shorter form gets out-specificed. */
 .tsic-grid-tight.e-grid .e-toolbar,
 .tsic-grid-tight.e-grid .e-toolbar.e-control {
   min-height: 36px;
@@ -93,24 +95,179 @@
   gap: var(--space-2);
 }
 
-.tsic-grid-tight.e-grid .e-toolbar .e-btn,
-.tsic-grid-tight.e-grid .e-toolbar .e-tbar-btn {
+.tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items .e-toolbar-item button.e-tbar-btn,
+.tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items .e-toolbar-item .e-tbar-btn {
   padding: var(--space-1) var(--space-3);
   font-size: var(--font-size-sm);
   min-height: 28px;
   height: 28px;
   line-height: 1.2;
+  font-weight: var(--font-weight-medium);
   background-color: var(--bs-secondary-bg);
   color: var(--bs-body-color);
   border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
   transition: all 0.2s ease;
+
+  .e-icons,
+  .e-btn-icon,
+  .e-tbar-btn-text {
+    color: var(--bs-body-color);
+  }
 }
 
-.tsic-grid-tight.e-grid .e-toolbar .e-btn:hover,
-.tsic-grid-tight.e-grid .e-toolbar .e-tbar-btn:hover {
+.tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items .e-toolbar-item button.e-tbar-btn:hover,
+.tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items .e-toolbar-item .e-tbar-btn:hover {
   background-color: var(--bs-tertiary-bg);
   border-color: var(--bs-primary);
   color: var(--bs-primary);
+
+  .e-icons,
+  .e-btn-icon,
+  .e-tbar-btn-text {
+    color: var(--bs-primary);
+  }
+}
+
+.tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items .e-toolbar-item button.e-tbar-btn:focus-visible,
+.tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items .e-toolbar-item .e-tbar-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items .e-toolbar-item button.e-tbar-btn,
+  .tsic-grid-tight.e-grid .e-toolbar .e-toolbar-items .e-toolbar-item .e-tbar-btn {
+    transition: none;
+  }
+}
+
+/* ── Tight — inline edit-row widgets (Normal edit mode) ─────────
+   SF's default theme renders edit inputs at full theme height with
+   stock chrome — too tall + visually unstyled in a tight grid. These
+   rules size and theme the controls SF injects when a row enters edit
+   mode (.e-editedrow). Covers text input, numeric, dropdown, checkbox. */
+
+.tsic-grid-tight.e-grid .e-editedrow .e-rowcell {
+  padding: var(--space-2) var(--space-3);
+  vertical-align: middle;
+}
+
+/* Text inputs (string columns) */
+.tsic-grid-tight.e-grid .e-editedrow input.e-input,
+.tsic-grid-tight.e-grid .e-editedrow .e-input-group:not(.e-numeric):not(.e-ddl) input.e-input {
+  height: 28px;
+  font-size: var(--font-size-sm);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus {
+    outline: none;
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb), 0.2);
+  }
+}
+
+/* NumericTextBox wrapper */
+.tsic-grid-tight.e-grid .e-editedrow .e-numerictextbox.e-input-group,
+.tsic-grid-tight.e-grid .e-editedrow .e-input-group.e-numeric {
+  height: 28px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  margin: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  input.e-numerictextbox,
+  input.e-input {
+    height: 26px;
+    font-size: var(--font-size-sm);
+    padding: 0 var(--space-2);
+    background: transparent;
+    color: var(--bs-body-color);
+    border: none;
+  }
+
+  .e-spin-up,
+  .e-spin-down {
+    background: transparent;
+    color: var(--bs-secondary-color);
+    width: 18px;
+
+    &:hover { color: var(--bs-primary); }
+  }
+
+  &.e-input-focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb), 0.2);
+  }
+}
+
+/* DropDownList wrapper (dropdownedit columns) */
+.tsic-grid-tight.e-grid .e-editedrow .e-ddl.e-input-group,
+.tsic-grid-tight.e-grid .e-editedrow .e-ddl.e-input-group.e-control-wrapper {
+  height: 28px;
+  background: var(--bs-body-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  margin: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  input.e-input {
+    height: 26px;
+    font-size: var(--font-size-sm);
+    padding: 0 var(--space-2);
+    background: transparent;
+    color: var(--bs-body-color);
+    border: none;
+  }
+
+  .e-input-group-icon,
+  .e-ddl-icon {
+    color: var(--bs-secondary-color);
+  }
+
+  &.e-input-focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb), 0.2);
+  }
+}
+
+/* Checkbox (boolean columns) */
+.tsic-grid-tight.e-grid .e-editedrow .e-checkbox-wrapper {
+  margin: 0;
+  padding: 0;
+
+  .e-frame {
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    border-radius: var(--radius-sm);
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &.e-check {
+      background: var(--bs-primary);
+      border-color: var(--bs-primary);
+      color: var(--bs-light);
+    }
+  }
+
+  .e-ripple-container { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tsic-grid-tight.e-grid .e-editedrow input.e-input,
+  .tsic-grid-tight.e-grid .e-editedrow .e-input-group,
+  .tsic-grid-tight.e-grid .e-editedrow .e-numerictextbox.e-input-group,
+  .tsic-grid-tight.e-grid .e-editedrow .e-ddl.e-input-group,
+  .tsic-grid-tight.e-grid .e-editedrow .e-checkbox-wrapper .e-frame {
+    transition: none;
+  }
 }
 
 /* Tight — mobile */

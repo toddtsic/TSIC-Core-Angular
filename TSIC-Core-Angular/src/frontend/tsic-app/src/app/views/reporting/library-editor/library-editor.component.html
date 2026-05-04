@@ -1,0 +1,94 @@
+<div class="library-editor-page">
+    <div class="page-header">
+        <div>
+            <h2 class="page-title">
+                <i class="bi bi-sliders page-title-icon"></i>
+                Reports Library Editor
+            </h2>
+            <p class="page-subtitle">
+                Manage per-role rows of <code>reporting.JobReports</code> for the <strong>current job</strong>.
+                Pick a role to load its rows. Use <em>Add</em> to create a new entry for that role, or
+                <em>Edit</em> (or double-click a row) to change Title, Icon, Group, Sort Order, or Active.
+                <code>Controller</code>, <code>Action</code>, and <code>Kind</code> are immutable on existing rows.
+            </p>
+        </div>
+    </div>
+
+    @if (errorMessage()) {
+        <section class="result-panel result-panel--danger" role="alert">
+            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <h4 class="result-panel__title">Could not complete</h4>
+                <p class="result-panel__desc">{{ errorMessage() }}</p>
+            </div>
+        </section>
+    }
+
+    @if (successMessage()) {
+        <section class="result-panel result-panel--success" role="status">
+            <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
+            <div class="result-panel__body">
+                <p class="result-panel__desc">{{ successMessage() }}</p>
+            </div>
+        </section>
+    }
+
+    <div class="role-picker">
+        <label for="role-select" class="role-picker__label">Role</label>
+        @if (isLoadingRoles()) {
+            <span class="text-muted">
+                <span class="spinner-border spinner-border-sm me-2"></span>Loading roles...
+            </span>
+        } @else if (roles().length === 0) {
+            <span class="text-muted">No roles have report rows for the current job.</span>
+        } @else {
+            <select id="role-select"
+                    class="field-select"
+                    [ngModel]="selectedRoleId()"
+                    (ngModelChange)="onRoleChange($event)">
+                @for (role of roles(); track role.roleId) {
+                    <option [value]="role.roleId">{{ role.roleName }} ({{ role.rowCount }})</option>
+                }
+            </select>
+        }
+    </div>
+
+    @if (isLoadingRows()) {
+        <div class="text-center py-4">
+            <span class="spinner-border spinner-border-sm text-primary me-2"></span>
+            <span class="text-muted">Loading rows...</span>
+        </div>
+    } @else if (selectedRoleId() && rows().length > 0) {
+        <ejs-grid #grid
+            [dataSource]="rows()"
+            cssClass="tsic-grid-tight"
+            [allowSorting]="true"
+            [toolbar]="toolbar"
+            [editSettings]="editSettings"
+            (actionBegin)="onActionBegin($event)"
+            (actionComplete)="onActionComplete($event)">
+            <e-columns>
+                <e-column field="jobReportId" headerText="Id" [isPrimaryKey]="true" [visible]="false" [allowEditing]="false"></e-column>
+                <e-column field="title" headerText="Title" width="240" [validationRules]="{ required: true }"></e-column>
+                <e-column field="iconName" headerText="Icon" width="120"></e-column>
+                <e-column field="groupLabel" headerText="Group" width="160"></e-column>
+                <e-column field="sortOrder" headerText="Sort" width="80" textAlign="Right" format="N0" editType="numericedit" [edit]="{ params: { format: 'N0', decimals: 0, validateDecimalOnType: true } }"></e-column>
+                <e-column field="active" headerText="Active" width="80" displayAsCheckBox="true" editType="booleanedit" type="boolean"></e-column>
+                <e-column field="kind" headerText="Kind" width="140" editType="dropdownedit" [edit]="kindEdit" [validationRules]="{ required: true }"></e-column>
+                <e-column field="controller" headerText="Controller" width="140" [validationRules]="{ required: true }"></e-column>
+                <e-column field="action" headerText="Action" width="320" [validationRules]="{ required: true }"></e-column>
+                <e-column field="modified" headerText="Modified" width="140" [allowEditing]="false" type="date" format="MM/dd/yyyy"></e-column>
+                <e-column field="lebUserId" headerText="By" width="120" [allowEditing]="false"></e-column>
+            </e-columns>
+        </ejs-grid>
+        <p class="grid-hint text-muted">
+            <i class="bi bi-info-circle me-1"></i>
+            Kind, Controller, and Action are required when adding a row but ignored on update of existing rows
+            (mutating them would unbind the row from its report). For Type-2 stored procedures use
+            <code>Kind = StoredProcedure</code> and Action like
+            <code>ExportStoredProcedureResults?spName=[reporting].[Foo]&amp;bUseJobId=true</code>.
+        </p>
+    } @else if (selectedRoleId()) {
+        <p class="text-muted">No rows for the selected role.</p>
+    }
+</div>

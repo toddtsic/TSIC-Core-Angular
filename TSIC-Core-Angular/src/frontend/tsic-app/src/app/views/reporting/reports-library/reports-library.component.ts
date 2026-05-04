@@ -5,7 +5,7 @@ import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
-import type { ReportCatalogueEntryDto } from '@core/api';
+import type { JobReportEntryDto } from '@core/api';
 import { TYPE1_REPORT_CATALOG } from '@core/reporting/type1-report-catalog';
 import { buildJobVisibilityContext, passesVisibilityRules } from '@core/reporting/visibility-rules';
 import {
@@ -57,6 +57,23 @@ function parseSpRunParams(parametersJson: string | null | undefined): SpRunParam
     }
 }
 
+/**
+ * Parses a stored-proc Action string from `reporting.JobReports` into the
+ * spName + run-params shape the existing executor needs. Action format:
+ *   ExportStoredProcedureResults?spName=[reporting].[Foo]&bUseJobId=true
+ */
+function parseStoredProcAction(action: string | null | undefined): { spName: string; parametersJson: string } | null {
+    if (!action) return null;
+    const qIdx = action.indexOf('?');
+    if (qIdx < 0) return null;
+    const params = new URLSearchParams(action.substring(qIdx + 1));
+    const spName = params.get('spName');
+    if (!spName) return null;
+    const bUseJobId = params.get('bUseJobId') === 'true';
+    const bUseDateUnscheduled = params.get('bUseDateUnscheduled') === 'true';
+    return { spName, parametersJson: JSON.stringify({ bUseJobId, bUseDateUnscheduled }) };
+}
+
 @Component({
     selector: 'app-reports-library',
     standalone: true,
@@ -72,7 +89,7 @@ export class ReportsLibraryComponent implements OnInit {
     private readonly authService = inject(AuthService);
     private readonly toast = inject(ToastService);
 
-    readonly type2Entries = signal<ReportCatalogueEntryDto[]>([]);
+    readonly type2Entries = signal<JobReportEntryDto[]>([]);
     readonly catalogueLoading = signal(false);
     readonly catalogueError = signal<string | null>(null);
     readonly runningId = signal<string | null>(null);
@@ -100,17 +117,27 @@ export class ReportsLibraryComponent implements OnInit {
                 endpointPath: e.endpointPath
             }));
 
-        const type2: LibraryEntry[] = this.type2Entries().map(e => ({
-            kind: 'type2',
-            id: `t2-${e.reportId}`,
-            title: e.title,
-            description: e.description,
-            iconName: e.iconName,
-            category: e.categoryCode ?? null,
-            sortOrder: e.sortOrder,
-            storedProcName: e.storedProcName,
-            parametersJson: e.parametersJson
-        }));
+        // Stored-proc entries from reporting.JobReports — Crystal Reports are skipped
+        // here because TYPE1_REPORT_CATALOG already covers them (avoids duplicates
+        // until the full FE rewire retires the hardcoded TYPE1 source).
+        // Categories: GroupLabel from legacy menus doesn't yet map to REPORT_CATEGORIES
+        // codes — most rows fall into 'Other' until the category bridge lands.
+        const type2: LibraryEntry[] = this.type2Entries()
+            .filter(e => e.kind === 'StoredProcedure')
+            .map(e => {
+                const parsed = parseStoredProcAction(e.action);
+                return {
+                    kind: 'type2',
+                    id: `t2-${e.jobReportId}`,
+                    title: e.title,
+                    description: null,
+                    iconName: e.iconName,
+                    category: e.groupLabel ?? null,
+                    sortOrder: e.sortOrder,
+                    storedProcName: parsed?.spName ?? '',
+                    parametersJson: parsed?.parametersJson ?? null,
+                };
+            });
 
         return [...type1, ...type2];
     });

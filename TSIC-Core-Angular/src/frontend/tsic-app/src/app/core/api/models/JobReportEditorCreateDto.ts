@@ -1,0 +1,16 @@
+/* generated using openapi-typescript-codegen -- do not edit */
+/* istanbul ignore file */
+/* tslint:disable */
+/* eslint-disable */
+export type JobReportEditorCreateDto = {
+    roleId: string;
+    title: string;
+    iconName?: string | null;
+    controller: string;
+    action: string;
+    kind: string;
+    groupLabel?: string | null;
+    sortOrder: number;
+    active: boolean;
+};
+

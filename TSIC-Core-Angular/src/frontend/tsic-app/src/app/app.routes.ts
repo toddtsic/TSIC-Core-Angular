@@ -420,7 +420,7 @@ export const routes: Routes = [
 				path: 'reporting/report-catalogue-editor',
 				canActivate: [authGuard],
 				data: { roles: [Roles.Superuser] },
-				loadComponent: () => import('./views/reporting/report-catalogue-editor/report-catalogue-editor.component').then(m => m.ReportCatalogueEditorComponent)
+				loadComponent: () => import('./views/reporting/library-editor/library-editor.component').then(m => m.LibraryEditorComponent)
 			},
 			{
 				path: 'reporting/:action',

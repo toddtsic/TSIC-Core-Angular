@@ -25,6 +25,45 @@ public interface IReportingService
         string spName,
         CancellationToken cancellationToken = default);
 
+    // ── SuperUser editor (per-Job, per-Role) ──
+
+    Task<List<JobReportEditorRoleDto>> GetEditorRolesAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    Task<List<JobReportEditorRowDto>> GetEditorRowsAsync(
+        Guid jobId,
+        string roleId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates an editor row. Returns null if no row matches <paramref name="jobReportId"/>
+    /// OR if the row's JobId doesn't match <paramref name="jobIdGuard"/> (defense in
+    /// depth — a SuperUser can switch jobs but the controller scopes every request to
+    /// the current job from JWT, and the row must belong to that job).
+    /// </summary>
+    Task<JobReportEditorRowDto?> UpdateEditorRowAsync(
+        Guid jobReportId,
+        Guid jobIdGuard,
+        JobReportEditorUpdateDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Creates a new editor row scoped to <paramref name="jobIdGuard"/> (the JWT's job).
+    /// Outcome:
+    /// <list type="bullet">
+    ///   <item><description>Row inserted → returns the persisted DTO.</description></item>
+    ///   <item><description>Unique-key violation on (JobId, RoleId, Controller, Action, GroupLabel)
+    ///         → returns null and Conflict=true (controller maps to 409).</description></item>
+    /// </list>
+    /// </summary>
+    Task<(JobReportEditorRowDto? Row, bool Conflict)> CreateEditorRowAsync(
+        Guid jobIdGuard,
+        JobReportEditorCreateDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Proxies a Crystal Reports export request to the external CR service.
     /// JobId, RegId, and UserId are derived from JWT claims — never from client parameters.

@@ -100,6 +100,94 @@ public class ReportingController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────
+    // SuperUser library editor (per-Job, per-Role)
+    // ──────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Roles with at least one row in reporting.JobReports for the current job.
+    /// Drives the editor's role-picker dropdown.
+    /// </summary>
+    [HttpGet("editor/job-roles")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<List<JobReportEditorRoleDto>>> GetEditorRoles(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest("Job ID could not be determined from user token");
+
+        var rows = await _reportingService.GetEditorRolesAsync(jobId.Value, cancellationToken);
+        return rows;
+    }
+
+    /// <summary>
+    /// All rows in reporting.JobReports for the current job + given roleId.
+    /// </summary>
+    [HttpGet("editor")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<List<JobReportEditorRowDto>>> GetEditorRows(
+        [FromQuery] string roleId,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(roleId)) return BadRequest("roleId is required");
+
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest("Job ID could not be determined from user token");
+
+        var rows = await _reportingService.GetEditorRowsAsync(jobId.Value, roleId, cancellationToken);
+        return rows;
+    }
+
+    /// <summary>
+    /// Updates an editor row. Service validates that the row's JobId matches the
+    /// caller's current job (from JWT) before mutating.
+    /// </summary>
+    [HttpPut("editor/{jobReportId:guid}")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<JobReportEditorRowDto>> UpdateEditorRow(
+        Guid jobReportId,
+        [FromBody] JobReportEditorUpdateDto dto,
+        CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest("Job ID could not be determined from user token");
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID not found in token");
+
+        var updated = await _reportingService.UpdateEditorRowAsync(
+            jobReportId, jobId.Value, dto, userId, cancellationToken);
+        if (updated == null) return NotFound();
+        return updated;
+    }
+
+    /// <summary>
+    /// Creates a new editor row for the caller's current job. JobId is derived from
+    /// JWT (never trusted from client); RoleId comes from the editor's role-picker.
+    /// Returns 409 Conflict if (JobId, RoleId, Controller, Action, GroupLabel) collides
+    /// with an existing row.
+    /// </summary>
+    [HttpPost("editor")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<JobReportEditorRowDto>> CreateEditorRow(
+        [FromBody] JobReportEditorCreateDto dto,
+        CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null) return BadRequest("Job ID could not be determined from user token");
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized("User ID not found in token");
+
+        var (row, conflict) = await _reportingService.CreateEditorRowAsync(
+            jobId.Value, dto, userId, cancellationToken);
+
+        if (conflict)
+        {
+            return Conflict(new { message = "A report with that Controller, Action, and Group already exists for this role." });
+        }
+        return row!;
+    }
+
+    // ──────────────────────────────────────────────────────────────
     // Stored Procedure Excel Exports
     // ──────────────────────────────────────────────────────────────
 

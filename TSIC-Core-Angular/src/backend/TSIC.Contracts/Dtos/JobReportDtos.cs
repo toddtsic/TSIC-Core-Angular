@@ -28,3 +28,65 @@ public record JobReportEntryDto
     public required int SortOrder { get; init; }
     public required bool Active { get; init; }
 }
+
+/// <summary>
+/// Editor view of a row from reporting.JobReports — extends <see cref="JobReportEntryDto"/>
+/// with audit fields for the SuperUser editor's display + change tracking.
+/// </summary>
+public record JobReportEditorRowDto
+{
+    public required Guid JobReportId { get; init; }
+    public required string Title { get; init; }
+    public string? IconName { get; init; }
+    public required string Controller { get; init; }
+    public required string Action { get; init; }
+    public required string Kind { get; init; }
+    public string? GroupLabel { get; init; }
+    public required int SortOrder { get; init; }
+    public required bool Active { get; init; }
+    public required DateTime Modified { get; init; }
+    public string? LebUserId { get; init; }
+}
+
+/// <summary>
+/// Role-picker dropdown row — one per role that has any rows in reporting.JobReports
+/// for the current job. RowCount drives the "(N entries)" badge in the picker UI.
+/// </summary>
+public record JobReportEditorRoleDto
+{
+    public required string RoleId { get; init; }
+    public required string RoleName { get; init; }
+    public required int RowCount { get; init; }
+}
+
+/// <summary>
+/// Editor update payload. Title / IconName / GroupLabel / SortOrder / Active are
+/// SU-editable. Controller / Action / Kind / RoleId / JobId are immutable — they
+/// either bind the row to the actual report or scope it to (Job, Role).
+/// </summary>
+public record JobReportEditorUpdateDto
+{
+    public required string Title { get; init; }
+    public string? IconName { get; init; }
+    public string? GroupLabel { get; init; }
+    public required int SortOrder { get; init; }
+    public required bool Active { get; init; }
+}
+
+/// <summary>
+/// Editor create payload. JobId is server-derived from JWT (never trusted from client).
+/// RoleId is the currently-selected picker role on the editor — server validates the
+/// (JobId, RoleId, Controller, Action, GroupLabel) tuple is unique before insert.
+/// </summary>
+public record JobReportEditorCreateDto
+{
+    public required string RoleId { get; init; }
+    public required string Title { get; init; }
+    public string? IconName { get; init; }
+    public required string Controller { get; init; }
+    public required string Action { get; init; }
+    public required string Kind { get; init; }
+    public string? GroupLabel { get; init; }
+    public required int SortOrder { get; init; }
+    public required bool Active { get; init; }
+}

@@ -1,11 +1,14 @@
 using System.Data.Common;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Data.SqlClient;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OfficeOpenXml;
 using TSIC.API.Configuration;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Reporting;
 
@@ -37,6 +40,112 @@ public sealed class ReportingService : IReportingService
         string spName,
         CancellationToken cancellationToken = default)
         => _reportingRepository.HasStoredProcedureEntitlementAsync(jobId, roleIds, spName, cancellationToken);
+
+    // ── SuperUser editor ──
+
+    public Task<List<JobReportEditorRoleDto>> GetEditorRolesAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.GetEditorRolesAsync(jobId, cancellationToken);
+
+    public Task<List<JobReportEditorRowDto>> GetEditorRowsAsync(
+        Guid jobId,
+        string roleId,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.GetEditorRowsAsync(jobId, roleId, cancellationToken);
+
+    public async Task<JobReportEditorRowDto?> UpdateEditorRowAsync(
+        Guid jobReportId,
+        Guid jobIdGuard,
+        JobReportEditorUpdateDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = await _reportingRepository.GetJobReportForUpdateAsync(jobReportId, cancellationToken);
+        if (entity == null) return null;
+
+        // Defense in depth: row must belong to the caller's current job. Without this,
+        // a tampered request could mutate rows in jobs the SU isn't currently scoped to.
+        if (entity.JobId != jobIdGuard) return null;
+
+        entity.Title = dto.Title;
+        entity.IconName = dto.IconName;
+        entity.GroupLabel = dto.GroupLabel;
+        entity.SortOrder = dto.SortOrder;
+        entity.Active = dto.Active;
+        entity.Modified = DateTime.UtcNow;
+        entity.LebUserId = lebUserId;
+
+        await _reportingRepository.SaveChangesAsync(cancellationToken);
+
+        return new JobReportEditorRowDto
+        {
+            JobReportId = entity.JobReportId,
+            Title = entity.Title,
+            IconName = entity.IconName,
+            Controller = entity.Controller,
+            Action = entity.Action,
+            Kind = entity.Kind,
+            GroupLabel = entity.GroupLabel,
+            SortOrder = entity.SortOrder,
+            Active = entity.Active,
+            Modified = entity.Modified,
+            LebUserId = entity.LebUserId,
+        };
+    }
+
+    public async Task<(JobReportEditorRowDto? Row, bool Conflict)> CreateEditorRowAsync(
+        Guid jobIdGuard,
+        JobReportEditorCreateDto dto,
+        string lebUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var entity = new JobReports
+        {
+            JobReportId = Guid.NewGuid(),
+            JobId = jobIdGuard,
+            RoleId = dto.RoleId,
+            Title = dto.Title,
+            IconName = dto.IconName,
+            Controller = dto.Controller,
+            Action = dto.Action,
+            Kind = dto.Kind,
+            GroupLabel = dto.GroupLabel,
+            SortOrder = dto.SortOrder,
+            Active = dto.Active,
+            Modified = DateTime.UtcNow,
+            LebUserId = lebUserId,
+        };
+
+        try
+        {
+            await _reportingRepository.AddJobReportAsync(entity, cancellationToken);
+        }
+        catch (DbUpdateException ex) when (IsUniqueKeyViolation(ex))
+        {
+            return (null, true);
+        }
+
+        var row = new JobReportEditorRowDto
+        {
+            JobReportId = entity.JobReportId,
+            Title = entity.Title,
+            IconName = entity.IconName,
+            Controller = entity.Controller,
+            Action = entity.Action,
+            Kind = entity.Kind,
+            GroupLabel = entity.GroupLabel,
+            SortOrder = entity.SortOrder,
+            Active = entity.Active,
+            Modified = entity.Modified,
+            LebUserId = entity.LebUserId,
+        };
+        return (row, false);
+    }
+
+    // SQL Server: 2627 = unique constraint, 2601 = unique index
+    private static bool IsUniqueKeyViolation(DbUpdateException ex)
+        => ex.InnerException is SqlException sql && (sql.Number == 2627 || sql.Number == 2601);
 
     public async Task<ReportExportResult> ExportCrystalReportAsync(
         string reportName,
@@ -88,7 +197,11 @@ public sealed class ReportingService : IReportingService
         {
             (int)ReportExportFormat.Pdf => ("application/pdf", "TSIC-Export.pdf"),
             (int)ReportExportFormat.Rtf => ("application/rtf", "TSIC-Export.rtf"),
-            (int)ReportExportFormat.Xls => ("application/ms-excel", "TSIC-Export.xls"),
+            // Crystal Reports' Xls export emits OOXML (.xlsx) bytes despite the enum name.
+            // Labelling as .xls + ms-excel MIME triggered Excel's content-vs-extension warning.
+            (int)ReportExportFormat.Xls => (
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "TSIC-Export.xlsx"),
             _ => ("application/pdf", "TSIC-Export.pdf")
         };
 

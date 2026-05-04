@@ -78,6 +78,77 @@ public class ReportingRepository : IReportingRepository
                 cancellationToken);
     }
 
+    // ══════════════════════════════════════
+    // SuperUser editor
+    // ══════════════════════════════════════
+
+    public async Task<List<JobReportEditorRoleDto>> GetEditorRolesAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        return await (from jr in _context.JobReports.AsNoTracking()
+                      join r in _context.AspNetRoles.AsNoTracking() on jr.RoleId equals r.Id
+                      where jr.JobId == jobId
+                      group new { jr, r } by new { jr.RoleId, r.Name } into g
+                      orderby g.Key.Name
+                      select new JobReportEditorRoleDto
+                      {
+                          RoleId = g.Key.RoleId,
+                          RoleName = g.Key.Name ?? g.Key.RoleId,
+                          RowCount = g.Count(),
+                      })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<JobReportEditorRowDto>> GetEditorRowsAsync(
+        Guid jobId,
+        string roleId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.JobReports
+            .AsNoTracking()
+            .Where(jr => jr.JobId == jobId && jr.RoleId == roleId)
+            .OrderBy(jr => jr.GroupLabel)
+            .ThenBy(jr => jr.SortOrder)
+            .ThenBy(jr => jr.Title)
+            .Select(jr => new JobReportEditorRowDto
+            {
+                JobReportId = jr.JobReportId,
+                Title = jr.Title,
+                IconName = jr.IconName,
+                Controller = jr.Controller,
+                Action = jr.Action,
+                Kind = jr.Kind,
+                GroupLabel = jr.GroupLabel,
+                SortOrder = jr.SortOrder,
+                Active = jr.Active,
+                Modified = jr.Modified,
+                LebUserId = jr.LebUserId,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<JobReports?> GetJobReportForUpdateAsync(
+        Guid jobReportId,
+        CancellationToken cancellationToken = default)
+    {
+        // Tracked (no AsNoTracking) — caller mutates + SaveChanges.
+        return await _context.JobReports
+            .FirstOrDefaultAsync(jr => jr.JobReportId == jobReportId, cancellationToken);
+    }
+
+    public async Task<JobReports> AddJobReportAsync(
+        JobReports entity,
+        CancellationToken cancellationToken = default)
+    {
+        _context.JobReports.Add(entity);
+        await _context.SaveChangesAsync(cancellationToken);
+        return entity;
+    }
+
+    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        => await _context.SaveChangesAsync(cancellationToken);
+
     public async Task<(DbDataReader Reader, DbConnection Connection)> ExecuteStoredProcedureAsync(
         string spName,
         Guid jobId,
