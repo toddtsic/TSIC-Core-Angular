@@ -136,18 +136,20 @@ $adminManifest = @(
     (New-AdminItem 'LADT' 'diagram-3' 4 'Pool Assignment' 'people'           'ladt/pool-assignment' 3 1 1 1)
 
     # -- Scheduling (section-gated to Tournament/League via $sectionRules) -
-    (New-AdminItem 'Scheduling' 'calendar' 5 'View Schedule'      'eye'             'scheduling/view-schedule'      1  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      2  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    3  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Rescheduler'        'arrow-repeat'    'scheduling/rescheduler'        4  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Tournament Parking' 'car-front'       'scheduling/tournament-parking' 5  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment' 6  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Referee Calendar'   'calendar-week'   'scheduling/referee-calendar'   7  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Mobile Scorers'     'phone'           'scheduling/mobile-scorers'     8  1 1 1 $rulesMobileEnabled)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Fields'             'geo-alt'         'scheduling/fields'             9  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Pairings'           'arrows-collapse' 'scheduling/pairings'           10 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Timeslots'          'clock'           'scheduling/timeslots'          11 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'       'grid'            'scheduling/schedule-hub'       12 1 1 1)
+    # Schedule Hub leads the section as the entry-point dashboard; SCSS in
+    # client-menu.component.scss adds a divider beneath it.
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'       'house-door'      'scheduling/schedule-hub'       1  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'View Schedule'      'eye'             'scheduling/view-schedule'      2  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      3  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    4  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Rescheduler'        'arrow-repeat'    'scheduling/rescheduler'        5  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Tournament Parking' 'car-front'       'scheduling/tournament-parking' 6  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment' 7  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Referee Calendar'   'calendar-week'   'scheduling/referee-calendar'   8  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Mobile Scorers'     'phone'           'scheduling/mobile-scorers'     9  1 1 1 $rulesMobileEnabled)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Fields'             'geo-alt'         'scheduling/fields'             10 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Pairings'           'arrows-collapse' 'scheduling/pairings'           11 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Timeslots'          'clock'           'scheduling/timeslots'          12 1 1 1)
     (New-AdminItem 'Scheduling' 'calendar' 5 'QA Results'         'check2-square'   'scheduling/qa-results'         13 1 1 1)
 
     # -- Reports (legacy /tsic SU menu items 1-10 mirrored as direct links;   -

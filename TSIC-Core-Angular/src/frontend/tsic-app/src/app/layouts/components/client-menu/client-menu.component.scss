@@ -241,6 +241,21 @@
     white-space: nowrap;
 }
 
+// Featured entry-point row inside a dropdown panel.
+// Targeted by routerLink suffix so emphasis follows the item, not its position.
+// Currently used by Schedule Hub (entry-point for the Scheduling section).
+.dropdown-panel__item[href$="/scheduling/schedule-hub"]::after {
+    content: "NEW";
+    font-size: 0.6rem;
+    font-weight: var(--font-weight-bold);
+    padding: 1px var(--space-2);
+    background: var(--bs-warning);
+    color: var(--neutral-900);
+    border-radius: var(--radius-full);
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+}
+
 .dropdown-panel__badge {
     font-size: 0.6rem;
     font-weight: var(--font-weight-semibold);
@@ -371,6 +386,21 @@
                             i {
                                 font-size: var(--font-size-base);
                                 margin-right: var(--space-2);
+                            }
+
+                            // Mobile mirror of the desktop dropdown emphasis rule
+                            // (same routerLink target — Schedule Hub).
+                            &[href$="/scheduling/schedule-hub"]::after {
+                                content: "NEW";
+                                margin-left: auto;
+                                font-size: 0.6rem;
+                                font-weight: var(--font-weight-bold);
+                                padding: 1px var(--space-2);
+                                background: var(--bs-warning);
+                                color: var(--neutral-900);
+                                border-radius: var(--radius-full);
+                                letter-spacing: 0.05em;
+                                flex-shrink: 0;
                             }
                         }
                     }

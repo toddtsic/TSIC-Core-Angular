@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-05-01 15:05:51 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-05-04 15:02:02 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -133,18 +133,18 @@ INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Team Li
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'View Schedule', N'eye', N'scheduling/view-schedule', 1, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Bracket Seeds', N'trophy', N'scheduling/bracket-seeds', 2, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Master Schedule', N'calendar-week', N'scheduling/master-schedule', 3, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', 4, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Tournament Parking', N'car-front', N'scheduling/tournament-parking', 5, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Referee Assignment', N'clipboard-check', N'scheduling/referee-assignment', 6, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Referee Calendar', N'calendar-week', N'scheduling/referee-calendar', 7, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', 8, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}');
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Fields', N'geo-alt', N'scheduling/fields', 9, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Pairings', N'arrows-collapse', N'scheduling/pairings', 10, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Timeslots', N'clock', N'scheduling/timeslots', 11, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'grid', N'scheduling/schedule-hub', 12, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'house-door', N'scheduling/schedule-hub', 1, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'View Schedule', N'eye', N'scheduling/view-schedule', 2, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Bracket Seeds', N'trophy', N'scheduling/bracket-seeds', 3, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Master Schedule', N'calendar-week', N'scheduling/master-schedule', 4, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', 5, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Tournament Parking', N'car-front', N'scheduling/tournament-parking', 6, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Referee Assignment', N'clipboard-check', N'scheduling/referee-assignment', 7, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Referee Calendar', N'calendar-week', N'scheduling/referee-calendar', 8, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', 9, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}');
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Fields', N'geo-alt', N'scheduling/fields', 10, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Pairings', N'arrows-collapse', N'scheduling/pairings', 11, 1, 1, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Timeslots', N'clock', N'scheduling/timeslots', 12, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'QA Results', N'check2-square', N'scheduling/qa-results', 13, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Daily Registration Counts (PDF)', N'file-earmark-pdf', N'reporting/Get_JobPlayers_TSICDAILY', 2, 0, 0, 1, NULL);
