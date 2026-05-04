@@ -68,6 +68,8 @@ public record NavItemDto
     public string? NavigateUrl { get; init; }
     public string? Target { get; init; }
     public required bool Active { get; init; }
+    /// <summary>Short label rendered as a chip next to the item text (e.g. "NEW", "BETA"). NULL = no chip.</summary>
+    public string? BadgeText { get; init; }
     public required List<NavItemDto> Children { get; init; } = new();
 }
 
@@ -117,6 +119,10 @@ public record NavEditorNavItemDto
     /// NULL = universal (no restrictions).
     /// </summary>
     public string? VisibilityRules { get; init; }
+    /// <summary>
+    /// Short chip label (e.g. "NEW"). Read-only in the editor today — the manifest is the writer.
+    /// </summary>
+    public string? BadgeText { get; init; }
     public required List<NavEditorNavItemDto> Children { get; init; } = new();
 }
 

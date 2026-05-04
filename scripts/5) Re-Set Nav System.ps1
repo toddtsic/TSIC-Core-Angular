@@ -57,7 +57,7 @@ $roleGuids = [ordered]@{
 # D = Director, SD = SuperDirector, SU = SuperUser.
 
 function New-AdminItem {
-    param($Ctrl, $CtrlIcon, $CtrlSort, $Text, $Icon, $Route, $ItemSort, $D, $SD, $SU, $VisRules = $null)
+    param($Ctrl, $CtrlIcon, $CtrlSort, $Text, $Icon, $Route, $ItemSort, $D, $SD, $SU, $VisRules = $null, $Badge = $null)
     [PSCustomObject]@{
         Controller      = $Ctrl
         ControllerIcon  = $CtrlIcon
@@ -70,6 +70,7 @@ function New-AdminItem {
         ForSuperDir     = $SD
         ForSuperUser    = $SU
         VisibilityRules = $VisRules   # applied to the L1 section; NULL = always visible
+        BadgeText       = $Badge      # short label rendered as a chip (NEW, BETA, etc.); NULL = no chip
     }
 }
 
@@ -136,9 +137,8 @@ $adminManifest = @(
     (New-AdminItem 'LADT' 'diagram-3' 4 'Pool Assignment' 'people'           'ladt/pool-assignment' 3 1 1 1)
 
     # -- Scheduling (section-gated to Tournament/League via $sectionRules) -
-    # Schedule Hub leads the section as the entry-point dashboard; SCSS in
-    # client-menu.component.scss adds a divider beneath it.
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'       'house-door'      'scheduling/schedule-hub'       1  1 1 1)
+    # Schedule Hub leads the section as the entry-point dashboard with a NEW chip.
+    (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'       'house-door'      'scheduling/schedule-hub'       1  1 1 1 -Badge 'NEW')
     (New-AdminItem 'Scheduling' 'calendar' 5 'View Schedule'      'eye'             'scheduling/view-schedule'      2  1 1 1)
     (New-AdminItem 'Scheduling' 'calendar' 5 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      3  1 1 1)
     (New-AdminItem 'Scheduling' 'calendar' 5 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    4  1 1 1)
@@ -377,16 +377,18 @@ CREATE TABLE #AdminManifest (
     ForDirector     BIT           NOT NULL,
     ForSuperDir     BIT           NOT NULL,
     ForSuperUser    BIT           NOT NULL,
-    VisibilityRules NVARCHAR(MAX) NULL    -- JSON, applied to L1 section; NULL = always visible
+    VisibilityRules NVARCHAR(MAX) NULL,    -- JSON, applied to L1 section; NULL = always visible
+    BadgeText       NVARCHAR(20)  NULL     -- short chip label (NEW / BETA / etc.); NULL = no chip
 );
 "@)
 foreach ($item in $adminManifest) {
     $rulesCol = if ([string]::IsNullOrEmpty($item.VisibilityRules)) { 'NULL' } else { "N'$(Esc $item.VisibilityRules)'" }
+    $badgeCol = if ([string]::IsNullOrEmpty($item.BadgeText)) { 'NULL' } else { "N'$(Esc $item.BadgeText)'" }
     [void]$sql.AppendLine(
         "INSERT INTO #AdminManifest VALUES (" +
         "N'$(Esc $item.Controller)', N'$(Esc $item.ControllerIcon)', $($item.ControllerSort), " +
         "N'$(Esc $item.Text)', N'$(Esc $item.Icon)', N'$(Esc $item.RouterLink)', $($item.ItemSort), " +
-        "$($item.ForDirector), $($item.ForSuperDir), $($item.ForSuperUser), $rulesCol);"
+        "$($item.ForDirector), $($item.ForSuperDir), $($item.ForSuperUser), $rulesCol, $badgeCol);"
     )
 }
 [void]$sql.AppendLine("")
@@ -459,9 +461,9 @@ BEGIN
         VALUES (@navId, NULL, 1, @ctrlSort, @ctrl, @ctrlIcon, @ctrlVisRules, GETDATE());
         SET @parentId = SCOPE_IDENTITY();
 
-        -- L2 leaves — carry their own rules for per-item gating.
-        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, VisibilityRules, Modified)
-        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, VisibilityRules, GETDATE()
+        -- L2 leaves — carry their own rules for per-item gating + optional badge chip.
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, VisibilityRules, BadgeText, Modified)
+        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, VisibilityRules, BadgeText, GETDATE()
         FROM #AdminManifest
         WHERE Controller = @ctrl
           AND CASE @roleId

@@ -154,6 +154,7 @@ public class NavRepository : INavRepository
                 NavigateUrl = item.NavigateUrl,
                 Target = item.Target,
                 Active = true,
+                BadgeText = item.BadgeText,
                 Children = new List<NavItemDto>()
             });
         }
@@ -186,6 +187,7 @@ public class NavRepository : INavRepository
                     NavigateUrl = c.NavigateUrl,
                     Target = c.Target,
                     Active = true,
+                    BadgeText = c.BadgeText,
                     Children = new List<NavItemDto>()
                 })
                 .ToList();
@@ -201,6 +203,7 @@ public class NavRepository : INavRepository
                 NavigateUrl = newRoot.NavigateUrl,
                 Target = newRoot.Target,
                 Active = true,
+                BadgeText = newRoot.BadgeText,
                 Children = children
             });
         }
@@ -266,6 +269,7 @@ public class NavRepository : INavRepository
                 NavigateUrl = root.NavigateUrl,
                 Target = root.Target,
                 Active = root.Active,
+                BadgeText = root.BadgeText,
                 Children = new List<NavItemDto>()
             };
 
@@ -286,6 +290,7 @@ public class NavRepository : INavRepository
                     NavigateUrl = child.NavigateUrl,
                     Target = child.Target,
                     Active = child.Active,
+                    BadgeText = child.BadgeText,
                     Children = new List<NavItemDto>()
                 });
             }

@@ -334,6 +334,7 @@ public class NavEditorRepository : INavEditorRepository
                 DefaultNavItemId = ni.DefaultNavItemId,
                 DefaultParentNavItemId = ni.DefaultParentNavItemId,
                 VisibilityRules = ni.VisibilityRules,
+                BadgeText = ni.BadgeText,
                 Children = new List<NavEditorNavItemDto>()
             })
             .ToListAsync(cancellationToken);
@@ -360,6 +361,7 @@ public class NavEditorRepository : INavEditorRepository
                 DefaultNavItemId = ni.DefaultNavItemId,
                 DefaultParentNavItemId = ni.DefaultParentNavItemId,
                 VisibilityRules = ni.VisibilityRules,
+                BadgeText = ni.BadgeText,
                 Children = new List<NavEditorNavItemDto>()
             })
             .ToListAsync(cancellationToken);

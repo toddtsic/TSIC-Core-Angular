@@ -5007,6 +5007,7 @@ public partial class SqlDbContext : DbContext
             entity.ToTable("NavItem", "nav");
 
             entity.Property(e => e.Active).HasDefaultValue(true);
+            entity.Property(e => e.BadgeText).HasMaxLength(20);
             entity.Property(e => e.IconName).HasMaxLength(100);
             entity.Property(e => e.Modified).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.ModifiedBy).HasMaxLength(450);

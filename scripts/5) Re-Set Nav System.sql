@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-05-04 15:02:02 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-05-04 15:23:42 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -110,79 +110,80 @@ CREATE TABLE #AdminManifest (
     ForDirector     BIT           NOT NULL,
     ForSuperDir     BIT           NOT NULL,
     ForSuperUser    BIT           NOT NULL,
-    VisibilityRules NVARCHAR(MAX) NULL    -- JSON, applied to L1 section; NULL = always visible
+    VisibilityRules NVARCHAR(MAX) NULL,    -- JSON, applied to L1 section; NULL = always visible
+    BadgeText       NVARCHAR(20)  NULL     -- short chip label (NEW / BETA / etc.); NULL = no chip
 );
-INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Registrations', N'people', N'search/registrations', 1, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Teams', N'shield', N'search/teams', 2, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Settings', N'briefcase', N'configure/job', 1, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Discount Codes', N'tags', N'configure/discount-codes', 2, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Age Ranges', N'sliders', N'configure/age-ranges', 3, 1, 1, 1, N'{"requiresFlags":["teamEligibilityByAge"]}');
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 4, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customer Groups', N'people', N'configure/customer-groups', 5, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Dropdown Options', N'list', N'configure/ddl-options', 6, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customers', N'building', N'configure/customers', 7, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 8, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Nav Editor', N'list', N'configure/nav-editor', 9, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Widget Editor', N'grid', N'configure/widget-editor', 10, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 11, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 12, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Push Notification', N'bell', N'communications/push-notification', 3, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}');
-INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Team Links', N'link-45deg', N'communications/team-links', 4, 1, 1, 1, N'{"requiresFlags":["playerSiteOnly"]}');
-INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'house-door', N'scheduling/schedule-hub', 1, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'View Schedule', N'eye', N'scheduling/view-schedule', 2, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Bracket Seeds', N'trophy', N'scheduling/bracket-seeds', 3, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Master Schedule', N'calendar-week', N'scheduling/master-schedule', 4, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', 5, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Tournament Parking', N'car-front', N'scheduling/tournament-parking', 6, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Referee Assignment', N'clipboard-check', N'scheduling/referee-assignment', 7, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Referee Calendar', N'calendar-week', N'scheduling/referee-calendar', 8, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', 9, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}');
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Fields', N'geo-alt', N'scheduling/fields', 10, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Pairings', N'arrows-collapse', N'scheduling/pairings', 11, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Timeslots', N'clock', N'scheduling/timeslots', 12, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'QA Results', N'check2-square', N'scheduling/qa-results', 13, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Daily Registration Counts (PDF)', N'file-earmark-pdf', N'reporting/Get_JobPlayers_TSICDAILY', 2, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Regsaver Purchases (Excel)', N'file-earmark-excel', N'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false', 3, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expired Player Reg Bulletins', N'person-x', N'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false', 4, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expired Team Reg Bulletins', N'shield-x', N'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false', 5, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'List of Suspicious ARBs', N'exclamation-triangle', N'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false', 6, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Regsaver Purchases - Raw Data (Excel)', N'file-earmark-excel', N'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false', 7, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Job Key Attributes (All)', N'list-columns', N'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false', 8, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'ClubRep Contacts (All)', N'people', N'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false', 9, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Tournament Keys (All)', N'trophy', N'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false', 10, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expiring Bulletins (3 months)', N'clock-history', N'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false', 11, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Last Month X-Customer Revenue Summary', N'cash-stack', N'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true', 12, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 7, N'Health Check', N'heart-pulse', N'arb/health', 1, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Store', N'shop', 8, N'Store Admin', N'speedometer2', N'store/admin', 1, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}');
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'1) New Jobs Last Month (with txs)', N'plus-square', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', 1, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'2) Get Reconciliation Records', N'arrow-left-right', N'accounting/get-reconciliation-records', 2, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'2M) Get MERCH Reconciliation Records', N'receipt', N'accounting/merch-reconciliation-records', 3, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'4) Last Month''s Grand Totals (Excel)', N'calculator', N'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false', 4, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Last Months Invoices SUMMARIES ONLY (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonthSummariesOnly', 5, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Manual ARB Sweep (ALL)', N'arrow-clockwise', N'accounting/manual-arb-sweep', 6, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'TSIC Fees YTD By Customer', N'graph-up', N'reporting/TSICFeesYTDByCustomer', 7, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'TSIC Fees YTD By Customer and Job', N'graph-up', N'reporting/TSICFeesYTDByCustomerAndJob', 8, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Last Months Invoices (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonth', 9, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Produce Last Month Job Invoices Per Job (rtf)', N'file-earmark-text', N'accounting/produce-job-invoices', 10, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Job Admin Fees Summary', N'cash-coin', N'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false', 11, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Upload Nuvei Funding/Batches', N'upload', N'accounting/upload-nuvei', 12, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Import RegSaver Monthly Payouts', N'cloud-download', N'accounting/upload-regsaver', 13, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'ADN-Nuvei Reconcile (Excel)', N'arrow-left-right', N'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false', 14, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'3) Last Months Job Stats', N'bar-chart-line', N'accounting/last-months-job-stats', 15, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}');
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}');
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}');
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Uniform Upload', N'upload', N'tools/uniform-upload', 4, 1, 1, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 5, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 6, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Change Password', N'key', N'tools/change-password', 7, 0, 0, 1, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 8, 0, 0, 1, NULL);
+INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Registrations', N'people', N'search/registrations', 1, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Search', N'search', 1, N'Teams', N'shield', N'search/teams', 2, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Settings', N'briefcase', N'configure/job', 1, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Discount Codes', N'tags', N'configure/discount-codes', 2, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Age Ranges', N'sliders', N'configure/age-ranges', 3, 1, 1, 1, N'{"requiresFlags":["teamEligibilityByAge"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 4, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customer Groups', N'people', N'configure/customer-groups', 5, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Dropdown Options', N'list', N'configure/ddl-options', 6, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customers', N'building', N'configure/customers', 7, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 8, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Nav Editor', N'list', N'configure/nav-editor', 9, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Widget Editor', N'grid', N'configure/widget-editor', 10, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 11, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 12, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Push Notification', N'bell', N'communications/push-notification', 3, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Team Links', N'link-45deg', N'communications/team-links', 4, 1, 1, 1, N'{"requiresFlags":["playerSiteOnly"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'house-door', N'scheduling/schedule-hub', 1, 1, 1, 1, NULL, N'NEW');
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'View Schedule', N'eye', N'scheduling/view-schedule', 2, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Bracket Seeds', N'trophy', N'scheduling/bracket-seeds', 3, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Master Schedule', N'calendar-week', N'scheduling/master-schedule', 4, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Rescheduler', N'arrow-repeat', N'scheduling/rescheduler', 5, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Tournament Parking', N'car-front', N'scheduling/tournament-parking', 6, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Referee Assignment', N'clipboard-check', N'scheduling/referee-assignment', 7, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Referee Calendar', N'calendar-week', N'scheduling/referee-calendar', 8, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Mobile Scorers', N'phone', N'scheduling/mobile-scorers', 9, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Fields', N'geo-alt', N'scheduling/fields', 10, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Pairings', N'arrows-collapse', N'scheduling/pairings', 11, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Timeslots', N'clock', N'scheduling/timeslots', 12, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'QA Results', N'check2-square', N'scheduling/qa-results', 13, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Daily Registration Counts (PDF)', N'file-earmark-pdf', N'reporting/Get_JobPlayers_TSICDAILY', 2, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Regsaver Purchases (Excel)', N'file-earmark-excel', N'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false', 3, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expired Player Reg Bulletins', N'person-x', N'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false', 4, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expired Team Reg Bulletins', N'shield-x', N'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false', 5, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'List of Suspicious ARBs', N'exclamation-triangle', N'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false', 6, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Regsaver Purchases - Raw Data (Excel)', N'file-earmark-excel', N'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false', 7, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Job Key Attributes (All)', N'list-columns', N'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false', 8, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'ClubRep Contacts (All)', N'people', N'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false', 9, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Tournament Keys (All)', N'trophy', N'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false', 10, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expiring Bulletins (3 months)', N'clock-history', N'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false', 11, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Last Month X-Customer Revenue Summary', N'cash-stack', N'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true', 12, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'ARB', N'credit-card', 7, N'Health Check', N'heart-pulse', N'arb/health', 1, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Store', N'shop', 8, N'Store Admin', N'speedometer2', N'store/admin', 1, 1, 1, 1, N'{"requiresFlags":["storeEnabled"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'1) New Jobs Last Month (with txs)', N'plus-square', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', 1, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'2) Get Reconciliation Records', N'arrow-left-right', N'accounting/get-reconciliation-records', 2, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'2M) Get MERCH Reconciliation Records', N'receipt', N'accounting/merch-reconciliation-records', 3, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'4) Last Month''s Grand Totals (Excel)', N'calculator', N'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false', 4, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Last Months Invoices SUMMARIES ONLY (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonthSummariesOnly', 5, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Manual ARB Sweep (ALL)', N'arrow-clockwise', N'accounting/manual-arb-sweep', 6, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'TSIC Fees YTD By Customer', N'graph-up', N'reporting/TSICFeesYTDByCustomer', 7, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'TSIC Fees YTD By Customer and Job', N'graph-up', N'reporting/TSICFeesYTDByCustomerAndJob', 8, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Last Months Invoices (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonth', 9, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Produce Last Month Job Invoices Per Job (rtf)', N'file-earmark-text', N'accounting/produce-job-invoices', 10, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Job Admin Fees Summary', N'cash-coin', N'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false', 11, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Upload Nuvei Funding/Batches', N'upload', N'accounting/upload-nuvei', 12, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'Import RegSaver Monthly Payouts', N'cloud-download', N'accounting/upload-regsaver', 13, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'ADN-Nuvei Reconcile (Excel)', N'arrow-left-right', N'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false', 14, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 10, N'3) Last Months Job Stats', N'bar-chart-line', N'accounting/last-months-job-stats', 15, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Test', N'check-circle', N'tools/uslax-test', 1, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Rankings', N'trophy', N'tools/uslax-rankings', 2, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Uniform Upload', N'upload', N'tools/uniform-upload', 4, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 5, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 6, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Change Password', N'key', N'tools/change-password', 7, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 8, 0, 0, 1, NULL, NULL);
 
 -- Section-level rules applied to L1 independent of per-item aggregation
 IF OBJECT_ID('tempdb..#SectionRules') IS NOT NULL DROP TABLE #SectionRules;
@@ -244,9 +245,9 @@ BEGIN
         VALUES (@navId, NULL, 1, @ctrlSort, @ctrl, @ctrlIcon, @ctrlVisRules, GETDATE());
         SET @parentId = SCOPE_IDENTITY();
 
-        -- L2 leaves — carry their own rules for per-item gating.
-        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, VisibilityRules, Modified)
-        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, VisibilityRules, GETDATE()
+        -- L2 leaves — carry their own rules for per-item gating + optional badge chip.
+        INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, VisibilityRules, BadgeText, Modified)
+        SELECT @navId, @parentId, 1, ActionSort, [Action], ActionIcon, RouterLink, VisibilityRules, BadgeText, GETDATE()
         FROM #AdminManifest
         WHERE Controller = @ctrl
           AND CASE @roleId

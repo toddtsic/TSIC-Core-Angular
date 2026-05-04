@@ -35,6 +35,8 @@ public partial class NavItem
 
     public string? VisibilityRules { get; set; }
 
+    public string? BadgeText { get; set; }
+
     public virtual NavItem? DefaultNavItem { get; set; }
 
     public virtual NavItem? DefaultParentNavItem { get; set; }

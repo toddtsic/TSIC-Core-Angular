@@ -16,6 +16,7 @@ export type NavEditorNavItemDto = {
     defaultNavItemId?: number | null;
     defaultParentNavItemId?: number | null;
     visibilityRules?: string | null;
+    badgeText?: string | null;
     children: Array<NavEditorNavItemDto>;
 };
 

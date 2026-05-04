@@ -12,6 +12,7 @@ export type NavItemDto = {
     navigateUrl?: string | null;
     target?: string | null;
     active: boolean;
+    badgeText?: string | null;
     children: Array<NavItemDto>;
 };
 

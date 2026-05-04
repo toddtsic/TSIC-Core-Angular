@@ -56,6 +56,9 @@
                                 (click)="onLinkClick($event, child); collapseAll()">
                                 <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
                                 <span class="dropdown-panel__item-text">{{ child.text }}</span>
+                                @if (child.badgeText) {
+                                <span class="dropdown-panel__badge dropdown-panel__badge--{{ child.badgeText.toLowerCase() }}">{{ child.badgeText }}</span>
+                                }
                             </a>
                             } @else {
                             <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem">
@@ -162,6 +165,9 @@
                                     (click)="onLinkClick($event, child); closeOffcanvas()">
                                     <i class="bi bi-{{ getMenuIcon(child) }} me-2"></i>
                                     {{ child.text }}
+                                    @if (child.badgeText) {
+                                    <span class="dropdown-panel__badge dropdown-panel__badge--{{ child.badgeText.toLowerCase() }} ms-2">{{ child.badgeText }}</span>
+                                    }
                                 </a>
                                 } @else {
                                 <span class="nav-link disabled">
