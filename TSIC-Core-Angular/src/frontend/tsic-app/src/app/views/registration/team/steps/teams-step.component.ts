@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
@@ -28,7 +27,7 @@ interface AgePickerTeam {
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent, CurrencyPipe],
+    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -42,21 +41,20 @@ interface AgePickerTeam {
 
       <!-- ── Registered teams for THIS event (single primary card) ── -->
       <div class="step-card step-card-registered">
-        <div class="section-header section-registered">
-          <i class="bi bi-check-circle-fill me-1"></i>
-          @if (enteredTeams().length === 0) {
+        @if (enteredTeams().length === 0) {
+          <div class="section-header section-registered">
+            <i class="bi bi-check-circle-fill me-1"></i>
             Registered Teams
-          } @else {
-            {{ enteredTeams().length }}
-            {{ enteredTeams().length === 1 ? 'Team' : 'Teams' }} Registered
-
-            <button type="button" class="btn btn-outline-primary btn-sm ms-auto section-action"
-                    (click)="openLibraryFlyin()">
-              <i class="bi bi-plus-circle me-1"></i>
-              Register <strong>Another</strong> Team for <strong>this Event</strong>
-            </button>
-          }
-        </div>
+          </div>
+        } @else {
+          <div class="section-titlebar section-titlebar-registered">
+            <i class="bi bi-trophy-fill section-titlebar-icon" aria-hidden="true"></i>
+            <h3 class="section-titlebar-title">
+              <span class="club-name-pop">{{ clubName() }}</span>
+              <span class="section-titlebar-tail">Registered Teams</span>
+            </h3>
+          </div>
+        }
 
         @if (enteredTeams().length === 0) {
           @if (allLibraryTeams().length === 0) {
@@ -142,35 +140,37 @@ interface AgePickerTeam {
           </div>
 
           <div class="step-card-footer">
-            @if (sumOwed() > 0) {
-              <span class="footer-hint footer-hint-warning">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                <strong>{{ sumOwed() | currency }}</strong> owed across
-                {{ teamsWithBalance() }}
-                {{ teamsWithBalance() === 1 ? 'team' : 'teams' }}
-              </span>
-            } @else {
-              <span class="footer-hint footer-hint-success">
-                <i class="bi bi-check-circle-fill me-1"></i>
-                All {{ enteredTeams().length }}
-                {{ enteredTeams().length === 1 ? 'team' : 'teams' }} paid in full
-              </span>
-            }
-            <button type="button" class="btn btn-sm btn-success fw-semibold"
-                    (click)="proceedToPayment.emit()">
-              {{ proceedButtonLabel() }} <i class="bi bi-arrow-right ms-1"></i>
-            </button>
+            <div class="action-segments" role="group" aria-label="What's next?">
+              <button type="button" class="action-segment action-segment-stay"
+                      (click)="openLibraryFlyin()">
+                <i class="bi bi-plus-circle-fill action-segment-icon" aria-hidden="true"></i>
+                <span class="action-segment-content">
+                  <span class="action-segment-title">Register Another Team</span>
+                  <span class="action-segment-sub">I have more teams to register</span>
+                </span>
+              </button>
+
+              <button type="button" class="action-segment action-segment-advance"
+                      (click)="proceedToPayment.emit()">
+                <span class="action-segment-content">
+                  <span class="action-segment-title">Continue to Payment</span>
+                  <span class="action-segment-sub">All my teams are registered</span>
+                </span>
+                <i class="bi bi-currency-dollar action-segment-icon" aria-hidden="true"></i>
+              </button>
+            </div>
           </div>
         }
       </div>
 
-      <!-- ── Library fly-in (left-side drawer; shows on demand) ── -->
+      <!-- ── Library fly-in (right-side drawer; shows on demand) ── -->
       <app-library-flyin
         [isOpen]="showLibraryFlyin()"
         [clubTeams]="allLibraryTeams()"
         [canRegister]="canRegisterTeam()"
         [actionInProgress]="actionInProgress()"
-        [enteredTeamIds]="enteredTeamIds()"
+        [enteredTeams]="enteredTeamsMap()"
+        [eventName]="jobName()"
         (closed)="closeLibraryFlyin()"
         (register)="onFlyinRegister($event)"
         (addNew)="showAddModal.set(true)"
@@ -273,31 +273,117 @@ interface AgePickerTeam {
 
       .step-card-registered { border-left: 4px solid var(--bs-success); }
 
+      /* Footer = decision fork rendered as a segmented control. Two halves
+         joined by a single divider, sharing one outer border. Each segment
+         carries its accent color at rest (subtle tint + 3px top accent bar)
+         so the fork is visible without hover. Equal visual weight — neither
+         side dominates; the rep picks based on which subtext is true. */
       .step-card-footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-3);
         border-top: 1px solid var(--border-color);
         background: rgba(var(--bs-dark-rgb), 0.015);
       }
 
-      .footer-hint {
-        display: inline-flex;
+      .action-segments {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+      }
+
+      .action-segment {
+        position: relative;
+        display: flex;
         align-items: center;
-        font-size: var(--font-size-xs);
+        gap: var(--space-3);
+        padding: var(--space-4) var(--space-4);
+        border: none;
+        border-radius: 0;
+        background: transparent;
+        font-family: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.15s ease, box-shadow 0.15s ease;
+
+        /* 3px accent bar across the top of each segment — strong directional
+           cue. Color set per-variant via currentColor. */
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: currentColor;
+        }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: inset 0 0 0 2px currentColor;
+        }
+      }
+
+      /* Single shared divider between segments — no double border. */
+      .action-segment + .action-segment {
+        border-left: 1px solid var(--border-color);
+      }
+
+      .action-segment-icon {
+        font-size: 2rem;
+        flex-shrink: 0;
+        line-height: 1;
+      }
+
+      .action-segment-content {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      .action-segment-title {
+        font-size: var(--font-size-base);
         font-weight: var(--font-weight-semibold);
+        line-height: var(--line-height-tight);
+        color: var(--brand-text);
+      }
+
+      .action-segment-sub {
+        font-size: var(--font-size-xs);
+        font-style: italic;
+        line-height: var(--line-height-normal);
         color: var(--brand-text-muted);
-
-        strong { font-weight: var(--font-weight-bold); }
       }
 
-      .footer-hint-success {
-        color: var(--bs-success);
+      /* Both segments share a subtle adaptive neutral tint at rest — two
+         saturated color tints next to each other always read as combat,
+         regardless of hue choice. Direction is carried by the top accent
+         bar + icon color only. Hover reveals that segment's accent color
+         as a tinted background, providing strong interactive feedback. */
+      .action-segment {
+        background: color-mix(in srgb, var(--brand-text) 8%, transparent);
       }
 
-      .footer-hint-warning {
-        color: var(--bs-danger);
+      .action-segment-stay {
+        color: var(--bs-primary);
+
+        &:hover { background: color-mix(in srgb, var(--bs-primary) 14%, transparent); }
+        .action-segment-icon { color: var(--bs-primary); }
+      }
+
+      .action-segment-advance {
+        color: var(--emerald-600);
+
+        &:hover { background: color-mix(in srgb, var(--emerald-600) 14%, transparent); }
+        .action-segment-icon { color: var(--emerald-600); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .action-segment { transition: none !important; }
       }
 
       /* ── Section banner header ── */
@@ -316,6 +402,56 @@ interface AgePickerTeam {
         color: var(--bs-success);
         background: rgba(var(--bs-success-rgb), 0.06);
         border-bottom: 1px solid rgba(var(--bs-success-rgb), 0.12);
+      }
+
+      /* ── Section title bar ──
+         Simple row banner for the populated registered-teams card. Trophy
+         icon + club-anchored title. Event name is NOT repeated here — it
+         already lives in the page hero above. The card is about THIS club's
+         registrations within an event already established. */
+      .section-titlebar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .section-titlebar-registered {
+        background: color-mix(in srgb, var(--bs-success) 10%, transparent);
+        border-bottom-color: color-mix(in srgb, var(--bs-success) 20%, transparent);
+      }
+
+      .section-titlebar-icon {
+        color: var(--bs-success);
+        font-size: var(--font-size-lg);
+        flex-shrink: 0;
+      }
+
+      .section-titlebar-title {
+        margin: 0;
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        line-height: var(--line-height-tight);
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.45em;
+      }
+
+      .section-titlebar-tail {
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text-muted);
+      }
+
+      /* Club name pops with the wizard primary color so the rep's identity
+         threads visibly through the view (nav title + card title both use
+         this treatment). */
+      .club-name-pop {
+        font-size: 1.1em;
+        font-weight: var(--font-weight-bold);
+        color: var(--bs-primary);
+        letter-spacing: -0.01em;
       }
 
       /* Compact action button nested inside a .section-header banner */
@@ -520,8 +656,16 @@ interface AgePickerTeam {
       @media (max-width: 575.98px) {
         .step-card-footer {
           padding: var(--space-2);
-          flex-wrap: wrap;
-          gap: var(--space-2);
+        }
+
+        .action-segments {
+          grid-template-columns: 1fr;
+        }
+
+        /* Stacked: divider becomes horizontal. */
+        .action-segment + .action-segment {
+          border-left: none;
+          border-top: 1px solid var(--border-color);
         }
       }
     `],
@@ -598,33 +742,25 @@ export class TeamTeamsStepComponent implements OnInit {
     /** Entered teams (registered for this event). */
     readonly enteredTeams = computed(() => this._registeredTeams());
 
-    /** Set of clubTeamIds that are entered — flyin uses this to mark rows as Registered. */
-    readonly enteredTeamIds = computed(() =>
-        new Set(this._registeredTeams().map(r => r.clubTeamId).filter((id): id is number => id != null)),
-    );
+    /**
+     * Map of clubTeamId → registration info — flyin uses this to mark rows as
+     * Registered AND to display *which* age group each is registered as.
+     */
+    readonly enteredTeamsMap = computed(() => {
+        const map = new Map<number, { ageGroupName: string }>();
+        for (const r of this._registeredTeams()) {
+            if (r.clubTeamId != null) {
+                map.set(r.clubTeamId, { ageGroupName: r.ageGroupName ?? '' });
+            }
+        }
+        return map;
+    });
 
     // Phase-aware grid column gating — derived from per-team data + bTeamsFullPaymentRequired.
     readonly anyDepositDue = computed(() => this._registeredTeams().some(t => t.depositDue > 0));
     readonly anyBalanceDue = computed(() => this._registeredTeams().some(t => t.additionalDue > 0));
     readonly anyPaid       = computed(() => this._registeredTeams().some(t => t.paidTotal > 0));
     readonly anyOwed       = computed(() => this._registeredTeams().some(t => t.owedTotal > 0));
-    readonly sumOwed       = computed(() => this._registeredTeams().reduce((s, t) => s + t.owedTotal, 0));
-    readonly teamsWithBalance = computed(() => this._registeredTeams().filter(t => t.owedTotal > 0).length);
-
-    /** Count of teams not yet paid for — drives the Proceed-to-Payment label. */
-    readonly newTeamsCount = computed(() => this._registeredTeams().filter(t => t.paidTotal === 0).length);
-
-    readonly proceedButtonLabel = computed(() => {
-        // PIF — nothing owed, just moving through the wizard.
-        // (VI insurance is still purchasable on the payment step regardless.)
-        if (this.sumOwed() === 0) return 'Continue';
-
-        const n = this.newTeamsCount();
-        if (n === 0) return 'Proceed to Payment';
-
-        const noun = n === 1 ? 'team' : 'teams';
-        return `Submit the ${n} new ${noun} and Proceed to Payment`;
-    });
 
     ngOnInit(): void {
         this.loadTeamsMetadata(true);

@@ -1,5 +1,5 @@
 import { Component, ChangeDetectionStrategy, inject, signal, ViewChild } from '@angular/core';
-import { CommonModule, DatePipe } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, EditSettingsModel, ToolbarItems, IEditCell } from '@syncfusion/ej2-angular-grids';
 import { ReportingService } from '@infrastructure/services/reporting.service';
@@ -13,7 +13,7 @@ import type {
 @Component({
     selector: 'app-library-editor',
     standalone: true,
-    imports: [CommonModule, DatePipe, FormsModule, GridAllModule],
+    imports: [CommonModule, FormsModule, GridAllModule],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './library-editor.component.html',
     styleUrls: ['./library-editor.component.scss'],

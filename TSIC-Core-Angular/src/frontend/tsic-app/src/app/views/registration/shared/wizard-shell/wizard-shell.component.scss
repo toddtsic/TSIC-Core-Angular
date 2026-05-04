@@ -174,21 +174,24 @@
   }
 }
 
-// Inline accent appended to the title — e.g. the club name in "Team Registration for {club}"
-// Rendered as a primary-tinted pill to give the accent text visible "shoutout" framing.
-.wizard-title-accent {
-  display: inline-block;
-  margin-inline-start: 0.4em;
-  padding: 2px var(--space-3);
-  font-size: 0.85em;
+// Title parts: "{Club} · {Process}" — club name leads as the rep's identity,
+// separator, then the process verb in muted weight. Replaced the rounded
+// primary-tinted pill that read as a button affordance for non-interactive
+// text and competed visually with the step circles below.
+.wizard-title-club {
   font-weight: var(--font-weight-bold);
-  line-height: 1.4;
   color: var(--bs-primary);
-  background: var(--neutral-0);
-  border: 1.5px solid var(--bs-primary);
-  border-radius: var(--radius-full);
-  box-shadow: 0 1px 3px rgba(var(--bs-primary-rgb), 0.18);
-  vertical-align: middle;
+  letter-spacing: -0.01em;
+}
+
+.wizard-title-sep {
+  color: var(--brand-text-muted);
+  font-weight: var(--font-weight-normal);
+}
+
+.wizard-title-process {
+  font-weight: var(--font-weight-medium);
+  color: var(--brand-text-muted);
 }
 
 .wizard-steps {

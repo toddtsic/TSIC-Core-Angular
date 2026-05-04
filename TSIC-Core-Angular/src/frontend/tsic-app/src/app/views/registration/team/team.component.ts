@@ -31,10 +31,13 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
     ],
     template: `
     @if (jobName()) {
-      <h1 class="job-context">
-        <i class="bi bi-trophy-fill job-context-icon"></i>
-        <span>{{ jobName() }}</span>
-      </h1>
+      <header class="page-hero">
+        <i class="bi bi-trophy-fill page-hero-trophy" aria-hidden="true"></i>
+        @if (orgName()) {
+          <p class="page-hero-eyebrow">{{ orgName() }}</p>
+        }
+        <h1 class="page-hero-title">{{ eventName() }}</h1>
+      </header>
     }
     <app-wizard-shell
       [steps]="steps()"
@@ -76,31 +79,53 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
     styles: [`
     :host { display: block; }
 
-    .job-context {
+    /* Page hero — claims the top of every wizard step as the event identity.
+       Org name as muted eyebrow, event name as branded headline. The trophy
+       anchors visually rather than garnishing. Replaces the colon-syntax
+       single-line title that flattened the hierarchy. */
+    .page-hero {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: var(--space-2);
+      gap: 2px;
       margin: 0 auto var(--space-3);
-      padding: var(--space-2) var(--space-3);
+      padding: var(--space-3) var(--space-3) var(--space-2);
       max-width: 720px;
-      font-size: var(--font-size-2xl);
+      text-align: center;
+    }
+
+    .page-hero-trophy {
+      font-size: 2.25rem;
+      color: var(--bs-primary);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .page-hero-eyebrow {
+      margin: 0;
+      font-size: var(--font-size-xs);
+      font-weight: var(--font-weight-bold);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--brand-text-muted);
+    }
+
+    .page-hero-title {
+      margin: 0;
+      font-size: var(--font-size-3xl);
       font-weight: var(--font-weight-bold);
       color: var(--brand-text);
       letter-spacing: -0.01em;
-      line-height: 1.2;
-    }
-
-    .job-context-icon {
-      color: var(--bs-primary);
-      font-size: 1.1em;
+      line-height: 1.15;
     }
 
     @media (max-width: 575.98px) {
-      .job-context {
-        font-size: var(--font-size-xl);
-        margin-bottom: var(--space-2);
+      .page-hero {
+        padding: var(--space-3);
+        margin-bottom: var(--space-3);
       }
+      .page-hero-trophy { font-size: 2rem; }
+      .page-hero-title { font-size: var(--font-size-xl); }
     }
   `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -141,7 +166,7 @@ export class TeamWizardV2Component implements OnInit {
     readonly shellConfig = computed<WizardShellConfig>(() => {
         const club = this.state.clubRep.selectedClub();
         return {
-            title: club ? 'Team Registration for' : 'Team Registration',
+            title: 'Team Registration',
             theme: 'team',
             titleAccent: club,
             badge: null,
@@ -150,6 +175,21 @@ export class TeamWizardV2Component implements OnInit {
 
     /** Event name displayed as page-top context across every step. */
     readonly jobName = computed(() => this.jobService.currentJob()?.jobName ?? '');
+
+    /** Org/parent before the colon in jobName ("Top Threat Tournaments:Carolina Clash 2026"
+        → "Top Threat Tournaments"). Empty when no colon — caller drops the eyebrow. */
+    readonly orgName = computed(() => {
+        const name = this.jobName();
+        const idx = name.indexOf(':');
+        return idx > 0 ? name.substring(0, idx).trim() : '';
+    });
+
+    /** Event after the colon, or the whole jobName when no colon present. */
+    readonly eventName = computed(() => {
+        const name = this.jobName();
+        const idx = name.indexOf(':');
+        return idx > 0 ? name.substring(idx + 1).trim() : name;
+    });
 
     /**
      * "Full session" = authenticated as Club Rep with a Phase 2 token (regId + jobPath claims)

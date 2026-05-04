@@ -18,7 +18,9 @@
         <h2 class="wizard-title mb-0"
           [id]="'wz-title'"
           aria-labelledby="wz-title">
-          {{ config().title }}@if (config().titleAccent) {<span class="wizard-title-accent">{{ config().titleAccent }}</span>}
+          @if (config().titleAccent) {
+            <span class="wizard-title-club">{{ config().titleAccent }}</span><span class="wizard-title-sep"> &middot; </span>
+          }<span class="wizard-title-process">{{ config().title }}</span>
         </h2>
         @if (config().badge) {
         <div class="mt-2">
