@@ -212,6 +212,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<JobReportExportHistory> JobReportExportHistory { get; set; }
 
+    public virtual DbSet<JobReports> JobReports { get; set; }
+
     public virtual DbSet<JobSmsbroadcasts> JobSmsbroadcasts { get; set; }
 
     public virtual DbSet<JobTypes> JobTypes { get; set; }
@@ -289,8 +291,6 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<RegistrationFormPaymentMethods> RegistrationFormPaymentMethods { get; set; }
 
     public virtual DbSet<Registrations> Registrations { get; set; }
-
-    public virtual DbSet<ReportCatalogue> ReportCatalogue { get; set; }
 
     public virtual DbSet<ReportExportTypes> ReportExportTypes { get; set; }
 
@@ -4366,6 +4366,43 @@ public partial class SqlDbContext : DbContext
                 .HasConstraintName("FK__JobReport__Regis__0A8AE947");
         });
 
+        modelBuilder.Entity<JobReports>(entity =>
+        {
+            entity.HasKey(e => e.JobReportId);
+
+            entity.ToTable("JobReports", "reporting");
+
+            entity.HasIndex(e => new { e.JobId, e.RoleId, e.Active }, "IX_JobReports_JobRole");
+
+            entity.HasIndex(e => new { e.JobId, e.RoleId, e.Controller, e.Action, e.GroupLabel }, "UX_JobReports_JobRoleActionGroup").IsUnique();
+
+            entity.Property(e => e.JobReportId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.Action).HasMaxLength(250);
+            entity.Property(e => e.Controller).HasMaxLength(50);
+            entity.Property(e => e.GroupLabel).HasMaxLength(50);
+            entity.Property(e => e.IconName).HasMaxLength(50);
+            entity.Property(e => e.Kind).HasMaxLength(20);
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Title).HasMaxLength(200);
+
+            entity.HasOne(d => d.Job).WithMany(p => p.JobReports)
+                .HasForeignKey(d => d.JobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_JobReports_Job");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.JobReports)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_JobReports_LebUser");
+
+            entity.HasOne(d => d.Role).WithMany(p => p.JobReports)
+                .HasForeignKey(d => d.RoleId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_JobReports_Role");
+        });
+
         modelBuilder.Entity<JobSmsbroadcasts>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Job_SMSB__3214EC072318B94E");
@@ -5803,28 +5840,6 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.User).WithMany(p => p.RegistrationsUser)
                 .HasForeignKey(d => d.UserId)
                 .HasConstraintName("FK_Jobs.Registrations_AspNetUsers_UserId");
-        });
-
-        modelBuilder.Entity<ReportCatalogue>(entity =>
-        {
-            entity.HasKey(e => e.ReportId).HasName("PK__ReportCa__D5BD4805C36E98AB");
-
-            entity.ToTable("ReportCatalogue", "reporting");
-
-            entity.Property(e => e.ReportId).HasDefaultValueSql("(newid())");
-            entity.Property(e => e.Active).HasDefaultValue(true);
-            entity.Property(e => e.CategoryCode).HasMaxLength(50);
-            entity.Property(e => e.IconName).HasMaxLength(50);
-            entity.Property(e => e.LebUserId).HasMaxLength(450);
-            entity.Property(e => e.Modified)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-            entity.Property(e => e.StoredProcName).HasMaxLength(200);
-            entity.Property(e => e.Title).HasMaxLength(200);
-
-            entity.HasOne(d => d.LebUser).WithMany(p => p.ReportCatalogue)
-                .HasForeignKey(d => d.LebUserId)
-                .HasConstraintName("FK__ReportCat__LebUs__1157E267");
         });
 
         modelBuilder.Entity<ReportExportTypes>(entity =>

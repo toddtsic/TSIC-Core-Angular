@@ -23,6 +23,13 @@ public interface IJobCloneRepository
     Task<List<Bulletins>> GetSourceBulletinsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<JobAgeRanges>> GetSourceAgeRangesAsync(Guid jobId, CancellationToken ct = default);
     Task<List<JobMenus>> GetSourceMenusWithItemsAsync(Guid jobId, CancellationToken ct = default);
+    Task<List<JobReports>> GetSourceJobReportsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Per-job nav overrides (Nav.JobId == jobId). The default nav (JobId IS NULL) is shared
+    /// across jobs and is NOT cloned. NavItems eager-loaded.
+    /// </summary>
+    Task<List<Nav>> GetSourceNavWithItemsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<Registrations>> GetSourceAdminRegistrationsAsync(Guid jobId, CancellationToken ct = default);
     Task<Leagues?> GetSourceLeagueAsync(Guid jobId, CancellationToken ct = default);
     Task<JobLeagues?> GetSourceJobLeagueAsync(Guid jobId, Guid leagueId, CancellationToken ct = default);
@@ -52,6 +59,13 @@ public interface IJobCloneRepository
     void AddAgeRanges(IEnumerable<JobAgeRanges> ranges);
     void AddMenu(JobMenus menu);
     void AddMenuItems(IEnumerable<JobMenuItems> items);
+    void AddJobReports(IEnumerable<JobReports> reports);
+
+    /// <summary>
+    /// Adds a Nav root with its NavItem children attached via the navigation property.
+    /// EF resolves identity-int FKs (NavId, ParentNavItemId) at SaveChanges time.
+    /// </summary>
+    void AddNav(Nav nav);
     void AddRegistrations(IEnumerable<Registrations> registrations);
     void AddLeague(Leagues league);
     void AddJobLeague(JobLeagues jobLeague);

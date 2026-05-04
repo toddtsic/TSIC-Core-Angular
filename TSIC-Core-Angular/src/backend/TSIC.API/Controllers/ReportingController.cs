@@ -6,6 +6,7 @@ using TSIC.API.Extensions;
 using TSIC.API.Services.Reporting;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Controllers;
 
@@ -20,6 +21,23 @@ public class ReportingController : ControllerBase
     private readonly IReportingService _reportingService;
     private readonly IJobLookupService _jobLookupService;
 
+    // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
+    // Mirrors the local map pattern used by NavController / WidgetDashboardService /
+    // UserWidgetService / AdministratorService — no shared abstraction yet.
+    private static readonly Dictionary<string, string> RoleNameToIdMap = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Director"] = RoleConstants.Director,
+        ["SuperDirector"] = RoleConstants.SuperDirector,
+        ["Superuser"] = RoleConstants.Superuser,
+        ["Family"] = RoleConstants.Family,
+        ["Player"] = RoleConstants.Player,
+        ["Club Rep"] = RoleConstants.ClubRep,
+        ["Ref Assignor"] = RoleConstants.RefAssignor,
+        ["Staff"] = RoleConstants.Staff,
+        ["Store Admin"] = RoleConstants.StoreAdmin,
+        ["STPAdmin"] = RoleConstants.StpAdmin,
+    };
+
     public ReportingController(
         IReportingService reportingService,
         IJobLookupService jobLookupService)
@@ -27,6 +45,18 @@ public class ReportingController : ControllerBase
         _reportingService = reportingService;
         _jobLookupService = jobLookupService;
     }
+
+    /// <summary>
+    /// Translates the caller's role-name claims into role-id GUIDs (the form
+    /// stored in <c>reporting.JobReports.RoleId</c>). Unknown role names are dropped.
+    /// </summary>
+    private string[] GetCallerRoleIds()
+        => User.FindAll(ClaimTypes.Role)
+            .Select(c => c.Value)
+            .Select(name => RoleNameToIdMap.TryGetValue(name, out var id) ? id : null)
+            .Where(id => id != null)
+            .Cast<string>()
+            .ToArray();
 
     // ──────────────────────────────────────────────────────────────
     // Helpers — derive all context from JWT claims, never from params
@@ -49,78 +79,24 @@ public class ReportingController : ControllerBase
     }
 
     // ──────────────────────────────────────────────────────────────
-    // Type 2 Report Catalogue
+    // Reports library — sourced from reporting.JobReports
     // ──────────────────────────────────────────────────────────────
 
     [HttpGet("catalogue")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<List<ReportCatalogueEntryDto>>> GetCatalogue(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<JobReportEntryDto>>> GetCatalogue(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
         {
-            return new List<ReportCatalogueEntryDto>();
+            return new List<JobReportEntryDto>();
         }
 
-        var callerRoles = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToArray();
-        var catalogue = await _reportingService.GetCatalogueForJobAsync(jobId.Value, callerRoles, cancellationToken);
-        return catalogue;
-    }
-
-    // -------- SuperUser catalogue editor --------
-
-    [HttpGet("catalogue/all")]
-    [Authorize(Roles = "Superuser")]
-    public async Task<ActionResult<List<ReportCatalogueEntryDto>>> GetFullCatalogue(CancellationToken cancellationToken)
-    {
-        var rows = await _reportingService.GetFullCatalogueAsync(cancellationToken);
+        // Row existence in reporting.JobReports IS the entitlement — server returns
+        // exactly what the caller is allowed to see. Frontend renders verbatim.
+        var rows = await _reportingService.GetJobReportsAsync(
+            jobId.Value, GetCallerRoleIds(), cancellationToken);
         return rows;
-    }
-
-    [HttpPost("catalogue")]
-    [Authorize(Roles = "Superuser")]
-    public async Task<ActionResult<ReportCatalogueEntryDto>> CreateCatalogueEntry(
-        [FromBody] ReportCatalogueWriteDto dto,
-        CancellationToken cancellationToken)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-        var created = await _reportingService.CreateCatalogueEntryAsync(dto, userId, cancellationToken);
-        return CreatedAtAction(nameof(GetFullCatalogue), new { }, created);
-    }
-
-    [HttpPut("catalogue/{reportId:guid}")]
-    [Authorize(Roles = "Superuser")]
-    public async Task<ActionResult<ReportCatalogueEntryDto>> UpdateCatalogueEntry(
-        Guid reportId,
-        [FromBody] ReportCatalogueWriteDto dto,
-        CancellationToken cancellationToken)
-    {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
-        var updated = await _reportingService.UpdateCatalogueEntryAsync(reportId, dto, userId, cancellationToken);
-        if (updated == null) return NotFound();
-        return updated;
-    }
-
-    [HttpDelete("catalogue/{reportId:guid}")]
-    [Authorize(Roles = "Superuser")]
-    public async Task<ActionResult> DeleteCatalogueEntry(
-        Guid reportId,
-        CancellationToken cancellationToken)
-    {
-        var deleted = await _reportingService.DeleteCatalogueEntryAsync(reportId, cancellationToken);
-        if (!deleted) return NotFound();
-        return NoContent();
-    }
-
-    [HttpGet("catalogue/verify-sp")]
-    [Authorize(Roles = "Superuser")]
-    public async Task<ActionResult<VerifyStoredProcedureDto>> VerifyStoredProcedure(
-        [FromQuery] string name,
-        CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return BadRequest("name is required");
-        var result = await _reportingService.VerifyStoredProcedureAsync(name, cancellationToken);
-        return result;
     }
 
     // ──────────────────────────────────────────────────────────────
@@ -132,16 +108,20 @@ public class ReportingController : ControllerBase
     public async Task<ActionResult> ExportStoredProcedureResults(
         [FromQuery] string spName,
         [FromQuery] bool bUseJobId,
-        [FromQuery] bool bUseDateUnscheduled = false)
+        [FromQuery] bool bUseDateUnscheduled = false,
+        CancellationToken cancellationToken = default)
     {
-        // bUseJobId=false signals a cross-customer SP (no @jobId param); these are
-        // SuperUser-only by policy even though the endpoint is AdminOnly. The library
-        // pre-filters via requiresRoles, but a Director with the URL would otherwise
-        // pull cross-customer data. Enforce here.
-        if (!bUseJobId && !User.IsInRole("Superuser"))
-            return Forbid();
-
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService) ?? Guid.Empty;
+
+        // Per-row entitlement check on top of the [Authorize(AdminOnly)] floor — confirms
+        // the caller has an active stored-proc row in reporting.JobReports for this spName.
+        // Prevents an Admin from running a proc they aren't entitled to via direct URL.
+        if (!await _reportingService.HasStoredProcedureEntitlementAsync(
+                jobId, GetCallerRoleIds(), spName, cancellationToken))
+        {
+            return Forbid();
+        }
+
         var regId = User.GetRegistrationId();
 
         var result = await _reportingService.ExportStoredProcedureToExcelAsync(
@@ -402,11 +382,6 @@ public class ReportingController : ControllerBase
     [Authorize(Policy = "AdminOnly")]
     public Task<ActionResult> TsicFeesYtdByCustomer([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("tsicTSICFeesYTDByCustomer", exportFormat);
-
-    [HttpGet("Get_NetUsers")]
-    [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> GetNetUsers([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("netusers", exportFormat);
 
     [HttpGet("ISP_CheckinFlat")]
     [Authorize(Policy = "AdminOnly")]

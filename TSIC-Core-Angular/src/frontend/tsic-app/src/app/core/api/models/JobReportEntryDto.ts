@@ -2,14 +2,14 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type ReportCatalogueWriteDto = {
+export type JobReportEntryDto = {
+    jobReportId: string;
     title: string;
-    description?: string | null;
     iconName?: string | null;
-    storedProcName: string;
-    parametersJson?: string | null;
-    visibilityRules?: string | null;
-    categoryCode?: string | null;
+    controller: string;
+    action: string;
+    kind: string;
+    groupLabel?: string | null;
     sortOrder: number;
     active: boolean;
 };

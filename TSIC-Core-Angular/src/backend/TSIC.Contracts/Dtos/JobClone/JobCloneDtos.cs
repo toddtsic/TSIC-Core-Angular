@@ -91,6 +91,9 @@ public record CloneSummary
     public int AgeRangesCloned { get; init; }
     public int MenusCloned { get; init; }
     public int MenuItemsCloned { get; init; }
+    public int JobReportsCloned { get; init; }
+    public int NavCloned { get; init; }
+    public int NavItemsCloned { get; init; }
     public int AdminRegistrationsCloned { get; init; }
     public int LeaguesCloned { get; init; }
     public int AgegroupsCloned { get; init; }

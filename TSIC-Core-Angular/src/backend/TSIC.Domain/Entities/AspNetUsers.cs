@@ -171,6 +171,8 @@ public partial class AspNetUsers
 
     public virtual ICollection<JobPushNotificationsToAll> JobPushNotificationsToAll { get; set; } = new List<JobPushNotificationsToAll>();
 
+    public virtual ICollection<JobReports> JobReports { get; set; } = new List<JobReports>();
+
     public virtual ICollection<JobSmsbroadcasts> JobSmsbroadcasts { get; set; } = new List<JobSmsbroadcasts>();
 
     public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();
@@ -198,8 +200,6 @@ public partial class AspNetUsers
     public virtual ICollection<Registrations> RegistrationsLebUser { get; set; } = new List<Registrations>();
 
     public virtual ICollection<Registrations> RegistrationsUser { get; set; } = new List<Registrations>();
-
-    public virtual ICollection<ReportCatalogue> ReportCatalogue { get; set; } = new List<ReportCatalogue>();
 
     public virtual ICollection<Schedule> Schedule { get; set; } = new List<Schedule>();
 

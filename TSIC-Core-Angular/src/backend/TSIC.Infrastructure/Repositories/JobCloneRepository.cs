@@ -79,6 +79,24 @@ public class JobCloneRepository : IJobCloneRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<JobReports>> GetSourceJobReportsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.JobReports
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<Nav>> GetSourceNavWithItemsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Per-job overrides only — default nav (JobId IS NULL) is shared and not cloned.
+        return await _context.Nav
+            .AsNoTracking()
+            .Include(n => n.NavItem)
+            .Where(n => n.JobId == jobId)
+            .ToListAsync(ct);
+    }
+
     public async Task<List<Registrations>> GetSourceAdminRegistrationsAsync(Guid jobId, CancellationToken ct = default)
     {
         return await _context.Registrations
@@ -212,6 +230,12 @@ public class JobCloneRepository : IJobCloneRepository
 
     public void AddMenuItems(IEnumerable<JobMenuItems> items)
         => _context.JobMenuItems.AddRange(items);
+
+    public void AddJobReports(IEnumerable<JobReports> reports)
+        => _context.JobReports.AddRange(reports);
+
+    public void AddNav(Nav nav)
+        => _context.Nav.Add(nav);
 
     public void AddRegistrations(IEnumerable<Registrations> registrations)
         => _context.Registrations.AddRange(registrations);
@@ -361,7 +385,6 @@ public class JobCloneRepository : IJobCloneRepository
             + await _context.JobWidget.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
             + await _context.Jobinvoices.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
             + await _context.MonthlyJobStats.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
-            + await _context.Nav.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
             + await _context.PushSubscriptionJobs.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
             + await _context.RegForms.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
             + await _context.Schedule.AsNoTracking().CountAsync(x => x.JobId == jobId, ct)
@@ -472,6 +495,20 @@ public class JobCloneRepository : IJobCloneRepository
             var allItems = menus.SelectMany(m => m.JobMenuItems).ToList();
             if (allItems.Count > 0) _context.JobMenuItems.RemoveRange(allItems);
             _context.JobMenus.RemoveRange(menus);
+        }
+
+        // 9b. reporting.JobReports (flat list, FK → Jobs)
+        var jobReports = await _context.JobReports.Where(r => r.JobId == jobId).ToListAsync(ct);
+        if (jobReports.Count > 0) _context.JobReports.RemoveRange(jobReports);
+
+        // 9c. nav.Nav + nav.NavItem (per-job overrides only; default nav has JobId IS NULL)
+        var navs = await _context.Nav.Include(n => n.NavItem)
+            .Where(n => n.JobId == jobId).ToListAsync(ct);
+        if (navs.Count > 0)
+        {
+            var allNavItems = navs.SelectMany(n => n.NavItem).ToList();
+            if (allNavItems.Count > 0) _context.NavItem.RemoveRange(allNavItems);
+            _context.Nav.RemoveRange(navs);
         }
 
         // 10. JobOwlImages

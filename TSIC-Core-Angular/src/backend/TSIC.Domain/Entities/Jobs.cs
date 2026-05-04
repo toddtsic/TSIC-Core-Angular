@@ -285,6 +285,8 @@ public partial class Jobs
 
     public virtual ICollection<JobPushNotificationsToAll> JobPushNotificationsToAll { get; set; } = new List<JobPushNotificationsToAll>();
 
+    public virtual ICollection<JobReports> JobReports { get; set; } = new List<JobReports>();
+
     public virtual ICollection<JobSmsbroadcasts> JobSmsbroadcasts { get; set; } = new List<JobSmsbroadcasts>();
 
     public virtual JobTypes JobType { get; set; } = null!;

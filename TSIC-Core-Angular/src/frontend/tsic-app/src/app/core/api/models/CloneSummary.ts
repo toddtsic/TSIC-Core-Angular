@@ -7,6 +7,9 @@ export type CloneSummary = {
     ageRangesCloned?: number;
     menusCloned?: number;
     menuItemsCloned?: number;
+    jobReportsCloned?: number;
+    navCloned?: number;
+    navItemsCloned?: number;
     adminRegistrationsCloned?: number;
     leaguesCloned?: number;
     agegroupsCloned?: number;

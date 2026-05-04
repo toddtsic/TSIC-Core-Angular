@@ -202,6 +202,28 @@ public sealed class JobCloneService : IJobCloneService
                 summary.MenuItemsCloned = clonedItems.Count;
             }
 
+            // ── Step 7a: Clone reporting.JobReports (flat list, seeded from legacy menus) ──
+            var sourceReports = await _repo.GetSourceJobReportsAsync(request.SourceJobId, ct);
+            if (sourceReports.Count > 0)
+            {
+                var clonedReports = CloneJobReports(sourceReports, newJobId, superUserId, now);
+                _repo.AddJobReports(clonedReports);
+                summary.JobReportsCloned = clonedReports.Count;
+            }
+
+            // ── Step 7b: Clone nav.Nav per-job overrides (default nav stays shared) ──
+            // Today this is a no-op in current data — nav.Nav uses default-with-override and
+            // there are zero per-job override rows. The clone code lands so that when the first
+            // override is created, it carries forward correctly.
+            var sourceNavs = await _repo.GetSourceNavWithItemsAsync(request.SourceJobId, ct);
+            foreach (var src in sourceNavs)
+            {
+                var newNav = CloneNav(src, newJobId, superUserId, now);
+                _repo.AddNav(newNav);
+                summary.NavCloned += 1;
+                summary.NavItemsCloned += newNav.NavItem.Count;
+            }
+
             // ── Step 8: Clone admin Registrations (Director/SuperDirector forced inactive) ──
             // Track the executing actor's new Superuser registration so the response can drive
             // the post-clone JWT re-mint (FE log-into-new-job flow).
@@ -1156,6 +1178,83 @@ public sealed class JobCloneService : IJobCloneService
         return (clonedMenus, clonedItems);
     }
 
+    private static List<JobReports> CloneJobReports(
+        List<JobReports> sources, Guid newJobId, string userId, DateTime now)
+    {
+        // Flat list — JobReports has no parent/child hierarchy. New JobReportId per row;
+        // RoleId / Controller / Action / Kind / GroupLabel / Title / IconName / SortOrder
+        // copied verbatim so the new job inherits the source's report wiring.
+        return sources.Select(r => new JobReports
+        {
+            JobReportId = Guid.NewGuid(),
+            JobId = newJobId,
+            RoleId = r.RoleId,
+            Title = r.Title,
+            IconName = r.IconName,
+            Controller = r.Controller,
+            Action = r.Action,
+            Kind = r.Kind,
+            GroupLabel = r.GroupLabel,
+            SortOrder = r.SortOrder,
+            Active = r.Active,
+            Modified = now,
+            LebUserId = userId,
+        }).ToList();
+    }
+
+    private static Nav CloneNav(Nav source, Guid newJobId, string userId, DateTime now)
+    {
+        // Identity-int FKs: NavId + NavItemId are auto-assigned. We attach NavItem children
+        // via the navigation property and wire ParentNavItem via the navigation reference so
+        // EF resolves all FKs at SaveChanges time. DefaultNavItemId / DefaultParentNavItemId
+        // point at the global default (JobId IS NULL) rows — copied verbatim, not remapped.
+        var newNav = new Nav
+        {
+            JobId = newJobId,
+            RoleId = source.RoleId,
+            Active = source.Active,
+            Modified = now,
+            ModifiedBy = userId,
+        };
+
+        // Build new NavItem instances first (no parent links yet) so we can resolve parents in pass 2.
+        var itemMap = new Dictionary<int, NavItem>();
+        foreach (var srcItem in source.NavItem)
+        {
+            var newItem = new NavItem
+            {
+                Nav = newNav,
+                Active = srcItem.Active,
+                SortOrder = srcItem.SortOrder,
+                Text = srcItem.Text,
+                IconName = srcItem.IconName,
+                RouterLink = srcItem.RouterLink,
+                NavigateUrl = srcItem.NavigateUrl,
+                Target = srcItem.Target,
+                Modified = now,
+                ModifiedBy = userId,
+                VisibilityRules = srcItem.VisibilityRules,
+                DefaultNavItemId = srcItem.DefaultNavItemId,
+                DefaultParentNavItemId = srcItem.DefaultParentNavItemId,
+            };
+            itemMap[srcItem.NavItemId] = newItem;
+            newNav.NavItem.Add(newItem);
+        }
+
+        // Wire parent links — only for items whose ParentNavItemId resolves to another item
+        // in this same Nav. (External parent ids would be a data integrity issue; ignore.)
+        foreach (var srcItem in source.NavItem)
+        {
+            if (srcItem.ParentNavItemId.HasValue
+                && itemMap.TryGetValue(srcItem.ParentNavItemId.Value, out var parent))
+            {
+                itemMap[srcItem.NavItemId].ParentNavItem = parent;
+            }
+        }
+
+        return newNav;
+    }
+
     private static JobMenuItems CloneMenuItem(
         JobMenuItems source, Guid newItemId, Guid newMenuId, Guid? newParentId, string userId, DateTime now)
     {
@@ -1573,6 +1672,9 @@ public sealed class JobCloneService : IJobCloneService
         public int AgeRangesCloned { get; set; }
         public int MenusCloned { get; set; }
         public int MenuItemsCloned { get; set; }
+        public int JobReportsCloned { get; set; }
+        public int NavCloned { get; set; }
+        public int NavItemsCloned { get; set; }
         public int AdminRegistrationsCloned { get; set; }
         public int LeaguesCloned { get; set; }
         public int AgegroupsCloned { get; set; }
@@ -1586,6 +1688,9 @@ public sealed class JobCloneService : IJobCloneService
             AgeRangesCloned = AgeRangesCloned,
             MenusCloned = MenusCloned,
             MenuItemsCloned = MenuItemsCloned,
+            JobReportsCloned = JobReportsCloned,
+            NavCloned = NavCloned,
+            NavItemsCloned = NavItemsCloned,
             AdminRegistrationsCloned = AdminRegistrationsCloned,
             LeaguesCloned = LeaguesCloned,
             AgegroupsCloned = AgegroupsCloned,
@@ -1596,7 +1701,8 @@ public sealed class JobCloneService : IJobCloneService
 
         public override string ToString() =>
             $"Bulletins={BulletinsCloned}, AgeRanges={AgeRangesCloned}, Menus={MenusCloned}, " +
-            $"Items={MenuItemsCloned}, Admins={AdminRegistrationsCloned}, Leagues={LeaguesCloned}, " +
+            $"Items={MenuItemsCloned}, JobReports={JobReportsCloned}, Nav={NavCloned}, " +
+            $"NavItems={NavItemsCloned}, Admins={AdminRegistrationsCloned}, Leagues={LeaguesCloned}, " +
             $"Agegroups={AgegroupsCloned}, Divisions={DivisionsCloned}, Teams={TeamsCloned}";
     }
 }

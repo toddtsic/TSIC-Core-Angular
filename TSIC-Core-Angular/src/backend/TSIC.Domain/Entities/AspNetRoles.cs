@@ -19,6 +19,8 @@ public partial class AspNetRoles
 
     public virtual ICollection<JobMessages> JobMessages { get; set; } = new List<JobMessages>();
 
+    public virtual ICollection<JobReports> JobReports { get; set; } = new List<JobReports>();
+
     public virtual ICollection<JobWidget> JobWidget { get; set; } = new List<JobWidget>();
 
     public virtual ICollection<Menus> Menus { get; set; } = new List<Menus>();

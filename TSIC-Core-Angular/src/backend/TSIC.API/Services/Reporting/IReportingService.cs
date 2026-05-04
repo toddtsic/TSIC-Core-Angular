@@ -5,37 +5,23 @@ namespace TSIC.API.Services.Reporting;
 public interface IReportingService
 {
     /// <summary>
-    /// Returns the Type 2 report catalogue visible to the given job — active rows
-    /// from <c>reporting.ReportCatalogue</c> that pass the shared visibility
-    /// evaluator against the job's sport / jobtype / customer / feature flags
-    /// and the caller's roles (for cross-customer / SuperUser-only reports).
+    /// Returns the reports library visible to the given (job, role-set) — active rows
+    /// from <c>reporting.JobReports</c>. Row existence IS the entitlement; no further
+    /// gating is applied at this layer.
     /// </summary>
-    Task<List<ReportCatalogueEntryDto>> GetCatalogueForJobAsync(
+    Task<List<JobReportEntryDto>> GetJobReportsAsync(
         Guid jobId,
-        IEnumerable<string> callerRoles,
+        IReadOnlyCollection<string> roleIds,
         CancellationToken cancellationToken = default);
 
-    // -------- SuperUser catalogue editor --------
-
-    Task<List<ReportCatalogueEntryDto>> GetFullCatalogueAsync(
-        CancellationToken cancellationToken = default);
-
-    Task<ReportCatalogueEntryDto> CreateCatalogueEntryAsync(
-        ReportCatalogueWriteDto dto,
-        string lebUserId,
-        CancellationToken cancellationToken = default);
-
-    Task<ReportCatalogueEntryDto?> UpdateCatalogueEntryAsync(
-        Guid reportId,
-        ReportCatalogueWriteDto dto,
-        string lebUserId,
-        CancellationToken cancellationToken = default);
-
-    Task<bool> DeleteCatalogueEntryAsync(
-        Guid reportId,
-        CancellationToken cancellationToken = default);
-
-    Task<VerifyStoredProcedureDto> VerifyStoredProcedureAsync(
+    /// <summary>
+    /// Per-row entitlement check for the export-sp endpoint — confirms the caller has
+    /// an active stored-proc row in <c>reporting.JobReports</c> for the given spName.
+    /// Layered on top of the controller's [Authorize(AdminOnly)] floor.
+    /// </summary>
+    Task<bool> HasStoredProcedureEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
         string spName,
         CancellationToken cancellationToken = default);
 
