@@ -13,6 +13,7 @@ using FluentValidation;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.API.Configuration;
 using TSIC.API.Services.Auth;
+using TSIC.API.Services.SuggestedEvents;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 
@@ -32,6 +33,7 @@ namespace TSIC.API.Controllers
         private readonly IWebHostEnvironment _env;
         private readonly IEmailService _emailService;
         private readonly FrontendSettings _frontendSettings;
+        private readonly ISuggestedEventsService _suggestedEventsService;
 
         public AuthController(
             UserManager<ApplicationUser> userManager,
@@ -43,7 +45,8 @@ namespace TSIC.API.Controllers
             IUserRepository userRepository,
             IWebHostEnvironment env,
             IEmailService emailService,
-            IOptions<FrontendSettings> frontendSettings)
+            IOptions<FrontendSettings> frontendSettings,
+            ISuggestedEventsService suggestedEventsService)
         {
             _userManager = userManager;
             _roleLookupService = roleLookupService;
@@ -55,6 +58,7 @@ namespace TSIC.API.Controllers
             _env = env;
             _emailService = emailService;
             _frontendSettings = frontendSettings.Value;
+            _suggestedEventsService = suggestedEventsService;
         }
 
         /// <summary>
@@ -244,6 +248,35 @@ namespace TSIC.API.Controllers
             var registrations = await _roleLookupService.GetRegistrationsForUserAsync(user.Id);
 
             return Ok(new LoginResponseDto { UserId = user.Id, Registrations = registrations });
+        }
+
+        /// <summary>
+        /// Role-selection helper: candidate Jobs the family hasn't registered in,
+        /// run by Customers they have prior history with. Returns [] for non-Family
+        /// users or families with no candidate Jobs.
+        /// </summary>
+        [Authorize]
+        [HttpGet("suggested-events")]
+        [ProducesResponseType(typeof(List<SuggestedEventDto>), 200)]
+        [ProducesResponseType(401)]
+        public async Task<IActionResult> GetSuggestedEvents(CancellationToken ct)
+        {
+            var username = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                        ?? User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return Unauthorized(new { Error = "Invalid token" });
+            }
+
+            var user = await _userManager.FindByIdAsync(username);
+            if (user == null)
+            {
+                return Unauthorized(new { Error = "User not found" });
+            }
+
+            var suggestions = await _suggestedEventsService.GetSuggestedEventsForUserAsync(user.Id, ct);
+            return Ok(suggestions);
         }
 
         /// <summary>

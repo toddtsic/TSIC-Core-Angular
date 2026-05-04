@@ -598,6 +598,7 @@ export type { SubmitByCheckRejectionDto } from './models/SubmitByCheckRejectionD
 export type { SubmitByCheckRequestDto } from './models/SubmitByCheckRequestDto';
 export type { SubmitByCheckResponseDto } from './models/SubmitByCheckResponseDto';
 export type { SubscriptionDetailDto } from './models/SubscriptionDetailDto';
+export type { SuggestedEventDto } from './models/SuggestedEventDto';
 export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { SuspendedJobDto } from './models/SuspendedJobDto';
 export type { SwapDeviceTokenRequest } from './models/SwapDeviceTokenRequest';

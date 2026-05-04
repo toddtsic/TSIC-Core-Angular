@@ -278,6 +278,19 @@ public interface IJobRepository
     Task<Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Find currently-open Jobs for the role-selection "Looking for a new event?"
+    /// panel: Jobs whose Customer is in the family's prior-history set, that the
+    /// family is NOT already registered in, and that are publicly visible with
+    /// player registration currently allowed.
+    /// </summary>
+    /// <param name="customerIds">Customers from the family's prior history.</param>
+    /// <param name="excludeJobIds">Jobs the family already has an active registration in.</param>
+    Task<List<Dtos.SuggestedEventDto>> GetCandidateEventsByCustomersAsync(
+        IReadOnlyCollection<Guid> customerIds,
+        IReadOnlyCollection<Guid> excludeJobIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Per-user, per-job overlay for the pulse: assigned team, owed total, regsaver
     /// purchased; ClubRep aggregates across owned teams. Caller must have already
     /// verified the regId belongs to the job in question (e.g. JWT jobPath matches).

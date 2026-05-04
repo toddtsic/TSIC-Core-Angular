@@ -8,8 +8,8 @@
 
             <div class="auth-hero">
               <img src="favicon.svg" alt="" aria-hidden="true" class="auth-hero-icon" />
-              <h2 id="select-role-title" class="auth-hero-title">Select Your Role</h2>
-              <p class="auth-hero-subtitle">Choose how you'd like to participate</p>
+              <h2 id="select-role-title" class="auth-hero-title">Open a Registration</h2>
+              <p class="auth-hero-subtitle">Pick one of your existing registrations to continue.</p>
               @if (username()) {
               <span class="username-badge">
                 <i class="bi bi-person-fill"></i>
@@ -36,9 +36,22 @@
             }
 
             @if (registrations() && registrations().length > 0) {
+            @if (hasFamilyRegistration()) {
+            <p class="role-pivot">
+              Looking to register for a new event?
+              @if (showSuggestedPanel()) {
+              <button type="button" class="role-pivot-link" (click)="scrollToSuggestions()">
+                Jump to suggestions <i class="bi bi-arrow-down" aria-hidden="true"></i>
+              </button>
+              } @else {
+              <span class="role-pivot-text">Visit the event's website to start a new registration there.</span>
+              }
+            </p>
+            }
             @for (roleGroup of registrations(); track roleGroup.roleName; let i = $index) {
             <div class="role-section" [class.mt-4]="i > 0">
-              <label class="role-label">{{ roleGroup.roleName }}</label>
+              <label class="role-label" [attr.id]="'rs-label-' + i">{{ roleGroup.roleName }}</label>
+              @if (useTypeahead(roleGroup)) {
               <ejs-dropdownlist [dataSource]="roleGroup.roleRegistrations" [fields]="fields"
                 [placeholder]="'Select a registration...'" [allowFiltering]="true"
                 [filterBarPlaceholder]="'Type to search...'" [enabled]="!isLoading()" [popupHeight]="'400px'"
@@ -56,11 +69,103 @@
               </ejs-dropdownlist>
               <span class="visually-hidden" [id]="'rs-help-' + i">Use search to filter registrations. Arrow keys
                 navigate, Enter selects.</span>
+              } @else {
+              <ul class="role-card-list" [attr.aria-labelledby]="'rs-label-' + i">
+                @for (reg of roleGroup.roleRegistrations; track reg.regId) {
+                <li>
+                  <button type="button" class="role-card-row" [disabled]="isLoading()" (click)="selectRole(reg)">
+                    @if (reg.jobLogo) {
+                    <img class="role-card-logo" [src]="reg.jobLogo" alt="" aria-hidden="true" />
+                    } @else {
+                    <span class="role-card-logo-placeholder" aria-hidden="true"></span>
+                    }
+                    <span class="role-card-body">
+                      <span class="role-card-title">{{ parseRowParts(reg.displayText).title }}</span>
+                      @if (parseRowParts(reg.displayText).detail) {
+                      <span class="role-card-detail">{{ parseRowParts(reg.displayText).detail }}</span>
+                      }
+                    </span>
+                    <i class="bi bi-chevron-right role-card-arrow" aria-hidden="true"></i>
+                  </button>
+                </li>
+                }
+              </ul>
+              }
             </div>
             }
             }
+
+            @if (noRegistrationsAvailable()) {
+            <div class="empty-roles" role="status">
+              <i class="bi bi-info-circle empty-roles-icon" aria-hidden="true"></i>
+              <h3 class="empty-roles-title">No active registrations on this account</h3>
+              <p class="empty-roles-message">
+                <span class="d-block">This account isn't currently registered for any event.</span>
+                @if (showSuggestedPanel()) {
+                <span class="d-block mt-2">See the suggestions below for events you may be looking for.</span>
+                } @else {
+                <span class="d-block mt-2">
+                  If you're trying to register for an event, click <strong>Logout</strong> below, then visit the event's
+                  website and start a new registration there.
+                </span>
+                }
+              </p>
+            </div>
+            }
           </div>
         </div>
+
+        @if (showSuggestedPanel()) {
+        <section id="suggested-events-panel" class="card role-card border-0 mb-4 suggested-events-card"
+          aria-labelledby="suggested-events-title">
+          <div class="card-body">
+            <header class="suggested-events-header">
+              <h3 id="suggested-events-title" class="suggested-events-title">
+                <i class="bi bi-calendar2-event" aria-hidden="true"></i>
+                Looking for a new event?
+              </h3>
+              <p class="suggested-events-subtitle">Based on events you've registered for before.</p>
+            </header>
+
+            <ul class="suggested-events-list">
+              @for (event of suggestedEvents(); track event.jobId) {
+              <li class="suggested-event">
+                @if (event.jobLogo) {
+                <img class="suggested-event-logo" [src]="event.jobLogo" alt="" aria-hidden="true" />
+                } @else {
+                <div class="suggested-event-logo-placeholder" aria-hidden="true">
+                  <i class="bi bi-image"></i>
+                </div>
+                }
+
+                <div class="suggested-event-body">
+                  <div class="suggested-event-name">{{ event.jobName }}</div>
+                  <div class="suggested-event-customer">{{ event.customerName }}</div>
+                  <div class="suggested-event-badges">
+                    @if (event.playerRegistrationOpen) {
+                    <span class="badge bg-primary-subtle text-primary-emphasis">Player registration open</span>
+                    }
+                    @if (event.storeOpen) {
+                    <span class="badge bg-info-subtle text-info-emphasis">Store live</span>
+                    }
+                    @if (event.schedulePublished) {
+                    <span class="badge bg-success-subtle text-success-emphasis">Schedules published</span>
+                    }
+                  </div>
+                </div>
+
+                <a class="btn btn-primary btn-sm suggested-event-cta"
+                  [routerLink]="['/', event.jobPath]"
+                  [attr.aria-label]="'Go to ' + event.jobName">
+                  Go to event
+                  <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+                </a>
+              </li>
+              }
+            </ul>
+          </div>
+        </section>
+        }
 
         <div class="text-center mt-4">
           <button type="button" class="btn btn-outline-danger rounded-pill px-4" (click)="logout()"

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, computed, signal, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { MenuStateService } from '../../../layouts/services/menu-state.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
@@ -8,7 +8,7 @@ import { Query } from '@syncfusion/ej2-data';
 @Component({
   selector: 'app-role-selection',
   standalone: true,
-  imports: [DropDownListModule],
+  imports: [DropDownListModule, RouterLink],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss'],
@@ -20,10 +20,46 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   private readonly route = inject(ActivatedRoute);
   private readonly menuState = inject(MenuStateService);
 
+  /** Below this row count, render a section as a stack of clickable cards instead of a typeahead. */
+  private static readonly TYPEAHEAD_THRESHOLD = 7;
+
   readonly registrations = computed(() => this.authService.registrations());
+  readonly suggestedEvents = computed(() => this.authService.suggestedEvents());
+  readonly showSuggestedPanel = computed(() => this.suggestedEvents().length > 0);
   readonly isLoading = computed(() => this.authService.registrationsLoading() || this.selectingRole());
   readonly errorMessage = computed(() => this.authService.registrationsError() ?? this.authService.selectError());
   readonly username = computed(() => this.authService.currentUser()?.username ?? '');
+  readonly noRegistrationsAvailable = computed(() =>
+    !this.isLoading()
+    && !this.errorMessage()
+    && !this.authService.registrationsLoading()
+    && this.registrations().length === 0
+  );
+  /**
+   * True iff the account holds at least one Player registration. Per privilege-separation
+   * policy, Family-class and Admin-class accounts are mutually exclusive — so this
+   * is a binary account-class signal, not a "could be either" overlap check.
+   */
+  readonly hasFamilyRegistration = computed(() =>
+    this.registrations().some(g => g.roleName === 'Player')
+  );
+
+  useTypeahead(roleGroup: { roleRegistrations: unknown[] }): boolean {
+    return roleGroup.roleRegistrations.length >= RoleSelectionComponent.TYPEAHEAD_THRESHOLD;
+  }
+
+  /**
+   * Split the colon-mashed displayText into a title + detail line for cards mode.
+   * Player rows look like "JobName:FirstName LastName:AgegroupName:TeamName"; admin
+   * rows are usually just "JobName". First segment becomes the title; the rest are
+   * joined as a muted detail line.
+   */
+  parseRowParts(displayText: string): { title: string; detail: string } {
+    const parts = (displayText ?? '').split(':');
+    const title = parts[0]?.trim() ?? '';
+    const detail = parts.slice(1).map(p => p.trim()).filter(Boolean).join(' • ');
+    return { title, detail };
+  }
 
   /** Local UI signal for selection in progress */
   readonly selectingRole = signal(false);
@@ -50,6 +86,7 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     this._returnUrl = raw && !raw.includes('role-selection') ? raw : null;
     // Trigger fetch
     this.authService.loadAvailableRegistrations();
+    this.authService.loadSuggestedEvents();
   }
 
   @ViewChildren(DropDownListComponent) readonly dropdowns!: QueryList<DropDownListComponent>;
@@ -64,6 +101,11 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     if (this._openedOnce) return;
     // Skip auto-open on mobile — Syncfusion opens a full-screen overlay on touch devices
     if (window.innerWidth < 768) return;
+    // Only auto-open when there's exactly ONE role section AND it's the typeahead
+    // variant — auto-opening one of multiple sections is presumptuous, and there's
+    // nothing to "open" in a cards-mode section (entries are already visible).
+    const groups = this.registrations();
+    if (groups.length !== 1 || !this.useTypeahead(groups[0])) return;
     const first = this.dropdowns?.first;
     if (first) {
       this._openedOnce = true;
@@ -80,6 +122,19 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
   public onDropdownChange(e: ChangeEventArgs): void {
     if (e.itemData) {
       this.selectRole(e.itemData as any);
+    }
+  }
+
+  scrollToSuggestions(): void {
+    const target = document.getElementById('suggested-events-panel');
+    if (!target) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    // Move focus to the panel header so screen readers land in the right place
+    const heading = document.getElementById('suggested-events-title');
+    if (heading) {
+      heading.setAttribute('tabindex', '-1');
+      heading.focus({ preventScroll: true });
     }
   }
 

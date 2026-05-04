@@ -480,6 +480,42 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<List<Contracts.Dtos.SuggestedEventDto>> GetCandidateEventsByCustomersAsync(
+        IReadOnlyCollection<Guid> customerIds,
+        IReadOnlyCollection<Guid> excludeJobIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (customerIds.Count == 0) return [];
+
+        var now = DateTime.UtcNow;
+        return await (
+            from j in _context.Jobs
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join jdo in _context.JobDisplayOptions on j.JobId equals jdo.JobId into jdoGroup
+            from jdo in jdoGroup.DefaultIfEmpty()
+            where customerIds.Contains(j.CustomerId)
+               && !excludeJobIds.Contains(j.JobId)
+               && j.BRegistrationAllowPlayer == true
+               && j.ExpiryUsers > now
+               && !j.BSuspendPublic
+            orderby j.Year descending, j.JobName
+            select new Contracts.Dtos.SuggestedEventDto
+            {
+                JobId = j.JobId,
+                JobPath = j.JobPath ?? string.Empty,
+                JobName = j.JobName ?? "(unnamed)",
+                JobLogo = jdo != null && jdo.LogoHeader != null
+                    ? TSIC.Domain.Constants.TsicConstants.BaseUrlStatics + "BannerFiles/" + jdo.LogoHeader
+                    : null,
+                CustomerName = c.CustomerName ?? string.Empty,
+                PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
+                StoreOpen = j.BEnableStore == true,
+                SchedulePublished = j.BScheduleAllowPublicAccess == true,
+                RegistrationExpiry = j.ExpiryUsers
+            }
+        ).AsNoTracking().ToListAsync(cancellationToken);
+    }
+
     public async Task<Contracts.Dtos.JobPulseUserContext> GetPulseUserContextAsync(
         Guid regId, string role, CancellationToken cancellationToken = default)
     {

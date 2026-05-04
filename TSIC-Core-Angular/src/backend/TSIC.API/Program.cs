@@ -239,6 +239,7 @@ builder.Services.AddScoped<IClubService, ClubService>();
 builder.Services.AddScoped<IClubRosterService, ClubRosterService>();
 builder.Services.AddScoped<IMyRosterService, TSIC.API.Services.MyRoster.MyRosterService>();
 builder.Services.AddScoped<IUserPrivilegeLevelService, UserPrivilegeLevelService>();
+builder.Services.AddScoped<TSIC.API.Services.SuggestedEvents.ISuggestedEventsService, TSIC.API.Services.SuggestedEvents.SuggestedEventsService>();
 builder.Services.AddScoped<ITeamPlacementService, TeamPlacementService>();
 builder.Services.AddScoped<ITeamRegistrationService, TeamRegistrationService>();
 builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();

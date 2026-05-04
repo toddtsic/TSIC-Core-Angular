@@ -83,6 +83,19 @@ public interface IRegistrationRepository
     Task<List<RegistrationDto>> GetPlayerRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get the distinct CustomerIds of every Job the user has prior Family
+    /// registrations with (active OR inactive — prior history is the signal).
+    /// Used to find sibling Jobs to suggest on role-selection.
+    /// </summary>
+    Task<List<Guid>> GetCustomerIdsForFamilyUserAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get the JobIds where the user already has an active Family registration.
+    /// Used to exclude already-registered Jobs from suggestions.
+    /// </summary>
+    Task<List<Guid>> GetActiveFamilyJobIdsForUserAsync(string userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get Club Rep role registrations for a user
     /// </summary>
     Task<List<RegistrationDto>> GetClubRepRegistrationsAsync(string userId, CancellationToken cancellationToken = default);

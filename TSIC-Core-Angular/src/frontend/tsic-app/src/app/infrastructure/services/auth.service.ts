@@ -11,6 +11,7 @@ import {
   AuthenticatedUser,
   RegistrationRoleDto
 } from '../view-models/auth.models';
+import { SuggestedEventDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
@@ -41,6 +42,8 @@ export class AuthService {
   public readonly registrationsError = signal<string | null>(null);
   // Internal flag so we don't refetch registrations repeatedly in the same session
   private _registrationsFetched = false;
+  public readonly suggestedEvents = signal<SuggestedEventDto[]>([]);
+  private _suggestedEventsFetched = false;
   public readonly selectLoading = signal(false);
   public readonly selectError = signal<string | null>(null);
 
@@ -127,6 +130,25 @@ export class AuthService {
   }
 
   /**
+   * Role-selection helper — Jobs the family has prior history with but no
+   * active registration in. Empty for non-Family users.
+   */
+  loadSuggestedEvents(): void {
+    if (this._suggestedEventsFetched) return;
+    this.http.get<SuggestedEventDto[]>(`${this.apiUrl}/suggested-events`).subscribe({
+      next: (events) => {
+        this.suggestedEvents.set(events ?? []);
+        this._suggestedEventsFetched = true;
+      },
+      error: () => {
+        // Silent failure: suggestions are a helper, not core path.
+        this.suggestedEvents.set([]);
+        this._suggestedEventsFetched = true;
+      }
+    });
+  }
+
+  /**
    * Phase 3: Select a registration and receive full JWT token
    * Returns new token with jobPath and regId claims
    */
@@ -189,6 +211,8 @@ export class AuthService {
     // Reset registration cache so next login fetches fresh data
     this._registrationsFetched = false;
     this.registrations.set([]);
+    this._suggestedEventsFetched = false;
+    this.suggestedEvents.set([]);
     const redirect = options?.redirectTo || '/tsic/login';
     const q = options?.queryParams || undefined;
     if (q) {
@@ -212,6 +236,8 @@ export class AuthService {
     // reset one-shot registration fetch so next authenticated flow can reload
     this._registrationsFetched = false;
     this.registrations.set([]);
+    this._suggestedEventsFetched = false;
+    this.suggestedEvents.set([]);
   }
 
   /**
