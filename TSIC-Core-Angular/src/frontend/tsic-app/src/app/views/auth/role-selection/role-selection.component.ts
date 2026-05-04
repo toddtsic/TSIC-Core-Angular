@@ -1,14 +1,15 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, computed, signal, ViewChildren, AfterViewInit, QueryList, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { MenuStateService } from '../../../layouts/services/menu-state.service';
 import { DropDownListModule, FilteringEventArgs, ChangeEventArgs, FieldSettingsModel, DropDownListComponent } from '@syncfusion/ej2-angular-dropdowns';
 import { Query } from '@syncfusion/ej2-data';
+import { SuggestedEventsModalComponent } from './suggested-events-modal.component';
 @Component({
   selector: 'app-role-selection',
   standalone: true,
-  imports: [DropDownListModule, RouterLink],
+  imports: [DropDownListModule, SuggestedEventsModalComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   templateUrl: './role-selection.component.html',
   styleUrls: ['./role-selection.component.scss'],
@@ -25,7 +26,8 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
 
   readonly registrations = computed(() => this.authService.registrations());
   readonly suggestedEvents = computed(() => this.authService.suggestedEvents());
-  readonly showSuggestedPanel = computed(() => this.suggestedEvents().length > 0);
+  readonly hasSuggestedEvents = computed(() => this.suggestedEvents().length > 0);
+  readonly suggestedEventsModalOpen = signal(false);
   readonly isLoading = computed(() => this.authService.registrationsLoading() || this.selectingRole());
   readonly errorMessage = computed(() => this.authService.registrationsError() ?? this.authService.selectError());
   readonly username = computed(() => this.authService.currentUser()?.username ?? '');
@@ -125,17 +127,12 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     }
   }
 
-  scrollToSuggestions(): void {
-    const target = document.getElementById('suggested-events-panel');
-    if (!target) return;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-    // Move focus to the panel header so screen readers land in the right place
-    const heading = document.getElementById('suggested-events-title');
-    if (heading) {
-      heading.setAttribute('tabindex', '-1');
-      heading.focus({ preventScroll: true });
-    }
+  openSuggestedEventsModal(): void {
+    this.suggestedEventsModalOpen.set(true);
+  }
+
+  closeSuggestedEventsModal(): void {
+    this.suggestedEventsModalOpen.set(false);
   }
 
   selectRole(registration: any): void {

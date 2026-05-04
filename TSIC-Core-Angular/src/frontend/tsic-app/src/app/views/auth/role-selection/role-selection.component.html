@@ -39,9 +39,11 @@
             @if (hasFamilyRegistration()) {
             <p class="role-pivot">
               Looking to register for a new event?
-              @if (showSuggestedPanel()) {
-              <button type="button" class="role-pivot-link" (click)="scrollToSuggestions()">
-                Jump to suggestions <i class="bi bi-arrow-down" aria-hidden="true"></i>
+              @if (hasSuggestedEvents()) {
+              <button type="button" class="role-pivot-link" (click)="openSuggestedEventsModal()">
+                Show {{ suggestedEvents().length }}
+                {{ suggestedEvents().length === 1 ? 'suggestion' : 'suggestions' }}
+                <i class="bi bi-arrow-right" aria-hidden="true"></i>
               </button>
               } @else {
               <span class="role-pivot-text">Visit the event's website to start a new registration there.</span>
@@ -101,8 +103,14 @@
               <h3 class="empty-roles-title">No active registrations on this account</h3>
               <p class="empty-roles-message">
                 <span class="d-block">This account isn't currently registered for any event.</span>
-                @if (showSuggestedPanel()) {
-                <span class="d-block mt-2">See the suggestions below for events you may be looking for.</span>
+                @if (hasSuggestedEvents()) {
+                <span class="d-block mt-2">
+                  <button type="button" class="role-pivot-link" (click)="openSuggestedEventsModal()">
+                    Show {{ suggestedEvents().length }}
+                    {{ suggestedEvents().length === 1 ? 'suggested event' : 'suggested events' }}
+                    <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                  </button>
+                </span>
                 } @else {
                 <span class="d-block mt-2">
                   If you're trying to register for an event, click <strong>Logout</strong> below, then visit the event's
@@ -115,58 +123,6 @@
           </div>
         </div>
 
-        @if (showSuggestedPanel()) {
-        <section id="suggested-events-panel" class="card role-card border-0 mb-4 suggested-events-card"
-          aria-labelledby="suggested-events-title">
-          <div class="card-body">
-            <header class="suggested-events-header">
-              <h3 id="suggested-events-title" class="suggested-events-title">
-                <i class="bi bi-calendar2-event" aria-hidden="true"></i>
-                Looking for a new event?
-              </h3>
-              <p class="suggested-events-subtitle">Based on events you've registered for before.</p>
-            </header>
-
-            <ul class="suggested-events-list">
-              @for (event of suggestedEvents(); track event.jobId) {
-              <li class="suggested-event">
-                @if (event.jobLogo) {
-                <img class="suggested-event-logo" [src]="event.jobLogo" alt="" aria-hidden="true" />
-                } @else {
-                <div class="suggested-event-logo-placeholder" aria-hidden="true">
-                  <i class="bi bi-image"></i>
-                </div>
-                }
-
-                <div class="suggested-event-body">
-                  <div class="suggested-event-name">{{ event.jobName }}</div>
-                  <div class="suggested-event-customer">{{ event.customerName }}</div>
-                  <div class="suggested-event-badges">
-                    @if (event.playerRegistrationOpen) {
-                    <span class="badge bg-primary-subtle text-primary-emphasis">Player registration open</span>
-                    }
-                    @if (event.storeOpen) {
-                    <span class="badge bg-info-subtle text-info-emphasis">Store live</span>
-                    }
-                    @if (event.schedulePublished) {
-                    <span class="badge bg-success-subtle text-success-emphasis">Schedules published</span>
-                    }
-                  </div>
-                </div>
-
-                <a class="btn btn-primary btn-sm suggested-event-cta"
-                  [routerLink]="['/', event.jobPath]"
-                  [attr.aria-label]="'Go to ' + event.jobName">
-                  Go to event
-                  <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
-                </a>
-              </li>
-              }
-            </ul>
-          </div>
-        </section>
-        }
-
         <div class="text-center mt-4">
           <button type="button" class="btn btn-outline-danger rounded-pill px-4" (click)="logout()"
             [disabled]="isLoading()">
@@ -178,4 +134,10 @@
       </div>
     </div>
   </div>
+
+  @if (suggestedEventsModalOpen()) {
+  <app-suggested-events-modal
+    [events]="suggestedEvents()"
+    (closed)="closeSuggestedEventsModal()" />
+  }
 </main>
