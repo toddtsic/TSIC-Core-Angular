@@ -202,7 +202,10 @@ INSERT INTO @ImportYears VALUES ('2025'), ('2026'), ('2027');
 -- alone (snapshot/read-only); the boundary is enforced here.
 DECLARE @ExcludeActions TABLE ([Action] NVARCHAR(250) NOT NULL PRIMARY KEY);
 INSERT INTO @ExcludeActions VALUES
-    (N'Get_NetUsers');   -- obsolete network-level user count (test report ~20yr old)
+    (N'Get_NetUsers'),       -- obsolete network-level user count (test report ~20yr old)
+    (N'ShowJobInvoices');    -- live invoice viewer; mutates post-billing (chargebacks/refunds)
+                             -- so users would see numbers disagreeing with printed copies they
+                             -- received at billing time. Retired for ALL roles 2026-05-04.
 
 DELETE FROM reporting.JobReports
 WHERE [Action] IN (SELECT [Action] FROM @ExcludeActions);

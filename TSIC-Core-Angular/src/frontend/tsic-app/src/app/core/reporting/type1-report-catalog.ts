@@ -114,9 +114,4 @@ export const TYPE1_REPORT_CATALOG: readonly Type1ReportEntry[] = [
     { id: 't1-su-tsic-fees-ytd-customer-job',   title: 'TSIC Fees YTD by Customer + Job',            description: 'Year-to-date TSIC fees broken out by customer and job',     iconName: 'graph-up-arrow',            endpointPath: 'TSICFeesYTDByCustomerAndJob',                      visibilityRules: { requiresRoles: ['Superuser'] }, category: 'Financials',     sortOrder: 1030 },
     { id: 't1-su-last-month-invoices',          title: 'Last Month Invoices (PDF)',                  description: 'Prior month customer invoices',                             iconName: 'file-earmark-pdf',          endpointPath: 'Get_Invoices_LastMonth',                           visibilityRules: { requiresRoles: ['Superuser'] }, category: 'Financials',     sortOrder: 1040 },
     { id: 't1-su-last-month-invoice-summaries', title: 'Last Month Invoice Summaries (PDF)',         description: 'Summaries-only view of prior month customer invoices',      iconName: 'file-earmark-text',         endpointPath: 'Get_Invoices_LastMonthSummariesOnly',              visibilityRules: { requiresRoles: ['Superuser'] }, category: 'Financials',     sortOrder: 1050 },
-
-    // Non-Reporting-controller reports. endpointPath = "Controller/Action"; the
-    // ReportingService dispatcher splits on slash to choose which controller to
-    // call (default = Reporting when no slash present).
-    { id: 't1-job-invoices-rtf',                title: 'Job Invoices (RTF)',                         description: 'Download RTF invoices for the current job',                 iconName: 'file-earmark-richtext',     endpointPath: 'Home/ShowJobInvoices',                             visibilityRules: { jobTypes: [JT.Camp, JT.ClubSport, JT.Showcase, JT.League, JT.Tournament] }, category: 'Financials',     sortOrder: 215 },
 ];
