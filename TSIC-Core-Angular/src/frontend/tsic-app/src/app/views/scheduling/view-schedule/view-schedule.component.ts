@@ -436,8 +436,8 @@ interface FilterChip {
                         @if (fieldInfo()?.directions) {
                             <p class="mb-0 text-muted" style="white-space:pre-wrap;">{{ fieldInfo()!.directions }}</p>
                         }
-                        @if (fieldInfo()?.latitude && fieldInfo()?.longitude) {
-                            <a href="https://www.google.com/maps?q={{ fieldInfo()!.latitude }},{{ fieldInfo()!.longitude }}"
+                        @if (fieldMapUrl(); as url) {
+                            <a [href]="url"
                                target="_blank" rel="noopener"
                                class="btn btn-sm btn-outline-primary mt-2">
                                 <i class="bi bi-geo-alt"></i> View Map
@@ -1006,6 +1006,20 @@ export class ViewScheduleComponent implements OnInit {
     // ══════════════════════════════════════════════════════════════════
 
     readonly eventName = computed(() => this.jobService.currentJob()?.jobName ?? '');
+
+    /** Address-first maps query — geocoded addresses pinpoint better than raw lat/lng. */
+    readonly fieldMapUrl = computed<string | null>(() => {
+        const f = this.fieldInfo();
+        if (!f) return null;
+        const parts = [f.address, f.city, [f.state, f.zip].filter(Boolean).join(' ')].filter(Boolean);
+        if (parts.length > 0) {
+            return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(', '))}`;
+        }
+        if (f.latitude != null && f.longitude != null) {
+            return `https://www.google.com/maps/search/?api=1&query=${f.latitude},${f.longitude}`;
+        }
+        return null;
+    });
 
     readonly hasCadtData = computed(() => this.cadtTree().length > 0);
     readonly hasLadtData = computed(() => this.ladtTree().length > 0);
