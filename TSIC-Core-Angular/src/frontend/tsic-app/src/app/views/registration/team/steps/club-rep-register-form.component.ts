@@ -724,8 +724,8 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         if (this.exactMatch() !== null) return false;
         const decision = this.clubDecision();
         return (decision === 'clear' || decision === 'new')
-            && !this.passwordMismatch()
-            && this.form.controls.agreeToTos.value === true;
+            && this.form.valid
+            && !this.passwordMismatch();
     }
 
     onSubmit(): void {

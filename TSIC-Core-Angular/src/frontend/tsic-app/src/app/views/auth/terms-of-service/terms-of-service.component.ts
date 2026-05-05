@@ -36,8 +36,11 @@ export class TermsOfServiceComponent {
             next: () => {
                 this.submitting.set(false);
                 this.toastService.show('Terms of Service accepted successfully', 'success');
+                // Match the post-login routing exactly so TOS-required logins finish
+                // in the same place a TOS-less login would have (Phase 1 → role-selection
+                // with returnUrl preserved; Phase 2 → direct navigate).
                 const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/tsic/role-selection';
-                this.router.navigateByUrl(returnUrl);
+                this.authService.navigateAfterAuth(this.router, returnUrl);
             },
             error: (err) => {
                 this.submitting.set(false);

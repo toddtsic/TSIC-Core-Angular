@@ -42,9 +42,20 @@ import type { AgeGroupDto } from '@core/api';
         <!-- Body -->
         <div class="register-body">
 
-          <!-- Team Name -->
-          <div class="form-row">
-            <label for="art-name" class="field-label">Team Name</label>
+          <!-- ── Step 1 — Name your team ─────────────────────────── -->
+          <div class="step-section"
+               role="group" aria-labelledby="step-1-title"
+               [class.is-active]="activeStep() === 1"
+               [class.is-completed]="step1Done()">
+            <div class="step-eyebrow">
+              <span class="step-circle"
+                    [class.is-active]="activeStep() === 1"
+                    [class.is-completed]="step1Done()">
+                @if (step1Done()) { <i class="bi bi-check-lg"></i> } @else { 1 }
+              </span>
+              <span class="step-title" id="step-1-title">Name your team</span>
+            </div>
+
             <input id="art-name" type="text" class="field-input"
                    [value]="teamName()" (input)="teamName.set($any($event.target).value)"
                    placeholder="e.g. 2028 Blue"
@@ -67,49 +78,81 @@ import type { AgeGroupDto } from '@core/api';
             }
           </div>
 
-          <!-- Grad Year -->
-          <div class="form-row form-row-split">
-            <div>
-              <label for="art-year" class="field-label">Grad Year</label>
-              <select id="art-year" class="field-select"
-                      [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
-                      [class.is-required]="!gradYear()"
-                      [class.is-invalid]="submitted() && !gradYear()">
-                <option value="">Select</option>
-                @for (yr of gradYearOptions; track yr) {
-                  <option [value]="yr">{{ yr === 'Adult' ? 'Adult Team' : yr }}</option>
-                }
-              </select>
-              @if (submitted() && !gradYear()) {
-                <div class="field-error">Required</div>
-              }
+          <!-- ── Step 2 — Team details ───────────────────────────── -->
+          <div class="step-section"
+               role="group" aria-labelledby="step-2-title"
+               [class.is-active]="activeStep() === 2"
+               [class.is-completed]="step2Done()"
+               [class.is-locked]="!step1Done()">
+            <div class="step-eyebrow">
+              <span class="step-circle"
+                    [class.is-active]="activeStep() === 2"
+                    [class.is-completed]="step2Done()">
+                @if (step2Done()) { <i class="bi bi-check-lg"></i> } @else { 2 }
+              </span>
+              <span class="step-title" id="step-2-title">Team details</span>
             </div>
 
-            <div>
-              <label class="field-label">Level of Play</label>
-              <div class="lop-pills" role="radiogroup" aria-label="Level of play">
-                @for (lop of lopChoices; track lop.value) {
-                  <button type="button" class="lop-pill" role="radio"
-                          [class.active]="levelOfPlay() === lop.value"
-                          [class.is-invalid]="submitted() && !levelOfPlay()"
-                          [attr.aria-checked]="levelOfPlay() === lop.value"
-                          [attr.title]="lop.label"
-                          (click)="levelOfPlay.set(lop.value)">
-                    {{ lop.short }}
-                  </button>
+            <div class="form-row-split">
+              <div>
+                <label for="art-year" class="field-label">Players' Grad Year</label>
+                <select id="art-year" class="field-select"
+                        [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
+                        [disabled]="!step1Done()"
+                        [class.is-required]="!gradYear()"
+                        [class.is-invalid]="submitted() && !gradYear()">
+                  <option value="">Select</option>
+                  @for (yr of gradYearOptions; track yr) {
+                    <option [value]="yr">{{ yr === 'Adult' ? 'Adult Team' : yr }}</option>
+                  }
+                </select>
+                <div class="grad-year-tip">
+                  Grad year of the <strong>majority</strong> of your players &mdash;
+                  <em>not</em> the age group you're registering for (that's step 3).
+                </div>
+                @if (submitted() && !gradYear()) {
+                  <div class="field-error">Required</div>
                 }
               </div>
-              @if (submitted() && !levelOfPlay()) {
-                <div class="field-error">Required</div>
-              }
+
+              <div>
+                <label class="field-label">Level of Play</label>
+                <div class="lop-pills" role="radiogroup" aria-label="Level of play">
+                  @for (lop of lopChoices; track lop.value) {
+                    <button type="button" class="lop-pill" role="radio"
+                            [class.active]="levelOfPlay() === lop.value"
+                            [class.is-invalid]="submitted() && !levelOfPlay()"
+                            [disabled]="!step1Done()"
+                            [attr.aria-checked]="levelOfPlay() === lop.value"
+                            [attr.title]="lop.label"
+                            (click)="levelOfPlay.set(lop.value)">
+                      {{ lop.short }}
+                    </button>
+                  }
+                </div>
+                @if (submitted() && !levelOfPlay()) {
+                  <div class="field-error">Required</div>
+                }
+              </div>
             </div>
           </div>
 
-          <!-- Age Group section — gated until team identity is filled -->
-          <div class="age-section" [class.is-locked]="!stage4Ready()">
-            <label class="field-label age-section-label">
-              Age Group for <span class="age-section-event">{{ eventName }}</span>
-            </label>
+          <!-- ── Step 3 — Age group ──────────────────────────────── -->
+          <div class="step-section"
+               role="group" aria-labelledby="step-3-title"
+               [class.is-active]="activeStep() === 3 && !selectedAgeGroup()"
+               [class.is-completed]="!!selectedAgeGroup()"
+               [class.is-locked]="!stage4Ready()">
+            <div class="step-eyebrow">
+              <span class="step-circle"
+                    [class.is-active]="activeStep() === 3 && !selectedAgeGroup()"
+                    [class.is-completed]="!!selectedAgeGroup()">
+                @if (selectedAgeGroup()) { <i class="bi bi-check-lg"></i> } @else { 3 }
+              </span>
+              <span class="step-title" id="step-3-title">
+                Age Group for <span class="step-title-event">{{ eventName }}</span>
+              </span>
+            </div>
 
             @if (!stage4Ready()) {
               <div class="age-locked-tip">
@@ -257,11 +300,85 @@ import type { AgeGroupDto } from '@core/api';
       /* ── Body ──────────────────────────────────────────────────────── */
       .register-body { padding: var(--space-3) var(--space-3) var(--space-1); }
 
-      .form-row + .form-row,
-      .form-row + .age-section,
-      .age-section + .library-aside,
-      .form-row + .library-aside {
-        margin-top: var(--space-3);
+      /* ── Stepwise sections (1 → 2 → 3) ─────────────────────────────
+         Each fieldset is a numbered "step." Whichever section is currently
+         actionable gets the primary-blue frame + a single entrance pulse
+         (one-shot, no loop). Completed sections soften to a success-tint
+         frame. Locked sections are muted and inputs are disabled.
+         Pattern mirrors age-group-picker-modal's .is-active-region. */
+      .step-section {
+        position: relative;
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        border: 2px solid var(--border-color);
+        background: var(--brand-surface);
+        transition: border-color 0.3s ease, background 0.3s ease, opacity 0.3s ease;
+      }
+      .step-section + .step-section,
+      .step-section + .alert,
+      .step-section + .library-aside { margin-top: var(--space-3); }
+
+      .step-section.is-locked {
+        opacity: 0.55;
+        background: rgba(var(--bs-dark-rgb), 0.025);
+      }
+
+      .step-section.is-active {
+        border-color: var(--bs-primary);
+        border-width: 3px;
+        background: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+        animation: stepRegionEntrance 700ms ease-out 1 both;
+      }
+
+      .step-section.is-completed:not(.is-active) {
+        border-color: color-mix(in srgb, var(--bs-success) 35%, transparent);
+        border-width: 1.5px;
+        background: color-mix(in srgb, var(--bs-success) 4%, transparent);
+      }
+
+      .step-eyebrow {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-bottom: var(--space-2);
+      }
+
+      .step-circle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        font-size: 13px;
+        font-weight: var(--font-weight-bold);
+        background: var(--brand-surface);
+        border: 2px solid var(--border-color);
+        color: var(--brand-text-muted);
+        flex-shrink: 0;
+        transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+      }
+      .step-circle.is-active {
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: var(--neutral-0);
+      }
+      .step-circle.is-completed {
+        background: var(--bs-success);
+        border-color: var(--bs-success);
+        color: var(--neutral-0);
+      }
+      .step-circle.is-completed i { font-size: 14px; }
+
+      .step-title {
+        font-size: 11px;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--brand-text);
+      }
+      .step-title-event {
+        color: var(--bs-success);
       }
 
       .form-row-split {
@@ -273,6 +390,17 @@ import type { AgeGroupDto } from '@core/api';
       @media (max-width: 480px) {
         .form-row-split { grid-template-columns: 1fr; }
       }
+
+      /* Grad-year disambiguation: prevents users from picking the AG's
+         grad year here. Lives under the select in the narrow split column. */
+      .grad-year-tip {
+        margin-top: var(--space-1);
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-normal);
+        color: var(--brand-text-muted);
+      }
+      .grad-year-tip strong { color: var(--brand-text); }
+      .grad-year-tip em { color: var(--bs-danger); font-style: normal; font-weight: var(--font-weight-semibold); }
 
       /* ── LOP pills (compact for the split row) ──────────────────────── */
       .lop-pills {
@@ -309,39 +437,7 @@ import type { AgeGroupDto } from '@core/api';
         &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
       }
 
-      /* ── Age section ───────────────────────────────────────────────── */
-      .age-section {
-        padding: var(--space-3);
-        border: 2px dashed var(--border-color);
-        border-radius: var(--radius-md);
-        background: rgba(var(--bs-success-rgb), 0.025);
-        transition: border-color 0.2s ease, background 0.2s ease;
-
-        &.is-locked {
-          background: rgba(var(--bs-dark-rgb), 0.025);
-          border-style: dashed;
-        }
-
-        &:not(.is-locked) {
-          border-color: rgba(var(--bs-success-rgb), 0.35);
-          border-style: solid;
-        }
-      }
-
-      .age-section-label {
-        display: block;
-        margin-bottom: var(--space-2);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-        text-align: center;
-      }
-
-      .age-section-event {
-        color: var(--bs-success);
-        font-weight: var(--font-weight-bold);
-      }
-
+      /* ── Age section inner ─────────────────────────────────────────── */
       .age-locked-tip {
         display: flex;
         align-items: center;
@@ -502,10 +598,19 @@ import type { AgeGroupDto } from '@core/api';
         to   { opacity: 1; transform: translateY(0); }
       }
 
+      /* Single-cycle attention pulse for whichever step is currently
+         actionable. Fires when a step first gains .is-active (i.e. after
+         the previous step is completed). Does NOT loop. */
+      @keyframes stepRegionEntrance {
+        0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--bs-primary) 45%, transparent); }
+        50%  { box-shadow: 0 0 0 10px color-mix(in srgb, var(--bs-primary) 18%, transparent); }
+        100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--bs-primary)  0%, transparent); }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .age-pill { animation: none !important; transition: none; }
         .age-pill:hover:not(:disabled) { transform: none; }
-        .age-section { transition: none; }
+        .step-section { transition: none; animation: none !important; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -558,13 +663,23 @@ export class AddAndRegisterTeamModalComponent {
         return club.length > 0 && name.length > 0 && name.includes(club);
     });
 
-    /** Age picker is unlocked once the team identity is fully and validly captured. */
-    readonly stage4Ready = computed(() =>
-        this.teamName().trim().length > 0 &&
-        this.gradYear().length > 0 &&
-        this.levelOfPlay().length > 0 &&
-        !this.nameContainsClub(),
+    /** Step 1 (Name) complete: team name present and not echoing the club name. */
+    readonly step1Done = computed(() =>
+        this.teamName().trim().length > 0 && !this.nameContainsClub(),
     );
+
+    /** Step 2 (Details) complete: grad year + LOP both picked. */
+    readonly step2Done = computed(() =>
+        !!this.gradYear() && !!this.levelOfPlay(),
+    );
+
+    /** Which step's frame should pulse / accept input now. Always falls forward. */
+    readonly activeStep = computed<1 | 2 | 3>(() =>
+        !this.step1Done() ? 1 : !this.step2Done() ? 2 : 3,
+    );
+
+    /** Age picker is unlocked once the team identity is fully and validly captured. */
+    readonly stage4Ready = computed(() => this.step1Done() && this.step2Done());
 
     /** Submit gate — every field must be present AND an age group selected. */
     readonly canSubmit = computed(() => this.stage4Ready() && !!this.selectedAgeGroup());

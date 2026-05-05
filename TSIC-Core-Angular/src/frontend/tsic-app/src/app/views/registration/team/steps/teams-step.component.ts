@@ -63,7 +63,7 @@ interface AgePickerTeam {
                 <span>How Team Registration Works</span>
               </div>
               <h3 class="two-step-headline">
-                Two steps to get your teams into <span class="event-name">{{ eventName() }}</span>
+                Two steps to get your teams into the <span class="event-name">{{ eventName() }}</span>
               </h3>
 
               <div class="two-step-cards">
@@ -74,8 +74,8 @@ interface AgePickerTeam {
                   </div>
                   <strong>Build your Club Library</strong>
                   <span>
-                    Add your teams once. They're saved for <em>every</em> TSIC event
-                    you'll participate in &mdash; you'll never re-enter them.
+                    Add each team to your library &mdash; anytime, one at a time.
+                    Once it's in, it's there for <em>every</em> future TSIC event &mdash; no re-entry.
                   </span>
                 </div>
 
@@ -90,8 +90,8 @@ interface AgePickerTeam {
                   </div>
                   <strong>Register for this event</strong>
                   <span>
-                    Pick from your library to enter
-                    <strong>{{ eventName() }}</strong> &mdash; pay fees, get a schedule slot.
+                    Pick teams from your library to register to play in the
+                    <strong>{{ eventName() }}</strong>.
                   </span>
                 </div>
               </div>
@@ -108,8 +108,8 @@ interface AgePickerTeam {
               <i class="bi bi-clipboard-plus"></i>
               <strong>{{ allLibraryTeams().length }} library
                 {{ allLibraryTeams().length === 1 ? 'team' : 'teams' }}
-                ready &mdash; none registered for {{ eventName() }} yet</strong>
-              <span>Pick from your library to enter <strong>{{ eventName() }}</strong>.</span>
+                ready &mdash; none registered for the {{ eventName() }} yet</strong>
+              <span>Pick from your library to register to play in the <strong>{{ eventName() }}</strong>.</span>
               <button type="button" class="btn btn-success btn-lg cta-empty cta-empty-event"
                       (click)="openLibraryFlyin()">
                 <i class="bi bi-trophy-fill me-2"></i>

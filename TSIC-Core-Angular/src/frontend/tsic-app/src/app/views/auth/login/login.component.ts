@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, DestroyRef, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject, output } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -20,6 +21,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly autofill = inject(AutofillMonitor);
   private readonly cdr = inject(ChangeDetectorRef);
+  private readonly destroyRef = inject(DestroyRef);
 
   @ViewChild('usernameInput', { static: false }) usernameInput!: ElementRef<HTMLInputElement>;
   @ViewChild('passwordInput', { static: false }) passwordInput!: ElementRef<HTMLInputElement>;
@@ -65,6 +67,16 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     // Defensive reset: clear stale loading/error state from any previous login attempt
     this.authService.loginLoading.set(false);
     this.authService.loginError.set(null);
+
+    // Clear the prior login error as soon as the user edits either field — a stale
+    // "Invalid username or password" while they're typing new credentials is misleading.
+    this.form.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => {
+        if (this.authService.loginError()) {
+          this.authService.loginError.set(null);
+        }
+      });
 
     // Allow theme and headers to be configured via query params when used as a reusable screen
     const qp = this.route.snapshot.queryParamMap;
@@ -193,17 +205,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
           return;
         }
 
-        // Phase 1 only (no regId) — route through role-selection, preserving returnUrl
-        if (!user.regId) {
-          const jp = user.jobPath || this.jobPathQuery || 'tsic';
-          this.router.navigate([`/${jp}/role-selection`], {
-            queryParams: { returnUrl: intendedDestination },
-          });
-          return;
-        }
-
-        // Phase 2 complete — go directly to intended destination
-        this.router.navigateByUrl(intendedDestination);
+        // Phase 1 → role-selection-with-returnUrl, Phase 2 → direct navigate
+        this.authService.navigateAfterAuth(this.router, intendedDestination, this.jobPathQuery);
       },
       error: (error) => {
         this.authService.loginLoading.set(false);

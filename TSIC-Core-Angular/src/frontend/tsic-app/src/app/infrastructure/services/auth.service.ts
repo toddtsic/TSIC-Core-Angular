@@ -99,6 +99,29 @@ export class AuthService {
   }
 
   /**
+   * Standardized post-auth navigation. Mirrors the routing the login screen
+   * performs on success so that any other authentication-completing surface
+   * (e.g. the Terms-of-Service page after acceptance) lands the user in the
+   * same place a TOS-less login would have.
+   *
+   *   Phase 1 token (no regId) → /:jobPath/role-selection?returnUrl=<intended>
+   *   Phase 2 token (has regId) → navigateByUrl(<intended>)
+   */
+  navigateAfterAuth(router: Router, returnUrl: string, jobPathFallback?: string | null): void {
+    const user = this.getCurrentUser();
+    if (!user) {
+      router.navigateByUrl(returnUrl);
+      return;
+    }
+    if (!user.regId) {
+      const jp = user.jobPath || jobPathFallback || 'tsic';
+      router.navigate([`/${jp}/role-selection`], { queryParams: { returnUrl } });
+      return;
+    }
+    router.navigateByUrl(returnUrl);
+  }
+
+  /**
    * Phase 2: Get available registrations for the authenticated user
    * Requires initial auth token with username claim
    */
