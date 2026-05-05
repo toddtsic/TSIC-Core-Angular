@@ -1,9 +1,10 @@
-import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import {
     ScheduleDivisionService,
     type AutoScheduleResponse,
@@ -44,7 +45,6 @@ import { PoolAssignmentComponent } from '../../ladt/pool-assignment/pool-assignm
 import { BracketSeedsComponent } from '../bracket-seeds/bracket-seeds.component';
 import { MasterScheduleComponent } from '../master-schedule/master-schedule.component';
 import { QaResultsComponent } from '../qa-results/qa-results.component';
-import { ReschedulerComponent } from '../rescheduler/rescheduler.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { JobService } from '@infrastructure/services/job.service';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -57,13 +57,13 @@ import { LadtService } from '../../ladt/editor/services/ladt.service';
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, MasterScheduleComponent, QaResultsComponent, ReschedulerComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [ScheduleConfigService]
 })
-export class ScheduleDivisionComponent implements OnInit {
+export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     private readonly svc = inject(ScheduleDivisionService);
     private readonly autoBuildSvc = inject(AutoBuildService);
     private readonly qaSvc = inject(ScheduleQaService);
@@ -91,8 +91,27 @@ export class ScheduleDivisionComponent implements OnInit {
     @ViewChild(PairingsPanelComponent) pairingsPanel?: PairingsPanelComponent;
 
     // ── Hub mode ──
-    readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'>('configure');
+    readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa'>('configure');
     readonly activeTool = signal<'fields' | 'pairings' | 'timeslots' | 'pools' | 'bracket-seeds' | null>(null);
+
+    // One-shot guard: pick the default mode from event game count on first load,
+    // never reassert it afterward (the user's deliberate clicks must stick).
+    private hasInitializedMode = false;
+
+    // Pulse Configure as the entry point only when the event is empty.
+    readonly showStartHereOnConfigure = computed(() => (this.gameSummary()?.totalGames ?? 0) === 0);
+
+    // Brief click-feedback flag — when the user clicks a mode tab, the just-clicked
+    // button shows a small spinner glyph for ~250ms to bridge the click-to-mount gap.
+    // Inner components own the actual data-loading state; this only signals "click registered".
+    readonly modeSwitching = signal(false);
+    private modeSwitchTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Tracks in-flight event-grid HTTP fetches independently of isGridLoading
+    // (which uses stale-while-revalidate and stays false on revisits).
+    // Drives the Schedule mode-button spinner so revisits show feedback during the actual fetch.
+    readonly isGridRefreshing = signal(false);
+
 
     // ── Scope selection model (replaces separate selectedDivision + selectedAgegroupId) ──
     readonly scope = signal<ScheduleScope>({ level: 'event' });
@@ -129,6 +148,19 @@ export class ScheduleDivisionComponent implements OnInit {
         const grid = this.gridResponse();
         if (!grid) return false;
         return grid.rows.some(r => r.cells.some(c => c?.gid != null && c.t1Type !== 'T'));
+    });
+
+    /** Count of championship games in the current grid (non-"T" t1Type). */
+    readonly champGameCountInGrid = computed(() => {
+        const grid = this.gridResponse();
+        if (!grid) return 0;
+        let n = 0;
+        for (const r of grid.rows) {
+            for (const c of r.cells) {
+                if (c?.gid != null && c.t1Type !== 'T') n++;
+            }
+        }
+        return n;
     });
 
     /** Unplaced championship pairings in current division (non-"T" type + bAvailable). */
@@ -454,6 +486,11 @@ export class ScheduleDivisionComponent implements OnInit {
         }
     }
 
+    ngOnDestroy(): void {
+        this.unbindCursorTracking();
+        this.isMoving.set(false);
+    }
+
     // ── Navigator ──
 
     loadAgegroups(): void {
@@ -484,8 +521,19 @@ export class ScheduleDivisionComponent implements OnInit {
 
     refreshGameSummary(): void {
         this.autoBuildSvc.getGameSummary().subscribe({
-            next: (summary) => this.gameSummary.set(summary),
-            error: () => this.gameSummary.set(null)
+            next: (summary) => {
+                this.gameSummary.set(summary);
+                if (!this.hasInitializedMode) {
+                    this.hasInitializedMode = true;
+                    if (summary.totalGames > 0) {
+                        this.setMode('schedule');
+                    }
+                }
+            },
+            error: () => {
+                this.gameSummary.set(null);
+                this.hasInitializedMode = true;
+            }
         });
     }
 
@@ -672,14 +720,31 @@ export class ScheduleDivisionComponent implements OnInit {
 
     // ── Hub mode switching ──
 
-    setMode(mode: 'configure' | 'schedule' | 'master' | 'qa' | 'reschedule'): void {
+    setMode(mode: 'configure' | 'schedule' | 'master' | 'qa'): void {
+        this.hasInitializedMode = true;
         this.activeTool.set(null);
         this.mode.set(mode);
 
+        if (this.modeSwitchTimer !== null) {
+            clearTimeout(this.modeSwitchTimer);
+        }
+        this.modeSwitching.set(true);
+        this.modeSwitchTimer = setTimeout(() => {
+            this.modeSwitching.set(false);
+            this.modeSwitchTimer = null;
+        }, 400);
+
         // When entering Schedule mode, reset to event scope to show the full schedule.
-        // User drills into specific divisions manually via the navigator.
+        // Deferred via setTimeout so the browser paints the spinner state BEFORE the
+        // grid's unmount/remount cycle (which can block the main thread on large events
+        // with stale gridResponse data). The mode() guard handles the rare case where
+        // the user clicks another tab between this setMode call and the deferred run.
         if (mode === 'schedule') {
-            this.onEventSelected();
+            setTimeout(() => {
+                if (this.mode() === 'schedule') {
+                    this.onEventSelected();
+                }
+            }, 0);
         }
     }
 
@@ -690,10 +755,19 @@ export class ScheduleDivisionComponent implements OnInit {
     // ── Scope selection handlers (wired from navigator outputs) ──
 
     onEventSelected(): void {
+        // Capture scope state BEFORE we mutate it so the refetch decision sees the prior value.
+        const wasAtEventScope = this.scope().level === 'event';
+
         this.scope.set({ level: 'event' });
         this.dismissBuildResults();
         this.clearDivisionState();
-        if (this.mode() === 'schedule') {
+
+        // Refetch on first-time entry (gridResponse null) or when scope actually changed
+        // (drilling division/agegroup → event). Re-clicking Schedule while already at
+        // event scope with cached data is a no-op — saves a wasteful ~820ms round trip.
+        // No in-hub mutators exist for the event grid (Rescheduler is standalone-only),
+        // so cached data on same-scope returns is always fresh.
+        if (this.mode() === 'schedule' && (!wasAtEventScope || !this.gridResponse())) {
             this.loadEventGrid();
         }
     }
@@ -702,16 +776,19 @@ export class ScheduleDivisionComponent implements OnInit {
         if (!this.gridResponse()) {
             this.isGridLoading.set(true);
         }
+        this.isGridRefreshing.set(true);
         this.svc.getEventGrid().subscribe({
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
+                this.isGridRefreshing.set(false);
                 // Auto-open minimap for event-level overview after grid renders
                 setTimeout(() => this.scheduleGrid?.toggleMinimap());
             },
             error: () => {
                 this.gridResponse.set(null);
                 this.isGridLoading.set(false);
+                this.isGridRefreshing.set(false);
             }
         });
     }
@@ -740,7 +817,7 @@ export class ScheduleDivisionComponent implements OnInit {
         this.scope.set({ level: 'division', agegroupId: event.agegroupId, divId: event.division.divId });
         this.dismissBuildResults();
         this.selectedPairing.set(null);
-        this.selectedGame.set(null);
+        this.setSelectedGame(null);
         this.highlightGameGid.set(null);
         this.showDeleteConfirm.set(false);
         this.loadDivisionData(event.division.divId, event.agegroupId);
@@ -773,7 +850,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     private clearDivisionState(): void {
         this.selectedPairing.set(null);
-        this.selectedGame.set(null);
+        this.setSelectedGame(null);
         this.highlightGameGid.set(null);
         this.showDeleteConfirm.set(false);
         this.divisionResponse.set(null);
@@ -1010,7 +1087,7 @@ export class ScheduleDivisionComponent implements OnInit {
     }
 
     selectPairingForPlacement(pairing: PairingDto): void {
-        this.selectedGame.set(null);
+        this.setSelectedGame(null);
         if (this.selectedPairing()?.ai === pairing.ai) {
             this.selectedPairing.set(null);
         } else {
@@ -1111,7 +1188,7 @@ export class ScheduleDivisionComponent implements OnInit {
 
     deleteGame(game: ScheduleGameDto, row: ScheduleGridRow, colIndex: number): void {
         if (this.selectedGame()?.game.gid === game.gid) {
-            this.selectedGame.set(null);
+            this.setSelectedGame(null);
         }
 
         // Capture navigation targets before delete
@@ -1813,12 +1890,55 @@ export class ScheduleDivisionComponent implements OnInit {
 
     readonly selectedGame = signal<{ game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number } | null>(null);
 
+    /** True from the click that fires the move POST through the end of the post-move grid reload. */
+    readonly isMoving = signal(false);
+
+    /** Cursor position for the move-mode ghost element. */
+    readonly cursorPos = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    private mouseMoveHandler?: (e: MouseEvent) => void;
+    private rafPending = false;
+    private lastMouseEvent: MouseEvent | null = null;
+
+    private setSelectedGame(value: { game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number } | null): void {
+        this.selectedGame.set(value);
+        if (value) {
+            this.bindCursorTracking();
+        } else {
+            this.unbindCursorTracking();
+        }
+    }
+
+    private bindCursorTracking(): void {
+        if (this.mouseMoveHandler) return;
+        this.mouseMoveHandler = (e: MouseEvent) => {
+            this.lastMouseEvent = e;
+            if (this.rafPending) return;
+            this.rafPending = true;
+            requestAnimationFrame(() => {
+                this.rafPending = false;
+                if (this.lastMouseEvent) {
+                    this.cursorPos.set({ x: this.lastMouseEvent.clientX, y: this.lastMouseEvent.clientY });
+                }
+            });
+        };
+        document.addEventListener('mousemove', this.mouseMoveHandler, { passive: true });
+    }
+
+    private unbindCursorTracking(): void {
+        if (this.mouseMoveHandler) {
+            document.removeEventListener('mousemove', this.mouseMoveHandler);
+            this.mouseMoveHandler = undefined;
+        }
+        this.lastMouseEvent = null;
+        this.rafPending = false;
+    }
+
     selectGameForMove(game: ScheduleGameDto, row: ScheduleGridRow, colIndex: number): void {
         this.selectedPairing.set(null);
         if (this.selectedGame()?.game.gid === game.gid) {
-            this.selectedGame.set(null);
+            this.setSelectedGame(null);
         } else {
-            this.selectedGame.set({ game, row, colIndex });
+            this.setSelectedGame({ game, row, colIndex });
         }
     }
 
@@ -1840,16 +1960,40 @@ export class ScheduleDivisionComponent implements OnInit {
         }
 
         const movedGid = source.game.gid;
+        this.isMoving.set(true);
         this.svc.moveGame({
             gid: movedGid,
             targetGDate: targetRow.gDate,
             targetFieldId: targetColumn.fieldId
         }).subscribe({
             next: () => {
-                this.selectedGame.set(null);
+                this.setSelectedGame(null);
                 this.reloadCurrentGrid(movedGid);
-            }
+                this.clearBusyWhenGridArrives();
+            },
+            error: () => this.isMoving.set(false)
         });
+    }
+
+    /**
+     * Polls via rAF until the post-move reload's HTTP completes (detected by
+     * gridResponse identity change), then drops the wait cursor. We can't watch
+     * isGridLoading because both loadEventGrid and loadScheduleGrid use
+     * stale-while-revalidate and skip flipping it on revisits.
+     */
+    private clearBusyWhenGridArrives(): void {
+        const initialResponse = this.gridResponse();
+        const startTime = performance.now();
+        const tick = () => {
+            const responseChanged = this.gridResponse() !== initialResponse;
+            const timedOut = performance.now() - startTime > 5000;
+            if (responseChanged || timedOut) {
+                this.isMoving.set(false);
+            } else {
+                requestAnimationFrame(tick);
+            }
+        };
+        requestAnimationFrame(tick);
     }
 
     /** Reload the grid at whatever scope is active, optionally highlighting a moved game. */
@@ -2163,8 +2307,23 @@ export class ScheduleDivisionComponent implements OnInit {
     // ══════════════════════════════════════════════════════════════
 
     readonly isParkingInProgress = signal(false);
+    readonly parkConfirmOpen = signal(false);
 
     parkAllChampionship(): void {
+        if (this.champGameCountInGrid() === 0) {
+            this.toast.show('No championship games to park', 'info', 2000);
+            return;
+        }
+        this.parkConfirmOpen.set(true);
+    }
+
+    cancelParkConfirm(): void {
+        this.parkConfirmOpen.set(false);
+    }
+
+    confirmParkAllChampionship(): void {
+        this.parkConfirmOpen.set(false);
+
         const grid = this.gridResponse();
         if (!grid) return;
 
@@ -2265,7 +2424,7 @@ export class ScheduleDivisionComponent implements OnInit {
         if (entering) {
             // Clear existing selection modes
             this.selectedPairing.set(null);
-            this.selectedGame.set(null);
+            this.setSelectedGame(null);
         }
         this.clearBlockSelection();
     }

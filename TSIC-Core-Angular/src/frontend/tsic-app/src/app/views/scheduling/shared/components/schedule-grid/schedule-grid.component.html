@@ -106,10 +106,9 @@
                                     @if (cell) {
                                         <app-game-card
                                             [game]="cell"
-                                            [showActions]="showActionButtons() && !isOtherDivision(cell)"
+                                            [showActions]="showActionButtons() && !isOtherDivision(cell) && !selectedGameGid()"
                                             [isSelected]="isGameSelected(cell)"
                                             [isOtherDivision]="isOtherDivision(cell)"
-                                            [showSwapHint]="!!selectedGameGid() && !isGameSelected(cell)"
                                             [style.outline]="showDivGlow(cell) ? '3px solid ' + highlightDivColor() : null"
                                             [conflictIcons]="{
                                                 slotCollision: isSlotCollision(cell),
@@ -121,10 +120,6 @@
                                     } @else if (showOpenSlotHints()) {
                                         <div class="open-slot-hint">
                                             <i class="bi bi-plus-circle"></i>
-                                        </div>
-                                    } @else if (showMoveSlotHints() || selectedGameGid()) {
-                                        <div class="open-slot-hint move-slot-hint">
-                                            <i class="bi bi-arrow-down"></i>
                                         </div>
                                     }
                                 </td>
@@ -156,9 +151,8 @@
                                             @if (cell) {
                                                 <app-game-card
                                                     [game]="cell"
-                                                    [showActions]="showActionButtons()"
+                                                    [showActions]="showActionButtons() && !selectedGameGid()"
                                                     [isSelected]="isGameSelected(cell)"
-                                                    [showSwapHint]="!!selectedGameGid() && !isGameSelected(cell)"
                                                     [conflictIcons]="{ slotCollision: false, timeClash: false, backToBack: false }"
                                                     (moveClicked)="gameMoveRequested.emit({ game: cell, row: row, colIndex: ci })"
                                                     (deleteClicked)="gameDeleteRequested.emit({ game: cell, row: row, colIndex: ci })" />

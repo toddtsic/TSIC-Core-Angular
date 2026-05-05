@@ -2241,3 +2241,9 @@ mark {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* Wait-cursor: applied to body during async operations to signal "hold on" */
+body.is-busy,
+body.is-busy * {
+    cursor: wait !important;
+}

@@ -53,39 +53,13 @@
         <!-- ══════════ MAIN PANE ══════════ -->
         <div class="hub-main">
 
-            <!-- ── Unified Toolbar: mode segments + breadcrumbs + scope actions ── -->
+            <!-- ── Unified Toolbar: single row — breadcrumbs (left) · modes (center) · scope action + Configure (right) ── -->
             <div class="hub-toolbar">
 
-                <!-- Left: mode segments -->
-                <div class="toolbar-modes" role="tablist">
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'configure'"
-                            (click)="setMode('configure')" role="tab">
-                        <i class="bi" [class.bi-gear-fill]="!activeTool() && mode() === 'configure'"
-                                      [class.bi-gear]="activeTool() || mode() !== 'configure'"></i><span>Configure</span>
-                    </button>
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'schedule'"
-                            (click)="setMode('schedule')" role="tab">
-                        <i class="bi" [class.bi-calendar-check-fill]="!activeTool() && mode() === 'schedule'"
-                                      [class.bi-calendar-check]="activeTool() || mode() !== 'schedule'"></i><span>Schedule</span>
-                    </button>
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'master'"
-                            (click)="setMode('master')" role="tab">
-                        <i class="bi" [class.bi-grid-3x3-gap-fill]="!activeTool() && mode() === 'master'"
-                                      [class.bi-grid-3x3-gap]="activeTool() || mode() !== 'master'"></i><span>Master</span>
-                    </button>
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'qa'"
-                            (click)="setMode('qa')" role="tab">
-                        <i class="bi" [class.bi-clipboard-check-fill]="!activeTool() && mode() === 'qa'"
-                                      [class.bi-clipboard-check]="activeTool() || mode() !== 'qa'"></i><span>QA</span>
-                    </button>
-                    <button class="mode-seg" [class.active]="!activeTool() && mode() === 'reschedule'"
-                            (click)="setMode('reschedule')" role="tab">
-                        <i class="bi bi-arrow-repeat"></i><span>Reschedule</span>
-                    </button>
-                </div>
+                <div class="toolbar-row toolbar-row--top">
 
-                <!-- Center: breadcrumbs (Schedule mode only) -->
-                <div class="toolbar-center">
+                <!-- Left slot: breadcrumbs (Schedule mode only) -->
+                <div class="toolbar-left">
                     @if (!activeTool() && mode() === 'schedule') {
                         @if (scope().level === 'event') {
                             <span class="crumb-current">Event</span>
@@ -94,7 +68,11 @@
                                 <button class="crumb-dropdown-trigger"
                                         (click)="toggleCrumbDropdown('agegroup')">
                                     Go to agegroup
-                                    <i class="bi bi-chevron-down crumb-chevron"></i>
+                                    @if (isGridLoading()) {
+                                        <span class="spinner-border spinner-border-sm crumb-spinner" aria-hidden="true"></span>
+                                    } @else {
+                                        <i class="bi bi-chevron-down crumb-chevron"></i>
+                                    }
                                 </button>
                                 @if (openCrumbDropdown() === 'agegroup') {
                                     <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
@@ -217,44 +195,102 @@
                     }
                 </div>
 
-                <!-- Right: Back button (tool mode) or scope info + actions (Schedule mode) -->
+                <!-- Center slot: mode segments -->
+                <div class="toolbar-modes" role="tablist">
+                    <!-- Working zone -->
+                    <div class="mode-zone mode-zone--working">
+                        <button class="mode-seg" [class.active]="!activeTool() && mode() === 'schedule'"
+                                (click)="setMode('schedule')" role="tab">
+                            @if (!activeTool() && mode() === 'schedule' && (modeSwitching() || isGridRefreshing())) {
+                                <span class="spinner-border spinner-border-sm mode-seg-spinner" aria-hidden="true"></span>
+                            } @else {
+                                <i class="bi" [class.bi-calendar-check-fill]="!activeTool() && mode() === 'schedule'"
+                                              [class.bi-calendar-check]="activeTool() || mode() !== 'schedule'"></i>
+                            }<span>Schedule</span>
+                        </button>
+                        <button class="mode-seg" [class.active]="!activeTool() && mode() === 'qa'"
+                                (click)="setMode('qa')" role="tab">
+                            @if (!activeTool() && mode() === 'qa' && modeSwitching()) {
+                                <span class="spinner-border spinner-border-sm mode-seg-spinner" aria-hidden="true"></span>
+                            } @else {
+                                <i class="bi" [class.bi-clipboard-check-fill]="!activeTool() && mode() === 'qa'"
+                                              [class.bi-clipboard-check]="activeTool() || mode() !== 'qa'"></i>
+                            }<span>QA</span>
+                        </button>
+                    </div>
+
+                    <!-- Finale zone -->
+                    <div class="mode-zone mode-zone--finale">
+                        <button class="mode-seg" [class.active]="!activeTool() && mode() === 'master'"
+                                (click)="setMode('master')" role="tab">
+                            @if (!activeTool() && mode() === 'master' && modeSwitching()) {
+                                <span class="spinner-border spinner-border-sm mode-seg-spinner" aria-hidden="true"></span>
+                            } @else {
+                                <i class="bi" [class.bi-grid-3x3-gap-fill]="!activeTool() && mode() === 'master'"
+                                              [class.bi-grid-3x3-gap]="activeTool() || mode() !== 'master'"></i>
+                            }<span>Master</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Right slot: Back (tool mode) OR scope info + Build + Configure -->
                 <div class="toolbar-right">
                     @if (activeTool()) {
                         <button class="btn btn-sm btn-outline-secondary" (click)="activeTool.set(null)">
                             <i class="bi bi-arrow-left me-1"></i>Back
                         </button>
-                    } @else if (mode() === 'schedule' || mode() === 'configure') {
-                        @switch (scope().level) {
-                            @case ('event') {
-                                @if (gameSummary()) {
-                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                        {{ gameSummary()!.totalGames }} games
-                                    </span>
+                    } @else {
+                        @if (mode() === 'schedule' || mode() === 'configure') {
+                            @switch (scope().level) {
+                                @case ('event') {
+                                    @if (gameSummary()) {
+                                        <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                            {{ gameSummary()!.totalGames }} games
+                                        </span>
+                                    }
+                                    @if (mode() === 'schedule' && !hasChampionshipPairings()) {
+                                        <button class="btn btn-sm btn-primary"
+                                                (click)="openAutoScheduleConfig()"
+                                                [disabled]="isExecuting()">
+                                            @if (isExecuting()) {
+                                                <span class="spinner-border spinner-border-sm me-1"></span>
+                                            }
+                                            <i class="bi bi-play-fill"></i> {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Entire Schedule
+                                        </button>
+                                    }
                                 }
-                                @if (mode() === 'schedule') {
-                                    <button class="btn btn-sm"
-                                            [class.btn-primary]="!hasChampionshipPairings()"
-                                            [class.btn-outline-secondary]="hasChampionshipPairings()"
-                                            (click)="openAutoScheduleConfig()"
-                                            [disabled]="isExecuting() || hasChampionshipPairings()"
-                                            [title]="hasChampionshipPairings() ? 'Championship games detected — build per-agegroup or per-division instead' : ''">
-                                        @if (isExecuting()) {
-                                            <span class="spinner-border spinner-border-sm me-1"></span>
-                                        }
-                                        <i class="bi bi-play-fill"></i> {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} Entire Schedule
-                                    </button>
+                                @case ('agegroup') {
+                                    @if (isAgegroupConfigured()) {
+                                        <span class="badge"
+                                              [style.background-color]="selectedAgegroupColor()"
+                                              [style.color]="selectedAgegroupTextColor()"
+                                              [class.bg-secondary]="!selectedAgegroupColor()">
+                                            {{ selectedAgegroupName() }}
+                                        </span>
+                                        <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                            {{ scopeGameCount() }} games
+                                        </span>
+                                        <button class="btn btn-sm btn-outline-primary"
+                                                (click)="openAutoScheduleConfig()"
+                                                [disabled]="isExecuting()">
+                                            @if (isExecuting()) {
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            } @else {
+                                                <i class="bi bi-lightning-fill"></i>
+                                            }
+                                            {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span>
+                                        </button>
+                                    }
                                 }
-                            }
-                            @case ('agegroup') {
-                                @if (isAgegroupConfigured()) {
+                                @case ('division') {
                                     <span class="badge"
                                           [style.background-color]="selectedAgegroupColor()"
                                           [style.color]="selectedAgegroupTextColor()"
                                           [class.bg-secondary]="!selectedAgegroupColor()">
                                         {{ selectedAgegroupName() }}
                                     </span>
-                                    <span class="badge bg-secondary-subtle text-secondary-emphasis">
-                                        {{ scopeGameCount() }} games
+                                    <span class="fw-semibold" style="font-size: var(--font-size-sm)">{{ selectedDivision()!.divName }}</span>
+                                    <span class="badge bg-primary-subtle text-primary-emphasis">
+                                        {{ teamCount() }} teams
                                     </span>
                                     <button class="btn btn-sm btn-outline-primary"
                                             (click)="openAutoScheduleConfig()"
@@ -268,30 +304,19 @@
                                     </button>
                                 }
                             }
-                            @case ('division') {
-                                <span class="badge"
-                                      [style.background-color]="selectedAgegroupColor()"
-                                      [style.color]="selectedAgegroupTextColor()"
-                                      [class.bg-secondary]="!selectedAgegroupColor()">
-                                    {{ selectedAgegroupName() }}
-                                </span>
-                                <span class="fw-semibold" style="font-size: var(--font-size-sm)">{{ selectedDivision()!.divName }}</span>
-                                <span class="badge bg-primary-subtle text-primary-emphasis">
-                                    {{ teamCount() }} teams
-                                </span>
-                                <button class="btn btn-sm btn-outline-primary"
-                                        (click)="openAutoScheduleConfig()"
-                                        [disabled]="isExecuting()">
-                                    @if (isExecuting()) {
-                                        <span class="spinner-border spinner-border-sm"></span>
-                                    } @else {
-                                        <i class="bi bi-lightning-fill"></i>
-                                    }
-                                    {{ hasGamesInScope() ? 'Re-Build' : 'Build' }} <span class="scope-name">{{ scopeLabel() }}</span>
-                                </button>
-                            }
                         }
+                        <button type="button"
+                                class="hub-config-btn"
+                                [class.active]="!activeTool() && mode() === 'configure'"
+                                [class.start-here-pulse]="showStartHereOnConfigure()"
+                                (click)="setMode('configure')"
+                                [attr.aria-pressed]="!activeTool() && mode() === 'configure'">
+                            <i class="bi" [class.bi-gear-fill]="!activeTool() && mode() === 'configure'"
+                                          [class.bi-gear]="activeTool() || mode() !== 'configure'"></i>
+                            <span>Configure</span>
+                        </button>
                     }
+                </div>
                 </div>
             </div>
 
@@ -403,12 +428,6 @@
                                                         (click)="openAddTimeslotModal()">
                                                     <i class="bi bi-plus-circle me-1"></i>Add Row
                                                 </button>
-                                                <button class="btn btn-sm"
-                                                        [class.btn-outline-secondary]="!blockShiftMode()"
-                                                        [class.btn-primary]="blockShiftMode()"
-                                                        (click)="toggleBlockShiftMode()">
-                                                    <i class="bi bi-arrows-expand-vertical me-1"></i>Block Shift
-                                                </button>
                                                 @if (hasChampGamesInGrid()) {
                                                 <button class="btn btn-sm btn-outline-warning"
                                                         [disabled]="isParkingInProgress()"
@@ -458,17 +477,13 @@
                                                             (click)="openAddTimeslotModal()">
                                                         <i class="bi bi-plus-circle me-1"></i>Add Row
                                                     </button>
-                                                    <button class="btn btn-sm"
-                                                            [class.btn-outline-secondary]="!blockShiftMode()"
-                                                            [class.btn-primary]="blockShiftMode()"
-                                                            (click)="toggleBlockShiftMode()">
-                                                        <i class="bi bi-arrows-expand-vertical me-1"></i>Block Shift
-                                                    </button>
+                                                    @if (hasChampGamesInGrid()) {
                                                     <button class="btn btn-sm btn-outline-warning"
                                                             [disabled]="isParkingInProgress()"
                                                             (click)="parkAllChampionship()">
                                                         <i class="bi bi-p-square me-1"></i>Park Champs
                                                     </button>
+                                                    }
                                                     }
                                                 </ng-container>
                                             </app-schedule-grid>
@@ -583,11 +598,6 @@
                         <!-- ══════════ QA MODE ══════════ -->
                         @case ('qa') {
                             <app-qa-results />
-                        }
-
-                        <!-- ══════════ RESCHEDULE MODE ══════════ -->
-                        @case ('reschedule') {
-                            <app-rescheduler />
                         }
                     }
                 }
@@ -833,3 +843,31 @@
     [title]="operationTitle()"
     [subtitle]="operationSubtitle()"
     [icon]="operationIcon()" />
+
+<!-- ══════════ Park Champs Confirmation ══════════ -->
+@if (parkConfirmOpen()) {
+    <confirm-dialog
+        title="Park championship games?"
+        [message]="'This will move <strong>' + champGameCountInGrid() + '</strong> championship game(s) into the collapsible <strong>Parking</strong> section at the <strong>bottom of the grid</strong> (look for <i class=&quot;bi bi-chevron-right&quot;></i> <i class=&quot;bi bi-p-square&quot;></i> <strong>Parking</strong>). Their current timeslots will be freed; click <strong>Parking</strong> to expand it and drag games back individually.'"
+        confirmLabel="Park games"
+        cancelLabel="Cancel"
+        confirmVariant="warning"
+        (confirmed)="confirmParkAllChampionship()"
+        (cancelled)="cancelParkConfirm()" />
+}
+
+<!-- ══════════ Move-mode cursor ghost ══════════ -->
+@if (selectedGame()) {
+    <div class="move-ghost"
+         [style.left.px]="cursorPos().x + 14"
+         [style.top.px]="cursorPos().y + 14">
+        <div class="move-ghost-label">Moving G{{ selectedGame()!.game.gid }}</div>
+        <div class="move-ghost-meta">{{ selectedGame()!.game.t1Label }} <span class="move-ghost-vs">vs</span> {{ selectedGame()!.game.t2Label }}</div>
+    </div>
+}
+
+<!-- ══════════ Move-mode wait overlay (POST + reload) ══════════ -->
+<!-- Real DOM element with inline cursor:wait — guaranteed cursor change, also blocks misclicks. -->
+@if (isMoving()) {
+    <div class="busy-overlay" style="cursor: wait;"></div>
+}

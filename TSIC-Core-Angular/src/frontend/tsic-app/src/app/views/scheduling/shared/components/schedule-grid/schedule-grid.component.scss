@@ -236,6 +236,7 @@ th.sticky-col {
     outline: 2px solid var(--bs-info);
     outline-offset: -2px;
     background: rgba(var(--bs-info-rgb), 0.08);
+    cursor: pointer;
 }
 
 .cell-move-target {
@@ -294,9 +295,6 @@ th.sticky-col {
     }
 }
 
-.move-slot-hint {
-    color: var(--bs-info);
-}
 
 // ── Parking zone ──
 

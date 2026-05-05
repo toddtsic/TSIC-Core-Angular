@@ -167,22 +167,33 @@
     color: var(--bs-warning);
 }
 
-// ── Swap hint overlay ──
+// ── Cancel-drop overlay (hover-only on the source card during move-mode) ──
 
-.swap-hint {
+.cancel-hint {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: rgba(var(--bs-info-rgb), 0.85);
+    padding: 3px 12px;
+    border-radius: 999px;
+    background: var(--bs-danger);
     color: var(--bs-white);
-    font-size: var(--font-size-sm);
-    z-index: 1;
-    pointer-events: none;
+    font-size: var(--font-size-2xs);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(var(--bs-danger-rgb), 0.45);
+    cursor: pointer;
+    z-index: 2;
+}
+
+.game-card:hover .cancel-hint {
+    display: flex;
+}
+
+.cancel-hint:hover {
+    background: var(--bs-danger-text-emphasis);
 }

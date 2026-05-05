@@ -36,7 +36,7 @@
         }
     </div>
 
-    <!-- Action buttons (hover) -->
+    <!-- Action buttons (hover) — suppressed entirely while a move is in progress -->
     @if (showActions() && !isOtherDivision()) {
         <div class="game-actions">
             <button class="game-action-btn game-move-btn"
@@ -52,10 +52,12 @@
         </div>
     }
 
-    <!-- Move mode: swap indicator on other games -->
-    @if (showSwapHint()) {
-        <div class="swap-hint">
-            <i class="bi bi-arrow-down-up"></i>
-        </div>
+    <!-- Move mode: cancel affordance on the source game (hover only) -->
+    @if (isSelected()) {
+        <button type="button"
+                class="cancel-hint"
+                (click)="moveClicked.emit(); $event.stopPropagation()">
+            Cancel Drop
+        </button>
     }
 </div>
