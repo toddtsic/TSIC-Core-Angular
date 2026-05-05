@@ -307,9 +307,11 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
 
     selectCrumbAgegroup(agId: string): void {
         this.openCrumbDropdown.set(null);
-        // Expand in tree and navigate
-        this.navigator?.expandedAgegroups.set(new Set([agId]));
-        this.onAgegroupSelected({ agegroupId: agId });
+        this.isGridRefreshing.set(true);
+        setTimeout(() => {
+            this.navigator?.expandedAgegroups.set(new Set([agId]));
+            this.onAgegroupSelected({ agegroupId: agId });
+        }, 0);
     }
 
     selectCrumbDivision(divId: string): void {
@@ -319,9 +321,11 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         const ag = this.agegroups().find(a => a.agegroupId === agId);
         const div = ag?.divisions.find(d => d.divId === divId);
         if (!div) return;
-        // Expand in tree and navigate
-        this.navigator?.expandedAgegroups.set(new Set([agId]));
-        this.onDivisionSelected({ division: div, agegroupId: agId });
+        this.isGridRefreshing.set(true);
+        setTimeout(() => {
+            this.navigator?.expandedAgegroups.set(new Set([agId]));
+            this.onDivisionSelected({ division: div, agegroupId: agId });
+        }, 0);
     }
 
     closeCrumbDropdowns(): void {
@@ -947,6 +951,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         if (!this.gridResponse()) {
             this.isGridLoading.set(true);
         }
+        this.isGridRefreshing.set(true);
         // Build additionalTimeslot ISO string if Add Row is active
         let additionalTimeslot: string | undefined;
         if (this.showAddTimeslot() && this.newTimeslotDate() && this.newTimeslotTime()) {
@@ -956,6 +961,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
             next: (grid) => {
                 this.gridResponse.set(grid);
                 this.isGridLoading.set(false);
+                this.isGridRefreshing.set(false);
 
                 if (highlightGid != null) {
                     // Post-move: scroll to moved game + temporary highlight
@@ -979,6 +985,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
             error: () => {
                 this.gridResponse.set(null);
                 this.isGridLoading.set(false);
+                this.isGridRefreshing.set(false);
             }
         });
     }

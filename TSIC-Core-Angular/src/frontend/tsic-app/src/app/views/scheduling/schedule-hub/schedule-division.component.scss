@@ -315,6 +315,14 @@ app-pairings-panel {
     border-width: 2px;
 }
 
+// Same idea for breadcrumb dropdown triggers — replaces the chevron during scope-change loads.
+.crumb-spinner {
+    width: var(--font-size-sm);
+    height: var(--font-size-sm);
+    border-width: 2px;
+    color: var(--bs-primary);
+}
+
 // "Start here" emphasis — applied to the Configure gear when the event has no games.
 // Generic class so we can reuse on any element that needs this draw-the-eye treatment.
 @keyframes start-here-pulse {

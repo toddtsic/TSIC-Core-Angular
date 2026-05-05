@@ -68,7 +68,7 @@
                                 <button class="crumb-dropdown-trigger"
                                         (click)="toggleCrumbDropdown('agegroup')">
                                     Go to agegroup
-                                    @if (isGridLoading()) {
+                                    @if (isGridRefreshing()) {
                                         <span class="spinner-border spinner-border-sm crumb-spinner" aria-hidden="true"></span>
                                     } @else {
                                         <i class="bi bi-chevron-down crumb-chevron"></i>
@@ -108,7 +108,11 @@
                                             <span class="crumb-color-dot" [style.background-color]="selectedAgegroupColor()"></span>
                                         }
                                         {{ selectedAgegroup()?.agegroupName }}
-                                        <i class="bi bi-chevron-down crumb-chevron"></i>
+                                        @if (isGridRefreshing()) {
+                                            <span class="spinner-border spinner-border-sm crumb-spinner" aria-hidden="true"></span>
+                                        } @else {
+                                            <i class="bi bi-chevron-down crumb-chevron"></i>
+                                        }
                                     </button>
                                     @if (openCrumbDropdown() === 'agegroup') {
                                         <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
@@ -137,7 +141,11 @@
                                     <button class="crumb-dropdown-trigger crumb-current"
                                             (click)="toggleCrumbDropdown('division')">
                                         {{ selectedDivision()?.divName }}
-                                        <i class="bi bi-chevron-down crumb-chevron"></i>
+                                        @if (isGridRefreshing()) {
+                                            <span class="spinner-border spinner-border-sm crumb-spinner" aria-hidden="true"></span>
+                                        } @else {
+                                            <i class="bi bi-chevron-down crumb-chevron"></i>
+                                        }
                                     </button>
                                     @if (openCrumbDropdown() === 'division') {
                                         <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
@@ -166,7 +174,11 @@
                                             <span class="crumb-color-dot" [style.background-color]="selectedAgegroupColor()"></span>
                                         }
                                         {{ selectedAgegroup()?.agegroupName }}
-                                        <i class="bi bi-chevron-down crumb-chevron"></i>
+                                        @if (isGridRefreshing()) {
+                                            <span class="spinner-border spinner-border-sm crumb-spinner" aria-hidden="true"></span>
+                                        } @else {
+                                            <i class="bi bi-chevron-down crumb-chevron"></i>
+                                        }
                                     </button>
                                     @if (openCrumbDropdown() === 'agegroup') {
                                         <div class="crumb-dropdown-backdrop" (click)="closeCrumbDropdowns()"></div>
