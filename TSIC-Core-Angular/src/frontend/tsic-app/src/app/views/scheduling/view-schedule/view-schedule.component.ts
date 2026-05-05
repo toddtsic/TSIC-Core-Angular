@@ -1,11 +1,14 @@
 import {
-    ChangeDetectionStrategy, Component, inject, OnInit, signal, computed
+    ChangeDetectionStrategy, Component, inject, OnInit, signal, computed, CUSTOM_ELEMENTS_SCHEMA
 } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
 import { AuthService } from '../../../infrastructure/services/auth.service';
 import { JobService } from '../../../infrastructure/services/job.service';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
+import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
+import { environment } from '@environments/environment';
 import type {
     ScheduleFilterOptionsDto,
     ScheduleFilterRequest,
@@ -19,9 +22,11 @@ import type {
     FieldDisplayDto,
     EditScoreRequest,
     EditGameRequest,
-    LadtAgegroupNode
+    LadtAgegroupNode,
+    FamilyPlayersResponseDto
 } from '@core/api';
 import { ViewScheduleService } from './services/view-schedule.service';
+import { ScheduleFiltersStore } from './services/schedule-filters.store';
 import { JobFilterTreeService } from '../../../core/services/job-filter-tree.service';
 import { CadtTreeFilterComponent } from '../shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { LadtTreeFilterComponent } from '../shared/components/ladt-tree-filter/ladt-tree-filter.component';
@@ -38,6 +43,11 @@ import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/t
 type TabId = 'games' | 'standings' | 'brackets' | 'contacts';
 type PanelId = 'cadt' | 'ladt';
 
+interface DirectTeamOption {
+    teamId: string;
+    displayText: string;
+}
+
 interface FilterChip {
     category: string;
     label: string;
@@ -50,6 +60,7 @@ interface FilterChip {
     standalone: true,
     imports: [
         FormsModule,
+        MultiSelectModule,
         CadtTreeFilterComponent,
         LadtTreeFilterComponent,
         GamesTabComponent,
@@ -62,6 +73,8 @@ interface FilterChip {
         InlineGameClockComponent,
         TsicDialogComponent
     ],
+    schemas: [CUSTOM_ELEMENTS_SCHEMA],
+    providers: [CheckBoxSelectionService],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         <div class="view-schedule-page">
@@ -69,8 +82,8 @@ interface FilterChip {
             <div class="page-header">
                 <h1 class="page-title">
                     Schedule
-                    @if (activeTab() === 'games' && games().length > 0) {
-                        <span class="title-badge">{{ games().length }}</span>
+                    @if (activeTab() === 'games') {
+                        <span class="title-badge">{{ gameCountLabel() }}</span>
                     }
                 </h1>
                 @if (currentJobId() && hasGameClockGames()) {
@@ -78,13 +91,36 @@ interface FilterChip {
                         [jobId]="currentJobId()"
                         (expand)="gameClockVisible.set(true)" />
                 }
-                @if (eventName()) {
-                    <p class="page-subtitle">{{ eventName() }}</p>
-                }
             </div>
 
             <!-- ═══ Desktop Filter Bar (≥992px) ═══ -->
             <div class="desktop-filter-bar">
+                <div class="filter-row">
+                <!-- Direct team multiselect (primary parent affordance) -->
+                @if (directTeamOptions().length > 0) {
+                    <div class="team-typeahead-wrap">
+                        <span class="team-typeahead-label">
+                            <i class="bi bi-people" aria-hidden="true"></i>
+                            <span>Find Your Teams</span>
+                        </span>
+                        <ejs-multiselect
+                            [dataSource]="directTeamOptions()"
+                            [fields]="directTeamFields"
+                            [value]="directTeamIds()"
+                            [mode]="'CheckBox'"
+                            [allowFiltering]="true"
+                            [showDropDownIcon]="true"
+                            [closePopupOnSelect]="false"
+                            [changeOnBlur]="false"
+                            [popupHeight]="'360px'"
+                            [filterBarPlaceholder]="'Type a team or club name…'"
+                            placeholder="type to search teams"
+                            cssClass="team-typeahead"
+                            (change)="onDirectTeamChange($event)">
+                        </ejs-multiselect>
+                    </div>
+                }
+
                 <!-- CADT dropdown -->
                 @if (hasCadtData()) {
                     <div class="filter-dropdown">
@@ -138,53 +174,96 @@ interface FilterChip {
 
                 <!-- Date select -->
                 @if (filterOptions()?.gameDays?.length) {
-                    <select class="filter-select"
-                            [ngModel]="selectedGameDay()"
-                            (ngModelChange)="selectedGameDay.set($event); refreshTab()">
-                        <option value="">Date</option>
-                        @for (day of filterOptions()!.gameDays; track day) {
-                            <option [value]="day">{{ formatGameDay(day) }}</option>
-                        }
-                    </select>
+                    <span class="filter-select-wrap">
+                        <i class="bi bi-calendar3 filter-select-icon" aria-hidden="true"></i>
+                        <select class="filter-select"
+                                [ngModel]="selectedGameDay()"
+                                (ngModelChange)="selectedGameDay.set($event); onSimpleFilterChange()">
+                            <option value="">Date</option>
+                            @for (day of filterOptions()!.gameDays; track day) {
+                                <option [value]="day">{{ formatGameDay(day) }}</option>
+                            }
+                        </select>
+                    </span>
                 }
 
-                <!-- Time select -->
-                @if (filterOptions()?.times?.length) {
-                    <select class="filter-select"
-                            [ngModel]="selectedTime()"
-                            (ngModelChange)="selectedTime.set($event); refreshTab()">
-                        <option value="">Time</option>
-                        @for (time of filterOptions()!.times; track time) {
-                            <option [value]="time">{{ formatTime(time) }}</option>
-                        }
-                    </select>
+                <!-- Time select (admin only — used to bulk-record at the same time slot) -->
+                @if (auth.isAdmin() && filterOptions()?.times?.length) {
+                    <span class="filter-select-wrap">
+                        <i class="bi bi-clock filter-select-icon" aria-hidden="true"></i>
+                        <select class="filter-select"
+                                [ngModel]="selectedTime()"
+                                (ngModelChange)="selectedTime.set($event); onSimpleFilterChange()">
+                            <option value="">Time</option>
+                            @for (time of filterOptions()!.times; track time) {
+                                <option [value]="time">{{ formatTime(time) }}</option>
+                            }
+                        </select>
+                    </span>
                 }
 
                 <!-- Location select -->
                 @if (filterOptions()?.fields?.length) {
-                    <select class="filter-select"
-                            [ngModel]="selectedFieldId()"
-                            (ngModelChange)="selectedFieldId.set($event); refreshTab()">
-                        <option value="">Location</option>
-                        @for (field of filterOptions()!.fields; track field.fieldId) {
-                            <option [value]="field.fieldId">{{ field.fName }}</option>
-                        }
-                    </select>
+                    <span class="filter-select-wrap">
+                        <i class="bi bi-geo-alt filter-select-icon" aria-hidden="true"></i>
+                        <select class="filter-select"
+                                [ngModel]="selectedFieldId()"
+                                (ngModelChange)="selectedFieldId.set($event); onSimpleFilterChange()">
+                            <option value="">Location</option>
+                            @for (field of filterOptions()!.fields; track field.fieldId) {
+                                <option [value]="field.fieldId">{{ field.fName }}</option>
+                            }
+                        </select>
+                    </span>
                 }
 
-                <!-- Unscored checkbox -->
-                <label class="filter-check-inline">
-                    <input type="checkbox"
-                           [ngModel]="unscoredOnly()"
-                           (ngModelChange)="unscoredOnly.set($event); refreshTab()" />
-                    Unscored
-                </label>
+                <!-- Unscored checkbox (admin only — domain term, not parent-facing) -->
+                @if (auth.isAdmin()) {
+                    <label class="filter-check-inline">
+                        <input type="checkbox"
+                               [ngModel]="unscoredOnly()"
+                               (ngModelChange)="unscoredOnly.set($event); onSimpleFilterChange()" />
+                        Unscored
+                    </label>
+                }
 
-                <!-- Reset -->
+                </div>
+
+                <!-- Active-filters echo zone: shows every applied filter as a removable chip.
+                     Followed teams render first (star-tinted), then non-team filter chips
+                     (CADT/LADT picks, Date, Time, Location, Unscored). Reset lives at the
+                     right edge so it's adjacent to the chips it will clear. -->
                 @if (hasActiveFilters()) {
-                    <button class="filter-reset-btn" (click)="clearFilters()">
-                        <i class="bi bi-x-circle"></i> Reset
-                    </button>
+                    <div class="active-chips-row">
+                        <span class="active-chips-prefix">
+                            <i class="bi bi-funnel-fill" aria-hidden="true"></i>
+                            <span>Filters</span>
+                            <span class="active-chips-count">{{ totalChipCount() }}</span>
+                        </span>
+                        <div class="active-chips-list">
+                            @for (chip of directTeamChips(); track chip.teamId) {
+                                <span class="team-chip team-chip--following">
+                                    <i class="bi bi-bookmark-star-fill team-chip-icon" aria-hidden="true"></i>
+                                    <span class="team-chip-label">{{ chip.displayText }}</span>
+                                    <button type="button" class="team-chip-remove"
+                                            (click)="toggleDirectTeam(chip.teamId)"
+                                            [attr.aria-label]="'Remove ' + chip.displayText">&times;</button>
+                                </span>
+                            }
+                            @for (chip of activeFilterChips(); track chip.nodeId ?? chip.type + chip.label) {
+                                <span class="team-chip">
+                                    <span class="team-chip-category">{{ chip.category }}:</span>
+                                    <span class="team-chip-label">{{ chip.label }}</span>
+                                    <button type="button" class="team-chip-remove"
+                                            (click)="removeChip(chip)"
+                                            [attr.aria-label]="'Remove ' + chip.category + ' ' + chip.label">&times;</button>
+                                </span>
+                            }
+                        </div>
+                        <button class="filter-reset-btn" (click)="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Reset
+                        </button>
+                    </div>
                 }
             </div>
 
@@ -222,22 +301,6 @@ interface FilterChip {
                 </div>
             </div>
 
-            <!-- Filter chips -->
-            @if (activeFilterChips().length > 0) {
-                <div class="filter-chips-strip">
-                    @for (chip of activeFilterChips(); track chip.nodeId ?? chip.type + chip.label) {
-                        <span class="filter-chip">
-                            <span class="chip-category">{{ chip.category }}:</span>
-                            <span class="chip-label">{{ chip.label }}</span>
-                            <button type="button" class="chip-remove"
-                                    (click)="removeChip(chip)"
-                                    aria-label="Remove filter">&times;</button>
-                        </span>
-                    }
-                    <button type="button" class="chip-clear-all" (click)="clearFilters()">Clear All</button>
-                </div>
-            }
-
             <!-- Tab content -->
             <div class="tab-content">
                 @switch (activeTab()) {
@@ -246,9 +309,11 @@ interface FilterChip {
                             [games]="games()"
                             [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
+                            [followedTeamIds]="directTeamIds()"
                             (quickScore)="onQuickScore($event)"
                             (editGame)="onEditGameOpen($event)"
-                            (viewTeamResults)="onViewTeamResults($event)" />
+                            (viewTeamResults)="onViewTeamResults($event)"
+                            (toggleFollow)="toggleDirectTeam($event)" />
                     }
                     @case ('standings') {
                         <app-standings-tab
@@ -287,13 +352,35 @@ interface FilterChip {
                         <button class="btn-close" (click)="closeFilterModal()"></button>
                     </div>
                     <div class="modal-body filter-modal-body">
+                        <!-- Direct team multiselect (primary parent affordance) -->
+                        @if (directTeamOptions().length > 0) {
+                            <div class="filter-group">
+                                <label class="filter-group-label">Find Your Teams</label>
+                                <ejs-multiselect
+                                    [dataSource]="directTeamOptions()"
+                                    [fields]="directTeamFields"
+                                    [value]="directTeamIds()"
+                                    [mode]="'CheckBox'"
+                                    [allowFiltering]="true"
+                                    [showDropDownIcon]="true"
+                                    [closePopupOnSelect]="false"
+                                    [changeOnBlur]="false"
+                                    [popupHeight]="'360px'"
+                                    [filterBarPlaceholder]="'Type a team or club name…'"
+                                    placeholder="Type to search teams"
+                                    cssClass="team-typeahead"
+                                    (change)="onDirectTeamChange($event)">
+                                </ejs-multiselect>
+                            </div>
+                        }
+
                         <!-- Game Days -->
                         @if (filterOptions()?.gameDays?.length) {
                             <div class="filter-group">
                                 <label class="filter-group-label">Date</label>
                                 <select class="form-select form-select-sm"
                                         [ngModel]="selectedGameDay()"
-                                        (ngModelChange)="selectedGameDay.set($event); refreshTab()">
+                                        (ngModelChange)="selectedGameDay.set($event); onSimpleFilterChange()">
                                     <option value="">All Dates</option>
                                     @for (day of filterOptions()!.gameDays; track day) {
                                         <option [value]="day">{{ formatGameDay(day) }}</option>
@@ -302,13 +389,13 @@ interface FilterChip {
                             </div>
                         }
 
-                        <!-- Time -->
-                        @if (filterOptions()?.times?.length) {
+                        <!-- Time (admin only — used to bulk-record at the same time slot) -->
+                        @if (auth.isAdmin() && filterOptions()?.times?.length) {
                             <div class="filter-group">
                                 <label class="filter-group-label">Time</label>
                                 <select class="form-select form-select-sm"
                                         [ngModel]="selectedTime()"
-                                        (ngModelChange)="selectedTime.set($event); refreshTab()">
+                                        (ngModelChange)="selectedTime.set($event); onSimpleFilterChange()">
                                     <option value="">All Times</option>
                                     @for (time of filterOptions()!.times; track time) {
                                         <option [value]="time">{{ formatTime(time) }}</option>
@@ -323,7 +410,7 @@ interface FilterChip {
                                 <label class="filter-group-label">Location</label>
                                 <select class="form-select form-select-sm"
                                         [ngModel]="selectedFieldId()"
-                                        (ngModelChange)="selectedFieldId.set($event); refreshTab()">
+                                        (ngModelChange)="selectedFieldId.set($event); onSimpleFilterChange()">
                                     <option value="">All Locations</option>
                                     @for (field of filterOptions()!.fields; track field.fieldId) {
                                         <option [value]="field.fieldId">{{ field.fName }}</option>
@@ -332,15 +419,17 @@ interface FilterChip {
                             </div>
                         }
 
-                        <!-- Unscored toggle -->
-                        <div class="filter-group">
-                            <label class="filter-check">
-                                <input type="checkbox"
-                                       [ngModel]="unscoredOnly()"
-                                       (ngModelChange)="unscoredOnly.set($event); refreshTab()" />
-                                Show unscored games only
-                            </label>
-                        </div>
+                        <!-- Unscored toggle (admin only — domain term, not parent-facing) -->
+                        @if (auth.isAdmin()) {
+                            <div class="filter-group">
+                                <label class="filter-check">
+                                    <input type="checkbox"
+                                           [ngModel]="unscoredOnly()"
+                                           (ngModelChange)="unscoredOnly.set($event); onSimpleFilterChange()" />
+                                    Show unscored games only
+                                </label>
+                            </div>
+                        }
 
                         <!-- CADT Tree -->
                         @if (hasCadtData()) {
@@ -545,20 +634,29 @@ interface FilterChip {
             .page-subtitle { text-align: center; }
         }
 
-        /* ═══ Desktop Filter Bar ═══ */
+        /* ═══ Desktop Filter Bar ═══
+           Outer card stacks two zones: the filter-row (choose) on top,
+           and an echo zone below (active-chips-row, chosen) when populated. */
         .desktop-filter-bar {
             display: none; /* hidden by default (mobile) */
-            align-items: center;
-            gap: var(--space-2);
-            padding: var(--space-2) var(--space-3);
+            flex-direction: column;
             background: var(--bs-card-bg);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-md);
-            flex-wrap: wrap;
+            overflow: hidden;
         }
 
         @media (min-width: 992px) {
             .desktop-filter-bar { display: flex; }
+        }
+
+        /* Top zone: the filters themselves, all on one line where possible. */
+        .filter-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
         }
 
         /* Dropdown trigger button */
@@ -663,6 +761,211 @@ interface FilterChip {
         }
 
         .filter-check-inline input { accent-color: var(--bs-primary); }
+
+        /* ── Team typeahead (Syncfusion ejs-multiselect, CheckBox mode) ──
+           Single inline control: [label] + [multiselect input], all on the
+           same line as the other filters. Chosen-teams chips are a separate
+           echo zone below (.active-chips-row). */
+        .team-typeahead-wrap {
+            display: inline-flex;
+            align-items: stretch;
+            min-width: 280px;
+            max-width: 460px;
+            flex: 1 1 280px;
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-sm);
+            background: var(--bs-body-bg);
+            overflow: hidden;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+
+        .team-typeahead-wrap:focus-within {
+            border-color: var(--bs-primary);
+            box-shadow: var(--shadow-focus);
+        }
+
+        /* Visible label on the left — "Find Your Teams" — gives context to "4 selected" */
+        .team-typeahead-label {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: 0 var(--space-2);
+            background: color-mix(in srgb, var(--bs-primary) 8%, var(--bs-tertiary-bg));
+            border-right: 1px solid var(--bs-border-color);
+            color: var(--bs-primary);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Strip the multiselect's own border so the wrap looks like one cohesive control */
+        .team-typeahead-wrap ::ng-deep .e-multiselect {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+        .team-typeahead-wrap ::ng-deep .e-multi-select-wrapper {
+            border: none !important;
+            min-height: 32px;
+            background: transparent;
+        }
+
+        /* ── Bottom zone: chosen-teams echo strip ──
+           Subtle primary tint so it reads as "owned by you" rather than as
+           another filter. Top border separates it from the filter row above. */
+        .active-chips-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            background: color-mix(in srgb, var(--bs-primary) 5%, var(--bs-tertiary-bg));
+            border-top: 1px solid var(--bs-border-color);
+        }
+
+        .active-chips-prefix {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-1);
+            color: var(--bs-primary);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            white-space: nowrap;
+            padding-right: var(--space-2);
+            border-right: 1px solid color-mix(in srgb, var(--bs-primary) 25%, transparent);
+        }
+
+        .active-chips-prefix > i { font-size: 0.95em; }
+
+        .active-chips-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            background: var(--bs-primary);
+            color: white;
+            border-radius: var(--radius-full);
+            font-size: 11px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .active-chips-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-1);
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+
+        .team-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 3px 4px 3px 10px;
+            background: var(--bs-card-bg);
+            border: 1px solid color-mix(in srgb, var(--bs-secondary-color) 30%, transparent);
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-xs);
+            color: var(--bs-body-color);
+            line-height: 1.3;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+            transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+        }
+
+        .team-chip:hover {
+            border-color: var(--bs-primary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+        }
+
+        /* Followed-team chip variant — star-tinted to read as "yours" */
+        .team-chip--following {
+            border-color: color-mix(in srgb, var(--bs-warning) 50%, transparent);
+            background: color-mix(in srgb, var(--bs-warning) 8%, var(--bs-card-bg));
+        }
+
+        .team-chip--following:hover {
+            border-color: var(--bs-warning);
+        }
+
+        .team-chip-icon {
+            color: var(--bs-warning);
+            font-size: 0.85em;
+            flex-shrink: 0;
+        }
+
+        .team-chip-category {
+            font-weight: 600;
+            color: var(--bs-secondary-color);
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+
+        .team-chip-label {
+            font-weight: 500;
+            white-space: nowrap;
+            color: var(--bs-body-color);
+        }
+
+        .team-chip-remove {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: var(--bs-secondary-color);
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s, transform 0.15s;
+        }
+
+        .team-chip-remove:hover {
+            background: var(--bs-danger);
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .team-chip-remove:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .team-chip,
+            .team-chip-remove,
+            .team-typeahead-wrap { transition: none !important; }
+            .team-chip-remove:hover { transform: none; }
+        }
+
+        /* Mobile modal: full-width without the left-label wrapper */
+        .filter-modal-body ::ng-deep .e-multiselect.team-typeahead { width: 100%; }
+
+        /* Filter select icon prefix wrappers (Date/Time/Location) */
+        .filter-select-wrap {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .filter-select-wrap .filter-select-icon {
+            position: absolute;
+            left: var(--space-2);
+            color: var(--bs-secondary-color);
+            font-size: var(--font-size-sm);
+            pointer-events: none;
+        }
+
+        .filter-select-wrap .filter-select {
+            padding-left: calc(var(--space-2) + 1.1rem);
+        }
 
         /* Reset button */
         .filter-reset-btn {
@@ -771,73 +1074,6 @@ interface FilterChip {
             box-shadow: var(--shadow-sm);
         }
 
-        /* ── Filter Chips ── */
-        .filter-chips-strip {
-            display: flex;
-            flex-wrap: wrap;
-            gap: var(--space-2);
-            align-items: center;
-        }
-
-        .filter-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: var(--space-1);
-            padding: var(--space-1) var(--space-2);
-            background: var(--bs-primary);
-            color: var(--bs-white, #fff);
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 500;
-            line-height: 1.2;
-        }
-
-        .chip-category {
-            opacity: 0.8;
-            font-weight: 600;
-        }
-
-        .chip-remove {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 16px;
-            height: 16px;
-            padding: 0;
-            margin-left: 2px;
-            background: transparent;
-            border: none;
-            border-radius: 50%;
-            color: var(--bs-white, #fff);
-            cursor: pointer;
-            opacity: 0.7;
-            font-size: var(--font-size-sm);
-            line-height: 1;
-            transition: opacity 0.15s, background 0.15s;
-        }
-
-        .chip-remove:hover {
-            opacity: 1;
-            background: rgba(255, 255, 255, 0.2);
-        }
-
-        .chip-clear-all {
-            padding: var(--space-1) var(--space-2);
-            background: transparent;
-            border: 1px solid var(--bs-border-color);
-            border-radius: var(--radius-full);
-            font-size: var(--font-size-xs);
-            font-weight: 500;
-            color: var(--bs-secondary-color);
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .chip-clear-all:hover {
-            background: var(--bs-secondary-bg);
-            color: var(--bs-body-color);
-        }
-
         /* ── Filter Modal (mobile) ── */
         .filter-modal-content {
             display: flex;
@@ -941,9 +1177,15 @@ export class ViewScheduleComponent implements OnInit {
     private readonly route = inject(ActivatedRoute);
     protected readonly auth = inject(AuthService);
     private readonly jobService = inject(JobService);
+    private readonly filtersStore = inject(ScheduleFiltersStore);
+    private readonly http = inject(HttpClient);
 
     // ── Route state ──
     private jobPath: string | undefined;
+
+    // True only AFTER the initial restore-from-storage pass completes — gates
+    // persistence so we don't overwrite saved state before reading it.
+    private filtersRestored = false;
 
     // ── Filter options + capabilities ──
     readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
@@ -970,6 +1212,12 @@ export class ViewScheduleComponent implements OnInit {
     readonly selectedTime = signal('');
     readonly selectedFieldId = signal('');
     readonly unscoredOnly = signal(false);
+
+    // ── Direct team multiselect (typeahead) ──
+    /** TeamIds the user has explicitly selected via the typeahead OR row star. */
+    readonly directTeamIds = signal<string[]>([]);
+    /** Syncfusion field-mapping for ejs-multiselect. */
+    readonly directTeamFields = { value: 'teamId', text: 'displayText' };
 
     // ── Tab state ──
     readonly activeTab = signal<TabId>('games');
@@ -1006,6 +1254,32 @@ export class ViewScheduleComponent implements OnInit {
     // ══════════════════════════════════════════════════════════════════
 
     readonly eventName = computed(() => this.jobService.currentJob()?.jobName ?? '');
+
+    /** Flat team list derived from the CADT tree, formatted as "{ClubName}:{TeamName}". */
+    readonly directTeamOptions = computed<DirectTeamOption[]>(() => {
+        const opts: DirectTeamOption[] = [];
+        for (const club of this.cadtTree()) {
+            const clubLabel = club.clubName?.trim() ?? '';
+            for (const ag of club.agegroups ?? []) {
+                for (const div of ag.divisions ?? []) {
+                    for (const team of div.teams ?? []) {
+                        opts.push({
+                            teamId: team.teamId,
+                            displayText: clubLabel ? `${clubLabel}:${team.teamName}` : team.teamName,
+                        });
+                    }
+                }
+            }
+        }
+        opts.sort((a, b) => a.displayText.localeCompare(b.displayText));
+        return opts;
+    });
+
+    /** Pluralized count + label for the title badge: "1,286 games" / "1 game" / "0 games". */
+    readonly gameCountLabel = computed(() => {
+        const n = this.games().length;
+        return `${n.toLocaleString()} ${n === 1 ? 'game' : 'games'}`;
+    });
 
     /** Address-first maps query — geocoded addresses pinpoint better than raw lat/lng. */
     readonly fieldMapUrl = computed<string | null>(() => {
@@ -1055,6 +1329,7 @@ export class ViewScheduleComponent implements OnInit {
     readonly hasActiveFilters = computed(() => {
         return this.cadtTeamIds().length > 0
             || this.ladtTeamIds().length > 0
+            || this.directTeamIds().length > 0
             || this.selectedGameDay() !== ''
             || this.selectedTime() !== ''
             || this.selectedFieldId() !== ''
@@ -1065,6 +1340,7 @@ export class ViewScheduleComponent implements OnInit {
         let count = 0;
         if (this.cadtTeamIds().length > 0) count++;
         if (this.ladtTeamIds().length > 0) count++;
+        if (this.directTeamIds().length > 0) count++;
         if (this.selectedGameDay()) count++;
         if (this.selectedTime()) count++;
         if (this.selectedFieldId()) count++;
@@ -1072,45 +1348,52 @@ export class ViewScheduleComponent implements OnInit {
         return count;
     });
 
+    /** Chips for direct-team selections (typeahead / row-stars). */
+    readonly directTeamChips = computed<DirectTeamOption[]>(() => {
+        const ids = this.directTeamIds();
+        if (ids.length === 0) return [];
+        const optionMap = new Map(this.directTeamOptions().map(o => [o.teamId, o.displayText]));
+        return ids.map(id => ({ teamId: id, displayText: optionMap.get(id) ?? id }));
+    });
+
+    /**
+     * Chips for the non-team filters: CADT/LADT tree picks (highest-level checked
+     * node only — clubs, agegroups, divisions, teams as appropriate), Date, Time,
+     * Location, Unscored. Direct-team selections render separately via directTeamChips.
+     */
     readonly activeFilterChips = computed<FilterChip[]>(() => {
         const chips: FilterChip[] = [];
         const opts = this.filterOptions();
 
-        // CADT chips
         const cadt = this.cadtTree();
         if (cadt.length > 0 && this.cadtTeamIds().length > 0) {
             this.buildTreeChips(cadt, this.checkedIds, 'cadt', chips);
         }
 
-        // LADT chips
         const ladt = this.ladtTree();
         if (ladt.length > 0 && this.ladtTeamIds().length > 0) {
             this.buildLadtChips(ladt, chips);
         }
 
-        // Game Day chip
         if (this.selectedGameDay()) {
-            chips.push({ category: 'Day', label: this.formatGameDay(this.selectedGameDay()), type: 'gameDay' });
+            chips.push({ category: 'Date', label: this.formatGameDay(this.selectedGameDay()), type: 'gameDay' });
         }
-
-        // Time chip
         if (this.selectedTime()) {
             chips.push({ category: 'Time', label: this.formatTime(this.selectedTime()), type: 'time' });
         }
-
-        // Field chip
         if (this.selectedFieldId()) {
             const field = opts?.fields?.find(f => f.fieldId === this.selectedFieldId());
             chips.push({ category: 'Location', label: field?.fName ?? this.selectedFieldId(), type: 'field' });
         }
-
-        // Unscored chip
         if (this.unscoredOnly()) {
             chips.push({ category: 'Filter', label: 'Unscored only', type: 'unscored' });
         }
 
         return chips;
     });
+
+    /** Total chip count across both groups — drives the bar's "N" pill and visibility. */
+    readonly totalChipCount = computed(() => this.directTeamChips().length + this.activeFilterChips().length);
 
     // ══════════════════════════════════════════════════════════════════
     // Lifecycle
@@ -1129,6 +1412,10 @@ export class ViewScheduleComponent implements OnInit {
             }
         }
 
+        // Restore persisted filters before kicking off the initial data load so the
+        // first /games request honors the saved selection (no extra round-trip).
+        this.restoreFiltersFromStorage();
+
         this.svc.getFilterOptions(this.jobPath).subscribe(opts => {
             this.filterOptions.set(opts);
         });
@@ -1136,6 +1423,9 @@ export class ViewScheduleComponent implements OnInit {
         this.jobFilterTreeSvc.getForJob(this.jobPath).subscribe(tree => {
             this.cadtTree.set(tree.cadt);
             this.ladtTree.set(tree.ladt);
+            // After the tree arrives we can attempt the family-roster seed (one-shot,
+            // skipped if a localStorage entry already exists for this tournament).
+            this.maybeSeedFromFamilyRoster();
         });
 
         this.svc.getCapabilities(this.jobPath).subscribe(caps => {
@@ -1144,6 +1434,91 @@ export class ViewScheduleComponent implements OnInit {
 
         this.loadTabData('games');
         this.probeGameClock();
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    // Filter persistence + family-roster seed
+    // ══════════════════════════════════════════════════════════════════
+
+    /**
+     * Hydrate signals from localStorage when an entry exists for this jobPath.
+     * Anything not present in storage stays at its default. Marks `filtersRestored`
+     * so subsequent persist() calls are safe.
+     */
+    private restoreFiltersFromStorage(): void {
+        const jobPath = this.jobPath;
+        if (!jobPath) {
+            this.filtersRestored = true;
+            return;
+        }
+        const saved = this.filtersStore.getFor(jobPath);
+        if (saved) {
+            this.directTeamIds.set([...saved.teamIds]);
+            this.selectedGameDay.set(saved.selectedGameDay ?? '');
+            this.selectedTime.set(saved.selectedTime ?? '');
+            this.selectedFieldId.set(saved.selectedFieldId ?? '');
+            this.unscoredOnly.set(!!saved.unscoredOnly);
+        }
+        this.filtersRestored = true;
+    }
+
+    /**
+     * Write the current direct-team selection + simple-filter state to localStorage.
+     * No-op until the initial restore has completed (gates first-load overwrites).
+     */
+    private persistFilters(): void {
+        if (!this.filtersRestored) return;
+        const jobPath = this.jobPath;
+        if (!jobPath) return;
+        this.filtersStore.patch(jobPath, {
+            teamIds: this.directTeamIds(),
+            selectedGameDay: this.selectedGameDay(),
+            selectedTime: this.selectedTime(),
+            selectedFieldId: this.selectedFieldId(),
+            unscoredOnly: this.unscoredOnly(),
+        });
+    }
+
+    /**
+     * One-shot: when no localStorage entry exists yet for this jobPath AND the user
+     * is logged in as a Family-class account, seed `directTeamIds` from their
+     * players' assignedTeamId values. After the seed runs (whether or not it found
+     * teams), `seededFromFamily` flips true and the seed never runs again — the
+     * user owns their selection from that point forward.
+     */
+    private maybeSeedFromFamilyRoster(): void {
+        const jobPath = this.jobPath;
+        if (!jobPath) return;
+        if (!this.auth.isAuthenticated()) return;
+        // Already have an entry → user owns it; no seeding.
+        if (this.filtersStore.getFor(jobPath) !== null) return;
+
+        this.http.get<FamilyPlayersResponseDto>(
+            `${environment.apiUrl}/family/players`,
+            { params: { jobPath } },
+        ).subscribe({
+            next: resp => {
+                const seeded = new Set<string>();
+                for (const player of resp?.familyPlayers ?? []) {
+                    for (const reg of player.priorRegistrations ?? []) {
+                        if (reg.active && reg.assignedTeamId) seeded.add(reg.assignedTeamId);
+                    }
+                }
+                const ids = [...seeded];
+                this.directTeamIds.set(ids);
+                this.filtersStore.patch(jobPath, {
+                    teamIds: ids,
+                    seededFromFamily: true,
+                });
+                if (ids.length > 0) this.refreshTab();
+            },
+            error: () => {
+                // Transient (network, 5xx) — don't write the seed flag. Next visit
+                // will retry. For non-Family authenticated users the endpoint
+                // returns 200 with an empty player list, hitting the success path
+                // above; this branch should be rare.
+            },
+        });
     }
 
     /**
@@ -1200,14 +1575,22 @@ export class ViewScheduleComponent implements OnInit {
         this.cadtTeamIds.set([]);
         this.ladtCheckedIds = new Set<string>();
         this.ladtTeamIds.set([]);
+        this.directTeamIds.set([]);
         this.selectedGameDay.set('');
         this.selectedTime.set('');
         this.selectedFieldId.set('');
         this.unscoredOnly.set(false);
         this.openPanel.set(null);
+        this.persistFilters();
         this.refreshTab();
     }
 
+    /**
+     * Remove a single chip from the active-filters bar. Tree-derived chips
+     * walk descendants/ancestors out of the checked set; simple-filter chips
+     * just clear their signal. Persistence runs for filters that are stored
+     * (simple filters are; trees aren't).
+     */
     removeChip(chip: FilterChip): void {
         switch (chip.type) {
             case 'cadt':
@@ -1234,21 +1617,57 @@ export class ViewScheduleComponent implements OnInit {
                 break;
             case 'gameDay':
                 this.selectedGameDay.set('');
+                this.persistFilters();
                 this.refreshTab();
                 break;
             case 'time':
                 this.selectedTime.set('');
+                this.persistFilters();
                 this.refreshTab();
                 break;
             case 'field':
                 this.selectedFieldId.set('');
+                this.persistFilters();
                 this.refreshTab();
                 break;
             case 'unscored':
                 this.unscoredOnly.set(false);
+                this.persistFilters();
                 this.refreshTab();
                 break;
         }
+    }
+
+    /**
+     * Single change handler for the team typeahead. Syncfusion emits an array of
+     * the currently-selected values via `$event.value`.
+     */
+    onDirectTeamChange(event: { value?: string[] | null }): void {
+        const next = event.value ?? [];
+        // Skip no-op events (Syncfusion can fire change during initial value binding)
+        const current = this.directTeamIds();
+        if (next.length === current.length && next.every((v, i) => v === current[i])) return;
+        this.directTeamIds.set([...next]);
+        this.persistFilters();
+        this.refreshTab();
+    }
+
+    /** Toggle a single team's presence in the direct-selection set (used by row stars). */
+    toggleDirectTeam(teamId: string): void {
+        if (!teamId) return;
+        const current = this.directTeamIds();
+        const next = current.includes(teamId)
+            ? current.filter(id => id !== teamId)
+            : [...current, teamId];
+        this.directTeamIds.set(next);
+        this.persistFilters();
+        this.refreshTab();
+    }
+
+    /** Catch-all change handler for the simple-filter selects + checkbox. */
+    onSimpleFilterChange(): void {
+        this.persistFilters();
+        this.refreshTab();
     }
 
     refreshTab(): void {
@@ -1270,21 +1689,35 @@ export class ViewScheduleComponent implements OnInit {
     private buildFilterRequest(): ScheduleFilterRequest {
         const req: ScheduleFilterRequest = {};
 
-        // CADT + LADT → merged teamIds
+        // CADT + LADT → merged teamIds (existing intersection logic)
         const cadtTeams = this.cadtTeamIds();
         const ladtTeams = this.ladtTeamIds();
+        const directTeams = this.directTeamIds();
+
+        let treeMerged: string[] | null = null;
 
         if (cadtTeams.length > 0 && ladtTeams.length > 0) {
             // Both active → intersection
             const ladtSet = new Set(ladtTeams);
             const intersection = cadtTeams.filter(id => ladtSet.has(id));
-            req.teamIds = intersection.length > 0
+            treeMerged = intersection.length > 0
                 ? intersection
                 : ['00000000-0000-0000-0000-000000000000']; // sentinel — no real team matches
         } else if (cadtTeams.length > 0) {
-            req.teamIds = cadtTeams;
+            treeMerged = cadtTeams;
         } else if (ladtTeams.length > 0) {
-            req.teamIds = ladtTeams;
+            treeMerged = ladtTeams;
+        }
+
+        // Direct team selections (typeahead / star) UNION with tree-derived teamIds —
+        // a parent who explicitly picked a team should always see that team's games,
+        // independent of any By-Club / By-Age narrowing.
+        if (directTeams.length > 0 && treeMerged) {
+            req.teamIds = [...new Set([...treeMerged, ...directTeams])];
+        } else if (directTeams.length > 0) {
+            req.teamIds = [...directTeams];
+        } else if (treeMerged) {
+            req.teamIds = treeMerged;
         }
 
         if (this.selectedGameDay()) req.gameDays = [this.selectedGameDay()];
@@ -1518,7 +1951,7 @@ export class ViewScheduleComponent implements OnInit {
     // Filter chip builders
     // ══════════════════════════════════════════════════════════════════
 
-    /** Build chips for highest-level checked nodes in a CADT tree */
+    /** Build chips for highest-level checked nodes in a CADT tree. */
     private buildTreeChips(clubs: CadtClubNode[], checked: Set<string>, chipType: 'cadt' | 'ladt', chips: FilterChip[]): void {
         for (const club of clubs) {
             if (checked.has(`club:${club.clubName}`)) {
@@ -1570,7 +2003,6 @@ export class ViewScheduleComponent implements OnInit {
     // Tree node removal helpers (shared for CADT and LADT)
     // ══════════════════════════════════════════════════════════════════
 
-    /** Remove a node's descendants from the checked set */
     private removeTreeDescendants(nodeId: string, checked: Set<string>, clubs: CadtClubNode[]): void {
         for (const club of clubs) {
             const clubId = `club:${club.clubName}`;
@@ -1603,7 +2035,6 @@ export class ViewScheduleComponent implements OnInit {
         }
     }
 
-    /** Remove all ancestors of a node from the checked set */
     private removeTreeAncestors(nodeId: string, checked: Set<string>, clubs: CadtClubNode[]): void {
         for (const club of clubs) {
             const clubId = `club:${club.clubName}`;
@@ -1624,7 +2055,6 @@ export class ViewScheduleComponent implements OnInit {
         }
     }
 
-    /** LADT counterpart — agegroup-rooted IDs, no club layer. */
     private removeLadtDescendants(nodeId: string, checked: Set<string>, agegroups: LadtAgegroupNode[]): void {
         for (const ag of agegroups) {
             const agId = `ag:${ag.agegroupId}`;
@@ -1659,4 +2089,5 @@ export class ViewScheduleComponent implements OnInit {
             }
         }
     }
+
 }

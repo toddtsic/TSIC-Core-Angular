@@ -44,7 +44,7 @@ import type { ViewGameDto } from '@core/api';
             <div class="games-grid desktop-view" role="table" aria-label="Games schedule">
                 <!-- Header -->
                 <div class="grid-header" role="row">
-                    <span class="hdr hdr-num" role="columnheader">#</span>
+                    <span class="hdr hdr-num" role="columnheader" aria-label="Row number"></span>
                     <span class="hdr hdr-dt" role="columnheader">Date / Time</span>
                     <span class="hdr hdr-loc" role="columnheader">Location</span>
                     <span class="hdr hdr-pool" role="columnheader">Pool</span>
@@ -62,6 +62,12 @@ import type { ViewGameDto } from '@core/api';
                         <span class="cell cell-away" role="cell" aria-colindex="7">
                             <span class="decoy" aria-hidden="true">{{ decoyText(game.gid, 0) }}</span>
                             @if (game.t2Id) {
+                                <button type="button" class="team-star"
+                                        [class.is-on]="isFollowed(game.t2Id)"
+                                        [attr.aria-label]="(isFollowed(game.t2Id) ? 'Unfollow ' : 'Follow ') + game.t2Name"
+                                        (click)="onStarClick(game.t2Id!)">
+                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
+                                </button>
                                 <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
                             } @else {
                                 <span>{{ game.t2Name }}</span>
@@ -121,6 +127,12 @@ import type { ViewGameDto } from '@core/api';
                         <span class="cell cell-home" role="cell" aria-colindex="5">
                             @if (game.t1Id) {
                                 <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
+                                <button type="button" class="team-star"
+                                        [class.is-on]="isFollowed(game.t1Id)"
+                                        [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
+                                        (click)="onStarClick(game.t1Id!)">
+                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
+                                </button>
                             } @else {
                                 <span>{{ game.t1Name }}</span>
                             }
@@ -199,6 +211,12 @@ import type { ViewGameDto } from '@core/api';
                         <div class="card-team-row">
                             <span class="card-team-name">
                                 @if (game.t1Id) {
+                                    <button type="button" class="team-star"
+                                            [class.is-on]="isFollowed(game.t1Id)"
+                                            [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
+                                            (click)="onStarClick(game.t1Id!)">
+                                        <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
+                                    </button>
                                     <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
                                 } @else {
                                     {{ game.t1Name }}
@@ -217,6 +235,12 @@ import type { ViewGameDto } from '@core/api';
                         <div class="card-team-row">
                             <span class="card-team-name">
                                 @if (game.t2Id) {
+                                    <button type="button" class="team-star"
+                                            [class.is-on]="isFollowed(game.t2Id)"
+                                            [attr.aria-label]="(isFollowed(game.t2Id) ? 'Unfollow ' : 'Follow ') + game.t2Name"
+                                            (click)="onStarClick(game.t2Id!)">
+                                        <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
+                                    </button>
                                     <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
                                 } @else {
                                     {{ game.t2Name }}
@@ -443,6 +467,42 @@ import type { ViewGameDto } from '@core/api';
 
         .clickable:hover { text-decoration: underline; }
 
+        /* Team star — follow/unfollow shortcut */
+        .team-star {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            margin: 0 4px;
+            border: none;
+            background: transparent;
+            color: var(--bs-secondary-color);
+            font-size: var(--font-size-xs);
+            cursor: pointer;
+            opacity: 0.55;
+            transition: opacity 0.15s, color 0.15s, transform 0.15s;
+            vertical-align: middle;
+        }
+        .team-star:hover {
+            opacity: 1;
+            color: var(--bs-warning, #f0ad4e);
+        }
+        .team-star.is-on {
+            opacity: 1;
+            color: var(--bs-warning, #f0ad4e);
+        }
+        .team-star:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+            opacity: 1;
+            border-radius: 50%;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .team-star { transition: none !important; }
+        }
+
         .record {
             color: var(--bs-secondary-color);
             font-size: var(--font-size-xs);
@@ -656,11 +716,28 @@ export class GamesTabComponent {
     readonly games = input<ViewGameDto[]>([]);
     readonly canScore = input<boolean>(false);
     readonly isLoading = input<boolean>(false);
+    /** TeamIds the current user is following (parent owns the set). */
+    readonly followedTeamIds = input<readonly string[]>([]);
 
     // ── Outputs ──
     @Output() quickScore = new EventEmitter<{ gid: number; t1Score: number; t2Score: number }>();
     @Output() editGame = new EventEmitter<number>();
     @Output() viewTeamResults = new EventEmitter<string>();
+    /** Emits the teamId when the user clicks a star — parent toggles the set. */
+    @Output() toggleFollow = new EventEmitter<string>();
+
+    // ── Derived ──
+    private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
+
+    isFollowed(teamId: string | null | undefined): boolean {
+        return !!teamId && this.followedSet().has(teamId);
+    }
+
+    onStarClick(teamId: string, event?: Event): void {
+        // Stops the click from also firing the team-results navigation on the sibling span.
+        event?.stopPropagation();
+        if (teamId) this.toggleFollow.emit(teamId);
+    }
 
     // ── Inline edit state ──
     readonly editingGid = signal<number | null>(null);
