@@ -636,14 +636,16 @@ interface FilterChip {
 
         /* ═══ Desktop Filter Bar ═══
            Outer card stacks two zones: the filter-row (choose) on top,
-           and an echo zone below (active-chips-row, chosen) when populated. */
+           and an echo zone below (active-chips-row, chosen) when populated.
+           NOTE: no overflow:hidden — the By Club / By Age dropdown panels
+           are position:absolute and need to escape this container. The
+           chip-row rounds its own bottom corners to keep the card look. */
         .desktop-filter-bar {
             display: none; /* hidden by default (mobile) */
             flex-direction: column;
             background: var(--bs-card-bg);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-md);
-            overflow: hidden;
         }
 
         @media (min-width: 992px) {
@@ -820,6 +822,7 @@ interface FilterChip {
             padding: var(--space-2) var(--space-3);
             background: color-mix(in srgb, var(--bs-primary) 5%, var(--bs-tertiary-bg));
             border-top: 1px solid var(--bs-border-color);
+            border-radius: 0 0 calc(var(--radius-md) - 1px) calc(var(--radius-md) - 1px);
         }
 
         .active-chips-prefix {
