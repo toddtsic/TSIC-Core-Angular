@@ -1,12 +1,16 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Domain.Entities;
+using TSIC.Infrastructure.Data.SqlDbContext.Helpers;
 
 namespace TSIC.Infrastructure.Data.SqlDbContext;
 
-// A team's name lives in two columns: ClubTeams.ClubTeamName (library identity)
-// and Teams.TeamName (per-event registration). They must agree whenever a Teams
-// row links to a ClubTeams row (Teams.ClubTeamId is set). This override mirrors
-// any pending rename across both columns inside the same SaveChanges transaction
+// A team's name lives in three places:
+//   1. ClubTeams.ClubTeamName       — library identity (one row per club team)
+//   2. Teams.TeamName               — per-event registration (one row per job)
+//   3. Schedule.T1Name / T2Name     — denormalized "{clubName}:{teamName}" for
+//                                      round-robin games, one pair per scheduled game
+// They must agree whenever Teams.ClubTeamId is set. This override mirrors any
+// pending rename across all three layers inside the same SaveChanges transaction
 // so every caller — library modal, admin LADT, admin search, pairings — honors
 // the rule without needing to know it exists. Orphan Teams (ClubTeamId NULL)
 // are untouched.
@@ -48,6 +52,10 @@ public partial class SqlDbContext
 
         if (renamesByClubTeamId.Count == 0) return;
 
+        // Every Teams row whose name landed on a new value, in this transaction,
+        // needs its Schedule.T1Name/T2Name denormalization rewritten too.
+        var teamsNeedingScheduleSync = new List<(Guid TeamId, Guid JobId, string NewName)>();
+
         foreach (var (clubTeamId, newName) in renamesByClubTeamId)
         {
             var trackedClubTeam = ChangeTracker.Entries<ClubTeams>()
@@ -75,7 +83,15 @@ public partial class SqlDbContext
             {
                 if (sibling.TeamName != newName)
                     sibling.TeamName = newName;
+
+                teamsNeedingScheduleSync.Add((sibling.TeamId, sibling.JobId, newName));
             }
+        }
+
+        foreach (var (teamId, jobId, newName) in teamsNeedingScheduleSync)
+        {
+            await ScheduleNameSyncHelper.ApplyTeamRenameToChangeTrackerAsync(
+                this, teamId, jobId, newName, cancellationToken);
         }
     }
 }
