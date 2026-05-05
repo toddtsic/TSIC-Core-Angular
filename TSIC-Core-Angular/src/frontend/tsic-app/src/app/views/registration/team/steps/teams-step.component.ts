@@ -286,9 +286,7 @@ interface AgePickerTeam {
       .action-segments {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
-        background: var(--brand-surface);
         overflow: hidden;
         box-shadow: var(--shadow-sm);
       }
@@ -301,33 +299,15 @@ interface AgePickerTeam {
         padding: var(--space-4) var(--space-4);
         border: none;
         border-radius: 0;
-        background: transparent;
         font-family: inherit;
         text-align: left;
         cursor: pointer;
-        transition: background 0.15s ease, box-shadow 0.15s ease;
-
-        /* 3px accent bar across the top of each segment — strong directional
-           cue. Color set per-variant via currentColor. */
-        &::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: currentColor;
-        }
+        transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 
         &:focus-visible {
           outline: none;
           box-shadow: inset 0 0 0 2px currentColor;
         }
-      }
-
-      /* Single shared divider between segments — no double border. */
-      .action-segment + .action-segment {
-        border-left: 1px solid var(--border-color);
       }
 
       .action-segment-icon {
@@ -346,43 +326,48 @@ interface AgePickerTeam {
 
       .action-segment-title {
         font-size: var(--font-size-base);
-        font-weight: var(--font-weight-semibold);
+        font-weight: var(--font-weight-bold);
         line-height: var(--line-height-tight);
-        color: var(--brand-text);
+        color: currentColor;
       }
 
       .action-segment-sub {
         font-size: var(--font-size-xs);
         font-style: italic;
         line-height: var(--line-height-normal);
-        color: var(--brand-text-muted);
+        color: color-mix(in srgb, currentColor 80%, var(--brand-text));
       }
 
-      /* Both segments share a subtle adaptive neutral tint at rest — two
-         saturated color tints next to each other always read as combat,
-         regardless of hue choice. Direction is carried by the top accent
-         bar + icon color only. Hover reveals that segment's accent color
-         as a tinted background, providing strong interactive feedback. */
-      .action-segment {
-        background: color-mix(in srgb, var(--brand-text) 8%, transparent);
-      }
-
+      /* Each option owns its color zone from rest — two distinct tinted
+         backgrounds split the bar, the contrast between them reads as the
+         divider. Hover deepens the same tint and lifts a hair. Light/dark
+         compatible: color-mix to transparent layers over whatever surface
+         the parent provides. */
       .action-segment-stay {
-        color: var(--bs-primary);
+        color: var(--amber-700);
+        background: color-mix(in srgb, var(--amber-500) 18%, transparent);
 
-        &:hover { background: color-mix(in srgb, var(--bs-primary) 14%, transparent); }
-        .action-segment-icon { color: var(--bs-primary); }
+        &:hover {
+          background: color-mix(in srgb, var(--amber-500) 32%, transparent);
+          box-shadow: inset 0 -2px 0 var(--amber-700);
+        }
+        &:active { transform: translateY(1px); }
       }
 
       .action-segment-advance {
         color: var(--emerald-600);
+        background: color-mix(in srgb, var(--emerald-600) 14%, transparent);
 
-        &:hover { background: color-mix(in srgb, var(--emerald-600) 14%, transparent); }
-        .action-segment-icon { color: var(--emerald-600); }
+        &:hover {
+          background: color-mix(in srgb, var(--emerald-600) 26%, transparent);
+          box-shadow: inset 0 -2px 0 var(--emerald-600);
+        }
+        &:active { transform: translateY(1px); }
       }
 
       @media (prefers-reduced-motion: reduce) {
         .action-segment { transition: none !important; }
+        .action-segment:active { transform: none; }
       }
 
       /* ── Section banner header ── */
