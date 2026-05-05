@@ -326,12 +326,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         var teamIds = rawRegistered.Select(t => t.TeamId).ToList();
         var feesByTeamId = await _feeService.ResolveFeesByTeamIdsAsync(
             jobId, RoleConstants.ClubRep, teamIds);
-        // Source the displayed team name from the library when there's a ClubTeamId
-        // link. Teams.TeamName is a frozen snapshot from registration time; library
-        // edits should reflect immediately in the live wizard.
-        var libraryNameById = allClubTeams.ToDictionary(ct => ct.ClubTeamId, ct => ct.ClubTeamName);
         var registeredTeams = ShapeRegisteredTeams(
-            rawRegistered, scheduledIds, feesByTeamId, libraryNameById, job.BTeamsFullPaymentRequired ?? false);
+            rawRegistered, scheduledIds, feesByTeamId, job.BTeamsFullPaymentRequired ?? false);
 
         // Return ALL library teams — previously filtered out teams already registered
         // for this event, which forced the frontend to reconstruct library rows from the
@@ -429,7 +425,6 @@ public class TeamRegistrationService : ITeamRegistrationService
         IEnumerable<Contracts.Repositories.RegisteredTeamInfo> rawRegistered,
         HashSet<int> scheduledClubTeamIds,
         Dictionary<Guid, Contracts.Repositories.ResolvedFee> feesByTeamId,
-        Dictionary<int, string> libraryNameById,
         bool bTeamsFullPaymentRequired)
     {
         return rawRegistered.Select(t =>
@@ -440,16 +435,10 @@ public class TeamRegistrationService : ITeamRegistrationService
             var depositDue = t.PaidTotal >= deposit ? 0m : deposit - t.PaidTotal;
             var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
 
-            // Library is source of truth for the team name on live registrations.
-            // Falls back to the Teams.TeamName snapshot for orphan rows (no ClubTeamId).
-            var displayName = t.ClubTeamId.HasValue && libraryNameById.TryGetValue(t.ClubTeamId.Value, out var libName)
-                ? libName
-                : t.TeamName;
-
             return new RegisteredTeamDto
             {
                 TeamId = t.TeamId,
-                TeamName = displayName,
+                TeamName = t.TeamName,
                 AgeGroupId = t.AgeGroupId,
                 AgeGroupName = t.AgeGroupName,
                 LevelOfPlay = t.LevelOfPlay,
