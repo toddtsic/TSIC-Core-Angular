@@ -108,7 +108,7 @@ import type { AgeGroupDto } from '@core/api';
                 </select>
                 <div class="grad-year-tip">
                   Grad year of the <strong>majority</strong> of your players &mdash;
-                  <em>not</em> the age group you're registering for (that's step 3).
+                  <em>not</em> an age group. Helps suggest the right age group at registration.
                 </div>
                 @if (submitted() && !gradYear()) {
                   <div class="field-error">Required</div>
@@ -300,86 +300,8 @@ import type { AgeGroupDto } from '@core/api';
       /* ── Body ──────────────────────────────────────────────────────── */
       .register-body { padding: var(--space-3) var(--space-3) var(--space-1); }
 
-      /* ── Stepwise sections (1 → 2 → 3) ─────────────────────────────
-         Each fieldset is a numbered "step." Whichever section is currently
-         actionable gets the primary-blue frame + a single entrance pulse
-         (one-shot, no loop). Completed sections soften to a success-tint
-         frame. Locked sections are muted and inputs are disabled.
-         Pattern mirrors age-group-picker-modal's .is-active-region. */
-      .step-section {
-        position: relative;
-        padding: var(--space-3);
-        border-radius: var(--radius-md);
-        border: 2px solid var(--border-color);
-        background: var(--brand-surface);
-        transition: border-color 0.3s ease, background 0.3s ease, opacity 0.3s ease;
-      }
-      .step-section + .step-section,
-      .step-section + .alert,
-      .step-section + .library-aside { margin-top: var(--space-3); }
-
-      .step-section.is-locked {
-        opacity: 0.55;
-        background: rgba(var(--bs-dark-rgb), 0.025);
-      }
-
-      .step-section.is-active {
-        border-color: var(--bs-primary);
-        border-width: 3px;
-        background: color-mix(in srgb, var(--bs-primary) 6%, transparent);
-        animation: stepRegionEntrance 700ms ease-out 1 both;
-      }
-
-      .step-section.is-completed:not(.is-active) {
-        border-color: color-mix(in srgb, var(--bs-success) 35%, transparent);
-        border-width: 1.5px;
-        background: color-mix(in srgb, var(--bs-success) 4%, transparent);
-      }
-
-      .step-eyebrow {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        margin-bottom: var(--space-2);
-      }
-
-      .step-circle {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 26px;
-        height: 26px;
-        border-radius: 50%;
-        font-size: 13px;
-        font-weight: var(--font-weight-bold);
-        background: var(--brand-surface);
-        border: 2px solid var(--border-color);
-        color: var(--brand-text-muted);
-        flex-shrink: 0;
-        transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-      }
-      .step-circle.is-active {
-        background: var(--bs-primary);
-        border-color: var(--bs-primary);
-        color: var(--neutral-0);
-      }
-      .step-circle.is-completed {
-        background: var(--bs-success);
-        border-color: var(--bs-success);
-        color: var(--neutral-0);
-      }
-      .step-circle.is-completed i { font-size: 14px; }
-
-      .step-title {
-        font-size: 11px;
-        font-weight: var(--font-weight-bold);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--brand-text);
-      }
-      .step-title-event {
-        color: var(--bs-success);
-      }
+      /* Stepwise pattern (.step-section / .step-circle / .step-eyebrow)
+         lives in styles/_stepwise-region.scss — shared with team-form-modal. */
 
       .form-row-split {
         display: grid;
@@ -598,19 +520,9 @@ import type { AgeGroupDto } from '@core/api';
         to   { opacity: 1; transform: translateY(0); }
       }
 
-      /* Single-cycle attention pulse for whichever step is currently
-         actionable. Fires when a step first gains .is-active (i.e. after
-         the previous step is completed). Does NOT loop. */
-      @keyframes stepRegionEntrance {
-        0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--bs-primary) 45%, transparent); }
-        50%  { box-shadow: 0 0 0 10px color-mix(in srgb, var(--bs-primary) 18%, transparent); }
-        100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--bs-primary)  0%, transparent); }
-      }
-
       @media (prefers-reduced-motion: reduce) {
         .age-pill { animation: none !important; transition: none; }
         .age-pill:hover:not(:disabled) { transform: none; }
-        .step-section { transition: none; animation: none !important; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,

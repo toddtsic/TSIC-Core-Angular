@@ -706,29 +706,10 @@ export class TeamTeamsStepComponent implements OnInit {
     private readonly _registeredTeams = signal<RegisteredTeamDto[]>([]);
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
 
-    /** All library teams: available + entered. */
-    readonly allLibraryTeams = computed<ClubTeamDto[]>(() => {
-        const available = this._clubTeams();
-        const entered = this._registeredTeams();
-
-        const enteredAsLibrary: ClubTeamDto[] = entered
-            .filter(r => r.clubTeamId)
-            .map(r => ({
-                clubTeamId: r.clubTeamId!,
-                clubTeamName: r.teamName,
-                clubTeamGradYear: r.ageGroupName,
-                clubTeamLevelOfPlay: r.levelOfPlay ?? '',
-                bHasBeenScheduled: r.bHasBeenScheduled,
-                // Registered-for-this-event rows are by definition not archived on display.
-                bArchived: false,
-            }));
-
-        // Merge: available first, then entered (deduplicated)
-        const availableIds = new Set(available.map(t => t.clubTeamId));
-        const enteredOnly = enteredAsLibrary.filter(t => !availableIds.has(t.clubTeamId));
-
-        return [...available, ...enteredOnly];
-    });
+    /** All library teams. Backend now returns the full library in `clubTeams`
+     *  (previously filtered to "not yet registered"); the registration map for
+     *  this event is exposed separately via `enteredTeams`. */
+    readonly allLibraryTeams = computed<ClubTeamDto[]>(() => this._clubTeams());
 
     /** Entered teams (registered for this event). */
     readonly enteredTeams = computed(() => this._registeredTeams());

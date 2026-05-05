@@ -326,11 +326,19 @@ public class TeamRegistrationService : ITeamRegistrationService
         var teamIds = rawRegistered.Select(t => t.TeamId).ToList();
         var feesByTeamId = await _feeService.ResolveFeesByTeamIdsAsync(
             jobId, RoleConstants.ClubRep, teamIds);
+        // Source the displayed team name from the library when there's a ClubTeamId
+        // link. Teams.TeamName is a frozen snapshot from registration time; library
+        // edits should reflect immediately in the live wizard.
+        var libraryNameById = allClubTeams.ToDictionary(ct => ct.ClubTeamId, ct => ct.ClubTeamName);
         var registeredTeams = ShapeRegisteredTeams(
-            rawRegistered, scheduledIds, feesByTeamId, job.BTeamsFullPaymentRequired ?? false);
+            rawRegistered, scheduledIds, feesByTeamId, libraryNameById, job.BTeamsFullPaymentRequired ?? false);
 
-        var availableClubTeams = allClubTeams
-            .Where(ct => !registeredClubTeamIds.Contains(ct.ClubTeamId))
+        // Return ALL library teams — previously filtered out teams already registered
+        // for this event, which forced the frontend to reconstruct library rows from the
+        // registeredTeams snapshot (Teams.TeamName), masking any later library edits.
+        // Library-as-truth: caller decides what to do with registered teams via the
+        // separate RegisteredTeams map.
+        var libraryTeams = allClubTeams
             .Select(ct => new ClubTeamDto
             {
                 ClubTeamId = ct.ClubTeamId,
@@ -343,8 +351,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             .OrderBy(ct => ct.ClubTeamName)
             .ToList();
 
-        _logger.LogInformation("Found {RegisteredCount} registered teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups, {ClubTeamCount} available club teams",
-            registeredTeams.Count, suggestions.Count, ageGroups.Count, availableClubTeams.Count);
+        _logger.LogInformation("Found {RegisteredCount} registered teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups, {LibraryTeamCount} library teams",
+            registeredTeams.Count, suggestions.Count, ageGroups.Count, libraryTeams.Count);
 
         // Fetch club rep contact info for payment form prefill
         var contactInfo = await _users.GetUserContactInfoAsync(userId);
@@ -393,7 +401,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             ClubId = effectiveClubId,
             ClubName = clubName ?? string.Empty,
-            ClubTeams = availableClubTeams,
+            ClubTeams = libraryTeams,
             SuggestedTeamNames = suggestions,
             RegisteredTeams = registeredTeams,
             AgeGroups = ageGroups,
@@ -421,6 +429,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         IEnumerable<Contracts.Repositories.RegisteredTeamInfo> rawRegistered,
         HashSet<int> scheduledClubTeamIds,
         Dictionary<Guid, Contracts.Repositories.ResolvedFee> feesByTeamId,
+        Dictionary<int, string> libraryNameById,
         bool bTeamsFullPaymentRequired)
     {
         return rawRegistered.Select(t =>
@@ -431,10 +440,16 @@ public class TeamRegistrationService : ITeamRegistrationService
             var depositDue = t.PaidTotal >= deposit ? 0m : deposit - t.PaidTotal;
             var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
 
+            // Library is source of truth for the team name on live registrations.
+            // Falls back to the Teams.TeamName snapshot for orphan rows (no ClubTeamId).
+            var displayName = t.ClubTeamId.HasValue && libraryNameById.TryGetValue(t.ClubTeamId.Value, out var libName)
+                ? libName
+                : t.TeamName;
+
             return new RegisteredTeamDto
             {
                 TeamId = t.TeamId,
-                TeamName = t.TeamName,
+                TeamName = displayName,
                 AgeGroupId = t.AgeGroupId,
                 AgeGroupName = t.AgeGroupName,
                 LevelOfPlay = t.LevelOfPlay,

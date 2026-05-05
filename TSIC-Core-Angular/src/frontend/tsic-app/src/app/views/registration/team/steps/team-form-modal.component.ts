@@ -36,9 +36,20 @@ import type { ClubTeamDto } from '@core/api';
         <!-- Form body -->
         <div class="form-body">
 
-          <!-- Team Name -->
-          <div class="form-row">
-            <label for="tf-name" class="field-label">Team Name</label>
+          <!-- ── Step 1 — Name your team ─────────────────────────── -->
+          <div class="step-section"
+               role="group" aria-labelledby="tf-step-1-title"
+               [class.is-active]="activeStep() === 1"
+               [class.is-completed]="step1Done()">
+            <div class="step-eyebrow">
+              <span class="step-circle"
+                    [class.is-active]="activeStep() === 1"
+                    [class.is-completed]="step1Done()">
+                @if (step1Done()) { <i class="bi bi-check-lg"></i> } @else { 1 }
+              </span>
+              <span class="step-title" id="tf-step-1-title">Name your team</span>
+            </div>
+
             <input id="tf-name" type="text" class="field-input"
                    [value]="teamName()" (input)="teamName.set($any($event.target).value)"
                    placeholder="e.g. 2028 Blue"
@@ -61,41 +72,61 @@ import type { ClubTeamDto } from '@core/api';
             }
           </div>
 
-          <!-- Grad Year -->
-          <div class="form-row">
-            <label for="tf-year" class="field-label">Grad Year</label>
-            <select id="tf-year" class="field-select"
-                    [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
-                    [class.is-required]="!gradYear()"
-                    [class.is-invalid]="submitted() && !gradYear()">
-              <option value="">Select</option>
-              @for (yr of gradYearOptions; track yr) {
-                <option [value]="yr">{{ yr === 'Adult' ? 'Adult Team' : yr }}</option>
-              }
-            </select>
-            @if (submitted() && !gradYear()) {
-              <div class="field-error">Required</div>
-            }
-          </div>
+          <!-- ── Step 2 — Team details ───────────────────────────── -->
+          <div class="step-section"
+               role="group" aria-labelledby="tf-step-2-title"
+               [class.is-active]="activeStep() === 2"
+               [class.is-completed]="step2Done()"
+               [class.is-locked]="!step1Done()">
+            <div class="step-eyebrow">
+              <span class="step-circle"
+                    [class.is-active]="activeStep() === 2"
+                    [class.is-completed]="step2Done()">
+                @if (step2Done()) { <i class="bi bi-check-lg"></i> } @else { 2 }
+              </span>
+              <span class="step-title" id="tf-step-2-title">Team details</span>
+            </div>
 
-          <!-- Level of Play — pill selector matching picker modal -->
-          <div class="form-row">
-            <label class="field-label">Level of Play</label>
-            <div class="lop-pills" role="radiogroup" aria-label="Level of play">
-              @for (lop of lopChoices; track lop.value) {
-                <button type="button" class="lop-pill" role="radio"
-                        [class.active]="levelOfPlay() === lop.value"
-                        [class.is-invalid]="submitted() && !levelOfPlay()"
-                        [attr.aria-checked]="levelOfPlay() === lop.value"
-                        (click)="levelOfPlay.set(lop.value)">
-                  {{ lop.label }}
-                </button>
+            <div class="form-row">
+              <label for="tf-year" class="field-label">Players' Grad Year</label>
+              <select id="tf-year" class="field-select"
+                      [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
+                      [disabled]="!step1Done()"
+                      [class.is-required]="!gradYear()"
+                      [class.is-invalid]="submitted() && !gradYear()">
+                <option value="">Select</option>
+                @for (yr of gradYearOptions; track yr) {
+                  <option [value]="yr">{{ yr === 'Adult' ? 'Adult Team' : yr }}</option>
+                }
+              </select>
+              <div class="grad-year-tip">
+                Grad year of the <strong>majority</strong> of your players &mdash;
+                <em>not</em> an age group. Helps suggest the right age group at registration.
+              </div>
+              @if (submitted() && !gradYear()) {
+                <div class="field-error">Required</div>
               }
             </div>
-            <div class="wizard-tip">Overall team assessment — rep can adjust per tournament by editing the team.</div>
-            @if (submitted() && !levelOfPlay()) {
-              <div class="field-error">Required</div>
-            }
+
+            <div class="form-row">
+              <label class="field-label">Level of Play</label>
+              <div class="lop-pills" role="radiogroup" aria-label="Level of play">
+                @for (lop of lopChoices; track lop.value) {
+                  <button type="button" class="lop-pill" role="radio"
+                          [class.active]="levelOfPlay() === lop.value"
+                          [class.is-invalid]="submitted() && !levelOfPlay()"
+                          [disabled]="!step1Done()"
+                          [attr.aria-checked]="levelOfPlay() === lop.value"
+                          (click)="levelOfPlay.set(lop.value)">
+                    {{ lop.label }}
+                  </button>
+                }
+              </div>
+              <div class="wizard-tip">Overall team assessment — rep can adjust per tournament by editing the team.</div>
+              @if (submitted() && !levelOfPlay()) {
+                <div class="field-error">Required</div>
+              }
+            </div>
           </div>
 
           @if (errorMsg()) {
@@ -106,7 +137,8 @@ import type { ClubTeamDto } from '@core/api';
         <!-- Footer -->
         <div class="form-footer">
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closed.emit()">Cancel</button>
-          <button type="button" class="btn btn-sm btn-primary fw-semibold" (click)="save()" [disabled]="saving()">
+          <button type="button" class="btn btn-sm btn-primary fw-semibold"
+                  (click)="save()" [disabled]="saving() || !canSubmit()">
             @if (saving()) {
               <span class="spinner-border spinner-border-sm me-1"></span>{{ isEdit() ? 'Saving...' : 'Adding...' }}
             } @else if (isEdit()) {
@@ -157,6 +189,17 @@ import type { ClubTeamDto } from '@core/api';
       .form-body { padding: var(--space-2) var(--space-3) var(--space-1); }
 
       .form-row + .form-row { margin-top: var(--space-2); }
+
+      /* Grad-year disambiguation — copy + styling kept in sync with the
+         identical block in add-and-register-team-modal. */
+      .grad-year-tip {
+        margin-top: var(--space-1);
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-normal);
+        color: var(--brand-text-muted);
+      }
+      .grad-year-tip strong { color: var(--brand-text); }
+      .grad-year-tip em { color: var(--bs-danger); font-style: normal; font-weight: var(--font-weight-semibold); }
 
       /* ── LOP Pills (copy of picker's .lop-pill) ── */
       .lop-pills {
@@ -254,6 +297,27 @@ export class TeamFormModalComponent implements OnInit {
         const name = this.teamName().trim().toLowerCase();
         return club.length > 0 && name.length > 0 && name.includes(club);
     });
+
+    /** Step 1 (Name) complete: team name present and not echoing the club name. */
+    readonly step1Done = computed(() =>
+        this.teamName().trim().length > 0 && !this.nameContainsClub(),
+    );
+
+    /** Step 2 (Details) complete: grad year + LOP both picked. */
+    readonly step2Done = computed(() =>
+        !!this.gradYear() && !!this.levelOfPlay(),
+    );
+
+    /** Which step's frame should pulse / accept input now. Falls forward in
+     *  create mode. In edit mode there's no "active step" — both sections
+     *  open as completed so the user isn't pulsed at unprovoked. */
+    readonly activeStep = computed<0 | 1 | 2>(() =>
+        this.isEdit() ? 0 : (!this.step1Done() ? 1 : 2),
+    );
+
+    /** Save gate — every field must be valid; mirrors the submit-time check
+     *  so the button can't be clicked into a silent rejection. */
+    readonly canSubmit = computed(() => this.step1Done() && this.step2Done());
 
     ngOnInit(): void {
         if (this.editingTeam) {
