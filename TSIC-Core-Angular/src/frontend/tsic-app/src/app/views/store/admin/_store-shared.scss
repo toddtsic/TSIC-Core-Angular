@@ -1,0 +1,245 @@
+// Shared store-admin polish primitives.
+// @use'd by both store-admin.component.scss and store-analytics-tab.component.scss
+// — Angular emits these rules into each component's encapsulated scope.
+
+// ── Toolbar above tables ──
+
+.tab-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	margin-bottom: var(--space-3);
+}
+
+.tab-toolbar-meta {
+	display: inline-flex;
+	align-items: baseline;
+	gap: var(--space-1);
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+
+	.meta-count {
+		font-weight: 700;
+		color: var(--brand-text);
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+// ── Shared table chrome ──
+
+.store-table-wrap {
+	background: var(--brand-surface);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+	box-shadow: var(--shadow-xs);
+}
+
+.store-table {
+	margin-bottom: 0;
+
+	thead th {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--bs-secondary-color);
+		border-bottom: 1px solid var(--bs-border-color);
+		padding: var(--space-3) var(--space-3);
+		background: transparent;
+		white-space: nowrap;
+	}
+
+	tbody td {
+		padding: var(--space-3);
+		border-bottom-color: var(--bs-border-color);
+		vertical-align: middle;
+	}
+
+	tbody tr:last-child td {
+		border-bottom: 0;
+	}
+
+	tbody tr {
+		transition: background-color 0.12s ease;
+	}
+
+	tbody tr:hover > td:not(.p-0) {
+		background-color: color-mix(in srgb, var(--bs-primary) 4%, transparent);
+	}
+
+	tfoot td {
+		padding: var(--space-3);
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+		border-top: 1px solid var(--bs-border-color);
+		background: color-mix(in srgb, var(--bs-primary) 3%, transparent);
+	}
+}
+
+// ── Status pill ──
+
+.status-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 10px 2px 8px;
+	border-radius: 999px;
+	font-size: var(--font-size-xs);
+	font-weight: 600;
+	border: 1px solid transparent;
+	white-space: nowrap;
+
+	.status-dot {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background: currentColor;
+		flex-shrink: 0;
+	}
+
+	&.is-on {
+		background: color-mix(in srgb, var(--bs-success) 14%, transparent);
+		color: var(--bs-success);
+		border-color: color-mix(in srgb, var(--bs-success) 28%, transparent);
+	}
+
+	&.is-off {
+		background: rgba(var(--brand-text-rgb), 0.07);
+		color: var(--bs-secondary-color);
+		border-color: rgba(var(--brand-text-rgb), 0.15);
+	}
+
+	&.is-warn {
+		background: color-mix(in srgb, var(--bs-warning) 16%, transparent);
+		color: color-mix(in srgb, var(--bs-warning) 70%, var(--brand-text));
+		border-color: color-mix(in srgb, var(--bs-warning) 30%, transparent);
+	}
+
+	&.is-info {
+		background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+		color: var(--bs-primary);
+		border-color: color-mix(in srgb, var(--bs-primary) 26%, transparent);
+	}
+}
+
+// ── Variant chips (color/size taxonomy) ──
+
+.variant-chips {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	flex-wrap: wrap;
+}
+
+.variant-tag {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 10px;
+	border-radius: var(--radius-full);
+	font-size: var(--font-size-xs);
+	font-weight: 500;
+	white-space: nowrap;
+	line-height: 1.4;
+}
+
+.variant-tag--color {
+	background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+	color: var(--bs-primary);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 22%, transparent);
+}
+
+.variant-tag--size {
+	background: rgba(var(--brand-text-rgb), 0.07);
+	color: var(--brand-text);
+	border: 1px solid rgba(var(--brand-text-rgb), 0.14);
+}
+
+.variant-tag--default {
+	background: transparent;
+	color: var(--bs-secondary-color);
+	border: 1px dashed var(--bs-border-color);
+	font-style: italic;
+}
+
+// ── Stock cell (semantic dot + count) ──
+
+.stock-cell {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+
+	.stock-dot {
+		width: 8px;
+		height: 8px;
+		border-radius: 50%;
+		flex-shrink: 0;
+		background: currentColor;
+	}
+}
+
+.stock-cell--ok  { color: var(--bs-success); }
+.stock-cell--low { color: var(--bs-warning); }
+.stock-cell--out { color: var(--bs-danger); }
+
+// ── Money cells ──
+
+.money {
+	font-variant-numeric: tabular-nums;
+	font-weight: 600;
+	white-space: nowrap;
+}
+
+.money--strong { font-weight: 700; color: var(--brand-text); }
+.money--neg    { color: var(--bs-danger); font-weight: 700; }
+.money--pos    { color: var(--bs-success); font-weight: 700; }
+
+// ── Empty states ──
+
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	padding: var(--space-12) var(--space-6);
+	background: color-mix(in srgb, var(--bs-primary) 2%, transparent);
+	border: 1px dashed color-mix(in srgb, var(--bs-primary) 25%, transparent);
+	border-radius: var(--radius-lg);
+}
+
+.empty-state-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+	color: var(--bs-primary);
+	font-size: 1.5rem;
+	margin-bottom: var(--space-3);
+}
+
+.empty-state-title {
+	font-weight: 600;
+	font-size: var(--font-size-base);
+	color: var(--brand-text);
+	margin-bottom: var(--space-1);
+}
+
+.empty-state-desc {
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	margin-bottom: var(--space-4);
+	max-width: 420px;
+	line-height: var(--line-height-normal);
+}
+
+// ── Reduced motion ──
+
+@media (prefers-reduced-motion: reduce) {
+	.store-table tbody tr { transition: none !important; }
+}

@@ -21,6 +21,7 @@ type AnalyticsSection = 'sales-by-item' | 'sales-pivot' | 'payments' | 'family-p
 	imports: [CommonModule, FormsModule, TsicDialogComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './store-analytics-tab.component.html',
+	styleUrl: './store-analytics-tab.component.scss',
 })
 export class StoreAnalyticsTabComponent {
 	private readonly store = inject(StoreService);

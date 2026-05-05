@@ -46,90 +46,136 @@
 <!-- TAB 1: ITEMS                          -->
 <!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeTab() === 'items') {
-	<div class="d-flex justify-content-between align-items-center mb-3">
-		<span class="text-body-secondary">{{ items().length }} item(s)</span>
+	<div class="tab-toolbar">
+		<div class="tab-toolbar-meta">
+			<span class="meta-count">{{ items().length }}</span>
+			<span>{{ items().length === 1 ? 'item' : 'items' }}</span>
+		</div>
 		<button class="btn btn-primary btn-sm" (click)="openNewItemModal()">
 			<i class="bi bi-plus-lg me-1"></i>New Item
 		</button>
 	</div>
 
 	@if (items().length === 0) {
-		<div class="text-center py-5 text-body-secondary">
-			<i class="bi bi-box-seam fs-1 d-block mb-2"></i>
-			<p class="mt-2">No items yet. Create your first store item.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-box-seam"></i></span>
+			<div class="empty-state-title">No items yet</div>
+			<p class="empty-state-desc">
+				Create your first store item to start selling. Each item gets a SKU matrix
+				built from the colors and sizes you select.
+			</p>
+			<button class="btn btn-primary btn-sm" (click)="openNewItemModal()">
+				<i class="bi bi-plus-lg me-1"></i>Create your first item
+			</button>
 		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-hover align-middle">
+		<div class="table-responsive store-table-wrap">
+			<table class="table align-middle store-table store-items-table">
 				<thead>
 					<tr>
-						<th></th>
-						<th>Name</th>
-						<th class="text-end">Price</th>
-						<th class="text-center">SKUs</th>
-						<th class="text-center">Active</th>
-						<th class="text-end">Actions</th>
+						<th class="col-expand"></th>
+						<th>Item</th>
+						<th class="col-price text-end">Price</th>
+						<th class="col-skus">SKU Inventory</th>
+						<th class="col-status text-center">Status</th>
+						<th class="col-actions text-end">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
 					@for (item of items(); track item.storeItemId) {
-						<tr>
-							<td style="width: 32px;">
-								<button class="btn btn-sm btn-link p-0" (click)="toggleSkuExpansion(item.storeItemId)"
-									[attr.aria-label]="expandedItemId() === item.storeItemId ? 'Collapse SKUs' : 'Expand SKUs'">
-									<i class="bi" [class.bi-chevron-right]="expandedItemId() !== item.storeItemId"
-						 			   [class.bi-chevron-down]="expandedItemId() === item.storeItemId"></i>
+						<tr class="item-row"
+							[class.is-inactive]="!item.active"
+							[class.is-expanded]="expandedItemId() === item.storeItemId">
+							<td class="col-expand">
+								<button class="expand-toggle"
+										[class.is-open]="expandedItemId() === item.storeItemId"
+										(click)="toggleSkuExpansion(item.storeItemId)"
+										[attr.aria-label]="expandedItemId() === item.storeItemId ? 'Collapse SKUs' : 'Expand SKUs'">
+									<i class="bi bi-chevron-right"></i>
 								</button>
 							</td>
-							<td class="fw-medium">
-								<div class="d-flex align-items-center gap-2">
+							<td>
+								<div class="item-cell">
 									@if (item.imageUrls.length) {
-										<img [src]="item.imageUrls[0]" [alt]="item.storeItemName"
-											 class="item-thumb rounded">
+										<img [src]="item.imageUrls[0]" [alt]="item.storeItemName" class="item-thumb">
 									} @else {
-										<span class="item-thumb-placeholder rounded">
-											<i class="bi bi-image"></i>
+										<span class="item-thumb item-thumb--placeholder" aria-hidden="true">
+											<i class="bi bi-bag"></i>
 										</span>
 									}
-									{{ item.storeItemName }}
+									<div class="item-meta">
+										<div class="item-name">{{ item.storeItemName }}</div>
+										<div class="item-meta-line">
+											<span class="item-id">Id:{{ item.storeItemId }}</span>
+										</div>
+									</div>
 								</div>
 							</td>
-							<td class="text-end">{{ formatCurrency(item.storeItemPrice) }}</td>
-							<td class="text-center">
-								<span class="badge bg-secondary-subtle text-secondary-emphasis">
-									{{ item.activeSkuCount }}/{{ item.skuCount }}
-								</span>
+							<td class="col-price text-end">
+								<span class="price-value">{{ formatCurrency(item.storeItemPrice) }}</span>
 							</td>
-							<td class="text-center">
-								<span class="active-badge" [class.active-yes]="item.active" [class.active-no]="!item.active">
-									{{ item.active ? 'Active' : 'Inactive' }}
-								</span>
+							<td class="col-skus">
+								<div class="sku-summary">
+									<div class="sku-summary-stat">
+										<span class="sku-count">{{ item.activeSkuCount }}</span>
+										<span class="sku-divider">of</span>
+										<span class="sku-total">{{ item.skuCount }}</span>
+										<span class="sku-label">active</span>
+									</div>
+									<div class="sku-progress" [attr.aria-hidden]="true">
+										<div class="sku-progress-bar"
+											 [style.width.%]="item.skuCount ? (item.activeSkuCount / item.skuCount * 100) : 0"></div>
+									</div>
+								</div>
 							</td>
-							<td class="text-end">
-								<button class="action-btn me-1" (click)="editItem(item)"
-										title="Edit item" aria-label="Edit item">
-									<i class="bi bi-pencil"></i>
-								</button>
-								<button class="btn btn-sm" (click)="toggleItemActive(item)"
-										[class.btn-outline-warning]="item.active"
-										[class.btn-outline-success]="!item.active"
-										[attr.aria-label]="item.active ? 'Deactivate' : 'Activate'">
-									<i class="bi" [class.bi-pause-circle]="item.active" [class.bi-play-circle]="!item.active"></i>
-								</button>
+							<td class="col-status text-center">
+								<label class="active-toggle-switch"
+									   [title]="item.active ? 'Click to deactivate' : 'Click to activate'">
+									<input type="checkbox"
+										   [checked]="item.active"
+										   (change)="toggleItemActive(item)"
+										   [attr.aria-label]="(item.active ? 'Deactivate ' : 'Activate ') + item.storeItemName">
+									<span class="toggle-track"></span>
+									<span class="toggle-label" [class.is-on]="item.active" [class.is-off]="!item.active">
+										{{ item.active ? 'Active' : 'Inactive' }}
+									</span>
+								</label>
+							</td>
+							<td class="col-actions text-end">
+								<div class="row-actions justify-content-end">
+									<button class="action-btn" (click)="editItem(item)"
+											title="Edit item" aria-label="Edit item">
+										<i class="bi bi-pencil"></i>
+									</button>
+								</div>
 							</td>
 						</tr>
 
-						<!-- Expanded SKU rows -->
+						<!-- Expanded SKU detail panel -->
 						@if (expandedItemId() === item.storeItemId) {
-							<tr>
+							<tr class="sku-expansion-row">
 								<td colspan="6" class="p-0">
-									<div class="sku-expansion">
+									<div class="sku-detail-panel">
+										<div class="sku-detail-header">
+											<i class="bi bi-grid-3x3-gap"></i>
+											<span class="sku-detail-title">Variant inventory</span>
+											@if (!isLoadingSkus()) {
+												<span class="sku-detail-meta">
+													{{ expandedSkus().length }}
+													{{ expandedSkus().length === 1 ? 'SKU' : 'SKUs' }}
+												</span>
+											}
+										</div>
+
 										@if (isLoadingSkus()) {
 											<div class="text-center py-3">
 												<div class="spinner-border spinner-border-sm text-primary"></div>
 											</div>
 										} @else if (expandedSkus().length === 0) {
-											<div class="text-center py-3 text-body-secondary">No SKUs</div>
+											<div class="sku-empty">
+												<i class="bi bi-info-circle me-1"></i>
+												No SKU variants for this item.
+											</div>
 										} @else {
 											<table class="table table-sm mb-0 sku-table">
 												<thead>
@@ -145,27 +191,52 @@
 												</thead>
 												<tbody>
 													@for (sku of expandedSkus(); track sku.storeSkuId) {
-														<tr [class.table-warning]="!sku.active">
-															<td>{{ skuLabel(sku) }}</td>
+														<tr [class.is-inactive]="!sku.active">
+															<td>
+																<span class="variant-chips">
+																	@if (sku.storeColorName) {
+																		<span class="variant-tag variant-tag--color">
+																			{{ sku.storeColorName }}
+																		</span>
+																	}
+																	@if (sku.storeSizeName) {
+																		<span class="variant-tag variant-tag--size">
+																			{{ sku.storeSizeName }}
+																		</span>
+																	}
+																	@if (!sku.storeColorName && !sku.storeSizeName) {
+																		<span class="variant-tag variant-tag--default">Default</span>
+																	}
+																</span>
+															</td>
 															<td class="text-center">{{ sku.maxCanSell }}</td>
 															<td class="text-center">{{ sku.soldCount }}</td>
 															<td class="text-center">{{ sku.inCartCount }}</td>
-															<td class="text-center fw-semibold"
-																[class.text-danger]="sku.availableCount <= 0"
-																[class.text-warning]="sku.availableCount > 0 && sku.availableCount <= 5">
-																{{ sku.availableCount }}
+															<td class="text-center">
+																<span class="stock-cell"
+																	  [class.stock-cell--out]="sku.availableCount <= 0"
+																	  [class.stock-cell--low]="sku.availableCount > 0 && sku.availableCount <= 5"
+																	  [class.stock-cell--ok]="sku.availableCount > 5">
+																	<span class="stock-dot" aria-hidden="true"></span>
+																	{{ sku.availableCount }}
+																</span>
 															</td>
 															<td class="text-center">
-																<i class="bi" [class.bi-check-circle-fill]="sku.active"
-																   [class.text-success]="sku.active"
-																   [class.bi-x-circle]="!sku.active"
-																   [class.text-secondary]="!sku.active"></i>
+																<i class="bi sku-active-icon"
+																   [class.is-on]="sku.active"
+																   [class.is-off]="!sku.active"
+																   [class.bi-check-circle-fill]="sku.active"
+																   [class.bi-dash-circle]="!sku.active"
+																   [attr.aria-label]="sku.active ? 'Active' : 'Inactive'"></i>
 															</td>
 															<td class="text-end">
-																<button class="btn btn-sm btn-outline-secondary"
-																		(click)="openSkuEditModal(sku)">
-																	<i class="bi bi-pencil"></i>
-																</button>
+																<div class="row-actions justify-content-end">
+																	<button class="action-btn"
+																			(click)="openSkuEditModal(sku)"
+																			title="Edit SKU" aria-label="Edit SKU">
+																		<i class="bi bi-pencil"></i>
+																	</button>
+																</div>
 															</td>
 														</tr>
 													}
@@ -187,43 +258,47 @@
 <!-- TAB 2: COLORS                         -->
 <!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeTab() === 'colors') {
-	<div class="d-flex justify-content-between align-items-center mb-3">
-		<span class="text-body-secondary">{{ colors().length }} color(s)</span>
+	<div class="tab-toolbar">
+		<div class="tab-toolbar-meta">
+			<span class="meta-count">{{ colors().length }}</span>
+			<span>{{ colors().length === 1 ? 'color' : 'colors' }}</span>
+		</div>
 		<button class="btn btn-primary btn-sm" (click)="openNewColorModal()">
 			<i class="bi bi-plus-lg me-1"></i>New Color
 		</button>
 	</div>
 
 	@if (colors().length === 0) {
-		<div class="text-center py-5 text-body-secondary">
-			<i class="bi bi-palette" style="font-size: 2rem;"></i>
-			<p class="mt-2">No colors defined. Add colors before creating items with color variants.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-palette"></i></span>
+			<div class="empty-state-title">No colors defined</div>
+			<p class="empty-state-desc">
+				Add the colors your items come in. Each color combines with each size
+				to generate a SKU when you create an item.
+			</p>
+			<button class="btn btn-primary btn-sm" (click)="openNewColorModal()">
+				<i class="bi bi-plus-lg me-1"></i>Add a color
+			</button>
 		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-hover align-middle">
-				<thead>
-					<tr>
-						<th>Color Name</th>
-						<th class="text-end" style="width: 120px;">Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-					@for (color of colors(); track color.storeColorId) {
-						<tr>
-							<td>{{ color.storeColorName }}</td>
-							<td class="text-end">
-								<button class="btn btn-sm btn-outline-primary me-1" (click)="editColor(color)">
-									<i class="bi bi-pencil"></i>
-								</button>
-								<button class="btn btn-sm btn-outline-danger" (click)="confirmDeleteColor(color)">
-									<i class="bi bi-trash"></i>
-								</button>
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
+		<div class="taxonomy-grid">
+			@for (color of colors(); track color.storeColorId) {
+				<div class="taxonomy-chip taxonomy-chip--color">
+					<span class="taxonomy-chip-name">{{ color.storeColorName }}</span>
+					<div class="taxonomy-chip-actions">
+						<button type="button" class="taxonomy-chip-btn"
+								(click)="editColor(color)"
+								title="Edit color" aria-label="Edit color">
+							<i class="bi bi-pencil"></i>
+						</button>
+						<button type="button" class="taxonomy-chip-btn taxonomy-chip-btn--danger"
+								(click)="confirmDeleteColor(color)"
+								title="Delete color" aria-label="Delete color">
+							<i class="bi bi-trash"></i>
+						</button>
+					</div>
+				</div>
+			}
 		</div>
 	}
 }
@@ -232,43 +307,47 @@
 <!-- TAB 3: SIZES                          -->
 <!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeTab() === 'sizes') {
-	<div class="d-flex justify-content-between align-items-center mb-3">
-		<span class="text-body-secondary">{{ sizes().length }} size(s)</span>
+	<div class="tab-toolbar">
+		<div class="tab-toolbar-meta">
+			<span class="meta-count">{{ sizes().length }}</span>
+			<span>{{ sizes().length === 1 ? 'size' : 'sizes' }}</span>
+		</div>
 		<button class="btn btn-primary btn-sm" (click)="openNewSizeModal()">
 			<i class="bi bi-plus-lg me-1"></i>New Size
 		</button>
 	</div>
 
 	@if (sizes().length === 0) {
-		<div class="text-center py-5 text-body-secondary">
-			<i class="bi bi-rulers" style="font-size: 2rem;"></i>
-			<p class="mt-2">No sizes defined. Add sizes before creating items with size variants.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-rulers"></i></span>
+			<div class="empty-state-title">No sizes defined</div>
+			<p class="empty-state-desc">
+				Add the sizes your items come in. Each size combines with each color
+				to generate a SKU when you create an item.
+			</p>
+			<button class="btn btn-primary btn-sm" (click)="openNewSizeModal()">
+				<i class="bi bi-plus-lg me-1"></i>Add a size
+			</button>
 		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-hover align-middle">
-				<thead>
-					<tr>
-						<th>Size Name</th>
-						<th class="text-end" style="width: 120px;">Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-					@for (size of sizes(); track size.storeSizeId) {
-						<tr>
-							<td>{{ size.storeSizeName }}</td>
-							<td class="text-end">
-								<button class="btn btn-sm btn-outline-primary me-1" (click)="editSize(size)">
-									<i class="bi bi-pencil"></i>
-								</button>
-								<button class="btn btn-sm btn-outline-danger" (click)="confirmDeleteSize(size)">
-									<i class="bi bi-trash"></i>
-								</button>
-							</td>
-						</tr>
-					}
-				</tbody>
-			</table>
+		<div class="taxonomy-grid">
+			@for (size of sizes(); track size.storeSizeId) {
+				<div class="taxonomy-chip taxonomy-chip--size">
+					<span class="taxonomy-chip-name">{{ size.storeSizeName }}</span>
+					<div class="taxonomy-chip-actions">
+						<button type="button" class="taxonomy-chip-btn"
+								(click)="editSize(size)"
+								title="Edit size" aria-label="Edit size">
+							<i class="bi bi-pencil"></i>
+						</button>
+						<button type="button" class="taxonomy-chip-btn taxonomy-chip-btn--danger"
+								(click)="confirmDeleteSize(size)"
+								title="Delete size" aria-label="Delete size">
+							<i class="bi bi-trash"></i>
+						</button>
+					</div>
+				</div>
+			}
 		</div>
 	}
 }

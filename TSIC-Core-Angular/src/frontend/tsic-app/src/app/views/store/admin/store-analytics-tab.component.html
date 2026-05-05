@@ -1,39 +1,61 @@
 <!-- Section navigation -->
-<div class="d-flex flex-wrap gap-2 mb-4">
-	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'sales-by-item'"
-			[class.btn-outline-secondary]="activeSection() !== 'sales-by-item'"
-			(click)="selectSection('sales-by-item')">Sales by Item</button>
-	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'sales-pivot'"
-			[class.btn-outline-secondary]="activeSection() !== 'sales-pivot'"
-			(click)="selectSection('sales-pivot')">Sales Pivot</button>
-	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'payments'"
-			[class.btn-outline-secondary]="activeSection() !== 'payments'"
-			(click)="selectSection('payments')">Payments</button>
-	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'family-purchases'"
-			[class.btn-outline-secondary]="activeSection() !== 'family-purchases'"
-			(click)="selectSection('family-purchases')">Family Purchases</button>
-	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'refunded'"
-			[class.btn-outline-secondary]="activeSection() !== 'refunded'"
-			(click)="selectSection('refunded')">Refunded</button>
-	<button class="btn btn-sm" [class.btn-primary]="activeSection() === 'restocked'"
-			[class.btn-outline-secondary]="activeSection() !== 'restocked'"
-			(click)="selectSection('restocked')">Restocked</button>
-</div>
+<nav class="sub-section-nav" aria-label="Analytics sections">
+	<button class="sub-section-btn" [class.active]="activeSection() === 'sales-by-item'"
+			(click)="selectSection('sales-by-item')">
+		<i class="bi bi-bar-chart-line"></i>Sales by Item
+	</button>
+	<button class="sub-section-btn" [class.active]="activeSection() === 'sales-pivot'"
+			(click)="selectSection('sales-pivot')">
+		<i class="bi bi-grid-3x3"></i>Sales Pivot
+	</button>
+	<button class="sub-section-btn" [class.active]="activeSection() === 'payments'"
+			(click)="selectSection('payments')">
+		<i class="bi bi-credit-card-2-back"></i>Payments
+	</button>
+	<button class="sub-section-btn" [class.active]="activeSection() === 'family-purchases'"
+			(click)="selectSection('family-purchases')">
+		<i class="bi bi-people"></i>Family Purchases
+	</button>
+	<button class="sub-section-btn" [class.active]="activeSection() === 'refunded'"
+			(click)="selectSection('refunded')">
+		<i class="bi bi-arrow-counterclockwise"></i>Refunded
+	</button>
+	<button class="sub-section-btn" [class.active]="activeSection() === 'restocked'"
+			(click)="selectSection('restocked')">
+		<i class="bi bi-box-arrow-in-down"></i>Restocked
+	</button>
+</nav>
 
 <!-- Loading -->
 @if (isLoading()) {
-	<div class="text-center py-4">
-		<div class="spinner-border spinner-border-sm text-primary"></div>
+	<div class="loading-inline">
+		<div class="spinner-border spinner-border-sm text-primary" role="status">
+			<span class="visually-hidden">Loading...</span>
+		</div>
 	</div>
 }
 
-<!-- ── Sales by Item ── -->
+<!-- ══════════════════════════════════════ -->
+<!-- Sales by Item                          -->
+<!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeSection() === 'sales-by-item') {
 	@if (salesByItem().length === 0) {
-		<p class="text-body-secondary">No sales data yet.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-bar-chart-line"></i></span>
+			<div class="empty-state-title">No sales recorded yet</div>
+			<p class="empty-state-desc">
+				When customers complete store purchases, per-item sales totals will appear here.
+			</p>
+		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-sm table-hover align-middle">
+		<div class="tab-toolbar">
+			<div class="tab-toolbar-meta">
+				<span class="meta-count">{{ salesByItem().length }}</span>
+				<span>{{ salesByItem().length === 1 ? 'item' : 'items' }} with sales</span>
+			</div>
+		</div>
+		<div class="table-responsive store-table-wrap">
+			<table class="table align-middle store-table">
 				<thead>
 					<tr>
 						<th>Item</th>
@@ -44,9 +66,9 @@
 				<tbody>
 					@for (row of salesByItem(); track row.itemName) {
 						<tr>
-							<td>{{ row.itemName }}</td>
-							<td class="text-end">{{ row.totalUnitsSold }}</td>
-							<td class="text-end fw-semibold">{{ formatCurrency(row.totalRevenue) }}</td>
+							<td><span class="item-name">{{ row.itemName }}</span></td>
+							<td class="text-end"><span class="money">{{ row.totalUnitsSold }}</span></td>
+							<td class="text-end"><span class="money money--strong">{{ formatCurrency(row.totalRevenue) }}</span></td>
 						</tr>
 					}
 				</tbody>
@@ -55,17 +77,31 @@
 	}
 }
 
-<!-- ── Sales Pivot ── -->
+<!-- ══════════════════════════════════════ -->
+<!-- Sales Pivot                            -->
+<!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeSection() === 'sales-pivot') {
 	@if (salesPivot().length === 0) {
-		<p class="text-body-secondary">No sales data yet.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-grid-3x3"></i></span>
+			<div class="empty-state-title">No sales pivot data yet</div>
+			<p class="empty-state-desc">
+				This breakdown shows item revenue by month — populated as sales accumulate.
+			</p>
+		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-sm table-hover align-middle">
+		<div class="tab-toolbar">
+			<div class="tab-toolbar-meta">
+				<span class="meta-count">{{ salesPivot().length }}</span>
+				<span>{{ salesPivot().length === 1 ? 'row' : 'rows' }}</span>
+			</div>
+		</div>
+		<div class="table-responsive store-table-wrap">
+			<table class="table align-middle store-table">
 				<thead>
 					<tr>
 						<th>Item</th>
-						<th class="text-center">Month/Year</th>
+						<th class="text-center">Period</th>
 						<th class="text-end">Units Sold</th>
 						<th class="text-end">Revenue</th>
 					</tr>
@@ -73,10 +109,12 @@
 				<tbody>
 					@for (row of salesPivot(); track row.itemName + row.month + row.year) {
 						<tr>
-							<td>{{ row.itemName }}</td>
-							<td class="text-center">{{ row.month }}/{{ row.year }}</td>
-							<td class="text-end">{{ row.unitsSold }}</td>
-							<td class="text-end">{{ formatCurrency(row.revenue) }}</td>
+							<td><span class="item-name">{{ row.itemName }}</span></td>
+							<td class="text-center">
+								<span class="variant-tag variant-tag--size">{{ row.month }}/{{ row.year }}</span>
+							</td>
+							<td class="text-end"><span class="money">{{ row.unitsSold }}</span></td>
+							<td class="text-end"><span class="money money--strong">{{ formatCurrency(row.revenue) }}</span></td>
 						</tr>
 					}
 				</tbody>
@@ -85,47 +123,73 @@
 	}
 }
 
-<!-- ── Payments ── -->
+<!-- ══════════════════════════════════════ -->
+<!-- Payments                               -->
+<!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeSection() === 'payments') {
-	<div class="d-flex align-items-center gap-3 mb-3">
-		<div class="form-check">
-			<input class="form-check-input" type="checkbox" id="walkUpOnly"
+	<div class="filter-row">
+		<label class="filter-checkbox">
+			<input type="checkbox" id="walkUpOnly"
 				   [checked]="walkUpOnly()" (change)="toggleWalkUpOnly()">
-			<label class="form-check-label" for="walkUpOnly">Walk-up only</label>
-		</div>
-		<div class="d-flex gap-2 ms-auto">
-			<button class="btn btn-sm btn-outline-primary" (click)="openPickupModal()">
-				<i class="bi bi-pen me-1"></i>Sign for Pickup
-			</button>
-		</div>
+			Walk-up only
+		</label>
+		<span class="filter-spacer"></span>
+		<button class="btn btn-sm btn-outline-primary" (click)="openPickupModal()">
+			<i class="bi bi-pen me-1"></i>Sign for Pickup
+		</button>
 	</div>
 
 	@if (payments().length === 0) {
-		<p class="text-body-secondary">No payment records.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-credit-card-2-back"></i></span>
+			<div class="empty-state-title">
+				{{ walkUpOnly() ? 'No walk-up payments yet' : 'No payments recorded' }}
+			</div>
+			<p class="empty-state-desc">
+				{{ walkUpOnly()
+					? 'Toggle the Walk-up filter off to see all store payments.'
+					: 'Customer store payments will appear here once orders complete.' }}
+			</p>
+		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-sm table-hover align-middle">
+		<div class="table-responsive store-table-wrap">
+			<table class="table align-middle store-table">
 				<thead>
 					<tr>
 						<th>Customer</th>
 						<th>Method</th>
 						<th class="text-end">Paid</th>
 						<th class="text-center">Date</th>
-						<th class="text-center">CC Last 4</th>
+						<th class="text-center">Card</th>
 						<th class="text-center">Walk-up</th>
 					</tr>
 				</thead>
 				<tbody>
 					@for (p of payments(); track p.storeCartBatchAccountingId) {
 						<tr>
-							<td>{{ p.familyUserName }}</td>
+							<td>
+								<div class="customer-cell">
+									<span class="customer-name">{{ p.familyUserName }}</span>
+								</div>
+							</td>
 							<td>{{ p.paymentMethodName }}</td>
-							<td class="text-end fw-semibold">{{ formatCurrency(p.paid) }}</td>
+							<td class="text-end"><span class="money money--strong">{{ formatCurrency(p.paid) }}</span></td>
 							<td class="text-center">{{ formatDate(p.createDate) }}</td>
-							<td class="text-center font-monospace">{{ p.cclast4 || '—' }}</td>
 							<td class="text-center">
-								<i class="bi" [class.bi-check-circle-fill]="p.isWalkUp" [class.text-success]="p.isWalkUp"
-								   [class.bi-dash]="!p.isWalkUp" [class.text-secondary]="!p.isWalkUp"></i>
+								@if (p.cclast4) {
+									<span class="last4-cell">
+										<span class="last4-mask">••••</span>{{ p.cclast4 }}
+									</span>
+								} @else {
+									<span class="last4-cell last4-cell--empty">—</span>
+								}
+							</td>
+							<td class="text-center">
+								@if (p.isWalkUp) {
+									<i class="bi bi-check-circle-fill walkup-yes" aria-label="Walk-up"></i>
+								} @else {
+									<i class="bi bi-dash walkup-no" aria-label="Online"></i>
+								}
 							</td>
 						</tr>
 					}
@@ -135,52 +199,101 @@
 	}
 }
 
-<!-- ── Family Purchases ── -->
+<!-- ══════════════════════════════════════ -->
+<!-- Family Purchases                       -->
+<!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeSection() === 'family-purchases') {
 	@if (familyPurchases().length === 0) {
-		<p class="text-body-secondary">No family purchases yet.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-people"></i></span>
+			<div class="empty-state-title">No family purchases yet</div>
+			<p class="empty-state-desc">
+				Once families buy from the store, you'll see their lifetime totals here —
+				expand a row to view full transaction history.
+			</p>
+		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-sm table-hover align-middle">
+		<div class="tab-toolbar">
+			<div class="tab-toolbar-meta">
+				<span class="meta-count">{{ familyPurchases().length }}</span>
+				<span>{{ familyPurchases().length === 1 ? 'family' : 'families' }}</span>
+			</div>
+		</div>
+		<div class="table-responsive store-table-wrap">
+			<table class="table align-middle store-table">
 				<thead>
 					<tr>
-						<th></th>
+						<th class="col-expand"></th>
 						<th>Family</th>
 						<th class="text-end">Total Spent</th>
 					</tr>
 				</thead>
 				<tbody>
 					@for (fp of familyPurchases(); track fp.familyUserId) {
-						<tr class="cursor-pointer" (click)="expandFamily(fp.familyUserId)">
-							<td style="width: 32px;">
-								<i class="bi" [class.bi-chevron-right]="expandedFamilyUserId() !== fp.familyUserId"
-								   [class.bi-chevron-down]="expandedFamilyUserId() === fp.familyUserId"></i>
+						<tr class="family-row"
+							[class.is-expanded]="expandedFamilyUserId() === fp.familyUserId"
+							(click)="expandFamily(fp.familyUserId)">
+							<td class="col-expand">
+								<span class="expand-toggle" [class.is-open]="expandedFamilyUserId() === fp.familyUserId">
+									<i class="bi bi-chevron-right"></i>
+								</span>
 							</td>
-							<td>{{ fp.familyUserName }}</td>
-							<td class="text-end fw-semibold">{{ formatCurrency(fp.totalSpent) }}</td>
+							<td>
+								<div class="customer-cell">
+									<span class="customer-name">{{ fp.familyUserName }}</span>
+								</div>
+							</td>
+							<td class="text-end">
+								<span class="money money--strong">{{ formatCurrency(fp.totalSpent) }}</span>
+							</td>
 						</tr>
 
-						@if (expandedFamilyUserId() === fp.familyUserId && expandedFamilyDetail()) {
-							<tr>
+						@if (expandedFamilyUserId() === fp.familyUserId) {
+							<tr class="family-expansion-row">
 								<td colspan="3" class="p-0">
-									<div class="ps-5 py-2 bg-body-tertiary">
-										@for (txn of expandedFamilyDetail()!.transactions; track txn.storeCartBatchId) {
-											<div class="mb-2 p-2 border rounded bg-body">
-												<div class="d-flex justify-content-between small fw-semibold mb-1">
-													<span>{{ formatDate(txn.purchaseDate) }}</span>
-													<span>{{ formatCurrency(txn.totalPaid) }} ({{ txn.itemCount }} items)</span>
-												</div>
-												@for (item of txn.items; track item.storeCartBatchSkuId) {
-													<div class="d-flex justify-content-between small text-body-secondary">
-														<span>{{ item.itemName }}
-															@if (item.colorName) { / {{ item.colorName }} }
-															@if (item.sizeName) { / {{ item.sizeName }} }
-															&times; {{ item.quantity }}
-														</span>
-														<span>{{ formatCurrency(item.lineTotal) }}</span>
-													</div>
-												}
+									<div class="family-detail-panel">
+										<div class="family-detail-header">
+											<i class="bi bi-receipt"></i>
+											<span>Transaction history</span>
+											@if (expandedFamilyDetail()) {
+												<span class="family-detail-meta">
+													{{ expandedFamilyDetail()!.transactions.length }}
+													{{ expandedFamilyDetail()!.transactions.length === 1 ? 'order' : 'orders' }}
+												</span>
+											}
+										</div>
+
+										@if (!expandedFamilyDetail()) {
+											<div class="family-loading">
+												<div class="spinner-border spinner-border-sm text-primary"></div>
 											</div>
+										} @else {
+											@for (txn of expandedFamilyDetail()!.transactions; track txn.storeCartBatchId) {
+												<div class="txn-card">
+													<div class="txn-header">
+														<span class="txn-date">{{ formatDate(txn.purchaseDate) }}</span>
+														<span class="txn-summary">
+															<span class="txn-total">{{ formatCurrency(txn.totalPaid) }}</span>
+															· {{ txn.itemCount }} {{ txn.itemCount === 1 ? 'item' : 'items' }}
+														</span>
+													</div>
+													@for (item of txn.items; track item.storeCartBatchSkuId) {
+														<div class="txn-line">
+															<span class="txn-line-name">
+																{{ item.itemName }}
+																@if (item.colorName) {
+																	<span class="variant-tag variant-tag--color">{{ item.colorName }}</span>
+																}
+																@if (item.sizeName) {
+																	<span class="variant-tag variant-tag--size">{{ item.sizeName }}</span>
+																}
+																<span class="txn-qty">× {{ item.quantity }}</span>
+															</span>
+															<span class="txn-line-total">{{ formatCurrency(item.lineTotal) }}</span>
+														</div>
+													}
+												</div>
+											}
 										}
 									</div>
 								</td>
@@ -193,13 +306,28 @@
 	}
 }
 
-<!-- ── Refunded ── -->
+<!-- ══════════════════════════════════════ -->
+<!-- Refunded                               -->
+<!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeSection() === 'refunded') {
 	@if (refundedItems().length === 0) {
-		<p class="text-body-secondary">No refunded items.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-arrow-counterclockwise"></i></span>
+			<div class="empty-state-title">No refunded items</div>
+			<p class="empty-state-desc">
+				Refunds processed against store orders will appear here with the original
+				and refunded amounts side-by-side.
+			</p>
+		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-sm table-hover align-middle">
+		<div class="tab-toolbar">
+			<div class="tab-toolbar-meta">
+				<span class="meta-count">{{ refundedItems().length }}</span>
+				<span>refunded {{ refundedItems().length === 1 ? 'line item' : 'line items' }}</span>
+			</div>
+		</div>
+		<div class="table-responsive store-table-wrap">
+			<table class="table align-middle store-table">
 				<thead>
 					<tr>
 						<th>Item</th>
@@ -214,11 +342,23 @@
 				<tbody>
 					@for (r of refundedItems(); track r.storeCartBatchSkuId) {
 						<tr>
-							<td>{{ r.itemName }}</td>
-							<td>{{ r.colorName || '' }} {{ r.sizeName || '' }}</td>
-							<td class="text-center">{{ r.quantity }}</td>
-							<td class="text-end">{{ formatCurrency(r.paidTotal) }}</td>
-							<td class="text-end text-danger fw-semibold">{{ formatCurrency(r.refundedTotal) }}</td>
+							<td><span class="item-name">{{ r.itemName }}</span></td>
+							<td>
+								<span class="variant-chips">
+									@if (r.colorName) {
+										<span class="variant-tag variant-tag--color">{{ r.colorName }}</span>
+									}
+									@if (r.sizeName) {
+										<span class="variant-tag variant-tag--size">{{ r.sizeName }}</span>
+									}
+									@if (!r.colorName && !r.sizeName) {
+										<span class="variant-tag variant-tag--default">Default</span>
+									}
+								</span>
+							</td>
+							<td class="text-center"><span class="money">{{ r.quantity }}</span></td>
+							<td class="text-end"><span class="money">{{ formatCurrency(r.paidTotal) }}</span></td>
+							<td class="text-end"><span class="money money--neg">{{ formatCurrency(r.refundedTotal) }}</span></td>
 							<td>{{ r.familyUserName }}</td>
 							<td class="text-center">{{ formatDate(r.modifiedDate) }}</td>
 						</tr>
@@ -229,19 +369,35 @@
 	}
 }
 
-<!-- ── Restocked ── -->
+<!-- ══════════════════════════════════════ -->
+<!-- Restocked                              -->
+<!-- ══════════════════════════════════════ -->
 @if (!isLoading() && activeSection() === 'restocked') {
-	<div class="d-flex justify-content-end mb-3">
+	<div class="tab-toolbar">
+		<div class="tab-toolbar-meta">
+			<span class="meta-count">{{ restockedItems().length }}</span>
+			<span>restock {{ restockedItems().length === 1 ? 'event' : 'events' }}</span>
+		</div>
 		<button class="btn btn-sm btn-outline-primary" (click)="openRestockModal()">
 			<i class="bi bi-plus-lg me-1"></i>Log Restock
 		</button>
 	</div>
 
 	@if (restockedItems().length === 0) {
-		<p class="text-body-secondary">No restocked items.</p>
+		<div class="empty-state">
+			<span class="empty-state-icon"><i class="bi bi-box-arrow-in-down"></i></span>
+			<div class="empty-state-title">No restock events logged</div>
+			<p class="empty-state-desc">
+				Use <strong>Log Restock</strong> to record incoming inventory against a SKU line.
+				Restock history appears here for audit.
+			</p>
+			<button class="btn btn-primary btn-sm" (click)="openRestockModal()">
+				<i class="bi bi-plus-lg me-1"></i>Log first restock
+			</button>
+		</div>
 	} @else {
-		<div class="table-responsive">
-			<table class="table table-sm table-hover align-middle">
+		<div class="table-responsive store-table-wrap">
+			<table class="table align-middle store-table">
 				<thead>
 					<tr>
 						<th>Item</th>
@@ -254,9 +410,21 @@
 				<tbody>
 					@for (r of restockedItems(); track r.storeCartBatchSkuRestockId) {
 						<tr>
-							<td>{{ r.itemName }}</td>
-							<td>{{ r.colorName || '' }} {{ r.sizeName || '' }}</td>
-							<td class="text-center">{{ r.restockCount }}</td>
+							<td><span class="item-name">{{ r.itemName }}</span></td>
+							<td>
+								<span class="variant-chips">
+									@if (r.colorName) {
+										<span class="variant-tag variant-tag--color">{{ r.colorName }}</span>
+									}
+									@if (r.sizeName) {
+										<span class="variant-tag variant-tag--size">{{ r.sizeName }}</span>
+									}
+									@if (!r.colorName && !r.sizeName) {
+										<span class="variant-tag variant-tag--default">Default</span>
+									}
+								</span>
+							</td>
+							<td class="text-center"><span class="money money--pos">+{{ r.restockCount }}</span></td>
 							<td class="text-center">{{ formatDate(r.modifiedDate) }}</td>
 							<td>{{ r.modifiedBy }}</td>
 						</tr>
@@ -267,7 +435,9 @@
 	}
 }
 
-<!-- ── Restock Modal ── -->
+<!-- ══════════════════════════════════════ -->
+<!-- Restock Modal                          -->
+<!-- ══════════════════════════════════════ -->
 @if (showRestockModal()) {
 	<tsic-dialog [open]="true" size="sm" (requestClose)="showRestockModal.set(false)">
 		<div class="modal-content">
@@ -297,7 +467,9 @@
 	</tsic-dialog>
 }
 
-<!-- ── Pickup Modal ── -->
+<!-- ══════════════════════════════════════ -->
+<!-- Pickup Modal                           -->
+<!-- ══════════════════════════════════════ -->
 @if (showPickupModal()) {
 	<tsic-dialog [open]="true" size="sm" (requestClose)="showPickupModal.set(false)">
 		<div class="modal-content">

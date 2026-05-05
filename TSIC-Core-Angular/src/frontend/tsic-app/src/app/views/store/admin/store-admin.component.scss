@@ -1,9 +1,11 @@
+@use './store-shared' as *;
+
 :host {
 	display: block;
 	padding: var(--space-4);
 }
 
-// ── Tab navigation (reuses widget-editor pattern) ──
+// ── Tab navigation ──
 
 .editor-tabs {
 	display: flex;
@@ -25,57 +27,281 @@
 	transition: color 0.15s, border-color 0.15s;
 	white-space: nowrap;
 
-	&:hover {
-		color: var(--brand-text);
-	}
+	&:hover { color: var(--brand-text); }
 
 	&.active {
 		color: var(--bs-primary);
 		border-bottom-color: var(--bs-primary);
 	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
 }
 
-// ── Item thumbnails ──
+// ── Items table column widths ──
 
-.item-thumb {
-	width: 36px;
-	height: 36px;
-	object-fit: cover;
-	flex-shrink: 0;
+.col-expand   { width: 36px; padding-right: 0 !important; }
+.col-price    { width: 100px; white-space: nowrap; }
+.col-skus     { width: 180px; }
+.col-status   { width: 130px; }
+.col-actions  { width: 80px; white-space: nowrap; }
+
+// ── Item row state ──
+
+.item-row {
+	&.is-expanded > td:not(.p-0) {
+		background-color: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+	}
+
+	&.is-inactive {
+		.item-name { color: var(--bs-secondary-color); }
+		.item-thumb { opacity: 0.55; }
+		.price-value { color: var(--bs-secondary-color); }
+	}
 }
 
-.item-thumb-placeholder {
+// ── Expand toggle (rotating chevron) ──
+
+.expand-toggle {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 36px;
-	height: 36px;
-	background: rgba(var(--bs-secondary-rgb), 0.1);
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	border-radius: var(--radius-sm);
 	color: var(--bs-secondary-color);
-	font-size: var(--font-size-sm);
-	flex-shrink: 0;
+	cursor: pointer;
+	transition: background-color 0.12s, color 0.12s;
+
+	i {
+		display: inline-block;
+		transition: transform 0.18s ease;
+	}
+
+	&:hover {
+		background-color: rgba(var(--bs-primary-rgb), 0.08);
+		color: var(--bs-primary);
+	}
+
+	&.is-open {
+		color: var(--bs-primary);
+		i { transform: rotate(90deg); }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
 }
 
-// ── SKU expansion ──
+// ── Item cell ──
 
-.sku-expansion {
-	background: rgba(var(--bs-primary-rgb), 0.03);
-	border-top: 1px solid var(--bs-border-color);
-	padding: var(--space-2) var(--space-4) var(--space-2) var(--space-8);
+.item-cell {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.item-thumb {
+	width: 44px;
+	height: 44px;
+	border-radius: var(--radius-sm);
+	object-fit: cover;
+	flex-shrink: 0;
+	border: 1px solid var(--bs-border-color);
+	background: var(--neutral-100);
+}
+
+.item-thumb--placeholder {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--bs-secondary-color);
+	font-size: 1.15rem;
+	background: linear-gradient(135deg,
+		color-mix(in srgb, var(--bs-primary) 6%, transparent) 0,
+		color-mix(in srgb, var(--bs-primary) 1%, transparent) 100%);
+}
+
+.item-meta {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.item-name {
+	font-weight: 600;
+	color: var(--brand-text);
+	line-height: 1.25;
+}
+
+.item-meta-line {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin-top: 2px;
+	font-size: var(--font-size-xs);
+	color: var(--bs-secondary-color);
+
+	.item-id {
+		font-variant-numeric: tabular-nums;
+		font-family: var(--font-family-mono);
+		font-size: var(--font-size-2xs);
+	}
+}
+
+// ── Price cell ──
+
+.price-value {
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--brand-text);
+}
+
+// ── SKU summary cell ──
+
+.sku-summary {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 130px;
+}
+
+.sku-summary-stat {
+	display: flex;
+	align-items: baseline;
+	gap: 4px;
+	color: var(--brand-text);
+	font-size: var(--font-size-sm);
+
+	.sku-count {
+		font-weight: 700;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.sku-divider, .sku-label {
+		color: var(--bs-secondary-color);
+		font-size: var(--font-size-xs);
+	}
+
+	.sku-total {
+		font-weight: 500;
+		font-variant-numeric: tabular-nums;
+	}
+}
+
+.sku-progress {
+	position: relative;
+	height: 4px;
+	border-radius: 999px;
+	background: rgba(var(--brand-text-rgb), 0.10);
+	overflow: hidden;
+}
+
+.sku-progress-bar {
+	position: absolute;
+	inset: 0 auto 0 0;
+	width: 0%;
+	background: var(--bs-success);
+	border-radius: 999px;
+	transition: width 0.25s ease;
+}
+
+.is-inactive .sku-progress-bar {
+	background: var(--bs-secondary-color);
+	opacity: 0.5;
+}
+
+// ── SKU detail panel (expansion) ──
+
+.sku-expansion-row > td { background: transparent !important; }
+
+.sku-detail-panel {
+	background: linear-gradient(180deg,
+		color-mix(in srgb, var(--bs-primary) 5%, transparent) 0,
+		color-mix(in srgb, var(--bs-primary) 1%, transparent) 100%);
+	border-top: 1px solid color-mix(in srgb, var(--bs-primary) 20%, transparent);
+	padding: var(--space-3) var(--space-4) var(--space-3) var(--space-10);
+}
+
+.sku-detail-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding-bottom: var(--space-2);
+	font-size: var(--font-size-xs);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--bs-primary);
+
+	i { font-size: 0.95rem; }
+
+	.sku-detail-meta {
+		margin-left: auto;
+		font-weight: 500;
+		text-transform: none;
+		letter-spacing: 0;
+		color: var(--bs-secondary-color);
+	}
+}
+
+.sku-empty {
+	padding: var(--space-4);
+	text-align: center;
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
 }
 
 .sku-table {
+	background: transparent;
+	margin-bottom: 0;
+
 	th {
-		font-size: var(--font-size-xs);
+		font-size: var(--font-size-2xs);
 		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.03em;
+		letter-spacing: 0.05em;
 		color: var(--bs-secondary-color);
-		border-bottom-width: 1px;
+		border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 14%, transparent);
+		background: transparent;
+		padding: var(--space-1) var(--space-2);
 	}
 
 	td {
 		font-size: var(--font-size-sm);
+		background: transparent;
+		border-bottom-color: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+		padding: var(--space-2);
+		vertical-align: middle;
+	}
+
+	tr:last-child td { border-bottom: none; }
+
+	tr.is-inactive {
+		color: var(--bs-secondary-color);
+
+		.variant-tag {
+			text-decoration: line-through;
+			opacity: 0.6;
+		}
+	}
+}
+
+// ── SKU active icon ──
+
+.sku-active-icon {
+	font-size: 1rem;
+
+	&.is-on { color: var(--bs-success); }
+	&.is-off {
+		color: var(--bs-secondary-color);
+		opacity: 0.5;
 	}
 }
 
@@ -103,5 +329,186 @@
 		background: var(--bs-primary);
 		border-color: var(--bs-primary);
 		color: var(--bs-light);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// ── Taxonomy grid (Colors / Sizes tabs — chip cards) ──
+
+.taxonomy-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.taxonomy-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	padding: 3px 4px 3px var(--space-3);
+	border-radius: var(--radius-full);
+	transition: box-shadow 0.12s, border-color 0.12s;
+	box-shadow: var(--shadow-xs);
+}
+
+.taxonomy-chip:hover { box-shadow: var(--shadow-sm); }
+
+.taxonomy-chip--color {
+	background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+	color: var(--bs-primary);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 22%, transparent);
+
+	&:hover { border-color: color-mix(in srgb, var(--bs-primary) 40%, transparent); }
+}
+
+.taxonomy-chip--size {
+	background: rgba(var(--brand-text-rgb), 0.07);
+	color: var(--brand-text);
+	border: 1px solid rgba(var(--brand-text-rgb), 0.14);
+
+	&:hover { border-color: rgba(var(--brand-text-rgb), 0.28); }
+}
+
+.taxonomy-chip-name {
+	font-size: var(--font-size-sm);
+	font-weight: 500;
+	line-height: 1.4;
+}
+
+.taxonomy-chip-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.taxonomy-chip-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	color: inherit;
+	border-radius: 50%;
+	cursor: pointer;
+	opacity: 0.65;
+	font-size: 0.85rem;
+	transition: background 0.12s, opacity 0.12s, color 0.12s;
+
+	&:hover {
+		background: rgba(var(--brand-text-rgb), 0.10);
+		opacity: 1;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		opacity: 1;
+	}
+
+	&.taxonomy-chip-btn--danger:hover {
+		background: color-mix(in srgb, var(--bs-danger) 18%, transparent);
+		color: var(--bs-danger);
+	}
+}
+
+// ── Row actions (icon button group, right-aligned in actions column) ──
+
+.row-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+}
+
+// ── Active toggle (inline status switch in items table) ──
+
+.active-toggle-switch {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	cursor: pointer;
+	user-select: none;
+	margin: 0;
+
+	input {
+		position: absolute;
+		opacity: 0;
+		width: 1px;
+		height: 1px;
+		pointer-events: none;
+	}
+
+	.toggle-track {
+		position: relative;
+		width: 32px;
+		height: 18px;
+		border-radius: var(--radius-full);
+		background: rgba(var(--brand-text-rgb), 0.10);
+		border: 1px solid rgba(var(--brand-text-rgb), 0.18);
+		transition: background 0.18s, border-color 0.18s;
+		flex-shrink: 0;
+
+		&::after {
+			content: '';
+			position: absolute;
+			top: 1px;
+			left: 1px;
+			width: 14px;
+			height: 14px;
+			border-radius: 50%;
+			background: var(--bs-secondary-color);
+			box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+			transition: transform 0.18s, background 0.18s;
+		}
+	}
+
+	input:checked + .toggle-track {
+		background: color-mix(in srgb, var(--bs-success) 22%, transparent);
+		border-color: color-mix(in srgb, var(--bs-success) 50%, transparent);
+
+		&::after {
+			transform: translateX(14px);
+			background: var(--bs-success);
+		}
+	}
+
+	input:focus-visible + .toggle-track {
+		box-shadow: var(--shadow-focus);
+	}
+
+	.toggle-label {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+
+		&.is-on  { color: var(--bs-success); }
+		&.is-off { color: var(--bs-secondary-color); }
+	}
+
+	&:hover .toggle-track {
+		border-color: color-mix(in srgb, var(--bs-primary) 40%, var(--bs-border-color));
+	}
+}
+
+// ── Reduced motion overrides for component-specific transitions ──
+
+@media (prefers-reduced-motion: reduce) {
+	.editor-tab,
+	.expand-toggle,
+	.expand-toggle i,
+	.sku-progress-bar,
+	.variant-chip,
+	.taxonomy-chip,
+	.taxonomy-chip-btn,
+	.active-toggle-switch .toggle-track,
+	.active-toggle-switch .toggle-track::after {
+		transition: none !important;
 	}
 }

@@ -1,0 +1,308 @@
+@use './store-shared' as *;
+
+// ── Column widths (shared across analytics tables) ──
+
+.col-expand { width: 36px; padding-right: 0 !important; }
+
+// ── Item name typography (sales tables) ──
+
+.item-name {
+	font-weight: 600;
+	color: var(--brand-text);
+	line-height: 1.25;
+}
+
+// ── Sub-section nav (pill segmented control) ──
+
+.sub-section-nav {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-1);
+	padding: var(--space-1);
+	margin-bottom: var(--space-4);
+	background: color-mix(in srgb, var(--bs-primary) 4%, transparent);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 14%, transparent);
+	border-radius: var(--radius-full);
+	width: fit-content;
+}
+
+.sub-section-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: var(--space-1) var(--space-3);
+	border: none;
+	background: transparent;
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	font-weight: 500;
+	border-radius: var(--radius-full);
+	cursor: pointer;
+	transition: background-color 0.12s, color 0.12s;
+	white-space: nowrap;
+
+	i { font-size: 0.95rem; }
+
+	&:hover {
+		color: var(--bs-primary);
+		background-color: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+	}
+
+	&.active {
+		background: var(--bs-primary);
+		color: var(--bs-light);
+		box-shadow: var(--shadow-xs);
+
+		&:hover {
+			background: var(--brand-primary-dark);
+			color: var(--bs-light);
+		}
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// ── Loading inline ──
+
+.loading-inline {
+	padding: var(--space-6) 0;
+	text-align: center;
+}
+
+// ── Inline filter row ──
+
+.filter-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	margin-bottom: var(--space-3);
+
+	.filter-checkbox {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		font-size: var(--font-size-sm);
+		color: var(--brand-text);
+		cursor: pointer;
+
+		input { cursor: pointer; }
+	}
+
+	.filter-spacer { flex: 1; }
+}
+
+// ── Customer / Family cell (primary text + secondary) ──
+
+.customer-cell {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+
+	.customer-name {
+		font-weight: 600;
+		color: var(--brand-text);
+		line-height: 1.25;
+	}
+
+	.customer-secondary {
+		font-size: var(--font-size-xs);
+		color: var(--bs-secondary-color);
+		margin-top: 2px;
+	}
+}
+
+// ── Last 4 mono cell ──
+
+.last4-cell {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	font-family: var(--font-family-mono);
+	font-variant-numeric: tabular-nums;
+	color: var(--brand-text);
+	font-size: var(--font-size-sm);
+
+	.last4-mask {
+		letter-spacing: 1px;
+		color: var(--bs-secondary-color);
+	}
+}
+
+.last4-cell--empty {
+	color: var(--bs-secondary-color);
+	font-style: italic;
+}
+
+// ── Walk-up indicator ──
+
+.walkup-yes {
+	color: var(--bs-success);
+	font-size: 1rem;
+}
+
+.walkup-no {
+	color: var(--bs-secondary-color);
+	opacity: 0.4;
+	font-size: 1rem;
+}
+
+// ── Family expansion panel ──
+
+.family-row {
+	cursor: pointer;
+}
+
+.family-row.is-expanded > td:not(.p-0) {
+	background-color: color-mix(in srgb, var(--bs-primary) 6%, transparent);
+}
+
+.expand-toggle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	border-radius: var(--radius-sm);
+	color: var(--bs-secondary-color);
+	cursor: pointer;
+	transition: background-color 0.12s, color 0.12s;
+
+	i { transition: transform 0.18s ease; }
+
+	&:hover {
+		background-color: rgba(var(--bs-primary-rgb), 0.08);
+		color: var(--bs-primary);
+	}
+
+	&.is-open {
+		color: var(--bs-primary);
+		i { transform: rotate(90deg); }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.family-expansion-row > td { background: transparent !important; }
+
+.family-detail-panel {
+	background: linear-gradient(180deg,
+		color-mix(in srgb, var(--bs-primary) 5%, transparent) 0,
+		color-mix(in srgb, var(--bs-primary) 1%, transparent) 100%);
+	border-top: 1px solid color-mix(in srgb, var(--bs-primary) 20%, transparent);
+	padding: var(--space-3) var(--space-4) var(--space-4) var(--space-10);
+}
+
+.family-detail-header {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding-bottom: var(--space-2);
+	font-size: var(--font-size-xs);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--bs-primary);
+
+	.family-detail-meta {
+		margin-left: auto;
+		font-weight: 500;
+		text-transform: none;
+		letter-spacing: 0;
+		color: var(--bs-secondary-color);
+	}
+}
+
+.family-loading {
+	padding: var(--space-3);
+	text-align: center;
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+}
+
+// ── Transaction card (inside family expansion) ──
+
+.txn-card {
+	background: var(--brand-surface);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 16%, transparent);
+	border-radius: var(--radius-sm);
+	padding: var(--space-2) var(--space-3);
+	margin-bottom: var(--space-2);
+
+	&:last-child { margin-bottom: 0; }
+}
+
+.txn-header {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--space-2);
+	margin-bottom: var(--space-1);
+	padding-bottom: var(--space-1);
+	border-bottom: 1px dashed var(--bs-border-color);
+
+	.txn-date {
+		font-weight: 600;
+		color: var(--brand-text);
+		font-size: var(--font-size-sm);
+	}
+
+	.txn-summary {
+		font-size: var(--font-size-xs);
+		color: var(--bs-secondary-color);
+
+		.txn-total {
+			font-weight: 700;
+			color: var(--brand-text);
+			font-variant-numeric: tabular-nums;
+			margin-right: var(--space-1);
+		}
+	}
+}
+
+.txn-line {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: 2px 0;
+	font-size: var(--font-size-sm);
+
+	.txn-line-name {
+		color: var(--brand-text);
+		display: flex;
+		align-items: center;
+		gap: var(--space-1);
+		flex-wrap: wrap;
+	}
+
+	.txn-qty {
+		color: var(--bs-secondary-color);
+		font-size: var(--font-size-xs);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.txn-line-total {
+		color: var(--brand-text);
+		font-variant-numeric: tabular-nums;
+		font-weight: 500;
+	}
+}
+
+// ── Reduced motion ──
+
+@media (prefers-reduced-motion: reduce) {
+	.sub-section-btn,
+	.expand-toggle,
+	.expand-toggle i {
+		transition: none !important;
+	}
+}
