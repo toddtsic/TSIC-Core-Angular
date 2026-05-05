@@ -360,6 +360,8 @@ public record InsuranceOfferInfo
     public string? JobName { get; init; }
     public required bool BOfferPlayerRegsaverInsurance { get; init; }
     public required bool BOfferTeamRegsaverInsurance { get; init; }
+    public DateTime? EventStartDate { get; init; }
+    public DateTime? EventEndDate { get; init; }
 }
 
 public record JobConfirmationInfo

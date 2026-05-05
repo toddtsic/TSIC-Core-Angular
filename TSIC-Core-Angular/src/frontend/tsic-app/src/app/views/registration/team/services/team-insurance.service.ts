@@ -1,106 +1,48 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
-import { TeamRegistrationService } from './team-registration.service';
-import { TeamInsuranceStateService } from './team-insurance-state.service';
+import { Injectable, computed, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { environment } from '@environments/environment';
-import type { TeamInsurancePurchaseRequestDto, TeamInsurancePurchaseResponseDto, CreditCardInfo, PreSubmitTeamInsuranceDto } from '@core/api';
-import { ToastService } from '@shared-ui/toast.service';
-import { AuthService } from '@infrastructure/services/auth.service';
 import { firstValueFrom } from 'rxjs';
-import { ViDarkModeService } from '../../shared/services/vi-dark-mode.service';
-import type { VIOfferData, VIWidgetState, VIWindowExtension, VIWidgetInstance, VIQuoteObject } from '../../shared/types/wizard.types';
+import { environment } from '@environments/environment';
+import { ToastService } from '@shared-ui/toast.service';
+import { BaseInsuranceService } from '@views/registration/shared/services/vi-widget-base.service';
 import { formatHttpError } from '../../shared/utils/error-utils';
+import { TeamInsuranceStateService } from './team-insurance-state.service';
+import type {
+    CreditCardInfo,
+    PreSubmitTeamInsuranceDto,
+    TeamInsurancePurchaseRequestDto,
+    TeamInsurancePurchaseResponseDto,
+} from '@core/api';
 
 /**
- * Team insurance service — matches legacy TSIC-Unify-2024 behavior exactly.
- * Callbacks store state only. Confirm/decline is determined at submit time from quotes array.
+ * Team-side insurance service. Inherits the entire VerticalInsure widget
+ * integration from `BaseInsuranceService`; this class only owns the team
+ * purchase endpoint, the team-specific quote display, and convenience reads
+ * off `TeamInsuranceStateService`.
  */
 @Injectable({ providedIn: 'root' })
-export class TeamInsuranceService {
-    private readonly teamReg = inject(TeamRegistrationService);
+export class TeamInsuranceService extends BaseInsuranceService {
     private readonly insuranceState = inject(TeamInsuranceStateService);
     private readonly http = inject(HttpClient);
     private readonly toast = inject(ToastService);
-    private readonly auth = inject(AuthService);
-    private readonly viDarkMode = inject(ViDarkModeService);
 
-    private readonly _quotes = signal<VIQuoteObject[]>([]);
-    private readonly _hasUserResponse = signal(false);
-    private readonly _error = signal<string | null>(null);
-    private readonly _widgetInitialized = signal(false);
-    private readonly purchasing = signal(false);
+    readonly offerEnabled = computed(() => this.insuranceState.offerTeamRegSaver());
+    readonly consented = computed(() => this.insuranceState.verticalInsureConfirmed());
+    readonly declined = computed(() => this.insuranceState.verticalInsureDeclined());
 
-    readonly quotes = this._quotes.asReadonly();
-    readonly hasUserResponse = this._hasUserResponse.asReadonly();
-    readonly error = this._error.asReadonly();
-    readonly widgetInitialized = this._widgetInitialized.asReadonly();
-
-    offerEnabled = computed(() => this.insuranceState.offerTeamRegSaver());
-    consented = computed(() => this.insuranceState.verticalInsureConfirmed());
-    declined = computed(() => this.insuranceState.verticalInsureDeclined());
-
-    /**
-     * Initialize VerticalInsure widget for team insurance.
-     * @param hostSelector CSS selector for widget mount point (e.g., '#dVITeamOffer')
-     * @param offerData PreSubmitTeamInsuranceDto.TeamObject from backend
-     */
-    initWidget(hostSelector: string, offerData: VIOfferData): void {
-        if (this.widgetInitialized()) return;
-        const viWindow = globalThis as unknown as VIWindowExtension;
-        if (!viWindow.VerticalInsure) {
-            this._error.set('VerticalInsure script missing');
-            return;
-        }
-        try {
-            this.viDarkMode.injectDarkModeColors(offerData);
-
-            const instance: VIWidgetInstance = new viWindow.VerticalInsure!(
-                hostSelector,
-                offerData,
-                // onStateChange — fires on user interaction. Store state only.
-                (st: VIWidgetState) => {
-                    instance.validate().then((valid: boolean) => {
-                        this._hasUserResponse.set(valid);
-                        this._quotes.set(st?.quotes || []);
-                        this.viDarkMode.applyViDarkMode(hostSelector);
-                    });
-                },
-                // onReady — fires once when offer loads. Store validity only.
-                () => {
-                    this._widgetInitialized.set(true);
-                    instance.validate().then((valid: boolean) => {
-                        this._hasUserResponse.set(valid);
-                    });
-                    this.viDarkMode.applyViDarkMode(hostSelector);
-                }
-            );
-        } catch (e: unknown) {
-            console.error('VerticalInsure init error', e);
-            this._error.set('VerticalInsure initialization failed');
-        }
-    }
-
-    /**
-     * Calculate total premium across all quotes (in dollars).
-     */
-    premiumTotal(): number {
-        return this.quotes().reduce((sum, q) => sum + Number(q?.total || 0), 0) / 100;
-    }
-
-    /**
-     * Get team names covered by quotes.
-     */
+    /** Team display: just team names. Premium is shown as a single total in
+     *  the charge-confirm modal — no per-team breakdown (a single VI quote
+     *  can cover multiple teams). */
     quotedTeams(): string[] {
-        return this.quotes().flatMap(q => {
-            const teams = q?.policy_attributes?.teams || [];
-            return teams.map((t: Record<string, unknown>) => String(t?.['team_name'] || '')).filter(Boolean);
+        return this._quotes().flatMap(q => {
+            const teams = q?.policy_attributes?.teams ?? [];
+            return teams
+                .map((t: Record<string, unknown>) => String(t?.['team_name'] ?? ''))
+                .filter(Boolean);
         });
     }
 
-    /**
-     * Fetch team insurance offer from backend.
-     * Backend derives jobId and clubRepRegId from JWT token.
-     */
+    /** Fetch the team insurance offer from the backend. Backend derives jobId
+     *  and clubRepRegId from the JWT. */
     async fetchTeamInsuranceOffer(): Promise<PreSubmitTeamInsuranceDto | null> {
         try {
             this.insuranceState.setVerticalInsureOffer({ loading: true, data: null, error: null });
@@ -110,27 +52,22 @@ export class TeamInsuranceService {
             if (result.available && result.teamObject) {
                 this.insuranceState.setVerticalInsureOffer({ loading: false, data: result.teamObject, error: null });
                 return result;
-            } else {
-                this.insuranceState.setVerticalInsureOffer({ loading: false, data: null, error: result.error || 'Not available' });
-                return null;
             }
+            this.insuranceState.setVerticalInsureOffer({ loading: false, data: null, error: result.error || 'Not available' });
+            return null;
         } catch (err: unknown) {
             this.insuranceState.setVerticalInsureOffer({ loading: false, data: null, error: formatHttpError(err) });
             return null;
         }
     }
 
-    /**
-     * Purchase team insurance policies.
-     * Backend derives jobId and clubRepRegId from JWT token.
-     * @param teamIds Team IDs to insure
-     * @param quoteIds Quote IDs from VI widget
-     * @param card Credit card info
-     */
+    /** Purchase team insurance policies. Backend derives jobId + clubRepRegId
+     *  from the JWT; we provide the chosen team IDs, the quote IDs from the
+     *  widget, and the credit card. */
     async purchaseTeamInsurance(
         teamIds: string[],
         quoteIds: string[],
-        card: CreditCardInfo
+        card: CreditCardInfo,
     ): Promise<{ success: boolean; policies?: Record<string, string>; error?: string }> {
         if (this.purchasing()) {
             return { success: false, error: 'Purchase already in progress' };
@@ -141,21 +78,20 @@ export class TeamInsuranceService {
             const request: TeamInsurancePurchaseRequestDto = {
                 teamIds,
                 quoteIds,
-                creditCard: card
+                creditCard: card,
             };
 
             const url = `${environment.apiUrl}/insurance/team/purchase`;
             const response = await firstValueFrom(
-                this.http.post<TeamInsurancePurchaseResponseDto>(url, request)
+                this.http.post<TeamInsurancePurchaseResponseDto>(url, request),
             );
 
             if (response.success && response.policies) {
                 this.toast.show('Team insurance policies purchased successfully', 'success');
                 return { success: true, policies: response.policies };
-            } else {
-                this.toast.show(response.error || 'Insurance purchase failed', 'danger');
-                return { success: false, error: response.error || undefined };
             }
+            this.toast.show(response.error || 'Insurance purchase failed', 'danger');
+            return { success: false, error: response.error || undefined };
         } catch (err: unknown) {
             const message = formatHttpError(err);
             this.toast.show(message, 'danger');
@@ -163,19 +99,5 @@ export class TeamInsuranceService {
         } finally {
             this.purchasing.set(false);
         }
-    }
-
-    reset(): void {
-        this._quotes.set([]);
-        this._hasUserResponse.set(false);
-        this._error.set(null);
-        this._widgetInitialized.set(false);
-        this.purchasing.set(false);
-        this.viDarkMode.disconnect();
-    }
-
-    /** Allow the widget to be re-created (e.g. navigating back then forward). */
-    resetWidgetInit(): void {
-        this._widgetInitialized.set(false);
     }
 }

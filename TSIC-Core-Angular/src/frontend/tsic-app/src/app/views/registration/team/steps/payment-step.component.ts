@@ -1,6 +1,6 @@
 import {
-    ChangeDetectionStrategy, Component, DestroyRef,
-    inject, signal, computed, output,
+    AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy,
+    ViewChild, inject, signal, computed, output,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CurrencyPipe } from '@angular/common';
@@ -8,9 +8,12 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '../services/team-registration.service';
+import { TeamInsuranceService } from '../services/team-insurance.service';
+import { TeamInsuranceStateService } from '../services/team-insurance-state.service';
 import { IdempotencyService } from '@views/registration/shared/services/idempotency.service';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
 import { BankAccountFormComponent } from '@views/registration/shared/components/bank-account-form.component';
+import { ViChargeConfirmModalComponent } from '@views/registration/shared/components/vi-charge-confirm-modal.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
@@ -20,7 +23,7 @@ import type {
     TeamEcheckPaymentRequestDto,
     TeamArbTrialPaymentRequestDto, TeamArbTrialPaymentResponseDto,
 } from '@core/api';
-import type { CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
+import type { CreditCardFormValue, VIOfferData } from '@views/registration/shared/types/wizard.types';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
 
 /**
@@ -33,7 +36,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
 @Component({
     selector: 'app-trw-payment-step',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, RegisteredTeamsGridComponent],
+    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, ViChargeConfirmModalComponent, RegisteredTeamsGridComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -152,6 +155,58 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                 <strong>Save {{ processingFeeSavings() | currency }}</strong> in processing fees by paying with check.
               </div>
             </div>
+          }
+
+          <!-- ═══ VERTICAL INSURE / REGSAVER (CC-bearing methods only) ═══
+               Per legacy: VI premium charged via the same CC the rep enters for TSIC,
+               so the widget is visible only when a CC form is on screen (CC method
+               or ARB-Trial with CC source). Widget targets #dVITeamOffer by id —
+               do not introduce clipping/positioning ancestors between it and body. -->
+          @if (showViSection()) {
+            <div class="insurance-wrapper mb-4">
+              <header class="insurance-card-title">
+                <i class="bi bi-shield-check me-2"></i>Team Registration Insurance
+              </header>
+              @if (insuranceSvc.widgetError(); as viErr) {
+                <!-- VI SDK reported an error (or the script never reached the
+                     onError callback and we surfaced a synchronous throw). The
+                     base service forces hasUserResponse=true on error so the
+                     submit gate auto-unlocks; this banner just tells the rep
+                     why the offer didn't appear. -->
+                <div class="alert alert-warning border-0 mb-0 small" role="alert">
+                  <strong>Insurance is unavailable for this session.</strong>
+                  You can still complete your team payment.
+                  <span class="text-muted">({{ viErr }})</span>
+                </div>
+              } @else {
+                <div #viOffer id="dVITeamOffer" class="text-center vi-container">
+                  @if (!insuranceSvc.widgetInitialized()) {
+                    <div class="py-4">
+                      <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </div>
+                      <p class="text-muted mt-2 small mb-0">Getting Team Registration Insurance Quote...</p>
+                    </div>
+                  }
+                </div>
+                @if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
+                  <div class="alert alert-secondary border-0 py-2 small mb-0 mt-2" role="alert">
+                    Insurance is optional. Please indicate your interest in registration insurance for each team listed.
+                  </div>
+                }
+              }
+            </div>
+          }
+
+          <!-- VI charge confirmation modal -->
+          @if (showViChargeConfirm()) {
+            <app-vi-charge-confirm-modal
+              [quotedPlayers]="viQuotedTeams()"
+              [premiumTotal]="viPremiumTotal()"
+              [email]="viCcEmail()"
+              [viCcOnlyFlow]="false"
+              (cancelled)="cancelViConfirm()"
+              (confirmed)="confirmViAndContinue()" />
           }
 
           <!-- ═══ CREDIT CARD FORM ═══ -->
@@ -384,6 +439,35 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
     </div>
   `,
     styles: [`
+      /* Insurance card — card chrome lives on the same div that holds
+         #dVITeamOffer so we don't introduce any clipping/positioning ancestor
+         between the widget mount and the page. NEVER add overflow:hidden — the
+         VI widget renders absolutely-positioned popups/tooltips that must escape. */
+      .insurance-wrapper {
+        border: 2px solid rgba(var(--bs-primary-rgb), 0.35);
+        border-radius: var(--radius-md);
+        background: var(--brand-surface);
+        box-shadow: var(--shadow-md);
+        padding: 0 var(--space-4) var(--space-3);
+      }
+
+      .insurance-card-title {
+        display: flex;
+        align-items: center;
+        margin: 0 calc(var(--space-4) * -1) var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-bold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-top-left-radius: calc(var(--radius-md) - 2px);
+        border-top-right-radius: calc(var(--radius-md) - 2px);
+      }
+
+      .vi-container { min-height: 280px; }
+
       .discount-label {
         color: var(--bs-danger);
         font-weight: var(--font-weight-bold);
@@ -499,10 +583,14 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class TeamPaymentStepV2Component {
+export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
+    @ViewChild('viOffer') viOfferElement?: ElementRef<HTMLDivElement>;
+
     readonly submitted = output<void>();
     readonly state = inject(TeamWizardStateService);
     private readonly teamReg = inject(TeamRegistrationService);
+    readonly insuranceState = inject(TeamInsuranceStateService);
+    readonly insuranceSvc = inject(TeamInsuranceService);
     private readonly idemSvc = inject(IdempotencyService);
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
@@ -522,6 +610,14 @@ export class TeamPaymentStepV2Component {
     readonly discountCode = signal('');
     readonly arbTrialResult = signal<TeamArbTrialPaymentResponseDto | null>(null);
     private lastIdemKey: string | null = null;
+
+    // ── VI state ─────────────────────────────────────────────────────────
+    readonly showViChargeConfirm = signal(false);
+    private readonly insuranceOfferLoaded = signal(false);
+    private viInitTimeout?: ReturnType<typeof setTimeout>;
+    private viInitRetries = 0;
+    /** Which submit path triggered the modal — needed so confirmViAndContinue routes back correctly. */
+    private pendingViSubmitFlow: 'cc' | 'arbTrial' | null = null;
 
     readonly clubRepContact = computed(() => this.state.clubRepContact());
     readonly hasBalance = computed(() => this.state.teamPayment.hasBalance());
@@ -568,29 +664,66 @@ export class TeamPaymentStepV2Component {
         return 'bg-light text-dark';
     });
 
+    /** VI is offered only when a CC form is on screen (CC method or ARB-Trial w/ CC source).
+     *  VI premium is charged via the same CC the rep enters for TSIC, so we must
+     *  not present the offer on eCheck or mail-in check methods. */
+    readonly showViSection = computed(() =>
+        this.insuranceState.offerTeamRegSaver()
+        && this.hasBalance()
+        && (this.isCc() || (this.isArbTrial() && this.arbTrialSource() === 'CC'))
+    );
+
+    readonly viQuotedTeams = computed(() => this.insuranceSvc.quotedTeams());
+    readonly viPremiumTotal = computed(() => this.insuranceSvc.premiumTotal());
+    readonly viCcEmail = computed(() => this.clubRepContact()?.email ?? '');
+
+    /** True when the VI widget is showing AND the rep has responded (chose teams or declined all). */
+    private readonly viDecisionMade = computed(() =>
+        !this.showViSection() || this.insuranceSvc.hasUserResponse()
+    );
+
     readonly canSubmitCc = computed(() =>
-        this.hasBalance() && this.ccValid() && !this.submitting(),
+        this.hasBalance() && this.ccValid() && !this.submitting() && this.viDecisionMade(),
     );
 
     readonly canSubmitEcheck = computed(() =>
         this.hasBalance() && this.bankAccountValid() && !this.submitting(),
     );
 
-    /** ARB-Trial submit gate — needs balance + the form valid for the chosen sub-source. */
+    /** ARB-Trial submit gate — needs balance + the form valid for the chosen sub-source.
+     *  When the sub-source is CC and VI is offered, also require a VI response. */
     readonly canSubmitArbTrial = computed(() => {
         if (!this.hasBalance() || this.submitting()) return false;
-        return this.arbTrialSource() === 'CC' ? this.ccValid() : this.bankAccountValid();
+        if (this.arbTrialSource() === 'CC') {
+            return this.ccValid() && this.viDecisionMade();
+        }
+        return this.bankAccountValid();
     });
 
     selectMethod(method: 'CC' | 'Echeck' | 'ArbTrial' | 'Check'): void {
         this.state.teamPayment.selectPaymentMethod(method);
         this.lastError.set(null);
         this.arbTrialResult.set(null);
+        this.scheduleViWidgetSync();
     }
 
     selectArbTrialSource(src: 'CC' | 'Echeck'): void {
         this.state.teamPayment.selectArbTrialSource(src);
         this.lastError.set(null);
+        this.scheduleViWidgetSync();
+    }
+
+    /** Re-mount the VI widget when method/source changes flip showViSection().
+     *  Full `reset()` (not just `resetWidgetInit`) so any quotes/response from a
+     *  prior CC visit are cleared — otherwise flipping CC → eCheck → CC would
+     *  re-trigger the charge-confirm modal with stale quotes the rep hasn't
+     *  re-confirmed. The cached `verticalInsureOffer.data` lives on the state
+     *  service and survives, so we don't re-fetch the offer on each toggle. */
+    private scheduleViWidgetSync(): void {
+        if (!this.insuranceState.offerTeamRegSaver()) return;
+        clearTimeout(this.viInitTimeout);
+        this.insuranceSvc.reset();
+        this.viInitTimeout = setTimeout(() => this.tryInitViWidget(), 0);
     }
 
     /** Lookup helper for the per-team result table — falls back to short id when team rolls off the list. */
@@ -607,6 +740,85 @@ export class TeamPaymentStepV2Component {
     onBaValidChange(valid: boolean): void { this.bankAccountValid.set(!!valid); }
     onBaValueChange(val: Record<string, string>): void {
         this._bankAccount.update(b => ({ ...b, ...val }));
+    }
+
+    // ── Lifecycle ────────────────────────────────────────────────────────
+    ngAfterViewInit(): void {
+        if (this.insuranceState.offerTeamRegSaver()) {
+            this.viInitTimeout = setTimeout(() => this.loadAndInitVi(), 0);
+        }
+    }
+
+    ngOnDestroy(): void {
+        clearTimeout(this.viInitTimeout);
+        this.insuranceSvc.reset();
+    }
+
+    // ── VI offer load + widget init ──────────────────────────────────────
+    private async loadAndInitVi(): Promise<void> {
+        if (!this.insuranceOfferLoaded()) {
+            await this.insuranceSvc.fetchTeamInsuranceOffer();
+            this.insuranceOfferLoaded.set(true);
+        }
+        this.tryInitViWidget();
+    }
+
+    /** Mount the widget on #dVITeamOffer when the section is visible.
+     *  Retries with backoff when the DOM node hasn't rendered yet — happens on
+     *  first paint and immediately after a method toggle that flips showViSection. */
+    private tryInitViWidget(): void {
+        const offerData = this.insuranceState.verticalInsureOffer().data;
+        if (!offerData) return;
+        if (this.viOfferElement?.nativeElement && this.showViSection()) {
+            this.viInitRetries = 0;
+            this.insuranceSvc.initWidget('#dVITeamOffer', offerData as VIOfferData);
+            return;
+        }
+        if (this.viInitRetries++ < 20) {
+            this.viInitTimeout = setTimeout(() => this.tryInitViWidget(), 150);
+        }
+    }
+
+    // ── VI charge-confirm modal handlers ─────────────────────────────────
+    cancelViConfirm(): void {
+        this.showViChargeConfirm.set(false);
+        this.pendingViSubmitFlow = null;
+        this.submitting.set(false);
+    }
+
+    confirmViAndContinue(): void {
+        this.showViChargeConfirm.set(false);
+        const flow = this.pendingViSubmitFlow;
+        this.pendingViSubmitFlow = null;
+        if (flow === 'cc') this.continueCcSubmit();
+        else if (flow === 'arbTrial') this.continueArbTrialSubmit();
+    }
+
+    /** Snapshot current widget state into the consent store. Quotes>0 ⇒ confirmed; 0 ⇒ declined. */
+    private captureViDecision(): void {
+        if (!this.showViSection() || !this.insuranceSvc.hasUserResponse()) return;
+        const quotes = this.insuranceSvc.quotes();
+        if (quotes.length > 0) {
+            this.insuranceState.confirmVerticalInsurePurchase(quotes as unknown as Record<string, unknown>[]);
+        } else {
+            this.insuranceState.declineVerticalInsurePurchase();
+        }
+    }
+
+    /** Build a CreditCardInfo from the current CC form signal — shared by TSIC + VI. */
+    private buildCreditCardInfo(): CreditCardInfo {
+        const cc = this._creditCard();
+        return {
+            number: cc.number?.trim() || null,
+            expiry: sanitizeExpiry(cc.expiry),
+            code: cc.code?.trim() || null,
+            firstName: cc.firstName?.trim() || null,
+            lastName: cc.lastName?.trim() || null,
+            address: cc.address?.trim() || null,
+            zip: cc.zip?.trim() || null,
+            email: cc.email?.trim() || null,
+            phone: sanitizePhone(cc.phone),
+        };
     }
 
     applyDiscount(): void {
@@ -631,6 +843,19 @@ export class TeamPaymentStepV2Component {
 
     submit(): void {
         if (this.submitting() || !this.canSubmitCc()) return;
+
+        // Capture the rep's VI decision from the widget. If they chose insurance,
+        // pop the charge-confirm modal first; otherwise proceed straight to TSIC.
+        this.captureViDecision();
+        if (this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) {
+            this.pendingViSubmitFlow = 'cc';
+            this.showViChargeConfirm.set(true);
+            return;
+        }
+        this.continueCcSubmit();
+    }
+
+    private continueCcSubmit(): void {
         this.submitting.set(true);
         this.lastError.set(null);
 
@@ -640,23 +865,13 @@ export class TeamPaymentStepV2Component {
                 : (Date.now().toString(36) + Math.random().toString(36).slice(2));
         }
 
-        const cc = this._creditCard();
+        const ccInfo = this.buildCreditCardInfo();
         const teamIds = this.state.teamPayment.teamIdsWithBalance();
         const request = {
             teamIds,
             totalAmount: this.balanceDue(),
             jobPath: this.state.jobPath(),
-            creditCard: {
-                number: cc.number?.trim() || null,
-                expiry: sanitizeExpiry(cc.expiry),
-                code: cc.code?.trim() || null,
-                firstName: cc.firstName?.trim() || null,
-                lastName: cc.lastName?.trim() || null,
-                address: cc.address?.trim() || null,
-                zip: cc.zip?.trim() || null,
-                email: cc.email?.trim() || null,
-                phone: sanitizePhone(cc.phone),
-            },
+            creditCard: ccInfo,
             idempotencyKey: this.lastIdemKey,
         };
 
@@ -664,16 +879,19 @@ export class TeamPaymentStepV2Component {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: resp => {
-                    this.submitting.set(false);
                     if (resp?.success) {
                         this.lastIdemKey = null;
-                        this.state.teamPaymentState.setLastPayment({
+                        // TSIC payment succeeded — chain VI purchase if rep confirmed.
+                        // Mirrors player ordering: registration is the source of truth;
+                        // VI is best-effort. A failed VI charge does NOT roll back the
+                        // already-successful registration payment.
+                        this.chainViPurchaseAndAdvance(teamIds, ccInfo, {
                             transactionId: resp.transactionId || undefined,
                             amount: this.balanceDue(),
                             message: resp.message || 'Payment successful',
                         });
-                        this.submitted.emit();
                     } else {
+                        this.submitting.set(false);
                         this.lastError.set(resp?.message || 'Payment failed.');
                         this.toast.show(resp?.message || 'Payment failed.', 'danger', 6000);
                     }
@@ -687,6 +905,34 @@ export class TeamPaymentStepV2Component {
                     this.toast.show(msg, 'danger', 6000);
                 },
             });
+    }
+
+    /** After a successful TSIC charge: optionally purchase VI policies, stash
+     *  whatever we have on lastPayment, then advance the wizard. VI purchase
+     *  failure surfaces as a toast but never blocks the wizard advance. */
+    private async chainViPurchaseAndAdvance(
+        teamIds: string[],
+        ccInfo: CreditCardInfo,
+        baseSummary: { transactionId?: string; amount: number; message: string; paymentMethod?: 'CC' | 'Echeck' | 'Check' },
+    ): Promise<void> {
+        let viPolicyNumbers: Record<string, string> | undefined;
+        if (this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) {
+            const quoteIds = this.insuranceSvc.quotes()
+                .map(q => String(q?.quote_id ?? q?.quoteId ?? q?.id ?? ''))
+                .filter(Boolean);
+            try {
+                const result = await this.insuranceSvc.purchaseTeamInsurance(teamIds, quoteIds, ccInfo);
+                if (result.success && result.policies) {
+                    viPolicyNumbers = result.policies;
+                    this.insuranceState.updatePolicyNumbers(result.policies);
+                }
+            } catch (e) {
+                console.warn('[Team Payment] VI purchase chain threw', e);
+            }
+        }
+        this.state.teamPaymentState.setLastPayment({ ...baseSummary, viPolicyNumbers });
+        this.submitting.set(false);
+        this.submitted.emit();
     }
 
     submitEcheck(): void {
@@ -761,6 +1007,21 @@ export class TeamPaymentStepV2Component {
      */
     submitArbTrial(): void {
         if (this.submitting() || !this.canSubmitArbTrial()) return;
+
+        // VI is only available on the CC sub-source. Capture decision and gate
+        // through the charge-confirm modal when the rep elected coverage.
+        if (this.arbTrialSource() === 'CC') {
+            this.captureViDecision();
+            if (this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) {
+                this.pendingViSubmitFlow = 'arbTrial';
+                this.showViChargeConfirm.set(true);
+                return;
+            }
+        }
+        this.continueArbTrialSubmit();
+    }
+
+    private continueArbTrialSubmit(): void {
         this.submitting.set(true);
         this.lastError.set(null);
         this.arbTrialResult.set(null);
@@ -770,18 +1031,7 @@ export class TeamPaymentStepV2Component {
         let bankAccount: BankAccountInfo | null = null;
 
         if (this.arbTrialSource() === 'CC') {
-            const cc = this._creditCard();
-            creditCard = {
-                number: cc.number?.trim() || null,
-                expiry: sanitizeExpiry(cc.expiry),
-                code: cc.code?.trim() || null,
-                firstName: cc.firstName?.trim() || null,
-                lastName: cc.lastName?.trim() || null,
-                address: cc.address?.trim() || null,
-                zip: cc.zip?.trim() || null,
-                email: cc.email?.trim() || null,
-                phone: sanitizePhone(cc.phone),
-            };
+            creditCard = this.buildCreditCardInfo();
         } else {
             const ba = this._bankAccount();
             bankAccount = {
@@ -804,27 +1054,64 @@ export class TeamPaymentStepV2Component {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: (resp: TeamArbTrialPaymentResponseDto) => {
-                    this.submitting.set(false);
                     this.arbTrialResult.set(resp);
                     if (resp.success) {
-                        this.state.teamPaymentState.setLastPayment({
-                            amount: this.balanceDue(),
-                            message: resp.message ?? (resp.mode === 'FALLBACK_FULL_CHARGE'
-                                ? 'Payment processed (fallback full charge — balance date had passed)'
-                                : 'Payment plan scheduled — deposit charges tomorrow'),
-                            paymentMethod: this.arbTrialSource() === 'Echeck' ? 'Echeck' : 'CC',
-                        });
-                        // Refresh teams metadata so AdnSubscription* fields appear on the team rows.
-                        this.teamReg.getTeamsMetadata()
-                            .pipe(takeUntilDestroyed(this.destroyRef))
-                            .subscribe({
-                                next: meta => {
-                                    this.state.applyTeamsMetadata(meta);
-                                    this.submitted.emit();
-                                },
-                                error: () => this.submitted.emit(),
+                        const baseMessage = resp.message ?? (resp.mode === 'FALLBACK_FULL_CHARGE'
+                            ? 'Payment processed (fallback full charge — balance date had passed)'
+                            : 'Payment plan scheduled — deposit charges tomorrow');
+                        const paymentMethod: 'CC' | 'Echeck' = this.arbTrialSource() === 'Echeck' ? 'Echeck' : 'CC';
+
+                        // Chain VI on success when the sub-source is CC and the rep confirmed.
+                        // Refresh metadata afterward so AdnSubscription* lands on the team rows.
+                        const finishAndAdvance = (viPolicyNumbers?: Record<string, string>) => {
+                            this.state.teamPaymentState.setLastPayment({
+                                amount: this.balanceDue(),
+                                message: baseMessage,
+                                paymentMethod,
+                                viPolicyNumbers,
                             });
+                            this.teamReg.getTeamsMetadata()
+                                .pipe(takeUntilDestroyed(this.destroyRef))
+                                .subscribe({
+                                    next: meta => {
+                                        this.state.applyTeamsMetadata(meta);
+                                        this.submitting.set(false);
+                                        this.submitted.emit();
+                                    },
+                                    error: () => {
+                                        this.submitting.set(false);
+                                        this.submitted.emit();
+                                    },
+                                });
+                        };
+
+                        if (
+                            this.arbTrialSource() === 'CC'
+                            && creditCard
+                            && this.insuranceState.verticalInsureConfirmed()
+                            && this.insuranceSvc.quotes().length > 0
+                        ) {
+                            const quoteIds = this.insuranceSvc.quotes()
+                                .map(q => String(q?.quote_id ?? (q as { id?: string }).id ?? ''))
+                                .filter(Boolean);
+                            this.insuranceSvc.purchaseTeamInsurance(teamIds, quoteIds, creditCard)
+                                .then(result => {
+                                    if (result.success && result.policies) {
+                                        this.insuranceState.updatePolicyNumbers(result.policies);
+                                        finishAndAdvance(result.policies);
+                                    } else {
+                                        finishAndAdvance();
+                                    }
+                                })
+                                .catch(e => {
+                                    console.warn('[Team Payment] VI purchase chain (ARB-Trial) threw', e);
+                                    finishAndAdvance();
+                                });
+                        } else {
+                            finishAndAdvance();
+                        }
                     } else {
+                        this.submitting.set(false);
                         const msg = resp.message ?? 'ARB-Trial submission failed.';
                         this.lastError.set(msg);
                         this.toast.show(msg, 'danger', 6000);

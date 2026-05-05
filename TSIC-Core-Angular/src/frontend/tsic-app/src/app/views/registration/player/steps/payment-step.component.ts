@@ -269,20 +269,28 @@ import type { LineItem } from '../state/payment-v2.service';
             <header class="insurance-card-title">
               <i class="bi bi-shield-check me-2"></i>Registration Insurance
             </header>
-            <div #viOffer id="dVIOffer" class="text-center vi-container">
-              @if (!insuranceSvc.widgetInitialized()) {
-                <div class="py-4">
-                  <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
+            @if (insuranceSvc.widgetError(); as viErr) {
+              <div class="alert alert-warning border-0 mb-0 small" role="alert">
+                <strong>Insurance is unavailable for this session.</strong>
+                You can still complete your registration.
+                <span class="text-muted">({{ viErr }})</span>
+              </div>
+            } @else {
+              <div #viOffer id="dVIOffer" class="text-center vi-container">
+                @if (!insuranceSvc.widgetInitialized()) {
+                  <div class="py-4">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-2 small mb-0">Getting Registration Insurance Quote...</p>
                   </div>
-                  <p class="text-muted mt-2 small mb-0">Getting Registration Insurance Quote...</p>
+                }
+              </div>
+              @if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
+                <div class="alert alert-secondary border-0 py-2 small mb-0 mt-2" role="alert">
+                  Insurance is optional. Please indicate your interest in registration insurance for each player listed.
                 </div>
               }
-            </div>
-            @if (insuranceSvc.widgetInitialized() && !insuranceSvc.hasUserResponse()) {
-              <div class="alert alert-secondary border-0 py-2 small mb-0 mt-2" role="alert">
-                Insurance is optional. Please indicate your interest in registration insurance for each player listed.
-              </div>
             }
           </div>
         }

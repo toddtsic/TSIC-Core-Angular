@@ -553,6 +553,10 @@ public class RegistrationRepository : IRegistrationRepository
                     LastName = r.User != null ? r.User.LastName : null,
                     Cellphone = r.User != null ? r.User.Cellphone : null,
                     OrgName = r.Job != null ? r.Job.JobName : null,
+                    StreetAddress = r.User != null ? r.User.StreetAddress : null,
+                    City = r.User != null ? r.User.City : null,
+                    State = r.User != null ? r.User.State : null,
+                    PostalCode = r.User != null ? r.User.PostalCode : null,
                     PaymentPlan = r.Job != null && (r.Job.AdnArb == true)
                 })
                 .FirstOrDefaultAsync(cancellationToken);
@@ -576,6 +580,10 @@ public class RegistrationRepository : IRegistrationRepository
                 LastName = r.User != null ? r.User.LastName : null,
                 Cellphone = r.User != null ? r.User.Cellphone : null,
                 OrgName = r.Job != null ? r.Job.JobName : null,
+                StreetAddress = r.User != null ? r.User.StreetAddress : null,
+                City = r.User != null ? r.User.City : null,
+                State = r.User != null ? r.User.State : null,
+                PostalCode = r.User != null ? r.User.PostalCode : null,
                 PaymentPlan = r.Job != null && (r.Job.AdnArb == true)
             })
             .FirstOrDefaultAsync(cancellationToken);

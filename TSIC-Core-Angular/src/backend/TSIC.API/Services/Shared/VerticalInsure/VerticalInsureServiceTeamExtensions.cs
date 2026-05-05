@@ -38,6 +38,15 @@ public partial class VerticalInsureService
                 return new PreSubmitTeamInsuranceDto { Available = false };
             }
 
+            // VI's team-registration product rejects quotes within 14 days of event
+            // start, and we must send a real start date (not a placeholder) so the
+            // window check matches the tournament. Without EventStartDate configured
+            // there is nothing to send — silently skip the offer.
+            if (jobOffer.EventStartDate == null)
+            {
+                return new PreSubmitTeamInsuranceDto { Available = false };
+            }
+
             var teams = await _teamRepo.GetRegisteredTeamsForPaymentAsync(jobId, regId);
             if (teams.Count == 0)
             {
@@ -52,7 +61,7 @@ public partial class VerticalInsureService
             }
 
             var director = await _registrationRepo.GetDirectorContactForJobAsync(jobId);
-            var products = BuildTeamProducts(teams, clubRepUser, director, jobOffer.JobName);
+            var products = BuildTeamProducts(teams, clubRepUser, director, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
             var teamObj = BuildTeamObject(products);
 
             return new PreSubmitTeamInsuranceDto
@@ -262,7 +271,9 @@ public partial class VerticalInsureService
         List<RegisteredTeamInfo> teams,
         AspNetUsers clubRepUser,
         DirectorContactInfo? director,
-        string? jobName)
+        string? jobName,
+        DateTime eventStartDate,
+        DateTime? eventEndDate)
     {
         var products = new List<VITeamProductDto>();
         var contextName = (jobName ?? string.Empty).Split(':')[0];
@@ -308,15 +319,23 @@ public partial class VerticalInsureService
                         name = jobName ?? contextName,
                         type = "Tournament",
                         location = director?.OrgName ?? string.Empty,
+                        // Director runs the event, so the event address is the director's
+                        // address from AspNetUsers. Empty strings here cause VI's team-
+                        // registration endpoint to 400 with "Invalid zip code".
                         address = new VIAddress
                         {
-                            city = string.Empty,
-                            state = string.Empty,
-                            zip = string.Empty,
-                            street = string.Empty
+                            city = director?.City ?? string.Empty,
+                            state = director?.State ?? string.Empty,
+                            zip = director?.PostalCode ?? string.Empty,
+                            street = director?.StreetAddress ?? string.Empty
                         },
-                        event_start_date = DateTime.Now.AddDays(1).ToString("yyyy-MM-dd"),
-                        event_end_date = DateTime.Now.AddYears(1).ToString("yyyy-MM-dd")
+                        // ISO 8601 sortable to match legacy `$"{job.EventStartDate:s}"`.
+                        // VI's team-registration product enforces start ≥ 14 days from
+                        // today; null is filtered out upstream in BuildTeamOfferAsync.
+                        event_start_date = $"{eventStartDate:s}",
+                        event_end_date = eventEndDate.HasValue
+                            ? $"{eventEndDate.Value:s}"
+                            : eventStartDate.AddYears(1).ToString("s")
                     }
                 }
             };

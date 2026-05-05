@@ -535,6 +535,10 @@ public record DirectorContactInfo
     public string? LastName { get; init; }
     public string? Cellphone { get; init; }
     public string? OrgName { get; init; }
+    public string? StreetAddress { get; init; }
+    public string? City { get; init; }
+    public string? State { get; init; }
+    public string? PostalCode { get; init; }
     public required bool PaymentPlan { get; init; }
 }
 

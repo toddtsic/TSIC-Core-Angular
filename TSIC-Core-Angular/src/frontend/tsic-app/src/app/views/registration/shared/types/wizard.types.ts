@@ -68,14 +68,29 @@ export interface VIQuoteParticipant {
     [key: string]: unknown;
 }
 
-/** Global window extension for VerticalInsure constructor. */
+/** Callback bag accepted at constructor position 3 (object form).
+ *  Verified against `@vertical-insure/embedded-offer` source: SDK supports
+ *  passing all callbacks as a single object in this slot. The function form
+ *  (position 3 = onOfferStateChange fn, position 4 = onOfferReady fn) is also
+ *  accepted but offers no path to `onError`. We use the object form. */
+export interface VIWidgetCallbacks {
+    onOfferStateChange?: (state: VIWidgetState) => void;
+    onOfferReady?: (offersAvailable?: unknown) => void;
+    onPurchaseCompleted?: (policies: unknown) => void;
+    onChange?: (state: VIWidgetState) => void;
+    onError?: (errorObj: unknown) => void;
+}
+
+/** Global window extension for VerticalInsure constructor.
+ *  Real signature has 4 args (verified against the SDK ESM bundle): host,
+ *  offerData, callbacks-or-onOfferStateChange-fn, optional onOfferReady-fn.
+ *  We always pass the object form for `callbacks`. */
 export interface VIWindowExtension {
     VerticalInsure?: new (
         hostSelector: string,
         offerData: VIOfferData,
-        onStateChange?: (state: VIWidgetState) => void,
-        onReady?: (state: VIWidgetState) => void,
-        onError?: (...args: unknown[]) => void
+        callbacks: VIWidgetCallbacks | ((state: VIWidgetState) => void),
+        onOfferReady?: (offersAvailable?: unknown) => void,
     ) => VIWidgetInstance;
 }
 

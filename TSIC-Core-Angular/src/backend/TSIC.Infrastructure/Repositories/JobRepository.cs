@@ -162,7 +162,9 @@ public class JobRepository : IJobRepository
             {
                 JobName = j.JobName,
                 BOfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance ?? false,
-                BOfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance ?? false
+                BOfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance ?? false,
+                EventStartDate = j.EventStartDate,
+                EventEndDate = j.EventEndDate
             })
             .SingleOrDefaultAsync(cancellationToken);
     }

@@ -1,106 +1,55 @@
-import { Injectable, inject, signal, computed } from '@angular/core';
+import { Injectable, computed, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import { ToastService } from '@shared-ui/toast.service';
-import { ViDarkModeService } from '@views/registration/shared/services/vi-dark-mode.service';
+import { BaseInsuranceService } from '@views/registration/shared/services/vi-widget-base.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import { InsuranceStateV2Service } from './insurance-state-v2.service';
 import { JobContextService } from './job-context.service';
 import { FamilyPlayersService } from './family-players.service';
 import type { InsurancePurchaseRequestDto, InsurancePurchaseResponseDto, CreditCardInfo } from '@core/api';
-import type { VIOfferData, VIWidgetState, VIWindowExtension } from '@views/registration/shared/types/wizard.types';
+import type { VIQuoteObject } from '@views/registration/shared/types/wizard.types';
 
-export interface VerticalInsureQuote {
-    quote_id?: string;
-    quoteId?: string;
-    total?: number;
-    id?: string;
-    metadata?: Record<string, unknown>;
-    policy_attributes?: {
-        participant?: { first_name?: string; last_name?: string };
-        teams?: { team_name?: string }[];
-    };
-}
+/** Back-compat alias for the player flow's quote shape — structurally a subset
+ *  of the unified VIQuoteObject used by the base service. */
+export type VerticalInsureQuote = VIQuoteObject;
 
 /**
- * Insurance v2 — matches legacy TSIC-Unify-2024 behavior exactly.
- * Callbacks store state only. Confirm/decline is determined at submit time from quotes array.
+ * Player-side insurance service. Inherits the entire VerticalInsure widget
+ * integration from `BaseInsuranceService`; this class only owns the player
+ * purchase endpoint, the player-specific quote display, and the registration-id
+ * extraction needed to map quotes back to TSIC registrations.
  */
 @Injectable({ providedIn: 'root' })
-export class InsuranceV2Service {
+export class InsuranceV2Service extends BaseInsuranceService {
     private readonly jobCtx = inject(JobContextService);
     private readonly fp = inject(FamilyPlayersService);
     private readonly insuranceState = inject(InsuranceStateV2Service);
     private readonly http = inject(HttpClient);
     private readonly toast = inject(ToastService);
-    private readonly viDarkMode = inject(ViDarkModeService);
 
-    private readonly _quotes = signal<VerticalInsureQuote[]>([]);
-    private readonly _hasUserResponse = signal(false);
-    private readonly _error = signal<string | null>(null);
-    private readonly _widgetInitialized = signal(false);
-    private readonly purchasing = signal(false);
+    readonly offerEnabled = computed(() => this.insuranceState.offerPlayerRegSaver());
+    readonly consented = computed(() => this.insuranceState.verticalInsureConfirmed());
+    readonly declined = computed(() => this.insuranceState.verticalInsureDeclined());
 
-    readonly quotes = this._quotes.asReadonly();
-    readonly hasUserResponse = this._hasUserResponse.asReadonly();
-    readonly error = this._error.asReadonly();
-    readonly widgetInitialized = this._widgetInitialized.asReadonly();
-
-    offerEnabled = computed(() => this.insuranceState.offerPlayerRegSaver());
-    consented = computed(() => this.insuranceState.verticalInsureConfirmed());
-    declined = computed(() => this.insuranceState.verticalInsureDeclined());
-
-    initWidget(hostSelector: string, offerData: VIOfferData): void {
-        if (this._widgetInitialized()) return;
-        const viWindow = globalThis as unknown as VIWindowExtension;
-        if (!viWindow.VerticalInsure) {
-            this._error.set('VerticalInsure script missing');
-            return;
-        }
-        try {
-            this.viDarkMode.injectDarkModeColors(offerData);
-            const instance = new viWindow.VerticalInsure(
-                hostSelector,
-                offerData,
-                // onStateChange — fires on user interaction. Store state only.
-                (st: VIWidgetState) => {
-                    instance.validate().then((valid: boolean) => {
-                        this._hasUserResponse.set(valid);
-                        this._quotes.set(st?.quotes || []);
-                        this.viDarkMode.applyViDarkMode(hostSelector);
-                    });
-                },
-                // onReady — fires once when offer loads. Store validity only.
-                () => {
-                    this._widgetInitialized.set(true);
-                    instance.validate().then((valid: boolean) => {
-                        this._hasUserResponse.set(valid);
-                    });
-                    this.viDarkMode.applyViDarkMode(hostSelector);
-                },
-            );
-        } catch (e: unknown) {
-            console.error('VerticalInsure init error', e);
-            this._error.set('VerticalInsure initialization failed');
-        }
-    }
-
-    premiumTotal(): number {
-        return this._quotes().reduce((c, q) => c + Number(q?.total || 0), 0) / 100;
-    }
-
+    /** Player display: name plus the per-player premium in parentheses (each
+     *  VI quote covers one player). */
     quotedPlayers(): string[] {
         return this._quotes().map(q => {
             const fn = q?.policy_attributes?.participant?.first_name?.trim?.() || '';
             const ln = q?.policy_attributes?.participant?.last_name?.trim?.() || '';
             const name = `${fn} ${ln}`.trim();
             if (!name) return '';
-            const totalCents = Number(q?.total || 0);
+            const totalCents = Number(q?.total ?? 0);
             const suffix = totalCents > 0 ? ` ($${(totalCents / 100).toFixed(2)})` : '';
             return name + suffix;
         }).filter(Boolean);
     }
 
+    /** Purchase player insurance policies. Fire-and-forget callback style for
+     *  parity with the legacy player payment flow — the wizard advances on a
+     *  successful TSIC charge regardless of VI's outcome, and this just
+     *  delivers a status message via `onComplete`. */
     purchaseInsurance(card?: {
         number?: string; expiry?: string; code?: string;
         firstName?: string; lastName?: string; zip?: string;
@@ -151,7 +100,7 @@ export class InsuranceV2Service {
                         onComplete?.('Insurance processing failed. Registration is still complete.');
                     }
                 },
-                error: (err: HttpErrorResponse) => {
+                error: (_err: HttpErrorResponse) => {
                     this.purchasing.set(false);
                     this.toast.show('Processing with Vertical Insurance failed', 'danger', 4000);
                     onComplete?.('Insurance processing failed. Registration is still complete.');
@@ -159,21 +108,7 @@ export class InsuranceV2Service {
             });
     }
 
-    /** Full reset — clears all state including widget init flag. */
-    reset(): void {
-        this._quotes.set([]);
-        this._hasUserResponse.set(false);
-        this._error.set(null);
-        this._widgetInitialized.set(false);
-        this.purchasing.set(false);
-    }
-
-    /** Allow the widget to be re-created (e.g. navigating back then forward). */
-    resetWidgetInit(): void {
-        this._widgetInitialized.set(false);
-    }
-
-    private extractRegistrationId(q: VerticalInsureQuote): string {
+    private extractRegistrationId(q: VIQuoteObject): string {
         const idFromMeta = this.extractRegistrationIdFromMeta(q?.metadata);
         if (idFromMeta) return idFromMeta;
         return this.inferRegistrationIdFromParticipant(q);
@@ -192,7 +127,7 @@ export class InsuranceV2Service {
         return '';
     }
 
-    private inferRegistrationIdFromParticipant(q: VerticalInsureQuote): string {
+    private inferRegistrationIdFromParticipant(q: VIQuoteObject): string {
         const fn = q?.policy_attributes?.participant?.first_name?.trim?.() || '';
         const ln = q?.policy_attributes?.participant?.last_name?.trim?.() || '';
         const participant = (fn + ' ' + ln).trim().toLowerCase();
