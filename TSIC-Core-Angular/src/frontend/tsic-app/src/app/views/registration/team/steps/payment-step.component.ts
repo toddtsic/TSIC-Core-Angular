@@ -229,6 +229,12 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                     [disabled]="!canSubmitCc()">
               {{ submitting() ? 'Processing...' : 'Pay ' + (balanceDue() | currency) + ' Now' }}
             </button>
+            @if (viPayHintVisible()) {
+              <div class="vi-pay-hint mt-2 small d-flex align-items-center gap-1" role="status">
+                <i class="bi bi-arrow-up-short"></i>
+                <span>Please respond to the insurance offer above to enable payment.</span>
+              </div>
+            }
           }
 
           <!-- ═══ BANK ACCOUNT (eCheck) FORM ═══ -->
@@ -344,6 +350,12 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                       ? 'Charge ' + (balanceDue() | currency) + ' Now'
                       : 'Schedule ' + (balanceDue() | currency) + ' (Deposit + Balance)') }}
             </button>
+            @if (viPayHintVisible()) {
+              <div class="vi-pay-hint mt-2 small d-flex align-items-center gap-1" role="status">
+                <i class="bi bi-arrow-up-short"></i>
+                <span>Please respond to the insurance offer above to enable payment.</span>
+              </div>
+            }
 
             <!-- Per-team results panel — shown only after a partial-success or all-failed submit. -->
             @if (arbTrialResult(); as r) {
@@ -467,6 +479,16 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
       }
 
       .vi-container { min-height: 280px; }
+
+      /* Validation message under a disabled Pay button that points back up to
+         the insurance widget — same red form-validation convention as VI's own
+         "You must either accept or decline." Spatial separation (top of card vs
+         bottom) means the two reinforce rather than clash. */
+      .vi-pay-hint {
+        color: var(--bs-danger);
+        font-weight: var(--font-weight-semibold);
+      }
+      .vi-pay-hint i { font-size: 1.1rem; }
 
       .discount-label {
         color: var(--bs-danger);
@@ -680,6 +702,15 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     /** True when the VI widget is showing AND the rep has responded (chose teams or declined all). */
     private readonly viDecisionMade = computed(() =>
         !this.showViSection() || this.insuranceSvc.hasUserResponse()
+    );
+
+    /** Hint shown directly under the disabled Pay button when the CC form is valid
+     *  but the rep hasn't responded to the insurance widget yet. The widget itself
+     *  flags the missing response in red ("You must either accept or decline"); this
+     *  hint exists so reps who have scrolled past the widget see WHY Pay is disabled
+     *  at the place they're actually looking. */
+    readonly viPayHintVisible = computed(() =>
+        !this.viDecisionMade() && this.ccValid() && !this.submitting()
     );
 
     readonly canSubmitCc = computed(() =>
