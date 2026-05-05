@@ -68,6 +68,8 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     readonly cellClicked = output<{ row: ScheduleGridRow; colIndex: number; game: ScheduleGameDto | null }>();
     readonly gameMoveRequested = output<{ game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number }>();
     readonly gameDeleteRequested = output<{ game: ScheduleGameDto; row: ScheduleGridRow; colIndex: number }>();
+    /** Fires on cell mouseenter/mouseleave; null on leave or empty cell. Parent uses this for cross-panel highlights (e.g., pairings table). */
+    readonly gameHovered = output<ScheduleGameDto | null>();
 
     // ── Internal computed ──
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
@@ -198,6 +200,11 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     isOtherDivision(game: ScheduleGameDto): boolean {
         const divId = this.highlightDivId();
         return divId != null && game.divId !== divId;
+    }
+
+    /** Visual fade (opacity + grayscale) on non-matching games — gated to the marching-ants flash so it doesn't linger. */
+    isFadedOther(game: ScheduleGameDto): boolean {
+        return this.isOtherDivision(game) && this.highlightAllDiv();
     }
 
     isDivisionMatch(game: ScheduleGameDto): boolean {

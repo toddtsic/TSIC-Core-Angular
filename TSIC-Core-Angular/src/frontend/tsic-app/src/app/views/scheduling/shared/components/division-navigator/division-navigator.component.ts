@@ -1,4 +1,4 @@
-import { Component, input, output, signal, ChangeDetectionStrategy, HostListener, ElementRef, inject } from '@angular/core';
+import { Component, input, output, signal, computed, ChangeDetectionStrategy, HostListener, ElementRef, inject } from '@angular/core';
 import type { AgegroupWithDivisionsDto, AgegroupCanvasReadinessDto, DivisionSummaryDto } from '@core/api';
 import { contrastText, agTeamCount, AGEGROUP_COLORS } from '../../utils/scheduling-helpers';
 import type { ScheduleScope } from '../../utils/scheduling-helpers';
@@ -18,7 +18,6 @@ export class DivisionNavigatorComponent {
     readonly selectedScope = input<ScheduleScope>({ level: 'event' });
     readonly jobName = input<string>('');
     readonly isLoading = input(false);
-    readonly showCollapseAll = input(true);
     readonly readinessMap = input<Record<string, AgegroupCanvasReadinessDto>>({});
 
     // ── Outputs ──
@@ -28,8 +27,17 @@ export class DivisionNavigatorComponent {
     readonly colorChanged = output<{ agegroupId: string; color: string | null }>();
 
     // ── Internal state ──
-    readonly expandedAgegroups = signal<Set<string>>(new Set());
     readonly colorPickerAgId = signal<string | null>(null);
+
+    /** Tree expansion is purely a function of selectedScope: the parent agegroup
+     * of the current scope is expanded; everything else is collapsed. No external
+     * mutation needed — callers just update scope and the tree follows. */
+    private readonly expandedAgegroupId = computed(() => {
+        const s = this.selectedScope();
+        if (s.level === 'agegroup') return s.agegroupId;
+        if (s.level === 'division') return s.agegroupId;
+        return null;
+    });
 
     // ── Helpers (bound as readonly for template) ──
     readonly contrastText = contrastText;
@@ -46,26 +54,12 @@ export class DivisionNavigatorComponent {
 
     // ── Methods ──
 
-    toggleAgegroup(agId: string): void {
-        const current = new Set(this.expandedAgegroups());
-        if (current.has(agId)) current.delete(agId);
-        else current.add(agId);
-        this.expandedAgegroups.set(current);
-    }
-
     selectAgegroup(agId: string): void {
-        const current = new Set(this.expandedAgegroups());
-        current.add(agId);
-        this.expandedAgegroups.set(current);
         this.agegroupSelected.emit({ agegroupId: agId });
     }
 
     isExpanded(agId: string): boolean {
-        return this.expandedAgegroups().has(agId);
-    }
-
-    collapseAll(): void {
-        this.expandedAgegroups.set(new Set());
+        return this.expandedAgegroupId() === agId;
     }
 
     selectDivision(div: DivisionSummaryDto, agegroupId: string): void {

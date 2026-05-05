@@ -23,7 +23,6 @@
                         [selectedScope]="scope()"
                         [jobName]="gameSummary()?.jobName ?? 'Event'"
                         [isLoading]="isNavLoading()"
-                        [showCollapseAll]="true"
                         [readinessMap]="canvasReadiness()"
                         (eventSelected)="onEventSelected()"
                         (agegroupSelected)="onAgegroupSelected($event)"
@@ -38,6 +37,7 @@
                         [isPairingsLoading]="isPairingsLoading()"
                         [placementMode]="placementMode()"
                         [selectedPairingAi]="selectedPairing()?.ai ?? null"
+                        [hoveredPairingAi]="hoveredPairingAi()"
                         [teamCount]="teamCount()"
                         [whoPlaysWhoMatrix]="whoPlaysWhoMatrix()"
                         [divisionTeams]="divisionTeams()"
@@ -520,7 +520,8 @@
                                         [blockSelection]="blockSelection()"
                                         (cellClicked)="onGridCellClick($event)"
                                         (gameMoveRequested)="selectGameForMove($event.game, $event.row, $event.colIndex)"
-                                        (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)">
+                                        (gameDeleteRequested)="deleteGame($event.game, $event.row, $event.colIndex)"
+                                        (gameHovered)="onGameHovered($event)">
 
                                         <ng-container gridActions>
                                             @if (hasGamesInScope()) {

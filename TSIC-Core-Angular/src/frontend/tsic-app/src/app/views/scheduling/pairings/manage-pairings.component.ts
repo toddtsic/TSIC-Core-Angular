@@ -142,7 +142,6 @@ export class ManagePairingsComponent implements OnInit {
                 const firstAg = filtered[0];
                 const firstDiv = firstAg?.divisions[0];
                 if (firstAg && firstDiv) {
-                    this.navigator?.toggleAgegroup(firstAg.agegroupId);
                     this.onDivisionSelected({ division: firstDiv, agegroupId: firstAg.agegroupId });
                 }
             },

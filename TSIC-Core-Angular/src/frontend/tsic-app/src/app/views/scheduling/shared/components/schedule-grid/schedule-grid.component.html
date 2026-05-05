@@ -102,13 +102,16 @@
                                     [class.cell-back-to-back]="cell && !isBreaking(cell) && isBackToBack(cell)"
                                     [class.cell-other-div]="cell && isOtherDivision(cell)"
                                     [class.cell-block-selected]="isInBlockSelection(ri, ci)"
-                                    (click)="onCellClick(row, ci)">
+                                    (click)="onCellClick(row, ci)"
+                                    (mouseenter)="gameHovered.emit(cell ?? null)"
+                                    (mouseleave)="gameHovered.emit(null)">
                                     @if (cell) {
                                         <app-game-card
                                             [game]="cell"
                                             [showActions]="showActionButtons() && !isOtherDivision(cell) && !selectedGameGid()"
                                             [isSelected]="isGameSelected(cell)"
                                             [isOtherDivision]="isOtherDivision(cell)"
+                                            [isFadedOther]="isFadedOther(cell)"
                                             [style.outline]="showDivGlow(cell) ? '3px solid ' + highlightDivColor() : null"
                                             [conflictIcons]="{
                                                 slotCollision: isSlotCollision(cell),

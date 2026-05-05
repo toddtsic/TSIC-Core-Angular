@@ -53,6 +53,7 @@
                     @for (p of rrPairings(); track p.ai) {
                         <div class="pairing-row"
                              [class.pairing-selected]="isPairingSelected(p)"
+                             [class.pairing-hovered]="hoveredPairingAi() === p.ai"
                              [class.pairing-scheduled]="!p.bAvailable"
                              (click)="onPairingClick(p)">
                             <span class="pairing-gno">G{{ p.gameNumber }}</span>

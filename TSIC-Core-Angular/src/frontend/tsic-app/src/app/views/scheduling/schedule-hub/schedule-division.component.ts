@@ -308,10 +308,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     selectCrumbAgegroup(agId: string): void {
         this.openCrumbDropdown.set(null);
         this.isGridRefreshing.set(true);
-        setTimeout(() => {
-            this.navigator?.expandedAgegroups.set(new Set([agId]));
-            this.onAgegroupSelected({ agegroupId: agId });
-        }, 0);
+        setTimeout(() => this.onAgegroupSelected({ agegroupId: agId }), 0);
     }
 
     selectCrumbDivision(divId: string): void {
@@ -322,10 +319,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         const div = ag?.divisions.find(d => d.divId === divId);
         if (!div) return;
         this.isGridRefreshing.set(true);
-        setTimeout(() => {
-            this.navigator?.expandedAgegroups.set(new Set([agId]));
-            this.onDivisionSelected({ division: div, agegroupId: agId });
-        }, 0);
+        setTimeout(() => this.onDivisionSelected({ division: div, agegroupId: agId }), 0);
     }
 
     closeCrumbDropdowns(): void {
@@ -817,6 +811,30 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         }
     }
 
+    /** AI of the pairing whose corresponding scheduled game is currently hovered in the grid (RR only). */
+    readonly hoveredPairingAi = signal<number | null>(null);
+
+    /** Called from schedule-grid on cell mouseenter/mouseleave. Maps the hovered game to its RR pairing. */
+    onGameHovered(game: ScheduleGameDto | null): void {
+        if (!game || game.t1Type !== 'T' || game.t2Type !== 'T') {
+            this.hoveredPairingAi.set(null);
+            return;
+        }
+        // Only highlight if the hovered game is in the currently selected division.
+        const selDivId = this.selectedDivision()?.divId;
+        if (!selDivId || game.divId !== selDivId) {
+            this.hoveredPairingAi.set(null);
+            return;
+        }
+        const match = this.pairings().find(p =>
+            p.t1Type === 'T' && p.t2Type === 'T' &&
+            p.rnd === game.rnd &&
+            ((p.t1 === game.t1No && p.t2 === game.t2No) ||
+             (p.t1 === game.t2No && p.t2 === game.t1No))
+        );
+        this.hoveredPairingAi.set(match?.ai ?? null);
+    }
+
     onDivisionSelected(event: { division: DivisionSummaryDto; agegroupId: string }): void {
         this.scope.set({ level: 'division', agegroupId: event.agegroupId, divId: event.division.divId });
         this.dismissBuildResults();
@@ -825,6 +843,8 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         this.highlightGameGid.set(null);
         this.showDeleteConfirm.set(false);
         this.loadDivisionData(event.division.divId, event.agegroupId);
+        // Defer to next tick so the pairings panel has rendered (it's @if'd on division scope).
+        setTimeout(() => this.pairingsPanel?.forceRrOpen());
     }
 
     onAgegroupColorChanged(event: { agegroupId: string; color: string | null }): void {
@@ -1238,14 +1258,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         const div = ag.divisions.find(d => d.divId === divId);
         if (!div) return;
 
-        // Expand agegroup in tree navigator
-        this.navigator?.expandedAgegroups.update(set => {
-            const updated = new Set(set);
-            updated.add(ag.agegroupId);
-            return updated;
-        });
-
-        // Navigate to division scope
+        // Navigate to division scope (navigator's tree expansion is derived from scope)
         this.scope.set({ level: 'division', agegroupId: ag.agegroupId, divId });
         this.loadDivisionData(divId, ag.agegroupId);
 

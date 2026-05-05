@@ -45,6 +45,11 @@
         border-left: 3px solid var(--bs-success);
     }
 
+    &.pairing-hovered {
+        background: rgba(var(--bs-info-rgb), 0.18);
+        border-left: 3px solid var(--bs-info);
+    }
+
     &.pairing-scheduled {
         color: var(--bs-secondary-color);
     }

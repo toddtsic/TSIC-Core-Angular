@@ -19,6 +19,8 @@ export class PairingsPanelComponent {
     readonly isPairingsLoading = input(false);
     readonly placementMode = input<'mouse' | 'keyboard'>('mouse');
     readonly selectedPairingAi = input<number | null>(null);
+    /** AI of the pairing whose scheduled game is currently hovered in the grid (RR only). */
+    readonly hoveredPairingAi = input<number | null>(null);
     readonly teamCount = input(0);
     readonly whoPlaysWhoMatrix = input<number[][] | null>(null);
     readonly divisionTeams = input<DivisionTeamDto[]>([]);

@@ -1,6 +1,7 @@
 <div class="game-card"
      [class.game-card-current]="!isOtherDivision()"
      [class.game-card-other]="isOtherDivision()"
+     [class.game-card-faded]="isFadedOther()"
      [class.game-card-breaking]="conflictIcons().slotCollision || conflictIcons().timeClash"
      [class.game-card-back-to-back]="!(conflictIcons().slotCollision || conflictIcons().timeClash) && conflictIcons().backToBack"
      [style.border-left-color]="game().color || 'var(--bs-primary)'"

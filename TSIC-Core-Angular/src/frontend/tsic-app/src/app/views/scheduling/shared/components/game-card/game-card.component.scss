@@ -124,15 +124,19 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
-// ── Other-division games (strongly dimmed) ──
+// ── Other-division games: action suppression (persistent during division scope) ──
 
 .game-card-other {
-    opacity: 0.3;
-    filter: grayscale(50%);
-
     .game-actions {
         display: none !important;
     }
+}
+
+// ── Other-division games: visual fade (transient, only during the marching-ants flash) ──
+
+.game-card-faded {
+    opacity: 0.3;
+    filter: grayscale(50%);
 }
 
 // ── Conflict state overrides ──

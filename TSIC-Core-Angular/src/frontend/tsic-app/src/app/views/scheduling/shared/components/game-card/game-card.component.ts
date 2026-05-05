@@ -16,6 +16,8 @@ export class GameCardComponent {
     readonly showActions = input(false);
     readonly isSelected = input(false);
     readonly isOtherDivision = input(false);
+    /** Visual fade (opacity + grayscale). Distinct from isOtherDivision, which gates action suppression. */
+    readonly isFadedOther = input(false);
     readonly conflictIcons = input<{ slotCollision: boolean; timeClash: boolean; backToBack: boolean }>(
         { slotCollision: false, timeClash: false, backToBack: false }
     );
