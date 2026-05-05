@@ -56,9 +56,77 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
           <div class="alert alert-success border-0 mb-3" role="status">
             <div class="d-flex align-items-center gap-2">
               <span class="badge bg-success">No Balance</span>
-              <div>No payment is required at this time. You may proceed to the review step.</div>
+              @if (showViStandaloneSection()) {
+                <div>All team registration fees have been paid. Optional team registration insurance is available below.</div>
+              } @else {
+                <div>No payment is required at this time. You may proceed to the review step.</div>
+              }
             </div>
           </div>
+
+          <!-- ═══ STANDALONE VI PURCHASE (returning rep, PIF) ═══
+               Surfaces when TSIC is paid but uncovered teams remain and the offer
+               is still within VI's 14-day window. Independent CC entry — does not
+               touch TSIC at all. Same charge-confirm modal as the bundled flow. -->
+          @if (showViStandaloneSection()) {
+            <div class="insurance-wrapper mb-4">
+              <header class="insurance-card-title">
+                <i class="bi bi-shield-check me-2"></i>Team Registration Insurance
+              </header>
+              @if (insuranceSvc.widgetError(); as viErr) {
+                <div class="alert alert-warning border-0 mb-0 small" role="alert">
+                  <strong>Insurance is unavailable for this session.</strong>
+                  You can still proceed to review.
+                  <span class="text-muted">({{ viErr }})</span>
+                </div>
+              } @else {
+                <div #viOffer id="dVITeamOffer" class="text-center vi-container">
+                  @if (!insuranceSvc.widgetInitialized()) {
+                    <div class="py-4">
+                      <div class="spinner-border spinner-border-sm text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                      </div>
+                      <p class="text-muted mt-2 small mb-0">Getting Team Registration Insurance Quote...</p>
+                    </div>
+                  }
+                </div>
+
+                @if (insuranceSvc.widgetInitialized() && insuranceSvc.hasUserResponse() && insuranceSvc.quotes().length > 0) {
+                  <!-- Rep accepted — collect a fresh card for the VI charge. -->
+                  <section class="p-3 p-sm-4 mt-3 rounded-3"
+                           style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+                    <h6 class="fw-semibold mb-3">Payment for Insurance</h6>
+                    <app-credit-card-form
+                      [defaultFirstName]="clubRepContact()?.firstName ?? null"
+                      [defaultLastName]="clubRepContact()?.lastName ?? null"
+                      [defaultAddress]="clubRepContact()?.streetAddress ?? null"
+                      [defaultZip]="clubRepContact()?.postalCode ?? null"
+                      [defaultEmail]="clubRepContact()?.email ?? null"
+                      [defaultPhone]="clubRepContact()?.cellphone ?? clubRepContact()?.phone ?? null"
+                      (validChange)="onCcValidChange($event)"
+                      (valueChange)="onCcValueChange($event)" />
+                  </section>
+
+                  <button type="button" class="btn btn-primary mt-2"
+                          (click)="submitViOnly()"
+                          [disabled]="!canSubmitViOnly()">
+                    {{ submitting() ? 'Processing...' : 'Purchase Insurance ' + (viPremiumTotal() | currency) }}
+                  </button>
+                  @if (viOnlyPayHintVisible()) {
+                    <div class="vi-pay-hint mt-2 small d-flex align-items-center gap-1" role="status">
+                      <i class="bi bi-arrow-up-short"></i>
+                      <span>Please respond to the insurance offer above to enable purchase.</span>
+                    </div>
+                  }
+                } @else if (insuranceSvc.widgetInitialized() && insuranceSvc.hasUserResponse()) {
+                  <!-- Rep declined coverage. No charge to make — wizard footer handles advance. -->
+                  <div class="alert alert-secondary border-0 small mb-0 mt-2" role="status">
+                    No coverage selected. Use <strong>Proceed to Review</strong> below to continue.
+                  </div>
+                }
+              }
+            </div>
+          }
         } @else {
           <!-- Balance banner -->
           <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3 bg-primary text-white">
@@ -196,17 +264,6 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                 }
               }
             </div>
-          }
-
-          <!-- VI charge confirmation modal -->
-          @if (showViChargeConfirm()) {
-            <app-vi-charge-confirm-modal
-              [quotedPlayers]="viQuotedTeams()"
-              [premiumTotal]="viPremiumTotal()"
-              [email]="viCcEmail()"
-              [viCcOnlyFlow]="false"
-              (cancelled)="cancelViConfirm()"
-              (confirmed)="confirmViAndContinue()" />
           }
 
           <!-- ═══ CREDIT CARD FORM ═══ -->
@@ -447,6 +504,18 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             </button>
           }
         }
+
+        <!-- VI charge confirmation modal — outside the balance/no-balance split
+             so it renders for both bundled (CC submit) and standalone (VI-only) flows. -->
+        @if (showViChargeConfirm()) {
+          <app-vi-charge-confirm-modal
+            [quotedPlayers]="viQuotedTeams()"
+            [premiumTotal]="viPremiumTotal()"
+            [email]="viCcEmail()"
+            [viCcOnlyFlow]="false"
+            (cancelled)="cancelViConfirm()"
+            (confirmed)="confirmViAndContinue()" />
+        }
       </div>
     </div>
   `,
@@ -639,7 +708,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     private viInitTimeout?: ReturnType<typeof setTimeout>;
     private viInitRetries = 0;
     /** Which submit path triggered the modal — needed so confirmViAndContinue routes back correctly. */
-    private pendingViSubmitFlow: 'cc' | 'arbTrial' | null = null;
+    private pendingViSubmitFlow: 'cc' | 'arbTrial' | 'viOnly' | null = null;
 
     readonly clubRepContact = computed(() => this.state.clubRepContact());
     readonly hasBalance = computed(() => this.state.teamPayment.hasBalance());
@@ -695,6 +764,16 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         && (this.isCc() || (this.isArbTrial() && this.arbTrialSource() === 'CC'))
     );
 
+    /** Standalone VI surface for returning reps who are paid in full but still have
+     *  uncovered teams within VI's 14-day window. Backend `BuildTeamOfferAsync`
+     *  returns `Available=true` only when uncovered teams + 14-day window both hold,
+     *  so checking `verticalInsureOffer().data` covers both conditions. */
+    readonly showViStandaloneSection = computed(() =>
+        !this.hasBalance()
+        && this.insuranceState.offerTeamRegSaver()
+        && this.insuranceState.verticalInsureOffer().data !== null
+    );
+
     readonly viQuotedTeams = computed(() => this.insuranceSvc.quotedTeams());
     readonly viPremiumTotal = computed(() => this.insuranceSvc.premiumTotal());
     readonly viCcEmail = computed(() => this.clubRepContact()?.email ?? '');
@@ -711,6 +790,25 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
      *  at the place they're actually looking. */
     readonly viPayHintVisible = computed(() =>
         !this.viDecisionMade() && this.ccValid() && !this.submitting()
+    );
+
+    /** VI-only purchase gate (standalone section): widget responded with quotes,
+     *  CC valid, not already submitting. Decline path uses the wizard footer instead. */
+    readonly canSubmitViOnly = computed(() =>
+        this.showViStandaloneSection()
+        && this.insuranceSvc.hasUserResponse()
+        && this.insuranceSvc.quotes().length > 0
+        && this.ccValid()
+        && !this.submitting()
+    );
+
+    /** Same idea as viPayHintVisible but for the standalone VI-only Purchase button. */
+    readonly viOnlyPayHintVisible = computed(() =>
+        this.showViStandaloneSection()
+        && this.insuranceSvc.quotes().length > 0
+        && this.ccValid()
+        && !this.insuranceSvc.hasUserResponse()
+        && !this.submitting()
     );
 
     readonly canSubmitCc = computed(() =>
@@ -794,13 +892,14 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         this.tryInitViWidget();
     }
 
-    /** Mount the widget on #dVITeamOffer when the section is visible.
+    /** Mount the widget on #dVITeamOffer when either VI section is visible.
      *  Retries with backoff when the DOM node hasn't rendered yet — happens on
-     *  first paint and immediately after a method toggle that flips showViSection. */
+     *  first paint and immediately after a method toggle that flips visibility. */
     private tryInitViWidget(): void {
         const offerData = this.insuranceState.verticalInsureOffer().data;
         if (!offerData) return;
-        if (this.viOfferElement?.nativeElement && this.showViSection()) {
+        const visible = this.showViSection() || this.showViStandaloneSection();
+        if (this.viOfferElement?.nativeElement && visible) {
             this.viInitRetries = 0;
             this.insuranceSvc.initWidget('#dVITeamOffer', offerData as VIOfferData);
             return;
@@ -823,11 +922,49 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         this.pendingViSubmitFlow = null;
         if (flow === 'cc') this.continueCcSubmit();
         else if (flow === 'arbTrial') this.continueArbTrialSubmit();
+        else if (flow === 'viOnly') this.continueViOnlySubmit();
+    }
+
+    /** Standalone VI purchase entry — TSIC is already paid; we only charge VI. */
+    submitViOnly(): void {
+        if (this.submitting() || !this.canSubmitViOnly()) return;
+        this.captureViDecision();
+        if (this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) {
+            this.pendingViSubmitFlow = 'viOnly';
+            this.showViChargeConfirm.set(true);
+        }
+    }
+
+    private async continueViOnlySubmit(): Promise<void> {
+        this.submitting.set(true);
+        this.lastError.set(null);
+        const ccInfo = this.buildCreditCardInfo();
+        try {
+            const result = await this.insuranceSvc.purchaseTeamInsurance(ccInfo);
+            if (result.success && result.policies) {
+                this.insuranceState.updatePolicyNumbers(result.policies);
+                // Clear the offer so the standalone section hides — purchased teams
+                // are now covered, no remaining uncovered teams to surface. Rep uses
+                // the wizard footer's "Proceed to Review" (now enabled because policy
+                // numbers are recorded, clearing the canContinue gate).
+                this.insuranceState.setVerticalInsureOffer({ loading: false, data: null, error: null });
+                this.insuranceSvc.reset();
+                this.toast.show('Insurance purchased successfully', 'success', 3000);
+            } else {
+                this.toast.show(result.error || 'Insurance purchase failed.', 'danger', 4000);
+            }
+        } catch (e: unknown) {
+            console.warn('[Team Payment] VI-only purchase threw', e);
+            this.toast.show('Insurance purchase failed.', 'danger', 4000);
+        } finally {
+            this.submitting.set(false);
+        }
     }
 
     /** Snapshot current widget state into the consent store. Quotes>0 ⇒ confirmed; 0 ⇒ declined. */
     private captureViDecision(): void {
-        if (!this.showViSection() || !this.insuranceSvc.hasUserResponse()) return;
+        const widgetVisible = this.showViSection() || this.showViStandaloneSection();
+        if (!widgetVisible || !this.insuranceSvc.hasUserResponse()) return;
         const quotes = this.insuranceSvc.quotes();
         if (quotes.length > 0) {
             this.insuranceState.confirmVerticalInsurePurchase(quotes as unknown as Record<string, unknown>[]);
@@ -942,17 +1079,17 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
      *  whatever we have on lastPayment, then advance the wizard. VI purchase
      *  failure surfaces as a toast but never blocks the wizard advance. */
     private async chainViPurchaseAndAdvance(
-        teamIds: string[],
+        _teamIds: string[],
         ccInfo: CreditCardInfo,
         baseSummary: { transactionId?: string; amount: number; message: string; paymentMethod?: 'CC' | 'Echeck' | 'Check' },
     ): Promise<void> {
         let viPolicyNumbers: Record<string, string> | undefined;
         if (this.insuranceState.verticalInsureConfirmed() && this.insuranceSvc.quotes().length > 0) {
-            const quoteIds = this.insuranceSvc.quotes()
-                .map(q => String(q?.quote_id ?? q?.quoteId ?? q?.id ?? ''))
-                .filter(Boolean);
             try {
-                const result = await this.insuranceSvc.purchaseTeamInsurance(teamIds, quoteIds, ccInfo);
+                // Service derives teamIds + quoteIds from its own quotes — keeps
+                // the two arrays aligned (rep may have accepted coverage on a
+                // subset of paid teams; widget quotes are the source of truth).
+                const result = await this.insuranceSvc.purchaseTeamInsurance(ccInfo);
                 if (result.success && result.policies) {
                     viPolicyNumbers = result.policies;
                     this.insuranceState.updatePolicyNumbers(result.policies);
@@ -1122,10 +1259,9 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                             && this.insuranceState.verticalInsureConfirmed()
                             && this.insuranceSvc.quotes().length > 0
                         ) {
-                            const quoteIds = this.insuranceSvc.quotes()
-                                .map(q => String(q?.quote_id ?? (q as { id?: string }).id ?? ''))
-                                .filter(Boolean);
-                            this.insuranceSvc.purchaseTeamInsurance(teamIds, quoteIds, creditCard)
+                            // Service derives teamIds + quoteIds from its own
+                            // quotes (rep may have insured a subset of paid teams).
+                            this.insuranceSvc.purchaseTeamInsurance(creditCard)
                                 .then(result => {
                                     if (result.success && result.policies) {
                                         this.insuranceState.updatePolicyNumbers(result.policies);

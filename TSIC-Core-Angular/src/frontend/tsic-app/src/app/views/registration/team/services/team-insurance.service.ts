@@ -62,22 +62,37 @@ export class TeamInsuranceService extends BaseInsuranceService {
     }
 
     /** Purchase team insurance policies. Backend derives jobId + clubRepRegId
-     *  from the JWT; we provide the chosen team IDs, the quote IDs from the
-     *  widget, and the credit card. */
+     *  from the JWT; teamIds + quoteIds are derived from the widget's quotes
+     *  (the rep may have accepted coverage on a subset of paid teams). */
     async purchaseTeamInsurance(
-        teamIds: string[],
-        quoteIds: string[],
         card: CreditCardInfo,
     ): Promise<{ success: boolean; policies?: Record<string, string>; error?: string }> {
         if (this.purchasing()) {
             return { success: false, error: 'Purchase already in progress' };
         }
 
+        // Derive teamIds + quoteIds from quotes so they're aligned by construction.
+        // VI's quote metadata carries `tsic_teamid` which is the canonical link
+        // back to TSIC's Teams.TeamId for each insured team.
+        const quotes = this._quotes();
+        const pairs = quotes
+            .map(q => {
+                const meta = q?.metadata as Record<string, unknown> | undefined;
+                const teamId = meta ? String(meta['tsic_teamid'] ?? '') : '';
+                const quoteId = String(q?.quote_id ?? q?.quoteId ?? '');
+                return { teamId, quoteId };
+            })
+            .filter(p => p.teamId && p.quoteId);
+
+        if (pairs.length === 0) {
+            return { success: false, error: 'No insurable teams in current quotes.' };
+        }
+
         try {
             this.purchasing.set(true);
             const request: TeamInsurancePurchaseRequestDto = {
-                teamIds,
-                quoteIds,
+                teamIds: pairs.map(p => p.teamId),
+                quoteIds: pairs.map(p => p.quoteId),
                 creditCard: card,
             };
 

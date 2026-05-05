@@ -47,6 +47,14 @@ public partial class VerticalInsureService
                 return new PreSubmitTeamInsuranceDto { Available = false };
             }
 
+            // Don't surface an offer the carrier will reject. VI's 14-day cutoff is
+            // measured against EventStartDate; mirror it here so reps don't see a
+            // widget that would 400 on quote.
+            if (jobOffer.EventStartDate.Value.Date < DateTime.UtcNow.Date.AddDays(14))
+            {
+                return new PreSubmitTeamInsuranceDto { Available = false };
+            }
+
             var teams = await _teamRepo.GetRegisteredTeamsForPaymentAsync(jobId, regId);
             if (teams.Count == 0)
             {

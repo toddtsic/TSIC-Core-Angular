@@ -9,6 +9,8 @@ import { JobService } from '@infrastructure/services/job.service';
 import { JobContextService as InfraJobContext } from '@infrastructure/services/job-context.service';
 import { TeamWizardStateService } from './state/team-wizard-state.service';
 import { TeamRegistrationService } from './services/team-registration.service';
+import { TeamInsuranceService } from './services/team-insurance.service';
+import { TeamInsuranceStateService } from './services/team-insurance-state.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { TeamLoginStepComponent } from './steps/login-step.component';
 import { TeamTeamsStepComponent } from './steps/teams-step.component';
@@ -139,6 +141,8 @@ export class TeamWizardV2Component implements OnInit {
     private readonly teamReg = inject(TeamRegistrationService);
     private readonly destroyRef = inject(DestroyRef);
     readonly state = inject(TeamWizardStateService);
+    private readonly insuranceState = inject(TeamInsuranceStateService);
+    private readonly insuranceSvc = inject(TeamInsuranceService);
 
     // Step id, not index, is the source of truth. Index-based state breaks deep links
     // when activeSteps changes shape after async metadata load (e.g. waivers coming
@@ -207,7 +211,21 @@ export class TeamWizardV2Component implements OnInit {
             case 'login': return this.hasWizardSession();
             case 'teams': return true; // validation in proceedToPayment()
             case 'waivers': return this.state.waiverAccepted();
-            case 'payment': return !this.state.teamPayment.hasBalance();
+            case 'payment': {
+                if (this.state.teamPayment.hasBalance()) return false;
+                // Block "Proceed to Review" while a standalone VI commitment is open:
+                // rep accepted coverage on the widget but hasn't completed the purchase.
+                // Once they click Purchase Insurance and policies are recorded, this clears.
+                const standaloneOffered = this.insuranceState.offerTeamRegSaver()
+                    && this.insuranceState.verticalInsureOffer().data !== null;
+                if (standaloneOffered
+                    && this.insuranceSvc.hasUserResponse()
+                    && this.insuranceSvc.quotes().length > 0
+                    && !this.insuranceState.viConsent()?.policyNumbers) {
+                    return false;
+                }
+                return true;
+            }
             case 'review': return true;
             default: return false;
         }

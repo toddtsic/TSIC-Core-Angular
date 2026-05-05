@@ -10,7 +10,7 @@ import { LoginComponent } from '@views/auth/login/login.component';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
 import { TeamInsuranceService } from '@views/registration/team/services/team-insurance.service';
 import type { AuthTokenResponse, CreditCardInfo, SetWizardContextRequest } from '@core/api';
-import type { VIOfferData, VIQuoteObject } from '@views/registration/shared/types/wizard.types';
+import type { VIOfferData } from '@views/registration/shared/types/wizard.types';
 
 type ViewState = 'login' | 'loading' | 'offer' | 'nothing' | 'success' | 'error';
 
@@ -298,11 +298,8 @@ export class ClubRepVIUpdateComponent implements OnDestroy {
             this.toast.show('Credit card information is required.', 'danger', 3000);
             return;
         }
-        const quotes = this.teamInsurance.quotes();
-        const quoteIds = quotes.map(q => String(q?.quote_id ?? '')).filter(Boolean);
-        const teamIds = quotes.map(q => this.extractTeamId(q)).filter(Boolean);
-        if (quoteIds.length === 0 || quoteIds.length !== teamIds.length) {
-            this.toast.show('Insurance quote / team mismatch. Please retry.', 'danger', 4000);
+        if (this.teamInsurance.quotes().length === 0) {
+            this.toast.show('No insurance quotes to purchase.', 'danger', 4000);
             return;
         }
 
@@ -319,7 +316,7 @@ export class ClubRepVIUpdateComponent implements OnDestroy {
         };
 
         this.purchasing.set(true);
-        this.teamInsurance.purchaseTeamInsurance(teamIds, quoteIds, card)
+        this.teamInsurance.purchaseTeamInsurance(card)
             .then(result => {
                 this.purchasing.set(false);
                 if (result.success) {
@@ -377,13 +374,5 @@ export class ClubRepVIUpdateComponent implements OnDestroy {
         }
         this.viInitRetries = 0;
         this.teamInsurance.initWidget('#dVITeamOffer', offerData);
-    }
-
-    private extractTeamId(q: VIQuoteObject): string {
-        const meta = q?.metadata as Record<string, unknown> | undefined;
-        if (!meta) return '';
-        // Backend sets metadata.tsic_teamid (lowercase, snake_case) per VITeamMetadataDto.
-        const direct = meta['tsic_teamid'] ?? meta['tsicTeamId'] ?? meta['TsicTeamId'];
-        return direct ? String(direct) : '';
     }
 }
