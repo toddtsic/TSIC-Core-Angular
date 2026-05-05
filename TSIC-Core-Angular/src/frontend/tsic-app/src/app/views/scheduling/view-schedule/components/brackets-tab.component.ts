@@ -156,6 +156,9 @@ export class BracketsTabComponent implements OnDestroy {
     canScore = input<boolean>(false);
     isLoading = input<boolean>(false);
     agegroupColors = input<Record<string, string | null>>({});
+    followedTeamIds = input<readonly string[]>([]);
+
+    private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
 
     @Output() editBracketScore = new EventEmitter<{
         gid: number;
@@ -405,14 +408,18 @@ export class BracketsTabComponent implements OnDestroy {
                     t2ScoreColor = t1Wins ? 'color:var(--bs-danger);' : 'color:var(--bs-success);';
                 }
 
-                // Team name spans — clickable via DOM delegation when team ID exists
+                // Team name spans — clickable via DOM delegation when team ID exists.
+                // Bold weight applied when the team is in the user's followed set.
+                const followed = this.followedSet();
+                const t1Bold = data.t1Id && followed.has(data.t1Id) ? 'font-weight:700;' : '';
+                const t2Bold = data.t2Id && followed.has(data.t2Id) ? 'font-weight:700;' : '';
                 const t1NameHtml = data.t1Id
-                    ? `<span data-team-id="${data.t1Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;">${this.escapeHtml(data.t1Name)}</span>`
-                    : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${this.escapeHtml(data.t1Name)}</span>`;
+                    ? `<span data-team-id="${data.t1Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;${t1Bold}">${this.escapeHtml(data.t1Name)}</span>`
+                    : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;${t1Bold}">${this.escapeHtml(data.t1Name)}</span>`;
 
                 const t2NameHtml = data.t2Id
-                    ? `<span data-team-id="${data.t2Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;">${this.escapeHtml(data.t2Name)}</span>`
-                    : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;">${this.escapeHtml(data.t2Name)}</span>`;
+                    ? `<span data-team-id="${data.t2Id}" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;text-decoration:underline;cursor:pointer;${t2Bold}">${this.escapeHtml(data.t2Name)}</span>`
+                    : `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;${t2Bold}">${this.escapeHtml(data.t2Name)}</span>`;
 
                 // Location line — clickable link to field directions when fieldId exists
                 const locHtml = data.fieldId && loc

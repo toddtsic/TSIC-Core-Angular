@@ -28,15 +28,6 @@ import type { ViewGameDto } from '@core/api';
                 <i class="bi bi-calendar-x me-2"></i>No games match the current filters.
             </div>
         } @else {
-            <!-- Summary -->
-            <div class="games-summary">
-                {{ games().length }} {{ games().length === 1 ? 'game' : 'games' }}
-                @if (scoredCount() < games().length) {
-                    <span class="summary-sep">&middot;</span>
-                    {{ scoredCount() }} scored
-                }
-            </div>
-
             <!-- ═══════════════════════════════════════════════════════
                  DESKTOP GRID (≥768px) — div-based, CSS order anti-scrape
                  DOM order is intentionally scrambled; CSS order restores visual.
@@ -68,7 +59,7 @@ import type { ViewGameDto } from '@core/api';
                                         (click)="onStarClick(game.t2Id!)">
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                 </button>
-                                <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
+                                <span class="clickable" [class.team-name--followed]="isFollowed(game.t2Id)" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
                             } @else {
                                 <span>{{ game.t2Name }}</span>
                             }
@@ -126,7 +117,7 @@ import type { ViewGameDto } from '@core/api';
                         <!-- ▼ Home team (DOM:6 Visual:5) -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
                             @if (game.t1Id) {
-                                <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
+                                <span class="clickable" [class.team-name--followed]="isFollowed(game.t1Id)" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t1Id)"
                                         [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
@@ -217,7 +208,7 @@ import type { ViewGameDto } from '@core/api';
                                             (click)="onStarClick(game.t1Id!)">
                                         <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                     </button>
-                                    <span class="clickable" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
+                                    <span class="clickable" [class.team-name--followed]="isFollowed(game.t1Id)" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
                                 } @else {
                                     {{ game.t1Name }}
                                 }
@@ -241,7 +232,7 @@ import type { ViewGameDto } from '@core/api';
                                             (click)="onStarClick(game.t2Id!)">
                                         <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                     </button>
-                                    <span class="clickable" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
+                                    <span class="clickable" [class.team-name--followed]="isFollowed(game.t2Id)" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
                                 } @else {
                                     {{ game.t2Name }}
                                 }
@@ -281,18 +272,6 @@ import type { ViewGameDto } from '@core/api';
             justify-content: center;
             padding: var(--space-8) var(--space-4);
             font-size: var(--font-size-sm);
-        }
-
-        .games-summary {
-            padding: var(--space-2) var(--space-3);
-            font-size: var(--font-size-sm);
-            color: var(--bs-secondary-color);
-            font-weight: 500;
-        }
-
-        .summary-sep {
-            margin: 0 var(--space-1);
-            opacity: 0.5;
         }
 
         /* ═══ Anti-scraping: honeypot & decoy ═══ */
@@ -466,6 +445,9 @@ import type { ViewGameDto } from '@core/api';
         }
 
         .clickable:hover { text-decoration: underline; }
+
+        /* Followed team — bolds the name to draw the eye when filtering by team. */
+        .team-name--followed { font-weight: 700; }
 
         /* Team star — follow/unfollow shortcut */
         .team-star {
@@ -694,10 +676,6 @@ import type { ViewGameDto } from '@core/api';
         }
 
         /* ═══ Responsive — must be AFTER all base rules for correct cascade ═══ */
-        @media (max-width: 767px) {
-            .games-summary { display: none; }
-        }
-
         @media (min-width: 768px) {
             .games-grid  { display: grid; }
             .games-cards { display: none; }
@@ -743,11 +721,6 @@ export class GamesTabComponent {
     readonly editingGid = signal<number | null>(null);
     readonly editT1Score = signal<number>(0);
     readonly editT2Score = signal<number>(0);
-
-    // ── Derived ──
-    readonly scoredCount = computed(() =>
-        this.games().filter(g => g.t1Score != null && g.t2Score != null).length
-    );
 
     // ══════════════════════════════════════════════════════════════════
     // Date / time formatting

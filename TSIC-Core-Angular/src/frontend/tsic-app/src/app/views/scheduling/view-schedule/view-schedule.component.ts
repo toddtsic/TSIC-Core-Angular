@@ -320,6 +320,7 @@ interface FilterChip {
                             [standings]="standings()"
                             [records]="records()"
                             [isLoading]="tabLoading()"
+                            [followedTeamIds]="directTeamIds()"
                             (viewTeamResults)="onViewTeamResults($event)" />
                     }
                     @case ('brackets') {
@@ -328,6 +329,7 @@ interface FilterChip {
                             [canScore]="auth.isAdmin()"
                             [isLoading]="tabLoading()"
                             [agegroupColors]="agegroupColors()"
+                            [followedTeamIds]="directTeamIds()"
                             (editBracketScore)="onBracketScoreEdit($event)"
                             (viewTeamResults)="onViewTeamResults($event)"
                             (viewFieldInfo)="onViewFieldInfo($event)" />
@@ -991,11 +993,17 @@ interface FilterChip {
             color: white;
         }
 
-        /* ═══ Toolbar ═══ */
+        /* ═══ Toolbar ═══
+           Asymmetric vertical spacing — extra breathing room above to separate
+           the segment-tabs from the busy chip strip; tighter below so the data
+           grid reads as connected to the active tab. Page-level gap is space-3;
+           we add space-2 above and pull space-2 off below. */
         .toolbar {
             display: flex;
             align-items: center;
             gap: var(--space-3);
+            margin-top: var(--space-2);
+            margin-bottom: calc(-1 * var(--space-2));
         }
 
         /* Mobile-only filter trigger */
@@ -1044,9 +1052,14 @@ interface FilterChip {
             line-height: 1;
         }
 
-        /* ── Segment Tabs ── */
+        /* ── Segment Tabs ──
+           margin:0 auto self-centers the pill within the flex toolbar so it
+           reads as the primary data-view picker, distinct from the chip-strip
+           controls above. The mobile filter funnel stays at the toolbar's left
+           edge — distinct role, distinct position. */
         .segment-tabs {
             display: inline-flex;
+            margin: 0 auto;
             background: var(--bs-tertiary-bg);
             border-radius: var(--radius-full);
             padding: 3px;

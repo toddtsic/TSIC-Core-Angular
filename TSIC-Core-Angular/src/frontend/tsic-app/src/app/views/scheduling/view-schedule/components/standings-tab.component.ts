@@ -68,7 +68,9 @@ type StandingsMode = 'all' | 'rr';
                                     <tr [class.top-rank]="team.rankOrder === 1">
                                         <td class="col-rank">{{ team.rankOrder ?? (i + 1) }}</td>
                                         <td class="col-team">
-                                            <span class="team-link" (click)="viewTeamResults.emit(team.teamId)">
+                                            <span class="team-link"
+                                                  [class.team-name--followed]="isFollowed(team.teamId)"
+                                                  (click)="viewTeamResults.emit(team.teamId)">
                                                 {{ team.teamName }}
                                             </span>
                                         </td>
@@ -272,6 +274,9 @@ type StandingsMode = 'all' | 'rr';
             text-decoration: underline;
         }
 
+        /* Followed team — bolds the name to draw the eye when filtering by team. */
+        .team-name--followed { font-weight: 700; }
+
         .top-rank td {
             font-weight: 600;
         }
@@ -326,8 +331,14 @@ export class StandingsTabComponent {
     standings = input<StandingsByDivisionResponse | null>(null);
     records = input<StandingsByDivisionResponse | null>(null);
     isLoading = input<boolean>(false);
+    followedTeamIds = input<readonly string[]>([]);
 
     @Output() viewTeamResults = new EventEmitter<string>();
+
+    private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
+    isFollowed(teamId: string | null | undefined): boolean {
+        return !!teamId && this.followedSet().has(teamId);
+    }
 
     readonly standingsMode = signal<StandingsMode>('all');
     readonly activeAgTabIndex = signal(0);
