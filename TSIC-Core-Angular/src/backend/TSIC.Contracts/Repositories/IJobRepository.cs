@@ -279,15 +279,19 @@ public interface IJobRepository
 
     /// <summary>
     /// Find currently-open Jobs for the role-selection "Looking for a new event?"
-    /// panel: Jobs whose Customer is in the family's prior-history set, that the
-    /// family is NOT already registered in, and that are publicly visible with
-    /// player registration currently allowed.
+    /// panel: Jobs whose Customer is in the user's prior-history set, that the
+    /// user is NOT already registered in, and that are publicly visible with
+    /// the appropriate registration channel currently allowed —
+    /// <c>BRegistrationAllowPlayer</c> for Family, <c>BRegistrationAllowTeam</c>
+    /// for ClubRep.
     /// </summary>
-    /// <param name="customerIds">Customers from the family's prior history.</param>
-    /// <param name="excludeJobIds">Jobs the family already has an active registration in.</param>
+    /// <param name="customerIds">Customers from the user's prior history.</param>
+    /// <param name="excludeJobIds">Jobs the user already has an active registration in.</param>
+    /// <param name="audience">Which open-window flag to gate on.</param>
     Task<List<Dtos.SuggestedEventDto>> GetCandidateEventsByCustomersAsync(
         IReadOnlyCollection<Guid> customerIds,
         IReadOnlyCollection<Guid> excludeJobIds,
+        Dtos.SuggestedEventAudience audience,
         CancellationToken cancellationToken = default);
 
     /// <summary>

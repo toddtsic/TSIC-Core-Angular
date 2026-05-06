@@ -38,12 +38,13 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     && this.registrations().length === 0
   );
   /**
-   * True iff the account holds at least one Player registration. Per privilege-separation
-   * policy, Family-class and Admin-class accounts are mutually exclusive — so this
-   * is a binary account-class signal, not a "could be either" overlap check.
+   * True iff the account holds at least one registration in a class that the
+   * "suggested events" pivot serves — Family (Player) or ClubRep. Backend
+   * decides which audience to query based on registration history; this gate
+   * just decides whether to show the pivot link at all.
    */
-  readonly hasFamilyRegistration = computed(() =>
-    this.registrations().some(g => g.roleName === 'Player')
+  readonly hasSuggestableRegistration = computed(() =>
+    this.registrations().some(g => g.roleName === 'Player' || g.roleName === 'Club Rep')
   );
 
   useTypeahead(roleGroup: { roleRegistrations: unknown[] }): boolean {

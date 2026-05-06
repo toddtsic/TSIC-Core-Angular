@@ -9,6 +9,7 @@ export type SuggestedEventDto = {
     jobLogo?: string | null;
     customerName: string;
     playerRegistrationOpen: boolean;
+    teamRegistrationOpen: boolean;
     storeOpen: boolean;
     schedulePublished: boolean;
     registrationExpiry?: string | null;

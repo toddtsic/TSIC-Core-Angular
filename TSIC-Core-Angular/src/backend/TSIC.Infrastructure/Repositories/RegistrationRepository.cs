@@ -244,6 +244,32 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Guid>> GetCustomerIdsForClubRepUserAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.UserId == userId && r.RoleId == RoleConstants.ClubRep)
+            .Join(_context.Jobs, r => r.JobId, j => j.JobId, (r, j) => j.CustomerId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<Guid>> GetActiveClubRepJobIdsForUserAsync(
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.UserId == userId
+                     && r.RoleId == RoleConstants.ClubRep
+                     && r.BActive == true)
+            .Select(r => r.JobId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<RegistrationDto>> GetClubRepRegistrationsAsync(
         string userId,
         CancellationToken cancellationToken = default)

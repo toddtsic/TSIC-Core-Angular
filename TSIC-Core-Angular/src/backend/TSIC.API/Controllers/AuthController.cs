@@ -251,9 +251,11 @@ namespace TSIC.API.Controllers
         }
 
         /// <summary>
-        /// Role-selection helper: candidate Jobs the family hasn't registered in,
-        /// run by Customers they have prior history with. Returns [] for non-Family
-        /// users or families with no candidate Jobs.
+        /// Role-selection helper: candidate Jobs the user hasn't registered in,
+        /// run by Customers they have prior history with. Service auto-detects
+        /// account class — Family users see player-reg-open Jobs, ClubRep users
+        /// see team-reg-open Jobs. Returns [] for accounts with no relevant
+        /// history or no candidate Jobs.
         /// </summary>
         [Authorize]
         [HttpGet("suggested-events")]

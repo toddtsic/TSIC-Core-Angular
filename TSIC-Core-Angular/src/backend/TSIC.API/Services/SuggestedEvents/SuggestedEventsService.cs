@@ -20,11 +20,24 @@ public sealed class SuggestedEventsService : ISuggestedEventsService
         string userId,
         CancellationToken cancellationToken = default)
     {
-        var customerIds = await _registrationRepo.GetCustomerIdsForFamilyUserAsync(userId, cancellationToken);
-        if (customerIds.Count == 0) return [];
+        // Family and ClubRep classes are mutually exclusive per privilege-separation
+        // policy — try Family first, fall through to ClubRep if no Family history.
+        var familyCustomerIds = await _registrationRepo.GetCustomerIdsForFamilyUserAsync(userId, cancellationToken);
+        if (familyCustomerIds.Count > 0)
+        {
+            var excludeJobIds = await _registrationRepo.GetActiveFamilyJobIdsForUserAsync(userId, cancellationToken);
+            return await _jobRepo.GetCandidateEventsByCustomersAsync(
+                familyCustomerIds, excludeJobIds, SuggestedEventAudience.Family, cancellationToken);
+        }
 
-        var excludeJobIds = await _registrationRepo.GetActiveFamilyJobIdsForUserAsync(userId, cancellationToken);
+        var clubRepCustomerIds = await _registrationRepo.GetCustomerIdsForClubRepUserAsync(userId, cancellationToken);
+        if (clubRepCustomerIds.Count > 0)
+        {
+            var excludeJobIds = await _registrationRepo.GetActiveClubRepJobIdsForUserAsync(userId, cancellationToken);
+            return await _jobRepo.GetCandidateEventsByCustomersAsync(
+                clubRepCustomerIds, excludeJobIds, SuggestedEventAudience.ClubRep, cancellationToken);
+        }
 
-        return await _jobRepo.GetCandidateEventsByCustomersAsync(customerIds, excludeJobIds, cancellationToken);
+        return [];
     }
 }

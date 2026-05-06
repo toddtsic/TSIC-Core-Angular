@@ -153,8 +153,10 @@ export class AuthService {
   }
 
   /**
-   * Role-selection helper — Jobs the family has prior history with but no
-   * active registration in. Empty for non-Family users.
+   * Role-selection helper — Jobs the user has prior history with (as a
+   * Family or as a ClubRep) but no active registration in. Backend picks
+   * the audience (player-reg-open vs team-reg-open) from history. Empty
+   * for users without either class of history.
    */
   loadSuggestedEvents(): void {
     if (this._suggestedEventsFetched) return;

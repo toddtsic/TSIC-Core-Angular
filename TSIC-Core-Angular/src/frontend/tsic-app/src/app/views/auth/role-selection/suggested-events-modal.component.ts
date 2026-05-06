@@ -46,6 +46,9 @@ import type { SuggestedEventDto } from '@core/api';
                   @if (event.playerRegistrationOpen) {
                   <span class="badge bg-primary-subtle text-primary-emphasis">Player registration open</span>
                   }
+                  @if (event.teamRegistrationOpen) {
+                  <span class="badge bg-primary-subtle text-primary-emphasis">Team registration open</span>
+                  }
                   @if (event.storeOpen) {
                   <span class="badge bg-info-subtle text-info-emphasis">Store live</span>
                   }

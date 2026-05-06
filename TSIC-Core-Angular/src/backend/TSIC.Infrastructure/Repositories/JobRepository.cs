@@ -485,11 +485,13 @@ public class JobRepository : IJobRepository
     public async Task<List<Contracts.Dtos.SuggestedEventDto>> GetCandidateEventsByCustomersAsync(
         IReadOnlyCollection<Guid> customerIds,
         IReadOnlyCollection<Guid> excludeJobIds,
+        Contracts.Dtos.SuggestedEventAudience audience,
         CancellationToken cancellationToken = default)
     {
         if (customerIds.Count == 0) return [];
 
         var now = DateTime.UtcNow;
+        var isFamily = audience == Contracts.Dtos.SuggestedEventAudience.Family;
         return await (
             from j in _context.Jobs
             join c in _context.Customers on j.CustomerId equals c.CustomerId
@@ -497,7 +499,7 @@ public class JobRepository : IJobRepository
             from jdo in jdoGroup.DefaultIfEmpty()
             where customerIds.Contains(j.CustomerId)
                && !excludeJobIds.Contains(j.JobId)
-               && j.BRegistrationAllowPlayer == true
+               && (isFamily ? j.BRegistrationAllowPlayer == true : j.BRegistrationAllowTeam == true)
                && j.ExpiryUsers > now
                && !j.BSuspendPublic
             orderby j.Year descending, j.JobName
@@ -510,7 +512,11 @@ public class JobRepository : IJobRepository
                     ? TSIC.Domain.Constants.TsicConstants.BaseUrlStatics + "BannerFiles/" + jdo.LogoHeader
                     : null,
                 CustomerName = c.CustomerName ?? string.Empty,
-                PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
+                // Surface only the audience-relevant open flag — the badge in the
+                // role-selection modal is meant to call out "this is the channel
+                // you can use," not enumerate everything the Job has open.
+                PlayerRegistrationOpen = isFamily && j.BRegistrationAllowPlayer == true,
+                TeamRegistrationOpen = !isFamily && j.BRegistrationAllowTeam == true,
                 StoreOpen = j.BEnableStore == true,
                 SchedulePublished = j.BScheduleAllowPublicAccess == true,
                 RegistrationExpiry = j.ExpiryUsers
