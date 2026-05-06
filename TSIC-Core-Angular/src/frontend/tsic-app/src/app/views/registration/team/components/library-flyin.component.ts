@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, computed, input, output, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnDestroy, ViewChild, computed, input, output, signal } from '@angular/core';
 import type { ClubTeamDto } from '@core/api';
 
 export interface RegisteredInfo {
@@ -25,6 +25,10 @@ export interface RegisteredInfo {
     selector: 'app-library-flyin',
     standalone: true,
     template: `
+    <!-- Portaled to document.body in ngAfterViewInit so the panel + backdrop
+         escape <main>'s z-index:0 stacking context (which would otherwise
+         keep the layout footer visible underneath them). -->
+    <div #flyinRoot class="library-flyin-root">
     @if (isOpen()) {
       <div class="library-backdrop" (click)="onClose()"></div>
     }
@@ -53,21 +57,18 @@ export interface RegisteredInfo {
 
         <div class="header-tags">
           <span class="header-tag">
-            <span class="header-tag-label">Active Teams:</span>
+            <span class="header-tag-label">Active Library Teams:</span>
             <span class="header-tag-value">{{ activeTeams().length }}</span>
           </span>
           <span class="header-tag">
-            <span class="header-tag-label">Archived Teams:</span>
+            <span class="header-tag-label">Archived Library Teams:</span>
             <span class="header-tag-value">{{ archivedTeams().length }}</span>
           </span>
+          <span class="header-tag">
+            <span class="header-tag-label">Registered Teams:</span>
+            <span class="header-tag-value">{{ registeredCount() }}</span>
+          </span>
         </div>
-
-        @if (statusState() === 'partial' || statusState() === 'none-registered') {
-          <div class="status-chip" [class]="'status-chip-' + statusState()">
-            <i class="bi" [class]="statusIcon()" aria-hidden="true"></i>
-            <span class="status-chip-text">{{ statusText() }}</span>
-          </div>
-        }
       </div>
 
       <!-- ── Body ───────────────────────────────────────────────────── -->
@@ -198,17 +199,6 @@ export interface RegisteredInfo {
             </table>
           </section>
 
-          @if (activeTeams().length <= 3) {
-            <div class="lib-tip" role="note">
-              <i class="bi bi-lightbulb-fill" aria-hidden="true"></i>
-              <div class="lib-tip-text">
-                <strong>Library teams carry across events.</strong>
-                Add a team once and it stays available for every TSIC event you
-                participate in &mdash; you'll never re-enter it.
-              </div>
-            </div>
-          }
-
           <!-- Archived sub-section (collapsible) -->
           @if (archivedTeams().length > 0) {
             <button type="button" class="lib-section-toggle" (click)="toggleArchived()">
@@ -266,6 +256,7 @@ export interface RegisteredInfo {
         </div>
       </div>
     </aside>
+    </div>
     `,
     styles: [`
       /* ── Library Fly-In Drawer ──────────────────────────────────────
@@ -282,9 +273,9 @@ export interface RegisteredInfo {
         position: fixed;
         top: 0;
         right: 0;
+        bottom: 0;
         width: 560px;
         max-width: 100vw;
-        height: 100vh;
         background: var(--bs-body-bg);
         border-left: 1px solid var(--bs-border-color);
         box-shadow: var(--shadow-xl);
@@ -381,45 +372,6 @@ export interface RegisteredInfo {
         &:disabled { opacity: 0.4; cursor: default; }
       }
 
-      /* ── Status chip — registration coverage check, state-driven ──── */
-      .status-chip {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        border-radius: var(--radius-md);
-        border: 1px solid transparent;
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-medium);
-        line-height: var(--line-height-normal);
-
-        > i {
-          flex-shrink: 0;
-          font-size: 1.1em;
-          line-height: 1.2;
-        }
-      }
-
-      .status-chip-text { min-width: 0; }
-
-      .status-chip-all-registered {
-        background: color-mix(in srgb, var(--bs-success) 12%, transparent);
-        border-color: color-mix(in srgb, var(--bs-success) 30%, transparent);
-        color: var(--bs-success);
-      }
-
-      .status-chip-partial {
-        background: color-mix(in srgb, var(--bs-warning) 14%, transparent);
-        border-color: color-mix(in srgb, var(--bs-warning) 35%, transparent);
-        color: color-mix(in srgb, var(--bs-warning) 70%, var(--brand-text));
-      }
-
-      .status-chip-none-registered {
-        background: color-mix(in srgb, var(--bs-danger) 12%, transparent);
-        border-color: color-mix(in srgb, var(--bs-danger) 35%, transparent);
-        color: var(--bs-danger);
-      }
-
       /* ── Body container ────────────────────────────────────────────── */
       .panel-body {
         flex: 1;
@@ -472,39 +424,6 @@ export interface RegisteredInfo {
           border-color: var(--border-color);
 
           &:hover { background: rgba(var(--bs-body-color-rgb), 0.05); filter: none; }
-        }
-      }
-
-      /* ── Tip card (fills sparse-list dead space + reinforces the
-         library-vs-event-registration distinction) ────────────────── */
-      .lib-tip {
-        display: flex;
-        align-items: flex-start;
-        gap: var(--space-2);
-        margin: var(--space-3);
-        padding: var(--space-3);
-        background: color-mix(in srgb, var(--bs-primary) 6%, transparent);
-        border: 1px solid color-mix(in srgb, var(--bs-primary) 18%, transparent);
-        border-radius: var(--radius-md);
-
-        > i {
-          color: var(--bs-primary);
-          font-size: 1.25rem;
-          flex-shrink: 0;
-          line-height: 1.2;
-        }
-      }
-
-      .lib-tip-text {
-        font-size: var(--font-size-xs);
-        line-height: var(--line-height-normal);
-        color: var(--brand-text-muted);
-
-        strong {
-          display: block;
-          color: var(--brand-text);
-          font-weight: var(--font-weight-semibold);
-          margin-bottom: 2px;
         }
       }
 
@@ -1092,7 +1011,33 @@ export interface RegisteredInfo {
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class LibraryFlyinComponent {
+export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
+    @ViewChild('flyinRoot', { static: true }) private flyinRoot!: ElementRef<HTMLElement>;
+
+    /**
+     * The library-flyin lives inside <router-outlet> inside <main>, and <main>
+     * has z-index:0 (an explicit stacking context that traps page content from
+     * competing with header dropdowns at z-index:10001). That trap also keeps
+     * the panel + backdrop from painting over the layout's client-footer-bar
+     * which sits as a flex sibling of <main> in the layout-wrapper. Portaling
+     * the wrapper element to document.body escapes the stacking context so
+     * the panel covers the full viewport, just like bottom-nav and CDK
+     * overlays do at the root level.
+     */
+    ngAfterViewInit(): void {
+        const root = this.flyinRoot?.nativeElement;
+        if (root && root.parentElement !== document.body) {
+            document.body.appendChild(root);
+        }
+    }
+
+    ngOnDestroy(): void {
+        const root = this.flyinRoot?.nativeElement;
+        if (root?.parentNode) {
+            root.parentNode.removeChild(root);
+        }
+    }
+
     readonly isOpen = input.required<boolean>();
     readonly clubTeams = input.required<ClubTeamDto[]>();
     readonly clubName = input<string>('');
