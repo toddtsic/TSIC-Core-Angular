@@ -180,9 +180,11 @@ public class JobConfigService : IJobConfigService
                 prevAddProcessing, req.BAddProcessingFees,
                 prevApplyProcToDeposit, req.BApplyProcessingFeesToTeamDeposit);
 
+            // SuperUserId — recalc stamps Teams.LebUserId, which FKs to AspNetUsers.
+            // A synthetic "system:..." literal isn't a real user row and SQL rejects the UPDATE.
             var result = await _teamRegService.RecalculateTeamFeesAsync(
                 new RecalculateTeamFeesRequest { JobId = jobId },
-                "system:job-config-auto-recalc");
+                TsicConstants.SuperUserId);
 
             _logger.LogInformation("Auto-recalculated {Count} team fees for Job {JobId}", result.UpdatedCount, jobId);
         }
@@ -204,7 +206,7 @@ public class JobConfigService : IJobConfigService
                 prevAddProcessing, req.BAddProcessingFees);
 
             var playerCount = await _playerRegService.RecalculatePlayerFeesAsync(
-                jobId, "system:job-config-auto-recalc", ct);
+                jobId, TsicConstants.SuperUserId, ct);
 
             _logger.LogInformation("Auto-recalculated {Count} player fees for Job {JobId}", playerCount, jobId);
         }
