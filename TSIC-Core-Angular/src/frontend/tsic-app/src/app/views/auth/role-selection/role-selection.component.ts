@@ -104,15 +104,18 @@ export class RoleSelectionComponent implements OnInit, AfterViewInit {
     if (this._openedOnce) return;
     // Skip auto-open on mobile — Syncfusion opens a full-screen overlay on touch devices
     if (window.innerWidth < 768) return;
-    // Only auto-open when there's exactly ONE role section AND it's the typeahead
-    // variant — auto-opening one of multiple sections is presumptuous, and there's
-    // nothing to "open" in a cards-mode section (entries are already visible).
+    // Auto-open the LAST role section's typeahead. Multi-role accounts (e.g.
+    // SuperDirector + Director) get the lower-privileged section focused so the
+    // user can start typing immediately — it's the more common landing target.
+    // Cards-mode sections don't get auto-opened (entries are already visible),
+    // so if the last section is cards we leave focus alone rather than opening
+    // an earlier typeahead the user didn't ask for.
     const groups = this.registrations();
-    if (groups.length !== 1 || !this.useTypeahead(groups[0])) return;
-    const first = this.dropdowns?.first;
-    if (first) {
+    if (groups.length === 0 || !this.useTypeahead(groups[groups.length - 1])) return;
+    const last = this.dropdowns?.last;
+    if (last) {
       this._openedOnce = true;
-      setTimeout(() => { try { first.showPopup(); } catch { /* no-op */ } }, 0);
+      setTimeout(() => { try { last.showPopup(); } catch { /* no-op */ } }, 0);
     }
   }
 
