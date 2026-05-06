@@ -130,7 +130,7 @@ public class AdnApiService : IAdnApiService
         var transactionRequest = new transactionRequestType
         {
             transactionType = transactionTypeEnum.authCaptureTransaction.ToString(),    // refund type
-            amount = ccAmount,
+            amount = ToGatewayAmount(ccAmount),
             profile = profileToCharge,
             order = orderInfo
         };
@@ -417,7 +417,7 @@ public class AdnApiService : IAdnApiService
 
         var subscription = new ARBSubscriptionType
         {
-            amount = request.ChargePerOccurrence
+            amount = ToGatewayAmount(request.ChargePerOccurrence)
         };
 
         if (!string.IsNullOrWhiteSpace(request.CardNumber) && !string.IsNullOrWhiteSpace(request.ExpirationDate))
@@ -510,7 +510,7 @@ public class AdnApiService : IAdnApiService
         };
         if (a.Amount.HasValue)
         {
-            txnReq.amount = a.Amount.Value;
+            txnReq.amount = ToGatewayAmount(a.Amount.Value);
         }
 
         // Apply standard duplicate window (2 min) for charge/authorize to prevent accidental resubmits.
@@ -691,7 +691,7 @@ public class AdnApiService : IAdnApiService
         var safeInvoice = (request.InvoiceNumber ?? string.Empty).Trim();
         if (safeInvoice.Length > 20) safeInvoice = safeInvoice.Substring(0, 20);
         var orderInfo = new orderType { invoiceNumber = safeInvoice, description = request.Description };
-        var subscriptionType = new ARBSubscriptionType { amount = request.PerIntervalCharge, trialAmount = 0.00m, paymentSchedule = schedule, billTo = addressInfo, payment = payment, order = orderInfo, customer = customerInfo };
+        var subscriptionType = new ARBSubscriptionType { amount = ToGatewayAmount(request.PerIntervalCharge), trialAmount = 0.00m, paymentSchedule = schedule, billTo = addressInfo, payment = payment, order = orderInfo, customer = customerInfo };
         var apiReq = new ARBCreateSubscriptionRequest { subscription = subscriptionType };
         try
         {
@@ -794,8 +794,8 @@ public class AdnApiService : IAdnApiService
 
         var subscriptionType = new ARBSubscriptionType
         {
-            amount = request.PerIntervalCharge,
-            trialAmount = request.TrialAmount,
+            amount = ToGatewayAmount(request.PerIntervalCharge),
+            trialAmount = ToGatewayAmount(request.TrialAmount),
             paymentSchedule = schedule,
             billTo = addressInfo,
             payment = payment,
@@ -855,8 +855,8 @@ public class AdnApiService : IAdnApiService
 
         var subscriptionType = new ARBSubscriptionType
         {
-            amount = request.PerIntervalCharge,
-            trialAmount = request.TrialAmount,
+            amount = ToGatewayAmount(request.PerIntervalCharge),
+            trialAmount = ToGatewayAmount(request.TrialAmount),
             paymentSchedule = schedule,
             billTo = addressInfo,
             payment = payment,
@@ -927,6 +927,13 @@ public class AdnApiService : IAdnApiService
             _ => bankAccountTypeEnum.checking,
         };
     }
+    // ADN gateway rejects amounts with > 2 decimal places (errorCode 5 / "A valid amount is required").
+    // JS number arithmetic on the frontend can leak sub-cent drift (e.g. 1401.30 -> 1401.3000000000002),
+    // and per-team/per-player divisions compound it. Sole choke point: every money value bound for the
+    // SDK passes through here, so callers don't need to round defensively.
+    private static decimal ToGatewayAmount(decimal v)
+        => Math.Round(v, 2, MidpointRounding.AwayFromZero);
+
     private static string MapSandboxTestCard(string cardNumber)
     {
         if (string.IsNullOrWhiteSpace(cardNumber)) return cardNumber;
