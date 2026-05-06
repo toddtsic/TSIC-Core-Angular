@@ -167,6 +167,7 @@ interface AgePickerTeam {
       <app-library-flyin
         [isOpen]="showLibraryFlyin()"
         [clubTeams]="allLibraryTeams()"
+        [clubName]="clubName()"
         [canRegister]="canRegisterTeam()"
         [actionInProgress]="actionInProgress()"
         [enteredTeams]="enteredTeamsMap()"

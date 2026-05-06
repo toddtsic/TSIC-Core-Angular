@@ -31,17 +31,14 @@ export interface RegisteredInfo {
     <aside class="library-panel" [class.open]="isOpen()" role="dialog" aria-modal="true" aria-labelledby="library-flyin-title">
 
       <!-- ── Header ─────────────────────────────────────────────────── -->
-      <!-- Identity moment + ALERT chip (not a status chip). The chip only
-           appears when there's a problem to flag — partial coverage or zero
-           registered. All-registered state = no chip; row-level "Registered"
-           badges already say everything's fine, narrating it again at the
-           top would be redundant and gets worse as team count grows. -->
+      <!-- Mirrors search/registrations registration-detail-panel header:
+           sentence-case title in body color (not eyebrow style), neutral
+           elevated surface background, neutral border. The status chip
+           below is a problem-flag (partial/none-registered) only — quiet
+           when everything's fine. -->
       <div class="panel-header">
         <div class="header-top-row">
-          <div class="header-identity">
-            <i class="bi bi-collection-fill panel-eyebrow-icon" aria-hidden="true"></i>
-            <h2 class="panel-eyebrow" id="library-flyin-title">Team Library</h2>
-          </div>
+          <h3 class="panel-title" id="library-flyin-title">{{ clubName() || 'Team Library' }}</h3>
           <div class="header-actions">
             @if (activeTeams().length > 0 || archivedTeams().length > 0) {
               <button type="button" class="btn-add-team"
@@ -52,6 +49,17 @@ export interface RegisteredInfo {
             }
             <button type="button" class="btn-close" aria-label="Close library" (click)="onClose()">&times;</button>
           </div>
+        </div>
+
+        <div class="header-tags">
+          <span class="header-tag">
+            <span class="header-tag-label">Active Teams:</span>
+            <span class="header-tag-value">{{ activeTeams().length }}</span>
+          </span>
+          <span class="header-tag">
+            <span class="header-tag-label">Archived Teams:</span>
+            <span class="header-tag-value">{{ archivedTeams().length }}</span>
+          </span>
         </div>
 
         @if (statusState() === 'partial' || statusState() === 'none-registered') {
@@ -94,10 +102,6 @@ export interface RegisteredInfo {
           <section class="lib-section-card">
             <header class="lib-section-card-header">
               <span class="lib-section-card-eyebrow">Active Library</span>
-              <span class="lib-section-card-meta">
-                <span class="lib-section-card-meta-label">Teams:</span>
-                <span class="lib-section-card-meta-value">{{ activeTeams().length }}</span>
-              </span>
             </header>
             <table class="lib-table">
               <thead>
@@ -278,7 +282,7 @@ export interface RegisteredInfo {
         position: fixed;
         top: 0;
         right: 0;
-        width: 520px;
+        width: 560px;
         max-width: 100vw;
         height: 100vh;
         background: var(--bs-body-bg);
@@ -293,11 +297,11 @@ export interface RegisteredInfo {
         &.open { transform: translateX(0); }
       }
 
-      /* ── Header ────────────────────────────────────────────────────── */
+      /* ── Header — matches registration-detail-panel ──────────────── */
       .panel-header {
-        padding: var(--space-3);
-        border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 22%, transparent);
-        background: color-mix(in srgb, var(--bs-primary) 6%, var(--bs-body-bg));
+        padding: var(--space-5);
+        border-bottom: 1px solid var(--bs-border-color);
+        background: var(--surface-elevated-bg);
         flex-shrink: 0;
         display: flex;
         flex-direction: column;
@@ -305,33 +309,17 @@ export interface RegisteredInfo {
 
         .header-top-row {
           display: flex;
-          align-items: flex-start;
-          justify-content: space-between;
-          gap: var(--space-2);
-        }
-
-        .header-identity {
-          display: flex;
           align-items: center;
-          gap: var(--space-2);
-          min-width: 0;
+          justify-content: space-between;
+          gap: var(--space-3);
         }
 
-        .panel-eyebrow-icon {
-          color: var(--bs-primary);
-          font-size: 1.5rem;
-          line-height: 1;
-          flex-shrink: 0;
-        }
-
-        .panel-eyebrow {
+        .panel-title {
           margin: 0;
-          font-size: var(--font-size-sm);
-          font-weight: var(--font-weight-bold);
-          letter-spacing: 0.08em;
-          text-transform: uppercase;
-          color: var(--bs-primary);
-          line-height: 1.2;
+          font-size: var(--font-size-xl);
+          font-weight: var(--font-weight-semibold);
+          color: var(--bs-body-color);
+          white-space: nowrap;
         }
 
         .header-actions {
@@ -342,13 +330,13 @@ export interface RegisteredInfo {
         }
 
         .btn-close {
-          padding: 2px 8px;
+          padding: var(--space-2);
           background: transparent;
           border: none;
           font-size: var(--font-size-xl);
           line-height: 1;
           color: var(--brand-text);
-          opacity: 0.55;
+          opacity: 0.5;
           cursor: pointer;
           transition: opacity 0.2s ease;
           flex-shrink: 0;
@@ -436,7 +424,7 @@ export interface RegisteredInfo {
       .panel-body {
         flex: 1;
         overflow-y: auto;
-        padding: 0;
+        padding: var(--space-5);
       }
 
       /* ── Footer ────────────────────────────────────────────────────── */
@@ -527,10 +515,10 @@ export interface RegisteredInfo {
          card reads as one bordered grouping — eyebrow lives inside, not
          floating above. */
       .lib-section-card {
-        margin: var(--space-3);
+        margin: 0 0 var(--space-5);
         border: 1px solid var(--bs-primary);
-        border-radius: var(--radius-md);
-        background: color-mix(in srgb, var(--bs-primary) 3%, var(--bs-body-bg));
+        border-radius: var(--radius-lg);
+        background: var(--surface-elevated-bg);
         /* No overflow:hidden — the kebab dropdown menu must escape the card.
            Tradeoff: the table inside has square corners while the card has
            rounded corners. Mismatch is visually minor (subtle bg tints, small
@@ -539,47 +527,52 @@ export interface RegisteredInfo {
 
       .lib-section-card--archived {
         border-color: var(--border-color);
-        background: rgba(var(--bs-dark-rgb), 0.02);
+        background: var(--surface-elevated-bg);
       }
 
-      /* In-card header row: eyebrow + meta on opposite ends, divider below.
-         Mirrors search/registrations CONTACT INFO / ACCOUNT USERNAME pattern. */
+      /* In-card header row: eyebrow that names the table within the card.
+         Matches search/registrations .section-title token-for-token. */
       .lib-section-card-header {
         display: flex;
         align-items: baseline;
-        justify-content: space-between;
-        gap: var(--space-2);
-        padding: var(--space-2) var(--space-3);
-        border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 25%, transparent);
+        padding: var(--space-3) var(--space-4);
+        border-bottom: 1px solid var(--bs-border-color);
       }
 
       .lib-section-card-eyebrow {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        letter-spacing: 0.08em;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.05em;
         text-transform: uppercase;
         color: var(--bs-primary);
       }
 
-      .lib-section-card-meta {
-        display: inline-flex;
-        align-items: baseline;
+      /* Header tag pairs — mirrors registration-detail-panel .header-tag */
+      .header-tags {
+        display: flex;
+        flex-direction: column;
         gap: var(--space-1);
       }
 
-      .lib-section-card-meta-label {
-        font-size: 10px;
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--brand-text-muted);
-      }
+      .header-tag {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-2);
 
-      .lib-section-card-meta-value {
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--bs-primary);
-        font-variant-numeric: tabular-nums;
+        .header-tag-label {
+          font-size: var(--font-size-2xs);
+          font-weight: var(--font-weight-medium);
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.04em;
+          opacity: 0.7;
+        }
+
+        .header-tag-value {
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-semibold);
+          color: var(--bs-primary);
+        }
       }
 
       /* Section toggle (replaces the standalone archived-header) — same
@@ -655,7 +648,10 @@ export interface RegisteredInfo {
       .lib-th-age     { width: 80px; text-align: center !important; }
       .lib-th-lop     { width: 60px; text-align: center !important; }
       .lib-th-status  { width: 130px; text-align: left !important; }
-      .lib-th-actions { width: 56px; text-align: center !important; }
+      /* 76px = MANAGE label (~50px) + 8px left pad + 12px right pad + slack.
+         Anything narrower and the centered text overflows the padding zone
+         and visually crowds the card border. */
+      .lib-th-actions { width: 76px; text-align: center !important; }
 
       /* Inset rightmost column from the card border so MANAGE / kebab don't
          crowd the edge after the border was strengthened to solid primary. */
@@ -1099,6 +1095,7 @@ export interface RegisteredInfo {
 export class LibraryFlyinComponent {
     readonly isOpen = input.required<boolean>();
     readonly clubTeams = input.required<ClubTeamDto[]>();
+    readonly clubName = input<string>('');
     readonly canRegister = input(false);
     readonly actionInProgress = input(false);
     /** Map of clubTeamId → registration info. Drives the Registered badge content. */
