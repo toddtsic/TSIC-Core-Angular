@@ -841,7 +841,7 @@ public sealed class AdnSweepService : IAdnSweepService
             FromName = "TSIC System",
             FromAddress = TsicConstants.SupportEmail,
             ToAddresses = [TsicConstants.SupportEmail],
-            Subject = $"AdnSweep {DateTime.Now:dddd, dd MMMM yyyy HH:mm}",
+            Subject = $"[claude-api] AdnSweep — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}",
             HtmlBody = html
         }, sendInDevelopment: false, cancellationToken: ct);
     }
