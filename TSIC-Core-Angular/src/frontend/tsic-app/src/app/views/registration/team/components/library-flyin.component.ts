@@ -94,8 +94,14 @@ export interface RegisteredInfo {
           </div>
         } @else {
           <!-- State C — populated active list rendered as audit table inside a section card -->
-          <h3 class="lib-section-title">Active Library</h3>
           <section class="lib-section-card">
+            <header class="lib-section-card-header">
+              <span class="lib-section-card-eyebrow">Active Library</span>
+              <span class="lib-section-card-meta">
+                <span class="lib-section-card-meta-label">Teams:</span>
+                <span class="lib-section-card-meta-value">{{ activeTeams().length }}</span>
+              </span>
+            </header>
             <table class="lib-table">
               <thead>
                 <tr>
@@ -531,23 +537,15 @@ export interface RegisteredInfo {
         }
       }
 
-      /* ── Section eyebrows + frame ─────────────────────────────────
-         Mirrors search/registrations .info-section-title (small uppercase
-         muted) above each section, and .contact-zone (1px primary border
-         + soft tint) as the frame around the table. Each section gets
-         a "card" treatment so the panel reads as crisp grouped content. */
-      .lib-section-title {
-        margin: var(--space-3) var(--space-3) var(--space-2);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-      }
-
+      /* ── Section frame ─────────────────────────────────────────────
+         Mirrors search/registrations .contact-zone: solid primary border,
+         soft tint background, and an in-card header row (eyebrow on the
+         left, metadata pair on the right) followed by a divider. The whole
+         card reads as one bordered grouping — eyebrow lives inside, not
+         floating above. */
       .lib-section-card {
-        margin: 0 var(--space-3) var(--space-3);
-        border: 1px solid color-mix(in srgb, var(--bs-primary) 50%, transparent);
+        margin: var(--space-3);
+        border: 1px solid var(--bs-primary);
         border-radius: var(--radius-md);
         background: color-mix(in srgb, var(--bs-primary) 3%, var(--bs-body-bg));
         /* No overflow:hidden — the kebab dropdown menu must escape the card.
@@ -559,6 +557,46 @@ export interface RegisteredInfo {
       .lib-section-card--archived {
         border-color: var(--border-color);
         background: rgba(var(--bs-dark-rgb), 0.02);
+      }
+
+      /* In-card header row: eyebrow + meta on opposite ends, divider below.
+         Mirrors search/registrations CONTACT INFO / ACCOUNT USERNAME pattern. */
+      .lib-section-card-header {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: var(--space-2);
+        padding: var(--space-2) var(--space-3);
+        border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 25%, transparent);
+      }
+
+      .lib-section-card-eyebrow {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--bs-primary);
+      }
+
+      .lib-section-card-meta {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-1);
+      }
+
+      .lib-section-card-meta-label {
+        font-size: 10px;
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--brand-text-muted);
+      }
+
+      .lib-section-card-meta-value {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-primary);
+        font-variant-numeric: tabular-nums;
       }
 
       /* Section toggle (replaces the standalone archived-header) — same
