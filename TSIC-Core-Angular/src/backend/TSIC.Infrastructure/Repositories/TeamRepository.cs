@@ -209,7 +209,9 @@ public class TeamRepository : ITeamRepository
 
     public async Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default)
     {
-        _context.Teams.UpdateRange(teams);
+        // Teams are already tracked by GetTeamsWithDetailsForJobAsync and the caller
+        // mutates fee properties in place. Do NOT call UpdateRange — it would mark
+        // ALL columns Modified including the TeamAi identity column, which SQL rejects.
         await _context.SaveChangesAsync(cancellationToken);
     }
 

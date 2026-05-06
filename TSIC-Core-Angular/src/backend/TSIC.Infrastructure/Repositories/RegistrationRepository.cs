@@ -402,11 +402,6 @@ public class RegistrationRepository : IRegistrationRepository
         _context.Registrations.Add(registration);
     }
 
-    public void Update(Registrations registration)
-    {
-        _context.Registrations.Update(registration);
-    }
-
     public void Remove(Registrations registration)
     {
         _context.Registrations.Remove(registration);

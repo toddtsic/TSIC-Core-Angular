@@ -140,12 +140,6 @@ public interface IRegistrationRepository
     void Add(Registrations registration);
 
     /// <summary>
-    /// Update an existing registration
-    /// </summary>
-    /// <param name="registration">The registration to update</param>
-    void Update(Registrations registration);
-
-    /// <summary>
     /// Remove a registration from the database
     /// </summary>
     /// <param name="registration">The registration to remove</param>

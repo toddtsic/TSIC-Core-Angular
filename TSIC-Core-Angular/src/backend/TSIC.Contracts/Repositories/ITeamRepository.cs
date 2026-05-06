@@ -211,7 +211,9 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Bulk update team fees efficiently using UpdateRange.
+    /// Persist fee mutations on already-tracked Teams entities. Caller must load via
+    /// a tracking query and mutate properties before calling — no Update/UpdateRange,
+    /// which would mark the TeamAi identity column Modified and fail at SQL.
     /// </summary>
     Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default);
 
