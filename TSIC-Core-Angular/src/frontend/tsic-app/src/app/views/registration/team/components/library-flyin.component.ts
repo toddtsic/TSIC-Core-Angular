@@ -40,17 +40,14 @@ export interface RegisteredInfo {
         <div class="header-top-row">
           <div class="header-identity">
             <i class="bi bi-collection-fill panel-eyebrow-icon" aria-hidden="true"></i>
-            <div class="header-identity-text">
-              <p class="panel-eyebrow">Team Library</p>
-              <h2 class="panel-title" id="library-flyin-title">Your re-usable Club Team Library</h2>
-            </div>
+            <h2 class="panel-eyebrow" id="library-flyin-title">Team Library</h2>
           </div>
           <div class="header-actions">
             @if (activeTeams().length > 0 || archivedTeams().length > 0) {
               <button type="button" class="btn-add-team"
                       [disabled]="actionInProgress()"
                       (click)="addNew.emit()">
-                <i class="bi bi-plus-circle me-1"></i>Add Team
+                <i class="bi bi-plus-circle me-1"></i>Add Library Team
               </button>
             }
             <button type="button" class="btn-close" aria-label="Close library" (click)="onClose()">&times;</button>
@@ -327,27 +324,13 @@ export interface RegisteredInfo {
           flex-shrink: 0;
         }
 
-        .header-identity-text {
-          display: flex;
-          flex-direction: column;
-          gap: 1px;
-          min-width: 0;
-        }
-
         .panel-eyebrow {
           margin: 0;
-          font-size: 11px;
+          font-size: var(--font-size-sm);
           font-weight: var(--font-weight-bold);
           letter-spacing: 0.08em;
           text-transform: uppercase;
           color: var(--bs-primary);
-        }
-
-        .panel-title {
-          margin: 0;
-          font-size: var(--font-size-sm);
-          font-weight: var(--font-weight-medium);
-          color: var(--brand-text-muted);
           line-height: 1.2;
         }
 
@@ -673,6 +656,13 @@ export interface RegisteredInfo {
       .lib-th-lop     { width: 60px; text-align: center !important; }
       .lib-th-status  { width: 130px; text-align: left !important; }
       .lib-th-actions { width: 56px; text-align: center !important; }
+
+      /* Inset rightmost column from the card border so MANAGE / kebab don't
+         crowd the edge after the border was strengthened to solid primary. */
+      .lib-table thead th:last-child,
+      .lib-table tbody td:last-child {
+        padding-right: var(--space-3);
+      }
 
       .lib-tr {
         border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color) 6%, transparent);
