@@ -517,10 +517,14 @@ export class AgeGroupPickerModalComponent implements OnInit {
     readonly hasRecommended = computed(() => this.pills().some(p => p.isRecommended));
 
     ngOnInit(): void {
-        // LOP starts empty — rep must explicitly click a pill before age cards unlock.
-        // This enforces that both LOP and age group are required and deliberate choices,
-        // even when the library team carries a stored LOP.
-        this.selectedLop.set('');
+        // Default LOP to the library team's stored value so the rep doesn't
+        // have to re-pick on every event. Falls through to empty if the stored
+        // value isn't one of the current event's options.
+        if (this.levelOfPlay && this.lopOptions.includes(this.levelOfPlay)) {
+            this.selectedLop.set(this.levelOfPlay);
+        } else {
+            this.selectedLop.set('');
+        }
     }
 
     onPillClick(ageGroupId: string): void {
