@@ -128,7 +128,7 @@ interface AgePickerTeam {
               [showDeposit]="!fullPaymentRequired()"
               [showBalance]="fullPaymentRequired()"
               [showOwed]="true"
-              [showPaid]="false"
+              [showPaid]="true"
               [showProcessing]="false"
               [showCcOwed]="false"
               [showCkOwed]="false"

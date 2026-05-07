@@ -60,6 +60,14 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
           <e-column field="additionalDue" headerText="Bal Due" width="80" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
           <e-column field="feeBase" headerText="Total Fee" width="80" textAlign="Right" format="C2"></e-column>
+          <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
+                    [visible]="showPaid()">
+            <ng-template #template let-data>
+              <span [class.text-success]="data.paidTotal > 0" [class.text-muted]="data.paidTotal === 0">
+                {{ data.paidTotal | currency }}
+              </span>
+            </ng-template>
+          </e-column>
           <e-column field="owedTotal" headerText="Owed" width="80" textAlign="Right" format="C2"
                     [visible]="showOwed()">
             <ng-template #template let-data>
@@ -82,14 +90,6 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                     [visible]="showFeeAdj()">
             <ng-template #headerTemplate>
               <span>Fee-Adj<app-info-tooltip message="Depending on when you registered, this may show an early-bird discount (negative value) or a late fee (positive value). Only one applies."></app-info-tooltip></span>
-            </ng-template>
-          </e-column>
-          <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
-                    [visible]="showPaid()">
-            <ng-template #template let-data>
-              <span [class.text-success]="data.paidTotal > 0" [class.text-muted]="data.paidTotal === 0">
-                {{ data.paidTotal | currency }}
-              </span>
             </ng-template>
           </e-column>
           <e-column field="ccOwedTotal" headerText="CC Owed" width="90" textAlign="Right"
