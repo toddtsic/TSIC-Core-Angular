@@ -120,21 +120,9 @@ export interface RegisteredInfo {
             <table class="lib-table">
               <thead>
                 <tr>
-                  <th class="lib-th-team">
-                    <span class="th-prefix">Library</span>
-                    <span class="th-noun">Team</span>
-                  </th>
-                  <th class="lib-th-age">
-                    <span class="th-prefix">Library</span>
-                    <span class="th-noun">Grad Year</span>
-                  </th>
-                  <th class="lib-th-lop">
-                    <span class="th-prefix">Library</span>
-                    <span class="th-noun">LOP</span>
-                  </th>
-                  <th class="lib-th-status">
-                    <span class="th-noun">Status</span>
-                  </th>
+                  <th class="lib-th-team">Library Team</th>
+                  <th class="lib-th-age">Library Grad Year</th>
+                  <th class="lib-th-status">Status</th>
                   <th class="lib-th-actions">
                     <span class="visually-hidden">Manage</span>
                   </th>
@@ -148,18 +136,26 @@ export interface RegisteredInfo {
                     <span class="team-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
                   </td>
                   <td class="lib-td-age">{{ team.clubTeamGradYear || '—' }}</td>
-                  <td class="lib-td-lop">{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</td>
                   <td class="lib-td-status">
                     @if (registered) {
-                      @let regDisplay = formatRegisteredDisplay(registered);
                       <div class="status-block status-block-yes">
                         <span class="status-line">
                           <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
                           Registered
                         </span>
-                        @if (regDisplay) {
-                          <span class="status-detail">{{ regDisplay }}</span>
-                        }
+                        <span class="status-detail">
+                          @if (registered.ageGroupName) {
+                            <span class="reg-label">AG</span>
+                            <span class="reg-value">{{ registered.ageGroupName }}</span>
+                          }
+                          @if (registered.ageGroupName && registered.levelOfPlay) {
+                            <span class="reg-sep"> · </span>
+                          }
+                          @if (registered.levelOfPlay) {
+                            <span class="reg-label">LOP</span>
+                            <span class="reg-value">{{ formatLop(registered.levelOfPlay) }}</span>
+                          }
+                        </span>
                       </div>
                     } @else if (canRegister()) {
                       <div class="status-block status-block-no">
@@ -251,7 +247,6 @@ export interface RegisteredInfo {
                           <span class="team-name">{{ team.clubTeamName }}</span>
                         </td>
                         <td class="lib-td-age">{{ team.clubTeamGradYear || '—' }}</td>
-                        <td class="lib-td-lop">{{ formatLop(team.clubTeamLevelOfPlay) || '—' }}</td>
                         <td class="lib-td-status">
                           <span class="status-archived">
                             <i class="bi bi-archive-fill" aria-hidden="true"></i>
@@ -615,42 +610,22 @@ export interface RegisteredInfo {
 
       .lib-table thead th {
         padding: var(--space-2);
-        text-align: center;
+        text-align: left;
         vertical-align: bottom;
-        text-transform: uppercase;
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        line-height: 1.2;
         color: var(--brand-text-muted);
         background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
         border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 25%, transparent);
-        white-space: nowrap;
-      }
-
-      /* Two-line header: Library/Registered prefix on top, the column noun
-         below. Helps the rep distinguish library-axis cells from registered-
-         axis cells at a glance. */
-      .lib-table thead .th-prefix,
-      .lib-table thead .th-noun {
-        display: block;
-        line-height: 1.15;
-      }
-
-      .lib-table thead .th-prefix {
-        font-size: 9px;
-        font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.06em;
-        opacity: 0.75;
-      }
-
-      .lib-table thead .th-noun {
-        font-size: 11px;
-        font-weight: var(--font-weight-bold);
-        letter-spacing: 0.04em;
       }
 
       /* Column widths sized for the 520px panel. */
       .lib-th-team    { width: auto; }
       .lib-th-age     { width: 80px; }
-      .lib-th-lop     { width: 60px; }
       .lib-th-status  { width: 130px; }
+      .lib-table thead th.lib-th-age,
+      .lib-table thead th.lib-th-status { text-align: center; }
       /* 76px = MANAGE label (~50px) + 8px left pad + 12px right pad + slack. */
       .lib-th-actions { width: 76px; }
 
@@ -685,7 +660,6 @@ export interface RegisteredInfo {
       }
 
       .lib-td-age,
-      .lib-td-lop,
       .lib-td-status {
         text-align: center;
         color: var(--brand-text-muted);
@@ -731,8 +705,29 @@ export interface RegisteredInfo {
 
       .status-block .status-detail {
         font-size: 11px;
-        font-weight: var(--font-weight-semibold);
         color: var(--brand-text-muted);
+      }
+
+      /* Labeled axis values inside the registered status detail.
+         "AG"/"LOP" eyebrow distinguishes the registered age group from the
+         library team's grad year (which can share the same numeric value
+         when tournaments name age groups by grad year). */
+      .status-block .status-detail .reg-label {
+        font-size: 9px;
+        font-weight: var(--font-weight-semibold);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        opacity: 0.75;
+        margin-right: 4px;
+      }
+
+      .status-block .status-detail .reg-value {
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text);
+      }
+
+      .status-block .status-detail .reg-sep {
+        opacity: 0.5;
       }
 
       .status-block-yes .status-line { color: var(--bs-success); }
@@ -1295,17 +1290,6 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
         if (!lop) return '';
         const match = lop.match(/^\s*(\d+)/);
         return match ? match[1] : lop;
-    }
-
-    /**
-     * Compact display for the Reg AgeGroup/LOP cell — "U10 / 3", "U10", "3",
-     * or empty when both missing. Falls back gracefully when only one is set.
-     */
-    formatRegisteredDisplay(info: RegisteredInfo): string {
-        const age = info.ageGroupName?.trim() ?? '';
-        const lop = this.formatLop(info.levelOfPlay);
-        if (age && lop) return `${age} / ${lop}`;
-        return age || lop;
     }
 
     onClose(): void {
