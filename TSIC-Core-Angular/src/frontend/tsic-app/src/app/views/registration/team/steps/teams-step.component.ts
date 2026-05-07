@@ -186,6 +186,7 @@ interface AgePickerTeam {
     @if (showAddModal()) {
       <app-team-form-modal
         [clubName]="clubName()"
+        [existingTeams]="allLibraryTeams()"
         (saved)="onTeamAdded()"
         (closed)="showAddModal.set(false)" />
     }
@@ -203,6 +204,7 @@ interface AgePickerTeam {
       <app-team-form-modal
         [clubName]="clubName()"
         [editingTeam]="editing"
+        [existingTeams]="allLibraryTeams()"
         (saved)="onTeamEdited()"
         (closed)="editingTeam.set(null)" />
     }

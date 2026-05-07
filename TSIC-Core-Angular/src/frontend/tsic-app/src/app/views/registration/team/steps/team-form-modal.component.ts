@@ -60,7 +60,8 @@ import type { ClubTeamDto } from '@core/api';
                    [value]="teamName()" (input)="teamName.set($any($event.target).value)"
                    placeholder="e.g. 2028 Blue"
                    [class.is-required]="!teamName().trim()"
-                   [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub())" />
+                   [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub() || nameIsDuplicate())"
+                   [class.has-warning]="!submitted() && (nameContainsClub() || nameIsDuplicate())" />
             <div class="wizard-tip">
               Instead of entering <span class="text-danger fw-semibold">{{ clubName }} 2028 Blue</span>,
               enter <span class="text-success fw-semibold">2028 Blue</span> — schedules already display your club name.
@@ -74,6 +75,12 @@ import type { ClubTeamDto } from '@core/api';
             @if (!submitted() && nameContainsClub()) {
               <div class="field-error" style="color: var(--bs-warning)">
                 <i class="bi bi-exclamation-triangle me-1"></i>Contains your club name — please remove it.
+              </div>
+            }
+            @if (nameIsDuplicate()) {
+              <div class="field-error">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                <strong>{{ teamName().trim() }}</strong> is already in your library — pick a different name.
               </div>
             }
           </div>
@@ -272,6 +279,8 @@ export class TeamFormModalComponent implements OnInit {
     @Input() clubName = '';
     /** When supplied, the modal is in edit mode and updates this team instead of creating. */
     @Input() editingTeam: ClubTeamDto | null = null;
+    /** Existing library teams — used to block duplicate names (case-insensitive). */
+    @Input() existingTeams: readonly ClubTeamDto[] = [];
 
     readonly saved = output<void>();
     readonly closed = output<void>();
@@ -314,9 +323,24 @@ export class TeamFormModalComponent implements OnInit {
         return club.length > 0 && name.length > 0 && name.includes(club);
     });
 
-    /** Step 1 (Name) complete: team name present and not echoing the club name. */
+    /** True when the team name matches an existing library team (case-insensitive),
+     *  excluding the team being edited. */
+    readonly nameIsDuplicate = computed(() => {
+        const name = this.teamName().trim().toLowerCase();
+        if (!name) return false;
+        const editingId = this.editingTeam?.clubTeamId;
+        return this.existingTeams.some(t =>
+            t.clubTeamId !== editingId &&
+            (t.clubTeamName ?? '').trim().toLowerCase() === name,
+        );
+    });
+
+    /** Step 1 (Name) complete: team name present, not echoing the club name,
+     *  and not duplicating an existing library team. */
     readonly step1Done = computed(() =>
-        this.teamName().trim().length > 0 && !this.nameContainsClub(),
+        this.teamName().trim().length > 0
+        && !this.nameContainsClub()
+        && !this.nameIsDuplicate(),
     );
 
     /** Step 2 (Details) complete: grad year + LOP both picked. */
@@ -347,6 +371,7 @@ export class TeamFormModalComponent implements OnInit {
         this.submitted.set(true);
         if (!this.teamName().trim() || !this.gradYear() || !this.levelOfPlay()) return;
         if (this.nameContainsClub()) return;
+        if (this.nameIsDuplicate()) return;
 
         this.saving.set(true);
         this.errorMsg.set(null);
