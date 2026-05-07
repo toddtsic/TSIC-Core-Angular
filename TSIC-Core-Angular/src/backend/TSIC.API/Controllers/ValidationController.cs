@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
+using System.Text.RegularExpressions;
 using TSIC.API.Services.Shared.UsLax;
 
 namespace TSIC.API.Controllers;
@@ -82,9 +83,14 @@ public class ValidationController : ControllerBase
     public async Task<IActionResult> ValidateUsLax([FromQuery] string number)
     {
         if (string.IsNullOrWhiteSpace(number)) return BadRequest(new { message = "number is required" });
+        var trimmed = number.Trim();
+        if (!Regex.IsMatch(trimmed, @"^\d{6,12}$"))
+        {
+            return BadRequest(new { message = "Membership number must be 6 to 12 digits" });
+        }
         try
         {
-            var content = await _usLaxService.GetMemberRawJsonAsync(number);
+            var content = await _usLaxService.GetMemberRawJsonAsync(trimmed);
             if (string.IsNullOrEmpty(content))
             {
                 return Ok(new { membership = (object?)null, message = "Validation service temporarily unavailable" });

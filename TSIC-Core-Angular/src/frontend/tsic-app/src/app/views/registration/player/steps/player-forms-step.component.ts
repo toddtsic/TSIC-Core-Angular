@@ -566,7 +566,7 @@ export class PlayerFormsStepComponent implements OnDestroy {
     constructor() {
         // Debounced US Lax API validation stream
         this.usLaxTrigger$.pipe(
-            debounceTime(800),
+            debounceTime(600),
             filter(({ value }) => value.length >= 6),
             mergeMap(({ playerId, value, field }) => {
                 this.state.playerForms.setUsLaxValidating(playerId);

@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
@@ -12,6 +13,9 @@ public sealed class UsLaxService : IUsLaxService
     private readonly IOptions<UsLaxSettings> _options;
     private const string AccessTokenCacheKey = "uslax:access_token";
     private const string AccessTokenExpiryKey = "uslax:access_token_exp";
+    private const string MemberCachePrefix = "uslax:member:";
+    private static readonly TimeSpan MemberCacheTtl = TimeSpan.FromSeconds(60);
+    private static readonly Regex ValidMembershipFormat = new(@"^\d{6,12}$", RegexOptions.Compiled);
 
     public UsLaxService(IHttpClientFactory httpClientFactory, IMemoryCache cache, IOptions<UsLaxSettings> options)
     {
@@ -22,8 +26,18 @@ public sealed class UsLaxService : IUsLaxService
 
     public async Task<string?> GetMemberRawJsonAsync(string membershipId, CancellationToken ct = default)
     {
+        // Defense-in-depth: never forward malformed numbers to USALax (blacklist risk).
+        var trimmed = membershipId?.Trim() ?? string.Empty;
+        if (!ValidMembershipFormat.IsMatch(trimmed)) return null;
+
         // USALax API requires 12-digit zero-padded membership IDs
-        var padded = membershipId.PadLeft(12, '0');
+        var padded = trimmed.PadLeft(12, '0');
+
+        var cacheKey = MemberCachePrefix + padded;
+        if (_cache.TryGetValue<string>(cacheKey, out var cached) && !string.IsNullOrEmpty(cached))
+        {
+            return cached;
+        }
 
         var client = _httpClientFactory.CreateClient("uslax");
         var token = await GetValidAccessTokenAsync(client, ct);
@@ -36,6 +50,11 @@ public sealed class UsLaxService : IUsLaxService
             token = await FetchAccessTokenAsync(client, ct);
             if (string.IsNullOrWhiteSpace(token)) return content; // return whatever we had
             content = await SendMemberPingAsync(client, token, padded, ct);
+        }
+
+        if (!string.IsNullOrEmpty(content))
+        {
+            _cache.Set(cacheKey, content, MemberCacheTtl);
         }
         return content;
     }

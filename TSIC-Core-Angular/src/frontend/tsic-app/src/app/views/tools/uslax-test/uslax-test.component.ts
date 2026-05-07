@@ -53,6 +53,12 @@ export class UsLaxTestComponent {
 	verify(): void {
 		const num = this.membershipNumber().trim();
 		if (!num) return;
+		if (!/^\d{6,12}$/.test(num)) {
+			this.errorMessage.set('Membership number must be 6 to 12 digits.');
+			this.result.set(null);
+			this.hasSearched.set(true);
+			return;
+		}
 
 		this.isLoading.set(true);
 		this.errorMessage.set(null);
