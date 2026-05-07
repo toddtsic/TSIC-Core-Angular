@@ -365,3 +365,140 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What happened**: No visible mechanism to handle aged-out teams. The library will grow indefinitely with stale teams that no longer play. Questions: (1) Should aged-out teams be automatically hidden or archived? (2) Should club reps be able to manually archive/remove them? (3) Team name editing is still needed (see SP-001) — club reps must be able to rename teams without deleting and re-creating them.
 - **Severity**: Question
 - **Status**: Fixed
+
+---
+
+## Third Pass Items
+
+*Started 2026-04-30. Numbered independently (TP-001, TP-002, ...).*
+
+### TP-010: Add Team — duplicate team silently rejected with wrong success message
+- **Area**: Team Selection
+- **What I did**: Clicked "Add a Team" and entered a team that's already in my Team Library
+- **What I expected**: Clear message that the team already exists, e.g. "Team already exists in your Team Library"
+- **What happened**: The success toast says the team was added successfully (incorrect), but the team is not actually added to the Library (correct behavior). Backend correctly skips the duplicate; frontend mislabels the outcome.
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Likely backend returns success because the team already belongs to the club, but frontend should detect the no-op and surface "Team already exists in your Team Library" instead of a generic success message.
+
+### TP-009: CC payment in Sandbox fails with "Payment Error: All team payments failed."
+- **Refs**: SP-008 (similar "One or more teams not found" error in second pass — marked Fixed/can't reproduce; this may be a related regression)
+- **Area**: Payment
+- **What I did**: Reached the Payment screen during Team Registration, entered credit card info, and submitted to Sandbox
+- **What I expected**: Sandbox to process the payment successfully
+- **What happened**: Payment Error displayed: "All team payments failed." Payment did not go through. Different wording from SP-008 ("One or more teams not found") but same flow/area — likely related backend lookup or per-team payment loop bug.
+- **Severity**: Bug
+- **Status**: Open — Todd is working on this
+- **Note**: Capture: which job, which teams, how many teams in cart, and whether any teams already had partial payment recorded. The "All ... failed" wording suggests every per-team payment attempt errored — could be auth/scope, missing fee row (see Accounting PL-001 about Club Rep fees not populated on recent sites), or a transaction wrapper issue.
+
+### TP-008: Library doesn't display LOP — undermines its purpose as a registration reference
+- **Refs**: SP-002 (LOP intentionally kept on Library as overall assessment, adjustable per tournament)
+- **Area**: Team Selection
+- **What I did**: Added a team to the Library and entered a Level of Play, then went to register that team in a tournament
+- **What I expected**: The LOP I set on the team to be visible in the Library row, so I know what value to use when registering
+- **What happened**: LOP isn't shown in the Library — I had to guess what to enter at registration time. If LOP is collected on the Library (per SP-002 it's an overall assessment), it must also be displayed there; otherwise it's data the user can't see or use as a reference.
+- **Severity**: UX
+- **Status**: Open — pending Todd's review (Ann + Claude align on recommendation below)
+- **Discussion (2026-05-06)**:
+  - **Risk**: If the Library shows a "general" LOP that differs from a team's per-event LOP, club reps will treat the mismatch as a bug. An LOP only has real meaning in the context of an event.
+  - **Importance of a Library-level LOP outside an event**: Minimal. The only legitimate non-event purpose is *prefilling* the LOP when registering for a new event — which can be sourced from the team's most recent prior registration instead.
+  - **Recommended direction (Ann likes this)**: **Drop the separate Library-level LOP field entirely.** The new Library column shows the LOP from the current event's registration if the team is registered for it, otherwise blank/dash. When registering a Library team into an event for the first time, prefill the LOP form with their LOP from their most recent prior registration (across any event). No two-LOP confusion, no lost data, smart default preserved.
+  - **Alternative (also acceptable)**: Keep the LOP field in the Add Team form but treat it as a "starter LOP" used only as the prefill on first event registration — never displayed in the Library.
+
+### TP-007: Add Team popup needs to be movable/draggable so background stays visible
+- **Refs**: SP-003 (popup-obscures-background was addressed previously, but movability is a separate need)
+- **Area**: Team Selection
+- **What I did**: Opened the Add Team popup while looking at the Library
+- **What I expected**: Ability to drag/move the popup out of the way so I can reference the Library rows behind it while filling in the new team
+- **What happened**: Popup is fixed in place. Make it draggable (or repositionable) so users can see the Library content behind it while adding a team — important when checking for duplicates or comparing against existing entries.
+- **Severity**: UX
+- **Status**: Open
+- **Update (2026-05-06)**: Confirmed still important — primary need is to keep the **Registered Teams** grid visible behind the popup so the rep can cross-reference what's already registered while adding a new team.
+
+### TP-006: Team Library — improve row distinction; first-added team wasn't visible
+- **Area**: Team Selection
+- **What I did**: Added a team to the Library, then looked at the Library list
+- **What I expected**: The new team to be obviously visible, with clear row separation between teams
+- **What happened**: I didn't see the first team I entered — rows blend together. The Library table needs better structure / row distinction (alternating row backgrounds, stronger row dividers, clearer hierarchy, or a "newest first" sort indicator) so individual teams stand out and a newly-added team is immediately findable.
+- **Severity**: UX
+- **Status**: Fixed
+
+### TP-005: Bulletins — replace registration copy with three simple "Click Here for..." links
+- **Area**: Club Rep Login (bulletins / landing copy)
+- **What I did**: Read the current bulletin language directing users to registration
+- **What I expected**: Short, scannable, action-first links
+- **What happened**: Current copy is wordier than it needs to be. Replace all of it with three clean links:
+  - **Click Here for Team Registration**
+  - **Click Here for Player Registration**
+  - **Click Here for Coach Registration**
+  Much cleaner and faster for users to find their path.
+- **Severity**: UX
+- **Status**: Open
+- **Update (2026-05-06)**: Carolina Clash bulletin already uses this format for Team Registration — extend the same format to Players and Coaches there, **and apply across ALL bulletins** (every job). Ann: "So much better!!!"
+
+### TP-004: Teams screen layout — eliminate scrolling on Registered card; rebalance space vs Library (acceptance-critical)
+- **Refs**: SP-006 (deferred accounting-table column rework)
+- **Area**: Team Selection
+- **What I did**: Compared the Teams screen (Library + Registered teams + accounting columns) against Legacy
+- **What I expected**: All registered teams visible at once with all accounting columns showing — no scrolling up/down or left/right, the way Legacy presents it
+- **What happened**: Users have to scroll both vertically and horizontally to see all teams and columns. This will be a hard sell — club reps need to see the full picture at a glance. Recommend reducing the Library card size and increasing the Registered teams card width so the accounting grid can show all columns and all rows in one screen.
+- **Severity**: UX
+- **Status**: Partially Fixed — Library-as-flyin reclaimed horizontal space and the Registered Teams grid no longer scrolls horizontally. Vertical scroll and chrome cleanup still needed.
+- **Follow-up edits (2026-05-06)**:
+  1. **All registered teams visible at once for up to 20–25 teams** — no scroll-down on the Registered Teams card
+  2. **Drop the duplicate event-name header** at the top of the screen (already shown elsewhere)
+  3. **Trim the wizard card** — team name in the first wizard card is redundant (shown twice); remove it
+  4. **Header rename + style**: change Registered card header to **"Registered Teams"** in blue bold
+  5. **Register Another Team tip** — change "I have more teams to register" → **"Go to Club Teams Library"**
+  6. **Owed Amount and Paid Amount columns must fit without scrolling** — accounting columns on the Registered Teams grid currently force horizontal scroll; both Owed Amount and Paid Amount columns need to be visible at all times
+  7. **Payment step accounting table — show all info without scrolling; widen the card** — same shared grid as Teams step, but the Payment screen's card needs to be wider so every column fits at a glance
+- **Note**: Ann flags this as **essential for acceptance** of the Library feature. The Library is the new piece — if it costs club reps the at-a-glance view they had in Legacy, they'll resist the change. Pair with SP-006 accounting-column rework so this is a single coordinated layout pass.
+
+### TP-003: Waiver screen bypassed for already-registered Club Rep — intentional?
+- **Refs**: PL-015 (Waivers step added between Login and Teams in first pass)
+- **Area**: Waivers
+- **What I did**: Logged in as a Club Rep who had already registered for the tournament, then logged back in later to register additional teams
+- **What I expected**: Same Waiver flow seen in previous passes — Refund Policy waiver shown between Login and Teams
+- **What happened**: Waiver screen was skipped entirely on this re-login. Different behavior than previous pass. Is this intentional (e.g., once the rep has accepted the waiver, don't re-prompt) or a regression?
+- **Severity**: Question
+- **Status**: Open — pending Todd's decision
+- **Discussion (2026-05-06)**: Acceptance is stored as `BWaiverSigned3`, a single boolean per ClubRep per job — so the current skip-on-re-login is consistent with how the data is modeled. Recommended direction: keep skipping the full waiver on re-login, but add a "By submitting payment, you reaffirm acceptance of the [Refund Policy]" line near the Pay button on the Payment step so the policy is one click away every time money changes hands. Open risk: if the Refund Policy text changes mid-cycle, repeat reps wouldn't see the new version (could be mitigated later with a policy-version field). **Awaiting Todd's call before implementing.**
+
+### TP-002: Library flyin — tighten header, name the club, less spacing, add bulleted tips
+- **Area**: Team Selection
+- **What I did**: Reviewed the Library flyin on the Teams screen
+- **What I expected**: A compact flyin that keeps the Registered Teams grid visible and gives the club rep clear guidance on each Library action
+- **What happened**: Library-as-flyin is the right call — it preserves the Registered Teams view. But the flyin needs the following changes:
+  1. **Too much real estate at the top** — tighten the header area
+  2. **Header should name the club**, e.g. "Club Team Library: STEPS Elite NJ" (replaces the current generic header)
+  3. **"X teams" line is helpful, but reduce surrounding spacing**
+  4. **Add the bulleted tips list** covering each Library action:
+     - **Register** — register a Library team into this tournament
+     - **Add Team** — add a brand-new team to your Library
+     - **Archive Team** — archive a team that will no longer be registered in any tournament (keeps history, hides from active list)
+     - **Edits** — for changes beyond a name tweak, make a new team and archive the old one (preserves historical accuracy across past tournaments)
+  5. **Reclaim vertical space for the team list** — once the header/spacing/tips are tightened, give the resulting real estate to the team rows so even more Library teams are visible without scrolling
+- **Severity**: UX
+- **Status**: Open
+
+### TP-001: Library doesn't recognize Legacy registrations — no Registered indicator + allows double-registration
+- **Area**: Team Selection
+- **What I did**: Logged in as STEPS NJ on LBTS 2027 (Lax by the Sea 2027). This club has 12 teams already registered in Legacy for that tournament.
+- **What I expected**: All 12 teams to show the green "Registered" indicator in the Library, and the Register button to be disabled / replaced for those teams so they can't be registered again.
+- **What happened**: (1) None of the 12 teams show the green Registered indicator in the Library — they look unregistered. (2) The flow allowed me to register them again, creating duplicate registrations on top of the Legacy ones.
+- **Severity**: Bug
+- **Status**: Partially Fixed — Legacy registrations are now recognized and the chip shows green. **Follow-up**: chip is now noisy (shows grad year + LOP); revert to a simple "Registered" label so it's instantly clear to users.
+- **Note**: Likely a Legacy-vs-new-system data-source gap — the Library "registered" check probably only looks at new-system registrations and doesn't see Legacy ones. Critical to fix before cutover or any tournament running on both systems.
+
+<!-- Template — copy and fill in for each new item:
+
+### TP-XXX: <short title>
+- **Area**: <Club Rep Login | Team Selection | Team Forms | Roster Management | Waivers | Review Summary | Payment | Confirmation>
+- **What I did**:
+- **What I expected**:
+- **What happened**:
+- **Severity**: <Bug | UX | Question>
+- **Status**: Open
+
+-->
+
