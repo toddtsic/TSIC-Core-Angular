@@ -160,6 +160,11 @@ public sealed record RegisteredTeamDto
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
+    // Immutable fee structure — what the team was committed to, independent of payment state.
+    // Used by the Teams step to surface phase-agnostic team properties.
+    public required decimal Deposit { get; init; }
+    public required decimal BalanceDue { get; init; }
+    // Net-of-paid ledger state — used by the Payment step.
     public required decimal DepositDue { get; init; }
     public required decimal AdditionalDue { get; init; }
     public required DateTime RegistrationTs { get; init; }

@@ -125,10 +125,11 @@ interface AgePickerTeam {
           <div style="padding: var(--space-2) var(--space-3)">
             <app-registered-teams-grid
               [teams]="enteredTeams()"
-              [showDeposit]="!fullPaymentRequired()"
-              [showBalance]="fullPaymentRequired()"
-              [showOwed]="true"
-              [showPaid]="true"
+              [showStructure]="true"
+              [showDeposit]="false"
+              [showBalance]="false"
+              [showOwed]="false"
+              [showPaid]="false"
               [showProcessing]="false"
               [showCcOwed]="false"
               [showCkOwed]="false"

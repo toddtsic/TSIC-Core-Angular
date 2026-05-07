@@ -449,6 +449,8 @@ public class TeamRegistrationService : ITeamRegistrationService
                 FeeTotal = t.FeeTotal,
                 PaidTotal = t.PaidTotal,
                 OwedTotal = t.OwedTotal,
+                Deposit = deposit,
+                BalanceDue = balanceDue,
                 DepositDue = depositDue,
                 AdditionalDue = additionalDue,
                 RegistrationTs = t.RegistrationTs,

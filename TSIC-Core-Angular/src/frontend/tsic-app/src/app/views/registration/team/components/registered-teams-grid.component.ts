@@ -55,11 +55,15 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
           </e-column>
           <e-column field="registrationTs" headerText="Reg Date" width="100" type="date" format="yMd"
                     [visible]="showRegDate()"></e-column>
+          <e-column field="deposit" headerText="Deposit" width="85" textAlign="Right" format="C2"
+                    [visible]="showStructure()"></e-column>
+          <e-column field="balanceDue" headerText="Balance Due" width="100" textAlign="Right" format="C2"
+                    [visible]="showStructure()"></e-column>
           <e-column field="depositDue" headerText="Deposit Due" width="90" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
           <e-column field="additionalDue" headerText="Bal Due" width="80" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
-          <e-column field="feeBase" headerText="Total Fee" width="80" textAlign="Right" format="C2"></e-column>
+          <e-column field="feeTotal" headerText="Total Fee" width="80" textAlign="Right" format="C2"></e-column>
           <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
                     [visible]="showPaid()">
             <ng-template #template let-data>
@@ -117,9 +121,19 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                   <strong>{{ teams().length }} {{ teams().length === 1 ? 'team' : 'teams' }}</strong>
                 </ng-template>
               </e-column>
-              <e-column field="feeBase" type="Sum" format="C2">
+              <e-column field="feeTotal" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
                   <div class="aggregate-value">{{ sumFee() | currency }}</div>
+                </ng-template>
+              </e-column>
+              <e-column field="deposit" type="Sum" format="C2">
+                <ng-template #footerTemplate let-data>
+                  <div class="aggregate-value">{{ sumDeposit() | currency }}</div>
+                </ng-template>
+              </e-column>
+              <e-column field="balanceDue" type="Sum" format="C2">
+                <ng-template #footerTemplate let-data>
+                  <div class="aggregate-value">{{ sumBalanceDue() | currency }}</div>
                 </ng-template>
               </e-column>
               <e-column field="paidTotal" type="Sum" format="C2">
@@ -217,8 +231,9 @@ export class RegisteredTeamsGridComponent {
     readonly teams = input.required<RegisteredTeamDto[]>();
 
     // Column visibility flags
-    readonly showDeposit = input(false);
-    readonly showBalance = input(false);
+    readonly showStructure = input(false); // immutable fee structure (Deposit + Balance Due) — Teams step
+    readonly showDeposit = input(false);   // net-of-paid deposit (DepositDue) — Payment step
+    readonly showBalance = input(false);   // net-of-paid balance (AdditionalDue) — Payment step
     readonly showOwed = input(false);
     readonly showProcessing = input(false);
     readonly showPaid = input(true);
@@ -266,8 +281,10 @@ export class RegisteredTeamsGridComponent {
     }
 
     // Aggregates
-    readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.feeBase, 0));
+    readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.feeTotal, 0));
     readonly sumPaid = computed(() => this.teams().reduce((s, t) => s + t.paidTotal, 0));
+    readonly sumDeposit = computed(() => this.teams().reduce((s, t) => s + t.deposit, 0));
+    readonly sumBalanceDue = computed(() => this.teams().reduce((s, t) => s + t.balanceDue, 0));
     readonly sumDepositDue = computed(() => this.teams().reduce((s, t) => s + t.depositDue, 0));
     readonly sumAdditionalDue = computed(() => this.teams().reduce((s, t) => s + t.additionalDue, 0));
     readonly sumOwed = computed(() => this.teams().reduce((s, t) => s + t.owedTotal, 0));
