@@ -253,11 +253,12 @@ export interface RegisterRequest {
                                     [class.is-recommended]="ag.isRecommended"
                                     [class.is-full]="ag.isFull"
                                     [class.is-almost-full]="ag.isAlmostFull"
-                                    [disabled]="ag.isFull || actionInProgress() || lopRequired()"
+                                    [disabled]="actionInProgress() || lopRequired()"
+                                    [title]="ag.isFull ? 'Age group is full — registering will waitlist this team' : null"
                                     (click)="commitRegister(team, ag.ageGroupId)">
                               <span class="ag-chip-name">{{ ag.ageGroupName }}</span>
                               <span class="ag-chip-meta">
-                                @if (ag.isFull) { Full }
+                                @if (ag.isFull) { Waitlist }
                                 @else if (ag.isAlmostFull) { {{ ag.spotsLeft }} left }
                               </span>
                             </button>
@@ -928,10 +929,24 @@ export interface RegisterRequest {
       }
 
       .ag-chip.is-almost-full { border-color: var(--bs-warning); color: var(--bs-warning); }
+
+      /* Full = waitlist path. Keep clickable; visually distinct from open AGs
+         via dashed border + amber accent + uppercase meta label. */
       .ag-chip.is-full {
-        border-color: var(--border-color);
-        color: var(--brand-text-muted);
-        background: color-mix(in srgb, var(--bs-body-color) 4%, transparent);
+        border-style: dashed;
+        border-color: var(--bs-warning);
+        color: var(--bs-warning);
+        background: color-mix(in srgb, var(--bs-warning) 6%, transparent);
+      }
+      .ag-chip.is-full:hover:not(:disabled) {
+        background: var(--bs-warning);
+        color: var(--neutral-0);
+        border-color: var(--bs-warning);
+        border-style: solid;
+      }
+      .ag-chip.is-full .ag-chip-meta {
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
 
       .ag-chip-name { font-size: var(--font-size-xs); }
