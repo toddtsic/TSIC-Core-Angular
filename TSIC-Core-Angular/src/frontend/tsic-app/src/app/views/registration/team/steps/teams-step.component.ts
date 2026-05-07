@@ -53,7 +53,8 @@ interface AgePickerTeam {
               <span class="section-titlebar-tail">Registered Teams</span>
             </h3>
             <span class="phase-badge">
-              {{ fullPaymentRequired() ? 'Balance Due Owed' : 'Deposit Owed' }}
+              <span class="phase-badge__label">Payment Phase</span>
+              <span class="phase-badge__value">{{ fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only' }}</span>
             </span>
           </div>
         }
@@ -124,8 +125,8 @@ interface AgePickerTeam {
           <div style="padding: var(--space-2) var(--space-3)">
             <app-registered-teams-grid
               [teams]="enteredTeams()"
-              [showDeposit]="!fullPaymentRequired() && anyDepositDue()"
-              [showBalance]="!fullPaymentRequired() && anyBalanceDue()"
+              [showDeposit]="!fullPaymentRequired()"
+              [showBalance]="fullPaymentRequired()"
               [showOwed]="true"
               [showPaid]="false"
               [showProcessing]="false"
@@ -433,23 +434,28 @@ interface AgePickerTeam {
         color: var(--brand-text-muted);
       }
 
-      /* Phase badge — tournament state ("Deposit Owed" / "Balance Due Owed"),
-         flush-right in the section titlebar. Single primary-toned style for both. */
+      /* Event Stage — informational only, not actionable. Deliberately
+         not a pill/chip so users don't read it as clickable. Plain
+         captioned data point: muted label + slightly stronger value. */
       .phase-badge {
         margin-left: auto;
         display: inline-flex;
-        align-items: center;
-        padding: 2px var(--space-3);
+        align-items: baseline;
+        gap: var(--space-2);
         font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        border-radius: 999px;
         white-space: nowrap;
-        background: var(--bs-primary);
-        color: var(--neutral-0, #fff);
-        border: 1px solid color-mix(in srgb, var(--bs-primary) 75%, black);
-        box-shadow: 0 1px 3px color-mix(in srgb, var(--bs-primary) 35%, transparent);
+      }
+
+      .phase-badge__label {
+        color: var(--brand-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .phase-badge__value {
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-bold);
       }
 
       /* Compact action button nested inside a .section-header banner */
@@ -745,11 +751,8 @@ export class TeamTeamsStepComponent implements OnInit {
         return map;
     });
 
-    // Phase-aware grid column gating — derived from per-team data + bTeamsFullPaymentRequired.
-    readonly anyDepositDue = computed(() => this._registeredTeams().some(t => t.depositDue > 0));
-    readonly anyBalanceDue = computed(() => this._registeredTeams().some(t => t.additionalDue > 0));
-    readonly anyPaid       = computed(() => this._registeredTeams().some(t => t.paidTotal > 0));
-    readonly anyOwed       = computed(() => this._registeredTeams().some(t => t.owedTotal > 0));
+    readonly anyPaid = computed(() => this._registeredTeams().some(t => t.paidTotal > 0));
+    readonly anyOwed = computed(() => this._registeredTeams().some(t => t.owedTotal > 0));
 
     ngOnInit(): void {
         this.loadTeamsMetadata(true);
