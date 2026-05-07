@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, Input, inject, OnInit, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { DragDropModule } from '@angular/cdk/drag-drop';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -14,13 +15,18 @@ import type { ClubTeamDto } from '@core/api';
 @Component({
     selector: 'app-team-form-modal',
     standalone: true,
-    imports: [FormsModule, TsicDialogComponent],
+    imports: [FormsModule, TsicDialogComponent, DragDropModule],
     template: `
     <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
-      <div class="modal-content form-modal">
+      <div class="modal-content form-modal"
+           cdkDrag
+           [cdkDragRootElement]="'.tsic-dialog'"
+           cdkDragBoundary="body">
 
-        <!-- Hero banner — matches register picker styling -->
-        <div class="form-hero">
+        <!-- Hero banner — matches register picker styling. Doubles as the
+             drag handle so the rep can shift the modal to peek at the
+             library table beneath. -->
+        <div class="form-hero" cdkDragHandle>
           <h5 class="form-hero-title mb-0">
             @if (isEdit()) {
               <i class="bi bi-pencil-square me-1"></i>Edit Library Team
@@ -152,7 +158,8 @@ import type { ClubTeamDto } from '@core/api';
     </tsic-dialog>
   `,
     styles: [`
-      /* ── Hero Banner — matches picker-hero ── */
+      /* ── Hero Banner — matches picker-hero. Doubles as the cdkDragHandle
+         for the modal; cursor + user-select tweaks signal grab-ability. ── */
       .form-hero {
         display: flex;
         align-items: center;
@@ -161,7 +168,16 @@ import type { ClubTeamDto } from '@core/api';
         padding: var(--space-2) var(--space-3);
         background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), 0.08) 0%, rgba(var(--bs-primary-rgb), 0.02) 100%);
         border-bottom: 2px solid rgba(var(--bs-primary-rgb), 0.12);
+        cursor: grab;
+        user-select: none;
+
+        &:active { cursor: grabbing; }
       }
+
+      /* Close button keeps its own cursor — drag handle shouldn't override
+         interactive children. CDK drag already excludes button targets, but
+         the cursor needs an explicit override. */
+      .form-hero-close { cursor: pointer; }
 
       .form-hero-title {
         font-size: var(--font-size-base);

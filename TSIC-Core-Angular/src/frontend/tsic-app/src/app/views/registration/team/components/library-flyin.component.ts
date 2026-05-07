@@ -42,32 +42,40 @@ export interface RegisteredInfo {
            when everything's fine. -->
       <div class="panel-header">
         <div class="header-top-row">
-          <h3 class="panel-title" id="library-flyin-title">{{ clubName() || 'Team Library' }}</h3>
-          <div class="header-actions">
-            @if (activeTeams().length > 0 || archivedTeams().length > 0) {
-              <button type="button" class="btn-add-team"
-                      [disabled]="actionInProgress()"
-                      (click)="addNew.emit()">
-                <i class="bi bi-plus-circle me-1"></i>Add Library Team
-              </button>
+          <h3 class="panel-title" id="library-flyin-title">
+            Club Team Library
+            @if (clubName()) {
+              <span class="title-club-badge">{{ clubName() }}</span>
             }
+          </h3>
+          <div class="header-actions">
             <button type="button" class="btn-close" aria-label="Close library" (click)="onClose()">&times;</button>
           </div>
         </div>
 
-        <div class="header-tags">
-          <span class="header-tag">
-            <span class="header-tag-label">Active Library Teams:</span>
-            <span class="header-tag-value">{{ activeTeams().length }}</span>
-          </span>
-          <span class="header-tag">
-            <span class="header-tag-label">Archived Library Teams:</span>
-            <span class="header-tag-value">{{ archivedTeams().length }}</span>
-          </span>
-          <span class="header-tag">
-            <span class="header-tag-label">Registered Teams:</span>
-            <span class="header-tag-value">{{ registeredCount() }}</span>
-          </span>
+        <div class="header-info">
+          <div class="header-tags">
+            <span class="header-tag">
+              <span class="header-tag-label">Active:</span>
+              <span class="header-tag-value">{{ activeTeams().length }}</span>
+            </span>
+            <span class="header-tag">
+              <span class="header-tag-label">Archived:</span>
+              <span class="header-tag-value">{{ archivedTeams().length }}</span>
+            </span>
+            <span class="header-tag">
+              <span class="header-tag-label">Registered:</span>
+              <span class="header-tag-value">{{ registeredCount() }}</span>
+            </span>
+          </div>
+          <div class="wizard-tip">
+            <ul class="mb-0">
+              <li>Library teams carry across every TSIC event — enter a team once, never retype.</li>
+              <li>The library tracks each team's performance over time. If a team's composition has significantly changed for an event, add a <em>new</em> library team and use that one.</li>
+              <li>To register a team that isn't in your library yet, add it first, then click <strong>Register</strong> on its row.</li>
+              <li>If a team has aged out, click <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row and choose <strong>Archive</strong>.</li>
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -103,15 +111,33 @@ export interface RegisteredInfo {
           <section class="lib-section-card">
             <header class="lib-section-card-header">
               <span class="lib-section-card-eyebrow">Active Library</span>
+              <button type="button" class="btn-add-team header-add-team"
+                      [disabled]="actionInProgress()"
+                      (click)="addNew.emit()">
+                <i class="bi bi-plus-circle me-1"></i>Add Library Team
+              </button>
             </header>
             <table class="lib-table">
               <thead>
                 <tr>
-                  <th class="lib-th-team">Lib-Team</th>
-                  <th class="lib-th-age">Lib-GradYr</th>
-                  <th class="lib-th-lop">Lib-LOP</th>
-                  <th class="lib-th-status">Reg AgeGroup/LOP</th>
-                  <th class="lib-th-actions">Manage</th>
+                  <th class="lib-th-team">
+                    <span class="th-prefix">Library</span>
+                    <span class="th-noun">Team</span>
+                  </th>
+                  <th class="lib-th-age">
+                    <span class="th-prefix">Library</span>
+                    <span class="th-noun">Grad Year</span>
+                  </th>
+                  <th class="lib-th-lop">
+                    <span class="th-prefix">Library</span>
+                    <span class="th-noun">LOP</span>
+                  </th>
+                  <th class="lib-th-status">
+                    <span class="th-noun">Status</span>
+                  </th>
+                  <th class="lib-th-actions">
+                    <span class="visually-hidden">Manage</span>
+                  </th>
                 </tr>
               </thead>
             <tbody>
@@ -126,24 +152,32 @@ export interface RegisteredInfo {
                   <td class="lib-td-status">
                     @if (registered) {
                       @let regDisplay = formatRegisteredDisplay(registered);
-                      <span class="status-yes">
-                        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                      <div class="status-block status-block-yes">
+                        <span class="status-line">
+                          <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                          Registered
+                        </span>
                         @if (regDisplay) {
-                          <span class="status-yes-detail">{{ regDisplay }}</span>
+                          <span class="status-detail">{{ regDisplay }}</span>
                         }
-                      </span>
+                      </div>
                     } @else if (canRegister()) {
-                      <button type="button" class="btn-register-cell"
-                              [disabled]="actionInProgress()"
-                              (click)="register.emit(team)">
-                        <i class="bi bi-trophy-fill" aria-hidden="true"></i>
-                        <span>Register</span>
-                      </button>
+                      <div class="status-block status-block-no">
+                        <span class="status-line">Not Registered</span>
+                        <button type="button" class="btn-register-cell"
+                                [disabled]="actionInProgress()"
+                                (click)="register.emit(team)">
+                          <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                          <span>Register</span>
+                        </button>
+                      </div>
                     } @else {
-                      <span class="status-closed">
-                        <i class="bi bi-lock-fill" aria-hidden="true"></i>
-                        Closed
-                      </span>
+                      <div class="status-block status-block-closed">
+                        <span class="status-line">
+                          <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                          Closed
+                        </span>
+                      </div>
                     }
                   </td>
                   <td class="lib-td-actions">
@@ -306,11 +340,27 @@ export interface RegisteredInfo {
         }
 
         .panel-title {
+          display: inline-flex;
+          align-items: baseline;
+          gap: var(--space-2);
           margin: 0;
           font-size: var(--font-size-xl);
           font-weight: var(--font-weight-semibold);
           color: var(--bs-body-color);
           white-space: nowrap;
+        }
+
+        /* Club name pill alongside the panel title — quiet primary-tinted
+           identifier so the rep sees whose library they're editing. */
+        .title-club-badge {
+          padding: 2px var(--space-3);
+          background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+          color: var(--bs-primary);
+          border: 1px solid color-mix(in srgb, var(--bs-primary) 30%, transparent);
+          border-radius: 999px;
+          font-size: var(--font-size-sm);
+          font-weight: var(--font-weight-bold);
+          letter-spacing: 0;
         }
 
         .header-actions {
@@ -453,10 +503,15 @@ export interface RegisteredInfo {
          Matches search/registrations .section-title token-for-token. */
       .lib-section-card-header {
         display: flex;
-        align-items: baseline;
+        align-items: center;
+        gap: var(--space-2);
         padding: var(--space-3) var(--space-4);
         border-bottom: 1px solid var(--bs-border-color);
       }
+
+      /* Add Library Team button — flushed right inside the Active Library
+         section header (replaces the top-of-flyin position). */
+      .lib-section-card-header .header-add-team { margin-left: auto; }
 
       .lib-section-card-eyebrow {
         font-size: var(--font-size-sm);
@@ -466,12 +521,24 @@ export interface RegisteredInfo {
         color: var(--bs-primary);
       }
 
-      /* Header tag pairs — mirrors registration-detail-panel .header-tag */
-      .header-tags {
+      /* Stacked block under the title row: stats line, then tips line. */
+      .header-info {
         display: flex;
         flex-direction: column;
-        gap: var(--space-1);
+        gap: var(--space-2);
       }
+
+      /* Header tag pairs — single horizontal line in this flyin so the
+         tips column gets more horizontal real estate. Search/teams stays
+         stacked. */
+      .header-tags {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: var(--space-1) var(--space-3);
+      }
+
 
       .header-tag {
         display: inline-flex;
@@ -547,11 +614,9 @@ export interface RegisteredInfo {
       }
 
       .lib-table thead th {
-        padding: var(--space-2) var(--space-2);
-        text-align: left;
-        font-size: 10px;
-        font-weight: var(--font-weight-bold);
-        letter-spacing: 0.08em;
+        padding: var(--space-2);
+        text-align: center;
+        vertical-align: bottom;
         text-transform: uppercase;
         color: var(--brand-text-muted);
         background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
@@ -559,18 +624,35 @@ export interface RegisteredInfo {
         white-space: nowrap;
       }
 
-      /* Column widths sized for the 520px panel.
-         Lib-* columns hold library-intrinsic data; Reg column holds this
-         event's registration data. Headers carry the prefix so the rep can
-         tell which axis each cell is on. */
+      /* Two-line header: Library/Registered prefix on top, the column noun
+         below. Helps the rep distinguish library-axis cells from registered-
+         axis cells at a glance. */
+      .lib-table thead .th-prefix,
+      .lib-table thead .th-noun {
+        display: block;
+        line-height: 1.15;
+      }
+
+      .lib-table thead .th-prefix {
+        font-size: 9px;
+        font-weight: var(--font-weight-semibold);
+        letter-spacing: 0.06em;
+        opacity: 0.75;
+      }
+
+      .lib-table thead .th-noun {
+        font-size: 11px;
+        font-weight: var(--font-weight-bold);
+        letter-spacing: 0.04em;
+      }
+
+      /* Column widths sized for the 520px panel. */
       .lib-th-team    { width: auto; }
-      .lib-th-age     { width: 80px; text-align: center !important; }
-      .lib-th-lop     { width: 60px; text-align: center !important; }
-      .lib-th-status  { width: 130px; text-align: left !important; }
-      /* 76px = MANAGE label (~50px) + 8px left pad + 12px right pad + slack.
-         Anything narrower and the centered text overflows the padding zone
-         and visually crowds the card border. */
-      .lib-th-actions { width: 76px; text-align: center !important; }
+      .lib-th-age     { width: 80px; }
+      .lib-th-lop     { width: 60px; }
+      .lib-th-status  { width: 130px; }
+      /* 76px = MANAGE label (~50px) + 8px left pad + 12px right pad + slack. */
+      .lib-th-actions { width: 76px; }
 
       /* Inset rightmost column from the card border so MANAGE / kebab don't
          crowd the edge after the border was strengthened to solid primary. */
@@ -603,7 +685,8 @@ export interface RegisteredInfo {
       }
 
       .lib-td-age,
-      .lib-td-lop {
+      .lib-td-lop,
+      .lib-td-status {
         text-align: center;
         color: var(--brand-text-muted);
         font-variant-numeric: tabular-nums;
@@ -623,32 +706,42 @@ export interface RegisteredInfo {
         min-width: 0;
       }
 
-      /* ── Status column — three states ───────────────────────────── */
-      .status-yes {
+      /* ── Registration Status column — three states ──────────────────
+         Each cell stacks an explicit status label (line 1) above either a
+         detail string (registered) or a CTA button (not yet registered).
+         Center-aligned so the column reads as a status badge column rather
+         than a mixed action/info hybrid. */
+      .status-block {
         display: inline-flex;
+        flex-direction: column;
         align-items: center;
-        gap: 4px;
-        color: var(--bs-success);
-        font-weight: var(--font-weight-semibold);
+        gap: 2px;
         white-space: nowrap;
-
-        > i { font-size: 1em; }
       }
 
-      .status-yes-detail {
-        font-size: 11px;
-        font-weight: var(--font-weight-medium);
-      }
-
-      .status-closed {
+      .status-block .status-line {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        color: var(--brand-text-muted);
         font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-medium);
+        font-weight: var(--font-weight-bold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
 
-        > i { font-size: 0.95em; }
+      .status-block .status-detail {
+        font-size: 11px;
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text-muted);
+      }
+
+      .status-block-yes .status-line { color: var(--bs-success); }
+
+      .status-block-no .status-line { color: var(--brand-text-muted); }
+
+      .status-block-closed .status-line {
+        color: var(--brand-text-muted);
+        font-style: italic;
       }
 
       .status-archived {
