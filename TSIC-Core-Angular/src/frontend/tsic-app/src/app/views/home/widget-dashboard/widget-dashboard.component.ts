@@ -69,10 +69,13 @@ export class WidgetDashboardComponent {
 	/**
 	 * Whether dashboard tabs should render.
 	 * Only admins (Superuser/Director/SuperDirector) see both tabs; everyone else
-	 * sees public content without a tab bar. Role tab stays visible for admins even
-	 * when empty — the empty state explains how to customize.
+	 * sees public content without a tab bar. When the role view has no widgets
+	 * (all defaults disabled, no per-user picks), drop the tabs entirely and
+	 * fall through to the public content — no empty "Role View" tab.
 	 */
-	readonly showTabs = computed(() => !this.isPublic() && this.isAdmin());
+	readonly showTabs = computed(() =>
+		!this.isPublic() && this.isAdmin() && this.hubCategories().length > 0
+	);
 
 	readonly username = computed(() =>
 		this.auth.currentUser()?.username || '');
