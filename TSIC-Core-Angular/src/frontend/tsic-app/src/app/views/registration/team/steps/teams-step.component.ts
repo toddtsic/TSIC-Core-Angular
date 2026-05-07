@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
-import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-summary.component';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -28,7 +27,7 @@ interface AgePickerTeam {
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, RegisteredTeamsSummaryComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
+    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -53,14 +52,9 @@ interface AgePickerTeam {
             <h3 class="section-titlebar-title">
               <span class="section-titlebar-tail">Registered Teams</span>
             </h3>
-            <app-registered-teams-summary class="titlebar-summary"
-              [teams]="enteredTeams()"
-              [showOwed]="true"
-              [showPaid]="false"
-              [showCcOwed]="false"
-              [showCkOwed]="false"
-              [showDeposit]="!fullPaymentRequired() && anyDepositDue()"
-              [showBalance]="!fullPaymentRequired() && anyBalanceDue()" />
+            <span class="phase-badge">
+              {{ fullPaymentRequired() ? 'Balance Due Owed' : 'Deposit Owed' }}
+            </span>
           </div>
         }
 
@@ -154,7 +148,7 @@ interface AgePickerTeam {
                 <i class="bi bi-plus-circle-fill action-segment-icon" aria-hidden="true"></i>
                 <span class="action-segment-content">
                   <span class="action-segment-title">Register Another Team</span>
-                  <span class="action-segment-sub">I have more teams to register</span>
+                  <span class="action-segment-sub">Go to Club Team Library</span>
                 </span>
               </button>
 
@@ -437,8 +431,24 @@ interface AgePickerTeam {
         color: var(--brand-text-muted);
       }
 
-      /* Pills component flushed right inside the section titlebar. */
-      .titlebar-summary { margin-left: auto; }
+      /* Phase badge — tournament state ("Deposit Owed" / "Balance Due Owed"),
+         flush-right in the section titlebar. Single primary-toned style for both. */
+      .phase-badge {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--space-3);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        border-radius: 999px;
+        white-space: nowrap;
+        background: var(--bs-primary);
+        color: var(--neutral-0, #fff);
+        border: 1px solid color-mix(in srgb, var(--bs-primary) 75%, black);
+        box-shadow: 0 1px 3px color-mix(in srgb, var(--bs-primary) 35%, transparent);
+      }
 
       /* Compact action button nested inside a .section-header banner */
       .section-action {

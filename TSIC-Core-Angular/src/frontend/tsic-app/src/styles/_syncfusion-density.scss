@@ -338,9 +338,12 @@
     border-right: none;
   }
 
+  /* Center all header text — wrapped multi-word headers
+     (Age Group, Deposit Due, etc.) read cleaner stacked + centered. */
   .e-headercelldiv {
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-bold);
+    text-align: center;
   }
 }
 

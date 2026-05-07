@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
-import { GridAllModule } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { RegisteredTeamDto } from '@core/api';
 import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tooltip.component';
 
@@ -16,15 +16,21 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
     standalone: true,
     imports: [CurrencyPipe, GridAllModule, InfoTooltipComponent],
     template: `
-      <ejs-grid [dataSource]="teams()" [allowSorting]="true"
+      <ejs-grid #grid [dataSource]="teams()" [allowSorting]="true"
                 [allowTextWrap]="true"
                 [textWrapSettings]="{ wrapMode: 'Header' }"
                 [rowHeight]="30"
                 [height]="gridHeight()"
                 [allowPaging]="pageSize() > 0"
                 [pageSettings]="{ pageSize: pageSize() || 50 }"
+                (dataBound)="refreshRowNumbers(grid)"
+                (actionComplete)="onActionComplete($event, grid)"
                 cssClass="tsic-grid-compact">
         <e-columns>
+          <!-- Row number (unbound — stamped via refreshRowNumbers, survives sort) -->
+          <e-column headerText="" width="40" textAlign="Center" [allowSorting]="false"
+                    [isFrozen]="frozenTeamCol()"
+                    [customAttributes]="{ class: 'row-number-cell' }"></e-column>
           <e-column field="teamName" headerText="Team" [width]="teamColWidth()"
                     [isFrozen]="frozenTeamCol()">
             <ng-template #template let-data>
@@ -41,20 +47,20 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
               </span>
             </ng-template>
           </e-column>
-          <e-column field="ageGroupName" headerText="Age Group" width="95"></e-column>
-          <e-column field="levelOfPlay" headerText="LOP" width="60" [visible]="showLop()">
+          <e-column field="ageGroupName" headerText="Age Group" width="75"></e-column>
+          <e-column field="levelOfPlay" headerText="LOP" width="55" textAlign="Center" [visible]="showLop()">
             <ng-template #template let-data>
               <span [attr.title]="data.levelOfPlay">{{ formatLop(data.levelOfPlay) }}</span>
             </ng-template>
           </e-column>
           <e-column field="registrationTs" headerText="Reg Date" width="100" type="date" format="yMd"
                     [visible]="showRegDate()"></e-column>
-          <e-column field="depositDue" headerText="Deposit Due" width="110" textAlign="Right" format="C2"
+          <e-column field="depositDue" headerText="Deposit Due" width="90" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
-          <e-column field="additionalDue" headerText="Bal Due" width="90" textAlign="Right" format="C2"
+          <e-column field="additionalDue" headerText="Bal Due" width="80" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
-          <e-column field="feeBase" headerText="Total Fee" width="95" textAlign="Right" format="C2"></e-column>
-          <e-column field="owedTotal" headerText="Owed" width="95" textAlign="Right" format="C2"
+          <e-column field="feeBase" headerText="Total Fee" width="80" textAlign="Right" format="C2"></e-column>
+          <e-column field="owedTotal" headerText="Owed" width="80" textAlign="Right" format="C2"
                     [visible]="showOwed()">
             <ng-template #template let-data>
               <span [style.color]="data.owedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.owedTotal > 0">
@@ -233,6 +239,20 @@ export class RegisteredTeamsGridComponent {
     // Conditional column visibility — only surface Discount / Fee-Adj when any team has non-zero value
     readonly showDiscount = computed(() => this.teams().some(t => (t.feeDiscount ?? 0) > 0));
     readonly showFeeAdj = computed(() => this.teams().some(t => (t.feeLatefee ?? 0) > 0));
+
+    /** Stamp 1-based row numbers in the unbound `#` column. Re-runs on dataBound + sort/page actions. */
+    refreshRowNumbers(grid: GridComponent): void {
+        grid.getRows().forEach((row, i) => {
+            const cell = row.querySelector('td.row-number-cell');
+            if (cell) cell.textContent = String(i + 1);
+        });
+    }
+
+    onActionComplete(args: { requestType?: string }, grid: GridComponent): void {
+        if (args.requestType === 'sorting' || args.requestType === 'paging' || args.requestType === 'refresh') {
+            this.refreshRowNumbers(grid);
+        }
+    }
 
     /**
      * LOP display: strip parenthetical/textual modifier from a numbered value.
