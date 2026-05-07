@@ -9,14 +9,13 @@ import {
   signal
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { PalettePickerComponent } from '../../../layouts/components/palette-picker/palette-picker.component';
 import { PaletteService } from '../../../infrastructure/services/palette.service';
 import { ScrollToTopComponent } from '../../../shared-ui/scroll-to-top/scroll-to-top.component';
 
 @Component({
   selector: 'app-tsic-landing',
   standalone: true,
-  imports: [RouterLink, PalettePickerComponent, ScrollToTopComponent],
+  imports: [RouterLink, ScrollToTopComponent],
   templateUrl: './tsic-landing.component.html',
   styleUrl: './tsic-landing.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -141,14 +140,6 @@ export class TsicLandingComponent implements OnDestroy {
       this.startTestimonialRotation();
       this.loadCalendlyWidget();
     });
-  }
-
-  onPaletteSelected(): void {
-    // If the user unchecked a palette (reset to 0), snap back to Forest Green
-    // as the default for this page rather than going colorless.
-    if (this.paletteService.selectedIndex() === 0) {
-      this.paletteService.selectPalette(4);
-    }
   }
 
   scrollToTop(event: Event): void {

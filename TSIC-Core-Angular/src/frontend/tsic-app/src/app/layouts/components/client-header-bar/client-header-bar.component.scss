@@ -583,35 +583,6 @@
     }
 }
 
-// Palette picker — chevron rotation
-.palette-chevron {
-    margin-left: auto;
-    font-size: var(--font-size-2xs);
-    opacity: 0.6;
-    transition: transform 0.2s ease;
-
-    &.open {
-        transform: rotate(180deg);
-    }
-}
-
-// Mobile palette panel — fixed-position swatch picker
-.mobile-palette-panel {
-    position: fixed;
-    z-index: 10001;
-    background: var(--bs-body-bg);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--bs-border-radius-lg);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-    padding: var(--space-3);
-    animation: userMenuFadeIn 0.15s ease;
-    min-width: 180px;
-
-    :host-context([data-bs-theme="dark"]) & {
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    }
-}
-
 @keyframes userMenuFadeIn {
     from {
         opacity: 0;

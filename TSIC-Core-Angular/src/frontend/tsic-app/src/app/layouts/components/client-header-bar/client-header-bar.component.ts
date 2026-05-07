@@ -5,12 +5,10 @@ import { combineLatest, debounceTime, filter } from 'rxjs';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
-import { PaletteService } from '@infrastructure/services/palette.service';
 import { ThemeService } from '@infrastructure/services/theme.service';
 import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import { MenuStateService } from '../../services/menu-state.service';
-import { PalettePickerComponent } from '../palette-picker/palette-picker.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 
 /** Single dropdown task-list entry derived from role + pulse. */
@@ -23,7 +21,7 @@ interface TaskItem {
 @Component({
     selector: 'app-client-header-bar',
     standalone: true,
-    imports: [PalettePickerComponent, ConfirmDialogComponent],
+    imports: [ConfirmDialogComponent],
     templateUrl: './client-header-bar.component.html',
     styleUrls: ['./client-header-bar.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -34,7 +32,6 @@ export class ClientHeaderBarComponent {
     private readonly pulseService = inject(JobPulseService);
     private readonly router = inject(Router);
     readonly themeService = inject(ThemeService);
-    readonly paletteService = inject(PaletteService);
     private readonly menuState = inject(MenuStateService);
 
     readonly pulse = this.pulseService.pulse;
@@ -171,7 +168,6 @@ export class ClientHeaderBarComponent {
 
     // Desktop dropdown state
     userMenuOpen = signal(false);
-    paletteExpanded = signal(false);
     menuTop = signal(0);
     menuRight = signal(0);
 
@@ -179,7 +175,6 @@ export class ClientHeaderBarComponent {
     mobileMenuOpen = signal(false);
     mobileMenuTop = signal(0);
     mobileMenuRight = signal(0);
-    mobilePaletteExpanded = signal(false);
 
     private readonly destroyRef = inject(DestroyRef);
 
@@ -243,7 +238,6 @@ export class ClientHeaderBarComponent {
 
     closeUserMenu() {
         this.userMenuOpen.set(false);
-        this.paletteExpanded.set(false);
     }
 
     toggleMobileMenu(event: Event) {
@@ -261,7 +255,6 @@ export class ClientHeaderBarComponent {
 
     closeMobileMenu() {
         this.mobileMenuOpen.set(false);
-        this.mobilePaletteExpanded.set(false);
     }
 
     switchRole() {

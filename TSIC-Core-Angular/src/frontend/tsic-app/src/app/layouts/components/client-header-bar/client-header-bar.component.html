@@ -195,19 +195,6 @@
                             }
                         </button>
 
-                        <!-- Palette picker — inline expandable -->
-                        <button type="button" class="user-menu-item" role="menuitem"
-                            (click)="mobilePaletteExpanded.set(!mobilePaletteExpanded()); $event.stopPropagation()">
-                            <i class="bi bi-palette"></i>
-                            <span>Palette</span>
-                            <i class="bi bi-chevron-down palette-chevron"
-                               [class.open]="mobilePaletteExpanded()"></i>
-                        </button>
-
-                        @if (mobilePaletteExpanded()) {
-                        <app-palette-picker (selected)="closeMobileMenu()"></app-palette-picker>
-                        }
-
                         <div class="user-menu-divider"></div>
 
                         @if (user()) {
@@ -346,20 +333,6 @@
                             <i class="bi bi-sliders"></i>
                             <span>Customize Dashboard</span>
                         </button>
-                        }
-
-                        <!-- Palette picker — inline expandable -->
-                        <div class="user-menu-divider"></div>
-                        <button type="button" class="user-menu-item" role="menuitem"
-                            (click)="paletteExpanded.set(!paletteExpanded()); $event.stopPropagation()">
-                            <i class="bi bi-palette"></i>
-                            <span>Palette</span>
-                            <i class="bi bi-chevron-down palette-chevron"
-                               [class.open]="paletteExpanded()"></i>
-                        </button>
-
-                        @if (paletteExpanded()) {
-                        <app-palette-picker (selected)="closeUserMenu()"></app-palette-picker>
                         }
 
                         <div class="user-menu-divider"></div>
