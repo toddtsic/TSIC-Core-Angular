@@ -36,28 +36,6 @@
         <!-- ═══════ HUB MODE: Dashboard overview ═══════ -->
         @if (dashboard(); as db) {
 
-            <!-- ── Hero: branded strip ── -->
-            <div class="dashboard-hero" [class.hero-with-banner]="heroHasBanner()">
-                @if (heroHasBanner()) {
-                    <div class="hero-bg" [style.background-image]="'url(' + heroBannerBgUrl() + ')'"></div>
-                }
-                <div class="hero-content">
-                    @if (heroLogoUrl() && heroLogoValid()) {
-                        <img class="hero-logo" [src]="heroLogoUrl()" alt=""
-                            (load)="onHeroLogoLoad($event)" (error)="onHeroLogoError()" />
-                    }
-                    <div class="hero-text">
-                        <h1 class="hero-job-name">{{ jobName() }}</h1>
-                        <div class="hero-meta">
-                            <span class="hero-welcome">Welcome back, {{ username() }}</span>
-                            @if (roleName()) {
-                                <span class="hero-role-badge">{{ roleName() }}</span>
-                            }
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <!-- ── Workspace tabs (admin trio only) ── -->
             <!-- Order: Public first (general → specific). Default active = role view (primary use). -->
             @if (showTabs()) {
@@ -86,11 +64,8 @@
                 @for (category of publicCategories(); track category.categoryId) {
                     <div class="content-widgets">
                         @for (widget of category.widgets; track widget.widgetId) {
-                            <!-- Skip client-banner (hero already renders it) -->
-                            @if (widget.componentKey !== 'client-banner') {
-                                @if (resolveWidget(widget.componentKey); as cmp) {
-                                    <ng-container *ngComponentOutlet="cmp" />
-                                }
+                            @if (resolveWidget(widget.componentKey); as cmp) {
+                                <ng-container *ngComponentOutlet="cmp" />
                             }
                         }
                     </div>

@@ -1,0 +1,210 @@
+// ============================================================
+//  Job Landing — composition that respects the client's banner
+//  as composed marketing material. The banner widget renders
+//  the photo untouched. Phase + CTA live in a separate strip
+//  below the photo, never overlaid on it.
+// ============================================================
+
+// Palette-driven atmospheric background — radial gradients in the job's
+// primary/info tones drift behind the entire landing. Each client's palette
+// gives their landing its own color personality without any per-job CSS.
+:host {
+	display: block;
+	min-height: 100%;
+	// Symmetric gap above and below the banner: this padding-top (4px) plus
+	// the widget's own margin-top (16px) = 20px above; the widget's own
+	// margin-bottom is already 20px, so below matches without extra padding.
+	padding-top: var(--space-1);
+	background:
+		radial-gradient(ellipse 70% 50% at 18% 12%,
+			rgba(var(--bs-primary-rgb), 0.08) 0%,
+			transparent 60%),
+		radial-gradient(ellipse 55% 60% at 88% 75%,
+			rgba(var(--bs-info-rgb, var(--bs-primary-rgb)), 0.06) 0%,
+			transparent 65%),
+		radial-gradient(ellipse 40% 40% at 50% 100%,
+			rgba(var(--bs-primary-rgb), 0.04) 0%,
+			transparent 70%),
+		var(--brand-surface, var(--neutral-50));
+}
+
+.jl-container {
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: 0 var(--space-4);
+}
+
+// ============================================================
+//  BANNER — widget self-contains via rounded corners + shadow.
+//  We cap its width on wide screens directly on the host.
+// ============================================================
+
+app-client-banner {
+	display: block;
+	max-width: 1280px;
+	margin: 0 auto;
+}
+
+// ============================================================
+//  TOOLBAR — deadline chip + section heading + CTA on one row
+//  Sticky: docks at the top of the scroll area after you scroll
+//  past the banner. Register stays one click away the whole time.
+// ============================================================
+
+.jl-toolbar {
+	position: sticky;
+	top: 0;
+	z-index: 10;
+	padding: var(--space-3) 0;
+	// One notch above --brand-surface so the toolbar reads as elevated above
+	// the radial-tinted page atmosphere in BOTH light and dark mode (in light
+	// mode this resolves to white; in dark it lifts the dark gray slightly).
+	background: color-mix(in srgb, var(--brand-surface) 88%, white);
+	border-bottom: 1px solid var(--brand-border);
+	box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.jl-toolbar__inner {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	flex-wrap: wrap;
+
+	@media (max-width: 575px) {
+		flex-direction: column;
+		align-items: stretch;
+	}
+}
+
+.jl-toolbar__deadline {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-1) var(--space-3);
+	background: rgba(var(--bs-primary-rgb), 0.08);
+	border: 1px solid rgba(var(--bs-primary-rgb), 0.22);
+	border-radius: var(--radius-full);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	color: var(--brand-text);
+	flex-shrink: 0;
+
+	i {
+		font-size: 0.85rem;
+		color: var(--bs-primary);
+	}
+}
+
+// Heading in the middle — auto margins push it to center between
+// the deadline chip and CTA.
+.jl-toolbar__heading {
+	margin: 0 auto;
+	font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+	font-weight: var(--font-weight-bold);
+	color: var(--brand-text);
+	line-height: 1.15;
+	text-align: center;
+}
+
+.jl-toolbar__cta {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	background: var(--bs-primary);
+	color: var(--neutral-0);
+	padding: var(--space-2) var(--space-5);
+	border-radius: var(--radius-full);
+	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-size-sm);
+	text-decoration: none;
+	box-shadow: 0 4px 14px rgba(var(--bs-primary-rgb), 0.28);
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+	flex-shrink: 0;
+
+	&:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 8px 20px rgba(var(--bs-primary-rgb), 0.38);
+		color: var(--neutral-0);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus, 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4));
+	}
+
+	i {
+		transition: transform 0.2s ease;
+	}
+
+	&:hover i {
+		transform: translateX(3px);
+	}
+}
+
+// ============================================================
+//  BULLETINS section — full viewport width with a "publication"
+//  paper backdrop. Bulletin content extends beyond the toolbar's
+//  reading column to give a wider canvas; the page atmosphere
+//  shows above and below as the surrounding "desk."
+// ============================================================
+
+.jl-bulletins {
+	padding: var(--space-8) 0 var(--space-12);
+	// Same elevation rule as the toolbar — paper sits above the atmosphere.
+	background: color-mix(in srgb, var(--brand-surface) 88%, white);
+	box-shadow:
+		0 -2px 8px rgba(0, 0, 0, 0.04),
+		0 1px 0 rgba(var(--bs-primary-rgb), 0.08) inset;
+	margin-top: var(--space-6);
+}
+
+.jl-bulletins__inner {
+	max-width: 1280px;
+	margin: 0 auto;
+	padding: 0 var(--space-6);
+
+	@media (max-width: 575px) {
+		padding: 0 var(--space-3);
+	}
+}
+
+.jl-gradient-text {
+	background: linear-gradient(
+		135deg,
+		var(--bs-primary) 0%,
+		var(--bs-info, var(--bs-primary)) 100%
+	);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+// ============================================================
+//  Reveal cascade
+// ============================================================
+
+.reveal {
+	opacity: 0;
+	transform: translateY(20px);
+	transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1),
+				transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+
+	&.revealed {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@for $i from 1 through 4 {
+	.reveal-delay-#{$i} {
+		transition-delay: #{$i * 0.1}s;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.reveal {
+		opacity: 1;
+		transform: none;
+		transition: none;
+	}
+}

@@ -1,0 +1,46 @@
+<div class="jl">
+
+	<!-- ══════════════════════════════════════════════════
+	     BANNER — widget self-contains via rounded corners +
+	     shadow; we just cap its width on wide screens.
+	     ══════════════════════════════════════════════════ -->
+	<app-client-banner></app-client-banner>
+
+
+	<!-- ══════════════════════════════════════════════════
+	     TOOLBAR — sticky on scroll. Deadline · heading · CTA.
+	     ══════════════════════════════════════════════════ -->
+	<section class="jl-toolbar">
+		<div class="jl-container jl-toolbar__inner">
+			@if (phaseSubtext()) {
+				<span class="jl-toolbar__deadline">
+					<i class="bi" [class]="phaseIcon()" aria-hidden="true"></i>
+					{{ phaseSubtext() }}
+				</span>
+			}
+
+			<h2 class="jl-toolbar__heading">
+				<span class="jl-gradient-text">News &amp; Updates</span>
+			</h2>
+
+			<a [routerLink]="ctaPath()" class="jl-toolbar__cta">
+				<span>{{ ctaLabel() }}</span>
+				<i class="bi bi-arrow-right" aria-hidden="true"></i>
+			</a>
+		</div>
+	</section>
+
+
+	<!-- ══════════════════════════════════════════════════
+	     BULLETINS — full-viewport-width publication paper
+	     floating on the atmospheric page background.
+	     ══════════════════════════════════════════════════ -->
+	<section class="jl-bulletins">
+		<div class="jl-bulletins__inner">
+			<div class="reveal reveal-delay-1">
+				<app-bulletins></app-bulletins>
+			</div>
+		</div>
+	</section>
+
+</div>

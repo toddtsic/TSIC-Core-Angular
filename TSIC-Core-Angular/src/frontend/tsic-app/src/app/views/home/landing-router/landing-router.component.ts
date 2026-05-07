@@ -3,30 +3,21 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
 import { AuthService } from '@infrastructure/services/auth.service';
-import { WidgetDashboardComponent } from '../widget-dashboard/widget-dashboard.component';
+import { JobLandingComponent } from '../job-landing/job-landing.component';
 
 /**
- * Index route component that conditionally renders the appropriate landing page.
- *
- * - Job path + authenticated (Phase 2) → WidgetDashboardComponent (hub dashboard)
- * - Job path + authenticated (Phase 1, no role) → redirect to role-selection
- * - Job path + unauthenticated → WidgetDashboardComponent (public mode)
- *
- * For jobPath='tsic': anonymous traffic is intercepted by the standalone
- * /tsic marketing route. Authenticated Phase 2 users fall through to here
- * and render the same authenticated dashboard as any other job.
+ * Renders the unified job landing for both authenticated and public visitors.
+ * Phase 1 (logged-in but no role selected) on the landing route is treated
+ * as a stale session — clear local auth so the user gets the public landing,
+ * matching refresh behavior.
  */
 @Component({
     selector: 'app-landing-router',
     standalone: true,
     template: `
-		@if (isAuthenticated()) {
-			<app-widget-dashboard [mode]="'authenticated'" />
-		} @else {
-			<app-widget-dashboard [mode]="'public'" [jobPath]="currentJobPath()" />
-		}
+		<app-job-landing [jobPath]="currentJobPath()" />
 	`,
-    imports: [WidgetDashboardComponent],
+    imports: [JobLandingComponent],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LandingRouterComponent implements OnInit {
@@ -34,7 +25,6 @@ export class LandingRouterComponent implements OnInit {
     private readonly router = inject(Router);
     private readonly auth = inject(AuthService);
 
-    // Get jobPath from parent route params
     private readonly jobPath = toSignal(
         this.route.parent!.paramMap.pipe(
             map(params => params.get('jobPath') || '')
@@ -42,14 +32,7 @@ export class LandingRouterComponent implements OnInit {
         { initialValue: '' }
     );
 
-    // Expose jobPath for template binding
     readonly currentJobPath = computed(() => this.jobPath());
-
-    // Authenticated Phase 2 user — render hub dashboard inline
-    readonly isAuthenticated = computed(() => {
-        const path = this.jobPath();
-        return !!path && this.auth.hasSelectedRole();
-    });
 
     ngOnInit(): void {
         const path = this.jobPath();
@@ -58,9 +41,6 @@ export class LandingRouterComponent implements OnInit {
         const user = this.auth.currentUser();
         if (!user) return;
 
-        // Phase 1 (logged in, no role selected) on the landing page.
-        // This is a stale incomplete session (e.g. back-button from wizard).
-        // Clear it so the user sees the public home — matches refresh behavior.
         if (!this.auth.hasSelectedRole()) {
             this.auth.logoutLocal();
         }

@@ -1,166 +1,299 @@
-// Bulletins component - clean slate
+// ============================================================
+//  Bulletins — "Newsroom" layout
+//  Editorial flow, no card containment. Each bulletin is an
+//  <article> with byline-style metadata, display title,
+//  effective-date subtitle, then author-controlled body HTML.
+//  Legacy CSS class hooks (.bl-fs-*, .bl-c-*) are preserved.
+// ============================================================
 
-.bulletins-section {
-    padding: 0 var(--space-4) var(--space-4) var(--space-4);
-
-    // Mobile: fill most of the view
-    @media (max-width: 767px) {
-        padding: var(--space-4) var(--space-2) var(--space-2) var(--space-2);
-    }
-
-    // Desktop: use percentage of screen width
-    @media (min-width: 768px) {
-        max-width: 80%;
-        margin: 0 auto;
-    }
+.bulletins {
+    display: flex;
+    flex-direction: column;
 }
 
 .bulletin {
-    border: 1px solid var(--brand-border);
-    border-radius: var(--radius-lg);
-    margin-bottom: var(--space-4);
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.3s ease;
+    // Master scale lever — title, effective subtitle, and body are all em-based
+    // and resolve against this. Drop to compress everything proportionally,
+    // raise to expand. Meta chip + posted date intentionally use rem so they
+    // hold a stable minimum readable size regardless of body scale.
+    font-size: 0.8em;
+    padding: var(--space-8) 0;
+    position: relative;
 
-    // Improved dark mode borders
-    :host-context([data-bs-theme="dark"]) & {
-        border: 1px solid var(--neutral-400) !important;
-        /* Much more visible border with !important */
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    // 2-column grid: datestamp on the left, content on the right.
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: var(--space-6);
+    align-items: start;
+
+    &:first-child {
+        padding-top: var(--space-4);
     }
 
-    &:hover {
-        transform: translateY(calc(-1 * var(--space-0\.5)));
-        box-shadow: var(--shadow-md);
+    &:last-child {
+        padding-bottom: var(--space-4);
+    }
+}
+
+// ── Newspaper-style datestamp block ──
+//
+// Sits in the left column of the grid. UPPERCASE month, big numeric day,
+// year underneath. Pulls the eye, anchors the article, no card needed.
+
+.bulletin-datestamp {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 64px;
+    padding-top: var(--space-1);
+    user-select: none;
+}
+
+.bulletin-datestamp__month {
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    color: var(--bs-primary);
+    line-height: 1;
+}
+
+.bulletin-datestamp__day {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1.05;
+    color: var(--brand-text);
+    margin: var(--space-1) 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.bulletin-datestamp__year {
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: var(--brand-text-muted);
+    letter-spacing: 0.08em;
+    line-height: 1;
+}
+
+.bulletin-content {
+    min-width: 0;   // prevent grid blowout from long body content
+}
+
+// ── Featured (latest) bulletin — emphasized as the lead story ──
+
+.bulletin--featured {
+    padding: var(--space-8) var(--space-6);
+    background:
+        linear-gradient(180deg,
+            rgba(var(--bs-primary-rgb), 0.05) 0%,
+            rgba(var(--bs-primary-rgb), 0.02) 60%,
+            transparent 100%);
+    border-radius: var(--radius-lg, 12px);
+    margin-bottom: var(--space-2);
+
+    .bulletin-tag {
+        background: var(--bs-primary);
+        font-size: 0.7rem;
+        padding: 4px 11px;
+        box-shadow:
+            0 2px 6px rgba(var(--bs-primary-rgb), 0.4),
+            0 0 0 1px rgba(var(--bs-primary-rgb), 0.15);
     }
 
-    // Enhanced hover effect for dark mode
-    :host-context([data-bs-theme="dark"]) &:hover {
-        transform: translateY(calc(-1 * var(--space-0\.5)));
-        box-shadow: 0 4px 16px rgba(255, 255, 255, 0.35) !important;
-        /* Much more visible light shadow */
-        border-color: var(--neutral-300) !important;
-        /* Lighter border on hover */
+    .bulletin-title {
+        font-size: clamp(1.75em, 3.5vw, 2.75em);
+        letter-spacing: -0.015em;
     }
+}
 
-    .bulletin-header {
-        background: linear-gradient(135deg,
-                var(--neutral-500) 0%,
-                var(--neutral-400) 25%,
-                var(--neutral-300) 50%,
-                var(--neutral-400) 75%,
-                var(--neutral-500) 100%);
-        color: var(--neutral-0);
-        padding: var(--space-3) var(--space-4);
-        border-bottom: none;
-        display: flex;
-        flex-direction: column;
-        gap: var(--space-2);
+// ── Byline metadata row ──
 
-        @media (min-width: 768px) {
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: center;
-        }
+.bulletin-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+    flex-wrap: wrap;
+}
 
-        h3 {
-            margin: 0;
-            font-size: var(--font-size-sm);
-            font-weight: var(--font-weight-medium);
-            color: var(--neutral-0);
-            flex: 1;
-            text-align: center;
+.bulletin-tag {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 9px;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--bs-primary);
+    color: var(--neutral-0);
+    box-shadow: 0 1px 2px rgba(var(--bs-primary-rgb), 0.35);
+}
 
-            @media (min-width: 768px) {
-                font-size: var(--font-size-base);
-                text-align: left;
+// ── Divider between bulletins — editorial punctuation ──
+//
+// Spans the full content column (skips the datestamp gutter).
+// Primary-tinted gradient hairline + asterism glyph.
+
+.bulletin-divider {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    padding: var(--space-2) 0;
+    margin: 0 auto;
+    max-width: 420px;
+    pointer-events: none;
+}
+
+.bulletin-divider__rule {
+    flex: 1;
+    height: 2px;
+    background: linear-gradient(to right,
+        transparent 0%,
+        color-mix(in srgb, var(--bs-primary) 45%, var(--brand-border)) 50%,
+        transparent 100%);
+    border-radius: 1px;
+}
+
+.bulletin-divider__glyph {
+    color: var(--bs-primary);
+    opacity: 0.7;
+    font-size: 1.1rem;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+// ── Title + effective subtitle ──
+
+.bulletin-title {
+    // em-based bounds so the master scale on .bulletin affects the title;
+    // vw stays for fluid mid-viewport sizing.
+    font-size: clamp(1.5em, 3vw, 2.25em);
+    font-weight: var(--font-weight-bold);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    color: var(--brand-text);
+    margin: 0 0 var(--space-2);
+}
+
+.bulletin-effective {
+    font-size: var(--font-size-sm);
+    color: var(--brand-text-muted);
+    font-style: italic;
+    margin: 0 0 var(--space-5);
+    letter-spacing: 0.01em;
+}
+
+// ── Body — author-controlled HTML ──
+//
+// Body content is innerHTML-rendered with `[innerHTML]`. We do
+// NOT reformat the content; we only provide reading-grade
+// typography defaults and preserve legacy class hooks so any
+// authored bulletin renders correctly on day one.
+
+.bulletin-body {
+    // Inherits the master scale from .bulletin; this 1em is intentional —
+    // the body matches the master, while the title clamps to its em bounds.
+    font-size: 1em;
+    line-height: 1.7;
+    color: var(--brand-text);
+
+    ::ng-deep {
+        p {
+            margin: 0 0 var(--space-3);
+            color: var(--brand-text);
+
+            &:last-child {
+                margin-bottom: 0;
             }
         }
 
-        .bulletin-dates {
-            flex-shrink: 0;
-            white-space: nowrap;
-            text-align: center;
+        ul,
+        ol {
+            margin: 0 0 var(--space-3) var(--space-5);
+            padding-left: 0;
+            color: var(--brand-text);
+        }
 
-            @media (min-width: 768px) {
-                text-align: right;
+        li {
+            margin-bottom: var(--space-1);
+        }
+
+        strong {
+            font-weight: var(--font-weight-semibold);
+            color: var(--brand-text);
+        }
+
+        em {
+            font-style: italic;
+            color: var(--brand-text);
+        }
+
+        a {
+            color: var(--bs-primary);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+
+            &:hover {
+                text-decoration: none;
             }
 
-            small {
-                background: rgba(240, 240, 245, 0.25);
-                padding: var(--space-2) calc(var(--space-3) + var(--space-0\.5));
-                border-radius: var(--radius-full);
-                font-weight: var(--font-weight-semibold);
-                font-size: var(--font-size-xs);
-                border: 1px solid rgba(120, 120, 130, 0.2);
-                display: inline-block;
-                white-space: nowrap;
+            &:focus-visible {
+                outline: none;
+                box-shadow: var(--shadow-focus, 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4));
+                border-radius: 2px;
             }
         }
+
+        img {
+            max-width: min(100%, 450px);
+            max-height: 400px;
+            height: auto;
+            object-fit: contain;
+        }
+
+        // Legacy inline-style → class mappings (see translate-legacy-urls.pipe).
+        // Bulletins authored with inline font-size / color lose their styling
+        // through Angular's sanitizer; the pipe rewrites a curated allowlist
+        // of values to these classes. Colors map to palette vars for
+        // light/dark responsiveness. Sizes use em so they scale with the
+        // .bulletin-body master font-size knob.
+        .bl-fs-14 { font-size: 0.875em; }   // 14 / 16
+        .bl-fs-18 { font-size: 1.125em; }   // 18 / 16
+        .bl-fs-22 { font-size: 1.375em; }   // 22 / 16
+        .bl-c-blue  { color: var(--bs-primary); }
+        .bl-c-red   { color: var(--bs-danger); }
+        .bl-c-black { color: var(--brand-text); }
     }
+}
 
-    .bulletin-content {
-        padding: var(--space-4);
-        background: var(--brand-surface);
-        color: var(--brand-text);
-        font-size: var(--font-size-base);
-        line-height: 1.6;
+// ── Loading / Error states ──
 
-        ::ng-deep {
-            p {
-                margin-bottom: var(--space-3);
-                color: var(--brand-text);
+.bulletins-loading,
+.bulletins-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-8);
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+}
 
-                &:last-child {
-                    margin-bottom: 0;
-                }
-            }
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--brand-border);
+    border-top-color: var(--bs-primary);
+    border-radius: 50%;
+    animation: bulletinSpin 0.8s linear infinite;
+    margin-right: var(--space-2);
+}
 
-            ul,
-            ol {
-                margin-left: var(--space-4);
-                margin-bottom: var(--space-3);
-                color: var(--brand-text);
-            }
+@keyframes bulletinSpin {
+    to { transform: rotate(360deg); }
+}
 
-            strong {
-                font-weight: var(--font-weight-semibold);
-                color: var(--brand-text);
-            }
-
-            em {
-                font-style: italic;
-                color: var(--brand-text);
-            }
-
-            a {
-                color: var(--bs-primary);
-                text-decoration: underline;
-
-                &:hover {
-                    text-decoration: none;
-                }
-            }
-
-            img {
-                max-width: min(100%, 450px);
-                max-height: 400px;
-                height: auto;
-                object-fit: contain;
-            }
-
-            // Legacy inline-style → class mappings (see translate-legacy-urls.pipe).
-            // Bulletins authored with inline font-size / color lose their styling
-            // through Angular's sanitizer; the pipe rewrites a curated allowlist
-            // of values to these classes. Colors map to palette vars for
-            // light/dark responsiveness.
-            .bl-fs-14 { font-size: 14px; }
-            .bl-fs-18 { font-size: 18px; }
-            .bl-fs-22 { font-size: 22px; }
-            .bl-c-blue  { color: var(--bs-primary); }
-            .bl-c-red   { color: var(--bs-danger); }
-            .bl-c-black { color: var(--brand-text); }
-        }
+@media (prefers-reduced-motion: reduce) {
+    .spinner {
+        animation: none;
     }
 }

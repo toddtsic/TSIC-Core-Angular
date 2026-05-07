@@ -1,26 +1,51 @@
 @if (bulletins() && bulletins().length > 0) {
-<div class="bulletins-section">
-    @for (bulletin of bulletins(); track bulletin.bulletinId) {
-    <div class="bulletin">
-        <div class="bulletin-header">
-            <h3>{{ bulletin.title }}</h3>
-            @if (bulletin.startDate || bulletin.endDate) {
-            <div class="bulletin-dates">
-                <small>
-                    @if (bulletin.startDate) {
-                    <span>Effective: {{ bulletin.startDate | date:'shortDate' }}</span>
-                    }
-                    @if (bulletin.endDate) {
-                    <span> - {{ bulletin.endDate | date:'shortDate' }}</span>
-                    }
-                </small>
+<div class="bulletins">
+    @for (bulletin of bulletins(); track bulletin.bulletinId; let first = $first; let last = $last) {
+    <article class="bulletin" [class.bulletin--featured]="first">
+        @if (bulletin.createDate) {
+        <aside class="bulletin-datestamp" aria-hidden="true">
+            <span class="bulletin-datestamp__month">{{ bulletin.createDate | date:'MMM' | uppercase }}</span>
+            <span class="bulletin-datestamp__day">{{ bulletin.createDate | date:'d' }}</span>
+            <span class="bulletin-datestamp__year">{{ bulletin.createDate | date:'y' }}</span>
+        </aside>
+        }
+
+        <div class="bulletin-content">
+            @if (first) {
+            <div class="bulletin-meta">
+                <span class="bulletin-tag">Latest</span>
             </div>
             }
+
+            @if (bulletin.title) {
+            <h2 class="bulletin-title">{{ bulletin.title }}</h2>
+            }
+
+            @if (bulletin.startDate || bulletin.endDate) {
+            <p class="bulletin-effective">
+                @if (bulletin.startDate && bulletin.endDate) {
+                Effective {{ bulletin.startDate | date:'MMM d, y' }} – {{ bulletin.endDate | date:'MMM d, y' }}
+                } @else if (bulletin.startDate) {
+                Effective {{ bulletin.startDate | date:'MMM d, y' }}
+                } @else if (bulletin.endDate) {
+                Active through {{ bulletin.endDate | date:'MMM d, y' }}
+                }
+            </p>
+            }
+
+            <div class="bulletin-body" appInternalLink [jobPath]="jobPath()">
+                <div [innerHTML]="bulletin.text | translateLegacyUrls:jobPath()"></div>
+            </div>
         </div>
-        <div class="bulletin-content" appInternalLink [jobPath]="jobPath()">
-            <div [innerHTML]="bulletin.text | translateLegacyUrls:jobPath()"></div>
-        </div>
+    </article>
+
+    @if (!last) {
+    <div class="bulletin-divider" aria-hidden="true">
+        <span class="bulletin-divider__rule"></span>
+        <span class="bulletin-divider__glyph">✦</span>
+        <span class="bulletin-divider__rule"></span>
     </div>
+    }
     }
 </div>
 }

@@ -10,8 +10,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { MenuStateService } from '../../../layouts/services/menu-state.service';
-import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
-import type { AvailableWidgetDto, DashboardMetricsDto, SaveUserWidgetsRequest, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
+import type { AvailableWidgetDto, SaveUserWidgetsRequest, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
 interface WidgetConfig {
 	endpoint?: string;
@@ -55,7 +54,6 @@ export class WidgetDashboardComponent {
 	readonly publicJobPath = input<string>('', { alias: 'jobPath' });
 
 	readonly dashboard = signal<WidgetDashboardResponse | null>(null);
-	readonly metrics = signal<DashboardMetricsDto | null>(null);
 	readonly isLoading = signal(false);
 	readonly hasError = signal(false);
 	readonly activeTab = signal<'dashboard' | 'public'>('dashboard');
@@ -77,45 +75,6 @@ export class WidgetDashboardComponent {
 		!this.isPublic() && this.isAdmin() && this.hubCategories().length > 0
 	);
 
-	readonly username = computed(() =>
-		this.auth.currentUser()?.username || '');
-
-	readonly jobName = computed(() =>
-		this.jobService.currentJob()?.jobName || '');
-
-	// ── Hero branding signals ──
-
-	readonly heroBannerBgUrl = computed(() => {
-		const path = this.jobService.currentJob()?.jobBannerBackgroundPath;
-		return path ? buildAssetUrl(path) : '';
-	});
-
-	readonly heroLogoUrl = computed(() => {
-		const path = this.jobService.currentJob()?.jobBannerPath;
-		if (!path) return '';
-		let url = buildAssetUrl(path);
-		if (url.toLowerCase().endsWith('.pdf')) url = url.slice(0, -4) + '.jpg';
-		return url;
-	});
-
-	readonly isBannerCustom = computed(() =>
-		this.jobService.currentJob()?.bBannerIsCustom ?? false);
-
-	readonly heroHasBanner = computed(() =>
-		this.isBannerCustom() && !!this.heroBannerBgUrl());
-
-	/** Tracks whether the hero overlay logo loaded as a real image (not a tiny placeholder) */
-	readonly heroLogoValid = signal(true);
-
-	onHeroLogoLoad(event: Event) {
-		const img = event.target as HTMLImageElement;
-		this.heroLogoValid.set(img.naturalWidth >= 150 && img.naturalHeight >= 150);
-	}
-
-	onHeroLogoError() {
-		this.heroLogoValid.set(false);
-	}
-
 	readonly isPublic = computed(() => this.mode() === 'public');
 
 	/** Resolved job path — from input (public) or JWT/route (authenticated) */
@@ -131,21 +90,6 @@ export class WidgetDashboardComponent {
 		}
 		return '';
 	});
-
-	// ── Derived metric displays ──
-
-	readonly roleAccentClass = computed(() => {
-		const role = this.roleName().toLowerCase().replace(/\s+/g, '-');
-		return role ? `role-${role}` : '';
-	});
-
-	readonly schedulePercent = computed(() => {
-		const m = this.metrics();
-		if (!m || m.scheduling.totalAgegroups === 0) return 0;
-		return Math.round((m.scheduling.agegroupsScheduled / m.scheduling.totalAgegroups) * 100);
-	});
-
-	readonly isSuperuser = computed(() => this.roleName() === 'Superuser');
 
 	// ── Dashboard computed signals ──
 
@@ -202,7 +146,6 @@ export class WidgetDashboardComponent {
 			} else {
 				this.jobService.fetchJobMetadata(jobPath).subscribe();
 				this.loadDashboard();
-				this.loadMetrics();
 			}
 		});
 
@@ -275,13 +218,6 @@ export class WidgetDashboardComponent {
 				this.hasError.set(true);
 				this.isLoading.set(false);
 			}
-		});
-	}
-
-	private loadMetrics(): void {
-		this.svc.getMetrics().subscribe({
-			next: (data) => this.metrics.set(data),
-			error: () => { /* metrics are optional — hero degrades gracefully */ }
 		});
 	}
 
