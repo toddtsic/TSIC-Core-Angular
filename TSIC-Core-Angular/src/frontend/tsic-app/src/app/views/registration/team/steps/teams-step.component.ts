@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
+import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-summary.component';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -27,7 +28,7 @@ interface AgePickerTeam {
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
+    imports: [RegisteredTeamsGridComponent, RegisteredTeamsSummaryComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -50,9 +51,16 @@ interface AgePickerTeam {
           <div class="section-titlebar section-titlebar-registered">
             <i class="bi bi-trophy-fill section-titlebar-icon" aria-hidden="true"></i>
             <h3 class="section-titlebar-title">
-              <span class="club-name-pop">{{ clubName() }}</span>
               <span class="section-titlebar-tail">Registered Teams</span>
             </h3>
+            <app-registered-teams-summary class="titlebar-summary"
+              [teams]="enteredTeams()"
+              [showOwed]="true"
+              [showPaid]="false"
+              [showCcOwed]="false"
+              [showCkOwed]="false"
+              [showDeposit]="!fullPaymentRequired() && anyDepositDue()"
+              [showBalance]="!fullPaymentRequired() && anyBalanceDue()" />
           </div>
         }
 
@@ -135,7 +143,7 @@ interface AgePickerTeam {
               [actionInProgress]="actionInProgress()"
               [frozenTeamCol]="true"
               [teamColWidth]="140"
-              [gridHeight]="180"
+              [gridHeight]="'auto'"
               (removeTeam)="onRemoveTeam($event)" />
           </div>
 
@@ -425,19 +433,12 @@ interface AgePickerTeam {
       }
 
       .section-titlebar-tail {
-        font-weight: var(--font-weight-medium);
+        font-weight: var(--font-weight-bold);
         color: var(--brand-text-muted);
       }
 
-      /* Club name pops with the wizard primary color so the rep's identity
-         threads visibly through the view (nav title + card title both use
-         this treatment). */
-      .club-name-pop {
-        font-size: 1.1em;
-        font-weight: var(--font-weight-bold);
-        color: var(--bs-primary);
-        letter-spacing: -0.01em;
-      }
+      /* Pills component flushed right inside the section titlebar. */
+      .titlebar-summary { margin-left: auto; }
 
       /* Compact action button nested inside a .section-header banner */
       .section-action {

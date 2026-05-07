@@ -25,6 +25,7 @@ import type {
 } from '@core/api';
 import type { CreditCardFormValue, VIOfferData } from '@views/registration/shared/types/wizard.types';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
+import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-summary.component';
 
 /**
  * Team Payment step — supports CC, eCheck (ACH), ARB-Trial scheduled payments,
@@ -36,7 +37,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
 @Component({
     selector: 'app-trw-payment-step',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, ViChargeConfirmModalComponent, RegisteredTeamsGridComponent],
+    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, ViChargeConfirmModalComponent, RegisteredTeamsGridComponent, RegisteredTeamsSummaryComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
       <div class="card-header card-header-subtle border-0 py-3">
@@ -139,7 +140,16 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
 
           <!-- Line items -->
           <section class="mb-3">
-            <h6 class="fw-semibold mb-2">Summary</h6>
+            <div class="summary-header">
+              <h6 class="fw-semibold mb-0">Summary</h6>
+              <app-registered-teams-summary class="summary-header-pills"
+                [teams]="registeredTeams()"
+                [showProcessing]="showProcessing()"
+                [showCcOwed]="allowsCc()"
+                [showCkOwed]="showProcessing()"
+                [showDeposit]="true"
+                [showBalance]="true" />
+            </div>
             <app-registered-teams-grid
               [teams]="registeredTeams()"
               [showProcessing]="showProcessing()"
@@ -150,7 +160,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [showBalance]="true"
               [frozenTeamCol]="true"
               [teamColWidth]="120"
-              [gridHeight]="180" />
+              [gridHeight]="'auto'" />
           </section>
 
           <!-- Discount code -->
@@ -520,6 +530,15 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
     </div>
   `,
     styles: [`
+      .summary-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        margin-bottom: var(--space-2);
+      }
+
+      .summary-header-pills { margin-left: auto; }
+
       /* Insurance card — card chrome lives on the same div that holds
          #dVITeamOffer so we don't introduce any clipping/positioning ancestor
          between the widget mount and the page. NEVER add overflow:hidden — the
