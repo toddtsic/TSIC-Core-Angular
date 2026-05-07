@@ -1,8 +1,15 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnDestroy, ViewChild, computed, input, output, signal } from '@angular/core';
-import type { ClubTeamDto } from '@core/api';
+import type { AgeGroupDto, ClubTeamDto } from '@core/api';
 
 export interface RegisteredInfo {
     ageGroupName: string;
+    levelOfPlay: string;
+}
+
+/** Payload emitted by the inline-expand registration flow. */
+export interface RegisterRequest {
+    team: ClubTeamDto;
+    ageGroupId: string;
     levelOfPlay: string;
 }
 
@@ -161,10 +168,12 @@ export interface RegisteredInfo {
                       <div class="status-block status-block-no">
                         <span class="status-line">Not Registered</span>
                         <button type="button" class="btn-register-cell"
+                                [class.is-active]="expandedTeamId() === team.clubTeamId"
                                 [disabled]="actionInProgress()"
-                                (click)="register.emit(team)">
+                                [attr.aria-expanded]="expandedTeamId() === team.clubTeamId"
+                                (click)="toggleRegister(team)">
                           <i class="bi bi-trophy-fill" aria-hidden="true"></i>
-                          <span>Register</span>
+                          <span>{{ expandedTeamId() === team.clubTeamId ? 'Cancel' : 'Register' }}</span>
                         </button>
                       </div>
                     } @else {
@@ -180,7 +189,7 @@ export interface RegisteredInfo {
                     <div class="lib-menu-anchor">
                       <button type="button" class="lib-kebab"
                               [class.is-open]="openMenuTeamId() === team.clubTeamId"
-                              [disabled]="actionInProgress()"
+                              [disabled]="actionInProgress() || expandedTeamId() === team.clubTeamId"
                               aria-label="Manage team"
                               aria-haspopup="menu"
                               [attr.aria-expanded]="openMenuTeamId() === team.clubTeamId"
@@ -224,6 +233,63 @@ export interface RegisteredInfo {
                     </div>
                   </td>
                 </tr>
+
+                @if (expandedTeamId() === team.clubTeamId) {
+                  <tr class="lib-tr-expand">
+                    <td colspan="4" class="lib-td-expand">
+                      <div class="register-inline">
+                        <div class="register-prompt">
+                          <span>Pick an age group for <strong>{{ team.clubTeamName }}</strong>:</span>
+                          @if (lopRequired()) {
+                            <span class="lop-block-hint">
+                              <i class="bi bi-exclamation-circle me-1"></i>Pick a Level of Play below first
+                            </span>
+                          }
+                        </div>
+
+                        <div class="ag-chip-row">
+                          @for (ag of expandedAgChips(); track ag.ageGroupId) {
+                            <button type="button" class="ag-chip"
+                                    [class.is-recommended]="ag.isRecommended"
+                                    [class.is-full]="ag.isFull"
+                                    [class.is-almost-full]="ag.isAlmostFull"
+                                    [disabled]="ag.isFull || actionInProgress() || lopRequired()"
+                                    (click)="commitRegister(team, ag.ageGroupId)">
+                              <span class="ag-chip-name">{{ ag.ageGroupName }}</span>
+                              <span class="ag-chip-meta">
+                                @if (ag.isFull) { Full }
+                                @else if (ag.isAlmostFull) { {{ ag.spotsLeft }} left }
+                              </span>
+                            </button>
+                          }
+                        </div>
+
+                        @if (lopOptions().length > 0) {
+                          <div class="lop-disclosure-row">
+                            <button type="button" class="lop-disclosure"
+                                    (click)="toggleLopAdjust()">
+                              <i class="bi" [class.bi-chevron-right]="!showLopAdjust()" [class.bi-chevron-down]="showLopAdjust()"></i>
+                              <span class="lop-disclosure-label">Level of Play:</span>
+                              <strong class="lop-disclosure-value">{{ selectedLop() || 'pick one' }}</strong>
+                              <span class="lop-disclosure-hint">{{ showLopAdjust() ? 'collapse' : 'adjust' }}</span>
+                            </button>
+                          </div>
+                          @if (showLopAdjust()) {
+                            <div class="lop-pills" role="radiogroup" aria-label="Level of play">
+                              @for (opt of lopOptions(); track opt) {
+                                <button type="button" class="lop-pill"
+                                        [class.active]="selectedLop() === opt"
+                                        (click)="selectedLop.set(opt)">
+                                  {{ opt }}
+                                </button>
+                              }
+                            </div>
+                          }
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
               }
             </tbody>
             </table>
@@ -788,6 +854,157 @@ export interface RegisteredInfo {
         white-space: nowrap;
       }
 
+      /* ── Inline registration expand row ──────────────────────────
+         The Register button on a row "opens" beneath itself with an
+         AG chip strip + collapsed LOP disclosure. Picking a chip
+         commits and clears the expand. Replaces a modal that used to
+         own this flow. */
+      .lib-tr-expand > .lib-td-expand {
+        padding: 0;
+        background: color-mix(in srgb, var(--bs-primary) 4%, transparent);
+        border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 18%, transparent);
+      }
+
+      .register-inline {
+        padding: var(--space-2) var(--space-3);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+
+      .register-prompt {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+      }
+
+      .lop-block-hint {
+        display: inline-flex;
+        align-items: center;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-warning);
+      }
+
+      .ag-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+      }
+
+      .ag-chip {
+        display: inline-flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        min-width: 64px;
+        padding: 6px var(--space-2);
+        border: 1.5px solid color-mix(in srgb, var(--bs-primary) 35%, transparent);
+        border-radius: var(--radius-sm);
+        background: var(--brand-surface);
+        color: var(--bs-primary);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+      }
+
+      .ag-chip:hover:not(:disabled) {
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        border-color: var(--bs-primary);
+        transform: translateY(-1px);
+      }
+
+      .ag-chip:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+      .ag-chip:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+      .ag-chip.is-recommended {
+        border-color: var(--bs-success);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--bs-success) 20%, transparent);
+      }
+
+      .ag-chip.is-almost-full { border-color: var(--bs-warning); color: var(--bs-warning); }
+      .ag-chip.is-full {
+        border-color: var(--border-color);
+        color: var(--brand-text-muted);
+        background: color-mix(in srgb, var(--bs-body-color) 4%, transparent);
+      }
+
+      .ag-chip-name { font-size: var(--font-size-xs); }
+      .ag-chip-meta { font-size: 10px; font-weight: var(--font-weight-medium); opacity: 0.85; }
+
+      .lop-disclosure-row {
+        display: flex;
+        align-items: center;
+        margin-top: 2px;
+      }
+
+      .lop-disclosure {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px var(--space-2);
+        border: none;
+        background: transparent;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+      }
+
+      .lop-disclosure:hover { background: rgba(var(--bs-primary-rgb), 0.06); color: var(--bs-primary); }
+      .lop-disclosure:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+      .lop-disclosure-label { color: var(--brand-text-muted); }
+      .lop-disclosure-value { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
+      .lop-disclosure-hint {
+        margin-left: 6px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--brand-text-muted);
+      }
+
+      .register-inline .lop-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-1);
+      }
+
+      .register-inline .lop-pill {
+        flex: 0 1 auto;
+        min-width: 44px;
+        padding: 4px var(--space-2);
+        border: 1.5px solid var(--border-color);
+        border-radius: var(--radius-full);
+        background: var(--brand-surface);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+        cursor: pointer;
+        transition: all 0.12s ease;
+      }
+
+      .register-inline .lop-pill:hover { border-color: var(--bs-primary); }
+      .register-inline .lop-pill.active {
+        border-color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-semibold);
+      }
+      .register-inline .lop-pill:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+      /* When a row is the active expand source, highlight its trigger. */
+      .btn-register-cell.is-active {
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        border-color: var(--bs-primary);
+      }
+
       /* Archived table — no thead, italicized rows */
       .lib-table-archived {
         background: color-mix(in srgb, var(--bs-body-color) 2%, transparent);
@@ -1131,11 +1348,13 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     readonly clubName = input<string>('');
     readonly canRegister = input(false);
     readonly actionInProgress = input(false);
+    readonly ageGroups = input<readonly AgeGroupDto[]>([]);
+    readonly lopOptions = input<readonly string[]>([]);
     /** Map of clubTeamId → registration info. Drives the Registered badge content. */
     readonly enteredTeams = input<ReadonlyMap<number, RegisteredInfo>>(new Map());
 
     readonly closed = output<void>();
-    readonly register = output<ClubTeamDto>();
+    readonly register = output<RegisterRequest>();
     readonly addNew = output<void>();
     readonly edit = output<ClubTeamDto>();
     readonly archive = output<ClubTeamDto>();
@@ -1157,6 +1376,83 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
 
     closeMenu(): void {
         this.openMenuTeamId.set(null);
+    }
+
+    // ── Inline registration expand ─────────────────────────────────────
+    // Click "Register" on a row → that row expands beneath itself with
+    // an AG chip strip + a collapsed LOP disclosure. Picking a chip
+    // commits and clears the expand. Replaces the modal-based picker.
+
+    readonly expandedTeamId = signal<number | null>(null);
+    readonly selectedLop = signal('');
+    readonly showLopAdjust = signal(false);
+
+    /** True when the event uses LOP options but the rep hasn't picked one. */
+    readonly lopRequired = computed(() =>
+        this.lopOptions().length > 0 && !this.selectedLop(),
+    );
+
+    /** Best-match age group by team grad year — exact match first, then substring. */
+    private bestMatchAgeGroupId(team: ClubTeamDto): string {
+        const gy = team.clubTeamGradYear;
+        if (!gy) return '';
+        const ags = this.ageGroups();
+        const exact = ags.find(a => a.ageGroupName === gy);
+        if (exact) return exact.ageGroupId;
+        const contains = ags.find(a => a.ageGroupName.includes(gy));
+        return contains?.ageGroupId ?? '';
+    }
+
+    /** AG chip data for the currently expanded row. */
+    readonly expandedAgChips = computed(() => {
+        const teamId = this.expandedTeamId();
+        if (teamId === null) return [];
+        const team = this.clubTeams().find(t => t.clubTeamId === teamId);
+        if (!team) return [];
+        const recommendedId = this.bestMatchAgeGroupId(team);
+        return this.ageGroups().map(ag => {
+            const spotsLeft = Math.max(0, ag.maxTeams - ag.registeredCount);
+            return {
+                ageGroupId: ag.ageGroupId,
+                ageGroupName: ag.ageGroupName,
+                spotsLeft,
+                isFull: spotsLeft === 0,
+                isAlmostFull: spotsLeft > 0 && spotsLeft <= 2,
+                isRecommended: ag.ageGroupId === recommendedId,
+            };
+        });
+    });
+
+    toggleRegister(team: ClubTeamDto): void {
+        if (this.expandedTeamId() === team.clubTeamId) {
+            this.cancelRegister();
+            return;
+        }
+        // Default LOP from the library team's stored value if it matches the
+        // event's options; otherwise blank (rep must pick).
+        const stored = team.clubTeamLevelOfPlay;
+        const opts = this.lopOptions();
+        const defaulted = stored && opts.includes(stored) ? stored : '';
+        this.selectedLop.set(defaulted);
+        // Open the LOP picker by default only when the rep MUST pick one.
+        this.showLopAdjust.set(opts.length > 0 && !defaulted);
+        this.closeMenu();
+        this.expandedTeamId.set(team.clubTeamId);
+    }
+
+    cancelRegister(): void {
+        this.expandedTeamId.set(null);
+        this.showLopAdjust.set(false);
+    }
+
+    toggleLopAdjust(): void {
+        this.showLopAdjust.set(!this.showLopAdjust());
+    }
+
+    commitRegister(team: ClubTeamDto, ageGroupId: string): void {
+        if (this.lopRequired()) return;
+        this.register.emit({ team, ageGroupId, levelOfPlay: this.selectedLop() });
+        this.cancelRegister();
     }
 
     /** Returns the lock reason for Edit, or null if available. */
@@ -1300,6 +1596,10 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     onEscape(): void {
         if (this.openMenuTeamId() !== null) {
             this.closeMenu();
+            return;
+        }
+        if (this.expandedTeamId() !== null) {
+            this.cancelRegister();
             return;
         }
         if (this.isOpen()) this.onClose();

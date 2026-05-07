@@ -6,19 +6,10 @@ import { TeamRegistrationService } from '@views/registration/team/services/team-
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { TeamFormModalComponent } from './team-form-modal.component';
-import { AgeGroupPickerModalComponent, type AgeGroupSelection } from './age-group-picker-modal.component';
 import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
-import { LibraryFlyinComponent } from '../components/library-flyin.component';
+import { LibraryFlyinComponent, type RegisterRequest } from '../components/library-flyin.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
-
-interface AgePickerTeam {
-    clubTeamId: number;
-    clubTeamName: string;
-    gradYear: string;
-    levelOfPlay: string;
-    currentAgeGroupId?: string;
-}
 
 /**
  * Teams step — single screen combining library management + event registration.
@@ -27,7 +18,7 @@ interface AgePickerTeam {
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AgeGroupPickerModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
+    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -174,6 +165,8 @@ interface AgePickerTeam {
         [clubName]="clubName()"
         [canRegister]="canRegisterTeam()"
         [actionInProgress]="actionInProgress()"
+        [ageGroups]="ageGroups()"
+        [lopOptions]="lopOptions()"
         [enteredTeams]="enteredTeamsMap()"
         (closed)="closeLibraryFlyin()"
         (register)="onFlyinRegister($event)"
@@ -211,20 +204,7 @@ interface AgePickerTeam {
         (closed)="editingTeam.set(null)" />
     }
 
-    @if (agePickerTeam(); as pickerTeam) {
-      <app-age-group-picker-modal
-        [teamName]="pickerTeam.clubTeamName"
-        [eventName]="eventName()"
-        [gradYear]="pickerTeam.gradYear"
-        [levelOfPlay]="pickerTeam.levelOfPlay"
-        [currentAgeGroupId]="pickerTeam.currentAgeGroupId ?? ''"
-        [ageGroups]="ageGroups()"
-        [lopOptions]="lopOptions()"
-        (selected)="onModalAgeGroupSelected(pickerTeam, $event)"
-        (closed)="agePickerTeam.set(null)" />
-    }
-
-    @if (pendingRemove()) {
+@if (pendingRemove()) {
       <confirm-dialog
         title="Remove Team"
         [message]="'Remove <strong>' + pendingRemove()!.teamName + '</strong> from this event?'"
@@ -721,9 +701,6 @@ export class TeamTeamsStepComponent implements OnInit {
     /** Library fly-in open state. Opens only on explicit user action — never auto-opened. */
     readonly showLibraryFlyin = signal(false);
 
-    /** Which team's age picker modal is open (null = closed). */
-    readonly agePickerTeam = signal<AgePickerTeam | null>(null);
-
     private readonly _registeredTeams = signal<RegisteredTeamDto[]>([]);
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
 
@@ -767,41 +744,20 @@ export class TeamTeamsStepComponent implements OnInit {
         return this._registeredTeams().find(r => r.clubTeamId === clubTeamId) ?? null;
     }
 
-    /** Open age picker modal for a team. */
-    openAgePicker(team: AgePickerTeam, paid: boolean): void {
-        if (paid) return;
-        this.agePickerTeam.set(team);
-    }
-
     /** Library fly-in open/close. */
     openLibraryFlyin(): void { this.showLibraryFlyin.set(true); }
     closeLibraryFlyin(): void { this.showLibraryFlyin.set(false); }
 
-    /** Flyin emits a ClubTeamDto when the user clicks Register; route to age picker. */
-    onFlyinRegister(team: ClubTeamDto): void {
-        this.openAgePicker({
-            clubTeamId: team.clubTeamId,
-            clubTeamName: team.clubTeamName,
-            gradYear: team.clubTeamGradYear,
-            levelOfPlay: team.clubTeamLevelOfPlay,
-        }, false);
-    }
-
-    /** Handle age group + LOP selection from the modal. */
-    onModalAgeGroupSelected(pickerTeam: AgePickerTeam, selection: AgeGroupSelection): void {
-        this.agePickerTeam.set(null);
-
-        // Build a ClubTeamDto-compatible object with the modal-selected LOP.
-        // bHasBeenScheduled / bArchived are irrelevant here (registration path, not edit/delete).
+    /** Flyin emits {team, ageGroupId, levelOfPlay} from its inline-expand picker. */
+    onFlyinRegister(req: RegisterRequest): void {
+        // Build a ClubTeamDto-compatible object with the picker-selected LOP so
+        // downstream registerTeamForEvent gets the rep's adjusted value rather
+        // than the library team's stored default.
         const team: ClubTeamDto = {
-            clubTeamId: pickerTeam.clubTeamId,
-            clubTeamName: pickerTeam.clubTeamName,
-            clubTeamGradYear: pickerTeam.gradYear,
-            clubTeamLevelOfPlay: selection.levelOfPlay || pickerTeam.levelOfPlay,
-            bHasBeenScheduled: false,
-            bArchived: false,
+            ...req.team,
+            clubTeamLevelOfPlay: req.levelOfPlay || req.team.clubTeamLevelOfPlay,
         };
-        this.onSelectAgeGroup(team, selection.ageGroupId);
+        this.onSelectAgeGroup(team, req.ageGroupId);
     }
 
     /** Register (or re-register) a team with the selected age group. */
