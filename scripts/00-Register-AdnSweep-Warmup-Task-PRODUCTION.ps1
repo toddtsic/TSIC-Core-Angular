@@ -18,10 +18,16 @@
       process — if the worker is dead at 05:00, the sweep silently misses that day.
 
       claude-api currently has light-to-zero overnight traffic, so IIS's default 20-minute
-      idle timeout kills the worker overnight. This Task fires at 04:30 and hits an
+      idle timeout kills the worker overnight. This Task fires at 04:55 and hits an
       anonymous URL on claude-api. IIS spins up the worker on the request, the .NET app
-      initializes, the BackgroundService computes nextRun = today 05:00 (delay = 30 min),
+      initializes, the BackgroundService computes nextRun = today 05:00 (delay = 5 min),
       and at 05:00 the sweep runs as designed.
+
+      Why 04:55 and not earlier: IIS's idle timeout is driven by HTTP request activity,
+      not internal work. The BackgroundService's Task.Delay between warmup and sweep does
+      NOT keep the worker "active" from IIS's perspective. A 30-minute gap (e.g. 04:30 →
+      05:00) exceeds the 20-minute idle timeout — the worker recycles around 04:50 and
+      the 05:00 sweep silently misses. Keep the warmup-to-sweep gap under 20 minutes.
 
       The URL pinged returns 404 in Production (Swagger is wired only in Development), but
       that's sufficient — what matters is that a request reaches the worker and forces
@@ -44,9 +50,10 @@
     Scheduled Task name. Default 'TSIC-ClaudeApi-Warmup'.
 
 .PARAMETER At
-    Local time of day to fire. Default '4:30AM'. Must give the BackgroundService enough
-    runway to start AND fall inside its 60-minute grace window before 05:00 — keep this
-    between 04:01 and 04:59.
+    Local time of day to fire. Default '4:55AM'. Must give the BackgroundService enough
+    runway to start AND stay within IIS's 20-minute idle timeout before the 05:00 sweep —
+    keep this between 04:50 and 04:59. Earlier values risk the worker recycling before
+    the sweep fires; see the docstring's "Why 04:55 and not earlier" note.
 
 .PARAMETER Remove
     Unregister the Task and exit. Use to roll back this script's effects.
@@ -76,7 +83,7 @@
 param(
     [string]$ApiHealthUrl = 'https://claude-api.teamsportsinfo.com/swagger/v1/swagger.json',
     [string]$TaskName     = 'TSIC-ClaudeApi-Warmup',
-    [string]$At           = '4:30AM',
+    [string]$At           = '4:55AM',
     [switch]$Remove,
     [switch]$DryRun
 )
