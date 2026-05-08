@@ -145,30 +145,63 @@ Write-Host "  Files deployed!" -ForegroundColor Green
 Write-Host ""
 
 # ── Step 5: Start IIS sites ─────────────────────────────────────────
+# HARDENED: existence-test via Test-Path on IIS:\ drive (reliable across
+# PS sessions); always attempt Start, verify final state, retry once on
+# transient failure, and FAIL THE BUILD if a target site/pool ends up
+# anything other than Started. Previous version used Get-WebAppPoolState
+# as a truthy guard and skipped Start when it returned null — leaving
+# both sites stopped after a successful deploy.
 Write-Host "Step 5: Starting IIS sites..." -ForegroundColor Yellow
 if (Get-Module WebAdministration) {
-    try {
-        if (Get-WebAppPoolState -Name $ApiSiteName -ErrorAction SilentlyContinue) {
-            Start-WebAppPool -Name $ApiSiteName -ErrorAction SilentlyContinue
-            Write-Host "  Started app pool: $ApiSiteName" -ForegroundColor White
+    function Start-IISTarget {
+        param(
+            [Parameter(Mandatory)] [ValidateSet('AppPool','Site')] [string] $Kind,
+            [Parameter(Mandatory)] [string] $Name
+        )
+        $iisPath = if ($Kind -eq 'AppPool') { "IIS:\AppPools\$Name" } else { "IIS:\Sites\$Name" }
+        if (-not (Test-Path $iisPath)) {
+            Write-Host "  $Kind '$Name' does not exist - skipping" -ForegroundColor Yellow
+            return $true
         }
-        if (Get-WebAppPoolState -Name $AngularSiteName -ErrorAction SilentlyContinue) {
-            Start-WebAppPool -Name $AngularSiteName -ErrorAction SilentlyContinue
-            Write-Host "  Started app pool: $AngularSiteName" -ForegroundColor White
+        for ($attempt = 1; $attempt -le 2; $attempt++) {
+            try {
+                if ($Kind -eq 'AppPool') { Start-WebAppPool -Name $Name -ErrorAction Stop }
+                else                     { Start-Website   -Name $Name -ErrorAction Stop }
+            } catch {
+                # Already-running raises an error on some PS hosts; tolerate it
+                if ($_.Exception.Message -notmatch 'already started|already running') {
+                    Write-Host "  Start $Kind '$Name' attempt ${attempt}: $($_.Exception.Message)" -ForegroundColor Yellow
+                }
+            }
+            Start-Sleep -Milliseconds 500
+            $state = if ($Kind -eq 'AppPool') {
+                (Get-Item $iisPath -ErrorAction SilentlyContinue).State
+            } else {
+                (Get-Website -Name $Name -ErrorAction SilentlyContinue).State
+            }
+            if ($state -eq 'Started') {
+                Write-Host "  Started ${Kind}: $Name" -ForegroundColor White
+                return $true
+            }
+            Write-Host "  $Kind '$Name' state after attempt ${attempt}: $state" -ForegroundColor Yellow
         }
-        if (Get-Website -Name $ApiSiteName -ErrorAction SilentlyContinue) {
-            Start-Website -Name $ApiSiteName
-            Write-Host "  Started website: $ApiSiteName" -ForegroundColor White
-        }
-        if (Get-Website -Name $AngularSiteName -ErrorAction SilentlyContinue) {
-            Start-Website -Name $AngularSiteName
-            Write-Host "  Started website: $AngularSiteName" -ForegroundColor White
-        }
-    } catch {
-        Write-Host "  Could not start sites/pools: $_" -ForegroundColor Yellow
+        Write-Host "  FAILED to start ${Kind}: $Name" -ForegroundColor Red
+        return $false
+    }
+
+    $ok = $true
+    # Pools first, then sites that depend on them
+    $ok = (Start-IISTarget -Kind AppPool -Name $ApiSiteName)     -and $ok
+    $ok = (Start-IISTarget -Kind AppPool -Name $AngularSiteName) -and $ok
+    $ok = (Start-IISTarget -Kind Site    -Name $ApiSiteName)     -and $ok
+    $ok = (Start-IISTarget -Kind Site    -Name $AngularSiteName) -and $ok
+    if (-not $ok) {
+        Write-Host "  One or more IIS targets failed to start - investigate before declaring deploy successful" -ForegroundColor Red
+        exit 1
     }
 } else {
     Write-Host "  WebAdministration module not available - start sites manually" -ForegroundColor Yellow
+    exit 1
 }
 Write-Host ""
 

@@ -8,6 +8,12 @@ param(
     [string]$Configuration = "staging"
 )
 
+# Force UTF-8 console encoding so ng/npm/Node output (em-dashes, box-drawing
+# chars, progress bars) renders correctly. PS 5.1 defaults to Windows-1252,
+# which displays UTF-8 bytes as mojibake (e.g. â€" instead of em-dash).
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 Write-Host "Building TSIC Angular Application..." -ForegroundColor Green
 Write-Host "Angular Path:  $AngularPath" -ForegroundColor Yellow
 Write-Host "Output Path:   $OutputPath" -ForegroundColor Yellow
