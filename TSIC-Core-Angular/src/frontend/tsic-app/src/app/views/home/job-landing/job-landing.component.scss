@@ -81,38 +81,13 @@ app-client-banner {
 	}
 }
 
-.jl-toolbar__deadline {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-2);
-	padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
-	background: linear-gradient(
-		180deg,
-		color-mix(in srgb, var(--bs-primary) 12%, transparent) 0%,
-		color-mix(in srgb, var(--bs-primary) 6%, transparent) 100%
-	);
-	border: 1px solid color-mix(in srgb, var(--bs-primary) 28%, var(--brand-border));
-	border-radius: var(--radius-full);
-	font-size: var(--font-size-sm);
-	font-weight: var(--font-weight-semibold);
-	color: var(--brand-text);
-	letter-spacing: 0.01em;
-	line-height: 1;
-	flex-shrink: 0;
-
-	// Icon glyph in its own primary-tinted disc for emphasis.
-	i {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 1.4em;
-		height: 1.4em;
-		font-size: 0.75rem;
-		color: var(--bs-primary);
-		background: color-mix(in srgb, var(--bs-primary) 18%, var(--brand-surface));
-		border-radius: 50%;
-		flex-shrink: 0;
-	}
+// Inline game clock occupies the left slot only when in-season + games remain.
+// Override the host's default `flex: 1` (it stretches to center inside the
+// view-schedule heading row) — here we want it to sit at left and let the
+// heading + CTA flow naturally.
+.jl-toolbar__inner app-inline-game-clock {
+	flex: 0 0 auto;
+	justify-content: flex-start;
 }
 
 // Heading in the middle — auto margins push it to center between
@@ -130,6 +105,20 @@ app-client-banner {
 	line-height: 1.2;
 	letter-spacing: -0.01em;
 	text-align: center;
+}
+
+.jl-toolbar__cta-group {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	flex-shrink: 0;
+}
+
+// When two CTAs are present, compress padding slightly so the toolbar doesn't
+// overflow on common widths.
+.jl-toolbar__cta-group--multi .jl-toolbar__cta {
+	padding: var(--space-2) var(--space-4);
+	font-size: 0.875rem;
 }
 
 .jl-toolbar__cta {
@@ -200,6 +189,95 @@ app-client-banner {
 			transform: none;
 			filter: none;
 		}
+		i { transition: none; }
+		&:hover i { transform: none; }
+	}
+}
+
+// ============================================================
+//  SUPERSEDED — entire landing collapses to a centered callout
+//  pointing at the live later-year sibling event.
+// ============================================================
+
+.jl-superseded {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 60vh;
+	padding: var(--space-12) var(--space-4);
+}
+
+.jl-superseded__inner {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-6);
+	text-align: center;
+	max-width: 640px;
+}
+
+.jl-superseded__msg {
+	margin: 0;
+	font-size: clamp(1.25rem, 2.5vw, 1.625rem);
+	font-weight: var(--font-weight-semibold);
+	color: var(--brand-text-muted, var(--brand-text));
+	letter-spacing: -0.01em;
+}
+
+.jl-superseded__cta {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	background: linear-gradient(
+		180deg,
+		color-mix(in srgb, var(--bs-primary) 92%, white) 0%,
+		var(--bs-primary) 100%
+	);
+	color: var(--neutral-0);
+	padding: var(--space-3) var(--space-6);
+	border: none;
+	border-radius: var(--radius-full);
+	font-weight: var(--font-weight-semibold);
+	font-size: 1rem;
+	letter-spacing: 0.01em;
+	line-height: 1.2;
+	cursor: pointer;
+	box-shadow:
+		0 1px 0 rgba(255, 255, 255, 0.18) inset,
+		0 0 0 1px color-mix(in srgb, var(--bs-primary) 60%, black) inset,
+		0 2px 6px rgba(var(--bs-primary-rgb), 0.22),
+		0 6px 14px rgba(var(--bs-primary-rgb), 0.18);
+	transition:
+		transform 0.18s ease,
+		box-shadow 0.18s ease,
+		filter 0.18s ease;
+
+	&:hover {
+		transform: translateY(-1px);
+		filter: brightness(1.04);
+		box-shadow:
+			0 1px 0 rgba(255, 255, 255, 0.22) inset,
+			0 0 0 1px color-mix(in srgb, var(--bs-primary) 60%, black) inset,
+			0 4px 10px rgba(var(--bs-primary-rgb), 0.28),
+			0 10px 22px rgba(var(--bs-primary-rgb), 0.24);
+	}
+
+	&:active { transform: translateY(0); filter: brightness(0.98); }
+
+	&:focus-visible {
+		outline: none;
+		box-shadow:
+			0 0 0 3px rgba(var(--bs-primary-rgb), 0.35),
+			0 1px 0 rgba(255, 255, 255, 0.18) inset,
+			0 0 0 1px color-mix(in srgb, var(--bs-primary) 60%, black) inset;
+	}
+
+	i { transition: transform 0.18s ease; }
+	&:hover i { transform: translateX(3px); }
+
+	@media (prefers-reduced-motion: reduce) {
+		transition: none;
+		&:hover { transform: none; filter: none; }
 		i { transition: none; }
 		&:hover i { transform: none; }
 	}

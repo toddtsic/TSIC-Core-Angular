@@ -1,46 +1,71 @@
 <div class="jl">
 
-	<!-- ══════════════════════════════════════════════════
-	     BANNER — widget self-contains via rounded corners +
-	     shadow; we just cap its width on wide screens.
-	     ══════════════════════════════════════════════════ -->
-	<app-client-banner></app-client-banner>
+	@if (isSuperseded()) {
 
-
-	<!-- ══════════════════════════════════════════════════
-	     TOOLBAR — sticky on scroll. Deadline · heading · CTA.
-	     ══════════════════════════════════════════════════ -->
-	<section class="jl-toolbar">
-		<div class="jl-container jl-toolbar__inner">
-			@if (phaseSubtext()) {
-				<span class="jl-toolbar__deadline">
-					<i class="bi" [class]="phaseIcon()" aria-hidden="true"></i>
-					{{ phaseSubtext() }}
-				</span>
-			}
-
-			<h2 class="jl-toolbar__heading">
-				<span class="jl-gradient-text">News &amp; Updates</span>
-			</h2>
-
-			<a [routerLink]="ctaPath()" class="jl-toolbar__cta">
-				<span>{{ ctaLabel() }}</span>
-				<i class="bi bi-arrow-right" aria-hidden="true"></i>
-			</a>
-		</div>
-	</section>
-
-
-	<!-- ══════════════════════════════════════════════════
-	     BULLETINS — full-viewport-width publication paper
-	     floating on the atmospheric page background.
-	     ══════════════════════════════════════════════════ -->
-	<section class="jl-bulletins">
-		<div class="jl-bulletins__inner">
-			<div class="reveal reveal-delay-1">
-				<app-bulletins></app-bulletins>
+		<!-- ══════════════════════════════════════════════════
+		     SUPERSEDED — entire landing collapses to a single
+		     callout redirecting to the live later-year sibling.
+		     ══════════════════════════════════════════════════ -->
+		<section class="jl-superseded">
+			<div class="jl-container jl-superseded__inner">
+				<p class="jl-superseded__msg">This event has concluded</p>
+				<button type="button" class="jl-superseded__cta" (click)="goToSupersedingEvent()">
+					<span>Register for {{ supersedingName() }}</span>
+					<i class="bi bi-arrow-right" aria-hidden="true"></i>
+				</button>
 			</div>
-		</div>
-	</section>
+		</section>
+
+	} @else {
+
+		<!-- ══════════════════════════════════════════════════
+		     BANNER — widget self-contains via rounded corners +
+		     shadow; we just cap its width on wide screens.
+		     ══════════════════════════════════════════════════ -->
+		<app-client-banner></app-client-banner>
+
+
+		<!-- ══════════════════════════════════════════════════
+		     TOOLBAR — sticky on scroll. Hidden during pre-reg /
+		     unknown phases. Inline game clock occupies the left
+		     slot only when in-season AND games remain.
+		     ══════════════════════════════════════════════════ -->
+		@if (showToolbar()) {
+			<section class="jl-toolbar">
+				<div class="jl-container jl-toolbar__inner">
+					@if (showInlineClock()) {
+						<app-inline-game-clock [jobId]="jobId()" />
+					}
+
+					<h2 class="jl-toolbar__heading">
+						<span class="jl-gradient-text">News &amp; Updates</span>
+					</h2>
+
+					<span class="jl-toolbar__cta-group" [class.jl-toolbar__cta-group--multi]="ctas().length > 1">
+						@for (cta of ctas(); track cta.label) {
+							<a [routerLink]="cta.path" class="jl-toolbar__cta">
+								<span>{{ cta.label }}</span>
+								<i class="bi bi-arrow-right" aria-hidden="true"></i>
+							</a>
+						}
+					</span>
+				</div>
+			</section>
+		}
+
+
+		<!-- ══════════════════════════════════════════════════
+		     BULLETINS — full-viewport-width publication paper
+		     floating on the atmospheric page background.
+		     ══════════════════════════════════════════════════ -->
+		<section class="jl-bulletins">
+			<div class="jl-bulletins__inner">
+				<div class="reveal reveal-delay-1">
+					<app-bulletins></app-bulletins>
+				</div>
+			</div>
+		</section>
+
+	}
 
 </div>

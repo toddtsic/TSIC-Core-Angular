@@ -6,21 +6,24 @@ import {
 	ElementRef,
 	inject,
 	input,
-	OnDestroy
+	OnDestroy,
+	signal
 } from '@angular/core';
-import { ActivatedRoute, ActivatedRouteSnapshot, RouterLink } from '@angular/router';
+import { ActivatedRoute, ActivatedRouteSnapshot, Router, RouterLink } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
+import { ViewScheduleService } from '@views/scheduling/view-schedule/services/view-schedule.service';
+import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
 
-type JobPhase = 'pre-registration' | 'registration' | 'pre-season' | 'in-season' | 'post-season' | 'unknown';
+type JobPhase = 'pre-registration' | 'registration' | 'in-season' | 'unknown';
 
 @Component({
 	selector: 'app-job-landing',
 	standalone: true,
-	imports: [RouterLink, ClientBannerComponent, BulletinsComponent],
+	imports: [RouterLink, ClientBannerComponent, BulletinsComponent, InlineGameClockComponent],
 	templateUrl: './job-landing.component.html',
 	styleUrl: './job-landing.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -31,15 +34,18 @@ export class JobLandingComponent implements OnDestroy {
 	private readonly pulseService = inject(JobPulseService);
 	private readonly auth = inject(AuthService);
 	private readonly route = inject(ActivatedRoute);
+	private readonly router = inject(Router);
+	private readonly scheduleService = inject(ViewScheduleService);
 	private observer: IntersectionObserver | null = null;
 
 	readonly publicJobPath = input<string>('', { alias: 'jobPath' });
 
 	readonly job = computed(() => this.jobService.currentJob());
+	readonly jobId = computed(() => this.jobService.currentJob()?.jobId ?? '');
 
-	// Pulse is the canonical source for "is X currently available" gating —
-	// it's role-aware (e.g. PlayerRegistrationOpen = isFamily && allowPlayer)
-	// and computed server-side. Metadata flags alone aren't sufficient.
+	// Pulse is the canonical source of "is X currently available" state. Both
+	// PlayerRegistrationOpen and TeamRegistrationOpen are pure job-level flags
+	// (no role gating); per-user state lives in the My* fields.
 	readonly pulse = computed(() => this.pulseService.pulse());
 
 	readonly activeJobPath = computed(() => {
@@ -65,86 +71,68 @@ export class JobLandingComponent implements OnDestroy {
 		return 'unknown';
 	});
 
-	readonly phaseIcon = computed(() => {
-		switch (this.phase()) {
-			case 'registration': return 'bi-hourglass-split';
-			case 'pre-season': return 'bi-calendar2-check';
-			case 'in-season': return 'bi-broadcast';
-			case 'post-season': return 'bi-trophy-fill';
-			case 'pre-registration': return 'bi-clock';
-			default: return '';
-		}
+	// Stale event with a live later-year sibling — collapses the entire page
+	// to a single callout that redirects to the live event.
+	readonly isSuperseded = computed(() => !!this.pulse()?.supersededByLaterEvent);
+	readonly supersedingName = computed(() => this.pulse()?.supersededByLaterEvent?.jobName ?? '');
+
+	// Toolbar only renders during active phases (registration or in-season).
+	// Pre-registration, unknown, and the no-jobPath case render banner + bulletins
+	// without a toolbar; superseded replaces the entire page (handled separately).
+	readonly showToolbar = computed(() => {
+		if (!this.activeJobPath() || !this.pulse() || this.isSuperseded()) return false;
+		const ph = this.phase();
+		return ph === 'registration' || ph === 'in-season';
 	});
 
-	/** Complementary info to the CTA — a deadline or date, not a re-statement of the phase. */
-	readonly phaseSubtext = computed(() => {
+	// Probed once on mount; true when this job has at least one upcoming or
+	// in-progress RR/PO game. Drives the inline game clock in the toolbar.
+	private readonly hasGameClockGames = signal(false);
+	readonly showInlineClock = computed(() =>
+		!!this.pulse()?.schedulePublished && !!this.jobId() && this.hasGameClockGames()
+	);
+
+	readonly ctas = computed<readonly { readonly label: string; readonly path: readonly string[] }[]>(() => {
+		const jp = this.activeJobPath();
+		if (!jp) return [];
+
 		const p = this.pulse();
-		// Superseded events have a stale deadline that no longer matters — the
-		// CTA already redirects to the live sibling event, so any "Closes …"
-		// text would be misleading.
-		if (p?.supersededByLaterEvent) return '';
+		const schedulePublished = p?.schedulePublished === true;
+		const playerOpen = p?.playerRegistrationOpen === true;
+		// Once schedules are published, teams are locked into divisions/brackets —
+		// adding new teams would disrupt the schedule. Suppress Register Team
+		// regardless of the underlying flag, and replace it with a View Schedule
+		// link in the same slot. (Player reg can still run; rostering players
+		// onto already-scheduled teams is normal in-season.)
+		const teamWouldOpen = p?.teamRegistrationOpen === true;
+		const teamSuppressedBySchedule = teamWouldOpen && schedulePublished;
+		const teamOpen = teamWouldOpen && !schedulePublished;
 
-		const expiry = p?.registrationExpiry;
-		if (!expiry) return '';
-		const ms = Date.parse(expiry);
-		if (Number.isNaN(ms)) return '';
-		const days = Math.ceil((ms - Date.now()) / 86_400_000);
-		const dateStr = new Date(ms).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+		const out: { readonly label: string; readonly path: readonly string[] }[] = [];
+		if (playerOpen) out.push({ label: 'Register Player', path: ['/', jp, 'registration', 'player'] });
+		if (teamOpen)   out.push({ label: 'Register Team',   path: ['/', jp, 'registration', 'team'] });
 
-		switch (this.phase()) {
-			case 'registration':
-				if (days <= 0) return 'Closing today';
-				if (days === 1) return 'Closes tomorrow';
-				if (days <= 14) return `Closes in ${days} days`;
-				return `Closes ${dateStr}`;
-			default:
-				return '';
+		// View Schedule fills the slot a suppressed Register Team would have
+		// occupied; also shown standalone when nothing else qualifies but
+		// schedules are out (in-season post-registration).
+		if (teamSuppressedBySchedule || (out.length === 0 && schedulePublished)) {
+			out.push({ label: 'View Schedule', path: ['/', jp, 'scheduling', 'view-schedule'] });
 		}
+		return out;
 	});
 
 	/**
-	 * Toolbar CTAs. Reads pulse — the canonical source for "is open right now
-	 * for this user." Pulse encodes role-awareness (PlayerRegistrationOpen is
-	 * computed server-side as `isFamily && allowPlayer`; TeamRegistrationOpen
-	 * is `!isFamily && allowTeam`), so anonymous and admin users naturally see
-	 * only the registration types relevant to them.
-	 *
-	 * - both open  → two buttons ("Register Player" + "Register Team")
-	 * - one open   → single "Register" button to that type's route
-	 * - none open  → schedule (if published) or "Explore Event"
-	 *
-	 * Routes match app.routes.ts (line 73+): `/<jobPath>/registration/{player,team}`.
+	 * Cross-event redirect for the superseded callout. Clears local auth so
+	 * the live event's landing loads anonymously — otherwise the JWT for the
+	 * stale event bleeds context (myAssignedTeamId, name, etc.) into the new
+	 * landing's pulse fetch.
 	 */
-	readonly ctas = computed<readonly { readonly label: string; readonly path: readonly (string)[] }[]>(() => {
-		const jp = this.activeJobPath();
-		if (!jp) return [{ label: 'Explore Event', path: ['/'] }];
-
-		const p = this.pulse();
-
-		// Superseded by a later-year sibling event — redirect intent to the
-		// live event. The job name carries the year, so the CTA stays
-		// year-agnostic (could be next year, could be several years out).
-		const newer = p?.supersededByLaterEvent;
-		if (newer) {
-			return [{ label: `Register for ${newer.jobName}`, path: ['/', newer.jobPath] }];
-		}
-
-		const playerOpen = p?.playerRegistrationOpen === true;
-		const teamOpen = p?.teamRegistrationOpen === true;
-
-		if (playerOpen && teamOpen) {
-			return [
-				{ label: 'Register Player', path: ['/', jp, 'registration', 'player'] },
-				{ label: 'Register Team', path: ['/', jp, 'registration', 'team'] }
-			];
-		}
-		if (playerOpen) return [{ label: 'Register', path: ['/', jp, 'registration', 'player'] }];
-		if (teamOpen)   return [{ label: 'Register', path: ['/', jp, 'registration', 'team'] }];
-
-		// Neither registration type open for this user — fall back to a phase-appropriate CTA.
-		if (p?.schedulePublished) return [{ label: 'View Schedule', path: ['/', jp, 'schedule-hub'] }];
-		return [{ label: 'Explore Event', path: ['/', jp] }];
-	});
+	goToSupersedingEvent(): void {
+		const target = this.pulse()?.supersededByLaterEvent;
+		if (!target) return;
+		this.auth.logoutLocal();
+		this.router.navigate(['/', target.jobPath]);
+	}
 
 	constructor() {
 		afterNextRender(() => {
@@ -154,6 +142,7 @@ export class JobLandingComponent implements OnDestroy {
 					next: (job) => {
 						this.jobService.setJob(job);
 						this.jobService.loadBulletins(jp);
+						this.probeGameClock(job.jobId);
 					}
 				});
 			}
@@ -164,6 +153,18 @@ export class JobLandingComponent implements OnDestroy {
 	ngOnDestroy(): void {
 		this.observer?.disconnect();
 		this.observer = null;
+	}
+
+	private probeGameClock(jobId: string): void {
+		if (!jobId) return;
+		this.scheduleService.getActiveGames(jobId).subscribe({
+			next: (data) => {
+				const has = (data.availableRRGameData?.length ?? 0) > 0
+					|| (data.availablePOGameData?.length ?? 0) > 0;
+				this.hasGameClockGames.set(has);
+			},
+			error: () => this.hasGameClockGames.set(false)
+		});
 	}
 
 	private initRevealAnimations(): void {
