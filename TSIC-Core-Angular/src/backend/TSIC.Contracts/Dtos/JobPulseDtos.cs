@@ -39,6 +39,16 @@ public record JobPulseDto
     public required bool PublicSuspended { get; init; }
     public DateTime? RegistrationExpiry { get; init; }
 
+    /// <summary>
+    /// When set, a later-year sibling event (same customer, same name prefix
+    /// with the year stripped) is currently accepting registration. Treat the
+    /// current job as superseded — hide registration CTAs and surface a
+    /// callout pointing to this newer event.
+    /// Heuristic: regex extracts the first 4-digit year from JobName; the
+    /// remainder (whitespace-collapsed, case-insensitive) is the series key.
+    /// </summary>
+    public SupersedingEventInfoDto? SupersededByLaterEvent { get; init; }
+
     // --- Authenticated user context (null when anonymous or JWT job mismatch) ---
 
     // Registrant context (Player / Family / Staff). Null when user is not a registrant in this job.
@@ -60,6 +70,17 @@ public record JobPulseDto
     // Display name of the regId owner (Player / ClubRep / Staff / etc). Used for header initials.
     public string? MyFirstName { get; init; }
     public string? MyLastName { get; init; }
+}
+
+/// <summary>
+/// Identifies a later-year sibling event currently accepting registration.
+/// Surfaced on JobPulseDto.SupersededByLaterEvent so the public landing page
+/// can redirect intent from a stale event to the live one.
+/// </summary>
+public record SupersedingEventInfoDto
+{
+    public required string JobPath { get; init; }
+    public required string JobName { get; init; }
 }
 
 /// <summary>

@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { SupersedingEventInfoDto } from './SupersedingEventInfoDto';
 export type JobPulseDto = {
     playerRegistrationOpen: boolean;
     playerTeamsAvailableForRegistration: boolean;
@@ -24,6 +25,7 @@ export type JobPulseDto = {
     adultRegistrationPlanned: boolean;
     publicSuspended: boolean;
     registrationExpiry?: string | null;
+    supersededByLaterEvent?: (null | SupersedingEventInfoDto);
     myAssignedTeamId?: string | null;
     myRegistrationOwedTotal?: number | null;
     myHasPurchasedPlayerRegsaver?: boolean | null;

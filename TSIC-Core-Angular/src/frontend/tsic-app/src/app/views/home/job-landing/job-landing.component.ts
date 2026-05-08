@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot, RouterLink } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
+import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
@@ -27,6 +28,7 @@ type JobPhase = 'pre-registration' | 'registration' | 'pre-season' | 'in-season'
 export class JobLandingComponent implements OnDestroy {
 	private readonly elRef = inject(ElementRef);
 	private readonly jobService = inject(JobService);
+	private readonly pulseService = inject(JobPulseService);
 	private readonly auth = inject(AuthService);
 	private readonly route = inject(ActivatedRoute);
 	private observer: IntersectionObserver | null = null;
@@ -34,6 +36,11 @@ export class JobLandingComponent implements OnDestroy {
 	readonly publicJobPath = input<string>('', { alias: 'jobPath' });
 
 	readonly job = computed(() => this.jobService.currentJob());
+
+	// Pulse is the canonical source for "is X currently available" gating —
+	// it's role-aware (e.g. PlayerRegistrationOpen = isFamily && allowPlayer)
+	// and computed server-side. Metadata flags alone aren't sufficient.
+	readonly pulse = computed(() => this.pulseService.pulse());
 
 	readonly activeJobPath = computed(() => {
 		const fromInput = this.publicJobPath();
@@ -50,12 +57,12 @@ export class JobLandingComponent implements OnDestroy {
 	});
 
 	readonly phase = computed<JobPhase>(() => {
-		const expiry = this.job()?.expiryUsers;
-		if (!expiry) return 'unknown';
-		const expiryMs = Date.parse(expiry);
-		if (Number.isNaN(expiryMs)) return 'unknown';
-		const now = Date.now();
-		return now < expiryMs ? 'registration' : 'pre-season';
+		const p = this.pulse();
+		if (!p) return 'unknown';
+		if (p.playerRegistrationOpen || p.teamRegistrationOpen) return 'registration';
+		if (p.schedulePublished) return 'in-season';
+		if (p.playerRegistrationPlanned || p.adultRegistrationPlanned) return 'pre-registration';
+		return 'unknown';
 	});
 
 	readonly phaseIcon = computed(() => {
@@ -71,7 +78,13 @@ export class JobLandingComponent implements OnDestroy {
 
 	/** Complementary info to the CTA — a deadline or date, not a re-statement of the phase. */
 	readonly phaseSubtext = computed(() => {
-		const expiry = this.job()?.expiryUsers;
+		const p = this.pulse();
+		// Superseded events have a stale deadline that no longer matters — the
+		// CTA already redirects to the live sibling event, so any "Closes …"
+		// text would be misleading.
+		if (p?.supersededByLaterEvent) return '';
+
+		const expiry = p?.registrationExpiry;
 		if (!expiry) return '';
 		const ms = Date.parse(expiry);
 		if (Number.isNaN(ms)) return '';
@@ -89,26 +102,48 @@ export class JobLandingComponent implements OnDestroy {
 		}
 	});
 
-	readonly ctaLabel = computed(() => {
-		switch (this.phase()) {
-			case 'registration': return 'Register';
-			case 'pre-season':
-			case 'in-season': return 'View Schedule';
-			case 'post-season': return 'View Results';
-			default: return 'Explore Event';
-		}
-	});
-
-	readonly ctaPath = computed(() => {
+	/**
+	 * Toolbar CTAs. Reads pulse — the canonical source for "is open right now
+	 * for this user." Pulse encodes role-awareness (PlayerRegistrationOpen is
+	 * computed server-side as `isFamily && allowPlayer`; TeamRegistrationOpen
+	 * is `!isFamily && allowTeam`), so anonymous and admin users naturally see
+	 * only the registration types relevant to them.
+	 *
+	 * - both open  → two buttons ("Register Player" + "Register Team")
+	 * - one open   → single "Register" button to that type's route
+	 * - none open  → schedule (if published) or "Explore Event"
+	 *
+	 * Routes match app.routes.ts (line 73+): `/<jobPath>/registration/{player,team}`.
+	 */
+	readonly ctas = computed<readonly { readonly label: string; readonly path: readonly (string)[] }[]>(() => {
 		const jp = this.activeJobPath();
-		if (!jp) return ['/'];
-		switch (this.phase()) {
-			case 'registration': return ['/', jp, 'register'];
-			case 'pre-season':
-			case 'in-season':
-			case 'post-season': return ['/', jp, 'schedule-hub'];
-			default: return ['/', jp];
+		if (!jp) return [{ label: 'Explore Event', path: ['/'] }];
+
+		const p = this.pulse();
+
+		// Superseded by a later-year sibling event — redirect intent to the
+		// live event. The job name carries the year, so the CTA stays
+		// year-agnostic (could be next year, could be several years out).
+		const newer = p?.supersededByLaterEvent;
+		if (newer) {
+			return [{ label: `Register for ${newer.jobName}`, path: ['/', newer.jobPath] }];
 		}
+
+		const playerOpen = p?.playerRegistrationOpen === true;
+		const teamOpen = p?.teamRegistrationOpen === true;
+
+		if (playerOpen && teamOpen) {
+			return [
+				{ label: 'Register Player', path: ['/', jp, 'registration', 'player'] },
+				{ label: 'Register Team', path: ['/', jp, 'registration', 'team'] }
+			];
+		}
+		if (playerOpen) return [{ label: 'Register', path: ['/', jp, 'registration', 'player'] }];
+		if (teamOpen)   return [{ label: 'Register', path: ['/', jp, 'registration', 'team'] }];
+
+		// Neither registration type open for this user — fall back to a phase-appropriate CTA.
+		if (p?.schedulePublished) return [{ label: 'View Schedule', path: ['/', jp, 'schedule-hub'] }];
+		return [{ label: 'Explore Event', path: ['/', jp] }];
 	});
 
 	constructor() {

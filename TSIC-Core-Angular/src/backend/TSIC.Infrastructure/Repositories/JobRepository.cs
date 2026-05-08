@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
@@ -439,47 +440,118 @@ public class JobRepository : IJobRepository
     public async Task<Contracts.Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default)
     {
         var now = DateTime.UtcNow;
-        return await _context.Jobs
+
+        // Step 1: pulse fields + identity (CustomerId, JobName, JobId) for the supersession check.
+        var row = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobPath == jobPath)
-            .Select(j => new Contracts.Dtos.JobPulseDto
+            .Select(j => new
             {
-                PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
-                // Mirrors TeamRepository.GetAvailableTeamsQueryResultsAsync filters exactly.
-                PlayerTeamsAvailableForRegistration = _context.Teams.Any(t =>
-                    t.JobId == j.JobId
-                    && (t.Active ?? true)
-                    && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
-                    && (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
-                    && (t.Expireondate == null || t.Expireondate >= now)
-                    && !t.Agegroup.AgegroupName.StartsWith("Dropped")
-                    && !t.Agegroup.AgegroupName.StartsWith("Waitlist")),
-                PlayerRegRequiresToken = j.BplayerRegRequiresToken == true,
-                // Team reg only meaningful for Tournament (2) and League (3) job types
-                TeamRegistrationOpen = j.BRegistrationAllowTeam == true
-                    && (j.JobTypeId == 2 || j.JobTypeId == 3),
-                TeamRegRequiresToken = j.BteamRegRequiresToken,
-                ClubRepAllowAdd = j.BClubRepAllowAdd == true,
-                ClubRepAllowEdit = j.BClubRepAllowEdit == true,
-                ClubRepAllowDelete = j.BClubRepAllowDelete == true,
-                AllowRosterViewPlayer = j.BAllowRosterViewPlayer == true,
-                AllowRosterViewAdult = j.BAllowRosterViewAdult == true,
-                OfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance == true,
-                OfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance == true,
-                StoreEnabled = j.BEnableStore == true,
-                StoreHasActiveItems = j.BEnableStore == true
-                    && _context.Stores.Any(s => s.JobId == j.JobId
-                        && _context.StoreItems.Any(si => si.StoreId == s.StoreId && si.Active)),
-                AllowStoreWalkup = j.BAllowStoreWalkup,
-                EnableStayToPlay = j.BenableStp == true,
-                SchedulePublished = j.BScheduleAllowPublicAccess == true,
-                PlayerRegistrationPlanned = j.PlayerProfileMetadataJson != null
-                    && j.BRegistrationAllowPlayer != true,
-                AdultRegistrationPlanned = j.AdultProfileMetadataJson != null,
-                PublicSuspended = j.BSuspendPublic,
-                RegistrationExpiry = j.ExpiryUsers
+                Pulse = new Contracts.Dtos.JobPulseDto
+                {
+                    PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
+                    // Mirrors TeamRepository.GetAvailableTeamsQueryResultsAsync filters exactly.
+                    PlayerTeamsAvailableForRegistration = _context.Teams.Any(t =>
+                        t.JobId == j.JobId
+                        && (t.Active ?? true)
+                        && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
+                        && (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
+                        && (t.Expireondate == null || t.Expireondate >= now)
+                        && !t.Agegroup.AgegroupName.StartsWith("Dropped")
+                        && !t.Agegroup.AgegroupName.StartsWith("Waitlist")),
+                    PlayerRegRequiresToken = j.BplayerRegRequiresToken == true,
+                    // Team reg only meaningful for Tournament (2) and League (3) job types
+                    TeamRegistrationOpen = j.BRegistrationAllowTeam == true
+                        && (j.JobTypeId == 2 || j.JobTypeId == 3),
+                    TeamRegRequiresToken = j.BteamRegRequiresToken,
+                    ClubRepAllowAdd = j.BClubRepAllowAdd == true,
+                    ClubRepAllowEdit = j.BClubRepAllowEdit == true,
+                    ClubRepAllowDelete = j.BClubRepAllowDelete == true,
+                    AllowRosterViewPlayer = j.BAllowRosterViewPlayer == true,
+                    AllowRosterViewAdult = j.BAllowRosterViewAdult == true,
+                    OfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance == true,
+                    OfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance == true,
+                    StoreEnabled = j.BEnableStore == true,
+                    StoreHasActiveItems = j.BEnableStore == true
+                        && _context.Stores.Any(s => s.JobId == j.JobId
+                            && _context.StoreItems.Any(si => si.StoreId == s.StoreId && si.Active)),
+                    AllowStoreWalkup = j.BAllowStoreWalkup,
+                    EnableStayToPlay = j.BenableStp == true,
+                    SchedulePublished = j.BScheduleAllowPublicAccess == true,
+                    PlayerRegistrationPlanned = j.PlayerProfileMetadataJson != null
+                        && j.BRegistrationAllowPlayer != true,
+                    AdultRegistrationPlanned = j.AdultProfileMetadataJson != null,
+                    PublicSuspended = j.BSuspendPublic,
+                    RegistrationExpiry = j.ExpiryUsers,
+                    SupersededByLaterEvent = null
+                },
+                j.JobId,
+                j.JobName,
+                j.CustomerId
             })
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (row == null) return null;
+
+        // Step 2: supersession check. Only meaningful when the current name parses
+        // to year + prefix; otherwise we can't identify the series.
+        var current = ParseSeriesNameAndYear(row.JobName);
+        if (current is null) return row.Pulse;
+
+        // Sibling pool: same customer, not this job, released to public, currently
+        // accepting either registration type, and within its own deadline.
+        var siblings = await _context.Jobs
+            .AsNoTracking()
+            .Where(s => s.CustomerId == row.CustomerId
+                && s.JobId != row.JobId
+                && !s.BSuspendPublic
+                && (s.BRegistrationAllowPlayer == true || s.BRegistrationAllowTeam == true)
+                && s.ExpiryUsers > now
+                && s.JobName != null
+                && s.JobPath != null)
+            .Select(s => new { s.JobName, s.JobPath })
+            .ToListAsync(cancellationToken);
+
+        // Match by stripped-prefix + later year; pick the closest year forward.
+        var supersedingEvent = siblings
+            .Select(s =>
+            {
+                var parsed = ParseSeriesNameAndYear(s.JobName);
+                return parsed is null
+                    ? null
+                    : new { s.JobName, s.JobPath, parsed.Value.Prefix, parsed.Value.Year };
+            })
+            .Where(s => s != null
+                && string.Equals(s.Prefix, current.Value.Prefix, StringComparison.OrdinalIgnoreCase)
+                && s.Year > current.Value.Year)
+            .OrderBy(s => s!.Year)
+            .Select(s => new Contracts.Dtos.SupersedingEventInfoDto
+            {
+                JobPath = s!.JobPath!,
+                JobName = s.JobName!
+            })
+            .FirstOrDefault();
+
+        return supersedingEvent is null
+            ? row.Pulse
+            : row.Pulse with { SupersededByLaterEvent = supersedingEvent };
+    }
+
+    /// <summary>
+    /// Parses a job name like "Lax For The Cure: Summer 2026" into the series prefix
+    /// ("Lax For The Cure: Summer") and the year (2026). Returns null when no 4-digit
+    /// year is present — those names can't participate in the supersession heuristic.
+    /// </summary>
+    private static (string Prefix, int Year)? ParseSeriesNameAndYear(string? jobName)
+    {
+        if (string.IsNullOrWhiteSpace(jobName)) return null;
+        var match = Regex.Match(jobName, @"\b(20\d{2})\b");
+        if (!match.Success) return null;
+        if (!int.TryParse(match.Groups[1].Value, out var year)) return null;
+        var stripped = jobName.Remove(match.Index, match.Length);
+        // Collapse whitespace and trim so "Lax  Summer" matches "Lax Summer".
+        var prefix = Regex.Replace(stripped, @"\s+", " ").Trim();
+        return (prefix, year);
     }
 
     public async Task<List<Contracts.Dtos.SuggestedEventDto>> GetCandidateEventsByCustomersAsync(
