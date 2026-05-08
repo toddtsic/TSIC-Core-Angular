@@ -63,7 +63,15 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                     [visible]="showDeposit()"></e-column>
           <e-column field="additionalDue" headerText="Bal Due" width="80" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
-          <e-column field="feeTotal" headerText="Total Fee" width="80" textAlign="Right" format="C2"></e-column>
+          <!-- Total Fee = structural sum (Deposit + BalanceDue), not feeTotal which is
+               phase-aware (deposit-phase total = deposit + processing). The field stays
+               as 'feeTotal' so the aggregate footer aligns under this column; the cell
+               template renders the structural sum instead of the bound value. -->
+          <e-column field="feeTotal" headerText="Total Fee" width="80" textAlign="Right" [allowSorting]="false">
+            <ng-template #template let-data>
+              {{ (data.deposit + data.balanceDue) | currency }}
+            </ng-template>
+          </e-column>
           <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
                     [visible]="showPaid()">
             <ng-template #template let-data>
@@ -281,7 +289,7 @@ export class RegisteredTeamsGridComponent {
     }
 
     // Aggregates
-    readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.feeTotal, 0));
+    readonly sumFee = computed(() => this.teams().reduce((s, t) => s + t.deposit + t.balanceDue, 0));
     readonly sumPaid = computed(() => this.teams().reduce((s, t) => s + t.paidTotal, 0));
     readonly sumDeposit = computed(() => this.teams().reduce((s, t) => s + t.deposit, 0));
     readonly sumBalanceDue = computed(() => this.teams().reduce((s, t) => s + t.balanceDue, 0));
