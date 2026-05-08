@@ -1,0 +1,131 @@
+MemberPing API
+Returns user/membership lookup data for one or more 12-digit membership IDs. Supports a single lookup via GET and a batched lookup (up to 500 IDs) via POST.
+Endpoint
+{HOST_ROOT}/api/v1/MemberPing
+Replace {HOST_ROOT} with the appropriate environment base URL (e.g. production, staging, dev).
+Authentication
+All requests require a Bearer JWT in the Authorization header:
+Authorization: Bearer <JWT>
+(Token acquisition is out of scope for this document.)
+Methods
+Method
+Purpose
+Required Parameter
+GET
+Look up a single membership
+membership_id (string/int)
+POST
+Look up multiple memberships (max 500)
+membership_ids (array)
+The membership_id value must be a 12-digit number. Other formats are rejected with 500.
+GET — Single Membership Lookup
+Request
+GET /api/v1/MemberPing?membership_id=123456789012
+Authorization: Bearer <JWT>
+Success Response — 200 OK
+{
+    "membership_id": "123456789012",
+    "mem_status":    "Active",
+    "exp_date":      "2026-12-31",
+    "firstname":     "Jane",
+    "lastname":      "Doe",
+    "birthdate":     "1990-05-14",
+    "gender":        "F",
+    "age_verified":  "Verified",
+    "email":         "jane.doe@example.com",
+    "postalcode":    "21202",
+    "state":         "MD",
+    "involvement":   ["player", "coach"]
+}
+Field notes:
+mem_status, exp_date — null if no membership record is attached.
+age_verified — null if no age-verification ticket exists.
+postalcode, state — null if no mailing address is on file.
+involvement — derived list of the user's roles/affiliations.
+Error Responses
+Status
+Body
+Cause
+500
+Missing required "membership_id" parameter
+membership_id not provided
+500
+Invalid "membership_id" provided (must be a 12-digit number)
+Format validation failed
+404
+No Users record found.
+Membership ID not in AMMS
+POST — Bulk Membership Lookup
+Request
+POST /api/v1/MemberPing
+Authorization: Bearer <JWT>
+Content-Type: application/json
+
+{
+    "membership_ids": [
+        "123456789012",
+        "234567890123",
+        "345678901234"
+    ]
+}
+Constraints:
+membership_ids must be an array.
+Maximum 500 entries per request (a request with 500 or more is rejected).
+Every entry must be a 12-digit number; one bad entry fails the whole request.
+Success Response — 200 OK
+Returns a JSON array of objects with the same shape as the GET response:
+[
+    {
+        "membership_id": "123456789012",
+        "mem_status":    "Active",
+        "exp_date":      "2026-12-31",
+        "firstname":     "Jane",
+        "lastname":      "Doe",
+        "birthdate":     "1990-05-14",
+        "gender":        "F",
+        "age_verified":  "Verified",
+        "email":         "jane.doe@example.com",
+        "postalcode":    "21202",
+        "state":         "MD",
+        "involvement":   ["player"]
+    },
+    {
+        "membership_id": "234567890123",
+        "...": "..."
+    }
+]
+Records are returned ordered by membership_id ASC. IDs that do not match any user are silently omitted from the array (they are not returned as null placeholders).
+Error Responses
+Status
+Body
+Cause
+500
+Missing required "membership_ids" parameter
+membership_ids not provided
+500
+Parameter "membership_ids" must be an array
+Sent as scalar/object instead of array
+500
+This search has a limit of 500 membership id's
+Array length ≥ 500
+500
+Invalid "membership_id:" <value> provided (must be a 12-digit number)
+Any entry fails format validation
+404
+No Users records found.
+None of the IDs matched any AMMS record
+Other methods (PUT, DELETE, PATCH, etc.) return an Invalid request method error.
+cURL Examples
+GET (single):
+curl -X GET "https://<host>/api/v1/MemberPing?membership_id=123456789012" \
+     -H "Authorization: Bearer $JWT"
+POST (bulk):
+curl -X POST "https://<host>/api/v1/MemberPing" \
+     -H "Authorization: Bearer $JWT" \
+     -H "Content-Type: application/json" \
+     -d '{"membership_ids":["123456789012","234567890123"]}'
+Verification
+Hit the GET form with a known-good membership ID and confirm the JSON shape matches above.
+Hit the GET form with an 11-digit value and confirm the 500 validation error.
+Hit the POST form with a 2–3 ID array and confirm the response is an array sorted by membership_id.
+Hit the POST form with 500+ entries and confirm the limit error.

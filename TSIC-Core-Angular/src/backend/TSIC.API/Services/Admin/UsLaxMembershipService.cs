@@ -67,6 +67,22 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
             candidates = candidates.Where(c => filter.Contains(c.RegistrationId)).ToList();
         }
 
+        // ONE batch ping across all candidates (chunked to ≤499 internally), instead of
+        // N round-trips. Per-chunk failures isolate inside the service; the dict has a
+        // result for every input id (synthesized for invalid format / not in AMMS / chunk
+        // failure) so the loop below never gets a null lookup.
+        var ids = candidates.Select(c => c.SportAssnId).ToList();
+        IReadOnlyDictionary<string, UsLaxMemberPingResult> pingByMember;
+        try
+        {
+            pingByMember = await _usLax.GetMembersAsync(ids, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "USLax batch ping threw for job {JobId} ({Count} ids).", jobId, ids.Count);
+            pingByMember = new Dictionary<string, UsLaxMemberPingResult>();
+        }
+
         var rows = new List<UsLaxReconciliationRowDto>(candidates.Count);
         var datesUpdated = 0;
         var failed = 0;
@@ -74,7 +90,8 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         foreach (var c in candidates)
         {
             ct.ThrowIfCancellationRequested();
-            var row = await ReconcileOneAsync(c, request.Role, ct);
+            pingByMember.TryGetValue(c.SportAssnId, out var ping);
+            var row = await BuildRowFromPingAsync(c, ping, request.Role, ct);
             rows.Add(row);
             if (row.ExpiryDateUpdated) datesUpdated++;
             if (row.StatusCode != 200) failed++;
@@ -89,19 +106,12 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         };
     }
 
-    private async Task<UsLaxReconciliationRowDto> ReconcileOneAsync(UsLaxReconciliationCandidateRow c, UsLaxMembershipRole role, CancellationToken ct)
+    private async Task<UsLaxReconciliationRowDto> BuildRowFromPingAsync(
+        UsLaxReconciliationCandidateRow c,
+        UsLaxMemberPingResult? ping,
+        UsLaxMembershipRole role,
+        CancellationToken ct)
     {
-        UsLaxMemberPingResult? ping;
-        try
-        {
-            ping = await _usLax.GetMemberAsync(c.SportAssnId, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "USLax ping failed for registration {RegistrationId} / member {MembershipId}", c.RegistrationId, c.SportAssnId);
-            ping = null;
-        }
-
         if (ping == null)
         {
             return BuildRow(c, statusCode: 0, errorMessage: "Network or parse failure", newExpiry: null, updated: false);
