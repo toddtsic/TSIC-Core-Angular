@@ -55,6 +55,8 @@ docs/Security/iis-env-secrets-setup.local.ps1
 
 # IIS app pool secrets (real credentials — NEVER commit)
 **/app-pool-secrets.ps1
+# AWS-only paste-and-run script — populated copy is gitignored; commit the template via `git add -f` if desired.
+scripts/IIS-Config-Prod/Setup/07b-Apply-AWS-Only.ps1
 docs/Demos/SCHEDULE-A-DEMO.local.md
 
 # Temp swagger exports

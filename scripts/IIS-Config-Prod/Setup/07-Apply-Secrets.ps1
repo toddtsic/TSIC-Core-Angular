@@ -128,6 +128,17 @@ if ($null -eq $envVarCollection -or $null -eq $envVarCollection.Collection) {
     } else {
         Write-Warning "Missing variables: $($missing -join ', ')"
     }
+
+    # Final dump — every env var currently on the pool, values redacted to length-only.
+    # Safe to copy/paste; surfaces unexpected absences without leaking secrets.
+    Write-Host ""
+    Write-Host "  Pool '$($Config.ApiPoolName)' environment variables (post-apply):" -ForegroundColor Cyan
+    $sorted = @($envVarCollection.Collection | Sort-Object name)
+    foreach ($item in $sorted) {
+        $val = if ($item.value) { "(set, $($item.value.Length) chars)" } else { "(EMPTY)" }
+        Write-Host ("    {0,-32} = {1}" -f $item.name, $val)
+    }
+    Write-Host ("  Total: {0} variable(s)" -f $sorted.Count) -ForegroundColor Cyan
 }
 
 Write-Host "[Step 7] Complete." -ForegroundColor Green
