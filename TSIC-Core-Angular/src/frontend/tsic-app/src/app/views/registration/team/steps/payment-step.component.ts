@@ -40,8 +40,15 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
     imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, ViChargeConfirmModalComponent, RegisteredTeamsGridComponent, RegisteredTeamsSummaryComponent],
     template: `
     <div class="card shadow border-0 card-rounded">
-      <div class="card-header card-header-subtle border-0 py-3">
-        <h5 class="mb-0 fw-semibold">Payment</h5>
+      <div class="section-titlebar section-titlebar-registered">
+        <i class="bi bi-trophy-fill section-titlebar-icon" aria-hidden="true"></i>
+        <h3 class="section-titlebar-title">
+          <span class="section-titlebar-tail">Payment</span>
+        </h3>
+        <span class="phase-badge">
+          <span class="phase-badge__label">Payment Phase</span>
+          <span class="phase-badge__value">{{ state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only' }}</span>
+        </span>
       </div>
       <div class="card-body">
         @if (lastError()) {
@@ -530,6 +537,65 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
     </div>
   `,
     styles: [`
+      /* ── Section titlebar ──────────────────────────────────────
+         Mirrors the teams-step "Registered Teams" titlebar so the
+         two cards read as a coordinated pair across the wizard. */
+      .section-titlebar {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .section-titlebar-registered {
+        background: color-mix(in srgb, var(--bs-success) 10%, transparent);
+        border-bottom-color: color-mix(in srgb, var(--bs-success) 20%, transparent);
+      }
+
+      .section-titlebar-icon {
+        color: var(--bs-success);
+        font-size: var(--font-size-lg);
+        flex-shrink: 0;
+      }
+
+      .section-titlebar-title {
+        margin: 0;
+        font-size: var(--font-size-base);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text);
+        line-height: var(--line-height-tight);
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.45em;
+      }
+
+      .section-titlebar-tail {
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text-muted);
+      }
+
+      .phase-badge {
+        margin-left: auto;
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        font-size: var(--font-size-xs);
+        white-space: nowrap;
+      }
+
+      .phase-badge__label {
+        color: var(--brand-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        font-weight: var(--font-weight-semibold);
+      }
+
+      .phase-badge__value {
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-bold);
+      }
+
       .summary-header {
         display: flex;
         align-items: center;
