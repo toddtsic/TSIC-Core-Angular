@@ -55,11 +55,19 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
           </e-column>
           <e-column field="registrationTs" headerText="Reg Date" width="100" type="date" format="yMd"
                     [visible]="showRegDate()"></e-column>
+          <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
+                    [visible]="showPaid()">
+            <ng-template #template let-data>
+              <span [class.text-success]="data.paidTotal > 0" [class.text-muted]="data.paidTotal === 0">
+                {{ data.paidTotal | currency }}
+              </span>
+            </ng-template>
+          </e-column>
           <e-column field="deposit" headerText="Deposit" width="85" textAlign="Right" format="C2"
                     [visible]="showStructure()"></e-column>
           <e-column field="balanceDue" headerText="Balance Due" width="100" textAlign="Right" format="C2"
                     [visible]="showStructure()"></e-column>
-          <e-column field="depositDue" headerText="Deposit Due" width="90" textAlign="Right" format="C2"
+          <e-column field="depositDue" headerText="Deposit" width="90" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
           <e-column field="additionalDue" headerText="Bal Due" width="80" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
@@ -70,14 +78,6 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
           <e-column field="feeTotal" headerText="Total Fee" width="80" textAlign="Right" [allowSorting]="false">
             <ng-template #template let-data>
               {{ (data.deposit + data.balanceDue) | currency }}
-            </ng-template>
-          </e-column>
-          <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
-                    [visible]="showPaid()">
-            <ng-template #template let-data>
-              <span [class.text-success]="data.paidTotal > 0" [class.text-muted]="data.paidTotal === 0">
-                {{ data.paidTotal | currency }}
-              </span>
             </ng-template>
           </e-column>
           <e-column field="owedTotal" headerText="Owed" width="80" textAlign="Right" format="C2"

@@ -67,6 +67,91 @@
     @include wizard-card-theme;
 }
 
+// ── Shared step-card chrome ─────────────────────────────────────────────
+// Used by team-registration step components (teams-step, payment-step) so
+// adjacent wizard steps share the same outer shell, titlebar, and phase
+// badge treatment instead of each component re-declaring identical rules.
+// Component-specific decoration (e.g. action-segments, method-selector)
+// stays in the owning component's styles array.
+
+.step-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--brand-surface);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.step-card-registered {
+    border-left: 4px solid var(--bs-success);
+}
+
+// Body wrapper for .step-card. Replaces Bootstrap .card-body in step
+// components so dark-mode and palette switching go through brand tokens.
+.step-card-body {
+    padding: var(--space-3) var(--space-4);
+}
+
+// Section banner that sits at the top of a step-card. Green-tinted
+// (success-keyed) — pairs with .step-card-registered's left stripe.
+.section-titlebar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.section-titlebar-registered {
+    background: color-mix(in srgb, var(--bs-success) 10%, transparent);
+    border-bottom-color: color-mix(in srgb, var(--bs-success) 20%, transparent);
+}
+
+.section-titlebar-icon {
+    color: var(--bs-success);
+    font-size: var(--font-size-lg);
+    flex-shrink: 0;
+}
+
+.section-titlebar-title {
+    margin: 0;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--brand-text);
+    line-height: var(--line-height-tight);
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.45em;
+}
+
+.section-titlebar-tail {
+    font-weight: var(--font-weight-bold);
+    color: var(--brand-text-muted);
+}
+
+// Phase badge — informational, NOT actionable. Caption-style
+// label + emphasized value, anchored flush-right inside titlebar.
+.phase-badge {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+}
+
+.phase-badge__label {
+    color: var(--brand-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: var(--font-weight-semibold);
+}
+
+.phase-badge__value {
+    color: var(--bs-primary);
+    font-weight: var(--font-weight-bold);
+}
+
 // Print stylesheet — hide wizard chrome, show content
 @media print {
     .wizard-header,

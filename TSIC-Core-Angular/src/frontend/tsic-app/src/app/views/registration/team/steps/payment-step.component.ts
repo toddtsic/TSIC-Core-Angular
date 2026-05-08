@@ -25,7 +25,6 @@ import type {
 } from '@core/api';
 import type { CreditCardFormValue, VIOfferData } from '@views/registration/shared/types/wizard.types';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
-import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-summary.component';
 
 /**
  * Team Payment step — supports CC, eCheck (ACH), ARB-Trial scheduled payments,
@@ -37,9 +36,9 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
 @Component({
     selector: 'app-trw-payment-step',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, ViChargeConfirmModalComponent, RegisteredTeamsGridComponent, RegisteredTeamsSummaryComponent],
+    imports: [CurrencyPipe, DatePipe, FormsModule, CreditCardFormComponent, BankAccountFormComponent, ViChargeConfirmModalComponent, RegisteredTeamsGridComponent],
     template: `
-    <div class="card shadow border-0 card-rounded">
+    <div class="step-card step-card-registered">
       <div class="section-titlebar section-titlebar-registered">
         <i class="bi bi-trophy-fill section-titlebar-icon" aria-hidden="true"></i>
         <h3 class="section-titlebar-title">
@@ -50,7 +49,7 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
           <span class="phase-badge__value">{{ state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only' }}</span>
         </span>
       </div>
-      <div class="card-body">
+      <div class="step-card-body">
         @if (lastError()) {
           <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
             <div class="flex-grow-1">
@@ -101,8 +100,7 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
 
                 @if (insuranceSvc.widgetInitialized() && insuranceSvc.hasUserResponse() && insuranceSvc.quotes().length > 0) {
                   <!-- Rep accepted — collect a fresh card for the VI charge. -->
-                  <section class="p-3 p-sm-4 mt-3 rounded-3"
-                           style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+                  <section class="payment-form-panel mt-3">
                     <h6 class="fw-semibold mb-3">Payment for Insurance</h6>
                     <app-credit-card-form
                       [defaultFirstName]="clubRepContact()?.firstName ?? null"
@@ -136,27 +134,9 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
             </div>
           }
         } @else {
-          <!-- Balance banner -->
-          <div class="d-flex align-items-center justify-content-between p-3 mb-3 rounded-3 bg-primary text-white">
-            <div class="d-flex align-items-center gap-2">
-              <span class="badge" [class]="paymentPhaseBadgeClass()">{{ paymentPhaseLabel() }}</span>
-              <span class="fw-semibold">Balance Due</span>
-            </div>
-            <span class="fs-4 fw-bold">{{ balanceDue() | currency }}</span>
-          </div>
-
-          <!-- Line items -->
+          <!-- Registered-teams ledger. Aggregate footer carries running totals;
+               the old summary-pill row above used to duplicate the same numbers. -->
           <section class="mb-3">
-            <div class="summary-header">
-              <h6 class="fw-semibold mb-0">Summary</h6>
-              <app-registered-teams-summary class="summary-header-pills"
-                [teams]="registeredTeams()"
-                [showProcessing]="showProcessing()"
-                [showCcOwed]="allowsCc()"
-                [showCkOwed]="showProcessing()"
-                [showDeposit]="true"
-                [showBalance]="true" />
-            </div>
             <app-registered-teams-grid
               [teams]="registeredTeams()"
               [showProcessing]="showProcessing()"
@@ -285,8 +265,7 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
 
           <!-- ═══ CREDIT CARD FORM ═══ -->
           @if (isCc()) {
-            <section class="p-3 p-sm-4 mb-3 rounded-3"
-                     style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+            <section class="payment-form-panel">
               <app-credit-card-form
                 [defaultFirstName]="clubRepContact()?.firstName ?? null"
                 [defaultLastName]="clubRepContact()?.lastName ?? null"
@@ -313,8 +292,7 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
 
           <!-- ═══ BANK ACCOUNT (eCheck) FORM ═══ -->
           @if (isEcheck()) {
-            <section class="p-3 p-sm-4 mb-3 rounded-3"
-                     style="background: var(--bs-secondary-bg); border: 1px solid var(--bs-border-color-translucent)">
+            <section class="payment-form-panel">
               <app-bank-account-form
                 [defaultFirstName]="clubRepContact()?.firstName ?? null"
                 [defaultLastName]="clubRepContact()?.lastName ?? null"
@@ -335,7 +313,7 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
 
           <!-- ═══ ARB-TRIAL (Deposit tomorrow + Balance on configured date) ═══ -->
           @if (isArbTrial()) {
-            <section class="arb-trial-panel p-3 p-sm-4 mb-3 rounded-3">
+            <section class="arb-trial-panel payment-form-panel">
               @if (arbTrialIsFallback()) {
                 <div class="alert alert-warning border-0 d-flex align-items-start gap-2 mb-3">
                   <i class="bi bi-exclamation-triangle fs-5"></i>
@@ -434,7 +412,7 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
             <!-- Per-team results panel — shown only after a partial-success or all-failed submit. -->
             @if (arbTrialResult(); as r) {
               @if (!r.success) {
-                <section class="arb-trial-results mt-3 p-3 rounded-3">
+                <section class="arb-trial-results mt-3">
                   <h6 class="fw-semibold mb-2">Results by team</h6>
                   <table class="table table-sm mb-0">
                     <thead>
@@ -481,7 +459,7 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
 
           <!-- ═══ CHECK PAYMENT INSTRUCTIONS ═══ -->
           @if (isCheck()) {
-            <section class="check-instructions p-3 p-sm-4 mb-3 rounded-3">
+            <section class="check-instructions">
               <h6 class="fw-semibold mb-3"><i class="bi bi-envelope-paper me-2 text-primary"></i>Check Payment Instructions</h6>
 
               @if (payTo()) {
@@ -537,83 +515,22 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
     </div>
   `,
     styles: [`
-      /* ── Section titlebar ──────────────────────────────────────
-         Mirrors the teams-step "Registered Teams" titlebar so the
-         two cards read as a coordinated pair across the wizard. */
-      .section-titlebar {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-3);
-        border-bottom: 1px solid var(--border-color);
-      }
+      :host { display: flex; flex-direction: column; gap: var(--space-4); }
 
-      .section-titlebar-registered {
-        background: color-mix(in srgb, var(--bs-success) 10%, transparent);
-        border-bottom-color: color-mix(in srgb, var(--bs-success) 20%, transparent);
-      }
-
-      .section-titlebar-icon {
-        color: var(--bs-success);
-        font-size: var(--font-size-lg);
-        flex-shrink: 0;
-      }
-
-      .section-titlebar-title {
-        margin: 0;
-        font-size: var(--font-size-base);
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-        line-height: var(--line-height-tight);
-        display: inline-flex;
-        align-items: baseline;
-        gap: 0.45em;
-      }
-
-      .section-titlebar-tail {
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text-muted);
-      }
-
-      .phase-badge {
-        margin-left: auto;
-        display: inline-flex;
-        align-items: baseline;
-        gap: var(--space-2);
-        font-size: var(--font-size-xs);
-        white-space: nowrap;
-      }
-
-      .phase-badge__label {
-        color: var(--brand-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-weight: var(--font-weight-semibold);
-      }
-
-      .phase-badge__value {
-        color: var(--bs-primary);
-        font-weight: var(--font-weight-bold);
-      }
-
-      .summary-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        margin-bottom: var(--space-2);
-      }
-
-      .summary-header-pills { margin-left: auto; }
+      /* .step-card / .section-titlebar / .phase-badge live in
+         styles/_wizard-globals.scss — shared with teams-step. */
 
       /* Insurance card — card chrome lives on the same div that holds
          #dVITeamOffer so we don't introduce any clipping/positioning ancestor
          between the widget mount and the page. NEVER add overflow:hidden — the
-         VI widget renders absolutely-positioned popups/tooltips that must escape. */
+         VI widget renders absolutely-positioned popups/tooltips that must escape.
+         Palette steps back from primary-blue to success-keyed neutral so the
+         card sits inside the green-stripe step shell without competing. */
       .insurance-wrapper {
-        border: 2px solid rgba(var(--bs-primary-rgb), 0.35);
+        border: 1px solid var(--border-color);
         border-radius: var(--radius-md);
         background: var(--brand-surface);
-        box-shadow: var(--shadow-md);
+        box-shadow: var(--shadow-sm);
         padding: 0 var(--space-4) var(--space-3);
       }
 
@@ -622,14 +539,17 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
         align-items: center;
         margin: 0 calc(var(--space-4) * -1) var(--space-3);
         padding: var(--space-2) var(--space-3);
-        background: var(--bs-primary);
-        color: var(--neutral-0);
+        background: color-mix(in srgb, var(--bs-success) 12%, transparent);
+        color: var(--brand-text);
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-bold);
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        border-top-left-radius: calc(var(--radius-md) - 2px);
-        border-top-right-radius: calc(var(--radius-md) - 2px);
+        border-top-left-radius: calc(var(--radius-md) - 1px);
+        border-top-right-radius: calc(var(--radius-md) - 1px);
+        border-bottom: 1px solid color-mix(in srgb, var(--bs-success) 22%, transparent);
+
+        i { color: var(--bs-success); }
       }
 
       .vi-container { min-height: 280px; }
@@ -670,26 +590,40 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
         cursor: pointer;
         transition: all 0.15s ease;
 
+        /* Hover keeps the primary cue (action affordance), but rest+active
+           sit on the success-keyed palette so the page reads green-dominant. */
         &:hover { border-color: var(--bs-primary); }
 
         &.active {
-          border-color: var(--bs-primary);
-          background: rgba(var(--bs-primary-rgb), 0.08);
-          color: var(--bs-primary);
+          border-color: var(--bs-success);
+          background: color-mix(in srgb, var(--bs-success) 10%, transparent);
+          color: var(--bs-success);
           font-weight: var(--font-weight-semibold);
-          box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), 0.15);
+          box-shadow: 0 0 0 1px color-mix(in srgb, var(--bs-success) 18%, transparent);
         }
+      }
+
+      /* Shared chrome for the panel that wraps each payment-method form
+         (CC / eCheck / ARB-Trial / Check). Replaces inline style attrs that
+         were repeated on each section. */
+      .payment-form-panel {
+        background: var(--bs-secondary-bg);
+        border: 1px solid var(--bs-border-color-translucent);
+        border-radius: var(--radius-md);
+        padding: var(--space-4);
+        margin-bottom: var(--space-3);
       }
 
       .check-instructions {
         background: rgba(var(--bs-info-rgb), 0.04);
         border: 1px solid rgba(var(--bs-info-rgb), 0.15);
+        border-radius: var(--radius-md);
+        padding: var(--space-4);
+        margin-bottom: var(--space-3);
       }
 
-      .arb-trial-panel {
-        background: var(--bs-secondary-bg);
-        border: 1px solid var(--bs-border-color-translucent);
-      }
+      /* .arb-trial-panel chrome is provided by .payment-form-panel; this
+         class is kept as a marker for any future ARB-specific overrides. */
 
       .schedule-banner {
         background: rgba(var(--bs-primary-rgb), 0.05);
@@ -728,6 +662,8 @@ import { RegisteredTeamsSummaryComponent } from '../components/registered-teams-
       .arb-trial-results {
         background: var(--bs-secondary-bg);
         border: 1px solid var(--bs-border-color-translucent);
+        border-radius: var(--radius-md);
+        padding: var(--space-3);
       }
 
       .check-field {
@@ -824,21 +760,6 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly payTo = computed(() => this.state.teamPayment.payTo());
     readonly mailTo = computed(() => this.state.teamPayment.mailTo());
     readonly mailinPaymentWarning = computed(() => this.state.teamPayment.mailinPaymentWarning());
-
-    readonly paymentPhaseLabel = computed(() => {
-        const totalPaid = this.state.teamPayment.totalPaid();
-        const fullRequired = this.state.fullPaymentRequired();
-        if (totalPaid > 0) return 'Remaining Balance';
-        if (!fullRequired) return 'Deposit';
-        return 'Full Payment';
-    });
-
-    readonly paymentPhaseBadgeClass = computed(() => {
-        const label = this.paymentPhaseLabel();
-        if (label === 'Deposit') return 'bg-warning text-dark';
-        if (label === 'Remaining Balance') return 'bg-info text-dark';
-        return 'bg-light text-dark';
-    });
 
     /** VI is offered only when a CC form is on screen (CC method or ARB-Trial w/ CC source).
      *  VI premium is charged via the same CC the rep enters for TSIC, so we must

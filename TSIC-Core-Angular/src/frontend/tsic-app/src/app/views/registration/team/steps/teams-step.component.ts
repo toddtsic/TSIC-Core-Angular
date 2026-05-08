@@ -248,16 +248,8 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
     styles: [`
       :host { display: flex; flex-direction: column; gap: var(--space-4); }
 
-      /* ── Step Card (single primary card — registered teams) ── */
-      .step-card {
-        border: 1px solid var(--border-color);
-        border-radius: var(--radius-lg);
-        background: var(--brand-surface);
-        overflow: hidden;
-        box-shadow: var(--shadow-sm);
-      }
-
-      .step-card-registered { border-left: 4px solid var(--bs-success); }
+      /* .step-card / .step-card-registered live in styles/_wizard-globals.scss
+         so payment-step shares the same outer chrome. */
 
       /* Footer = decision fork rendered as a segmented control. Two halves
          joined by a single divider, sharing one outer border. Each segment
@@ -375,69 +367,8 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         border-bottom: 1px solid rgba(var(--bs-success-rgb), 0.12);
       }
 
-      /* ── Section title bar ──
-         Simple row banner for the populated registered-teams card. Trophy
-         icon + club-anchored title. Event name is NOT repeated here — it
-         already lives in the page hero above. The card is about THIS club's
-         registrations within an event already established. */
-      .section-titlebar {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-3);
-        border-bottom: 1px solid var(--border-color);
-      }
-
-      .section-titlebar-registered {
-        background: color-mix(in srgb, var(--bs-success) 10%, transparent);
-        border-bottom-color: color-mix(in srgb, var(--bs-success) 20%, transparent);
-      }
-
-      .section-titlebar-icon {
-        color: var(--bs-success);
-        font-size: var(--font-size-lg);
-        flex-shrink: 0;
-      }
-
-      .section-titlebar-title {
-        margin: 0;
-        font-size: var(--font-size-base);
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-        line-height: var(--line-height-tight);
-        display: inline-flex;
-        align-items: baseline;
-        gap: 0.45em;
-      }
-
-      .section-titlebar-tail {
-        font-weight: var(--font-weight-bold);
-        color: var(--brand-text-muted);
-      }
-
-      /* Event Stage — informational only, not actionable. Deliberately
-         not a pill/chip so users don't read it as clickable. Plain
-         captioned data point: muted label + slightly stronger value. */
-      .phase-badge {
-        margin-left: auto;
-        display: inline-flex;
-        align-items: baseline;
-        gap: var(--space-2);
-        font-size: var(--font-size-xs);
-        white-space: nowrap;
-      }
-
-      .phase-badge__label {
-        color: var(--brand-text-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        font-weight: var(--font-weight-semibold);
-      }
-
-      .phase-badge__value {
-        color: var(--bs-primary);
-        font-weight: var(--font-weight-bold);
-      }
+      /* .section-titlebar / .section-titlebar-* / .phase-badge live in
+         styles/_wizard-globals.scss — see those files for shared chrome. */
 
       /* Compact action button nested inside a .section-header banner */
       .section-action {
