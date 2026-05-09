@@ -143,11 +143,11 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [showCcOwed]="allowsCc()"
               [showCkOwed]="showProcessing()"
               [showAgeGroup]="false"
-              [showTotalFee]="state.fullPaymentRequired()"
+              [showTotalFee]="false"
               [showDeposit]="true"
               [showBalance]="state.fullPaymentRequired()"
               [frozenTeamCol]="true"
-              [teamColWidth]="100"
+              [teamColWidth]="70"
               [gridHeight]="'auto'" />
           </section>
 

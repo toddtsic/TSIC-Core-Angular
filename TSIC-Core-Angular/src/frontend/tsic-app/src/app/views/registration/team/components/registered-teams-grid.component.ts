@@ -19,7 +19,6 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
       <ejs-grid #grid [dataSource]="teams()" [allowSorting]="true"
                 [allowTextWrap]="true"
                 [textWrapSettings]="{ wrapMode: 'Header' }"
-                [rowHeight]="30"
                 [height]="gridHeight()"
                 [allowPaging]="pageSize() > 0"
                 [pageSettings]="{ pageSize: pageSize() || 50 }"
@@ -32,7 +31,8 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                     [isFrozen]="frozenTeamCol()"
                     [customAttributes]="{ class: 'row-number-cell' }"></e-column>
           <e-column field="teamName" headerText="Team" [width]="teamColWidth()"
-                    [isFrozen]="frozenTeamCol()">
+                    [isFrozen]="frozenTeamCol()"
+                    [customAttributes]="{ class: 'team-name-wrap-cell' }">
             <ng-template #template let-data>
               <span class="team-name-cell">
                 @if (showRemove() && data.paidTotal === 0) {
@@ -53,7 +53,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
               <span [attr.title]="data.levelOfPlay">{{ formatLop(data.levelOfPlay) }}</span>
             </ng-template>
           </e-column>
-          <e-column field="registrationTs" headerText="Reg Date" width="70" type="date" format="MM/dd/yyyy"
+          <e-column field="registrationTs" headerText="Reg Date" width="80" type="date" format="MM/dd/yyyy"
                     [visible]="showRegDate()"></e-column>
           <e-column field="paidTotal" headerText="Paid" width="75" textAlign="Right" format="C2"
                     [visible]="showPaid()">
@@ -213,6 +213,16 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
         display: flex;
         align-items: center;
         gap: var(--space-1);
+      }
+
+      /* Allow Team-column cells to wrap to two lines when the column is narrow.
+         Syncfusion's default cell white-space is nowrap; this override is scoped
+         to cells flagged with customAttributes.class = 'team-name-wrap-cell' so
+         it doesn't bleed to other columns. ::ng-deep needed because the td is
+         rendered by Syncfusion outside this component's encapsulated scope. */
+      :host ::ng-deep .e-grid td.team-name-wrap-cell {
+        white-space: normal;
+        line-height: 1.2;
       }
 
       .btn-inline-remove {
