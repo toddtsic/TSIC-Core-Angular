@@ -116,7 +116,7 @@ export class JobLandingComponent implements OnDestroy {
 		// occupied; also shown standalone when nothing else qualifies but
 		// schedules are out (in-season post-registration).
 		if (teamSuppressedBySchedule || (out.length === 0 && schedulePublished)) {
-			out.push({ label: 'View Schedule', path: ['/', jp, 'scheduling', 'view-schedule'] });
+			out.push({ label: 'View Schedule', path: ['/', jp, 'schedule'] });
 		}
 		return out;
 	});
