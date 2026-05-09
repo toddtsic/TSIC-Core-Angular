@@ -14,6 +14,14 @@ param(
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $OutputEncoding = [System.Text.Encoding]::UTF8
 
+# Suppress ANSI color sequences in npm / Angular output. PS 5.1 doesn't always
+# interpret VT escapes, and when these scripts are invoked through nested
+# `& $scriptPath` calls the ESC byte (0x1B) sometimes gets stripped in transit
+# — leaving literal "[33m...[39m" fragments in the build log. NO_COLOR is the
+# cross-tool standard (https://no-color.org/); FORCE_COLOR=0 covers npm/chalk.
+$env:NO_COLOR = '1'
+$env:FORCE_COLOR = '0'
+
 Write-Host "Building TSIC Angular Application..." -ForegroundColor Green
 Write-Host "Angular Path:  $AngularPath" -ForegroundColor Yellow
 Write-Host "Output Path:   $OutputPath" -ForegroundColor Yellow

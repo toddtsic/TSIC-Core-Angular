@@ -36,7 +36,10 @@ $ApiHostname     = $Config.ApiHostname
 $AngularHostname = $Config.AngularHostname
 $AspNetEnv       = $Config.AspNetEnv
 
-# URL patching: Angular environment files have dev URLs baked in at build time
+# Hostnames used only for STAGED appsettings patching (output-side, not source).
+# Angular environment overlay is handled by `fileReplacements` in angular.json
+# (`--configuration production` substitutes environment.ts → environment.production.ts
+# at compile time). DO NOT regex-patch source environment files — see CLAUDE.md.
 $DevApiHost  = 'devapi.teamsportsinfo.com'
 $DevAppHost  = 'dev.teamsportsinfo.com'
 
@@ -151,33 +154,25 @@ if (!$SkipAngular) {
             Set-Content -Path $_.FullName -Value $content -NoNewline -Encoding UTF8
         }
 
-        # Patch environment URLs: dev -> prod
-        Write-Host "  Patching environment URLs for production..." -ForegroundColor Yellow
-        $envFiles = Get-ChildItem $envDir -Filter "environment*.ts"
-        foreach ($file in $envFiles) {
-            $content = Get-Content $file.FullName -Raw
-            $patched = $content -replace [regex]::Escape($DevApiHost), $ApiHostname `
-                                 -replace [regex]::Escape($DevAppHost), $AngularHostname
-            if ($patched -ne $content) {
-                Set-Content $file.FullName $patched -NoNewline -Encoding UTF8
-                Write-Host "    Patched: $($file.Name)" -ForegroundColor White
-            }
-        }
-
+        # NOTE: No URL patching here. environment.production.ts already contains
+        # the prod URLs; angular.json fileReplacements swaps it in at compile time
+        # under `--configuration production`. (The previous regex-patch + reset
+        # loop was clobbering environment.production.ts back to devapi on every
+        # run because the reset blanket-swapped claude-api → devapi across ALL
+        # files, not just the temporarily-patched ones.)
         $env:NO_COLOR = '1'
         npm run build -- --configuration production
         if ($LASTEXITCODE -ne 0) { Write-Error "Angular build failed!"; exit 1 }
     } finally {
-        # Always reset environment files back to dev
+        # Reset only the buildVersion stamp — leave URLs alone (they were never
+        # patched in the first place under the new model).
         $envDir = Join-Path $AngularPath "src\environments"
         Get-ChildItem $envDir -Filter "environment*.ts" | ForEach-Object {
             $content = Get-Content $_.FullName -Raw
             $content = $content -replace "buildVersion:\s*'[^']*'", "buildVersion: 'dev'"
-            $content = $content -replace [regex]::Escape($ApiHostname), $DevApiHost `
-                                 -replace [regex]::Escape($AngularHostname), $DevAppHost
             Set-Content -Path $_.FullName -Value $content -NoNewline -Encoding UTF8
         }
-        Write-Host "  Environment files reset to dev." -ForegroundColor DarkGray
+        Write-Host "  Environment files reset (buildVersion only)." -ForegroundColor DarkGray
         Pop-Location
     }
 
