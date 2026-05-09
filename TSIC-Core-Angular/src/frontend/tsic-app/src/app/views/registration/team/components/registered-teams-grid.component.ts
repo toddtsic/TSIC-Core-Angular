@@ -67,9 +67,9 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                     [visible]="showStructure()"></e-column>
           <e-column field="balanceDue" headerText="Balance Due" width="100" textAlign="Right" format="C2"
                     [visible]="showStructure()"></e-column>
-          <e-column field="depositDue" headerText="Deposit" width="75" textAlign="Right" format="C2"
+          <e-column field="depositDue" headerText="Deposit Due" width="75" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
-          <e-column field="additionalDue" headerText="Bal Due" width="75" textAlign="Right" format="C2"
+          <e-column field="additionalDue" headerText="Balance Due" width="75" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
           <!-- Total Fee = structural sum (Deposit + BalanceDue), not feeTotal which is
                phase-aware (deposit-phase total = deposit + processing). The field stays
