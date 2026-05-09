@@ -47,15 +47,15 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
               </span>
             </ng-template>
           </e-column>
-          <e-column field="ageGroupName" headerText="Age Group" width="75"></e-column>
+          <e-column field="ageGroupName" headerText="Age Group" width="75" [visible]="showAgeGroup()"></e-column>
           <e-column field="levelOfPlay" headerText="LOP" width="55" textAlign="Center" [visible]="showLop()">
             <ng-template #template let-data>
               <span [attr.title]="data.levelOfPlay">{{ formatLop(data.levelOfPlay) }}</span>
             </ng-template>
           </e-column>
-          <e-column field="registrationTs" headerText="Reg Date" width="100" type="date" format="yMd"
+          <e-column field="registrationTs" headerText="Reg Date" width="70" type="date" format="MM/dd/yyyy"
                     [visible]="showRegDate()"></e-column>
-          <e-column field="paidTotal" headerText="Paid" width="90" textAlign="Right" format="C2"
+          <e-column field="paidTotal" headerText="Paid" width="75" textAlign="Right" format="C2"
                     [visible]="showPaid()">
             <ng-template #template let-data>
               <span [class.text-success]="data.paidTotal > 0" [class.text-muted]="data.paidTotal === 0">
@@ -67,15 +67,16 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                     [visible]="showStructure()"></e-column>
           <e-column field="balanceDue" headerText="Balance Due" width="100" textAlign="Right" format="C2"
                     [visible]="showStructure()"></e-column>
-          <e-column field="depositDue" headerText="Deposit" width="90" textAlign="Right" format="C2"
+          <e-column field="depositDue" headerText="Deposit" width="75" textAlign="Right" format="C2"
                     [visible]="showDeposit()"></e-column>
-          <e-column field="additionalDue" headerText="Bal Due" width="80" textAlign="Right" format="C2"
+          <e-column field="additionalDue" headerText="Bal Due" width="75" textAlign="Right" format="C2"
                     [visible]="showBalance()"></e-column>
           <!-- Total Fee = structural sum (Deposit + BalanceDue), not feeTotal which is
                phase-aware (deposit-phase total = deposit + processing). The field stays
                as 'feeTotal' so the aggregate footer aligns under this column; the cell
                template renders the structural sum instead of the bound value. -->
-          <e-column field="feeTotal" headerText="Total Fee" width="80" textAlign="Right" [allowSorting]="false">
+          <e-column field="feeTotal" headerText="Total Fee" width="80" textAlign="Right" [allowSorting]="false"
+                    [visible]="showTotalFee()">
             <ng-template #template let-data>
               {{ (data.deposit + data.balanceDue) | currency }}
             </ng-template>
@@ -88,7 +89,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
               </span>
             </ng-template>
           </e-column>
-          <e-column field="feeProcessing" headerText="Proc Fee" width="85" textAlign="Right" format="C2"
+          <e-column field="feeProcessing" headerText="Proc Fee" width="70" textAlign="Right" format="C2"
                     [visible]="showProcessing()"></e-column>
           <e-column field="feeDiscount" headerText="Discount" width="90" textAlign="Right" format="C2"
                     [visible]="showDiscount()">
@@ -104,7 +105,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
               <span>Fee-Adj<app-info-tooltip message="Depending on when you registered, this may show an early-bird discount (negative value) or a late fee (positive value). Only one applies."></app-info-tooltip></span>
             </ng-template>
           </e-column>
-          <e-column field="ccOwedTotal" headerText="CC Owed" width="90" textAlign="Right"
+          <e-column field="ccOwedTotal" headerText="CC Owed" width="75" textAlign="Right"
                     [visible]="showCcOwed()">
             <ng-template #template let-data>
               <span [style.color]="data.ccOwedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.ccOwedTotal > 0">
@@ -112,7 +113,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
               </span>
             </ng-template>
           </e-column>
-          <e-column field="ckOwedTotal" headerText="Check Owed" width="110" textAlign="Right"
+          <e-column field="ckOwedTotal" headerText="Check Owed" width="75" textAlign="Right"
                     [visible]="showCkOwed()">
             <ng-template #template let-data>
               <span [style.color]="data.ckOwedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.ckOwedTotal > 0">
@@ -248,7 +249,9 @@ export class RegisteredTeamsGridComponent {
     readonly showCcOwed = input(true);
     readonly showCkOwed = input(true);
     readonly showLop = input(false);
+    readonly showAgeGroup = input(true);
     readonly showRegDate = input(true);
+    readonly showTotalFee = input(true);
     readonly showRemove = input(false);
     readonly actionInProgress = input(false);
     readonly frozenTeamCol = input(false);
