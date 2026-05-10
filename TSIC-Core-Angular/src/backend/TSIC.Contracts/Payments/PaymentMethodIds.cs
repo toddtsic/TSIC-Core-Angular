@@ -14,19 +14,21 @@ namespace TSIC.Contracts.Payments;
 ///   • Credit Card Void, Failed Credit Card Payment, Failed Credit Card Credit,
 ///     Failed E-Check Payment — no money moved.
 ///   • BALANCE DUE — opening balance entry, not a payment.
-///   • Scholarship — semantics unclear (does it count as principal-credit?);
-///     leave out until confirmed.
-///   • Credit Card Credit (refund) — handled by refund-specific entity column
-///     updates today; not yet routed through PaymentState to avoid double-counting.
 /// </summary>
 public static class PaymentMethodIds
 {
-    // Credit card charges through ADN — proc fee applies, Payamt is gross.
+    // Credit-card flow through ADN — Payamt is gross (principal + proc).
+    // Refund rows (Credit Card Credit) write Payamt as a NEGATIVE value, so
+    // they net into the same sum as a reduction in CC paid. The reverse-out
+    // then reduces principal paid by the refund's principal-equivalent;
+    // entity columns are also adjusted at refund time, so both sources of
+    // truth stay aligned (TeamSearchService.ProcessRefundAsync L337/L366).
     public static readonly IReadOnlySet<Guid> CcPaid = new HashSet<Guid>
     {
         Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"), // Credit Card Payment
         Guid.Parse("5C46057C-69DE-4A22-B20F-D2BBDFE3A43A"), // Credit Card Payment PIF
         Guid.Parse("0CF0E4C2-5853-4A45-A7A5-A0D632BE8870"), // Automated Recurrent Billing
+        Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D"), // Credit Card Credit (refund — negative Payamt)
     };
 
     // ACH / eCheck — Payamt is principal; eCheck-specific proc rate applied at swipe.
@@ -48,10 +50,15 @@ public static class PaymentMethodIds
         Guid.Parse("2DECA575-A268-E111-9D56-F04DA202060D"), // Cash By Client
     };
 
-    // Admin-issued corrections — Payamt is principal, no proc collected.
+    // Admin-issued principal credits — Payamt is principal, no proc collected.
+    // Scholarship is bucketed here because the new system implements
+    // scholarship as a Correction-method row with Comment="Scholarship"
+    // (PlayerCheckTests.cs:217); the Scholarship GUID is defensive against
+    // any legacy-written rows.
     public static readonly IReadOnlySet<Guid> Correction = new HashSet<Guid>
     {
         Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D"), // Online Correction By Client
         Guid.Parse("34ECA575-A268-E111-9D56-F04DA202060D"), // Online Correction By TSIC
+        Guid.Parse("2CECA575-A268-E111-9D56-F04DA202060D"), // Scholarship (legacy)
     };
 }
