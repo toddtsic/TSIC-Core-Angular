@@ -17,7 +17,7 @@ export interface TeamLineItem {
     levelOfPlay: string | null;
     registrationTs: string;
     feeBase: number;
-    feeProcessing: number;
+    feeProcessingDue: number;
     feeTotal: number;
     paidTotal: number;
     depositDue: number;
@@ -126,7 +126,7 @@ export class TeamPaymentService {
             levelOfPlay: t.levelOfPlay,
             registrationTs: t.registrationTs,
             feeBase: t.feeBase ?? 0,
-            feeProcessing: t.feeProcessing ?? 0,
+            feeProcessingDue: t.feeProcessingDue ?? 0,
             feeTotal: t.feeTotal ?? 0,
             paidTotal: t.paidTotal ?? 0,
             depositDue: t.depositDue ?? 0,
@@ -140,7 +140,7 @@ export class TeamPaymentService {
     // Total fees across all teams
     totalFees = computed(() => this.lineItems().reduce((sum, item) => sum + item.feeTotal, 0));
     totalFeeBase = computed(() => this.lineItems().reduce((sum, item) => sum + item.feeBase, 0));
-    totalFeeProcessing = computed(() => this.lineItems().reduce((sum, item) => sum + item.feeProcessing, 0));
+    totalFeeProcessingDue = computed(() => this.lineItems().reduce((sum, item) => sum + item.feeProcessingDue, 0));
 
     // Total already paid
     totalPaid = computed(() => this.lineItems().reduce((sum, item) => sum + item.paidTotal, 0));

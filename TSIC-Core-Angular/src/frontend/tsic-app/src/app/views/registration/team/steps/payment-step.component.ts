@@ -146,6 +146,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [showTotalFee]="false"
               [showDeposit]="true"
               [showBalance]="state.fullPaymentRequired()"
+              [procFeeHeader]="state.fullPaymentRequired() ? 'ProcFee Due' : 'Proc Fee'"
               [frozenTeamCol]="true"
               [teamColWidth]="70"
               [gridHeight]="'auto'" />

@@ -154,7 +154,17 @@ public sealed record RegisteredTeamDto
     // appeared on a schedule. Used client-side to gate the edit pencil on entered rows.
     public required bool BHasBeenScheduled { get; init; }
     public required decimal FeeBase { get; init; }
+    // Statement-of-fact: raw value from Teams.FeeProcessing. Lifetime CC proc target,
+    // decremented only by non-CC payment events. Carried as-is for ledger consumers.
+    // For "what proc fee is charged if the rest is paid by CC right now" use
+    // FeeProcessingDue, which is computed at the display boundary.
     public required decimal FeeProcessing { get; init; }
+    // Display semantic for the payment grid's "ProcFee Due" column.
+    // Defined as OwedTotal − CkOwedTotal (CC-billable total minus check-billable total
+    // = the CC processing fee component owed right now). Equals FeeProcessing under
+    // healthy ledger invariants, but expressed here in display terms so consumers
+    // don't reach into the statement-of-fact field for display.
+    public required decimal FeeProcessingDue { get; init; }
     public required decimal FeeDiscount { get; init; }
     public required decimal FeeLatefee { get; init; }
     public required decimal FeeTotal { get; init; }

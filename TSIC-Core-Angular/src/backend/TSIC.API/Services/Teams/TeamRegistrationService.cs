@@ -435,6 +435,17 @@ public class TeamRegistrationService : ITeamRegistrationService
             var depositDue = t.PaidTotal >= deposit ? 0m : deposit - t.PaidTotal;
             var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
 
+            // CcOwedTotal = OwedTotal (the CC-billable total — what gets charged if the
+            // rest is paid by CC right now). CkOwedTotal = principal-only owed (the
+            // check-billable total — strip the proc-fee component off).
+            var ccOwedTotal = t.OwedTotal;
+            var ckOwedTotal = Math.Max(0m, t.OwedTotal - t.FeeProcessing);
+            // FeeProcessingDue = the proc-fee component currently owed = the gap between
+            // CC-billable and check-billable totals. By identity equal to t.FeeProcessing
+            // under healthy invariants; expressed as the literal subtraction so the
+            // display semantic is obvious at the dto-shaping boundary.
+            var feeProcessingDue = ccOwedTotal - ckOwedTotal;
+
             return new RegisteredTeamDto
             {
                 TeamId = t.TeamId,
@@ -443,7 +454,8 @@ public class TeamRegistrationService : ITeamRegistrationService
                 AgeGroupName = t.AgeGroupName,
                 LevelOfPlay = t.LevelOfPlay,
                 FeeBase = t.FeeBase,
-                FeeProcessing = t.FeeProcessing,
+                FeeProcessing = t.FeeProcessing,           // raw statement-of-fact
+                FeeProcessingDue = feeProcessingDue,       // OwedTotal − CkOwedTotal
                 FeeDiscount = t.FeeDiscount,
                 FeeLatefee = t.FeeLatefee,
                 FeeTotal = t.FeeTotal,
@@ -455,10 +467,8 @@ public class TeamRegistrationService : ITeamRegistrationService
                 AdditionalDue = additionalDue,
                 RegistrationTs = t.RegistrationTs,
                 BWaiverSigned3 = t.BWaiverSigned3,
-                CcOwedTotal = t.OwedTotal,
-                // Check payment drops the CC processing fee only — Discount and LateFee are
-                // already baked into OwedTotal via RecalcTotals.
-                CkOwedTotal = Math.Max(0m, t.OwedTotal - t.FeeProcessing),
+                CcOwedTotal = ccOwedTotal,
+                CkOwedTotal = ckOwedTotal,
                 ClubTeamId = t.ClubTeamId,
                 BHasBeenScheduled = t.ClubTeamId.HasValue && scheduledClubTeamIds.Contains(t.ClubTeamId.Value),
             };
