@@ -67,6 +67,7 @@ public class MaxTeamsPerClubTests
         var discountCodeRepo = new Mock<IJobDiscountCodeRepository>();
         var clubTeams = new Mock<IClubTeamRepository>();
         var placement = new Mock<ITeamPlacementService>();
+        var paymentState = new Mock<IPaymentStateService>();
 
         // UserManager needs a store mock
         var userStore = new Mock<IUserPasswordStore<ApplicationUser>>();
@@ -185,7 +186,7 @@ public class MaxTeamsPerClubTests
             jobLeagues.Object, agRepo.Object, teamRepo.Object, regRepo.Object,
             users.Object, tokenService.Object, userManager, feeService.Object,
             textSubstitution.Object, emailService.Object, discountCodeRepo.Object,
-            clubTeams.Object, placement.Object);
+            clubTeams.Object, placement.Object, paymentState.Object);
 
         return (svc, teamRepo, placement, agRepo);
     }

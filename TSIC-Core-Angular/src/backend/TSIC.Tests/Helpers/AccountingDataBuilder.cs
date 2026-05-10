@@ -233,5 +233,32 @@ public class AccountingDataBuilder
         return team;
     }
 
+    /// <summary>
+    /// Seed a RegistrationAccounting row representing a real payment. Use this in
+    /// any test where the team or registration's paidTotal must be reflected in
+    /// PaymentState (recalc, allocation, display reverse-outs all read from here,
+    /// not from the entity's PaidTotal column).
+    /// </summary>
+    public RegistrationAccounting AddPayment(
+        Guid? registrationId,
+        Guid? teamId,
+        decimal amount,
+        Guid? paymentMethodId = null)
+    {
+        var payment = new RegistrationAccounting
+        {
+            RegistrationId = registrationId,
+            TeamId = teamId,
+            Payamt = amount,
+            Dueamt = amount,
+            PaymentMethodId = paymentMethodId ?? CheckMethodId,
+            Active = true,
+            Createdate = DateTime.UtcNow,
+            Modified = DateTime.UtcNow
+        };
+        _ctx.RegistrationAccounting.Add(payment);
+        return payment;
+    }
+
     public async Task SaveAsync() => await _ctx.SaveChangesAsync();
 }

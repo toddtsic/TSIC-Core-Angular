@@ -207,6 +207,7 @@ builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationSer
 builder.Services.AddScoped<IFeeResolutionService, FeeResolutionService>();
 builder.Services.AddScoped<IPlayerRegistrationMetadataService, PlayerRegistrationMetadataService>();
 builder.Services.AddScoped<IRegistrationFeeAdjustmentService, RegistrationFeeAdjustmentService>();
+builder.Services.AddScoped<IPaymentStateService, PaymentStateService>();
 builder.Services.AddScoped<IVerticalInsureService, VerticalInsureService>();
 builder.Services.AddScoped<IDiscountCodeEvaluator, DiscountCodeEvaluatorService>();
 builder.Services.AddScoped<ITextSubstitutionService, TextSubstitutionService>();

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using Microsoft.Extensions.Logging;
 using TSIC.API.Services.Admin;
+using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Repositories;
@@ -68,9 +69,10 @@ public class AllocationMatrixTests_A_NoFees
                 PaymentMethodsAllowedCode = 7
             });
 
+        var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object);
         var svc = new TeamSearchService(
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
-            feeService.Object, adnApi.Object, ladtService.Object,
+            feeService.Object, paymentState, adnApi.Object, ladtService.Object,
             new Mock<IEmailService>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId, ag.AgegroupId, clubRep.RegistrationId);
@@ -227,9 +229,12 @@ public class AllocationMatrixTests_A_NoFees
     {
         var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
 
-        b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: FeeBase, paidTotal: Deposit);
-        b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: FeeBase, paidTotal: Deposit);
-        b.AddTeam(jobId, agId, clubRepId, "Team Charlie", feeBase: FeeBase, paidTotal: Deposit);
+        var teamA = b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: FeeBase, paidTotal: Deposit);
+        var teamB = b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: FeeBase, paidTotal: Deposit);
+        var teamC = b.AddTeam(jobId, agId, clubRepId, "Team Charlie", feeBase: FeeBase, paidTotal: Deposit);
+        b.AddPayment(clubRepId, teamA.TeamId, Deposit);
+        b.AddPayment(clubRepId, teamB.TeamId, Deposit);
+        b.AddPayment(clubRepId, teamC.TeamId, Deposit);
 
         var clubRep = await ctx.Registrations.FindAsync(clubRepId);
         clubRep!.FeeBase = FeeBase * 3; clubRep.FeeTotal = FeeBase * 3;
@@ -264,9 +269,12 @@ public class AllocationMatrixTests_A_NoFees
     {
         var (svc, b, ctx, jobId, agId, clubRepId) = await CreateServiceAsync();
 
-        b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: FeeBase, paidTotal: Deposit);
-        b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: FeeBase, paidTotal: Deposit);
-        b.AddTeam(jobId, agId, clubRepId, "Team Charlie", feeBase: FeeBase, paidTotal: Deposit);
+        var teamA = b.AddTeam(jobId, agId, clubRepId, "Team Alpha", feeBase: FeeBase, paidTotal: Deposit);
+        var teamB = b.AddTeam(jobId, agId, clubRepId, "Team Bravo", feeBase: FeeBase, paidTotal: Deposit);
+        var teamC = b.AddTeam(jobId, agId, clubRepId, "Team Charlie", feeBase: FeeBase, paidTotal: Deposit);
+        b.AddPayment(clubRepId, teamA.TeamId, Deposit);
+        b.AddPayment(clubRepId, teamB.TeamId, Deposit);
+        b.AddPayment(clubRepId, teamC.TeamId, Deposit);
 
         var clubRep = await ctx.Registrations.FindAsync(clubRepId);
         clubRep!.FeeBase = FeeBase * 3; clubRep.FeeTotal = FeeBase * 3;

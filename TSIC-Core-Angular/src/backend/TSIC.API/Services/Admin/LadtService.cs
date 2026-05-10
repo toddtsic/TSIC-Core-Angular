@@ -25,6 +25,7 @@ public sealed class LadtService : ILadtService
     private readonly IRegistrationAccountingRepository _regAcctRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IFeeResolutionService _feeService;
+    private readonly IPaymentStateService _paymentState;
     private readonly IClubTeamRepository _clubTeamRepo;
     private readonly IClubRepository _clubRepo;
     private readonly IScheduleRepository _scheduleRepo;
@@ -40,6 +41,7 @@ public sealed class LadtService : ILadtService
         IRegistrationAccountingRepository regAcctRepo,
         IJobRepository jobRepo,
         IFeeResolutionService feeService,
+        IPaymentStateService paymentState,
         IClubTeamRepository clubTeamRepo,
         IClubRepository clubRepo,
         IScheduleRepository scheduleRepo,
@@ -54,6 +56,7 @@ public sealed class LadtService : ILadtService
         _regAcctRepo = regAcctRepo;
         _jobRepo = jobRepo;
         _feeService = feeService;
+        _paymentState = paymentState;
         _clubTeamRepo = clubTeamRepo;
         _clubRepo = clubRepo;
         _scheduleRepo = scheduleRepo;
@@ -1413,7 +1416,9 @@ public sealed class LadtService : ILadtService
             jobId, Domain.Constants.RoleConstants.Player, teamIds, cancellationToken);
 
         var regIds = registrations.Select(r => r.RegistrationId).ToList();
-        var payments = await _regAcctRepo.GetPaymentSummariesAsync(regIds, cancellationToken);
+        // Refresh PaidTotal from actual accounting records — GrossPaid mirrors what
+        // entity.PaidTotal accumulates at write time (sum of Payamt across methods).
+        var paymentStates = await _paymentState.ForRegistrationsAsync(regIds, jobId, cancellationToken);
 
         // Job-level phase: drives whether FeeBase stamps as Deposit (deposit phase) or
         // Deposit+BalanceDue (full-payment phase) inside ApplySwapFeesAsync.
@@ -1427,10 +1432,10 @@ public sealed class LadtService : ILadtService
 
             var resolved = feeByTeam.TryGetValue(reg.AssignedTeamId.Value, out var rf) ? rf : null;
             var resolvedFee = resolved?.EffectiveBalanceDue ?? 0m;
-            var summary = payments.GetValueOrDefault(reg.RegistrationId);
 
-            // Refresh PaidTotal from actual accounting records
-            reg.PaidTotal = summary?.TotalPayments ?? 0;
+            reg.PaidTotal = paymentStates.TryGetValue(reg.RegistrationId, out var state)
+                ? state.GrossPaid
+                : 0m;
 
             // Guard: skip if fee unchanged and nothing owed
             if (reg.FeeBase == resolvedFee && reg.OwedTotal <= 0)

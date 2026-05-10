@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Payments;
 using TSIC.Domain.Entities;
 using TSIC.Application.Services.Clubs;
 using TSIC.Domain.Constants;
@@ -31,6 +32,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly IClubTeamRepository _clubTeams;
     private readonly ITeamPlacementService _placement;
+    private readonly IPaymentStateService _paymentState;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -49,7 +51,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         IEmailService emailService,
         IJobDiscountCodeRepository discountCodeRepo,
         IClubTeamRepository clubTeams,
-        ITeamPlacementService placement)
+        ITeamPlacementService placement,
+        IPaymentStateService paymentState)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -68,6 +71,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _discountCodeRepo = discountCodeRepo;
         _clubTeams = clubTeams;
         _placement = placement;
+        _paymentState = paymentState;
     }
 
     /// <summary>
@@ -326,8 +330,23 @@ public class TeamRegistrationService : ITeamRegistrationService
         var teamIds = rawRegistered.Select(t => t.TeamId).ToList();
         var feesByTeamId = await _feeService.ResolveFeesByTeamIdsAsync(
             jobId, RoleConstants.ClubRep, teamIds);
+
+        // Per-team payment state — the shape boundary derives CkOwedTotal and
+        // FeeProcessingDue from PaymentState (which knows how to reverse-out CC
+        // principal and account for eCheck proc), not from the persisted
+        // FeeProcessing-vs-OwedTotal shortcut that breaks once any CC payment
+        // has hit PaidTotal.
+        var paymentStates = await _paymentState.ForTeamsAsync(teamIds, jobId);
+
         var registeredTeams = ShapeRegisteredTeams(
-            rawRegistered, scheduledIds, feesByTeamId, job.BTeamsFullPaymentRequired ?? false);
+            rawRegistered,
+            scheduledIds,
+            feesByTeamId,
+            job.BTeamsFullPaymentRequired ?? false,
+            paymentStates,
+            job.BAddProcessingFees ?? false,
+            await _feeService.GetEffectiveProcessingRateAsync(jobId),
+            await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId));
 
         // Return ALL library teams — previously filtered out teams already registered
         // for this event, which forced the frontend to reconstruct library rows from the
@@ -425,8 +444,13 @@ public class TeamRegistrationService : ITeamRegistrationService
         IEnumerable<Contracts.Repositories.RegisteredTeamInfo> rawRegistered,
         HashSet<int> scheduledClubTeamIds,
         Dictionary<Guid, Contracts.Repositories.ResolvedFee> feesByTeamId,
-        bool bTeamsFullPaymentRequired)
+        bool bTeamsFullPaymentRequired,
+        Dictionary<Guid, PaymentState> paymentStates,
+        bool bAddProcessingFees,
+        decimal ccRate,
+        decimal echeckRate)
     {
+        var emptyState = PaymentState.Empty(bAddProcessingFees, ccRate, echeckRate);
         return rawRegistered.Select(t =>
         {
             var resolved = feesByTeamId.GetValueOrDefault(t.TeamId);
@@ -435,16 +459,14 @@ public class TeamRegistrationService : ITeamRegistrationService
             var depositDue = t.PaidTotal >= deposit ? 0m : deposit - t.PaidTotal;
             var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
 
-            // CcOwedTotal = OwedTotal (the CC-billable total — what gets charged if the
-            // rest is paid by CC right now). CkOwedTotal = principal-only owed (the
-            // check-billable total — strip the proc-fee component off).
+            // CkOwedTotal / FeeProcessingDue derived from the canonical PaymentState —
+            // accounts for CC principal-vs-proc split AND eCheck proc collected at swipe.
+            // Old shortcut `OwedTotal − FeeProcessing` overstated FeeProcessingDue by
+            // `ccRate × cc_principal_paid` because PaidTotal includes CC proc.
+            var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
+            var ckOwedTotal = state.PrincipalRemaining(t.FeeBase, t.FeeDiscount, t.FeeLatefee);
             var ccOwedTotal = t.OwedTotal;
-            var ckOwedTotal = Math.Max(0m, t.OwedTotal - t.FeeProcessing);
-            // FeeProcessingDue = the proc-fee component currently owed = the gap between
-            // CC-billable and check-billable totals. By identity equal to t.FeeProcessing
-            // under healthy invariants; expressed as the literal subtraction so the
-            // display semantic is obvious at the dto-shaping boundary.
-            var feeProcessingDue = ccOwedTotal - ckOwedTotal;
+            var feeProcessingDue = Math.Max(0m, ccOwedTotal - ckOwedTotal);
 
             return new RegisteredTeamDto
             {

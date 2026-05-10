@@ -72,6 +72,9 @@ public record ClubTeamSummaryDto
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
     public required string AgegroupName { get; init; }
+    public required decimal FeeBase { get; init; }
+    public required decimal FeeDiscount { get; init; }
+    public required decimal FeeLatefee { get; init; }
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }

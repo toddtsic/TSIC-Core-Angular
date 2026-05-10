@@ -24,7 +24,7 @@ import type {
 interface FilterChip {
 	category: string;
 	label: string;
-	filterKey: keyof TeamSearchRequest;
+	filterKey: Extract<keyof TeamSearchRequest, string>;
 	value: string;
 }
 
@@ -139,7 +139,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 		const addArrayChips = (
 			category: string,
-			filterKey: keyof TeamSearchRequest,
+			filterKey: Extract<keyof TeamSearchRequest, string>,
 			values: any[] | null | undefined,
 			options?: FilterOption[]
 		) => {
@@ -156,13 +156,13 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		addArrayChips('Payment Type', 'paymentTypes', req.paymentTypes, opts?.paymentTypes);
 		if (req.waitlistScheduledStatus) {
 			const label = opts?.waitlistScheduledStatuses?.find(o => o.value === req.waitlistScheduledStatus)?.text ?? req.waitlistScheduledStatus;
-			chips.push({ category: 'W/S', label, filterKey: 'waitlistScheduledStatus' as keyof TeamSearchRequest, value: req.waitlistScheduledStatus });
+			chips.push({ category: 'W/S', label, filterKey: 'waitlistScheduledStatus', value: req.waitlistScheduledStatus });
 		}
 
 		// LADT tree chips
 		const treeCheckedIds = this.ladtCheckedIds();
 		if (treeCheckedIds.size > 0) {
-			const levelConfig: Record<number, { category: string; filterKey: keyof TeamSearchRequest }> = {
+			const levelConfig: Record<number, { category: string; filterKey: Extract<keyof TeamSearchRequest, string> }> = {
 				1: { category: 'Agegroup', filterKey: 'agegroupIds' },
 				2: { category: 'Division', filterKey: 'divisionIds' },
 				3: { category: 'Team', filterKey: 'teamIds' }

@@ -178,7 +178,8 @@ public class PaymentFeeRecalcTests
             new Mock<IEmailService>().Object,
             new Mock<IJobDiscountCodeRepository>().Object,
             new Mock<IClubTeamRepository>().Object,
-            new Mock<ITeamPlacementService>().Object);
+            new Mock<ITeamPlacementService>().Object,
+            new Mock<IPaymentStateService>().Object);
 
         var playerMock = new Mock<IPlayerRegistrationService>();
         playerMock
@@ -332,7 +333,8 @@ public class PaymentFeeRecalcTests
             new Mock<IEmailService>().Object,
             new Mock<IJobDiscountCodeRepository>().Object,
             new Mock<IClubTeamRepository>().Object,
-            new Mock<ITeamPlacementService>().Object);
+            new Mock<ITeamPlacementService>().Object,
+            new Mock<IPaymentStateService>().Object);
 
         var configService = new JobConfigService(
             configRepo,

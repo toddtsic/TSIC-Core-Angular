@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -50,60 +51,59 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
             .AnyAsync(a => a.AdnTransactionId == adnTransactionId, cancellationToken);
     }
 
-    public async Task<Dictionary<Guid, PaymentSummary>> GetPaymentSummariesAsync(
-        IReadOnlyCollection<Guid> registrationIds, CancellationToken cancellationToken = default)
+    public async Task<Dictionary<Guid, PaymentMethodTotals>> GetPaymentTotalsByEntityAsync(
+        PaymentEntityKind kind,
+        IReadOnlyCollection<Guid> entityIds,
+        CancellationToken cancellationToken = default)
     {
-        if (registrationIds.Count == 0) return new();
+        if (entityIds.Count == 0) return new();
 
-        return await _context.RegistrationAccounting
-            .AsNoTracking()
-            .Where(ra => ra.RegistrationId.HasValue
-                && registrationIds.Contains(ra.RegistrationId.Value)
-                && ra.Active == true)
-            .Join(_context.AccountingPaymentMethods,
-                ra => ra.PaymentMethodId,
-                apm => apm.PaymentMethodId,
-                (ra, apm) => new { ra.RegistrationId, ra.Payamt, apm.PaymentMethod })
-            .GroupBy(x => x.RegistrationId!.Value)
+        // Local captures so EF translates Contains(...) to a parameterized SQL IN clause.
+        // Filtering on PaymentMethodId (reference-table PK) instead of the freeform
+        // PaymentMethod text means variants like "Credit Card Payment PIF" and
+        // "Online Correction By Client" land in their canonical buckets without
+        // depending on exact string matches.
+        var ccIds = PaymentMethodIds.CcPaid.ToArray();
+        var echeckIds = PaymentMethodIds.Echeck.ToArray();
+        var checkIds = PaymentMethodIds.Check.ToArray();
+        var cashIds = PaymentMethodIds.Cash.ToArray();
+        var correctionIds = PaymentMethodIds.Correction.ToArray();
+
+        var rows = _context.RegistrationAccounting.AsNoTracking().Where(ra => ra.Active == true);
+
+        var keyed = kind switch
+        {
+            PaymentEntityKind.Registration => rows
+                .Where(ra => ra.RegistrationId.HasValue && entityIds.Contains(ra.RegistrationId!.Value))
+                .Select(ra => new { EntityId = ra.RegistrationId!.Value, ra.Payamt, ra.PaymentMethodId }),
+            PaymentEntityKind.Team => rows
+                .Where(ra => ra.TeamId.HasValue && entityIds.Contains(ra.TeamId!.Value))
+                .Select(ra => new { EntityId = ra.TeamId!.Value, ra.Payamt, ra.PaymentMethodId }),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported PaymentEntityKind"),
+        };
+
+        return await keyed
+            .GroupBy(x => x.EntityId)
             .Select(g => new
             {
-                RegistrationId = g.Key,
-                TotalPayments = g.Sum(x => x.Payamt ?? 0),
-                NonCcPayments = g.Where(x => x.PaymentMethod != "Credit Card Payment")
-                                 .Sum(x => x.Payamt ?? 0)
+                EntityId = g.Key,
+                CreditCard = g.Where(x => ccIds.Contains(x.PaymentMethodId)).Sum(x => x.Payamt ?? 0m),
+                Echeck = g.Where(x => echeckIds.Contains(x.PaymentMethodId)).Sum(x => x.Payamt ?? 0m),
+                Check = g.Where(x => checkIds.Contains(x.PaymentMethodId)).Sum(x => x.Payamt ?? 0m),
+                Cash = g.Where(x => cashIds.Contains(x.PaymentMethodId)).Sum(x => x.Payamt ?? 0m),
+                Correction = g.Where(x => correctionIds.Contains(x.PaymentMethodId)).Sum(x => x.Payamt ?? 0m),
             })
             .ToDictionaryAsync(
-                x => x.RegistrationId,
-                x => new PaymentSummary
+                x => x.EntityId,
+                x => new PaymentMethodTotals
                 {
-                    TotalPayments = x.TotalPayments,
-                    NonCcPayments = x.NonCcPayments
+                    CreditCard = x.CreditCard,
+                    Echeck = x.Echeck,
+                    Check = x.Check,
+                    Cash = x.Cash,
+                    Correction = x.Correction,
                 },
                 cancellationToken);
-    }
-
-    public async Task<Dictionary<Guid, decimal>> GetTeamNonCcPaymentTotalsAsync(
-        IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
-    {
-        if (teamIds.Count == 0) return new();
-
-        return await _context.RegistrationAccounting
-            .AsNoTracking()
-            .Where(ra => ra.TeamId.HasValue
-                && teamIds.Contains(ra.TeamId.Value)
-                && ra.Active == true)
-            .Join(_context.AccountingPaymentMethods,
-                ra => ra.PaymentMethodId,
-                apm => apm.PaymentMethodId,
-                (ra, apm) => new { ra.TeamId, ra.Payamt, apm.PaymentMethod })
-            .Where(x => x.PaymentMethod != "Credit Card Payment")
-            .GroupBy(x => x.TeamId!.Value)
-            .Select(g => new
-            {
-                TeamId = g.Key,
-                NonCcPayments = g.Sum(x => x.Payamt ?? 0)
-            })
-            .ToDictionaryAsync(x => x.TeamId, x => x.NonCcPayments, cancellationToken);
     }
 
     public async Task<bool> HasPaymentsForTeamAsync(Guid teamId, CancellationToken cancellationToken = default)

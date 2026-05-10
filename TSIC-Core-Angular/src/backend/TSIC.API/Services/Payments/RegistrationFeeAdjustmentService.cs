@@ -1,3 +1,4 @@
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -144,14 +145,11 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (registration.FeeProcessing <= 0m)
             return 0m;
 
-        // Get effective CC rate (ready-to-multiply decimal, e.g. 0.035 for 3.5%)
+        // Canonical full-CC-rate credit (no proc collected at write time).
         var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
-
-        // Proportional reduction: adjustmentAmount × rate
-        // The adjustment amount is the raw check/correction amount entered by the director
-        // (base payment, not including processing fees), so straight multiplication is correct.
-        var reduction = adjustmentAmount * rate;
-        reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
+        var reduction = Math.Round(
+            PaymentRateMath.NonProcCheckCredit(adjustmentAmount, rate),
+            2, MidpointRounding.AwayFromZero);
 
         // Guard 3: In 2-phase (deposit) scenarios, allow negative processing fees (credit).
         // Otherwise, cap reduction at current processing fee (never go negative).
@@ -190,17 +188,14 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (registration.FeeProcessing <= 0m)
             return 0m;
 
-        // Get both effective rates (ready-to-multiply decimals, e.g. 0.035 and 0.015)
         var ccRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
         var ecRate = await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId);
 
-        // Partial credit: customer pays EC instead of CC, so refund the diff
-        var rateDiff = ccRate - ecRate;
-        if (rateDiff <= 0m)
-            return 0m;
-
-        var reduction = echeckAmount * rateDiff;
-        reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
+        // Canonical eCheck partial credit (echeckRate < ccRate).
+        var reduction = Math.Round(
+            PaymentRateMath.EcheckPartialCredit(echeckAmount, ccRate, ecRate),
+            2, MidpointRounding.AwayFromZero);
+        if (reduction <= 0m) return 0m;
 
         // Same deposit-scenario semantics as the mail-in path
         var isDepositScenario = await IsDepositScenarioAsync();
@@ -240,12 +235,10 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         // and rates rarely change.
         var ccRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
         var ecRate = await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId);
-        var rateDiff = ccRate - ecRate;
-        if (rateDiff <= 0m)
-            return 0m;
-
-        var reversal = echeckAmount * rateDiff;
-        reversal = Math.Round(reversal, 2, MidpointRounding.AwayFromZero);
+        var reversal = Math.Round(
+            PaymentRateMath.EcheckPartialCredit(echeckAmount, ccRate, ecRate),
+            2, MidpointRounding.AwayFromZero);
+        if (reversal <= 0m) return 0m;
 
         registration.FeeProcessing += reversal;
         registration.OwedTotal += reversal;
@@ -283,14 +276,11 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if ((team.FeeProcessing ?? 0m) <= 0m)
             return 0m;
 
-        // Get effective CC rate (ready-to-multiply decimal, e.g. 0.035 for 3.5%)
+        // Canonical full-CC-rate credit (no proc collected at write time).
         var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
-
-        // Proportional reduction: adjustmentAmount × rate
-        // The adjustment amount is the raw check/correction amount entered by the director
-        // (base payment, not including processing fees), so straight multiplication is correct.
-        var reduction = adjustmentAmount * rate;
-        reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
+        var reduction = Math.Round(
+            PaymentRateMath.NonProcCheckCredit(adjustmentAmount, rate),
+            2, MidpointRounding.AwayFromZero);
 
         // Guard 3: In 2-phase (deposit) scenarios, allow negative processing fees (credit).
         // Otherwise, cap reduction at current processing fee (never go negative).
@@ -330,17 +320,14 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if ((team.FeeProcessing ?? 0m) <= 0m)
             return 0m;
 
-        // Get both effective rates
         var ccRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
         var ecRate = await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId);
 
-        // Partial credit: customer pays EC instead of CC, so refund the diff
-        var rateDiff = ccRate - ecRate;
-        if (rateDiff <= 0m)
-            return 0m;
-
-        var reduction = echeckAmount * rateDiff;
-        reduction = Math.Round(reduction, 2, MidpointRounding.AwayFromZero);
+        // Canonical eCheck partial credit (echeckRate < ccRate).
+        var reduction = Math.Round(
+            PaymentRateMath.EcheckPartialCredit(echeckAmount, ccRate, ecRate),
+            2, MidpointRounding.AwayFromZero);
+        if (reduction <= 0m) return 0m;
 
         // Same deposit-scenario semantics as the mail-in team path
         var isDepositScenario = IsTeamDepositScenario(team);
@@ -376,12 +363,10 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
 
         var ccRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
         var ecRate = await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId);
-        var rateDiff = ccRate - ecRate;
-        if (rateDiff <= 0m)
-            return 0m;
-
-        var reversal = echeckAmount * rateDiff;
-        reversal = Math.Round(reversal, 2, MidpointRounding.AwayFromZero);
+        var reversal = Math.Round(
+            PaymentRateMath.EcheckPartialCredit(echeckAmount, ccRate, ecRate),
+            2, MidpointRounding.AwayFromZero);
+        if (reversal <= 0m) return 0m;
 
         team.FeeProcessing = (team.FeeProcessing ?? 0m) + reversal;
         team.OwedTotal = (team.OwedTotal ?? 0m) + reversal;

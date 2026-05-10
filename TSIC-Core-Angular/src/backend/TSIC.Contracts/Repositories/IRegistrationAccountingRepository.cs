@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Payments;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -35,22 +36,15 @@ public interface IRegistrationAccountingRepository
     Task<bool> AnyByAdnTransactionIdAsync(string adnTransactionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get payment summaries (total payments and non-CC payments) for a batch of registrations.
-    /// Used for fee recalculation — processing fees apply only to the CC-payable portion.
+    /// Per-entity, per-method sums of RegistrationAccounting.Payamt. Single read
+    /// surface for all payment-state consumers (recalc, display, per-payment writers).
+    /// kind=Registration filters by RegistrationId; kind=Team filters by TeamId.
+    /// Entities with zero payments are absent from the dictionary; callers default
+    /// to <see cref="PaymentMethodTotals.Zero"/>.
     /// </summary>
-    Task<Dictionary<Guid, PaymentSummary>> GetPaymentSummariesAsync(
-        IReadOnlyCollection<Guid> registrationIds,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Sum of non-credit-card payments per team (check, e-check, cash, correction).
-    /// Mirrors GetPaymentSummariesAsync but keyed by TeamId instead of RegistrationId.
-    /// Used by team-side fee recalculation to subtract prior non-CC credit from netBase
-    /// so re-stamped FeeProcessing reflects only the remaining CC-billable principal.
-    /// Teams with no non-CC payments are absent from the dictionary; callers default to 0m.
-    /// </summary>
-    Task<Dictionary<Guid, decimal>> GetTeamNonCcPaymentTotalsAsync(
-        IReadOnlyCollection<Guid> teamIds,
+    Task<Dictionary<Guid, PaymentMethodTotals>> GetPaymentTotalsByEntityAsync(
+        PaymentEntityKind kind,
+        IReadOnlyCollection<Guid> entityIds,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -87,10 +81,4 @@ public interface IRegistrationAccountingRepository
     /// Delete all accounting records for a registration. Dev/test only.
     /// </summary>
     Task DeleteByRegistrationIdAsync(Guid registrationId, CancellationToken ct = default);
-}
-
-public record PaymentSummary
-{
-    public required decimal TotalPayments { get; init; }
-    public required decimal NonCcPayments { get; init; }
 }

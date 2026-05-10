@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Moq;
 using Microsoft.Extensions.Logging;
 using TSIC.API.Services.Admin;
+using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos.TeamSearch;
 using TSIC.Contracts.Repositories;
@@ -80,9 +81,10 @@ public class ClubCheckAllocationTests
                 PaymentMethodsAllowedCode = 7
             });
 
+        var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object);
         var svc = new TeamSearchService(
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
-            feeService.Object, adnApi.Object, ladtService.Object,
+            feeService.Object, paymentState, adnApi.Object, ladtService.Object,
             new Mock<IEmailService>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId, ag.AgegroupId, clubRep.RegistrationId);

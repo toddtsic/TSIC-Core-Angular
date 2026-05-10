@@ -5,6 +5,7 @@ using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Services;
@@ -29,6 +30,7 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IFeeResolutionService _feeService;
+    private readonly IPaymentStateService _paymentState;
     private readonly IAdnApiService _adnApi;
     private readonly ILadtService _ladtService;
     private readonly IEmailService _emailService;
@@ -46,6 +48,7 @@ public sealed class TeamSearchService : ITeamSearchService
         IRegistrationRepository registrationRepo,
         IJobRepository jobRepo,
         IFeeResolutionService feeService,
+        IPaymentStateService paymentState,
         IAdnApiService adnApi,
         ILadtService ladtService,
         IEmailService emailService,
@@ -56,6 +59,7 @@ public sealed class TeamSearchService : ITeamSearchService
         _registrationRepo = registrationRepo;
         _jobRepo = jobRepo;
         _feeService = feeService;
+        _paymentState = paymentState;
         _adnApi = adnApi;
         _ladtService = ladtService;
         _emailService = emailService;
@@ -103,15 +107,20 @@ public sealed class TeamSearchService : ITeamSearchService
             ? await _teamRepo.GetClubTeamSummariesAsync(jobId, detail.ClubRepRegistrationId.Value, ct)
             : new List<ClubTeamSummaryDto>();
 
-        // CheckFeeReduction = baseOwed × rate, where baseOwed = OwedTotal / (1 + rate).
-        // Equivalent to OwedTotal × rate / (1 + rate) — extracts the processing fee
-        // embedded in OwedTotal without "taxing the tax".
-        var processingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
-        clubTeamSummaries = clubTeamSummaries.Select(t => t with
+        // CheckFeeReduction = proc that would NOT be charged if remainder paid by check.
+        // Derived from canonical PaymentState (handles CC reverse-out + eCheck proc),
+        // not the OwedTotal/(1+rate) shortcut which breaks once any CC payment has hit.
+        var clubTeamIds = clubTeamSummaries.Select(t => t.TeamId).ToList();
+        var clubTeamStates = await _paymentState.ForTeamsAsync(clubTeamIds, jobId, ct);
+        var emptyClubState = await BuildEmptyPaymentStateAsync(jobId, ct);
+        clubTeamSummaries = clubTeamSummaries.Select(t =>
         {
-            CheckFeeReduction = Math.Round(
-                Math.Max(0m, t.OwedTotal) * processingRate / (1m + processingRate),
-                2, MidpointRounding.AwayFromZero)
+            var state = clubTeamStates.GetValueOrDefault(t.TeamId, emptyClubState);
+            var procFeeDue = state.ProcFeeDue(t.FeeBase, t.FeeDiscount, t.FeeLatefee);
+            return t with
+            {
+                CheckFeeReduction = Math.Round(procFeeDue, 2, MidpointRounding.AwayFromZero)
+            };
         }).ToList();
 
         var lopOptions = await GetLopOptionsAsync(jobId, ct);
@@ -159,13 +168,18 @@ public sealed class TeamSearchService : ITeamSearchService
         var teams = await _teamRepo.GetClubTeamSummariesAsync(jobId, clubRepRegistrationId, ct);
         var accountingRecords = await _accountingRepo.GetByRegistrationIdAsync(clubRepRegistrationId, ct);
 
-        // CheckFeeReduction = baseOwed × rate = OwedTotal × rate / (1 + rate)
-        var rate = await _feeService.GetEffectiveProcessingRateAsync(jobId, ct);
-        teams = teams.Select(t => t with
+        // CheckFeeReduction derived from canonical PaymentState (see GetTeamDetailAsync above).
+        var teamIds = teams.Select(t => t.TeamId).ToList();
+        var teamStates = await _paymentState.ForTeamsAsync(teamIds, jobId, ct);
+        var emptyState = await BuildEmptyPaymentStateAsync(jobId, ct);
+        teams = teams.Select(t =>
         {
-            CheckFeeReduction = Math.Round(
-                Math.Max(0m, t.OwedTotal) * rate / (1m + rate),
-                2, MidpointRounding.AwayFromZero)
+            var state = teamStates.GetValueOrDefault(t.TeamId, emptyState);
+            var procFeeDue = state.ProcFeeDue(t.FeeBase, t.FeeDiscount, t.FeeLatefee);
+            return t with
+            {
+                CheckFeeReduction = Math.Round(procFeeDue, 2, MidpointRounding.AwayFromZero)
+            };
         }).ToList();
 
         return new ClubRepAccountingDto
@@ -579,6 +593,10 @@ public sealed class TeamSearchService : ITeamSearchService
             if (singleTeamId.HasValue)
                 clubTeams = clubTeams.Where(t => t.TeamId == singleTeamId.Value).ToList();
 
+            var clubTeamIds = clubTeams.Select(t => t.TeamId).ToList();
+            var teamPaymentStates = await _paymentState.ForTeamsAsync(clubTeamIds, jobId, ct);
+            var emptyTeamState = await BuildEmptyPaymentStateAsync(jobId, ct);
+
             var allocations = new List<TeamPaymentAllocation>();
             var remainingBalance = request.Amount;
 
@@ -586,23 +604,25 @@ public sealed class TeamSearchService : ITeamSearchService
             {
                 if (remainingBalance <= 0) break;
 
-                // Step 1: Compute base owed (OwedTotal without processing fees)
-                var teamOwed = Math.Max(0m, team.OwedTotal ?? 0m);
-                var hasProcessingFees = bAddProcessingFees && (team.FeeProcessing ?? 0) > 0;
-                var baseOwed = hasProcessingFees
-                    ? decimal.Round(teamOwed / (1m + processingRate), 2, MidpointRounding.AwayFromZero)
-                    : teamOwed;
+                // Step 1: Compute principal still owed via canonical PaymentState
+                // (handles CC reverse-out + eCheck proc collected). Old shortcut
+                // OwedTotal/(1+rate) breaks once any CC payment hits.
+                var state = teamPaymentStates.GetValueOrDefault(team.TeamId, emptyTeamState);
+                var feeBase = team.FeeBase ?? 0m;
+                var feeDiscount = team.FeeDiscount ?? 0m;
+                var feeLatefee = team.FeeLatefee ?? 0m;
+                var baseOwed = state.PrincipalRemaining(feeBase, feeDiscount, feeLatefee);
 
                 // Step 2: Allocate base amount from remaining check balance
                 var calculatedTeamCheckAmount = Math.Min(baseOwed, remainingBalance);
                 if (calculatedTeamCheckAmount <= 0) continue;
 
-                // Step 3: Fee reduction = allocation × rate (same as player path)
+                // Step 3: Fee reduction = allocation × rate (canonical full-CC-rate credit)
                 decimal processingFeeReduction = 0;
                 if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0)
                 {
                     processingFeeReduction = decimal.Round(
-                        calculatedTeamCheckAmount * processingRate,
+                        PaymentRateMath.NonProcCheckCredit(calculatedTeamCheckAmount, processingRate),
                         2, MidpointRounding.AwayFromZero);
 
                     team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
@@ -862,5 +882,14 @@ public sealed class TeamSearchService : ITeamSearchService
             RepsEmailed = repsEmailed,
             Message = summary
         };
+    }
+
+    private async Task<PaymentState> BuildEmptyPaymentStateAsync(Guid jobId, CancellationToken ct)
+    {
+        var settings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
+        return PaymentState.Empty(
+            bAddProcessingFees: settings?.BAddProcessingFees ?? false,
+            ccRate: await _feeService.GetEffectiveProcessingRateAsync(jobId, ct),
+            echeckRate: await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId, ct));
     }
 }
