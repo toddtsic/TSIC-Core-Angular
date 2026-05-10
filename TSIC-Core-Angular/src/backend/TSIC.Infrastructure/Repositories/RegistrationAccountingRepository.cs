@@ -82,6 +82,30 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
                 cancellationToken);
     }
 
+    public async Task<Dictionary<Guid, decimal>> GetTeamNonCcPaymentTotalsAsync(
+        IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        if (teamIds.Count == 0) return new();
+
+        return await _context.RegistrationAccounting
+            .AsNoTracking()
+            .Where(ra => ra.TeamId.HasValue
+                && teamIds.Contains(ra.TeamId.Value)
+                && ra.Active == true)
+            .Join(_context.AccountingPaymentMethods,
+                ra => ra.PaymentMethodId,
+                apm => apm.PaymentMethodId,
+                (ra, apm) => new { ra.TeamId, ra.Payamt, apm.PaymentMethod })
+            .Where(x => x.PaymentMethod != "Credit Card Payment")
+            .GroupBy(x => x.TeamId!.Value)
+            .Select(g => new
+            {
+                TeamId = g.Key,
+                NonCcPayments = g.Sum(x => x.Payamt ?? 0)
+            })
+            .ToDictionaryAsync(x => x.TeamId, x => x.NonCcPayments, cancellationToken);
+    }
+
     public async Task<bool> HasPaymentsForTeamAsync(Guid teamId, CancellationToken cancellationToken = default)
     {
         return await _context.RegistrationAccounting

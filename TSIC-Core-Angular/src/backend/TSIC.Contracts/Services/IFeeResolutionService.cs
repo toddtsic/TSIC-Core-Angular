@@ -173,6 +173,9 @@ public record ResolvedModifiers
 /// phase flag, director-controlled). When true, FeeBase = Deposit + BalanceDue;
 /// when false, FeeBase = Deposit (deposit phase). ApplyPifUpgradeAsync remains the
 /// per-registration "parent voluntarily pays in full at checkout" path.
+///
+/// NonCcPayments is NOT in this context — FeeResolutionService looks it up from the
+/// registration's payment history when stamping FeeProcessing.
 /// </summary>
 public record FeeApplicationContext
 {
@@ -185,13 +188,13 @@ public record FeeApplicationContext
 
     /// <summary>Whether to apply CC processing fees (from job BAddProcessingFees flag).</summary>
     public bool AddProcessingFees { get; init; } = true;
-
-    /// <summary>Sum of non-credit-card payments for processing fee basis adjustment.</summary>
-    public decimal NonCcPayments { get; init; }
 }
 
 /// <summary>
 /// Context for team fee application — controls phase and processing fee behavior.
+///
+/// NonCcPayments is NOT in this context — FeeResolutionService looks it up from the
+/// team's payment history when stamping FeeProcessing.
 /// </summary>
 public record TeamFeeApplicationContext
 {

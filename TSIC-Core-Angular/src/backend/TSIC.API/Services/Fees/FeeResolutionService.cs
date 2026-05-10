@@ -17,15 +17,36 @@ public sealed class FeeResolutionService : IFeeResolutionService
     private readonly IFeeRepository _feeRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IPlayerFeeCalculator _playerFeeCalc;
+    private readonly IRegistrationAccountingRepository _accounting;
 
     public FeeResolutionService(
         IFeeRepository feeRepo,
         IJobRepository jobRepo,
-        IPlayerFeeCalculator playerFeeCalc)
+        IPlayerFeeCalculator playerFeeCalc,
+        IRegistrationAccountingRepository accounting)
     {
         _feeRepo = feeRepo;
         _jobRepo = jobRepo;
         _playerFeeCalc = playerFeeCalc;
+        _accounting = accounting;
+    }
+
+    // ── Non-CC Payment Lookups ──────────────────────────────────
+    // Owned here (not by callers) so re-stamping FeeProcessing on swap/PIF/recalc
+    // always subtracts the credit a non-CC payment has earned. Without this the
+    // service would silently revert that credit any time FeeProcessing is recomputed.
+    // For "new" entities (no payments yet) callers skip the query and pass 0m.
+
+    private async Task<decimal> GetRegistrationNonCcAsync(Guid registrationId, CancellationToken ct)
+    {
+        var summaries = await _accounting.GetPaymentSummariesAsync(new[] { registrationId }, ct);
+        return summaries.TryGetValue(registrationId, out var s) ? s.NonCcPayments : 0m;
+    }
+
+    private async Task<decimal> GetTeamNonCcAsync(Guid teamId, CancellationToken ct)
+    {
+        var totals = await _accounting.GetTeamNonCcPaymentTotalsAsync(new[] { teamId }, ct);
+        return totals.GetValueOrDefault(teamId, 0m);
     }
 
     // ── Processing Fee Rate ─────────────────────────────────────
@@ -125,7 +146,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         reg.FeeLatefee = modifiers.TotalLateFee;
 
         var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
+        // New registration → no payments yet, NonCcPayments = 0.
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled, nonCcPayments: 0m);
     }
 
     // ── Adult Registration: New (UA, Referee, Recruiter — no team) ──
@@ -154,7 +176,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         reg.FeeLatefee = totalLateFee;
 
         var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
+        // New registration → no payments yet, NonCcPayments = 0.
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled, nonCcPayments: 0m);
     }
 
     // ── Player Registration: New ────────────────────────────────
@@ -195,7 +218,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // FeeDonation — not set here; player sets it in wizard
 
         var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
+        // New registration → no payments yet, NonCcPayments = 0.
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled, nonCcPayments: 0m);
     }
 
     // ── Player Registration: PIF Upgrade (checkout) ─────────────
@@ -218,7 +242,9 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // FeeDiscount / FeeLatefee / FeeDonation preserved from initial stamp
 
         var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
+        // PIF upgrade may run on a registration with prior non-CC payments — fetch.
+        var nonCc = await GetRegistrationNonCcAsync(reg.RegistrationId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled, nonCc);
     }
 
     // ── Player Registration: Swap ───────────────────────────────
@@ -251,7 +277,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // FeeDiscount / FeeLatefee / FeeDonation preserved
 
         var (rate, enabled) = await GetProcessingConfigAsync(jobId, ct);
-        ApplyProcessingAndTotals(reg, ctx, rate, enabled);
+        // Swap may run on a registration with prior non-CC payments (roster move,
+        // bulk recalc on phase flip) — fetch so the credit isn't reverted.
+        var nonCc = await GetRegistrationNonCcAsync(reg.RegistrationId, ct);
+        ApplyProcessingAndTotals(reg, ctx, rate, enabled, nonCc);
     }
 
     // ── Team Entity: New ────────────────────────────────────────
@@ -287,7 +316,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         team.FeeDiscount = modifiers.TotalDiscount;
         team.FeeLatefee = modifiers.TotalLateFee;
 
-        ApplyTeamProcessingAndTotals(team, feeBase, deposit, balanceDue, ctx);
+        // New team → no payments yet, NonCcPayments = 0.
+        ApplyTeamProcessingAndTotals(team, feeBase, deposit, balanceDue, ctx, nonCcPayments: 0m);
     }
 
     // ── Team Entity: Swap ───────────────────────────────────────
@@ -318,17 +348,23 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // Only FeeBase changes — modifiers FROZEN
         team.FeeBase = feeBase;
 
-        ApplyTeamProcessingAndTotals(team, feeBase, deposit, balanceDue, ctx);
+        // Swap may run on a team with prior non-CC payments (division swap, bulk recalc
+        // on BTeamsFullPaymentRequired flip) — fetch so the credit isn't reverted.
+        var nonCc = await GetTeamNonCcAsync(team.TeamId, ct);
+        ApplyTeamProcessingAndTotals(team, feeBase, deposit, balanceDue, ctx, nonCc);
     }
 
     // ── Private: Processing + Totals ────────────────────────────
 
-    private void ApplyProcessingAndTotals(Registrations reg, FeeApplicationContext ctx, decimal processingRate, bool jobEnablesProcessingFees)
+    private void ApplyProcessingAndTotals(
+        Registrations reg, FeeApplicationContext ctx, decimal processingRate,
+        bool jobEnablesProcessingFees, decimal nonCcPayments)
     {
         if (jobEnablesProcessingFees && reg.FeeBase > 0m)
         {
-            // Processing % is taken on the net billable amount — discount reduces it, late fee adds to it.
-            var netBase = Math.Max(reg.FeeBase - reg.FeeDiscount + reg.FeeLatefee - ctx.NonCcPayments, 0m);
+            // Processing % is taken on the net billable amount — discount reduces it, late
+            // fee adds to it, and prior non-CC payments have already earned a fee credit.
+            var netBase = Math.Max(reg.FeeBase - reg.FeeDiscount + reg.FeeLatefee - nonCcPayments, 0m);
             reg.FeeProcessing = _playerFeeCalc.GetDefaultProcessing(netBase, processingRate);
         }
         else
@@ -342,9 +378,15 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
     private static void ApplyTeamProcessingAndTotals(
         TeamsEntity team, decimal feeBase, decimal deposit, decimal balanceDue,
-        TeamFeeApplicationContext ctx)
+        TeamFeeApplicationContext ctx, decimal nonCcPayments)
     {
-        // Processing is charged on the net billable amount. Discount reduces it; late fee adds to it.
+        // Processing is charged on the net billable amount. Discount reduces it; late fee
+        // adds to it; prior non-CC payments (check/e-check/cash/correction) have already
+        // earned a fee credit so subtracting them keeps re-stamps consistent.
+        // Without this subtraction, a phase advance (BTeamsFullPaymentRequired flip)
+        // re-stamps FeeProcessing as ccRate × full-principal and reverts the credit a
+        // check/correction had already earned — OwedTotal jumps by exactly that credit
+        // (e.g. $19 on a $500 check at 3.8%).
         var discount = team.FeeDiscount ?? 0m;
         var lateFee = team.FeeLatefee ?? 0m;
 
@@ -356,14 +398,14 @@ public sealed class FeeResolutionService : IFeeResolutionService
             if (ctx.IsFullPaymentRequired)
             {
                 netBase = ctx.ApplyProcessingFeesToDeposit
-                    ? Math.Max(feeBase - discount + lateFee, 0m)      // full amount
-                    : Math.Max(balanceDue - discount + lateFee, 0m);   // balance-due only
+                    ? Math.Max(feeBase - discount + lateFee - nonCcPayments, 0m)      // full amount
+                    : Math.Max(balanceDue - discount + lateFee - nonCcPayments, 0m);   // balance-due only
             }
             else
             {
                 netBase = ctx.ApplyProcessingFeesToDeposit
-                    ? Math.Max(deposit - discount + lateFee, 0m)       // deposit
-                    : 0m;                                              // no processing in deposit phase
+                    ? Math.Max(deposit - discount + lateFee - nonCcPayments, 0m)       // deposit
+                    : 0m;                                                              // no processing in deposit phase
             }
             feeProcessing = netBase * percent;
         }

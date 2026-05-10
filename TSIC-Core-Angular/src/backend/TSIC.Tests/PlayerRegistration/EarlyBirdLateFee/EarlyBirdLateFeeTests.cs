@@ -76,7 +76,7 @@ public class EarlyBirdLateFeeTests
 
         var feeCalc = new PlayerFeeCalculator();
 
-        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
+        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc, new RegistrationAccountingRepository(ctx));
 
         return (svc, builder, ctx, job.JobId, ag.AgegroupId, team.TeamId, jobFee.JobFeeId);
     }
@@ -612,7 +612,7 @@ public class EarlyBirdLateFeeTests
         jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings { BAddProcessingFees = true, PaymentMethodsAllowedCode = 0 });
         var feeCalc = new PlayerFeeCalculator();
-        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
+        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc, new RegistrationAccountingRepository(ctx));
 
         // Player registered during early bird window — got $25 discount
         var reg = new Registrations
@@ -681,7 +681,7 @@ public class EarlyBirdLateFeeTests
         jobRepo.Setup(j => j.GetJobFeeSettingsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings { BAddProcessingFees = true, PaymentMethodsAllowedCode = 0 });
         var feeCalc = new PlayerFeeCalculator();
-        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
+        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc, new RegistrationAccountingRepository(ctx));
 
         // Player originally on Team A with early bird discount
         var reg = new Registrations
@@ -745,7 +745,7 @@ public class EarlyBirdLateFeeTests
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);
         var feeCalc = new PlayerFeeCalculator();
-        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
+        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc, new RegistrationAccountingRepository(ctx));
 
         var resolved = await svc.ResolveFeeAsync(job.JobId, RoleConstants.Player, ag.AgegroupId, team.TeamId);
         resolved.Should().BeNull();
@@ -799,7 +799,7 @@ public class EarlyBirdLateFeeTests
         jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(3.5m);
         var feeCalc = new PlayerFeeCalculator();
-        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc);
+        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, feeCalc, new RegistrationAccountingRepository(ctx));
 
         var mods = await svc.EvaluateModifiersAsync(
             job.JobId, RoleConstants.Player, ag.AgegroupId, team.TeamId, DateInEarlyBird);

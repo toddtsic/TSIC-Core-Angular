@@ -1436,13 +1436,13 @@ public sealed class LadtService : ILadtService
             if (reg.FeeBase == resolvedFee && reg.OwedTotal <= 0)
                 continue;
 
-            // Swap-style recalc: only FeeBase changes, modifiers preserved
+            // Swap-style recalc: only FeeBase changes, modifiers preserved.
+            // FeeResolutionService now fetches NonCcPayments internally — no need to thread.
             await _feeService.ApplySwapFeesAsync(
                 reg, jobId, reg.AssignedAgegroupId ?? Guid.Empty, reg.AssignedTeamId.Value,
                 new FeeApplicationContext
                 {
-                    IsFullPaymentRequired = isFullPaymentRequired,
-                    NonCcPayments = summary?.NonCcPayments ?? 0m
+                    IsFullPaymentRequired = isFullPaymentRequired
                 }, cancellationToken);
 
             reg.Modified = DateTime.UtcNow;

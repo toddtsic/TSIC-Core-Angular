@@ -43,6 +43,17 @@ public interface IRegistrationAccountingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Sum of non-credit-card payments per team (check, e-check, cash, correction).
+    /// Mirrors GetPaymentSummariesAsync but keyed by TeamId instead of RegistrationId.
+    /// Used by team-side fee recalculation to subtract prior non-CC credit from netBase
+    /// so re-stamped FeeProcessing reflects only the remaining CC-billable principal.
+    /// Teams with no non-CC payments are absent from the dictionary; callers default to 0m.
+    /// </summary>
+    Task<Dictionary<Guid, decimal>> GetTeamNonCcPaymentTotalsAsync(
+        IReadOnlyCollection<Guid> teamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Check whether any active payment records exist for the given team.
     /// </summary>
     Task<bool> HasPaymentsForTeamAsync(Guid teamId, CancellationToken cancellationToken = default);
