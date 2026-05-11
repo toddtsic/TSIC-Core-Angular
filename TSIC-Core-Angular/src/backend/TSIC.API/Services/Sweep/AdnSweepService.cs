@@ -838,12 +838,12 @@ public sealed class AdnSweepService : IAdnSweepService
     {
         await _email.SendAsync(new EmailMessageDto
         {
-            FromName = "TSIC System",
+            FromName = "",
             FromAddress = TsicConstants.SupportEmail,
             ToAddresses = [TsicConstants.SupportEmail],
-            Subject = $"[claude-api] AdnSweep — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}",
+            Subject = $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}",
             HtmlBody = html
-        }, sendInDevelopment: false, cancellationToken: ct);
+        }, sendInDevelopment: true, cancellationToken: ct);
     }
 
     // ── Internal types ────────────────────────────────────────────────

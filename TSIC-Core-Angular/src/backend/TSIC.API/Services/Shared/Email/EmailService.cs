@@ -115,6 +115,8 @@ public sealed class EmailService : IEmailService
         var fromName = string.IsNullOrWhiteSpace(dto.FromName) ? "TEAMSPORTSINFO.COM" : dto.FromName;
         var fromAddress = string.IsNullOrWhiteSpace(dto.FromAddress) ? TsicConstants.SupportEmail : dto.FromAddress!;
         message.From.Add(new MailboxAddress(fromName!, fromAddress!));
+        message.Sender = new MailboxAddress(fromName!, fromAddress!);
+        message.ReplyTo.Add(new MailboxAddress(fromName!, fromAddress!));
 
         if (dto.ToAddresses != null)
         {
