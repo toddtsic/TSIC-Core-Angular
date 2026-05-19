@@ -12,8 +12,4 @@ public sealed class EmailSettings
     /// Optional AWS region (e.g. us-east-1). If not supplied the default credentials/region chain is used.
     /// </summary>
     public string? AwsRegion { get; set; }
-    /// <summary>
-    /// If true, treat environment as SES sandbox mode: skip quota warnings and allow unverified recipient simulation.
-    /// </summary>
-    public bool SandboxMode { get; set; }
 }

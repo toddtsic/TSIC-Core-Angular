@@ -1,6 +1,7 @@
 using Amazon.SimpleEmail;
 using Amazon.SimpleEmail.Model;
 using Microsoft.Extensions.Options;
+using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Email;
 using TSIC.Contracts.Services;
 
@@ -45,7 +46,7 @@ public sealed class EmailHealthService : IEmailHealthService
         {
             EmailingEnabled = _settings.EmailingEnabled,
             IsDevelopment = _env.IsDevelopment(),
-            SandboxMode = _settings.SandboxMode,
+            SandboxMode = _env.IsSandbox(),
             Region = _settings.AwsRegion ?? "(default)"
         };
 

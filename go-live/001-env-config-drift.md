@@ -135,6 +135,16 @@ Which `web.config.api*` does each deploy script actually push? `1-Build-And-Depl
 - Frontend `main.ts` emits one `[STARTUP-CONFIG]` line to `console.info` before `bootstrapApplication`: envName, host, apiUrl, staticsUrl, buildVersion.
 - Verification handle for both the JWT rotation and any future env-overlay change. Reviewable in `seq.teamsportsinfo.com` for staging+prod and browser console for dev.
 
+**Issue 3 — dead `Email:EnableSandboxMode` config + unused `EmailSettings.SandboxMode` property removed (2026-05-19)**
+
+Three coordinated edits, zero runtime behavior change:
+
+1. `appsettings.Development.json` — deleted the `Email: { EnableSandboxMode, EmailingEnabled }` block. Both keys were inert (wrong section name — `Email` vs the bound `EmailSettings` — and `EnableSandboxMode` didn't match the property `SandboxMode` either way). Misleading config gone.
+2. `EmailSettings.cs` — removed the `SandboxMode` property. Never bound from any config, so always `false`; only `EmailHealthService` read it.
+3. `EmailHealthService.cs` — `status.SandboxMode` now populated from `_env.IsSandbox()` (the real source of truth, matching the SES send gate at `EmailService.cs:51`). The quota-warning suppression logic at L66 still works identically.
+
+Design clarification recorded: email gating is `_env.IsSandbox()` (off on Staging/Development by default) + `SendAsync(..., sendInDevelopment: true)` per-call override. No config flag participates. `EmailSettings.EmailingEnabled` remains as a global kill switch (default `true`, can be set false via `EmailSettings:EmailingEnabled` in any appsettings overlay to disable email entirely — useful for maintenance windows; not wired today but kept as a hook).
+
 **Issue 2 — ADN sandbox/prod gate corrected; pool env names normalized (2026-05-19, commit `ec3988b0`)**
 
 Three coupled changes in one commit:
@@ -148,7 +158,6 @@ Pool env on TSIC-SEDONA's `dev-api` was changed from `Development` to `Staging` 
 ### Still open
 
 
-- **Issue 3 — Dead `Email:EnableSandboxMode` config in `appsettings.Development.json`.** Untouched. Either wire up or delete.
 - **Issue 4 — Two competing `web.config` deploy patterns in `scripts/`.** Need to read the deploy scripts to determine which one wins. Untouched.
 - **Issue 5 — No DB connection-string override; relies on each box having its own local `TSICV5` database.** Confirmed working pattern but worth flagging as dangerous-default.
 - **Issue 6 — SES/ADN/VI/USLax credentials not in committed config; require per-machine env-var verification.** Now that `[STARTUP-CONFIG]` logs the first-4-char fingerprint of each, post-deploy log review will give us the per-machine inventory we couldn't get from source alone.
@@ -240,7 +249,9 @@ Committed value (in git history forever) is now unused on every box. `[STARTUP-C
 
 **Issue 2 (ADN gateway gated on `IsDevelopment()` — Staging hit ADN prod) — CLOSED 2026-05-19.** Gate corrected to `!_env.IsProduction()`; pool env on `dev-api` flipped to `Staging`; machine-name check removed from runtime gates and replaced with `ASPNETCORE_ENVIRONMENT must be set` startup assertion. End-to-end sandbox charge verified on .204 (txn `120082914172`, ADN sandbox receipt). PHOENIX behavior unchanged.
 
-Issues 3–8 remain open — see "Still open" section above.
+**Issue 3 (dead `Email:EnableSandboxMode` config + unused `EmailSettings.SandboxMode` property) — CLOSED 2026-05-19.** Dead config block deleted; unused property removed; `EmailHealthService.SandboxMode` field now sourced from `_env.IsSandbox()`. Zero runtime behavior change — email gating remains `_env.IsSandbox()` + per-call `sendInDevelopment` override.
+
+Issues 4–8 remain open — see "Still open" section above.
 
 ### Verification expectations per stage
 
