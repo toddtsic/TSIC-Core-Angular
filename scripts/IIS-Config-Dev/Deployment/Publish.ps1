@@ -25,7 +25,6 @@ $BackupsPath     = 'C:\Websites\Backups'
 $SqlInstance     = '.\SS2016'
 $ApiHostname     = 'devapi.teamsportsinfo.com'
 $AngularHostname = 'dev.teamsportsinfo.com'
-$AspNetEnv       = 'Development'
 
 $RepoRoot    = (Resolve-Path "$PSScriptRoot\..\..\..").Path
 $SolutionDir = Join-Path $RepoRoot "TSIC-Core-Angular"
@@ -34,7 +33,7 @@ $AngularPath = Join-Path $SolutionDir "src\frontend\tsic-app"
 $PublishRoot = Join-Path $RepoRoot "publish"
 $ApiPublish  = Join-Path $PublishRoot "api"
 $AngPublish  = Join-Path $PublishRoot "angular"
-$WebConfigApiSrc = Join-Path $PSScriptRoot "..\web.config.api"
+$WebConfigApiSrc = Join-Path $PSScriptRoot "..\..\web.config.api"
 $WebConfigAngSrc = Join-Path $PSScriptRoot "..\web.config.angular"
 $FixLoginSql     = Join-Path $PSScriptRoot "..\..\00-postdev-db-restore-apppooluser.sql"
 
@@ -230,14 +229,8 @@ Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 Copy-Item "$ApiPublish\*" $ApiTarget -Recurse -Force
 
-# Stamp ASPNETCORE_ENVIRONMENT in web.config
-$wcDest = Join-Path $ApiTarget "web.config"
-if (Test-Path $wcDest) {
-    $content = Get-Content $wcDest -Raw
-    $content = $content -replace '__ASPNET_ENV__', $AspNetEnv
-    Set-Content $wcDest $content -NoNewline -Encoding UTF8
-    Write-Host "  web.config: ASPNETCORE_ENVIRONMENT = $AspNetEnv" -ForegroundColor White
-}
+# No web.config patching: the canonical template is env-agnostic and the
+# dev-api app pool's ASPNETCORE_ENVIRONMENT env var is the single source of truth.
 
 # Angular
 Write-Host "  Clearing $AngularTarget..." -ForegroundColor White

@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+  Canonical IIS web.config for the TSIC.API site. Environment-agnostic.
+
+  ASPNETCORE_ENVIRONMENT is NOT set here — it lives exclusively on the
+  app pool's environmentVariables collection (in applicationHost.config),
+  provisioned by IIS-Config-{Dev,Prod}/Setup/07-Apply-Secrets.ps1 and
+  whatever per-pool tweaks operators apply.
+
+  Program.cs refuses to start if ASPNETCORE_ENVIRONMENT is unset, so a
+  forgotten pool env var fails loud instead of silently falling back to
+  ASP.NET's default "Production".
+-->
 <configuration>
   <location path="." inheritInChildApplications="false">
     <system.webServer>

@@ -135,6 +135,18 @@ Which `web.config.api*` does each deploy script actually push? `1-Build-And-Depl
 - Frontend `main.ts` emits one `[STARTUP-CONFIG]` line to `console.info` before `bootstrapApplication`: envName, host, apiUrl, staticsUrl, buildVersion.
 - Verification handle for both the JWT rotation and any future env-overlay change. Reviewable in `seq.teamsportsinfo.com` for staging+prod and browser console for dev.
 
+**Issue 4 — web.config templates consolidated + redundant regex patching removed from deploy scripts (2026-05-19)**
+
+Three coordinated changes, zero runtime behavior change:
+
+1. **One canonical `scripts/web.config.api`** template, env-agnostic (no `<environmentVariables>` block). `ASPNETCORE_ENVIRONMENT` is set exclusively on the app pool's env-var collection (provisioned by `IIS-Config-{Dev,Prod}/Setup/07-Apply-Secrets.ps1`). `Program.cs` refuses to start if the env var is missing — drift surfaces loud.
+2. **Deleted five dead templates**: `scripts/web.config.api.staging`, `scripts/web.config.api.production`, `scripts/web.config`, `scripts/IIS-Config-Prod/web.config.api`, `scripts/IIS-Config-Dev/web.config.api`.
+3. **Removed regex patching** from `1-Build-And-Deploy-Prod.ps1` and `IIS-Config-Dev/Deployment/Publish.ps1`:
+   - `__ASPNET_ENV__` substitution gone (placeholder no longer exists in the template).
+   - `appsettings.json` / `appsettings.Production.json` regex patches (`C:\Websites` → `E:\Websites`, `devapi.teamsportsinfo.com` → `claude-api…`, `dev.teamsportsinfo.com` → `claude-app…`) deleted. All values already overridden by `appsettings.Production.json`, so the patches were rewriting correct values with the same correct values — pure redundancy with drift risk.
+
+End state matches the CLAUDE.md design claim: "no regex patching of source files at deploy time" now also extends to publish output. Env name lives only on the pool env var. One web.config template across all envs.
+
 **Issue 3 — dead `Email:EnableSandboxMode` config + unused `EmailSettings.SandboxMode` property removed (2026-05-19)**
 
 Three coordinated edits, zero runtime behavior change:
@@ -158,7 +170,6 @@ Pool env on TSIC-SEDONA's `dev-api` was changed from `Development` to `Staging` 
 ### Still open
 
 
-- **Issue 4 — Two competing `web.config` deploy patterns in `scripts/`.** Need to read the deploy scripts to determine which one wins. Untouched.
 - **Issue 5 — No DB connection-string override; relies on each box having its own local `TSICV5` database.** Confirmed working pattern but worth flagging as dangerous-default.
 - **Issue 6 — SES/ADN/VI/USLax credentials not in committed config; require per-machine env-var verification.** Now that `[STARTUP-CONFIG]` logs the first-4-char fingerprint of each, post-deploy log review will give us the per-machine inventory we couldn't get from source alone.
 - **Issue 7 — USLax has no sandbox endpoint; staging will hit prod USLax if env vars set.** Untouched.
@@ -251,7 +262,9 @@ Committed value (in git history forever) is now unused on every box. `[STARTUP-C
 
 **Issue 3 (dead `Email:EnableSandboxMode` config + unused `EmailSettings.SandboxMode` property) — CLOSED 2026-05-19.** Dead config block deleted; unused property removed; `EmailHealthService.SandboxMode` field now sourced from `_env.IsSandbox()`. Zero runtime behavior change — email gating remains `_env.IsSandbox()` + per-call `sendInDevelopment` override.
 
-Issues 4–8 remain open — see "Still open" section above.
+**Issue 4 (two competing web.config deploy patterns + redundant regex patching) — CLOSED 2026-05-19.** One canonical `scripts/web.config.api` template (env-agnostic), five dead variants deleted, deploy scripts use it directly. `__ASPNET_ENV__` placeholder substitution gone (env name lives on pool env var). `appsettings.json`/`Production.json` regex patches in prod deploy removed — overlay already supplies E:\ paths, claude-app hostname, prod Seq URL. Zero runtime behavior change.
+
+Issues 5–8 remain open — see "Still open" section above.
 
 ### Verification expectations per stage
 

@@ -34,14 +34,11 @@ $ApiStaging      = $Config.DeployApiStagingPath
 $AngularStaging  = $Config.DeployAngularStagingPath
 $ApiHostname     = $Config.ApiHostname
 $AngularHostname = $Config.AngularHostname
-$AspNetEnv       = $Config.AspNetEnv
 
-# Hostnames used only for STAGED appsettings patching (output-side, not source).
 # Angular environment overlay is handled by `fileReplacements` in angular.json
 # (`--configuration production` substitutes environment.ts → environment.production.ts
-# at compile time). DO NOT regex-patch source environment files — see CLAUDE.md.
-$DevApiHost  = 'devapi.teamsportsinfo.com'
-$DevAppHost  = 'dev.teamsportsinfo.com'
+# at compile time). Backend env overlay is handled by appsettings.Production.json.
+# No regex-patching of source or output files anywhere in this script.
 
 $RepoRoot    = (Resolve-Path "$PSScriptRoot\..").Path
 $SolutionDir = Join-Path $RepoRoot "TSIC-Core-Angular"
@@ -50,7 +47,7 @@ $AngularPath = Join-Path $SolutionDir "src\frontend\tsic-app"
 $PublishRoot = Join-Path $RepoRoot "publish"
 $ApiPublish  = Join-Path $PublishRoot "api"
 $AngPublish  = Join-Path $PublishRoot "angular"
-$WebConfigApiSrc = Join-Path $PSScriptRoot "IIS-Config-Prod\web.config.api"
+$WebConfigApiSrc = Join-Path $PSScriptRoot "web.config.api"
 $WebConfigAngSrc = Join-Path $PSScriptRoot "IIS-Config-Prod\web.config.angular"
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -214,34 +211,11 @@ if (!$SkipApi) {
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     Copy-Item "$ApiPublish\*" $ApiStaging -Recurse -Force
 
-    # Stamp ASPNETCORE_ENVIRONMENT in web.config
-    $wcDest = Join-Path $ApiStaging "web.config"
-    if (Test-Path $wcDest) {
-        $content = Get-Content $wcDest -Raw
-        $content = $content -replace '__ASPNET_ENV__', $AspNetEnv
-        Set-Content $wcDest $content -NoNewline -Encoding UTF8
-        Write-Host "  web.config: ASPNETCORE_ENVIRONMENT = $AspNetEnv" -ForegroundColor White
-    }
-
-    # Patch appsettings for production paths and hostnames
-    Write-Host "  Patching appsettings for production..." -ForegroundColor Yellow
-    $settingsFiles = @(
-        (Join-Path $ApiStaging "appsettings.json"),
-        (Join-Path $ApiStaging "appsettings.Production.json")
-    )
-    foreach ($file in $settingsFiles) {
-        if (Test-Path $file) {
-            $content = Get-Content $file -Raw
-            $original = $content
-            $content = $content -replace 'C:\\\\Websites', 'E:\\Websites' -replace 'C:\\Websites', 'E:\Websites'
-            $content = $content -replace [regex]::Escape($DevApiHost), $ApiHostname
-            $content = $content -replace [regex]::Escape($DevAppHost), $AngularHostname
-            if ($content -ne $original) {
-                Set-Content $file $content -NoNewline
-                Write-Host "    Patched: $(Split-Path $file -Leaf)" -ForegroundColor White
-            }
-        }
-    }
+    # No web.config patching: the template is env-agnostic and the prod app pool's
+    # ASPNETCORE_ENVIRONMENT=Production env var is the single source of truth.
+    # No appsettings patching either: appsettings.Production.json overlay supplies
+    # E:\Websites paths, claude-app hostname, and prod Seq URL. Program.cs throws
+    # at startup if the env var is missing — surfaces drift loud instead of silent.
 
     Write-Host "  API staged." -ForegroundColor Green
 }

@@ -104,12 +104,13 @@ Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue | Where-Object { $
 Write-Host "  Copying API files..." -ForegroundColor White
 Copy-Item "$ApiSource\*" $ApiTarget -Recurse -Force
 
-# Copy web.config template (staging variant declares ASPNETCORE_ENVIRONMENT=Staging)
-$apiConfigSrc = Join-Path $PSScriptRoot "web.config.api.staging"
+# Copy canonical web.config template (env-agnostic; ASPNETCORE_ENVIRONMENT lives
+# on the dev-api app pool, set during setup by IIS-Config-Dev/Setup/07-Apply-Secrets.ps1).
+$apiConfigSrc = Join-Path $PSScriptRoot "web.config.api"
 if (Test-Path $apiConfigSrc) {
     Copy-Item $apiConfigSrc (Join-Path $ApiTarget "web.config") -Force
 } else {
-    Write-Host "  web.config.api.staging template not found at $apiConfigSrc" -ForegroundColor Red
+    Write-Host "  web.config.api template not found at $apiConfigSrc" -ForegroundColor Red
     exit 1
 }
 
