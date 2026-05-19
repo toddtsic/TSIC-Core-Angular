@@ -34,7 +34,9 @@ Three environments aligned across both stacks:
 
 Backend overlay = `appsettings.{EnvironmentName}.json`. Frontend overlay = Angular `fileReplacements` in `angular.json`. **No regex patching of source files at deploy time** — deploy scripts pass the configuration name and let the build system swap files.
 
-Bootstrap assertions throw if env name and host don't agree (`Program.cs` startup, `main.ts` before bootstrap).
+**Config policy:** all env overlays (`Development`, `Staging`, `Production`) are committed to source. They contain topology only — connection strings, hostnames, file paths, feature toggles. **Secrets never live in appsettings**; they go on the IIS app pool's `environmentVariables` collection (provisioned by `IIS-Config-{Dev,Prod}/Setup/07-Apply-Secrets.ps1`). `appsettings.Local.json` is the gitignored per-developer override slot for local-only tweaks.
+
+`ASPNETCORE_ENVIRONMENT` is set exclusively on the app pool's env-var collection. `Program.cs` refuses to start if it is unset — a forgotten pool var fails loud instead of silently inheriting ASP.NET's default `Production`.
 
 ## Auth Model
 

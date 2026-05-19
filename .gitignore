@@ -42,8 +42,8 @@ Thumbs.db
 tsic-deployment*/
 test-deployment/
 tmp_backup_files.txt
-# Local configuration files with secrets
-**/appsettings.Development.json
+# Per-developer overrides only; env overlays (Development/Staging/Production)
+# live in source. Secrets stay in pool env vars, never in appsettings.
 **/appsettings.Local.json
 
 # Firebase service account credentials (private keys — NEVER commit)

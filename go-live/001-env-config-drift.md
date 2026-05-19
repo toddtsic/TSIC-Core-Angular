@@ -135,6 +135,14 @@ Which `web.config.api*` does each deploy script actually push? `1-Build-And-Depl
 - Frontend `main.ts` emits one `[STARTUP-CONFIG]` line to `console.info` before `bootstrapApplication`: envName, host, apiUrl, staticsUrl, buildVersion.
 - Verification handle for both the JWT rotation and any future env-overlay change. Reviewable in `seq.teamsportsinfo.com` for staging+prod and browser console for dev.
 
+**Issue 9 — env overlays moved into source; gitignore rule retired (2026-05-19)**
+
+The original gitignore was set when env overlays held secrets. After yesterday's JWT key rotation and this morning's gate cleanup, the three overlays (`Development`, `Staging`, `Production`) contain only topology: connection strings (trusted auth, no password), hostnames, file paths, feature toggles. No secrets remain.
+
+Removed the `**/appsettings.*.json` and `**/appsettings.Development.json` rules from both `.gitignore` files. Kept `**/appsettings.Local.json` as the per-developer override slot. Committed all three overlay files to source. New canonical-recovery story: any box can be rebuilt from a fresh clone and per-pool env-var setup (`07-Apply-Secrets.ps1`). No more "Sedona is the deployer of record because nowhere else has the overlays."
+
+`CLAUDE.md` updated to document the new policy: env overlays committed; secrets only in pool env vars; `appsettings.Local.json` is the per-developer escape hatch.
+
 **Issue 5 — explicit per-env `ConnectionStrings:DefaultConnection` overlay added (2026-05-19)**
 
 Added the same connection string (`Server=.\SS2016;Database=TSICV5;...`) to both `appsettings.Staging.json` and `appsettings.Production.json` on the Sedona deployer box. Value unchanged today on both runtime boxes; the wiring is now visible per env so future DB renames, server moves, or auth-mode changes have an obvious per-env editing point.
@@ -179,7 +187,6 @@ Pool env on TSIC-SEDONA's `dev-api` was changed from `Development` to `Staging` 
 - **Issue 6 — SES/ADN/VI/USLax credentials not in committed config; require per-machine env-var verification.** Now that `[STARTUP-CONFIG]` logs the first-4-char fingerprint of each, post-deploy log review will give us the per-machine inventory we couldn't get from source alone.
 - **Issue 7 — USLax has no sandbox endpoint; staging will hit prod USLax if env vars set.** Untouched.
 - **Issue 8 — `appsettings.Production.json` is thin; base file is the dangerous-default surface.** Acceptable design but flagged.
-- **Issue 9 (new, surfaced 2026-05-19) — `appsettings.{Env}.json` files are gitignored.** Repo only contains the base `appsettings.json`. Every per-env overlay (Development, Staging, Production) lives only on the deployer (TSIC-SEDONA); they travel to runtime boxes via the published build output, not via git. Risk: a fresh clone has no per-env config; if Sedona is lost or rebuilt, the overlay files must be reconstructed from documentation (which doesn't exist) or from the runtime boxes. Worth a deliberate decision: either commit the overlays (and push secrets to pool env vars exclusively), or document a clear restore path for the gitignored files. Today, the architectural pattern is "deployer machine owns the per-env files."
 
 ### Verification log
 
@@ -271,6 +278,8 @@ Committed value (in git history forever) is now unused on every box. `[STARTUP-C
 **Issue 4 (two competing web.config deploy patterns + redundant regex patching) — CLOSED 2026-05-19.** One canonical `scripts/web.config.api` template (env-agnostic), five dead variants deleted, deploy scripts use it directly. `__ASPNET_ENV__` placeholder substitution gone (env name lives on pool env var). `appsettings.json`/`Production.json` regex patches in prod deploy removed — overlay already supplies E:\ paths, claude-app hostname, prod Seq URL. Zero runtime behavior change.
 
 **Issue 5 (no DB connection-string override) — CLOSED 2026-05-19.** Explicit `ConnectionStrings:DefaultConnection` block added to `appsettings.Staging.json` and `appsettings.Production.json` with the current value. Zero runtime behavior change; per-env DB changes now have a visible editing point.
+
+**Issue 9 (env overlays gitignored — no canonical recovery source) — CLOSED 2026-05-19.** Gitignore rules retired; `appsettings.{Development,Staging,Production}.json` committed to source. Secrets never lived in these files post-cleanup; remaining content is topology. `appsettings.Local.json` is the gitignored per-developer override. `CLAUDE.md` updated with the new config policy.
 
 Issues 6–8 remain open — see "Still open" section above.
 

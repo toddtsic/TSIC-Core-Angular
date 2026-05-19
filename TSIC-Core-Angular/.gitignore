@@ -38,11 +38,9 @@ src/frontend/tsic-app/.angular/
 src/frontend/tsic-app/npm-debug.log*
 src/frontend/tsic-app/yarn-error.log*
 
-# Environment files (keep templates)
-**/appsettings.*.json
-!**/appsettings.json
-# appsettings.Development.json contains sensitive tokens - keep local only
-**/appsettings.Development.json
+# Per-developer overrides only; env overlays (Development/Staging/Production)
+# are committed. Secrets stay in pool env vars, never in appsettings.
+**/appsettings.Local.json
 
 # OS files
 .DS_Store
