@@ -69,32 +69,20 @@ using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// ── Environment ↔ machine guard ─────────────────────────────────────
-// The host machine name must agree with ASPNETCORE_ENVIRONMENT. Production runs
-// only on TSIC-PHOENIX; Staging/Development run anywhere else. Catches deployments
-// where appsettings overlay is wrong (e.g., a Phoenix-aimed bundle on the dev box).
+// ── ASPNETCORE_ENVIRONMENT must be set explicitly ───────────────────
+// ASP.NET silently defaults to "Production" when the env var is missing. That
+// default would load the prod overlay (and live external creds) on any box
+// where deployment forgot to set the var. Refuse to start instead — the
+// deployment is the single source of truth for which environment this host is.
 {
-    var envName = builder.Environment.EnvironmentName;
-    var machine = System.Environment.MachineName;
-    const string ProdMachine = "TSIC-PHOENIX";
-    var isProdMachine = string.Equals(machine, ProdMachine, StringComparison.OrdinalIgnoreCase);
-
-    var ok = envName switch
-    {
-        "Production" => isProdMachine,
-        "Staging" or "Development" => !isProdMachine,
-        "Testing" => true,
-        _ => false
-    };
-
-    if (!ok)
+    var rawEnv = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+    if (string.IsNullOrWhiteSpace(rawEnv))
     {
         throw new InvalidOperationException(
-            $"Environment/machine mismatch: ASPNETCORE_ENVIRONMENT='{envName}' but MachineName='{machine}'. "
-            + $"Production must run on '{ProdMachine}'; Staging/Development must NOT run on it.");
+            "ASPNETCORE_ENVIRONMENT must be set explicitly. Refusing to fall back to ASP.NET's default 'Production'.");
     }
 
-    Console.WriteLine($"[startup] env={envName} machine={machine}");
+    Console.WriteLine($"[startup] env={builder.Environment.EnvironmentName} machine={System.Environment.MachineName}");
 }
 
 // Add services to the container
@@ -704,7 +692,7 @@ builder.Host.UseSerilog();
 
     bootLog.Information(
         "[STARTUP-CONFIG] adn: defaultMode={Mode} sandboxLoginIdFp={SandboxFp} prodCredsSource=customer.AdnLoginId(per-job)",
-        hostEnv.IsDevelopment() ? "SANDBOX" : "PRODUCTION",
+        hostEnv.IsProduction() ? "PRODUCTION" : "SANDBOX",
         Fp4(cfg["AuthorizeNet:SandboxLoginId"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID")));
 
     var awsRegion = cfg["EmailSettings:AwsRegion"]

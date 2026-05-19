@@ -32,8 +32,8 @@ public class AdnApiService : IAdnApiService
 
     public AuthorizeNet.Environment GetADNEnvironment(bool bProdOnly = false)
     {
-        // Explicit environment gating: Development always sandbox unless caller forces production.
-        if (_env.IsDevelopment() && !bProdOnly)
+        // Sandbox unless the host's ASPNETCORE_ENVIRONMENT is Production (caller can force prod for sweeps).
+        if (!_env.IsProduction() && !bProdOnly)
         {
             return AuthorizeNet.Environment.SANDBOX;
         }
@@ -42,7 +42,7 @@ public class AdnApiService : IAdnApiService
 
     public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(Guid jobId, bool bProdOnly = false)
     {
-        var isSandbox = _env.IsDevelopment() && !bProdOnly;
+        var isSandbox = !_env.IsProduction() && !bProdOnly;
         if (isSandbox)
         {
             var (login, key) = ResolveCredentials();
@@ -62,7 +62,7 @@ public class AdnApiService : IAdnApiService
 
     public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(Guid customerId, bool bProdOnly = false)
     {
-        var isSandbox = _env.IsDevelopment() && !bProdOnly;
+        var isSandbox = !_env.IsProduction() && !bProdOnly;
         if (isSandbox)
         {
             var (login, key) = ResolveCredentials();
@@ -81,9 +81,16 @@ public class AdnApiService : IAdnApiService
 
     private (string login, string key) ResolveCredentials()
     {
-        // Priority: configuration (from user-secrets) -> environment variables -> fail fast
-        var login = _settings.SandboxLoginId ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID");
-        var key = _settings.SandboxTransactionKey ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY");
+        // Priority: configuration (from user-secrets, only loaded when env=Development) -> environment
+        // variables (set on the app pool for Staging/Production). Note: AdnSettings string props default
+        // to "" not null, so a null-coalesce (??) would short-circuit on the empty default and never
+        // reach the env-var fallback — must use IsNullOrWhiteSpace.
+        var login = !string.IsNullOrWhiteSpace(_settings.SandboxLoginId)
+            ? _settings.SandboxLoginId
+            : Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID");
+        var key = !string.IsNullOrWhiteSpace(_settings.SandboxTransactionKey)
+            ? _settings.SandboxTransactionKey
+            : Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY");
 
         if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(key))
         {

@@ -3,19 +3,13 @@ namespace TSIC.API.Extensions;
 /// <summary>
 /// Sandbox gate for external integrations that touch real money / PII / customer comms.
 /// Real Email (SES), real VerticalInsure, and the daily ADN sweep are permitted ONLY when
-/// the host is TSIC-PHOENIX AND ASPNETCORE_ENVIRONMENT is Production. Every other box —
-/// Staging, Development, CI — is sandboxed regardless of any single misconfiguration.
+/// ASPNETCORE_ENVIRONMENT is Production. Every other env name (Staging, Development,
+/// Testing, CI) is sandboxed. The deployment is responsible for setting the env var
+/// correctly on each host; Program.cs refuses to start if it is unset.
 /// </summary>
 public static class HostEnvironmentExtensions
 {
-    private const string LiveProductionMachineName = "TSIC-PHOENIX";
-
-    public static bool IsLiveProduction(this IHostEnvironment env) =>
-        env.IsProduction()
-        && string.Equals(
-            System.Environment.MachineName,
-            LiveProductionMachineName,
-            StringComparison.OrdinalIgnoreCase);
+    public static bool IsLiveProduction(this IHostEnvironment env) => env.IsProduction();
 
     public static bool IsSandbox(this IHostEnvironment env) => !env.IsLiveProduction();
 }
