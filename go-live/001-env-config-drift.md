@@ -135,6 +135,12 @@ Which `web.config.api*` does each deploy script actually push? `1-Build-And-Depl
 - Frontend `main.ts` emits one `[STARTUP-CONFIG]` line to `console.info` before `bootstrapApplication`: envName, host, apiUrl, staticsUrl, buildVersion.
 - Verification handle for both the JWT rotation and any future env-overlay change. Reviewable in `seq.teamsportsinfo.com` for staging+prod and browser console for dev.
 
+**Issue 7 — USLax has no sandbox endpoint (2026-05-19, closed as by-design)**
+
+User-confirmed intentional posture: every env hits the live USLax API. There is no USLax sandbox available, and dev/staging deliberately use prod USLax for verification testing. SANDBOX-RULE exception — USLax is treated like a read-mostly external service whose only credentials are prod.
+
+Mitigation in place: USLax credentials (CLIENT_ID, SECRET, USERNAME, PASSWORD) all live on pool env vars per box; the credentials themselves are real-prod regardless of `ASPNETCORE_ENVIRONMENT`. No app code conditionalizes the USLax endpoint. Documented exception, not a bug.
+
 **Issue 6 — per-machine secret inventory completed (2026-05-19, commit `a5411795`)**
 
 Extended the `[STARTUP-CONFIG]` boot block so every required secret produces a first-4-char fingerprint at startup. New/changed lines:
@@ -217,7 +223,6 @@ Pool env on TSIC-SEDONA's `dev-api` was changed from `Development` to `Staging` 
 ### Still open
 
 
-- **Issue 7 — USLax has no sandbox endpoint; staging will hit prod USLax if env vars set.** Untouched.
 - **Issue 8 — `appsettings.Production.json` is thin; base file is the dangerous-default surface.** Acceptable design but flagged.
 
 ### Verification log
@@ -315,7 +320,9 @@ Committed value (in git history forever) is now unused on every box. `[STARTUP-C
 
 **Issue 6 (per-machine secret inventory unverified) — CLOSED 2026-05-19.** Boot block extended to fingerprint every required credential. Verified across .204 and PHOENIX: 13 secrets each, all resolve. Inventory is durable — every boot re-prints it.
 
-Issues 7–8 remain open — see "Still open" section above.
+**Issue 7 (USLax has no sandbox endpoint) — CLOSED 2026-05-19 as by-design.** Intentional: every env hits live USLax. Documented SANDBOX-RULE exception.
+
+Issue 8 remains open — see "Still open" section above.
 
 ### Verification expectations per stage
 
