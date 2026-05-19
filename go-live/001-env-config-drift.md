@@ -135,6 +135,39 @@ Which `web.config.api*` does each deploy script actually push? `1-Build-And-Depl
 - Frontend `main.ts` emits one `[STARTUP-CONFIG]` line to `console.info` before `bootstrapApplication`: envName, host, apiUrl, staticsUrl, buildVersion.
 - Verification handle for both the JWT rotation and any future env-overlay change. Reviewable in `seq.teamsportsinfo.com` for staging+prod and browser console for dev.
 
+**Issue 6 — per-machine secret inventory completed (2026-05-19, commit `a5411795`)**
+
+Extended the `[STARTUP-CONFIG]` boot block so every required secret produces a first-4-char fingerprint at startup. New/changed lines:
+
+- `adn:` + `sandboxTransactionKeyFp`
+- `ses:` + `secretKeyFp`
+- `verticalInsure:` + `configSecretFp`
+- `usLax:` + `secretFp` + `usernameFp` + `password=set|unset` (password is set/unset only — minimal attack surface)
+- new `anthropic:` line — `model` + `apiKeyFp`
+- new `firebase:` line — `credentialFilePath` + `fileExists`
+
+Verified on both runtime boxes:
+
+| Secret | .204 (Staging) fp | PHOENIX (Prod) fp |
+|---|---|---|
+| jwt.signingKey | gNkV... | 70tf... |
+| adn.sandboxLoginId | 4dE5... | 4d5m... |
+| adn.sandboxTransactionKey | 6zmz... | 6Zmz... |
+| ses.accessKey | AKIA... | AKIA... |
+| ses.secretKey | 2guN... | 2guN... |
+| vi.configClientId | test... | live... |
+| vi.configSecret | test... | live... |
+| usLax.clientId | 9cc2... | 9cc2... |
+| usLax.secret | ac58... | ac58... |
+| usLax.username | team... | team... |
+| usLax.password | set | set |
+| anthropic.apiKey | sk-a... | sk-a... |
+| firebase.credentialFile | fileExists=true | fileExists=true |
+
+All required secrets resolve on both boxes. Every future boot re-prints this inventory — drift becomes visible in Seq seconds after a deploy.
+
+Side effect: cleaned up a stale `TSIC-PHOENIX` literal in the `isLive` computation that was missed in `ec3988b0`. Source no longer contains the machine name anywhere.
+
 **Issue 9 — env overlays moved into source; gitignore rule retired (2026-05-19)**
 
 The original gitignore was set when env overlays held secrets. After yesterday's JWT key rotation and this morning's gate cleanup, the three overlays (`Development`, `Staging`, `Production`) contain only topology: connection strings (trusted auth, no password), hostnames, file paths, feature toggles. No secrets remain.
@@ -184,7 +217,6 @@ Pool env on TSIC-SEDONA's `dev-api` was changed from `Development` to `Staging` 
 ### Still open
 
 
-- **Issue 6 — SES/ADN/VI/USLax credentials not in committed config; require per-machine env-var verification.** Now that `[STARTUP-CONFIG]` logs the first-4-char fingerprint of each, post-deploy log review will give us the per-machine inventory we couldn't get from source alone.
 - **Issue 7 — USLax has no sandbox endpoint; staging will hit prod USLax if env vars set.** Untouched.
 - **Issue 8 — `appsettings.Production.json` is thin; base file is the dangerous-default surface.** Acceptable design but flagged.
 
@@ -281,7 +313,9 @@ Committed value (in git history forever) is now unused on every box. `[STARTUP-C
 
 **Issue 9 (env overlays gitignored — no canonical recovery source) — CLOSED 2026-05-19.** Gitignore rules retired; `appsettings.{Development,Staging,Production}.json` committed to source. Secrets never lived in these files post-cleanup; remaining content is topology. `appsettings.Local.json` is the gitignored per-developer override. `CLAUDE.md` updated with the new config policy.
 
-Issues 6–8 remain open — see "Still open" section above.
+**Issue 6 (per-machine secret inventory unverified) — CLOSED 2026-05-19.** Boot block extended to fingerprint every required credential. Verified across .204 and PHOENIX: 13 secrets each, all resolve. Inventory is durable — every boot re-prints it.
+
+Issues 7–8 remain open — see "Still open" section above.
 
 ### Verification expectations per stage
 
