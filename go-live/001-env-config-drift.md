@@ -177,7 +177,45 @@ Verified:
 
 Caveat: the deploy went out on uncommitted working-directory edits. The build version stamp `f6506d1b` is the pre-edit master SHA. A commit is required before staging is treated as authoritative.
 
-**Production gate — pending publish**
+**Production gate — PASSED (2026-05-18, after `1-Build-And-Deploy-Prod.ps1` to TSIC-PHOENIX)**
+
+Verified:
+- Deploy shipped commit `c1ab9fc8` (this work). Build version stamp on the prod frontend confirmed: `v260518.1803.c1ab9fc8`.
+- All eleven `[STARTUP-CONFIG]` lines emitted to `seq.teamsportsinfo.com` on PHOENIX boot at 18:05:39 (23ms burst):
+  - `host: env=Production machine=TSIC-PHOENIX isLiveProduction=true`
+  - `db: server=.\SS2016 database=TSICV5`
+  - `jwt: issuer=TSIC.API audience=TSIC.Client signingKey=70tf...` **← rotation proof (matches prod key set on `claude-api` app-pool env var)**
+  - `adn: defaultMode=PRODUCTION sandboxLoginIdFp=4d5m...` — correct for prod (this is where ADN PRODUCTION is supposed to fire; staging instance of same value is the bug)
+  - `ses: sendGate=LIVE` — prod sends real email
+  - `verticalInsure: hardcodedClientIdGate=live_... configClientIdFp=live...` — prod uses live VI client ID
+  - `usLax: clientIdFp=9cc2...` — USLax creds resolved on PHOENIX
+  - `frontend: baseUrl=https://claude-app.teamsportsinfo.com`
+  - `seq: serverUrl=https://seq.teamsportsinfo.com`
+  - `cors: origins=[localhost:4200, *.teamsportsinfo.com, teamsportsinfo.com]`
+  - `adnSweep: enabled=True hourLocal=5` — prod 5 AM sweep enabled per `appsettings.Production.json`
+- Frontend `[STARTUP-CONFIG]` line on `ai.teamsportsinfo.com`: `env=production host=ai.teamsportsinfo.com apiUrl=https://claude-api.teamsportsinfo.com/api ... build=v260518.1803.c1ab9fc8`. Hostname is an additional customer-branded prod surface (CLAUDE.md mentions only `claude-app.teamsportsinfo.com`; doc update needed).
+- Login as `TSICSuperUser` on prod minted a valid HS256 accessToken (`iss=TSIC.API`, `aud=TSIC.Client`) — confirms the rotated prod key signs end-to-end on PHOENIX after pool recycle.
+
+### Investigation status
+
+**Headline finding — the original bruise (prod referencing dev endpoints, or dev referencing prod) is no longer present.** Each environment's `[STARTUP-CONFIG]` output today proved each is pointed at its own stack end-to-end:
+
+| Env | Machine | apiUrl | frontend | ses.sendGate | vi.clientIdGate | adnSweep |
+|---|---|---|---|---|---|---|
+| Dev | TSIC-SEDONA | `localhost:7215` | `localhost:4200` | sandbox | test_... | unset |
+| Staging | TSIC-SEDONA | `devapi.teamsportsinfo.com` | `dev.teamsportsinfo.com` | sandbox | test_... | False |
+| Production | TSIC-PHOENIX | `claude-api.teamsportsinfo.com` | `claude-app.teamsportsinfo.com` | LIVE | live_... | True @5:00 |
+
+No cross-stack references. No reused endpoints. And from this point forward, every boot emits this inventory to Seq (or browser console for dev), so any future misdeploy is visible within seconds rather than caught by humans after damage.
+
+**Issue 1 (JWT signing key committed in plaintext) — CLOSED.** Each env rotated to its own independent key:
+- Dev → `dotnet user-secrets` (fingerprint `PkuT...`)
+- Staging → `dev-api` app-pool env var on TSIC-SEDONA (fingerprint `gNkV...`)
+- Production → `claude-api` app-pool env var on TSIC-PHOENIX (fingerprint `70tf...`)
+
+Committed value (in git history forever) is now unused on every box. `[STARTUP-CONFIG] jwt:` log line is the ongoing verification handle.
+
+Issues 2–8 remain open — see "Still open" section above.
 
 ### Verification expectations per stage
 
