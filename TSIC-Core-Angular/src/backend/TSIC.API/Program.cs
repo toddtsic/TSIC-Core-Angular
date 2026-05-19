@@ -671,8 +671,7 @@ builder.Host.UseSerilog();
     var cfg = builder.Configuration;
     var hostEnv = builder.Environment;
     var machine = System.Environment.MachineName;
-    var isLive = hostEnv.IsProduction()
-        && string.Equals(machine, "TSIC-PHOENIX", StringComparison.OrdinalIgnoreCase);
+    var isLive = hostEnv.IsProduction();
     var bootLog = Log.ForContext("boot_audit", true);
 
     bootLog.Information(
@@ -691,9 +690,10 @@ builder.Host.UseSerilog();
         Fp4(cfg["JwtSettings:SecretKey"]));
 
     bootLog.Information(
-        "[STARTUP-CONFIG] adn: defaultMode={Mode} sandboxLoginIdFp={SandboxFp} prodCredsSource=customer.AdnLoginId(per-job)",
+        "[STARTUP-CONFIG] adn: defaultMode={Mode} sandboxLoginIdFp={SandboxFp} sandboxTransactionKeyFp={SandboxTxFp} prodCredsSource=customer.AdnLoginId(per-job)",
         hostEnv.IsProduction() ? "PRODUCTION" : "SANDBOX",
-        Fp4(cfg["AuthorizeNet:SandboxLoginId"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID")));
+        Fp4(cfg["AuthorizeNet:SandboxLoginId"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID")),
+        Fp4(cfg["AuthorizeNet:SandboxTransactionKey"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_TRANSACTIONKEY")));
 
     var awsRegion = cfg["EmailSettings:AwsRegion"]
                     ?? cfg["AWS:Region"]
@@ -701,9 +701,10 @@ builder.Host.UseSerilog();
                     ?? Environment.GetEnvironmentVariable("AWS_DEFAULT_REGION")
                     ?? "(default chain)";
     var awsAccessKey = cfg["AWS:AccessKey"] ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+    var awsSecretKey = cfg["AWS:SecretKey"] ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
     bootLog.Information(
-        "[STARTUP-CONFIG] ses: region={Region} fromDefault={From} accessKeyFp={KeyFp} sendGate={Gate}",
-        awsRegion, TsicConstants.SupportEmail, Fp4(awsAccessKey), isLive ? "LIVE" : "sandbox");
+        "[STARTUP-CONFIG] ses: region={Region} fromDefault={From} accessKeyFp={KeyFp} secretKeyFp={SecretFp} sendGate={Gate}",
+        awsRegion, TsicConstants.SupportEmail, Fp4(awsAccessKey), Fp4(awsSecretKey), isLive ? "LIVE" : "sandbox");
 
     var viBase = cfg["VerticalInsure:BaseUrl"]
                   ?? Environment.GetEnvironmentVariable("VI_BASE_URL")
@@ -711,17 +712,26 @@ builder.Host.UseSerilog();
     var viConfigClientId = isLive
         ? (cfg["VerticalInsure:ProdClientId"] ?? Environment.GetEnvironmentVariable("VI_PROD_CLIENT_ID"))
         : (cfg["VerticalInsure:DevClientId"] ?? Environment.GetEnvironmentVariable("VI_DEV_CLIENT_ID"));
+    var viConfigSecret = isLive
+        ? (cfg["VerticalInsure:ProdSecret"] ?? Environment.GetEnvironmentVariable("VI_PROD_SECRET"))
+        : (cfg["VerticalInsure:DevSecret"] ?? Environment.GetEnvironmentVariable("VI_DEV_SECRET"));
     bootLog.Information(
-        "[STARTUP-CONFIG] verticalInsure: baseUrl={BaseUrl} hardcodedClientIdGate={Gate} configClientIdFp={Fp}",
-        viBase, isLive ? "live_..." : "test_...", Fp4(viConfigClientId));
+        "[STARTUP-CONFIG] verticalInsure: baseUrl={BaseUrl} hardcodedClientIdGate={Gate} configClientIdFp={Fp} configSecretFp={SecretFp}",
+        viBase, isLive ? "live_..." : "test_...", Fp4(viConfigClientId), Fp4(viConfigSecret));
 
     var usLaxBase = cfg["UsLax:ApiBase"]
                      ?? Environment.GetEnvironmentVariable("USLAX_API_BASE")
                      ?? "https://api.usalacrosse.com/";
+    var usLaxSecret   = cfg["UsLax:Secret"]   ?? Environment.GetEnvironmentVariable("USLAX_SECRET");
+    var usLaxUsername = cfg["UsLax:Username"] ?? Environment.GetEnvironmentVariable("USLAX_USERNAME");
+    var usLaxPassword = cfg["UsLax:Password"] ?? Environment.GetEnvironmentVariable("USLAX_PASSWORD");
     bootLog.Information(
-        "[STARTUP-CONFIG] usLax: baseUrl={BaseUrl} clientIdFp={Fp}",
+        "[STARTUP-CONFIG] usLax: baseUrl={BaseUrl} clientIdFp={Fp} secretFp={SecretFp} usernameFp={UsernameFp} password={PwGate}",
         usLaxBase,
-        Fp4(cfg["UsLax:ClientId"] ?? Environment.GetEnvironmentVariable("USLAX_CLIENT_ID")));
+        Fp4(cfg["UsLax:ClientId"] ?? Environment.GetEnvironmentVariable("USLAX_CLIENT_ID")),
+        Fp4(usLaxSecret),
+        Fp4(usLaxUsername),
+        string.IsNullOrWhiteSpace(usLaxPassword) ? "unset" : "set");
 
     bootLog.Information(
         "[STARTUP-CONFIG] frontend: baseUrl={Url}",
@@ -738,6 +748,20 @@ builder.Host.UseSerilog();
         "[STARTUP-CONFIG] adnSweep: enabled={Enabled} hourLocal={Hour}",
         cfg["AdnSweep:Enabled"] ?? "(unset)",
         cfg["AdnSweep:SweepHourLocal"] ?? "(unset)");
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] anthropic: model={Model} apiKeyFp={Fp}",
+        cfg["Anthropic:Model"] ?? "(unset)",
+        Fp4(cfg["Anthropic:ApiKey"] ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")));
+
+    var firebaseRelPath = cfg["Firebase:CredentialFilePath"];
+    var firebaseAbsPath = string.IsNullOrWhiteSpace(firebaseRelPath)
+        ? null
+        : Path.Combine(AppContext.BaseDirectory, firebaseRelPath);
+    bootLog.Information(
+        "[STARTUP-CONFIG] firebase: credentialFilePath={Path} fileExists={Exists}",
+        firebaseRelPath ?? "(unset)",
+        firebaseAbsPath != null && File.Exists(firebaseAbsPath));
 }
 
 var app = builder.Build();
