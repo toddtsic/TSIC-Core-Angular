@@ -135,9 +135,19 @@ Which `web.config.api*` does each deploy script actually push? `1-Build-And-Depl
 - Frontend `main.ts` emits one `[STARTUP-CONFIG]` line to `console.info` before `bootstrapApplication`: envName, host, apiUrl, staticsUrl, buildVersion.
 - Verification handle for both the JWT rotation and any future env-overlay change. Reviewable in `seq.teamsportsinfo.com` for staging+prod and browser console for dev.
 
+**Issue 2 — ADN sandbox/prod gate corrected; pool env names normalized (2026-05-19, commit `ec3988b0`)**
+
+Three coupled changes in one commit:
+
+1. **`AdnApiService.cs` (3 sites: L33, L45, L65)** — gate switched from `_env.IsDevelopment()` to `!_env.IsProduction()`. With `_env.IsDevelopment()` the gate only caught the local vscode case; Staging silently fell through to PRODUCTION and pulled real customer ADN credentials. New gate sandboxes every non-Production env name.
+2. **`AdnApiService.cs:82-95` (`ResolveCredentials`)** — `??` operator replaced with explicit `IsNullOrWhiteSpace` checks. `AdnSettings` string properties default to `""` (not null), so `??` short-circuited on the empty default and the env-var fallback (`ADN_SANDBOX_LOGINID` / `_TRANSACTIONKEY`) was unreachable. When the pool flipped to Staging and `dotnet user-secrets` stopped auto-loading, the empty defaults stayed empty and `ResolveCredentials` threw a 500 on the first request. Bug existed in the original code; surfaced as a side effect of the env-name flip.
+3. **`HostEnvironmentExtensions.IsLiveProduction` and `Program.cs:72-86`** — both lost their `MachineName == "TSIC-PHOENIX"` clauses. The new `Program.cs` startup check refuses to start if `ASPNETCORE_ENVIRONMENT` is unset, so the env name is trustworthy as the single runtime source of truth. Machine identity is enforced once at provisioning, not at every gate. Source no longer contains the literal `TSIC-PHOENIX` anywhere.
+
+Pool env on TSIC-SEDONA's `dev-api` was changed from `Development` to `Staging` as part of this work — completes the env-model alignment (`appsettings.Staging.json` now loads, dev-only middleware off, etc.). Side effect to be aware of: `_env.IsDevelopment()` is now false on .204 IIS, so `DevRegistrationController`, `JobCloneController` debug endpoints (L235/L249), and the dev auth shortcuts in `AuthController` (L97/L155) no longer respond on .204 — they were only ever intended for local vscode, but they previously also served on .204. Decision per-site if any need to migrate to `!_env.IsProduction()`.
+
 ### Still open
 
-- **Issue 2 — ADN gateway gates on `_env.IsDevelopment()` instead of `_env.IsSandbox()`.** Untouched. Staging on .204 still hits ADN PRODUCTION. Next investigation.
+
 - **Issue 3 — Dead `Email:EnableSandboxMode` config in `appsettings.Development.json`.** Untouched. Either wire up or delete.
 - **Issue 4 — Two competing `web.config` deploy patterns in `scripts/`.** Need to read the deploy scripts to determine which one wins. Untouched.
 - **Issue 5 — No DB connection-string override; relies on each box having its own local `TSICV5` database.** Confirmed working pattern but worth flagging as dangerous-default.
@@ -177,6 +187,19 @@ Verified:
 
 Caveat: the deploy went out on uncommitted working-directory edits. The build version stamp `f6506d1b` is the pre-edit master SHA. A commit is required before staging is treated as authoritative.
 
+**Staging + Production re-verification — PASSED (2026-05-19, after `ec3988b0` deploy)**
+
+Verified on .204 (TSIC-SEDONA, `dev-api` pool now `Staging`):
+- `[STARTUP-CONFIG] host: env=Staging machine=TSIC-SEDONA isLiveProduction=false`
+- `[STARTUP-CONFIG] adn: defaultMode=SANDBOX` — **issue 2 fix proof**
+- End-to-end ADN sandbox charge: card `4242…` remapped to `4111…` by `MapSandboxTestCard`, posted to `apitest.authorize.net`, ADN sandbox approved with Auth Code `5NB4PP`, txn `120082914172`. Confirmed via receipt email from `noreply@mail.testauthorize.net` (sandbox sender — prod is `authorize.net`).
+
+Verified on PHOENIX (TSIC-PHOENIX, `claude-api` pool):
+- `[STARTUP-CONFIG] host: env=Production machine=TSIC-PHOENIX isLiveProduction=true`
+- `[STARTUP-CONFIG] adn: defaultMode=PRODUCTION ses: sendGate=LIVE verticalInsure: live_… adnSweep: enabled=True hourLocal=5` — unchanged from prior production posture.
+- Frontend build version stamp `v260519.1357.ec3988b0` matches the deployed commit hash; backend `env=Production` and frontend `env=production` are aligned.
+- No synthetic CC test on PHOENIX — natural production traffic exercises the same code path that staging verified.
+
 **Production gate — PASSED (2026-05-18, after `1-Build-And-Deploy-Prod.ps1` to TSIC-PHOENIX)**
 
 Verified:
@@ -215,7 +238,9 @@ No cross-stack references. No reused endpoints. And from this point forward, eve
 
 Committed value (in git history forever) is now unused on every box. `[STARTUP-CONFIG] jwt:` log line is the ongoing verification handle.
 
-Issues 2–8 remain open — see "Still open" section above.
+**Issue 2 (ADN gateway gated on `IsDevelopment()` — Staging hit ADN prod) — CLOSED 2026-05-19.** Gate corrected to `!_env.IsProduction()`; pool env on `dev-api` flipped to `Staging`; machine-name check removed from runtime gates and replaced with `ASPNETCORE_ENVIRONMENT must be set` startup assertion. End-to-end sandbox charge verified on .204 (txn `120082914172`, ADN sandbox receipt). PHOENIX behavior unchanged.
+
+Issues 3–8 remain open — see "Still open" section above.
 
 ### Verification expectations per stage
 
@@ -223,7 +248,7 @@ Issues 2–8 remain open — see "Still open" section above.
 |---|---|---|---|
 | `host.isLiveProduction` | False | False | True |
 | `jwt.signingKey` fingerprint | `PkuT...` | `gNkV...` | `70tf...` |
-| `adn.defaultMode` | SANDBOX | **PRODUCTION** (issue 2) | PRODUCTION |
+| `adn.defaultMode` | SANDBOX | SANDBOX (issue 2 closed 2026-05-19) | PRODUCTION |
 | `ses.sendGate` | sandbox | sandbox | LIVE |
 | `verticalInsure.hardcodedClientIdGate` | test_... | test_... | live_... |
 | `seq.serverUrl` | http://localhost:5341 | http://localhost:5341 (inherits base — see issue) | https://seq.teamsportsinfo.com |
