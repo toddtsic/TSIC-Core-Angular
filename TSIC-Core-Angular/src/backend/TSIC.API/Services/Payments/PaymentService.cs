@@ -1035,17 +1035,18 @@ public class PaymentService : IPaymentService
         var job = v.Job!;
         var registrations = v.Registrations!;
         var cc = v.Card!;
+        var effective = v.Effective;
         await NormalizeFeesAsync(registrations, jobId);
-        if (request.PaymentOption == PaymentOption.ARB)
+        if (effective == PaymentOption.ARB)
             return await ProcessArbAsync(jobId, familyUserId, internalRequest, userId, registrations, job, cc);
         // PIF chosen → re-stamp registrations with full amount (Deposit + BalanceDue)
         // before computing charges. Validation above already verified ALLOWPIF.
-        if (request.PaymentOption == PaymentOption.PIF)
+        if (effective == PaymentOption.PIF)
             await UpgradeRegistrationsToPifAsync(registrations, jobId);
-        var charges = await ComputeChargesAsync(registrations, request.PaymentOption);
+        var charges = await ComputeChargesAsync(registrations, effective);
         var total = charges.Values.Sum();
         if (total <= 0m) return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
-        return await ExecutePrimaryChargeAsync(jobId, familyUserId, internalRequest, userId, registrations, cc, charges, total);
+        return await ExecutePrimaryChargeAsync(jobId, familyUserId, internalRequest, userId, registrations, cc, charges, total, effective);
     }
 
     /// <summary>
@@ -1064,30 +1065,37 @@ public class PaymentService : IPaymentService
         if (v.Response != null) return v.Response;
         var registrations = v.Registrations!;
         var bank = v.Bank!;
+        var effective = v.Effective;
         await NormalizeFeesAsync(registrations, jobId);
-        if (request.PaymentOption == PaymentOption.PIF)
+        if (effective == PaymentOption.PIF)
             await UpgradeRegistrationsToPifAsync(registrations, jobId);
-        var charges = await ComputeChargesAsync(registrations, request.PaymentOption);
+        var charges = await ComputeChargesAsync(registrations, effective);
         var total = charges.Values.Sum();
         if (total <= 0m)
             return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
         return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges, total);
     }
 
-    private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, BankAccountInfo? Bank)> ValidateEcheckPaymentRequestAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
+    private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, BankAccountInfo? Bank, PaymentOption Effective)> ValidateEcheckPaymentRequestAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
     {
         var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId);
-        if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
-        if (!jobPaymentInfo.BEnableEcheck) return (Fail("eCheck payments are not enabled for this job.", "ECHECK_NOT_ENABLED"), null, null, null);
+        if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null, request.PaymentOption);
+        if (!jobPaymentInfo.BEnableEcheck) return (Fail("eCheck payments are not enabled for this job.", "ECHECK_NOT_ENABLED"), null, null, null, request.PaymentOption);
         var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate, jobPaymentInfo.AllowPif, jobPaymentInfo.BPlayersFullPaymentRequired, jobPaymentInfo.BEnableEcheck);
         var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(jobId, familyUserId, activePlayersOnly: true);
-        if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
-        if (request.PaymentOption == PaymentOption.PIF && !job.AllowPif && !job.BPlayersFullPaymentRequired) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null);
-        if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
+        if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null, request.PaymentOption);
+        // Team data is the authority on whether a deposit phase exists. When it doesn't,
+        // the request's PaymentOption.Deposit value is meaningless — coerce to PIF so
+        // ComputeChargesAsync runs against OwedTotal instead of team.deposit (=0). The
+        // PIF allow-gate is then only meaningful when there's a deposit alternative
+        // being bypassed; when no deposit exists, PIF is the only mode and ungated.
+        var hasDeposit = await IsDepositScenarioAsync(registrations);
+        var effective = (!hasDeposit && request.PaymentOption == PaymentOption.Deposit) ? PaymentOption.PIF : request.PaymentOption;
+        if (effective == PaymentOption.PIF && hasDeposit && !job.AllowPif && !job.BPlayersFullPaymentRequired) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null, effective);
         var bank = request.BankAccount;
         var (bankErr, bankCode) = NormalizeAndValidateBankAccount(bank);
-        if (bankErr != null) return (Fail(bankErr, bankCode!), null, null, null);
-        return (null, job, registrations, bank);
+        if (bankErr != null) return (Fail(bankErr, bankCode!), null, null, null, effective);
+        return (null, job, registrations, bank, effective);
     }
 
     /// <summary>
@@ -1226,34 +1234,38 @@ public class PaymentService : IPaymentService
     /// Internal validation method accepting jobId and familyUserId parameters directly.
     /// Used by the overload to avoid DTO field dependencies.
     /// </summary>
-    private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, CreditCardInfo? Card)> ValidatePaymentRequestInternalAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
+    private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, CreditCardInfo? Card, PaymentOption Effective)> ValidatePaymentRequestInternalAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
     {
-        if (request == null) return (Fail("Invalid request", "INVALID_REQUEST"), null, null, null);
+        if (request == null) return (Fail("Invalid request", "INVALID_REQUEST"), null, null, null, PaymentOption.PIF);
         var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId);
-        if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null);
+        if (jobPaymentInfo == null) return (Fail("Invalid job", "INVALID_JOB"), null, null, null, request.PaymentOption);
         var job = new JobInfo(jobPaymentInfo.AdnArb, jobPaymentInfo.AdnArbbillingOccurences, jobPaymentInfo.AdnArbintervalLength, jobPaymentInfo.AdnArbstartDate, jobPaymentInfo.AllowPif, jobPaymentInfo.BPlayersFullPaymentRequired, jobPaymentInfo.BEnableEcheck);
         var registrations = await _registrations.GetByJobAndFamilyWithUsersAsync(jobId, familyUserId, activePlayersOnly: true);
-        if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null);
-        // PIF allowed when ALLOWPIF token is set (parent-voluntary path) OR job is in
-        // full-payment phase (BPlayersFullPaymentRequired — every reg owes the full
-        // amount anyway, so PaymentOption.PIF is the natural checkout mode).
-        if (request.PaymentOption == PaymentOption.PIF && !job.AllowPif && !job.BPlayersFullPaymentRequired) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null);
-        if (request.PaymentOption == PaymentOption.ARB && job.AdnArb != true) return (Fail("Recurring billing (ARB) not enabled", "ARB_NOT_ENABLED"), null, null, null);
-        if (request.PaymentOption == PaymentOption.Deposit && !await IsDepositScenarioAsync(registrations)) return (Fail("Deposit not available", "DEPOSIT_NOT_AVAILABLE"), null, null, null);
+        if (!registrations.Any()) return (Fail("No registrations found", "NO_REGISTRATIONS"), null, null, null, request.PaymentOption);
+        // Team data is the authority on whether a deposit phase exists. When it doesn't,
+        // the request's PaymentOption.Deposit value is meaningless — coerce to PIF so
+        // ComputeChargesAsync runs against OwedTotal instead of team.deposit (=0). The
+        // PIF allow-gate (ALLOWPIF / BPlayersFullPaymentRequired) is then only meaningful
+        // when there's a deposit alternative being bypassed; when no deposit exists,
+        // PIF is the only mode and ungated.
+        var hasDeposit = await IsDepositScenarioAsync(registrations);
+        var effective = (!hasDeposit && request.PaymentOption == PaymentOption.Deposit) ? PaymentOption.PIF : request.PaymentOption;
+        if (effective == PaymentOption.PIF && hasDeposit && !job.AllowPif && !job.BPlayersFullPaymentRequired) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null, effective);
+        if (effective == PaymentOption.ARB && job.AdnArb != true) return (Fail("Recurring billing (ARB) not enabled", "ARB_NOT_ENABLED"), null, null, null, effective);
         var cc = request.CreditCard;
-        if (cc == null) return (Fail("Credit card required", "CARD_REQUIRED"), null, null, null);
+        if (cc == null) return (Fail("Credit card required", "CARD_REQUIRED"), null, null, null, effective);
         var fields = new (string Name, string? Value)[] { ("number", cc.Number), ("expiry", cc.Expiry), ("code", cc.Code), ("firstName", cc.FirstName), ("lastName", cc.LastName), ("address", cc.Address), ("zip", cc.Zip), ("email", cc.Email), ("phone", cc.Phone) };
         var missing = fields.Where(f => string.IsNullOrWhiteSpace(f.Value)).Select(f => f.Name).ToList();
-        if (missing.Count > 0) return (Fail("Missing card field(s): " + string.Join(", ", missing), "CARD_FIELDS_MISSING"), null, null, null);
+        if (missing.Count > 0) return (Fail("Missing card field(s): " + string.Join(", ", missing), "CARD_FIELDS_MISSING"), null, null, null, effective);
         cc.Expiry = new string((cc.Expiry ?? "").Where(char.IsDigit).ToArray());
-        if (cc.Expiry?.Length != 4) return (Fail("Invalid expiry format (expected MMYY)", "CARD_EXPIRY_INVALID"), null, null, null);
+        if (cc.Expiry?.Length != 4) return (Fail("Invalid expiry format (expected MMYY)", "CARD_EXPIRY_INVALID"), null, null, null, effective);
         // Sanitize phone to digits only
         cc.Phone = new string((cc.Phone ?? "").Where(char.IsDigit).ToArray());
-        if (string.IsNullOrWhiteSpace(cc.Phone)) return (Fail("Invalid phone (digits required)", "CARD_PHONE_INVALID"), null, null, null);
+        if (string.IsNullOrWhiteSpace(cc.Phone)) return (Fail("Invalid phone (digits required)", "CARD_PHONE_INVALID"), null, null, null, effective);
         // Basic email sanity check (contains '@' and '.')
         if (string.IsNullOrWhiteSpace(cc.Email) || !cc.Email.Contains('@') || !cc.Email.Contains('.'))
-            return (Fail("Invalid email format", "CARD_EMAIL_INVALID"), null, null, null);
-        return (null, job, registrations, cc);
+            return (Fail("Invalid email format", "CARD_EMAIL_INVALID"), null, null, null, effective);
+        return (null, job, registrations, cc, effective);
     }
 
     private async Task<PaymentResponseDto> ProcessArbAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, JobInfo job, CreditCardInfo cc)
@@ -1313,7 +1325,7 @@ public class PaymentService : IPaymentService
         return response;
     }
 
-    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total)
+    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total, PaymentOption effectiveOption)
     {
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
@@ -1351,7 +1363,7 @@ public class PaymentService : IPaymentService
         if (response.messages.resultCode == AuthorizeNet.Api.Contracts.V1.messageTypeEnum.Ok)
         {
             UpdateRegistrationsForCharge(registrations, userId, charges);
-            AddAccountingEntries(registrations, request.PaymentOption, userId, response.transactionResponse.transId, invoiceNumber, charges, Last4(cc.Number), FormatExpiry(cc.Expiry!));
+            AddAccountingEntries(registrations, effectiveOption, userId, response.transactionResponse.transId, invoiceNumber, charges, Last4(cc.Number), FormatExpiry(cc.Expiry!));
             if (request.ViConfirmed == true && !string.IsNullOrWhiteSpace(request.ViPolicyNumber))
             {
                 foreach (var reg in registrations.Where(r => string.IsNullOrWhiteSpace(r.RegsaverPolicyId)))
