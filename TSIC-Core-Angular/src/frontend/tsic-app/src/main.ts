@@ -6,6 +6,12 @@ import { environment } from './environments/environment';
 
 assertEnvironmentMatches(environment.envName, environment.apiUrl);
 
+// Mirrors backend [STARTUP-CONFIG] series — surfaces in the browser console so a
+// build can be visually confirmed pointed at the right env after deploy.
+console.info(
+  `[STARTUP-CONFIG] env=${environment.envName} host=${window.location.hostname} apiUrl=${environment.apiUrl} staticsUrl=${environment.staticsUrl} build=${environment.buildVersion}`
+);
+
 // Drives env-aware chrome (header tint + chip in client-header-bar). Set on <body>
 // so global SCSS in _elevated-components.scss can key off it without component scope.
 document.body.dataset['env'] = environment.envName;

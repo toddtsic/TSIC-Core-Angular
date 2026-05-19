@@ -653,18 +653,103 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// ── Startup config snapshot to Seq (verification handle for env-overlay refactor) ─
+// ── [STARTUP-CONFIG] audit to Seq. One LogInformation per category, all tagged
+// boot_audit=true for Seq filtering. Secrets log first-4-char fingerprint only;
+// full values never appear. Catastrophic-risk categories (db, jwt, adn, ses)
+// first so log scanners hit them before ancillary entries.
 {
-    var connStr = builder.Configuration.GetConnectionString("DefaultConnection") ?? "(none)";
-    var serverPart = connStr.Split(';')
-        .FirstOrDefault(p => p.TrimStart().StartsWith("Server=", StringComparison.OrdinalIgnoreCase))
-        ?.Trim() ?? "(no Server= in connection string)";
-    Log.Information(
-        "Startup snapshot: Env={EnvName} Machine={MachineName} DbServer={DbServer} Frontend={FrontendBaseUrl}",
-        builder.Environment.EnvironmentName,
-        System.Environment.MachineName,
-        serverPart,
-        builder.Configuration.GetSection("FrontendSettings")["BaseUrl"] ?? "(unset)");
+    static string Fp4(string? s)
+        => string.IsNullOrEmpty(s) ? "(unset)"
+         : s.Length >= 4 ? s.Substring(0, 4) + "..."
+         : "(short)";
+
+    static (string server, string db) ParseConnStr(string? cs)
+    {
+        if (string.IsNullOrWhiteSpace(cs)) return ("(none)", "(none)");
+        string server = "(none)", db = "(none)";
+        foreach (var raw in cs.Split(';'))
+        {
+            var p = raw.TrimStart();
+            if (p.StartsWith("Server=", StringComparison.OrdinalIgnoreCase))
+                server = p.Substring("Server=".Length).Trim();
+            else if (p.StartsWith("Database=", StringComparison.OrdinalIgnoreCase))
+                db = p.Substring("Database=".Length).Trim();
+            else if (p.StartsWith("Initial Catalog=", StringComparison.OrdinalIgnoreCase))
+                db = p.Substring("Initial Catalog=".Length).Trim();
+        }
+        return (server, db);
+    }
+
+    var cfg = builder.Configuration;
+    var hostEnv = builder.Environment;
+    var machine = System.Environment.MachineName;
+    var isLive = hostEnv.IsProduction()
+        && string.Equals(machine, "TSIC-PHOENIX", StringComparison.OrdinalIgnoreCase);
+    var bootLog = Log.ForContext("boot_audit", true);
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] host: env={Env} machine={Machine} isLiveProduction={IsLive}",
+        hostEnv.EnvironmentName, machine, isLive);
+
+    var (dbServer, dbName) = ParseConnStr(cfg.GetConnectionString("DefaultConnection"));
+    bootLog.Information(
+        "[STARTUP-CONFIG] db: server={Server} database={Database}",
+        dbServer, dbName);
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] jwt: issuer={Issuer} audience={Audience} signingKey={KeyFp}",
+        cfg["JwtSettings:Issuer"] ?? "(unset)",
+        cfg["JwtSettings:Audience"] ?? "(unset)",
+        Fp4(cfg["JwtSettings:SecretKey"]));
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] adn: defaultMode={Mode} sandboxLoginIdFp={SandboxFp} prodCredsSource=customer.AdnLoginId(per-job)",
+        hostEnv.IsDevelopment() ? "SANDBOX" : "PRODUCTION",
+        Fp4(cfg["AuthorizeNet:SandboxLoginId"] ?? Environment.GetEnvironmentVariable("ADN_SANDBOX_LOGINID")));
+
+    var awsRegion = cfg["EmailSettings:AwsRegion"]
+                    ?? cfg["AWS:Region"]
+                    ?? Environment.GetEnvironmentVariable("AWS_REGION")
+                    ?? Environment.GetEnvironmentVariable("AWS_DEFAULT_REGION")
+                    ?? "(default chain)";
+    var awsAccessKey = cfg["AWS:AccessKey"] ?? Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID");
+    bootLog.Information(
+        "[STARTUP-CONFIG] ses: region={Region} fromDefault={From} accessKeyFp={KeyFp} sendGate={Gate}",
+        awsRegion, TsicConstants.SupportEmail, Fp4(awsAccessKey), isLive ? "LIVE" : "sandbox");
+
+    var viBase = cfg["VerticalInsure:BaseUrl"]
+                  ?? Environment.GetEnvironmentVariable("VI_BASE_URL")
+                  ?? "https://api.verticalinsure.com";
+    var viConfigClientId = isLive
+        ? (cfg["VerticalInsure:ProdClientId"] ?? Environment.GetEnvironmentVariable("VI_PROD_CLIENT_ID"))
+        : (cfg["VerticalInsure:DevClientId"] ?? Environment.GetEnvironmentVariable("VI_DEV_CLIENT_ID"));
+    bootLog.Information(
+        "[STARTUP-CONFIG] verticalInsure: baseUrl={BaseUrl} hardcodedClientIdGate={Gate} configClientIdFp={Fp}",
+        viBase, isLive ? "live_..." : "test_...", Fp4(viConfigClientId));
+
+    var usLaxBase = cfg["UsLax:ApiBase"]
+                     ?? Environment.GetEnvironmentVariable("USLAX_API_BASE")
+                     ?? "https://api.usalacrosse.com/";
+    bootLog.Information(
+        "[STARTUP-CONFIG] usLax: baseUrl={BaseUrl} clientIdFp={Fp}",
+        usLaxBase,
+        Fp4(cfg["UsLax:ClientId"] ?? Environment.GetEnvironmentVariable("USLAX_CLIENT_ID")));
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] frontend: baseUrl={Url}",
+        cfg["FrontendSettings:BaseUrl"] ?? "(unset)");
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] seq: serverUrl={Url}",
+        cfg["Seq:ServerUrl"] ?? "http://localhost:5341");
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] cors: origins=[https://localhost:4200, https://*.teamsportsinfo.com, https://teamsportsinfo.com]");
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] adnSweep: enabled={Enabled} hourLocal={Hour}",
+        cfg["AdnSweep:Enabled"] ?? "(unset)",
+        cfg["AdnSweep:SweepHourLocal"] ?? "(unset)");
 }
 
 var app = builder.Build();
