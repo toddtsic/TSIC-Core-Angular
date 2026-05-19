@@ -30,8 +30,8 @@ public class LastMonthsJobStatsRepository : ILastMonthsJobStatsRepository
             select new LastMonthsJobStatRowDto
             {
                 Aid = mjs.Aid,
-                CustomerName = c.CustomerName,
-                JobName = j.JobName,
+                CustomerName = c.CustomerName ?? string.Empty,
+                JobName = j.JobName ?? string.Empty,
                 CountActivePlayersToDate = mjs.CountActivePlayersToDate ?? 0,
                 CountActivePlayersToDateLastMonth = mjs.CountActivePlayersToDateLastMonth ?? 0,
                 CountNewPlayersThisMonth = mjs.CountNewPlayersThisMonth ?? 0,

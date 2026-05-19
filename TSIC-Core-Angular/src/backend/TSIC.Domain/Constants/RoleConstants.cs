@@ -4,6 +4,7 @@ namespace TSIC.Domain.Constants
     {
         // Role IDs (GUIDs)
         public const string Anonymous = "CBF3F384-190F-4962-BF58-40B095628DC8";
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Security Hotspot", "S6418:Hard-coded secrets should be avoided", Justification = "Role identifier GUID, not a secret.")]
         public const string ApiAuthorized = "114C0272-57CD-4308-B653-79A43C547B63";
         public const string ClubRep = "6A26171F-4D94-4928-94FA-2FEFD42C3C3E";
         public const string Director = "FF4D1C27-F6DA-4745-98CC-D7E8121A5D06";

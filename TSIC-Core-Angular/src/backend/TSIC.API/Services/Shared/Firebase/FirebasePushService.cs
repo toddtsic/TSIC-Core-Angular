@@ -22,12 +22,19 @@ public class FirebasePushService : IFirebasePushService
         var credentialPath = configuration["Firebase:CredentialFilePath"]
             ?? throw new InvalidOperationException("Firebase:CredentialFilePath is not configured in appsettings.");
 
+        // GoogleCredential.FromFile is marked obsolete by Google.Apis.Auth in favor of
+        // the new CredentialFactory API. FirebaseAdmin.AppOptions.Credential still types
+        // as GoogleCredential, and FirebaseAdmin internally calls the same FromFile path,
+        // so the actual migration is a follow-up tied to FirebaseAdmin's API. Suppress
+        // the warning until then.
+#pragma warning disable CS0618
         var app = FirebaseApp.Create(new AppOptions
         {
             Credential = GoogleCredential
                 .FromFile(credentialPath)
                 .CreateScoped("https://www.googleapis.com/auth/firebase.messaging")
         });
+#pragma warning restore CS0618
 
         _messaging = FirebaseMessaging.GetMessaging(app);
     }

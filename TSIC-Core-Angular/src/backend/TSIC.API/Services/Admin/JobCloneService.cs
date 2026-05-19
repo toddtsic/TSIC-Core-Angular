@@ -229,10 +229,9 @@ public sealed class JobCloneService : IJobCloneService
             // the post-clone JWT re-mint (FE log-into-new-job flow).
             Guid? actorNewRegistrationId = null;
             var sourceRegs = await _repo.GetSourceAdminRegistrationsAsync(request.SourceJobId, ct);
-            List<Registrations> clonedRegs = [];
             if (sourceRegs.Count > 0)
             {
-                clonedRegs = CloneAdminRegistrations(sourceRegs, newJobId, superUserId, now);
+                var clonedRegs = CloneAdminRegistrations(sourceRegs, newJobId, superUserId, now);
                 _repo.AddRegistrations(clonedRegs);
                 summary.AdminRegistrationsCloned = clonedRegs.Count;
 

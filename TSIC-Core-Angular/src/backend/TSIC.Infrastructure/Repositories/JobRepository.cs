@@ -457,8 +457,8 @@ public class JobRepository : IJobRepository
                         && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
                         && (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
                         && (t.Expireondate == null || t.Expireondate >= now)
-                        && !t.Agegroup.AgegroupName.StartsWith("Dropped")
-                        && !t.Agegroup.AgegroupName.StartsWith("Waitlist")),
+                        && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
+                        && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist")),
                     PlayerRegRequiresToken = j.BplayerRegRequiresToken == true,
                     // Team reg only meaningful for Tournament (2) and League (3) job types
                     TeamRegistrationOpen = j.BRegistrationAllowTeam == true

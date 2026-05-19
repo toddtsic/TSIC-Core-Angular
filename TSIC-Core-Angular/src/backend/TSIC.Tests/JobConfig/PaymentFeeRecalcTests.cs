@@ -96,19 +96,6 @@ public class PaymentFeeRecalcTests
         _out.WriteLine("");
     }
 
-    // ── Snapshot helper — captures team state before EF tracking mutates it ──
-
-    private static List<Teams> Snapshot(List<Teams> teams) =>
-        teams.Select(t => new Teams
-        {
-            TeamId = t.TeamId,
-            TeamName = t.TeamName,
-            FeeBase = t.FeeBase,
-            FeeProcessing = t.FeeProcessing,
-            FeeTotal = t.FeeTotal,
-            PaidTotal = t.PaidTotal,
-            OwedTotal = t.OwedTotal,
-        }).ToList();
 
     // ── Service Factory ─────────────────────────────────────────────
 

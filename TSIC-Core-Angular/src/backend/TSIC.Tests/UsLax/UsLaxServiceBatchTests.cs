@@ -53,7 +53,7 @@ public class UsLaxServiceBatchTests
 
         // "123456" pads to "000000123456"; "0000000123456" is 13 digits, fails the regex.
         sut.FetchCalls.Should().HaveCount(1);
-        sut.FetchCalls[0].Should().BeEquivalentTo(new[] { "000000123456" });
+        sut.FetchCalls[0].Should().BeEquivalentTo("000000123456");
     }
 
     [Fact]
@@ -72,7 +72,7 @@ public class UsLaxServiceBatchTests
         var result = await sut.GetMembersAsync(new[] { "123456", "0000123456" });
 
         sut.FetchCalls.Should().HaveCount(1);
-        sut.FetchCalls[0].Should().BeEquivalentTo(new[] { "000000123456" });
+        sut.FetchCalls[0].Should().BeEquivalentTo("000000123456");
         result.Should().HaveCount(2);
         result["123456"].StatusCode.Should().Be(200);
         result["0000123456"].StatusCode.Should().Be(200);
@@ -118,7 +118,7 @@ public class UsLaxServiceBatchTests
         await sut.GetMembersAsync(new[] { "111111", "222222", "333333" });
 
         sut.FetchCalls.Should().HaveCount(1);
-        sut.FetchCalls[0].Should().BeEquivalentTo(new[] { "000000222222", "000000333333" });
+        sut.FetchCalls[0].Should().BeEquivalentTo("000000222222", "000000333333");
     }
 
     [Fact]

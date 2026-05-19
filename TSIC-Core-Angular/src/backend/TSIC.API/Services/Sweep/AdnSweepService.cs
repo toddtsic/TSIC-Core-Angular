@@ -738,9 +738,10 @@ public sealed class AdnSweepService : IAdnSweepService
         List<EcheckReturnDigestRow> ecRows,
         Counts counts)
     {
-        var envType = "PROD";
 #if DEBUG
-        envType = "DEV";
+        var envType = "DEV";
+#else
+        var envType = "PROD";
 #endif
         var sb = new StringBuilder();
         sb.Append($"<h3 style='margin-bottom:4px;'>ADN Sweep ({envType}, TSIC) — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");

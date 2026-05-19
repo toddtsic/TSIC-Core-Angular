@@ -51,7 +51,6 @@ public sealed class AdnSweepBackgroundService : BackgroundService
 
 #if DEBUG
         _logger.LogInformation("AdnSweepBackgroundService idle in DEBUG (use POST /api/admin/adn-sweep/run for manual trigger).");
-        return;
 #else
         _logger.LogInformation("AdnSweepBackgroundService starting; daily run at hour {Hour} local",
             _options.SweepHourLocal);
@@ -81,13 +80,14 @@ public sealed class AdnSweepBackgroundService : BackgroundService
                 // await RunOnceAsync(stoppingToken, customerOverride: TripleThreatCustomerId);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            _logger.LogInformation("AdnSweepBackgroundService stopping.");
+            _logger.LogInformation(ex, "AdnSweepBackgroundService stopping.");
         }
 #endif
     }
 
+#if !DEBUG
     private async Task RunOnceAsync(CancellationToken ct)
     {
         try
@@ -104,4 +104,5 @@ public sealed class AdnSweepBackgroundService : BackgroundService
             _logger.LogError(ex, "Sweep tick threw; will retry on next 24h tick");
         }
     }
+#endif
 }

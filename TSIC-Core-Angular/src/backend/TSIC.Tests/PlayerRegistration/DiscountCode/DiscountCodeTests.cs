@@ -114,7 +114,7 @@ public class DiscountCodeTests
         return (controller, ctx, builder);
     }
 
-    private static JobDiscountCodes AddDiscountCode(
+    private static void AddDiscountCode(
         SqlDbContext ctx,
         decimal codeAmount,
         bool bAsPercent = false,
@@ -135,7 +135,6 @@ public class DiscountCodeTests
             Modified = DateTime.UtcNow
         };
         ctx.JobDiscountCodes.Add(code);
-        return code;
     }
 
     private static Registrations AddRegistration(

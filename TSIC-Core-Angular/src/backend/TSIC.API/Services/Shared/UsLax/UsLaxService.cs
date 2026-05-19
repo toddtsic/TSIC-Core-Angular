@@ -289,8 +289,6 @@ public class UsLaxService : IUsLaxService
     protected IReadOnlyDictionary<string, UsLaxMemberPingResult> ParseBatchResponse(
         string body, IReadOnlyList<string> paddedIds)
     {
-        var results = new Dictionary<string, UsLaxMemberPingResult>(paddedIds.Count, StringComparer.Ordinal);
-
         JsonDocument doc;
         try
         {

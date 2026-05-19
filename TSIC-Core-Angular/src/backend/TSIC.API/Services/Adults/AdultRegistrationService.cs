@@ -856,7 +856,7 @@ public class AdultRegistrationService : IAdultRegistrationService
 
             foreach (var tid in teamIdsCoaching.Distinct())
             {
-                if (!teamById.TryGetValue(tid, out var team))
+                if (!teamById.ContainsKey(tid))
                 {
                     throw new InvalidOperationException($"Team {tid} is not registered for this event.");
                 }
@@ -1125,15 +1125,6 @@ public class AdultRegistrationService : IAdultRegistrationService
         }
     }
 
-    private static string ResolveRoleId(AdultRoleType roleType) => roleType switch
-    {
-        AdultRoleType.UnassignedAdult => RoleConstants.UnassignedAdult,
-        AdultRoleType.Referee => RoleConstants.Referee,
-        AdultRoleType.Recruiter => RoleConstants.Recruiter,
-        AdultRoleType.Staff => RoleConstants.Staff,
-        _ => throw new ArgumentOutOfRangeException(nameof(roleType), $"Unsupported role type: {roleType}")
-    };
-
     private static AdultRoleType ResolveRoleTypeFromId(string? roleId) => roleId switch
     {
         RoleConstants.UnassignedAdult => AdultRoleType.UnassignedAdult,
@@ -1155,20 +1146,6 @@ public class AdultRegistrationService : IAdultRegistrationService
         AdultRoleType.Referee => "Referee",
         AdultRoleType.Recruiter => "Recruiter",
         _ => "UnassignedAdult"
-    };
-
-    /// <summary>
-    /// URL role key ("coach", "referee", "recruiter") from the resolved AdultRoleType.
-    /// Inverse of <see cref="ResolveAdultRole"/>'s key input. Used when legacy callers
-    /// pass only the numeric RoleType and we need to re-derive the key.
-    /// </summary>
-    private static string GetUrlRoleKey(AdultRoleType roleType) => roleType switch
-    {
-        AdultRoleType.UnassignedAdult => AdultRegRoleKeys.Coach,
-        AdultRoleType.Staff => AdultRegRoleKeys.Coach,
-        AdultRoleType.Referee => AdultRegRoleKeys.Referee,
-        AdultRoleType.Recruiter => AdultRegRoleKeys.Recruiter,
-        _ => AdultRegRoleKeys.Coach
     };
 
     private static string GetRoleDisplayName(AdultRoleType roleType) => roleType switch

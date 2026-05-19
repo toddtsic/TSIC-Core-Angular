@@ -149,7 +149,7 @@ public class PlayerRosterCapacityTests
     public async Task Reserve_TeamHasRoom_CreatesRegistration()
     {
         // Arrange — team allows 10 players, currently has 9
-        var (svc, regRepo, teamRepo, placement, _) = CreateService();
+        var (svc, regRepo, teamRepo, _, _) = CreateService();
         var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 9);
 
         // Act

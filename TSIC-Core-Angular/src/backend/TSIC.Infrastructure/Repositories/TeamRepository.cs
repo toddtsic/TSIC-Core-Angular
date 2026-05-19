@@ -126,8 +126,8 @@ public class TeamRepository : ITeamRepository
             .Where(t => (t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
             .Where(t => (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
                         && (t.Expireondate == null || t.Expireondate >= now))
-            .Where(t => !t.Agegroup.AgegroupName.StartsWith("Dropped")
-                        && !t.Agegroup.AgegroupName.StartsWith("Waitlist"))
+            .Where(t => !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
+                        && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist"))
             .Select(t => new AvailableTeamQueryResult
             {
                 TeamId = t.TeamId,
@@ -142,7 +142,7 @@ public class TeamRepository : ITeamRepository
                 StartDate = t.Startdate,
                 EndDate = t.Enddate,
                 PerRegistrantFee = t.PerRegistrantFee,
-                ClubName = t.ClubrepRegistrationid != null ? t.ClubrepRegistration.ClubName : null
+                ClubName = t.ClubrepRegistrationid != null ? t.ClubrepRegistration!.ClubName : null
             })
             .ToListAsync(cancellationToken);
     }

@@ -139,7 +139,7 @@ public class EcheckTeamPaymentServiceTests
         var t2 = Team(jobId, owed: 200m, teamAi: 2, name: "U12 Blue");
         StubJobAndCreds(regId, jobId);
         StubTeams(jobId, [t1.TeamId, t2.TeamId], t1, t2);
-        StubAdnSuccess(transIds: ["TX-T1", "TX-T2"]);
+        StubAdnSuccess(null, "TX-T1", "TX-T2");
         var sut = BuildSut();
 
         var result = await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 400m, ValidBank());
@@ -149,11 +149,11 @@ public class EcheckTeamPaymentServiceTests
         _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 200m)), Times.Exactly(2));
         _addedAccounting.Should().HaveCount(2);
         _addedAccounting.Should().OnlyContain(r => r.PaymentMethodId == EcheckMethodId);
-        _addedAccounting.Select(r => r.AdnTransactionId).Should().BeEquivalentTo(["TX-T1", "TX-T2"]);
+        _addedAccounting.Select(r => r.AdnTransactionId).Should().BeEquivalentTo("TX-T1", "TX-T2");
         _addedAccounting.Select(r => r.TeamId).Should().BeEquivalentTo(new Guid?[] { t1.TeamId, t2.TeamId });
         _addedSettlements.Should().HaveCount(2);
         _addedSettlements.Should().OnlyContain(s => s.Status == "Pending");
-        _addedSettlements.Select(s => s.AdnTransactionId).Should().BeEquivalentTo(["TX-T1", "TX-T2"]);
+        _addedSettlements.Select(s => s.AdnTransactionId).Should().BeEquivalentTo("TX-T1", "TX-T2");
         // Club rep aggregate sync runs once for the whole batch
         _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(regId, ActingUserId, It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -230,7 +230,7 @@ public class EcheckTeamPaymentServiceTests
         var t2 = Team(jobId, owed: 200m, teamAi: 2);
         StubJobAndCreds(regId, jobId);
         StubTeams(jobId, [t1.TeamId, t2.TeamId], t1, t2);
-        StubAdnSuccess(transIds: ["TX-T1", "TX-T2"]);
+        StubAdnSuccess(null, "TX-T1", "TX-T2");
         var sut = BuildSut();
 
         await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 400m, ValidBank());

@@ -72,10 +72,14 @@ public class AdnReconciliationService : IAdnReconciliationService
         // Look-back includes the day before to catch settlements that crossed midnight.
         var lookBackStart = startDate.AddDays(-1);
 
+        var loginId = creds.AdnLoginId
+            ?? throw new InvalidOperationException("TSIC master Authorize.Net AdnLoginId is null.");
+        var transactionKey = creds.AdnTransactionKey
+            ?? throw new InvalidOperationException("TSIC master Authorize.Net AdnTransactionKey is null.");
         var batchResponse = _adnApi.GetSettleBatchList_FromDateRange(
             env: env,
-            adnLoginId: creds.AdnLoginId,
-            adnTransactionKey: creds.AdnTransactionKey,
+            adnLoginId: loginId,
+            adnTransactionKey: transactionKey,
             firstSettlementDate: lookBackStart,
             lastSettlementDate: endDate,
             includeStatistics: true);

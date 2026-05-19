@@ -10,7 +10,6 @@ using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
-using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;
 
 namespace TSIC.Tests.TeamRegistration.MaxTeamsPerClub;
@@ -226,7 +225,7 @@ public class MaxTeamsPerClubTests
     public async Task Register_AtClubLimit_ReturnsFailure()
     {
         // Arrange — club already has 3 teams, limit is 3
-        var (svc, teamRepo, placement, _) = CreateService(maxTeamsPerClub: 3, currentClubTeamCount: 3);
+        var (svc, _, placement, _) = CreateService(maxTeamsPerClub: 3, currentClubTeamCount: 3);
 
         // Act
         var result = await svc.RegisterTeamForEventAsync(MakeRequest(), TestRegId, TestUserId);
@@ -248,7 +247,7 @@ public class MaxTeamsPerClubTests
     public async Task Register_MaxTeamsPerClubZero_SkipsCheck()
     {
         // Arrange — no per-club limit (0 = unlimited), even with 100 teams
-        var (svc, teamRepo, placement, _) = CreateService(maxTeamsPerClub: 0, currentClubTeamCount: 100);
+        var (svc, teamRepo, _, _) = CreateService(maxTeamsPerClub: 0, currentClubTeamCount: 100);
 
         // Act
         var result = await svc.RegisterTeamForEventAsync(MakeRequest(), TestRegId, TestUserId);

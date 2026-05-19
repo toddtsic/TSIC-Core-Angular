@@ -326,7 +326,7 @@ public class AdnSweepServiceTests
         _regRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("777", It.IsAny<CancellationToken>()))
             .ReturnsAsync(reg);
 
-        var result = await BuildSut().RunAsync("Test");
+        await BuildSut().RunAsync("Test");
 
         _arbRepo.Verify(a => a.UpdateSubscriptionStatusAsync(
             reg.RegistrationId, "canceled", It.IsAny<CancellationToken>()), Times.Once);

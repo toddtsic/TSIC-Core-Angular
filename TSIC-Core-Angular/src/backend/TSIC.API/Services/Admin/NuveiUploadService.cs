@@ -239,6 +239,10 @@ public class NuveiUploadService : INuveiUploadService
         Errors = [error],
     };
 
+    // CSV row DTOs — properties are populated by CsvHelper via reflection, which the
+    // analyzer can't see. Suppress the false-positive unassigned/unused warnings.
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S3459:Unassigned members should be removed", Justification = "Populated via CsvHelper reflection.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "Populated via CsvHelper reflection.")]
     private sealed class NuveiFundingCsvRow
     {
         public string FundingEvent { get; set; } = string.Empty;
@@ -248,6 +252,8 @@ public class NuveiUploadService : INuveiUploadService
         public DateTime FundingDate { get; set; }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S3459:Unassigned members should be removed", Justification = "Populated via CsvHelper reflection.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Major Code Smell", "S1144:Unused private types or members should be removed", Justification = "Populated via CsvHelper reflection.")]
     private sealed class NuveiBatchCsvRow
     {
         public DateTime BatchCloseDate { get; set; }

@@ -845,7 +845,7 @@ public class PaymentService : IPaymentService
                 break;
             }
 
-            var transId = adnResponse!.transactionResponse.transId;
+            var transId = adnResponse!.transactionResponse!.transId;
 
             // Optimistic credit at submit (mirrors ProcessTeamEcheckPaymentAsync): for
             // eCheck the actual settlement clears days later but the rep's UI shows the

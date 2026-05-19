@@ -116,7 +116,7 @@ public class BatchEmailRoutingTests
 
         response.Sent.Should().Be(1);
         sent.Should().HaveCount(1);
-        sent[0].ToAddresses.Should().BeEquivalentTo(new[] { "mom@test.com", "dad@test.com", "kid@test.com" });
+        sent[0].ToAddresses.Should().BeEquivalentTo("mom@test.com", "dad@test.com", "kid@test.com");
     }
 
     [Fact(DisplayName = "Player with only mom email → ToAddresses = [mom]")]

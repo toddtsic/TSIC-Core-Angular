@@ -1,3 +1,5 @@
+using System.Collections.Frozen;
+
 namespace TSIC.Domain.Constants;
 
 /// <summary>
@@ -29,13 +31,13 @@ public static class AdultRegRoleKeys
     public const string Unassigned = "unassigned";
 
     /// <summary>Case-insensitive allowlist of recognized role keys.</summary>
-    public static readonly HashSet<string> All = new(StringComparer.OrdinalIgnoreCase)
+    public static readonly FrozenSet<string> All = new[]
     {
         Coach,
         Referee,
         Recruiter,
         Unassigned,
-    };
+    }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Returns true if the given key is a recognized adult registration role.</summary>
     public static bool IsValid(string? key) =>
