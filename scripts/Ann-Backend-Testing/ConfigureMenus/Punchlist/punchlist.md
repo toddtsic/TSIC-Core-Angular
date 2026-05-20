@@ -38,6 +38,16 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 ## Punch List Items
 
+### PL-070: Configure / Payment — checking "Team Full Payment Required" throws exception; Save spins forever
+- **Refs**: Recent commit `dc6d5f80` feat(job-config): gate Full-Payment-Required + ARB-Trial when ARB owns the schedule
+- **Area**: Job Settings → Configure / Payment tab
+- **What I did**: On LBTS Summer 2027, opened Configure / Payment and toggled "Team Full Payment Required" on, then clicked Save
+- **What I expected**: Save to succeed and the checkbox state to persist
+- **What happened**: Error: "Exception has occurred." Save button continues to spin indefinitely — never resolves. User has no way to recover except reload.
+- **Severity**: Bug
+- **Status**: Open
+- **Note**: Likely tied to the recent ARB-ownership gating logic. Capture browser console + network response when reproducing — backend exception details and the gating predicate (does LBTS Summer 2027 have ARB owning the schedule?) will pinpoint whether the gate is throwing instead of cleanly preventing the toggle, or whether this is unrelated to the gate. Either way the spinner needs to stop on error.
+
 ### PL-069: Job Settings / Mobile — confirm Store Contact Email is single-recipient; rename + tip if multi
 - **Refs**: PL-049/PL-050 (Comms tab CC/BCC/Reschedule/Always-Copy email list pattern with `(semi-colon between emails, no spaces)` tip)
 - **Area**: Menu Display / Job Settings → Mobile & Store tab → Store Settings

@@ -566,3 +566,11 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Status**: Open
 - **Note**: Mirror the Clone Team stack — `LadtService.CloneTeamAsync` / `LadtController` / `CloneTeamRequest` DTO / `ladt.service.ts` / `team-detail.component.ts` — for age groups. Clone must deep-copy: the age group record, all divisions under it, all teams under those divisions, and **all fees** (apply the SP-018 audit up front so AgeGroup clone ships with full feature parity rather than repeating the fees miss). Surface entry points symmetric with Clone Team: row-level clone on the AgeGroup row plus a "Clone AgeGroup" button in the AgeGroup table header area, so job creation stays fast. Confirm naming/suffix convention with Todd (e.g., "(Copy)") and whether cloned teams should start Active or Inactive.
 
+### SP-022: Bring back the agegroup table on the right when LADT/Editor is selected
+- **Area**: Tree Navigation
+- **What I did**: Selected LADT / Editor
+- **What I expected**: The agegroup table to appear on the right side, the way it used to — very helpful as an overview landing view
+- **What happened**: The agegroup table no longer appears on the right when LADT/Editor is selected. Add this feature back.
+- **Severity**: UX
+- **Status**: Open
+

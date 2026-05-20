@@ -58,7 +58,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Navigate to the home screen for that job
 - **What happened**: Doesn't bring me to the job home screen
 - **Severity**: UX
-- **Status**: Future — header bar chrome, not player registration specific
+- **Status**: Fixed
 
 ### PL-003: Navigation for new families — bulletins/text need work
 - **Area**: Family Account Setup
