@@ -268,70 +268,67 @@ public class JobCloneServiceTests
     // Processing fee resolution
     // ══════════════════════════════════════════════════════════
 
+    // The clone carries the source job's stored rate forward, floored at the current
+    // new-job rate (CC 3.8 / eCheck 1.5). The request's fee-choice fields are not consulted.
+
     [Fact]
-    public async Task ProcessingFeeChoice_Current_ResetsToFloor()
+    public async Task ProcessingFee_SourceAboveFloor_CarriedForward()
     {
         var (svc, ctx) = BuildService();
         var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: 3.9m);
 
-        var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, processingFeeChoice: "current"), SuperUserId);
-
-        var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
-        newJob.ProcessingFeePercent.Should().Be(3.5m); // FeeConstants.MinProcessingFeePercent
-    }
-
-    [Fact]
-    public async Task ProcessingFeeChoice_Source_CopiesSourceRate()
-    {
-        var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: 3.9m);
-
-        var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, processingFeeChoice: "source"), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.ProcessingFeePercent.Should().Be(3.9m);
     }
 
     [Fact]
-    public async Task ProcessingFeeChoice_Custom_AppliesCustomValue()
+    public async Task ProcessingFee_SourceBelowFloor_RaisedToNewJobRate()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: 3.9m);
+        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: 3.5m);
 
-        var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, processingFeeChoice: "custom", customCcFee: 3.7m), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
-        newJob.ProcessingFeePercent.Should().Be(3.7m);
+        newJob.ProcessingFeePercent.Should().Be(3.8m); // FeeConstants.NewJobProcessingFeePercent
     }
 
     [Fact]
-    public async Task EcheckProcessingFee_Source_CopiesSourceRate()
+    public async Task ProcessingFee_SourceNull_UsesNewJobRate()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, processingFeePercent: null);
+
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+
+        var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
+        newJob.ProcessingFeePercent.Should().Be(3.8m); // FeeConstants.NewJobProcessingFeePercent
+    }
+
+    [Fact]
+    public async Task EcheckProcessingFee_SourceAboveFloor_CarriedForward()
     {
         var (svc, ctx) = BuildService();
         var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, ecprocessingFeePercent: 1.85m);
 
-        var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, echeckProcessingFeeChoice: "source"), SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
         newJob.EcprocessingFeePercent.Should().Be(1.85m);
     }
 
     [Fact]
-    public async Task EcheckProcessingFee_Custom_AppliesCustomValue()
+    public async Task EcheckProcessingFee_SourceNull_UsesNewJobRate()
     {
         var (svc, ctx) = BuildService();
-        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
+        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, ecprocessingFeePercent: null);
 
-        var resp = await svc.CloneJobAsync(
-            BaseRequest(jobId, echeckProcessingFeeChoice: "custom", customEcheckFee: 1.75m),
-            SuperUserId);
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
 
         var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
-        newJob.EcprocessingFeePercent.Should().Be(1.75m);
+        newJob.EcprocessingFeePercent.Should().Be(1.5m); // FeeConstants.NewJobEcprocessingFeePercent
     }
 
     // ══════════════════════════════════════════════════════════
@@ -671,7 +668,7 @@ public class JobCloneServiceTests
         preview.SourceEcheckProcessingFeePercent.Should().Be(1.95m);
         preview.SourceBEnableEcheck.Should().BeTrue();
         preview.SourceBEnableStore.Should().BeTrue();
-        preview.CurrentProcessingFeePercent.Should().Be(3.5m);
+        preview.CurrentProcessingFeePercent.Should().Be(3.8m); // FeeConstants.NewJobProcessingFeePercent
         preview.CurrentEcheckProcessingFeePercent.Should().Be(1.5m);
     }
 }

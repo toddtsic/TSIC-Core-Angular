@@ -16,6 +16,13 @@ public static class FeeConstants
     public const decimal MaxProcessingFeePercent = 4.0m;
 
     /// <summary>
+    /// Current CC processing rate applied to newly created and cloned jobs (3.8 = 3.8%).
+    /// Distinct from <see cref="MinProcessingFeePercent"/> (3.5): existing jobs keep the
+    /// rate they began at; only new/cloned jobs start at this current rate.
+    /// </summary>
+    public const decimal NewJobProcessingFeePercent = 3.8m;
+
+    /// <summary>
     /// Minimum eCheck processing fee rate stored as percentage (1.5 = 1.5%).
     /// Jobs can only override upward.
     /// </summary>
@@ -25,6 +32,12 @@ public static class FeeConstants
     /// Maximum eCheck processing fee rate. Safety ceiling.
     /// </summary>
     public const decimal MaxEcprocessingFeePercent = 2.0m;
+
+    /// <summary>
+    /// Current eCheck processing rate applied to newly created and cloned jobs (1.5 = 1.5%).
+    /// eCheck counterpart of <see cref="NewJobProcessingFeePercent"/>.
+    /// </summary>
+    public const decimal NewJobEcprocessingFeePercent = 1.5m;
 
     // Modifier types stored in fees.FeeModifiers.ModifierType
     public const string ModifierEarlyBird = "EarlyBird";

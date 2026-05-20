@@ -99,22 +99,6 @@ public sealed class JobCloneService : IJobCloneService
         }
     }
 
-    /// <summary>
-    /// Resolves a fee-choice triple (choice / custom / source) into a final percent value,
-    /// clamped to [min, max]. Used for both CC and eCheck rates.
-    /// </summary>
-    private static decimal ResolveProcessingFeePercent(
-        string choice, decimal? custom, decimal? sourcePercent, decimal min, decimal max)
-    {
-        decimal raw = choice.ToLowerInvariant() switch
-        {
-            "source" => sourcePercent ?? min,
-            "custom" => custom ?? min, // ValidateChoices already enforced the range
-            _ => min, // "current"
-        };
-        return Math.Clamp(raw, min, max);
-    }
-
     public async Task<JobCloneResponse> CloneJobAsync(
         JobCloneRequest request,
         string superUserId,
@@ -567,8 +551,8 @@ public sealed class JobCloneService : IJobCloneService
             BClubRepAllowEdit = true,
             BClubRepAllowDelete = true,
             BClubRepAllowAdd = true,
-            ProcessingFeePercent = FeeConstants.MinProcessingFeePercent,
-            EcprocessingFeePercent = FeeConstants.MinEcprocessingFeePercent,
+            ProcessingFeePercent = FeeConstants.NewJobProcessingFeePercent,
+            EcprocessingFeePercent = FeeConstants.NewJobEcprocessingFeePercent,
             BEnableEcheck = false,
 
             // Required strings — sensible defaults (wizard can override later)
@@ -726,9 +710,9 @@ public sealed class JobCloneService : IJobCloneService
         {
             YearDelta = yearDelta,
             InferredLeagueName = inferredLeagueName,
-            CurrentProcessingFeePercent = FeeConstants.MinProcessingFeePercent,
+            CurrentProcessingFeePercent = FeeConstants.NewJobProcessingFeePercent,
             SourceProcessingFeePercent = sourceJob.ProcessingFeePercent,
-            CurrentEcheckProcessingFeePercent = FeeConstants.MinEcprocessingFeePercent,
+            CurrentEcheckProcessingFeePercent = FeeConstants.NewJobEcprocessingFeePercent,
             SourceEcheckProcessingFeePercent = sourceJob.EcprocessingFeePercent,
             SourceBEnableEcheck = sourceJob.BEnableEcheck,
             SourceBEnableStore = sourceJob.BEnableStore ?? false,
@@ -875,13 +859,14 @@ public sealed class JobCloneService : IJobCloneService
     private static Jobs CloneJob(
         Jobs source, Guid newJobId, JobCloneRequest req, string userId, DateTime now, int yearDelta)
     {
-        // Resolve user-driven Step 5 defaults. ValidateChoices() ran upstream so values are sane.
-        var ccRate = ResolveProcessingFeePercent(
-            req.ProcessingFeeChoice, req.CustomProcessingFeePercent, source.ProcessingFeePercent,
-            FeeConstants.MinProcessingFeePercent, FeeConstants.MaxProcessingFeePercent);
-        var ecRate = ResolveProcessingFeePercent(
-            req.EcheckProcessingFeeChoice, req.CustomEcheckProcessingFeePercent, source.EcprocessingFeePercent,
-            FeeConstants.MinEcprocessingFeePercent, FeeConstants.MaxEcprocessingFeePercent);
+        // Processing rates: carry the source job's stored rate forward, floored at the current
+        // new-job rate (a clone is a new job, so it never starts below today's rate).
+        var ccRate = Math.Max(
+            source.ProcessingFeePercent ?? FeeConstants.NewJobProcessingFeePercent,
+            FeeConstants.NewJobProcessingFeePercent);
+        var ecRate = Math.Max(
+            source.EcprocessingFeePercent ?? FeeConstants.NewJobEcprocessingFeePercent,
+            FeeConstants.NewJobEcprocessingFeePercent);
         var enableEcheck = string.Equals(req.EnableEcheckChoice, "source", StringComparison.OrdinalIgnoreCase)
             ? source.BEnableEcheck
             : false; // "off"
@@ -913,7 +898,7 @@ public sealed class JobCloneService : IJobCloneService
             BClubRepAllowEdit = true,
             BClubRepAllowDelete = true,
             BClubRepAllowAdd = true,
-            // CC + eCheck processing rates: wizard Step 5 (Copy source / Use current floor / Custom).
+            // CC + eCheck processing rates: source rate carried forward, floored at the current new-job rate.
             ProcessingFeePercent = ccRate,
             EcprocessingFeePercent = ecRate,
             BEnableEcheck = enableEcheck,
