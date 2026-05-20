@@ -1,6 +1,6 @@
 # 001 — Environment / Config Drift
 
-**Status:** open
+**Status:** closed (2026-05-19)
 **Risk class:** catastrophic — wrong-environment credentials could charge real cards, send real email, or write real DB from a dev/staging deploy.
 
 ## The bruise
@@ -135,6 +135,12 @@ Which `web.config.api*` does each deploy script actually push? `1-Build-And-Depl
 - Frontend `main.ts` emits one `[STARTUP-CONFIG]` line to `console.info` before `bootstrapApplication`: envName, host, apiUrl, staticsUrl, buildVersion.
 - Verification handle for both the JWT rotation and any future env-overlay change. Reviewable in `seq.teamsportsinfo.com` for staging+prod and browser console for dev.
 
+**Issue 8 — `appsettings.Production.json` thin / base file as dangerous-default (2026-05-19, closed)**
+
+Functionally resolved by Issues 5 + 9. Production overlay now explicitly sets `ConnectionStrings:DefaultConnection`, `FrontendSettings:BaseUrl`, `FileStorage` paths, `Seq:ServerUrl`, and `AdnSweep`. Remaining base-inherited values are either identity-uniform (`JwtSettings`), already-prod-correct (`Reporting.CrystalReportsBaseUrl`, `TsicSettings.StaticsBaseUrl`), or static data (`Anthropic.Model`, `Firebase.CredentialFilePath`, `TsicSettings.DefaultCustomerId`).
+
+**One residual hardening logged as future-work, intentionally not addressed**: `AllowedHosts: *` on prod accepts any Host header. Tightening to an explicit allowlist is a defensive measure against Host-header injection. User decision (2026-05-19): leave as `*` for now to preserve flexibility on hostname additions during go-live; revisit after the launch hostname set stabilizes.
+
 **Issue 7 — USLax has no sandbox endpoint (2026-05-19, closed as by-design)**
 
 User-confirmed intentional posture: every env hits the live USLax API. There is no USLax sandbox available, and dev/staging deliberately use prod USLax for verification testing. SANDBOX-RULE exception — USLax is treated like a read-mostly external service whose only credentials are prod.
@@ -223,7 +229,6 @@ Pool env on TSIC-SEDONA's `dev-api` was changed from `Development` to `Staging` 
 ### Still open
 
 
-- **Issue 8 — `appsettings.Production.json` is thin; base file is the dangerous-default surface.** Acceptable design but flagged.
 
 ### Verification log
 
@@ -322,7 +327,9 @@ Committed value (in git history forever) is now unused on every box. `[STARTUP-C
 
 **Issue 7 (USLax has no sandbox endpoint) — CLOSED 2026-05-19 as by-design.** Intentional: every env hits live USLax. Documented SANDBOX-RULE exception.
 
-Issue 8 remains open — see "Still open" section above.
+**Issue 8 (Production overlay thin / base as dangerous-default) — CLOSED 2026-05-19.** Functionally resolved by Issues 5+9. Residual `AllowedHosts: *` hardening left as future-work per user decision — preserves flexibility on hostname additions during go-live.
+
+**All issues closed.** Investigation 001 complete.
 
 ### Verification expectations per stage
 
