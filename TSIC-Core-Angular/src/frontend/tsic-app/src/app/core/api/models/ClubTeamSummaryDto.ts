@@ -6,6 +6,9 @@ export type ClubTeamSummaryDto = {
     teamId: string;
     teamName: string;
     agegroupName: string;
+    feeBase: number;
+    feeDiscount: number;
+    feeLatefee: number;
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;
