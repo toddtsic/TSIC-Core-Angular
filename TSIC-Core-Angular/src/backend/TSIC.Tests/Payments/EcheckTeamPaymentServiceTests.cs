@@ -7,6 +7,7 @@ using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -40,6 +41,7 @@ public class EcheckTeamPaymentServiceTests
     private readonly Mock<ITeamLookupService> _teamLookup = new();
     private readonly Mock<IRegistrationFeeAdjustmentService> _feeAdj = new();
     private readonly Mock<IEcheckSettlementRepository> _settleRepo = new();
+    private readonly Mock<IPaymentStateService> _paymentState = new();
     private readonly Mock<ILogger<PaymentService>> _logger = new();
 
     private readonly List<RegistrationAccounting> _addedAccounting = [];
@@ -51,10 +53,16 @@ public class EcheckTeamPaymentServiceTests
             .Callback<RegistrationAccounting>(_addedAccounting.Add);
         _settleRepo.Setup(s => s.Add(It.IsAny<Settlement>()))
             .Callback<Settlement>(_addedSettlements.Add);
+        // The engine reads PaymentState for principal-remaining (to size the eCheck proc
+        // credit) and job rates. Default: no prior payments; ccRate 3.8% / echeckRate 1.0%.
+        _paymentState.Setup(p => p.ForTeamsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, PaymentState>());
+        _paymentState.Setup(p => p.ForTeamAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PaymentState.Empty(bAddProcessingFees: true, ccRate: 0.038m, echeckRate: 0.01m));
         return new PaymentService(
             _jobs.Object, _regRepo.Object, _teams.Object, _families.Object, _acct.Object,
             _adn.Object, _feeService.Object, _teamLookup.Object, _feeAdj.Object, _settleRepo.Object,
-            _logger.Object);
+            _logger.Object, _paymentState.Object);
     }
 
     private void StubJobAndCreds(Guid regId, Guid jobId, bool enableEcheck = true)
@@ -103,6 +111,31 @@ public class EcheckTeamPaymentServiceTests
             FeeProcessing = 0m,
             FeeTotal = owed,
             OwedTotal = owed,
+            PaidTotal = 0m,
+            Active = true,
+            TeamAi = teamAi,
+            Modified = DateTime.UtcNow,
+            Job = new Jobs
+            {
+                JobId = jobId,
+                JobAi = 100,
+                Customer = new Customers { CustomerId = Guid.NewGuid(), CustomerAi = 5 }
+            }
+        };
+    }
+
+    // Team carrying the baked-in CC processing fee (matches the BuildSut ccRate of 3.8%).
+    private static Teams TeamWithProc(Guid jobId, decimal principal, decimal ccProc, int teamAi = 1, string name = "Test Team")
+    {
+        return new Teams
+        {
+            TeamId = Guid.NewGuid(),
+            JobId = jobId,
+            TeamName = name,
+            FeeBase = principal,
+            FeeProcessing = ccProc,
+            FeeTotal = principal + ccProc,
+            OwedTotal = principal + ccProc,
             PaidTotal = 0m,
             Active = true,
             TeamAi = teamAi,
@@ -222,21 +255,75 @@ public class EcheckTeamPaymentServiceTests
     }
 
     [Fact]
-    public async Task PerTeamProcessingFeeCreditAppliedBeforeCharge()
+    public async Task EcheckWithProcessingFees_chargesEcheckGross_notCcGross_andOwedLandsAtZero()
     {
+        // Issue 5 regression: team owes $1000 principal + $38 CC proc (3.8%) = $1038 CC owed.
+        // Paid by eCheck (1.0%), the customer must be debited the ECHECK gross $1010 — never
+        // the CC gross $1038 — and OwedTotal must land at 0, not negative.
         var jobId = Guid.NewGuid();
         var regId = Guid.NewGuid();
-        var t1 = Team(jobId, owed: 200m, teamAi: 1);
-        var t2 = Team(jobId, owed: 200m, teamAi: 2);
+        var team = TeamWithProc(jobId, principal: 1000m, ccProc: 38m, teamAi: 1);
+        StubJobAndCreds(regId, jobId);
+        StubTeams(jobId, [team.TeamId], team);
+        StubAdnSuccess(null, "TX-1");
+        var sut = BuildSut();
+
+        var result = await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [team.TeamId], 1010m, ValidBank());
+
+        result.Success.Should().BeTrue();
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1010m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1038m)), Times.Never);
+        _addedAccounting.Should().ContainSingle();
+        _addedAccounting[0].Payamt.Should().Be(1010m);   // eCheck gross stored (CC-symmetric convention)
+        _addedAccounting[0].PaymentMethodId.Should().Be(EcheckMethodId);
+        team.OwedTotal.Should().Be(0m);                  // the bug left this negative
+        team.PaidTotal.Should().Be(1010m);
+        team.FeeProcessing.Should().Be(10m);             // 1000 × echeckRate (1%) proc retained
+    }
+
+    [Fact]
+    public async Task MixedFeeStructures_chargesEachTeamItsOwnEcheckGross_notAnEqualSplit()
+    {
+        // Issue 1 (eCheck twin): two teams from different agegroups owe $311.40 and $519.00
+        // CC. The old code split the client total evenly ($830.40 / 2 = $415.20). Correct
+        // behaviour debits each team its own eCheck gross: $303.00 and $505.00.
+        var jobId = Guid.NewGuid();
+        var regId = Guid.NewGuid();
+        var t1 = TeamWithProc(jobId, principal: 300m, ccProc: 11.40m, teamAi: 1, name: "U10 Red");
+        var t2 = TeamWithProc(jobId, principal: 500m, ccProc: 19.00m, teamAi: 2, name: "U12 Blue");
         StubJobAndCreds(regId, jobId);
         StubTeams(jobId, [t1.TeamId, t2.TeamId], t1, t2);
         StubAdnSuccess(null, "TX-T1", "TX-T2");
         var sut = BuildSut();
 
-        await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 400m, ValidBank());
+        var result = await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 808m, ValidBank());
 
-        _feeAdj.Verify(f => f.ReduceTeamProcessingFeeForEcheckAsync(t1, 200m, jobId, ActingUserId), Times.Once);
-        _feeAdj.Verify(f => f.ReduceTeamProcessingFeeForEcheckAsync(t2, 200m, jobId, ActingUserId), Times.Once);
+        result.Success.Should().BeTrue();
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 303m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 505m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 415.20m)), Times.Never);
+        _addedAccounting.Select(r => r.Payamt).Should().BeEquivalentTo(new decimal?[] { 303m, 505m });
+        t1.OwedTotal.Should().Be(0m);
+        t2.OwedTotal.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task ClientSubmitsCcTotalForEcheck_returnsAmountMismatch_andNoCharge()
+    {
+        // The displayed CC owed is $1038 but the eCheck total is $1010. If the client submits
+        // the CC figure, fail closed — never silently debit an amount the rep didn't approve.
+        var jobId = Guid.NewGuid();
+        var regId = Guid.NewGuid();
+        var team = TeamWithProc(jobId, principal: 1000m, ccProc: 38m, teamAi: 1);
+        StubJobAndCreds(regId, jobId);
+        StubTeams(jobId, [team.TeamId], team);
+        var sut = BuildSut();
+
+        var result = await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [team.TeamId], 1038m, ValidBank());
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be("AMOUNT_MISMATCH");
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
     }
 
     [Fact]

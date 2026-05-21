@@ -18,7 +18,7 @@ public class PaymentStateTests
         new()
         {
             CcGrossPaid = cc,
-            EcheckPrincipalPaid = echeck,
+            EcheckGrossPaid = echeck,
             CheckPaid = check,
             CashPaid = cash,
             CorrectionApplied = correction,
@@ -48,7 +48,8 @@ public class PaymentStateTests
     [Fact(DisplayName = "eCheck proc collected = principal × echeckRate")]
     public void EcheckProcCollected_AppliedAtEcheckRate()
     {
-        var s = State(echeck: 500m, echeckRate: 0.01m);
+        // Gross $505 stored; principal reverses to $500, proc = $5.00 at 1% (symmetric with CC).
+        var s = State(echeck: 505m, echeckRate: 0.01m);
         s.EcheckProcCollected.Should().Be(5.00m);
     }
 
@@ -64,7 +65,8 @@ public class PaymentStateTests
     [Fact(DisplayName = "PrincipalPaid sums all method principals")]
     public void PrincipalPaid_SumsAllMethods()
     {
-        var s = State(cc: 467.10m, echeck: 200m, check: 100m, correction: 50m, ccRate: 0.038m);
+        // CC $467.10→$450 principal; eCheck gross $202→$200 principal; check $100; correction $50.
+        var s = State(cc: 467.10m, echeck: 202m, check: 100m, correction: 50m, ccRate: 0.038m);
         s.PrincipalPaid.Should().BeApproximately(450m + 200m + 100m + 50m, 0.005m);
     }
 
@@ -100,11 +102,11 @@ public class PaymentStateTests
     [Fact(DisplayName = "Target after $500 eCheck: collected proc + remaining × ccRate (the bug regression)")]
     public void Target_AfterEcheck_PreservesCollectedProc()
     {
-        // eCheck collected $5 in proc at swipe; CC target on remaining $1150 = $43.70.
-        // Total lifetime FeeProcessing target = $48.70. The OLD recalc lumped eCheck
-        // into "non-CC" and subtracted only the principal — it computed $43.70 and
-        // lost the $5 already-collected eCheck proc credit on every recalc.
-        var s = State(echeck: 500m);
+        // eCheck gross $505 → $500 principal + $5 proc collected at swipe; CC target on
+        // remaining $1150 = $43.70. Total lifetime FeeProcessing target = $48.70. The OLD
+        // recalc lumped eCheck into "non-CC" and subtracted only the principal — it
+        // computed $43.70 and lost the $5 already-collected eCheck proc credit on recalc.
+        var s = State(echeck: 505m);
         s.FeeProcessingTarget(1650m, 0m, 0m)
             .Should().BeApproximately(48.70m, 0.005m);
     }

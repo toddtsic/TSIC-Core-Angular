@@ -68,7 +68,7 @@ public sealed class PaymentStateService : IPaymentStateService
             result[entityId] = new PaymentState
             {
                 CcGrossPaid = t.CreditCard,
-                EcheckPrincipalPaid = t.Echeck,
+                EcheckGrossPaid = t.Echeck,
                 CheckPaid = t.Check,
                 CashPaid = t.Cash,
                 CorrectionApplied = t.Correction,

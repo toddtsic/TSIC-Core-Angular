@@ -39,6 +39,7 @@ public class ArbTrialTeamPaymentServiceTests
     private readonly Mock<ITeamLookupService> _teamLookup = new();
     private readonly Mock<IRegistrationFeeAdjustmentService> _feeAdj = new();
     private readonly Mock<IEcheckSettlementRepository> _settleRepo = new();
+    private readonly Mock<IPaymentStateService> _paymentState = new();
     private readonly Mock<ILogger<PaymentService>> _logger = new();
 
     private readonly List<RegistrationAccounting> _addedAccounting = [];
@@ -53,7 +54,7 @@ public class ArbTrialTeamPaymentServiceTests
         return new PaymentService(
             _jobs.Object, _regRepo.Object, _teams.Object, _families.Object, _acct.Object,
             _adn.Object, _feeService.Object, _teamLookup.Object, _feeAdj.Object, _settleRepo.Object,
-            _logger.Object);
+            _logger.Object, _paymentState.Object);
     }
 
     // ── Stub helpers ───────────────────────────────────────────────────

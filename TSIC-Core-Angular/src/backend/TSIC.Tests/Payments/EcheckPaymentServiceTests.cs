@@ -7,6 +7,7 @@ using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -23,7 +24,9 @@ namespace TSIC.Tests.Payments;
 ///   • Validation: ARB option → ARB_NOT_ECHECK
 ///   • Validation: missing/invalid bank fields → BANK_* error codes
 ///   • Gateway failure → no RA, no Settlement
-///   • Processing-fee credit applied per registration before charge
+///   • CC-symmetric eCheck (go-live 002, Issue 5): the gateway is debited the eCheck
+///     gross — CC owed minus the (ccRate − echeckRate) proc credit — never the CC gross;
+///     the credit is booked per registration so each reg's OwedTotal lands at 0.
 /// </summary>
 public class EcheckPaymentServiceTests
 {
@@ -41,6 +44,7 @@ public class EcheckPaymentServiceTests
     private readonly Mock<ITeamLookupService> _teamLookup = new();
     private readonly Mock<IRegistrationFeeAdjustmentService> _feeAdj = new();
     private readonly Mock<IEcheckSettlementRepository> _settleRepo = new();
+    private readonly Mock<IPaymentStateService> _paymentState = new();
     private readonly Mock<ILogger<PaymentService>> _logger = new();
 
     private readonly List<RegistrationAccounting> _addedAccounting = [];
@@ -52,10 +56,18 @@ public class EcheckPaymentServiceTests
             .Callback<RegistrationAccounting>(_addedAccounting.Add);
         _settleRepo.Setup(s => s.Add(It.IsAny<Settlement>()))
             .Callback<Settlement>(_addedSettlements.Add);
+        // The engine reads PaymentState per registration for principal-remaining (to size
+        // the eCheck proc credit) and job rates. Default: no prior payments; the empty dict
+        // forces every reg onto emptyState; ccRate 3.8% / echeckRate 1.0%. Regs carrying no
+        // baked-in proc (FeeProcessing 0) self-cap the credit to 0 — see Reg() helper.
+        _paymentState.Setup(p => p.ForRegistrationsAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, PaymentState>());
+        _paymentState.Setup(p => p.ForRegistrationAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PaymentState.Empty(bAddProcessingFees: true, ccRate: 0.038m, echeckRate: 0.01m));
         return new PaymentService(
             _jobs.Object, _regRepo.Object, _teams.Object, _families.Object, _acct.Object,
             _adn.Object, _feeService.Object, _teamLookup.Object, _feeAdj.Object, _settleRepo.Object,
-            _logger.Object);
+            _logger.Object, _paymentState.Object);
     }
 
     private void StubJobAndCreds(Guid jobId, bool enableEcheck = true, bool allowPif = true, bool fullPaymentRequired = false)
@@ -289,19 +301,57 @@ public class EcheckPaymentServiceTests
     }
 
     [Fact]
-    public async Task ProcessingFeeCreditAppliedPerRegBeforeCharge()
+    public async Task EcheckWithProcessingFees_chargesEcheckGross_notCcGross_andOwedLandsAtZero()
     {
+        // Issue 5 regression: reg owes $1000 principal + $38 CC proc (3.8%) = $1038 CC owed.
+        // Paid by eCheck (1.0%) the customer must be debited the ECHECK gross $1010 — never the
+        // CC gross $1038 — and OwedTotal must land at 0. The old path debited the CC gross while
+        // separately reducing the reg's owed, double-counting the proc difference (overcharge).
         var jobId = Guid.NewGuid();
-        var reg1 = Reg(jobId, owed: 100m);
-        var reg2 = Reg(jobId, owed: 250m);
+        var reg = Reg(jobId, owed: 1000m, feeProcessing: 38m); // owed param = principal; OwedTotal = 1038
         StubJobAndCreds(jobId);
-        StubRegs(jobId, reg1, reg2);
-        StubAdnSuccess("TX-FEE");
+        StubRegs(jobId, reg);
+        StubAdnSuccess("TX-1");
         var sut = BuildSut();
 
-        await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank()), ActingUserId);
+        var result = await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank()), ActingUserId);
 
-        _feeAdj.Verify(f => f.ReduceProcessingFeeForEcheckAsync(reg1, 100m, jobId, ActingUserId), Times.Once);
-        _feeAdj.Verify(f => f.ReduceProcessingFeeForEcheckAsync(reg2, 250m, jobId, ActingUserId), Times.Once);
+        result.Success.Should().BeTrue();
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1010m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1038m)), Times.Never);
+        _addedAccounting.Should().ContainSingle();
+        _addedAccounting[0].Payamt.Should().Be(1010m);   // eCheck gross stored (CC-symmetric)
+        _addedAccounting[0].PaymentMethodId.Should().Be(EcheckMethodId);
+        reg.OwedTotal.Should().Be(0m);                   // the bug left this non-zero
+        reg.PaidTotal.Should().Be(1010m);
+        reg.FeeProcessing.Should().Be(10m);              // 1000 × echeckRate (1%) proc retained
+        // Player path no longer routes through the fee-adjustment service — it computes the
+        // credit inline (mirrors the team engine).
+        _feeAdj.Verify(f => f.ReduceProcessingFeeForEcheckAsync(It.IsAny<Registrations>(), It.IsAny<decimal>(), It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task MultipleRegsWithProc_eachDebitedItsOwnEcheckGross_summedToOneAdnDebit()
+    {
+        // Two regs with different fee structures: $311.40 and $519.00 CC owed. The single ADN
+        // debit must be the SUM of each reg's own eCheck gross ($303 + $505 = $808), and each
+        // RA must carry its own eCheck gross — proving the proc credit is per-reg proportional,
+        // not a pooled/averaged figure.
+        var jobId = Guid.NewGuid();
+        var reg1 = Reg(jobId, owed: 300m, feeProcessing: 11.40m); // OwedTotal 311.40
+        var reg2 = Reg(jobId, owed: 500m, feeProcessing: 19.00m); // OwedTotal 519.00
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, reg1, reg2);
+        StubAdnSuccess("TX-AA");
+        var sut = BuildSut();
+
+        var result = await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank()), ActingUserId);
+
+        result.Success.Should().BeTrue();
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 808m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 830.40m)), Times.Never);
+        _addedAccounting.Select(r => r.Payamt).Should().BeEquivalentTo(new decimal?[] { 303m, 505m });
+        reg1.OwedTotal.Should().Be(0m);
+        reg2.OwedTotal.Should().Be(0m);
     }
 }

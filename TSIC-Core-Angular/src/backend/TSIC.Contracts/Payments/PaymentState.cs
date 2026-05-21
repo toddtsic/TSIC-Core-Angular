@@ -11,16 +11,17 @@ namespace TSIC.Contracts.Payments;
 /// Why each method matters:
 ///   CC      — gross stored in Payamt; principal recovered via /(1+ccRate) when
 ///             proc fees are enabled. Proc was collected at swipe.
-///   eCheck  — principal stored in Payamt; proc collected at swipe at echeckRate
-///             (different from ccRate). Per-payment handler decrements
-///             FeeProcessing by principal × (ccRate − echeckRate).
+///   eCheck  — gross stored in Payamt; principal recovered via /(1+echeckRate)
+///             when proc fees are enabled (symmetric with CC). Proc collected at
+///             swipe at echeckRate. Per-payment handler decrements FeeProcessing
+///             by principal × (ccRate − echeckRate).
 ///   Check, Cash, Correction — principal stored in Payamt; no proc collected.
 ///             Per-payment handler decrements FeeProcessing by principal × ccRate.
 /// </summary>
 public record PaymentState
 {
     public required decimal CcGrossPaid { get; init; }
-    public required decimal EcheckPrincipalPaid { get; init; }
+    public required decimal EcheckGrossPaid { get; init; }
     public required decimal CheckPaid { get; init; }
     public required decimal CashPaid { get; init; }
     public required decimal CorrectionApplied { get; init; }
@@ -36,8 +37,11 @@ public record PaymentState
 
     public decimal CcProcCollected => CcGrossPaid - CcPrincipalPaid;
 
-    public decimal EcheckProcCollected =>
-        BAddProcessingFees ? EcheckPrincipalPaid * EcheckRate : 0m;
+    // eCheck mirrors CC: gross stored in Payamt, principal reversed out at echeckRate.
+    public decimal EcheckPrincipalPaid =>
+        BAddProcessingFees && EcheckRate > 0m ? EcheckGrossPaid / (1m + EcheckRate) : EcheckGrossPaid;
+
+    public decimal EcheckProcCollected => EcheckGrossPaid - EcheckPrincipalPaid;
 
     // ── Derived: aggregates ──
 
@@ -48,9 +52,10 @@ public record PaymentState
 
     public decimal ProcCollected => CcProcCollected + EcheckProcCollected;
 
-    // GrossPaid mirrors what gets summed into entity.PaidTotal at write time.
+    // GrossPaid mirrors what gets summed into entity.PaidTotal at write time:
+    // gross for CC & eCheck (Payamt = gross), principal for the non-proc methods.
     public decimal GrossPaid =>
-        CcGrossPaid + EcheckPrincipalPaid + NonProcCarryingPaid;
+        CcGrossPaid + EcheckGrossPaid + NonProcCarryingPaid;
 
     // ── Canonical consumer-facing helpers ──
 
@@ -86,7 +91,7 @@ public record PaymentState
         new()
         {
             CcGrossPaid = 0m,
-            EcheckPrincipalPaid = 0m,
+            EcheckGrossPaid = 0m,
             CheckPaid = 0m,
             CashPaid = 0m,
             CorrectionApplied = 0m,

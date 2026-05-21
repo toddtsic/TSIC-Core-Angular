@@ -1,7 +1,9 @@
 using AuthorizeNet.Api.Contracts.V1;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Services;
 using TSIC.API.Services.Fees;
 using TSIC.API.Services.Shared.Adn;
@@ -27,13 +29,16 @@ public class PaymentService : IPaymentService
     private readonly IRegistrationAccountingRepository _acct;
     private readonly IRegistrationFeeAdjustmentService _feeAdj;
     private readonly IEcheckSettlementRepository _settleRepo;
+    private readonly IPaymentStateService _paymentState;
 
     // Well-known E-Check Payment method GUID (matches production seed data).
     private static readonly Guid EcheckPaymentMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
+    // Well-known Credit-Card Payment method GUID (matches production seed data).
+    private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
 
     private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate, bool AllowPif, bool BPlayersFullPaymentRequired, bool BEnableEcheck);
 
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPaymentStateService paymentState)
     {
         _jobs = jobs;
         _registrations = registrations;
@@ -46,11 +51,12 @@ public class PaymentService : IPaymentService
         _feeAdj = feeAdj;
         _settleRepo = settleRepo;
         _logger = logger;
+        _paymentState = paymentState;
     }
 
     // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPlayerRegConfirmationService confirmation, IEmailService email)
-        : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, feeAdj, settleRepo, logger)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPaymentStateService paymentState, IPlayerRegConfirmationService confirmation, IEmailService email)
+        : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, feeAdj, settleRepo, logger, paymentState)
     {
         _confirmation = confirmation;
         _email = email;
@@ -63,185 +69,19 @@ public class PaymentService : IPaymentService
         decimal totalAmount,
         CreditCardInfo creditCard)
     {
-        // Get registration to derive jobId
         var jobId = await _registrations.GetRegistrationJobIdAsync(regId);
-
         if (jobId == null)
-        {
-            return new TeamPaymentResponseDto
-            {
-                Success = false,
-                Message = "Registration not found"
-            };
-        }
+            return new TeamPaymentResponseDto { Success = false, Message = "Registration not found" };
         var jobIdValue = jobId.Value;
 
-        // Get job payment credentials
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobIdValue);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
-        {
-            return new TeamPaymentResponseDto
-            {
-                Success = false,
-                Message = "Payment gateway credentials not configured"
-            };
-        }
-
+            return new TeamPaymentResponseDto { Success = false, Message = "Payment gateway credentials not configured" };
         var env = _adnApiService.GetADNEnvironment();
 
-        // Get all teams with their Job and Customer data for invoice numbers
-        var teams = await _teams.GetTeamsWithJobAndCustomerAsync(jobIdValue, teamIds);
-
-        if (teams.Count != teamIds.Count)
-        {
-            return new TeamPaymentResponseDto
-            {
-                Success = false,
-                Message = "One or more teams not found"
-            };
-        }
-
-        // Calculate per-team amount (equal split)
-        var perTeamAmount = totalAmount / teamIds.Count;
-
-        // Track first successful transaction ID for response
-        string? firstTransactionId = null;
-        var failedCount = 0;
-
-        // Process payment for each team
-        foreach (var team in teams)
-        {
-            // Build invoice number for this team (pattern: customerAI_jobAI_teamAI)
-            var invoiceNumber = $"{team.Job.Customer.CustomerAi}_{team.Job.JobAi}_{team.TeamAi}";
-            if (invoiceNumber.Length > 20)
-            {
-                invoiceNumber = $"{team.Job.JobAi}_{team.TeamAi}";
-            }
-            if (invoiceNumber.Length > 20)
-            {
-                invoiceNumber = team.TeamAi.ToString();
-            }
-
-            var description = $"Team Registration: {team.TeamName ?? team.DisplayName}";
-            var ccExpiryDate = FormatExpiry(creditCard.Expiry!);
-
-            // Process ADN transaction using ADN_Charge
-            var adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest
-            {
-                Env = env,
-                LoginId = credentials.AdnLoginId!,
-                TransactionKey = credentials.AdnTransactionKey!,
-                CardNumber = creditCard.Number!,
-                CardCode = creditCard.Code!,
-                Expiry = ccExpiryDate,
-                FirstName = creditCard.FirstName!,
-                LastName = creditCard.LastName!,
-                Address = creditCard.Address!,
-                Zip = creditCard.Zip!,
-                Email = creditCard.Email!,
-                Phone = creditCard.Phone!,
-                Amount = perTeamAmount,
-                InvoiceNumber = invoiceNumber,
-                Description = description
-            });
-
-            // Validate ADN response
-            if (adnResponse?.messages?.resultCode == messageTypeEnum.Ok
-                && adnResponse.transactionResponse?.messages != null
-                && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId))
-            {
-                var transId = adnResponse.transactionResponse.transId;
-                firstTransactionId ??= transId;
-
-                // Create accounting entry for this team (per-team transaction for refund capability)
-                _acct.Add(new RegistrationAccounting
-                {
-                    RegistrationId = regId,
-                    TeamId = team.TeamId,
-                    Payamt = perTeamAmount,
-                    Dueamt = perTeamAmount,
-                    Paymeth = $"paid by cc: {perTeamAmount:C} of {totalAmount:C} on {DateTime.Now:G} txID: {transId}",
-                    PaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"), // CC payment method ID
-                    Active = true,
-                    Createdate = DateTime.Now,
-                    Modified = DateTime.Now,
-                    LebUserId = userId,
-                    AdnTransactionId = transId,
-                    AdnInvoiceNo = invoiceNumber,
-                    AdnCc4 = creditCard.Number!.Substring(creditCard.Number.Length - 4, 4),
-                    AdnCcexpDate = ccExpiryDate,
-                    Comment = description
-                });
-
-                // Update team record
-                team.PaidTotal += perTeamAmount;
-                team.OwedTotal -= perTeamAmount;
-                if (team.PaidTotal > team.FeeTotal)
-                {
-                    team.OwedTotal = 0;
-                    team.FeeTotal = team.PaidTotal;
-                }
-                team.Modified = DateTime.Now;
-                team.LebUserId = userId;
-
-                _logger.LogInformation("Team payment processed: Team={TeamId} Amount={Amount} TransId={TransId}",
-                    team.TeamId, perTeamAmount, transId);
-            }
-            else
-            {
-                failedCount++;
-                var errMsg = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                    ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
-                    ?? "Gateway transaction failed";
-                _logger.LogWarning("Team payment failed: Team={TeamId} Error={Error}", team.TeamId, errMsg);
-            }
-        }
-
-        // Save all changes
-        if (failedCount < teams.Count)
-        {
-            await _teams.SaveChangesAsync();
-            await _acct.SaveChangesAsync();
-
-            // Re-aggregate the rep registration row from the new team financials.
-            // Single sync covers the whole batch — every team in this call belongs
-            // to the same rep (regId is the rep's RegistrationId from the JWT and
-            // matches Teams.ClubrepRegistrationid for every authorized team).
-            // Without this, rep.PaidTotal/OwedTotal stay at the pre-payment values
-            // while team rows hold the post-payment values, and downstream callers
-            // (TeamSearchService balance-due gate at line 564) read stale aggregates.
-            await _registrations.SynchronizeClubRepFinancialsAsync(regId, userId);
-        }
-
-        // Build response
-        if (failedCount == 0)
-        {
-            return new TeamPaymentResponseDto
-            {
-                Success = true,
-                Message = $"All {teamIds.Count} team payment(s) processed successfully",
-                TransactionId = firstTransactionId
-            };
-        }
-        else if (failedCount < teams.Count)
-        {
-            return new TeamPaymentResponseDto
-            {
-                Success = false,
-                Error = "PARTIAL_SUCCESS",
-                Message = $"{teams.Count - failedCount} of {teamIds.Count} team payment(s) succeeded",
-                TransactionId = firstTransactionId
-            };
-        }
-        else
-        {
-            return new TeamPaymentResponseDto
-            {
-                Success = false,
-                Error = "ALL_FAILED",
-                Message = "All team payments failed"
-            };
-        }
+        return await ChargeTeamsAsync(
+            regId, userId, jobIdValue, teamIds, totalAmount,
+            TeamChargeKind.Cc, credentials, env, creditCard, bankAccount: null);
     }
 
     public async Task<TeamPaymentResponseDto> ProcessTeamEcheckPaymentAsync(
@@ -272,48 +112,133 @@ public class PaymentService : IPaymentService
             return new TeamPaymentResponseDto { Success = false, Error = "MISSING_GATEWAY_CREDS", Message = "Payment gateway credentials not configured" };
         var env = _adnApiService.GetADNEnvironment();
 
+        return await ChargeTeamsAsync(
+            regId, userId, jobIdValue, teamIds, totalAmount,
+            TeamChargeKind.Echeck, credentials, env, creditCard: null, bankAccount);
+    }
+
+    private enum TeamChargeKind { Cc, Echeck }
+
+    /// <summary>
+    /// Shared per-team charge engine for the club-rep self-pay flows (CC and eCheck).
+    /// One ADN transaction per team, each charged its OWN balance — never an equal split
+    /// of the client total. The proc-fee model is unified via PaymentRateMath:
+    ///
+    ///   charge = OwedTotal − ProcCredit(principalRemaining, ccRate, methodRate)
+    ///
+    /// methodRate is ccRate for CC → credit 0 → charge == OwedTotal (CC behaviour
+    /// unchanged); echeckRate for eCheck → credit = principal × (ccRate − echeckRate),
+    /// so the gateway is debited the eCheck-rate gross, not the CC-rate gross. Payamt
+    /// and PaidTotal accumulate that same gross; OwedTotal lands at 0 on a full pay.
+    /// See go-live investigation 002 (Issues 1 &amp; 5).
+    /// </summary>
+    private async Task<TeamPaymentResponseDto> ChargeTeamsAsync(
+        Guid regId, string userId, Guid jobIdValue,
+        IReadOnlyCollection<Guid> teamIds, decimal totalAmount,
+        TeamChargeKind kind, AdnCredentialsViewModel credentials, AuthorizeNet.Environment env,
+        CreditCardInfo? creditCard, BankAccountInfo? bankAccount)
+    {
         var teams = await _teams.GetTeamsWithJobAndCustomerAsync(jobIdValue, teamIds);
         if (teams.Count != teamIds.Count)
             return new TeamPaymentResponseDto { Success = false, Error = "TEAM_NOT_FOUND", Message = "One or more teams not found" };
 
-        var perTeamAmount = totalAmount / teamIds.Count;
-        var last4 = bankAccount.AccountNumber!.Length >= 4 ? bankAccount.AccountNumber[^4..] : bankAccount.AccountNumber;
-        var nameOnAcct = bankAccount.NameOnAccount?.Trim();
+        // Canonical principal-remaining per team (handles prior payments + phase); used
+        // only to size the eCheck proc credit. CC never credits (methodRate == ccRate).
+        var teamStates = await _paymentState.ForTeamsAsync(teamIds, jobIdValue);
+        var rateRef = teamStates.Values.FirstOrDefault()
+            ?? await _paymentState.ForTeamAsync(teams[0].TeamId, jobIdValue);
+        var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);
+
+        // Pre-compute each team's charge + proc credit (no mutation) so the amount-mismatch
+        // tripwire sees the method-correct total before any gateway hit.
+        var plans = new List<(TSIC.Domain.Entities.Teams Team, decimal Charge, decimal Credit)>(teams.Count);
+        decimal serverTotal = 0m;
+        foreach (var team in teams)
+        {
+            var owed = Math.Max(0m, team.OwedTotal ?? 0m);
+            if (owed <= 0m) continue; // already paid in full — nothing to charge
+
+            var state = teamStates.GetValueOrDefault(team.TeamId) ?? emptyState;
+            var methodRate = kind == TeamChargeKind.Cc ? state.CcRate : state.EcheckRate;
+            var principal = state.PrincipalRemaining(team.FeeBase ?? 0m, team.FeeDiscount ?? 0m, team.FeeLatefee ?? 0m);
+            var credit = Math.Round(PaymentRateMath.ProcCredit(principal, state.CcRate, methodRate), 2, MidpointRounding.AwayFromZero);
+            // Never credit more proc than is actually embedded in this team's balance.
+            var embeddedProc = Math.Max(0m, team.FeeProcessing ?? 0m);
+            if (credit > embeddedProc) credit = embeddedProc;
+
+            var charge = owed - credit;
+            if (charge <= 0m) continue;
+
+            serverTotal += charge;
+            plans.Add((team, charge, credit));
+        }
+
+        if (serverTotal <= 0m)
+            return new TeamPaymentResponseDto { Success = false, Error = "NOTHING_DUE", Message = "Selected teams have no balance due." };
+
+        // Tripwire: the client-submitted total must agree with the server-computed,
+        // method-correct total. eCheck totals are LOWER than the displayed CC owed, so the
+        // client must submit the eCheck total when paying by eCheck (else this fails closed).
+        if (Math.Abs(serverTotal - totalAmount) > 0.01m)
+            return new TeamPaymentResponseDto
+            {
+                Success = false,
+                Error = "AMOUNT_MISMATCH",
+                Message = $"Payment amount is out of date (shown {totalAmount:C}, now {serverTotal:C}). Please refresh and try again."
+            };
+
         string? firstTransactionId = null;
         var failedCount = 0;
         var pendingSettlements = new List<(RegistrationAccounting Ra, string TxId)>();
+        var nameOnAcct = bankAccount?.NameOnAccount?.Trim();
+        var acctLast4 = bankAccount?.AccountNumber is { Length: >= 4 } acct ? acct[^4..] : bankAccount?.AccountNumber;
+        var ccExpiryDate = kind == TeamChargeKind.Cc ? FormatExpiry(creditCard!.Expiry!) : null;
 
-        foreach (var team in teams)
+        foreach (var (team, charge, credit) in plans)
         {
             var invoiceNumber = $"{team.Job.Customer.CustomerAi}_{team.Job.JobAi}_{team.TeamAi}";
             if (invoiceNumber.Length > 20) invoiceNumber = $"{team.Job.JobAi}_{team.TeamAi}";
             if (invoiceNumber.Length > 20) invoiceNumber = team.TeamAi.ToString();
-
             var description = $"Team Registration: {team.TeamName ?? team.DisplayName}";
 
-            // Apply (CC − EC) processing-fee credit BEFORE the debit so the recorded eCheck
-            // amount matches the team's now-reduced obligation. Mirrors the player path.
-            await _feeAdj.ReduceTeamProcessingFeeForEcheckAsync(team, perTeamAmount, jobIdValue, userId);
-
-            var adnResponse = _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
-            {
-                Env = env,
-                LoginId = credentials.AdnLoginId!,
-                TransactionKey = credentials.AdnTransactionKey!,
-                AccountType = bankAccount.AccountType!,
-                RoutingNumber = bankAccount.RoutingNumber!,
-                AccountNumber = bankAccount.AccountNumber!,
-                NameOnAccount = nameOnAcct!,
-                FirstName = bankAccount.FirstName!,
-                LastName = bankAccount.LastName!,
-                Address = bankAccount.Address!,
-                Zip = bankAccount.Zip!,
-                Email = bankAccount.Email!,
-                Phone = bankAccount.Phone!,
-                Amount = perTeamAmount,
-                InvoiceNumber = invoiceNumber,
-                Description = description
-            });
+            var adnResponse = kind == TeamChargeKind.Cc
+                ? _adnApiService.ADN_Charge(new AdnChargeRequest
+                {
+                    Env = env,
+                    LoginId = credentials.AdnLoginId!,
+                    TransactionKey = credentials.AdnTransactionKey!,
+                    CardNumber = creditCard!.Number!,
+                    CardCode = creditCard.Code!,
+                    Expiry = ccExpiryDate!,
+                    FirstName = creditCard.FirstName!,
+                    LastName = creditCard.LastName!,
+                    Address = creditCard.Address!,
+                    Zip = creditCard.Zip!,
+                    Email = creditCard.Email!,
+                    Phone = creditCard.Phone!,
+                    Amount = charge,
+                    InvoiceNumber = invoiceNumber,
+                    Description = description
+                })
+                : _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
+                {
+                    Env = env,
+                    LoginId = credentials.AdnLoginId!,
+                    TransactionKey = credentials.AdnTransactionKey!,
+                    AccountType = bankAccount!.AccountType!,
+                    RoutingNumber = bankAccount.RoutingNumber!,
+                    AccountNumber = bankAccount.AccountNumber!,
+                    NameOnAccount = nameOnAcct!,
+                    FirstName = bankAccount.FirstName!,
+                    LastName = bankAccount.LastName!,
+                    Address = bankAccount.Address!,
+                    Zip = bankAccount.Zip!,
+                    Email = bankAccount.Email!,
+                    Phone = bankAccount.Phone!,
+                    Amount = charge,
+                    InvoiceNumber = invoiceNumber,
+                    Description = description
+                });
 
             if (adnResponse?.messages?.resultCode == messageTypeEnum.Ok
                 && adnResponse.transactionResponse?.messages != null
@@ -326,33 +251,40 @@ public class PaymentService : IPaymentService
                 {
                     RegistrationId = regId,
                     TeamId = team.TeamId,
-                    Payamt = perTeamAmount,
-                    Dueamt = perTeamAmount,
-                    Paymeth = $"eCheck pending settlement: {perTeamAmount:C} of {totalAmount:C} on {DateTime.Now:G} txID: {transId}",
-                    PaymentMethodId = EcheckPaymentMethodId,
+                    Payamt = charge,
+                    Dueamt = charge,
+                    Paymeth = kind == TeamChargeKind.Cc
+                        ? $"paid by cc: {charge:C} on {DateTime.Now:G} txID: {transId}"
+                        : $"eCheck pending settlement: {charge:C} of {serverTotal:C} on {DateTime.Now:G} txID: {transId}",
+                    PaymentMethodId = kind == TeamChargeKind.Cc ? CcPaymentMethodId : EcheckPaymentMethodId,
                     Active = true,
                     Createdate = DateTime.Now,
                     Modified = DateTime.Now,
                     LebUserId = userId,
                     AdnTransactionId = transId,
                     AdnInvoiceNo = invoiceNumber,
+                    AdnCc4 = kind == TeamChargeKind.Cc ? creditCard!.Number![^4..] : null,
+                    AdnCcexpDate = kind == TeamChargeKind.Cc ? ccExpiryDate : null,
                     Comment = description
                 };
                 _acct.Add(ra);
-                pendingSettlements.Add((ra, transId));
+                if (kind == TeamChargeKind.Echeck) pendingSettlements.Add((ra, transId));
 
-                team.PaidTotal += perTeamAmount;
-                team.OwedTotal -= perTeamAmount;
-                if (team.PaidTotal > team.FeeTotal)
+                // Convert the CC-rate proc embedded in the balance to the method's rate
+                // (no-op for CC), book the gross, drive the balance to 0 on a full pay.
+                if (credit > 0m)
                 {
-                    team.OwedTotal = 0;
-                    team.FeeTotal = team.PaidTotal;
+                    team.FeeProcessing = (team.FeeProcessing ?? 0m) - credit;
+                    team.RecalcTotals();
                 }
+                team.PaidTotal = (team.PaidTotal ?? 0m) + charge;
+                team.OwedTotal = (team.OwedTotal ?? 0m) - charge;
+                if ((team.OwedTotal ?? 0m) < 0m) team.OwedTotal = 0m;
                 team.Modified = DateTime.Now;
                 team.LebUserId = userId;
 
-                _logger.LogInformation("Team eCheck submitted: Team={TeamId} Amount={Amount} TransId={TransId}",
-                    team.TeamId, perTeamAmount, transId);
+                _logger.LogInformation("Team {Kind} processed: Team={TeamId} Charge={Charge} Credit={Credit} TransId={TransId}",
+                    kind, team.TeamId, charge, credit, transId);
             }
             else
             {
@@ -360,35 +292,43 @@ public class PaymentService : IPaymentService
                 var errMsg = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
                     ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
                     ?? "Gateway transaction failed";
-                _logger.LogWarning("Team eCheck failed: Team={TeamId} Error={Error}", team.TeamId, errMsg);
+                _logger.LogWarning("Team {Kind} failed: Team={TeamId} Error={Error}", kind, team.TeamId, errMsg);
             }
         }
 
-        if (failedCount < teams.Count)
+        var attempted = plans.Count;
+        if (failedCount < attempted)
         {
             await _teams.SaveChangesAsync();
             await _acct.SaveChangesAsync();
-            // Settlement.RegistrationAccountingId is the identity-generated AId on RA;
-            // requires the RA inserts above to be saved first.
-            var nextCheckAt = DateTime.UtcNow.AddDays(1);
-            foreach (var (ra, txId) in pendingSettlements)
+
+            if (kind == TeamChargeKind.Echeck && pendingSettlements.Count > 0)
             {
-                _settleRepo.Add(new Settlement
+                // Settlement.RegistrationAccountingId is the identity-generated AId on RA;
+                // requires the RA inserts above to be saved first.
+                var nextCheckAt = DateTime.UtcNow.AddDays(1);
+                foreach (var (ra, txId) in pendingSettlements)
                 {
-                    SettlementId = Guid.NewGuid(),
-                    RegistrationAccountingId = ra.AId,
-                    AdnTransactionId = txId,
-                    Status = "Pending",
-                    SubmittedAt = DateTime.UtcNow,
-                    NextCheckAt = nextCheckAt,
-                    AccountLast4 = last4,
-                    AccountType = bankAccount.AccountType,
-                    NameOnAccount = nameOnAcct,
-                    Modified = DateTime.UtcNow,
-                    LebUserId = userId
-                });
+                    _settleRepo.Add(new Settlement
+                    {
+                        SettlementId = Guid.NewGuid(),
+                        RegistrationAccountingId = ra.AId,
+                        AdnTransactionId = txId,
+                        Status = "Pending",
+                        SubmittedAt = DateTime.UtcNow,
+                        NextCheckAt = nextCheckAt,
+                        AccountLast4 = acctLast4,
+                        AccountType = bankAccount!.AccountType,
+                        NameOnAccount = nameOnAcct,
+                        Modified = DateTime.UtcNow,
+                        LebUserId = userId
+                    });
+                }
+                await _settleRepo.SaveChangesAsync();
             }
-            await _settleRepo.SaveChangesAsync();
+
+            // Re-aggregate the rep registration row from the new team financials. One sync
+            // covers the batch — every team belongs to the same rep (regId == ClubrepRegistrationid).
             await _registrations.SynchronizeClubRepFinancialsAsync(regId, userId);
         }
 
@@ -396,22 +336,26 @@ public class PaymentService : IPaymentService
             return new TeamPaymentResponseDto
             {
                 Success = true,
-                Message = $"{teamIds.Count} team eCheck submission(s) accepted; settlement pending (typically 3–5 business days).",
+                Message = kind == TeamChargeKind.Cc
+                    ? $"All {attempted} team payment(s) processed successfully"
+                    : $"{attempted} team eCheck submission(s) accepted; settlement pending (typically 3–5 business days).",
                 TransactionId = firstTransactionId
             };
-        if (failedCount < teams.Count)
+        if (failedCount < attempted)
             return new TeamPaymentResponseDto
             {
                 Success = false,
                 Error = "PARTIAL_SUCCESS",
-                Message = $"{teams.Count - failedCount} of {teamIds.Count} team eCheck submission(s) accepted; rest failed.",
+                Message = kind == TeamChargeKind.Cc
+                    ? $"{attempted - failedCount} of {attempted} team payment(s) succeeded"
+                    : $"{attempted - failedCount} of {attempted} team eCheck submission(s) accepted; rest failed.",
                 TransactionId = firstTransactionId
             };
         return new TeamPaymentResponseDto
         {
             Success = false,
             Error = "ALL_FAILED",
-            Message = "All team eCheck submissions failed"
+            Message = kind == TeamChargeKind.Cc ? "All team payments failed" : "All team eCheck submissions failed"
         };
     }
 
@@ -1073,7 +1017,7 @@ public class PaymentService : IPaymentService
         var total = charges.Values.Sum();
         if (total <= 0m)
             return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
-        return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges, total);
+        return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges);
     }
 
     private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, BankAccountInfo? Bank, PaymentOption Effective)> ValidateEcheckPaymentRequestAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
@@ -1128,7 +1072,7 @@ public class PaymentService : IPaymentService
         return (null, null);
     }
 
-    private async Task<PaymentResponseDto> ExecuteEcheckChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, BankAccountInfo bank, Dictionary<Guid, decimal> charges, decimal total)
+    private async Task<PaymentResponseDto> ExecuteEcheckChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, BankAccountInfo bank, Dictionary<Guid, decimal> charges)
     {
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
@@ -1138,13 +1082,34 @@ public class PaymentService : IPaymentService
             return new PaymentResponseDto { Success = true, Message = "Duplicate prevented (idempotent).", ErrorCode = "DUPLICATE_PREVENTED" };
         var invoiceReg = registrations[0];
         var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
-        // Apply EC processing-fee credit (CC_rate − EC_rate) × charge per registration BEFORE charging,
-        // so the recorded eCheck amount matches the registration's now-reduced obligation.
+        // CC-symmetric eCheck: each registration's gateway debit is its CC-inclusive charge
+        // minus the proc credit that converts the baked-in CC rate to the eCheck rate
+        // (credit = principalRemaining × (ccRate − echeckRate)). The credit is booked against
+        // FeeProcessing/OwedTotal and the gateway is debited the eCheck gross — never the CC
+        // gross. Mirrors the team engine; see go-live 002 (Issue 5).
+        var regIds = registrations.Where(r => r.RegistrationId != Guid.Empty).Select(r => r.RegistrationId).ToList();
+        var states = await _paymentState.ForRegistrationsAsync(regIds, jobId);
+        var rateRef = states.Values.FirstOrDefault() ?? await _paymentState.ForRegistrationAsync(regIds[0], jobId);
+        var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);
+        var echeckCharges = new Dictionary<Guid, decimal>(charges.Count);
         foreach (var reg in registrations)
         {
-            if (!charges.TryGetValue(reg.RegistrationId, out var chargeAmt) || chargeAmt <= 0m) continue;
-            await _feeAdj.ReduceProcessingFeeForEcheckAsync(reg, chargeAmt, jobId, userId);
+            if (!charges.TryGetValue(reg.RegistrationId, out var ccCharge) || ccCharge <= 0m) continue;
+            var state = states.GetValueOrDefault(reg.RegistrationId) ?? emptyState;
+            var principalRemaining = state.PrincipalRemaining(reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee);
+            var credit = Math.Round(PaymentRateMath.ProcCredit(principalRemaining, state.CcRate, state.EcheckRate), 2, MidpointRounding.AwayFromZero);
+            // Never credit more than the CC proc actually embedded in this charge (handles
+            // proc-disabled jobs and principal-only deposits → 0) nor the reg's embedded proc.
+            credit = Math.Min(credit, Math.Max(0m, ccCharge - principalRemaining));
+            credit = Math.Min(credit, Math.Max(0m, reg.FeeProcessing));
+            if (credit > 0m)
+            {
+                reg.FeeProcessing -= credit;
+                reg.OwedTotal -= credit;
+            }
+            echeckCharges[reg.RegistrationId] = ccCharge - credit;
         }
+        var echeckTotal = echeckCharges.Values.Sum();
         var response = _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
         {
             Env = env,
@@ -1160,7 +1125,7 @@ public class PaymentService : IPaymentService
             Zip = bank.Zip!,
             Email = bank.Email!,
             Phone = bank.Phone!,
-            Amount = total,
+            Amount = echeckTotal,
             InvoiceNumber = invoiceNumber,
             Description = "Registration Payment"
         });
@@ -1169,8 +1134,8 @@ public class PaymentService : IPaymentService
         if (response.messages.resultCode != messageTypeEnum.Ok)
             return new PaymentResponseDto { Success = false, Message = response.transactionResponse?.errors?[0].errorText ?? "Payment failed", ErrorCode = "CHARGE_GATEWAY_ERROR" };
         var transId = response.transactionResponse.transId;
-        UpdateRegistrationsForCharge(registrations, userId, charges);
-        var addedAccts = AddEcheckAccountingEntries(registrations, userId, transId, invoiceNumber, charges, bank);
+        UpdateRegistrationsForCharge(registrations, userId, echeckCharges);
+        var addedAccts = AddEcheckAccountingEntries(registrations, userId, transId, invoiceNumber, echeckCharges, bank);
         await _registrations.SaveChangesAsync();
         // Settlement rows reference RegistrationAccounting.AId, which is identity-generated —
         // requires the RA inserts above to be saved first.
