@@ -69,8 +69,13 @@ public record RegistrationDetailDto
     // Accounting records
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
 
-    // Club rep detection (true when this registration has teams assigned to it)
+    // Club rep detection (true when this registration has ACTIVE teams assigned to it — drives payment panel)
     public bool IsClubRep { get; init; }
+
+    // Count of ALL teams (active or inactive) referencing this registration via ClubrepRegistrationid.
+    // This is the foreign-key scope: a Club Rep registration can only be deleted when this is zero.
+    // Distinct from IsClubRep, which is active-only and used for display.
+    public int ClubRepTeamCount { get; init; }
 }
 
 /// <summary>

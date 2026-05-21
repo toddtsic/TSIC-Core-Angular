@@ -75,7 +75,8 @@ public class PlayerCheckTests
         var familiesRepo = new Mock<IFamiliesRepository>();
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo.Object, deviceRepo.Object,
-            adnApi.Object, arbRepo.Object, textSub.Object, emailService.Object, feeAdjustment, logger.Object);
+            new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,
+            emailService.Object, feeAdjustment, logger.Object);
 
         return (svc, builder, ctx, job.JobId);
     }

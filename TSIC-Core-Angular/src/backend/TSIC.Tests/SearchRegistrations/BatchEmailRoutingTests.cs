@@ -45,6 +45,7 @@ public class BatchEmailRoutingTests
         jobRepo.Setup(j => j.GetConfirmationEmailInfoAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobConfirmationEmailInfo { JobId = job.JobId, JobName = "Test Job", JobPath = "test" });
 
+        var teamRepo = new TeamRepository(ctx);
         var adnApi = new Mock<IAdnApiService>();
         var deviceRepo = new Mock<IDeviceRepository>();
         var arbRepo = new Mock<IArbSubscriptionRepository>();
@@ -67,7 +68,7 @@ public class BatchEmailRoutingTests
 
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo, deviceRepo.Object,
-            adnApi.Object, arbRepo.Object, textSub.Object, emailService.Object, feeAdjustment, logger.Object);
+            teamRepo, adnApi.Object, arbRepo.Object, textSub.Object, emailService.Object, feeAdjustment, logger.Object);
 
         return (svc, b, ctx, job.JobId, sent);
     }

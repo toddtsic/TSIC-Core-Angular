@@ -23,6 +23,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IJobRepository _jobRepo;
     private readonly IFamiliesRepository _familiesRepo;
     private readonly IDeviceRepository _deviceRepo;
+    private readonly ITeamRepository _teamRepo;
     private readonly IAdnApiService _adnApi;
     private readonly IArbSubscriptionRepository _arbRepo;
     private readonly ITextSubstitutionService _textSubstitution;
@@ -42,6 +43,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IJobRepository jobRepo,
         IFamiliesRepository familiesRepo,
         IDeviceRepository deviceRepo,
+        ITeamRepository teamRepo,
         IAdnApiService adnApi,
         IArbSubscriptionRepository arbRepo,
         ITextSubstitutionService textSubstitution,
@@ -54,6 +56,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _jobRepo = jobRepo;
         _familiesRepo = familiesRepo;
         _deviceRepo = deviceRepo;
+        _teamRepo = teamRepo;
         _adnApi = adnApi;
         _arbRepo = arbRepo;
         _textSubstitution = textSubstitution;
@@ -879,10 +882,29 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             if (!string.Equals(callerRole, RoleConstants.Names.SuperuserName, StringComparison.OrdinalIgnoreCase))
                 return new DeleteRegistrationResponse { Success = false, Message = "Only Superuser can delete Unassigned Adult registrations." };
         }
+        else if (string.Equals(regRoleName, RoleConstants.Names.ClubRepName, StringComparison.OrdinalIgnoreCase))
+        {
+            // Club Rep → only Superuser can delete
+            if (!string.Equals(callerRole, RoleConstants.Names.SuperuserName, StringComparison.OrdinalIgnoreCase))
+                return new DeleteRegistrationResponse { Success = false, Message = "Only Superuser can delete Club Rep registrations." };
+
+            // FK guard: Teams.ClubrepRegistrationid references this registration. A delete would
+            // violate referential integrity while any team (active or inactive) still points to it.
+            var teamCount = await _teamRepo.CountTeamsByClubRepRegistrationAsync(registrationId, ct);
+            if (teamCount > 0)
+            {
+                var plural = teamCount == 1 ? "" : "s";
+                return new DeleteRegistrationResponse
+                {
+                    Success = false,
+                    Message = $"Cannot delete: this club rep has {teamCount} team{plural} attached. Reassign or remove the team{plural} first."
+                };
+            }
+        }
         else if (!string.Equals(regRoleName, RoleConstants.Names.PlayerName, StringComparison.OrdinalIgnoreCase)
               && !string.Equals(regRoleName, RoleConstants.Names.StaffName, StringComparison.OrdinalIgnoreCase))
         {
-            // Only Player, Staff, and Unassigned Adult roles are deletable
+            // Only Player, Staff, Unassigned Adult, and Club Rep roles are deletable
             return new DeleteRegistrationResponse { Success = false, Message = $"Registrations with role '{regRoleName}' cannot be deleted." };
         }
 

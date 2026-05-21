@@ -295,6 +295,14 @@ public interface ITeamRepository
     /// </summary>
     Task<List<Teams>> GetTeamsByClubRepRegistrationAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Count ALL teams (active or inactive, any job) whose ClubrepRegistrationid references the
+    /// given registration. This is the foreign-key scope: a club rep registration cannot be
+    /// deleted while any team still points to it. Distinct from the active-only club-rep detection
+    /// used for payment display.
+    /// </summary>
+    Task<int> CountTeamsByClubRepRegistrationAsync(Guid clubRepRegistrationId, CancellationToken ct = default);
+
     // ── Club Roster methods ──
 
     /// <summary>

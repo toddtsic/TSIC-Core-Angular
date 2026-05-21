@@ -790,6 +790,8 @@
   <app-registration-detail-panel
     [detail]="selectedDetail()"
     [isOpen]="isPanelOpen()"
+    [activeRoleIds]="searchRequest().roleIds ?? []"
+    [roleOptions]="filterOptions()?.roles ?? null"
     (closed)="closePanel()"
     (saved)="onDetailSaved()"
   ></app-registration-detail-panel>

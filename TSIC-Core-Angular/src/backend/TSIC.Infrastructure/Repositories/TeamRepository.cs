@@ -520,6 +520,13 @@ public class TeamRepository : ITeamRepository
             .ToListAsync(ct);
     }
 
+    public async Task<int> CountTeamsByClubRepRegistrationAsync(Guid clubRepRegistrationId, CancellationToken ct = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .CountAsync(t => t.ClubrepRegistrationid == clubRepRegistrationId, ct);
+    }
+
     // ── Club Roster methods ──
 
     public async Task<List<ClubRosterTeamDto>> GetClubRosterTeamsAsync(Guid clubRepRegistrationId, Guid jobId, CancellationToken ct = default)

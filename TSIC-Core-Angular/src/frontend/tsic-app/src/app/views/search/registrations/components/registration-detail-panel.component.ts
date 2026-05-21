@@ -2,9 +2,10 @@ import { Component, ChangeDetectionStrategy, input, output, signal, effect, comp
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto, FilterOption } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
@@ -80,12 +81,18 @@ export class RegistrationDetailPanelComponent {
   detail = input<RegistrationDetailDto | null>(null);
   isOpen = input<boolean>(false);
 
+  // Role-filter context from the parent search — mirrors batch-email-modal.
+  // Used to gate the Club Rep delete: only available when the search is constrained to Club Rep only.
+  activeRoleIds = input<string[]>([]);
+  roleOptions = input<FilterOption[] | null>(null);
+
   closed = output<void>();
   saved = output<void>();
   // refundRequested removed — refunds now handled inside accounting-ledger modal
 
   private searchService = inject(RegistrationSearchService);
   private toast = inject(ToastService);
+  private auth = inject(AuthService);
 
 
   // Tab state
@@ -142,10 +149,38 @@ export class RegistrationDetailPanelComponent {
   // Delete Registration
   showDeleteConfirm = signal<boolean>(false);
   isDeleting = signal<boolean>(false);
+
+  /** True when this registration's role is Club Rep (by role name, not the active-team flag). */
+  isClubRepRole = computed(() => this.detail()?.roleName === 'Club Rep');
+
+  /** True when the active search is constrained to exactly the Club Rep role. Mirrors batch-email-modal. */
+  clubRepOnlySearch = computed(() => {
+    const ids = this.activeRoleIds();
+    if (ids.length !== 1) return false;
+    const opts = this.roleOptions();
+    if (!opts) return false;
+    return opts.find(o => o.value === ids[0])?.text === 'Club Rep';
+  });
+
+  /**
+   * Whether the delete control is shown at all. For a Club Rep it only surfaces for a Superuser
+   * whose search is scoped to Club Rep only; all other roles keep the existing always-shown control.
+   */
+  showDeleteControl = computed(() => {
+    const d = this.detail();
+    if (!d) return false;
+    if (this.isClubRepRole()) return this.auth.isSuperuser() && this.clubRepOnlySearch();
+    return true;
+  });
+
   canDelete = computed(() => {
     const d = this.detail();
     if (!d) return false;
-    return !d.accountingRecords || d.accountingRecords.length === 0;
+    const noAccounting = !d.accountingRecords || d.accountingRecords.length === 0;
+    if (this.isClubRepRole()) {
+      return noAccounting && (d.clubRepTeamCount ?? 0) === 0;
+    }
+    return noAccounting;
   });
 
   constructor() {
@@ -770,7 +805,19 @@ export class RegistrationDetailPanelComponent {
 
   showDeleteBlockedReason(): void {
     const d = this.detail();
-    const count = d?.accountingRecords?.length ?? 0;
+    if (!d) return;
+
+    const teamCount = d.clubRepTeamCount ?? 0;
+    if (this.isClubRepRole() && teamCount > 0) {
+      this.toast.show(
+        `Cannot delete — this club rep has ${teamCount} team${teamCount !== 1 ? 's' : ''} attached. Reassign or remove the team${teamCount !== 1 ? 's' : ''} first.`,
+        'warning',
+        5000
+      );
+      return;
+    }
+
+    const count = d.accountingRecords?.length ?? 0;
     this.toast.show(
       `Cannot delete — this registration has ${count} accounting record${count !== 1 ? 's' : ''}. You do have the option to make the registrant inactive.`,
       'warning',

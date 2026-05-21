@@ -8,16 +8,18 @@
       <div class="header-top-row">
         <h3 class="panel-title">{{ reg.firstName }} {{ reg.lastName }}</h3>
         <div class="header-actions">
-          @if (canDelete()) {
-            <button type="button" class="btn btn-sm btn-outline-danger delete-reg-btn"
-              (click)="confirmDelete()" [disabled]="isDeleting()">
-              Delete Registration
-            </button>
-          } @else {
-            <button type="button" class="btn btn-sm btn-outline-secondary delete-reg-btn disabled-delete"
-              (click)="showDeleteBlockedReason()">
-              Delete Registration
-            </button>
+          @if (showDeleteControl()) {
+            @if (canDelete()) {
+              <button type="button" class="btn btn-sm btn-outline-danger delete-reg-btn"
+                (click)="confirmDelete()" [disabled]="isDeleting()">
+                Delete Registration
+              </button>
+            } @else {
+              <button type="button" class="btn btn-sm btn-outline-secondary delete-reg-btn disabled-delete"
+                (click)="showDeleteBlockedReason()">
+                Delete Registration
+              </button>
+            }
           }
           <button type="button" class="btn-close" (click)="close()" aria-label="Close">&times;</button>
         </div>

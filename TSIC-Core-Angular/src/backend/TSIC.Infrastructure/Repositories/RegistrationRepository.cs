@@ -1901,6 +1901,10 @@ public class RegistrationRepository : IRegistrationRepository
         var isClubRep = await _context.Teams
             .AnyAsync(t => t.ClubrepRegistrationid == reg.RegistrationId && t.Active == true, ct);
 
+        // FK scope for deletability: count ALL teams (active or inactive) pointing at this registration.
+        var clubRepTeamCount = await _context.Teams
+            .CountAsync(t => t.ClubrepRegistrationid == reg.RegistrationId, ct);
+
         return new RegistrationDetailDto
         {
             RegistrationId = reg.RegistrationId,
@@ -1959,7 +1963,8 @@ public class RegistrationRepository : IRegistrationRepository
             RegistrationDate = reg.RegistrationTs,
             ModifiedDate = reg.Modified,
             AccountingRecords = accountingRecords,
-            IsClubRep = isClubRep
+            IsClubRep = isClubRep,
+            ClubRepTeamCount = clubRepTeamCount
         };
     }
 
