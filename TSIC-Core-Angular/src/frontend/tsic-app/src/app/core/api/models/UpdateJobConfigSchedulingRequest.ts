@@ -7,6 +7,7 @@ export type UpdateJobConfigSchedulingRequest = {
     eventStartDate: string | null;
     eventEndDate: string | null;
     bScheduleAllowPublicAccess: boolean | null;
+    bRestrictPublicRosters: boolean;
     gameClock?: (null | GameClockParamsDto);
 };
 

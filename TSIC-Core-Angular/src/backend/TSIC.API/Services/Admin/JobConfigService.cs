@@ -333,6 +333,7 @@ public class JobConfigService : IJobConfigService
         job.EventStartDate = req.EventStartDate;
         job.EventEndDate = req.EventEndDate;
         job.BScheduleAllowPublicAccess = req.BScheduleAllowPublicAccess;
+        job.BRestrictPublicRosters = req.BRestrictPublicRosters;
 
         // GameClockParams — upsert pattern
         if (req.GameClock is not null)
@@ -722,6 +723,7 @@ public class JobConfigService : IJobConfigService
         EventStartDate = job.EventStartDate,
         EventEndDate = job.EventEndDate,
         BScheduleAllowPublicAccess = job.BScheduleAllowPublicAccess,
+        BRestrictPublicRosters = job.BRestrictPublicRosters,
         GameClock = gcp is null ? null : new GameClockParamsDto
         {
             Id = gcp.Id,

@@ -18,6 +18,8 @@ export class SchedulingTabComponent implements OnInit {
   eventStartDate = linkedSignal(() => toDateOnly(this.svc.scheduling()?.eventStartDate) ?? null);
   eventEndDate = linkedSignal(() => toDateOnly(this.svc.scheduling()?.eventEndDate) ?? null);
   bScheduleAllowPublicAccess = linkedSignal(() => this.svc.scheduling()?.bScheduleAllowPublicAccess ?? null);
+  // Positive UI framing: "Allow Public Roster Access" = inverse of the stored bRestrictPublicRosters flag.
+  allowPublicRosterAccess = linkedSignal(() => !(this.svc.scheduling()?.bRestrictPublicRosters ?? false));
 
   halfMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.halfMinutes ?? 0);
   halfTimeMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.halfTimeMinutes ?? 0);
@@ -36,6 +38,7 @@ export class SchedulingTabComponent implements OnInit {
       eventStartDate: toDateOnly(s.eventStartDate) ?? null,
       eventEndDate: toDateOnly(s.eventEndDate) ?? null,
       bScheduleAllowPublicAccess: s.bScheduleAllowPublicAccess,
+      bRestrictPublicRosters: s.bRestrictPublicRosters,
       gameClock: {
         id: s.gameClock?.id ?? 0,
         halfMinutes: s.gameClock?.halfMinutes ?? 0,
@@ -72,6 +75,7 @@ export class SchedulingTabComponent implements OnInit {
       eventStartDate: this.eventStartDate(),
       eventEndDate: this.eventEndDate(),
       bScheduleAllowPublicAccess: this.bScheduleAllowPublicAccess(),
+      bRestrictPublicRosters: !this.allowPublicRosterAccess(),
       gameClock: {
         id: this.svc.scheduling()?.gameClock?.id ?? 0,
         halfMinutes: this.halfMinutes(),

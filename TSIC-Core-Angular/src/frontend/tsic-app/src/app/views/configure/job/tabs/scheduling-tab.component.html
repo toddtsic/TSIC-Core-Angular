@@ -1,6 +1,6 @@
 @if (svc.scheduling()) {
   <div class="tab-panel">
-    <!-- Public access toggle — prominent placement -->
+    <!-- Public access toggles — prominent placement -->
     <div class="form-section">
       <div class="toggle-row" [class.is-on]="bScheduleAllowPublicAccess()" [class.is-off]="!bScheduleAllowPublicAccess()">
         <label class="toggle-control">
@@ -14,6 +14,22 @@
             The game schedule is visible to the public.
           } @else {
             The game schedule is hidden from the public.
+          }
+        </span>
+      </div>
+
+      <div class="toggle-row" [class.is-on]="allowPublicRosterAccess()" [class.is-off]="!allowPublicRosterAccess()">
+        <label class="toggle-control">
+          <input type="checkbox"
+            [ngModel]="allowPublicRosterAccess()"
+            (ngModelChange)="allowPublicRosterAccess.set($event); onFieldChange()" />
+          <span class="field-label">Allow Public Roster Access</span>
+        </label>
+        <span class="toggle-tip">
+          @if (allowPublicRosterAccess()) {
+            Team rosters are visible to the public.
+          } @else {
+            Team rosters are hidden from the public.
           }
         </span>
       </div>

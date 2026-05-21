@@ -335,6 +335,8 @@ public record JobConfigSchedulingDto
     public required DateTime? EventStartDate { get; init; }
     public required DateTime? EventEndDate { get; init; }
     public required bool? BScheduleAllowPublicAccess { get; init; }
+    /// <summary>When true, public team rosters are hidden for this job (Jobs.bRestrictPublicRosters).</summary>
+    public required bool BRestrictPublicRosters { get; init; }
     public required GameClockParamsDto? GameClock { get; init; }
 }
 
@@ -343,6 +345,8 @@ public record UpdateJobConfigSchedulingRequest
     public required DateTime? EventStartDate { get; init; }
     public required DateTime? EventEndDate { get; init; }
     public required bool? BScheduleAllowPublicAccess { get; init; }
+    /// <summary>When true, public team rosters are hidden for this job (Jobs.bRestrictPublicRosters).</summary>
+    public required bool BRestrictPublicRosters { get; init; }
     public GameClockParamsDto? GameClock { get; init; }
 }
 
