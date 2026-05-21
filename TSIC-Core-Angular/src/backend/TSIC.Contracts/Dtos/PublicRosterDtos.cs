@@ -10,6 +10,8 @@ public record PublicRosterTreeDto
     public required List<CadtClubNode> Clubs { get; init; }
     /// <summary>Whether the event allows public schedule viewing (controls "View Schedule" link visibility).</summary>
     public required bool SchedulePublic { get; init; }
+    /// <summary>Whether public rosters are restricted for this event (Jobs.bRestrictPublicRosters). When true, the page shows a "not available" message and no clubs are returned.</summary>
+    public required bool RestrictPublicRosters { get; init; }
 }
 
 /// <summary>

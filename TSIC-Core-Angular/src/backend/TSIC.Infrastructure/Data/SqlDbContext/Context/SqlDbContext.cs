@@ -4583,6 +4583,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.BRestrictPlayerTeamsToAgerange)
                 .HasDefaultValue(false)
                 .HasColumnName("bRestrictPlayerTeamsToAgerange");
+            entity.Property(e => e.BRestrictPublicRosters).HasColumnName("bRestrictPublicRosters");
             entity.Property(e => e.BScheduleAllowPublicAccess)
                 .HasDefaultValue(false)
                 .HasColumnName("bScheduleAllowPublicAccess");

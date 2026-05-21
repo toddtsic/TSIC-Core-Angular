@@ -67,9 +67,15 @@ public class PublicRosterController : ControllerBase
         var (jobId, error) = await ResolveContext(jobPath);
         if (error != null) return error;
 
-        var tree = await _teamRepository.GetPublicRosterTreeAsync(jobId!.Value, ct);
+        // Honor the per-job public-roster restriction (Jobs.bRestrictPublicRosters).
+        // When set, return the flag with no clubs and skip the tree query — the web page shows a "not available" message.
+        var restricted = await _jobRepository.IsPublicRostersRestrictedAsync(jobId!.Value, ct);
+        if (restricted)
+            return Ok(new PublicRosterTreeDto { Clubs = [], SchedulePublic = false, RestrictPublicRosters = true });
+
+        var tree = await _teamRepository.GetPublicRosterTreeAsync(jobId.Value, ct);
         var schedulePublic = await _jobRepository.IsPublicAccessEnabledAsync(jobId.Value, ct);
-        return Ok(new PublicRosterTreeDto { Clubs = tree, SchedulePublic = schedulePublic });
+        return Ok(new PublicRosterTreeDto { Clubs = tree, SchedulePublic = schedulePublic, RestrictPublicRosters = false });
     }
 
     /// <summary>GET /api/public-rosters/team/{teamId}?jobPath= — Public roster for a specific team.</summary>
@@ -80,8 +86,14 @@ public class PublicRosterController : ControllerBase
         var (jobId, error) = await ResolveContext(jobPath);
         if (error != null) return error;
 
+        // Hard stop: when the job restricts public rosters, return an empty payload
+        // even on a direct API hit (mirrors the mobile public-roster behavior).
+        var restricted = await _jobRepository.IsPublicRostersRestrictedAsync(jobId!.Value, ct);
+        if (restricted)
+            return Ok(new List<PublicRosterPlayerDto>());
+
         // Verify team belongs to this job
-        var belongsToJob = await _teamRepository.BelongsToJobAsync(teamId, jobId!.Value, ct);
+        var belongsToJob = await _teamRepository.BelongsToJobAsync(teamId, jobId.Value, ct);
         if (!belongsToJob)
             return NotFound(new { message = "Team not found." });
 

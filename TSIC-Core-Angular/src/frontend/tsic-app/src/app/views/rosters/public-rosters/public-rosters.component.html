@@ -3,6 +3,12 @@
 
 	@if (errorMessage()) {
 		<div class="alert alert-warning text-center">{{ errorMessage() }}</div>
+	} @else if (restricted()) {
+		<div class="restricted-notice">
+			<i class="bi bi-shield-lock"></i>
+			<h4>Rosters Are Private for This Event</h4>
+			<p>The organizer has chosen not to publish team rosters for this event.</p>
+		</div>
 	} @else {
 		<div class="rosters-layout">
 			<!-- Left: Team finder -->

@@ -351,6 +351,15 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> IsPublicRostersRestrictedAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BRestrictPublicRosters)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<decimal?> GetProcessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs

@@ -243,6 +243,8 @@ public partial class Jobs
 
     public DateTime? AdnStartDateAfterTrial { get; set; }
 
+    public bool BRestrictPublicRosters { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();

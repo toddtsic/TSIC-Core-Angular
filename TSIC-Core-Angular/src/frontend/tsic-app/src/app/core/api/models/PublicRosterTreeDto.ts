@@ -6,5 +6,6 @@ import type { CadtClubNode } from './CadtClubNode';
 export type PublicRosterTreeDto = {
     clubs: Array<CadtClubNode>;
     schedulePublic: boolean;
+    restrictPublicRosters: boolean;
 };
 

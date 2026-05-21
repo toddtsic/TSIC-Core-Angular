@@ -232,6 +232,12 @@ public interface IJobRepository
     Task<bool> IsPublicAccessEnabledAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Check if public rosters are restricted for a job (Jobs.bRestrictPublicRosters).
+    /// When true, public roster listing/lookup is hidden.
+    /// </summary>
+    Task<bool> IsPublicRostersRestrictedAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get CC processing fee percent for a job.
     /// </summary>
     Task<decimal?> GetProcessingFeePercentAsync(Guid jobId, CancellationToken cancellationToken = default);

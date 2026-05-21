@@ -21,6 +21,40 @@
 	}
 }
 
+// ── Restricted notice (Jobs.bRestrictPublicRosters) ──
+
+.restricted-notice {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	max-width: 520px;
+	margin: var(--space-8) auto 0;
+	padding: var(--space-12) var(--space-8);
+	background: var(--bs-card-bg, var(--brand-surface));
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-sm);
+	border: 1px solid var(--border-color);
+
+	.bi {
+		font-size: 2.75rem;
+		color: var(--bs-primary);
+		margin-bottom: var(--space-4);
+	}
+
+	h4 {
+		font-weight: var(--font-weight-semibold);
+		color: var(--brand-text);
+		margin: 0 0 var(--space-2);
+	}
+
+	p {
+		font-size: var(--font-size-base);
+		color: var(--neutral-500);
+		margin: 0;
+	}
+}
+
 // ── Finder Panel ──
 
 .finder-panel {

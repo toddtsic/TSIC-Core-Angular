@@ -47,6 +47,9 @@ export class PublicRostersComponent {
 	errorMessage = signal('');
 	searchText = signal('');
 
+	// Whether the event restricts public rosters (Jobs.bRestrictPublicRosters) — shows a "not available" notice.
+	restricted = signal(false);
+
 	// Pre-built flat team index — always visible, filtered by search
 	allTeams = signal<FlatTeam[]>([]);
 
@@ -72,6 +75,7 @@ export class PublicRostersComponent {
 		this.errorMessage.set('');
 		this.svc.getTree(this.jobPath).subscribe({
 			next: (data) => {
+				this.restricted.set(data.restrictPublicRosters ?? false);
 				const clubs = data.clubs ?? [];
 				this.clubs.set(clubs);
 				this.allTeams.set(this.buildFlatIndex(clubs));
