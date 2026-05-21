@@ -50,4 +50,21 @@ public static class PaymentRateMath
     /// </summary>
     public static decimal EcheckPartialCredit(decimal principal, decimal ccRate, decimal echeckRate) =>
         ProcCredit(principal, ccRate, echeckRate);
+
+    /// <summary>
+    /// The proc credit actually applied to a single payment: <see cref="ProcCredit"/>
+    /// rounded to cents, then capped at the proc actually embedded in the entity's
+    /// balance (<paramref name="embeddedProc"/>) so we never credit phantom proc.
+    /// This is the canonical figure the charge engine debits AND the display/quote
+    /// path subtracts — co-located here so the two cannot drift (a drift would
+    /// re-trip the team eCheck AMOUNT_MISMATCH tripwire). The method-correct charge
+    /// is <c>owed − AppliedProcCredit(principalRemaining, embeddedProc, ccRate, methodRate)</c>.
+    /// See go-live 002 (Issues 1 &amp; 5).
+    /// </summary>
+    public static decimal AppliedProcCredit(decimal principalRemaining, decimal embeddedProc, decimal ccRate, decimal methodRate)
+    {
+        var credit = Math.Round(ProcCredit(principalRemaining, ccRate, methodRate), 2, MidpointRounding.AwayFromZero);
+        var cap = Math.Max(0m, embeddedProc);
+        return credit > cap ? cap : credit;
+    }
 }

@@ -223,6 +223,14 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               </div>
             </div>
           }
+          @if (isEcheck() && echeckSavings() > 0) {
+            <div class="alert alert-success border-0 d-flex align-items-center gap-2 mb-3">
+              <i class="bi bi-piggy-bank fs-5"></i>
+              <div>
+                <strong>Save {{ echeckSavings() | currency }}</strong> in processing fees by paying with eCheck instead of card.
+              </div>
+            </div>
+          }
 
           <!-- ═══ VERTICAL INSURE / REGSAVER (CC-bearing methods only) ═══
                Per legacy: VI premium charged via the same CC the rep enters for TSIC,
@@ -309,7 +317,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             <button type="button" class="btn btn-primary"
                     (click)="submitEcheck()"
                     [disabled]="!canSubmitEcheck()">
-              {{ submitting() ? 'Processing...' : 'Pay ' + (balanceDue() | currency) + ' by eCheck' }}
+              {{ submitting() ? 'Processing...' : 'Pay ' + (echeckAmount() | currency) + ' by eCheck' }}
             </button>
           }
 
@@ -759,6 +767,10 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly showArbTrialSourcePicker = computed(() => this.showCcButton() && this.showEcheckButton());
     readonly processingFeeSavings = computed(() => this.state.teamPayment.processingFeeSavings());
     readonly checkAmount = computed(() => this.state.teamPayment.totalCkOwed());
+    // eCheck total (lower than CC by the proc-rate spread) — what the rep is shown AND
+    // submits. Must equal the engine's debit, so it comes from the server-computed total.
+    readonly echeckAmount = computed(() => this.state.teamPayment.totalEkOwed());
+    readonly echeckSavings = computed(() => this.state.teamPayment.echeckProcessingFeeSavings());
     readonly payTo = computed(() => this.state.teamPayment.payTo());
     readonly mailTo = computed(() => this.state.teamPayment.mailTo());
     readonly mailinPaymentWarning = computed(() => this.state.teamPayment.mailinPaymentWarning());
@@ -1142,7 +1154,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         const teamIds = this.state.teamPayment.teamIdsWithBalance();
         const request: TeamEcheckPaymentRequestDto = {
             teamIds,
-            totalAmount: this.balanceDue(),
+            totalAmount: this.echeckAmount(),
             bankAccount,
         };
 
@@ -1155,7 +1167,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                         this.lastIdemKey = null;
                         this.state.teamPaymentState.setLastPayment({
                             transactionId: resp.transactionId || undefined,
-                            amount: this.balanceDue(),
+                            amount: this.echeckAmount(),
                             message: resp.message || 'eCheck submitted — pending settlement',
                             paymentMethod: 'Echeck',
                         });

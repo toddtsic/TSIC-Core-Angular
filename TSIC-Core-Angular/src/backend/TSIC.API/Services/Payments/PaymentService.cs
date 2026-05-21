@@ -161,10 +161,11 @@ public class PaymentService : IPaymentService
             var state = teamStates.GetValueOrDefault(team.TeamId) ?? emptyState;
             var methodRate = kind == TeamChargeKind.Cc ? state.CcRate : state.EcheckRate;
             var principal = state.PrincipalRemaining(team.FeeBase ?? 0m, team.FeeDiscount ?? 0m, team.FeeLatefee ?? 0m);
-            var credit = Math.Round(PaymentRateMath.ProcCredit(principal, state.CcRate, methodRate), 2, MidpointRounding.AwayFromZero);
-            // Never credit more proc than is actually embedded in this team's balance.
-            var embeddedProc = Math.Max(0m, team.FeeProcessing ?? 0m);
-            if (credit > embeddedProc) credit = embeddedProc;
+            // Canonical credit (rounded + capped at the proc embedded in this team's
+            // balance). Same helper the registration display path uses to quote
+            // EkOwedTotal, so the rep's shown eCheck total can't disagree with what we
+            // charge here (which would re-trip AMOUNT_MISMATCH below).
+            var credit = PaymentRateMath.AppliedProcCredit(principal, team.FeeProcessing ?? 0m, state.CcRate, methodRate);
 
             var charge = owed - credit;
             if (charge <= 0m) continue;

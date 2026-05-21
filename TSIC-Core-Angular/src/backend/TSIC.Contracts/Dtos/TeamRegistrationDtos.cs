@@ -181,6 +181,11 @@ public sealed record RegisteredTeamDto
     public required bool BWaiverSigned3 { get; init; }
     public required decimal CcOwedTotal { get; init; }
     public required decimal CkOwedTotal { get; init; }
+    // eCheck-billable total: CcOwedTotal minus the (CC − eCheck) proc credit. Lower than
+    // CcOwedTotal (eCheck proc rate < CC) and higher than CkOwedTotal (eCheck still
+    // collects some proc). The rep must be shown + submit THIS when paying by eCheck —
+    // the charge engine debits the same figure (see PaymentRateMath.AppliedProcCredit).
+    public required decimal EkOwedTotal { get; init; }
 }
 
 public sealed record AgeGroupDto

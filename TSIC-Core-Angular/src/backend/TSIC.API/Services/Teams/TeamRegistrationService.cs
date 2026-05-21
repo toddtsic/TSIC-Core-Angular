@@ -467,6 +467,11 @@ public class TeamRegistrationService : ITeamRegistrationService
             var ckOwedTotal = state.PrincipalRemaining(t.FeeBase, t.FeeDiscount, t.FeeLatefee);
             var ccOwedTotal = t.OwedTotal;
             var feeProcessingDue = Math.Max(0m, ccOwedTotal - ckOwedTotal);
+            // eCheck owed: the CC owed minus the (CC − eCheck) proc credit the rep avoids
+            // by paying via ACH. Uses the SAME canonical helper the charge engine
+            // (PaymentService.ChargeTeamsAsync) debits, so the total the rep is shown for
+            // eCheck equals what we'll charge — the AMOUNT_MISMATCH tripwire stays quiet.
+            var ekOwedTotal = ccOwedTotal - PaymentRateMath.AppliedProcCredit(ckOwedTotal, t.FeeProcessing, state.CcRate, state.EcheckRate);
 
             return new RegisteredTeamDto
             {
@@ -491,6 +496,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 BWaiverSigned3 = t.BWaiverSigned3,
                 CcOwedTotal = ccOwedTotal,
                 CkOwedTotal = ckOwedTotal,
+                EkOwedTotal = ekOwedTotal,
                 ClubTeamId = t.ClubTeamId,
                 BHasBeenScheduled = t.ClubTeamId.HasValue && scheduledClubTeamIds.Contains(t.ClubTeamId.Value),
             };

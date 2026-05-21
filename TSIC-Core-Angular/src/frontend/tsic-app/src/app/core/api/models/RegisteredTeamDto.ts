@@ -26,5 +26,6 @@ export type RegisteredTeamDto = {
     bWaiverSigned3: boolean;
     ccOwedTotal: number;
     ckOwedTotal: number;
+    ekOwedTotal: number;
 };
 

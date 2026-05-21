@@ -25,6 +25,7 @@ export interface TeamLineItem {
     owedTotal: number;
     ccOwedTotal: number;
     ckOwedTotal: number;
+    ekOwedTotal: number;
 }
 
 /**
@@ -133,7 +134,8 @@ export class TeamPaymentService {
             additionalDue: t.additionalDue ?? 0,
             owedTotal: t.owedTotal ?? 0,
             ccOwedTotal: t.ccOwedTotal ?? 0,
-            ckOwedTotal: t.ckOwedTotal ?? 0
+            ckOwedTotal: t.ckOwedTotal ?? 0,
+            ekOwedTotal: t.ekOwedTotal ?? 0
         }));
     });
 
@@ -149,17 +151,27 @@ export class TeamPaymentService {
     balanceDue = computed(() => this.lineItems().reduce((sum, item) => sum + item.owedTotal, 0));
     totalCcOwed = computed(() => this.lineItems().reduce((sum, item) => sum + item.ccOwedTotal, 0));
     totalCkOwed = computed(() => this.lineItems().reduce((sum, item) => sum + item.ckOwedTotal, 0));
+    totalEkOwed = computed(() => this.lineItems().reduce((sum, item) => sum + item.ekOwedTotal, 0));
 
-    // Amount to charge based on selected payment method.
-    // CC and eCheck both incur processing fees (eCheck at the lower EC rate, applied
-    // server-side as a (CC − EC) credit before the debit), so we charge the CC owed
-    // total in both cases here. Check uses the no-processing-fee owed total.
-    amountToCharge = computed(() =>
-        this.selectedPaymentMethod() === 'Check' ? this.totalCkOwed() : this.totalCcOwed()
-    );
+    // Amount to charge by selected method. These are server-computed per-team totals
+    // (PaymentState is the single source of truth) — the client never reconstructs the
+    // rate math. eCheck is its OWN total now: the backend debits the eCheck gross, not
+    // the CC gross, so submitting totalCcOwed for eCheck would trip AMOUNT_MISMATCH.
+    //   • CC     → totalCcOwed  (full CC proc baked in)
+    //   • eCheck → totalEkOwed  (lower eCheck proc rate; engine debits this exact figure)
+    //   • Check  → totalCkOwed  (no processing fee)
+    amountToCharge = computed(() => {
+        switch (this.selectedPaymentMethod()) {
+            case 'Check': return this.totalCkOwed();
+            case 'Echeck': return this.totalEkOwed();
+            default: return this.totalCcOwed();
+        }
+    });
 
-    // Processing fee savings when paying by check
+    // Processing fee savings vs paying by card.
     processingFeeSavings = computed(() => this.totalCcOwed() - this.totalCkOwed());
+    // eCheck collects proc at the lower ACH rate, so the rep saves the (CC − eCheck) spread.
+    echeckProcessingFeeSavings = computed(() => this.totalCcOwed() - this.totalEkOwed());
 
     // Whether payment is required
     hasBalance = computed(() => this.balanceDue() > 0);
