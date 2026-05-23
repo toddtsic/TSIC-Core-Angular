@@ -60,6 +60,7 @@ public class ClubRegistrationGateTests
         ClubName = clubName,
         FirstName = "Test",
         LastName = "User",
+        Gender = "M",
         Email = "test@example.com",
         Username = "testuser_" + Guid.NewGuid().ToString("N")[..8],
         Password = "Password123!",

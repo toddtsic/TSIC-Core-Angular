@@ -7,6 +7,7 @@ public record ClubRepRegistrationRequest
     public required string ClubName { get; init; }
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
+    public required string Gender { get; init; }
     public required string Email { get; init; }
     public required string Username { get; init; }
     public required string Password { get; init; }
@@ -51,6 +52,10 @@ public class ClubRepRegistrationRequestValidator : AbstractValidator<ClubRepRegi
         RuleFor(x => x.LastName)
             .NotEmpty().WithMessage("Last name is required")
             .MaximumLength(100).WithMessage("Last name cannot exceed 100 characters");
+
+        RuleFor(x => x.Gender)
+            .NotEmpty().WithMessage("Gender is required")
+            .Must(g => g is "M" or "F").WithMessage("Gender must be M or F");
 
         RuleFor(x => x.Email)
             .NotEmpty().WithMessage("Email is required")

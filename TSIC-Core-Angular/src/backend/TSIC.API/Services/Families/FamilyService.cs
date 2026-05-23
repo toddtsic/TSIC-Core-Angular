@@ -386,6 +386,7 @@ public sealed class FamilyService : IFamilyService
                 Email = request.Primary.Email,
                 FirstName = request.Primary.FirstName,
                 LastName = request.Primary.LastName,
+                Gender = "U", // primary/parent form doesn't collect gender; "U" = unknown, never null
                 Cellphone = request.Primary.Cellphone,
                 Phone = request.Primary.Cellphone,
                 StreetAddress = request.Address.StreetAddress,

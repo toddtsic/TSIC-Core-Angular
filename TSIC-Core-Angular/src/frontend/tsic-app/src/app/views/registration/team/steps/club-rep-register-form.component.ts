@@ -446,6 +446,19 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                            [class.is-invalid]="submitted() && form.controls.lastName.invalid" />
                   </div>
                 </div>
+                @if (!isEdit()) {
+                  <div class="row g-2 mb-2">
+                    <div class="col-12">
+                      <select class="field-select" formControlName="gender"
+                              [class.is-required]="!form.controls.gender.value"
+                              [class.is-invalid]="submitted() && form.controls.gender.invalid">
+                        <option value="">Gender</option>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                      </select>
+                    </div>
+                  </div>
+                }
                 <div class="row g-2 mb-2">
                   <div class="col-7">
                     <input type="email" class="field-input" formControlName="email"
@@ -602,6 +615,7 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         clubName: ['', Validators.required],
         firstName: ['', Validators.required],
         lastName: ['', Validators.required],
+        gender: ['', Validators.required],
         email: ['', [Validators.required, Validators.email]],
         cellphone: ['', Validators.required],
         streetAddress: ['', Validators.required],
@@ -663,6 +677,8 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
         // an account by renaming it instead of creating a proper new club rep account.
         this.form.controls.firstName.disable();
         this.form.controls.lastName.disable();
+        // Gender is collected on create only; disable so the edit form excludes it.
+        this.form.controls.gender.disable();
 
         // canSubmit() gates on clubDecision; 'clear' skips the club-search gate entirely.
         this.clubDecision.set('clear');
@@ -746,6 +762,7 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             clubName: v.clubName!.trim(),
             firstName: v.firstName!.trim(),
             lastName: v.lastName!.trim(),
+            gender: v.gender!,
             email: v.email!.trim(),
             cellphone: v.cellphone!.trim(),
             streetAddress: v.streetAddress!.trim(),

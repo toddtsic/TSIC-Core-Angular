@@ -147,6 +147,7 @@ public sealed class ClubService : IClubService
                 Email = request.Email,
                 FirstName = request.FirstName,
                 LastName = request.LastName,
+                Gender = request.Gender, // collected on the club-rep form (M/F)
                 Cellphone = request.Cellphone,
                 Phone = request.Cellphone,
                 StreetAddress = request.StreetAddress,

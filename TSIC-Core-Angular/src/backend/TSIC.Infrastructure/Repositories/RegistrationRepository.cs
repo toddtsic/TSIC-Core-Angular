@@ -1628,11 +1628,15 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
+        // Gender options are intentionally NOT default-checked. Pre-selecting all
+        // genders silently excluded registrants with no/null gender (e.g. club reps,
+        // walk-ups) from the default search. Unselected = no gender filter applied,
+        // so everyone is returned until an admin deliberately narrows by gender.
         var genders = await baseQuery
             .Where(r => r.BActive == true && r.User != null && r.User.Gender != null)
             .GroupBy(r => r.User!.Gender!)
             .OrderBy(g => g.Key)
-            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count(), DefaultChecked = true })
+            .Select(g => new FilterOption { Value = g.Key, Text = g.Key, Count = g.Count() })
             .ToListAsync(ct);
 
         var gradYears = await baseQuery

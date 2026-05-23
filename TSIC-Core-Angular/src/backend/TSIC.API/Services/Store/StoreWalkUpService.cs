@@ -72,6 +72,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 			Email = request.Email,
 			FirstName = request.FirstName,
 			LastName = request.LastName,
+			Gender = "U", // walk-up form doesn't collect gender; "U" = unknown, never null
 			Cellphone = request.Phone,
 			Phone = request.Phone,
 			StreetAddress = request.StreetAddress,

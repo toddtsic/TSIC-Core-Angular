@@ -6,6 +6,7 @@ export type ClubRepRegistrationRequest = {
     clubName: string;
     firstName: string;
     lastName: string;
+    gender: string;
     email: string;
     username: string;
     password: string;
