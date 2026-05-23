@@ -1079,8 +1079,6 @@ public class PaymentService : IPaymentService
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
             return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
         var env = _adnApiService.GetADNEnvironment();
-        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey) && await IsDuplicateAsync(jobId, familyUserId, request))
-            return new PaymentResponseDto { Success = true, Message = "Duplicate prevented (idempotent).", ErrorCode = "DUPLICATE_PREVENTED" };
         var invoiceReg = registrations[0];
         var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
         // CC-symmetric eCheck: each registration's gateway debit is its CC-inclusive charge
@@ -1299,8 +1297,6 @@ public class PaymentService : IPaymentService
             return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
         }
         var env = _adnApiService.GetADNEnvironment();
-        if (!string.IsNullOrWhiteSpace(request.IdempotencyKey) && await IsDuplicateAsync(jobId, familyUserId, request))
-            return new PaymentResponseDto { Success = true, Message = "Duplicate prevented (idempotent).", ErrorCode = "DUPLICATE_PREVENTED" };
         // Build deterministic invoice number using first registration (pattern: customerAI_jobAI_registrationAI)
         var invoiceReg = registrations[0];
         var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
@@ -1479,12 +1475,6 @@ public class PaymentService : IPaymentService
             return new PaymentResponseDto { Success = true, Message = subs.Count == 1 ? "ARB subscription created" : "ARB subscriptions created", SubscriptionId = single, SubscriptionIds = subs };
         }
         return new PaymentResponseDto { Success = false, Message = $"{subs.Count} subscription(s) created; {failed.Count} failed.", ErrorCode = "ARB_PARTIAL_FAIL", SubscriptionIds = subs, FailedSubscriptionIds = failed };
-    }
-
-    private async Task<bool> IsDuplicateAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
-    {
-        if (string.IsNullOrWhiteSpace(request.IdempotencyKey)) return false;
-        return await _acct.AnyDuplicateAsync(jobId, familyUserId, request.IdempotencyKey);
     }
 
     private static PaymentResponseDto Fail(string msg, string code) => new PaymentResponseDto { Success = false, Message = msg, ErrorCode = code };

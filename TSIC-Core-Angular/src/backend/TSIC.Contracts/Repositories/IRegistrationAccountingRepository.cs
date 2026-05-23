@@ -20,11 +20,6 @@ public interface IRegistrationAccountingRepository
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Check for duplicate accounting entries for given job, family, and idempotency key.
-    /// </summary>
-    Task<bool> AnyDuplicateAsync(Guid jobId, string familyUserId, string idempotencyKey, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Get the most recent Authorize.Net transaction ID for the given registration IDs.
     /// </summary>
     Task<string?> GetLatestAdnTransactionIdAsync(IEnumerable<Guid> registrationIds, CancellationToken cancellationToken = default);

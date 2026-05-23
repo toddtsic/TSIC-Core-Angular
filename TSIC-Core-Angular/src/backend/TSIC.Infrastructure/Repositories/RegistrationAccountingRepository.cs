@@ -26,13 +26,6 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
         return await _context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<bool> AnyDuplicateAsync(Guid jobId, string familyUserId, string idempotencyKey, CancellationToken cancellationToken = default)
-    {
-        return await _context.RegistrationAccounting
-            .Join(_context.Registrations, a => a.RegistrationId, r => r.RegistrationId, (a, r) => new { a, r })
-            .AnyAsync(x => x.r.JobId == jobId && x.r.FamilyUserId == familyUserId && x.a.AdnInvoiceNo == idempotencyKey, cancellationToken);
-    }
-
     public async Task<string?> GetLatestAdnTransactionIdAsync(IEnumerable<Guid> registrationIds, CancellationToken cancellationToken = default)
     {
         var regIdSet = registrationIds.ToHashSet();
