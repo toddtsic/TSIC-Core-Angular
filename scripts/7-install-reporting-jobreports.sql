@@ -207,11 +207,35 @@ INSERT INTO @ExcludeActions VALUES
                              -- so users would see numbers disagreeing with printed copies they
                              -- received at billing time. Retired for ALL roles 2026-05-04.
 
+-- CR -> SP-Excel conversions. Maps a report's legacy (Crystal) action to its
+-- SP-Excel action so the populate below emits a StoredProcedure row pointing at
+-- the reporting_migrate sproc (script 11). One row per converted report.
+DECLARE @ActionMap TABLE (
+    LegacyAction  NVARCHAR(250) NOT NULL PRIMARY KEY,
+    NewAction     NVARCHAR(250) NOT NULL,
+    NewGroupLabel NVARCHAR(100) NOT NULL   -- a category code from report-categories.ts; drives the library bucket
+);
+INSERT INTO @ActionMap (LegacyAction, NewAction, NewGroupLabel) VALUES
+    (N'TournamentRecruitingReport_DataDump',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.JobRosters_ExportTournament&bUseJobId=true',
+     N'Recruiting');
+
 DELETE FROM reporting.JobReports
 WHERE [Action] IN (SELECT [Action] FROM @ExcludeActions);
 
 DECLARE @ExcludedCount INT = @@ROWCOUNT;
 PRINT CONCAT('Scrubbed ', @ExcludedCount, ' retired-action row(s) from reporting.JobReports');
+
+-- Sweep both the legacy (Crystal) action AND the mapped (SP) action for mapped
+-- reports, so the populate re-inserts each one fresh with the current map's
+-- action + category. Catching the SP action too means later edits to a report's
+-- category in @ActionMap take effect on re-run (the map owns the converted rows).
+DELETE FROM reporting.JobReports
+WHERE [Action] IN (SELECT LegacyAction FROM @ActionMap)
+   OR [Action] IN (SELECT NewAction    FROM @ActionMap);
+
+DECLARE @MappedSweepCount INT = @@ROWCOUNT;
+PRINT CONCAT('Swept ', @MappedSweepCount, ' row(s) for mapped report(s) (legacy + converted)');
 
 ;WITH SourceMenus AS (
     SELECT
@@ -220,12 +244,12 @@ PRINT CONCAT('Scrubbed ', @ExcludedCount, ' retired-action row(s) from reporting
         jmiC.[Text]                                                     AS Title,
         jmiC.IconName,
         jmiC.Controller,
-        jmiC.[Action],
+        COALESCE(am.NewAction, jmiC.[Action])                           AS [Action],
         CASE
-            WHEN jmiC.[Action] LIKE 'ExportStoredProcedureResults?%' THEN 'StoredProcedure'
+            WHEN COALESCE(am.NewAction, jmiC.[Action]) LIKE 'ExportStoredProcedureResults?%' THEN 'StoredProcedure'
             ELSE 'CrystalReport'
         END                                                             AS Kind,
-        jmiP.[Text]                                                     AS GroupLabel,
+        COALESCE(am.NewGroupLabel, jmiP.[Text])                         AS GroupLabel,
         ISNULL(jmiC.[Index], 0)                                         AS SortOrder,
         jmiC.Active,
         ROW_NUMBER() OVER (
@@ -243,6 +267,8 @@ PRINT CONCAT('Scrubbed ', @ExcludedCount, ' retired-action row(s) from reporting
     INNER JOIN Jobs.JobMenu_Items jmiC
         ON jmiC.MenuId = jmiP.MenuId
        AND jmiC.ParentMenuItemId = jmiP.MenuItemId
+    LEFT JOIN @ActionMap am
+        ON am.LegacyAction = jmiC.[Action]
     WHERE jm.MenuTypeId = 6
       AND j.[Year] IN (SELECT [Year] FROM @ImportYears)
       AND jmiC.[Action] IS NOT NULL
