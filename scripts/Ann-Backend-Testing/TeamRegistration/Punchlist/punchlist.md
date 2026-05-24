@@ -355,7 +355,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Consistent, informative columns across both tables — the first table has useful data that should carry forward to the second
 - **What happened**: The first accounting table has a lot of the info that should also appear on the payment screen. Additionally, LOP needs its own dedicated column instead of being embedded elsewhere. Challenge: lots of data to fit in a narrow field — may need layout adjustments (wider table, smaller font, horizontal scroll, or abbreviated headers). Needs collaborative review with Todd.
 - **Severity**: UX
-- **Status**: Deferred
+- **Status**: Fixed
 - **Note**: Related to PlayerRegistration SP-024 (similar accounting table column/label rework). Consider standardizing table layout approach across both Player and Team registration.
 
 ### SP-005: Team Library — what happens to aged-out grad year teams? + team name editing (follow-up to PL-019)
@@ -433,7 +433,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   - **Click Here for Coach Registration**
   Much cleaner and faster for users to find their path.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred
 - **Update (2026-05-06)**: Carolina Clash bulletin already uses this format for Team Registration — extend the same format to Players and Coaches there, **and apply across ALL bulletins** (every job). Ann: "So much better!!!"
 
 ### TP-004: Teams screen layout — eliminate scrolling on Registered card; rebalance space vs Library (acceptance-critical)
@@ -493,6 +493,81 @@ Use these as a guide for what to walk through. You don't have to go in order.
 <!-- Template — copy and fill in for each new item:
 
 ### TP-XXX: <short title>
+- **Area**: <Club Rep Login | Team Selection | Team Forms | Roster Management | Waivers | Review Summary | Payment | Confirmation>
+- **What I did**:
+- **What I expected**:
+- **What happened**:
+- **Severity**: <Bug | UX | Question>
+- **Status**: Open
+
+-->
+
+---
+
+## Fourth Pass Items
+
+*Started 2026-05-20. Numbered independently (FP-001, FP-002, ...).*
+
+### FP-001: Confirmation "Most Recent Transactions" — Online Correction comment "Non-steps payment" is unclear
+- **Area**: Confirmation
+- **What I did**: Viewed the confirmation screen and looked at the "Most Recent Transactions" section, specifically the Online Correction records
+- **What I expected**: A Comment that clearly explains what the transaction is
+- **What happened**: For Online Correction records, the Comment column says "Non-steps payment" — unclear what this means. Consider replacing it with clearer text.
+- **Example**: STEPS teams on LFTC Summer 2026
+- **Severity**: UX
+- **Status**: Open
+- **Update (2026-05-23)**: The "Team Registration" comment only shows for CC transactions — it does not show for Correction or Check (Correction shows "Non-steps payment"; Check shows nothing). Inconsistent across transaction types. Ann's bottom line: the Comment is unnecessary on all of them — recommend removing the Comment column / value across every transaction type in Most Recent Transactions. (See FP-005 point 4 for the CC "Team Registration: 2031 Red" example.)
+
+### FP-002: "Players' Grad Year" — drop the helper text and shorten the label to "Grad Year"
+- **Area**: Team Selection
+- **What I did**: Looked at the "Players' Grad Year" field
+- **What I expected**: A simple, fast-to-read label and field
+- **What happened**: The text under "Players' Grad Year" isn't necessary — too busy, too much to read. Also the label should just read "Grad Year". Keep it real simple for fast use.
+- **Severity**: UX
+- **Status**: Open
+
+### FP-003: Red star (required indicator) missing on subsequent teams; first team should be entered in the Library area
+- **Area**: Team Selection
+- **What I did**: Created my first team, then added subsequent teams
+- **What I expected**: The red star (required-field indicator) to show on every team entry, and all team entries to happen in the same place
+- **What happened**: (1) The red star was present when I created my first team, but on subsequent teams it isn't there — having it consistently would be really helpful. (2) The first team should be entered in the Library area too, so all entries are in the same place — less confusing for the club rep.
+- **Severity**: UX
+- **Status**: Open
+
+### FP-004: Registering a Library team assigns the Library LOP with no per-tournament edit option (contradicts the helper text)
+- **Refs**: SP-002, TP-008 (LOP on Library framed as an overall assessment, adjustable per tournament)
+- **Area**: Team Selection
+- **What I did**: Registered a team from the Library into a tournament
+- **What I expected**: To be able to choose/edit the LOP for this tournament — the helper text says LOP can be chosen for each tournament
+- **What happened**: Registration assigns the team's Library LOP automatically with no option to edit it for this tournament, even though the helper text says LOP can be set per tournament. The behavior contradicts the stated text.
+- **Note**: There is an edit button for this in the Library, but going that route is too many steps — the LOP should be editable right at registration time.
+- **Severity**: Bug
+- **Status**: Open
+
+### FP-005: Confirmation screen in Deposit Phase — Summary "Owes" confusion + Most Recent Transactions cleanup
+- **Refs**: FP-001 (confusing comment text in Most Recent Transactions)
+- **Area**: Confirmation
+- **What I did**: Viewed the Confirmation screen during a Deposit Phase registration
+- **What I expected**: The amounts and transaction details to be clear about what is owed now vs. the remaining balance
+- **What happened**: Several issues on the Deposit Phase confirmation:
+  1. **Summary "Owes"** shows the full balance-due amount — during a Deposit Phase this could be misread as the amount owed *now* (they only owe the deposit now, not the full balance). Clarify so the "now" amount isn't confused with the remaining balance.
+  2. **Most Recent Transactions — Team column** shows the grad year twice.
+  3. **"Fees$" heading** is confusing — reword.
+  4. **Comment** reads "Team Registration: 2031 Red" — consider showing no comment, or "Deposit" instead.
+- **Severity**: UX
+- **Status**: Open
+
+### FP-006: Confirmation screen — "Return Home" button doesn't work ("Finish" works)
+- **Area**: Confirmation
+- **What I did**: On the Confirmation screen, clicked the "Return Home" button
+- **What I expected**: To be taken home, the same as the "Finish" button
+- **What happened**: "Return Home" does nothing. The "Finish" button works correctly.
+- **Severity**: Bug
+- **Status**: Open
+
+<!-- Template — copy and fill in for each new item:
+
+### FP-XXX: <short title>
 - **Area**: <Club Rep Login | Team Selection | Team Forms | Roster Management | Waivers | Review Summary | Payment | Confirmation>
 - **What I did**:
 - **What I expected**:

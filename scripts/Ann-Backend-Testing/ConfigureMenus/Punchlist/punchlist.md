@@ -38,6 +38,14 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 ## Punch List Items
 
+### PL-071: Configure / Payment (and likely other tabs) — add a Save button to the upper Right so it isn't forgotten
+- **Area**: Job Settings → Configure / Payment tab (and probably other tabs)
+- **What I did**: Looked at the Save button placement on Configure / Job Settings / Payment
+- **What I expected**: A Save action that stays visible so it isn't missed after editing
+- **What happened**: The Save button is only in the bottom Right. Add one to the upper Right too so it isn't forgotten — applies to Payment and probably the other tabs as well.
+- **Severity**: UX
+- **Status**: Open
+
 ### PL-070: Configure / Payment — checking "Team Full Payment Required" throws exception; Save spins forever
 - **Refs**: Recent commit `dc6d5f80` feat(job-config): gate Full-Payment-Required + ARB-Trial when ARB owns the schedule
 - **Area**: Job Settings → Configure / Payment tab

@@ -40,6 +40,15 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 ## Punch List Items
 
+### PL-003: Club Teams Breakdown (Search Registrations → single Club Rep → Accounting menu) should show a Check Owed Total column
+- **Area**: Team Accounting
+- **Where**: Search Registrations → look up a single Club Rep → Accounting menu → Club Teams Breakdown
+- **What I did**: Under Search Registrations, looked up a single Club Rep, then chose the Accounting menu and opened Club Teams Breakdown
+- **What I expected**: A Check Owed Total column in the breakdown
+- **What happened**: The Club Teams Breakdown does not show a Check Owed Total column — add it.
+- **Severity**: UX
+- **Status**: Open
+
 ### PL-002: LLL Summer 2027 Team Registration Payment screen — Check Owed Total double-subtracts Deposit Processing Fees
 - **Area**: Team Accounting / Payment Processing
 - **Where**: LLL Summer 2027 → Team Registration → Payment screen
@@ -47,7 +56,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Check Owed Total = Owed (base fee) − Paid (with deposit processing fees already accounted for in Paid)
 - **What happened**: Check Owed Total subtracts Deposit Processing Fees a **second time**, even though those fees are already included in the Paid/Owed totals. The deposit processing fees are being deducted twice — once via the Paid column, and again in the Check Owed calc.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Likely in the Check Owed formula on the registered-teams-grid (or whatever computes the Check Owed column). Verify whether the Paid column on this screen already nets out deposit processing fees — if it does, Check Owed should subtract Paid only, not Paid + DepositProcFee.
 
 ### PL-001: Club Rep fees missing on recently-built tournament sites — needs backfill
