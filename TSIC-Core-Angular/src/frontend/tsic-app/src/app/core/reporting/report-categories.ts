@@ -50,3 +50,12 @@ export function getCategoryMeta(code: string | null | undefined): ReportCategory
     if (!code) return UNCATEGORIZED_META;
     return CATEGORY_BY_CODE.get(code) ?? UNCATEGORIZED_META;
 }
+
+/**
+ * Returns the value if it's a valid category code, else null (→ "Other" bucket).
+ * Legacy GroupLabels (e.g. 'Reports') aren't codes; without this they get bucketed
+ * under a key the grouped view never renders — counted in tabs but invisible.
+ */
+export function normalizeReportCategory(raw: string | null | undefined): ReportCategory | null {
+    return raw != null && CATEGORY_BY_CODE.has(raw) ? (raw as ReportCategory) : null;
+}

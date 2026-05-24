@@ -153,9 +153,9 @@ $adminManifest = @(
     (New-AdminItem 'Scheduling' 'calendar' 5 'QA Results'         'check2-square'   'scheduling/qa-results'         13 1 1 1)
 
     # -- Reports (legacy /tsic SU menu items 1-10 mirrored as direct links;   -
-    #    Report Library remains for D/SD job-scoped catalogue browsing.       -
+    #    Reports Library remains for D/SD job-scoped catalogue browsing.      -
     #    SP runners use bUseJobId=false (cross-customer) and are SU-only.) ---
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Report Library'                          'collection'           'reporting/reports-library'                                                                          1  1 1 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Reports Library'                         'collection'           'reporting/reports-library'                                                                          1  1 1 1)
     (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Daily Registration Counts (PDF)'         'file-earmark-pdf'     'reporting/Get_JobPlayers_TSICDAILY'                                                                 2  0 0 1)
     # NB: legacy display says "Purchases" but the action targets reporting.RegsaverRegistrants_ALL
     # — display/SP-name mismatch is preserved from legacy for menu fidelity.

@@ -50,6 +50,32 @@ public class ReportingRepository : IReportingRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<JobReportEntryDto>> GetAllActiveJobReportsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // SuperUser all-roles view: no role filter, joined to AspNetRoles so each row
+        // carries its assigned RoleName. UI dedups by report identity into role chips.
+        return await (from jr in _context.JobReports.AsNoTracking()
+                      join r in _context.AspNetRoles.AsNoTracking() on jr.RoleId equals r.Id
+                      where jr.JobId == jobId && jr.Active
+                      orderby jr.GroupLabel, jr.SortOrder, jr.Title
+                      select new JobReportEntryDto
+                      {
+                          JobReportId = jr.JobReportId,
+                          Title = jr.Title,
+                          IconName = jr.IconName,
+                          Controller = jr.Controller,
+                          Action = jr.Action,
+                          Kind = jr.Kind,
+                          GroupLabel = jr.GroupLabel,
+                          SortOrder = jr.SortOrder,
+                          Active = jr.Active,
+                          RoleName = r.Name ?? jr.RoleId,
+                      })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> HasStoredProcedureEntitlementAsync(
         Guid jobId,
         IReadOnlyCollection<string> roleIds,
@@ -74,6 +100,27 @@ public class ReportingRepository : IReportingRepository
                             && jr.Active
                             && jr.Kind == KindStoredProcedure
                             && roleIds.Contains(jr.RoleId)
+                            && (jr.Action.Contains(tokenWithDelim) || jr.Action.EndsWith(token)),
+                cancellationToken);
+    }
+
+    public async Task<bool> HasStoredProcedureEntitlementAnyRoleAsync(
+        Guid jobId,
+        string spName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(spName)) return false;
+
+        // Same spName-token match as the role-scoped check, minus the role filter:
+        // SuperUser runs any role's configured report from the all-roles catalogue.
+        var token = "spName=" + spName;
+        var tokenWithDelim = token + "&";
+
+        return await _context.JobReports
+            .AsNoTracking()
+            .AnyAsync(jr => jr.JobId == jobId
+                            && jr.Active
+                            && jr.Kind == KindStoredProcedure
                             && (jr.Action.Contains(tokenWithDelim) || jr.Action.EndsWith(token)),
                 cancellationToken);
     }

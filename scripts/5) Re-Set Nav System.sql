@@ -147,7 +147,7 @@ INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Fields', N'g
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Pairings', N'arrows-collapse', N'scheduling/pairings', 11, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Timeslots', N'clock', N'scheduling/timeslots', 12, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'QA Results', N'check2-square', N'scheduling/qa-results', 13, 1, 1, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Reports Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Daily Registration Counts (PDF)', N'file-earmark-pdf', N'reporting/Get_JobPlayers_TSICDAILY', 2, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Regsaver Purchases (Excel)', N'file-earmark-excel', N'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false', 3, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 6, N'Expired Player Reg Bulletins', N'person-x', N'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false', 4, 0, 0, 1, NULL, NULL);

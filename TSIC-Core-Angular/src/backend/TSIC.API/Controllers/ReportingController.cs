@@ -92,10 +92,12 @@ public class ReportingController : ControllerBase
             return new List<JobReportEntryDto>();
         }
 
-        // Row existence in reporting.JobReports IS the entitlement — server returns
-        // exactly what the caller is allowed to see. Frontend renders verbatim.
-        var rows = await _reportingService.GetJobReportsAsync(
-            jobId.Value, GetCallerRoleIds(), cancellationToken);
+        // SuperUser sees every role's reports (each tagged with RoleName) so role
+        // assignment is visible in the library; everyone else gets exactly the rows
+        // their own roles entitle them to. Row existence IS the entitlement.
+        var rows = User.IsInRole("Superuser")
+            ? await _reportingService.GetAllJobReportsAsync(jobId.Value, cancellationToken)
+            : await _reportingService.GetJobReportsAsync(jobId.Value, GetCallerRoleIds(), cancellationToken);
         return rows;
     }
 
@@ -204,8 +206,15 @@ public class ReportingController : ControllerBase
         // Per-row entitlement check on top of the [Authorize(AdminOnly)] floor — confirms
         // the caller has an active stored-proc row in reporting.JobReports for this spName.
         // Prevents an Admin from running a proc they aren't entitled to via direct URL.
-        if (!await _reportingService.HasStoredProcedureEntitlementAsync(
-                jobId, GetCallerRoleIds(), spName, cancellationToken))
+        // SuperUser can run any report visible in its all-roles catalogue, so its check
+        // isn't scoped to the SU role — but the SP must still be a real configured report
+        // for the job. Everyone else is checked against their own roles.
+        var entitled = User.IsInRole("Superuser")
+            ? await _reportingService.HasStoredProcedureEntitlementAnyRoleAsync(
+                jobId, spName, cancellationToken)
+            : await _reportingService.HasStoredProcedureEntitlementAsync(
+                jobId, GetCallerRoleIds(), spName, cancellationToken);
+        if (!entitled)
         {
             return Forbid();
         }

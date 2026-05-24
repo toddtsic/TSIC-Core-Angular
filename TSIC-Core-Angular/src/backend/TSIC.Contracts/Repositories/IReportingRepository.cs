@@ -18,6 +18,15 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// SuperUser view: every active row for the job across ALL roles, each tagged with
+    /// its assigned <c>RoleName</c>. No role filter — the SU reports library shows all
+    /// roles' reports so role assignment is visible (and dedup happens in the UI).
+    /// </summary>
+    Task<List<JobReportEntryDto>> GetAllActiveJobReportsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns true when <paramref name="spName"/> is bound to an active stored-proc
     /// row in <c>reporting.JobReports</c> for the given (job, role-set). Used by the
     /// export-sp endpoint as a per-row authorization check on top of [Authorize(AdminOnly)].
@@ -25,6 +34,17 @@ public interface IReportingRepository
     Task<bool> HasStoredProcedureEntitlementAsync(
         Guid jobId,
         IReadOnlyCollection<string> roleIds,
+        string spName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// SuperUser variant: confirms <paramref name="spName"/> is an active stored-proc
+    /// report configured for the job under ANY role (no caller-role scoping). Lets SU
+    /// run any report visible in its all-roles catalogue while still requiring the SP
+    /// to be a real configured report (not an arbitrary proc).
+    /// </summary>
+    Task<bool> HasStoredProcedureEntitlementAnyRoleAsync(
+        Guid jobId,
         string spName,
         CancellationToken cancellationToken = default);
 

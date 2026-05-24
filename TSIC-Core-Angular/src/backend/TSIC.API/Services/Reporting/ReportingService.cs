@@ -34,12 +34,23 @@ public sealed class ReportingService : IReportingService
         CancellationToken cancellationToken = default)
         => _reportingRepository.GetJobReportsAsync(jobId, roleIds, cancellationToken);
 
+    public Task<List<JobReportEntryDto>> GetAllJobReportsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.GetAllActiveJobReportsAsync(jobId, cancellationToken);
+
     public Task<bool> HasStoredProcedureEntitlementAsync(
         Guid jobId,
         IReadOnlyCollection<string> roleIds,
         string spName,
         CancellationToken cancellationToken = default)
         => _reportingRepository.HasStoredProcedureEntitlementAsync(jobId, roleIds, spName, cancellationToken);
+
+    public Task<bool> HasStoredProcedureEntitlementAnyRoleAsync(
+        Guid jobId,
+        string spName,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.HasStoredProcedureEntitlementAnyRoleAsync(jobId, spName, cancellationToken);
 
     // ── SuperUser editor ──
 

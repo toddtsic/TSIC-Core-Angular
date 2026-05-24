@@ -12,20 +12,22 @@ import {
     REPORT_CATEGORIES,
     UNCATEGORIZED_META,
     type ReportCategoryMeta,
-    getCategoryMeta
+    getCategoryMeta,
+    normalizeReportCategory
 } from '@core/reporting/report-categories';
 
 interface LibraryEntry {
-    readonly kind: 'type1' | 'type2';
+    readonly isCrystal: boolean;          // true = still served by Crystal (CR); false = SP-Excel
+    readonly roles: readonly string[];    // assigned role names — populated for the SU all-roles view only
     readonly id: string;
     readonly title: string;
     readonly description?: string | null;
     readonly iconName?: string | null;
     readonly category: string | null;
     readonly sortOrder: number;
-    readonly endpointPath?: string;       // type1
-    readonly storedProcName?: string;     // type2
-    readonly parametersJson?: string | null; // type2
+    readonly endpointPath?: string;       // crystal run target (controller action)
+    readonly storedProcName?: string;     // sp-excel run target
+    readonly parametersJson?: string | null; // sp-excel run params
 }
 
 interface CategoryGroup {
@@ -98,16 +100,32 @@ export class ReportsLibraryComponent implements OnInit {
     readonly selectedTab = signal<CategoryTab>('all');
     readonly recentIds = signal<readonly string[]>([]);
 
-    /** Visible-to-this-user reports (Type 1 + Type 2), unfiltered. */
+    /** SuperUser sees every role's reports + role-assignment chips (drives the all-roles view). */
+    readonly isSuperuser = computed(() => {
+        const user = this.authService.currentUser();
+        const roles = user?.roles ?? (user?.role ? [user.role] : []);
+        return roles.includes('Superuser');
+    });
+
+    /** Visible-to-this-user reports, unfiltered. */
     private readonly allEntries = computed<readonly LibraryEntry[]>(() => {
         const user = this.authService.currentUser();
         const callerRoles = user?.roles ?? (user?.role ? [user.role] : []);
         const ctx = buildJobVisibilityContext(this.jobService.currentJob(), this.pulseService.pulse(), callerRoles);
 
+        // SuperUser: source BOTH kinds from the DB catalogue (all roles), deduped by
+        // report identity with role chips. The global hard-coded Type-1 catalog is
+        // suppressed for SU to avoid duplicating the DB's Crystal rows (and to preview
+        // retiring that hard-coded source).
+        if (callerRoles.includes('Superuser')) {
+            return this.buildSuperuserEntries(this.type2Entries());
+        }
+
         const type1: LibraryEntry[] = TYPE1_REPORT_CATALOG
             .filter(e => passesVisibilityRules(e.visibilityRules, ctx))
             .map(e => ({
-                kind: 'type1',
+                isCrystal: true,
+                roles: [],
                 id: e.id,
                 title: e.title,
                 description: e.description,
@@ -127,12 +145,13 @@ export class ReportsLibraryComponent implements OnInit {
             .map(e => {
                 const parsed = parseStoredProcAction(e.action);
                 return {
-                    kind: 'type2',
+                    isCrystal: false,
+                    roles: [],
                     id: `t2-${e.jobReportId}`,
                     title: e.title,
                     description: null,
                     iconName: e.iconName,
-                    category: e.groupLabel ?? null,
+                    category: normalizeReportCategory(e.groupLabel),
                     sortOrder: e.sortOrder,
                     storedProcName: parsed?.spName ?? '',
                     parametersJson: parsed?.parametersJson ?? null,
@@ -141,6 +160,47 @@ export class ReportsLibraryComponent implements OnInit {
 
         return [...type1, ...type2];
     });
+
+    /**
+     * SuperUser view: collapse the all-roles catalogue (both kinds) into one entry per
+     * report, keyed by Controller+Action, aggregating assigned role names into `roles`
+     * for chip display. Lowest SortOrder wins for placement + display metadata.
+     */
+    private buildSuperuserEntries(rows: readonly JobReportEntryDto[]): readonly LibraryEntry[] {
+        const byReport = new Map<string, { base: JobReportEntryDto; roles: Set<string> }>();
+        for (const r of rows) {
+            const key = `${r.controller}::${r.action}`.toLowerCase();
+            const existing = byReport.get(key);
+            if (existing) {
+                if (r.roleName) existing.roles.add(r.roleName);
+                if (r.sortOrder < existing.base.sortOrder) existing.base = r;
+            } else {
+                const roles = new Set<string>();
+                if (r.roleName) roles.add(r.roleName);
+                byReport.set(key, { base: r, roles });
+            }
+        }
+
+        const entries: LibraryEntry[] = [];
+        for (const { base, roles } of byReport.values()) {
+            const isCrystal = base.kind !== 'StoredProcedure';
+            const parsed = isCrystal ? null : parseStoredProcAction(base.action);
+            entries.push({
+                isCrystal,
+                roles: [...roles].sort(),
+                id: `su-${base.jobReportId}`,
+                title: base.title,
+                description: null,
+                iconName: base.iconName,
+                category: normalizeReportCategory(base.groupLabel),
+                sortOrder: base.sortOrder,
+                endpointPath: isCrystal ? base.action : undefined,
+                storedProcName: parsed?.spName ?? undefined,
+                parametersJson: parsed?.parametersJson ?? null,
+            });
+        }
+        return entries;
+    }
 
     /** Search-filtered flat list across ALL entries (search ignores tab). */
     readonly searchResults = computed<readonly LibraryEntry[]>(() => {
@@ -265,7 +325,7 @@ export class ReportsLibraryComponent implements OnInit {
         this.runError.set(null);
         this.runningId.set(entry.id);
 
-        const download$ = entry.kind === 'type1'
+        const download$ = entry.isCrystal
             ? this.reportingService.downloadReport(entry.endpointPath!)
             : (() => {
                 const sp = parseSpRunParams(entry.parametersJson);

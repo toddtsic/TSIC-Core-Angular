@@ -12,5 +12,6 @@ export type JobReportEntryDto = {
     groupLabel?: string | null;
     sortOrder: number;
     active: boolean;
+    roleName?: string | null;
 };
 

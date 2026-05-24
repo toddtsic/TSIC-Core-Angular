@@ -27,6 +27,13 @@ public record JobReportEntryDto
 
     public required int SortOrder { get; init; }
     public required bool Active { get; init; }
+
+    /// <summary>
+    /// Assigned role's display name. Populated only for the SuperUser all-roles view
+    /// (catalogue served by GetAllActiveJobReportsAsync); null for the normal
+    /// role-filtered catalogue, where the caller's own role is implicit.
+    /// </summary>
+    public string? RoleName { get; init; }
 }
 
 /// <summary>

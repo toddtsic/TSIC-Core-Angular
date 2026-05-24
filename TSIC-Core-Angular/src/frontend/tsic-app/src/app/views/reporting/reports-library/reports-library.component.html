@@ -1,6 +1,6 @@
 <section class="reports-library">
     <header class="reports-library__header">
-        <h1>Report Library</h1>
+        <h1>Reports Library</h1>
         <div class="reports-library__search" role="search">
             <i class="bi bi-search reports-library__search-icon" aria-hidden="true"></i>
             <input
@@ -106,11 +106,21 @@
                 </h2>
                 <ul class="report-list">
                     @for (entry of searchResults(); track entry.id) {
-                        <li class="report-row" [class.report-row--running]="runningId() === entry.id">
+                        <li class="report-row" [class.report-row--cr]="entry.isCrystal" [class.report-row--running]="runningId() === entry.id">
                             <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
                             <div class="report-row__body">
                                 <div class="report-row__heading">
                                     <h3 class="report-row__title">{{ entry.title }}</h3>
+                                    @if (entry.isCrystal) {
+                                        <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
+                                            <i class="bi bi-easel" aria-hidden="true"></i> Crystal
+                                        </span>
+                                    }
+                                    @if (isSuperuser() && entry.roles.length) {
+                                        @for (role of entry.roles; track role) {
+                                            <span class="report-row__role-chip">{{ role }}</span>
+                                        }
+                                    }
                                     <span class="report-row__category">
                                         <i class="bi bi-{{ categoryMeta(entry.category).iconName }}" aria-hidden="true"></i>
                                         {{ categoryMeta(entry.category).label }}
@@ -148,10 +158,22 @@
                     </h2>
                     <ul class="report-list">
                         @for (entry of group.entries; track entry.id) {
-                            <li class="report-row" [class.report-row--running]="runningId() === entry.id">
+                            <li class="report-row" [class.report-row--cr]="entry.isCrystal" [class.report-row--running]="runningId() === entry.id">
                                 <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
                                 <div class="report-row__body">
-                                    <h3 class="report-row__title">{{ entry.title }}</h3>
+                                    <div class="report-row__heading">
+                                        <h3 class="report-row__title">{{ entry.title }}</h3>
+                                        @if (entry.isCrystal) {
+                                            <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
+                                                <i class="bi bi-easel" aria-hidden="true"></i> Crystal
+                                            </span>
+                                        }
+                                        @if (isSuperuser() && entry.roles.length) {
+                                            @for (role of entry.roles; track role) {
+                                                <span class="report-row__role-chip">{{ role }}</span>
+                                            }
+                                        }
+                                    </div>
                                     @if (entry.description) {
                                         <p class="report-row__desc">{{ entry.description }}</p>
                                     }
@@ -178,10 +200,22 @@
         } @else {
             <ul class="report-list">
                 @for (entry of tabEntries(); track entry.id) {
-                    <li class="report-row" [class.report-row--running]="runningId() === entry.id">
+                    <li class="report-row" [class.report-row--cr]="entry.isCrystal" [class.report-row--running]="runningId() === entry.id">
                         <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
                         <div class="report-row__body">
-                            <h3 class="report-row__title">{{ entry.title }}</h3>
+                            <div class="report-row__heading">
+                                <h3 class="report-row__title">{{ entry.title }}</h3>
+                                @if (entry.isCrystal) {
+                                    <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
+                                        <i class="bi bi-easel" aria-hidden="true"></i> Crystal
+                                    </span>
+                                }
+                                @if (isSuperuser() && entry.roles.length) {
+                                    @for (role of entry.roles; track role) {
+                                        <span class="report-row__role-chip">{{ role }}</span>
+                                    }
+                                }
+                            </div>
                             @if (entry.description) {
                                 <p class="report-row__desc">{{ entry.description }}</p>
                             }
