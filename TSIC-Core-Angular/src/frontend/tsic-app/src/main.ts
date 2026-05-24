@@ -16,7 +16,11 @@ console.info(
 // so global SCSS in _elevated-components.scss can key off it without component scope.
 document.body.dataset['env'] = environment.envName;
 
-registerLicense('Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWXtccHZUQ2JeWER2XERWYEo=');
+// Syncfusion unified license key (v33). registerLicense() runs client-side, so this
+// ships in the browser bundle by design — it is version/domain-locked, not a credential.
+// Paste the v33 "Select all" key below; keep it in lockstep with the @syncfusion package
+// version (33.x) in package.json or Syncfusion components revert to a trial banner.
+registerLicense('Ngo9BigBOggjHTQxAR8/V1JHaF5cWWdCf1FpRmJGdld5fUVHYVZUTXxaS00DNHVRdkdlWXpcdHVRRWhcWUF/XUBWYEo=');
 
 bootstrapApplication(AppComponent, appConfig)
   .catch((err) => console.error(err));
@@ -24,8 +28,8 @@ bootstrapApplication(AppComponent, appConfig)
 function assertEnvironmentMatches(envName: string, apiUrl: string): void {
   const valid =
     (envName === 'development' && apiUrl.includes('localhost')) ||
-    (envName === 'staging'     && apiUrl.includes('devapi.teamsportsinfo.com')) ||
-    (envName === 'production'  && apiUrl.includes('claude-api.teamsportsinfo.com'));
+    (envName === 'staging' && apiUrl.includes('devapi.teamsportsinfo.com')) ||
+    (envName === 'production' && apiUrl.includes('claude-api.teamsportsinfo.com'));
 
   if (!valid) {
     const msg = `Environment mismatch: envName="${envName}" apiUrl="${apiUrl}". Refusing to bootstrap.`;

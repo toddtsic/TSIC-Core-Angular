@@ -85,6 +85,21 @@ var builder = WebApplication.CreateBuilder(args);
     Console.WriteLine($"[startup] env={builder.Environment.EnvironmentName} machine={System.Environment.MachineName}");
 }
 
+// ── Syncfusion license registration ─────────────────────────────────
+// Unlocks Syncfusion.Pdf (and XlsIO once it replaces EPPlus) for production use.
+// Not a real secret: the Angular bundle's registerLicense() already ships the same
+// key publicly, so it lives in committed appsettings.json ("Syncfusion:LicenseKey")
+// and travels with the repo. An env var (Syncfusion__LicenseKey) still overrides it
+// if ever needed. When unset, registration is skipped so Syncfusion runs in trial
+// mode instead of throwing on a null key.
+{
+    var syncfusionLicenseKey = builder.Configuration["Syncfusion:LicenseKey"];
+    if (!string.IsNullOrWhiteSpace(syncfusionLicenseKey))
+    {
+        Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(syncfusionLicenseKey);
+    }
+}
+
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache(); // Add memory cache for refresh tokens
@@ -762,6 +777,10 @@ builder.Host.UseSerilog();
         "[STARTUP-CONFIG] firebase: credentialFilePath={Path} fileExists={Exists}",
         firebaseRelPath ?? "(unset)",
         firebaseAbsPath != null && File.Exists(firebaseAbsPath));
+
+    bootLog.Information(
+        "[STARTUP-CONFIG] syncfusion: licenseKey={Fp}",
+        Fp4(cfg["Syncfusion:LicenseKey"]));
 }
 
 var app = builder.Build();
