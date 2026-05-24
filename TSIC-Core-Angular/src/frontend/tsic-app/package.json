@@ -35,7 +35,7 @@
     "@syncfusion/ej2-angular-navigations": "33.1.44",
     "@syncfusion/ej2-angular-pivotview": "33.1.44",
     "@syncfusion/ej2-angular-richtexteditor": "33.1.44",
-    "@syncfusion/ej2-base": "33.1.44",
+    "@syncfusion/ej2-base": "~33.1.44",
     "@syncfusion/ej2-bootstrap5-theme": "33.1.44",
     "bootstrap": "5.3.8",
     "bootstrap-icons": "1.11.3",
