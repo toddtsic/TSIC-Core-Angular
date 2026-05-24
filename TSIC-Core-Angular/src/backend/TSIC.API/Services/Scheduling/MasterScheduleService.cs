@@ -1,6 +1,5 @@
 using System.Drawing;
-using OfficeOpenXml;
-using OfficeOpenXml.Style;
+using Syncfusion.XlsIO;
 using TSIC.API.Utilities;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
@@ -126,13 +125,16 @@ public class MasterScheduleService : IMasterScheduleService
     {
         var data = await GetMasterScheduleAsync(jobId, includeReferees, ct);
 
-        ExcelPackage.License.SetNonCommercialPersonal("Todd Greenwald");
-        using var package = new ExcelPackage();
+        using var excelEngine = new ExcelEngine();
+        IApplication application = excelEngine.Excel;
+        application.DefaultVersion = ExcelVersion.Xlsx;
+        IWorkbook workbook = application.Workbooks.Create(1);
 
         var daysToExport = dayIndex.HasValue && dayIndex.Value < data.Days.Count
             ? [data.Days[dayIndex.Value]]
             : data.Days;
 
+        var sheetsCreated = 0;
         foreach (var day in daysToExport)
         {
             // Excel sheet name limit: 31 chars
@@ -140,37 +142,40 @@ public class MasterScheduleService : IMasterScheduleService
                 ? day.ShortLabel[..31]
                 : day.ShortLabel;
 
-            var ws = package.Workbook.Worksheets.Add(sheetName);
+            // Reuse the default sheet for the first day, then create new ones — avoids a
+            // leftover "Sheet1" (XlsIO workbooks are created with one sheet already present).
+            var ws = sheetsCreated == 0 ? workbook.Worksheets[0] : workbook.Worksheets.Create(sheetName);
+            ws.Name = sheetName;
+            sheetsCreated++;
 
             // ── Header row ──
-            ws.Cells[1, 1].Value = "Time";
+            ws.Range[1, 1].Text = "Time";
             for (var c = 0; c < data.FieldColumns.Count; c++)
             {
-                ws.Cells[1, c + 2].Value = data.FieldColumns[c];
+                ws.Range[1, c + 2].Text = data.FieldColumns[c];
             }
 
             // Style header
-            var headerRange = ws.Cells[1, 1, 1, data.FieldColumns.Count + 1];
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Font.Size = 10;
-            headerRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            headerRange.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(230, 230, 230));
-            headerRange.Style.Border.Bottom.Style = ExcelBorderStyle.Thin;
+            var headerRange = ws.Range[1, 1, 1, data.FieldColumns.Count + 1];
+            headerRange.CellStyle.Font.Bold = true;
+            headerRange.CellStyle.Font.Size = 10;
+            headerRange.CellStyle.Color = Syncfusion.Drawing.Color.FromArgb(230, 230, 230);
+            headerRange.CellStyle.Borders[ExcelBordersIndex.EdgeBottom].LineStyle = ExcelLineStyle.Thin;
 
             // ── Data rows ──
             var row = 2;
             foreach (var schedRow in day.Rows)
             {
-                ws.Cells[row, 1].Value = schedRow.TimeLabel;
-                ws.Cells[row, 1].Style.Font.Bold = true;
-                ws.Cells[row, 1].Style.VerticalAlignment = ExcelVerticalAlignment.Top;
+                ws.Range[row, 1].Text = schedRow.TimeLabel;
+                ws.Range[row, 1].CellStyle.Font.Bold = true;
+                ws.Range[row, 1].CellStyle.VerticalAlignment = ExcelVAlign.VAlignTop;
 
                 for (var c = 0; c < schedRow.Cells.Count; c++)
                 {
                     var cell = schedRow.Cells[c];
                     if (cell == null) continue;
 
-                    var excelCell = ws.Cells[row, c + 2];
+                    var excelCell = ws.Range[row, c + 2];
 
                     // Multi-line cell content
                     var lines = new List<string> { cell.AgDiv, cell.T1Name, "  vs", cell.T2Name };
@@ -179,21 +184,20 @@ public class MasterScheduleService : IMasterScheduleService
                     if (cell.Referees is { Count: > 0 })
                         lines.Add($"[{string.Join(", ", cell.Referees)}]");
 
-                    excelCell.Value = string.Join("\n", lines);
-                    excelCell.Style.WrapText = true;
-                    excelCell.Style.VerticalAlignment = ExcelVerticalAlignment.Top;
-                    excelCell.Style.Font.Size = 9;
-                    excelCell.Style.Border.BorderAround(ExcelBorderStyle.Thin);
+                    excelCell.Text = string.Join("\n", lines);
+                    excelCell.CellStyle.WrapText = true;
+                    excelCell.CellStyle.VerticalAlignment = ExcelVAlign.VAlignTop;
+                    excelCell.CellStyle.Font.Size = 9;
+                    excelCell.BorderAround(ExcelLineStyle.Thin);
 
                     // Agegroup color background
                     if (!string.IsNullOrEmpty(cell.Color))
                     {
                         try
                         {
-                            excelCell.Style.Fill.PatternType = ExcelFillStyle.Solid;
-                            excelCell.Style.Fill.BackgroundColor.SetColor(ColorTranslator.FromHtml(cell.Color));
-                            excelCell.Style.Font.Color.SetColor(
-                                ColorTranslator.FromHtml(cell.ContrastColor ?? "#000"));
+                            excelCell.CellStyle.Color = ColorTranslator.FromHtml(cell.Color).ToXlsioColor();
+                            excelCell.CellStyle.Font.RGBColor =
+                                ColorTranslator.FromHtml(cell.ContrastColor ?? "#000").ToXlsioColor();
                         }
                         catch
                         {
@@ -205,17 +209,17 @@ public class MasterScheduleService : IMasterScheduleService
                 row++;
             }
 
-            // Auto-fit columns
-            ws.Cells[ws.Dimension?.Address ?? "A1"].AutoFitColumns(12, 25);
+            // Auto-fit columns (clamp to 12..25 like the legacy export)
+            ws.AutofitColumnsClamped(12, 25);
 
             // Print setup
-            ws.PrinterSettings.Orientation = eOrientation.Landscape;
-            ws.PrinterSettings.FitToPage = true;
-            ws.PrinterSettings.FitToWidth = 1;
-            ws.PrinterSettings.FitToHeight = 0;
-            ws.PrinterSettings.RepeatRows = new ExcelAddress("1:1");
+            ws.PageSetup.Orientation = ExcelPageOrientation.Landscape;
+            ws.PageSetup.IsFitToPage = true;
+            ws.PageSetup.FitToPagesWide = 1;
+            ws.PageSetup.FitToPagesTall = 0;
+            ws.PageSetup.PrintTitleRows = "$1:$1";
         }
 
-        return await package.GetAsByteArrayAsync();
+        return workbook.ToByteArray();
     }
 }

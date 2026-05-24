@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using OfficeOpenXml;
+using Syncfusion.XlsIO;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.API.Utilities;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Services;
 
@@ -63,16 +64,19 @@ public class ScheduleQaController : ControllerBase
 
     private static byte[] BuildQaExcel(AutoBuildQaResult qa)
     {
-        ExcelPackage.License.SetNonCommercialPersonal("Todd Greenwald");
-        using var package = new ExcelPackage();
+        using var excelEngine = new ExcelEngine();
+        IApplication application = excelEngine.Excel;
+        application.DefaultVersion = ExcelVersion.Xlsx;
+        IWorkbook workbook = application.Workbooks.Create(1);
 
-        // ── Summary sheet ──
-        var summary = package.Workbook.Worksheets.Add("Summary");
-        summary.Cells[1, 1].Value = "Schedule QA Report";
-        summary.Cells[1, 1].Style.Font.Bold = true;
-        summary.Cells[2, 1].Value = $"Generated: {DateTime.Now:g}";
-        summary.Cells[3, 1].Value = $"Total Games: {qa.TotalGames}";
-        summary.Cells[5, 1].Value = "Check"; summary.Cells[5, 2].Value = "Count"; summary.Cells[5, 3].Value = "Severity";
+        // ── Summary sheet (reuse the default sheet XlsIO creates) ──
+        var summary = workbook.Worksheets[0];
+        summary.Name = "Summary";
+        summary.Range[1, 1].Text = "Schedule QA Report";
+        summary.Range[1, 1].CellStyle.Font.Bold = true;
+        summary.Range[2, 1].Text = $"Generated: {DateTime.Now:g}";
+        summary.Range[3, 1].Text = $"Total Games: {qa.TotalGames}";
+        summary.Range[5, 1].Text = "Check"; summary.Range[5, 2].Text = "Count"; summary.Range[5, 3].Text = "Severity";
         var sRow = 6;
         WriteCheckRow(summary, ref sRow, "Field Double Bookings", qa.FieldDoubleBookings.Count, "Critical");
         WriteCheckRow(summary, ref sRow, "Team Double Bookings", qa.TeamDoubleBookings.Count, "Critical");
@@ -84,100 +88,100 @@ public class ScheduleQaController : ControllerBase
         if (qa.CrossEventAnalysis != null)
         {
             sRow++;
-            summary.Cells[sRow, 1].Value = $"Cross-Event Analysis: {qa.CrossEventAnalysis.GroupName}";
-            summary.Cells[sRow, 1].Style.Font.Bold = true;
+            summary.Range[sRow, 1].Text = $"Cross-Event Analysis: {qa.CrossEventAnalysis.GroupName}";
+            summary.Range[sRow, 1].CellStyle.Font.Bold = true;
             sRow++;
             WriteCheckRow(summary, ref sRow, "Club Overplay (across events)", qa.CrossEventAnalysis.ClubOverplay.Count, "Info");
             WriteCheckRow(summary, ref sRow, "Team Overplay (across events)", qa.CrossEventAnalysis.TeamOverplay.Count, "Warning");
         }
-        summary.Cells[summary.Dimension.Address].AutoFitColumns();
+        summary.UsedRange.AutofitColumns();
 
         // ── Detail sheets (only if data exists) ──
         if (qa.FieldDoubleBookings.Count > 0)
-            AddSheet(package, "Field Double Bookings", new[] { "Field", "Date/Time", "Count" },
+            AddSheet(workbook, "Field Double Bookings", new[] { "Field", "Date/Time", "Count" },
                 qa.FieldDoubleBookings.Select(i => new object[] { i.Label, i.GameDate, i.Count }));
 
         if (qa.TeamDoubleBookings.Count > 0)
-            AddSheet(package, "Team Double Bookings", new[] { "Team", "Date/Time", "Count" },
+            AddSheet(workbook, "Team Double Bookings", new[] { "Team", "Date/Time", "Count" },
                 qa.TeamDoubleBookings.Select(i => new object[] { i.Label, i.GameDate, i.Count }));
 
         if (qa.RankMismatches.Count > 0)
-            AddSheet(package, "Rank Mismatches", new[] { "AgeGroup", "Division", "Team", "Field", "GameTime", "SchedNo", "ActualRank" },
+            AddSheet(workbook, "Rank Mismatches", new[] { "AgeGroup", "Division", "Team", "Field", "GameTime", "SchedNo", "ActualRank" },
                 qa.RankMismatches.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.FieldName, i.GameDate, i.ScheduleNo, i.ActualDivRank }));
 
         if (qa.UnscheduledTeams.Count > 0)
-            AddSheet(package, "Unscheduled Teams", new[] { "AgeGroup", "Division", "Team", "Rank" },
+            AddSheet(workbook, "Unscheduled Teams", new[] { "AgeGroup", "Division", "Team", "Rank" },
                 qa.UnscheduledTeams.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.DivRank }));
 
         if (qa.BackToBackGames.Count > 0)
-            AddSheet(package, "Back-to-Back Games", new[] { "AgeGroup", "Division", "Team", "Field", "GameTime", "Gap (min)" },
+            AddSheet(workbook, "Back-to-Back Games", new[] { "AgeGroup", "Division", "Team", "Field", "GameTime", "Gap (min)" },
                 qa.BackToBackGames.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.FieldName, i.GameDate, i.MinutesSincePrevious }));
 
         if (qa.RepeatedMatchups.Count > 0)
-            AddSheet(package, "Repeated Matchups", new[] { "AgeGroup", "Division", "Team1", "Team2", "TimesPlayed" },
+            AddSheet(workbook, "Repeated Matchups", new[] { "AgeGroup", "Division", "Team1", "Team2", "TimesPlayed" },
                 qa.RepeatedMatchups.Select(i => new object[] { i.AgegroupName, i.DivName, i.Team1Name, i.Team2Name, i.GameCount }));
 
         if (qa.InactiveTeamsInGames.Count > 0)
-            AddSheet(package, "Inactive Teams", new[] { "AgeGroup", "Division", "Team", "Rank" },
+            AddSheet(workbook, "Inactive Teams", new[] { "AgeGroup", "Division", "Team", "Rank" },
                 qa.InactiveTeamsInGames.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.DivRank }));
 
         // ── Informational sheets (always include) ──
-        AddSheet(package, "Games Per Date", new[] { "Date", "Games" },
+        AddSheet(workbook, "Games Per Date", new[] { "Date", "Games" },
             qa.GamesPerDate.Select(i => new object[] { i.GameDay, i.GameCount }));
 
-        AddSheet(package, "RR Games Per Division", new[] { "AgeGroup", "Division", "PoolSize", "Games" },
+        AddSheet(workbook, "RR Games Per Division", new[] { "AgeGroup", "Division", "PoolSize", "Games" },
             qa.RrGamesPerDivision.Select(i => new object[] { i.AgegroupName, i.DivName, i.PoolSize, i.GameCount }));
 
-        AddSheet(package, "Games Per Team", new[] { "AgeGroup", "Division", "Team", "Games" },
+        AddSheet(workbook, "Games Per Team", new[] { "AgeGroup", "Division", "Team", "Games" },
             qa.GamesPerTeam.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.GameCount }));
 
-        AddSheet(package, "Games Per Team Per Day", new[] { "AgeGroup", "Division", "Club", "Team", "Day", "Games" },
+        AddSheet(workbook, "Games Per Team Per Day", new[] { "AgeGroup", "Division", "Club", "Team", "Day", "Games" },
             qa.GamesPerTeamPerDay.Select(i => new object[] { i.AgegroupName, i.DivName, i.ClubName, i.TeamName, i.GameDay, i.GameCount }));
 
-        AddSheet(package, "Games Per Field Per Day", new[] { "Field", "Day", "Games" },
+        AddSheet(workbook, "Games Per Field Per Day", new[] { "Field", "Day", "Games" },
             qa.GamesPerFieldPerDay.Select(i => new object[] { i.FieldName, i.GameDay, i.GameCount }));
 
-        AddSheet(package, "Game Spreads", new[] { "AgeGroup", "Division", "Team", "Day", "Games", "Spread (min)" },
+        AddSheet(workbook, "Game Spreads", new[] { "AgeGroup", "Division", "Team", "Day", "Games", "Spread (min)" },
             qa.GameSpreads.Select(i => new object[] { i.AgegroupName, i.DivName, i.TeamName, i.GameDay, i.GameCount, i.SpreadMinutes }));
 
         if (qa.BracketGames.Count > 0)
-            AddSheet(package, "Bracket Games", new[] { "AgeGroup", "Field", "GameTime", "Slot1", "Slot2" },
+            AddSheet(workbook, "Bracket Games", new[] { "AgeGroup", "Field", "GameTime", "Slot1", "Slot2" },
                 qa.BracketGames.Select(i => new object[] { i.AgegroupName, i.FieldName, i.GameDate, $"{i.T1Type}{i.T1No}", $"{i.T2Type}{i.T2No}" }));
 
         // ── Cross-Event sheets (only when job is in a comparison group) ──
         if (qa.CrossEventAnalysis is { } xEvt)
         {
-            AddSheet(package, "XEvent Compared Events", new[] { "Event", "Abbreviation", "Games" },
+            AddSheet(workbook, "XEvent Compared Events", new[] { "Event", "Abbreviation", "Games" },
                 xEvt.ComparedEvents.Select(e => new object[] { e.JobName, e.Abbreviation, e.GameCount }));
 
             if (xEvt.ClubOverplay.Count > 0)
-                AddSheet(package, "XEvent Club Overplay", new[] { "AgeGroup", "Club", "Opponent Club", "Matches" },
+                AddSheet(workbook, "XEvent Club Overplay", new[] { "AgeGroup", "Club", "Opponent Club", "Matches" },
                     xEvt.ClubOverplay.Select(c => new object[] { c.Agegroup, c.TeamClub, c.OpponentClub, c.MatchCount }));
 
             if (xEvt.TeamOverplay.Count > 0)
-                AddSheet(package, "XEvent Team Overplay", new[] { "AgeGroup", "Club", "Team", "Opp Club", "Opponent", "Matches", "Events" },
+                AddSheet(workbook, "XEvent Team Overplay", new[] { "AgeGroup", "Club", "Team", "Opp Club", "Opponent", "Matches", "Events" },
                     xEvt.TeamOverplay.Select(t => new object[] { t.Agegroup, t.TeamClub, t.TeamName, t.OpponentClub, t.OpponentName, t.MatchCount, t.Events }));
         }
 
-        return package.GetAsByteArray();
+        return workbook.ToByteArray();
     }
 
-    private static void WriteCheckRow(ExcelWorksheet ws, ref int row, string check, int count, string severity)
+    private static void WriteCheckRow(IWorksheet ws, ref int row, string check, int count, string severity)
     {
-        ws.Cells[row, 1].Value = check;
-        ws.Cells[row, 2].Value = count;
-        ws.Cells[row, 3].Value = count == 0 ? "Pass" : severity;
+        ws.Range[row, 1].Text = check;
+        ws.Range[row, 2].Number = count;
+        ws.Range[row, 3].Text = count == 0 ? "Pass" : severity;
         row++;
     }
 
-    private static void AddSheet(ExcelPackage package, string name,
+    private static void AddSheet(IWorkbook workbook, string name,
         string[] headers, IEnumerable<object[]> rows)
     {
-        var ws = package.Workbook.Worksheets.Add(name);
+        var ws = workbook.Worksheets.Create(name);
         for (var c = 0; c < headers.Length; c++)
         {
-            ws.Cells[1, c + 1].Value = headers[c];
-            ws.Cells[1, c + 1].Style.Font.Bold = true;
+            ws.Range[1, c + 1].Text = headers[c];
+            ws.Range[1, c + 1].CellStyle.Font.Bold = true;
         }
 
         var r = 2;
@@ -185,14 +189,14 @@ public class ScheduleQaController : ControllerBase
         {
             for (var c = 0; c < row.Length; c++)
             {
-                ws.Cells[r, c + 1].Value = row[c];
+                ws.Range[r, c + 1].SetCellValue(row[c]);
                 if (row[c] is DateTime)
-                    ws.Cells[r, c + 1].Style.Numberformat.Format = "mm/dd/yyyy hh:mm";
+                    ws.Range[r, c + 1].NumberFormat = "mm/dd/yyyy hh:mm";
             }
             r++;
         }
 
-        if (ws.Dimension != null)
-            ws.Cells[ws.Dimension.Address].AutoFitColumns();
+        if (ws.UsedRange != null)
+            ws.UsedRange.AutofitColumns();
     }
 }

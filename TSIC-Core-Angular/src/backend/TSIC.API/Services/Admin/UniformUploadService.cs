@@ -1,5 +1,5 @@
-using OfficeOpenXml;
-using OfficeOpenXml.Style;
+using Syncfusion.XlsIO;
+using TSIC.API.Utilities;
 using TSIC.Contracts.Dtos.UniformUpload;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -19,60 +19,60 @@ public class UniformUploadService : IUniformUploadService
     {
         var roster = await _registrationRepo.GetPlayerRosterForTemplateAsync(jobId, ct);
 
-        ExcelPackage.License.SetNonCommercialPersonal("Todd Greenwald");
-        using var package = new ExcelPackage();
-        var ws = package.Workbook.Worksheets.Add("Uniform Numbers");
+        using var excelEngine = new ExcelEngine();
+        IApplication application = excelEngine.Excel;
+        application.DefaultVersion = ExcelVersion.Xlsx;
+        IWorkbook workbook = application.Workbooks.Create(1);
+        var ws = workbook.Worksheets[0];
+        ws.Name = "Uniform Numbers";
 
         // Header row
         var headers = new[] { "RegistrationId", "FirstName", "LastName", "TeamName", "UniformNo", "DayGroup" };
         for (var col = 1; col <= headers.Length; col++)
         {
-            ws.Cells[1, col].Value = headers[col - 1];
+            ws.Range[1, col].Text = headers[col - 1];
         }
 
         // Style header
-        using (var headerRange = ws.Cells[1, 1, 1, headers.Length])
-        {
-            headerRange.Style.Font.Bold = true;
-            headerRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            headerRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(68, 114, 196));
-            headerRange.Style.Font.Color.SetColor(System.Drawing.Color.White);
-        }
+        var headerRange = ws.Range[1, 1, 1, headers.Length];
+        headerRange.CellStyle.Font.Bold = true;
+        headerRange.CellStyle.Color = Syncfusion.Drawing.Color.FromArgb(68, 114, 196);
+        headerRange.CellStyle.Font.RGBColor = Syncfusion.Drawing.Color.White;
 
         // Data rows
         for (var i = 0; i < roster.Count; i++)
         {
             var row = i + 2;
             var player = roster[i];
-            ws.Cells[row, 1].Value = player.RegistrationId.ToString();
-            ws.Cells[row, 2].Value = player.FirstName;
-            ws.Cells[row, 3].Value = player.LastName;
-            ws.Cells[row, 4].Value = player.TeamName;
-            ws.Cells[row, 5].Value = player.UniformNo ?? string.Empty;
-            ws.Cells[row, 6].Value = player.DayGroup ?? string.Empty;
+            ws.Range[row, 1].SetCellValue(player.RegistrationId.ToString());
+            ws.Range[row, 2].SetCellValue(player.FirstName);
+            ws.Range[row, 3].SetCellValue(player.LastName);
+            ws.Range[row, 4].SetCellValue(player.TeamName);
+            ws.Range[row, 5].SetCellValue(player.UniformNo ?? string.Empty);
+            ws.Range[row, 6].SetCellValue(player.DayGroup ?? string.Empty);
         }
 
         // Read-only columns (A-D) get gray background to signal "don't edit"
         if (roster.Count > 0)
         {
-            using var readOnlyRange = ws.Cells[2, 1, roster.Count + 1, 4];
-            readOnlyRange.Style.Fill.PatternType = ExcelFillStyle.Solid;
-            readOnlyRange.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(242, 242, 242));
-            readOnlyRange.Style.Font.Color.SetColor(System.Drawing.Color.FromArgb(128, 128, 128));
+            var readOnlyRange = ws.Range[2, 1, roster.Count + 1, 4];
+            readOnlyRange.CellStyle.Color = Syncfusion.Drawing.Color.FromArgb(242, 242, 242);
+            readOnlyRange.CellStyle.Font.RGBColor = Syncfusion.Drawing.Color.FromArgb(128, 128, 128);
         }
 
         // Auto-fit columns
-        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+        ws.UsedRange.AutofitColumns();
 
-        return await package.GetAsByteArrayAsync();
+        return workbook.ToByteArray();
     }
 
     public async Task<UniformUploadResultDto> ProcessUploadAsync(Guid jobId, Stream fileStream, CancellationToken ct = default)
     {
-        ExcelPackage.License.SetNonCommercialPersonal("Todd Greenwald");
-        using var package = new ExcelPackage(fileStream);
+        using var excelEngine = new ExcelEngine();
+        IApplication application = excelEngine.Excel;
+        IWorkbook workbook = application.Workbooks.Open(fileStream);
 
-        var ws = package.Workbook.Worksheets.FirstOrDefault();
+        var ws = workbook.Worksheets.Count > 0 ? workbook.Worksheets[0] : null;
         if (ws == null)
         {
             return new UniformUploadResultDto
@@ -103,10 +103,10 @@ public class UniformUploadService : IUniformUploadService
         }
 
         // Parse data rows (row 2+)
-        var rowCount = ws.Dimension?.Rows ?? 0;
+        var rowCount = ws.UsedRange.LastRow;
         for (var row = 2; row <= rowCount; row++)
         {
-            var regIdRaw = ws.Cells[row, colMap.RegIdCol].Text?.Trim() ?? "";
+            var regIdRaw = ws.Range[row, colMap.RegIdCol].DisplayText?.Trim() ?? "";
             if (string.IsNullOrEmpty(regIdRaw))
                 continue; // skip blank rows
 
@@ -116,8 +116,8 @@ public class UniformUploadService : IUniformUploadService
                 continue;
             }
 
-            var uniformNo = colMap.UniformNoCol > 0 ? ws.Cells[row, colMap.UniformNoCol].Text?.Trim() : null;
-            var dayGroup = colMap.DayGroupCol > 0 ? ws.Cells[row, colMap.DayGroupCol].Text?.Trim() : null;
+            var uniformNo = colMap.UniformNoCol > 0 ? ws.Range[row, colMap.UniformNoCol].DisplayText?.Trim() : null;
+            var dayGroup = colMap.DayGroupCol > 0 ? ws.Range[row, colMap.DayGroupCol].DisplayText?.Trim() : null;
 
             parsedRows.Add((row, regId, uniformNo, dayGroup));
         }
@@ -189,14 +189,14 @@ public class UniformUploadService : IUniformUploadService
         };
     }
 
-    private static (int RegIdCol, int UniformNoCol, int DayGroupCol) ResolveColumnMap(ExcelWorksheet ws)
+    private static (int RegIdCol, int UniformNoCol, int DayGroupCol) ResolveColumnMap(IWorksheet ws)
     {
         int regIdCol = 0, uniformNoCol = 0, dayGroupCol = 0;
-        var colCount = ws.Dimension?.Columns ?? 0;
+        var colCount = ws.UsedRange.LastColumn;
 
         for (var col = 1; col <= colCount; col++)
         {
-            var header = ws.Cells[1, col].Text?.Trim() ?? "";
+            var header = ws.Range[1, col].DisplayText?.Trim() ?? "";
             if (header.Equals("RegistrationId", StringComparison.OrdinalIgnoreCase))
                 regIdCol = col;
             else if (header.Equals("UniformNo", StringComparison.OrdinalIgnoreCase)

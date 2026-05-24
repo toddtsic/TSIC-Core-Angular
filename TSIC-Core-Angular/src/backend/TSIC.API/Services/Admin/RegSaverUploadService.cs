@@ -1,4 +1,4 @@
-using OfficeOpenXml;
+using Syncfusion.XlsIO;
 using TSIC.Contracts.Dtos.RegSaverUpload;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -27,10 +27,11 @@ public class RegSaverUploadService : IRegSaverUploadService
         Stream fileStream,
         CancellationToken cancellationToken = default)
     {
-        ExcelPackage.License.SetNonCommercialPersonal("Todd Greenwald");
-        using var package = new ExcelPackage(fileStream);
+        using var excelEngine = new ExcelEngine();
+        IApplication application = excelEngine.Excel;
+        IWorkbook workbook = application.Workbooks.Open(fileStream);
 
-        var ws = package.Workbook.Worksheets.FirstOrDefault();
+        var ws = workbook.Worksheets.Count > 0 ? workbook.Worksheets[0] : null;
         if (ws == null)
         {
             return Empty([new RegSaverUploadRowError
@@ -55,18 +56,18 @@ public class RegSaverUploadService : IRegSaverUploadService
 
         var errors = new List<RegSaverUploadRowError>();
         var parsed = new List<ParsedRow>();
-        var rowCount = ws.Dimension?.Rows ?? 0;
+        var rowCount = ws.UsedRange.LastRow;
 
         for (var row = 2; row <= rowCount; row++)
         {
-            var policyNumber = ws.Cells[row, colMap["PolicyNumber"]].Text?.Trim() ?? string.Empty;
+            var policyNumber = ws.Range[row, colMap["PolicyNumber"]].DisplayText?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(policyNumber))
                 continue; // skip blank rows entirely
 
-            var purchaseDateRaw = ws.Cells[row, colMap["PurchaseDate"]].Text?.Trim() ?? string.Empty;
-            var effectiveDateRaw = ws.Cells[row, colMap["EffectiveDate"]].Text?.Trim() ?? string.Empty;
-            var premiumRaw = ws.Cells[row, colMap["Premium"]].Text?.Trim() ?? string.Empty;
-            var payoutRaw = ws.Cells[row, colMap["Payout"]].Text?.Trim() ?? string.Empty;
+            var purchaseDateRaw = ws.Range[row, colMap["PurchaseDate"]].DisplayText?.Trim() ?? string.Empty;
+            var effectiveDateRaw = ws.Range[row, colMap["EffectiveDate"]].DisplayText?.Trim() ?? string.Empty;
+            var premiumRaw = ws.Range[row, colMap["Premium"]].DisplayText?.Trim() ?? string.Empty;
+            var payoutRaw = ws.Range[row, colMap["Payout"]].DisplayText?.Trim() ?? string.Empty;
 
             if (!DateTime.TryParse(purchaseDateRaw, out var purchaseDate))
             {
@@ -182,14 +183,14 @@ public class RegSaverUploadService : IRegSaverUploadService
         Errors = errors
     };
 
-    private static Dictionary<string, int> ResolveColumnMap(ExcelWorksheet ws)
+    private static Dictionary<string, int> ResolveColumnMap(IWorksheet ws)
     {
         var map = RequiredHeaders.ToDictionary(h => h, _ => 0, StringComparer.OrdinalIgnoreCase);
-        var colCount = ws.Dimension?.Columns ?? 0;
+        var colCount = ws.UsedRange.LastColumn;
 
         for (var col = 1; col <= colCount; col++)
         {
-            var header = ws.Cells[1, col].Text?.Trim() ?? string.Empty;
+            var header = ws.Range[1, col].DisplayText?.Trim() ?? string.Empty;
             if (map.ContainsKey(header)) map[header] = col;
         }
         return map;

@@ -4,8 +4,9 @@ using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using OfficeOpenXml;
+using Syncfusion.XlsIO;
 using TSIC.API.Configuration;
+using TSIC.API.Utilities;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -345,10 +346,23 @@ public sealed class ReportingService : IReportingService
     /// </summary>
     private static async Task<byte[]> BuildExcelFromDataReader(DbDataReader reader)
     {
-        ExcelPackage.License.SetNonCommercialPersonal("Todd Greenwald");
+        using var excelEngine = new ExcelEngine();
+        IApplication application = excelEngine.Excel;
+        application.DefaultVersion = ExcelVersion.Xlsx;
+        IWorkbook workbook = application.Workbooks.Create(1);
+        IWorksheet? worksheet = null;
+        var sheetsCreated = 0;
 
-        using var package = new ExcelPackage();
-        ExcelWorksheet? worksheet = null;
+        // Reuse the default sheet XlsIO creates for the first sheet, then create new
+        // ones — preserves EPPlus's "start empty, add named sheets" behavior without
+        // leaving a stray "Sheet1" in the output.
+        IWorksheet AddWorksheet(string name)
+        {
+            var sheet = sheetsCreated == 0 ? workbook.Worksheets[0] : workbook.Worksheets.Create(name);
+            sheet.Name = name;
+            sheetsCreated++;
+            return sheet;
+        }
 
         if (reader.HasRows)
         {
@@ -364,13 +378,13 @@ public sealed class ReportingService : IReportingService
                     if (value.StartsWith("QA Test:"))
                     {
                         var sheetName = value.Split(':')[1].Trim();
-                        worksheet = package.Workbook.Worksheets.Add(sheetName);
+                        worksheet = AddWorksheet(sheetName);
                         await reader.NextResultAsync();
                     }
                 }
 
                 // Ensure we have a worksheet
-                worksheet ??= package.Workbook.Worksheets.Add("SearchResults");
+                worksheet ??= AddWorksheet("SearchResults");
 
                 var rowCounter = 0;
                 while (await reader.ReadAsync())
@@ -382,7 +396,7 @@ public sealed class ReportingService : IReportingService
                         var headerIndex = 0;
                         foreach (var column in headerSchema)
                         {
-                            worksheet.Cells[1, headerIndex + 1].Value = column.ColumnName;
+                            worksheet.Range[1, headerIndex + 1].SetCellValue(column.ColumnName);
                             headerIndex++;
                         }
                     }
@@ -392,15 +406,16 @@ public sealed class ReportingService : IReportingService
                     for (var col = 0; col < dataSchema.Count; col++)
                     {
                         var cellValue = reader.GetValue(col);
+                        var target = worksheet.Range[rowCounter + 2, col + 1];
 
                         if (cellValue is DateTime)
                         {
-                            worksheet.Cells[rowCounter + 2, col + 1].Value = cellValue;
-                            worksheet.Cells[rowCounter + 2, col + 1].Style.Numberformat.Format = "mm/dd/yyyy";
+                            target.SetCellValue(cellValue);
+                            target.NumberFormat = "mm/dd/yyyy";
                         }
                         else
                         {
-                            worksheet.Cells[rowCounter + 2, col + 1].Value = cellValue == DBNull.Value ? null : cellValue;
+                            target.SetCellValue(cellValue == DBNull.Value ? null : cellValue);
                         }
                     }
 
@@ -409,12 +424,12 @@ public sealed class ReportingService : IReportingService
             } while (await reader.NextResultAsync());
         }
 
-        // Ensure at least one worksheet exists
-        if (package.Workbook.Worksheets.Count == 0)
+        // Ensure at least one worksheet exists with the legacy default name
+        if (sheetsCreated == 0)
         {
-            package.Workbook.Worksheets.Add("SearchResults");
+            AddWorksheet("SearchResults");
         }
 
-        return await package.GetAsByteArrayAsync();
+        return workbook.ToByteArray();
     }
 }

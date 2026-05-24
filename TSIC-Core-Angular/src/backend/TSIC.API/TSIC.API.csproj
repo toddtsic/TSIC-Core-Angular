@@ -10,7 +10,6 @@
   <ItemGroup>
     <PackageReference Include="AuthorizeNet.Core" />
     <PackageReference Include="CsvHelper" />
-    <PackageReference Include="EPPlus" />
     <PackageReference Include="FirebaseAdmin" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" />
@@ -32,6 +31,7 @@
     <PackageReference Include="AWSSDK.SimpleEmail" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Syncfusion.Pdf.Net.Core" />
+    <PackageReference Include="Syncfusion.XlsIO.Net.Core" />
   </ItemGroup>
 
   <ItemGroup>
