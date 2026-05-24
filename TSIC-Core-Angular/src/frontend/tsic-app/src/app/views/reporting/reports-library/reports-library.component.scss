@@ -140,16 +140,10 @@
     // ── Category tab strip ───────────────────────────────────────────────────
     &__tabs {
         display: flex;
-        flex-wrap: nowrap;
-        overflow-x: auto;
+        flex-wrap: wrap;        // wrap to a second row if ever needed — never scroll
         gap: 2px;
         margin-bottom: var(--space-5);
-        padding-bottom: 0;
         border-bottom: 2px solid var(--bs-border-color);
-        scrollbar-width: thin;
-
-        &::-webkit-scrollbar { height: 6px; }
-        &::-webkit-scrollbar-thumb { background: var(--bs-border-color); border-radius: 3px; }
     }
 }
 
