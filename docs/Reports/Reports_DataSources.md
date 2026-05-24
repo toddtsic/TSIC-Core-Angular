@@ -140,3 +140,44 @@ below were resolved from `TSICV5` (`INFORMATION_SCHEMA.ROUTINES` / `sys.objects`
   in `TSICV5` (`fieldutilizationbyleagueid`, `roster_byteamidISP`, `lftc_rosterreportteams`,
   `us_rosterreport_getteamplayers`). They will fail unless their embedded `.rpt` connection points to a
   different database.
+
+## Conversion triage (first pass)
+
+> Inferred from report **name**, controller **export format**, and **subreport** structure — NOT from
+> the `.rpt` layout (only cr2025 can see that). Confirm dump-vs-curated there. Also: reports sharing a
+> sproc can still render different column subsets, so check column parity before pointing several
+> reports at one migrate sproc.
+
+### Tier 1 — raw Excel dumps → convert first
+Whole-sproc output to Excel, single result set — same pattern as the pilot.
+
+TournamentRecruitingReport_DataDump ✅done · TournamentPlayerDumpForRecruiters ·
+TournamentPlayers_RosterRequestAndRegistrants_DataDump · camp_datadump ·
+camp_excelexport_{daygroups,long,room_position,roomies,short,summer,veryshort} ·
+JobPlayers_{CSCRC,E120,Showcase,STEPS,YJ}_Excel · JobPlayers_Liberty · Club_JobPlayers_Excel · CustomerPlayers1 ·
+JobStaff_Excel · JobPlayerTransactions · ClubAllJobPlayerTransactions · JobTeamTransactions ·
+JobTeams_WithClubRep_Excel · JobTeams_WithClubRep_AllTransactions_Excel ·
+JobRosters_RecruitingReport_DumpExcel · JobRosters_RecruitingReport_Public_DumpExcel ·
+League_StandingsExcel · PlayerStats_ParisiExportExcel · Schedule_ExportExcel · Schedule_ExportExcel_Unscored
+
+*Probably dumps too, but verify the `.rpt` (exportFormat=Excel, no explicit "Excel"/ForExcelExport signal):*
+discountedplayers · teamfielddistribution · Mobile_JobUsers · League_Coaches · League_ClubReps · League_Teams ·
+Job_ClubRep_And_Coaches · JobRosters_MSYSA
+
+### Tier 2 — curated / formatted PDF → per-report column SELECT or real layout (defer)
+Crystal applies layout / a column subset; a raw dump won't reproduce it.
+- **Recruiting & rosters:** tournamentrecruitingreport, …ASL, …USL(Old), JobRosters_RecruitingReport(_XPO), Job_Club_Rosters, Job_Rosters_NoMedical, clubrostersNoMedicalII, Club_AllJobs_Rosters_NoMedical, outdooredrosters(springonly), Rosters_WithClubRep_A, JobRosters_DayGroupsPackedXPO, JobRosters_PackedByPosition_DayGroupXPO, tournamentumml1/2
+- **Check-in / score / eval:** tournycheckin, CovidTournyCheckin, AmericanSelectTournyCheckin, ISPCheckinFlat, Job_CampCheckin(II), JobRosters_TryoutsCheckReport, Score_Input, PlayerStats_E120, AmericanSelectEvaluation
+- **Schedules:** schedule_gamecards, ScheduleByAgDiv, ScheduleByClubAgT(PerPage), ScheduleByDay, ScheduleMaster, FieldUtilization*, Schedule_Export(_Public)
+- **Financials:** invoices2015(SummariesOnly), invoicesOld, customerInvoiceDataPerMonth, tsicTSICFeesYTD(ByCustomer), CustomerJobRevenueRollups/Table, CustomerJobPlayerRollup
+- **Store:** StoreLabels3, StorePerPlayerPickup(-OLD), StorePerPlayerPivot, StorePickupSignoff
+- **Camp PDFs:** camp_commuters, camp_daygroups, camp_nightgroups, camp_roomies, camp_excelexport_summer_pdf
+- **Misc:** JobPlayers_STEPS, JobPlayers_TSICDaily, League_Standings, LeagueForfeitReport, LeagueRefReport, UniformData, ClubRep_BalanceDue_ByAgegroupTeamFee
+
+### Tier 3 — master-detail (subreport populated) → real layout, defer longest
+AmericanSelectMainEventRosters · camp_daygroups_pdf · camp_nightgroups_pdf · JobRosters_PackedByPosition_XPO ·
+JobRosters_PackedByPositionAGNoClub · Schedule_ByAgegroup ·
+TournamentRosterPacked(_PositionSchool)(_Public)
+
+### ⚠️ Blocked — backing sproc missing from TSICV5 (resolve datasource first)
+ISPGameCheckin · JobRosters_PackedByPositionAG
