@@ -948,4 +948,138 @@ public class AdnSweepServiceTests
         _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(
             It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    // ── Orphan ADN charge detection (report-only) ─────────────────────
+
+    /// <summary>
+    /// A settled ONE-TIME charge (no subscription) carrying our invoice format — i.e. a
+    /// candidate for the orphan ("charged at ADN, never booked locally") path.
+    /// </summary>
+    private static transactionSummaryType OrphanTxSummary(string txId, string invoiceNumber, decimal settleAmount = 75m)
+    {
+        return new transactionSummaryType
+        {
+            transId = txId,
+            transactionStatus = "settledSuccessfully",
+            settleAmount = settleAmount,
+            invoiceNumber = invoiceNumber,
+            submitTimeLocal = DateTime.Now
+            // subscription left null → one-time charge, not ARB
+        };
+    }
+
+    [Fact(DisplayName = "Orphan: settled charge with no accounting row → reported, NOT booked")]
+    public async Task Orphan_SettledNotBooked_ReportedNotBooked()
+    {
+        var reg = BuildReg(paid: 0m, owed: 100m, jobName: "Fall Classic");
+        StubSweepLogAndCreds();
+        StubBatchListWith(OrphanTxSummary("ORPH-1", "1_2_3", settleAmount: 75m));
+        // Settled tx also passes through the eCheck-settled path (step 3); no pending eCheck matches it.
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("ORPH-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false); // no local accounting row → orphan
+        _regRepo.Setup(r => r.GetByInvoiceAisAsync(1, 2, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(reg);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.OrphansFound.Should().Be(1);
+        result.Errored.Should().Be(0);
+        // REPORT-ONLY: nothing is written to accounting and no balances move.
+        _accountingRepo.Verify(a => a.Add(It.IsAny<RegistrationAccounting>()), Times.Never);
+        _accountingRepo.Verify(a => a.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+        reg.PaidTotal.Should().Be(0m, "report-only must not touch the registration balance");
+        reg.OwedTotal.Should().Be(100m);
+    }
+
+    [Fact(DisplayName = "Orphan digest: resolved orphan row appears with the report-only warning")]
+    public async Task Orphan_Digest_ShowsRowAndReportOnlyWarning()
+    {
+        var reg = BuildReg(jobName: "Fall Classic");
+        StubSweepLogAndCreds();
+        StubBatchListWith(OrphanTxSummary("ORPH-DIGEST", "1_2_3", settleAmount: 75m));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("ORPH-DIGEST", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _regRepo.Setup(r => r.GetByInvoiceAisAsync(1, 2, 3, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(reg);
+
+        var sentEmails = new List<EmailMessageDto>();
+        _email.Setup(e => e.SendAsync(It.IsAny<EmailMessageDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Callback<EmailMessageDto, bool, CancellationToken>((m, _, _) => sentEmails.Add(m))
+            .ReturnsAsync(true);
+
+        await BuildSut().RunAsync("Test");
+
+        var digest = sentEmails.LastOrDefault(m => m.Subject!.StartsWith("AdnSweep"));
+        digest.Should().NotBeNull("a digest email should always be sent");
+        var html = digest!.HtmlBody!;
+        html.Should().Contain("Orphan ADN Charges");
+        html.Should().Contain("ORPH-DIGEST", "the orphan tx id should appear in the table");
+        html.Should().Contain("1_2_3", "the invoice number should appear");
+        html.Should().Contain("REPORT ONLY", "the digest must state that nothing was booked");
+        html.Should().Contain("user-1", "the resolved registrant should appear");
+    }
+
+    [Fact(DisplayName = "Orphan: settled charge already booked → NOT flagged")]
+    public async Task Orphan_AlreadyBooked_NotFlagged()
+    {
+        StubSweepLogAndCreds();
+        StubBatchListWith(OrphanTxSummary("BOOKED-1", "1_2_3"));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("BOOKED-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true); // already has an accounting row
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.OrphansFound.Should().Be(0, "a booked charge is not an orphan");
+        _regRepo.Verify(r => r.GetByInvoiceAisAsync(
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+        _accountingRepo.Verify(a => a.Add(It.IsAny<RegistrationAccounting>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "Orphan: settled charge that maps to no registration → still reported (unresolved), not booked")]
+    public async Task Orphan_Unresolvable_ReportedNotBooked()
+    {
+        StubSweepLogAndCreds();
+        StubBatchListWith(OrphanTxSummary("ORPH-NOREG", "9_9_9"));
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("ORPH-NOREG", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _regRepo.Setup(r => r.GetByInvoiceAisAsync(9, 9, 9, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Registrations?)null);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.OrphansFound.Should().Be(1, "an unattributable settled-not-booked charge still needs human eyes");
+        result.Errored.Should().Be(0);
+        _accountingRepo.Verify(a => a.Add(It.IsAny<RegistrationAccounting>()), Times.Never);
+    }
+
+    [Fact(DisplayName = "ARB settled tx → handled by ARB path, NOT double-counted as an orphan")]
+    public async Task Orphan_ArbTx_NotTreatedAsOrphan()
+    {
+        var reg = BuildReg();
+        StubSweepLogAndCreds();
+        StubBatchListWith(ArbTxSummary("settledSuccessfully", 50m, "777", "ARB-NOTORPH", "TSIC_1_2"));
+        StubArbTxDetails("ARB-NOTORPH", "777", 50m);
+        StubSubStatus("777");
+        _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _accountingRepo.Setup(a => a.AnyByAdnTransactionIdAsync("ARB-NOTORPH", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+        _regRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("777", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(reg);
+
+        var result = await BuildSut().RunAsync("Test");
+
+        result.ArbImported.Should().Be(1, "ARB tx still imported by the ARB path");
+        result.OrphansFound.Should().Be(0, "a subscription tx is never an orphan candidate");
+        _regRepo.Verify(r => r.GetByInvoiceAisAsync(
+            It.IsAny<int>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
 }

@@ -76,6 +76,7 @@ public sealed class AdnSweepService : IAdnSweepService
         var arbRows = new List<ArbDigestRow>();
         var ecRows = new List<EcheckReturnDigestRow>();
         var settledRows = new List<EcheckSettledDigestRow>();
+        var orphanRows = new List<OrphanDigestRow>();
 
         try
         {
@@ -164,8 +165,32 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
-            // 5) Build + send digest email.
-            var html = BuildDigestHtml(arbRows, settledRows, ecRows, counts);
+            // 5) Detect orphan charges: one-time txs that settled at ADN but have no local
+            // RegistrationAccounting row (the rare "charged the card, app pool died before the
+            // booking write" case). REPORT-ONLY — we flag them in the digest for a human to book
+            // by hand; the sweep never writes accounting rows here. In ~26 years this has happened
+            // about once, so the expected count every run is 0.
+            foreach (var tx in allTxs.Where(IsOrphanCandidate))
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    var row = await DetectOrphanAsync(tx, ct);
+                    if (row != null)
+                    {
+                        counts.OrphansFound++;
+                        orphanRows.Add(row);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Orphan detection failed for tx {TxId}", tx.transId);
+                    counts.Errored++;
+                }
+            }
+
+            // 6) Build + send digest email.
+            var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, counts);
             await SendDigestAsync(html, ct);
         }
         catch (Exception ex)
@@ -183,6 +208,7 @@ public sealed class AdnSweepService : IAdnSweepService
             ArbImported = counts.ArbImported,
             EcheckSettled = counts.EcheckSettled,
             EcheckReturnsProcessed = counts.EcheckReturnsProcessed,
+            OrphansFound = counts.OrphansFound,
             Errored = counts.Errored
         };
     }
@@ -223,6 +249,19 @@ public sealed class AdnSweepService : IAdnSweepService
             && (tx.transactionStatus == "settledSuccessfully"
                 || tx.transactionStatus == "declined"
                 || tx.transactionStatus == "generalError");
+    }
+
+    // Orphan candidate = a settled, one-time charge that carries our invoice format.
+    // subscription == null excludes ARB txs (handled in step 2). The real orphan test
+    // (no matching accounting row) is done in DetectOrphanAsync, post-dedup — this is
+    // just the cheap pre-filter over the batch list.
+    private static bool IsOrphanCandidate(transactionSummaryType tx)
+    {
+        return tx.transactionStatus == "settledSuccessfully"
+            && !string.IsNullOrEmpty(tx.transId)
+            && tx.subscription == null
+            && !string.IsNullOrEmpty(tx.invoiceNumber)
+            && tx.invoiceNumber.Split('_').Length == 3;
     }
 
     // ── ARB import (legacy parity) ────────────────────────────────────
@@ -670,6 +709,79 @@ public sealed class AdnSweepService : IAdnSweepService
         return true;
     }
 
+    // ── Orphan charge detection (report-only) ─────────────────────────
+
+    // A settled one-time charge that we can't find a local accounting row for. This is the
+    // "card was charged at ADN but the booking write never landed" failure (app pool stop /
+    // publish mid-request). We only REPORT it — no RegistrationAccounting row is written here.
+    // A human reads the digest and books it by hand if it's real.
+    private async Task<OrphanDigestRow?> DetectOrphanAsync(transactionSummaryType tx, CancellationToken ct)
+    {
+        // Already booked? Then it isn't an orphan. This is the common case for every settled
+        // charge (the payment flow writes the row synchronously), so it filters ~everything
+        // cheaply before we touch the registration tables.
+        if (await _accountingRepo.AnyByAdnTransactionIdAsync(tx.transId, ct))
+            return null;
+
+        // Parse the invoice's three AIs (customer_job_registration).
+        var parts = tx.invoiceNumber.Split('_');
+        if (parts.Length != 3
+            || !int.TryParse(parts[0], out var custAi)
+            || !int.TryParse(parts[1], out var jobAi)
+            || !int.TryParse(parts[2], out var regAi))
+        {
+            _logger.LogWarning(
+                "ORPHAN ADN charge {TxId}: settled with no accounting row and a malformed invoice '{Invoice}' — cannot attribute (report only)",
+                tx.transId, tx.invoiceNumber);
+            return new OrphanDigestRow
+            {
+                Resolved = false,
+                TransId = tx.transId,
+                InvoiceNumber = tx.invoiceNumber,
+                SettleAmount = tx.settleAmount,
+                SubmittedAt = tx.submitTimeLocal,
+                Registrant = null,
+                Note = "malformed invoice number — cannot map to a registration"
+            };
+        }
+
+        var reg = await _regRepo.GetByInvoiceAisAsync(custAi, jobAi, regAi, ct);
+        if (reg == null)
+        {
+            _logger.LogWarning(
+                "ORPHAN ADN charge {TxId}: settled with no accounting row; invoice '{Invoice}' matches no registration (report only)",
+                tx.transId, tx.invoiceNumber);
+            return new OrphanDigestRow
+            {
+                Resolved = false,
+                TransId = tx.transId,
+                InvoiceNumber = tx.invoiceNumber,
+                SettleAmount = tx.settleAmount,
+                SubmittedAt = tx.submitTimeLocal,
+                Registrant = null,
+                Note = "no registration matches this invoice's customer/job/registration AIs"
+            };
+        }
+
+        // Genuine orphan: money settled at ADN, no local accounting row. REPORT ONLY — we
+        // deliberately do NOT write a RegistrationAccounting row. A human reviews the digest
+        // and books it by hand if real.
+        _logger.LogWarning(
+            "ORPHAN ADN charge {TxId}: settled {Amount:C} for registration {RegId} (invoice {Invoice}) with no local accounting row — REPORT ONLY, not booked",
+            tx.transId, tx.settleAmount, reg.RegistrationId, tx.invoiceNumber);
+
+        return new OrphanDigestRow
+        {
+            Resolved = true,
+            TransId = tx.transId,
+            InvoiceNumber = tx.invoiceNumber,
+            SettleAmount = tx.settleAmount,
+            SubmittedAt = tx.submitTimeLocal,
+            Registrant = reg.UserId,
+            Note = "settled at ADN, no local accounting row — review and book by hand"
+        };
+    }
+
     // ── Installment math (legacy parity) ──────────────────────────────
 
     // Team ARB-Trial subs run on day-based intervals (deposit today+1, balance on
@@ -736,6 +848,7 @@ public sealed class AdnSweepService : IAdnSweepService
         List<ArbDigestRow> arbRows,
         List<EcheckSettledDigestRow> settledRows,
         List<EcheckReturnDigestRow> ecRows,
+        List<OrphanDigestRow> orphanRows,
         Counts counts)
     {
 #if DEBUG
@@ -745,7 +858,7 @@ public sealed class AdnSweepService : IAdnSweepService
 #endif
         var sb = new StringBuilder();
         sb.Append($"<h3 style='margin-bottom:4px;'>ADN Sweep ({envType}, TSIC) — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");
-        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Errored: {counts.Errored}</p>");
+        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Errored: {counts.Errored}</p>");
 
         // ── ARB Activity table ────────────────────────────────────────
         sb.Append("<h4 style='margin-bottom:2px;'>ARB Activity</h4>");
@@ -832,6 +945,34 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append("</table>");
         }
 
+        // ── Orphan ADN Charges table (report-only) ────────────────────
+        sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Orphan ADN Charges (settled at ADN, not booked locally)</h4>");
+        if (orphanRows.Count == 0)
+        {
+            sb.Append("<p style='font-size:9px;'>(none — every settled charge has a matching accounting row ✓)</p>");
+        }
+        else
+        {
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>⚠️ Money settled at Authorize.Net with no local accounting row. REPORT ONLY — nothing was booked. Review each and enter the payment by hand.</p>");
+            sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
+            sb.Append("<tr><th>#</th><th>Resolved</th><th>TransId</th><th>Invoice</th><th>Settle Amount</th><th>Submitted (ADN)</th><th>Registrant</th><th>Note</th></tr>");
+            for (int i = 0; i < orphanRows.Count; i++)
+            {
+                var r = orphanRows[i];
+                sb.Append("<tr>")
+                  .Append($"<td>{i + 1}</td>")
+                  .Append($"<td>{(r.Resolved ? "yes" : "NO")}</td>")
+                  .Append($"<td>{r.TransId}</td>")
+                  .Append($"<td>{r.InvoiceNumber}</td>")
+                  .Append($"<td>{r.SettleAmount:C}</td>")
+                  .Append($"<td>{r.SubmittedAt:g}</td>")
+                  .Append($"<td>{r.Registrant}</td>")
+                  .Append($"<td>{r.Note}</td>")
+                  .Append("</tr>");
+            }
+            sb.Append("</table>");
+        }
+
         return sb.ToString();
     }
 
@@ -855,6 +996,7 @@ public sealed class AdnSweepService : IAdnSweepService
         public int ArbImported;
         public int EcheckSettled;
         public int EcheckReturnsProcessed;
+        public int OrphansFound;
         public int Errored;
     }
 
@@ -893,5 +1035,19 @@ public sealed class AdnSweepService : IAdnSweepService
         public required string? Registrant { get; init; }
         public required DateTime SubmittedAt { get; init; }
         public required DateTime SettledAt { get; init; }
+    }
+
+    // Report-only: a settled ADN charge with no matching RegistrationAccounting row.
+    // Resolved = we mapped the invoice to a registration; !Resolved = couldn't attribute it.
+    // SubmittedAt is ADN's submitTimeLocal (local batch time of the charge).
+    private sealed record OrphanDigestRow
+    {
+        public required bool Resolved { get; init; }
+        public required string TransId { get; init; }
+        public required string InvoiceNumber { get; init; }
+        public required decimal SettleAmount { get; init; }
+        public required DateTime SubmittedAt { get; init; }
+        public required string? Registrant { get; init; }
+        public required string Note { get; init; }
     }
 }

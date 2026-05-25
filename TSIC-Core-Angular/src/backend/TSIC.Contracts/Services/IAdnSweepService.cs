@@ -27,5 +27,12 @@ public sealed record AdnSweepResult
     public required int ArbImported { get; init; }
     public required int EcheckSettled { get; init; }
     public required int EcheckReturnsProcessed { get; init; }
+
+    /// <summary>
+    /// Orphan ADN charges detected this pass: settled at Authorize.Net but with no matching
+    /// RegistrationAccounting row. Report-only — flagged in the digest for manual review,
+    /// never auto-booked. Expected to be 0 on virtually every run.
+    /// </summary>
+    public required int OrphansFound { get; init; }
     public required int Errored { get; init; }
 }

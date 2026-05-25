@@ -169,6 +169,14 @@ public interface IRegistrationRepository
     Task<Registrations?> GetByAdnSubscriptionIdAsync(string adnSubscriptionId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Resolve a registration from an invoice's composite AIs (customer_job_registration —
+    /// the AdnInvoiceNo format). All three must match. Read-only (AsNoTracking); used by the
+    /// daily sweep to attribute a settled-but-unbooked ("orphan") ADN charge to a registrant
+    /// for the digest report. Reporting only — the sweep never writes off this lookup.
+    /// </summary>
+    Task<Registrations?> GetByInvoiceAisAsync(int customerAi, int jobAi, int registrationAi, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get registrations by job ID and user IDs.
     /// Used for family registration queries.
     /// </summary>

@@ -96,8 +96,8 @@ public sealed class AdnSweepBackgroundService : BackgroundService
             var sweep = scope.ServiceProvider.GetRequiredService<IAdnSweepService>();
             var result = await sweep.RunAsync("Scheduled", _options.DaysPriorWindow, ct);
             _logger.LogInformation(
-                "Sweep finished: checked={Checked} arbImported={ArbImported} ecReturns={EcReturns} errored={Errored}",
-                result.Checked, result.ArbImported, result.EcheckReturnsProcessed, result.Errored);
+                "Sweep finished: checked={Checked} arbImported={ArbImported} ecReturns={EcReturns} orphansFound={OrphansFound} errored={Errored}",
+                result.Checked, result.ArbImported, result.EcheckReturnsProcessed, result.OrphansFound, result.Errored);
         }
         catch (Exception ex)
         {

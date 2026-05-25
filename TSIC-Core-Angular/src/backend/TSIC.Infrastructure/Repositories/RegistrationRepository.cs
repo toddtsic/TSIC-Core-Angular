@@ -741,6 +741,22 @@ public class RegistrationRepository : IRegistrationRepository
             .FirstOrDefaultAsync(r => r.AdnSubscriptionId == adnSubscriptionId, cancellationToken);
     }
 
+    public async Task<Registrations?> GetByInvoiceAisAsync(
+        int customerAi, int jobAi, int registrationAi, CancellationToken cancellationToken = default)
+    {
+        // Reverse of GetRegistrationWithInvoiceDataAsync: given the three AIs that make up an
+        // AdnInvoiceNo (customer_job_registration), resolve the registration the charge belongs to.
+        // AsNoTracking — read-only; the orphan sweep only reports, it never writes off this lookup.
+        // SingleOrDefault — the AI triple is unique, so >1 match is data corruption and should throw.
+        return await (
+            from r in _context.Registrations
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            where r.RegistrationAi == registrationAi && j.JobAi == jobAi && c.CustomerAi == customerAi
+            select r
+        ).AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<List<Registrations>> GetByJobAndUserIdsAsync(Guid jobId, List<string> userIds, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
