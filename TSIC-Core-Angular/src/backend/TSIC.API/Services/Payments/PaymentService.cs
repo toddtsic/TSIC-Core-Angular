@@ -155,19 +155,18 @@ public class PaymentService : IPaymentService
         decimal serverTotal = 0m;
         foreach (var team in teams)
         {
-            var owed = Math.Max(0m, team.OwedTotal ?? 0m);
-            if (owed <= 0m) continue; // already paid in full — nothing to charge
+            var owedTotal = Math.Max(0m, team.OwedTotal ?? 0m);
+            if (owedTotal <= 0m) continue; // already paid in full — nothing to charge
 
             var state = teamStates.GetValueOrDefault(team.TeamId) ?? emptyState;
-            var methodRate = kind == TeamChargeKind.Cc ? state.CcRate : state.EcheckRate;
-            var principal = state.PrincipalRemaining(team.FeeBase ?? 0m, team.FeeDiscount ?? 0m, team.FeeLatefee ?? 0m);
-            // Canonical credit (rounded + capped at the proc embedded in this team's
-            // balance). Same helper the registration display path uses to quote
-            // EkOwedTotal, so the rep's shown eCheck total can't disagree with what we
-            // charge here (which would re-trip AMOUNT_MISMATCH below).
-            var credit = PaymentRateMath.AppliedProcCredit(principal, team.FeeProcessing ?? 0m, state.CcRate, methodRate);
-
-            var charge = owed - credit;
+            // Single owed resolver — the rep's shown total (display path) and this charge
+            // are produced by the SAME PaymentState.ResolveOwed, so they cannot drift (a
+            // drift would re-trip the AMOUNT_MISMATCH tripwire below). CC charges the full
+            // owed (credit 0); eCheck charges the lower eCheck-rate gross.
+            var owed = state.ResolveOwed(
+                owedTotal, team.FeeBase ?? 0m, team.FeeDiscount ?? 0m, team.FeeLatefee ?? 0m, team.FeeProcessing ?? 0m);
+            var charge = kind == TeamChargeKind.Cc ? owed.Cc : owed.Echeck;
+            var credit = owedTotal - charge; // proc backed out for this method (0 for CC)
             if (charge <= 0m) continue;
 
             serverTotal += charge;

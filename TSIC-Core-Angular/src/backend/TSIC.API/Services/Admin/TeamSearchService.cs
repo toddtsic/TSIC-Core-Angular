@@ -116,10 +116,12 @@ public sealed class TeamSearchService : ITeamSearchService
         clubTeamSummaries = clubTeamSummaries.Select(t =>
         {
             var state = clubTeamStates.GetValueOrDefault(t.TeamId, emptyClubState);
-            var procFeeDue = state.ProcFeeDue(t.FeeBase, t.FeeDiscount, t.FeeLatefee);
+            // Canonical per-method owed; the check reduction is CC owed − check owed
+            // (the capped proc credit) — identical to what the charge engine backs out.
+            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
             return t with
             {
-                CheckFeeReduction = Math.Round(procFeeDue, 2, MidpointRounding.AwayFromZero)
+                CheckFeeReduction = owed.Cc - owed.Check
             };
         }).ToList();
 
@@ -175,10 +177,12 @@ public sealed class TeamSearchService : ITeamSearchService
         teams = teams.Select(t =>
         {
             var state = teamStates.GetValueOrDefault(t.TeamId, emptyState);
-            var procFeeDue = state.ProcFeeDue(t.FeeBase, t.FeeDiscount, t.FeeLatefee);
+            // Canonical per-method owed; the check reduction is CC owed − check owed
+            // (the capped proc credit) — identical to what the charge engine backs out.
+            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
             return t with
             {
-                CheckFeeReduction = Math.Round(procFeeDue, 2, MidpointRounding.AwayFromZero)
+                CheckFeeReduction = owed.Cc - owed.Check
             };
         }).ToList();
 

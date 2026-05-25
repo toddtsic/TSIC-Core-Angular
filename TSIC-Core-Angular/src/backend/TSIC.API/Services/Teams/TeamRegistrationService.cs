@@ -459,19 +459,16 @@ public class TeamRegistrationService : ITeamRegistrationService
             var depositDue = t.PaidTotal >= deposit ? 0m : deposit - t.PaidTotal;
             var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
 
-            // CkOwedTotal / FeeProcessingDue derived from the canonical PaymentState —
-            // accounts for CC principal-vs-proc split AND eCheck proc collected at swipe.
-            // Old shortcut `OwedTotal − FeeProcessing` overstated FeeProcessingDue by
-            // `ccRate × cc_principal_paid` because PaidTotal includes CC proc.
+            // Per-method owed from the single canonical resolver — the SAME
+            // PaymentState.ResolveOwed the charge engine (PaymentService) uses, so the
+            // totals the rep is shown for CC / check / eCheck equal exactly what each
+            // method charges or records (keeps the AMOUNT_MISMATCH tripwire quiet).
             var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
-            var ckOwedTotal = state.PrincipalRemaining(t.FeeBase, t.FeeDiscount, t.FeeLatefee);
-            var ccOwedTotal = t.OwedTotal;
+            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
+            var ccOwedTotal = owed.Cc;
+            var ckOwedTotal = owed.Check;
+            var ekOwedTotal = owed.Echeck;
             var feeProcessingDue = Math.Max(0m, ccOwedTotal - ckOwedTotal);
-            // eCheck owed: the CC owed minus the (CC − eCheck) proc credit the rep avoids
-            // by paying via ACH. Uses the SAME canonical helper the charge engine
-            // (PaymentService.ChargeTeamsAsync) debits, so the total the rep is shown for
-            // eCheck equals what we'll charge — the AMOUNT_MISMATCH tripwire stays quiet.
-            var ekOwedTotal = ccOwedTotal - PaymentRateMath.AppliedProcCredit(ckOwedTotal, t.FeeProcessing, state.CcRate, state.EcheckRate);
 
             return new RegisteredTeamDto
             {
