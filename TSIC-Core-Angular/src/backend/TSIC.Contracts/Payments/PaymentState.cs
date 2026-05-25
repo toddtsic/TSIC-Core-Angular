@@ -87,6 +87,35 @@ public record PaymentState
             ? PrincipalRemaining(feeBase, discount, lateFee) * CcRate
             : 0m;
 
+    /// <summary>
+    /// Amount still owed under each payment method, anchored to the entity's
+    /// authoritative <paramref name="owedTotal"/> (which already carries proc,
+    /// donation, late fee, and discount). The single canonical owed resolver:
+    /// display, the charge engine, and admin quoting all call this, so a shown
+    /// total can never disagree with what is actually charged or recorded.
+    ///
+    ///   Cc     → full owedTotal           (CC pays its own proc → credit 0)
+    ///   Check  → owedTotal − full CC proc  (== Cash == Correction; methodRate 0)
+    ///   Echeck → owedTotal − partial credit (CC rate − eCheck rate)
+    ///
+    /// One formula, three rates. Credits come from PaymentRateMath.AppliedProcCredit
+    /// (rounded + capped at the proc embedded in the balance), so no method can
+    /// over-credit phantom proc and proc-disabled jobs fall through to owedTotal.
+    /// </summary>
+    public OwedByMethod ResolveOwed(
+        decimal owedTotal, decimal feeBase, decimal discount, decimal lateFee, decimal feeProcessing)
+    {
+        var principalRemaining = PrincipalRemaining(feeBase, discount, lateFee);
+        decimal OwedFor(decimal methodRate) => System.Math.Max(
+            0m,
+            owedTotal - PaymentRateMath.AppliedProcCredit(principalRemaining, feeProcessing, CcRate, methodRate));
+
+        return new OwedByMethod(
+            Cc: OwedFor(CcRate),
+            Check: OwedFor(0m),
+            Echeck: OwedFor(EcheckRate));
+    }
+
     public static PaymentState Empty(bool bAddProcessingFees, decimal ccRate, decimal echeckRate) =>
         new()
         {
@@ -100,3 +129,9 @@ public record PaymentState
             EcheckRate = echeckRate,
         };
 }
+
+/// <summary>
+/// Amount owed under each payment method (Check == Cash == Correction — all proc-free).
+/// Produced by <see cref="PaymentState.ResolveOwed"/>, the single per-method owed resolver.
+/// </summary>
+public readonly record struct OwedByMethod(decimal Cc, decimal Check, decimal Echeck);

@@ -164,4 +164,64 @@ public class PaymentStateTests
         s.PrincipalRemaining(1000m, 50m, 25m).Should().BeApproximately(875m, 0.005m);
         s.ProcFeeDue(1000m, 50m, 25m).Should().BeApproximately(875m * 0.038m, 0.005m);
     }
+
+    // ── ResolveOwed: the single per-method owed resolver ──
+
+    [Fact(DisplayName = "ResolveOwed: pristine team — CC full, check drops CC proc, eCheck drops only the rate difference")]
+    public void ResolveOwed_NoPayments_DropsCcProcForCheck()
+    {
+        // base 500, embedded proc 19 (500 × 3.8%), owed 519, nothing paid.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        var owed = s.ResolveOwed(owedTotal: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m);
+
+        owed.Cc.Should().BeApproximately(519m, 0.005m);     // full CC-inclusive owed
+        owed.Check.Should().BeApproximately(500m, 0.005m);  // proc removed → principal only
+        owed.Echeck.Should().BeApproximately(505m, 0.005m); // base + eCheck proc (500 × 1%)
+    }
+
+    [Fact(DisplayName = "ResolveOwed: proc disabled — every method equals the raw owed")]
+    public void ResolveOwed_ProcDisabled_AllMethodsEqualOwed()
+    {
+        var s = PaymentState.Empty(false, 0.038m, 0.01m);
+        var owed = s.ResolveOwed(owedTotal: 500m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 0m);
+
+        owed.Cc.Should().Be(500m);
+        owed.Check.Should().Be(500m);
+        owed.Echeck.Should().Be(500m);
+    }
+
+    [Fact(DisplayName = "ResolveOwed: after a partial CC deposit — check owes remaining principal, no phantom proc")]
+    public void ResolveOwed_AfterPartialCc_ChecksRemainingPrincipal()
+    {
+        // base 2100; CC deposit $467.10 = $450 principal + $17.10 proc.
+        // Embedded FeeProcessing target = 17.10 + 1650 × 3.8% = 79.80; owed = 2179.80 − 467.10 = 1712.70.
+        var s = State(cc: 467.10m, ccRate: 0.038m, echeckRate: 0.01m);
+        var owed = s.ResolveOwed(owedTotal: 1712.70m, feeBase: 2100m, discount: 0m, lateFee: 0m, feeProcessing: 79.80m);
+
+        owed.Cc.Should().BeApproximately(1712.70m, 0.005m);
+        owed.Check.Should().BeApproximately(1650m, 0.005m);     // remaining principal only
+        owed.Echeck.Should().BeApproximately(1666.50m, 0.005m); // 1650 + 1650 × 1%
+    }
+
+    [Fact(DisplayName = "ResolveOwed: a donation stays owed under check (anchored to owedTotal, not bare principal)")]
+    public void ResolveOwed_DonationPreservedForCheck()
+    {
+        // base 500 + donation 10 + proc 19 → owed 529. Check drops the 19 proc but KEEPS the donation.
+        // (Guards the latent bug where check-owed = PrincipalRemaining would silently drop the donation.)
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        var owed = s.ResolveOwed(owedTotal: 529m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m);
+
+        owed.Check.Should().BeApproximately(510m, 0.005m); // 500 base + 10 donation, proc removed
+    }
+
+    [Fact(DisplayName = "ResolveOwed: nothing owed clamps every method at 0")]
+    public void ResolveOwed_NothingOwed_ClampsAtZero()
+    {
+        var s = State(check: 600m);
+        var owed = s.ResolveOwed(owedTotal: 0m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 0m);
+
+        owed.Cc.Should().Be(0m);
+        owed.Check.Should().Be(0m);
+        owed.Echeck.Should().Be(0m);
+    }
 }
