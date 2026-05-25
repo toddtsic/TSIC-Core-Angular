@@ -8,6 +8,8 @@
             <p class="page-subtitle">
                 Pulls Authorize.Net settled batches for the last <em>N</em> days and applies any
                 new ARB charges, eCheck settlements, and eCheck returns to the database.
+                Also <strong>flags orphan charges</strong> &mdash; money settled at Authorize.Net with no
+                local accounting row &mdash; for review only (these are reported, never auto-booked).
                 Mirrors the nightly background sweep but runs on demand.
             </p>
         </div>
@@ -82,6 +84,10 @@
                     <div class="result-stat result-stat--warning">
                         <span class="result-stat__value">{{ r.echeckReturnsProcessed }}</span>
                         <span class="result-stat__label">eCheck Returns</span>
+                    </div>
+                    <div class="result-stat" [class.result-stat--danger]="r.orphansFound > 0">
+                        <span class="result-stat__value">{{ r.orphansFound }}</span>
+                        <span class="result-stat__label">Orphans Found</span>
                     </div>
                     <div class="result-stat result-stat--danger">
                         <span class="result-stat__value">{{ r.errored }}</span>

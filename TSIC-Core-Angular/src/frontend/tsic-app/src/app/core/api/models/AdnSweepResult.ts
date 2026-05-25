@@ -7,6 +7,7 @@ export type AdnSweepResult = {
     arbImported: number;
     echeckSettled: number;
     echeckReturnsProcessed: number;
+    orphansFound: number;
     errored: number;
 };
 
