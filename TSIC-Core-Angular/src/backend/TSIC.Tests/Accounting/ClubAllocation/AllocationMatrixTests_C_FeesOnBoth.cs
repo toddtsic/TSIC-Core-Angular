@@ -91,7 +91,7 @@ public class AllocationMatrixTests_C_FeesOnBoth
         var svc = new TeamSearchService(
             teamRepo, accountingRepo, registrationRepo, jobRepo.Object,
             feeService.Object, paymentState, adnApi.Object, ladtService.Object,
-            new Mock<IEmailService>().Object, logger.Object);
+            new Mock<IEmailService>().Object, new Mock<IPaymentService>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId, ag.AgegroupId, clubRep.RegistrationId);
     }

@@ -1,4 +1,5 @@
 using AuthorizeNet.Api.Contracts.V1;
+using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Ladt;
@@ -34,10 +35,10 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly IAdnApiService _adnApi;
     private readonly ILadtService _ladtService;
     private readonly IEmailService _emailService;
+    private readonly IPaymentService _paymentService;
     private readonly ILogger<TeamSearchService> _logger;
 
     // Known payment method GUIDs (from AccountingPaymentMethods table)
-    private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CcCreditMethodId = Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CheckMethodId = Guid.Parse("32ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
@@ -52,6 +53,7 @@ public sealed class TeamSearchService : ITeamSearchService
         IAdnApiService adnApi,
         ILadtService ladtService,
         IEmailService emailService,
+        IPaymentService paymentService,
         ILogger<TeamSearchService> logger)
     {
         _teamRepo = teamRepo;
@@ -63,6 +65,7 @@ public sealed class TeamSearchService : ITeamSearchService
         _adnApi = adnApi;
         _ladtService = ladtService;
         _emailService = emailService;
+        _paymentService = paymentService;
         _logger = logger;
     }
 
@@ -409,8 +412,17 @@ public sealed class TeamSearchService : ITeamSearchService
         if (!request.TeamId.HasValue)
             return new TeamCcChargeResponse { Success = false, Error = "TeamId is required for team-level charge." };
 
-        return await ChargeCcInternalAsync(jobId, userId, request.ClubRepRegistrationId, request.CreditCard,
-            new List<Guid> { request.TeamId.Value }, ct);
+        var team = await _teamRepo.GetTeamFromTeamId(request.TeamId.Value, ct);
+        if (team == null || team.JobId != jobId)
+            return new TeamCcChargeResponse { Success = false, Error = "Team not found in this event." };
+
+        var owed = Math.Max(0m, team.OwedTotal ?? 0m);
+        if (owed <= 0m)
+            return new TeamCcChargeResponse { Success = false, Error = "This team has no outstanding balance." };
+
+        return await ChargeCcViaEngineAsync(
+            request.ClubRepRegistrationId, userId, request.CreditCard,
+            new List<Guid> { request.TeamId.Value }, owed);
     }
 
     // ── CC Charge (club-level) ──
@@ -418,132 +430,36 @@ public sealed class TeamSearchService : ITeamSearchService
     public async Task<TeamCcChargeResponse> ChargeCcForClubAsync(
         Guid jobId, string userId, TeamCcChargeRequest request, CancellationToken ct = default)
     {
-        // Get all active club teams with owed balance
+        // All active club teams that still owe a balance.
         var clubTeams = await _teamRepo.GetActiveClubTeamsOrderedByOwedAsync(jobId, request.ClubRepRegistrationId, ct);
-        var teamIds = clubTeams.Where(t => (t.OwedTotal ?? 0) > 0).Select(t => t.TeamId).ToList();
+        var owedTeams = clubTeams.Where(t => (t.OwedTotal ?? 0m) > 0m).ToList();
 
-        if (teamIds.Count == 0)
+        if (owedTeams.Count == 0)
             return new TeamCcChargeResponse { Success = false, Error = "No club teams have outstanding balances." };
 
-        return await ChargeCcInternalAsync(jobId, userId, request.ClubRepRegistrationId, request.CreditCard, teamIds, ct);
+        var total = owedTeams.Sum(t => Math.Max(0m, t.OwedTotal ?? 0m));
+        return await ChargeCcViaEngineAsync(
+            request.ClubRepRegistrationId, userId, request.CreditCard,
+            owedTeams.Select(t => t.TeamId).ToList(), total);
     }
 
-    private async Task<TeamCcChargeResponse> ChargeCcInternalAsync(
-        Guid jobId, string userId, Guid clubRepRegistrationId, CreditCardInfo cc,
-        List<Guid> teamIds, CancellationToken ct)
+    // ── CC Charge (shared) ──
+    // Admin CC charges delegate to the canonical PaymentService engine so the admin
+    // modal and the club-rep wizard charge cards through the SAME ResolveOwed-based path
+    // (one implementation, no drift). CC charges the full owed per team, so the
+    // server-computed total we pass equals the engine's own total — the AMOUNT_MISMATCH
+    // tripwire passes. Replaces the former bespoke ADN_Charge loop.
+    private async Task<TeamCcChargeResponse> ChargeCcViaEngineAsync(
+        Guid clubRepRegistrationId, string userId, CreditCardInfo creditCard, List<Guid> teamIds, decimal total)
     {
-        try
+        var result = await _paymentService.ProcessTeamPaymentAsync(
+            clubRepRegistrationId, userId, teamIds, total, creditCard);
+
+        return new TeamCcChargeResponse
         {
-            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
-            var env = _adnApi.GetADNEnvironment();
-
-            // Load teams with Job→Customer navigation for invoice number generation
-            var teamsWithNav = await _teamRepo.GetTeamsWithJobAndCustomerAsync(jobId, teamIds, ct);
-            var allocations = new List<TeamPaymentAllocation>();
-
-            foreach (var team in teamsWithNav)
-            {
-                if ((team.OwedTotal ?? 0) <= 0) continue;
-
-                var chargeAmount = team.OwedTotal ?? 0;
-                var customerAi = team.Job?.Customer?.CustomerAi ?? 0;
-                var jobAi = team.Job?.JobAi ?? 0;
-                var invoiceNumber = $"{customerAi}_{jobAi}_{team.TeamAi}";
-                if (invoiceNumber.Length > 20) invoiceNumber = invoiceNumber[..20];
-
-                // Create incomplete RA record first
-                var raRecord = new RegistrationAccounting
-                {
-                    Active = true,
-                    AdnCc4 = cc.Number?[^4..],
-                    AdnCcexpDate = cc.Expiry,
-                    Createdate = DateTime.UtcNow,
-                    Dueamt = chargeAmount,
-                    LebUserId = userId,
-                    Modified = DateTime.UtcNow,
-                    PaymentMethodId = CcPaymentMethodId,
-                    RegistrationId = clubRepRegistrationId,
-                    TeamId = team.TeamId
-                };
-                _accountingRepo.Add(raRecord);
-                await _accountingRepo.SaveChangesAsync(ct);
-
-                // Charge the card
-                var chargeResult = _adnApi.ADN_Charge(new AdnChargeRequest
-                {
-                    Env = env,
-                    LoginId = creds.AdnLoginId ?? "",
-                    TransactionKey = creds.AdnTransactionKey ?? "",
-                    CardNumber = cc.Number ?? "",
-                    CardCode = cc.Code ?? "",
-                    Expiry = cc.Expiry ?? "",
-                    FirstName = cc.FirstName ?? "",
-                    LastName = cc.LastName ?? "",
-                    Address = cc.Address ?? "",
-                    Zip = cc.Zip ?? "",
-                    Email = cc.Email ?? "",
-                    Phone = cc.Phone ?? "",
-                    Amount = chargeAmount,
-                    InvoiceNumber = invoiceNumber,
-                    Description = $"Team payment: {team.TeamName}"
-                });
-
-                var success = chargeResult?.messages?.resultCode == messageTypeEnum.Ok
-                    && chargeResult.transactionResponse?.messages != null;
-
-                if (success)
-                {
-                    raRecord.AdnInvoiceNo = invoiceNumber;
-                    raRecord.AdnTransactionId = chargeResult!.transactionResponse!.transId;
-                    raRecord.Payamt = chargeAmount;
-                    raRecord.Paymeth = $"paid by cc: {chargeAmount:C} on {DateTime.UtcNow:G} txID: {chargeResult.transactionResponse.transId}";
-                    raRecord.Modified = DateTime.UtcNow;
-
-                    team.PaidTotal = (team.PaidTotal ?? 0) + chargeAmount;
-                    team.OwedTotal = (team.OwedTotal ?? 0) - chargeAmount;
-
-                    await _accountingRepo.SaveChangesAsync(ct);
-
-                    allocations.Add(new TeamPaymentAllocation
-                    {
-                        TeamId = team.TeamId,
-                        TeamName = team.TeamName ?? "",
-                        AllocatedAmount = chargeAmount,
-                        ProcessingFeeReduction = 0,
-                        NewOwedTotal = team.OwedTotal ?? 0
-                    });
-                }
-                else
-                {
-                    var errMsg = chargeResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "CC charge failed.";
-                    raRecord.Comment = errMsg;
-                    raRecord.Payamt = 0;
-                    raRecord.Active = false;
-                    raRecord.Paymeth = errMsg;
-                    raRecord.Modified = DateTime.UtcNow;
-                    await _accountingRepo.SaveChangesAsync(ct);
-
-                    // Sync financials for any partial success and return error
-                    await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRepRegistrationId, userId, ct);
-                    return new TeamCcChargeResponse
-                    {
-                        Success = false,
-                        Error = $"CC charge failed for {team.TeamName}: {errMsg}",
-                        PerTeamResults = allocations
-                    };
-                }
-            }
-
-            await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRepRegistrationId, userId, ct);
-
-            return new TeamCcChargeResponse { Success = true, PerTeamResults = allocations };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "CC charge failed for club rep {RegId}", clubRepRegistrationId);
-            await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRepRegistrationId, userId, ct);
-            return new TeamCcChargeResponse { Success = false, Error = $"CC charge error: {ex.Message}" };
-        }
+            Success = result.Success,
+            Error = result.Success ? null : (result.Message ?? result.Error ?? "CC charge failed.")
+        };
     }
 
     // ── Check/Correction (team-level) ──
