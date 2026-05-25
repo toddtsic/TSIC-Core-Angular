@@ -36,15 +36,14 @@ public sealed class FeeResolutionService : IFeeResolutionService
     public async Task<decimal> GetEffectiveProcessingRateAsync(Guid jobId, CancellationToken ct = default)
     {
         var jobPercent = await _jobRepo.GetProcessingFeePercentAsync(jobId, ct);
-        var raw = jobPercent ?? FeeConstants.MinProcessingFeePercent;
-        return Math.Clamp(raw, FeeConstants.MinProcessingFeePercent, FeeConstants.MaxProcessingFeePercent) / 100m;
+        // Single rate canonical: clamp + percent→multiplier lives only in ProcessingRateMath.
+        return ProcessingRateMath.ToCcMultiplier(jobPercent);
     }
 
     public async Task<decimal> GetEffectiveEcheckProcessingRateAsync(Guid jobId, CancellationToken ct = default)
     {
         var jobPercent = await _jobRepo.GetEcprocessingFeePercentAsync(jobId, ct);
-        var raw = jobPercent ?? FeeConstants.MinEcprocessingFeePercent;
-        return Math.Clamp(raw, FeeConstants.MinEcprocessingFeePercent, FeeConstants.MaxEcprocessingFeePercent) / 100m;
+        return ProcessingRateMath.ToEcheckMultiplier(jobPercent);
     }
 
     private async Task<bool> GetAddProcessingFeesAsync(Guid jobId, CancellationToken ct)
