@@ -116,12 +116,13 @@ public sealed class TeamSearchService : ITeamSearchService
         clubTeamSummaries = clubTeamSummaries.Select(t =>
         {
             var state = clubTeamStates.GetValueOrDefault(t.TeamId, emptyClubState);
-            // Canonical per-method owed; the check reduction is CC owed − check owed
-            // (the capped proc credit) — identical to what the charge engine backs out.
+            // Canonical per-method owed from the single resolver. CkOwedTotal is the
+            // check/correction owed (CC owed minus the capped proc credit) — exactly what
+            // recording a check will settle. CC owed is OwedTotal itself.
             var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
             return t with
             {
-                CheckFeeReduction = owed.Cc - owed.Check
+                CkOwedTotal = owed.Check
             };
         }).ToList();
 
@@ -177,12 +178,13 @@ public sealed class TeamSearchService : ITeamSearchService
         teams = teams.Select(t =>
         {
             var state = teamStates.GetValueOrDefault(t.TeamId, emptyState);
-            // Canonical per-method owed; the check reduction is CC owed − check owed
-            // (the capped proc credit) — identical to what the charge engine backs out.
+            // Canonical per-method owed from the single resolver. CkOwedTotal is the
+            // check/correction owed (CC owed minus the capped proc credit) — exactly what
+            // recording a check will settle. CC owed is OwedTotal itself.
             var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
             return t with
             {
-                CheckFeeReduction = owed.Cc - owed.Check
+                CkOwedTotal = owed.Check
             };
         }).ToList();
 

@@ -67,6 +67,12 @@ export class ClubRepPaymentComponent {
   paidTotal = computed(() => this.scope() === 'team' ? this.teamPaidTotal() : this.clubPaidTotal());
   owedTotal = computed(() => this.scope() === 'team' ? this.teamOwedTotal() : this.clubOwedTotal());
 
+  // Check/correction owed — the canonical CkOwedTotal per team (from the backend
+  // resolver), scoped exactly like owedTotal; falls back to owedTotal if absent.
+  teamCheckOwed = computed(() => { const t = this.selectedTeam(); return t ? (t.ckOwedTotal ?? t.owedTotal) : 0; });
+  clubCheckOwed = computed(() => this.scheduledTeams().reduce((s, t) => s + (t.ckOwedTotal ?? t.owedTotal), 0));
+  checkOwed = computed(() => this.scope() === 'team' ? this.teamCheckOwed() : this.clubCheckOwed());
+
   clubBreakdown = computed<ClubTeamSummaryDto[] | undefined>(() =>
     this.scope() === 'club' ? this.allTeams() : undefined
   );

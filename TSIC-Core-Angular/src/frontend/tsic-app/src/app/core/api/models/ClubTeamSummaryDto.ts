@@ -14,7 +14,7 @@ export type ClubTeamSummaryDto = {
     owedTotal: number;
     feeProcessing: number;
     active: boolean;
-    checkFeeReduction?: number;
+    ckOwedTotal?: number;
     paymentScheduled?: boolean;
     nextChargeDate?: string | null;
     paymentFlagged?: boolean;

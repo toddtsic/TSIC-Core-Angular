@@ -82,12 +82,12 @@ public record ClubTeamSummaryDto
     public required bool Active { get; init; }
 
     /// <summary>
-    /// Proportional CC fee reduction if paying full OwedTotal by check:
-    /// OwedTotal × processingRate, capped at FeeProcessing.
-    /// Calculated by the service using IFeeResolutionService (single source of truth).
-    /// Frontend uses this for the allocation preview — NOT the raw FeeProcessing.
+    /// Amount owed if this team's balance is paid by check or correction — the CC owed
+    /// (OwedTotal) minus the proportional, capped CC processing credit. Comes from the
+    /// single canonical resolver (PaymentState.ResolveOwed, via TeamSearchService), so it
+    /// equals exactly what recording a check will settle. CC owed is OwedTotal itself.
     /// </summary>
-    public decimal CheckFeeReduction { get; init; }
+    public decimal CkOwedTotal { get; init; }
 
     /// <summary>
     /// True when this team has an active ARB subscription with a charge still scheduled

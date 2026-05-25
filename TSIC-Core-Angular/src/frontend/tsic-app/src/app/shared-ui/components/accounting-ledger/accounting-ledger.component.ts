@@ -45,6 +45,11 @@ export class AccountingLedgerComponent {
 	paidTotal = input<number>(0);
 	owedTotal = input<number>(0);
 
+	/** Scope-level check/correction owed (CkOwedTotal, summed by the parent). When
+	 *  omitted, check/correction default to full owedTotal — used by callers with no
+	 *  per-method breakdown (e.g. individual registrations). */
+	checkOwed = input<number | undefined>(undefined);
+
 	/** Club team breakdown for payment modal (teams only, optional) */
 	clubBreakdown = input<ClubTeamSummaryDto[] | undefined>(undefined);
 
@@ -154,23 +159,13 @@ export class AccountingLedgerComponent {
 
 	// ── Payment modal ──
 
-	/** Club balance due for check/correction: owed minus proportional fee reduction */
-	checkBalanceDue = computed(() => {
-		const breakdown = this.clubBreakdown();
-		if (!breakdown?.length) return this.owedTotal();
-		return breakdown
-			.filter(t => t.owedTotal > 0)
-			.reduce((sum, t) => sum + (t.owedTotal - (t.checkFeeReduction ?? 0)), 0);
-	});
+	/** Balance due for check/correction — the scope's canonical check owed (CkOwedTotal,
+	 *  summed by the parent via PaymentState.ResolveOwed). Falls back to full owed when
+	 *  no checkOwed is supplied. */
+	checkBalanceDue = computed(() => this.checkOwed() ?? this.owedTotal());
 
-	/** Total proportional processing fee reduction when paying by check */
-	totalFeeReduction = computed(() => {
-		const breakdown = this.clubBreakdown();
-		if (!breakdown?.length) return 0;
-		return breakdown
-			.filter(t => t.owedTotal > 0)
-			.reduce((sum, t) => sum + (t.checkFeeReduction ?? 0), 0);
-	});
+	/** Processing fees removed by paying via check/correction = CC owed − check owed. */
+	totalFeeReduction = computed(() => Math.max(0, this.owedTotal() - this.checkBalanceDue()));
 
 	openPaymentModal(): void {
 		this.paymentType.set('check');
