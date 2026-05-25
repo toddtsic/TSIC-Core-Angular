@@ -1,6 +1,7 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Teams;
@@ -58,9 +59,20 @@ public class TeamPlacementService : ITeamPlacementService
 
         if (registeredCount < agegroup.MaxTeams)
         {
+            // Not full → place the team in the agegroup's "Unassigned" holding
+            // division (legacy parity: the monolith looked up the division named
+            // "Unassigned" and registered the team there). Find-or-create so an
+            // agegroup that predates the auto-create invariant still resolves to a
+            // real division instead of leaving DivId null and orphaning the team
+            // from the LADT tree and scheduling. The admin stub-team path bypasses
+            // all of this via skipCapacityCheck and supplies its own division.
+            var unassignedDiv = await FindOrCreateDivisionAsync(
+                agegroup.AgegroupId, DivisionConstants.Unassigned, userId, cancellationToken);
+
             return new TeamPlacementResult
             {
                 AgegroupId = agegroup.AgegroupId,
+                DivisionId = unassignedDiv.DivId,
                 LeagueId = agegroup.LeagueId,
                 IsWaitlisted = false
             };
@@ -77,7 +89,7 @@ public class TeamPlacementService : ITeamPlacementService
 
         // Find-or-create WAITLIST mirror division
         var waitlistDivName = $"WAITLIST - {divisionName ?? agegroup.AgegroupName}";
-        var waitlistDiv = await FindOrCreateWaitlistDivisionAsync(
+        var waitlistDiv = await FindOrCreateDivisionAsync(
             waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
 
         return new TeamPlacementResult
@@ -167,7 +179,7 @@ public class TeamPlacementService : ITeamPlacementService
                     agegroup, waitlistAgName, userId, cancellationToken);
 
                 var waitlistDivName = $"WAITLIST - {divName ?? agegroup.AgegroupName}";
-                var waitlistDiv = await FindOrCreateWaitlistDivisionAsync(
+                var waitlistDiv = await FindOrCreateDivisionAsync(
                     waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
 
                 // Find-or-create WAITLIST team mirror
@@ -194,29 +206,34 @@ public class TeamPlacementService : ITeamPlacementService
 
     // ── Find-or-create helpers ──
 
-    private async Task<Divisions> FindOrCreateWaitlistDivisionAsync(
-        Guid waitlistAgegroupId, string waitlistDivName, string? userId,
+    /// <summary>
+    /// Find a division by name within an agegroup, or create it if absent.
+    /// Serves both the "Unassigned" holding division (normal placement) and the
+    /// "WAITLIST - ..." mirror divisions (overflow placement).
+    /// </summary>
+    private async Task<Divisions> FindOrCreateDivisionAsync(
+        Guid agegroupId, string divName, string? userId,
         CancellationToken cancellationToken)
     {
-        var divisions = await _divisionRepo.GetByAgegroupIdAsync(waitlistAgegroupId, cancellationToken);
+        var divisions = await _divisionRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
         var existing = divisions.Find(d =>
-            string.Equals(d.DivName, waitlistDivName, StringComparison.OrdinalIgnoreCase));
+            string.Equals(d.DivName, divName, StringComparison.OrdinalIgnoreCase));
 
         if (existing != null)
             return existing;
 
-        var waitlistDiv = new Divisions
+        var division = new Divisions
         {
             DivId = Guid.NewGuid(),
-            AgegroupId = waitlistAgegroupId,
-            DivName = waitlistDivName,
+            AgegroupId = agegroupId,
+            DivName = divName,
             LebUserId = userId,
             Modified = DateTime.UtcNow
         };
-        _divisionRepo.Add(waitlistDiv);
+        _divisionRepo.Add(division);
         await _divisionRepo.SaveChangesAsync(cancellationToken);
 
-        return waitlistDiv;
+        return division;
     }
 
     private async Task<Domain.Entities.Teams> FindOrCreateWaitlistTeamAsync(

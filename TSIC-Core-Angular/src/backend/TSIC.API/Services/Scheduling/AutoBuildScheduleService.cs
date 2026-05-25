@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Scheduling;
@@ -1553,8 +1554,8 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                      && !d.AgegroupName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase)
                      && !d.AgegroupName.Contains("Waitlist", StringComparison.OrdinalIgnoreCase)
                      && !d.AgegroupName.Contains("Dropped", StringComparison.OrdinalIgnoreCase)
-                     && !string.Equals(d.DivName, "Unassigned", StringComparison.OrdinalIgnoreCase)
-                     && !d.DivName.Contains("Unassigned", StringComparison.OrdinalIgnoreCase)
+                     && !string.Equals(d.DivName, DivisionConstants.Unassigned, StringComparison.OrdinalIgnoreCase)
+                     && !d.DivName.Contains(DivisionConstants.Unassigned, StringComparison.OrdinalIgnoreCase)
                      && !d.DivName.StartsWith("DROPPED", StringComparison.OrdinalIgnoreCase))
             .ToList();
     }

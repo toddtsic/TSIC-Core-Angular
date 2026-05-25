@@ -172,4 +172,49 @@ public class AgegroupCapacityTests
         var count = await ctx.Agegroups.CountAsync();
         count.Should().Be(2, "should not create a second WAITLIST agegroup");
     }
+
+    [Fact(DisplayName = "Placement: under capacity, no divisions → creates + returns the agegroup's 'Unassigned' division")]
+    public async Task Placement_UnderCapacity_CreatesAndReturnsUnassignedDivision()
+    {
+        // Arrange — under capacity, agegroup has NO divisions yet (regression: club-rep
+        // registration used to leave DivId null, orphaning the team from LADT/scheduling)
+        var (svc, _, ctx, _, teamRepo, jobId, ag) = await CreateServiceAsync(maxTeams: 16);
+        teamRepo
+            .Setup(t => t.GetRegisteredCountForAgegroupAsync(jobId, ag.AgegroupId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        // Act
+        var result = await svc.ResolvePlacementAsync(jobId, ag.AgegroupId, "Test Team", userId: "user-1");
+
+        // Assert — placed in the original agegroup, with a real (non-null) division
+        result.AgegroupId.Should().Be(ag.AgegroupId);
+        result.IsWaitlisted.Should().BeFalse();
+        result.DivisionId.Should().NotBeNull("a placed team must land in a real division, never null");
+
+        // The returned division is an "Unassigned" division persisted under this agegroup
+        var div = await ctx.Divisions.SingleAsync(d => d.DivId == result.DivisionId);
+        div.AgegroupId.Should().Be(ag.AgegroupId);
+        div.DivName.Should().Be("Unassigned");
+    }
+
+    [Fact(DisplayName = "Placement: under capacity, existing 'Unassigned' division → reuses it (no duplicate)")]
+    public async Task Placement_UnderCapacity_ReusesExistingUnassignedDivision()
+    {
+        // Arrange — under capacity, agegroup already has its "Unassigned" division
+        var (svc, builder, ctx, _, teamRepo, jobId, ag) = await CreateServiceAsync(maxTeams: 16);
+        var unassigned = builder.AddDivision(ag.AgegroupId, "Unassigned");
+        await builder.SaveAsync();
+        teamRepo
+            .Setup(t => t.GetRegisteredCountForAgegroupAsync(jobId, ag.AgegroupId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(5);
+
+        // Act
+        var result = await svc.ResolvePlacementAsync(jobId, ag.AgegroupId, "Test Team", userId: "user-1");
+
+        // Assert — reuses the existing division, does not create a second one
+        result.DivisionId.Should().Be(unassigned.DivId);
+        var unassignedCount = await ctx.Divisions
+            .CountAsync(d => d.AgegroupId == ag.AgegroupId && d.DivName == "Unassigned");
+        unassignedCount.Should().Be(1, "should reuse the existing Unassigned division, not duplicate it");
+    }
 }

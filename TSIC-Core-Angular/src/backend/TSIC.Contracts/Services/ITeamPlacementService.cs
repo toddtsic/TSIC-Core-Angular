@@ -10,10 +10,12 @@ public interface ITeamPlacementService
 {
     /// <summary>
     /// Resolve the actual agegroup + division for a team placement.
-    /// If the target agegroup is full and the job uses waitlists, finds-or-creates
-    /// the WAITLIST mirror agegroup/division and returns those IDs instead.
-    /// If full and no waitlists, throws InvalidOperationException.
-    /// If skipCapacityCheck is true, skips capacity check entirely.
+    /// When there is room, returns the target agegroup and its "Unassigned" holding
+    /// division (find-or-created), so a placed team is never left without a division.
+    /// If the target agegroup is full, finds-or-creates the WAITLIST mirror
+    /// agegroup/division and returns those IDs instead.
+    /// If skipCapacityCheck is true (admin path), skips the capacity check and leaves
+    /// DivisionId null for the caller to assign.
     /// </summary>
     Task<TeamPlacementResult> ResolvePlacementAsync(
         Guid jobId,

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -96,7 +97,7 @@ public class BracketSeedRepository : IBracketSeedRepository
 
         return await _context.Divisions
             .AsNoTracking()
-            .Where(d => d.AgegroupId == agegroupId && d.DivName != "Unassigned")
+            .Where(d => d.AgegroupId == agegroupId && d.DivName != DivisionConstants.Unassigned)
             .OrderBy(d => d.DivName)
             .Select(d => new BracketSeedDivisionOptionDto
             {

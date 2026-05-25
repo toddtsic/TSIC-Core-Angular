@@ -8,7 +8,12 @@ public record TeamPlacementResult
     /// <summary>The agegroup ID to actually use (may be waitlist mirror).</summary>
     public required Guid AgegroupId { get; init; }
 
-    /// <summary>The division ID to actually use (may be waitlist mirror). Null if caller assigns division.</summary>
+    /// <summary>
+    /// The division ID to actually use. The capacity-checked path always populates
+    /// this — the agegroup's "Unassigned" holding division when there's room, or the
+    /// "WAITLIST - ..." mirror division on overflow. Null only when skipCapacityCheck
+    /// is set (admin path), where the caller assigns its own division.
+    /// </summary>
     public Guid? DivisionId { get; init; }
 
     /// <summary>League ID (passed through from source agegroup).</summary>

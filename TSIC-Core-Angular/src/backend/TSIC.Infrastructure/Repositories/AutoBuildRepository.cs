@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -333,7 +334,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && !t.Agegroup!.AgegroupName!.StartsWith("WAITLIST")
                         && !t.Agegroup!.AgegroupName!.StartsWith("DROPPED")
                         && t.Div != null
-                        && t.Div!.DivName != "Unassigned")
+                        && t.Div!.DivName != DivisionConstants.Unassigned)
             .Select(t => t.AgegroupId)
             .Distinct()
             .ToListAsync(ct);
@@ -463,7 +464,7 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
                         && t.DivId != null
                         && t.Div != null
                         && t.Agegroup != null
-                        && !t.Div!.DivName!.Contains("Unassigned")
+                        && !t.Div!.DivName!.Contains(DivisionConstants.Unassigned)
                         && !t.Div!.DivName!.StartsWith("DROPPED")
                         && !t.Div!.DivName!.Contains("Dropped")
                         && !t.Agegroup!.AgegroupName!.Contains("WAITLIST")

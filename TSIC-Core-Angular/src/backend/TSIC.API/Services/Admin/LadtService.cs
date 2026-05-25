@@ -1,6 +1,7 @@
 using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.API.Services.Players;
 
@@ -15,7 +16,7 @@ namespace TSIC.API.Services.Admin;
 /// </summary>
 public sealed class LadtService : ILadtService
 {
-    private const string UnassignedDivisionName = "Unassigned";
+    private const string UnassignedDivisionName = DivisionConstants.Unassigned;
 
     private readonly ILeagueRepository _leagueRepo;
     private readonly IAgeGroupRepository _agegroupRepo;
@@ -1498,7 +1499,7 @@ public sealed class LadtService : ILadtService
 
     private static readonly HashSet<string> ExcludedDivisionNames = new(StringComparer.OrdinalIgnoreCase)
     {
-        "Unassigned"
+        UnassignedDivisionName
     };
 
     private static bool IsExcludedDivision(string? name)
@@ -1506,7 +1507,7 @@ public sealed class LadtService : ILadtService
         if (string.IsNullOrWhiteSpace(name)) return true;
         var trimmed = name.Trim();
         return ExcludedDivisionNames.Contains(trimmed)
-            || trimmed.StartsWith("Unassigned", StringComparison.OrdinalIgnoreCase);
+            || trimmed.StartsWith(UnassignedDivisionName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsSpecialAgegroup(string? name)
