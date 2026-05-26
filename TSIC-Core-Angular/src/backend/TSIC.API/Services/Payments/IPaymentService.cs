@@ -10,6 +10,29 @@ public interface IPaymentService
     Task<PaymentResponseDto> ProcessPaymentAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId);
 
     /// <summary>
+    /// Canonical single per-player CC charge engine. One ADN_Charge for the whole list
+    /// (parent self-pay sends N regs in one transaction; admin admin-charge passes a
+    /// single-element list). Every consumer goes through this method so display, the
+    /// charge engine, and admin quoting cannot drift on the amount.
+    ///
+    /// Audit trail: a placeholder RA row is inserted (Payamt=0, Active=true) BEFORE the
+    /// gateway call, so failed charges leave a row with Active=false + Comment="FAILED: …".
+    /// On success the same row is updated with Payamt, AdnTransactionId, AdnInvoiceNo,
+    /// AdnCc4, AdnCcexpDate, Paymeth and the registration's PaidTotal/OwedTotal advance.
+    ///
+    /// Each amount is validated against <c>PaymentState.ResolveOwed.Cc</c> for the
+    /// registration; the tripwire prevents a stale UI total from charging more than the
+    /// resolver currently shows. Caller-side concerns (RegSaver policy stamping, email)
+    /// stay outside this method.
+    /// </summary>
+    Task<RegistrationCcChargeResult> ChargeRegistrationsCcAsync(
+        Guid jobId,
+        IReadOnlyList<RegistrationChargeItem> items,
+        CreditCardInfo creditCard,
+        string userId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// eCheck (ACH) counterpart to <see cref="ProcessPaymentAsync"/>. Charges via
     /// Authorize.Net bank-account debit, writes one RegistrationAccounting row per
     /// registration share, and inserts a matching Settlement row (status Pending) for

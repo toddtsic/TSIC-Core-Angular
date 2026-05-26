@@ -1288,64 +1288,247 @@ public class PaymentService : IPaymentService
         return response;
     }
 
-    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total, PaymentOption effectiveOption)
+    /// <summary>
+    /// Canonical single per-player CC charge engine. One ADN_Charge for the whole list:
+    /// parent self-pay sends N regs in one transaction (preserving the single statement
+    /// entry the parent saw on the wizard summary); admin admin-charge passes a single-
+    /// element list. Every consumer (parent wizard, admin modal) goes through this method
+    /// so the displayed total, the amount charged, and the recorded RA row cannot drift.
+    ///
+    /// Audit trail: a placeholder RA row is inserted (Payamt=0, Active=true) BEFORE the
+    /// gateway call. On ADN failure the same row is marked Active=false with
+    /// Comment="FAILED: …" so a director can see a card was tried and declined. On
+    /// success the row is updated with Payamt, AdnTransactionId, AdnInvoiceNo, AdnCc4,
+    /// AdnCcexpDate, Paymeth and the registration's PaidTotal/OwedTotal advance.
+    ///
+    /// Each item.Amount is validated against PaymentState.ResolveOwed.Cc — the same
+    /// resolver the display path uses. A stale UI value larger than the current Cc bucket
+    /// trips AMOUNT_MISMATCH and no gateway hit occurs. Caller-side concerns (RegSaver
+    /// policy stamping, confirmation email) stay outside this method.
+    /// </summary>
+    public async Task<RegistrationCcChargeResult> ChargeRegistrationsCcAsync(
+        Guid jobId,
+        IReadOnlyList<RegistrationChargeItem> items,
+        CreditCardInfo creditCard,
+        string userId,
+        CancellationToken ct = default)
     {
+        if (items == null || items.Count == 0)
+            return FailCcResult("NO_ITEMS", "No registrations to charge.", Array.Empty<Guid>());
+        if (items.Any(i => i.Amount <= 0m))
+            return FailCcResult("INVALID_AMOUNT", "Charge amounts must be > $0.00.", items.Select(i => i.RegistrationId));
+        if (items.Select(i => i.RegistrationId).Distinct().Count() != items.Count)
+            return FailCcResult("DUPLICATE_REGS", "Duplicate registrations in charge batch.", items.Select(i => i.RegistrationId));
+
+        var regIds = items.Select(i => i.RegistrationId).ToList();
+        var registrations = await _registrations.GetByIdsAsync(regIds, ct);
+        if (registrations.Count != items.Count)
+            return FailCcResult("REG_NOT_FOUND", "One or more registrations not found.", regIds);
+        if (registrations.Any(r => r.JobId != jobId))
+            return FailCcResult("REG_WRONG_JOB", "Registration does not belong to this job.", regIds);
+
+        var states = await _paymentState.ForRegistrationsAsync(regIds, jobId, ct);
+        var rateRef = states.Values.FirstOrDefault()
+            ?? await _paymentState.ForRegistrationAsync(regIds[0], jobId, ct);
+        var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);
+        var regsById = registrations.ToDictionary(r => r.RegistrationId);
+        foreach (var item in items)
+        {
+            var reg = regsById[item.RegistrationId];
+            var state = states.GetValueOrDefault(item.RegistrationId) ?? emptyState;
+            var owed = state.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing);
+            // Tripwire: never charge more than the resolver currently shows for the CC
+            // bucket. Penny tolerance covers rounding between the display path and here.
+            if (item.Amount > owed.Cc + 0.01m)
+                return FailCcResult(
+                    "AMOUNT_MISMATCH",
+                    $"Payment amount is out of date (requested {item.Amount:C}, now {owed.Cc:C}). Please refresh and try again.",
+                    regIds);
+        }
+
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
-        {
-            return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
-        }
+            return FailCcResult("MISSING_GATEWAY_CREDS", "Payment gateway credentials not configured.", regIds);
         var env = _adnApiService.GetADNEnvironment();
-        // Build deterministic invoice number using first registration (pattern: customerAI_jobAI_registrationAI)
-        var invoiceReg = registrations[0];
-        var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
-        var response = _adnApiService.ADN_Charge(new AdnChargeRequest
+
+        // Audit trail: placeholder RA rows exist in the DB BEFORE the gateway hit so a
+        // declined card leaves a row with Active=false + Comment="FAILED: …" instead of
+        // vanishing without record.
+        var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, items[0].RegistrationId);
+        var rasByRegId = new Dictionary<Guid, RegistrationAccounting>(items.Count);
+        foreach (var item in items)
+        {
+            var ra = new RegistrationAccounting
+            {
+                RegistrationId = item.RegistrationId,
+                PaymentMethodId = CcPaymentMethodId,
+                Dueamt = item.Amount,
+                Payamt = 0m,
+                Active = true,
+                Createdate = DateTime.UtcNow,
+                Modified = DateTime.UtcNow,
+                LebUserId = userId
+            };
+            _acct.Add(ra);
+            rasByRegId[item.RegistrationId] = ra;
+        }
+        await _acct.SaveChangesAsync();
+
+        var total = items.Sum(i => i.Amount);
+        var expiry = FormatExpiry(creditCard.Expiry!);
+        var description = items.Count == 1
+            ? $"Registration Payment (#{regsById[items[0].RegistrationId].RegistrationAi})"
+            : "Registration Payment";
+        var adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest
         {
             Env = env,
             LoginId = credentials.AdnLoginId!,
             TransactionKey = credentials.AdnTransactionKey!,
-            CardNumber = cc.Number!,
-            CardCode = cc.Code!,
-            Expiry = FormatExpiry(cc.Expiry!),
-            FirstName = cc.FirstName!,
-            LastName = cc.LastName!,
-            Address = cc.Address!,
-            Zip = cc.Zip!,
-            Email = cc.Email!,
-            Phone = cc.Phone!,
+            CardNumber = creditCard.Number!,
+            CardCode = creditCard.Code!,
+            Expiry = expiry,
+            FirstName = creditCard.FirstName!,
+            LastName = creditCard.LastName!,
+            Address = creditCard.Address!,
+            Zip = creditCard.Zip!,
+            Email = creditCard.Email!,
+            Phone = creditCard.Phone!,
             Amount = total,
             InvoiceNumber = invoiceNumber,
-            Description = "Registration Payment"
+            Description = description
         });
-        if (response == null || response.messages == null)
+
+        var ok = adnResponse?.messages?.resultCode == messageTypeEnum.Ok
+                 && adnResponse.transactionResponse?.messages != null
+                 && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId);
+
+        if (!ok)
         {
-            return new PaymentResponseDto { Success = false, Message = "Payment gateway returned no response.", ErrorCode = "CHARGE_NULL_RESPONSE" };
-        }
-        if (response.messages.resultCode == AuthorizeNet.Api.Contracts.V1.messageTypeEnum.Ok)
-        {
-            UpdateRegistrationsForCharge(registrations, userId, charges);
-            AddAccountingEntries(registrations, effectiveOption, userId, response.transactionResponse.transId, invoiceNumber, charges, Last4(cc.Number), FormatExpiry(cc.Expiry!));
-            if (request.ViConfirmed == true && !string.IsNullOrWhiteSpace(request.ViPolicyNumber))
+            var err = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
+                ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
+                ?? "Charge failed.";
+            foreach (var item in items)
             {
-                foreach (var reg in registrations.Where(r => string.IsNullOrWhiteSpace(r.RegsaverPolicyId)))
-                {
-                    reg.RegsaverPolicyId = request.ViPolicyNumber;
-                    reg.RegsaverPolicyIdCreateDate = request.ViPolicyCreateDate ?? DateTime.Now;
-                    reg.Modified = DateTime.Now;
-                    reg.LebUserId = userId;
-                }
+                var ra = rasByRegId[item.RegistrationId];
+                ra.Active = false;
+                ra.Comment = $"FAILED: {err}";
+                ra.Modified = DateTime.UtcNow;
             }
-            await _registrations.SaveChangesAsync();
-            // Attempt confirmation email after successful charge (always send, never gated by prior sends)
-            await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
-            return new PaymentResponseDto
+            await _acct.SaveChangesAsync();
+            _logger.LogWarning("Player CC charge failed: Job={JobId} Regs={Count} Error={Error}", jobId, items.Count, err);
+            return new RegistrationCcChargeResult
             {
-                Success = true,
-                Message = "Payment processed",
-                TransactionId = response.transactionResponse.transId
+                Success = false,
+                ErrorCode = "CHARGE_GATEWAY_ERROR",
+                Message = err,
+                InvoiceNumber = invoiceNumber,
+                Outcomes = items.Select(i => new RegistrationCcChargeOutcome
+                {
+                    RegistrationId = i.RegistrationId,
+                    Success = false,
+                    Error = err
+                }).ToList()
             };
         }
-        return new PaymentResponseDto { Success = false, Message = response.transactionResponse?.errors?[0].errorText ?? "Payment failed", ErrorCode = "CHARGE_GATEWAY_ERROR" };
+
+        var transId = adnResponse!.transactionResponse!.transId!;
+        var last4 = Last4(creditCard.Number);
+        foreach (var item in items)
+        {
+            var reg = regsById[item.RegistrationId];
+            var ra = rasByRegId[item.RegistrationId];
+
+            ra.Payamt = item.Amount;
+            ra.AdnTransactionId = transId;
+            ra.AdnInvoiceNo = invoiceNumber;
+            ra.AdnCc4 = last4;
+            ra.AdnCcexpDate = expiry;
+            ra.Paymeth = $"paid by cc: {item.Amount:C} on {DateTime.UtcNow:G} txID: {transId}";
+            ra.Comment = "Registration Payment";
+            ra.Modified = DateTime.UtcNow;
+
+            reg.PaidTotal += item.Amount;
+            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+            if (reg.OwedTotal < 0m) reg.OwedTotal = 0m;
+            reg.Modified = DateTime.UtcNow;
+            reg.LebUserId = userId;
+        }
+        await _registrations.SaveChangesAsync();
+        _logger.LogInformation("Player CC charge OK: Job={JobId} Regs={Count} TransId={TransId}", jobId, items.Count, transId);
+
+        return new RegistrationCcChargeResult
+        {
+            Success = true,
+            TransactionId = transId,
+            InvoiceNumber = invoiceNumber,
+            Message = items.Count == 1
+                ? "Payment processed"
+                : $"All {items.Count} registration payment(s) processed",
+            Outcomes = items.Select(i => new RegistrationCcChargeOutcome
+            {
+                RegistrationId = i.RegistrationId,
+                Success = true,
+                ChargedAmount = i.Amount
+            }).ToList()
+        };
+    }
+
+    private static RegistrationCcChargeResult FailCcResult(string code, string msg, IEnumerable<Guid> regIds) =>
+        new()
+        {
+            Success = false,
+            ErrorCode = code,
+            Message = msg,
+            Outcomes = regIds.Select(id => new RegistrationCcChargeOutcome
+            {
+                RegistrationId = id,
+                Success = false,
+                Error = msg
+            }).ToList()
+        };
+
+    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total, PaymentOption effectiveOption)
+    {
+        // Route the parent self-pay through the same canonical engine the admin path
+        // uses. The primitive owns ResolveOwed validation, the placeholder-RA audit
+        // trail, the single ADN call, and the per-reg PaidTotal/OwedTotal bumps.
+        var items = charges
+            .Where(kv => kv.Value > 0m && kv.Key != Guid.Empty)
+            .Select(kv => new RegistrationChargeItem { RegistrationId = kv.Key, Amount = kv.Value })
+            .ToList();
+        var result = await ChargeRegistrationsCcAsync(jobId, items, cc, userId);
+        if (!result.Success)
+        {
+            return new PaymentResponseDto
+            {
+                Success = false,
+                Message = result.Message ?? "Payment failed",
+                ErrorCode = result.ErrorCode ?? "CHARGE_GATEWAY_ERROR"
+            };
+        }
+
+        // RegSaver policy stamping (parent-only — admin path does not buy insurance
+        // through this flow). Stamped AFTER the canonical charge so a declined card
+        // never leaves half-written insurance state on the registration.
+        if (request.ViConfirmed == true && !string.IsNullOrWhiteSpace(request.ViPolicyNumber))
+        {
+            foreach (var reg in registrations.Where(r => string.IsNullOrWhiteSpace(r.RegsaverPolicyId)))
+            {
+                reg.RegsaverPolicyId = request.ViPolicyNumber;
+                reg.RegsaverPolicyIdCreateDate = request.ViPolicyCreateDate ?? DateTime.Now;
+                reg.Modified = DateTime.Now;
+                reg.LebUserId = userId;
+            }
+            await _registrations.SaveChangesAsync();
+        }
+
+        await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
+        return new PaymentResponseDto
+        {
+            Success = true,
+            Message = "Payment processed",
+            TransactionId = result.TransactionId
+        };
     }
 
     private async Task<bool> IsDepositScenarioAsync(IEnumerable<Registrations> registrations)
@@ -1570,32 +1753,6 @@ public class PaymentService : IPaymentService
         reg.BActive = true;
         reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
-    }
-
-    private void AddAccountingEntries(IEnumerable<Registrations> registrations, PaymentOption option, string userId, string adnTransactionId, string invoiceNumber, IReadOnlyDictionary<Guid, decimal> charges, string? adnCc4, string? adnCcExpDate)
-    {
-        foreach (var reg in registrations)
-        {
-            if (reg.RegistrationId == Guid.Empty) continue;
-            if (!charges.TryGetValue(reg.RegistrationId, out var payAmt) || payAmt <= 0) continue;
-
-            _acct.Add(new RegistrationAccounting
-            {
-                RegistrationId = reg.RegistrationId,
-                Payamt = payAmt,
-                Paymeth = $"Credit Card Payment - {option}",
-                PaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D"), // CC payment method ID
-                Active = true,
-                Createdate = DateTime.Now,
-                Modified = DateTime.Now,
-                LebUserId = userId,
-                AdnTransactionId = adnTransactionId,
-                AdnInvoiceNo = invoiceNumber,
-                AdnCc4 = adnCc4,
-                AdnCcexpDate = adnCcExpDate,
-                Comment = "Registration Payment"
-            });
-        }
     }
 
     private static string? Last4(string? cardNumber) =>

@@ -80,3 +80,34 @@ public record PaymentResponseDto
     // Indicates that at least one subscription succeeded while others failed.
     public bool PartialSuccess => SubscriptionIds != null && SubscriptionIds.Count > 0 && FailedSubscriptionIds != null && FailedSubscriptionIds.Count > 0;
 }
+
+// One row in the canonical-CC-charge input: which registration to charge, how much.
+public sealed record RegistrationChargeItem
+{
+    public required Guid RegistrationId { get; init; }
+    public required decimal Amount { get; init; }
+}
+
+// Per-registration outcome from ChargeRegistrationsCcAsync. On a batch ADN failure
+// every outcome is Success=false with the same Error; on success each carries the
+// applied amount.
+public sealed record RegistrationCcChargeOutcome
+{
+    public required Guid RegistrationId { get; init; }
+    public required bool Success { get; init; }
+    public decimal? ChargedAmount { get; init; }
+    public string? Error { get; init; }
+}
+
+// Canonical result from the single per-player CC charge engine. One ADN call covers
+// the whole list (parent self-pay sends N regs; admin sends 1). Outcomes mirror the
+// input order; TransactionId is set when ADN succeeded.
+public sealed record RegistrationCcChargeResult
+{
+    public required bool Success { get; init; }
+    public string? ErrorCode { get; init; }
+    public string? Message { get; init; }
+    public string? TransactionId { get; init; }
+    public string? InvoiceNumber { get; init; }
+    public required IReadOnlyList<RegistrationCcChargeOutcome> Outcomes { get; init; }
+}

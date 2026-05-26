@@ -29,9 +29,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailService _emailService;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
+    private readonly IPaymentService _paymentService;
     private readonly ILogger<RegistrationSearchService> _logger;
 
-    // Known payment method GUIDs
+    // Known payment method GUIDs. CC charging itself goes through PaymentService's
+    // canonical engine; the constant remains here for non-charge consumers that key on
+    // CC payments (text substitution, ledger filters).
     private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CcCreditMethodId = Guid.Parse("31ECA575-A268-E111-9D56-F04DA202060D");
     private static readonly Guid CheckMethodId = Guid.Parse("32ECA575-A268-E111-9D56-F04DA202060D");
@@ -49,6 +52,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         ITextSubstitutionService textSubstitution,
         IEmailService emailService,
         IRegistrationFeeAdjustmentService feeAdjustment,
+        IPaymentService paymentService,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -62,6 +66,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _textSubstitution = textSubstitution;
         _emailService = emailService;
         _feeAdjustment = feeAdjustment;
+        _paymentService = paymentService;
         _logger = logger;
     }
 
@@ -421,120 +426,22 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     public async Task<RegistrationCcChargeResponse> ChargeCcAsync(
         Guid jobId, string userId, RegistrationCcChargeRequest request, CancellationToken ct = default)
     {
-        // Validate registration belongs to job
-        var regJobId = await _registrationRepo.GetRegistrationJobIdAsync(request.RegistrationId, ct);
-        if (regJobId == null || regJobId.Value != jobId)
-            return new RegistrationCcChargeResponse { Success = false, Error = "Registration not found or does not belong to this job." };
+        // Admin admin-charges a single registration at a time. The canonical engine
+        // owns ownership/job validation, the per-method owed tripwire (ResolveOwed.Cc),
+        // the placeholder-RA audit trail, the ADN call, and the success/failure-update.
+        var items = new[] { new RegistrationChargeItem { RegistrationId = request.RegistrationId, Amount = request.Amount } };
+        var result = await _paymentService.ChargeRegistrationsCcAsync(jobId, items, request.CreditCard, userId, ct);
 
-        if (request.Amount <= 0)
-            return new RegistrationCcChargeResponse { Success = false, Error = "Charge amount must be > $0.00." };
-
-        var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct);
-        if (reg == null)
-            return new RegistrationCcChargeResponse { Success = false, Error = "Registration not found." };
-
-        if (request.Amount > reg.OwedTotal)
-            return new RegistrationCcChargeResponse { Success = false, Error = "You attempted to charge the card MORE THAN IS OWED." };
-
-        try
+        if (!result.Success)
         {
-            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
-            var env = _adnApi.GetADNEnvironment();
-
-            // Build invoice number (max 20 chars for ADN)
-            var invoiceData = await _registrationRepo.GetRegistrationWithInvoiceDataAsync(request.RegistrationId, jobId, ct);
-            var customerAi = invoiceData?.CustomerAi ?? 0;
-            var jobAi = invoiceData?.JobAi ?? 0;
-            var invoiceNumber = $"{customerAi}_{jobAi}_{reg.RegistrationAi}";
-            if (invoiceNumber.Length > 20) invoiceNumber = $"{jobAi}_{reg.RegistrationAi}";
-            if (invoiceNumber.Length > 20) invoiceNumber = $"{reg.RegistrationAi}";
-            if (invoiceNumber.Length > 20) invoiceNumber = $"INV{DateTime.UtcNow.Ticks}"[..20];
-
-            // Create incomplete RA record first
-            var raRecord = new RegistrationAccounting
-            {
-                RegistrationId = request.RegistrationId,
-                PaymentMethodId = CcPaymentMethodId,
-                Dueamt = request.Amount,
-                Payamt = 0,
-                Active = true,
-                Createdate = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
-                LebUserId = userId
-            };
-            _accountingRepo.Add(raRecord);
-            await _accountingRepo.SaveChangesAsync(ct);
-
-            var cc = request.CreditCard;
-            var chargeResult = _adnApi.ADN_Charge(new AdnChargeRequest
-            {
-                Env = env,
-                LoginId = creds.AdnLoginId ?? "",
-                TransactionKey = creds.AdnTransactionKey ?? "",
-                CardNumber = cc.Number ?? "",
-                CardCode = cc.Code ?? "",
-                Expiry = cc.Expiry ?? "",
-                FirstName = cc.FirstName ?? "",
-                LastName = cc.LastName ?? "",
-                Address = cc.Address ?? "",
-                Zip = cc.Zip ?? "",
-                Email = cc.Email ?? "",
-                Phone = cc.Phone ?? "",
-                Amount = request.Amount,
-                InvoiceNumber = invoiceNumber,
-                Description = $"Admin charge for registration #{reg.RegistrationAi}"
-            });
-
-            var success = chargeResult?.messages?.resultCode == messageTypeEnum.Ok
-                          && chargeResult.transactionResponse?.messages != null;
-
-            if (success)
-            {
-                var transId = chargeResult!.transactionResponse!.transId ?? "";
-                var last4 = (cc.Number ?? "").Length >= 4 ? (cc.Number ?? "")[^4..] : cc.Number ?? "";
-
-                raRecord.AdnInvoiceNo = invoiceNumber;
-                raRecord.AdnTransactionId = transId;
-                raRecord.Payamt = request.Amount;
-                raRecord.AdnCc4 = last4;
-                raRecord.AdnCcexpDate = cc.Expiry;
-                raRecord.Paymeth = $"paid by cc: {request.Amount:C} on {DateTime.UtcNow:G} txID: {transId}";
-                raRecord.Modified = DateTime.UtcNow;
-
-                reg.PaidTotal += request.Amount;
-                reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-                reg.Modified = DateTime.UtcNow;
-                reg.LebUserId = userId;
-
-                await _accountingRepo.SaveChangesAsync(ct);
-
-                _logger.LogInformation("CC charge successful: RegId={RegId}, Amount={Amount}, TransId={TransId}",
-                    request.RegistrationId, request.Amount, transId);
-
-                return new RegistrationCcChargeResponse
-                {
-                    Success = true,
-                    TransactionId = transId,
-                    ChargedAmount = request.Amount
-                };
-            }
-            else
-            {
-                var err = chargeResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "Charge failed.";
-                raRecord.Active = false;
-                raRecord.Comment = $"FAILED: {err}";
-                raRecord.Modified = DateTime.UtcNow;
-                await _accountingRepo.SaveChangesAsync(ct);
-
-                _logger.LogWarning("CC charge failed: RegId={RegId}, Error={Error}", request.RegistrationId, err);
-                return new RegistrationCcChargeResponse { Success = false, Error = err };
-            }
+            return new RegistrationCcChargeResponse { Success = false, Error = result.Message ?? "Charge failed." };
         }
-        catch (Exception ex)
+        return new RegistrationCcChargeResponse
         {
-            _logger.LogError(ex, "CC charge exception for RegId={RegId}", request.RegistrationId);
-            return new RegistrationCcChargeResponse { Success = false, Error = $"Charge failed: {ex.Message}" };
-        }
+            Success = true,
+            TransactionId = result.TransactionId,
+            ChargedAmount = result.Outcomes.FirstOrDefault()?.ChargedAmount
+        };
     }
 
     public async Task EditAccountingRecordAsync(
