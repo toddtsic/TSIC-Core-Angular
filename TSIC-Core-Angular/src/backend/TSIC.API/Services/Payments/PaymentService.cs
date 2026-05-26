@@ -1081,10 +1081,12 @@ public class PaymentService : IPaymentService
         var invoiceReg = registrations[0];
         var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
         // CC-symmetric eCheck: each registration's gateway debit is its CC-inclusive charge
-        // minus the proc credit that converts the baked-in CC rate to the eCheck rate
-        // (credit = principalRemaining × (ccRate − echeckRate)). The credit is booked against
-        // FeeProcessing/OwedTotal and the gateway is debited the eCheck gross — never the CC
-        // gross. Mirrors the team engine; see go-live 002 (Issue 5).
+        // minus the proc credit that converts the baked-in CC rate to the eCheck rate. The
+        // credit is booked against FeeProcessing/OwedTotal so the gateway is debited the
+        // eCheck gross — never the CC gross. PaymentState.ProcCreditForCharge owns the
+        // formula (raw rate-delta + AppliedProcCredit cap + per-charge embedded-proc cap)
+        // so deposit-below-principal partial-pays correctly resolve to a zero credit.
+        // See go-live 002 (Issue 5).
         var regIds = registrations.Where(r => r.RegistrationId != Guid.Empty).Select(r => r.RegistrationId).ToList();
         var states = await _paymentState.ForRegistrationsAsync(regIds, jobId);
         var rateRef = states.Values.FirstOrDefault() ?? await _paymentState.ForRegistrationAsync(regIds[0], jobId);
@@ -1094,12 +1096,8 @@ public class PaymentService : IPaymentService
         {
             if (!charges.TryGetValue(reg.RegistrationId, out var ccCharge) || ccCharge <= 0m) continue;
             var state = states.GetValueOrDefault(reg.RegistrationId) ?? emptyState;
-            var principalRemaining = state.PrincipalRemaining(reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee);
-            var credit = Math.Round(PaymentRateMath.ProcCredit(principalRemaining, state.CcRate, state.EcheckRate), 2, MidpointRounding.AwayFromZero);
-            // Never credit more than the CC proc actually embedded in this charge (handles
-            // proc-disabled jobs and principal-only deposits → 0) nor the reg's embedded proc.
-            credit = Math.Min(credit, Math.Max(0m, ccCharge - principalRemaining));
-            credit = Math.Min(credit, Math.Max(0m, reg.FeeProcessing));
+            var credit = state.ProcCreditForCharge(
+                ccCharge, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing, state.EcheckRate);
             if (credit > 0m)
             {
                 reg.FeeProcessing -= credit;

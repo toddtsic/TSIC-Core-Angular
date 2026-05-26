@@ -88,6 +88,38 @@ public record PaymentState
             : 0m;
 
     /// <summary>
+    /// Per-payment proc credit for a CC-rate <paramref name="ccCharge"/> being settled
+    /// at <paramref name="methodRate"/> (eCheck, or any rate &lt; <see cref="CcRate"/>).
+    /// Returns the amount to back out of FeeProcessing / OwedTotal so the gateway
+    /// debit is recomputed at the lower method rate.
+    ///
+    /// Two caps applied:
+    ///   - <c>AppliedProcCredit</c> already caps at the entity's remaining
+    ///     <paramref name="feeProcessing"/> (handles proc-disabled jobs → 0).
+    ///   - Per-charge cap: <c>max(0, ccCharge − principalRemaining)</c>. A partial
+    ///     payment (e.g. a Deposit smaller than the principal owed) doesn't carry
+    ///     full CC proc — only credit what's actually embedded in THIS charge.
+    ///
+    /// Returns 0 for CC (<paramref name="methodRate"/> ≥ <see cref="CcRate"/>), for
+    /// proc-disabled jobs, and for principal-only charges.
+    ///
+    /// For a full-pay (<paramref name="ccCharge"/> == OwedTotal) this is equivalent
+    /// to <c>OwedTotal − ResolveOwed(...).Echeck</c>; the standalone form exists for
+    /// partial-pay paths (the registration deposit flow) that <see cref="ResolveOwed"/>
+    /// doesn't model.
+    /// </summary>
+    public decimal ProcCreditForCharge(
+        decimal ccCharge, decimal feeBase, decimal discount, decimal lateFee,
+        decimal feeProcessing, decimal methodRate)
+    {
+        if (!BAddProcessingFees || methodRate >= CcRate) return 0m;
+        var principalRemaining = PrincipalRemaining(feeBase, discount, lateFee);
+        var rawCredit = PaymentRateMath.AppliedProcCredit(principalRemaining, feeProcessing, CcRate, methodRate);
+        var procEmbeddedInCharge = System.Math.Max(0m, ccCharge - principalRemaining);
+        return System.Math.Min(rawCredit, procEmbeddedInCharge);
+    }
+
+    /// <summary>
     /// Amount still owed under each payment method, anchored to the entity's
     /// authoritative <paramref name="owedTotal"/> (which already carries proc,
     /// donation, late fee, and discount). The single canonical owed resolver:

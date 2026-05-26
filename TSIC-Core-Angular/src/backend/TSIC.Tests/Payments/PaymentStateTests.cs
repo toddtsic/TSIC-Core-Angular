@@ -224,4 +224,77 @@ public class PaymentStateTests
         owed.Check.Should().Be(0m);
         owed.Echeck.Should().Be(0m);
     }
+
+    // ── ProcCreditForCharge: partial-pay-aware per-charge credit ─────────────
+    //
+    // Distinct from ResolveOwed because the registration deposit flow charges a
+    // fraction of the owed amount; the eCheck credit must clamp to what's actually
+    // embedded in THIS charge, not the entity's full embedded proc.
+
+    [Fact(DisplayName = "ProcCreditForCharge: full pay matches OwedTotal − ResolveOwed.Echeck")]
+    public void ProcCreditForCharge_FullPay_MatchesResolveOwedEcheck()
+    {
+        // OwedTotal = 519 (500 base + 19 proc); eCheck credit at (3.8 − 1.0)% = $14.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        var owed = s.ResolveOwed(owedTotal: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m);
+
+        var credit = s.ProcCreditForCharge(
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.01m);
+
+        credit.Should().BeApproximately(519m - owed.Echeck, 0.005m);
+    }
+
+    [Fact(DisplayName = "ProcCreditForCharge: deposit BELOW principal → zero credit (no proc embedded)")]
+    public void ProcCreditForCharge_DepositBelowPrincipal_ZeroCredit()
+    {
+        // Base 500, full owed 519; a $100 deposit is principal-only. No CC proc to credit.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        var credit = s.ProcCreditForCharge(
+            ccCharge: 100m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.01m);
+
+        credit.Should().Be(0m);
+    }
+
+    [Fact(DisplayName = "ProcCreditForCharge: deposit ABOVE principal → credit clamped at embedded proc in charge")]
+    public void ProcCreditForCharge_DepositAbovePrincipal_CappedAtChargeEmbeddedProc()
+    {
+        // Base 500, principal-remaining 500; charge 505 carries $5 of proc.
+        // Raw rate-delta credit = 500 × 0.028 = $14. Capped at $5 = the proc in this charge.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        var credit = s.ProcCreditForCharge(
+            ccCharge: 505m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.01m);
+
+        credit.Should().Be(5m);
+    }
+
+    [Fact(DisplayName = "ProcCreditForCharge: proc disabled → zero credit regardless of inputs")]
+    public void ProcCreditForCharge_ProcDisabled_Zero()
+    {
+        var s = PaymentState.Empty(bAddProcessingFees: false, ccRate: 0.038m, echeckRate: 0.01m);
+        var credit = s.ProcCreditForCharge(
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.01m);
+
+        credit.Should().Be(0m);
+    }
+
+    [Fact(DisplayName = "ProcCreditForCharge: methodRate == CcRate (CC) → zero credit")]
+    public void ProcCreditForCharge_CcMethod_Zero()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        var credit = s.ProcCreditForCharge(
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.038m);
+
+        credit.Should().Be(0m);
+    }
+
+    [Fact(DisplayName = "ProcCreditForCharge: caps at FeeProcessing (over-credit guard)")]
+    public void ProcCreditForCharge_CappedAtFeeProcessing()
+    {
+        // Raw rate-delta would credit $14, but the reg has only $3 of proc left.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        var credit = s.ProcCreditForCharge(
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 3m, methodRate: 0.01m);
+
+        credit.Should().Be(3m);
+    }
 }
