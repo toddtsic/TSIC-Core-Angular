@@ -737,7 +737,7 @@ builder.Host.UseSerilog();
     var usLaxBase = cfg["UsLax:ApiBase"]
                      ?? Environment.GetEnvironmentVariable("USLAX_API_BASE")
                      ?? "https://api.usalacrosse.com/";
-    var usLaxSecret   = cfg["UsLax:Secret"]   ?? Environment.GetEnvironmentVariable("USLAX_SECRET");
+    var usLaxSecret = cfg["UsLax:Secret"] ?? Environment.GetEnvironmentVariable("USLAX_SECRET");
     var usLaxUsername = cfg["UsLax:Username"] ?? Environment.GetEnvironmentVariable("USLAX_USERNAME");
     var usLaxPassword = cfg["UsLax:Password"] ?? Environment.GetEnvironmentVariable("USLAX_PASSWORD");
     bootLog.Information(
