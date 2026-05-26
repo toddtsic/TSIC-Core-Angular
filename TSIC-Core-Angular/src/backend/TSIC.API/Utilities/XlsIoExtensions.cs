@@ -12,6 +12,14 @@ namespace TSIC.API.Utilities;
 internal static class XlsIoExtensions
 {
     /// <summary>
+    /// Excel/OLE-Automation date epoch. DateTime values before this can't be
+    /// represented as an Excel date cell; XlsIO's OADate conversion either throws
+    /// (year &lt; 100 → TicksToOADate OverflowException, e.g. a 0001-01-01 sentinel
+    /// from a nullable SQL date) or renders a broken cell (year 100–1899).
+    /// </summary>
+    private static readonly DateTime ExcelEpoch = new(1900, 1, 1);
+
+    /// <summary>
     /// Assigns a CLR value to a cell using the correct XlsIO typed setter.
     /// XlsIO has no single object setter equivalent to EPPlus's
     /// <c>Cells[r,c].Value = object</c>, so dispatch on the runtime type.
@@ -25,7 +33,13 @@ internal static class XlsIoExtensions
             case DBNull:
                 return;
             case DateTime dt:
-                cell.DateTime = dt;
+                // Pre-1900 values are real rows in the data — overwhelmingly the
+                // 0001-01-01 "no date" sentinel, plus stray garbage years. They
+                // overflow XlsIO's OADate conversion (TicksToOADate throws
+                // "Not a legal OleAut date") or render a broken Excel cell. Treat
+                // them as "no date": leave the cell blank, same as null/DBNull.
+                if (dt >= ExcelEpoch)
+                    cell.DateTime = dt;
                 break;
             case bool b:
                 cell.Boolean = b;

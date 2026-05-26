@@ -203,9 +203,12 @@ INSERT INTO @ImportYears VALUES ('2025'), ('2026'), ('2027');
 DECLARE @ExcludeActions TABLE ([Action] NVARCHAR(250) NOT NULL PRIMARY KEY);
 INSERT INTO @ExcludeActions VALUES
     (N'Get_NetUsers'),       -- obsolete network-level user count (test report ~20yr old)
-    (N'ShowJobInvoices');    -- live invoice viewer; mutates post-billing (chargebacks/refunds)
+    (N'ShowJobInvoices'),    -- live invoice viewer; mutates post-billing (chargebacks/refunds)
                              -- so users would see numbers disagreeing with printed copies they
                              -- received at billing time. Retired for ALL roles 2026-05-04.
+    (N'JobRosters_MSYSA');   -- MSYSA-format soccer roster; only ever lived on closed (_chiuso)
+                             -- jobs — confirmed 0 live jobs (migrated table + legacy source).
+                             -- Dead report; retired (not migrated) 2026-05-25.
 
 -- CR -> SP-Excel conversions. Maps a report's legacy (Crystal) action to its
 -- SP-Excel action so the populate below emits a StoredProcedure row pointing at
@@ -218,7 +221,81 @@ DECLARE @ActionMap TABLE (
 INSERT INTO @ActionMap (LegacyAction, NewAction, NewGroupLabel) VALUES
     (N'TournamentRecruitingReport_DataDump',
      N'ExportStoredProcedureResults?spName=reporting_migrate.JobRosters_ExportTournament&bUseJobId=true',
-     N'Recruiting');
+     N'Recruiting'),
+    (N'JobStaff_Excel',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.Get_Staff_ForExcelExport&bUseJobId=true',
+     N'Rosters'),
+    (N'Get_JobPlayer_Transactions',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.Get_Player_Transactions_ForExcelExport&bUseJobId=true',
+     N'Financials'),
+    (N'Get_DiscountedPlayers',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.Get_DiscountedPlayers&bUseJobId=true',
+     N'Financials'),
+    (N'PlayerStats_ParisiExportExcel',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.PlayerStats_ParisiResults&bUseJobId=true',
+     N'Rosters'),
+    (N'Get_TeamFieldDistribution',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.TeamsFieldDistribution&bUseJobId=true',
+     N'Schedules'),
+    (N'Mobile_JobUsers',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.UsageByJobAndRegistrant&bUseJobId=true',
+     N'Administration'),
+    (N'League_Teams',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.League_Teams&bUseJobId=true',
+     N'Administration'),
+    (N'Get_CustomerPlayers1',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.Get_Players_ForExcelExport_AllCustomers&bUseJobId=true',
+     N'Rosters'),
+    (N'Get_JobRosters_RecruitingReport_DumpExcel',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.JobRosters_RecruitingReport_DumpExcel&bUseJobId=true',
+     N'Recruiting'),
+    (N'Get_JobRosters_RecruitingReport_Public_DumpExcel',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.JobRosters_RecruitingReport_Public&bUseJobId=true',
+     N'Recruiting'),
+    (N'Get_JobPlayers_STEPS_Excel',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.Get_JobPlayers_STEPS_Excel&bUseJobId=true',
+     N'Rosters'),
+    (N'JobPlayers_YJ_Excel',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.JobPlayers_YJ_Excel&bUseJobId=true',
+     N'Rosters'),
+    (N'Get_JobPlayers_E120_Excel',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.Get_JobPlayers_E120_Excel&bUseJobId=true',
+     N'Rosters'),
+    (N'Get_JobPlayers_Liberty_Excel',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.Get_JobPlayers_Liberty_Excel&bUseJobId=true',
+     N'Rosters'),
+    (N'camp_datadump',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.camp_datadump&bUseJobId=true',
+     N'Camp'),
+    (N'camp_excelexport_long',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_long&bUseJobId=true',
+     N'Camp'),
+    (N'camp_excelexport_short',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_short&bUseJobId=true',
+     N'Camp'),
+    (N'camp_excelexport_veryshort',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_veryshort&bUseJobId=true',
+     N'Camp'),
+    (N'camp_excelexport_daygroups',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_daygroups&bUseJobId=true',
+     N'Camp'),
+    (N'camp_excelexport_roomies',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_roomies&bUseJobId=true',
+     N'Camp'),
+    (N'camp_excelexport_room_position',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_room_position&bUseJobId=true',
+     N'Camp'),
+    (N'camp_excelexport_summer',
+     N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_summer&bUseJobId=true',
+     N'Camp');
+
+-- Atomic rebuild: wrap the sweep (two DELETEs) + populate (INSERT) in ONE
+-- transaction so a populate failure (e.g. a remap collision raising a unique-key
+-- violation) rolls the DELETEs back instead of leaving mapped reports
+-- deleted-but-not-reinserted. SET XACT_ABORT ON (top of file) makes any runtime
+-- error abort the batch and roll the transaction back automatically — so the
+-- COMMIT below is only ever reached when all DML succeeded.
+BEGIN TRANSACTION;
 
 DELETE FROM reporting.JobReports
 WHERE [Action] IN (SELECT [Action] FROM @ExcludeActions);
@@ -253,7 +330,16 @@ PRINT CONCAT('Swept ', @MappedSweepCount, ' row(s) for mapped report(s) (legacy 
         ISNULL(jmiC.[Index], 0)                                         AS SortOrder,
         jmiC.Active,
         ROW_NUMBER() OVER (
-            PARTITION BY jm.JobId, jm.RoleId, jmiC.Controller, jmiC.[Action], jmiP.[Text]
+            -- Partition by the EFFECTIVE (post-map) Action + GroupLabel — i.e. the
+            -- exact UX_JobReports_JobRoleActionGroup unique key. A remapped report
+            -- that lived under >1 legacy parent (e.g. Discounted Players under both
+            -- 'Reports' and 'Search' for SuperUser) collapses to a single forced
+            -- GroupLabel; partitioning on the originals would let both survive and
+            -- collide on INSERT. For non-mapped rows the COALESCEs fall back to the
+            -- originals, so their dedup is unchanged.
+            PARTITION BY jm.JobId, jm.RoleId, jmiC.Controller,
+                         COALESCE(am.NewAction, jmiC.[Action]),
+                         COALESCE(am.NewGroupLabel, jmiP.[Text])
             ORDER BY jmiC.Active DESC,             -- prefer Active=1 over Active=0
                      ISNULL(jmiC.[Index], 0) ASC,  -- prefer lower SortOrder
                      jmiC.MenuItemId ASC           -- final tiebreaker for determinism
@@ -299,6 +385,10 @@ WHERE s.DedupRn = 1
   );
 
 DECLARE @InsertedCount INT = @@ROWCOUNT;
+
+-- All sweep + populate DML succeeded — commit the atomic rebuild.
+-- (@@ROWCOUNT captured into @InsertedCount above; COMMIT would reset it.)
+COMMIT TRANSACTION;
 
 PRINT '';
 PRINT '=== Populate Result ===';
