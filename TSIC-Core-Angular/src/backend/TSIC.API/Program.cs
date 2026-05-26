@@ -741,7 +741,7 @@ builder.Host.UseSerilog();
     var usLaxUsername = cfg["UsLax:Username"] ?? Environment.GetEnvironmentVariable("USLAX_USERNAME");
     var usLaxPassword = cfg["UsLax:Password"] ?? Environment.GetEnvironmentVariable("USLAX_PASSWORD");
     bootLog.Information(
-        "[STARTUP-CONFIG] usLax: baseUrl={BaseUrl} clientIdFp={Fp} secretFp={SecretFp} usernameFp={UsernameFp} password={PwGate}",
+        "[STARTUP-CONFIG] usLax: baseUrl={BaseUrl} clientIdFp={Fp} secretFp={SecretFp} usernameFp={UsernameFp} pwGate={PwGate}",
         usLaxBase,
         Fp4(cfg["UsLax:ClientId"] ?? Environment.GetEnvironmentVariable("USLAX_CLIENT_ID")),
         Fp4(usLaxSecret),
