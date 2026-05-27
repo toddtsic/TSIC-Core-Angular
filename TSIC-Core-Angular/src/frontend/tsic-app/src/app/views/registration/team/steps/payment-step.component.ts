@@ -1119,8 +1119,22 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
             }
         }
         this.state.teamPaymentState.setLastPayment({ ...baseSummary, viPolicyNumbers });
-        this.submitting.set(false);
-        this.submitted.emit();
+        // Refresh the team ledger so a back-nav to Payment reflects the post-charge
+        // balances (mirrors submitArbTrial). Failure still advances — the charge
+        // succeeded; a stale ledger is recoverable, blocking the wizard is not.
+        this.teamReg.getTeamsMetadata()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: meta => {
+                    this.state.applyTeamsMetadata(meta);
+                    this.submitting.set(false);
+                    this.submitted.emit();
+                },
+                error: () => {
+                    this.submitting.set(false);
+                    this.submitted.emit();
+                },
+            });
     }
 
     submitEcheck(): void {
@@ -1162,7 +1176,6 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: resp => {
-                    this.submitting.set(false);
                     if (resp?.success) {
                         this.lastIdemKey = null;
                         this.state.teamPaymentState.setLastPayment({
@@ -1171,8 +1184,22 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                             message: resp.message || 'eCheck submitted — pending settlement',
                             paymentMethod: 'Echeck',
                         });
-                        this.submitted.emit();
+                        // Refresh ledger so back-nav to Payment reflects post-submit state.
+                        this.teamReg.getTeamsMetadata()
+                            .pipe(takeUntilDestroyed(this.destroyRef))
+                            .subscribe({
+                                next: meta => {
+                                    this.state.applyTeamsMetadata(meta);
+                                    this.submitting.set(false);
+                                    this.submitted.emit();
+                                },
+                                error: () => {
+                                    this.submitting.set(false);
+                                    this.submitted.emit();
+                                },
+                            });
                     } else {
+                        this.submitting.set(false);
                         this.lastError.set(resp?.message || 'eCheck submission failed.');
                         this.toast.show(resp?.message || 'eCheck submission failed.', 'danger', 6000);
                     }
