@@ -885,12 +885,19 @@ public sealed class LadtService : ILadtService
         if (request.TeamName != null)
             await _scheduleRepo.SynchronizeScheduleNamesForTeamAsync(teamId, jobId, cancellationToken);
 
+        // Active is one of the filters on the rep-aggregate sync query — flipping it
+        // here without re-aggregating leaves clubRep.OwedTotal counting (or omitting)
+        // this team incorrectly. Defensive: sync whenever the team has a club rep.
+        if (team.ClubrepRegistrationid.HasValue)
+            await _registrationRepo.SynchronizeClubRepFinancialsAsync(
+                team.ClubrepRegistrationid.Value, userId, cancellationToken);
+
         var playerCount = await _teamRepo.GetPlayerCountAsync(teamId, cancellationToken);
         var clubName = await _teamRepo.GetClubNameForTeamAsync(teamId, cancellationToken);
         return MapTeam(team, playerCount, clubName);
     }
 
-    public async Task<DeleteTeamResultDto> DeleteTeamAsync(Guid teamId, Guid jobId, CancellationToken cancellationToken = default)
+    public async Task<DeleteTeamResultDto> DeleteTeamAsync(Guid teamId, Guid jobId, string userId, CancellationToken cancellationToken = default)
     {
         await ValidateTeamOwnershipAsync(teamId, jobId, cancellationToken);
 
@@ -900,6 +907,7 @@ public sealed class LadtService : ILadtService
             var team = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Team {teamId} not found.");
             var divId = team.DivId;
+            var clubRepId = team.ClubrepRegistrationid;
             team.Active = false;
             team.Modified = DateTime.UtcNow;
             await _teamRepo.SaveChangesAsync(cancellationToken);
@@ -907,6 +915,11 @@ public sealed class LadtService : ILadtService
             // Renumber remaining active teams to maintain contiguous 1..N ranking
             if (divId.HasValue)
                 await _teamRepo.RenumberDivRanksAsync(divId.Value, cancellationToken);
+
+            // Active=false removes the team from the rep-aggregate sync filter; re-sync
+            // so clubRep.OwedTotal stops counting this team's contribution.
+            if (clubRepId.HasValue)
+                await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRepId.Value, userId, cancellationToken);
 
             return new DeleteTeamResultDto
             {
@@ -918,12 +931,17 @@ public sealed class LadtService : ILadtService
         var teamToDelete = await _teamRepo.GetTeamFromTeamId(teamId, cancellationToken)
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
         var deletedDivId = teamToDelete.DivId;
+        var deletedClubRepId = teamToDelete.ClubrepRegistrationid;
         _teamRepo.Remove(teamToDelete);
         await _teamRepo.SaveChangesAsync(cancellationToken);
 
         // Renumber remaining active teams to maintain contiguous 1..N ranking
         if (deletedDivId.HasValue)
             await _teamRepo.RenumberDivRanksAsync(deletedDivId.Value, cancellationToken);
+
+        // Row is gone; re-aggregate so clubRep.OwedTotal drops the removed contribution.
+        if (deletedClubRepId.HasValue)
+            await _registrationRepo.SynchronizeClubRepFinancialsAsync(deletedClubRepId.Value, userId, cancellationToken);
 
         return new DeleteTeamResultDto
         {

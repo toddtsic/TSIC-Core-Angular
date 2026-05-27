@@ -787,6 +787,13 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         await _teams.SaveChangesAsync();
 
+        // Re-aggregate the rep registration row from the new team's financials. Without
+        // this, clubRep.OwedTotal drifts from its teams whenever a rep registers a team
+        // without an immediate payment — downstream guards (e.g. admin check-record
+        // owed cap) then read a stale total.
+        await _registrations.SynchronizeClubRepFinancialsAsync(
+            clubRepRegistration.RegistrationId, userId);
+
         _logger.LogInformation("Team registered successfully. TeamId: {TeamId}, TeamName: {TeamName}, ClubTeamId: {ClubTeamId}, FeeBase: {FeeBase}, FeeProcessing: {FeeProcessing}",
             team.TeamId, teamName, clubTeamId, team.FeeBase, team.FeeProcessing);
 
@@ -802,7 +809,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         };
     }
 
-    public async Task<bool> UnregisterTeamFromEventAsync(Guid teamId)
+    public async Task<bool> UnregisterTeamFromEventAsync(Guid teamId, string userId)
     {
         _logger.LogInformation("Unregistering team {TeamId}", teamId);
 
@@ -814,6 +821,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             _logger.LogWarning("Team not found: {TeamId}", teamId);
             throw new InvalidOperationException("Team registration not found");
         }
+
+        // Capture before Remove so we can re-aggregate the rep row afterward.
+        var clubRepId = team.ClubrepRegistrationid;
 
         // Job-level capability gate — mirrors legacy BRegistrationAllowTeam / BClubRepAllowDelete.
         var capabilities = await _jobs.GetTeamCapabilitiesAsync(team.JobId);
@@ -843,6 +853,12 @@ public class TeamRegistrationService : ITeamRegistrationService
         // Remove team
         _teams.Remove(team);
         await _teams.SaveChangesAsync();
+
+        // Re-aggregate the rep registration row now that the team is gone; otherwise
+        // clubRep.OwedTotal still includes the removed team's contribution until some
+        // other action triggers sync.
+        if (clubRepId.HasValue)
+            await _registrations.SynchronizeClubRepFinancialsAsync(clubRepId.Value, userId);
 
         _logger.LogInformation("Team {TeamId} unregistered successfully", teamId);
         return true;

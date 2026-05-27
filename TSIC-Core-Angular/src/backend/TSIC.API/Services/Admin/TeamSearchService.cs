@@ -252,6 +252,13 @@ public sealed class TeamSearchService : ITeamSearchService
         team.LebUserId = userId;
 
         await _teamRepo.SaveChangesAsync(ct);
+
+        // Active is one of the filters on the rep-aggregate sync query — flipping it
+        // here without re-aggregating leaves clubRep.OwedTotal counting (or omitting)
+        // this team incorrectly. Defensive: sync whenever the team has a club rep.
+        if (team.ClubrepRegistrationid.HasValue)
+            await _registrationRepo.SynchronizeClubRepFinancialsAsync(
+                team.ClubrepRegistrationid.Value, userId, ct);
     }
 
     // ── CC Refund (individual transaction) ──

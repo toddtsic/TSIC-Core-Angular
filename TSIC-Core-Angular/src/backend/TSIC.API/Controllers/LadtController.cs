@@ -327,12 +327,12 @@ public class LadtController : ControllerBase
     [HttpDelete("teams/{teamId:guid}")]
     public async Task<ActionResult<DeleteTeamResultDto>> DeleteTeam(Guid teamId, CancellationToken cancellationToken)
     {
-        var (jobId, _, error) = await ResolveContext();
+        var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         try
         {
-            var result = await _ladtService.DeleteTeamAsync(teamId, jobId!.Value, cancellationToken);
+            var result = await _ladtService.DeleteTeamAsync(teamId, jobId!.Value, userId!, cancellationToken);
             return Ok(result);
         }
         catch (KeyNotFoundException) { return NotFound(); }

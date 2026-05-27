@@ -332,9 +332,13 @@ public class TeamRegistrationController : ControllerBase
     [ProducesResponseType(401)]
     public async Task<IActionResult> UnregisterTeam(Guid teamId)
     {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
         try
         {
-            await _teamRegistrationService.UnregisterTeamFromEventAsync(teamId);
+            await _teamRegistrationService.UnregisterTeamFromEventAsync(teamId, userId);
             return Ok(new { Success = true, Message = "Team unregistered successfully" });
         }
         catch (UnauthorizedAccessException ex)
