@@ -192,7 +192,7 @@
                 <span class="input-group-text">$</span>
                 <input type="number" id="refund-amount" class="form-control form-control-sm"
                        [ngModel]="amount()" (ngModelChange)="setAmount($event)"
-                       [min]="0.01" [max]="rec.paidAmount ?? 0" step="0.01" />
+                       [min]="0.01" [max]="rec.paidAmount ?? 0" step="1" />
               </div>
               @if (amount() <= 0 || amount() > (rec.paidAmount ?? 0)) {
                 <div class="text-danger small mt-1">
@@ -338,7 +338,7 @@
               <div class="input-group input-group-sm">
                 <span class="input-group-text">$</span>
                 <input type="number" id="ledger-amount" class="form-control form-control-sm"
-                  [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="0.01" min="0" />
+                  [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="1" min="0" />
               </div>
               @if (paymentType() !== 'correction') {
                 <div class="owed-badge" [class.text-danger]="owedTotal() > 0" [class.text-success]="owedTotal() <= 0">

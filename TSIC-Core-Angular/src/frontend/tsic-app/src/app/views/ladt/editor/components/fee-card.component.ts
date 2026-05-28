@@ -31,7 +31,7 @@ export interface ModifierForm {
           <label class="fee-label">Deposit</label>
           <div class="input-group input-group-sm">
             <span class="input-group-text">$</span>
-            <input class="form-control" type="number" step="0.01"
+            <input class="form-control" type="number" step="1"
                    [ngModel]="deposit" (ngModelChange)="depositChange.emit($event)"
                    [name]="namePrefix + 'Deposit'"
                    [placeholder]="placeholder">
@@ -41,7 +41,7 @@ export interface ModifierForm {
           <label class="fee-label">Balance Due</label>
           <div class="input-group input-group-sm">
             <span class="input-group-text">$</span>
-            <input class="form-control" type="number" step="0.01"
+            <input class="form-control" type="number" step="1"
                    [ngModel]="balanceDue" (ngModelChange)="balanceDueChange.emit($event)"
                    [name]="namePrefix + 'BalanceDue'"
                    [placeholder]="placeholder">
@@ -65,7 +65,7 @@ export interface ModifierForm {
           </select>
           <div class="input-group input-group-sm mod-amount">
             <span class="input-group-text">$</span>
-            <input class="form-control" type="number" step="0.01"
+            <input class="form-control" type="number" step="1"
                    [(ngModel)]="mod.amount" [name]="namePrefix + 'ModAmt' + $index">
           </div>
           <button type="button" class="btn btn-sm btn-outline-danger btn-icon"

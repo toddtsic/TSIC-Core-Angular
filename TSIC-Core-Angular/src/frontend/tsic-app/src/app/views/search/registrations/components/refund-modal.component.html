@@ -39,7 +39,7 @@
                 <span class="input-prefix">$</span>
                 <input type="number" id="refund-amount" class="form-control"
                   [ngModel]="refundAmount()" (ngModelChange)="refundAmount.set($event)"
-                  [max]="record.paidAmount" min="0" step="0.01" [disabled]="isProcessing()" />
+                  [max]="record.paidAmount" min="0" step="1" [disabled]="isProcessing()" />
               </div>
               <small class="form-text">Maximum: {{ record.paidAmount | currency }}</small>
             </div>
