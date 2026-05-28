@@ -1044,42 +1044,111 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToList();
     }
 
+    // Result codes mirror legacy [utility].[ScheduleAlterGSIPerGameDate]:
+    //   1 = success
+    //   2 = adjustment would create overlaps with non-target games
+    //   3 = pre-GSI doesn't match the actual spacing of the first two games that day
+    //   4 = postGSI out of [0,120]
+    //   5 = preFirstGame and postFirstGame are in different calendar years
+    //   6 = no games match the date/field filter
+    //   7 = pre == post (nothing to change)
+    //   8 = at least one target game isn't aligned to the pre-GSI grid
     public async Task<int> ExecuteWeatherAdjustmentAsync(
         Guid jobId, AdjustWeatherRequest request, CancellationToken ct = default)
     {
-        var connection = _context.Database.GetDbConnection();
-        var cmd = connection.CreateCommand();
+        if (request.PreFirstGame.Year != request.PostFirstGame.Year)
+            return 5;
+        if (request.PostGSI < 0 || request.PostGSI > 120)
+            return 4;
 
-        cmd.CommandText = "[utility].[ScheduleAlterGSIPerGameDate]";
-        cmd.CommandType = System.Data.CommandType.StoredProcedure;
+        var preFirstGame = request.PreFirstGame;
+        var postFirstGame = request.PostFirstGame;
+        var preGSI = request.PreGSI;
+        var postGSI = request.PostGSI;
+        var day = preFirstGame.Date;
+        var nextDay = day.AddDays(1);
+        var hasFieldFilter = request.FieldIds.Count > 0;
+        var fieldIds = request.FieldIds;
 
-        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@jobId", System.Data.SqlDbType.UniqueIdentifier) { Value = jobId });
-        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@preFirstGame", System.Data.SqlDbType.DateTime) { Value = request.PreFirstGame });
-        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@preGSI", System.Data.SqlDbType.Int) { Value = request.PreGSI });
-        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@postFirstGame", System.Data.SqlDbType.DateTime) { Value = request.PostFirstGame });
-        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@postGSI", System.Data.SqlDbType.Int) { Value = request.PostGSI });
-        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@strFieldIds", System.Data.SqlDbType.Text)
-        {
-            Value = string.Join(";", request.FieldIds)
-        });
-        cmd.Parameters.Add(new Microsoft.Data.SqlClient.SqlParameter("@resultCode", System.Data.SqlDbType.Int)
-        {
-            Direction = System.Data.ParameterDirection.Output, Value = 0
-        });
+        // Load the target games (tracked — we may update them).
+        var targetQuery = _context.Schedule
+            .Where(s => s.JobId == jobId
+                && s.GDate.HasValue
+                && s.GDate.Value >= day
+                && s.GDate.Value < nextDay
+                && s.GDate.Value >= preFirstGame);
+        if (hasFieldFilter)
+            targetQuery = targetQuery.Where(s => s.FieldId.HasValue && fieldIds.Contains(s.FieldId.Value));
 
-        if (connection.State != System.Data.ConnectionState.Open)
-            await connection.OpenAsync(ct);
+        var targetGames = await targetQuery.ToListAsync(ct);
+        if (targetGames.Count == 0)
+            return 6;
 
-        try
-        {
-            await cmd.ExecuteNonQueryAsync(ct);
-            return Convert.ToInt32(cmd.Parameters["@resultCode"].Value);
-        }
-        finally
-        {
-            if (connection.State == System.Data.ConnectionState.Open)
-                await connection.CloseAsync();
-        }
+        // Legacy verifies preGSI against the first two distinct g_date values across ALL
+        // fields that day for the job (not the field-filtered list) — preserve that.
+        var firstTwoGDates = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                && s.GDate.HasValue
+                && s.GDate.Value >= day
+                && s.GDate.Value < nextDay
+                && s.GDate.Value >= preFirstGame)
+            .Select(s => s.GDate!.Value)
+            .Distinct()
+            .OrderBy(g => g)
+            .Take(2)
+            .ToListAsync(ct);
+
+        if (firstTwoGDates.Count < 2 || (int)(firstTwoGDates[1] - firstTwoGDates[0]).TotalMinutes != preGSI)
+            return 3;
+
+        // Every target game must sit on the pre-GSI grid anchored at preFirstGame.
+        var anyOffGrid = targetGames.Any(g =>
+            (int)(preFirstGame - g.GDate!.Value).TotalMinutes % preGSI != 0);
+        if (anyOffGrid)
+            return 8;
+
+        // No-op: same anchor, same spacing.
+        if (preFirstGame == postFirstGame && preGSI == postGSI)
+            return 7;
+
+        // Project each target game to its new G_Date.
+        var newTimes = targetGames
+            .Select(g =>
+            {
+                var slotsFromPre = (int)(g.GDate!.Value - preFirstGame).TotalMinutes / preGSI;
+                return (Game: g, NewGDate: postFirstGame.AddMinutes(slotsFromPre * postGSI));
+            })
+            .ToList();
+
+        var postStarting = newTimes.Min(t => t.NewGDate);
+        var postEnding = newTimes.Max(t => t.NewGDate).AddMinutes(postGSI);
+        var targetGids = targetGames.Select(g => g.Gid).ToHashSet();
+
+        // Wrap interference check + update so an interleaved insert can't slip a conflicting
+        // game in between. Serializable matches the read-then-write invariant we need.
+        await using var tx = await _context.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, ct);
+
+        var interferenceQuery = _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                && s.GDate.HasValue
+                && s.GDate.Value >= postStarting
+                && s.GDate.Value < postEnding
+                && !targetGids.Contains(s.Gid));
+        if (hasFieldFilter)
+            interferenceQuery = interferenceQuery.Where(s => s.FieldId.HasValue && fieldIds.Contains(s.FieldId.Value));
+
+        if (await interferenceQuery.AnyAsync(ct))
+            return 2;
+
+        foreach (var (game, newGDate) in newTimes)
+            game.GDate = newGDate;
+
+        await _context.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return 1;
     }
 
     // ── Dashboard ──

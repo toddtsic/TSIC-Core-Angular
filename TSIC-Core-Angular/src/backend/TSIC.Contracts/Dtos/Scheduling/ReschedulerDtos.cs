@@ -30,8 +30,8 @@ public record ReschedulerGridRequest
 // ══════════════════════════════════════════════════════════════════════
 
 /// <summary>
-/// Adjusts game times in batch via stored procedure [utility].[ScheduleAlterGSIPerGameDate].
-/// "Before" = current schedule, "After" = desired schedule.
+/// Adjusts game times in batch by recomputing each game's slot from a "before"
+/// GSI grid onto an "after" GSI grid. "Before" = current schedule, "After" = desired.
 /// </summary>
 public record AdjustWeatherRequest
 {

@@ -262,8 +262,11 @@ public interface IScheduleRepository
         Guid jobId, DateTime firstGame, DateTime lastGame, List<Guid> fieldIds, CancellationToken ct = default);
 
     /// <summary>
-    /// Execute stored procedure [utility].[ScheduleAlterGSIPerGameDate].
-    /// Returns the int result code (1=success, 2-8=error).
+    /// Shift game times on a single calendar day by recomputing each game's slot
+    /// on a new GSI grid (postFirstGame, postGSI) given its slot on the original
+    /// grid (preFirstGame, preGSI). Returns the int result code (1=success, 2-8=error)
+    /// — see <see cref="ScheduleRepository"/> for the code legend. Behavior mirrors
+    /// the retired [utility].[ScheduleAlterGSIPerGameDate].
     /// </summary>
     Task<int> ExecuteWeatherAdjustmentAsync(
         Guid jobId, Dtos.Scheduling.AdjustWeatherRequest request, CancellationToken ct = default);
