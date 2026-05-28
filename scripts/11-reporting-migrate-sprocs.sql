@@ -1857,7 +1857,7 @@ select
     ,   tt.clubRepEmail
     ,   dense_rank() over (partition by tt.agegroupName, tt.divName
                            order by tt.clubTeamName, tt.teamID) as divTeamRow
-    ,   upper(u.FirstName) + ' ' + upper(u.LastName) as player
+    ,   u.FirstName + ' ' + u.LastName as player
     ,   replace(r.uniform_no, '#', '') as uniform_no
     ,   r.position
     ,   case when roles.Name = 'Staff'
@@ -1867,6 +1867,17 @@ select
     ,   case coalesce(r.bCollegeCommit, 0) when 0 then '' else 'yes' end as bCollegeCommit
     ,   roles.Name as roleName
     ,   case when roles.Name = 'Staff' then 0 else 1 end as roleSort
+    -- isLastRow: drives the RDL to suppress the row-separator line under the
+    -- last roster row of each card. Partition + ordering mirror the ORDER BY.
+    ,   case when row_number() over (
+                 partition by tt.teamID
+                 order by case when roles.Name = 'Staff' then 0 else 1 end,
+                          case when roles.Name = 'Staff' then null
+                               else try_cast(replace(r.uniform_no, '#', '') as int) end,
+                          u.LastName, u.FirstName
+             ) = count(*) over (partition by tt.teamID)
+             then 1 else 0
+        end as isLastRow
 from
     TournamentTeams tt
     inner join Jobs.Registrations r   on r.assigned_teamID = tt.teamID
@@ -1880,7 +1891,9 @@ order by
     ,   tt.divName
     ,   tt.clubTeamName
     ,   tt.teamID
-    ,   case when roles.Name = 'Staff' then 0 else 1 end
+    ,   case when roles.Name = 'Staff' then 0 else 1 end                                -- Staff cards-top
+    ,   case when roles.Name = 'Staff' then null
+             else try_cast(replace(r.uniform_no, '#', '') as int) end                    -- Players: uniform # asc
     ,   u.LastName
     ,   u.FirstName;
 GO
