@@ -1494,9 +1494,37 @@ public class PaymentService : IPaymentService
             .Where(kv => kv.Value > 0m && kv.Key != Guid.Empty)
             .Select(kv => new RegistrationChargeItem { RegistrationId = kv.Key, Amount = kv.Value })
             .ToList();
+
+        // PIF guard: UpgradeRegistrationsToPifAsync (called upstream at line 989)
+        // has already mutated FeeBase/FeeProcessing/FeeTotal/OwedTotal on each
+        // tracked reg via FeeResolutionService.ApplyPifUpgradeAsync. The engine's
+        // pre-gateway _acct.SaveChangesAsync() at line 1373 flushes ALL pending
+        // tracked changes in the shared scoped DbContext — including those PIF
+        // mutations — BEFORE the ADN call. A decline would otherwise leave the
+        // registration permanently in PIF posture with no charge to back it.
+        // Snapshot pre-engine; restore on engine failure. (Deposit path doesn't
+        // mutate so the snapshot is skipped.)
+        var pifSnapshot = effectiveOption == PaymentOption.PIF
+            ? registrations.ToDictionary(
+                r => r.RegistrationId,
+                r => (r.FeeBase, r.FeeProcessing, r.FeeTotal, r.OwedTotal))
+            : null;
+
         var result = await ChargeRegistrationsCcAsync(jobId, items, cc, userId);
         if (!result.Success)
         {
+            if (pifSnapshot != null)
+            {
+                foreach (var reg in registrations)
+                {
+                    if (!pifSnapshot.TryGetValue(reg.RegistrationId, out var snap)) continue;
+                    reg.FeeBase       = snap.FeeBase;
+                    reg.FeeProcessing = snap.FeeProcessing;
+                    reg.FeeTotal      = snap.FeeTotal;
+                    reg.OwedTotal     = snap.OwedTotal;
+                }
+                await _registrations.SaveChangesAsync();
+            }
             return new PaymentResponseDto
             {
                 Success = false,
