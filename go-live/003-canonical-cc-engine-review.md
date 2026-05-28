@@ -30,8 +30,8 @@ No fixes applied. Each finding below is its own decision.
 
 ## Triage status
 
-- [x] Issue 1 — PIF upgrade persists on declined CC (fixed in `bbbfd960`)
-- [ ] Issue 2 — AMOUNT_MISMATCH only catches OVER, not stale-LOW
+- [x] Issue 1 — PIF upgrade persists on declined CC (initial fix `bbbfd960` was a no-op; corrected in `e78a4b00`)
+- [x] Issue 2 — AMOUNT_MISMATCH only catches OVER, not stale-LOW — **REFUTED** (see below)
 - [ ] Issue 3 — OwedTotal recompute over-credits prior-eCheck combo
 - [ ] Issue 4 — No try/catch around ADN_Charge or credentials lookup
 - [ ] Issue 5 — `BActive=true` no longer set on parent CC success
@@ -48,23 +48,29 @@ No fixes applied. Each finding below is its own decision.
 
 ---
 
-## Issue 1 — PIF upgrade persists on declined CC (VERIFIED) — **HIGH**
+## Issue 1 — PIF upgrade persists on declined CC (VERIFIED → FIXED `e78a4b00`) — **HIGH**
 
-`PaymentService.cs:1373` — `_acct.SaveChangesAsync()` is called BEFORE the ADN call to commit the placeholder RA rows. Because `_acct` and `_registrations` share the same scoped `SqlDbContext`, that save also flushes the `UpgradeRegistrationsToPifAsync` mutations (FeeBase/FeeTotal/OwedTotal swap from Deposit to PIF) that `ExecutePrimaryChargeAsync` made earlier in the request.
+`PaymentService.cs:1373` — `_acct.SaveChangesAsync()` is called BEFORE the ADN call to commit the placeholder RA rows. Because `_acct` and `_registrations` share the same scoped `SqlDbContext`, that save also flushes the `UpgradeRegistrationsToPifAsync` mutations (FeeBase/FeeTotal/OwedTotal swap from Deposit to PIF) made earlier in the request.
 
 **Failure scenario.** Parent picks PIF on a $500 deposit reg (becomes a $1900 PIF). `UpgradeRegistrationsToPifAsync` mutates the tracked entity. `ChargeRegistrationsCcAsync` placeholder-save at `:1373` commits the PIF state. ADN declines. The failure branch at `:1415` flips RA `Active=false` but does NOT revert the PIF upgrade. Caller returns failure; registration permanently shows `FeeTotal=$1900 OwedTotal=$1900 PaidTotal=$0`. Old code only saved after a successful charge.
 
 **Blast radius.** Parent declines CC mid-PIF, their registration silently jumps to PIF posture with nothing paid — wizard re-entry now demands $1900 they never agreed to commit to.
 
+**Fix history.**
+- `bbbfd960` — **no-op.** Captured the snapshot inside `ExecutePrimaryChargeAsync`, but `UpgradeRegistrationsToPifAsync` runs upstream in `ProcessPaymentAsync` at line 989 BEFORE `ExecutePrimaryChargeAsync` is even called, so the snapshot held POST-PIF values. The failure-branch "restore" wrote the same values back. Bug stayed live.
+- `e78a4b00` — **fixed.** Snapshot is now captured in `ProcessPaymentAsync` immediately before `UpgradeRegistrationsToPifAsync`, then passed into `ExecutePrimaryChargeAsync` as a parameter. Failure branch restores from the genuine pre-PIF values. End-to-end regression test (`PlayerCcPaymentServiceTests.PifDecline_RestoresPrePifFeeFields`) stubs `ApplyPifUpgradeAsync` to actually mutate the tracked reg ($500→$1900) and ADN_Charge to decline; asserts `FeeBase==$500` after the failure return.
+
 ---
 
-## Issue 2 — AMOUNT_MISMATCH only catches OVER, not stale-LOW (VERIFIED) — **HIGH**
+## Issue 2 — AMOUNT_MISMATCH only catches OVER, not stale-LOW — **REFUTED**
 
-`PaymentService.cs:1340` — `if (item.Amount > owed.Cc + 0.01m)`. The tripwire is unidirectional. If `owed.Cc` drifted UP between wizard display and submit (late-fee accrual, proc-fee re-stamp, admin adjustment), the stale-lower `item.Amount` passes silently and the engine charges the stale amount.
+**Original concern.** `PaymentService.cs:1340` — `if (item.Amount > owed.Cc + 0.01m)` is unidirectional; a drifted-UP `owed.Cc` between wizard display and submit lets the stale-LOWER `item.Amount` pass silently.
 
-**Failure scenario.** Wizard snapshots `$250` due. Between display and submit, a late-fee bump raises `reg.OwedTotal` to `$300`. Parent clicks Pay. Tripwire: `250 ≤ 300.01` passes. Engine charges $250; recomputed `OwedTotal = $50` residual. Parent believes they paid in full; the discrepancy never surfaces.
+**Why refuted (parent path).** On parent self-pay, `item.Amount` is NOT a wizard-supplied wire value — it is computed server-side in `ComputeChargesAsync` at `PaymentService.cs:1713` from the SAME tracked `Registrations` entities the engine then resolves owed against. By construction `item.Amount == owed.Cc` (mod proc-fee bucket arithmetic the resolver already accounts for). The tripwire on the parent path is structurally tautological — there is no drift window to exploit.
 
-**Blast radius.** Silent under-charge on any path where backend state advanced while the wizard was open. The resolver was wired into the engine for drift protection — but only one direction is guarded.
+**Why refuted (admin path).** Admin DOES pass a wire amount (`RegistrationCcChargeRequest.AmountCharge`), but the unidirectional tripwire is **intentional**: admin is allowed to undercharge (e.g., partial payment, write-off the residual) but not overcharge. Symmetric tripwire would break that legitimate admin workflow.
+
+**No change required.** The original failure scenario (a wizard-cached $250 against a backend $300) was speculative — there is no path where parent submits a free-text amount and the server trusts it without recomputing.
 
 ---
 
