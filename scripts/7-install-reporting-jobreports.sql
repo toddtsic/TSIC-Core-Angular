@@ -68,6 +68,7 @@ GO
 --                  'ExportStoredProcedureResults?spName=[reporting].[Foo]&bUseJobId=true'
 --                  or 'Get_JobPlayer_Transactions' (T1) or 'ShowJobInvoices' (Home/T1)
 --   Kind        -- 'StoredProcedure' (Action starts with 'ExportStoredProcedureResults?')
+--                  or 'BoldReport' (starts with 'ExportBoldReport?')
 --                  or 'CrystalReport' (anything else). Derived at populate time.
 --   GroupLabel  -- legacy L1 parent's Text (e.g. 'Reports', 'Recruiting'). Drives
 --                  tab grouping in the library; SU may edit per (Job, Role).
@@ -287,7 +288,12 @@ INSERT INTO @ActionMap (LegacyAction, NewAction, NewGroupLabel) VALUES
      N'Camp'),
     (N'camp_excelexport_summer',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_summer&bUseJobId=true',
-     N'Camp');
+     N'Camp'),
+    -- Crystal -> Bold/RDL PDF. First Bold report in the map; backed by
+    -- reporting_migrate.TournamentRosterPacked_Flat (single flat proc, no subreport).
+    (N'TournamentRosterPacked',
+     N'ExportBoldReport?reportName=TournamentRosterPacked&bUseJobId=true',
+     N'Rosters');
 
 -- Atomic rebuild: wrap the sweep (two DELETEs) + populate (INSERT) in ONE
 -- transaction so a populate failure (e.g. a remap collision raising a unique-key
@@ -324,6 +330,7 @@ PRINT CONCAT('Swept ', @MappedSweepCount, ' row(s) for mapped report(s) (legacy 
         COALESCE(am.NewAction, jmiC.[Action])                           AS [Action],
         CASE
             WHEN COALESCE(am.NewAction, jmiC.[Action]) LIKE 'ExportStoredProcedureResults?%' THEN 'StoredProcedure'
+            WHEN COALESCE(am.NewAction, jmiC.[Action]) LIKE 'ExportBoldReport?%'             THEN 'BoldReport'
             ELSE 'CrystalReport'
         END                                                             AS Kind,
         COALESCE(am.NewGroupLabel, jmiP.[Text])                         AS GroupLabel,

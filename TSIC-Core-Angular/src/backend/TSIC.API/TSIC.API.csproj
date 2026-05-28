@@ -56,6 +56,11 @@
       <None Update="Services\Shared\AiCompose\BulletinExemplars.md">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>
+      <!-- Bold Reports RDL definitions, loaded at runtime by BoldReports.Net.Core -->
+      <Content Include="Reports\**\*.rdl">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </Content>
     </ItemGroup>
 
 </Project>

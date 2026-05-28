@@ -1641,3 +1641,249 @@ GO
 
 PRINT 'reporting_migrate.camp_excelexport_summer installed.';
 GO
+
+-- -----------------------------------------------------------------------------
+-- DEPRECATED 2026-05-28 -- superseded by reporting_migrate.TournamentRosterPacked_Flat
+-- below. The flat proc returns one row per registrant (team header denormalized)
+-- which lets the RDL render the entire report from a single dataset + single
+-- Tablix with a 3-up matrix wrap, eliminating the N+1 SP-call pattern and
+-- the brittle subreport ReportName-as-absolute-path issue.
+-- This proc is left in place so existing TSICV5 installs don't break on
+-- re-run; safe to drop manually once no caller remains.
+-- -----------------------------------------------------------------------------
+-- Report : TournamentRosterPacked  (PDF, Bold/RDL master dataset)
+-- Source : reporting.tourneyteams_for_masterdetail  (copied + cleaned + extended)
+-- Contract: plain parameterized SELECT for Bold/RDL dataset binding. Does NOT
+--           follow the SP-Excel @qaTest paired-result-set contract used by the
+--           other sprocs in this file -- Bold renders this as the MASTER of a
+--           master-detail layout (one row per team; detail comes from a
+--           subreport on reporting.JobRosters_ExportTournament_ByTeam, which
+--           will get its own reporting_migrate.* counterpart later).
+-- Changes vs source:
+--   * stripped convert(varchar(...)) casts per cast policy (all wrapped columns
+--     are nvarchar; cosmetic only -- no truncation, Unicode preserved)
+--   * UNCOMMENTED t.active = 1                       -- user-requested 2026-05-27
+--   * ADDED ag.agegroupName NOT LIKE '%WAITLIST%'    -- user-requested 2026-05-27
+--   * ADDED ag.agegroupName NOT LIKE '%DROPPED%'    -- user-requested 2026-05-27
+--   * ADDED LEFT JOIN to Jobs.Registrations on t.clubrep_registrationid for
+--     club-name lookup (clubrep's registrant carries the club name field)
+--   * ADDED output column ClubName (raw r.Club_Name)
+--   * ADDED output column ClubTeamName (computed 'CLUB:TEAM' header format used
+--     in the legacy PDF, e.g. 'COPPERMINE:2027 NORTH'; falls back to TeamName
+--     when ClubName is NULL -- standalone clubrep-less teams)
+--   * RENAMED output alias teamNameShort -> TeamName (more honest -- it's just
+--     t.teamName). Dropped the source's t.teamFullName-as-teamName column (the
+--     ClubTeamName computed field is now the report header)
+--   * ORDER BY: agegroupName, divName, ClubTeamName -- groups by age, then
+--     division, then club:team within each division
+--   * KEPT a dev-time default for @jobID (lftc-summer-2026) -- executor always
+--     overrides at runtime; default just eases interactive EXEC during testing
+--
+-- Proposed JobReports action (placeholder -- to be enforced once the Bold
+-- viewer endpoint exists; @ActionMap row goes in scripts/7 at that point):
+--     ExportBoldReport?reportName=TournamentRosterPacked&bUseJobId=true
+-- Sibling Bold-rendered reports should follow the same shape:
+--     ExportBoldReport?reportName=<RdlName>&bUseJobId=true
+-- -----------------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE [reporting_migrate].[tourneyteams_for_masterdetail]
+    @jobID uniqueidentifier = '66036c7b-e1e8-4110-977f-f786353f2498' -- lftc-summer-2026 (dev-time default; executor overrides)
+AS
+SET NOCOUNT ON;
+
+select distinct
+        t.teamID
+    ,   ag.agegroupName
+    ,   d.divName
+    ,   t.teamName     as TeamName
+    ,   r.Club_Name    as ClubName
+    ,   case when r.Club_Name is null then t.teamName else r.Club_Name + ':' + t.teamName end as ClubTeamName
+from
+    Leagues.schedule s
+    inner join Leagues.teams t       on t.teamID in (s.T1_ID, s.T2_ID)
+    inner join Leagues.agegroups ag  on t.agegroupID = ag.agegroupID
+    inner join Leagues.divisions d   on t.divID = d.divID
+    left join  Jobs.Registrations r  on t.clubrep_registrationid = r.RegistrationID
+where
+    s.jobID = @jobID
+    and t.active = 1
+    and ag.agegroupName not like '%WAITLIST%'
+    and ag.agegroupName not like '%DROPPED%'
+order by
+        ag.agegroupName
+    ,   d.divName
+    ,   case when r.Club_Name is null then t.teamName else r.Club_Name + ':' + t.teamName end;
+GO
+
+PRINT 'reporting_migrate.tourneyteams_for_masterdetail installed.';
+GO
+
+-- -----------------------------------------------------------------------------
+-- DEPRECATED 2026-05-28 -- superseded by reporting_migrate.TournamentRosterPacked_Flat
+-- below. Subreport architecture retired: the flat proc denormalizes registrant
+-- + team-header into one result set so the RDL no longer calls a per-team
+-- subreport. Safe to drop manually once no caller remains.
+-- -----------------------------------------------------------------------------
+-- Report : TournamentRosterPacked  (PDF, Bold/RDL DETAIL dataset, subreport)
+-- Source : reporting.JobRosters_ExportTournament_ByTeam  (copied + cast-stripped)
+-- Contract: parameterized SELECT for Bold/RDL subreport dataset binding. Called
+--           once per team from the master's row, with @teamID passed in.
+--           Returns one row per registrant (Staff + Players) for that team.
+-- Changes vs source:
+--   * stripped all convert(varchar(...)) casts per cast policy (every wrapped
+--     value is already nvarchar -- upper/substring/replace preserve source type;
+--     casts were Crystal-era ASCII downcasts, cosmetic only)
+--   * removed source's commented-out exploratory SELECT block
+--   * KEPT a dev-time default for @teamID -- subreport always overrides at
+--     runtime; default just eases interactive EXEC during testing
+--   * NO filter additions -- master SP already filters out WAITLIST/DROPPED
+--     agegroups and inactive teams, so by the time this is called per @teamID
+--     the team has already been pre-vetted upstream
+-- -----------------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE [reporting_migrate].[JobRosters_ExportTournament_ByTeam]
+    @teamID uniqueidentifier = '41864a3e-c385-44ee-a2d6-515ee248f6eb' -- dev-time default; subreport always overrides
+AS
+SET NOCOUNT ON;
+
+select
+        upper(u.FirstName) + ' ' + upper(u.LastName) as player
+    ,   replace(r.uniform_no, '#', '') as uniform_no
+    ,   upper(t.teamName) as teamName
+    ,   upper(rCR.club_name) as clubAssociation
+    ,   case when uCR.FirstName = 'Club' and uCR.LastName = 'Rep' then '' else upper(uCR.FirstName + ' ' + uCR.LastName) end as coach
+    ,   case when uCR.FirstName = 'Club' and uCR.LastName = 'Rep' then '' else uCR.email end as coach_email
+    ,   upper(ag.agegroupName) as agegroupName
+    ,   case when roles.name = 'Staff'
+            then substring(u.cellphone, 1, 3) + '-' + substring(u.cellphone, 4, 3) + '-' + substring(u.cellphone, 7, 4)
+            else r.school_name
+        end as school_name
+    ,   r.position
+    ,   r.grad_year
+    ,   case coalesce(r.bCollegeCommit, 0) when 0 then '' else 'yes' end as bCollegeCommit
+    ,   r.gpa
+    ,   r.college_commit
+    ,   case when uCR.FirstName = 'Club' and uCR.LastName = 'Rep' then '' else substring(uCR.cellphone, 1, 3) + '-' + substring(uCR.cellphone, 4, 3) + '-' + substring(uCR.cellphone, 7, 4) end as coach_cellphone
+from
+    Jobs.Registrations r
+    inner join dbo.AspNetRoles roles on r.RoleId = roles.Id
+    inner join Leagues.teams t on r.assigned_teamID = t.teamID
+    inner join Jobs.Registrations rCR on t.clubrep_registrationid = rCR.RegistrationID
+    inner join dbo.AspNetUsers uCR on rCR.UserId = uCR.Id
+    inner join Leagues.leagues l on t.leagueID = l.leagueID
+    inner join Leagues.agegroups ag on t.agegroupID = ag.agegroupID
+    inner join Leagues.divisions d on t.divID = d.divID
+    inner join dbo.AspNetUsers u on r.UserId = u.Id
+    left join dbo.AspNetUsers uF on r.Family_UserId = uF.Id
+    left join dbo.Families f on uF.Id = f.Family_UserId
+where
+    t.teamID = @teamID
+    and r.bActive = 1
+    and roles.Name in ('Staff', 'Player')
+order by
+    roles.Name desc, -- Staff first, then Players
+    u.LastName,
+    u.FirstName;
+GO
+
+PRINT 'reporting_migrate.JobRosters_ExportTournament_ByTeam installed.';
+GO
+
+-- -----------------------------------------------------------------------------
+-- Report : TournamentRosterPacked  (PDF, Bold/RDL flat dataset; single Tablix)
+-- Replaces: reporting_migrate.tourneyteams_for_masterdetail  (master)
+--           reporting_migrate.JobRosters_ExportTournament_ByTeam  (subreport)
+-- Why    : Master-detail subreport architecture forced N+1 SP calls (1 master +
+--          one per team) and required cross-RDL file resolution (subreport
+--          ReportName as an absolute Windows path -- not deploy-portable).
+--          Also: SSRS column-group scope rules forbid RowNumber("Details") in
+--          the column hierarchy, so a per-division 3-up matrix wrap is not
+--          expressible in the layout layer alone. Cleanest fix is a flat
+--          dataset with a precomputed divTeamRow.
+-- Contract: one row per registrant (Staff + Player) of every team in the
+--           tournament. Team-header fields (clubTeamName) denormalized onto
+--           every registrant row. Includes divTeamRow = ROW_NUMBER() OVER
+--           (PARTITION BY agegroupName, divName ORDER BY clubTeamName, teamID)
+--           so the parent RDL can drive a 3-up matrix wrap via
+--             row group   = Ceiling(divTeamRow / 3)
+--             column group = (divTeamRow - 1) Mod 3
+--           and a teamID row group for the team panel.
+-- Filters : Same as legacy master (active teams, exclude WAITLIST/DROPPED
+--           agegroups, scheduled-for-this-job teams via Leagues.schedule).
+-- -----------------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE [reporting_migrate].[TournamentRosterPacked_Flat]
+    @jobID uniqueidentifier = '66036c7b-e1e8-4110-977f-f786353f2498' -- lftc-summer-2026 dev-time default; executor overrides
+AS
+SET NOCOUNT ON;
+
+with TournamentTeams as (
+    select distinct
+            t.teamID
+        ,   ag.agegroupName
+        ,   d.divName
+        ,   case when rCR.Club_Name is null then upper(t.teamName)
+                 else upper(rCR.Club_Name + ':' + t.teamName)
+            end as clubTeamName
+        -- Club rep contact (per-team, denormalized onto every registrant row).
+        -- 'Club Rep' is the dummy placeholder user for teams that have no real
+        -- club rep assigned; suppress those to empty strings (legacy convention).
+        ,   case when uCR.FirstName = 'Club' and uCR.LastName = 'Rep' then ''
+                 else upper(uCR.FirstName + ' ' + uCR.LastName)
+            end as clubRepName
+        ,   case when uCR.FirstName = 'Club' and uCR.LastName = 'Rep' then ''
+                 else substring(uCR.cellphone, 1, 3) + '-' + substring(uCR.cellphone, 4, 3) + '-' + substring(uCR.cellphone, 7, 4)
+            end as clubRepCellphone
+        ,   case when uCR.FirstName = 'Club' and uCR.LastName = 'Rep' then ''
+                 else uCR.email
+            end as clubRepEmail
+    from
+        Leagues.schedule s
+        inner join Leagues.teams t        on t.teamID in (s.T1_ID, s.T2_ID)
+        inner join Leagues.agegroups ag   on t.agegroupID = ag.agegroupID
+        inner join Leagues.divisions d    on t.divID = d.divID
+        left  join Jobs.Registrations rCR on t.clubrep_registrationid = rCR.RegistrationID
+        left  join dbo.AspNetUsers uCR    on rCR.UserId = uCR.Id
+    where
+        s.jobID = @jobID
+        and t.active = 1
+        and ag.agegroupName not like '%WAITLIST%'
+        and ag.agegroupName not like '%DROPPED%'
+)
+select
+        tt.agegroupName
+    ,   tt.divName
+    ,   tt.teamID
+    ,   tt.clubTeamName
+    ,   tt.clubRepName
+    ,   tt.clubRepCellphone
+    ,   tt.clubRepEmail
+    ,   dense_rank() over (partition by tt.agegroupName, tt.divName
+                           order by tt.clubTeamName, tt.teamID) as divTeamRow
+    ,   upper(u.FirstName) + ' ' + upper(u.LastName) as player
+    ,   replace(r.uniform_no, '#', '') as uniform_no
+    ,   r.position
+    ,   case when roles.Name = 'Staff'
+            then substring(u.cellphone, 1, 3) + '-' + substring(u.cellphone, 4, 3) + '-' + substring(u.cellphone, 7, 4)
+            else r.school_name
+        end as school_name
+    ,   case coalesce(r.bCollegeCommit, 0) when 0 then '' else 'yes' end as bCollegeCommit
+    ,   roles.Name as roleName
+    ,   case when roles.Name = 'Staff' then 0 else 1 end as roleSort
+from
+    TournamentTeams tt
+    inner join Jobs.Registrations r   on r.assigned_teamID = tt.teamID
+    inner join dbo.AspNetRoles roles  on r.RoleId = roles.Id
+    inner join dbo.AspNetUsers u      on r.UserId = u.Id
+where
+    r.bActive = 1
+    and roles.Name in ('Staff', 'Player')
+order by
+        tt.agegroupName
+    ,   tt.divName
+    ,   tt.clubTeamName
+    ,   tt.teamID
+    ,   case when roles.Name = 'Staff' then 0 else 1 end
+    ,   u.LastName
+    ,   u.FirstName;
+GO
+
+PRINT 'reporting_migrate.TournamentRosterPacked_Flat installed.';
+GO
