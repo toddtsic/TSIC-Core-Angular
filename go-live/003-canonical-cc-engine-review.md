@@ -30,7 +30,7 @@ No fixes applied. Each finding below is its own decision.
 
 ## Triage status
 
-- [ ] Issue 1 — PIF upgrade persists on declined CC
+- [x] Issue 1 — PIF upgrade persists on declined CC (fixed in `bbbfd960`)
 - [ ] Issue 2 — AMOUNT_MISMATCH only catches OVER, not stale-LOW
 - [ ] Issue 3 — OwedTotal recompute over-credits prior-eCheck combo
 - [ ] Issue 4 — No try/catch around ADN_Charge or credentials lookup
