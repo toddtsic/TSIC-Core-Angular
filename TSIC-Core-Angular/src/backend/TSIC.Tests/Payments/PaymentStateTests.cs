@@ -165,6 +165,99 @@ public class PaymentStateTests
         s.ProcFeeDue(1000m, 50m, 25m).Should().BeApproximately(875m * 0.038m, 0.005m);
     }
 
+    // ── DepositPrincipalRemaining: deposit-phase analog of PrincipalRemaining ──
+    //
+    // Mirrors the PrincipalRemaining shape but scoped to the deposit obligation.
+    // Used by the team-registration "Deposit Due" display column. The bug it
+    // replaced: the prior ad-hoc formula compared structural deposit against
+    // gross PaidTotal, so a team that paid a DISCOUNTED deposit (e.g. $500
+    // principal × 1.038 = $519 gross) showed Deposit Due $81 instead of $0.
+
+    [Fact(DisplayName = "DepositRemaining: discount applied at deposit time — paid discounted deposit clears it")]
+    public void DepositRemaining_DiscountedDepositFullyPaid_Zero()
+    {
+        // Deposit $600 − $100 discount = $500 effective; CC gross $519 → $500 principal.
+        var s = State(cc: 519m, ccRate: 0.038m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 0m)
+            .Should().BeApproximately(0m, 0.005m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: full deposit paid via CC (no discount) — clears via PrincipalPaid, not gross PaidTotal")]
+    public void DepositRemaining_FullCcDeposit_Zero()
+    {
+        // Deposit $600 fully paid: CC gross $622.80 = $600 principal + $22.80 proc.
+        // Old formula `paidTotal >= deposit` worked here by luck; new formula clears via principal.
+        var s = State(cc: 622.80m, ccRate: 0.038m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m)
+            .Should().BeApproximately(0m, 0.005m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: nothing paid, no modifiers — owes full deposit")]
+    public void DepositRemaining_NoPaymentNoModifiers_FullDeposit()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m).Should().Be(600m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: late fee added before payment — owes inflated deposit")]
+    public void DepositRemaining_LateFeeNoPayment_InflatedDeposit()
+    {
+        // Symmetric to the discount bug: previously late fee was ignored, so a team
+        // that registered late would under-display Deposit Due as just the structural $600.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 50m).Should().Be(650m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: late-fee-inclusive deposit paid — clears to 0")]
+    public void DepositRemaining_LateFeeInclusiveDepositPaid_Zero()
+    {
+        // Deposit $600 + $50 late = $650; CC gross $674.70 = $650 principal + $24.70 proc.
+        var s = State(cc: 674.70m, ccRate: 0.038m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 50m)
+            .Should().BeApproximately(0m, 0.005m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: discount + late fee combine like PrincipalRemaining")]
+    public void DepositRemaining_DiscountAndLateFee_Combine()
+    {
+        // Effective = 600 − 100 + 50 = 550; CC gross paid $570.90 = $549.999... principal
+        // (within decimal precision of $550).
+        var s = State(cc: 570.90m, ccRate: 0.038m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 50m)
+            .Should().BeApproximately(0m, 0.005m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: discount > deposit — effective deposit clamps at 0")]
+    public void DepositRemaining_DiscountExceedsDeposit_Zero()
+    {
+        // Big discount swallows the deposit entirely; remainder floats to balance via OwedTotal.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 800m, lateFee: 0m).Should().Be(0m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: partial pay — owes the gap")]
+    public void DepositRemaining_PartialCheckPay_OwesGap()
+    {
+        // Deposit $600 − $100 discount = $500 effective; paid $300 by check.
+        var s = State(check: 300m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 0m).Should().Be(200m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: proc disabled — gross = principal, exact-pay clears")]
+    public void DepositRemaining_ProcDisabled_GrossEqualsPrincipal()
+    {
+        var s = State(cc: 500m, bAdd: false);
+        s.DepositPrincipalRemaining(deposit: 500m, discount: 0m, lateFee: 0m).Should().Be(0m);
+    }
+
+    [Fact(DisplayName = "DepositRemaining: deposit overpaid (balance bleed) — clamps at 0")]
+    public void DepositRemaining_Overpaid_ClampsAtZero()
+    {
+        // Team paid into balance phase; deposit obligation long satisfied.
+        var s = State(check: 1500m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m).Should().Be(0m);
+    }
+
     // ── ResolveOwed: the single per-method owed resolver ──
 
     [Fact(DisplayName = "ResolveOwed: pristine team — CC full, check drops CC proc, eCheck drops only the rate difference")]

@@ -79,6 +79,24 @@ public record PaymentState
         System.Math.Max(0m, (feeBase - discount + lateFee) - PrincipalPaid);
 
     /// <summary>
+    /// Deposit-phase principal still owed. Mirrors <see cref="PrincipalRemaining"/>
+    /// scoped to the deposit obligation: discount reduces it, late fee adds to it,
+    /// over-payment clamps at 0 so a deposit covered by mixed payments (or by a
+    /// payment that absorbed a discount) shows as fully paid.
+    ///
+    /// Edge case: a late fee added AFTER the deposit was already fully paid will
+    /// slightly over-state deposit-due here. The rep's actual charge is unaffected
+    /// because per-method owed flows through <see cref="ResolveOwed"/>, which
+    /// anchors on OwedTotal — this helper only powers the per-row "Deposit Due"
+    /// display column.
+    /// </summary>
+    public decimal DepositPrincipalRemaining(decimal deposit, decimal discount, decimal lateFee)
+    {
+        var effective = System.Math.Max(0m, deposit - discount + lateFee);
+        return System.Math.Max(0m, effective - PrincipalPaid);
+    }
+
+    /// <summary>
     /// Proc-fee component currently owed (display "ProcFee Due") — what would
     /// still be charged as proc if the remaining principal is CC-billed.
     /// </summary>

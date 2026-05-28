@@ -456,14 +456,16 @@ public class TeamRegistrationService : ITeamRegistrationService
             var resolved = feesByTeamId.GetValueOrDefault(t.TeamId);
             var deposit = resolved?.Deposit ?? 0m;
             var balanceDue = resolved?.BalanceDue ?? 0m;
-            var depositDue = t.PaidTotal >= deposit ? 0m : deposit - t.PaidTotal;
-            var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
 
             // Per-method owed from the single canonical resolver — the SAME
             // PaymentState.ResolveOwed the charge engine (PaymentService) uses, so the
             // totals the rep is shown for CC / check / eCheck equal exactly what each
             // method charges or records (keeps the AMOUNT_MISMATCH tripwire quiet).
+            // Deposit-phase owed goes through the parallel DepositPrincipalRemaining
+            // helper so the display row factors discount/late-fee the same way owed math does.
             var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
+            var depositDue = state.DepositPrincipalRemaining(deposit, t.FeeDiscount, t.FeeLatefee);
+            var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
             var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
             var ccOwedTotal = owed.Cc;
             var ckOwedTotal = owed.Check;
