@@ -258,6 +258,73 @@ public class PaymentStateTests
         s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m).Should().Be(0m);
     }
 
+    // ── BalancePrincipalRemaining: full-payment-phase "Balance Due" display column ──
+    //
+    // Balance-phase analog of DepositPrincipalRemaining (total principal remaining
+    // minus the deposit-phase remainder). The bug it replaced: the prior display
+    // returned the immutable structural balance and ignored every payment but a
+    // full-pay, so a team that received a director check/correction while the rep
+    // was away showed "Balance Due" identical to a team that had paid nothing —
+    // even though CC/Check Owed (via ResolveOwed) reflected the payment correctly.
+    // FeeBase = Deposit + BalanceDue throughout (full-payment phase).
+
+    [Fact(DisplayName = "BalanceRemaining: nothing paid — owes the full structural balance")]
+    public void BalanceRemaining_NoPayment_FullBalance()
+    {
+        // Deposit $600, balance $2000, FeeBase $2600. Deposit unpaid → balance untouched.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+            .Should().Be(2000m);
+    }
+
+    [Fact(DisplayName = "BalanceRemaining: deposit paid, balance untouched — still owes full balance")]
+    public void BalanceRemaining_DepositOnlyPaid_FullBalance()
+    {
+        // $600 deposit paid by check; deposit obligation cleared, balance unchanged.
+        var s = State(check: 600m);
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+            .Should().Be(2000m);
+    }
+
+    [Fact(DisplayName = "BalanceRemaining: director check covers deposit + part of balance — nets out the payment")]
+    public void BalanceRemaining_CheckBleedsIntoBalance_NetsPayment()
+    {
+        // The reported scenario: no deposit paid, then a $1,000 director check applied.
+        // Deposit $600 satisfied first; remaining $400 reduces the $2,000 balance → $1,600.
+        // Old display returned the structural $2,000 (identical to an unpaid team).
+        var s = State(check: 1000m);
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+            .Should().Be(1600m);
+    }
+
+    [Fact(DisplayName = "BalanceRemaining: fully paid — clamps at 0")]
+    public void BalanceRemaining_FullyPaid_Zero()
+    {
+        var s = State(check: 2600m);
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+            .Should().Be(0m);
+    }
+
+    [Fact(DisplayName = "BalanceRemaining: discount absorbed by deposit — balance unaffected until deposit clears")]
+    public void BalanceRemaining_DiscountWithinDeposit_BalanceUnchanged()
+    {
+        // $100 discount reduces the deposit obligation; the balance is still the full $2000
+        // while the (discounted) deposit is unpaid. Mirrors PrincipalRemaining/DepositRemaining
+        // both carrying the discount, which cancels in the difference.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 100m, lateFee: 0m)
+            .Should().Be(2000m);
+    }
+
+    [Fact(DisplayName = "BalanceRemaining: CC payment nets out at principal, not gross")]
+    public void BalanceRemaining_CcPayment_NetsPrincipalNotGross()
+    {
+        // CC gross $1038 → $1000 principal at 3.8%. Deposit $600 cleared, $400 into balance.
+        var s = State(cc: 1038m, ccRate: 0.038m);
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+            .Should().BeApproximately(1600m, 0.01m);
+    }
+
     // ── ResolveOwed: the single per-method owed resolver ──
 
     [Fact(DisplayName = "ResolveOwed: pristine team — CC full, check drops CC proc, eCheck drops only the rate difference")]

@@ -97,6 +97,29 @@ public record PaymentState
     }
 
     /// <summary>
+    /// Full-payment-phase balance still owed beyond the deposit — powers the
+    /// per-row "Balance Due" display column. The balance-phase analog of
+    /// <see cref="DepositPrincipalRemaining"/>: total principal still owed minus
+    /// the deposit-phase remainder, so payments draw down the deposit obligation
+    /// first and only the surplus reduces the balance.
+    ///
+    /// Anchored on the same <see cref="PrincipalRemaining"/> the owed resolver
+    /// uses, so ANY payment allocated to a team — including a director-recorded
+    /// check or correction posted while the rep was away — flows into this column
+    /// exactly as it flows into CC/Check owed. The column cannot drift from the
+    /// canonical owed math. (Replaces the prior ad-hoc display that returned the
+    /// immutable structural balance and ignored every payment but a full-pay.)
+    ///
+    /// Only meaningful in the full-payment phase, where FeeBase = Deposit +
+    /// BalanceDue; in the deposit phase the balance is not yet active.
+    /// </summary>
+    public decimal BalancePrincipalRemaining(decimal feeBase, decimal deposit, decimal discount, decimal lateFee) =>
+        System.Math.Max(
+            0m,
+            PrincipalRemaining(feeBase, discount, lateFee)
+                - DepositPrincipalRemaining(deposit, discount, lateFee));
+
+    /// <summary>
     /// Proc-fee component currently owed (display "ProcFee Due") — what would
     /// still be charged as proc if the remaining principal is CC-billed.
     /// </summary>

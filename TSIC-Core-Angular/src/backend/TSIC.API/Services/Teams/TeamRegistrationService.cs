@@ -465,7 +465,15 @@ public class TeamRegistrationService : ITeamRegistrationService
             // helper so the display row factors discount/late-fee the same way owed math does.
             var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
             var depositDue = state.DepositPrincipalRemaining(deposit, t.FeeDiscount, t.FeeLatefee);
-            var additionalDue = (t.OwedTotal == 0m && bTeamsFullPaymentRequired) ? 0m : balanceDue;
+            // Full-payment phase: the balance is active (FeeBase = Deposit + BalanceDue),
+            // so "Balance Due" must net out every payment — including a director-recorded
+            // check/correction applied while the rep was away. Derive it from the canonical
+            // PaymentState (BalancePrincipalRemaining) so it can never disagree with the
+            // CC/Check Owed columns. Deposit phase: balance not yet active — show the
+            // configured structural balance as a forward-looking "still to come" value.
+            var additionalDue = bTeamsFullPaymentRequired
+                ? state.BalancePrincipalRemaining(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee)
+                : balanceDue;
             var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
             var ccOwedTotal = owed.Cc;
             var ckOwedTotal = owed.Check;
