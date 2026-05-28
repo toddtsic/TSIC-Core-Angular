@@ -8,3 +8,4 @@ Each numbered file is one investigation into a specific shape of catastrophic-cl
 
 - [001 — Environment / config drift](001-env-config-drift.md) — prod referenced dev endpoints once; could the reverse happen and hit real money / real customers from a dev or staging deploy? **(closed 2026-05-19)**
 - [002 — Money moves wrong](002-money-moves-wrong.md) — does the system ever charge, refund, recurring-bill, or record the wrong amount, twice, or to the wrong merchant? **(open)**
+- [003 — Canonical CC engine refactor review](003-canonical-cc-engine-review.md) — max-effort code review of commits `893618d..bfae003` (player CC engine consolidation + eCheck proc-credit hoist + club-rep financial sync). 15 findings ranked by severity. **(open — created 2026-05-28)**
