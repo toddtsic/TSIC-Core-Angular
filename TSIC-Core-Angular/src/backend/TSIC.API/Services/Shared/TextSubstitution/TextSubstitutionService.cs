@@ -660,7 +660,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             var deposit = resolved?.Deposit ?? 0m;
             var additional = resolved?.BalanceDue ?? 0m;
 
-            var owedRow = (t.OwedTotal == 0 && (t.PaidTotal >= (deposit + additional))) ? 0m : (deposit + additional + (t.ProcessingFees ?? 0m) - (t.PaidTotal ?? 0m));
+            // "Owes$" is the team's authoritative outstanding balance — read OwedTotal
+            // directly rather than reconstructing it from deposit + balance + proc - paid.
+            // The ad-hoc form ignored discounts, dropped late fees, compared gross paid
+            // against structural fees, and overstated owed during the deposit phase, so the
+            // emailed figure could disagree with the payment screen (which anchors on
+            // OwedTotal via PaymentState.ResolveOwed).
+            var owedRow = Math.Max(0m, t.OwedTotal ?? 0m);
             sumOwed += owedRow;
             sumPaid += (t.PaidTotal ?? 0m);
             sumDeposit += deposit;
