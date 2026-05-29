@@ -338,7 +338,9 @@
               <div class="input-group input-group-sm">
                 <span class="input-group-text">$</span>
                 <input type="number" id="ledger-amount" class="form-control form-control-sm"
-                  [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="1" min="0" />
+                  [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="1"
+                  [min]="paymentType() === 'correction' ? -paidTotal() : 0"
+                  [max]="paymentType() === 'check' ? checkBalanceDue() : (paymentType() === 'correction' ? owedTotal() : null)" />
               </div>
               @if (paymentType() !== 'correction') {
                 <div class="owed-badge" [class.text-danger]="owedTotal() > 0" [class.text-success]="owedTotal() <= 0">
@@ -348,7 +350,27 @@
                   }
                 </div>
               } @else {
-                <small class="form-text text-muted">(+) payment &nbsp; (&ndash;) refund</small>
+                <small class="form-text text-muted">
+                  (+) payment up to {{ owedTotal() | currency }} owed
+                  &nbsp;·&nbsp;
+                  (&ndash;) refund up to {{ paidTotal() | currency }} paid
+                </small>
+              }
+              @if (checkExceedsBalance()) {
+                <div class="form-text text-danger">
+                  <small>Cannot exceed Balance Due of {{ checkBalanceDue() | currency }}.</small>
+                </div>
+              }
+              @if (correctionExceedsBounds()) {
+                <div class="form-text text-danger">
+                  <small>
+                    @if (amount() > owedTotal()) {
+                      Correction cannot exceed amount owed ({{ owedTotal() | currency }}).
+                    } @else {
+                      Correction cannot exceed amount paid ({{ paidTotal() | currency }} refundable).
+                    }
+                  </small>
+                </div>
               }
             </div>
             <div class="form-group">

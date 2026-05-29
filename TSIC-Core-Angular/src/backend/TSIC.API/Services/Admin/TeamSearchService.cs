@@ -526,6 +526,47 @@ public sealed class TeamSearchService : ITeamSearchService
             var teamPaymentStates = await _paymentState.ForTeamsAsync(clubTeamIds, jobId, ct);
             var emptyTeamState = await BuildEmptyPaymentStateAsync(jobId, ct);
 
+            // Check-specific cap — sum of CkOwedTotal across teams in scope (one team
+            // when singleTeamId is set; all club teams otherwise). Tighter than the
+            // OwedTotal cap above because check skips processing fees. Mirrors the
+            // FE balance-due. Corrections keep the OwedTotal cap (intentional ± adj).
+            if (isCheck)
+            {
+                decimal scopeCheckOwed = 0m;
+                foreach (var capTeam in clubTeams)
+                {
+                    var capState = teamPaymentStates.GetValueOrDefault(capTeam.TeamId, emptyTeamState);
+                    var capOwed = capState.ResolveOwed(
+                        capTeam.OwedTotal ?? 0m,
+                        capTeam.FeeBase ?? 0m,
+                        capTeam.FeeDiscount ?? 0m,
+                        capTeam.FeeLatefee ?? 0m,
+                        capTeam.FeeProcessing ?? 0m);
+                    scopeCheckOwed += capOwed.Check;
+                }
+                if (request.Amount > scopeCheckOwed)
+                    return new TeamCheckOrCorrectionResponse { Success = false, Error = $"Check payment ({request.Amount:C}) exceeds check balance ({scopeCheckOwed:C})." };
+            }
+            else
+            {
+                // Correction bounds — invariant: balance stays in [0, FeeTotal].
+                // Upper = sum(OwedTotal) ("can't charge more than they owe"),
+                // lower = -sum(PaidTotal) ("can't credit more than they paid").
+                // Per-scope (one team when singleTeamId, club aggregate otherwise) —
+                // mirrors the same scoping discipline as the check cap above.
+                decimal scopeOwed = 0m;
+                decimal scopePaid = 0m;
+                foreach (var capTeam in clubTeams)
+                {
+                    scopeOwed += capTeam.OwedTotal ?? 0m;
+                    scopePaid += capTeam.PaidTotal ?? 0m;
+                }
+                if (request.Amount > scopeOwed)
+                    return new TeamCheckOrCorrectionResponse { Success = false, Error = $"Correction ({request.Amount:C}) exceeds amount owed ({scopeOwed:C})." };
+                if (request.Amount < -scopePaid)
+                    return new TeamCheckOrCorrectionResponse { Success = false, Error = $"Correction ({request.Amount:C}) exceeds amount paid ({scopePaid:C} refundable)." };
+            }
+
             var allocations = new List<TeamPaymentAllocation>();
             var remainingBalance = request.Amount;
 

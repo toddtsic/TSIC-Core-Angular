@@ -73,10 +73,11 @@ public class PlayerCheckTests
 
         var arbRepo = new Mock<IArbSubscriptionRepository>();
         var familiesRepo = new Mock<IFamiliesRepository>();
+        var paymentState = new PaymentStateService(accountingRepo, jobRepo.Object);
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo.Object, deviceRepo.Object,
             new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,
-            emailService.Object, feeAdjustment, new Mock<IPaymentService>().Object, logger.Object);
+            emailService.Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState, logger.Object);
 
         return (svc, builder, ctx, job.JobId);
     }

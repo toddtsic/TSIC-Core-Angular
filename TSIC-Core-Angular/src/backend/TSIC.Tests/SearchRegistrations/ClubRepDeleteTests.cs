@@ -48,6 +48,7 @@ public class ClubRepDeleteTests
             new Mock<ITextSubstitutionService>().Object, new Mock<IEmailService>().Object,
             new Mock<IRegistrationFeeAdjustmentService>().Object,
             new Mock<IPaymentService>().Object,
+            new Mock<IPaymentStateService>().Object,
             new Mock<ILogger<RegistrationSearchService>>().Object);
 
         return (svc, b, job.JobId);

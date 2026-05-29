@@ -167,6 +167,22 @@ export class AccountingLedgerComponent {
 	/** Processing fees removed by paying via check/correction = CC owed − check owed. */
 	totalFeeReduction = computed(() => Math.max(0, this.owedTotal() - this.checkBalanceDue()));
 
+	/** True when typed check amount exceeds the canonical balance due — drives the
+	 *  inline error and disables Submit. Corrections are intentional ± adjustments
+	 *  and are excluded from this guard. */
+	checkExceedsBalance = computed(() =>
+		this.paymentType() === 'check' && this.amount() > this.checkBalanceDue()
+	);
+
+	/** Correction bounds — invariant: paid balance stays in [0, FeeTotal].
+	 *  Upper = OwedTotal ("can't charge more than they owe"),
+	 *  lower = -PaidTotal ("can't credit more than they paid"). */
+	correctionExceedsBounds = computed(() => {
+		if (this.paymentType() !== 'correction') return false;
+		const amt = this.amount();
+		return amt > this.owedTotal() || amt < -this.paidTotal();
+	});
+
 	openPaymentModal(): void {
 		this.paymentType.set('check');
 		this.amount.set(this.checkBalanceDue());
@@ -245,11 +261,14 @@ export class AccountingLedgerComponent {
 				&& !!this.ccFirstName() && !!this.ccLastName();
 		}
 		if (type === 'check') {
-			return amt > 0;
+			return amt > 0 && amt <= this.checkBalanceDue();
 		}
 		if (type === 'refund') {
 			const maxRefund = this.refundRecord()?.paidAmount ?? 0;
 			return amt > 0 && amt <= maxRefund;
+		}
+		if (type === 'correction') {
+			return amt !== 0 && amt <= this.owedTotal() && amt >= -this.paidTotal();
 		}
 		return amt !== 0;
 	}

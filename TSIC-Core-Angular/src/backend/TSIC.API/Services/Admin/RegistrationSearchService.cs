@@ -30,6 +30,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IEmailService _emailService;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentService _paymentService;
+    private readonly IPaymentStateService _paymentState;
     private readonly ILogger<RegistrationSearchService> _logger;
 
     // Known payment method GUIDs. CC charging itself goes through PaymentService's
@@ -53,6 +54,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IEmailService emailService,
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentService paymentService,
+        IPaymentStateService paymentState,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -67,6 +69,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _emailService = emailService;
         _feeAdjustment = feeAdjustment;
         _paymentService = paymentService;
+        _paymentState = paymentState;
         _logger = logger;
     }
 
@@ -381,6 +384,28 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         var regForValidation = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct);
         if (regForValidation != null && request.Amount > regForValidation.OwedTotal)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Amount ${request.Amount:F2} exceeds the balance owed of ${regForValidation.OwedTotal:F2}." };
+
+        // Check-specific cap — CkOwed (CC owed minus the processing-fee credit that
+        // a check would skip). Tighter than the OwedTotal cap above; mirrors the FE
+        // balance-due. Corrections keep the OwedTotal cap (intentional ± adjustments).
+        if (isCheck && regForValidation != null)
+        {
+            var state = await _paymentState.ForRegistrationAsync(request.RegistrationId, jobId, ct);
+            var owed = state.ResolveOwed(
+                regForValidation.OwedTotal,
+                regForValidation.FeeBase,
+                regForValidation.FeeDiscount,
+                regForValidation.FeeLatefee,
+                regForValidation.FeeProcessing);
+            if (request.Amount > owed.Check)
+                return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Check payment ${request.Amount:F2} exceeds the check balance owed of ${owed.Check:F2}." };
+        }
+
+        // Correction lower-floor — invariant: balance stays in [0, FeeTotal]. Upper
+        // bound covered by the OwedTotal cap above ("can't charge more than owed");
+        // this adds the symmetric floor ("can't credit more than paid").
+        if (isCorrection && regForValidation != null && request.Amount < -regForValidation.PaidTotal)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Correction ${request.Amount:F2} exceeds the amount paid (${regForValidation.PaidTotal:F2} refundable)." };
 
         var paymentMethodId = isCheck ? CheckMethodId : CorrectionMethodId;
 
