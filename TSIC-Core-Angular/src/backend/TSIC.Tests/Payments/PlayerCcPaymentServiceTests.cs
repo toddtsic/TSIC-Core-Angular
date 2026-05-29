@@ -130,7 +130,22 @@ public class PlayerCcPaymentServiceTests
             FeeTotal = owed,
             OwedTotal = owed,
             PaidTotal = 0m,
+            BActive = false, // mirrors PlayerRegistrationService creation default
         };
+
+    private void StubAdnSuccess(string transId = "txn-success")
+    {
+        _adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
+            .Returns(new createTransactionResponse
+            {
+                messages = new messagesType { resultCode = messageTypeEnum.Ok, message = [new messagesTypeMessage { code = "I00001", text = "Successful" }] },
+                transactionResponse = new transactionResponse
+                {
+                    transId = transId,
+                    messages = [new transactionResponseMessage { code = "1", description = "Approved" }]
+                }
+            });
+    }
 
     private static CreditCardInfo ValidCard() => new()
     {
@@ -151,6 +166,29 @@ public class PlayerCcPaymentServiceTests
         PaymentOption = PaymentOption.PIF,
         CreditCard = ValidCard()
     };
+
+    [Fact(DisplayName = "CC success → BActive flips true (003 Issue 5)")]
+    public async Task CcSuccess_FlipsBActiveTrue()
+    {
+        var jobId = Guid.NewGuid();
+        var reg = Reg(jobId, owed: 250m);
+        reg.BActive = false; // Pre-payment state from PlayerRegistrationService:459/495
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, reg);
+        // No PIF upgrade — paying the deposit straight via PIF.
+        StubAdnSuccess();
+        var sut = BuildSut();
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, PifReq(), ActingUserId);
+
+        result.Success.Should().BeTrue();
+        // Pre-refactor (UpdateRegistrationsForCharge) set BActive=true on parent CC
+        // success. The canonical engine success branch must do the same — without it,
+        // every "active registration" query in the system filters the paid player out.
+        reg.BActive.Should().BeTrue("paid CC registration must be active");
+        reg.PaidTotal.Should().Be(250m);
+        reg.OwedTotal.Should().Be(0m);
+    }
 
     [Fact(DisplayName = "PIF + ADN decline → pre-PIF fee fields are restored (003 Issue 1)")]
     public async Task PifDecline_RestoresPrePifFeeFields()

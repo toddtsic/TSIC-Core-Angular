@@ -1460,6 +1460,11 @@ public class PaymentService : IPaymentService
             reg.PaidTotal += item.Amount;
             reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
             if (reg.OwedTotal < 0m) reg.OwedTotal = 0m;
+            // Flip the registration active. Pre-refactor parent CC went through
+            // UpdateRegistrationsForCharge which set this; the canonical engine
+            // success branch must match — every consumer (rosters, coach views,
+            // batch email, division counts, JobFilterTree, ARB) gates on BActive==true.
+            reg.BActive = true;
             reg.Modified = DateTime.UtcNow;
             reg.LebUserId = userId;
         }
