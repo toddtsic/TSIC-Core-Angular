@@ -32,7 +32,7 @@ No fixes applied. Each finding below is its own decision.
 
 - [x] Issue 1 — PIF upgrade persists on declined CC (initial fix `bbbfd960` was a no-op; corrected in `e78a4b00`)
 - [x] Issue 2 — AMOUNT_MISMATCH only catches OVER, not stale-LOW — **REFUTED** (see below)
-- [ ] Issue 3 — OwedTotal recompute over-credits prior-eCheck combo
+- [x] Issue 3 — OwedTotal recompute over-credits prior-eCheck combo — **VERIFIED, demoted to LOW** (parked behind `eCheck_newly_introduced`)
 - [ ] Issue 4 — No try/catch around ADN_Charge or credentials lookup
 - [ ] Issue 5 — `BActive=true` no longer set on parent CC success
 - [ ] Issue 6 — SyncRep drops PaidTotal when paid team goes Active=false
@@ -74,13 +74,26 @@ No fixes applied. Each finding below is its own decision.
 
 ---
 
-## Issue 3 — OwedTotal recompute over-credits prior-eCheck combo (PLAUSIBLE) — **HIGH**
+## Issue 3 — OwedTotal recompute over-credits prior-eCheck combo (VERIFIED) — **LOW** (parked behind `eCheck_newly_introduced`)
 
-`PaymentService.cs:1449` — new engine sets `reg.OwedTotal = reg.FeeTotal - reg.PaidTotal`. The verifier agent confirmed: the player eCheck partial-pay path at `PaymentService.cs:1099-1107` decrements `FeeProcessing` and `OwedTotal` without touching `FeeTotal`. Subsequent CC charge via the new engine then recomputes against the STALE `FeeTotal`, undoing the prior eCheck credit. (Admin-check path is safe — `RegistrationSearchService.cs:413` recomputes `FeeTotal` alongside `FeeProcessing`.)
+**Mechanism.** Confirmed by reading the cited lines.
+- eCheck credit at `PaymentService.cs:1115-1116` decrements `FeeProcessing` and `OwedTotal` but does NOT mirror to `FeeTotal`.
+- `UpdateRegistrationsForCharge` at `PaymentService.cs:1761-1773` then bumps `PaidTotal += echeckCharge` and decrements `OwedTotal` (still does not touch `FeeTotal`).
+- A subsequent CC charge through `ChargeRegistrationsCcAsync` at `PaymentService.cs:1461` recomputes `reg.OwedTotal = reg.FeeTotal - reg.PaidTotal` against the stale `FeeTotal` — producing a spurious residual equal to the eCheck-time credit.
+- Admin-check path at `RegistrationSearchService.cs:413` is structurally safe: it recomputes `reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee` after the `FeeProcessing` change.
 
-**Failure scenario.** Reg FeeBase=500, FeeProcessing=19, FeeTotal=519, OwedTotal=519, PaidTotal=0. Parent pays $100 deposit via eCheck where `deposit > principalRemaining` (so `ProcCreditForCharge` at `PaymentState.cs:118` returns > 0): PaidTotal=100, FeeProcessing=15.2, OwedTotal=415.20, FeeTotal stays 519. Parent then CCs the $415.20 balance. New engine: `OwedTotal = 519 − 515.20 = $3.80` residual. Old `UpdateRegistrationsForCharge` (`OwedTotal -= charge`) would have resolved to $0.
+**Original failure-scenario numbers were wrong.** `ProcCreditForCharge` at `PaymentState.cs:152` returns 0 when `ccCharge ≤ principalRemaining` (where `principalRemaining = FeeBase - discount + lateFee - PrincipalPaid`). A $100 deposit against a $500 FeeBase therefore yields credit = 0 and does NOT trigger the mechanism. The real triggers are: (a) full-pay eCheck on a job with proc fees, where `ccCharge = OwedTotal` includes proc and exceeds principal; (b) deposit-phase eCheck on a job where `team.deposit ≥ FeeBase` (deposit covers or exceeds principal).
 
-**Probe.** Confirm the deposit-eCheck path is reachable for player self-pay today (Issue 3 may park if deposit eCheck for players isn't wired). Also: identify all entry points that mutate `OwedTotal`/`FeeProcessing` without mirroring to `FeeTotal`.
+**Corrected failure scenario.** Reg FeeBase=200, FeeProcessing=40, FeeTotal=240, OwedTotal=240, PaidTotal=0, team.deposit=230. Parent pays deposit via eCheck: `ccCharge = min(230, 240) = 230`, `principalRemaining = 200`, `procEmbeddedInCharge = max(0, 230-200) = 30`, `credit = min(rawCredit, 30) > 0` (say $5). Engine gateway-charges $225, then `FeeProcessing = 35`, `OwedTotal = 235 − 225 = 10`, `FeeTotal` stays 240. Parent later CCs the $10 balance. New engine: `PaidTotal = 235`, `OwedTotal = 240 − 235 = $5` residual. Old `UpdateRegistrationsForCharge` would have resolved to $0.
+
+**Direction of error.** Registrant is shown a spurious "$5 still owed" after paying in full at the (intended-discounted) eCheck rate. They either pay the residual (slight OVER-collection on the merchant side; no silent under-charge) or ignore it. Magnitude is bounded by the rate delta × charged principal-overhang — typically single-digit dollars.
+
+**Why demoted to LOW.**
+1. Live exposure is currently zero — per `eCheck_newly_introduced`, eCheck just launched with no prod sign-ups, so no registrant has hit this path.
+2. The bug favors over-collection, not under-collection or merchant loss — not catastrophic-class for the 003 charter.
+3. Admin path (the higher-volume settlement path) is structurally safe.
+
+**Suggested fix (deferred).** Mirror `FeeTotal` to the credit decrement at `PaymentService.cs:1115` (or recompute `FeeTotal = FeeBase + FeeProcessing - FeeDiscount + FeeDonation + FeeLatefee` after the credit, matching the admin pattern at `RegistrationSearchService.cs:413`). No action pre-go-live; revisit when eCheck has live volume or when the canonical recompute is otherwise being touched.
 
 ---
 
