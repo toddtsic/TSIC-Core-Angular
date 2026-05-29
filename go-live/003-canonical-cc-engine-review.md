@@ -33,7 +33,7 @@ No fixes applied. Each finding below is its own decision.
 - [x] Issue 1 — PIF upgrade persists on declined CC (initial fix `bbbfd960` was a no-op; corrected in `e78a4b00`)
 - [x] Issue 2 — AMOUNT_MISMATCH only catches OVER, not stale-LOW — **REFUTED** (see below)
 - [x] Issue 3 — OwedTotal recompute over-credits prior-eCheck combo — **VERIFIED, demoted to LOW** (parked behind `eCheck_newly_introduced`)
-- [ ] Issue 4 — No try/catch around ADN_Charge or credentials lookup
+- [x] Issue 4 — No try/catch around ADN_Charge or credentials lookup — **VERIFIED, demoted to MEDIUM** (regression from legacy, not catastrophic-class)
 - [ ] Issue 5 — `BActive=true` no longer set on parent CC success
 - [ ] Issue 6 — SyncRep drops PaidTotal when paid team goes Active=false
 - [ ] Issue 7 — Same-family concurrent submit → unguarded race
@@ -97,13 +97,23 @@ No fixes applied. Each finding below is its own decision.
 
 ---
 
-## Issue 4 — No try/catch around ADN_Charge or credentials lookup (VERIFIED) — **HIGH**
+## Issue 4 — No try/catch around ADN_Charge or credentials lookup (VERIFIED) — **MEDIUM** (regression from legacy)
 
-`PaymentService.cs:1347` (creds lookup) and `:1380` (ADN_Charge) — neither call is wrapped in try/catch. The old admin `ChargeCcAsync` wrapped the whole flow in `catch (Exception ex)` that stamped placeholder RA `Active=false` with `Comment="FAILED: {ex.Message}"`. New engine and the new admin wrapper at `RegistrationSearchService.cs:426` drop this. A thrown exception leaves the placeholder RA `Active=true Payamt=0` AND propagates as raw HTTP 500.
+**Mechanism.** Confirmed by reading the cited sources.
+- Credentials lookup at `PaymentService.cs:1359` (was `:1347` in original draft) and the gateway call at `:1392` (was `:1380`) are both bare — no try/catch wrap.
+- `AdnApiService.GetJobAdnCredentials_FromJobId` at `:58` THROWS `InvalidOperationException` when prod creds row is null/empty — it does NOT return null. The engine's null-check at `PaymentService.cs:1360` is therefore unreachable for the prod-misconfig case.
+- `AdnApiService.ExecuteTransaction` at `:503` calls `controller.Execute()` bare — the Authorize.Net SDK can throw on network/TLS errors.
+- Legacy admin `ChargeCcAsync` (pre-`893618de`) wrapped its body in `try { … } catch (Exception ex) { return $"Charge failed: {ex.Message}" }` at lines 439/533-536 of the pre-refactor file. The new engine and admin wrapper at `RegistrationSearchService.cs:426` dropped this wrap — confirmed regression.
 
-**Failure scenarios.**
-- Prod Customer row has null `AdnLoginId` → `GetJobAdnCredentials_FromJobId` throws `InvalidOperationException` before the engine's null-check at `:1349` ever runs. Friendly `MISSING_GATEWAY_CREDS` never reaches the client.
-- Network/TLS hiccup during `ADN_Charge` → SDK throws. Placeholder RA at `:1373` already committed. Failure-branch save at `:1415` never runs. Row sits `Active=true Payamt=0 AdnTransactionId=null` forever. The orphan detector keys on missing-RA-for-transId so this inverse orphan slips past.
+**Failure modes.**
+- **Mode A — prod creds misconfig.** Throw fires at `:1359` before the placeholder RA at `:1385` is created. User sees raw HTTP 500. One-time per customer setup error; doesn't recur once creds are configured.
+- **Mode B — SDK throw during gateway call.** Placeholder RA at `:1385` is already saved when `:1392` throws. The failure branch at `:1415-1427` only fires on ADN *error responses*, not exceptions, so the row stays permanently `Active=true Payamt=0 AdnTransactionId=null`. User sees raw HTTP 500.
+
+**Orphan-detector probe.** `AdnSweepService.DetectOrphanAsync` at `:718` iterates ADN-side transactions and tests each by `transId` against local RAs. Mode B's local-only orphan (transId=null) is invisible to it — there is no ADN transId to match. So the local placeholder is NOT auto-resolved. Note: the detector still catches the inverse case (money moved at ADN, no local row) if the SDK throw happened after ADN processed the request.
+
+**Why demoted from HIGH to MEDIUM.** Within the 003 charter (catastrophic-class = money-wrong / data-leak / silent corruption / auth bypass / mass comms failure), Mode B does NOT move money wrong — if the SDK threw before reaching ADN, no charge occurred; if after, the ADN-side detector catches it. Real impact is (a) bad UX (raw 500 instead of friendly "Charge failed" message) and (b) orphan placeholder RAs polluting per-registrant payment history in admin views. Both are regressions from legacy's behavior, but neither is business-ending.
+
+**Suggested fix (deferred).** Lift `try { … } catch (Exception ex) { stamp placeholder Active=false Comment="FAILED: {ex.Message}", _logger.LogError, return FailCcResult("CHARGE_GATEWAY_ERROR", $"Charge failed: {ex.Message}", regIds) }` around the body of `ChargeRegistrationsCcAsync` from the credentials lookup onward. Restores legacy contract + audit trail. Same shape should apply at `ExecuteEcheckChargeAsync` (PaymentService.cs:1087) and `ProcessArbAsync` (`:1244`), which share the bare-call pattern.
 
 ---
 
