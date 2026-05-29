@@ -376,18 +376,24 @@ export class ReportsLibraryComponent implements OnInit {
                     });
                 })();
 
-        this.toast.show(`Generating ${entry.title}...`, 'info', 3000);
+        // Sticky progress toast (timeout 0 = no auto-dismiss). Held until the
+        // response arrives so there's no awkward gap between "Generating…"
+        // disappearing and the file landing — especially for Bold PDFs which
+        // can take 10+ seconds. Dismissed explicitly in both next/error.
+        const progressId = this.toast.show(`Generating ${entry.title}...`, 'info', 0);
 
         download$.subscribe({
             next: response => {
                 const fallback = `TSIC-${entry.title.replace(/\W+/g, '-')}`;
                 this.reportingService.triggerDownload(response, fallback);
+                this.toast.dismiss(progressId);
                 this.toast.show(`${entry.title} downloaded`, 'success');
                 this.runningId.set(null);
                 this.pushRecent(entry.id);
             },
             error: err => {
                 this.runningId.set(null);
+                this.toast.dismiss(progressId);
                 const msg = err?.status === 401 ? 'You must be logged in to run this report.'
                     : err?.status === 403 ? 'You do not have permission to run this report.'
                     : 'Report failed to generate. Please try again.';

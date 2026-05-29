@@ -25,7 +25,8 @@ export class ToastService {
         danger: 0,
     };
 
-    show(message: string, type: ToastType = 'success', timeout?: number, title?: string) {
+    /** Returns the toast id so callers can dismiss long-running progress toasts on completion. */
+    show(message: string, type: ToastType = 'success', timeout?: number, title?: string): number {
         const id = this._nextId++;
         const resolvedTimeout = timeout ?? this.DEFAULT_TIMEOUTS[type];
         const toast: Toast = { id, message, type, title, timeout: resolvedTimeout };
@@ -34,6 +35,7 @@ export class ToastService {
         if (resolvedTimeout > 0) {
             setTimeout(() => this.dismiss(id), resolvedTimeout);
         }
+        return id;
     }
 
     dismiss(id: number) {
