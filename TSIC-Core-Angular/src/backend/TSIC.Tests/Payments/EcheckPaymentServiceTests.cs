@@ -93,13 +93,13 @@ public class EcheckPaymentServiceTests
     private void StubAdnSuccess(string transId)
     {
         _adn.Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new AdnChargeResult { Success = true, TransactionId = transId, ResponseCode = "1", MessageForUser = "Approved" });
+            .Returns(new AdnTxnResult { Success = true, TransactionId = transId, ResponseCode = "1", MessageForUser = "Approved" });
     }
 
     private void StubAdnFailure(string errorText)
     {
         _adn.Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new AdnChargeResult { Success = false, MessageForUser = errorText });
+            .Returns(new AdnTxnResult { Success = false, MessageForUser = errorText });
     }
 
     private static Registrations Reg(Guid jobId, decimal owed = 100m, decimal feeProcessing = 0m) =>

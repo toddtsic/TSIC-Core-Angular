@@ -92,7 +92,7 @@ public class EcheckTeamPaymentServiceTests
         foreach (var tx in transIds)
         {
             _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
-                .Returns(new AdnChargeResult { Success = true, TransactionId = tx, ResponseCode = "1", MessageForUser = "Approved" });
+                .Returns(new AdnTxnResult { Success = true, TransactionId = tx, ResponseCode = "1", MessageForUser = "Approved" });
         }
     }
 
@@ -333,9 +333,9 @@ public class EcheckTeamPaymentServiceTests
         StubTeams(jobId, [t1.TeamId, t2.TeamId], t1, t2);
         var seq = new MockSequence();
         _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new AdnChargeResult { Success = true, TransactionId = "TX-OK", ResponseCode = "1", MessageForUser = "Approved" });
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-OK", ResponseCode = "1", MessageForUser = "Approved" });
         _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new AdnChargeResult { Success = false, MessageForUser = "boom" });
+            .Returns(new AdnTxnResult { Success = false, MessageForUser = "boom" });
         var sut = BuildSut();
 
         var result = await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 400m, ValidBank());

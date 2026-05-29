@@ -208,13 +208,13 @@ public record AdnArbCreateResult
 }
 
 /// <summary>
-/// Normalized outcome of a single createTransaction charge (authCapture, CC or eCheck).
-/// Produced once at the API boundary (AdnApiService) so services never interpret the raw
-/// SDK response. <see cref="Success"/> is the transaction-level verdict
+/// Normalized outcome of a single createTransaction operation — charge (CC/eCheck),
+/// refund, or void. Produced once at the API boundary (AdnApiService) so services never
+/// interpret the raw SDK response. <see cref="Success"/> is the transaction-level verdict
 /// (transactionResponse.responseCode == "1"), NOT the envelope messages.resultCode — which
-/// Authorize.Net can set to Error on a transaction it actually approved and captured.
+/// Authorize.Net can set to Error on a transaction it actually approved/processed.
 /// </summary>
-public record AdnChargeResult
+public record AdnTxnResult
 {
     public required bool Success { get; init; }
     public string? TransactionId { get; init; }

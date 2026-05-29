@@ -29,8 +29,8 @@ public interface IAdnApiService
 
     // Normalized-result wrappers: the verdict is rendered once at the API boundary
     // (off transactionResponse.responseCode), so services never interpret raw responses.
-    AdnChargeResult ADN_Charge_Result(AdnChargeRequest request);
-    AdnChargeResult ADN_ChargeBankAccount_Result(AdnChargeBankAccountRequest request);
+    AdnTxnResult ADN_Charge_Result(AdnChargeRequest request);
+    AdnTxnResult ADN_ChargeBankAccount_Result(AdnChargeBankAccountRequest request);
 
     createTransactionResponse ADN_ChargeCustomerProfile(
         AuthorizeNet.Environment env,
@@ -44,6 +44,9 @@ public interface IAdnApiService
 
     createTransactionResponse ADN_Refund(AdnRefundRequest request);
     createTransactionResponse ADN_Void(AdnVoidRequest request);
+
+    AdnTxnResult ADN_Refund_Result(AdnRefundRequest request);
+    AdnTxnResult ADN_Void_Result(AdnVoidRequest request);
 
     // Validates a card real-time by placing a $0.01 auth and immediately voiding it.
     // The Amount on the request is ignored — helper always uses $0.01.

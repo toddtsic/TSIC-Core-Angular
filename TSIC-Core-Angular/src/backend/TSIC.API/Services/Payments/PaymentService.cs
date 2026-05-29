@@ -718,7 +718,7 @@ public class PaymentService : IPaymentService
             var invoiceNumber = BuildTeamInvoiceNumber(team);
             var description = $"Team Registration (ARB-Trial fallback): {team.TeamName ?? team.DisplayName}";
 
-            AdnChargeResult chargeResult;
+            AdnTxnResult chargeResult;
             if (creditCard != null)
             {
                 chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest

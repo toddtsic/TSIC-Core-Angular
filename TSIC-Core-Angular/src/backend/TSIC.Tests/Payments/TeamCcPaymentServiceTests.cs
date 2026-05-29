@@ -84,7 +84,7 @@ public class TeamCcPaymentServiceTests
         foreach (var tx in transIds)
         {
             _adn.InSequence(seq).Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
-                .Returns(new AdnChargeResult { Success = true, TransactionId = tx, ResponseCode = "1", MessageForUser = "Approved" });
+                .Returns(new AdnTxnResult { Success = true, TransactionId = tx, ResponseCode = "1", MessageForUser = "Approved" });
         }
     }
 

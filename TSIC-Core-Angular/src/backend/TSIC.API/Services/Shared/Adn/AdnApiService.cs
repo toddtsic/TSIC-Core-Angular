@@ -593,28 +593,36 @@ public class AdnApiService : IAdnApiService
 
     /// <summary>
     /// Charge a card and return the normalized outcome — the boundary where the raw SDK
-    /// response is interpreted exactly once. Callers check <see cref="AdnChargeResult.Success"/>.
+    /// response is interpreted exactly once. Callers check <see cref="AdnTxnResult.Success"/>.
     /// </summary>
-    public AdnChargeResult ADN_Charge_Result(AdnChargeRequest request)
-        => ParseChargeResponse(ADN_Charge(request));
+    public AdnTxnResult ADN_Charge_Result(AdnChargeRequest request)
+        => ParseTxnResponse(ADN_Charge(request));
 
     /// <summary>eCheck (ACH) equivalent of <see cref="ADN_Charge_Result"/>.</summary>
-    public AdnChargeResult ADN_ChargeBankAccount_Result(AdnChargeBankAccountRequest request)
-        => ParseChargeResponse(ADN_ChargeBankAccount(request));
+    public AdnTxnResult ADN_ChargeBankAccount_Result(AdnChargeBankAccountRequest request)
+        => ParseTxnResponse(ADN_ChargeBankAccount(request));
+
+    /// <summary>Refund a settled transaction; normalized outcome (same verdict rules as a charge).</summary>
+    public AdnTxnResult ADN_Refund_Result(AdnRefundRequest request)
+        => ParseTxnResponse(ADN_Refund(request));
+
+    /// <summary>Void an unsettled transaction; normalized outcome (same verdict rules as a charge).</summary>
+    public AdnTxnResult ADN_Void_Result(AdnVoidRequest request)
+        => ParseTxnResponse(ADN_Void(request));
 
     /// <summary>
-    /// THE single interpretation of a createTransaction charge result. Success is the
+    /// THE single interpretation of a createTransaction result (charge/refund/void). Success is the
     /// transaction-level verdict (transactionResponse.responseCode == "1" + a real transId),
     /// NOT the envelope messages.resultCode — Authorize.Net can return envelope=Error (e.g. a
     /// field/FDS note, or a sandbox-side fault) on a transaction it has approved and captured.
     /// </summary>
-    private static AdnChargeResult ParseChargeResponse(createTransactionResponse? resp)
+    private static AdnTxnResult ParseTxnResponse(createTransactionResponse? resp)
     {
         var tr = resp?.transactionResponse;
         var approved = tr?.responseCode == "1" && !string.IsNullOrWhiteSpace(tr.transId);
         if (approved)
         {
-            return new AdnChargeResult
+            return new AdnTxnResult
             {
                 Success = true,
                 TransactionId = tr!.transId,
@@ -630,7 +638,7 @@ public class AdnApiService : IAdnApiService
             ?? "Gateway transaction failed";
         var errCode = tr?.errors?.FirstOrDefault()?.errorCode
             ?? resp?.messages?.message?.FirstOrDefault()?.code;
-        return new AdnChargeResult
+        return new AdnTxnResult
         {
             Success = false,
             TransactionId = tr?.transId,

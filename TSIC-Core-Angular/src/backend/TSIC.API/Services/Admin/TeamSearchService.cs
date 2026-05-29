@@ -298,7 +298,7 @@ public sealed class TeamSearchService : ITeamSearchService
             if (txStatus == "capturedPendingSettlement")
             {
                 // VOID the transaction (full amount)
-                var voidResult = _adnApi.ADN_Void(new AdnVoidRequest
+                var voidResult = _adnApi.ADN_Void_Result(new AdnVoidRequest
                 {
                     Env = env,
                     LoginId = creds.AdnLoginId ?? "",
@@ -306,15 +306,10 @@ public sealed class TeamSearchService : ITeamSearchService
                     TransactionId = original.AdnTransactionId
                 });
 
-                if (voidResult?.messages?.resultCode != messageTypeEnum.Ok || voidResult.transactionResponse?.messages == null)
-                {
-                    var err = voidResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                           ?? voidResult?.messages?.message?.FirstOrDefault()?.text
-                           ?? "Gateway returned no error details";
-                    return new RefundResponse { Success = false, Message = err };
-                }
+                if (!voidResult.Success)
+                    return new RefundResponse { Success = false, Message = voidResult.MessageForUser };
 
-                refundTransId = voidResult.transactionResponse.transId ?? "";
+                refundTransId = voidResult.TransactionId ?? "";
 
                 // Void reverses the full original amount
                 original.Paymeth = (original.Paymeth ?? "") + $" VOIDED {DateTime.UtcNow}";
@@ -323,7 +318,7 @@ public sealed class TeamSearchService : ITeamSearchService
             else if (txStatus == "settledSuccessfully")
             {
                 // REFUND the transaction (partial or full)
-                var refundResult = _adnApi.ADN_Refund(new AdnRefundRequest
+                var refundResult = _adnApi.ADN_Refund_Result(new AdnRefundRequest
                 {
                     Env = env,
                     LoginId = creds.AdnLoginId ?? "",
@@ -335,15 +330,10 @@ public sealed class TeamSearchService : ITeamSearchService
                     InvoiceNumber = original.AdnInvoiceNo ?? ""
                 });
 
-                if (refundResult?.messages?.resultCode != messageTypeEnum.Ok || refundResult.transactionResponse?.messages == null)
-                {
-                    var err = refundResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                           ?? refundResult?.messages?.message?.FirstOrDefault()?.text
-                           ?? "Gateway returned no error details";
-                    return new RefundResponse { Success = false, Message = err };
-                }
+                if (!refundResult.Success)
+                    return new RefundResponse { Success = false, Message = refundResult.MessageForUser };
 
-                refundTransId = refundResult.transactionResponse.transId ?? "";
+                refundTransId = refundResult.TransactionId ?? "";
 
                 // Create a negative accounting record for the refund
                 _accountingRepo.Add(new RegistrationAccounting

@@ -77,13 +77,13 @@ public class PlayerCcChargeTests
     private void StubAdnChargeSuccess(string transId = "TX-1")
     {
         _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
-            .Returns(new AdnChargeResult { Success = true, TransactionId = transId, ResponseCode = "1", MessageForUser = "Approved" });
+            .Returns(new AdnTxnResult { Success = true, TransactionId = transId, ResponseCode = "1", MessageForUser = "Approved" });
     }
 
     private void StubAdnChargeDeclined(string errorText = "This transaction has been declined.")
     {
         _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
-            .Returns(new AdnChargeResult { Success = false, ResponseCode = "2", GatewayCode = "2", MessageForUser = errorText });
+            .Returns(new AdnTxnResult { Success = false, ResponseCode = "2", GatewayCode = "2", MessageForUser = errorText });
     }
 
     private static Registrations Reg(Guid jobId, decimal owed, int registrationAi = 200)

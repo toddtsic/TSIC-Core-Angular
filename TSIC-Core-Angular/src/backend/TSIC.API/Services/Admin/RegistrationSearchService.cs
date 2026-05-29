@@ -257,7 +257,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             if (txStatus == "capturedPendingSettlement")
             {
                 // VOID the transaction (full amount — ADN voids are always full)
-                var voidResult = _adnApi.ADN_Void(new AdnVoidRequest
+                var voidResult = _adnApi.ADN_Void_Result(new AdnVoidRequest
                 {
                     Env = env,
                     LoginId = creds.AdnLoginId ?? "",
@@ -265,13 +265,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                     TransactionId = original.AdnTransactionId
                 });
 
-                if (voidResult?.messages?.resultCode != messageTypeEnum.Ok || voidResult.transactionResponse?.messages == null)
-                {
-                    var err = voidResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "Void failed.";
-                    return new RefundResponse { Success = false, Message = $"CC Void failed: {err}" };
-                }
+                if (!voidResult.Success)
+                    return new RefundResponse { Success = false, Message = $"CC Void failed: {voidResult.MessageForUser}" };
 
-                refundTransId = voidResult.transactionResponse.transId ?? "";
+                refundTransId = voidResult.TransactionId ?? "";
                 reversedAmount = original.Payamt ?? 0; // void reverses full original amount
 
                 // Mark original record as voided
@@ -281,7 +278,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             else if (txStatus == "settledSuccessfully")
             {
                 // REFUND the transaction (partial or full)
-                var adnResult = _adnApi.ADN_Refund(new AdnRefundRequest
+                var adnResult = _adnApi.ADN_Refund_Result(new AdnRefundRequest
                 {
                     Env = env,
                     LoginId = creds.AdnLoginId ?? "",
@@ -293,13 +290,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                     InvoiceNumber = original.AdnInvoiceNo ?? ""
                 });
 
-                if (adnResult?.messages?.resultCode != messageTypeEnum.Ok || adnResult.transactionResponse?.messages == null)
-                {
-                    var err = adnResult?.transactionResponse?.errors?.FirstOrDefault()?.errorText ?? "Refund failed.";
-                    return new RefundResponse { Success = false, Message = $"CC Refund failed: {err}" };
-                }
+                if (!adnResult.Success)
+                    return new RefundResponse { Success = false, Message = $"CC Refund failed: {adnResult.MessageForUser}" };
 
-                refundTransId = adnResult.transactionResponse.transId ?? "";
+                refundTransId = adnResult.TransactionId ?? "";
                 reversedAmount = request.RefundAmount;
 
                 // Create negative accounting record for the refund

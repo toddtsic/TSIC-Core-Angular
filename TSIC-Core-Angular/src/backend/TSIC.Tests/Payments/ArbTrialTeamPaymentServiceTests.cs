@@ -437,7 +437,7 @@ public class ArbTrialTeamPaymentServiceTests
         AdnChargeRequest? captured = null;
         _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
             .Callback<AdnChargeRequest>(r => captured = r)
-            .Returns(new AdnChargeResult { Success = true, TransactionId = "TX-FB", ResponseCode = "1", MessageForUser = "Approved" });
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-FB", ResponseCode = "1", MessageForUser = "Approved" });
         var sut = BuildSut();
 
         var result = await sut.ProcessTeamArbTrialPaymentAsync(
@@ -469,7 +469,7 @@ public class ArbTrialTeamPaymentServiceTests
         StubTeams(jobId, [team.TeamId], team);
         StubFeeResolution(jobId, team, deposit: 200m, balance: 300m);
         _adn.Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new AdnChargeResult { Success = true, TransactionId = "TX-FB-EC", ResponseCode = "1", MessageForUser = "Approved" });
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-FB-EC", ResponseCode = "1", MessageForUser = "Approved" });
         var sut = BuildSut();
 
         var result = await sut.ProcessTeamArbTrialPaymentAsync(
