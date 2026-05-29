@@ -17,7 +17,7 @@ import {
 } from '@core/reporting/report-categories';
 
 interface LibraryEntry {
-    readonly isCrystal: boolean;          // true = still served by Crystal (CR); false = SP-Excel
+    readonly isCrystal: boolean;          // true = still served by Crystal (CR); false = SP-Excel or Bold
     readonly roles: readonly string[];    // assigned role names — populated for the SU all-roles view only
     readonly id: string;
     readonly title: string;
@@ -28,6 +28,7 @@ interface LibraryEntry {
     readonly endpointPath?: string;       // crystal run target (controller action)
     readonly storedProcName?: string;     // sp-excel run target
     readonly parametersJson?: string | null; // sp-excel run params
+    readonly boldReportName?: string;     // bold (RDL → PDF) run target — RDL filestem
 }
 
 interface CategoryGroup {
@@ -74,6 +75,20 @@ function parseStoredProcAction(action: string | null | undefined): { spName: str
     const bUseJobId = params.get('bUseJobId') === 'true';
     const bUseDateUnscheduled = params.get('bUseDateUnscheduled') === 'true';
     return { spName, parametersJson: JSON.stringify({ bUseJobId, bUseDateUnscheduled }) };
+}
+
+/**
+ * Parses a Bold Reports Action string from `reporting.JobReports` into the
+ * RDL filestem. Action format:
+ *   ExportBoldReport?reportName=TournamentRosterPacked
+ */
+function parseBoldReportAction(action: string | null | undefined): { reportName: string } | null {
+    if (!action) return null;
+    const qIdx = action.indexOf('?');
+    if (qIdx < 0) return null;
+    const params = new URLSearchParams(action.substring(qIdx + 1));
+    const reportName = params.get('reportName');
+    return reportName ? { reportName } : null;
 }
 
 @Component({
@@ -158,7 +173,26 @@ export class ReportsLibraryComponent implements OnInit {
                 };
             });
 
-        return [...type1, ...type2];
+        // Bold Reports (RDL → PDF) — the Crystal replacement target. Same
+        // (Job, Role) gating as the SP rows; differs only in dispatcher branch.
+        const bold: LibraryEntry[] = this.type2Entries()
+            .filter(e => e.kind === 'BoldReport')
+            .map(e => {
+                const parsed = parseBoldReportAction(e.action);
+                return {
+                    isCrystal: false,
+                    roles: [],
+                    id: `bold-${e.jobReportId}`,
+                    title: e.title,
+                    description: null,
+                    iconName: e.iconName,
+                    category: normalizeReportCategory(e.groupLabel),
+                    sortOrder: e.sortOrder,
+                    boldReportName: parsed?.reportName ?? '',
+                };
+            });
+
+        return [...type1, ...type2, ...bold];
     });
 
     /**
@@ -183,8 +217,11 @@ export class ReportsLibraryComponent implements OnInit {
 
         const entries: LibraryEntry[] = [];
         for (const { base, roles } of byReport.values()) {
-            const isCrystal = base.kind !== 'StoredProcedure';
-            const parsed = isCrystal ? null : parseStoredProcAction(base.action);
+            const isBold = base.kind === 'BoldReport';
+            const isSp = base.kind === 'StoredProcedure';
+            const isCrystal = !isBold && !isSp;
+            const spParsed = isSp ? parseStoredProcAction(base.action) : null;
+            const boldParsed = isBold ? parseBoldReportAction(base.action) : null;
             entries.push({
                 isCrystal,
                 roles: [...roles].sort(),
@@ -195,8 +232,9 @@ export class ReportsLibraryComponent implements OnInit {
                 category: normalizeReportCategory(base.groupLabel),
                 sortOrder: base.sortOrder,
                 endpointPath: isCrystal ? base.action : undefined,
-                storedProcName: parsed?.spName ?? undefined,
-                parametersJson: parsed?.parametersJson ?? null,
+                storedProcName: spParsed?.spName ?? undefined,
+                parametersJson: spParsed?.parametersJson ?? null,
+                boldReportName: boldParsed?.reportName ?? undefined,
             });
         }
         return entries;
@@ -325,16 +363,18 @@ export class ReportsLibraryComponent implements OnInit {
         this.runError.set(null);
         this.runningId.set(entry.id);
 
-        const download$ = entry.isCrystal
-            ? this.reportingService.downloadReport(entry.endpointPath!)
-            : (() => {
-                const sp = parseSpRunParams(entry.parametersJson);
-                return this.reportingService.downloadReport('export-sp', {
-                    spName: entry.storedProcName!,
-                    bUseJobId: String(sp.bUseJobId),
-                    bUseDateUnscheduled: String(sp.bUseDateUnscheduled)
-                });
-            })();
+        const download$ = entry.boldReportName
+            ? this.reportingService.downloadReport('export-bold', { reportName: entry.boldReportName })
+            : entry.isCrystal
+                ? this.reportingService.downloadReport(entry.endpointPath!)
+                : (() => {
+                    const sp = parseSpRunParams(entry.parametersJson);
+                    return this.reportingService.downloadReport('export-sp', {
+                        spName: entry.storedProcName!,
+                        bUseJobId: String(sp.bUseJobId),
+                        bUseDateUnscheduled: String(sp.bUseDateUnscheduled)
+                    });
+                })();
 
         this.toast.show(`Generating ${entry.title}...`, 'info', 3000);
 

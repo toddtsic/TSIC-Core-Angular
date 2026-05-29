@@ -88,6 +88,19 @@ public interface IReportingRepository
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
+    /// <summary>Per-role entitlement check for the export-bold endpoint.</summary>
+    Task<bool> HasBoldReportEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
+        string reportName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>SuperUser variant of the export-bold entitlement check.</summary>
+    Task<bool> HasBoldReportEntitlementAnyRoleAsync(
+        Guid jobId,
+        string reportName,
+        CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Executes a stored procedure and returns a DbDataReader for streaming results.
     /// Caller is responsible for closing the reader and connection.

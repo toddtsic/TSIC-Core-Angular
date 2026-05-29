@@ -12,6 +12,7 @@ namespace TSIC.Infrastructure.Repositories;
 public class ReportingRepository : IReportingRepository
 {
     private const string KindStoredProcedure = "StoredProcedure";
+    private const string KindBoldReport = "BoldReport";
 
     private readonly SqlDbContext _context;
 
@@ -121,6 +122,51 @@ public class ReportingRepository : IReportingRepository
             .AnyAsync(jr => jr.JobId == jobId
                             && jr.Active
                             && jr.Kind == KindStoredProcedure
+                            && (jr.Action.Contains(tokenWithDelim) || jr.Action.EndsWith(token)),
+                cancellationToken);
+    }
+
+    public async Task<bool> HasBoldReportEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
+        string reportName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(reportName) || roleIds == null || roleIds.Count == 0)
+            return false;
+
+        // Action format for Bold rows:
+        //   ExportBoldReport?reportName=<X>
+        // <X> is the bare RDL stem (no path, no extension). Same delimiter/end-of-string
+        // match as the SP variant — guards against prefix collisions.
+        var token = "reportName=" + reportName;
+        var tokenWithDelim = token + "&";
+
+        return await _context.JobReports
+            .AsNoTracking()
+            .AnyAsync(jr => jr.JobId == jobId
+                            && jr.Active
+                            && jr.Kind == KindBoldReport
+                            && roleIds.Contains(jr.RoleId)
+                            && (jr.Action.Contains(tokenWithDelim) || jr.Action.EndsWith(token)),
+                cancellationToken);
+    }
+
+    public async Task<bool> HasBoldReportEntitlementAnyRoleAsync(
+        Guid jobId,
+        string reportName,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(reportName)) return false;
+
+        var token = "reportName=" + reportName;
+        var tokenWithDelim = token + "&";
+
+        return await _context.JobReports
+            .AsNoTracking()
+            .AnyAsync(jr => jr.JobId == jobId
+                            && jr.Active
+                            && jr.Kind == KindBoldReport
                             && (jr.Action.Contains(tokenWithDelim) || jr.Action.EndsWith(token)),
                 cancellationToken);
     }

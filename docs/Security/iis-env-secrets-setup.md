@@ -22,6 +22,7 @@ Value mapping (user-secrets ➜ IIS env var):
 - UsLax:Username ➜ USLAX_USERNAME
 - UsLax:Password ➜ USLAX_PASSWORD
 - Anthropic:ApiKey ➜ Anthropic__ApiKey
+- BoldReports:LicenseKey ➜ BoldReports__LicenseKey
 
 ### Server apply (no user-secrets needed)
 Run this on the IIS server (fill the values first). This does **not** read user-secrets.
@@ -237,6 +238,9 @@ dotnet user-secrets set "UsLax:ApiBase"  "https://api.usalacrosse.com/" --projec
 
 # Anthropic (AI email compose)
 dotnet user-secrets set "Anthropic:ApiKey" "..." --project src/backend/TSIC.API/TSIC.API.csproj
+
+# Bold Reports (RDL → PDF renderer)
+dotnet user-secrets set "BoldReports:LicenseKey" "..." --project src/backend/TSIC.API/TSIC.API.csproj
 
 # JWT auth
 dotnet user-secrets set "JwtSettings:SecretKey" "..." --project src/backend/TSIC.API/TSIC.API.csproj

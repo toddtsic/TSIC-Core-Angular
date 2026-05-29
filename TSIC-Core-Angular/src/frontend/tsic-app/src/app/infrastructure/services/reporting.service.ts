@@ -67,12 +67,14 @@ export class ReportingService {
     }
 
     /**
-     * Hands the blob to the browser. PDFs open inline in a new tab (browser
-     * renders blob:application/pdf natively); everything else downloads with
-     * the server's Content-Disposition filename so Excel / iCal / etc. land
-     * with the correct name + extension. Without anchor.download the save
-     * dialog uses the blob: URL's last segment (a GUID) since blob URLs strip
-     * Content-Disposition.
+     * Hands the blob to the browser as a download — every type, including PDF.
+     * Earlier this method opened PDFs inline via target="_blank", but rapid
+     * repeat clicks tripped Chrome's popup blocker (first click had a user
+     * gesture, subsequent ones did not), silently swallowing the new tab while
+     * the toast still claimed success. anchor.download dodges popup blocking
+     * entirely; Chrome / Edge auto-open the downloaded PDF in their built-in
+     * viewer, so the inline-viewing UX survives. Filename comes from the
+     * server's Content-Disposition (blob: URLs strip it otherwise).
      */
     triggerDownload(response: HttpResponse<Blob>, fallbackFilename = 'TSIC-Export'): void {
         const blob = response.body;
@@ -86,15 +88,10 @@ export class ReportingService {
         const anchor = document.createElement('a');
         anchor.href = url;
         anchor.rel = 'noopener';
-
-        if (contentType.startsWith('application/pdf')) {
-            anchor.target = '_blank';
-        } else {
-            anchor.download = filename;
-        }
+        anchor.download = filename;
 
         anchor.click();
-        // Defer revoke so Firefox has time to fetch the blob URL for the new tab.
+        // Defer revoke so the browser has time to fetch the blob URL.
         setTimeout(() => window.URL.revokeObjectURL(url), 60_000);
     }
 

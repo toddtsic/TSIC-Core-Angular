@@ -54,6 +54,7 @@ if (-not $SecretsFile -or -not (Test-Path $SecretsFile)) {
     Write-Host "    ADN_SANDBOX_LOGINID, ADN_SANDBOX_TRANSACTIONKEY" -ForegroundColor White
     Write-Host "    USLAX_API_BASE, USLAX_CLIENT_ID, USLAX_SECRET, USLAX_USERNAME, USLAX_PASSWORD" -ForegroundColor White
     Write-Host "    Anthropic__ApiKey" -ForegroundColor White
+    Write-Host "    BoldReports__LicenseKey" -ForegroundColor White
     Write-Host ""
     Write-Host "  See docs/Security/iis-env-secrets-setup.md for template and instructions." -ForegroundColor Yellow
     throw "No secrets file found. Provide via -SecretsFile parameter or place app-pool-secrets.ps1 in Setup/."

@@ -100,6 +100,20 @@ var builder = WebApplication.CreateBuilder(args);
     }
 }
 
+// ── Bold Reports license registration ──────────────────────────────
+// Unlocks BoldReports.Net.Core (Community / Enterprise) for server-side RDL
+// rendering. Lives in the Bold.Licensing assembly — NOT BoldReports.Web — and
+// must run before any ReportWriter is instantiated, hence its position before
+// service registration. Key is a real secret: app pool env var
+// (BoldReports__LicenseKey) in IIS, user-secrets in local Development.
+{
+    var boldLicenseKey = builder.Configuration["BoldReports:LicenseKey"];
+    if (!string.IsNullOrWhiteSpace(boldLicenseKey))
+    {
+        Bold.Licensing.BoldLicenseProvider.RegisterLicense(boldLicenseKey);
+    }
+}
+
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddMemoryCache(); // Add memory cache for refresh tokens

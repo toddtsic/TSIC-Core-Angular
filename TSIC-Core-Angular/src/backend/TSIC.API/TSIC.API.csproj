@@ -32,6 +32,7 @@
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Syncfusion.Pdf.Net.Core" />
     <PackageReference Include="Syncfusion.XlsIO.Net.Core" />
+    <PackageReference Include="BoldReports.Net.Core" />
   </ItemGroup>
 
   <ItemGroup>

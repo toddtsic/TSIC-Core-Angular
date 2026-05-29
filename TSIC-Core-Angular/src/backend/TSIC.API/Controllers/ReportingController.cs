@@ -229,6 +229,40 @@ public class ReportingController : ControllerBase
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
 
+    // ──────────────────────────────────────────────────────────────
+    // Bold Reports (RDL → PDF) Exports
+    // ──────────────────────────────────────────────────────────────
+
+    [HttpGet("export-bold")]
+    [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult> ExportBoldReport(
+        [FromQuery] string reportName,
+        CancellationToken cancellationToken = default)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService) ?? Guid.Empty;
+
+        // Per-row entitlement check on top of [Authorize(AdminOnly)] — same shape as
+        // the export-sp endpoint, just keyed on the BoldReport row's reportName param.
+        var entitled = User.IsInRole("Superuser")
+            ? await _reportingService.HasBoldReportEntitlementAnyRoleAsync(
+                jobId, reportName, cancellationToken)
+            : await _reportingService.HasBoldReportEntitlementAsync(
+                jobId, GetCallerRoleIds(), reportName, cancellationToken);
+        if (!entitled)
+        {
+            return Forbid();
+        }
+
+        var regId = User.GetRegistrationId();
+
+        var result = await _reportingService.ExportBoldReportAsync(
+            reportName, jobId, cancellationToken);
+
+        await _reportingService.RecordExportHistoryAsync(regId, null, reportName);
+
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
+
     [HttpGet("export-monthly-reconciliation")]
     [Authorize(Roles = "Superuser")]
     public async Task<ActionResult> ExportMonthlyReconciliationDataToExcel(

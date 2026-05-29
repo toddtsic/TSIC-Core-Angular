@@ -1,8 +1,12 @@
+using System.Data;
 using System.Data.Common;
 using System.Text;
 using System.Text.Json;
+using BoldReports.Web;
+using BoldReports.Writer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Syncfusion.XlsIO;
 using TSIC.API.Configuration;
@@ -17,15 +21,18 @@ public sealed class ReportingService : IReportingService
 {
     private readonly IReportingRepository _reportingRepository;
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly IHostEnvironment _hostEnvironment;
     private readonly ReportingSettings _settings;
 
     public ReportingService(
         IReportingRepository reportingRepository,
         IHttpClientFactory httpClientFactory,
+        IHostEnvironment hostEnvironment,
         IOptions<ReportingSettings> settings)
     {
         _reportingRepository = reportingRepository;
         _httpClientFactory = httpClientFactory;
+        _hostEnvironment = hostEnvironment;
         _settings = settings.Value;
     }
 
@@ -52,6 +59,19 @@ public sealed class ReportingService : IReportingService
         string spName,
         CancellationToken cancellationToken = default)
         => _reportingRepository.HasStoredProcedureEntitlementAnyRoleAsync(jobId, spName, cancellationToken);
+
+    public Task<bool> HasBoldReportEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
+        string reportName,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.HasBoldReportEntitlementAsync(jobId, roleIds, reportName, cancellationToken);
+
+    public Task<bool> HasBoldReportEntitlementAnyRoleAsync(
+        Guid jobId,
+        string reportName,
+        CancellationToken cancellationToken = default)
+        => _reportingRepository.HasBoldReportEntitlementAnyRoleAsync(jobId, reportName, cancellationToken);
 
     // ── SuperUser editor ──
 
@@ -254,6 +274,80 @@ public sealed class ReportingService : IReportingService
         }
     }
 
+    public async Task<ReportExportResult> ExportBoldReportAsync(
+        string reportName,
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // RDL files ship under TSIC.API/Reports/ and copy to the publish output, so
+        // ContentRootPath/Reports is the canonical lookup. reportName arrives as the
+        // file stem ("TournamentRosterPacked"), never a path — sanitize defensively.
+        var safeName = Path.GetFileNameWithoutExtension(reportName);
+        var rdlPath = Path.Combine(_hostEnvironment.ContentRootPath, "Reports", $"{safeName}.rdl");
+        if (!File.Exists(rdlPath))
+        {
+            throw new FileNotFoundException($"Bold Reports RDL not found: {safeName}.rdl", rdlPath);
+        }
+
+        // Resolve the embedded stored procedure from the RDL — every Bold report
+        // we ship currently has a single dataset named MainReportData whose
+        // CommandText is the SP to execute. Parsing the RDL keeps Bold + SP in
+        // lockstep (rename the SP in the RDL, the service follows automatically).
+        var spName = ExtractMainReportSpName(rdlPath)
+            ?? throw new InvalidOperationException(
+                $"RDL {safeName}.rdl missing MainReportData dataset CommandText");
+
+        // Run the SP via the same path Excel exports use — DataReader → DataTable
+        // named to match the RDL DataSet, then feed Bold via ReportDataSourceCollection
+        // so it bypasses the RDL's embedded ConnectString (which assumes integrated
+        // security from the developer workstation, not the IIS app pool identity).
+        var (reader, connection) = await _reportingRepository.ExecuteStoredProcedureAsync(
+            spName, jobId, useJobId: true, cancellationToken: cancellationToken);
+
+        DataTable mainData;
+        try
+        {
+            mainData = new DataTable("MainReportData");
+            mainData.Load(reader);
+        }
+        finally
+        {
+            await reader.CloseAsync();
+            await connection.CloseAsync();
+        }
+
+        await using var rdlStream = File.OpenRead(rdlPath);
+        var dataSources = new ReportDataSourceCollection
+        {
+            new ReportDataSource { Name = "MainReportData", Value = mainData },
+        };
+
+        using var writer = new ReportWriter(rdlStream, dataSources);
+        using var output = new MemoryStream();
+        writer.Save(output, WriterFormat.PDF);
+
+        return new ReportExportResult
+        {
+            FileBytes = output.ToArray(),
+            ContentType = "application/pdf",
+            FileName = $"{safeName}.pdf",
+        };
+    }
+
+    /// <summary>
+    /// Pulls the CommandText from the first DataSet named MainReportData inside the
+    /// RDL. Returned value is the bare SP name (schema-qualified or not) — caller
+    /// passes it straight to ExecuteStoredProcedureAsync.
+    /// </summary>
+    private static string? ExtractMainReportSpName(string rdlPath)
+    {
+        var doc = System.Xml.Linq.XDocument.Load(rdlPath);
+        var ns = doc.Root?.GetDefaultNamespace() ?? System.Xml.Linq.XNamespace.None;
+        var dataset = doc.Descendants(ns + "DataSet")
+            .FirstOrDefault(d => (string?)d.Attribute("Name") == "MainReportData");
+        return dataset?.Element(ns + "Query")?.Element(ns + "CommandText")?.Value?.Trim();
+    }
+
     public async Task<ReportExportResult> ExportMonthlyReconciliationAsync(
         int settlementMonth,
         int settlementYear,
@@ -348,7 +442,7 @@ public sealed class ReportingService : IReportingService
     {
         using var excelEngine = new ExcelEngine();
         IApplication application = excelEngine.Excel;
-        application.DefaultVersion = ExcelVersion.Xlsx;
+        application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
         IWorkbook workbook = application.Workbooks.Create(1);
         IWorksheet? worksheet = null;
         var sheetsCreated = 0;

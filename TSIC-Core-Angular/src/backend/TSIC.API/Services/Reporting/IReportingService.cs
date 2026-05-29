@@ -44,6 +44,19 @@ public interface IReportingService
         string spName,
         CancellationToken cancellationToken = default);
 
+    /// <summary>Per-row entitlement check for export-bold (Bold Reports RDL → PDF).</summary>
+    Task<bool> HasBoldReportEntitlementAsync(
+        Guid jobId,
+        IReadOnlyCollection<string> roleIds,
+        string reportName,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>SuperUser variant — Bold report must be a configured row under any role.</summary>
+    Task<bool> HasBoldReportEntitlementAnyRoleAsync(
+        Guid jobId,
+        string reportName,
+        CancellationToken cancellationToken = default);
+
     // ── SuperUser editor (per-Job, per-Role) ──
 
     Task<List<JobReportEditorRoleDto>> GetEditorRolesAsync(
@@ -104,6 +117,16 @@ public interface IReportingService
         Guid jobId,
         bool useJobId,
         bool useDateUnscheduled = false,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes a Bold Reports RDL definition (deployed under Reports/) and renders it
+    /// to PDF. The RDL's embedded CommandText/data source are honored as-is; this method
+    /// only opens a connection and lets BoldReports.Writer.ReportWriter drive the rest.
+    /// </summary>
+    Task<ReportExportResult> ExportBoldReportAsync(
+        string reportName,
+        Guid jobId,
         CancellationToken cancellationToken = default);
 
     /// <summary>
