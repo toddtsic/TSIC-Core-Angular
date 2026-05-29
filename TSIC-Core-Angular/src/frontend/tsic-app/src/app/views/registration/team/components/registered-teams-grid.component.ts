@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, viewChild } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { RegisteredTeamDto } from '@core/api';
@@ -276,6 +276,23 @@ export class RegisteredTeamsGridComponent {
     // Conditional column visibility — only surface Discount / Fee-Adj when any team has non-zero value
     readonly showDiscount = computed(() => this.teams().some(t => (t.feeDiscount ?? 0) > 0));
     readonly showFeeAdj = computed(() => this.teams().some(t => (t.feeLatefee ?? 0) > 0));
+
+    /**
+     * Frozen-column grids (frozenTeamCol=true) split header and content into
+     * separate frozen/movable tables. When a column's `visible` flips at runtime
+     * — e.g. Discount turns on after a code is applied — Syncfusion rebuilds the
+     * content table but can leave the movable HEADER table stale, so the header
+     * labels drift one column out of step with the cells. Re-running
+     * refreshColumns() whenever Discount/Fee-Adj visibility changes forces the
+     * header table back in sync. No-op until the grid view query resolves.
+     */
+    private readonly grid = viewChild<GridComponent>('grid');
+    private readonly _columnVisibilitySync = effect(() => {
+        // Read both flags so the effect re-runs whenever either toggles.
+        this.showDiscount();
+        this.showFeeAdj();
+        this.grid()?.refreshColumns();
+    });
 
     /** Stamp 1-based row numbers in the unbound `#` column. Re-runs on dataBound + sort/page actions. */
     refreshRowNumbers(grid: GridComponent): void {
