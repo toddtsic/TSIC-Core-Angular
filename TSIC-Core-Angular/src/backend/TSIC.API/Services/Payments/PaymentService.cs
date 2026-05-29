@@ -199,10 +199,10 @@ public class PaymentService : IPaymentService
             var invoiceNumber = $"{team.Job.Customer.CustomerAi}_{team.Job.JobAi}_{team.TeamAi}";
             if (invoiceNumber.Length > 20) invoiceNumber = $"{team.Job.JobAi}_{team.TeamAi}";
             if (invoiceNumber.Length > 20) invoiceNumber = team.TeamAi.ToString();
-            var description = $"Team Registration: {team.TeamName ?? team.DisplayName}";
+            var description = BuildTeamChargeDescription(team);
 
-            var adnResponse = kind == TeamChargeKind.Cc
-                ? _adnApiService.ADN_Charge(new AdnChargeRequest
+            var chargeResult = kind == TeamChargeKind.Cc
+                ? _adnApiService.ADN_Charge_Result(new AdnChargeRequest
                 {
                     Env = env,
                     LoginId = credentials.AdnLoginId!,
@@ -220,7 +220,7 @@ public class PaymentService : IPaymentService
                     InvoiceNumber = invoiceNumber,
                     Description = description
                 })
-                : _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
+                : _adnApiService.ADN_ChargeBankAccount_Result(new AdnChargeBankAccountRequest
                 {
                     Env = env,
                     LoginId = credentials.AdnLoginId!,
@@ -240,11 +240,9 @@ public class PaymentService : IPaymentService
                     Description = description
                 });
 
-            if (adnResponse?.messages?.resultCode == messageTypeEnum.Ok
-                && adnResponse.transactionResponse?.messages != null
-                && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId))
+            if (chargeResult.Success)
             {
-                var transId = adnResponse.transactionResponse.transId;
+                var transId = chargeResult.TransactionId!;
                 firstTransactionId ??= transId;
 
                 var ra = new RegistrationAccounting
@@ -289,10 +287,7 @@ public class PaymentService : IPaymentService
             else
             {
                 failedCount++;
-                var errMsg = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                    ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
-                    ?? "Gateway transaction failed";
-                _logger.LogWarning("Team {Kind} failed: Team={TeamId} Error={Error}", kind, team.TeamId, errMsg);
+                _logger.LogWarning("Team {Kind} failed: Team={TeamId} Error={Error}", kind, team.TeamId, chargeResult.MessageForUser);
             }
         }
 
@@ -501,7 +496,7 @@ public class PaymentService : IPaymentService
             }
 
             var invoiceNumber = BuildTeamInvoiceNumber(team);
-            var description = $"Team Registration: {team.TeamName ?? team.DisplayName}";
+            var description = BuildTeamChargeDescription(team);
 
             AdnArbCreateResult arbResult;
             if (creditCard != null)
@@ -723,10 +718,10 @@ public class PaymentService : IPaymentService
             var invoiceNumber = BuildTeamInvoiceNumber(team);
             var description = $"Team Registration (ARB-Trial fallback): {team.TeamName ?? team.DisplayName}";
 
-            createTransactionResponse? adnResponse;
+            AdnChargeResult chargeResult;
             if (creditCard != null)
             {
-                adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest
+                chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
                 {
                     Env = env,
                     LoginId = credentials.AdnLoginId!,
@@ -747,7 +742,7 @@ public class PaymentService : IPaymentService
             }
             else
             {
-                adnResponse = _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
+                chargeResult = _adnApiService.ADN_ChargeBankAccount_Result(new AdnChargeBankAccountRequest
                 {
                     Env = env,
                     LoginId = credentials.AdnLoginId!,
@@ -768,28 +763,21 @@ public class PaymentService : IPaymentService
                 });
             }
 
-            var ok = adnResponse?.messages?.resultCode == messageTypeEnum.Ok
-                && adnResponse.transactionResponse?.messages != null
-                && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId);
-
-            if (!ok)
+            if (!chargeResult.Success)
             {
-                var errMsg = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                    ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
-                    ?? "Gateway transaction failed";
                 results.Add(new TeamArbTrialResultDto
                 {
                     TeamId = team.TeamId,
                     Registered = false,
-                    FailureReason = errMsg
+                    FailureReason = chargeResult.MessageForUser
                 });
                 stoppedAt = i;
                 _logger.LogWarning("ARB-Trial fallback charge failed: Team={TeamId} Error={Err}",
-                    team.TeamId, errMsg);
+                    team.TeamId, chargeResult.MessageForUser);
                 break;
             }
 
-            var transId = adnResponse!.transactionResponse!.transId;
+            var transId = chargeResult.TransactionId!;
 
             // Optimistic credit at submit (mirrors ProcessTeamEcheckPaymentAsync): for
             // eCheck the actual settlement clears days later but the rep's UI shows the
@@ -913,6 +901,22 @@ public class PaymentService : IPaymentService
         var alt = $"{team.Job.JobAi}_{team.TeamAi}";
         if (alt.Length <= 20) return alt;
         return team.TeamAi.ToString();
+    }
+
+    /// <summary>
+    /// ADN/statement description for a team charge: event name + team so the rep recognizes
+    /// the charge on a card statement and in the gateway. Falls back gracefully when names are
+    /// missing. ASCII-only separator and capped at ADN's 255-char order.description limit.
+    /// </summary>
+    private static string BuildTeamChargeDescription(Domain.Entities.Teams team)
+    {
+        var eventLabel = team.Job.JobName?.Trim();
+        var teamLabel = (team.TeamName ?? team.DisplayName)?.Trim();
+        if (string.IsNullOrWhiteSpace(teamLabel)) teamLabel = $"Team {team.TeamAi}";
+        var description = string.IsNullOrWhiteSpace(eventLabel)
+            ? $"Team Registration: {teamLabel}"
+            : $"{eventLabel} - Team Registration: {teamLabel}";
+        return description.Length > 255 ? description[..255] : description;
     }
 
     /// <summary>
@@ -1118,7 +1122,7 @@ public class PaymentService : IPaymentService
             echeckCharges[reg.RegistrationId] = ccCharge - credit;
         }
         var echeckTotal = echeckCharges.Values.Sum();
-        var response = _adnApiService.ADN_ChargeBankAccount(new AdnChargeBankAccountRequest
+        var chargeResult = _adnApiService.ADN_ChargeBankAccount_Result(new AdnChargeBankAccountRequest
         {
             Env = env,
             LoginId = credentials.AdnLoginId!,
@@ -1137,11 +1141,9 @@ public class PaymentService : IPaymentService
             InvoiceNumber = invoiceNumber,
             Description = "Registration Payment"
         });
-        if (response == null || response.messages == null)
-            return new PaymentResponseDto { Success = false, Message = "Payment gateway returned no response.", ErrorCode = "CHARGE_NULL_RESPONSE" };
-        if (response.messages.resultCode != messageTypeEnum.Ok)
-            return new PaymentResponseDto { Success = false, Message = response.transactionResponse?.errors?[0].errorText ?? "Payment failed", ErrorCode = "CHARGE_GATEWAY_ERROR" };
-        var transId = response.transactionResponse.transId;
+        if (!chargeResult.Success)
+            return new PaymentResponseDto { Success = false, Message = chargeResult.MessageForUser, ErrorCode = "CHARGE_GATEWAY_ERROR" };
+        var transId = chargeResult.TransactionId!;
         UpdateRegistrationsForCharge(registrations, userId, echeckCharges);
         var addedAccts = AddEcheckAccountingEntries(registrations, userId, transId, invoiceNumber, echeckCharges, bank);
         await _registrations.SaveChangesAsync();
@@ -1389,7 +1391,7 @@ public class PaymentService : IPaymentService
         var description = items.Count == 1
             ? $"Registration Payment (#{regsById[items[0].RegistrationId].RegistrationAi})"
             : "Registration Payment";
-        var adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest
+        var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
         {
             Env = env,
             LoginId = credentials.AdnLoginId!,
@@ -1408,15 +1410,9 @@ public class PaymentService : IPaymentService
             Description = description
         });
 
-        var ok = adnResponse?.messages?.resultCode == messageTypeEnum.Ok
-                 && adnResponse.transactionResponse?.messages != null
-                 && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId);
-
-        if (!ok)
+        if (!chargeResult.Success)
         {
-            var err = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                ?? adnResponse?.messages?.message?.FirstOrDefault()?.text
-                ?? "Charge failed.";
+            var err = chargeResult.MessageForUser;
             foreach (var item in items)
             {
                 var ra = rasByRegId[item.RegistrationId];
@@ -1441,7 +1437,7 @@ public class PaymentService : IPaymentService
             };
         }
 
-        var transId = adnResponse!.transactionResponse!.transId!;
+        var transId = chargeResult.TransactionId!;
         var last4 = Last4(creditCard.Number);
         foreach (var item in items)
         {

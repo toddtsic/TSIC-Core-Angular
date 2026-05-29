@@ -401,7 +401,7 @@ public class ArbDefensiveService : IArbDefensiveService
         if (request.BalanceDue > 0)
         {
             var chargeExpiry = $"{request.ExpirationMonth}/{request.ExpirationYear}";
-            var chargeResponse = _adnApi.ADN_Charge(new AdnChargeRequest
+            var chargeResult = _adnApi.ADN_Charge_Result(new AdnChargeRequest
             {
                 Env = env,
                 LoginId = creds.AdnLoginId!,
@@ -420,12 +420,11 @@ public class ArbDefensiveService : IArbDefensiveService
                 Description = "Autocharge of previously failed ARB transactions"
             });
 
-            if (chargeResponse?.messages?.resultCode == messageTypeEnum.Ok
-                && chargeResponse.transactionResponse?.messages != null)
+            if (chargeResult.Success)
             {
                 balanceCharged = true;
                 amountCharged = request.BalanceDue;
-                transactionId = chargeResponse.transactionResponse.transId;
+                transactionId = chargeResult.TransactionId;
 
                 await _arbRepo.RecordPaymentAsync(new RegistrationAccounting
                 {
@@ -449,10 +448,7 @@ public class ArbDefensiveService : IArbDefensiveService
             }
             else
             {
-                var chargeErr = chargeResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                    ?? chargeResponse?.messages?.message?.FirstOrDefault()?.text
-                    ?? "Charge failed.";
-                message += $" Balance charge failed: {chargeErr}";
+                message += $" Balance charge failed: {chargeResult.MessageForUser}";
             }
         }
 

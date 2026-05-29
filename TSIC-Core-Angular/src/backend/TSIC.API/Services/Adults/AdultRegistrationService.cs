@@ -729,7 +729,7 @@ public class AdultRegistrationService : IAdultRegistrationService
             ? $"Adult Registration: {GetRoleDisplayName(roleType)} ({group.Count} teams)"
             : $"Adult Registration: {GetRoleDisplayName(roleType)}";
 
-        var adnResponse = _adnApiService.ADN_Charge(new AdnChargeRequest
+        var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
         {
             Env = env,
             LoginId = credentials.AdnLoginId!,
@@ -748,11 +748,9 @@ public class AdultRegistrationService : IAdultRegistrationService
             Description = description
         });
 
-        if (adnResponse?.messages?.resultCode == AuthorizeNet.Api.Contracts.V1.messageTypeEnum.Ok
-            && adnResponse.transactionResponse?.messages != null
-            && !string.IsNullOrWhiteSpace(adnResponse.transactionResponse.transId))
+        if (chargeResult.Success)
         {
-            var transId = adnResponse.transactionResponse.transId;
+            var transId = chargeResult.TransactionId!;
             var last4 = request.CreditCard.Number!.Length >= 4
                 ? request.CreditCard.Number[^4..]
                 : request.CreditCard.Number;
@@ -800,15 +798,11 @@ public class AdultRegistrationService : IAdultRegistrationService
         }
 
         // Payment failed
-        var errorText = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-            ?? "Payment processing failed. Please check your card details and try again.";
-        var errorCode = adnResponse?.transactionResponse?.errors?.FirstOrDefault()?.errorCode;
-
         return new AdultPaymentResponseDto
         {
             Success = false,
-            Message = errorText,
-            ErrorCode = errorCode
+            Message = chargeResult.MessageForUser,
+            ErrorCode = chargeResult.GatewayCode
         };
     }
 

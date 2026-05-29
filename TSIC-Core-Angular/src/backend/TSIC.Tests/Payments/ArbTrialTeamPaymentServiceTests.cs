@@ -435,13 +435,9 @@ public class ArbTrialTeamPaymentServiceTests
         StubTeams(jobId, [team.TeamId], team);
         StubFeeResolution(jobId, team, deposit: 200m, balance: 300m);
         AdnChargeRequest? captured = null;
-        _adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
             .Callback<AdnChargeRequest>(r => captured = r)
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Ok },
-                transactionResponse = new transactionResponse { transId = "TX-FB", messages = [new transactionResponseMessage()] }
-            });
+            .Returns(new AdnChargeResult { Success = true, TransactionId = "TX-FB", ResponseCode = "1", MessageForUser = "Approved" });
         var sut = BuildSut();
 
         var result = await sut.ProcessTeamArbTrialPaymentAsync(
@@ -450,7 +446,7 @@ public class ArbTrialTeamPaymentServiceTests
         result.Success.Should().BeTrue();
         result.Mode.Should().Be("FALLBACK_FULL_CHARGE");
         // Single ADN_Charge for the full amount, not an ARB sub create
-        _adn.Verify(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Once);
         _adn.Verify(a => a.ADN_ARB_CreateTrialSubscription_Cc(It.IsAny<AdnArbCreateTrialRequest>()), Times.Never);
         _adn.Verify(a => a.ADN_VerifyCardWithPennyAuth(It.IsAny<AdnAuthorizeRequest>()), Times.Never);
         captured.Should().NotBeNull();
@@ -472,12 +468,8 @@ public class ArbTrialTeamPaymentServiceTests
         StubJobAndCreds(regId, jobId, balanceDate: DateTime.Now.Date.AddDays(-1));
         StubTeams(jobId, [team.TeamId], team);
         StubFeeResolution(jobId, team, deposit: 200m, balance: 300m);
-        _adn.Setup(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Ok },
-                transactionResponse = new transactionResponse { transId = "TX-FB-EC", messages = [new transactionResponseMessage()] }
-            });
+        _adn.Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
+            .Returns(new AdnChargeResult { Success = true, TransactionId = "TX-FB-EC", ResponseCode = "1", MessageForUser = "Approved" });
         var sut = BuildSut();
 
         var result = await sut.ProcessTeamArbTrialPaymentAsync(

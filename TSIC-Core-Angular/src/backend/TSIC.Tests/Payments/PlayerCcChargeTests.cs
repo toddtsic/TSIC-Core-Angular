@@ -76,25 +76,14 @@ public class PlayerCcChargeTests
 
     private void StubAdnChargeSuccess(string transId = "TX-1")
     {
-        _adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Ok },
-                transactionResponse = new transactionResponse { transId = transId, messages = [new transactionResponseMessage()] }
-            });
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Returns(new AdnChargeResult { Success = true, TransactionId = transId, ResponseCode = "1", MessageForUser = "Approved" });
     }
 
     private void StubAdnChargeDeclined(string errorText = "This transaction has been declined.")
     {
-        _adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Error },
-                transactionResponse = new transactionResponse
-                {
-                    errors = [new transactionResponseError { errorText = errorText, errorCode = "2" }]
-                }
-            });
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Returns(new AdnChargeResult { Success = false, ResponseCode = "2", GatewayCode = "2", MessageForUser = errorText });
     }
 
     private static Registrations Reg(Guid jobId, decimal owed, int registrationAi = 200)
@@ -145,7 +134,7 @@ public class PlayerCcChargeTests
 
         result.Success.Should().BeTrue();
         result.TransactionId.Should().Be("TX-A");
-        _adn.Verify(a => a.ADN_Charge(It.Is<AdnChargeRequest>(r => r.Amount == 250m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 250m)), Times.Once);
         _addedAccounting.Should().HaveCount(1);
         _addedAccounting[0].PaymentMethodId.Should().Be(CcMethodId);
         _addedAccounting[0].Payamt.Should().Be(250m);
@@ -175,7 +164,7 @@ public class PlayerCcChargeTests
 
         result.Success.Should().BeTrue();
         // ONE ADN call for the whole batch (parent's existing UX: a single statement entry).
-        _adn.Verify(a => a.ADN_Charge(It.Is<AdnChargeRequest>(r => r.Amount == 650m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 650m)), Times.Once);
         _addedAccounting.Should().HaveCount(3);
         _addedAccounting.Select(r => r.Payamt).Should().BeEquivalentTo(new decimal?[] { 200m, 300m, 150m });
         _addedAccounting.Should().OnlyContain(r => r.AdnTransactionId == "TX-B" && r.Active == true);
@@ -246,7 +235,7 @@ public class PlayerCcChargeTests
 
         result.Success.Should().BeFalse();
         result.ErrorCode.Should().Be("AMOUNT_MISMATCH");
-        _adn.Verify(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never);
         _addedAccounting.Should().BeEmpty();
         reg.PaidTotal.Should().Be(0m);
     }
@@ -266,7 +255,7 @@ public class PlayerCcChargeTests
 
         result.Success.Should().BeFalse();
         result.ErrorCode.Should().Be("REG_WRONG_JOB");
-        _adn.Verify(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never);
         _addedAccounting.Should().BeEmpty();
     }
 
@@ -331,7 +320,7 @@ public class PlayerCcChargeTests
         var result = await sut.ChargeRegistrationsCcAsync(jobId, [Item(reg.RegistrationId, 467.10m)], ValidCard(), ActingUserId);
 
         result.Success.Should().BeTrue();
-        _adn.Verify(a => a.ADN_Charge(It.Is<AdnChargeRequest>(r => r.Amount == 467.10m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 467.10m)), Times.Once);
         reg.OwedTotal.Should().Be(0m);
         reg.PaidTotal.Should().Be(467.10m);
     }

@@ -91,12 +91,8 @@ public class EcheckTeamPaymentServiceTests
         var seq = new MockSequence();
         foreach (var tx in transIds)
         {
-            _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()))
-                .Returns(new createTransactionResponse
-                {
-                    messages = new messagesType { resultCode = messageTypeEnum.Ok },
-                    transactionResponse = new transactionResponse { transId = tx, messages = [new transactionResponseMessage()] }
-                });
+            _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
+                .Returns(new AdnChargeResult { Success = true, TransactionId = tx, ResponseCode = "1", MessageForUser = "Approved" });
         }
     }
 
@@ -179,7 +175,7 @@ public class EcheckTeamPaymentServiceTests
 
         result.Success.Should().BeTrue();
         // Each team is charged separately (per-team invoice for refund traceability)
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 200m)), Times.Exactly(2));
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 200m)), Times.Exactly(2));
         _addedAccounting.Should().HaveCount(2);
         _addedAccounting.Should().OnlyContain(r => r.PaymentMethodId == EcheckMethodId);
         _addedAccounting.Select(r => r.AdnTransactionId).Should().BeEquivalentTo("TX-T1", "TX-T2");
@@ -203,7 +199,7 @@ public class EcheckTeamPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.Error.Should().Be("ECHECK_NOT_ENABLED");
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
     }
 
     [Fact]
@@ -233,7 +229,7 @@ public class EcheckTeamPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.Error.Should().Be("BANK_ROUTING_INVALID");
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
     }
 
     [Fact]
@@ -251,7 +247,7 @@ public class EcheckTeamPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.Error.Should().Be("TEAM_NOT_FOUND");
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
     }
 
     [Fact]
@@ -271,8 +267,8 @@ public class EcheckTeamPaymentServiceTests
         var result = await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [team.TeamId], 1010m, ValidBank());
 
         result.Success.Should().BeTrue();
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1010m)), Times.Once);
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1038m)), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1010m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1038m)), Times.Never);
         _addedAccounting.Should().ContainSingle();
         _addedAccounting[0].Payamt.Should().Be(1010m);   // eCheck gross stored (CC-symmetric convention)
         _addedAccounting[0].PaymentMethodId.Should().Be(EcheckMethodId);
@@ -299,9 +295,9 @@ public class EcheckTeamPaymentServiceTests
         var result = await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 808m, ValidBank());
 
         result.Success.Should().BeTrue();
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 303m)), Times.Once);
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 505m)), Times.Once);
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 415.20m)), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 303m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 505m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 415.20m)), Times.Never);
         _addedAccounting.Select(r => r.Payamt).Should().BeEquivalentTo(new decimal?[] { 303m, 505m });
         t1.OwedTotal.Should().Be(0m);
         t2.OwedTotal.Should().Be(0m);
@@ -323,7 +319,7 @@ public class EcheckTeamPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.Error.Should().Be("AMOUNT_MISMATCH");
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
     }
 
     [Fact]
@@ -336,18 +332,10 @@ public class EcheckTeamPaymentServiceTests
         StubJobAndCreds(regId, jobId);
         StubTeams(jobId, [t1.TeamId, t2.TeamId], t1, t2);
         var seq = new MockSequence();
-        _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Ok },
-                transactionResponse = new transactionResponse { transId = "TX-OK", messages = [new transactionResponseMessage()] }
-            });
-        _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Error, message = [new messagesTypeMessage { text = "boom" }] },
-                transactionResponse = new transactionResponse { errors = [new transactionResponseError { errorText = "boom" }] }
-            });
+        _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
+            .Returns(new AdnChargeResult { Success = true, TransactionId = "TX-OK", ResponseCode = "1", MessageForUser = "Approved" });
+        _adn.InSequence(seq).Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
+            .Returns(new AdnChargeResult { Success = false, MessageForUser = "boom" });
         var sut = BuildSut();
 
         var result = await sut.ProcessTeamEcheckPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 400m, ValidBank());

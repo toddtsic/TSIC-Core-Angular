@@ -591,6 +591,56 @@ public class AdnApiService : IAdnApiService
             BankAccount: bank));
     }
 
+    /// <summary>
+    /// Charge a card and return the normalized outcome — the boundary where the raw SDK
+    /// response is interpreted exactly once. Callers check <see cref="AdnChargeResult.Success"/>.
+    /// </summary>
+    public AdnChargeResult ADN_Charge_Result(AdnChargeRequest request)
+        => ParseChargeResponse(ADN_Charge(request));
+
+    /// <summary>eCheck (ACH) equivalent of <see cref="ADN_Charge_Result"/>.</summary>
+    public AdnChargeResult ADN_ChargeBankAccount_Result(AdnChargeBankAccountRequest request)
+        => ParseChargeResponse(ADN_ChargeBankAccount(request));
+
+    /// <summary>
+    /// THE single interpretation of a createTransaction charge result. Success is the
+    /// transaction-level verdict (transactionResponse.responseCode == "1" + a real transId),
+    /// NOT the envelope messages.resultCode — Authorize.Net can return envelope=Error (e.g. a
+    /// field/FDS note, or a sandbox-side fault) on a transaction it has approved and captured.
+    /// </summary>
+    private static AdnChargeResult ParseChargeResponse(createTransactionResponse? resp)
+    {
+        var tr = resp?.transactionResponse;
+        var approved = tr?.responseCode == "1" && !string.IsNullOrWhiteSpace(tr.transId);
+        if (approved)
+        {
+            return new AdnChargeResult
+            {
+                Success = true,
+                TransactionId = tr!.transId,
+                AuthCode = tr.authCode,
+                ResponseCode = tr.responseCode,
+                GatewayCode = null,
+                MessageForUser = tr.messages?.FirstOrDefault()?.description ?? "Approved"
+            };
+        }
+
+        var errText = tr?.errors?.FirstOrDefault()?.errorText
+            ?? resp?.messages?.message?.FirstOrDefault()?.text
+            ?? "Gateway transaction failed";
+        var errCode = tr?.errors?.FirstOrDefault()?.errorCode
+            ?? resp?.messages?.message?.FirstOrDefault()?.code;
+        return new AdnChargeResult
+        {
+            Success = false,
+            TransactionId = tr?.transId,
+            AuthCode = tr?.authCode,
+            ResponseCode = tr?.responseCode,
+            GatewayCode = errCode,
+            MessageForUser = errText
+        };
+    }
+
     private static bankAccountType BuildBankAccount(string accountType, string routingNumber, string accountNumber, string nameOnAccount)
     {
         // Per ADN bankAccountTypeEnum.

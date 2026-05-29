@@ -207,6 +207,25 @@ public record AdnArbCreateResult
     public string? CardLast4 { get; init; }
 }
 
+/// <summary>
+/// Normalized outcome of a single createTransaction charge (authCapture, CC or eCheck).
+/// Produced once at the API boundary (AdnApiService) so services never interpret the raw
+/// SDK response. <see cref="Success"/> is the transaction-level verdict
+/// (transactionResponse.responseCode == "1"), NOT the envelope messages.resultCode — which
+/// Authorize.Net can set to Error on a transaction it actually approved and captured.
+/// </summary>
+public record AdnChargeResult
+{
+    public required bool Success { get; init; }
+    public string? TransactionId { get; init; }
+    public string? AuthCode { get; init; }
+    /// <summary>ADN transactionResponse.responseCode: 1=Approved, 2=Declined, 3=Error, 4=Held.</summary>
+    public string? ResponseCode { get; init; }
+    /// <summary>Error/message code when not approved (transaction errorCode, else envelope message code).</summary>
+    public string? GatewayCode { get; init; }
+    public required string MessageForUser { get; init; }
+}
+
 // Result of a $0.01 auth-then-void card validation. Used as a synchronous
 // "is this card good?" check in front of operations whose actual charge is
 // deferred (ARB subscription creation, ARB card update) — without it, a

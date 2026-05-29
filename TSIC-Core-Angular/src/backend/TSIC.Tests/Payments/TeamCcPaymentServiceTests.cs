@@ -83,12 +83,8 @@ public class TeamCcPaymentServiceTests
         var seq = new MockSequence();
         foreach (var tx in transIds)
         {
-            _adn.InSequence(seq).Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
-                .Returns(new createTransactionResponse
-                {
-                    messages = new messagesType { resultCode = messageTypeEnum.Ok },
-                    transactionResponse = new transactionResponse { transId = tx, messages = [new transactionResponseMessage()] }
-                });
+            _adn.InSequence(seq).Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+                .Returns(new AdnChargeResult { Success = true, TransactionId = tx, ResponseCode = "1", MessageForUser = "Approved" });
         }
     }
 
@@ -148,9 +144,9 @@ public class TeamCcPaymentServiceTests
 
         result.Success.Should().BeTrue();
         // Each team charged its own owed — never the $400 equal split.
-        _adn.Verify(a => a.ADN_Charge(It.Is<AdnChargeRequest>(r => r.Amount == 300m)), Times.Once);
-        _adn.Verify(a => a.ADN_Charge(It.Is<AdnChargeRequest>(r => r.Amount == 500m)), Times.Once);
-        _adn.Verify(a => a.ADN_Charge(It.Is<AdnChargeRequest>(r => r.Amount == 400m)), Times.Never);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 300m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 500m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 400m)), Times.Never);
 
         _addedAccounting.Should().HaveCount(2);
         _addedAccounting.Should().OnlyContain(r => r.PaymentMethodId == CcMethodId);
@@ -181,7 +177,7 @@ public class TeamCcPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.Error.Should().Be("AMOUNT_MISMATCH");
-        _adn.Verify(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never);
         _addedAccounting.Should().BeEmpty();
     }
 
@@ -200,7 +196,7 @@ public class TeamCcPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.Error.Should().Be("NOTHING_DUE");
-        _adn.Verify(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never);
     }
 
     [Fact]
@@ -218,6 +214,6 @@ public class TeamCcPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.Message.Should().Contain("not found");
-        _adn.Verify(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never);
     }
 }

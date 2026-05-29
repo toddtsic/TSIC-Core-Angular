@@ -287,7 +287,7 @@ public sealed class StoreCartService : IStoreCartService
             var env = _adnApiService.GetADNEnvironment();
             adnInvoiceNo = $"STORE-{batch.StoreCartBatchId}";
 
-            var response = _adnApiService.ADN_Charge(new AdnChargeRequest
+            var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
             {
                 Env = env,
                 LoginId = credentials.AdnLoginId!,
@@ -306,33 +306,19 @@ public sealed class StoreCartService : IStoreCartService
                 Description = "Store Purchase"
             });
 
-            if (response?.messages == null)
+            if (!chargeResult.Success)
             {
                 return new StoreCheckoutResultDto
                 {
                     Success = false,
                     StoreCartBatchId = batch.StoreCartBatchId,
                     TotalPaid = 0m,
-                    Message = "Payment gateway returned no response.",
-                    ErrorCode = "CHARGE_NULL_RESPONSE"
-                };
-            }
-
-            if (response.messages.resultCode != messageTypeEnum.Ok)
-            {
-                var errorText = response.transactionResponse?.errors?[0].errorText
-                    ?? "Payment declined.";
-                return new StoreCheckoutResultDto
-                {
-                    Success = false,
-                    StoreCartBatchId = batch.StoreCartBatchId,
-                    TotalPaid = 0m,
-                    Message = errorText,
+                    Message = chargeResult.MessageForUser,
                     ErrorCode = "CHARGE_GATEWAY_ERROR"
                 };
             }
 
-            adnTransactionId = response.transactionResponse.transId;
+            adnTransactionId = chargeResult.TransactionId;
             ccLast4 = cc.Number?.Length >= 4 ? cc.Number[^4..] : null;
             ccExpDate = cc.Expiry;
         }

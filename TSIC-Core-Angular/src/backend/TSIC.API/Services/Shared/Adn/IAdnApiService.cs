@@ -27,6 +27,11 @@ public interface IAdnApiService
     createTransactionResponse ADN_Charge(AdnChargeRequest request);
     createTransactionResponse ADN_ChargeBankAccount(AdnChargeBankAccountRequest request);
 
+    // Normalized-result wrappers: the verdict is rendered once at the API boundary
+    // (off transactionResponse.responseCode), so services never interpret raw responses.
+    AdnChargeResult ADN_Charge_Result(AdnChargeRequest request);
+    AdnChargeResult ADN_ChargeBankAccount_Result(AdnChargeBankAccountRequest request);
+
     createTransactionResponse ADN_ChargeCustomerProfile(
         AuthorizeNet.Environment env,
         string adnLoginId,

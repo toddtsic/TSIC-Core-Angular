@@ -104,15 +104,8 @@ public class PlayerCcPaymentServiceTests
 
     private void StubAdnDecline(string errorText = "Card declined")
     {
-        _adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Error },
-                transactionResponse = new transactionResponse
-                {
-                    errors = [new transactionResponseError { errorText = errorText, errorCode = "2" }]
-                }
-            });
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Returns(new AdnChargeResult { Success = false, ResponseCode = "2", GatewayCode = "2", MessageForUser = errorText });
     }
 
     private static Registrations Reg(Guid jobId, decimal owed) =>
@@ -135,16 +128,8 @@ public class PlayerCcPaymentServiceTests
 
     private void StubAdnSuccess(string transId = "txn-success")
     {
-        _adn.Setup(a => a.ADN_Charge(It.IsAny<AdnChargeRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Ok, message = [new messagesTypeMessage { code = "I00001", text = "Successful" }] },
-                transactionResponse = new transactionResponse
-                {
-                    transId = transId,
-                    messages = [new transactionResponseMessage { code = "1", description = "Approved" }]
-                }
-            });
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Returns(new AdnChargeResult { Success = true, TransactionId = transId, ResponseCode = "1", MessageForUser = "Approved" });
     }
 
     private static CreditCardInfo ValidCard() => new()

@@ -92,22 +92,14 @@ public class EcheckPaymentServiceTests
 
     private void StubAdnSuccess(string transId)
     {
-        _adn.Setup(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Ok },
-                transactionResponse = new transactionResponse { transId = transId }
-            });
+        _adn.Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
+            .Returns(new AdnChargeResult { Success = true, TransactionId = transId, ResponseCode = "1", MessageForUser = "Approved" });
     }
 
     private void StubAdnFailure(string errorText)
     {
-        _adn.Setup(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new createTransactionResponse
-            {
-                messages = new messagesType { resultCode = messageTypeEnum.Error, message = [new messagesTypeMessage { text = errorText }] },
-                transactionResponse = new transactionResponse { errors = [new transactionResponseError { errorText = errorText }] }
-            });
+        _adn.Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
+            .Returns(new AdnChargeResult { Success = false, MessageForUser = errorText });
     }
 
     private static Registrations Reg(Guid jobId, decimal owed = 100m, decimal feeProcessing = 0m) =>
@@ -187,7 +179,7 @@ public class EcheckPaymentServiceTests
 
         result.Success.Should().BeTrue();
         // Single ADN debit for the combined total
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 350m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 350m)), Times.Once);
         _addedAccounting.Should().HaveCount(2);
         _addedAccounting.Sum(r => r.Payamt ?? 0m).Should().Be(350m);
         _addedAccounting.Should().OnlyContain(r => r.AdnTransactionId == "TX-AA");
@@ -206,7 +198,7 @@ public class EcheckPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.ErrorCode.Should().Be("ECHECK_NOT_ENABLED");
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
     }
 
     [Fact]
@@ -317,8 +309,8 @@ public class EcheckPaymentServiceTests
         var result = await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank()), ActingUserId);
 
         result.Success.Should().BeTrue();
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1010m)), Times.Once);
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1038m)), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1010m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 1038m)), Times.Never);
         _addedAccounting.Should().ContainSingle();
         _addedAccounting[0].Payamt.Should().Be(1010m);   // eCheck gross stored (CC-symmetric)
         _addedAccounting[0].PaymentMethodId.Should().Be(EcheckMethodId);
@@ -348,8 +340,8 @@ public class EcheckPaymentServiceTests
         var result = await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank()), ActingUserId);
 
         result.Success.Should().BeTrue();
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 808m)), Times.Once);
-        _adn.Verify(a => a.ADN_ChargeBankAccount(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 830.40m)), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 808m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 830.40m)), Times.Never);
         _addedAccounting.Select(r => r.Payamt).Should().BeEquivalentTo(new decimal?[] { 303m, 505m });
         reg1.OwedTotal.Should().Be(0m);
         reg2.OwedTotal.Should().Be(0m);
