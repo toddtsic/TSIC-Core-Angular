@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal, viewChild } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { RegisteredTeamDto } from '@core/api';
@@ -284,18 +284,24 @@ export class RegisteredTeamsGridComponent {
      * content table but can leave the movable HEADER table stale, so the header
      * labels drift one column out of step with the cells. Re-running
      * refreshColumns() whenever Discount/Fee-Adj visibility changes forces the
-     * header table back in sync. No-op until the grid view query resolves.
+     * header table back in sync. Gated on gridReady so it never fires before
+     * the grid's first dataBound — refreshColumns() reaches into render modules
+     * that don't exist yet on initial paint (TypeError: reading 'refreshUI').
      */
     private readonly grid = viewChild<GridComponent>('grid');
+    private readonly gridReady = signal(false);
     private readonly _columnVisibilitySync = effect(() => {
         // Read both flags so the effect re-runs whenever either toggles.
         this.showDiscount();
         this.showFeeAdj();
-        this.grid()?.refreshColumns();
+        if (this.gridReady()) this.grid()?.refreshColumns();
     });
 
     /** Stamp 1-based row numbers in the unbound `#` column. Re-runs on dataBound + sort/page actions. */
     refreshRowNumbers(grid: GridComponent): void {
+        // dataBound only fires once the render modules are live — safe point to
+        // let the column-visibility effect start calling refreshColumns().
+        this.gridReady.set(true);
         grid.getRows().forEach((row, i) => {
             const cell = row.querySelector('td.row-number-cell');
             if (cell) cell.textContent = String(i + 1);
