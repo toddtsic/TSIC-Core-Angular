@@ -34,17 +34,17 @@ No fixes applied. Each finding below is its own decision.
 - [x] Issue 2 — AMOUNT_MISMATCH only catches OVER, not stale-LOW — **REFUTED** (see below)
 - [x] Issue 3 — OwedTotal recompute over-credits prior-eCheck combo — **VERIFIED, demoted to LOW** (parked behind `eCheck_newly_introduced`)
 - [x] Issue 4 — No try/catch around ADN_Charge or credentials lookup — **VERIFIED, demoted to MEDIUM** (regression from legacy, not catastrophic-class)
-- [ ] Issue 5 — `BActive=true` no longer set on parent CC success
-- [ ] Issue 6 — SyncRep drops PaidTotal when paid team goes Active=false
-- [ ] Issue 7 — Same-family concurrent submit → unguarded race
-- [ ] Issue 8 — RegSaver stamping no longer atomic with charge
-- [ ] Issue 9 — CancellationToken not propagated through engine saves
-- [ ] Issue 10 — Batched invoice → P1 orphan detector misattributes
-- [ ] Issue 11 — Admin error wrapper drops `ErrorCode`
-- [ ] Issue 12 — Placeholder `Dueamt` records wire amount, not resolver amount
-- [ ] Issue 13 — RegSaver stamping uses `DateTime.Now` while engine uses `UtcNow`
-- [ ] Issue 14 — Test suite gaps: no throw test, empty-state stub, no `BActive` assertion
-- [ ] Issue 15 — ALTITUDE: `SynchronizeClubRepFinancialsAsync` at 15+ call sites
+- [x] Issue 5 — `BActive=true` no longer set on parent CC success — **VERIFIED HIGH (catastrophic-class), FIXED `7226210c`**
+- [x] Issue 6 — SyncRep drops PaidTotal when paid team goes Active=false — **PLAUSIBLE MEDIUM**, reachability probe pending
+- [x] Issue 7 — Same-family concurrent submit → unguarded race — **PLAUSIBLE LOW**, bounded by ADN dedup window
+- [x] Issue 8 — RegSaver stamping no longer atomic with charge — **VERIFIED MEDIUM**
+- [x] Issue 9 — CancellationToken not propagated through engine saves — **VERIFIED LOW** (operational hygiene)
+- [x] Issue 10 — Batched invoice → P1 orphan detector misattributes — **REFUTED as unreachable** (EF Core atomic save)
+- [x] Issue 11 — Admin error wrapper drops `ErrorCode` — **VERIFIED LOW** (UX only)
+- [x] Issue 12 — Placeholder `Dueamt` records wire amount, not resolver amount — **REFUTED** (parent path is server-computed, same as Issue 2)
+- [x] Issue 13 — RegSaver stamping uses `DateTime.Now` while engine uses `UtcNow` — **VERIFIED LOW**
+- [x] Issue 14 — Test suite gaps — **VERIFIED LOW** (resilience observation)
+- [x] Issue 15 — ALTITUDE: `SynchronizeClubRepFinancialsAsync` at 15+ call sites — **VERIFIED MEDIUM** (architecture concern, deferred)
 
 ---
 
@@ -117,99 +117,101 @@ No fixes applied. Each finding below is its own decision.
 
 ---
 
-## Issue 5 — `BActive=true` no longer set on parent CC success (VERIFIED) — **HIGH**
+## Issue 5 — `BActive=true` no longer set on parent CC success (VERIFIED → FIXED `7226210c`) — **HIGH (catastrophic-class)**
 
-`PaymentService.cs:1448-1452` — the new engine's success branch sets `PaidTotal`, `OwedTotal`, `Modified`, `LebUserId`. It does NOT set `reg.BActive = true`. The old parent path went through `UpdateRegistrationsForCharge` at `:1737` which sets `BActive = true`. eCheck (`:1133`) and ARB (`:1751`) still set it; parent CC regressed.
+`PaymentService.cs:1444-1465` — the new engine's success branch set `PaidTotal`, `OwedTotal`, `Modified`, `LebUserId` but did NOT set `reg.BActive = true`. The old parent path went through `UpdateRegistrationsForCharge` at `:1770` which sets `BActive=true`. eCheck (uses `UpdateRegistrationsForCharge` at `:1145`) and ARB (`ApplyArbSuccessToRegistration` at `:1784`) still set it; parent CC silently regressed in `893618de` (2026-05-26).
 
-**Failure scenario.** Parent self-pays $250 by CC for first time. Charge succeeds; `PaidTotal` advances; `OwedTotal=0`. But `BActive` stays at default. Downstream consumers gating on `BActive==true` (active-player rosters, coach views, `myActivePlayers` pulse counts, batch email recipients, the `BActive==true` filter in `GetSuperUserRegistrationsAsync`) silently exclude the paid player. Coach asks "where's my player?" — they exist, they paid, BActive is `null`.
+**Failure scenario.** Parent self-pays $250 by CC for first time. Charge succeeds; `PaidTotal` advances; `OwedTotal=0`. But `BActive` stayed at `false` (the creation default at `PlayerRegistrationService.cs:459, 495`). Every "active registration" surface excluded the paid player: `RegistrationRepository` (8+ queries at lines 49, 129, 154, 179, 207, 241, 267, 284, 311), `ArbSubscriptionRepository.cs:29`, `DivisionRepository.cs:79`, `JobFilterTreeRepository.cs:76`, `AdministratorRepository`, `AdultRegistrationRepository`. Coach roster, batch email, pulse counts, division summary — all silently filter the paid player out.
 
-**Test gap (see also Issue 14).** The new 9-test `PlayerCcChargeTests` never asserts `BActive` on success. The test factory `Reg()` at `:100` leaves `BActive` at default (`bool? = null`), divergent from `RegistrationDataBuilder.BuildRegistration` which sets `BActive=false`. CI cannot catch this regression.
-
----
-
-## Issue 6 — SyncRep drops PaidTotal when paid team goes Active=false (PLAUSIBLE) — **MEDIUM**
-
-`RegistrationRepository.cs:805-848` — `SynchronizeClubRepFinancialsAsync` aggregates ONLY `t.Active == true` teams (line 809) and non-WAITLIST/DROPPED agegroups, then unconditionally overwrites `rep.PaidTotal` at line 843. Any new call site that allows a PAID team to transition to `Active=false` drops that team's PaidTotal from the rep's aggregate even though the money is still settled at ADN.
-
-**Failure scenario.** Rep has 3 paid teams ($1000 each, `rep.PaidTotal=$3000`). Admin soft-deletes team 3 via `LadtService.DeleteTeamAsync`. Old admin code didn't sync; new code does. Aggregate now excludes team 3: `rep.PaidTotal=$2000`. Team 3's $1000 still sits in its RA rows. Rep's stored aggregate underrepresents what they paid by $1000.
-
-**Probe.** `UnregisterTeamFromEventAsync` guards with `PaidTotal>0→throw`. Confirm: does `LadtService.DeleteTeamAsync` block soft-delete of paid teams? Does `TeamSearchService.EditTeamAsync` block toggling Active=false on paid teams? If either path admits a paid team to Active=false, the bug is live.
+**Fix.** `7226210c` adds `reg.BActive = true` to the canonical engine success branch and a regression test `CcSuccess_FlipsBActiveTrue` in `PlayerCcPaymentServiceTests`.
 
 ---
 
-## Issue 7 — Same-family concurrent submit → unguarded race (PLAUSIBLE) — **MEDIUM**
+## Issue 6 — SyncRep drops PaidTotal when paid team goes Active=false (PLAUSIBLE) — **MEDIUM** (reachability probe pending)
 
-`PaymentService.cs:1307` — no server-side serialization for concurrent CC charges against the same `(jobId, familyUserId)`. The only defenses are the per-tab frontend `submitting` signal (per-component-instance) and ADN's dedup window. Engine doesn't lock the family, doesn't check for unfinalized placeholder RAs created seconds ago, doesn't reject if a sibling request is in flight.
+`RegistrationRepository.cs:805-848` — `SynchronizeClubRepFinancialsAsync` aggregates ONLY `t.Active == true` teams (line 809) and non-WAITLIST/DROPPED agegroups, then unconditionally overwrites `rep.PaidTotal` at line 843. A paid team transitioning to `Active=false` would drop its PaidTotal from the rep's aggregate while the money still sits in its RA rows.
 
-**Failure scenario.** Impatient parent opens wizard in two tabs (slow LB caused first request to look hung). Clicks Pay in tab A, then tab B within ~500ms. Each engine independently loads regs, writes N placeholder RAs (2N total), calls `ADN_Charge`. If ADN dedup catches the second: DB carries `success` + `FAILED` RA sets (audit noise). If dedup misses: card double-charged; `PaidTotal` exceeds `FeeTotal`; the new `OwedTotal < 0` clamp at line 1450 silently hides the over-payment so admin sees no negative-owed alert.
+**Failure scenario.** Rep has 3 paid teams ($1000 each, `rep.PaidTotal=$3000`). A paid team goes Active=false (deletion, edit, or otherwise). SyncRep aggregate now excludes it: `rep.PaidTotal=$2000`. The $1000 still sits in the original team's RA rows but is no longer reflected on the rep.
 
-**Probe.** Validate ADN dedup behavior on identical (card, amount, invoice) within seconds. Decide: per-family Postgres advisory lock vs frontend idempotency-key check vs DB unique index on `(LebUserId, AdnTransactionId)`.
+**Reachability.** Quick grep: `TeamRegistrationService.UnregisterTeamFromEventAsync` guards at `:856` (`if (team.PaidTotal > 0) throw`). `TeamRegistrationService:1024` writes `entity.Active = false` on a different path — guard unverified. `TeamSearchService` and `LadtService` paid-team guards unverified. **Bug is live IF any non-Unregister path admits a paid team to Active=false.** Full audit of every `team.Active = false` write site is needed to close this.
+
+**No code action this session.** Pending reachability audit. Suggested fix shape (if confirmed reachable): add a write-side guard in `SynchronizeClubRepFinancialsAsync` itself — if the aggregate `PaidTotal` would go *down* from the stored value, log + alert (the money owe-side direction is the dangerous one).
+
+---
+
+## Issue 7 — Same-family concurrent submit → unguarded race (PLAUSIBLE) — **LOW** (bounded by ADN dedup)
+
+`PaymentService.cs:1319` — no server-side serialization for concurrent CC charges against the same `(jobId, familyUserId)`. Engine doesn't lock the family or reject if a sibling request is in flight. **However**, `AdnApiService.ExecuteTransaction:528` sets `duplicateWindow=120` on every charge/authorize transaction, so ADN itself rejects identical (card, amount, invoice) within 2 minutes. The realistic failure window is thereby ~120s and the realistic failure mode is "tab A success + tab B 'duplicate' error" — audit-noise placeholder RA pairs but no double-charge.
+
+**Why demoted from MEDIUM to LOW.** ADN's 120s duplicateWindow closes the catastrophic-class window (card double-charged). Remaining impact is admin audit noise (two placeholder RAs per stuttered submit). Frontend per-tab `submitting` signal closes the same-tab repeat. Multi-tab concurrent submits are uncommon. No code action pre-go-live.
 
 ---
 
 ## Issue 8 — RegSaver stamping no longer atomic with charge (VERIFIED) — **MEDIUM**
 
-`PaymentService.cs:1454` (engine save) + `:1520` (RegSaver save) — two distinct `SaveChangesAsync` calls. Old code did one combined save. If the second fails (concurrency conflict, connection blip, statement timeout) the customer is charged for VI but the registration carries no `RegsaverPolicyId`.
+`PaymentService.cs:1466` (engine save) + `:1553` (RegSaver save) — two distinct `SaveChangesAsync` calls. Old code did one combined save. If the second fails (concurrency conflict, connection blip, statement timeout) the customer is charged for VI but the registration carries no `RegsaverPolicyId`.
 
 **Failure scenario.** Parent buys VI coverage with CC. Engine's first `SaveChangesAsync` commits charge state + success-stamped RA. `ExecutePrimaryChargeAsync` then mutates `reg.RegsaverPolicyId` and calls the second `SaveChangesAsync`. Transient DB error throws. Customer's card was charged for the VI premium; the registration has no policy id; reconciliation requires manual VI-vs-RA cross-walk.
 
----
-
-## Issue 9 — CancellationToken not propagated through engine saves (VERIFIED) — **MEDIUM**
-
-`PaymentService.cs:1307` — `ChargeRegistrationsCcAsync` accepts `CancellationToken ct` and propagates it to `_paymentState.ForRegistrationsAsync` and `_registrations.GetByIdsAsync` — but drops it on:
-- `_acct.SaveChangesAsync()` at `:1373` and `:1415`
-- `_registrations.SaveChangesAsync()` at `:1454`
-- `GetJobAdnCredentials_FromJobId` at `:1347`
-- `BuildInvoiceNumberForRegistrationAsync` at `:1355`
-
-Also: `ExecutePrimaryChargeAsync` at `:1497` calls the engine without any token. Mixed surface: reads honor wire cancellation, writes don't.
-
-**Failure scenario.** Client cancels mid-charge (tab close, navigate-away). Cancellation arrives between placeholder save (`:1373`) and success save (`:1454`); ADN still charges; engine commits PaidTotal bump without honoring `ct`. Server state advances for a request the caller no longer awaits.
+**No code action this session.** Real but bounded — requires VI purchase AND transient DB error in a ~1s window. Suggested fix: stage the RegsaverPolicyId mutation INSIDE the engine success branch (before the engine's SaveChangesAsync) so it shares the same atomic save. Or: wrap the two saves in a single `TransactionScope`. Defer.
 
 ---
 
-## Issue 10 — Batched invoice → P1 orphan detector misattributes (PLAUSIBLE) — **MEDIUM**
+## Issue 9 — CancellationToken not propagated through engine saves (VERIFIED) — **LOW** (operational hygiene)
 
-`PaymentService.cs:1355` — parent batch charges N kids in ONE ADN tx with ONE invoice number derived from `items[0].RegistrationId`. ALL N placeholder RA rows are stamped with that same `AdnInvoiceNo` at `:1441`. P1's orphan detector (`AdnSweepService.GetByInvoiceAisAsync`) parses the invoice `customer_job_reg` → a SINGLE reg — it cannot represent a batched orphan.
+`PaymentService.cs:1319` — `ChargeRegistrationsCcAsync` accepts `CancellationToken ct` and propagates it to reads (`_paymentState.ForRegistrationsAsync`, `_registrations.GetByIdsAsync`) but drops it on writes (`_acct.SaveChangesAsync` at `:1385/:1427`, `_registrations.SaveChangesAsync` at `:1466`), credentials lookup at `:1359`, and `BuildInvoiceNumberForRegistrationAsync` at `:1367`. `ExecutePrimaryChargeAsync` calls the engine without forwarding its (non-existent) token.
 
-**Failure scenario.** Parent pays $750 = $200 (KID1) + $300 (KID2) + $250 (KID3) in one ADN charge. Invoice = `cust_job_KID1AI`. If placeholder RA inserts for KID2 & KID3 fail to persist (the very scenario P1's detector exists to catch), the detector parses the invoice and resolves the orphan to KID1 alone. Director books $750 against KID1 thinking they over-charged — but $550 actually belongs to siblings.
+**Why LOW.** Honoring `ct` on a charge write that has ALREADY hit ADN would arguably be wrong — we'd want server state to advance to match the gateway side, not bail. The reads-honor-writes-don't asymmetry is therefore defensible. The real gap is the missing `ct` parameter on `ExecutePrimaryChargeAsync` itself (the upstream surface). No catastrophic-class money or data impact. Defer.
 
-**Probe.** Confirm `AdnSweepService.GetByInvoiceAisAsync` doesn't handle multi-reg invoices today; design invoice format that encodes the batch (e.g. `cust_job_KID1AI_KID2AI_KID3AI` or a separate `BatchId`).
+---
+
+## Issue 10 — Batched invoice → P1 orphan detector misattributes — **REFUTED as unreachable**
+
+**Original concern.** Parent batches N kids in one ADN tx with one invoice derived from `items[0].RegistrationId`; all N placeholder RAs share that invoice. If RAs for KID2/KID3 fail to persist while KID1's persists, the orphan detector's `(custAi, jobAi, regAi)` parse resolves the orphan to KID1 alone, misattributing $550 of siblings' money.
+
+**Why refuted.** All N placeholder RAs are inserted via `_acct.Add(ra)` in a single `foreach` and committed by ONE `_acct.SaveChangesAsync()` at `PaymentService.cs:1385`. EF Core's `SaveChanges` is atomic — either all N inserts commit or none do. There is no scenario where KID1's RA persists but KID2/KID3 do not. Partial-persist requires an unhandled exception during the save, which rolls back the entire transaction.
+
+**Adjacent concern (still real).** If the orphan detector ALSO does `AnyByAdnTransactionIdAsync(tx.transId)` first (at `:723`), a batched tx with ANY local RA shadows the detector — but this is the same "all-or-nothing" property that makes the misattribution unreachable. The batched-invoice concern only matters if some future change splits the per-reg RA inserts across multiple SaveChanges calls. Note for future audit; not actionable now.
 
 ---
 
 ## Issue 11 — Admin error wrapper drops `ErrorCode` (VERIFIED) — **LOW**
 
-`RegistrationSearchService.cs:437` — admin wrapper forwards `result.Message` into `RegistrationCcChargeResponse.Error` and DROPS `result.ErrorCode`. The engine emits `AMOUNT_MISMATCH / INVALID_AMOUNT / REG_WRONG_JOB / NO_ITEMS / MISSING_GATEWAY_CREDS / CHARGE_GATEWAY_ERROR` — admin client sees them all collapsed to one untyped string. Old admin path's per-condition copy is also gone — any admin UI that substring-matched the legacy text silently breaks.
+`RegistrationSearchService.cs:437` — admin wrapper forwards `result.Message` into `RegistrationCcChargeResponse.Error` and DROPS `result.ErrorCode`. The engine emits `AMOUNT_MISMATCH / INVALID_AMOUNT / REG_WRONG_JOB / NO_ITEMS / MISSING_GATEWAY_CREDS / CHARGE_GATEWAY_ERROR` — admin client sees them all collapsed to one untyped string. Programmatic differentiation (auto-reload on stale, retry button on decline, "wrong job" hard-error) is unreachable.
 
-**Blast radius.** Admin UX degradation only — no money loss. But programmatic differentiation (auto-reload on stale, retry button on decline, "wrong job" hard-error) is unreachable.
+**Blast radius.** Admin UX only — no money loss. No code action this session; the admin tools sit on this surface in a small handful of places and a fix is a one-line forward of `result.ErrorCode` when the admin response DTO is touched. Defer.
 
 ---
 
-## Issue 12 — Placeholder `Dueamt` records wire amount, not resolver amount (VERIFIED) — **LOW**
+## Issue 12 — Placeholder `Dueamt` records wire amount, not resolver amount — **REFUTED (parent path)**, **LOW (admin path)**
 
-`PaymentService.cs:1363` — `Dueamt = item.Amount` snapshots the SUBMIT-TIME wire value, not the canonical `owed.Cc`. Combined with Issue 2 (unidirectional tripwire), any case where `Amount` is within tolerance but the resolver moved permanently records a `Dueamt` the resolver never agreed with.
+**Original concern.** `PaymentService.cs:1375` (`Dueamt = item.Amount`) records the wire amount; combined with Issue 2's unidirectional tripwire, drift between display and submit would record a `Dueamt` the resolver never agreed with.
 
-**Failure scenario.** Wizard cached `owed=$200`. Between display and submit, `owed.Cc` moves to $200.50. Parent submits $200; tripwire allows ($200 ≤ $200.51); engine writes `Dueamt=$200, Payamt=$200`. The RA permanently records `$200` while the resolver at charge time disagreed. Future resolver-vs-RA reconciliation flags drift without obvious cause.
+**Parent path — REFUTED.** Same reasoning as Issue 2: `item.Amount` on parent self-pay is server-computed in `ComputeChargesAsync` at `PaymentService.cs:1718` from the same tracked `Registrations` entities the resolver reads. By construction `item.Amount == owed.Cc`. No drift window exists.
+
+**Admin path — LOW.** Admin DOES pass a wire amount through `RegistrationCcChargeRequest.AmountCharge`, so `Dueamt` records the admin-entered value rather than the resolver's view. This is arguably correct (audit captures what admin charged) but worth noting if downstream reconciliation expects `Dueamt` to match `owed.Cc`. No code action.
 
 ---
 
 ## Issue 13 — RegSaver stamping uses `DateTime.Now` while engine uses `UtcNow` (VERIFIED) — **LOW**
 
-`PaymentService.cs:1516-1517` — `RegsaverPolicyIdCreateDate = request.ViPolicyCreateDate ?? DateTime.Now` and `reg.Modified = DateTime.Now`. The canonical engine uses `DateTime.UtcNow` (lines 1444, 1446, 1451). The same registration row therefore lands with `Modified=Local` overwriting the `Modified=UtcNow` set seconds earlier.
+`PaymentService.cs:1549-1550` — `RegsaverPolicyIdCreateDate = request.ViPolicyCreateDate ?? DateTime.Now` and `reg.Modified = DateTime.Now`. The canonical engine uses `DateTime.UtcNow` (lines 1458, 1463). Same row writes `Modified` twice with different Kinds within seconds.
 
-**Failure scenario.** Server runs ET (UTC-5). Parent buys VI; engine sets `Modified=2026-05-27 14:00 UTC`; RegSaver stamp overwrites with `Modified=2026-05-27 09:00:00`. Downstream incremental sync `WHERE Modified >= '2026-05-27 12:00 UTC'` skips this row. (Note: eCheck's `UpdateRegistrationsForCharge` at `:1738` also uses `Now`, so the codebase is partially inconsistent; this commit widens the gap by writing Modified twice with different Kinds on the same row.)
+**Failure scenario.** Server runs ET (UTC-5). VI purchase: engine sets `Modified=2026-05-27 14:00 UTC`; RegSaver overwrites with `Modified=2026-05-27 09:00:00` (Local). Downstream incremental sync `WHERE Modified >= '2026-05-27 12:00 UTC'` skips this row.
+
+**Why LOW.** The codebase is broadly inconsistent on Now-vs-UtcNow (eCheck's `UpdateRegistrationsForCharge:1771` also uses `Now`; AddEcheckAccountingEntries uses `Now`). Cosmetic to fix locally; the real fix is a project-wide policy that engine + helpers all read from one clock abstraction. Defer; no go-live blocker by itself.
 
 ---
 
 ## Issue 14 — Test suite gaps (VERIFIED) — **LOW (resilience)**
 
-`PlayerCcChargeTests.cs`:
-- **No assertion on `BActive`** after a successful charge. Issue 5's regression is invisible to CI.
-- **`ForRegistrationsAsync` is always stubbed to an empty dictionary**, forcing the `emptyState` fallback. The real per-reg state branch through `ResolveOwed` is never exercised — any bug where states return CcRate but missing GrossPaid would never trip these tests.
+Original gaps in `PlayerCcChargeTests.cs`:
+- **No assertion on `BActive`** after a successful charge — closed by `PlayerCcPaymentServiceTests.CcSuccess_FlipsBActiveTrue` (`7226210c`).
+- **`ForRegistrationsAsync` is always stubbed to an empty dictionary**, forcing the `emptyState` fallback. Real per-reg state branch through `ResolveOwed` is never exercised.
 - **No test exercises `ADN_Charge` THROWING** (only the soft-fail "decline response" path). Issue 4's orphan-placeholder scenario is uncovered.
-- **`Reg()` test factory at :100** duplicates `RegistrationDataBuilder.BuildRegistration` with different defaults (e.g. `BActive=null` vs `BActive=false`) — tests pass against entities production code would reject.
+- **`Reg()` test factory** duplicates `RegistrationDataBuilder.BuildRegistration` with different defaults — tests pass against entities production code would reject.
+
+**No code action this session.** Test-hardening sweep is a deferred follow-up; would catch a future Issue-5-shaped regression but doesn't fix one.
 
 ---
 
