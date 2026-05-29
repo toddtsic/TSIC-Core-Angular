@@ -287,14 +287,21 @@ export class RegisteredTeamsGridComponent {
      * header table back in sync. Gated on gridReady so it never fires before
      * the grid's first dataBound — refreshColumns() reaches into render modules
      * that don't exist yet on initial paint (TypeError: reading 'refreshUI').
+     * Only fires on an actual visibility transition: the initial render already
+     * builds the header against the correct column set, so a no-op refresh there
+     * is wasted work across every instance of this shared grid.
      */
     private readonly grid = viewChild<GridComponent>('grid');
     private readonly gridReady = signal(false);
+    private prevColVis = { discount: false, feeAdj: false };
     private readonly _columnVisibilitySync = effect(() => {
-        // Read both flags so the effect re-runs whenever either toggles.
-        this.showDiscount();
-        this.showFeeAdj();
-        if (this.gridReady()) this.grid()?.refreshColumns();
+        const discount = this.showDiscount();
+        const feeAdj = this.showFeeAdj();
+        const grid = this.grid();
+        if (!this.gridReady() || !grid) return;
+        if (discount === this.prevColVis.discount && feeAdj === this.prevColVis.feeAdj) return;
+        this.prevColVis = { discount, feeAdj };
+        grid.refreshColumns();
     });
 
     /** Stamp 1-based row numbers in the unbound `#` column. Re-runs on dataBound + sort/page actions. */
