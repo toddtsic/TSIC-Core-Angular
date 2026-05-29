@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { RegisteredTeamDto } from '@core/api';
@@ -22,7 +22,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                 [height]="gridHeight()"
                 [allowPaging]="pageSize() > 0"
                 [pageSettings]="{ pageSize: pageSize() || 50 }"
-                (dataBound)="refreshRowNumbers(grid)"
+                (dataBound)="onDataBound(grid)"
                 (actionComplete)="onActionComplete($event, grid)"
                 cssClass="tsic-grid-compact">
         <e-columns>
@@ -277,38 +277,38 @@ export class RegisteredTeamsGridComponent {
     readonly showDiscount = computed(() => this.teams().some(t => (t.feeDiscount ?? 0) > 0));
     readonly showFeeAdj = computed(() => this.teams().some(t => (t.feeLatefee ?? 0) > 0));
 
+    // Last column-visibility state we rebuilt the header for. Seeded to match the
+    // initial all-hidden render so the first dataBound is a no-op.
+    private lastColVis = { discount: false, feeAdj: false };
+
     /**
-     * Frozen-column grids (frozenTeamCol=true) split header and content into
-     * separate frozen/movable tables. When a column's `visible` flips at runtime
-     * — e.g. Discount turns on after a code is applied — Syncfusion rebuilds the
-     * content table but can leave the movable HEADER table stale, so the header
-     * labels drift one column out of step with the cells. Re-running
-     * refreshColumns() whenever Discount/Fee-Adj visibility changes forces the
-     * header table back in sync. Gated on gridReady so it never fires before
-     * the grid's first dataBound — refreshColumns() reaches into render modules
-     * that don't exist yet on initial paint (TypeError: reading 'refreshUI').
-     * Only fires on an actual visibility transition: the initial render already
-     * builds the header against the correct column set, so a no-op refresh there
-     * is wasted work across every instance of this shared grid.
+     * Runs after every dataBound — i.e. after the grid has finished rendering the
+     * current data. Stamps row numbers, then resyncs the header if a conditional
+     * column just toggled.
+     *
+     * Why here and not on a reactive binding: frozen-column grids
+     * (frozenTeamCol=true) split header and content into separate frozen/movable
+     * tables. When a column's `visible` flips at runtime — e.g. Discount turns on
+     * after a code is applied — Syncfusion rebuilds the CONTENT but can leave the
+     * movable HEADER stale, so header labels drift one column out of step with the
+     * cells. refreshColumns() rebuilds the header, but it MUST run after the data
+     * render settles; firing it mid-change-detection raced the async data refresh,
+     * which then re-clobbered the header. dataBound is that settled point.
      */
-    private readonly grid = viewChild<GridComponent>('grid');
-    private readonly gridReady = signal(false);
-    private prevColVis = { discount: false, feeAdj: false };
-    private readonly _columnVisibilitySync = effect(() => {
+    onDataBound(grid: GridComponent): void {
+        this.refreshRowNumbers(grid);
+
         const discount = this.showDiscount();
         const feeAdj = this.showFeeAdj();
-        const grid = this.grid();
-        if (!this.gridReady() || !grid) return;
-        if (discount === this.prevColVis.discount && feeAdj === this.prevColVis.feeAdj) return;
-        this.prevColVis = { discount, feeAdj };
+        if (discount === this.lastColVis.discount && feeAdj === this.lastColVis.feeAdj) return;
+        // Record BEFORE refreshColumns so the dataBound it triggers sees no change
+        // and returns early — that's the loop guard.
+        this.lastColVis = { discount, feeAdj };
         grid.refreshColumns();
-    });
+    }
 
     /** Stamp 1-based row numbers in the unbound `#` column. Re-runs on dataBound + sort/page actions. */
     refreshRowNumbers(grid: GridComponent): void {
-        // dataBound only fires once the render modules are live — safe point to
-        // let the column-visibility effect start calling refreshColumns().
-        this.gridReady.set(true);
         grid.getRows().forEach((row, i) => {
             const cell = row.querySelector('td.row-number-cell');
             if (cell) cell.textContent = String(i + 1);
