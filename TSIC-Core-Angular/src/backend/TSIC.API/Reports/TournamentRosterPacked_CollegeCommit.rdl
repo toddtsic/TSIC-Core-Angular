@@ -412,12 +412,12 @@
                                                                       <Width>0.5pt</Width>
                                                                     </BottomBorder>
                                                                   </Style>
-                                                                  <CanGrow>false</CanGrow>
+                                                                  <CanGrow>true</CanGrow>
                                                                   <Paragraphs>
                                                                     <Paragraph>
                                                                       <TextRuns>
                                                                         <TextRun>
-                                                                          <Value>=Left(IIf(IsNothing(Fields!collegeCommit.Value), "", Fields!collegeCommit.Value), 22)</Value>
+                                                                          <Value>=IIf(IsNothing(Fields!collegeCommit.Value), "", Fields!collegeCommit.Value)</Value>
                                                                           <Style><FontFamily>Arial</FontFamily><FontSize>6.5pt</FontSize><Color>#000000</Color></Style>
                                                                         </TextRun>
                                                                       </TextRuns>
