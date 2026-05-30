@@ -43,7 +43,7 @@
 
 					<span class="jl-toolbar__cta-group" [class.jl-toolbar__cta-group--multi]="ctas().length > 1">
 						@for (cta of ctas(); track cta.label) {
-							<a [routerLink]="cta.path" class="jl-toolbar__cta">
+							<a [routerLink]="cta.path" [queryParams]="cta.queryParams" class="jl-toolbar__cta">
 								<span>{{ cta.label }}</span>
 								<i class="bi bi-arrow-right" aria-hidden="true"></i>
 							</a>

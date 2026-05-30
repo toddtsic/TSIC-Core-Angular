@@ -92,7 +92,7 @@ export class JobLandingComponent implements OnDestroy {
 		!!this.pulse()?.schedulePublished && !!this.jobId() && this.hasGameClockGames()
 	);
 
-	readonly ctas = computed<readonly { readonly label: string; readonly path: readonly string[] }[]>(() => {
+	readonly ctas = computed<readonly { readonly label: string; readonly path: readonly string[]; readonly queryParams?: Record<string, string> }[]>(() => {
 		const jp = this.activeJobPath();
 		if (!jp) return [];
 
@@ -108,9 +108,22 @@ export class JobLandingComponent implements OnDestroy {
 		const teamSuppressedBySchedule = teamWouldOpen && schedulePublished;
 		const teamOpen = teamWouldOpen && !schedulePublished;
 
-		const out: { readonly label: string; readonly path: readonly string[] }[] = [];
-		if (playerOpen) out.push({ label: 'Register Player', path: ['/', jp, 'registration', 'player'] });
-		if (teamOpen)   out.push({ label: 'Register Team',   path: ['/', jp, 'registration', 'team'] });
+		const out: { readonly label: string; readonly path: readonly string[]; readonly queryParams?: Record<string, string> }[] = [];
+		// A registered player (assigned to a team) sees their existing registration
+		// rather than a redundant Register Player CTA — deep-links to the players step.
+		if (p?.myAssignedTeamId != null) {
+			out.push({ label: 'My Registration', path: ['/', jp, 'registration', 'player'], queryParams: { step: 'players' } });
+		} else if (playerOpen) {
+			out.push({ label: 'Register Player', path: ['/', jp, 'registration', 'player'] });
+		}
+		// A club rep with at least one registered team sees their existing registration
+		// rather than a Register Team CTA — deep-links to the teams step. (myClubRepTeamCount
+		// is only populated for a Club Rep scoped to this job, so > 0 encodes both role + has-reg.)
+		if ((p?.myClubRepTeamCount ?? 0) > 0) {
+			out.push({ label: 'My Teams', path: ['/', jp, 'registration', 'team'], queryParams: { step: 'teams' } });
+		} else if (teamOpen) {
+			out.push({ label: 'Register Team', path: ['/', jp, 'registration', 'team'] });
+		}
 
 		// View Schedule fills the slot a suppressed Register Team would have
 		// occupied; also shown standalone when nothing else qualifies but
