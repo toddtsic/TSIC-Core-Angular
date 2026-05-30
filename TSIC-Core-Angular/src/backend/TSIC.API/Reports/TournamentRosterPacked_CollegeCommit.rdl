@@ -9,7 +9,7 @@
                               <Left>0pt</Left>
                               <Top>0pt</Top>
                               <Height>640pt</Height>
-                              <Width>554pt</Width>
+                              <Width>277pt</Width>
                               <Style>
                                 <FontFamily>Arial</FontFamily>
                                 <Border><Style>None</Style></Border>
@@ -27,7 +27,7 @@
                               <DataSetName>MainReportData</DataSetName>
                               <TablixBody>
                                 <TablixColumns>
-                                  <TablixColumn><Width>554pt</Width></TablixColumn>
+                                  <TablixColumn><Width>277pt</Width></TablixColumn>
                                 </TablixColumns>
                                 <TablixRows>
                                   <TablixRow>
@@ -39,7 +39,7 @@
                                             <Left>0pt</Left>
                                             <Top>0pt</Top>
                                             <Height>22pt</Height>
-                                            <Width>554pt</Width>
+                                            <Width>277pt</Width>
                                             <Style>
                                               <FontFamily>Arial</FontFamily>
                                               <TextAlign>Center</TextAlign>
@@ -77,39 +77,52 @@
                                     </TablixCells>
                                   </TablixRow>
                                   <TablixRow>
-                                    <Height>640pt</Height>
+                                    <Height>320pt</Height>
                                     <TablixCells>
                                       <TablixCell>
                                         <CellContents>
-                                          <Tablix Name="gridTablix">
+                                          <Rectangle Name="cellWrap">
                                             <Left>0pt</Left>
                                             <Top>0pt</Top>
-                                            <Height>640pt</Height>
-                                            <Width>554pt</Width>
+                                            <Height>320pt</Height>
+                                            <Width>277pt</Width>
                                             <Style>
                                               <FontFamily>Arial</FontFamily>
                                               <Border><Style>None</Style></Border>
                                             </Style>
-                                            <CustomProperties>
-                                              <CustomProperty><Name>MaxRowCount</Name><Value>100000</Value></CustomProperty>
-                                              <CustomProperty><Name>MaxColumnCount</Name><Value>20</Value></CustomProperty>
-                                            </CustomProperties>
-                                            <DataSetName>MainReportData</DataSetName>
-                                            <TablixBody>
-                                              <TablixColumns>
-                                                <TablixColumn><Width>184pt</Width></TablixColumn>
-                                              </TablixColumns>
-                                              <TablixRows>
-                                                <TablixRow>
-                                                  <Height>320pt</Height>
-                                                  <TablixCells>
-                                                    <TablixCell>
-                                                      <CellContents>
+                                            <ReportItems>
+                                              <Textbox Name="txtAgDivMarker">
+                                                <Left>0pt</Left>
+                                                <Top>0pt</Top>
+                                                <Height>1pt</Height>
+                                                <Width>1pt</Width>
+                                                <Style>
+                                                  <FontFamily>Arial</FontFamily>
+                                                  <Color>White</Color>
+                                                  <Border><Style>None</Style></Border>
+                                                </Style>
+                                                <CanGrow>false</CanGrow>
+                                                <Paragraphs>
+                                                  <Paragraph>
+                                                    <TextRuns>
+                                                      <TextRun>
+                                                        <Value>=Fields!agDiv.Value</Value>
+                                                        <Style>
+                                                          <FontFamily>Arial</FontFamily>
+                                                          <FontSize>1pt</FontSize>
+                                                          <Color>White</Color>
+                                                        </Style>
+                                                      </TextRun>
+                                                    </TextRuns>
+                                                    <Style />
+                                                  </Paragraph>
+                                                </Paragraphs>
+                                              </Textbox>
                                               <Rectangle Name="cardOuter">
                                                 <Left>3pt</Left>
                                                 <Top>3pt</Top>
                                                 <Height>314pt</Height>
-                                                <Width>178pt</Width>
+                                                <Width>271pt</Width>
                                                 <Style>
                                                   <FontFamily>Arial</FontFamily>
                                                   <Border>
@@ -123,7 +136,7 @@
                                                     <Left>0pt</Left>
                                                     <Top>0pt</Top>
                                                     <Height>14pt</Height>
-                                                    <Width>178pt</Width>
+                                                    <Width>271pt</Width>
                                                     <Style>
                                                       <FontFamily>Arial</FontFamily>
                                                       <TextAlign>Center</TextAlign>
@@ -159,7 +172,7 @@
                                                     <Left>0pt</Left>
                                                     <Top>14pt</Top>
                                                     <Height>12pt</Height>
-                                                    <Width>178pt</Width>
+                                                    <Width>271pt</Width>
                                                     <Style>
                                                       <FontFamily>Arial</FontFamily>
                                                       <TextAlign>Center</TextAlign>
@@ -193,7 +206,7 @@
                                                   <Line Name="titleUnderline">
                                                     <Top>26pt</Top>
                                                     <Left>0pt</Left>
-                                                    <Width>178pt</Width>
+                                                    <Width>271pt</Width>
                                                     <Height>0pt</Height>
                                                     <Style>
                                                       <Border>
@@ -207,7 +220,7 @@
                                                     <Left>0pt</Left>
                                                     <Top>29pt</Top>
                                                     <Height>281pt</Height>
-                                                    <Width>178pt</Width>
+                                                    <Width>271pt</Width>
                                                     <Style>
                                                       <FontFamily>Arial</FontFamily>
                                                       <Border><Style>None</Style></Border>
@@ -225,12 +238,12 @@
                                                     <DataSetName>MainReportData</DataSetName>
                                                     <TablixBody>
                                                       <TablixColumns>
-                                                        <TablixColumn><Width>14pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>65pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>25pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>17pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>14pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>41pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>22pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>100pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>38pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>26pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>22pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>63pt</Width></TablixColumn>
                                                       </TablixColumns>
                                                       <TablixRows>
                                                         <TablixRow>
@@ -239,7 +252,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iUniform">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>14pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>22pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>1pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -271,7 +284,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iName">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>65pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>100pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>2pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -303,7 +316,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iPosition">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>25pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>38pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>1pt</PaddingLeft><PaddingRight>1pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -335,7 +348,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iGradYear">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>17pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>26pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>1pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -367,7 +380,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iGpa">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>14pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>22pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>1pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -399,7 +412,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iCollegeCommit">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>41pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>63pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>2pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -486,49 +499,29 @@
                                                   </Textbox>
                                                 </ReportItems>
                                               </Rectangle>
-                                                        <RowSpan>1</RowSpan>
-                                                        <ColSpan>1</ColSpan>
-                                                      </CellContents>
-                                                    </TablixCell>
-                                                  </TablixCells>
-                                                </TablixRow>
-                                              </TablixRows>
-                                            </TablixBody>
-                                            <TablixColumnHierarchy>
-                                              <TablixMembers>
-                                                <TablixMember>
-                                                  <Group Name="GridCol">
-                                                    <GroupExpressions>
-                                                      <GroupExpression>=(Fields!divTeamRow.Value - 1) Mod 3</GroupExpression>
-                                                    </GroupExpressions>
-                                                  </Group>
-                                                  <SortExpressions>
-                                                    <SortExpression>
-                                                      <Value>=(Fields!divTeamRow.Value - 1) Mod 3</Value>
-                                                      <Direction>Ascending</Direction>
-                                                    </SortExpression>
-                                                  </SortExpressions>
-                                                </TablixMember>
-                                              </TablixMembers>
-                                            </TablixColumnHierarchy>
-                                            <TablixRowHierarchy>
-                                              <TablixMembers>
-                                                <TablixMember>
-                                                  <Group Name="GridRow">
-                                                    <GroupExpressions>
-                                                      <GroupExpression>=Math.Ceiling(CDbl(Fields!divTeamRow.Value) / 3)</GroupExpression>
-                                                    </GroupExpressions>
-                                                  </Group>
-                                                  <SortExpressions>
-                                                    <SortExpression>
-                                                      <Value>=Math.Ceiling(CDbl(Fields!divTeamRow.Value) / 3)</Value>
-                                                      <Direction>Ascending</Direction>
-                                                    </SortExpression>
-                                                  </SortExpressions>
-                                                </TablixMember>
-                                              </TablixMembers>
-                                            </TablixRowHierarchy>
-                                          </Tablix>
+                                              <Textbox Name="cellAnchor">
+                                                <Left>0pt</Left>
+                                                <Top>318pt</Top>
+                                                <Height>1pt</Height>
+                                                <Width>1pt</Width>
+                                                <Style>
+                                                  <Border><Style>None</Style></Border>
+                                                </Style>
+                                                <CanGrow>false</CanGrow>
+                                                <Paragraphs>
+                                                  <Paragraph>
+                                                    <TextRuns>
+                                                      <TextRun>
+                                                        <Value></Value>
+                                                        <Style />
+                                                      </TextRun>
+                                                    </TextRuns>
+                                                    <Style />
+                                                  </Paragraph>
+                                                </Paragraphs>
+                                              </Textbox>
+                                            </ReportItems>
+                                          </Rectangle>
                                           <RowSpan>1</RowSpan>
                                           <ColSpan>1</ColSpan>
                                         </CellContents>
@@ -551,6 +544,7 @@
                                       </GroupExpressions>
                                       <PageBreak>
                                         <BreakLocation>Between</BreakLocation>
+                                        <ResetPageNumber>true</ResetPageNumber>
                                       </PageBreak>
                                     </Group>
                                     <SortExpressions>
@@ -564,7 +558,19 @@
                                         <KeepWithGroup>After</KeepWithGroup>
                                         <RepeatOnNewPage>true</RepeatOnNewPage>
                                       </TablixMember>
-                                      <TablixMember />
+                                      <TablixMember>
+                                        <Group Name="MatrixRow">
+                                          <GroupExpressions>
+                                            <GroupExpression>=Fields!divTeamRow.Value</GroupExpression>
+                                          </GroupExpressions>
+                                        </Group>
+                                        <SortExpressions>
+                                          <SortExpression>
+                                            <Value>=Fields!divTeamRow.Value</Value>
+                                            <Direction>Ascending</Direction>
+                                          </SortExpression>
+                                        </SortExpressions>
+                                      </TablixMember>
                                     </TablixMembers>
                                   </TablixMember>
                                 </TablixMembers>
@@ -576,7 +582,7 @@
           <Border><Style>None</Style></Border>
         </Style>
       </Body>
-      <Width>554pt</Width>
+      <Width>277pt</Width>
       <Page>
         <PageHeader>
           <Height>6pt</Height>
@@ -671,6 +677,8 @@
         <BottomMargin>0.4in</BottomMargin>
         <PageHeight>11in</PageHeight>
         <PageWidth>8.5in</PageWidth>
+        <Columns>2</Columns>
+        <ColumnSpacing>0in</ColumnSpacing>
         <Style>
           <BackgroundColor>White</BackgroundColor>
           <FontFamily>Arial</FontFamily>

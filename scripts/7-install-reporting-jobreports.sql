@@ -214,86 +214,101 @@ INSERT INTO @ExcludeActions VALUES
 -- CR -> SP-Excel conversions. Maps a report's legacy (Crystal) action to its
 -- SP-Excel action so the populate below emits a StoredProcedure row pointing at
 -- the reporting_migrate sproc (script 11). One row per converted report.
+-- TitleOverride (optional): forces a new display title regardless of what the
+-- legacy menu rows said — used when the migration also renames the report
+-- (e.g. opaque "(JS)" suffix → semantic "(CC)" for College Commit).
 DECLARE @ActionMap TABLE (
     LegacyAction  NVARCHAR(250) NOT NULL PRIMARY KEY,
     NewAction     NVARCHAR(250) NOT NULL,
-    NewGroupLabel NVARCHAR(100) NOT NULL   -- a category code from report-categories.ts; drives the library bucket
+    NewGroupLabel NVARCHAR(100) NOT NULL,  -- a category code from report-categories.ts; drives the library bucket
+    TitleOverride NVARCHAR(250) NULL
 );
-INSERT INTO @ActionMap (LegacyAction, NewAction, NewGroupLabel) VALUES
+INSERT INTO @ActionMap (LegacyAction, NewAction, NewGroupLabel, TitleOverride) VALUES
     (N'TournamentRecruitingReport_DataDump',
      N'ExportStoredProcedureResults?spName=reporting_migrate.JobRosters_ExportTournament&bUseJobId=true',
-     N'Recruiting'),
+     N'Recruiting', NULL),
     (N'JobStaff_Excel',
      N'ExportStoredProcedureResults?spName=reporting_migrate.Get_Staff_ForExcelExport&bUseJobId=true',
-     N'Rosters'),
+     N'Rosters', NULL),
     (N'Get_JobPlayer_Transactions',
      N'ExportStoredProcedureResults?spName=reporting_migrate.Get_Player_Transactions_ForExcelExport&bUseJobId=true',
-     N'Financials'),
+     N'Financials', NULL),
     (N'Get_DiscountedPlayers',
      N'ExportStoredProcedureResults?spName=reporting_migrate.Get_DiscountedPlayers&bUseJobId=true',
-     N'Financials'),
+     N'Financials', NULL),
     (N'PlayerStats_ParisiExportExcel',
      N'ExportStoredProcedureResults?spName=reporting_migrate.PlayerStats_ParisiResults&bUseJobId=true',
-     N'Rosters'),
+     N'Rosters', NULL),
     (N'Get_TeamFieldDistribution',
      N'ExportStoredProcedureResults?spName=reporting_migrate.TeamsFieldDistribution&bUseJobId=true',
-     N'Schedules'),
+     N'Schedules', NULL),
     (N'Mobile_JobUsers',
      N'ExportStoredProcedureResults?spName=reporting_migrate.UsageByJobAndRegistrant&bUseJobId=true',
-     N'Administration'),
+     N'Administration', NULL),
     (N'League_Teams',
      N'ExportStoredProcedureResults?spName=reporting_migrate.League_Teams&bUseJobId=true',
-     N'Administration'),
+     N'Administration', NULL),
     (N'Get_CustomerPlayers1',
      N'ExportStoredProcedureResults?spName=reporting_migrate.Get_Players_ForExcelExport_AllCustomers&bUseJobId=true',
-     N'Rosters'),
+     N'Rosters', NULL),
     (N'Get_JobRosters_RecruitingReport_DumpExcel',
      N'ExportStoredProcedureResults?spName=reporting_migrate.JobRosters_RecruitingReport_DumpExcel&bUseJobId=true',
-     N'Recruiting'),
+     N'Recruiting', NULL),
     (N'Get_JobRosters_RecruitingReport_Public_DumpExcel',
      N'ExportStoredProcedureResults?spName=reporting_migrate.JobRosters_RecruitingReport_Public&bUseJobId=true',
-     N'Recruiting'),
+     N'Recruiting', NULL),
     (N'Get_JobPlayers_STEPS_Excel',
      N'ExportStoredProcedureResults?spName=reporting_migrate.Get_JobPlayers_STEPS_Excel&bUseJobId=true',
-     N'Rosters'),
+     N'Rosters', NULL),
     (N'JobPlayers_YJ_Excel',
      N'ExportStoredProcedureResults?spName=reporting_migrate.JobPlayers_YJ_Excel&bUseJobId=true',
-     N'Rosters'),
+     N'Rosters', NULL),
     (N'Get_JobPlayers_E120_Excel',
      N'ExportStoredProcedureResults?spName=reporting_migrate.Get_JobPlayers_E120_Excel&bUseJobId=true',
-     N'Rosters'),
+     N'Rosters', NULL),
     (N'Get_JobPlayers_Liberty_Excel',
      N'ExportStoredProcedureResults?spName=reporting_migrate.Get_JobPlayers_Liberty_Excel&bUseJobId=true',
-     N'Rosters'),
+     N'Rosters', NULL),
     (N'camp_datadump',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_datadump&bUseJobId=true',
-     N'Camp'),
+     N'Camp', NULL),
     (N'camp_excelexport_long',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_long&bUseJobId=true',
-     N'Camp'),
+     N'Camp', NULL),
     (N'camp_excelexport_short',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_short&bUseJobId=true',
-     N'Camp'),
+     N'Camp', NULL),
     (N'camp_excelexport_veryshort',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_veryshort&bUseJobId=true',
-     N'Camp'),
+     N'Camp', NULL),
     (N'camp_excelexport_daygroups',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_daygroups&bUseJobId=true',
-     N'Camp'),
+     N'Camp', NULL),
     (N'camp_excelexport_roomies',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_roomies&bUseJobId=true',
-     N'Camp'),
+     N'Camp', NULL),
     (N'camp_excelexport_room_position',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_room_position&bUseJobId=true',
-     N'Camp'),
+     N'Camp', NULL),
     (N'camp_excelexport_summer',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_summer&bUseJobId=true',
-     N'Camp'),
+     N'Camp', NULL),
     -- Crystal -> Bold/RDL PDF. First Bold report in the map; backed by
     -- reporting_migrate.TournamentRosterPacked_Flat (single flat proc, no subreport).
     (N'TournamentRosterPacked',
      N'ExportBoldReport?reportName=TournamentRosterPacked&bUseJobId=true',
-     N'Rosters');
+     N'Rosters', NULL),
+    -- Crystal -> Bold/RDL PDF. College-Commit variant: 2-up layout, gradYear +
+    -- GPA + collegeCommit columns, rep contact under team name, Staff filtered
+    -- out, GPA suppressed when player is committed. Shares the base SP via
+    -- additive columns. Legacy menu used opaque "(JS)" suffix; we rename to
+    -- "(CC)" via TitleOverride. Two legacy menu rows resolve to this same
+    -- LegacyAction (the base "Tournament Rosters Packed (pdf)" sometimes
+    -- pointed at _PositionSchool, plus the (JS)-suffixed row) — they collapse
+    -- to a single row via the post-map dedup.
+    (N'TournamentRosterPacked_PositionSchool',
+     N'ExportBoldReport?reportName=TournamentRosterPacked_CollegeCommit&bUseJobId=true',
+     N'Rosters', N'Tournament Rosters Packed (pdf) (CC)');
 
 -- Atomic rebuild: wrap the sweep (two DELETEs) + populate (INSERT) in ONE
 -- transaction so a populate failure (e.g. a remap collision raising a unique-key
@@ -324,7 +339,7 @@ PRINT CONCAT('Swept ', @MappedSweepCount, ' row(s) for mapped report(s) (legacy 
     SELECT
         jm.JobId,
         jm.RoleId,
-        jmiC.[Text]                                                     AS Title,
+        COALESCE(am.TitleOverride, jmiC.[Text])                         AS Title,
         jmiC.IconName,
         jmiC.Controller,
         COALESCE(am.NewAction, jmiC.[Action])                           AS [Action],

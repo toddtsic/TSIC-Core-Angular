@@ -1850,6 +1850,11 @@ with TournamentTeams as (
 select
         tt.agegroupName
     ,   tt.divName
+    -- Precomputed "agegroupName:divName" group key. Lets the RDL use a single
+    -- field as the page-break/sort key instead of concatenating in expressions
+    -- (which Bold's renderer can interpret subtly differently across nested
+    -- groups vs. derived-column scope).
+    ,   tt.agegroupName + ':' + tt.divName as agDiv
     ,   tt.teamID
     ,   tt.clubTeamName
     ,   tt.clubRepName
@@ -1865,6 +1870,12 @@ select
             else r.school_name
         end as school_name
     ,   case coalesce(r.bCollegeCommit, 0) when 0 then '' else 'yes' end as bCollegeCommit
+    -- Additive columns for the College-Commit (CC) variant RDL; ignored by the
+    -- base RDL. collegeCommit nulls out when the player hasn't committed so the
+    -- CC report's right-column shows blank instead of a stale legacy value.
+    ,   r.grad_year as gradYear
+    ,   r.gpa as gpa
+    ,   case when coalesce(r.bCollegeCommit, 0) = 1 then r.college_commit else null end as collegeCommit
     ,   roles.Name as roleName
     ,   case when roles.Name = 'Staff' then 0 else 1 end as roleSort
     -- isLastRow: drives the RDL to suppress the row-separator line under the
