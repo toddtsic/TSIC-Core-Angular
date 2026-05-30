@@ -1,6 +1,7 @@
 using AuthorizeNet.Api.Contracts.V1;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Dtos.RegistrationSearch;
@@ -36,6 +37,7 @@ public sealed class TeamSearchService : ITeamSearchService
     private readonly ILadtService _ladtService;
     private readonly IEmailService _emailService;
     private readonly IPaymentService _paymentService;
+    private readonly IRegisteredTeamShaper _shaper;
     private readonly ILogger<TeamSearchService> _logger;
 
     // Known payment method GUIDs (from AccountingPaymentMethods table)
@@ -54,6 +56,7 @@ public sealed class TeamSearchService : ITeamSearchService
         ILadtService ladtService,
         IEmailService emailService,
         IPaymentService paymentService,
+        IRegisteredTeamShaper shaper,
         ILogger<TeamSearchService> logger)
     {
         _teamRepo = teamRepo;
@@ -66,6 +69,7 @@ public sealed class TeamSearchService : ITeamSearchService
         _ladtService = ladtService;
         _emailService = emailService;
         _paymentService = paymentService;
+        _shaper = shaper;
         _logger = logger;
     }
 
@@ -171,25 +175,12 @@ public sealed class TeamSearchService : ITeamSearchService
         var reg = await _registrationRepo.GetByIdAsync(clubRepRegistrationId, ct);
         if (reg == null || reg.JobId != jobId) return null;
 
-        var teams = await _teamRepo.GetClubTeamSummariesAsync(jobId, clubRepRegistrationId, ct);
+        // Source the club rep's teams (incl. waitlist/dropped/inactive) and shape them
+        // through the SAME shaper the rep's own payment grid uses, so the director's
+        // accounting grid renders identical per-method owed / proc-fee / discount columns.
+        var rawTeams = await _teamRepo.GetRegisteredTeamsForClubRepAndJobAsync(clubRepRegistrationId: clubRepRegistrationId, jobId: jobId, cancellationToken: ct);
+        var teams = await _shaper.ShapeAsync(jobId, rawTeams, ct: ct);
         var accountingRecords = await _accountingRepo.GetByRegistrationIdAsync(clubRepRegistrationId, ct);
-
-        // CheckFeeReduction derived from canonical PaymentState (see GetTeamDetailAsync above).
-        var teamIds = teams.Select(t => t.TeamId).ToList();
-        var teamStates = await _paymentState.ForTeamsAsync(teamIds, jobId, ct);
-        var emptyState = await BuildEmptyPaymentStateAsync(jobId, ct);
-        teams = teams.Select(t =>
-        {
-            var state = teamStates.GetValueOrDefault(t.TeamId, emptyState);
-            // Canonical per-method owed from the single resolver. CkOwedTotal is the
-            // check/correction owed (CC owed minus the capped proc credit) — exactly what
-            // recording a check will settle. CC owed is OwedTotal itself.
-            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
-            return t with
-            {
-                CkOwedTotal = owed.Check
-            };
-        }).ToList();
 
         return new ClubRepAccountingDto
         {

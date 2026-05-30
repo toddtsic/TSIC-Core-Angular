@@ -202,7 +202,10 @@ public class TeamRepository : ITeamRepository
                 PaidTotal = t.PaidTotal ?? 0,
                 OwedTotal = t.OwedTotal ?? 0,
                 RegistrationTs = t.Createdate,
-                BWaiverSigned3 = t.ClubrepRegistration != null && t.ClubrepRegistration.BWaiverSigned3
+                BWaiverSigned3 = t.ClubrepRegistration != null && t.ClubrepRegistration.BWaiverSigned3,
+                Active = t.Active ?? false
+                // PaymentScheduled/NextChargeDate intentionally left default — this payment-submit
+                // path doesn't drive the accounting grid badge.
             })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -216,39 +219,104 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForUserAndJobAsync(
+    public Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForUserAndJobAsync(
         Guid jobId,
         string userId,
         CancellationToken cancellationToken = default)
     {
-        return await (from t in _context.Teams
-                      join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
-                      join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
-                      where t.JobId == jobId && reg.UserId == userId
-                            && t.Active == true
-                            && !ag.AgegroupName!.Contains("DROPPED")
-                      orderby ag.AgegroupName, t.TeamName
-                      select new RegisteredTeamInfo
-                      {
-                          TeamId = t.TeamId,
-                          TeamName = t.TeamName ?? string.Empty,
-                          AgeGroupId = ag.AgegroupId,
-                          AgeGroupName = ag.AgegroupName ?? string.Empty,
-                          LevelOfPlay = t.LevelOfPlay,
-                          FeeBase = t.FeeBase ?? 0,
-                          FeeProcessing = t.FeeProcessing ?? 0,
-                          FeeDiscount = t.FeeDiscount ?? 0,
-                          FeeLatefee = t.FeeLatefee ?? 0,
-                          // Use stored totals — RecalcTotals keeps them in sync across every fee mutation.
-                          FeeTotal = t.FeeTotal ?? 0,
-                          PaidTotal = t.PaidTotal ?? 0,
-                          OwedTotal = t.OwedTotal ?? 0,
-                          RegistrationTs = t.Createdate,
-                          BWaiverSigned3 = reg.BWaiverSigned3,
-                          ClubTeamId = t.ClubTeamId
-                      })
+        // Rep's own view: active, non-DROPPED teams belonging to the rep's registration.
+        var query = _context.Teams.Where(t =>
+            t.JobId == jobId
+            && t.Active == true
+            && t.Agegroup != null && !t.Agegroup!.AgegroupName!.Contains("DROPPED")
+            && _context.Registrations.Any(reg =>
+                reg.RegistrationId == t.ClubrepRegistrationid && reg.UserId == userId));
+        return ProjectRegisteredTeamsAsync(query, cancellationToken);
+    }
+
+    public Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForClubRepAndJobAsync(
+        Guid jobId,
+        Guid clubRepRegistrationId,
+        CancellationToken cancellationToken = default)
+    {
+        // Director's view: ALL of the club rep's teams — including waitlist/dropped/inactive,
+        // which the accounting grid surfaces in a separate muted bucket.
+        var query = _context.Teams.Where(t =>
+            t.JobId == jobId && t.ClubrepRegistrationid == clubRepRegistrationId);
+        return ProjectRegisteredTeamsAsync(query, cancellationToken);
+    }
+
+    /// <summary>
+    /// Shared shaping for RegisteredTeamInfo: joins agegroup + the club-rep registration,
+    /// projects financials, and computes the ARB schedule badge. The caller supplies the
+    /// team filter (by user-active-only, or by club-rep all-teams) — everything downstream
+    /// of the filter is identical, so both entry points stay DRY.
+    /// </summary>
+    private async Task<List<RegisteredTeamInfo>> ProjectRegisteredTeamsAsync(
+        IQueryable<Teams> teamQuery,
+        CancellationToken cancellationToken)
+    {
+        var rows = await (from t in teamQuery
+                          join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+                          join reg in _context.Registrations on t.ClubrepRegistrationid equals reg.RegistrationId
+                          orderby ag.AgegroupName, t.TeamName
+                          select new
+                          {
+                              Info = new RegisteredTeamInfo
+                              {
+                                  TeamId = t.TeamId,
+                                  TeamName = t.TeamName ?? string.Empty,
+                                  AgeGroupId = ag.AgegroupId,
+                                  AgeGroupName = ag.AgegroupName ?? string.Empty,
+                                  LevelOfPlay = t.LevelOfPlay,
+                                  FeeBase = t.FeeBase ?? 0,
+                                  FeeProcessing = t.FeeProcessing ?? 0,
+                                  FeeDiscount = t.FeeDiscount ?? 0,
+                                  FeeLatefee = t.FeeLatefee ?? 0,
+                                  // Use stored totals — RecalcTotals keeps them in sync across every fee mutation.
+                                  FeeTotal = t.FeeTotal ?? 0,
+                                  PaidTotal = t.PaidTotal ?? 0,
+                                  OwedTotal = t.OwedTotal ?? 0,
+                                  RegistrationTs = t.Createdate,
+                                  BWaiverSigned3 = reg.BWaiverSigned3,
+                                  ClubTeamId = t.ClubTeamId,
+                                  Active = t.Active ?? false
+                              },
+                              AdnSubId = t.AdnSubscriptionId,
+                              AdnStatus = t.AdnSubscriptionStatus,
+                              AdnStart = t.AdnSubscriptionStartDate,
+                              AdnInterval = t.AdnSubscriptionIntervalLength,
+                              AdnOccurrences = t.AdnSubscriptionBillingOccurences,
+                              HasNsfReversal = _context.RegistrationAccounting.Any(a =>
+                                  a.TeamId == t.TeamId
+                                  && a.PaymentMethodId == FailedEcheckPaymentMethodId
+                                  && a.Active == true)
+                          })
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+        var today = DateTime.Today;
+        return rows.Select(r =>
+        {
+            var (scheduled, nextDate) = ComputeArbSchedule(
+                r.AdnSubId, r.AdnStatus, r.AdnStart, r.AdnInterval, r.AdnOccurrences, r.HasNsfReversal, today);
+            return r.Info with { PaymentScheduled = scheduled, NextChargeDate = nextDate };
+        }).ToList();
+    }
+
+    /// <summary>
+    /// Day-based ARB schedule, with the NSF-reversal override applied. Shared by the
+    /// registered-team projector and the club-team-summary builder so the "is a charge
+    /// still scheduled" rule lives in exactly one place.
+    /// </summary>
+    private static (bool scheduled, DateTime? nextDate) ComputeArbSchedule(
+        string? adnSubId, string? adnStatus, DateTime? adnStart, int? adnInterval, int? adnOccurrences,
+        bool hasNsfReversal, DateTime today)
+    {
+        var (scheduled, nextDate) = ArbScheduleHelper.ComputeDayBasedSchedule(
+            adnSubId, adnStatus, adnStart, adnInterval, adnOccurrences, today);
+        if (hasNsfReversal) scheduled = false;
+        return (scheduled, nextDate);
     }
 
     public async Task<List<TeamWithRegistrationInfo>> GetTeamsByClubExcludingRegistrationAsync(
@@ -1197,9 +1265,8 @@ public class TeamRepository : ITeamRepository
         var today = DateTime.Today;
         return rows.Select(r =>
         {
-            var (scheduled, nextDate) = ArbScheduleHelper.ComputeDayBasedSchedule(
-                r.AdnSubId, r.AdnStatus, r.AdnStart, r.AdnInterval, r.AdnOccurrences, today);
-            if (r.HasNsfReversal) scheduled = false;
+            var (scheduled, nextDate) = ComputeArbSchedule(
+                r.AdnSubId, r.AdnStatus, r.AdnStart, r.AdnInterval, r.AdnOccurrences, r.HasNsfReversal, today);
 
             var statusBroken = !string.IsNullOrEmpty(r.AdnStatus)
                 && !string.Equals(r.AdnStatus, "active", StringComparison.OrdinalIgnoreCase);

@@ -27,5 +27,8 @@ export type RegisteredTeamDto = {
     ccOwedTotal: number;
     ckOwedTotal: number;
     ekOwedTotal: number;
+    active: boolean;
+    paymentScheduled: boolean;
+    nextChargeDate?: string | null;
 };
 

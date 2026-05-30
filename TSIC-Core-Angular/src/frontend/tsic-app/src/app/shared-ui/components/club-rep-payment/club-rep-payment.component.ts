@@ -1,17 +1,18 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TeamSearchService } from '../../../views/search/teams/services/team-search.service';
+import { RegisteredTeamsGridComponent } from '../../../views/registration/team/components/registered-teams-grid.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
-import type { ClubRepAccountingDto, AccountingRecordDto, ClubTeamSummaryDto, RefundResponse } from '@core/api';
+import type { ClubRepAccountingDto, RegisteredTeamDto, RefundResponse } from '@core/api';
 
 type Scope = 'team' | 'club';
 
 @Component({
   selector: 'app-club-rep-payment',
   standalone: true,
-  imports: [CommonModule, AccountingLedgerComponent],
+  imports: [CommonModule, AccountingLedgerComponent, RegisteredTeamsGridComponent],
   templateUrl: './club-rep-payment.component.html',
   styleUrl: './club-rep-payment.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -39,15 +40,29 @@ export class ClubRepPaymentComponent {
 
   // Refund (handled by accounting-ledger modal now)
 
+  // Reveal toggle for the muted waitlist/dropped/inactive bucket (collapsed by default).
+  showOtherTeams = signal(false);
+
   // Computed summaries — all teams, split into scheduled vs other
   allTeams = computed(() => this.data()?.teams ?? []);
   scheduledTeams = computed(() => this.allTeams().filter(t => t.active
-    && !t.agegroupName.toUpperCase().startsWith('WAITLIST')
-    && !t.agegroupName.toUpperCase().startsWith('DROPPED')));
+    && !t.ageGroupName.toUpperCase().startsWith('WAITLIST')
+    && !t.ageGroupName.toUpperCase().startsWith('DROPPED')));
   otherTeams = computed(() => this.allTeams().filter(t => !t.active
-    || t.agegroupName.toUpperCase().startsWith('WAITLIST')
-    || t.agegroupName.toUpperCase().startsWith('DROPPED')));
+    || t.ageGroupName.toUpperCase().startsWith('WAITLIST')
+    || t.ageGroupName.toUpperCase().startsWith('DROPPED')));
   clubTeamCount = computed(() => this.allTeams().length);
+
+  // Teams fed to the rich grid: active scheduled teams in club scope, the single
+  // selected team in team scope. Totals (active-only) are preserved by sourcing the
+  // grid + ledger from scheduledTeams, never the full set.
+  gridTeams = computed<RegisteredTeamDto[]>(() => {
+    if (this.scope() === 'team') {
+      const t = this.selectedTeam();
+      return t ? [t] : [];
+    }
+    return this.scheduledTeams();
+  });
 
   clubFeeTotal = computed(() => this.scheduledTeams().reduce((s, t) => s + t.feeTotal, 0));
   clubPaidTotal = computed(() => this.scheduledTeams().reduce((s, t) => s + t.paidTotal, 0));
@@ -68,12 +83,12 @@ export class ClubRepPaymentComponent {
   owedTotal = computed(() => this.scope() === 'team' ? this.teamOwedTotal() : this.clubOwedTotal());
 
   // Check/correction owed — the canonical CkOwedTotal per team (from the backend
-  // resolver), scoped exactly like owedTotal; falls back to owedTotal if absent.
-  teamCheckOwed = computed(() => { const t = this.selectedTeam(); return t ? (t.ckOwedTotal ?? t.owedTotal) : 0; });
-  clubCheckOwed = computed(() => this.scheduledTeams().reduce((s, t) => s + (t.ckOwedTotal ?? t.owedTotal), 0));
+  // resolver), scoped exactly like owedTotal.
+  teamCheckOwed = computed(() => this.selectedTeam()?.ckOwedTotal ?? 0);
+  clubCheckOwed = computed(() => this.scheduledTeams().reduce((s, t) => s + t.ckOwedTotal, 0));
   checkOwed = computed(() => this.scope() === 'team' ? this.teamCheckOwed() : this.clubCheckOwed());
 
-  clubBreakdown = computed<ClubTeamSummaryDto[] | undefined>(() =>
+  clubBreakdown = computed<RegisteredTeamDto[] | undefined>(() =>
     this.scope() === 'club' ? this.allTeams() : undefined
   );
 

@@ -143,7 +143,8 @@ public class RegisterTeamSyncTests
             jobLeagues.Object, agRepo.Object, teamRepo.Object, regRepo.Object,
             users.Object, tokenService.Object, userManager, feeService.Object,
             textSubstitution.Object, emailService.Object, discountCodeRepo.Object,
-            clubTeams.Object, placement.Object, paymentState.Object);
+            clubTeams.Object, placement.Object, paymentState.Object,
+            new Mock<IRegisteredTeamShaper>().Object);
 
         return (svc, regRepo, teamRepo);
     }

@@ -68,61 +68,32 @@
   color: var(--bs-body-color);
 }
 
-.summary-table-compact {
-  font-size: 0.65rem;
+// ═══════════════════════════════════════════
+// WAITLIST / DROPPED / INACTIVE BUCKET
+// ═══════════════════════════════════════════
 
-  th, td {
-    padding: var(--space-1);
-  }
-}
-
-.group-separator td {
-  border-top: 2px solid var(--bs-border-color);
-  padding-top: var(--space-2);
+.other-teams-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
   font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color 0.1s ease, background-color 0.1s ease;
+
+  &:hover { color: var(--bs-body-color); background: var(--bs-tertiary-bg); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+  .bi { font-size: 0.85em; }
 }
 
-.inactive-row {
-  opacity: 0.5;
-}
-
-.summary-table {
-  width: 100%;
-  font-size: var(--font-size-sm);
-  border-collapse: collapse;
-
-  th {
-    font-weight: var(--font-weight-semibold);
-    color: var(--text-muted);
-    padding: var(--space-2);
-    border-bottom: 1px solid var(--bs-border-color);
-    text-transform: uppercase;
-    font-size: var(--font-size-xs);
-    letter-spacing: 0.05em;
-  }
-
-  td {
-    padding: var(--space-2);
-    border-bottom: 1px solid var(--bs-border-color-translucent);
-    color: var(--bs-body-color);
-  }
-
-  tfoot td {
-    border-top: 2px solid var(--bs-border-color);
-    font-weight: var(--font-weight-bold);
-  }
-}
-
-// ═══════════════════════════════════════════
-// SHARED UTILITIES
-// ═══════════════════════════════════════════
-
-.owed-positive {
-  color: var(--bs-danger) !important;
-  font-weight: var(--font-weight-semibold);
-}
-
-.owed-zero {
-  color: var(--bs-success) !important;
-  font-weight: var(--font-weight-semibold);
+.other-teams-grid {
+  margin-top: var(--space-2);
+  opacity: 0.7;
 }

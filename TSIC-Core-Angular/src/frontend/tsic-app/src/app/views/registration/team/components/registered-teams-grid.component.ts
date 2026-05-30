@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { RegisteredTeamDto } from '@core/api';
 import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tooltip.component';
@@ -14,7 +14,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
 @Component({
     selector: 'app-registered-teams-grid',
     standalone: true,
-    imports: [CurrencyPipe, GridAllModule, InfoTooltipComponent],
+    imports: [CurrencyPipe, DatePipe, GridAllModule, InfoTooltipComponent],
     template: `
       <ejs-grid #grid [dataSource]="teams()" [allowSorting]="true"
                 [allowTextWrap]="true"
@@ -84,9 +84,16 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
           <e-column field="owedTotal" headerText="Owed" width="80" textAlign="Right" format="C2"
                     [visible]="showOwed()">
             <ng-template #template let-data>
-              <span [style.color]="data.owedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.owedTotal > 0">
-                {{ data.owedTotal | currency }}
-              </span>
+              @if (data.paymentScheduled && data.owedTotal > 0) {
+                <span class="money-scheduled"
+                      [attr.title]="data.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (data.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
+                  <i class="bi bi-calendar-event scheduled-icon"></i>{{ data.owedTotal | currency }}
+                </span>
+              } @else {
+                <span [style.color]="data.owedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.owedTotal > 0">
+                  {{ data.owedTotal | currency }}
+                </span>
+              }
             </ng-template>
           </e-column>
           <e-column field="feeProcessingDue" [headerText]="procFeeHeader()" width="75" textAlign="Right" format="C2"

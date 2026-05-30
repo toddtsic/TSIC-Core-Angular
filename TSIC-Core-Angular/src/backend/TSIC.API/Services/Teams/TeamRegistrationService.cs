@@ -33,6 +33,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IClubTeamRepository _clubTeams;
     private readonly ITeamPlacementService _placement;
     private readonly IPaymentStateService _paymentState;
+    private readonly IRegisteredTeamShaper _shaper;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -52,7 +53,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         IJobDiscountCodeRepository discountCodeRepo,
         IClubTeamRepository clubTeams,
         ITeamPlacementService placement,
-        IPaymentStateService paymentState)
+        IPaymentStateService paymentState,
+        IRegisteredTeamShaper shaper)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -72,6 +74,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _clubTeams = clubTeams;
         _placement = placement;
         _paymentState = paymentState;
+        _shaper = shaper;
     }
 
     /// <summary>
@@ -327,26 +330,11 @@ public class TeamRegistrationService : ITeamRegistrationService
         var allCandidateIds = allClubTeams.Select(ct => ct.ClubTeamId).Concat(registeredClubTeamIds).Distinct();
         var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(allCandidateIds);
 
-        var teamIds = rawRegistered.Select(t => t.TeamId).ToList();
-        var feesByTeamId = await _feeService.ResolveFeesByTeamIdsAsync(
-            jobId, RoleConstants.ClubRep, teamIds);
-
-        // Per-team payment state — the shape boundary derives CkOwedTotal and
-        // FeeProcessingDue from PaymentState (which knows how to reverse-out CC
-        // principal and account for eCheck proc), not from the persisted
-        // FeeProcessing-vs-OwedTotal shortcut that breaks once any CC payment
-        // has hit PaidTotal.
-        var paymentStates = await _paymentState.ForTeamsAsync(teamIds, jobId);
-
-        var registeredTeams = ShapeRegisteredTeams(
-            rawRegistered,
-            scheduledIds,
-            feesByTeamId,
-            job.BTeamsFullPaymentRequired ?? false,
-            paymentStates,
-            job.BAddProcessingFees ?? false,
-            await _feeService.GetEffectiveProcessingRateAsync(jobId),
-            await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId));
+        // Shape the rich per-team financial DTOs via the shared shaper — the SAME code
+        // path the director's club-rep accounting view uses, so the two grids can never
+        // disagree. scheduledIds (already computed above for library + registered teams)
+        // is passed through to avoid a second "has been scheduled" lookup.
+        var registeredTeams = await _shaper.ShapeAsync(jobId, rawRegistered, scheduledIds);
 
         // Return ALL library teams — previously filtered out teams already registered
         // for this event, which forced the frontend to reconstruct library rows from the
@@ -438,76 +426,6 @@ public class TeamRegistrationService : ITeamRegistrationService
             AdnArbStartDate = job.AdnArbStartDate,
             AdnStartDateAfterTrial = job.AdnStartDateAfterTrial,
         };
-    }
-
-    private static List<RegisteredTeamDto> ShapeRegisteredTeams(
-        IEnumerable<Contracts.Repositories.RegisteredTeamInfo> rawRegistered,
-        HashSet<int> scheduledClubTeamIds,
-        Dictionary<Guid, Contracts.Repositories.ResolvedFee> feesByTeamId,
-        bool bTeamsFullPaymentRequired,
-        Dictionary<Guid, PaymentState> paymentStates,
-        bool bAddProcessingFees,
-        decimal ccRate,
-        decimal echeckRate)
-    {
-        var emptyState = PaymentState.Empty(bAddProcessingFees, ccRate, echeckRate);
-        return rawRegistered.Select(t =>
-        {
-            var resolved = feesByTeamId.GetValueOrDefault(t.TeamId);
-            var deposit = resolved?.Deposit ?? 0m;
-            var balanceDue = resolved?.BalanceDue ?? 0m;
-
-            // Per-method owed from the single canonical resolver — the SAME
-            // PaymentState.ResolveOwed the charge engine (PaymentService) uses, so the
-            // totals the rep is shown for CC / check / eCheck equal exactly what each
-            // method charges or records (keeps the AMOUNT_MISMATCH tripwire quiet).
-            // Deposit-phase owed goes through the parallel DepositPrincipalRemaining
-            // helper so the display row factors discount/late-fee the same way owed math does.
-            var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
-            var depositDue = state.DepositPrincipalRemaining(deposit, t.FeeDiscount, t.FeeLatefee);
-            // Full-payment phase: the balance is active (FeeBase = Deposit + BalanceDue),
-            // so "Balance Due" must net out every payment — including a director-recorded
-            // check/correction applied while the rep was away. Derive it from the canonical
-            // PaymentState (BalancePrincipalRemaining) so it can never disagree with the
-            // CC/Check Owed columns. Deposit phase: balance not yet active — show the
-            // configured structural balance as a forward-looking "still to come" value.
-            var additionalDue = bTeamsFullPaymentRequired
-                ? state.BalancePrincipalRemaining(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee)
-                : balanceDue;
-            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
-            var ccOwedTotal = owed.Cc;
-            var ckOwedTotal = owed.Check;
-            var ekOwedTotal = owed.Echeck;
-            var feeProcessingDue = Math.Max(0m, ccOwedTotal - ckOwedTotal);
-
-            return new RegisteredTeamDto
-            {
-                TeamId = t.TeamId,
-                TeamName = t.TeamName,
-                AgeGroupId = t.AgeGroupId,
-                AgeGroupName = t.AgeGroupName,
-                LevelOfPlay = t.LevelOfPlay,
-                FeeBase = t.FeeBase,
-                FeeProcessing = t.FeeProcessing,           // raw statement-of-fact
-                FeeProcessingDue = feeProcessingDue,       // OwedTotal − CkOwedTotal
-                FeeDiscount = t.FeeDiscount,
-                FeeLatefee = t.FeeLatefee,
-                FeeTotal = t.FeeTotal,
-                PaidTotal = t.PaidTotal,
-                OwedTotal = t.OwedTotal,
-                Deposit = deposit,
-                BalanceDue = balanceDue,
-                DepositDue = depositDue,
-                AdditionalDue = additionalDue,
-                RegistrationTs = t.RegistrationTs,
-                BWaiverSigned3 = t.BWaiverSigned3,
-                CcOwedTotal = ccOwedTotal,
-                CkOwedTotal = ckOwedTotal,
-                EkOwedTotal = ekOwedTotal,
-                ClubTeamId = t.ClubTeamId,
-                BHasBeenScheduled = t.ClubTeamId.HasValue && scheduledClubTeamIds.Contains(t.ClubTeamId.Value),
-            };
-        }).ToList();
     }
 
     private async Task<List<SuggestedTeamNameDto>> GetHistoricalTeamSuggestionsAsync(string userId, string clubName, int currentYear)

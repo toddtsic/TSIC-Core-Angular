@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, computed, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { AccountingRecordDto, CreditCardInfo, ClubTeamSummaryDto } from '@core/api';
+import type { AccountingRecordDto, CreditCardInfo, RegisteredTeamDto } from '@core/api';
 
 type PaymentType = 'cc' | 'check' | 'correction' | 'refund';
 
@@ -51,7 +51,7 @@ export class AccountingLedgerComponent {
 	checkOwed = input<number | undefined>(undefined);
 
 	/** Club team breakdown for payment modal (teams only, optional) */
-	clubBreakdown = input<ClubTeamSummaryDto[] | undefined>(undefined);
+	clubBreakdown = input<RegisteredTeamDto[] | undefined>(undefined);
 
 	/** IDs of teams that are waitlisted, dropped, or inactive */
 	private otherTeamIds = computed(() => {
@@ -60,8 +60,8 @@ export class AccountingLedgerComponent {
 		return new Set(
 			breakdown
 				.filter(t => !t.active
-					|| t.agegroupName.toUpperCase().startsWith('WAITLIST')
-					|| t.agegroupName.toUpperCase().startsWith('DROPPED'))
+					|| t.ageGroupName.toUpperCase().startsWith('WAITLIST')
+					|| t.ageGroupName.toUpperCase().startsWith('DROPPED'))
 				.map(t => t.teamId)
 		);
 	});
@@ -126,7 +126,7 @@ export class AccountingLedgerComponent {
 		if (!teams) return null;
 		const team = teams.find(t => t.teamId === record.teamId);
 		if (!team) return null;
-		return team.agegroupName ? `${team.agegroupName} · ${team.teamName}` : team.teamName;
+		return team.ageGroupName ? `${team.ageGroupName} · ${team.teamName}` : team.teamName;
 	}
 
 	/** True if this record has any detail worth showing in the popover. */

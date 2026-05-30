@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 
 namespace TSIC.Contracts.Dtos.TeamSearch;
@@ -229,6 +230,8 @@ public record ClubOperationResultDto
 
 /// <summary>
 /// Club rep accounting view — all data needed by the shared club-rep-payment component.
+/// Teams carry the full per-team financial shape (RegisteredTeamDto) so the director's
+/// accounting grid renders identically to the rep's own team-registration payment grid.
 /// </summary>
 public record ClubRepAccountingDto
 {
@@ -237,6 +240,6 @@ public record ClubRepAccountingDto
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
-    public required List<ClubTeamSummaryDto> Teams { get; init; }
+    public required List<RegisteredTeamDto> Teams { get; init; }
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
 }

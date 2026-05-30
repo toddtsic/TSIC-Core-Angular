@@ -186,6 +186,16 @@ public sealed record RegisteredTeamDto
     // collects some proc). The rep must be shown + submit THIS when paying by eCheck —
     // the charge engine debits the same figure (see PaymentRateMath.AppliedProcCredit).
     public required decimal EkOwedTotal { get; init; }
+    // Team active state. False for waitlisted/dropped/inactive teams — used by the
+    // director's club-rep accounting grid to split active teams (counted in totals)
+    // from the muted waitlist/dropped/inactive bucket. Always true on the rep's own
+    // payment page (only active teams are surfaced there).
+    public required bool Active { get; init; }
+    // True when this team has an active ARB subscription with a charge still scheduled
+    // in the future. Drives the "auto-pay scheduled" calendar badge on the Owed column.
+    public required bool PaymentScheduled { get; init; }
+    // Next scheduled ARB charge date (informational — badge tooltip). Null when not scheduled.
+    public DateTime? NextChargeDate { get; init; }
 }
 
 public sealed record AgeGroupDto

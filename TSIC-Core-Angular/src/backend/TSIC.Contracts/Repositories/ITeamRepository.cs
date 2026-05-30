@@ -25,6 +25,12 @@ public record RegisteredTeamInfo
     public required DateTime RegistrationTs { get; init; }
     public required bool BWaiverSigned3 { get; init; }
     public int? ClubTeamId { get; init; }
+    // Team active state — false for waitlisted/dropped/inactive teams.
+    public required bool Active { get; init; }
+    // ARB schedule state, computed in the repo via ArbScheduleHelper (mirrors
+    // ClubTeamSummaryDto). Drives the Owed-column auto-pay badge downstream.
+    public bool PaymentScheduled { get; init; }
+    public DateTime? NextChargeDate { get; init; }
 }
 
 public record AvailableTeamQueryResult
@@ -209,6 +215,17 @@ public interface ITeamRepository
     Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForUserAndJobAsync(
         Guid jobId,
         string userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get ALL registered teams for a club rep (by registration id) in a job with full
+    /// financial details — including waitlisted/dropped/inactive teams. Unlike the
+    /// user-keyed variant, applies no active/DROPPED filter; the director's club-rep
+    /// accounting grid splits active vs. other teams client-side.
+    /// </summary>
+    Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForClubRepAndJobAsync(
+        Guid jobId,
+        Guid clubRepRegistrationId,
         CancellationToken cancellationToken = default);
 
     /// <summary>

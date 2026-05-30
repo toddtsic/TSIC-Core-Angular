@@ -403,9 +403,9 @@
                       <td>{{ ct.teamName }}</td>
                       <td class="text-end">{{ ct.owedTotal | currency }}</td>
                       @if (totalFeeReduction() > 0) {
-                        <td class="text-end text-success">@if (ct.owedTotal - (ct.ckOwedTotal ?? ct.owedTotal) > 0) { -{{ (ct.owedTotal - (ct.ckOwedTotal ?? ct.owedTotal)) | currency }} }</td>
+                        <td class="text-end text-success">@if (ct.owedTotal - (ct.ckOwedTotal) > 0) { -{{ (ct.owedTotal - (ct.ckOwedTotal)) | currency }} }</td>
                       }
-                      <td class="text-end fw-semibold">{{ (ct.ckOwedTotal ?? ct.owedTotal) | currency }}</td>
+                      <td class="text-end fw-semibold">{{ (ct.ckOwedTotal) | currency }}</td>
                     </tr>
                   }
                 }

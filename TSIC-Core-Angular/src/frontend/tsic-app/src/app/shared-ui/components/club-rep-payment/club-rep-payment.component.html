@@ -21,108 +21,53 @@
     </div>
   }
 
-  <!-- Club Team Summary -->
-  @if (scope() === 'club') {
+  <!-- Team Breakdown — the SAME rich grid the club rep sees on their own payment
+       page (DRY: app-registered-teams-grid). Active scheduled teams in club scope,
+       the single selected team in team scope. Totals come from the grid's own
+       active-only aggregate footer. -->
+  @if (scope() === 'club' || (scope() === 'team' && selectedTeam())) {
     <div class="club-summary-card">
-      <h5 class="section-title">Club Teams Breakdown</h5>
-      <table class="summary-table summary-table-compact">
-        <thead>
-          <tr>
-            <th>Agegroup</th>
-            <th>Team</th>
-            <th class="text-end">Fee</th>
-            <th class="text-end">Paid</th>
-            <th class="text-end">Owed</th>
-          </tr>
-        </thead>
-        <tbody>
-          @for (ct of scheduledTeams(); track ct.teamId) {
-            <tr>
-              <td>{{ ct.agegroupName }}</td>
-              <td>{{ ct.teamName }}</td>
-              <td class="text-end">{{ ct.feeTotal | currency }}</td>
-              <td class="text-end">{{ ct.paidTotal | currency }}</td>
-              @if (ct.paymentScheduled && ct.owedTotal > 0) {
-                <td class="text-end money-scheduled"
-                    [attr.title]="ct.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (ct.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
-                  <i class="bi bi-calendar-event scheduled-icon"></i>{{ ct.owedTotal | currency }}
-                </td>
-              } @else {
-                <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
-                  {{ ct.owedTotal | currency }}
-                </td>
-              }
-            </tr>
-          }
-          @if (otherTeams().length) {
-            <tr class="group-separator">
-              <td colspan="5" class="text-muted"><em>Waitlisted / Dropped / Inactive</em></td>
-            </tr>
-            @for (ct of otherTeams(); track ct.teamId) {
-              <tr class="inactive-row">
-                <td>{{ ct.agegroupName }}</td>
-                <td>{{ ct.teamName }}</td>
-                <td class="text-end">{{ ct.feeTotal | currency }}</td>
-                <td class="text-end">{{ ct.paidTotal | currency }}</td>
-                @if (ct.paymentScheduled && ct.owedTotal > 0) {
-                  <td class="text-end money-scheduled"
-                      [attr.title]="ct.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (ct.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
-                    <i class="bi bi-calendar-event scheduled-icon"></i>{{ ct.owedTotal | currency }}
-                  </td>
-                } @else {
-                  <td class="text-end" [class.owed-positive]="ct.owedTotal > 0" [class.owed-zero]="ct.owedTotal === 0">
-                    {{ ct.owedTotal | currency }}
-                  </td>
-                }
-              </tr>
-            }
-          }
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colspan="2"><strong>Total ({{ scheduledTeams().length }} active teams)</strong></td>
-            <td class="text-end"><strong>{{ clubFeeTotal() | currency }}</strong></td>
-            <td class="text-end"><strong>{{ clubPaidTotal() | currency }}</strong></td>
-            <td class="text-end"><strong>{{ clubOwedTotal() | currency }}</strong></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  }
+      <h5 class="section-title">{{ scope() === 'team' ? 'Team Breakdown' : 'Club Teams Breakdown' }}</h5>
+      <app-registered-teams-grid
+        [teams]="gridTeams()"
+        [showAgeGroup]="true"
+        [showRegDate]="false"
+        [showPaid]="true"
+        [showDeposit]="true"
+        [showBalance]="true"
+        [showTotalFee]="true"
+        [showOwed]="true"
+        [showProcessing]="true"
+        [showCcOwed]="true"
+        [showCkOwed]="true"
+        [frozenTeamCol]="true"
+        [teamColWidth]="70"
+        [gridHeight]="'auto'" />
 
-  <!-- Single Team Summary (team scope) -->
-  @if (scope() === 'team' && selectedTeam(); as team) {
-    <div class="club-summary-card">
-      <h5 class="section-title">Team Breakdown</h5>
-      <table class="summary-table summary-table-compact">
-        <thead>
-          <tr>
-            <th>Agegroup</th>
-            <th>Team</th>
-            <th class="text-end">Fee</th>
-            <th class="text-end">Paid</th>
-            <th class="text-end">Owed</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>{{ team.agegroupName }}</td>
-            <td>{{ team.teamName }}</td>
-            <td class="text-end">{{ team.feeTotal | currency }}</td>
-            <td class="text-end">{{ team.paidTotal | currency }}</td>
-            @if (team.paymentScheduled && team.owedTotal > 0) {
-              <td class="text-end money-scheduled"
-                  [attr.title]="team.nextChargeDate ? 'Auto-pay scheduled — next charge ' + (team.nextChargeDate | date:'mediumDate') : 'Auto-pay scheduled'">
-                <i class="bi bi-calendar-event scheduled-icon"></i>{{ team.owedTotal | currency }}
-              </td>
-            } @else {
-              <td class="text-end" [class.owed-positive]="team.owedTotal > 0" [class.owed-zero]="team.owedTotal === 0">
-                {{ team.owedTotal | currency }}
-              </td>
-            }
-          </tr>
-        </tbody>
-      </table>
+      <!-- Waitlisted / Dropped / Inactive — reference-only, excluded from totals,
+           collapsed by default. Trimmed columns (name / agegroup / paid / owed). -->
+      @if (scope() === 'club' && otherTeams().length) {
+        <button type="button" class="other-teams-toggle" (click)="showOtherTeams.set(!showOtherTeams())">
+          <i class="bi" [class.bi-chevron-right]="!showOtherTeams()" [class.bi-chevron-down]="showOtherTeams()"></i>
+          {{ otherTeams().length }} waitlisted / dropped / inactive
+        </button>
+        @if (showOtherTeams()) {
+          <div class="other-teams-grid">
+            <app-registered-teams-grid
+              [teams]="otherTeams()"
+              [showAgeGroup]="true"
+              [showRegDate]="false"
+              [showPaid]="true"
+              [showTotalFee]="false"
+              [showOwed]="true"
+              [showCcOwed]="false"
+              [showCkOwed]="false"
+              [frozenTeamCol]="true"
+              [teamColWidth]="70"
+              [gridHeight]="'auto'" />
+          </div>
+        }
+      }
     </div>
   }
 
