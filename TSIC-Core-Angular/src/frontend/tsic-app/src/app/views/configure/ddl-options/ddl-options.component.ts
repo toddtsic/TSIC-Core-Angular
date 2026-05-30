@@ -10,7 +10,7 @@ import type { JobDdlOptionsDto } from '@core/api';
 interface DdlCategory {
 	key: keyof JobDdlOptionsDto;
 	label: string;
-	group: 'clothing' | 'player' | 'team';
+	group: 'clothing' | 'player' | 'team' | 'camp';
 }
 
 interface DdlGroup {
@@ -45,12 +45,17 @@ const CATEGORIES: DdlCategory[] = [
 	{ key: 'lops',              label: 'LOPs (Team Reg Form)',   group: 'team' },
 	{ key: 'clubNames',         label: 'Club Names',              group: 'team' },
 	{ key: 'priorSeasonYears',  label: 'Prior Season Years',      group: 'team' },
+
+	// Camp Roster
+	{ key: 'dayGroups',         label: 'Day Groups',              group: 'camp' },
+	{ key: 'nightGroups',       label: 'Night Groups',            group: 'camp' },
 ];
 
 const GROUP_LABELS: Record<string, string> = {
 	clothing: 'Clothing Sizes',
 	player:   'Player Data',
 	team:     'Team & Context',
+	camp:     'Camp Roster',
 };
 
 @Component({

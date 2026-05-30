@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.CampGroups;
 using TSIC.Contracts.Dtos.ClubRoster;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -460,6 +461,14 @@ public interface ITeamRepository
     /// Get public-safe roster for a team (waiver-signed players + staff only, no PII).
     /// </summary>
     Task<List<PublicRosterPlayerDto>> GetPublicTeamRosterAsync(Guid jobId, Guid teamId, CancellationToken ct = default);
+
+    // ── Camp Day/Night Groups admin ──
+
+    /// <summary>
+    /// Get all active teams for a job with their active-Player roster count. One round trip.
+    /// Used by the camp-groups admin screen left pane. AsNoTracking. Ordered by TeamName.
+    /// </summary>
+    Task<List<TeamRosterCountDto>> GetTeamsWithRosterCountForJobAsync(Guid jobId, CancellationToken ct = default);
 }
 
 public record TeamWithRegistrationInfo

@@ -1,7 +1,7 @@
 namespace TSIC.Contracts.Dtos.DdlOptions;
 
 /// <summary>
-/// All 20 dropdown categories for player/team registration forms.
+/// All dropdown categories for player/team registration forms and camp roster admin.
 /// Each category is a simple string list (Text always equals Value in the legacy JSON).
 /// </summary>
 public record JobDdlOptionsDto
@@ -31,4 +31,8 @@ public record JobDdlOptionsDto
     public required List<string> Lops { get; init; }
     public required List<string> ClubNames { get; init; }
     public required List<string> PriorSeasonYears { get; init; }
+
+    // ── Camp & context ──
+    public required List<string> DayGroups { get; init; }
+    public required List<string> NightGroups { get; init; }
 }

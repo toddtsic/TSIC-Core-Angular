@@ -89,6 +89,7 @@ $rulesTeamEligByAge      = '{"requiresFlags":["teamEligibilityByAge"]}'
 $rulesAdnArb             = '{"requiresFlags":["adnArb"]}'
 $rulesLacrosse           = '{"sports":["Lacrosse"]}'
 $rulesPlayerSite         = '{"requiresFlags":["playerSiteOnly"]}'
+$rulesCampSales          = '{"jobTypes":["Camp Registration","Sales Venue"]}'
 
 # Section-level rules keyed by Controller name. These override any value inferred
 # from per-item aggregation and land on the L1 section parent. Use this when the
@@ -207,6 +208,7 @@ $adminManifest = @(
     (New-AdminItem 'Tools' 'tools' 9 'Profile Editor'       'pencil-square' 'tools/profile-editor'       6 0 0 1)
     (New-AdminItem 'Tools' 'tools' 9 'Change Password'      'key'           'tools/change-password'      7 0 0 1)
     (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 8 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Camp Day/Night Groups' 'sun'          'tools/camp-groups'          9 1 1 1 $rulesCampSales)
 )
 
 Write-Host "Admin manifest: $($adminManifest.Count) items" -ForegroundColor DarkGray

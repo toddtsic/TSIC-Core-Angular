@@ -79,6 +79,8 @@ public class DdlOptionsService : IDdlOptionsService
             Lops = ExtractValues(options.List_Lops),
             ClubNames = ExtractValues(options.List_ClubNames),
             PriorSeasonYears = ExtractValues(options.List_PriorSeasonYears),
+            DayGroups = ExtractValues(options.List_DayGroup),
+            NightGroups = ExtractValues(options.List_NightGroup),
         };
     }
 
@@ -106,6 +108,8 @@ public class DdlOptionsService : IDdlOptionsService
             List_Lops = ToJsonItems(dto.Lops),
             List_ClubNames = ToJsonItems(dto.ClubNames),
             List_PriorSeasonYears = ToJsonItems(dto.PriorSeasonYears),
+            List_DayGroup = ToJsonItems(dto.DayGroups),
+            List_NightGroup = ToJsonItems(dto.NightGroups),
         };
     }
 
@@ -153,6 +157,8 @@ public class DdlOptionsService : IDdlOptionsService
             Lops = SanitizeList(dto.Lops),
             ClubNames = SanitizeList(dto.ClubNames),
             PriorSeasonYears = SanitizeList(dto.PriorSeasonYears),
+            DayGroups = SanitizeList(dto.DayGroups),
+            NightGroups = SanitizeList(dto.NightGroups),
         };
     }
 
@@ -197,6 +203,8 @@ public class DdlOptionsService : IDdlOptionsService
         Lops = [],
         ClubNames = [],
         PriorSeasonYears = [],
+        DayGroups = [],
+        NightGroups = [],
     };
 
     // ═══════════════════════════════════════
@@ -225,6 +233,8 @@ public class DdlOptionsService : IDdlOptionsService
         public List<JsonSelectListItem>? List_Lops { get; set; }
         public List<JsonSelectListItem>? List_PriorSeasonYears { get; set; }
         public List<JsonSelectListItem>? List_SkillLevels { get; set; }
+        public List<JsonSelectListItem>? List_DayGroup { get; set; }
+        public List<JsonSelectListItem>? List_NightGroup { get; set; }
     }
 
     private sealed class JsonSelectListItem

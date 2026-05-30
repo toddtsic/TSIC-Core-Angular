@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.CampGroups;
 using TSIC.Contracts.Dtos.ClubRoster;
 using TSIC.Contracts.Dtos.Rankings;
 using TSIC.Contracts.Dtos.RegistrationSearch;
@@ -1572,6 +1573,25 @@ public class TeamRepository : ITeamRepository
                 TeamName = t.TeamName
             }
         ).AsNoTracking().ToListAsync(ct);
+    }
+
+    public async Task<List<TeamRosterCountDto>> GetTeamsWithRosterCountForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await (
+            from t in _context.Teams
+            where t.JobId == jobId && t.Active == true
+            orderby t.TeamName
+            select new TeamRosterCountDto
+            {
+                TeamId = t.TeamId,
+                TeamName = t.TeamName ?? string.Empty,
+                PlayerCount = _context.Registrations.Count(r =>
+                    r.AssignedTeamId == t.TeamId
+                    && r.BActive == true
+                    && r.RoleId == RoleConstants.Player)
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
     }
 }
 

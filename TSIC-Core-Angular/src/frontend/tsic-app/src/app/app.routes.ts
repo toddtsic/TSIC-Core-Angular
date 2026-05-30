@@ -318,6 +318,12 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
 						loadComponent: () => import('./views/tools/uniform-upload/uniform-upload.component').then(m => m.UniformUploadComponent)
+					},
+					{
+						path: 'camp-groups',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						loadComponent: () => import('./views/tools/camp-groups/camp-groups.component').then(m => m.CampGroupsComponent)
 					}
 				]
 			},

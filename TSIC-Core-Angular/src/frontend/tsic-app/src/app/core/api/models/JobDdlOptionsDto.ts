@@ -23,5 +23,7 @@ export type JobDdlOptionsDto = {
     lops: Array<string>;
     clubNames: Array<string>;
     priorSeasonYears: Array<string>;
+    dayGroups: Array<string>;
+    nightGroups: Array<string>;
 };
 

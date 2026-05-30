@@ -332,6 +332,8 @@ builder.Services.AddScoped<IFileUploadService, TSIC.API.Services.Shared.Files.Fi
 builder.Services.AddSignalR();
 // Uniform Number Upload (admin bulk update)
 builder.Services.AddScoped<IUniformUploadService, UniformUploadService>();
+// Camp Day/Night Groups admin
+builder.Services.AddScoped<ICampGroupsService, CampGroupsService>();
 // RegSaver Monthly Payouts Upload (SuperUser cross-customer ingest)
 builder.Services.AddScoped<IVerticalInsurePayoutsRepository, VerticalInsurePayoutsRepository>();
 builder.Services.AddScoped<IRegSaverUploadService, RegSaverUploadService>();

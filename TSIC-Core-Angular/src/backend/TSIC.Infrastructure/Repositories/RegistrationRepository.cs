@@ -1,6 +1,7 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.CampGroups;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -2454,4 +2455,86 @@ public class RegistrationRepository : IRegistrationRepository
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(r => r.SportAssnIdexpDate, newExpiryDate), ct);
     }
+
+    public async Task<List<CampPlayerDto>> GetCampersByTeamAsync(Guid teamId, CancellationToken ct = default)
+    {
+        return await (
+            from r in _context.Registrations
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            where r.AssignedTeamId == teamId
+                  && r.BActive == true
+                  && r.RoleId == RoleConstants.Player
+            orderby r.GradYear, u.LastName, u.FirstName
+            select new CampPlayerDto
+            {
+                RegistrationId = r.RegistrationId,
+                FirstName = u.FirstName ?? string.Empty,
+                LastName = u.LastName ?? string.Empty,
+                SchoolName = r.SchoolName,
+                GradYear = r.GradYear,
+                Position = r.Position,
+                ClubName = r.ClubName,
+                DayGroup = r.DayGroup,
+                NightGroup = r.NightGroup,
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+    }
+
+    public async Task<bool> UpdateCampGroupsAsync(
+        Guid jobId,
+        Guid registrationId,
+        string? dayGroup,
+        string? nightGroup,
+        bool updateDayGroup,
+        bool updateNightGroup,
+        CancellationToken ct = default)
+    {
+        if (!updateDayGroup && !updateNightGroup) return false;
+
+        var reg = await _context.Registrations
+            .Where(r => r.RegistrationId == registrationId && r.JobId == jobId)
+            .SingleOrDefaultAsync(ct);
+
+        if (reg is null) return false;
+
+        if (updateDayGroup) reg.DayGroup = NormalizeBlank(dayGroup);
+        if (updateNightGroup) reg.NightGroup = NormalizeBlank(nightGroup);
+
+        await _context.SaveChangesAsync(ct);
+        return true;
+    }
+
+    public async Task<int> BulkUpdateCampGroupsAsync(
+        Guid jobId,
+        IReadOnlyCollection<Guid> registrationIds,
+        string? dayGroup,
+        string? nightGroup,
+        bool updateDayGroup,
+        bool updateNightGroup,
+        CancellationToken ct = default)
+    {
+        if (registrationIds.Count == 0) return 0;
+        if (!updateDayGroup && !updateNightGroup) return 0;
+
+        var ids = registrationIds.ToList();
+        var regs = await _context.Registrations
+            .Where(r => ids.Contains(r.RegistrationId) && r.JobId == jobId)
+            .ToListAsync(ct);
+
+        var dayValue = NormalizeBlank(dayGroup);
+        var nightValue = NormalizeBlank(nightGroup);
+
+        foreach (var reg in regs)
+        {
+            if (updateDayGroup) reg.DayGroup = dayValue;
+            if (updateNightGroup) reg.NightGroup = nightValue;
+        }
+
+        await _context.SaveChangesAsync(ct);
+        return regs.Count;
+    }
+
+    private static string? NormalizeBlank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

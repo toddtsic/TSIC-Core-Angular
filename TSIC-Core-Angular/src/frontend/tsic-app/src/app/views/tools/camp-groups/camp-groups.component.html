@@ -1,0 +1,202 @@
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Camp Day/Night Groups</h2>
+        <p class="page-subtitle">
+            Assign campers to day and night groups by team. Group choices come from
+            <strong>Configure Job → DDL Options → Camp Roster</strong>.
+        </p>
+    </div>
+</div>
+
+@if (!hasAnyGroups() && !isLoadingTeams()) {
+    <div class="alert alert-warning">
+        <i class="bi bi-exclamation-triangle me-2"></i>
+        No day or night groups defined for this job yet. Add them under
+        <strong>Configure Job → DDL Options → Camp Roster</strong> before assigning campers.
+    </div>
+}
+
+<div class="master-detail">
+    <!-- ── Left: teams ─────────────────────────────── -->
+    <div class="team-list-panel">
+        <div class="panel-header">
+            <span class="panel-title">Teams</span>
+            <span class="badge bg-secondary">{{ teams().length }}</span>
+        </div>
+
+        @if (isLoadingTeams()) {
+            <div class="empty-state-inline">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+            </div>
+        } @else if (teams().length === 0) {
+            <div class="empty-state-inline">
+                <i class="bi bi-collection"></i>
+                <p>No active teams in this job.</p>
+            </div>
+        } @else {
+            <div class="team-list">
+                @for (team of teams(); track team.teamId) {
+                    <div
+                        class="team-item"
+                        [class.active]="selectedTeamId() === team.teamId"
+                        (click)="selectTeam(team)"
+                        (keydown.enter)="selectTeam(team)"
+                        tabindex="0"
+                        role="button">
+                        <span class="team-name">{{ team.teamName }}</span>
+                        <span class="count-badge">{{ team.playerCount }}</span>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <!-- ── Right: campers ──────────────────────────── -->
+    <div class="camper-panel">
+        @if (!selectedTeam()) {
+            <div class="empty-state-inline">
+                <i class="bi bi-arrow-left-circle"></i>
+                <p>Select a team to assign day/night groups.</p>
+            </div>
+        } @else {
+            <div class="panel-header">
+                <span class="panel-title">{{ selectedTeam()?.teamName }}</span>
+                <span class="badge bg-secondary">{{ campers().length }} campers</span>
+            </div>
+
+            <!-- Header controls -->
+            <div class="header-controls">
+                @if (dayColumnVisible()) {
+                    <div class="bulk-control">
+                        <label class="bulk-label">Set Day for selected:</label>
+                        <select class="form-select form-select-sm"
+                                [ngModel]="bulkDayGroup()"
+                                (ngModelChange)="bulkDayGroup.set($event)"
+                                [disabled]="isBulkSaving()">
+                            <option value="">(clear)</option>
+                            @for (g of dayGroups(); track g) {
+                                <option [value]="g">{{ g }}</option>
+                            }
+                        </select>
+                        <button class="btn btn-sm btn-primary"
+                                (click)="applyBulkDay()"
+                                [disabled]="selectedCount() === 0 || isBulkSaving()">
+                            Apply ({{ selectedCount() }})
+                        </button>
+                    </div>
+                }
+                @if (nightColumnVisible()) {
+                    <div class="bulk-control">
+                        <label class="bulk-label">Set Night for selected:</label>
+                        <select class="form-select form-select-sm"
+                                [ngModel]="bulkNightGroup()"
+                                (ngModelChange)="bulkNightGroup.set($event)"
+                                [disabled]="isBulkSaving()">
+                            <option value="">(clear)</option>
+                            @for (g of nightGroups(); track g) {
+                                <option [value]="g">{{ g }}</option>
+                            }
+                        </select>
+                        <button class="btn btn-sm btn-primary"
+                                (click)="applyBulkNight()"
+                                [disabled]="selectedCount() === 0 || isBulkSaving()">
+                            Apply ({{ selectedCount() }})
+                        </button>
+                    </div>
+                }
+                <div class="filter-toggle">
+                    <input type="checkbox"
+                           id="unassignedOnly"
+                           class="form-check-input me-1"
+                           [checked]="unassignedOnly()"
+                           (change)="unassignedOnly.set($any($event.target).checked)">
+                    <label for="unassignedOnly" class="form-check-label">Unassigned only</label>
+                </div>
+            </div>
+
+            @if (isLoadingCampers()) {
+                <div class="empty-state-inline">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                </div>
+            } @else if (visibleCampers().length === 0) {
+                <div class="empty-state-inline">
+                    <i class="bi bi-check2-all"></i>
+                    <p>
+                        @if (unassignedOnly() && campers().length > 0) {
+                            All campers on this team are assigned.
+                        } @else {
+                            No campers on this team yet.
+                        }
+                    </p>
+                </div>
+            } @else {
+                <div class="camper-table-wrap">
+                    <table class="camper-table">
+                        <thead>
+                            <tr>
+                                <th class="col-check">
+                                    <input type="checkbox"
+                                           class="form-check-input"
+                                           [checked]="allVisibleSelected()"
+                                           (change)="toggleSelectAllVisible($any($event.target).checked)">
+                                </th>
+                                <th class="col-name">Name</th>
+                                <th class="col-grad">Grad</th>
+                                <th class="col-school">School</th>
+                                <th class="col-club">Club</th>
+                                <th class="col-pos">Pos</th>
+                                @if (dayColumnVisible()) {
+                                    <th class="col-group">Day Group</th>
+                                }
+                                @if (nightColumnVisible()) {
+                                    <th class="col-group">Night Group</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (c of visibleCampers(); track c.registrationId) {
+                                <tr [class.selected]="isSelected(c.registrationId)">
+                                    <td class="col-check">
+                                        <input type="checkbox"
+                                               class="form-check-input"
+                                               [checked]="isSelected(c.registrationId)"
+                                               (change)="toggleSelect(c.registrationId, $any($event.target).checked)">
+                                    </td>
+                                    <td class="col-name">{{ c.lastName }}, {{ c.firstName }}</td>
+                                    <td class="col-grad">{{ c.gradYear }}</td>
+                                    <td class="col-school">{{ c.schoolName }}</td>
+                                    <td class="col-club">{{ c.clubName }}</td>
+                                    <td class="col-pos">{{ c.position }}</td>
+                                    @if (dayColumnVisible()) {
+                                        <td class="col-group">
+                                            <select class="form-select form-select-sm"
+                                                    [ngModel]="c.dayGroup ?? ''"
+                                                    (ngModelChange)="onDayGroupChange(c, $event)">
+                                                <option value="">—</option>
+                                                @for (g of dayGroups(); track g) {
+                                                    <option [value]="g">{{ g }}</option>
+                                                }
+                                            </select>
+                                        </td>
+                                    }
+                                    @if (nightColumnVisible()) {
+                                        <td class="col-group">
+                                            <select class="form-select form-select-sm"
+                                                    [ngModel]="c.nightGroup ?? ''"
+                                                    (ngModelChange)="onNightGroupChange(c, $event)">
+                                                <option value="">—</option>
+                                                @for (g of nightGroups(); track g) {
+                                                    <option [value]="g">{{ g }}</option>
+                                                }
+                                            </select>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        }
+    </div>
+</div>

@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.CampGroups;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
@@ -503,6 +504,45 @@ public interface IRegistrationRepository
     /// when a MemberPing returns an exp_date and the member is involved as a Player.
     /// </summary>
     Task UpdateSportAssnIdExpDateAsync(Guid registrationId, DateTime newExpiryDate, CancellationToken ct = default);
+
+    // ── Camp Day/Night Groups admin ──
+
+    /// <summary>
+    /// Get all active Player registrations for a team with the fields the camp-groups
+    /// admin screen needs (identity, school, grad year, position, club, current Day/Night group).
+    /// AsNoTracking. Ordered by GradYear, LastName, FirstName.
+    /// </summary>
+    Task<List<CampPlayerDto>> GetCampersByTeamAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Update DayGroup and/or NightGroup on a single registration, guarded by jobId
+    /// so callers can't mutate registrations in a different job. Caller chooses which
+    /// fields to write via the `updateDayGroup` / `updateNightGroup` flags so this can
+    /// PATCH one field without clobbering the other. Empty string is stored as null.
+    /// Returns true if the registration existed, belonged to the job, and was touched.
+    /// </summary>
+    Task<bool> UpdateCampGroupsAsync(
+        Guid jobId,
+        Guid registrationId,
+        string? dayGroup,
+        string? nightGroup,
+        bool updateDayGroup,
+        bool updateNightGroup,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Bulk variant of <see cref="UpdateCampGroupsAsync"/> — same field-update semantics
+    /// applied across a list of registration ids, with the same jobId guard. Silently
+    /// skips any ids not belonging to the job. Returns the count of rows touched.
+    /// </summary>
+    Task<int> BulkUpdateCampGroupsAsync(
+        Guid jobId,
+        IReadOnlyCollection<Guid> registrationIds,
+        string? dayGroup,
+        string? nightGroup,
+        bool updateDayGroup,
+        bool updateNightGroup,
+        CancellationToken ct = default);
 }
 
 public record UsLaxReconciliationCandidateRow
