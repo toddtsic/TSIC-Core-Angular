@@ -1405,6 +1405,7 @@ public class PaymentService : IPaymentService
             var reg = regsById[item.RegistrationId];
             var ra = rasByRegId[item.RegistrationId];
             var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, item.RegistrationId);
+            var description = await BuildChargeDescriptionAsync(reg);
             firstInvoiceNo ??= invoiceNumber;
 
             var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
@@ -1423,7 +1424,7 @@ public class PaymentService : IPaymentService
                 Phone = creditCard.Phone!,
                 Amount = item.Amount,
                 InvoiceNumber = invoiceNumber,
-                Description = $"Registration Payment (#{reg.RegistrationAi})"
+                Description = description
             });
 
             if (!chargeResult.Success)
@@ -1854,6 +1855,27 @@ public class PaymentService : IPaymentService
         {
             _logger.LogError(ex, "Invoice build error for registration {RegistrationId} job {JobId}", registrationId, jobId);
             return ("INV" + DateTime.UtcNow.Ticks).Substring(0, 20);
+        }
+    }
+
+    // Build the Authorize.Net one-time-charge description in the legacy format:
+    // "{JobName}:{First} {Last}:{Agegroup}:{Team}" (assigned team) or
+    // "{RoleName}:{First} {Last}" (no team). Falls back to a minimal label on any miss
+    // so a charge is never blocked by a description lookup; trims to ADN's 255-char cap.
+    private async Task<string> BuildChargeDescriptionAsync(Registrations reg)
+    {
+        try
+        {
+            var desc = await _registrations.GetChargeDescriptionAsync(reg.RegistrationId, reg.JobId);
+            if (string.IsNullOrWhiteSpace(desc))
+                return $"Registration Payment (#{reg.RegistrationAi})";
+            desc = desc.Trim();
+            return desc.Length > 255 ? desc.Substring(0, 255) : desc;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Charge description build error for registration {RegistrationId}", reg.RegistrationId);
+            return $"Registration Payment (#{reg.RegistrationAi})";
         }
     }
 

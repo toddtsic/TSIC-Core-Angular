@@ -241,6 +241,17 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Builds the Authorize.Net charge description for a registration, matching the legacy
+    /// format: "{JobName}:{First} {Last}:{Agegroup}:{Team}" when the player has an assigned
+    /// team, otherwise "{RoleName}:{First} {Last}". Returns null if the registration is
+    /// not found for the job.
+    /// </summary>
+    Task<string?> GetChargeDescriptionAsync(
+        Guid registrationId,
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get job ID for a registration (lightweight lookup).
     /// </summary>
     Task<Guid?> GetRegistrationJobIdAsync(

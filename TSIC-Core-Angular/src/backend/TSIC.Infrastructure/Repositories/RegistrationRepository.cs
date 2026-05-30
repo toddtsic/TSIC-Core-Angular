@@ -503,6 +503,38 @@ public class RegistrationRepository : IRegistrationRepository
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<string?> GetChargeDescriptionAsync(
+        Guid registrationId,
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Mirrors legacy GetPaymentSubmissionDescription_ByRegistrationId. Project the raw
+        // columns (plain LEFT JOINs over the nullable navigations — no CASE/CONCAT to
+        // translate) and assemble the colon-delimited string in memory, branching on
+        // whether the player has an assigned team.
+        var data = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId && r.JobId == jobId)
+            .Select(r => new
+            {
+                r.AssignedTeamId,
+                JobName = r.Job.JobName,
+                First = r.User!.FirstName,
+                Last = r.User.LastName,
+                RoleName = r.Role!.Name,
+                AgegroupName = r.AssignedTeam!.Agegroup!.AgegroupName,
+                TeamName = r.AssignedTeam.TeamName
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (data == null)
+            return null;
+
+        return data.AssignedTeamId != null
+            ? $"{data.JobName}:{data.First} {data.Last}:{data.AgegroupName}:{data.TeamName}"
+            : $"{data.RoleName}:{data.First} {data.Last}";
+    }
+
     public async Task<Guid?> GetRegistrationJobIdAsync(
         Guid registrationId,
         CancellationToken cancellationToken = default)

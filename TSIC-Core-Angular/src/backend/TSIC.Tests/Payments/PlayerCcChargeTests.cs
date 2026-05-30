@@ -190,6 +190,26 @@ public class PlayerCcChargeTests
         result.Outcomes.Should().AllSatisfy(o => o.Success.Should().BeTrue());
     }
 
+    // ── ADN description: legacy colon-delimited format reaches the gateway ───────
+
+    [Fact(DisplayName = "Charge sends the legacy per-player description to ADN (Job:Name:Agegroup:Team)")]
+    public async Task Charge_SendsLegacyDescriptionToAdn()
+    {
+        var jobId = Guid.NewGuid();
+        var reg = Reg(jobId, owed: 250m);
+        StubLoadedRegs(reg);
+        StubAdnChargeSuccess("TX-A");
+        const string legacyDesc = "Acme Cup:Jane Doe:U14 Girls:Team Alpha";
+        _regRepo.Setup(r => r.GetChargeDescriptionAsync(reg.RegistrationId, jobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(legacyDesc);
+        var sut = BuildSut();
+
+        var result = await sut.ChargeRegistrationsCcAsync(jobId, [Item(reg.RegistrationId, 250m)], ValidCard(), ActingUserId);
+
+        result.Success.Should().BeTrue();
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(req => req.Description == legacyDesc)), Times.Once);
+    }
+
     // ── Partial failure (Option A): persist captures, FAIL only the declined reg ──
 
     [Fact(DisplayName = "Partial: player 1 captures, player 2 declines → P1 persisted, P2 FAILED, overall failure")]
