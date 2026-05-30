@@ -204,10 +204,10 @@
                                                     </Style>
                                                   </Line>
                                                   <Tablix Name="innerRoster">
-                                                    <Left>0pt</Left>
-                                                    <Top>29pt</Top>
-                                                    <Height>281pt</Height>
-                                                    <Width>178pt</Width>
+                                                    <Left>4pt</Left>
+                                                    <Top>28pt</Top>
+                                                    <Height>282pt</Height>
+                                                    <Width>172pt</Width>
                                                     <Style>
                                                       <FontFamily>Arial</FontFamily>
                                                       <Border><Style>None</Style></Border>
@@ -225,12 +225,10 @@
                                                     <DataSetName>MainReportData</DataSetName>
                                                     <TablixBody>
                                                       <TablixColumns>
-                                                        <TablixColumn><Width>14pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>65pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>25pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>17pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>14pt</Width></TablixColumn>
-                                                        <TablixColumn><Width>41pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>20pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>80pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>30pt</Width></TablixColumn>
+                                                        <TablixColumn><Width>42pt</Width></TablixColumn>
                                                       </TablixColumns>
                                                       <TablixRows>
                                                         <TablixRow>
@@ -239,7 +237,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iUniform">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>14pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>20pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>1pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -247,9 +245,9 @@
                                                                     <LeftBorder><Style>None</Style></LeftBorder>
                                                                     <RightBorder><Style>None</Style></RightBorder>
                                                                     <BottomBorder>
-                                                                      <Color>Black</Color>
+                                                                      <Color>#888888</Color>
                                                                       <Style>=IIf(Fields!isLastRow.Value = 1, "None", "Solid")</Style>
-                                                                      <Width>1pt</Width>
+                                                                      <Width>0.5pt</Width>
                                                                     </BottomBorder>
                                                                   </Style>
                                                                   <CanGrow>false</CanGrow>
@@ -257,7 +255,7 @@
                                                                     <Paragraph>
                                                                       <TextRuns>
                                                                         <TextRun>
-                                                                          <Value>=Fields!uniform_no.Value</Value>
+                                                                          <Value>=IIf(Fields!roleName.Value = "Staff", "", Fields!uniform_no.Value)</Value>
                                                                           <Style><FontFamily>Arial</FontFamily><FontSize>7pt</FontSize><FontWeight>Bold</FontWeight><Color>#000000</Color></Style>
                                                                         </TextRun>
                                                                       </TextRuns>
@@ -271,7 +269,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iName">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>65pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>80pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>2pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -279,9 +277,9 @@
                                                                     <LeftBorder><Style>None</Style></LeftBorder>
                                                                     <RightBorder><Style>None</Style></RightBorder>
                                                                     <BottomBorder>
-                                                                      <Color>Black</Color>
+                                                                      <Color>#888888</Color>
                                                                       <Style>=IIf(Fields!isLastRow.Value = 1, "None", "Solid")</Style>
-                                                                      <Width>1pt</Width>
+                                                                      <Width>0.5pt</Width>
                                                                     </BottomBorder>
                                                                   </Style>
                                                                   <CanGrow>false</CanGrow>
@@ -289,7 +287,7 @@
                                                                     <Paragraph>
                                                                       <TextRuns>
                                                                         <TextRun>
-                                                                          <Value>=Fields!player.Value</Value>
+                                                                          <Value>=IIf(Fields!roleName.Value = "Staff", "Coach " + Fields!player.Value, IIf(Fields!bCollegeCommit.Value = "yes", "* " + Fields!player.Value, Fields!player.Value))</Value>
                                                                           <Style><FontFamily>Arial</FontFamily><FontSize>7pt</FontSize><FontWeight>Bold</FontWeight><Color>#000000</Color></Style>
                                                                         </TextRun>
                                                                       </TextRuns>
@@ -303,7 +301,7 @@
                                                             <TablixCell>
                                                               <CellContents>
                                                                 <Textbox Name="iPosition">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>25pt</Width>
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>30pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>1pt</PaddingLeft><PaddingRight>1pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -311,9 +309,9 @@
                                                                     <LeftBorder><Style>None</Style></LeftBorder>
                                                                     <RightBorder><Style>None</Style></RightBorder>
                                                                     <BottomBorder>
-                                                                      <Color>Black</Color>
+                                                                      <Color>#888888</Color>
                                                                       <Style>=IIf(Fields!isLastRow.Value = 1, "None", "Solid")</Style>
-                                                                      <Width>1pt</Width>
+                                                                      <Width>0.5pt</Width>
                                                                     </BottomBorder>
                                                                   </Style>
                                                                   <CanGrow>false</CanGrow>
@@ -321,8 +319,8 @@
                                                                     <Paragraph>
                                                                       <TextRuns>
                                                                         <TextRun>
-                                                                          <Value>=Fields!position.Value</Value>
-                                                                          <Style><FontFamily>Arial</FontFamily><FontSize>6.5pt</FontSize><Color>#000000</Color></Style>
+                                                                          <Value>=IIf(Fields!roleName.Value = "Staff", "", Fields!position.Value)</Value>
+                                                                          <Style><FontFamily>Arial</FontFamily><FontSize>6pt</FontSize><Color>#000000</Color></Style>
                                                                         </TextRun>
                                                                       </TextRuns>
                                                                       <Style><FontFamily>Arial</FontFamily></Style>
@@ -334,72 +332,8 @@
                                                             </TablixCell>
                                                             <TablixCell>
                                                               <CellContents>
-                                                                <Textbox Name="iGradYear">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>17pt</Width>
-                                                                  <Style>
-                                                                    <FontFamily>Arial</FontFamily>
-                                                                    <PaddingLeft>1pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
-                                                                    <TopBorder><Style>None</Style></TopBorder>
-                                                                    <LeftBorder><Style>None</Style></LeftBorder>
-                                                                    <RightBorder><Style>None</Style></RightBorder>
-                                                                    <BottomBorder>
-                                                                      <Color>Black</Color>
-                                                                      <Style>=IIf(Fields!isLastRow.Value = 1, "None", "Solid")</Style>
-                                                                      <Width>1pt</Width>
-                                                                    </BottomBorder>
-                                                                  </Style>
-                                                                  <CanGrow>false</CanGrow>
-                                                                  <Paragraphs>
-                                                                    <Paragraph>
-                                                                      <TextRuns>
-                                                                        <TextRun>
-                                                                          <Value>=Fields!gradYear.Value</Value>
-                                                                          <Style><FontFamily>Arial</FontFamily><FontSize>6.5pt</FontSize><Color>#000000</Color></Style>
-                                                                        </TextRun>
-                                                                      </TextRuns>
-                                                                      <Style><FontFamily>Arial</FontFamily><TextAlign>Center</TextAlign></Style>
-                                                                    </Paragraph>
-                                                                  </Paragraphs>
-                                                                </Textbox>
-                                                                <RowSpan>1</RowSpan><ColSpan>1</ColSpan>
-                                                              </CellContents>
-                                                            </TablixCell>
-                                                            <TablixCell>
-                                                              <CellContents>
-                                                                <Textbox Name="iGpa">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>14pt</Width>
-                                                                  <Style>
-                                                                    <FontFamily>Arial</FontFamily>
-                                                                    <PaddingLeft>1pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
-                                                                    <TopBorder><Style>None</Style></TopBorder>
-                                                                    <LeftBorder><Style>None</Style></LeftBorder>
-                                                                    <RightBorder><Style>None</Style></RightBorder>
-                                                                    <BottomBorder>
-                                                                      <Color>Black</Color>
-                                                                      <Style>=IIf(Fields!isLastRow.Value = 1, "None", "Solid")</Style>
-                                                                      <Width>1pt</Width>
-                                                                    </BottomBorder>
-                                                                  </Style>
-                                                                  <CanGrow>false</CanGrow>
-                                                                  <Paragraphs>
-                                                                    <Paragraph>
-                                                                      <TextRuns>
-                                                                        <TextRun>
-                                                                          <Value>=IIf(Fields!bCollegeCommit.Value = "yes", "", Fields!gpa.Value)</Value>
-                                                                          <Style><FontFamily>Arial</FontFamily><FontSize>6.5pt</FontSize><Color>#000000</Color></Style>
-                                                                        </TextRun>
-                                                                      </TextRuns>
-                                                                      <Style><FontFamily>Arial</FontFamily><TextAlign>Center</TextAlign></Style>
-                                                                    </Paragraph>
-                                                                  </Paragraphs>
-                                                                </Textbox>
-                                                                <RowSpan>1</RowSpan><ColSpan>1</ColSpan>
-                                                              </CellContents>
-                                                            </TablixCell>
-                                                            <TablixCell>
-                                                              <CellContents>
-                                                                <Textbox Name="iCollegeCommit">
-                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>41pt</Width>
+                                                                <Textbox Name="iSchool">
+                                                                  <Left>0pt</Left><Top>0pt</Top><Height>11pt</Height><Width>42pt</Width>
                                                                   <Style>
                                                                     <FontFamily>Arial</FontFamily>
                                                                     <PaddingLeft>2pt</PaddingLeft><PaddingRight>2pt</PaddingRight><PaddingTop>1pt</PaddingTop><PaddingBottom>1pt</PaddingBottom>
@@ -407,9 +341,9 @@
                                                                     <LeftBorder><Style>None</Style></LeftBorder>
                                                                     <RightBorder><Style>None</Style></RightBorder>
                                                                     <BottomBorder>
-                                                                      <Color>Black</Color>
+                                                                      <Color>#888888</Color>
                                                                       <Style>=IIf(Fields!isLastRow.Value = 1, "None", "Solid")</Style>
-                                                                      <Width>1pt</Width>
+                                                                      <Width>0.5pt</Width>
                                                                     </BottomBorder>
                                                                   </Style>
                                                                   <CanGrow>false</CanGrow>
@@ -417,11 +351,11 @@
                                                                     <Paragraph>
                                                                       <TextRuns>
                                                                         <TextRun>
-                                                                          <Value>=Left(IIf(IsNothing(Fields!collegeCommit.Value), "", Fields!collegeCommit.Value), 22)</Value>
-                                                                          <Style><FontFamily>Arial</FontFamily><FontSize>6.5pt</FontSize><Color>#000000</Color></Style>
+                                                                          <Value>=Left(Fields!school_name.Value, 14)</Value>
+                                                                          <Style><FontFamily>Arial</FontFamily><FontSize>6pt</FontSize><Color>#000000</Color></Style>
                                                                         </TextRun>
                                                                       </TextRuns>
-                                                                      <Style><FontFamily>Arial</FontFamily><TextAlign>Right</TextAlign></Style>
+                                                                      <Style><FontFamily>Arial</FontFamily><TextAlign>=IIf(Fields!roleName.Value = "Staff", "Right", "Left")</TextAlign></Style>
                                                                     </Paragraph>
                                                                   </Paragraphs>
                                                                 </Textbox>
@@ -438,8 +372,6 @@
                                                         <TablixMember />
                                                         <TablixMember />
                                                         <TablixMember />
-                                                        <TablixMember />
-                                                        <TablixMember />
                                                       </TablixMembers>
                                                     </TablixColumnHierarchy>
                                                     <TablixRowHierarchy>
@@ -447,17 +379,8 @@
                                                         <TablixMember>
                                                           <Group Name="innerDetail">
                                                             <GroupExpressions>
-                                                              <GroupExpression>=Fields!teamID.Value.ToString() + "|" + Fields!player.Value + "|" + IIf(IsNothing(Fields!uniform_no.Value), "", Fields!uniform_no.Value)</GroupExpression>
+                                                              <GroupExpression>=Fields!teamID.Value.ToString() + "|" + Fields!player.Value + "|" + CStr(Fields!roleSort.Value) + "|" + IIf(IsNothing(Fields!uniform_no.Value), "", Fields!uniform_no.Value)</GroupExpression>
                                                             </GroupExpressions>
-                                                            <Filters>
-                                                              <Filter>
-                                                                <FilterExpression>=Fields!roleName.Value</FilterExpression>
-                                                                <Operator>Equal</Operator>
-                                                                <FilterValues>
-                                                                  <FilterValue>Player</FilterValue>
-                                                                </FilterValues>
-                                                              </Filter>
-                                                            </Filters>
                                                           </Group>
                                                         </TablixMember>
                                                       </TablixMembers>
