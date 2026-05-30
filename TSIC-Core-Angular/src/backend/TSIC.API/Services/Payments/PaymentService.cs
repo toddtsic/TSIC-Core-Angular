@@ -1366,7 +1366,6 @@ public class PaymentService : IPaymentService
         // Audit trail: placeholder RA rows exist in the DB BEFORE the gateway hit so a
         // declined card leaves a row with Active=false + Comment="FAILED: …" instead of
         // vanishing without record.
-        var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, items[0].RegistrationId);
         var rasByRegId = new Dictionary<Guid, RegistrationAccounting>(items.Count);
         foreach (var item in items)
         {
@@ -1386,63 +1385,67 @@ public class PaymentService : IPaymentService
         }
         await _acct.SaveChangesAsync();
 
-        var total = items.Sum(i => i.Amount);
         var expiry = FormatExpiry(creditCard.Expiry!);
-        var description = items.Count == 1
-            ? $"Registration Payment (#{regsById[items[0].RegistrationId].RegistrationAi})"
-            : "Registration Payment";
-        var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
-        {
-            Env = env,
-            LoginId = credentials.AdnLoginId!,
-            TransactionKey = credentials.AdnTransactionKey!,
-            CardNumber = creditCard.Number!,
-            CardCode = creditCard.Code!,
-            Expiry = expiry,
-            FirstName = creditCard.FirstName!,
-            LastName = creditCard.LastName!,
-            Address = creditCard.Address!,
-            Zip = creditCard.Zip!,
-            Email = creditCard.Email!,
-            Phone = creditCard.Phone!,
-            Amount = total,
-            InvoiceNumber = invoiceNumber,
-            Description = description
-        });
-
-        if (!chargeResult.Success)
-        {
-            var err = chargeResult.MessageForUser;
-            foreach (var item in items)
-            {
-                var ra = rasByRegId[item.RegistrationId];
-                ra.Active = false;
-                ra.Comment = $"FAILED: {err}";
-                ra.Modified = DateTime.UtcNow;
-            }
-            await _acct.SaveChangesAsync();
-            _logger.LogWarning("Player CC charge failed: Job={JobId} Regs={Count} Error={Error}", jobId, items.Count, err);
-            return new RegistrationCcChargeResult
-            {
-                Success = false,
-                ErrorCode = "CHARGE_GATEWAY_ERROR",
-                Message = err,
-                InvoiceNumber = invoiceNumber,
-                Outcomes = items.Select(i => new RegistrationCcChargeOutcome
-                {
-                    RegistrationId = i.RegistrationId,
-                    Success = false,
-                    Error = err
-                }).ToList()
-            };
-        }
-
-        var transId = chargeResult.TransactionId!;
         var last4 = Last4(creditCard.Number);
+
+        // Per-player charge: ONE ADN transaction per registration so refunds and
+        // adjustments stay granular (mirrors legacy, which charged each player
+        // independently). Charges are independent — a card can capture player 1 and
+        // decline player 2 mid-batch; we persist every successful capture and mark
+        // only the declined rows FAILED. No rollback of money already taken: the
+        // parent retries the declined player(s) from the (now reduced) owed balance.
+        var outcomes = new List<RegistrationCcChargeOutcome>(items.Count);
+        string? firstTransId = null;
+        string? firstInvoiceNo = null;
+        string? firstError = null;
+        var succeeded = 0;
+
         foreach (var item in items)
         {
             var reg = regsById[item.RegistrationId];
             var ra = rasByRegId[item.RegistrationId];
+            var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, item.RegistrationId);
+            firstInvoiceNo ??= invoiceNumber;
+
+            var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
+            {
+                Env = env,
+                LoginId = credentials.AdnLoginId!,
+                TransactionKey = credentials.AdnTransactionKey!,
+                CardNumber = creditCard.Number!,
+                CardCode = creditCard.Code!,
+                Expiry = expiry,
+                FirstName = creditCard.FirstName!,
+                LastName = creditCard.LastName!,
+                Address = creditCard.Address!,
+                Zip = creditCard.Zip!,
+                Email = creditCard.Email!,
+                Phone = creditCard.Phone!,
+                Amount = item.Amount,
+                InvoiceNumber = invoiceNumber,
+                Description = $"Registration Payment (#{reg.RegistrationAi})"
+            });
+
+            if (!chargeResult.Success)
+            {
+                var err = chargeResult.MessageForUser;
+                firstError ??= err;
+                ra.Active = false;
+                ra.Comment = $"FAILED: {err}";
+                ra.Modified = DateTime.UtcNow;
+                outcomes.Add(new RegistrationCcChargeOutcome
+                {
+                    RegistrationId = item.RegistrationId,
+                    Success = false,
+                    Error = err
+                });
+                _logger.LogWarning("Player CC charge declined: Job={JobId} Reg={RegId} Error={Error}", jobId, item.RegistrationId, err);
+                continue;
+            }
+
+            var transId = chargeResult.TransactionId!;
+            firstTransId ??= transId;
+            succeeded++;
 
             ra.Payamt = item.Amount;
             ra.AdnTransactionId = transId;
@@ -1463,24 +1466,52 @@ public class PaymentService : IPaymentService
             reg.BActive = true;
             reg.Modified = DateTime.UtcNow;
             reg.LebUserId = userId;
-        }
-        await _registrations.SaveChangesAsync();
-        _logger.LogInformation("Player CC charge OK: Job={JobId} Regs={Count} TransId={TransId}", jobId, items.Count, transId);
 
+            outcomes.Add(new RegistrationCcChargeOutcome
+            {
+                RegistrationId = item.RegistrationId,
+                Success = true,
+                ChargedAmount = item.Amount
+            });
+        }
+
+        // One flush covers every RA row (captures AND FAILED placeholders) and the
+        // per-reg PaidTotal/OwedTotal bumps from the successful charges.
+        await _acct.SaveChangesAsync();
+        await _registrations.SaveChangesAsync();
+
+        var failed = items.Count - succeeded;
+        if (failed == 0)
+        {
+            _logger.LogInformation("Player CC charge OK: Job={JobId} Regs={Count} (per-player tx)", jobId, items.Count);
+            return new RegistrationCcChargeResult
+            {
+                Success = true,
+                TransactionId = firstTransId,
+                InvoiceNumber = firstInvoiceNo,
+                Message = items.Count == 1
+                    ? "Payment processed"
+                    : $"All {items.Count} registration payment(s) processed",
+                Outcomes = outcomes
+            };
+        }
+
+        // Partial or total failure. Any successful captures are already persisted; the
+        // caller restores pre-PIF state only for the declined regs (see
+        // ExecutePrimaryChargeAsync). A single declined card (admin path) yields the raw
+        // gateway message so the existing UX is unchanged.
+        var message = succeeded == 0
+            ? (firstError ?? "Payment failed")
+            : $"{succeeded} of {items.Count} registration payment(s) processed; {failed} declined.";
+        _logger.LogWarning("Player CC charge incomplete: Job={JobId} OK={Ok} Failed={Failed}", jobId, succeeded, failed);
         return new RegistrationCcChargeResult
         {
-            Success = true,
-            TransactionId = transId,
-            InvoiceNumber = invoiceNumber,
-            Message = items.Count == 1
-                ? "Payment processed"
-                : $"All {items.Count} registration payment(s) processed",
-            Outcomes = items.Select(i => new RegistrationCcChargeOutcome
-            {
-                RegistrationId = i.RegistrationId,
-                Success = true,
-                ChargedAmount = i.Amount
-            }).ToList()
+            Success = false,
+            ErrorCode = "CHARGE_GATEWAY_ERROR",
+            Message = message,
+            TransactionId = firstTransId,
+            InvoiceNumber = firstInvoiceNo,
+            Outcomes = outcomes
         };
     }
 
@@ -1519,10 +1550,18 @@ public class PaymentService : IPaymentService
         var result = await ChargeRegistrationsCcAsync(jobId, items, cc, userId);
         if (!result.Success)
         {
+            // Per-player charges can partially succeed. Restore the pre-PIF state ONLY
+            // for the registrations whose charge declined — a player that captured paid
+            // the PIF amount and must keep its upgraded FeeTotal/OwedTotal.
             if (pifSnapshot != null)
             {
+                var failedRegIds = result.Outcomes
+                    .Where(o => !o.Success)
+                    .Select(o => o.RegistrationId)
+                    .ToHashSet();
                 foreach (var reg in registrations)
                 {
+                    if (!failedRegIds.Contains(reg.RegistrationId)) continue;
                     if (!pifSnapshot.TryGetValue(reg.RegistrationId, out var snap)) continue;
                     reg.FeeBase       = snap.FeeBase;
                     reg.FeeProcessing = snap.FeeProcessing;

@@ -16,8 +16,8 @@ namespace TSIC.Tests.Payments;
 /// <summary>
 /// Tests for the canonical per-player CC charge engine
 /// (<see cref="PaymentService.ChargeRegistrationsCcAsync"/>) — the single primitive both
-/// the parent self-pay wizard (N regs, one ADN tx) and the admin admin-charge modal
-/// (1 reg) route through.
+/// the parent self-pay wizard (N regs → N ADN tx, one per player) and the admin
+/// admin-charge modal (1 reg) route through.
 ///
 /// Headline guarantees: (1) every charge consults <c>PaymentState.ResolveOwed.Cc</c> so
 /// display and gateway cannot drift; (2) a placeholder RA row exists in the DB before
@@ -78,6 +78,15 @@ public class PlayerCcChargeTests
     {
         _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
             .Returns(new AdnTxnResult { Success = true, TransactionId = transId, ResponseCode = "1", MessageForUser = "Approved" });
+    }
+
+    // Per-player charging makes one ADN call per registration; this returns a distinct
+    // transaction id on each successive call so tests can assert per-player tx ids.
+    private void StubAdnChargeSuccessSequence(params string[] transIds)
+    {
+        var seq = _adn.SetupSequence(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()));
+        foreach (var id in transIds)
+            seq = seq.Returns(new AdnTxnResult { Success = true, TransactionId = id, ResponseCode = "1", MessageForUser = "Approved" });
     }
 
     private void StubAdnChargeDeclined(string errorText = "This transaction has been declined.")
@@ -144,17 +153,17 @@ public class PlayerCcChargeTests
         reg.OwedTotal.Should().Be(0m);
     }
 
-    // ── Parent shape: N regs, ONE ADN call (preserves single statement entry) ─
+    // ── Parent shape: N regs → one ADN call PER player (legacy per-player parity) ─
 
-    [Fact(DisplayName = "Parent (N regs) → ONE ADN call summing the batch; one RA row per reg")]
-    public async Task MultipleRegs_SingleBatchedChargeAndPerRegRows()
+    [Fact(DisplayName = "Parent (N regs) → one ADN call PER reg with its own amount + tx id; one RA row per reg")]
+    public async Task MultipleRegs_PerPlayerChargeAndPerRegRows()
     {
         var jobId = Guid.NewGuid();
         var r1 = Reg(jobId, owed: 200m);
         var r2 = Reg(jobId, owed: 300m);
         var r3 = Reg(jobId, owed: 150m);
         StubLoadedRegs(r1, r2, r3);
-        StubAdnChargeSuccess("TX-B");
+        StubAdnChargeSuccessSequence("TX-1", "TX-2", "TX-3");
         var sut = BuildSut();
 
         var result = await sut.ChargeRegistrationsCcAsync(
@@ -163,15 +172,62 @@ public class PlayerCcChargeTests
             ValidCard(), ActingUserId);
 
         result.Success.Should().BeTrue();
-        // ONE ADN call for the whole batch (parent's existing UX: a single statement entry).
-        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 650m)), Times.Once);
+        // One ADN call per player, each for that player's own amount — so refunds and
+        // adjustments stay granular (matches legacy).
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 200m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 300m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 150m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Exactly(3));
         _addedAccounting.Should().HaveCount(3);
         _addedAccounting.Select(r => r.Payamt).Should().BeEquivalentTo(new decimal?[] { 200m, 300m, 150m });
-        _addedAccounting.Should().OnlyContain(r => r.AdnTransactionId == "TX-B" && r.Active == true);
+        // Each player carries its OWN ADN transaction id (the whole point of the change).
+        IEnumerable<string?> expectedTxIds = new List<string?> { "TX-1", "TX-2", "TX-3" };
+        _addedAccounting.Select(r => r.AdnTransactionId).Should().BeEquivalentTo(expectedTxIds);
+        _addedAccounting.Should().OnlyContain(r => r.Active == true);
         r1.OwedTotal.Should().Be(0m);
         r2.OwedTotal.Should().Be(0m);
         r3.OwedTotal.Should().Be(0m);
         result.Outcomes.Should().AllSatisfy(o => o.Success.Should().BeTrue());
+    }
+
+    // ── Partial failure (Option A): persist captures, FAIL only the declined reg ──
+
+    [Fact(DisplayName = "Partial: player 1 captures, player 2 declines → P1 persisted, P2 FAILED, overall failure")]
+    public async Task PartialFailure_PersistsCaptureAndFailsOnlyDeclinedReg()
+    {
+        var jobId = Guid.NewGuid();
+        var r1 = Reg(jobId, owed: 200m);
+        var r2 = Reg(jobId, owed: 300m);
+        StubLoadedRegs(r1, r2);
+        // First player approves, second player declines.
+        _adn.SetupSequence(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-1", ResponseCode = "1", MessageForUser = "Approved" })
+            .Returns(new AdnTxnResult { Success = false, ResponseCode = "2", GatewayCode = "2", MessageForUser = "Declined" });
+        var sut = BuildSut();
+
+        var result = await sut.ChargeRegistrationsCcAsync(
+            jobId, [Item(r1.RegistrationId, 200m), Item(r2.RegistrationId, 300m)], ValidCard(), ActingUserId);
+
+        // Overall failure so the caller surfaces the problem to the parent...
+        result.Success.Should().BeFalse();
+        result.ErrorCode.Should().Be("CHARGE_GATEWAY_ERROR");
+        // ...but player 1's capture is real money and stays persisted.
+        var ra1 = _addedAccounting.Single(r => r.RegistrationId == r1.RegistrationId);
+        ra1.Active.Should().BeTrue();
+        ra1.AdnTransactionId.Should().Be("TX-1");
+        ra1.Payamt.Should().Be(200m);
+        r1.PaidTotal.Should().Be(200m);
+        r1.OwedTotal.Should().Be(0m);
+        r1.BActive.Should().BeTrue();
+        // Player 2 left as a FAILED audit row, totals untouched.
+        var ra2 = _addedAccounting.Single(r => r.RegistrationId == r2.RegistrationId);
+        ra2.Active.Should().BeFalse();
+        ra2.Comment.Should().StartWith("FAILED:");
+        r2.PaidTotal.Should().Be(0m);
+        r2.OwedTotal.Should().Be(300m);
+        // Per-player outcomes mirror reality.
+        result.Outcomes.Single(o => o.RegistrationId == r1.RegistrationId).Success.Should().BeTrue();
+        result.Outcomes.Single(o => o.RegistrationId == r2.RegistrationId).Success.Should().BeFalse();
     }
 
     // ── Audit trail: declined card LEAVES the RA row (Active=false + FAILED) ──
@@ -201,8 +257,8 @@ public class PlayerCcChargeTests
         reg.OwedTotal.Should().Be(250m);
     }
 
-    [Fact(DisplayName = "ADN decline in a batch → every reg in the batch gets a FAILED RA row")]
-    public async Task DeclinedCard_Batch_FailsAllRowsAtomically()
+    [Fact(DisplayName = "Card declines on every player → one charge attempt per reg, each gets a FAILED RA row, no captures")]
+    public async Task DeclinedCard_Batch_EachPlayerFails()
     {
         var jobId = Guid.NewGuid();
         var r1 = Reg(jobId, owed: 200m);
@@ -215,6 +271,8 @@ public class PlayerCcChargeTests
             jobId, [Item(r1.RegistrationId, 200m), Item(r2.RegistrationId, 300m)], ValidCard(), ActingUserId);
 
         result.Success.Should().BeFalse();
+        // Per-player: one attempt per reg (no early all-or-nothing bail).
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Exactly(2));
         _addedAccounting.Should().HaveCount(2);
         _addedAccounting.Should().OnlyContain(r => r.Active == false && r.Comment!.StartsWith("FAILED:"));
         r1.PaidTotal.Should().Be(0m);

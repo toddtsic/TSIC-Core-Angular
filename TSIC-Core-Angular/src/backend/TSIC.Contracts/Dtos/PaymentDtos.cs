@@ -88,9 +88,9 @@ public sealed record RegistrationChargeItem
     public required decimal Amount { get; init; }
 }
 
-// Per-registration outcome from ChargeRegistrationsCcAsync. On a batch ADN failure
-// every outcome is Success=false with the same Error; on success each carries the
-// applied amount.
+// Per-registration outcome from ChargeRegistrationsCcAsync. Each registration is
+// charged independently, so a batch can be mixed: a captured player is Success=true
+// with the applied amount, a declined player is Success=false with the decline Error.
 public sealed record RegistrationCcChargeOutcome
 {
     public required Guid RegistrationId { get; init; }
@@ -99,9 +99,11 @@ public sealed record RegistrationCcChargeOutcome
     public string? Error { get; init; }
 }
 
-// Canonical result from the single per-player CC charge engine. One ADN call covers
-// the whole list (parent self-pay sends N regs; admin sends 1). Outcomes mirror the
-// input order; TransactionId is set when ADN succeeded.
+// Canonical result from the per-player CC charge engine. ONE ADN transaction PER
+// registration (parent self-pay sends N regs → N charges; admin sends 1). Outcomes
+// mirror the input order; each captured player's own transaction id lives on its RA
+// row. Result.TransactionId is the first successful charge (informational only);
+// Success is true only when EVERY registration captured.
 public sealed record RegistrationCcChargeResult
 {
     public required bool Success { get; init; }
