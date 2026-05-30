@@ -1,0 +1,275 @@
+<div class="page-header">
+    <div>
+        <h2 class="page-title">Check-In</h2>
+        <p class="page-subtitle">
+            Live arrival check-in. See balance and med-form status in real time, then
+            record arrival. Replaces the legacy printed check-in sheets.
+        </p>
+    </div>
+
+    <div class="mode-toggle" role="tablist" aria-label="Check-in mode">
+        <button type="button" class="mode-btn" role="tab"
+                [class.active]="mode() === 'teams'"
+                [attr.aria-selected]="mode() === 'teams'"
+                (click)="setMode('teams')">
+            <i class="bi bi-people me-1"></i> Teams
+        </button>
+        <button type="button" class="mode-btn" role="tab"
+                [class.active]="mode() === 'players'"
+                [attr.aria-selected]="mode() === 'players'"
+                (click)="setMode('players')">
+            <i class="bi bi-person me-1"></i> Players
+        </button>
+    </div>
+</div>
+
+<!-- ══ Team mode (Tournament / League) ══════════════ -->
+@if (mode() === 'teams') {
+    <div class="roster-panel">
+        <div class="panel-header">
+            <span class="panel-title">Teams</span>
+            <span class="badge bg-secondary">
+                {{ teamCheckedInCount() }} / {{ teamRoster().length }} checked in
+            </span>
+        </div>
+
+        @if (isLoadingTeamRoster()) {
+            <div class="empty-state-inline">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+            </div>
+        } @else if (teamRoster().length === 0) {
+            <div class="empty-state-inline">
+                <i class="bi bi-collection"></i>
+                <p>No active teams in this job.</p>
+            </div>
+        } @else {
+            <div class="checkin-table-wrap">
+                <table class="checkin-table">
+                    <thead>
+                        <tr>
+                            <th class="col-status">Status</th>
+                            <th class="col-name">Team</th>
+                            <th class="col-age">Agegroup</th>
+                            <th class="col-club">Club</th>
+                            <th class="col-rep">Club Rep</th>
+                            <th class="col-balance">Balance</th>
+                            <th class="col-action"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (t of teamRoster(); track t.teamId) {
+                            <tr [class.checked-in]="!!t.checkedInTs">
+                                <td class="col-status">
+                                    @if (t.checkedInTs) {
+                                        <span class="status-chip status-chip--in">
+                                            <i class="bi bi-check-circle-fill"></i>
+                                            <span>{{ t.checkedInTs | date:'shortTime' }}</span>
+                                        </span>
+                                    } @else {
+                                        <span class="status-chip status-chip--out">
+                                            <span>Not in</span>
+                                        </span>
+                                    }
+                                </td>
+                                <td class="col-name">
+                                    <button type="button" class="link-name" (click)="openTeamDetail(t)">
+                                        {{ t.teamName }}
+                                    </button>
+                                </td>
+                                <td class="col-age">
+                                    <span>{{ t.agegroupName }}</span>
+                                    @if (t.divName) { <span class="muted"> · {{ t.divName }}</span> }
+                                </td>
+                                <td class="col-club">{{ t.clubName }}</td>
+                                <td class="col-rep">{{ t.clubRepName }}</td>
+                                <td class="col-balance">
+                                    @if (t.owedTotal > 0) {
+                                        <span class="balance-chip balance-chip--due">
+                                            <span>{{ t.owedTotal | currency }} due</span>
+                                        </span>
+                                    } @else {
+                                        <span class="balance-chip balance-chip--paid">
+                                            <span>Paid in full</span>
+                                        </span>
+                                    }
+                                </td>
+                                <td class="col-action">
+                                    <button type="button"
+                                            class="btn btn-sm"
+                                            [class.btn-primary]="!t.checkedInTs"
+                                            [class.btn-outline-secondary]="!!t.checkedInTs"
+                                            [disabled]="isBusy(t.teamId)"
+                                            (click)="toggleTeam(t)">
+                                        @if (isBusy(t.teamId)) {
+                                            <span class="spinner-border spinner-border-sm"></span>
+                                        } @else if (t.checkedInTs) {
+                                            <i class="bi bi-arrow-counterclockwise me-1"></i> Undo
+                                        } @else {
+                                            <i class="bi bi-box-arrow-in-right me-1"></i> Check in
+                                        }
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+}
+
+<!-- ══ Player mode (Camp / Tryouts) ═════════════════ -->
+@if (mode() === 'players') {
+    <div class="master-detail">
+        <!-- Left: team picker -->
+        <div class="team-list-panel">
+            <div class="panel-header">
+                <span class="panel-title">Teams</span>
+                <span class="badge bg-secondary">{{ teams().length }}</span>
+            </div>
+
+            @if (isLoadingTeams()) {
+                <div class="empty-state-inline">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                </div>
+            } @else if (teams().length === 0) {
+                <div class="empty-state-inline">
+                    <i class="bi bi-collection"></i>
+                    <p>No active teams in this job.</p>
+                </div>
+            } @else {
+                <div class="team-list">
+                    @for (team of teams(); track team.teamId) {
+                        <div class="team-item"
+                             [class.active]="selectedTeamId() === team.teamId"
+                             (click)="selectTeam(team)"
+                             (keydown.enter)="selectTeam(team)"
+                             tabindex="0"
+                             role="button">
+                            <span class="team-name">{{ team.teamName }}</span>
+                            <span class="count-badge">{{ team.playerCount }}</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Right: players -->
+        <div class="roster-panel">
+            @if (!selectedTeam()) {
+                <div class="empty-state-inline">
+                    <i class="bi bi-arrow-left-circle"></i>
+                    <p>Select a team to check players in.</p>
+                </div>
+            } @else {
+                <div class="panel-header">
+                    <span class="panel-title">{{ selectedTeam()?.teamName }}</span>
+                    <span class="badge bg-secondary">
+                        {{ playerCheckedInCount() }} / {{ players().length }} checked in
+                    </span>
+                </div>
+
+                @if (isLoadingPlayers()) {
+                    <div class="empty-state-inline">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                    </div>
+                } @else if (players().length === 0) {
+                    <div class="empty-state-inline">
+                        <i class="bi bi-person-x"></i>
+                        <p>No active players on this team yet.</p>
+                    </div>
+                } @else {
+                    <div class="checkin-table-wrap">
+                        <table class="checkin-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-status">Status</th>
+                                    <th class="col-name">Name</th>
+                                    <th class="col-grad">Grad</th>
+                                    <th class="col-club">Club</th>
+                                    <th class="col-doc">Med Form</th>
+                                    <th class="col-balance">Balance</th>
+                                    <th class="col-action"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (p of players(); track p.registrationId) {
+                                    <tr [class.checked-in]="!!p.checkedInTs">
+                                        <td class="col-status">
+                                            @if (p.checkedInTs) {
+                                                <span class="status-chip status-chip--in">
+                                                    <i class="bi bi-check-circle-fill"></i>
+                                                    <span>{{ p.checkedInTs | date:'shortTime' }}</span>
+                                                </span>
+                                            } @else {
+                                                <span class="status-chip status-chip--out">
+                                                    <span>Not in</span>
+                                                </span>
+                                            }
+                                        </td>
+                                        <td class="col-name">
+                                            <button type="button" class="link-name" (click)="openPlayerDetail(p)">
+                                                {{ p.lastName }}, {{ p.firstName }}
+                                            </button>
+                                        </td>
+                                        <td class="col-grad">{{ p.gradYear }}</td>
+                                        <td class="col-club">{{ p.clubName }}</td>
+                                        <td class="col-doc">
+                                            @if (p.hasMedForm) {
+                                                <button type="button" class="doc-link"
+                                                        (click)="viewMedForm(p)">
+                                                    <i class="bi bi-file-earmark-pdf-fill me-1"></i> View
+                                                </button>
+                                            } @else {
+                                                <span class="doc-missing">
+                                                    <i class="bi bi-dash-circle me-1"></i> None
+                                                </span>
+                                            }
+                                        </td>
+                                        <td class="col-balance">
+                                            @if (p.owedTotal > 0) {
+                                                <span class="balance-chip balance-chip--due">
+                                                    <span>{{ p.owedTotal | currency }} due</span>
+                                                </span>
+                                            } @else {
+                                                <span class="balance-chip balance-chip--paid">
+                                                    <span>Paid in full</span>
+                                                </span>
+                                            }
+                                        </td>
+                                        <td class="col-action">
+                                            <button type="button"
+                                                    class="btn btn-sm"
+                                                    [class.btn-primary]="!p.checkedInTs"
+                                                    [class.btn-outline-secondary]="!!p.checkedInTs"
+                                                    [disabled]="isBusy(p.registrationId)"
+                                                    (click)="togglePlayer(p)">
+                                                @if (isBusy(p.registrationId)) {
+                                                    <span class="spinner-border spinner-border-sm"></span>
+                                                } @else if (p.checkedInTs) {
+                                                    <i class="bi bi-arrow-counterclockwise me-1"></i> Undo
+                                                } @else {
+                                                    <i class="bi bi-box-arrow-in-right me-1"></i> Check in
+                                                }
+                                            </button>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+}
+
+<!-- ══ Detail / payment fly-in (reused from Search) ══ -->
+@if (selectedDetail()) {
+    <app-registration-detail-panel
+        [detail]="selectedDetail()"
+        [isOpen]="isPanelOpen()"
+        (closed)="closePanel()"
+        (saved)="onDetailSaved()">
+    </app-registration-detail-panel>
+}

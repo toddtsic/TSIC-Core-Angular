@@ -324,6 +324,12 @@ export const routes: Routes = [
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
 						loadComponent: () => import('./views/tools/camp-groups/camp-groups.component').then(m => m.CampGroupsComponent)
+					},
+					{
+						path: 'checkin',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						loadComponent: () => import('./views/tools/checkin/checkin.component').then(m => m.CheckinComponent)
 					}
 				]
 			},

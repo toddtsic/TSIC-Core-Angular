@@ -132,6 +132,7 @@ export type { ChangePasswordSearchResultDto } from './models/ChangePasswordSearc
 export type { ChargeTypeRefDto } from './models/ChargeTypeRefDto';
 export type { ChatMessageDto } from './models/ChatMessageDto';
 export type { CheckExistingRegistrationsResponse } from './models/CheckExistingRegistrationsResponse';
+export type { CheckinStateDto } from './models/CheckinStateDto';
 export type { ChildDto } from './models/ChildDto';
 export type { ChildOperationResponse } from './models/ChildOperationResponse';
 export type { CloneAgegroupRequest } from './models/CloneAgegroupRequest';
@@ -403,6 +404,7 @@ export type { PaymentRequestDto } from './models/PaymentRequestDto';
 export type { PaymentResponseDto } from './models/PaymentResponseDto';
 export type { PersonDto } from './models/PersonDto';
 export type { PlaceGameRequest } from './models/PlaceGameRequest';
+export type { PlayerCheckinRowDto } from './models/PlayerCheckinRowDto';
 export type { PlayerDiscountResult } from './models/PlayerDiscountResult';
 export type { PlayerInviteValidationResult } from './models/PlayerInviteValidationResult';
 export type { PlayerRegConfirmationDto } from './models/PlayerRegConfirmationDto';
@@ -614,6 +616,7 @@ export type { TeamArbTrialPaymentResponseDto } from './models/TeamArbTrialPaymen
 export type { TeamArbTrialResultDto } from './models/TeamArbTrialResultDto';
 export type { TeamCcChargeRequest } from './models/TeamCcChargeRequest';
 export type { TeamCcChargeResponse } from './models/TeamCcChargeResponse';
+export type { TeamCheckinRowDto } from './models/TeamCheckinRowDto';
 export type { TeamCheckOrCorrectionRequest } from './models/TeamCheckOrCorrectionRequest';
 export type { TeamCheckOrCorrectionResponse } from './models/TeamCheckOrCorrectionResponse';
 export type { TeamDetailDto } from './models/TeamDetailDto';

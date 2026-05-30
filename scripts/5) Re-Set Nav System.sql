@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-05-29 10:39:02 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-05-30 12:14:06 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -185,6 +185,7 @@ INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Editor', N'p
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Change Password', N'key', N'tools/change-password', 7, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 8, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Camp Day/Night Groups', N'sun', N'tools/camp-groups', 9, 1, 1, 1, N'{"jobTypes":["Camp Registration","Sales Venue"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Check-In', N'clipboard-check', N'tools/checkin', 10, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}', N'NEW');
 
 -- Section-level rules applied to L1 independent of per-item aggregation
 IF OBJECT_ID('tempdb..#SectionRules') IS NOT NULL DROP TABLE #SectionRules;

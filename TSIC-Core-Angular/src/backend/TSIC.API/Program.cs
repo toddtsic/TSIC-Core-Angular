@@ -192,6 +192,8 @@ builder.Services.AddScoped<IPushNotificationRepository, PushNotificationReposito
 builder.Services.AddScoped<ITeamLinkRepository, TeamLinkRepository>();
 // Fees
 builder.Services.AddScoped<IFeeRepository, FeeRepository>();
+// Live check-in (staff station)
+builder.Services.AddScoped<ICheckinRepository, CheckinRepository>();
 
 // FileStorage configuration + Image service
 builder.Services.Configure<FileStorageOptions>(
@@ -335,6 +337,8 @@ builder.Services.AddSignalR();
 builder.Services.AddScoped<IUniformUploadService, UniformUploadService>();
 // Camp Day/Night Groups admin
 builder.Services.AddScoped<ICampGroupsService, CampGroupsService>();
+// Live check-in (staff station)
+builder.Services.AddScoped<ICheckinService, CheckinService>();
 // RegSaver Monthly Payouts Upload (SuperUser cross-customer ingest)
 builder.Services.AddScoped<IVerticalInsurePayoutsRepository, VerticalInsurePayoutsRepository>();
 builder.Services.AddScoped<IRegSaverUploadService, RegSaverUploadService>();
