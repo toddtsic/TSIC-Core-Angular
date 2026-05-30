@@ -266,6 +266,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<PersonContacts> PersonContacts { get; set; }
 
+    public virtual DbSet<PlayerCheckIns> PlayerCheckIns { get; set; }
+
     public virtual DbSet<PushNotifications> PushNotifications { get; set; }
 
     public virtual DbSet<PushSubscriptionJobs> PushSubscriptionJobs { get; set; }
@@ -349,6 +351,8 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<TeamAttendanceRecords> TeamAttendanceRecords { get; set; }
 
     public virtual DbSet<TeamAttendanceTypes> TeamAttendanceTypes { get; set; }
+
+    public virtual DbSet<TeamCheckIns> TeamCheckIns { get; set; }
 
     public virtual DbSet<TeamDocs> TeamDocs { get; set; }
 
@@ -5247,6 +5251,33 @@ public partial class SqlDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
+        modelBuilder.Entity<PlayerCheckIns>(entity =>
+        {
+            entity.HasKey(e => e.RegistrationId).HasName("PK_checkin_PlayerCheckIns");
+
+            entity.ToTable("PlayerCheckIns", "checkin");
+
+            entity.Property(e => e.RegistrationId)
+                .ValueGeneratedNever()
+                .HasColumnName("RegistrationID");
+            entity.Property(e => e.CheckedInTs).HasColumnName("CheckedInTS");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_checkin_PlayerCheckIns_modified")
+                .HasColumnName("modified");
+
+            entity.HasOne(d => d.CheckedInByReg).WithMany(p => p.PlayerCheckInsCheckedInByReg)
+                .HasForeignKey(d => d.CheckedInByRegId)
+                .HasConstraintName("FK_checkin_PlayerCheckIns_CheckedInBy");
+
+            entity.HasOne(d => d.Registration).WithOne(p => p.PlayerCheckInsRegistration)
+                .HasForeignKey<PlayerCheckIns>(d => d.RegistrationId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_checkin_PlayerCheckIns_Registration");
+        });
+
         modelBuilder.Entity<PushNotifications>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__PushNoti__3214EC07C614F4FD");
@@ -6660,6 +6691,33 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.AttendanceType)
                 .HasMaxLength(20)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<TeamCheckIns>(entity =>
+        {
+            entity.HasKey(e => e.TeamId).HasName("PK_checkin_TeamCheckIns");
+
+            entity.ToTable("TeamCheckIns", "checkin");
+
+            entity.Property(e => e.TeamId)
+                .ValueGeneratedNever()
+                .HasColumnName("teamID");
+            entity.Property(e => e.CheckedInTs).HasColumnName("CheckedInTS");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(sysdatetime())", "DF_checkin_TeamCheckIns_modified")
+                .HasColumnName("modified");
+
+            entity.HasOne(d => d.CheckedInByReg).WithMany(p => p.TeamCheckIns)
+                .HasForeignKey(d => d.CheckedInByRegId)
+                .HasConstraintName("FK_checkin_TeamCheckIns_CheckedInBy");
+
+            entity.HasOne(d => d.Team).WithOne(p => p.TeamCheckIns)
+                .HasForeignKey<TeamCheckIns>(d => d.TeamId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_checkin_TeamCheckIns_Team");
         });
 
         modelBuilder.Entity<TeamDocs>(entity =>

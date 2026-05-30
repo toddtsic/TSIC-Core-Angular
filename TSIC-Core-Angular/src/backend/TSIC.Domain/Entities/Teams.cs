@@ -247,6 +247,8 @@ public partial class Teams
 
     public virtual ICollection<TeamAttendanceEvents> TeamAttendanceEvents { get; set; } = new List<TeamAttendanceEvents>();
 
+    public virtual TeamCheckIns? TeamCheckIns { get; set; }
+
     public virtual ICollection<TeamDocs> TeamDocs { get; set; } = new List<TeamDocs>();
 
     public virtual ICollection<TeamEvents> TeamEvents { get; set; } = new List<TeamEvents>();

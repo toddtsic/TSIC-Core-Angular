@@ -301,6 +301,10 @@ public partial class Registrations
 
     public virtual AspNetUsers? LebUser { get; set; }
 
+    public virtual ICollection<PlayerCheckIns> PlayerCheckInsCheckedInByReg { get; set; } = new List<PlayerCheckIns>();
+
+    public virtual PlayerCheckIns? PlayerCheckInsRegistration { get; set; }
+
     public virtual ICollection<PushNotifications> PushNotificationsAuthorRegistration { get; set; } = new List<PushNotifications>();
 
     public virtual ICollection<PushNotifications> PushNotificationsQpReg { get; set; } = new List<PushNotifications>();
@@ -316,6 +320,8 @@ public partial class Registrations
     public virtual AspNetRoles? Role { get; set; }
 
     public virtual ICollection<StoreCartBatchSkus> StoreCartBatchSkus { get; set; } = new List<StoreCartBatchSkus>();
+
+    public virtual ICollection<TeamCheckIns> TeamCheckIns { get; set; } = new List<TeamCheckIns>();
 
     public virtual ICollection<TeamMessages> TeamMessages { get; set; } = new List<TeamMessages>();
 
