@@ -50,6 +50,12 @@ export class FamilyPaymentComponent {
   scope = signal<Scope>('family');
   showInactive = signal(false);
 
+  // Which player the payment actions + per-player ("This Player") scope target. Defaults to the
+  // anchor registration the panel opened on; the scope selector re-points it so an admin can
+  // record a check/correction/charge for ANY family player (refunds were already per-row).
+  private readonly _activePlayerId = signal<string | null>(null);
+  activePlayerId = computed(() => this._activePlayerId() ?? this.registrationId());
+
   // Each "player" row is a RegisteredTeamDto (TeamId = the child's registrationId).
   allPlayers = computed<RegisteredTeamDto[]>(() => this.data()?.players ?? []);
   activePlayers = computed(() => this.allPlayers().filter(p => p.active));
@@ -57,7 +63,7 @@ export class FamilyPaymentComponent {
   playerCount = computed(() => this.allPlayers().length);
 
   selectedPlayer = computed(() =>
-    this.allPlayers().find(p => p.teamId === this.registrationId()) ?? null);
+    this.allPlayers().find(p => p.teamId === this.activePlayerId()) ?? null);
 
   // Grid feed: active players in family scope, the anchor player in player scope.
   gridPlayers = computed<RegisteredTeamDto[]>(() => {
@@ -98,7 +104,7 @@ export class FamilyPaymentComponent {
   allRecords = computed(() => this.data()?.accountingRecords ?? []);
   accountingRecords = computed(() => {
     if (this.scope() !== 'player') return this.allRecords();
-    const id = this.registrationId();
+    const id = this.activePlayerId();
     return this.allRecords().filter(r => r.ownerRegistrationId === id);
   });
 
@@ -128,10 +134,16 @@ export class FamilyPaymentComponent {
     this.scope.set(s);
   }
 
-  // ── Accounting Ledger Handlers (target the anchor player) ──
+  /** Re-point the payment actions + per-player view at a specific family player. */
+  selectPlayer(playerId: string): void {
+    this._activePlayerId.set(playerId);
+    this.scope.set('player');
+  }
+
+  // ── Accounting Ledger Handlers (target the active player — see activePlayerId) ──
 
   onCcCharge(event: CcChargeEvent): void {
-    const id = this.registrationId();
+    const id = this.activePlayerId();
     this.searchService.chargeCc(id, {
       registrationId: id,
       creditCard: event.creditCard,
@@ -151,7 +163,7 @@ export class FamilyPaymentComponent {
   }
 
   onCheckSubmitted(event: CheckOrCorrectionEvent): void {
-    const id = this.registrationId();
+    const id = this.activePlayerId();
     const label = event.paymentType === 'Check' ? 'Check Payment' : 'Correction';
     this.searchService.recordPayment(id, {
       registrationId: id,

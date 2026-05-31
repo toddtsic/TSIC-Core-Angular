@@ -7,14 +7,19 @@
   <div class="alert alert-danger">{{ loadError() }}</div>
 } @else if (data(); as d) {
 
-  <!-- Scope Selector (shown when the family has multiple players) -->
+  <!-- Scope Selector (shown when the family has multiple players). One chip per active player
+       re-points the payment actions at that player; the family chip is the read-mostly overview. -->
   @if (playerCount() > 1) {
     <div class="scope-selector">
-      <button type="button" class="scope-btn" [class.active]="scope() === 'player'" (click)="setScope('player')">
-        This Player: {{ selectedPlayer()?.teamName }}
-      </button>
+      @for (p of activePlayers(); track p.teamId) {
+        <button type="button" class="scope-btn"
+                [class.active]="scope() === 'player' && activePlayerId() === p.teamId"
+                (click)="selectPlayer(p.teamId)">
+          {{ p.teamName }} · {{ p.owedTotal | currency }} owed
+        </button>
+      }
       <button type="button" class="scope-btn scope-btn-family" [class.active]="scope() === 'family'" (click)="setScope('family')">
-        All Family Players: {{ familyName() }} ({{ playerCount() }} players, {{ familyOwedTotal() | currency }} owed)
+        All Family: {{ familyName() }} ({{ playerCount() }} players, {{ familyOwedTotal() | currency }} owed)
       </button>
     </div>
   }
