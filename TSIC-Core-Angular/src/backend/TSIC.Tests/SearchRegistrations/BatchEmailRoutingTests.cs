@@ -69,7 +69,8 @@ public class BatchEmailRoutingTests
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo, deviceRepo.Object,
             teamRepo, adnApi.Object, arbRepo.Object, textSub.Object, emailService.Object, feeAdjustment,
-            new Mock<IPaymentService>().Object, new Mock<IPaymentStateService>().Object, logger.Object);
+            new Mock<IPaymentService>().Object, new Mock<IPaymentStateService>().Object,
+            new Mock<IFeeResolutionService>().Object, logger.Object);
 
         return (svc, b, ctx, job.JobId, sent);
     }

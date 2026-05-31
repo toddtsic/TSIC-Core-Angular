@@ -42,6 +42,10 @@ public record FamilyPlayerAccountingDto
     public required string PlayerName { get; init; }
     public required bool Active { get; init; }
     public required DateTime RegistrationTs { get; init; }
+    // Assigned team + its agegroup — used to resolve the player's Deposit/BalanceDue from the
+    // fee cascade (null when the player isn't on a team, so no deposit can be resolved).
+    public Guid? AssignedTeamId { get; init; }
+    public Guid? AgeGroupId { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeDiscount { get; init; }

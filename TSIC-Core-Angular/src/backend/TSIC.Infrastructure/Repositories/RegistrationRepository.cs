@@ -501,6 +501,8 @@ public class RegistrationRepository : IRegistrationRepository
                 PlayerName = ((r.User!.FirstName ?? "") + " " + (r.User.LastName ?? "")).Trim(),
                 Active = r.BActive ?? false,
                 RegistrationTs = r.RegistrationTs,
+                AssignedTeamId = r.AssignedTeamId,
+                AgeGroupId = r.AssignedTeam != null ? r.AssignedTeam.AgegroupId : (Guid?)null,
                 FeeBase = r.FeeBase,
                 FeeProcessing = r.FeeProcessing,
                 FeeDiscount = r.FeeDiscount,

@@ -31,6 +31,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentService _paymentService;
     private readonly IPaymentStateService _paymentState;
+    private readonly IFeeResolutionService _feeResolution;
     private readonly ILogger<RegistrationSearchService> _logger;
 
     // Known payment method GUIDs. CC charging itself goes through PaymentService's
@@ -55,6 +56,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentService paymentService,
         IPaymentStateService paymentState,
+        IFeeResolutionService feeResolution,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -70,6 +72,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _feeAdjustment = feeAdjustment;
         _paymentService = paymentService;
         _paymentState = paymentState;
+        _feeResolution = feeResolution;
         _logger = logger;
     }
 
@@ -170,11 +173,30 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             var state = await _paymentState.ForRegistrationAsync(p.RegistrationId, jobId, ct);
             var owed = state.ResolveOwed(p.OwedTotal, p.FeeBase, p.FeeDiscount, p.FeeLatefee, p.FeeProcessing);
 
+            // Deposit / balance columns — resolved from the fee cascade (most player fees have no
+            // deposit, in which case ResolvedFee.Deposit is null → 0 and the grid hides the
+            // columns). Phase is per-player: deposit phase shows the structural balance forward;
+            // full-pay (FeeBase already covers deposit+balance) nets payments via PaymentState —
+            // same helpers the team shaper uses, so the columns can't drift from owed math.
+            decimal deposit = 0m, balanceStructural = 0m, depositDue = 0m, additionalDue = 0m;
+            if (p.AssignedTeamId.HasValue && p.AgeGroupId.HasValue)
+            {
+                var fee = await _feeResolution.ResolveFeeAsync(
+                    jobId, RoleConstants.Player, p.AgeGroupId.Value, p.AssignedTeamId.Value, ct);
+                deposit = fee?.Deposit ?? 0m;
+                balanceStructural = fee?.BalanceDue ?? 0m;
+                depositDue = state.DepositPrincipalRemaining(deposit, p.FeeDiscount, p.FeeLatefee);
+                var bFull = p.FeeBase >= deposit + balanceStructural - 0.005m;
+                additionalDue = bFull
+                    ? state.BalancePrincipalRemaining(p.FeeBase, deposit, p.FeeDiscount, p.FeeLatefee)
+                    : balanceStructural;
+            }
+
             playerRows.Add(new RegisteredTeamDto
             {
                 TeamId = p.RegistrationId,          // doubles as the ledger group key (= record.OwnerRegistrationId)
                 TeamName = p.PlayerName,
-                AgeGroupId = Guid.Empty,
+                AgeGroupId = p.AgeGroupId ?? Guid.Empty,
                 AgeGroupName = "",                  // age-group column hidden for the family grid
                 LevelOfPlay = null,
                 ClubTeamId = null,
@@ -187,10 +209,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 FeeTotal = p.FeeTotal,
                 PaidTotal = p.PaidTotal,
                 OwedTotal = p.OwedTotal,
-                Deposit = 0m,                       // deposit/balance columns hidden for players
-                BalanceDue = 0m,
-                DepositDue = 0m,
-                AdditionalDue = 0m,
+                Deposit = deposit,
+                BalanceDue = balanceStructural,
+                DepositDue = depositDue,
+                AdditionalDue = additionalDue,
                 RegistrationTs = p.RegistrationTs,
                 BWaiverSigned3 = false,
                 CcOwedTotal = owed.Cc,

@@ -70,6 +70,10 @@ export class FamilyPaymentComponent {
 
   familyName = computed(() => this.data()?.familyName ?? '');
 
+  // Deposit/Balance columns only make sense when the player fees actually carry a deposit
+  // (most don't). Conditional, mirroring how the grid auto-shows Discount/Fee-Adj.
+  hasDeposit = computed(() => this.allPlayers().some(p => p.deposit > 0));
+
   // Family totals (active players only — matches the club-rep "scheduled teams" rule).
   familyFeeTotal = computed(() => this.activePlayers().reduce((s, p) => s + p.feeTotal, 0));
   familyPaidTotal = computed(() => this.activePlayers().reduce((s, p) => s + p.paidTotal, 0));
