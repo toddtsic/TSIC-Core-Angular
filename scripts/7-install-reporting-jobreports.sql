@@ -207,9 +207,15 @@ INSERT INTO @ExcludeActions VALUES
     (N'ShowJobInvoices'),    -- live invoice viewer; mutates post-billing (chargebacks/refunds)
                              -- so users would see numbers disagreeing with printed copies they
                              -- received at billing time. Retired for ALL roles 2026-05-04.
-    (N'JobRosters_MSYSA');   -- MSYSA-format soccer roster; only ever lived on closed (_chiuso)
+    (N'JobRosters_MSYSA'),   -- MSYSA-format soccer roster; only ever lived on closed (_chiuso)
                              -- jobs — confirmed 0 live jobs (migrated table + legacy source).
                              -- Dead report; retired (not migrated) 2026-05-25.
+    -- Tournament Rosters Packed (Bold/RDL) — retired 2026-05-31, replaced by the
+    -- in-app PackedRoster Designer (SpaComponent; see @ActionMap below). Listed
+    -- here so prior runs' Bold rows are scrubbed; the legacy Crystal actions are
+    -- NOT excluded — they remain in @ActionMap to drive the Designer remap.
+    (N'ExportBoldReport?reportName=TournamentRosterPacked&bUseJobId=true'),
+    (N'ExportBoldReport?reportName=TournamentRosterPacked_CollegeCommit&bUseJobId=true');
 
 -- CR -> SP-Excel conversions. Maps a report's legacy (Crystal) action to its
 -- SP-Excel action so the populate below emits a StoredProcedure row pointing at
@@ -221,7 +227,10 @@ DECLARE @ActionMap TABLE (
     LegacyAction  NVARCHAR(250) NOT NULL PRIMARY KEY,
     NewAction     NVARCHAR(250) NOT NULL,
     NewGroupLabel NVARCHAR(100) NOT NULL,  -- a category code from report-categories.ts; drives the library bucket
-    TitleOverride NVARCHAR(250) NULL
+    TitleOverride NVARCHAR(250) NULL,
+    NewKind       NVARCHAR(20)  NULL       -- forces Kind when set (e.g. 'SpaComponent' for interactive tools
+                                           -- whose NewAction is an in-app route, not an Export* endpoint).
+                                           -- NULL = infer from the NewAction prefix (SP / Bold / Crystal).
 );
 INSERT INTO @ActionMap (LegacyAction, NewAction, NewGroupLabel, TitleOverride) VALUES
     (N'TournamentRecruitingReport_DataDump',
@@ -292,23 +301,23 @@ INSERT INTO @ActionMap (LegacyAction, NewAction, NewGroupLabel, TitleOverride) V
      N'Camp', NULL),
     (N'camp_excelexport_summer',
      N'ExportStoredProcedureResults?spName=reporting_migrate.camp_excelexport_summer&bUseJobId=true',
-     N'Camp', NULL),
-    -- Crystal -> Bold/RDL PDF. First Bold report in the map; backed by
-    -- reporting_migrate.TournamentRosterPacked_Flat (single flat proc, no subreport).
+     N'Camp', NULL);
+
+-- Tournament Rosters Packed family -> retired Bold/RDL, replaced by the in-app
+-- PackedRoster Designer (SpaComponent). Director picks columns/layout/toggles and
+-- generates the PDF on the fly; the two retired RDL looks survive as starter
+-- presets inside the Designer. Both legacy packed actions map to the single
+-- Designer route, so the post-map dedup collapses them to ONE row per (job, role),
+-- inheriting whatever job/role distribution the old packed reports had.
+-- NewKind forces Kind='SpaComponent' because NewAction is an in-app route, not an
+-- Export* endpoint (the prefix inference would otherwise mislabel it CrystalReport).
+INSERT INTO @ActionMap (LegacyAction, NewAction, NewGroupLabel, TitleOverride, NewKind) VALUES
     (N'TournamentRosterPacked',
-     N'ExportBoldReport?reportName=TournamentRosterPacked&bUseJobId=true',
-     N'Rosters', NULL),
-    -- Crystal -> Bold/RDL PDF. College-Commit variant: 2-up layout, gradYear +
-    -- GPA + collegeCommit columns, rep contact under team name, Staff filtered
-    -- out, GPA suppressed when player is committed. Shares the base SP via
-    -- additive columns. Legacy menu used opaque "(JS)" suffix; we rename to
-    -- "(CC)" via TitleOverride. Two legacy menu rows resolve to this same
-    -- LegacyAction (the base "Tournament Rosters Packed (pdf)" sometimes
-    -- pointed at _PositionSchool, plus the (JS)-suffixed row) — they collapse
-    -- to a single row via the post-map dedup.
+     N'reporting/packed-roster-designer',
+     N'Rosters', N'Tournament Rosters Packed (Designer)', N'SpaComponent'),
     (N'TournamentRosterPacked_PositionSchool',
-     N'ExportBoldReport?reportName=TournamentRosterPacked_CollegeCommit&bUseJobId=true',
-     N'Rosters', N'Tournament Rosters Packed (pdf) (CC)');
+     N'reporting/packed-roster-designer',
+     N'Rosters', N'Tournament Rosters Packed (Designer)', N'SpaComponent');
 
 -- Atomic rebuild: wrap the sweep (two DELETEs) + populate (INSERT) in ONE
 -- transaction so a populate failure (e.g. a remap collision raising a unique-key
@@ -343,11 +352,12 @@ PRINT CONCAT('Swept ', @MappedSweepCount, ' row(s) for mapped report(s) (legacy 
         jmiC.IconName,
         jmiC.Controller,
         COALESCE(am.NewAction, jmiC.[Action])                           AS [Action],
-        CASE
-            WHEN COALESCE(am.NewAction, jmiC.[Action]) LIKE 'ExportStoredProcedureResults?%' THEN 'StoredProcedure'
-            WHEN COALESCE(am.NewAction, jmiC.[Action]) LIKE 'ExportBoldReport?%'             THEN 'BoldReport'
-            ELSE 'CrystalReport'
-        END                                                             AS Kind,
+        COALESCE(am.NewKind,
+            CASE
+                WHEN COALESCE(am.NewAction, jmiC.[Action]) LIKE 'ExportStoredProcedureResults?%' THEN 'StoredProcedure'
+                WHEN COALESCE(am.NewAction, jmiC.[Action]) LIKE 'ExportBoldReport?%'             THEN 'BoldReport'
+                ELSE 'CrystalReport'
+            END)                                                        AS Kind,
         COALESCE(am.NewGroupLabel, jmiP.[Text])                         AS GroupLabel,
         ISNULL(jmiC.[Index], 0)                                         AS SortOrder,
         jmiC.Active,

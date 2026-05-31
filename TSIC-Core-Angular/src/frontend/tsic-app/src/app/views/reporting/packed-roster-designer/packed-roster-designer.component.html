@@ -1,0 +1,142 @@
+<div class="prd">
+    <header class="prd__header">
+        <div>
+            <h1 class="prd__title">PackedRoster Designer</h1>
+            <p class="prd__subtitle">
+                Build a packed tournament roster: pick the player columns, set the layout, and
+                generate the PDF. Start from a preset or design your own.
+            </p>
+        </div>
+        <button type="button" class="btn btn-primary prd__generate"
+                [disabled]="!canGenerate()" (click)="generate()">
+            {{ isGenerating() ? 'Generating…' : 'Generate PDF' }}
+        </button>
+    </header>
+
+    @if (isLoading()) {
+        <div class="prd__loading">Loading fields…</div>
+    } @else {
+        <div class="prd__presets">
+            <span class="prd__presets-label">Start from:</span>
+            <button type="button" class="btn btn-outline-primary" (click)="applyClassic3Up()">
+                Classic 3-up
+            </button>
+            <button type="button" class="btn btn-outline-primary" (click)="applyCollegeCommit2Up()">
+                College Commit 2-up
+            </button>
+        </div>
+
+        <div class="prd__grid">
+            <!-- Columns -->
+            <section class="card prd__panel">
+                <div class="card-body">
+                    <h2 class="prd__panel-title">Columns</h2>
+
+                    <p class="prd__hint">Choose the fields to include.</p>
+                    <div class="prd__fields">
+                        @for (field of availableFields(); track field.key) {
+                            <label class="prd__field-toggle">
+                                <input type="checkbox"
+                                       [checked]="isSelected(field.key)"
+                                       (change)="toggleField(field)" />
+                                <span>{{ field.label }}</span>
+                            </label>
+                        }
+                    </div>
+
+                    <p class="prd__hint prd__hint--spaced">Drag to reorder · set width &amp; long-text behavior.</p>
+                    @if (selectedColumns().length === 0) {
+                        <p class="prd__empty">No columns selected yet — pick at least one above.</p>
+                    } @else {
+                        <ul class="prd__selected" cdkDropList (cdkDropListDropped)="onDropColumn($event)">
+                            @for (col of selectedColumns(); track col.key) {
+                                <li class="prd__col" cdkDrag>
+                                    <span class="prd__col-handle" cdkDragHandle aria-hidden="true">⋮⋮</span>
+                                    <span class="prd__col-name">{{ col.label }}</span>
+
+                                    <label class="prd__col-field">
+                                        <span>Width</span>
+                                        <input type="number" min="1" class="field-input prd__col-width"
+                                               [value]="col.widthWeight"
+                                               (change)="updateColumn(col.key, { widthWeight: +$any($event.target).value })" />
+                                    </label>
+
+                                    @if (col.supportsLongText) {
+                                        <label class="prd__col-field">
+                                            <span>Long text</span>
+                                            <select class="field-select prd__col-longtext"
+                                                    [value]="col.longText"
+                                                    (change)="updateColumn(col.key, { longText: $any($event.target).value })">
+                                                <option value="Truncate">Truncate</option>
+                                                <option value="Wrap">Wrap</option>
+                                            </select>
+                                        </label>
+
+                                        @if (col.longText === 'Truncate') {
+                                            <label class="prd__col-field">
+                                                <span>At</span>
+                                                <input type="number" min="1" class="field-input prd__col-trunc"
+                                                       [value]="col.truncateAt ?? 14"
+                                                       (change)="updateColumn(col.key, { truncateAt: +$any($event.target).value })" />
+                                            </label>
+                                        }
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </section>
+
+            <!-- Layout + chrome -->
+            <section class="card prd__panel">
+                <div class="card-body">
+                    <h2 class="prd__panel-title">Layout</h2>
+                    <div class="prd__nup">
+                        <button type="button" class="prd__nup-btn"
+                                [class.prd__nup-btn--active]="nUp() === 3" (click)="setNUp(3)">
+                            3-up
+                        </button>
+                        <button type="button" class="prd__nup-btn"
+                                [class.prd__nup-btn--active]="nUp() === 2" (click)="setNUp(2)">
+                            2-up
+                        </button>
+                    </div>
+
+                    <h2 class="prd__panel-title prd__panel-title--spaced">Card details</h2>
+
+                    <label class="prd__check">
+                        <input type="checkbox" [checked]="showCoaches()"
+                               (change)="setChecked(showCoaches.set, $event)" />
+                        <span>Show coaches</span>
+                    </label>
+
+                    <fieldset class="prd__fieldset">
+                        <legend>Club rep line</legend>
+                        <label class="prd__check">
+                            <input type="checkbox" [checked]="showRepName()"
+                                   (change)="setChecked(showRepName.set, $event)" />
+                            <span>Name</span>
+                        </label>
+                        <label class="prd__check">
+                            <input type="checkbox" [checked]="showRepEmail()"
+                                   (change)="setChecked(showRepEmail.set, $event)" />
+                            <span>Email</span>
+                        </label>
+                        <label class="prd__check">
+                            <input type="checkbox" [checked]="showRepPhone()"
+                                   (change)="setChecked(showRepPhone.set, $event)" />
+                            <span>Phone</span>
+                        </label>
+                    </fieldset>
+
+                    <label class="prd__check">
+                        <input type="checkbox" [checked]="schoolShowsCommit()"
+                               (change)="setChecked(schoolShowsCommit.set, $event)" />
+                        <span>School column shows college commit (drops the “*” marker)</span>
+                    </label>
+                </div>
+            </section>
+        </div>
+    }
+</div>

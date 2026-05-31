@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { ReportingService } from '@infrastructure/services/reporting.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
@@ -29,6 +30,7 @@ interface LibraryEntry {
     readonly storedProcName?: string;     // sp-excel run target
     readonly parametersJson?: string | null; // sp-excel run params
     readonly boldReportName?: string;     // bold (RDL → PDF) run target — RDL filestem
+    readonly spaRoute?: string;           // SpaComponent: in-app route (jobPath-relative path) to navigate to instead of downloading
 }
 
 interface CategoryGroup {
@@ -105,6 +107,7 @@ export class ReportsLibraryComponent implements OnInit {
     private readonly pulseService = inject(JobPulseService);
     private readonly authService = inject(AuthService);
     private readonly toast = inject(ToastService);
+    private readonly router = inject(Router);
 
     readonly type2Entries = signal<JobReportEntryDto[]>([]);
     readonly catalogueLoading = signal(false);
@@ -192,7 +195,24 @@ export class ReportsLibraryComponent implements OnInit {
                 };
             });
 
-        return [...type1, ...type2, ...bold];
+        // SpaComponent (interactive tools) — Action is an in-app route (jobPath-relative
+        // path). Dispatched via router.navigate, not a download. Lets interactive features
+        // (PackedRoster Designer, check-in, …) live in the same role-gated catalogue.
+        const spa: LibraryEntry[] = this.type2Entries()
+            .filter(e => e.kind === 'SpaComponent')
+            .map(e => ({
+                isCrystal: false,
+                roles: [],
+                id: `spa-${e.jobReportId}`,
+                title: e.title,
+                description: null,
+                iconName: e.iconName,
+                category: normalizeReportCategory(e.groupLabel),
+                sortOrder: e.sortOrder,
+                spaRoute: e.action ?? '',
+            }));
+
+        return [...type1, ...type2, ...bold, ...spa];
     });
 
     /**
@@ -219,7 +239,8 @@ export class ReportsLibraryComponent implements OnInit {
         for (const { base, roles } of byReport.values()) {
             const isBold = base.kind === 'BoldReport';
             const isSp = base.kind === 'StoredProcedure';
-            const isCrystal = !isBold && !isSp;
+            const isSpa = base.kind === 'SpaComponent';
+            const isCrystal = !isBold && !isSp && !isSpa;
             const spParsed = isSp ? parseStoredProcAction(base.action) : null;
             const boldParsed = isBold ? parseBoldReportAction(base.action) : null;
             entries.push({
@@ -235,6 +256,7 @@ export class ReportsLibraryComponent implements OnInit {
                 storedProcName: spParsed?.spName ?? undefined,
                 parametersJson: spParsed?.parametersJson ?? null,
                 boldReportName: boldParsed?.reportName ?? undefined,
+                spaRoute: isSpa ? base.action : undefined,
             });
         }
         return entries;
@@ -361,6 +383,14 @@ export class ReportsLibraryComponent implements OnInit {
 
     runEntry(entry: LibraryEntry): void {
         this.runError.set(null);
+
+        // Interactive (SpaComponent) entries navigate in-app instead of downloading.
+        if (entry.spaRoute) {
+            this.pushRecent(entry.id);
+            this.navigateToSpa(entry.spaRoute);
+            return;
+        }
+
         this.runningId.set(entry.id);
 
         const download$ = entry.boldReportName
@@ -401,6 +431,21 @@ export class ReportsLibraryComponent implements OnInit {
                 this.toast.show(msg, 'danger');
             }
         });
+    }
+
+    /**
+     * Navigates to an in-app SpaComponent route. The catalogue stores `Action` as the
+     * jobPath-relative path (e.g. "reporting/packed-roster-designer"); we prepend the
+     * caller's jobPath so the `:jobPath` prefix is preserved.
+     */
+    private navigateToSpa(route: string): void {
+        const jobPath = this.authService.currentUser()?.jobPath;
+        if (!jobPath) {
+            this.toast.show('No job context — cannot open this tool.', 'danger');
+            return;
+        }
+        const segments = route.split('/').filter(Boolean);
+        this.router.navigate(['/', jobPath, ...segments]);
     }
 
     private loadCatalogue(): void {

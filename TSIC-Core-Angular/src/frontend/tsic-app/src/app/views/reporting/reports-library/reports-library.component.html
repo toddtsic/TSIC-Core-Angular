@@ -140,7 +140,7 @@
                                 class="btn btn-primary btn-sm report-row__run"
                                 [disabled]="runningId() !== null"
                                 (click)="runEntry(entry)">
-                                @if (runningId() === entry.id) { Running… } @else { Run }
+                                @if (runningId() === entry.id) { Running… } @else if (entry.spaRoute) { Open } @else { Run }
                             </button>
                         </li>
                     }
@@ -193,7 +193,7 @@
                                     class="btn btn-primary btn-sm report-row__run"
                                     [disabled]="runningId() !== null"
                                     (click)="runEntry(entry)">
-                                    @if (runningId() === entry.id) { Running… } @else { Run }
+                                    @if (runningId() === entry.id) { Running… } @else if (entry.spaRoute) { Open } @else { Run }
                                 </button>
                             </li>
                         }
@@ -240,7 +240,7 @@
                             class="btn btn-primary btn-sm report-row__run"
                             [disabled]="runningId() !== null"
                             (click)="runEntry(entry)">
-                            @if (runningId() === entry.id) { Running… } @else { Run }
+                            @if (runningId() === entry.id) { Running… } @else if (entry.spaRoute) { Open } @else { Run }
                         </button>
                     </li>
                 }
