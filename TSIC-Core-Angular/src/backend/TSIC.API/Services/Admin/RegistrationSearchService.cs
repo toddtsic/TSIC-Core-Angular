@@ -152,15 +152,55 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         // The sibling set — keyed by (JobId, FamilyUserId), the parent-side analog of the
         // club rep's (JobId, ClubrepRegistrationid). Mirrors GetClubRepAccountingAsync.
-        var players = await _registrationRepo.GetFamilyPlayersForAccountingAsync(jobId, familyUserId, ct);
-        if (players.Count == 0) return null;
+        var rawPlayers = await _registrationRepo.GetFamilyPlayersForAccountingAsync(jobId, familyUserId, ct);
+        if (rawPlayers.Count == 0) return null;
 
-        // Merge each child's ledger, stamping every row with its owning player — the family
-        // analog of the club-rep TeamId discriminator. Sequential awaits per child: these
-        // share one scoped DbContext, so Task.WhenAll would throw.
+        // Shape each child into a RegisteredTeamDto row (so the family grid reuses the same
+        // Syncfusion registered-teams-grid) and merge its ledger, stamping every record with
+        // its owning player — the family analog of the club-rep TeamId discriminator.
+        // Sequential awaits per child: these share one scoped DbContext, so Task.WhenAll
+        // would throw.
+        var playerRows = new List<RegisteredTeamDto>(rawPlayers.Count);
         var records = new List<AccountingRecordDto>();
-        foreach (var p in players)
+        foreach (var p in rawPlayers)
         {
+            // Per-method owed from the single canonical resolver — the SAME
+            // PaymentState.ResolveOwed the charge engine uses, so CC / check owed shown
+            // here equal exactly what each method records (keeps the tripwire quiet).
+            var state = await _paymentState.ForRegistrationAsync(p.RegistrationId, jobId, ct);
+            var owed = state.ResolveOwed(p.OwedTotal, p.FeeBase, p.FeeDiscount, p.FeeLatefee, p.FeeProcessing);
+
+            playerRows.Add(new RegisteredTeamDto
+            {
+                TeamId = p.RegistrationId,          // doubles as the ledger group key (= record.OwnerRegistrationId)
+                TeamName = p.PlayerName,
+                AgeGroupId = Guid.Empty,
+                AgeGroupName = "",                  // age-group column hidden for the family grid
+                LevelOfPlay = null,
+                ClubTeamId = null,
+                BHasBeenScheduled = false,
+                FeeBase = p.FeeBase,
+                FeeProcessing = p.FeeProcessing,
+                FeeProcessingDue = Math.Max(0m, owed.Cc - owed.Check),
+                FeeDiscount = p.FeeDiscount,
+                FeeLatefee = p.FeeLatefee,
+                FeeTotal = p.FeeTotal,
+                PaidTotal = p.PaidTotal,
+                OwedTotal = p.OwedTotal,
+                Deposit = 0m,                       // deposit/balance columns hidden for players
+                BalanceDue = 0m,
+                DepositDue = 0m,
+                AdditionalDue = 0m,
+                RegistrationTs = p.RegistrationTs,
+                BWaiverSigned3 = false,
+                CcOwedTotal = owed.Cc,
+                CkOwedTotal = owed.Check,
+                EkOwedTotal = owed.Echeck,
+                Active = p.Active,
+                PaymentScheduled = false,
+                NextChargeDate = null
+            });
+
             var recs = await _accountingRepo.GetByRegistrationIdAsync(p.RegistrationId, ct);
             records.AddRange(recs.Select(r => r with
             {
@@ -178,10 +218,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         {
             AnchorRegistrationId = registrationId,
             FamilyName = familyName,
-            FeeTotal = players.Sum(p => p.FeeTotal),
-            PaidTotal = players.Sum(p => p.PaidTotal),
-            OwedTotal = players.Sum(p => p.OwedTotal),
-            Players = players,
+            FeeTotal = rawPlayers.Sum(p => p.FeeTotal),
+            PaidTotal = rawPlayers.Sum(p => p.PaidTotal),
+            OwedTotal = rawPlayers.Sum(p => p.OwedTotal),
+            Players = playerRows,
             AccountingRecords = records.OrderByDescending(r => r.Date).ToList()
         };
     }

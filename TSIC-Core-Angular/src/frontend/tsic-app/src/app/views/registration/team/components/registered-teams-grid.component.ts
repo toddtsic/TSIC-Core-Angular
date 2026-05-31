@@ -30,7 +30,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
           <e-column headerText="" width="40" textAlign="Center" [allowSorting]="false"
                     [isFrozen]="frozenTeamCol()"
                     [customAttributes]="{ class: 'row-number-cell' }"></e-column>
-          <e-column field="teamName" headerText="Team" [width]="teamColWidth()"
+          <e-column field="teamName" [headerText]="teamColHeader()" [width]="teamColWidth()"
                     [isFrozen]="frozenTeamCol()"
                     [customAttributes]="{ class: 'team-name-wrap-cell' }">
             <ng-template #template let-data>
@@ -270,6 +270,7 @@ export class RegisteredTeamsGridComponent {
     readonly showRegDate = input(true);
     readonly showTotalFee = input(true);
     readonly procFeeHeader = input('Proc Fee');
+    readonly teamColHeader = input('Team');
     readonly showRemove = input(false);
     readonly actionInProgress = input(false);
     readonly frozenTeamCol = input(false);

@@ -499,10 +499,15 @@ public class RegistrationRepository : IRegistrationRepository
             {
                 RegistrationId = r.RegistrationId,
                 PlayerName = ((r.User!.FirstName ?? "") + " " + (r.User.LastName ?? "")).Trim(),
+                Active = r.BActive ?? false,
+                RegistrationTs = r.RegistrationTs,
+                FeeBase = r.FeeBase,
+                FeeProcessing = r.FeeProcessing,
+                FeeDiscount = r.FeeDiscount,
+                FeeLatefee = r.FeeLatefee,
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
-                OwedTotal = r.OwedTotal,
-                Active = r.BActive ?? false
+                OwedTotal = r.OwedTotal
             })
             .ToListAsync(cancellationToken);
     }

@@ -72,8 +72,7 @@ export type {
 	EditAccountingRecordRequest,
 	SubscriptionDetailDto,
 	CreditCardInfo,
-	FamilyAccountingDto,
-	FamilyPlayerAccountingDto
+	FamilyAccountingDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })

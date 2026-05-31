@@ -3,14 +3,14 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AccountingRecordDto } from './AccountingRecordDto';
-import type { FamilyPlayerAccountingDto } from './FamilyPlayerAccountingDto';
+import type { RegisteredTeamDto } from './RegisteredTeamDto';
 export type FamilyAccountingDto = {
     anchorRegistrationId: string;
     familyName: string;
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;
-    players: Array<FamilyPlayerAccountingDto>;
+    players: Array<RegisteredTeamDto>;
     accountingRecords: Array<AccountingRecordDto>;
 };
 

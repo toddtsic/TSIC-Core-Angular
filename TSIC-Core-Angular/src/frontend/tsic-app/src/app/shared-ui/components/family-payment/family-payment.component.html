@@ -11,7 +11,7 @@
   @if (playerCount() > 1) {
     <div class="scope-selector">
       <button type="button" class="scope-btn" [class.active]="scope() === 'player'" (click)="setScope('player')">
-        This Player: {{ selectedPlayer()?.playerName }}
+        This Player: {{ selectedPlayer()?.teamName }}
       </button>
       <button type="button" class="scope-btn scope-btn-family" [class.active]="scope() === 'family'" (click)="setScope('family')">
         All Family Players: {{ familyName() }} ({{ playerCount() }} players, {{ familyOwedTotal() | currency }} owed)
@@ -19,12 +19,29 @@
     </div>
   }
 
-  <!-- Per-Player Breakdown — the family analog of the club teams grid. Active players in
-       family scope, the single selected player in player scope. -->
+  <!-- Per-Player Breakdown — the SAME rich registered-teams-grid the club rep view uses
+       (DRY: app-registered-teams-grid). Active players in family scope, the single selected
+       player in player scope. The age-group / deposit / balance columns are hidden (not
+       meaningful per player); Discount / Fee-Adj auto-appear when any row is non-zero. -->
   @if (gridPlayers().length) {
     <div class="family-summary-card">
       <h5 class="section-title">{{ scope() === 'player' ? 'Player Breakdown' : 'Family Players Breakdown' }}</h5>
-      <app-family-players-grid [players]="gridPlayers()" />
+      <app-registered-teams-grid
+        [teams]="gridPlayers()"
+        [teamColHeader]="'Player'"
+        [showAgeGroup]="false"
+        [showRegDate]="false"
+        [showPaid]="true"
+        [showDeposit]="false"
+        [showBalance]="false"
+        [showTotalFee]="true"
+        [showOwed]="true"
+        [showProcessing]="true"
+        [showCcOwed]="true"
+        [showCkOwed]="true"
+        [frozenTeamCol]="true"
+        [teamColWidth]="120"
+        [gridHeight]="'auto'" />
 
       <!-- Inactive players — reference-only, excluded from totals, collapsed by default. -->
       @if (scope() === 'family' && inactivePlayers().length) {
@@ -34,7 +51,19 @@
         </button>
         @if (showInactive()) {
           <div class="other-players-grid">
-            <app-family-players-grid [players]="inactivePlayers()" />
+            <app-registered-teams-grid
+              [teams]="inactivePlayers()"
+              [teamColHeader]="'Player'"
+              [showAgeGroup]="false"
+              [showRegDate]="false"
+              [showPaid]="true"
+              [showTotalFee]="false"
+              [showOwed]="true"
+              [showCcOwed]="false"
+              [showCkOwed]="false"
+              [frozenTeamCol]="true"
+              [teamColWidth]="120"
+              [gridHeight]="'auto'" />
           </div>
         }
       }
@@ -47,6 +76,7 @@
     [feeTotal]="feeTotal()"
     [paidTotal]="paidTotal()"
     [owedTotal]="owedTotal()"
+    [checkOwed]="checkOwed()"
     [groups]="ledgerGroups()"
     [groupHeading]="'Player'"
     [otherBucketLabel]="'Inactive players'"

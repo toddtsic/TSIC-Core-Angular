@@ -257,7 +257,6 @@ export type { EventListingDto } from './models/EventListingDto';
 export type { EventScheduleDefaultsDto } from './models/EventScheduleDefaultsDto';
 export type { FamilyAccountingDto } from './models/FamilyAccountingDto';
 export type { FamilyContactDto } from './models/FamilyContactDto';
-export type { FamilyPlayerAccountingDto } from './models/FamilyPlayerAccountingDto';
 export type { FamilyPlayerDto } from './models/FamilyPlayerDto';
 export type { FamilyPlayerRegistrationDto } from './models/FamilyPlayerRegistrationDto';
 export type { FamilyPlayersResponseDto } from './models/FamilyPlayersResponseDto';

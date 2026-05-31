@@ -1,6 +1,7 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RegistrationSearchService } from '../../../views/search/registrations/services/registration-search.service';
+import { RegisteredTeamsGridComponent } from '../../../views/registration/team/components/registered-teams-grid.component';
 import { ToastService } from '@shared-ui/toast.service';
 import {
   AccountingLedgerComponent,
@@ -9,8 +10,7 @@ import {
   RefundEvent,
   LedgerGroup
 } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
-import { FamilyPlayersGridComponent } from './family-players-grid.component';
-import type { FamilyAccountingDto, FamilyPlayerAccountingDto, RefundResponse } from '@core/api';
+import type { FamilyAccountingDto, RegisteredTeamDto, RefundResponse } from '@core/api';
 
 type Scope = 'player' | 'family';
 
@@ -18,7 +18,8 @@ type Scope = 'player' | 'family';
  * Family accounting view — the parent-side analog of app-club-rep-payment. Shows a combined
  * ledger across every player a parent registered for the job (keyed server-side by JobId +
  * FamilyUserId), with a scope selector (this player / all family players) and a per-child
- * breakdown grid. Reuses the shared AccountingLedgerComponent.
+ * breakdown that reuses the SAME Syncfusion registered-teams-grid the club-rep view uses
+ * (each child shaped as a RegisteredTeamDto). Reuses the shared AccountingLedgerComponent.
  *
  * Payment actions target the anchor player (the registration whose panel is open). The
  * aggregated family scope is read-mostly: per-row refunds work, but family-wide charge-all
@@ -27,7 +28,7 @@ type Scope = 'player' | 'family';
 @Component({
   selector: 'app-family-payment',
   standalone: true,
-  imports: [CommonModule, AccountingLedgerComponent, FamilyPlayersGridComponent],
+  imports: [CommonModule, AccountingLedgerComponent, RegisteredTeamsGridComponent],
   templateUrl: './family-payment.component.html',
   styleUrl: './family-payment.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -49,16 +50,17 @@ export class FamilyPaymentComponent {
   scope = signal<Scope>('family');
   showInactive = signal(false);
 
-  allPlayers = computed<FamilyPlayerAccountingDto[]>(() => this.data()?.players ?? []);
+  // Each "player" row is a RegisteredTeamDto (TeamId = the child's registrationId).
+  allPlayers = computed<RegisteredTeamDto[]>(() => this.data()?.players ?? []);
   activePlayers = computed(() => this.allPlayers().filter(p => p.active));
   inactivePlayers = computed(() => this.allPlayers().filter(p => !p.active));
   playerCount = computed(() => this.allPlayers().length);
 
   selectedPlayer = computed(() =>
-    this.allPlayers().find(p => p.registrationId === this.registrationId()) ?? null);
+    this.allPlayers().find(p => p.teamId === this.registrationId()) ?? null);
 
   // Grid feed: active players in family scope, the anchor player in player scope.
-  gridPlayers = computed<FamilyPlayerAccountingDto[]>(() => {
+  gridPlayers = computed<RegisteredTeamDto[]>(() => {
     if (this.scope() === 'player') {
       const p = this.selectedPlayer();
       return p ? [p] : [];
@@ -72,17 +74,20 @@ export class FamilyPaymentComponent {
   familyFeeTotal = computed(() => this.activePlayers().reduce((s, p) => s + p.feeTotal, 0));
   familyPaidTotal = computed(() => this.activePlayers().reduce((s, p) => s + p.paidTotal, 0));
   familyOwedTotal = computed(() => this.activePlayers().reduce((s, p) => s + p.owedTotal, 0));
+  familyCheckOwed = computed(() => this.activePlayers().reduce((s, p) => s + p.ckOwedTotal, 0));
 
   // Scope-resolved summary fed to the ledger. Player scope mirrors the anchor child exactly,
   // so the payment modal's balance-due is correct for the registration we charge.
   feeTotal = computed(() => this.scope() === 'player' ? (this.selectedPlayer()?.feeTotal ?? 0) : this.familyFeeTotal());
   paidTotal = computed(() => this.scope() === 'player' ? (this.selectedPlayer()?.paidTotal ?? 0) : this.familyPaidTotal());
   owedTotal = computed(() => this.scope() === 'player' ? (this.selectedPlayer()?.owedTotal ?? 0) : this.familyOwedTotal());
+  checkOwed = computed(() => this.scope() === 'player' ? (this.selectedPlayer()?.ckOwedTotal ?? 0) : this.familyCheckOwed());
 
-  // Neutral groups for the ledger's bucketing + per-row attribution (one per child).
+  // Neutral groups for the ledger's bucketing + per-row attribution (one per child;
+  // key = TeamId = the child's registrationId, matching each record's ownerRegistrationId).
   ledgerGroups = computed<LedgerGroup[]>(() => this.allPlayers().map(p => ({
-    key: p.registrationId,
-    label: p.playerName,
+    key: p.teamId,
+    label: p.teamName,
     active: p.active
   })));
 
