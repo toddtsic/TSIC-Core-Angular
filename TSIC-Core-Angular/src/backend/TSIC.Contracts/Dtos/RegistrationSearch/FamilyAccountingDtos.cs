@@ -32,11 +32,12 @@ public record FamilyAccountingDto
 }
 
 /// <summary>
-/// Raw per-child fee data used by the service to shape a <see cref="RegisteredTeamDto"/> row
-/// (the per-method owed math runs through PaymentState in the service layer). Internal to the
-/// family-accounting query — not exposed directly on any contract.
+/// Raw per-child registration row consumed by RegisteredPlayerShaper — the player analog of
+/// <c>RegisteredTeamInfo</c>. The shaper turns these into <see cref="RegisteredTeamDto"/> rows
+/// through the canonical payment-state path (IPaymentStateService + IFeeResolutionService),
+/// exactly like the team shaper.
 /// </summary>
-public record FamilyPlayerAccountingDto
+public record RegisteredPlayerInfo
 {
     public required Guid RegistrationId { get; init; }
     public required string PlayerName { get; init; }

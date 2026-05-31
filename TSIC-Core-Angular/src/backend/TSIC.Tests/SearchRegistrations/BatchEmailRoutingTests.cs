@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using TSIC.API.Services.Admin;
 using TSIC.API.Services.Payments;
+using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos.RegistrationSearch;
@@ -70,7 +71,7 @@ public class BatchEmailRoutingTests
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo, deviceRepo.Object,
             teamRepo, adnApi.Object, arbRepo.Object, textSub.Object, emailService.Object, feeAdjustment,
             new Mock<IPaymentService>().Object, new Mock<IPaymentStateService>().Object,
-            new Mock<IFeeResolutionService>().Object, logger.Object);
+            new Mock<IRegisteredPlayerShaper>().Object, logger.Object);
 
         return (svc, b, ctx, job.JobId, sent);
     }

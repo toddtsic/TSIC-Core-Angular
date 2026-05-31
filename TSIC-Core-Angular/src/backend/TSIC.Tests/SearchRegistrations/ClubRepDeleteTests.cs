@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using TSIC.API.Services.Admin;
 using TSIC.API.Services.Payments;
+using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Repositories;
@@ -49,7 +50,7 @@ public class ClubRepDeleteTests
             new Mock<IRegistrationFeeAdjustmentService>().Object,
             new Mock<IPaymentService>().Object,
             new Mock<IPaymentStateService>().Object,
-            new Mock<IFeeResolutionService>().Object,
+            new Mock<IRegisteredPlayerShaper>().Object,
             new Mock<ILogger<RegistrationSearchService>>().Object);
 
         return (svc, b, job.JobId);

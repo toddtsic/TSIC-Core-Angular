@@ -4,6 +4,7 @@ using Moq;
 using Microsoft.Extensions.Logging;
 using TSIC.API.Services.Admin;
 using TSIC.API.Services.Payments;
+using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos.RegistrationSearch;
@@ -78,7 +79,7 @@ public class PlayerCheckTests
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo.Object, deviceRepo.Object,
             new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,
             emailService.Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState,
-            new Mock<IFeeResolutionService>().Object, logger.Object);
+            new Mock<IRegisteredPlayerShaper>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId);
     }

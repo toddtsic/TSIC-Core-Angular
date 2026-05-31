@@ -237,7 +237,7 @@ public interface IRegistrationRepository
     /// registered for the job (keyed by JobId + FamilyUserId), with name and financial totals.
     /// The parent-side analog of GetRegisteredTeamsForClubRepAndJobAsync.
     /// </summary>
-    Task<List<FamilyPlayerAccountingDto>> GetFamilyPlayersForAccountingAsync(
+    Task<List<RegisteredPlayerInfo>> GetFamilyPlayersForAccountingAsync(
         Guid jobId,
         string familyUserId,
         CancellationToken cancellationToken = default);

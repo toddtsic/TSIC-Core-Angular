@@ -96,7 +96,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
               }
             </ng-template>
           </e-column>
-          <e-column field="feeProcessingDue" [headerText]="procFeeHeader()" width="75" textAlign="Right" format="C2"
+          <e-column [field]="procFeeField()" [headerText]="procFeeHeader()" width="75" textAlign="Right" format="C2"
                     [visible]="showProcessing()"></e-column>
           <e-column field="feeDiscount" headerText="Discount" width="90" textAlign="Right" format="C2"
                     [visible]="showDiscount()">
@@ -174,7 +174,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                   </div>
                 </ng-template>
               </e-column>
-              <e-column field="feeProcessingDue" type="Sum" format="C2">
+              <e-column [field]="procFeeField()" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
                   <div class="aggregate-value">{{ sumProcessing() | currency }}</div>
                 </ng-template>
@@ -271,6 +271,10 @@ export class RegisteredTeamsGridComponent {
     readonly showTotalFee = input(true);
     readonly procFeeHeader = input('Proc Fee');
     readonly teamColHeader = input('Team');
+    // Which field the Proc Fee column/aggregate renders. Teams show 'feeProcessingDue' (proc
+    // still owed if CC-billed); the family statement shows 'feeProcessing' (the statement-of-fact
+    // proc read off the registration), so Total Fee + Proc reconciles with what was paid.
+    readonly procFeeField = input<'feeProcessingDue' | 'feeProcessing'>('feeProcessingDue');
     readonly showRemove = input(false);
     readonly actionInProgress = input(false);
     readonly frozenTeamCol = input(false);
@@ -348,7 +352,9 @@ export class RegisteredTeamsGridComponent {
     readonly sumDepositDue = computed(() => this.teams().reduce((s, t) => s + t.depositDue, 0));
     readonly sumAdditionalDue = computed(() => this.teams().reduce((s, t) => s + t.additionalDue, 0));
     readonly sumOwed = computed(() => this.teams().reduce((s, t) => s + t.owedTotal, 0));
-    readonly sumProcessing = computed(() => this.teams().reduce((s, t) => s + (t.feeProcessingDue ?? 0), 0));
+    readonly sumProcessing = computed(() => this.procFeeField() === 'feeProcessing'
+        ? this.teams().reduce((s, t) => s + (t.feeProcessing ?? 0), 0)
+        : this.teams().reduce((s, t) => s + (t.feeProcessingDue ?? 0), 0));
     readonly sumDiscount = computed(() => this.teams().reduce((s, t) => s + (t.feeDiscount ?? 0), 0));
     readonly sumFeeAdj = computed(() => this.teams().reduce((s, t) => s + (t.feeLatefee ?? 0), 0));
     readonly sumCcOwed = computed(() => this.teams().reduce((s, t) => s + t.ccOwedTotal, 0));

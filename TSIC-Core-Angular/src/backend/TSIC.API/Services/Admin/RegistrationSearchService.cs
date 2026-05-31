@@ -1,5 +1,6 @@
 using AuthorizeNet.Api.Contracts.V1;
 using TSIC.API.Services.Payments;
+using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos;
@@ -31,7 +32,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentService _paymentService;
     private readonly IPaymentStateService _paymentState;
-    private readonly IFeeResolutionService _feeResolution;
+    private readonly IRegisteredPlayerShaper _playerShaper;
     private readonly ILogger<RegistrationSearchService> _logger;
 
     // Known payment method GUIDs. CC charging itself goes through PaymentService's
@@ -56,7 +57,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentService paymentService,
         IPaymentStateService paymentState,
-        IFeeResolutionService feeResolution,
+        IRegisteredPlayerShaper playerShaper,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -72,7 +73,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _feeAdjustment = feeAdjustment;
         _paymentService = paymentService;
         _paymentState = paymentState;
-        _feeResolution = feeResolution;
+        _playerShaper = playerShaper;
         _logger = logger;
     }
 
@@ -158,71 +159,17 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         var rawPlayers = await _registrationRepo.GetFamilyPlayersForAccountingAsync(jobId, familyUserId, ct);
         if (rawPlayers.Count == 0) return null;
 
-        // Shape each child into a RegisteredTeamDto row (so the family grid reuses the same
-        // Syncfusion registered-teams-grid) and merge its ledger, stamping every record with
-        // its owning player — the family analog of the club-rep TeamId discriminator.
-        // Sequential awaits per child: these share one scoped DbContext, so Task.WhenAll
-        // would throw.
-        var playerRows = new List<RegisteredTeamDto>(rawPlayers.Count);
+        // Shape each child into a RegisteredTeamDto through the canonical player shaper — the
+        // same payment-state path teams use (RegisteredTeamShaper). Keeps per-method owed,
+        // proc, and deposit/balance off the one source so the family grid can never drift.
+        var playerRows = await _playerShaper.ShapeAsync(jobId, rawPlayers, ct);
+
+        // Merge each child's ledger, stamping every record with its owning player — the family
+        // analog of the club-rep TeamId discriminator. Sequential awaits per child: these share
+        // one scoped DbContext, so Task.WhenAll would throw.
         var records = new List<AccountingRecordDto>();
         foreach (var p in rawPlayers)
         {
-            // Per-method owed from the single canonical resolver — the SAME
-            // PaymentState.ResolveOwed the charge engine uses, so CC / check owed shown
-            // here equal exactly what each method records (keeps the tripwire quiet).
-            var state = await _paymentState.ForRegistrationAsync(p.RegistrationId, jobId, ct);
-            var owed = state.ResolveOwed(p.OwedTotal, p.FeeBase, p.FeeDiscount, p.FeeLatefee, p.FeeProcessing);
-
-            // Deposit / balance columns — resolved from the fee cascade (most player fees have no
-            // deposit, in which case ResolvedFee.Deposit is null → 0 and the grid hides the
-            // columns). Phase is per-player: deposit phase shows the structural balance forward;
-            // full-pay (FeeBase already covers deposit+balance) nets payments via PaymentState —
-            // same helpers the team shaper uses, so the columns can't drift from owed math.
-            decimal deposit = 0m, balanceStructural = 0m, depositDue = 0m, additionalDue = 0m;
-            if (p.AssignedTeamId.HasValue && p.AgeGroupId.HasValue)
-            {
-                var fee = await _feeResolution.ResolveFeeAsync(
-                    jobId, RoleConstants.Player, p.AgeGroupId.Value, p.AssignedTeamId.Value, ct);
-                deposit = fee?.Deposit ?? 0m;
-                balanceStructural = fee?.BalanceDue ?? 0m;
-                depositDue = state.DepositPrincipalRemaining(deposit, p.FeeDiscount, p.FeeLatefee);
-                var bFull = p.FeeBase >= deposit + balanceStructural - 0.005m;
-                additionalDue = bFull
-                    ? state.BalancePrincipalRemaining(p.FeeBase, deposit, p.FeeDiscount, p.FeeLatefee)
-                    : balanceStructural;
-            }
-
-            playerRows.Add(new RegisteredTeamDto
-            {
-                TeamId = p.RegistrationId,          // doubles as the ledger group key (= record.OwnerRegistrationId)
-                TeamName = p.PlayerName,
-                AgeGroupId = p.AgeGroupId ?? Guid.Empty,
-                AgeGroupName = "",                  // age-group column hidden for the family grid
-                LevelOfPlay = null,
-                ClubTeamId = null,
-                BHasBeenScheduled = false,
-                FeeBase = p.FeeBase,
-                FeeProcessing = p.FeeProcessing,
-                FeeProcessingDue = Math.Max(0m, owed.Cc - owed.Check),
-                FeeDiscount = p.FeeDiscount,
-                FeeLatefee = p.FeeLatefee,
-                FeeTotal = p.FeeTotal,
-                PaidTotal = p.PaidTotal,
-                OwedTotal = p.OwedTotal,
-                Deposit = deposit,
-                BalanceDue = balanceStructural,
-                DepositDue = depositDue,
-                AdditionalDue = additionalDue,
-                RegistrationTs = p.RegistrationTs,
-                BWaiverSigned3 = false,
-                CcOwedTotal = owed.Cc,
-                CkOwedTotal = owed.Check,
-                EkOwedTotal = owed.Echeck,
-                Active = p.Active,
-                PaymentScheduled = false,
-                NextChargeDate = null
-            });
-
             var recs = await _accountingRepo.GetByRegistrationIdAsync(p.RegistrationId, ct);
             records.AddRange(recs.Select(r => r with
             {

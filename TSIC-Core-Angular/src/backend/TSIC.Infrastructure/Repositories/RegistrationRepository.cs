@@ -484,7 +484,7 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<FamilyPlayerAccountingDto>> GetFamilyPlayersForAccountingAsync(
+    public async Task<List<RegisteredPlayerInfo>> GetFamilyPlayersForAccountingAsync(
         Guid jobId,
         string familyUserId,
         CancellationToken cancellationToken = default)
@@ -495,7 +495,7 @@ public class RegistrationRepository : IRegistrationRepository
                 && r.FamilyUserId == familyUserId
                 && r.RoleId == RoleConstants.Player)
             .OrderBy(r => r.User!.FirstName)
-            .Select(r => new FamilyPlayerAccountingDto
+            .Select(r => new RegisteredPlayerInfo
             {
                 RegistrationId = r.RegistrationId,
                 PlayerName = ((r.User!.FirstName ?? "") + " " + (r.User.LastName ?? "")).Trim(),
