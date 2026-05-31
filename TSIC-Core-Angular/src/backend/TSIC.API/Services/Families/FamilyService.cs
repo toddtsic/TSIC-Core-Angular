@@ -655,7 +655,8 @@ public sealed class FamilyService : IFamilyService
     {
         if (jobId == null) return (false, false);
 
-        var now = DateTime.UtcNow;
+        // Discount-code start/end dates are stored in local AZ server time, not UTC.
+        var now = DateTime.Now;
         var hasActiveDiscountCodes = (await _jobDiscountRepo.GetActiveCodesForJobAsync(jobId.Value, now)).Any();
 
         var customerId = await _jobRepo.GetCustomerIdAsync(jobId.Value);

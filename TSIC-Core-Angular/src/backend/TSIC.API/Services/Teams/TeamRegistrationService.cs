@@ -414,7 +414,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             PaymentMethodsAllowedCode = job.PaymentMethodsAllowedCode,
             BAddProcessingFees = job.BAddProcessingFees ?? false,
             BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
-            HasActiveDiscountCodes = (await _discountCodeRepo.GetActiveCodesForJobAsync(jobId, DateTime.UtcNow)).Any(),
+            // Discount-code dates are stored in local AZ time, not UTC.
+            HasActiveDiscountCodes = (await _discountCodeRepo.GetActiveCodesForJobAsync(jobId, DateTime.Now)).Any(),
             ClubRepContactInfo = clubRepContactInfo,
             PayTo = job.PayTo,
             MailTo = job.MailTo,
