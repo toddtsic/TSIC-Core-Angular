@@ -92,6 +92,9 @@ public class DiscountCodeTests
             .ReturnsAsync(JobId);
 
         var paymentService = new Mock<IPaymentService>();
+        var paymentState = new Mock<IPaymentStateService>();
+        paymentState.Setup(p => p.ForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TSIC.Contracts.Payments.PaymentState.Empty(bAddProcessingFees, processingFeePercent / 100m, 0.015m));
         var logger = new Mock<ILogger<PlayerRegistrationPaymentController>>();
 
         var controller = new PlayerRegistrationPaymentController(
@@ -102,6 +105,7 @@ public class DiscountCodeTests
             registrationRepo,
             feeCalc,
             feeAdjustment,
+            paymentState.Object,
             logger.Object);
 
         var claims = new[] { new Claim(ClaimTypes.NameIdentifier, FamilyUserId) };

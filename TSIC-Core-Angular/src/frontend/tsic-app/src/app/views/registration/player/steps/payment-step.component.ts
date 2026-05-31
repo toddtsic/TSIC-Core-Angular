@@ -75,9 +75,8 @@ import type { LineItem } from '../state/payment-v2.service';
                       <th>Player</th>
                       <th>Team</th>
                       <th class="text-end">Fee-Base</th>
-                      <th class="text-end">Discount</th>
                       <th class="text-end">
-                        Fee-Adj<app-info-tooltip message="Depending on when you registered, this may show an early-bird discount (negative value) or a late fee (positive value). Only one applies."></app-info-tooltip>
+                        Fee-Adj<app-info-tooltip message="Net fee adjustment: discounts and correction credits show negative; late fees and correction charges show positive."></app-info-tooltip>
                       </th>
                       <th class="text-end">Fee-Total</th>
                       <th>
@@ -91,8 +90,7 @@ import type { LineItem } from '../state/payment-v2.service';
                         <td>{{ li.playerName }}</td>
                         <td>{{ li.teamName }}</td>
                         <td class="text-end">{{ li.feeBase | currency }}</td>
-                        <td class="text-end" [class.text-success]="li.feeDiscount > 0">{{ li.feeDiscount > 0 ? '-' : '' }}{{ li.feeDiscount | currency }}</td>
-                        <td class="text-end">{{ li.feeLateFee | currency }}</td>
+                        <td class="text-end" [class.text-success]="li.feeAdj < 0">{{ li.feeAdj | currency }}</td>
                         <td class="text-end">{{ li.feeTotal | currency }}</td>
                         <td class="arb-plan-cell">
                           <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ perPlayerInstallment(li.feeTotal) | currency }}</div>
@@ -109,7 +107,7 @@ import type { LineItem } from '../state/payment-v2.service';
                   </tbody>
                   <tfoot>
                     <tr class="table-primary due-now-row">
-                      <th colspan="5" class="text-end">Total Due</th>
+                      <th colspan="4" class="text-end">Total Due</th>
                       <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
                       <th class="arb-plan-cell">
                         <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ paySvc.arbPerOccurrence() | currency }}</div>
@@ -138,9 +136,8 @@ import type { LineItem } from '../state/payment-v2.service';
                       <th>Team</th>
                       <th class="text-end">Fee-Base</th>
                       <th class="text-end">Fee-Proc</th>
-                      <th class="text-end">Discount</th>
                       <th class="text-end">
-                        Fee-Adj<app-info-tooltip message="Depending on when you registered, this may show an early-bird discount (negative value) or a late fee (positive value). Only one applies."></app-info-tooltip>
+                        Fee-Adj<app-info-tooltip message="Net fee adjustment: discounts and correction credits show negative; late fees and correction charges show positive."></app-info-tooltip>
                       </th>
                       <th class="text-end">Fee-Total</th>
                       <th class="text-end">Paid</th>
@@ -154,17 +151,16 @@ import type { LineItem } from '../state/payment-v2.service';
                         <td>{{ li.teamName }}</td>
                         <td class="text-end">{{ li.feeBase | currency }}</td>
                         <td class="text-end">{{ li.feeProcessing | currency }}</td>
-                        <td class="text-end" [class.text-success]="li.feeDiscount > 0">{{ li.feeDiscount > 0 ? '-' : '' }}{{ li.feeDiscount | currency }}</td>
-                        <td class="text-end">{{ li.feeLateFee | currency }}</td>
+                        <td class="text-end" [class.text-success]="li.feeAdj < 0">{{ li.feeAdj | currency }}</td>
                         <td class="text-end">{{ li.feeTotal | currency }}</td>
-                        <td class="text-end">{{ li.paidTotal | currency }}</td>
+                        <td class="text-end">{{ li.tenderPaid | currency }}</td>
                         <td class="text-end fw-bold">{{ li.amount | currency }}</td>
                       </tr>
                     }
                   </tbody>
                   <tfoot>
                     <tr class="table-primary due-now-row">
-                      <th colspan="8" class="text-end">Total Due</th>
+                      <th colspan="7" class="text-end">Total Due</th>
                       <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
                     </tr>
                   </tfoot>
@@ -389,16 +385,6 @@ import type { LineItem } from '../state/payment-v2.service';
           </div>
         }
 
-        <!-- Processing fee savings callout -->
-        @if (isCheck() && processingFeeSavings() > 0) {
-          <div class="alert alert-success border-0 d-flex align-items-center gap-2 mb-3">
-            <i class="bi bi-piggy-bank fs-5"></i>
-            <div>
-              <strong>Save {{ processingFeeSavings() | currency }}</strong> in processing fees by paying with check.
-            </div>
-          </div>
-        }
-
         <!-- ═══ CREDIT CARD FORM ═══ -->
         @if (showCcSection()) {
           @if (isViCcOnlyFlow()) {
@@ -509,7 +495,7 @@ import type { LineItem } from '../state/payment-v2.service';
               @if (submitting()) {
                 <span class="spinner-border spinner-border-sm me-2"></span>Processing...
               } @else {
-                <i class="bi bi-bank me-2"></i>Pay {{ currentTotal() | currency }} by eCheck
+                <i class="bi bi-bank me-2"></i>Pay {{ echeckTotal() | currency }} by eCheck
               }
             </button>
           }
@@ -820,8 +806,8 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly isCc = computed(() => this.paySvc.isCcPayment());
     readonly isEcheck = computed(() => this.paySvc.isEcheckPayment());
     readonly isCheck = computed(() => this.paySvc.isCheckPayment());
-    readonly processingFeeSavings = computed(() => this.paySvc.processingFeeSavings());
     readonly checkTotal = computed(() => this.paySvc.checkTotal());
+    readonly echeckTotal = computed(() => this.paySvc.echeckTotal());
     readonly payTo = computed(() => this.paySvc.payTo());
     readonly mailTo = computed(() => this.paySvc.mailTo());
     readonly mailinPaymentWarning = computed(() => this.paySvc.mailinPaymentWarning());

@@ -137,6 +137,8 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
                 FeeTotal = t.FeeTotal,
                 PaidTotal = t.PaidTotal,
                 OwedTotal = t.OwedTotal,
+                FeeAdj = state.FeeAdjustment(t.FeeDiscount, t.FeeLatefee),
+                TenderPaid = state.TenderPaid,
                 Deposit = deposit,
                 BalanceDue = balanceDue,
                 DepositDue = depositDue,

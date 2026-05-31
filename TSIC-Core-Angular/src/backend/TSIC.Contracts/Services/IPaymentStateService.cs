@@ -16,6 +16,14 @@ namespace TSIC.Contracts.Services;
 /// </summary>
 public interface IPaymentStateService
 {
+    /// <summary>
+    /// A payment state carrying only the job's rates + BAddProcessingFees (no prior-payment
+    /// totals). Sufficient for <see cref="PaymentState.ResolveOwed"/>, which takes the owed/fee
+    /// figures as arguments — used by display paths to surface per-method owed (e.g. the eCheck
+    /// total) without loading a specific entity's payment history.
+    /// </summary>
+    Task<PaymentState> ForJobAsync(Guid jobId, CancellationToken ct = default);
+
     Task<PaymentState> ForRegistrationAsync(
         Guid registrationId, Guid jobId, CancellationToken ct = default);
 

@@ -170,6 +170,14 @@ public sealed record RegisteredTeamDto
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
+    // ── Canonical display decomposition (PaymentState) — corrections are adjustments, not tender ──
+    // FeeAdj: signed net adjustment shown in the unified "Fee-Adj" column = lateFee − discount −
+    // correction (late fee / correction-charge positive; discount / correction-credit negative).
+    // Folds in what used to be the separate Discount column.
+    public required decimal FeeAdj { get; init; }
+    // TenderPaid: real money received (CC + eCheck + check + cash) — the "Paid" column. Excludes
+    // Correction-method rows, which now surface in FeeAdj. OwedTotal is unchanged either way.
+    public required decimal TenderPaid { get; init; }
     // Immutable fee structure — what the team was committed to, independent of payment state.
     // Used by the Teams step to surface phase-agnostic team properties.
     public required decimal Deposit { get; init; }

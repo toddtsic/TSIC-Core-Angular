@@ -11,5 +11,8 @@ export type RegistrationFinancialsDto = {
     feeTotal: number;
     owedTotal: number;
     paidTotal: number;
+    echeckOwedTotal: number;
+    feeAdj: number;
+    tenderPaid: number;
 };
 

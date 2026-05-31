@@ -168,11 +168,6 @@ export class TeamPaymentService {
         }
     });
 
-    // Processing fee savings vs paying by card.
-    processingFeeSavings = computed(() => this.totalCcOwed() - this.totalCkOwed());
-    // eCheck collects proc at the lower ACH rate, so the rep saves the (CC − eCheck) spread.
-    echeckProcessingFeeSavings = computed(() => this.totalCcOwed() - this.totalEkOwed());
-
     // Whether payment is required
     hasBalance = computed(() => this.balanceDue() > 0);
 

@@ -27,6 +27,9 @@ public sealed class PaymentStateService : IPaymentStateService
         _jobRepo = jobRepo;
     }
 
+    public Task<PaymentState> ForJobAsync(Guid jobId, CancellationToken ct = default) =>
+        BuildEmptyAsync(jobId, ct);
+
     public async Task<PaymentState> ForRegistrationAsync(
         Guid registrationId, Guid jobId, CancellationToken ct = default)
     {

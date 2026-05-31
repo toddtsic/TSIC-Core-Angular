@@ -412,7 +412,10 @@ export class RegistrationWizardService {
                         feeLateFee: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeLateFee') ?? 0),
                         feeTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeTotal') ?? 0),
                         owedTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'owedTotal') ?? 0),
-                        paidTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'paidTotal') ?? 0)
+                        paidTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'paidTotal') ?? 0),
+                        echeckOwedTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'echeckOwedTotal') ?? 0),
+                        feeAdj: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeAdj') ?? 0),
+                        tenderPaid: +(getPropertyCI<number>(fin as Record<string, unknown>, 'tenderPaid') ?? (getPropertyCI<number>(fin as Record<string, unknown>, 'paidTotal') ?? 0))
                     },
                     assignedTeamId: getPropertyCI<string>(r, 'assignedTeamId') ?? undefined,
                     assignedTeamName: getPropertyCI<string>(r, 'assignedTeamName') ?? undefined,

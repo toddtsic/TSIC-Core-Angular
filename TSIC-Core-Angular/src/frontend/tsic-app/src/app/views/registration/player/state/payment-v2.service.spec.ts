@@ -47,6 +47,9 @@ function makeFinancials(overrides: Partial<RegistrationFinancialsDto> = {}): Reg
         feeTotal: 0,
         owedTotal: 0,
         paidTotal: 0,
+        echeckOwedTotal: 0,
+        feeAdj: 0,
+        tenderPaid: 0,
         ...overrides,
     };
 }

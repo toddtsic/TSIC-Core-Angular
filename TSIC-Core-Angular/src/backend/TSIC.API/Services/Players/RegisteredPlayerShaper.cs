@@ -110,6 +110,8 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
                 FeeTotal = p.FeeTotal,
                 PaidTotal = p.PaidTotal,
                 OwedTotal = p.OwedTotal,
+                FeeAdj = state.FeeAdjustment(p.FeeDiscount, p.FeeLatefee),
+                TenderPaid = state.TenderPaid,
                 Deposit = deposit,
                 BalanceDue = balanceDue,
                 DepositDue = depositDue,

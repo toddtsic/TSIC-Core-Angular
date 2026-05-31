@@ -32,9 +32,20 @@ export interface LineItem {
     feeProcessing: number;
     feeDiscount: number;
     feeLateFee: number;
+    /** Canonical signed Fee-Adj (PaymentState): lateFee − discount − correction. Late fee /
+     *  correction-charge positive; discount / correction-credit negative. Folds in the old
+     *  Discount column. */
+    feeAdj: number;
     feeTotal: number;
     paidTotal: number;
+    /** Real money received (PaymentState.TenderPaid) — excludes corrections, which surface in
+     *  feeAdj. The "Paid" column binds this, not paidTotal. */
+    tenderPaid: number;
     amount: number;
+    /** This line's charge if paid by eCheck (CC charge minus the eCheck proc-rate credit).
+     *  Equals `amount` when there's no credit (proc off, deposit phase, or a client PIF upgrade
+     *  the server's per-reg figure doesn't model). Display only — the backend recomputes. */
+    echeckAmount: number;
 }
 
 /**
@@ -222,6 +233,20 @@ export class PaymentV2Service {
     /** Check payment amount (total minus processing fees). */
     checkTotal = computed(() => Math.max(0, this.currentTotal() - this.processingFeeSavings()));
 
+    /**
+     * Amount saved by paying with eCheck instead of CC — the (CC − eCheck) proc-rate credit,
+     * summed per registration from the server-computed eCheck owed. Only the full-payment (PIF)
+     * path carries a credit; a deposit charge sits at/below principal and is debited the same
+     * by either method, so savings are zero there.
+     */
+    echeckSavings = computed(() => {
+        if (!this.jobCtx.bAddProcessingFees() || this.jobCtx.paymentOption() === 'Deposit') return 0;
+        return this.lineItems().reduce((sum, li) => sum + Math.max(0, li.amount - li.echeckAmount), 0);
+    });
+
+    /** eCheck payment amount (CC total minus the eCheck proc-rate savings). */
+    echeckTotal = computed(() => Math.max(0, this.currentTotal() - this.echeckSavings()));
+
     selectPaymentMethod(method: 'CC' | 'Echeck' | 'Check'): void {
         this._selectedPaymentMethod.set(method);
     }
@@ -359,9 +384,19 @@ export class PaymentV2Service {
         const feeProcessing = upgrade ? upgrade.feeProcessing : (financials ? toNumber(financials.feeProcessing) : 0);
         const feeDiscount = financials ? toNumber(financials.feeDiscount) : 0;
         const feeLateFee = financials ? toNumber(financials.feeLateFee) : 0;
+        // Canonical signed Fee-Adj from the server (lateFee − discount − correction). An upgrade
+        // re-derives base/proc but never touches lateFee/discount/corrections, so the server value
+        // still holds; new regs (no financials) have no adjustment.
+        const feeAdj = financials ? toNumber(financials.feeAdj) : 0;
         const feeTotal = upgrade ? upgrade.feeTotal : (financials ? toNumber(financials.feeTotal) : phasedTeamFee);
         const paidTotal = financials ? toNumber(financials.paidTotal) : 0;
+        // Real money received (excludes corrections) — the "Paid" column. New regs have paid nothing.
+        const tenderPaid = financials ? toNumber(financials.tenderPaid) : 0;
         const amount = upgrade ? upgrade.amount : (financials ? this.getAmountFromFinancials(financials) : phasedTeamFee);
+        // eCheck charge: the server's per-reg eCheck owed for an existing registration. A
+        // client-side PIF upgrade re-derives fees the server figure predates, so fall back to
+        // `amount` (no extra savings shown); new regs have no financials → also `amount`.
+        const echeckAmount = upgrade || !financials ? amount : toNumber(financials.echeckOwedTotal);
         return {
             playerId,
             playerName,
@@ -371,9 +406,12 @@ export class PaymentV2Service {
             feeProcessing,
             feeDiscount,
             feeLateFee,
+            feeAdj,
             feeTotal,
             paidTotal,
+            tenderPaid,
             amount,
+            echeckAmount,
         };
     }
 

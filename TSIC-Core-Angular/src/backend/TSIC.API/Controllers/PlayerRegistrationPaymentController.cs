@@ -33,6 +33,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IRegistrationRepository _registrations;
     private readonly IPlayerFeeCalculator _feeCalc;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
+    private readonly IPaymentStateService _paymentState;
 
     private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
 
@@ -44,6 +45,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         IRegistrationRepository registrations,
         IPlayerFeeCalculator feeCalc,
         IRegistrationFeeAdjustmentService feeAdjustment,
+        IPaymentStateService paymentState,
         ILogger<PlayerRegistrationPaymentController> logger)
     {
         _jobLookupService = jobLookupService;
@@ -53,6 +55,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         _registrations = registrations;
         _feeCalc = feeCalc;
         _feeAdjustment = feeAdjustment;
+        _paymentState = paymentState;
         _logger = logger;
     }
 
@@ -224,6 +227,8 @@ public class PlayerRegistrationPaymentController : ControllerBase
 
         // Create result entry for each requested player
         var updatedFinancials = new Dictionary<string, RegistrationFinancialsDto>();
+        // Job rates (once) so each updated financial carries the canonical eCheck-method owed.
+        var echeckState = await _paymentState.ForJobAsync(jobId.Value);
 
         foreach (var item in items)
         {
@@ -316,7 +321,11 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 FeeLateFee = reg.FeeLatefee,
                 FeeTotal = reg.FeeTotal,
                 OwedTotal = reg.OwedTotal,
-                PaidTotal = reg.PaidTotal
+                PaidTotal = reg.PaidTotal,
+                EcheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing).Echeck,
+                // Canonical Fee-Adj / TenderPaid (job-level state → no corrections in this path).
+                FeeAdj = echeckState.FeeAdjustment(reg.FeeDiscount, reg.FeeLatefee),
+                TenderPaid = reg.PaidTotal - echeckState.CorrectionApplied
             };
 
             results.Add(new PlayerDiscountResult

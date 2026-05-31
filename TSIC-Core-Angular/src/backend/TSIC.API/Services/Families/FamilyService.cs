@@ -28,6 +28,7 @@ public sealed class FamilyService : IFamilyService
     private readonly IUserRepository _userRepo;
     private readonly IJobDiscountCodeRepository _jobDiscountRepo;
     private readonly IFamilyMemberRepository _familyMemberRepo;
+    private readonly TSIC.Contracts.Services.IPaymentStateService _paymentState;
     private const string DateFormat = "yyyy-MM-dd";
 
     public FamilyService(
@@ -41,7 +42,8 @@ public sealed class FamilyService : IFamilyService
         IFamiliesRepository familiesRepo,
         IUserRepository userRepo,
         IJobDiscountCodeRepository jobDiscountRepo,
-        IFamilyMemberRepository familyMemberRepo)
+        IFamilyMemberRepository familyMemberRepo,
+        TSIC.Contracts.Services.IPaymentStateService paymentState)
     {
         _userManager = userManager;
         _profileMeta = profileMeta;
@@ -54,6 +56,7 @@ public sealed class FamilyService : IFamilyService
         _userRepo = userRepo;
         _jobDiscountRepo = jobDiscountRepo;
         _familyMemberRepo = familyMemberRepo;
+        _paymentState = paymentState;
     }
 
     public async Task<FamilyPlayersResponseDto> GetFamilyPlayersAsync(string familyUserId, string jobPath)
@@ -106,12 +109,17 @@ public sealed class FamilyService : IFamilyService
         // Build team name lookup
         var teamNameMap = await BuildTeamNameMapAsync(jobId, regsRaw);
 
+        // Job-level payment state (rates only) → lets BuildRegistrationDto surface each
+        // registration's eCheck-method owed via the canonical PaymentState.ResolveOwed, so the
+        // wizard's eCheck total equals exactly what the eCheck charge engine debits.
+        var echeckState = jobId != null ? await _paymentState.ForJobAsync(jobId.Value) : null;
+
         // Build registration DTOs by user
         var regsByUser = regsRaw
             .GroupBy(r => r.UserId!)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(r => BuildRegistrationDto(r, mappedFields, visibleFieldNames, teamNameMap)).ToList(),
+                g => g.Select(r => BuildRegistrationDto(r, mappedFields, visibleFieldNames, teamNameMap, echeckState)).ToList(),
                 StringComparer.Ordinal);
 
         // For players not yet registered in this job, compute latest defaults across ALL jobs.
@@ -728,10 +736,17 @@ public sealed class FamilyService : IFamilyService
         TSIC.Domain.Entities.Registrations r,
         List<(string Name, string DbColumn)> mappedFields,
         HashSet<string> visibleFieldNames,
-        Dictionary<Guid, string> teamNameMap)
+        Dictionary<Guid, string> teamNameMap,
+        TSIC.Contracts.Payments.PaymentState? echeckState)
     {
         var fv = FormValueMapper.BuildFormValuesDictionary(r, mappedFields);
         var formFieldValues = BuildVisibleFieldValues(fv, visibleFieldNames);
+
+        // eCheck-method owed from the single canonical resolver (== OwedTotal when proc fees
+        // are off or no job state is available).
+        var echeckOwedTotal = echeckState != null
+            ? echeckState.ResolveOwed(r.OwedTotal, r.FeeBase, r.FeeDiscount, r.FeeLatefee, r.FeeProcessing).Echeck
+            : r.OwedTotal;
 
         return new FamilyPlayerRegistrationDto
         {
@@ -746,7 +761,15 @@ public sealed class FamilyService : IFamilyService
                 FeeLateFee = r.FeeLatefee,
                 FeeTotal = r.FeeTotal,
                 OwedTotal = r.OwedTotal,
-                PaidTotal = r.PaidTotal
+                PaidTotal = r.PaidTotal,
+                EcheckOwedTotal = echeckOwedTotal,
+                // Canonical Fee-Adj / TenderPaid. The wizard's job-level state carries no
+                // per-registration corrections (admin-only, post-registration), so these reduce
+                // to lateFee − discount and the full PaidTotal — correct for the wizard context.
+                FeeAdj = echeckState != null
+                    ? echeckState.FeeAdjustment(r.FeeDiscount, r.FeeLatefee)
+                    : r.FeeLatefee - r.FeeDiscount,
+                TenderPaid = r.PaidTotal - (echeckState?.CorrectionApplied ?? 0m)
             },
             AssignedTeamId = r.AssignedTeamId,
             AssignedTeamName = r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value)

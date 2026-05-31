@@ -18,6 +18,8 @@ export type RegisteredTeamDto = {
     feeTotal: number;
     paidTotal: number;
     owedTotal: number;
+    feeAdj: number;
+    tenderPaid: number;
     deposit: number;
     balanceDue: number;
     depositDue: number;

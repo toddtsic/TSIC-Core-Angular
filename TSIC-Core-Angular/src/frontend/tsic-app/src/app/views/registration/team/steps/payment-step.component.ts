@@ -214,24 +214,6 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             </div>
           }
 
-          <!-- Processing fee savings callout -->
-          @if (isCheck() && processingFeeSavings() > 0) {
-            <div class="alert alert-success border-0 d-flex align-items-center gap-2 mb-3">
-              <i class="bi bi-piggy-bank fs-5"></i>
-              <div>
-                <strong>Save {{ processingFeeSavings() | currency }}</strong> in processing fees by paying with check.
-              </div>
-            </div>
-          }
-          @if (isEcheck() && echeckSavings() > 0) {
-            <div class="alert alert-success border-0 d-flex align-items-center gap-2 mb-3">
-              <i class="bi bi-piggy-bank fs-5"></i>
-              <div>
-                <strong>Save {{ echeckSavings() | currency }}</strong> in processing fees by paying with eCheck instead of card.
-              </div>
-            </div>
-          }
-
           <!-- ═══ VERTICAL INSURE / REGSAVER (CC-bearing methods only) ═══
                Per legacy: VI premium charged via the same CC the rep enters for TSIC,
                so the widget is visible only when a CC form is on screen (CC method
@@ -765,12 +747,10 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly arbTrialSource = computed(() => this.state.teamPayment.arbTrialSource());
     /** Show the CC/eCheck sub-picker only when both sources are available on this job. */
     readonly showArbTrialSourcePicker = computed(() => this.showCcButton() && this.showEcheckButton());
-    readonly processingFeeSavings = computed(() => this.state.teamPayment.processingFeeSavings());
     readonly checkAmount = computed(() => this.state.teamPayment.totalCkOwed());
     // eCheck total (lower than CC by the proc-rate spread) — what the rep is shown AND
     // submits. Must equal the engine's debit, so it comes from the server-computed total.
     readonly echeckAmount = computed(() => this.state.teamPayment.totalEkOwed());
-    readonly echeckSavings = computed(() => this.state.teamPayment.echeckProcessingFeeSavings());
     readonly payTo = computed(() => this.state.teamPayment.payTo());
     readonly mailTo = computed(() => this.state.teamPayment.mailTo());
     readonly mailinPaymentWarning = computed(() => this.state.teamPayment.mailinPaymentWarning());

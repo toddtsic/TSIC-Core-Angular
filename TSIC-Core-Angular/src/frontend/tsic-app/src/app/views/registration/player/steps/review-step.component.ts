@@ -104,6 +104,18 @@ import { JobService } from '@infrastructure/services/job.service';
         </div>
       </div>
 
+      <!-- eCheck pending heads-up (informational — the method is chosen on the next step) -->
+      @if (state.jobCtx.bEnableEcheck() && baseFeeTotal() > 0) {
+        <div class="review-echeck-note">
+          <i class="bi bi-bank"></i>
+          <div>
+            <div class="fw-semibold mb-1">Paying by eCheck?</div>
+            <div>If you pay by eCheck (bank account), your registration stays <strong>pending</strong> until
+              your bank confirms the debit — typically 3–5 business days.</div>
+          </div>
+        </div>
+      }
+
       <!-- Form details per player -->
       @for (player of selectedPlayers(); track player.userId) {
         @if (getFormFields(player.userId).length > 0) {
@@ -147,6 +159,21 @@ import { JobService } from '@infrastructure/services/job.service';
         font-size: var(--font-size-sm);
 
         i { font-size: var(--font-size-lg); flex-shrink: 0; margin-top: 2px; }
+      }
+
+      /* ── eCheck pending heads-up ──────────────────────── */
+      .review-echeck-note {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        border-radius: var(--radius-md);
+        background: color-mix(in srgb, var(--bs-primary) 8%, transparent);
+        border: 1px solid color-mix(in srgb, var(--bs-primary) 25%, transparent);
+        color: var(--brand-text);
+        font-size: var(--font-size-sm);
+
+        i { font-size: var(--font-size-lg); flex-shrink: 0; margin-top: 2px; color: var(--bs-primary); }
       }
 
       /* ── Section card ─────────────────────────────────── */

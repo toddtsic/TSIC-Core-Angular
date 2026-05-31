@@ -19,11 +19,12 @@ namespace TSIC.Tests.Payments;
 ///
 /// Covers:
 ///   • Happy path: PIF eCheck → ADN debit → RA + Settlement created (status Pending)
-///   • Multi-reg PIF: per-reg charges sum to total; one RA + Settlement per registration
+///   • Multi-reg PIF: ONE ADN debit per registration; one RA + Settlement per registration
+///   • Partial success: one reg captures, one declines → captured RA + Settlement, FAILED placeholder for the decline
 ///   • Validation: BEnableEcheck off → ECHECK_NOT_ENABLED
 ///   • Validation: ARB option → ARB_NOT_ECHECK
 ///   • Validation: missing/invalid bank fields → BANK_* error codes
-///   • Gateway failure → no RA, no Settlement
+///   • Gateway failure → FAILED placeholder RA (Active=false), no Settlement
 ///   • CC-symmetric eCheck (go-live 002, Issue 5): the gateway is debited the eCheck
 ///     gross — CC owed minus the (ccRate − echeckRate) proc credit — never the CC gross;
 ///     the credit is booked per registration so each reg's OwedTotal lands at 0.
@@ -88,6 +89,11 @@ public class EcheckPaymentServiceTests
     {
         _regRepo.Setup(r => r.GetByJobAndFamilyWithUsersAsync(jobId, FamilyUserId, true, It.IsAny<CancellationToken>()))
             .ReturnsAsync(regs.ToList());
+        // The canonical engine reloads by id (EF identity map in prod). Return the SAME
+        // instances so the test's reg variables observe the engine's mutations.
+        var byIds = regs.ToDictionary(r => r.RegistrationId);
+        _regRepo.Setup(r => r.GetByIdsAsync(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((List<Guid> ids, CancellationToken _) => ids.Where(byIds.ContainsKey).Select(id => byIds[id]).ToList());
     }
 
     private void StubAdnSuccess(string transId)
@@ -165,7 +171,7 @@ public class EcheckPaymentServiceTests
     }
 
     [Fact]
-    public async Task Happy_PIF_multipleRegs_oneChargeAndOneRaPlusSettlementPerReg()
+    public async Task Happy_PIF_multipleRegs_perRegChargeAndOneRaPlusSettlementPerReg()
     {
         var jobId = Guid.NewGuid();
         var reg1 = Reg(jobId, owed: 100m);
@@ -178,8 +184,10 @@ public class EcheckPaymentServiceTests
         var result = await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank()), ActingUserId);
 
         result.Success.Should().BeTrue();
-        // Single ADN debit for the combined total
-        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 350m)), Times.Once);
+        // ONE ADN debit PER registration (CC-symmetric) — never a bundled family debit.
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 100m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 250m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 350m)), Times.Never);
         _addedAccounting.Should().HaveCount(2);
         _addedAccounting.Sum(r => r.Payamt ?? 0m).Should().Be(350m);
         _addedAccounting.Should().OnlyContain(r => r.AdnTransactionId == "TX-AA");
@@ -275,7 +283,7 @@ public class EcheckPaymentServiceTests
     }
 
     [Fact]
-    public async Task GatewayFailure_returnsErrorAndWritesNoRaOrSettlement()
+    public async Task GatewayFailure_returnsError_writesFailedPlaceholderRa_noSettlement()
     {
         var jobId = Guid.NewGuid();
         var reg = Reg(jobId, owed: 100m);
@@ -288,7 +296,13 @@ public class EcheckPaymentServiceTests
 
         result.Success.Should().BeFalse();
         result.ErrorCode.Should().Be("CHARGE_GATEWAY_ERROR");
-        _addedAccounting.Should().BeEmpty();
+        // CC-symmetric audit trail: a declined eCheck leaves a FAILED placeholder RA (Active=false,
+        // Payamt=0, Comment="FAILED: …") instead of vanishing — the old bundled path wrote nothing.
+        _addedAccounting.Should().ContainSingle();
+        _addedAccounting[0].Active.Should().BeFalse();
+        _addedAccounting[0].Payamt.Should().Be(0m);
+        (_addedAccounting[0].Comment ?? "").Should().StartWith("FAILED");
+        // No settlement — only captured charges are tracked for clearance/NSF.
         _addedSettlements.Should().BeEmpty();
     }
 
@@ -317,18 +331,19 @@ public class EcheckPaymentServiceTests
         reg.OwedTotal.Should().Be(0m);                   // the bug left this non-zero
         reg.PaidTotal.Should().Be(1010m);
         reg.FeeProcessing.Should().Be(10m);              // 1000 × echeckRate (1%) proc retained
+        reg.FeeTotal.Should().Be(1010m);                 // FeeTotal dropped by the credit too — no phantom balance
         // Player path no longer routes through the fee-adjustment service — it computes the
         // credit inline (mirrors the team engine).
         _feeAdj.Verify(f => f.ReduceProcessingFeeForEcheckAsync(It.IsAny<Registrations>(), It.IsAny<decimal>(), It.IsAny<Guid>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
-    public async Task MultipleRegsWithProc_eachDebitedItsOwnEcheckGross_summedToOneAdnDebit()
+    public async Task MultipleRegsWithProc_eachDebitedItsOwnEcheckGross_perRegDebits()
     {
-        // Two regs with different fee structures: $311.40 and $519.00 CC owed. The single ADN
-        // debit must be the SUM of each reg's own eCheck gross ($303 + $505 = $808), and each
-        // RA must carry its own eCheck gross — proving the proc credit is per-reg proportional,
-        // not a pooled/averaged figure.
+        // Two regs with different fee structures: $311.40 and $519.00 CC owed. Each reg is
+        // debited its OWN eCheck gross in its OWN ADN transaction ($303 and $505) — proving the
+        // proc credit is per-reg proportional and the charge is per-registration (granular NSF),
+        // never a pooled/averaged/bundled figure.
         var jobId = Guid.NewGuid();
         var reg1 = Reg(jobId, owed: 300m, feeProcessing: 11.40m); // OwedTotal 311.40
         var reg2 = Reg(jobId, owed: 500m, feeProcessing: 19.00m); // OwedTotal 519.00
@@ -340,10 +355,37 @@ public class EcheckPaymentServiceTests
         var result = await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank()), ActingUserId);
 
         result.Success.Should().BeTrue();
-        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 808m)), Times.Once);
-        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 830.40m)), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 303m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 505m)), Times.Once);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.Is<AdnChargeBankAccountRequest>(r => r.Amount == 808m)), Times.Never);
         _addedAccounting.Select(r => r.Payamt).Should().BeEquivalentTo(new decimal?[] { 303m, 505m });
         reg1.OwedTotal.Should().Be(0m);
         reg2.OwedTotal.Should().Be(0m);
+    }
+
+    [Fact]
+    public async Task PartialSuccess_capturesFirstReg_marksSecondFailed_settlesOnlyTheCapture()
+    {
+        // Per-reg transactions mean a batch can split: reg1 clears, reg2 declines. The captured
+        // reg gets its RA + Settlement; the declined reg gets a FAILED placeholder and NO
+        // settlement. (The old bundled debit was all-or-nothing — one decline killed the family.)
+        var jobId = Guid.NewGuid();
+        var reg1 = Reg(jobId, owed: 100m);
+        var reg2 = Reg(jobId, owed: 250m);
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, reg1, reg2);
+        _adn.SetupSequence(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-OK", ResponseCode = "1", MessageForUser = "Approved" })
+            .Returns(new AdnTxnResult { Success = false, MessageForUser = "Declined" });
+        var sut = BuildSut();
+
+        var result = await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank()), ActingUserId);
+
+        result.Success.Should().BeFalse(); // any decline → overall failure; the parent retries the declined reg
+        _addedAccounting.Should().HaveCount(2);
+        _addedAccounting.Should().ContainSingle(r => r.Active == true && r.Payamt == 100m && r.AdnTransactionId == "TX-OK");
+        _addedAccounting.Should().ContainSingle(r => r.Active == false && (r.Comment ?? "").StartsWith("FAILED"));
+        _addedSettlements.Should().ContainSingle();
+        _addedSettlements[0].AdnTransactionId.Should().Be("TX-OK");
     }
 }

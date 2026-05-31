@@ -118,6 +118,7 @@ public class PaymentService : IPaymentService
     }
 
     private enum TeamChargeKind { Cc, Echeck }
+    private enum RegistrationChargeKind { Cc, Echeck }
 
     /// <summary>
     /// Shared per-team charge engine for the club-rep self-pay flows (CC and eCheck).
@@ -1027,13 +1028,24 @@ public class PaymentService : IPaymentService
         var bank = v.Bank!;
         var effective = v.Effective;
         await NormalizeFeesAsync(registrations, jobId);
+        // Snapshot the PRE-PIF fee posture BEFORE UpgradeRegistrationsToPifAsync mutates it, so a
+        // declined eCheck rolls back per-reg (CC-symmetric — see ExecutePrimaryChargeAsync). The
+        // canonical engine's pre-gateway placeholder-RA flush persists the PIF mutation, so
+        // without this a declined eCheck would strand the registration in PIF posture with no
+        // charge to back it.
+        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal)>? pifSnapshot = null;
         if (effective == PaymentOption.PIF)
+        {
+            pifSnapshot = registrations.ToDictionary(
+                r => r.RegistrationId,
+                r => (r.FeeBase, r.FeeProcessing, r.FeeTotal, r.OwedTotal));
             await UpgradeRegistrationsToPifAsync(registrations, jobId);
+        }
         var charges = await ComputeChargesAsync(registrations, effective);
         var total = charges.Values.Sum();
         if (total <= 0m)
             return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
-        return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges);
+        return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges, pifSnapshot);
     }
 
     private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, BankAccountInfo? Bank, PaymentOption Effective)> ValidateEcheckPaymentRequestAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
@@ -1088,121 +1100,76 @@ public class PaymentService : IPaymentService
         return (null, null);
     }
 
-    private async Task<PaymentResponseDto> ExecuteEcheckChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, BankAccountInfo bank, Dictionary<Guid, decimal> charges)
+    /// <summary>
+    /// eCheck (ACH) sibling of <see cref="ExecutePrimaryChargeAsync"/>. Routes the player
+    /// self-pay through the SAME canonical per-registration engine the CC path uses
+    /// (<see cref="ChargeRegistrationsCoreAsync"/> with <see cref="RegistrationChargeKind.Echeck"/>),
+    /// so eCheck inherits the placeholder-RA audit trail, the ResolveOwed amount tripwire,
+    /// per-registration transactions (granular refunds/NSF), and per-reg partial success.
+    /// The only eCheck-specific concerns left here are the PIF rollback-on-decline and the
+    /// pending-settlement confirmation email.
+    /// </summary>
+    private async Task<PaymentResponseDto> ExecuteEcheckChargeAsync(
+        Guid jobId, string familyUserId, PaymentRequestDto request, string userId,
+        List<Registrations> registrations, BankAccountInfo bank, Dictionary<Guid, decimal> charges,
+        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal)>? pifSnapshot)
     {
-        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
-        if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
-            return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
-        var env = _adnApiService.GetADNEnvironment();
-        var invoiceReg = registrations[0];
-        var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(jobId, invoiceReg.RegistrationId);
-        // CC-symmetric eCheck: each registration's gateway debit is its CC-inclusive charge
-        // minus the proc credit that converts the baked-in CC rate to the eCheck rate. The
-        // credit is booked against FeeProcessing/OwedTotal so the gateway is debited the
-        // eCheck gross — never the CC gross. PaymentState.ProcCreditForCharge owns the
-        // formula (raw rate-delta + AppliedProcCredit cap + per-charge embedded-proc cap)
-        // so deposit-below-principal partial-pays correctly resolve to a zero credit.
-        // See go-live 002 (Issue 5).
-        var regIds = registrations.Where(r => r.RegistrationId != Guid.Empty).Select(r => r.RegistrationId).ToList();
-        var states = await _paymentState.ForRegistrationsAsync(regIds, jobId);
-        var rateRef = states.Values.FirstOrDefault() ?? await _paymentState.ForRegistrationAsync(regIds[0], jobId);
-        var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);
-        var echeckCharges = new Dictionary<Guid, decimal>(charges.Count);
-        foreach (var reg in registrations)
+        var items = charges
+            .Where(kv => kv.Value > 0m && kv.Key != Guid.Empty)
+            .Select(kv => new RegistrationChargeItem { RegistrationId = kv.Key, Amount = kv.Value })
+            .ToList();
+
+        var result = await ChargeRegistrationsCoreAsync(
+            jobId, items, RegistrationChargeKind.Echeck, creditCard: null, bankAccount: bank, userId);
+
+        if (!result.Success)
         {
-            if (!charges.TryGetValue(reg.RegistrationId, out var ccCharge) || ccCharge <= 0m) continue;
-            var state = states.GetValueOrDefault(reg.RegistrationId) ?? emptyState;
-            var credit = state.ProcCreditForCharge(
-                ccCharge, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing, state.EcheckRate);
-            if (credit > 0m)
+            // Per-reg partial success applies: restore the pre-PIF posture ONLY for the
+            // registrations whose eCheck submission declined (a captured reg keeps its upgrade).
+            await RestoreFailedPifRegsAsync(registrations, pifSnapshot, result.Outcomes);
+            return new PaymentResponseDto
             {
-                reg.FeeProcessing -= credit;
-                reg.OwedTotal -= credit;
-            }
-            echeckCharges[reg.RegistrationId] = ccCharge - credit;
+                Success = false,
+                Message = result.Message ?? "eCheck submission failed",
+                ErrorCode = result.ErrorCode ?? "CHARGE_GATEWAY_ERROR"
+            };
         }
-        var echeckTotal = echeckCharges.Values.Sum();
-        var chargeResult = _adnApiService.ADN_ChargeBankAccount_Result(new AdnChargeBankAccountRequest
-        {
-            Env = env,
-            LoginId = credentials.AdnLoginId!,
-            TransactionKey = credentials.AdnTransactionKey!,
-            AccountType = bank.AccountType!,
-            RoutingNumber = bank.RoutingNumber!,
-            AccountNumber = bank.AccountNumber!,
-            NameOnAccount = bank.NameOnAccount!.Trim(),
-            FirstName = bank.FirstName!,
-            LastName = bank.LastName!,
-            Address = bank.Address!,
-            Zip = bank.Zip!,
-            Email = bank.Email!,
-            Phone = bank.Phone!,
-            Amount = echeckTotal,
-            InvoiceNumber = invoiceNumber,
-            Description = "Registration Payment"
-        });
-        if (!chargeResult.Success)
-            return new PaymentResponseDto { Success = false, Message = chargeResult.MessageForUser, ErrorCode = "CHARGE_GATEWAY_ERROR" };
-        var transId = chargeResult.TransactionId!;
-        UpdateRegistrationsForCharge(registrations, userId, echeckCharges);
-        var addedAccts = AddEcheckAccountingEntries(registrations, userId, transId, invoiceNumber, echeckCharges, bank);
-        await _registrations.SaveChangesAsync();
-        // Settlement rows reference RegistrationAccounting.AId, which is identity-generated —
-        // requires the RA inserts above to be saved first.
-        var nextCheckAt = DateTime.UtcNow.AddDays(1);
-        foreach (var ra in addedAccts)
-        {
-            _settleRepo.Add(new Settlement
-            {
-                SettlementId = Guid.NewGuid(),
-                RegistrationAccountingId = ra.AId,
-                AdnTransactionId = transId,
-                Status = "Pending",
-                SubmittedAt = DateTime.UtcNow,
-                NextCheckAt = nextCheckAt,
-                AccountLast4 = bank.AccountNumber!.Length >= 4 ? bank.AccountNumber[^4..] : bank.AccountNumber,
-                AccountType = bank.AccountType,
-                NameOnAccount = bank.NameOnAccount?.Trim(),
-                Modified = DateTime.UtcNow,
-                LebUserId = userId
-            });
-        }
-        await _settleRepo.SaveChangesAsync();
+
         await TrySendConfirmationEmailAsync(jobId, familyUserId, userId, isEcheckPending: true);
         return new PaymentResponseDto
         {
             Success = true,
             Message = "eCheck submitted; settlement pending (typically 3–5 business days).",
-            TransactionId = transId
+            TransactionId = result.TransactionId
         };
     }
 
-    private List<RegistrationAccounting> AddEcheckAccountingEntries(IEnumerable<Registrations> registrations, string userId, string adnTransactionId, string invoiceNumber, IReadOnlyDictionary<Guid, decimal> charges, BankAccountInfo bank)
+    /// <summary>
+    /// Restore the pre-PIF fee posture for the registrations whose charge declined. The
+    /// canonical engine's pre-gateway placeholder-RA flush persists the PIF mutation, so a
+    /// declined card/eCheck otherwise strands the registration in PIF posture with no charge
+    /// to back it. Captured registrations keep their upgraded posture. No-op when no PIF
+    /// snapshot was taken (Deposit path). Shared by the CC and eCheck self-pay wrappers.
+    /// </summary>
+    private async Task RestoreFailedPifRegsAsync(
+        IEnumerable<Registrations> registrations,
+        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal)>? pifSnapshot,
+        IReadOnlyList<RegistrationCcChargeOutcome> outcomes)
     {
-        var added = new List<RegistrationAccounting>();
-        var last4 = bank.AccountNumber!.Length >= 4 ? bank.AccountNumber[^4..] : bank.AccountNumber;
+        if (pifSnapshot == null) return;
+        var failedRegIds = outcomes.Where(o => !o.Success).Select(o => o.RegistrationId).ToHashSet();
+        var restored = false;
         foreach (var reg in registrations)
         {
-            if (reg.RegistrationId == Guid.Empty) continue;
-            if (!charges.TryGetValue(reg.RegistrationId, out var payAmt) || payAmt <= 0m) continue;
-            var ra = new RegistrationAccounting
-            {
-                RegistrationId = reg.RegistrationId,
-                Payamt = payAmt,
-                Paymeth = $"eCheck Payment — pending settlement (acct ****{last4})",
-                PaymentMethodId = EcheckPaymentMethodId,
-                Active = true,
-                Createdate = DateTime.Now,
-                Modified = DateTime.Now,
-                LebUserId = userId,
-                AdnTransactionId = adnTransactionId,
-                AdnInvoiceNo = invoiceNumber,
-                Comment = "eCheck Registration Payment (Pending Settlement)"
-            };
-            _acct.Add(ra);
-            added.Add(ra);
+            if (!failedRegIds.Contains(reg.RegistrationId)) continue;
+            if (!pifSnapshot.TryGetValue(reg.RegistrationId, out var snap)) continue;
+            reg.FeeBase       = snap.FeeBase;
+            reg.FeeProcessing = snap.FeeProcessing;
+            reg.FeeTotal      = snap.FeeTotal;
+            reg.OwedTotal     = snap.OwedTotal;
+            restored = true;
         }
-        return added;
+        if (restored) await _registrations.SaveChangesAsync();
     }
 
     /// <summary>
@@ -1318,10 +1285,31 @@ public class PaymentService : IPaymentService
     /// trips AMOUNT_MISMATCH and no gateway hit occurs. Caller-side concerns (RegSaver
     /// policy stamping, confirmation email) stay outside this method.
     /// </summary>
-    public async Task<RegistrationCcChargeResult> ChargeRegistrationsCcAsync(
+    public Task<RegistrationCcChargeResult> ChargeRegistrationsCcAsync(
         Guid jobId,
         IReadOnlyList<RegistrationChargeItem> items,
         CreditCardInfo creditCard,
+        string userId,
+        CancellationToken ct = default)
+        => ChargeRegistrationsCoreAsync(jobId, items, RegistrationChargeKind.Cc, creditCard, bankAccount: null, userId, ct);
+
+    /// <summary>
+    /// Canonical per-registration charge engine, shared by CC and eCheck (the <paramref name="kind"/>
+    /// switch) and by parent self-pay + admin charge. ONE ADN transaction per registration so
+    /// refunds and NSF returns stay granular. eCheck differs only by: the per-job eCheck rate
+    /// (the proc credit is backed out of FeeProcessing/FeeTotal so the gateway is debited the
+    /// eCheck gross, never the CC gross), the bankAccount gateway object, and a post-success
+    /// Settlement row per captured RA. Everything else — the placeholder-RA audit trail, the
+    /// ResolveOwed AMOUNT_MISMATCH tripwire, per-reg partial success, the PaidTotal/OwedTotal
+    /// bumps, the BActive flip — is identical across both methods. Caller-side concerns (RegSaver
+    /// stamping, confirmation email, PIF rollback) stay outside this method.
+    /// </summary>
+    private async Task<RegistrationCcChargeResult> ChargeRegistrationsCoreAsync(
+        Guid jobId,
+        IReadOnlyList<RegistrationChargeItem> items,
+        RegistrationChargeKind kind,
+        CreditCardInfo? creditCard,
+        BankAccountInfo? bankAccount,
         string userId,
         CancellationToken ct = default)
     {
@@ -1344,18 +1332,28 @@ public class PaymentService : IPaymentService
             ?? await _paymentState.ForRegistrationAsync(regIds[0], jobId, ct);
         var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);
         var regsById = registrations.ToDictionary(r => r.RegistrationId);
+        // Per-item plan: the method-correct gateway charge + the proc credit to back out.
+        // CC → credit 0, charge == item.Amount. eCheck → credit = ProcCreditForCharge (the
+        // CC-rate proc embedded in this charge converted to the eCheck rate), so the gateway
+        // is debited the eCheck gross while FeeProcessing/FeeTotal drop by the same credit.
+        var plan = new Dictionary<Guid, (decimal Charge, decimal Credit)>(items.Count);
         foreach (var item in items)
         {
             var reg = regsById[item.RegistrationId];
             var state = states.GetValueOrDefault(item.RegistrationId) ?? emptyState;
             var owed = state.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing);
-            // Tripwire: never charge more than the resolver currently shows for the CC
-            // bucket. Penny tolerance covers rounding between the display path and here.
+            // Tripwire: never charge more than the resolver currently shows for the CC bucket
+            // (item.Amount is always the CC-basis charge). Penny tolerance covers rounding
+            // between the display path and here.
             if (item.Amount > owed.Cc + 0.01m)
                 return FailCcResult(
                     "AMOUNT_MISMATCH",
                     $"Payment amount is out of date (requested {item.Amount:C}, now {owed.Cc:C}). Please refresh and try again.",
                     regIds);
+            var credit = kind == RegistrationChargeKind.Echeck
+                ? state.ProcCreditForCharge(item.Amount, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing, state.EcheckRate)
+                : 0m;
+            plan[item.RegistrationId] = (item.Amount - credit, credit);
         }
 
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
@@ -1366,14 +1364,15 @@ public class PaymentService : IPaymentService
         // Audit trail: placeholder RA rows exist in the DB BEFORE the gateway hit so a
         // declined card leaves a row with Active=false + Comment="FAILED: …" instead of
         // vanishing without record.
+        var methodId = kind == RegistrationChargeKind.Cc ? CcPaymentMethodId : EcheckPaymentMethodId;
         var rasByRegId = new Dictionary<Guid, RegistrationAccounting>(items.Count);
         foreach (var item in items)
         {
             var ra = new RegistrationAccounting
             {
                 RegistrationId = item.RegistrationId,
-                PaymentMethodId = CcPaymentMethodId,
-                Dueamt = item.Amount,
+                PaymentMethodId = methodId,
+                Dueamt = plan[item.RegistrationId].Charge,
                 Payamt = 0m,
                 Active = true,
                 Createdate = DateTime.UtcNow,
@@ -1385,8 +1384,16 @@ public class PaymentService : IPaymentService
         }
         await _acct.SaveChangesAsync();
 
-        var expiry = FormatExpiry(creditCard.Expiry!);
-        var last4 = Last4(creditCard.Number);
+        // CC-only card metadata; null for eCheck (a bank account has no expiry / card last-4).
+        var expiry = kind == RegistrationChargeKind.Cc ? FormatExpiry(creditCard!.Expiry!) : null;
+        var ccLast4 = kind == RegistrationChargeKind.Cc ? Last4(creditCard!.Number) : null;
+        var bankLast4 = bankAccount?.AccountNumber is { Length: >= 4 } bacct ? bacct[^4..] : bankAccount?.AccountNumber;
+        var bankNameOnAcct = bankAccount?.NameOnAccount?.Trim();
+        // eCheck collects a Settlement row per captured RA (after the post-loop flush, when
+        // RA.AId is assigned); null for CC.
+        var pendingSettlements = kind == RegistrationChargeKind.Echeck
+            ? new List<(RegistrationAccounting Ra, string TxId)>(items.Count)
+            : null;
 
         // Per-player charge: ONE ADN transaction per registration so refunds and
         // adjustments stay granular (mirrors legacy, which charged each player
@@ -1408,24 +1415,45 @@ public class PaymentService : IPaymentService
             var description = await BuildChargeDescriptionAsync(reg);
             firstInvoiceNo ??= invoiceNumber;
 
-            var chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
-            {
-                Env = env,
-                LoginId = credentials.AdnLoginId!,
-                TransactionKey = credentials.AdnTransactionKey!,
-                CardNumber = creditCard.Number!,
-                CardCode = creditCard.Code!,
-                Expiry = expiry,
-                FirstName = creditCard.FirstName!,
-                LastName = creditCard.LastName!,
-                Address = creditCard.Address!,
-                Zip = creditCard.Zip!,
-                Email = creditCard.Email!,
-                Phone = creditCard.Phone!,
-                Amount = item.Amount,
-                InvoiceNumber = invoiceNumber,
-                Description = description
-            });
+            var charge = plan[item.RegistrationId].Charge;
+            var chargeResult = kind == RegistrationChargeKind.Cc
+                ? _adnApiService.ADN_Charge_Result(new AdnChargeRequest
+                {
+                    Env = env,
+                    LoginId = credentials.AdnLoginId!,
+                    TransactionKey = credentials.AdnTransactionKey!,
+                    CardNumber = creditCard!.Number!,
+                    CardCode = creditCard.Code!,
+                    Expiry = expiry!,
+                    FirstName = creditCard.FirstName!,
+                    LastName = creditCard.LastName!,
+                    Address = creditCard.Address!,
+                    Zip = creditCard.Zip!,
+                    Email = creditCard.Email!,
+                    Phone = creditCard.Phone!,
+                    Amount = charge,
+                    InvoiceNumber = invoiceNumber,
+                    Description = description
+                })
+                : _adnApiService.ADN_ChargeBankAccount_Result(new AdnChargeBankAccountRequest
+                {
+                    Env = env,
+                    LoginId = credentials.AdnLoginId!,
+                    TransactionKey = credentials.AdnTransactionKey!,
+                    AccountType = bankAccount!.AccountType!,
+                    RoutingNumber = bankAccount.RoutingNumber!,
+                    AccountNumber = bankAccount.AccountNumber!,
+                    NameOnAccount = bankNameOnAcct!,
+                    FirstName = bankAccount.FirstName!,
+                    LastName = bankAccount.LastName!,
+                    Address = bankAccount.Address!,
+                    Zip = bankAccount.Zip!,
+                    Email = bankAccount.Email!,
+                    Phone = bankAccount.Phone!,
+                    Amount = charge,
+                    InvoiceNumber = invoiceNumber,
+                    Description = description
+                });
 
             if (!chargeResult.Success)
             {
@@ -1440,7 +1468,7 @@ public class PaymentService : IPaymentService
                     Success = false,
                     Error = err
                 });
-                _logger.LogWarning("Player CC charge declined: Job={JobId} Reg={RegId} Error={Error}", jobId, item.RegistrationId, err);
+                _logger.LogWarning("Player {Kind} charge declined: Job={JobId} Reg={RegId} Error={Error}", kind, jobId, item.RegistrationId, err);
                 continue;
             }
 
@@ -1448,16 +1476,30 @@ public class PaymentService : IPaymentService
             firstTransId ??= transId;
             succeeded++;
 
-            ra.Payamt = item.Amount;
+            var credit = plan[item.RegistrationId].Credit;
+            ra.Payamt = charge;
             ra.AdnTransactionId = transId;
             ra.AdnInvoiceNo = invoiceNumber;
-            ra.AdnCc4 = last4;
+            ra.AdnCc4 = ccLast4;
             ra.AdnCcexpDate = expiry;
-            ra.Paymeth = $"paid by cc: {item.Amount:C} on {DateTime.UtcNow:G} txID: {transId}";
-            ra.Comment = "Registration Payment";
+            ra.Paymeth = kind == RegistrationChargeKind.Cc
+                ? $"paid by cc: {charge:C} on {DateTime.UtcNow:G} txID: {transId}"
+                : $"eCheck pending settlement: {charge:C} on {DateTime.UtcNow:G} txID: {transId} (acct ****{bankLast4})";
+            ra.Comment = kind == RegistrationChargeKind.Cc
+                ? "Registration Payment"
+                : "eCheck Registration Payment (Pending Settlement)";
             ra.Modified = DateTime.UtcNow;
 
-            reg.PaidTotal += item.Amount;
+            // eCheck: convert the CC-rate proc embedded in this charge to the eCheck rate by
+            // dropping BOTH FeeProcessing and FeeTotal by the credit. Registrations has no
+            // RecalcTotals(), so FeeTotal must move explicitly — otherwise the OwedTotal
+            // recompute below leaves the rate delta as a phantom balance. No-op for CC.
+            if (credit > 0m)
+            {
+                reg.FeeProcessing -= credit;
+                reg.FeeTotal -= credit;
+            }
+            reg.PaidTotal += charge;
             reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
             if (reg.OwedTotal < 0m) reg.OwedTotal = 0m;
             // Flip the registration active. Pre-refactor parent CC went through
@@ -1468,11 +1510,13 @@ public class PaymentService : IPaymentService
             reg.Modified = DateTime.UtcNow;
             reg.LebUserId = userId;
 
+            pendingSettlements?.Add((ra, transId));
+
             outcomes.Add(new RegistrationCcChargeOutcome
             {
                 RegistrationId = item.RegistrationId,
                 Success = true,
-                ChargedAmount = item.Amount
+                ChargedAmount = charge
             });
         }
 
@@ -1481,10 +1525,36 @@ public class PaymentService : IPaymentService
         await _acct.SaveChangesAsync();
         await _registrations.SaveChangesAsync();
 
+        // eCheck-only: one Settlement row per captured RA so the daily sweep can detect
+        // clearance and NSF returns PER registration. RA.AId is identity-generated, so the
+        // flush above must precede this.
+        if (pendingSettlements is { Count: > 0 })
+        {
+            var nextCheckAt = DateTime.UtcNow.AddDays(1);
+            foreach (var (ra, txId) in pendingSettlements)
+            {
+                _settleRepo.Add(new Settlement
+                {
+                    SettlementId = Guid.NewGuid(),
+                    RegistrationAccountingId = ra.AId,
+                    AdnTransactionId = txId,
+                    Status = "Pending",
+                    SubmittedAt = DateTime.UtcNow,
+                    NextCheckAt = nextCheckAt,
+                    AccountLast4 = bankLast4,
+                    AccountType = bankAccount!.AccountType,
+                    NameOnAccount = bankNameOnAcct,
+                    Modified = DateTime.UtcNow,
+                    LebUserId = userId
+                });
+            }
+            await _settleRepo.SaveChangesAsync();
+        }
+
         var failed = items.Count - succeeded;
         if (failed == 0)
         {
-            _logger.LogInformation("Player CC charge OK: Job={JobId} Regs={Count} (per-player tx)", jobId, items.Count);
+            _logger.LogInformation("Player {Kind} charge OK: Job={JobId} Regs={Count} (per-reg tx)", kind, jobId, items.Count);
             return new RegistrationCcChargeResult
             {
                 Success = true,
@@ -1504,7 +1574,7 @@ public class PaymentService : IPaymentService
         var message = succeeded == 0
             ? (firstError ?? "Payment failed")
             : $"{succeeded} of {items.Count} registration payment(s) processed; {failed} declined.";
-        _logger.LogWarning("Player CC charge incomplete: Job={JobId} OK={Ok} Failed={Failed}", jobId, succeeded, failed);
+        _logger.LogWarning("Player {Kind} charge incomplete: Job={JobId} OK={Ok} Failed={Failed}", kind, jobId, succeeded, failed);
         return new RegistrationCcChargeResult
         {
             Success = false,
@@ -1554,23 +1624,7 @@ public class PaymentService : IPaymentService
             // Per-player charges can partially succeed. Restore the pre-PIF state ONLY
             // for the registrations whose charge declined — a player that captured paid
             // the PIF amount and must keep its upgraded FeeTotal/OwedTotal.
-            if (pifSnapshot != null)
-            {
-                var failedRegIds = result.Outcomes
-                    .Where(o => !o.Success)
-                    .Select(o => o.RegistrationId)
-                    .ToHashSet();
-                foreach (var reg in registrations)
-                {
-                    if (!failedRegIds.Contains(reg.RegistrationId)) continue;
-                    if (!pifSnapshot.TryGetValue(reg.RegistrationId, out var snap)) continue;
-                    reg.FeeBase       = snap.FeeBase;
-                    reg.FeeProcessing = snap.FeeProcessing;
-                    reg.FeeTotal      = snap.FeeTotal;
-                    reg.OwedTotal     = snap.OwedTotal;
-                }
-                await _registrations.SaveChangesAsync();
-            }
+            await RestoreFailedPifRegsAsync(registrations, pifSnapshot, result.Outcomes);
             return new PaymentResponseDto
             {
                 Success = false,
@@ -1797,21 +1851,6 @@ public class PaymentService : IPaymentService
         if (i <= 0) i = 1;
         var s = start ?? DateTime.Now.AddDays(1);
         return (o, i, s);
-    }
-
-    private static void UpdateRegistrationsForCharge(IEnumerable<Registrations> registrations, string userId, IReadOnlyDictionary<Guid, decimal> charges)
-    {
-        // Iterate once; apply all charge deltas. LINQ avoided to minimize allocations.
-        foreach (var reg in registrations)
-        {
-            if (reg.RegistrationId == Guid.Empty) continue;
-            if (!charges.TryGetValue(reg.RegistrationId, out var charge) || charge <= 0) continue;
-            reg.PaidTotal += charge;
-            reg.OwedTotal -= charge;
-            reg.BActive = true;
-            reg.Modified = DateTime.Now;
-            reg.LebUserId = userId;
-        }
     }
 
     private static void ApplyArbSuccessToRegistration(Registrations reg, string subscriptionId, decimal perOccurrence, short occur, short intervalLen, DateTime start, string userId)

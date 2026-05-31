@@ -20,6 +20,15 @@ public record RegistrationFinancialsDto
     public required decimal FeeTotal { get; init; }
     public required decimal OwedTotal { get; init; }
     public required decimal PaidTotal { get; init; }
+    // eCheck-method owed for this registration: OwedTotal minus the (CC − eCheck) proc-rate
+    // credit (== OwedTotal when proc fees are off). Computed by the canonical PaymentState
+    // .ResolveOwed so the displayed eCheck total equals what the eCheck charge engine debits.
+    public required decimal EcheckOwedTotal { get; init; }
+    // Canonical display decomposition (PaymentState): FeeAdj = lateFee − discount − correction
+    // (the unified signed "Fee-Adj" column, folding in the old Discount column); TenderPaid =
+    // real money received, excluding Correction-method rows. OwedTotal is unchanged.
+    public required decimal FeeAdj { get; init; }
+    public required decimal TenderPaid { get; init; }
 }
 
 // Minimal prior registration information for a player within the current job

@@ -50,6 +50,31 @@ public record PaymentState
     public decimal PrincipalPaid =>
         CcPrincipalPaid + EcheckPrincipalPaid + NonProcCarryingPaid;
 
+    // ── Display decomposition: corrections are adjustments, not tender ──
+    //
+    // A Correction-method row moves the balance exactly like a check (both += PaidTotal,
+    // both shrink proc) but it is an administrative ADJUSTMENT, not money received. So for
+    // display the canonical view splits the two apart, identically for every consumer
+    // (player + club-rep grids both read these, never their own arithmetic):
+    //
+    //   • TenderPaid  — real money in (CC + eCheck + check + cash); the "Paid" column.
+    //   • FeeAdjustment — the signed "Fee-Adj" column: a late fee reads positive, a
+    //     discount (incl. early-bird) reads negative, and a correction folds in by its
+    //     sign (a positive/credit correction reads negative, a negative/charge positive).
+    //
+    // Owed is untouched: OwedTotal = (FeeTotal − Correction) − TenderPaid still holds, so
+    // moving corrections from Paid → Fee-Adj re-presents the row without changing the balance.
+
+    /// <summary>Real money received — excludes Correction-method rows (those surface in Fee-Adj).</summary>
+    public decimal TenderPaid => CcGrossPaid + EcheckGrossPaid + CheckPaid + CashPaid;
+
+    /// <summary>
+    /// Signed net fee adjustment for the unified Fee-Adj column: <c>lateFee − discount − correction</c>.
+    /// Late fee / correction-charge read positive; discount / correction-credit read negative.
+    /// </summary>
+    public decimal FeeAdjustment(decimal discount, decimal lateFee) =>
+        lateFee - discount - CorrectionApplied;
+
     public decimal ProcCollected => CcProcCollected + EcheckProcCollected;
 
     // GrossPaid mirrors what gets summed into entity.PaidTotal at write time:
