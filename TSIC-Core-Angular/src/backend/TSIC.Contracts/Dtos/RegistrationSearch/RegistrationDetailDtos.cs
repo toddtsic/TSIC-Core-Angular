@@ -40,6 +40,11 @@ public record RegistrationDetailDto
     // Account username: for players = family account username, for non-players = registrant username
     public string? AccountUsername { get; init; }
 
+    // Family account id (AspNetUsers) linking sibling player registrations. Non-null for
+    // players registered under a family account — drives the family-accounting view in the
+    // detail panel. Null for adult/self registrations.
+    public string? FamilyUserId { get; init; }
+
     // Job sport (for sport-aware label rendering, e.g. "USA Lax Number" for Lacrosse)
     public string? SportName { get; init; }
 

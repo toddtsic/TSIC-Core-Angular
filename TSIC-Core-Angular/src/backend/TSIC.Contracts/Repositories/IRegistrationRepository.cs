@@ -233,6 +233,16 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Read-only per-child summary for the family-accounting view: every player a parent
+    /// registered for the job (keyed by JobId + FamilyUserId), with name and financial totals.
+    /// The parent-side analog of GetRegisteredTeamsForClubRepAndJobAsync.
+    /// </summary>
+    Task<List<FamilyPlayerAccountingDto>> GetFamilyPlayersForAccountingAsync(
+        Guid jobId,
+        string familyUserId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get registration with Job and Customer data for invoice building.
     /// </summary>
     Task<RegistrationWithInvoiceData?> GetRegistrationWithInvoiceDataAsync(

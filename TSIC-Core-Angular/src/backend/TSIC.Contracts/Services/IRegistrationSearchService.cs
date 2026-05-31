@@ -21,6 +21,13 @@ public interface IRegistrationSearchService
     Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<CadtClubNode>> GetCadtTreeAsync(Guid jobId, CancellationToken ct = default);
     Task<RegistrationDetailDto?> GetRegistrationDetailAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Family-wide accounting for the player whose detail panel is open: a combined ledger
+    /// across every player the parent registered for the job (keyed by JobId + FamilyUserId).
+    /// Returns null when the registration has no family link (adult/self registration).
+    /// </summary>
+    Task<FamilyAccountingDto?> GetFamilyAccountingAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);
     Task UpdateRegistrationProfileAsync(Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default);
     Task UpdateFamilyContactAsync(Guid jobId, string userId, UpdateFamilyContactRequest request, CancellationToken ct = default);
     Task UpdateUserDemographicsAsync(Guid jobId, string userId, UpdateUserDemographicsRequest request, CancellationToken ct = default);

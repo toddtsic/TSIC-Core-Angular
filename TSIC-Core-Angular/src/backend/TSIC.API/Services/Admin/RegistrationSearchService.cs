@@ -141,6 +141,51 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         return await _registrationRepo.GetRegistrationDetailAsync(registrationId, jobId, ct);
     }
 
+    public async Task<FamilyAccountingDto?> GetFamilyAccountingAsync(
+        Guid registrationId, Guid jobId, CancellationToken ct = default)
+    {
+        var anchor = await _registrationRepo.GetByIdAsync(registrationId, ct);
+        if (anchor == null || anchor.JobId != jobId) return null;
+        if (string.IsNullOrWhiteSpace(anchor.FamilyUserId)) return null;
+
+        var familyUserId = anchor.FamilyUserId;
+
+        // The sibling set — keyed by (JobId, FamilyUserId), the parent-side analog of the
+        // club rep's (JobId, ClubrepRegistrationid). Mirrors GetClubRepAccountingAsync.
+        var players = await _registrationRepo.GetFamilyPlayersForAccountingAsync(jobId, familyUserId, ct);
+        if (players.Count == 0) return null;
+
+        // Merge each child's ledger, stamping every row with its owning player — the family
+        // analog of the club-rep TeamId discriminator. Sequential awaits per child: these
+        // share one scoped DbContext, so Task.WhenAll would throw.
+        var records = new List<AccountingRecordDto>();
+        foreach (var p in players)
+        {
+            var recs = await _accountingRepo.GetByRegistrationIdAsync(p.RegistrationId, ct);
+            records.AddRange(recs.Select(r => r with
+            {
+                OwnerRegistrationId = p.RegistrationId,
+                OwnerName = p.PlayerName
+            }));
+        }
+
+        var family = await _familiesRepo.GetByFamilyUserIdAsync(familyUserId, ct);
+        var familyName = !string.IsNullOrWhiteSpace(family?.DadLastName) ? $"{family!.DadLastName} Family"
+            : !string.IsNullOrWhiteSpace(family?.MomLastName) ? $"{family!.MomLastName} Family"
+            : "Family";
+
+        return new FamilyAccountingDto
+        {
+            AnchorRegistrationId = registrationId,
+            FamilyName = familyName,
+            FeeTotal = players.Sum(p => p.FeeTotal),
+            PaidTotal = players.Sum(p => p.PaidTotal),
+            OwedTotal = players.Sum(p => p.OwedTotal),
+            Players = players,
+            AccountingRecords = records.OrderByDescending(r => r.Date).ToList()
+        };
+    }
+
     public async Task UpdateRegistrationProfileAsync(
         Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default)
     {

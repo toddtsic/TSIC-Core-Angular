@@ -484,6 +484,29 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<FamilyPlayerAccountingDto>> GetFamilyPlayersForAccountingAsync(
+        Guid jobId,
+        string familyUserId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                && r.FamilyUserId == familyUserId
+                && r.RoleId == RoleConstants.Player)
+            .OrderBy(r => r.User!.FirstName)
+            .Select(r => new FamilyPlayerAccountingDto
+            {
+                RegistrationId = r.RegistrationId,
+                PlayerName = ((r.User!.FirstName ?? "") + " " + (r.User.LastName ?? "")).Trim(),
+                FeeTotal = r.FeeTotal,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+                Active = r.BActive ?? false
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<RegistrationWithInvoiceData?> GetRegistrationWithInvoiceDataAsync(
         Guid registrationId,
         Guid jobId,
@@ -1984,6 +2007,7 @@ public class RegistrationRepository : IRegistrationRepository
             OwedTotal = reg.OwedTotal,
             ProfileValues = profileValues,
             AccountUsername = accountUsername,
+            FamilyUserId = reg.FamilyUserId,
             ProfileMetadataJson = reg.Job?.PlayerProfileMetadataJson,
             SportName = reg.Job?.Sport?.SportName,
             JsonOptions = reg.Job?.JsonOptions,

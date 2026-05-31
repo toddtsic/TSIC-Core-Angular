@@ -45,7 +45,7 @@
       @if (otherRecords().length > 0) {
         <tbody>
           <tr class="section-separator">
-            <td colspan="4"><em>Waitlisted / Dropped / Inactive</em></td>
+            <td colspan="4"><em>{{ otherBucketLabel() }}</em></td>
           </tr>
           @for (record of otherRecords(); track record.aId) {
             <ng-container *ngTemplateOutlet="txnRow; context: { $implicit: record }"></ng-container>
@@ -129,11 +129,13 @@
   </ng-template>
 
   <!-- ── Add Payment Button ── -->
-  <div class="ledger-footer">
-    <button type="button" class="btn btn-sm btn-outline-primary" (click)="openPaymentModal()">
-      + Add Accounting Record
-    </button>
-  </div>
+  @if (allowAdd()) {
+    <div class="ledger-footer">
+      <button type="button" class="btn btn-sm btn-outline-primary" (click)="openPaymentModal()">
+        + Add Accounting Record
+      </button>
+    </div>
+  }
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -163,7 +165,7 @@
             <div class="refund-details">
               @if (teamNameFor(rec)) {
                 <div class="refund-detail-row">
-                  <span class="refund-label"><i class="bi bi-people me-1"></i>Team</span>
+                  <span class="refund-label"><i class="bi bi-people me-1"></i>{{ groupHeading() }}</span>
                   <span class="refund-value">{{ teamNameFor(rec) }}</span>
                 </div>
               }

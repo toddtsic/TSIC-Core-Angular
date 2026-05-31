@@ -31,7 +31,8 @@ import type {
 	RegistrationCheckOrCorrectionRequest,
 	RegistrationCheckOrCorrectionResponse,
 	EditAccountingRecordRequest,
-	SubscriptionDetailDto
+	SubscriptionDetailDto,
+	FamilyAccountingDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -70,7 +71,9 @@ export type {
 	RegistrationCheckOrCorrectionResponse,
 	EditAccountingRecordRequest,
 	SubscriptionDetailDto,
-	CreditCardInfo
+	CreditCardInfo,
+	FamilyAccountingDto,
+	FamilyPlayerAccountingDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -94,6 +97,11 @@ export class RegistrationSearchService {
 
 	getRegistrationDetail(registrationId: string): Observable<RegistrationDetailDto> {
 		return this.http.get<RegistrationDetailDto>(`${this.apiUrl}/${registrationId}`);
+	}
+
+	/** Combined accounting across every player the parent registered for the job. */
+	getFamilyAccounting(registrationId: string): Observable<FamilyAccountingDto> {
+		return this.http.get<FamilyAccountingDto>(`${this.apiUrl}/${registrationId}/family-accounting`);
 	}
 
 	updateProfile(registrationId: string, request: UpdateRegistrationProfileRequest): Observable<void> {

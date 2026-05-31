@@ -111,6 +111,21 @@ public class RegistrationSearchController : ControllerBase
         return Ok(detail);
     }
 
+    [HttpGet("{registrationId:guid}/family-accounting")]
+    public async Task<ActionResult<FamilyAccountingDto>> GetFamilyAccounting(
+        Guid registrationId, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = RegistrationContextRequired });
+
+        var result = await _searchService.GetFamilyAccountingAsync(registrationId, jobId.Value, ct);
+        if (result == null)
+            return NotFound();
+
+        return Ok(result);
+    }
+
     [HttpPut("{registrationId:guid}/profile")]
     public async Task<ActionResult> UpdateProfile(
         Guid registrationId, [FromBody] UpdateRegistrationProfileRequest request, CancellationToken ct)

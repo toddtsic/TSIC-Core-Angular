@@ -9,6 +9,18 @@ public record AccountingRecordDto
 {
     public required int AId { get; init; }
     public Guid? TeamId { get; init; }
+
+    /// <summary>
+    /// Owning child registration for the aggregated family-accounting view — the
+    /// analog of <see cref="TeamId"/> on the club-rep path. Lets the shared ledger
+    /// bucket and label a combined family ledger by player. Null on the single-player
+    /// and club-rep paths.
+    /// </summary>
+    public Guid? OwnerRegistrationId { get; init; }
+
+    /// <summary>Display name of the owning child (family path only); null otherwise.</summary>
+    public string? OwnerName { get; init; }
+
     public required DateTime? Date { get; init; }
     public required string PaymentMethod { get; init; }
     public required decimal? DueAmount { get; init; }

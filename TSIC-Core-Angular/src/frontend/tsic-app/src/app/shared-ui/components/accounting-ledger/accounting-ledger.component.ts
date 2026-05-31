@@ -25,6 +25,17 @@ export interface RefundEvent {
 	refundAmount: number;
 }
 
+/**
+ * Neutral grouping unit for bucketing + per-row attribution in the ledger. The club-rep
+ * path groups by team; the family path groups by child player. `key` matches a record's
+ * discriminator (teamId or ownerRegistrationId); `active` drives the active-vs-other split.
+ */
+export interface LedgerGroup {
+	key: string;
+	label: string;
+	active: boolean;
+}
+
 
 @Component({
 	selector: 'app-accounting-ledger',
@@ -50,34 +61,60 @@ export class AccountingLedgerComponent {
 	 *  per-method breakdown (e.g. individual registrations). */
 	checkOwed = input<number | undefined>(undefined);
 
-	/** Club team breakdown for payment modal (teams only, optional) */
+	/** Club team breakdown for the payment modal's distribution previews (teams only, optional) */
 	clubBreakdown = input<RegisteredTeamDto[] | undefined>(undefined);
 
-	/** IDs of teams that are waitlisted, dropped, or inactive */
-	private otherTeamIds = computed(() => {
-		const breakdown = this.clubBreakdown();
-		if (!breakdown) return new Set<string>();
-		return new Set(
-			breakdown
-				.filter(t => !t.active
-					|| t.ageGroupName.toUpperCase().startsWith('WAITLIST')
-					|| t.ageGroupName.toUpperCase().startsWith('DROPPED'))
-				.map(t => t.teamId)
-		);
+	/** Explicit grouping for bucketing/labeling (family path). When omitted, groups are
+	 *  derived from clubBreakdown (team path). */
+	groups = input<LedgerGroup[] | undefined>(undefined);
+
+	/** Heading for the "other" (excluded-from-active) bucket and the refund modal's group row. */
+	otherBucketLabel = input<string>('Waitlisted / Dropped / Inactive');
+	groupHeading = input<string>('Team');
+
+	/** Shows the "+ Add Accounting Record" button. Off for the aggregated family scope,
+	 *  whose family-wide charge is a fast-follow; per-row refunds remain available. */
+	allowAdd = input<boolean>(true);
+
+	/** Unified grouping source: explicit groups, else derived from the team breakdown,
+	 *  else none. Keeps the club-rep caller unchanged (it still passes clubBreakdown only). */
+	private effectiveGroups = computed<LedgerGroup[]>(() => {
+		const g = this.groups();
+		if (g) return g;
+		const cb = this.clubBreakdown();
+		if (cb) return cb.map(t => ({
+			key: t.teamId,
+			label: t.ageGroupName ? `${t.ageGroupName} · ${t.teamName}` : t.teamName,
+			active: t.active
+				&& !t.ageGroupName.toUpperCase().startsWith('WAITLIST')
+				&& !t.ageGroupName.toUpperCase().startsWith('DROPPED')
+		}));
+		return [];
 	});
 
-	/** Active team records */
+	/** A record's group discriminator. The family path (explicit groups) keys by the owning
+	 *  child; the team path keys by team. Selecting by path avoids a stray teamId on a player
+	 *  record shadowing its ownerRegistrationId. */
+	private recordKey(r: AccountingRecordDto): string | null {
+		return this.groups() ? (r.ownerRegistrationId ?? null) : (r.teamId ?? null);
+	}
+
+	/** Group keys excluded from the active bucket (waitlist/dropped/inactive / inactive child). */
+	private otherGroupKeys = computed(() =>
+		new Set(this.effectiveGroups().filter(g => !g.active).map(g => g.key)));
+
+	/** Active records */
 	activeRecords = computed(() => {
-		const other = this.otherTeamIds();
+		const other = this.otherGroupKeys();
 		if (other.size === 0) return this.records();
-		return this.records().filter(r => !r.teamId || !other.has(r.teamId));
+		return this.records().filter(r => { const k = this.recordKey(r); return !k || !other.has(k); });
 	});
 
-	/** Waitlisted / Dropped / Inactive team records */
+	/** Records belonging to excluded groups */
 	otherRecords = computed(() => {
-		const other = this.otherTeamIds();
+		const other = this.otherGroupKeys();
 		if (other.size === 0) return [];
-		return this.records().filter(r => r.teamId && other.has(r.teamId));
+		return this.records().filter(r => { const k = this.recordKey(r); return k != null && other.has(k); });
 	});
 
 	// ── Outputs (callback pattern — parent handles API calls) ──
@@ -119,14 +156,11 @@ export class AccountingLedgerComponent {
 		this.popoverAId.set(null);
 	}
 
-	/** Resolve team name from clubBreakdown by record's teamId. */
+	/** Resolve a record's group label (team name, or family player name). */
 	teamNameFor(record: AccountingRecordDto): string | null {
-		if (!record.teamId) return null;
-		const teams = this.clubBreakdown();
-		if (!teams) return null;
-		const team = teams.find(t => t.teamId === record.teamId);
-		if (!team) return null;
-		return team.ageGroupName ? `${team.ageGroupName} · ${team.teamName}` : team.teamName;
+		const k = this.recordKey(record);
+		if (!k) return null;
+		return this.effectiveGroups().find(g => g.key === k)?.label ?? null;
 	}
 
 	/** True if this record has any detail worth showing in the popover. */

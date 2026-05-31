@@ -358,6 +358,11 @@
               [clubRepRegistrationId]="reg.registrationId"
               (paymentComplete)="saved.emit()">
             </app-club-rep-payment>
+          } @else if (isFamilyPlayer()) {
+            <app-family-payment
+              [registrationId]="reg.registrationId"
+              (paymentComplete)="saved.emit()">
+            </app-family-payment>
           } @else {
             <app-accounting-ledger
               [records]="reg.accountingRecords"

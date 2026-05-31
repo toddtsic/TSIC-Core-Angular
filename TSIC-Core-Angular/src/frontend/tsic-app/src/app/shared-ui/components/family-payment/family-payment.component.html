@@ -1,0 +1,65 @@
+@if (isLoading()) {
+  <div class="text-center py-4">
+    <span class="spinner-border spinner-border-sm me-2"></span>
+    Loading accounting data...
+  </div>
+} @else if (loadError()) {
+  <div class="alert alert-danger">{{ loadError() }}</div>
+} @else if (data(); as d) {
+
+  <!-- Scope Selector (shown when the family has multiple players) -->
+  @if (playerCount() > 1) {
+    <div class="scope-selector">
+      <button type="button" class="scope-btn" [class.active]="scope() === 'player'" (click)="setScope('player')">
+        This Player: {{ selectedPlayer()?.playerName }}
+      </button>
+      <button type="button" class="scope-btn scope-btn-family" [class.active]="scope() === 'family'" (click)="setScope('family')">
+        All Family Players: {{ familyName() }} ({{ playerCount() }} players, {{ familyOwedTotal() | currency }} owed)
+      </button>
+    </div>
+  }
+
+  <!-- Per-Player Breakdown — the family analog of the club teams grid. Active players in
+       family scope, the single selected player in player scope. -->
+  @if (gridPlayers().length) {
+    <div class="family-summary-card">
+      <h5 class="section-title">{{ scope() === 'player' ? 'Player Breakdown' : 'Family Players Breakdown' }}</h5>
+      <app-family-players-grid [players]="gridPlayers()" />
+
+      <!-- Inactive players — reference-only, excluded from totals, collapsed by default. -->
+      @if (scope() === 'family' && inactivePlayers().length) {
+        <button type="button" class="other-players-toggle" (click)="showInactive.set(!showInactive())">
+          <i class="bi" [class.bi-chevron-right]="!showInactive()" [class.bi-chevron-down]="showInactive()"></i>
+          {{ inactivePlayers().length }} inactive
+        </button>
+        @if (showInactive()) {
+          <div class="other-players-grid">
+            <app-family-players-grid [players]="inactivePlayers()" />
+          </div>
+        }
+      }
+    </div>
+  }
+
+  <!-- Payment Ledger -->
+  <app-accounting-ledger
+    [records]="accountingRecords()"
+    [feeTotal]="feeTotal()"
+    [paidTotal]="paidTotal()"
+    [owedTotal]="owedTotal()"
+    [groups]="ledgerGroups()"
+    [groupHeading]="'Player'"
+    [otherBucketLabel]="'Inactive players'"
+    [allowAdd]="scope() === 'player'"
+    (refundSubmitted)="onRefundSubmitted($event)"
+    (ccChargeSubmitted)="onCcCharge($event)"
+    (checkSubmitted)="onCheckSubmitted($event)">
+  </app-accounting-ledger>
+
+  @if (scope() === 'family') {
+    <p class="family-scope-hint">
+      <i class="bi bi-info-circle me-1"></i>
+      Showing the whole family. Switch to a single player to add a payment or charge a card.
+    </p>
+  }
+}

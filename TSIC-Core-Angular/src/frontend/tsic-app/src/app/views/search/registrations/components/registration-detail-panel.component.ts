@@ -9,6 +9,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
+import { FamilyPaymentComponent } from '@shared-ui/components/family-payment/family-payment.component';
 
 type TabType = 'details' | 'accounting' | 'email';
 
@@ -72,7 +73,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent],
+  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -118,6 +119,9 @@ export class RegistrationDetailPanelComponent {
   // Role detection
   isPlayerRole = signal<boolean>(false);
   isClubRep = computed(() => this.detail()?.isClubRep === true);
+
+  /** Player registered under a family account → show the combined family-accounting view. */
+  isFamilyPlayer = computed(() => this.isPlayerRole() && !!this.detail()?.familyUserId);
 
   // Editable profile fields (excludes team selection, reorders for lacrosse)
   editableProfileFields = computed(() => {
