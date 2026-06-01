@@ -21,6 +21,7 @@ using TSIC.API.Services.Shared.UsLax;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.Domain.Constants;
+using TSIC.Application.Services.Shared.Discount;
 
 namespace TSIC.API.Controllers;
 
@@ -930,7 +931,7 @@ public class TeamRegistrationController : ControllerBase
             };
         }
 
-        var discountAmount = CalculateDiscountAmount(bAsPercent, amount, team.FeeBase ?? 0m);
+        var discountAmount = DiscountCalculator.Calculate(team.FeeBase ?? 0m, amount, bAsPercent);
 
         if (discountAmount <= 0m)
         {
@@ -984,17 +985,6 @@ public class TeamRegistrationController : ControllerBase
             Message = $"Discount applied: {discountAmount:C}",
             DiscountCodeId = discountCodeId
         };
-    }
-
-    private static decimal CalculateDiscountAmount(bool bAsPercent, decimal amount, decimal feeBase)
-    {
-        if (bAsPercent)
-        {
-            var pct = amount / 100m;
-            return Math.Round(feeBase * pct, 2, MidpointRounding.AwayFromZero);
-        }
-
-        return amount;
     }
 }
 

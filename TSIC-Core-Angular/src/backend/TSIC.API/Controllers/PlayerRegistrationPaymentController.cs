@@ -18,6 +18,7 @@ using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Application.Services.Shared.Discount;
 
 namespace TSIC.API.Controllers;
 
@@ -195,31 +196,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
             });
         }
 
-        var perPlayer = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        decimal totalDiscount;
-
-        if (bAsPercent ?? false)
-        {
-            var pct = amount / 100m;
-            foreach (var it in items)
-            {
-                var d = Math.Round(it.Amount * pct, 2, MidpointRounding.AwayFromZero);
-                if (d > 0m) perPlayer[it.PlayerId] = d;
-            }
-            totalDiscount = perPlayer.Values.Sum();
-        }
-        else
-        {
-            // Absolute discount: apply full amount to each player (capped at their fee).
-            // Legacy parity — each player receives the full code amount individually.
-            foreach (var it in items)
-            {
-                var d = Math.Min(amount, it.Amount);
-                d = Math.Round(d, 2, MidpointRounding.AwayFromZero);
-                if (d > 0m) perPlayer[it.PlayerId] = d;
-            }
-            totalDiscount = perPlayer.Values.Sum();
-        }
+        decimal totalDiscount = 0m;
 
         // Persist discount to registrations and track per-player results
         var requestedPlayerIds = new HashSet<string>(items.Select(i => i.PlayerId).Where(p => !string.IsNullOrWhiteSpace(p)), StringComparer.OrdinalIgnoreCase);
@@ -262,8 +239,10 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 continue;
             }
 
-            // Check if discount exists for this player
-            if (!perPlayer.TryGetValue(item.PlayerId, out var d) || d <= 0m)
+            // Discount base is the server-side FeeBase, never the client-submitted (proc-inclusive)
+            // amount. Computed via the single canonical calculator shared with the team path.
+            var d = DiscountCalculator.Calculate(reg.FeeBase, amount, bAsPercent ?? false);
+            if (d <= 0m)
             {
                 results.Add(new PlayerDiscountResult
                 {
@@ -328,6 +307,8 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 FeeAdj = echeckState.FeeAdjustment(reg.FeeDiscount, reg.FeeLatefee),
                 TenderPaid = reg.PaidTotal - echeckState.CorrectionApplied
             };
+
+            totalDiscount += d;
 
             results.Add(new PlayerDiscountResult
             {

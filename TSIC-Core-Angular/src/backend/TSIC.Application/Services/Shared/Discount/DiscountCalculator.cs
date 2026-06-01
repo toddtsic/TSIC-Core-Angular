@@ -29,7 +29,7 @@ public static class DiscountCalculator
         {
             // Percentage discount: convert to decimal (e.g., 10% = 0.10)
             var percentage = discountValue / 100m;
-            discount = Math.Round(baseAmount * percentage, 2);
+            discount = Math.Round(baseAmount * percentage, 2, MidpointRounding.AwayFromZero);
         }
         else
         {
