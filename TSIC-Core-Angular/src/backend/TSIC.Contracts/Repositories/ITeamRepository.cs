@@ -115,6 +115,14 @@ public interface ITeamRepository
     Task<List<Teams>> GetTeamsForJobAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Map assigned team IDs to their division name (Teams.DivId → Divisions.DivName).
+    /// Used to distinguish genuinely "pending" registrations (Unassigned division) from
+    /// dropped/waitlist registrations, which use other division names. Value is null when
+    /// the team has no division.
+    /// </summary>
+    Task<Dictionary<Guid, string?>> GetTeamDivisionNamesAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Find teams in a job by a set of team names (case-insensitive). Used for waitlist mirror lookups.
     /// </summary>
     Task<List<Teams>> GetTeamsForJobByNamesAsync(Guid jobId, IReadOnlyCollection<string> teamNames, CancellationToken cancellationToken = default);

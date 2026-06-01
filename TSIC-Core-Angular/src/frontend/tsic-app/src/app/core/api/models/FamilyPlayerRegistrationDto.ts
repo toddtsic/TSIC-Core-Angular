@@ -6,6 +6,7 @@ import type { RegistrationFinancialsDto } from './RegistrationFinancialsDto';
 export type FamilyPlayerRegistrationDto = {
     registrationId: string;
     active: boolean;
+    isPending: boolean;
     financials: RegistrationFinancialsDto;
     assignedTeamId?: string | null;
     assignedTeamName?: string | null;

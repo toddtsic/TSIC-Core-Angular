@@ -404,6 +404,7 @@ export class RegistrationWizardService {
                 return {
                     registrationId: getPropertyCI<string>(r, 'registrationId') ?? '',
                     active: !!getPropertyCI<boolean>(r, 'active'),
+                    isPending: !!getPropertyCI<boolean>(r, 'isPending'),
                     financials: {
                         feeBase: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeBase') ?? 0),
                         feeProcessing: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeProcessing') ?? 0),

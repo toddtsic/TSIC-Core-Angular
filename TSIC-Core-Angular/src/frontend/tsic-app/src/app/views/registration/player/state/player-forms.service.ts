@@ -94,7 +94,9 @@ export class PlayerFormsService {
         this._playerFormValues.set(current);
     }
 
-    /** Seed form values from prior registrations (registered players). */
+    /** Seed form values from a prior registration for THIS job — active OR inactive
+     *  (abandoned/pending). Lets a returning registrant rehydrate job-specific fields
+     *  (e.g. grad year) that cross-job defaults intentionally exclude. */
     seedFromPriorRegistrations(
         schemas: PlayerProfileFieldSchema[],
         players: FamilyPlayerDto[],
@@ -103,9 +105,15 @@ export class PlayerFormsService {
             const current = { ...this._playerFormValues() } as Record<string, Record<string, PlayerFormFieldValue>>;
             const schemaNameByLower = this.buildSchemaLookup(schemas);
             for (const player of players) {
-                if (!player.registered || !player.priorRegistrations?.length) continue;
+                // Rehydrate only from a usable prior reg for this job: active, or genuinely
+                // pending (created at PreSubmit, never paid — isPending). Dropped/Waitlist priors
+                // (inactive + non-Unassigned division) are excluded so we don't restore stale
+                // field values from a registration the player was removed from.
+                // priorRegistrations is current-job-only (server filters by jobId).
                 if (!current[player.playerId]) continue;
-                const latestRegistration = player.priorRegistrations.at(-1);
+                const usable = (player.priorRegistrations ?? []).filter(r => r.active || r.isPending);
+                if (!usable.length) continue;
+                const latestRegistration = usable.at(-1);
                 const formFieldValues = latestRegistration?.formFieldValues || {};
                 this.copyFormFieldValues(formFieldValues, current[player.playerId], schemaNameByLower);
             }

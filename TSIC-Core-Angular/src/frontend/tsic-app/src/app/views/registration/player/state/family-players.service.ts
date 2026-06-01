@@ -160,8 +160,11 @@ export class FamilyPlayersService {
     ): void {
         const teamMap: Record<string, string | string[]> = { ...currentTeams };
         for (const fp of players) {
-            if (!fp.registered) continue;
+            // Rehydrate teams only from usable prior regs for this job: active, or genuinely
+            // pending (PreSubmit, never paid — isPending). Dropped/Waitlist priors are excluded
+            // so a returning registrant isn't re-assigned to a team they were dropped from.
             const teamIds = fp.priorRegistrations
+                .filter(r => r.active || r.isPending)
                 .map(r => r.assignedTeamId)
                 .filter((id): id is string => typeof id === 'string' && !!id);
             if (!teamIds.length) continue;
@@ -287,6 +290,7 @@ export class FamilyPlayersService {
                 return {
                     registrationId: getPropertyCI<string>(reg, 'registrationId') ?? '',
                     active: !!getPropertyCI<boolean>(reg, 'active'),
+                    isPending: !!getPropertyCI<boolean>(reg, 'isPending'),
                     financials: {
                         feeBase: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeBase') ?? 0),
                         feeProcessing: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeProcessing') ?? 0),

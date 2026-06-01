@@ -41,6 +41,16 @@ public class TeamRepository : ITeamRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<Dictionary<Guid, string?>> GetTeamDivisionNamesAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        // Div is a nullable nav → EF emits a LEFT JOIN; DivName is null when the team has no division.
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+            .Select(t => new { t.TeamId, DivName = t.Div != null ? t.Div.DivName : null })
+            .ToDictionaryAsync(x => x.TeamId, x => x.DivName, cancellationToken);
+    }
+
     public async Task<List<Teams>> GetTeamsForJobByNamesAsync(Guid jobId, IReadOnlyCollection<string> teamNames, CancellationToken cancellationToken = default)
     {
         return await _context.Teams

@@ -192,6 +192,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 75 }),
                         formFieldValues: {},
@@ -289,6 +290,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 50 }),
                         formFieldValues: {},
@@ -323,6 +325,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 50 }),
                         formFieldValues: {},
@@ -415,6 +418,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 495, feeBase: 595, feeDiscount: 100, feeTotal: 495 }),
                         formFieldValues: {},
@@ -436,6 +440,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 0, feeBase: 595, feeDiscount: 595, feeTotal: 0 }),
                         formFieldValues: {},
@@ -466,6 +471,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 400, feeBase: 595, feeDiscount: 195, feeTotal: 400 }),
                         formFieldValues: {},
@@ -478,6 +484,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r2',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't2',
                         financials: makeFinancials({ owedTotal: 200, feeBase: 400, feeDiscount: 200, feeTotal: 200 }),
                         formFieldValues: {},
@@ -501,6 +508,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 495, feeBase: 595, feeDiscount: 100, feeTotal: 495 }),
                         formFieldValues: {},
@@ -523,6 +531,7 @@ describe('PaymentV2Service', () => {
                     priorRegistrations: [{
                         registrationId: 'r1',
                         active: true,
+                        isPending: false,
                         assignedTeamId: 't1',
                         financials: makeFinancials({ owedTotal: 495, feeBase: 595, feeDiscount: 100, feeTotal: 495 }),
                         formFieldValues: {},

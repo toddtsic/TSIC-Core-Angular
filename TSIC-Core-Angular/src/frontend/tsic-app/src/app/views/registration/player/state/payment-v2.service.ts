@@ -275,10 +275,19 @@ export class PaymentV2Service {
     applyDiscount(code: string): void {
         if (!code || this._discountApplying()) return;
         const option = this.jobCtx.paymentOption();
-        const items: ApplyDiscountItemDto[] = this.lineItems().map(li => ({
-            playerId: li.playerId,
-            amount: option === 'Deposit' ? this.getDepositForPlayer(li.playerId) : li.amount,
-        }));
+        // Each item's amount must equal what that line actually contributes to currentTotal,
+        // otherwise the gate (currentTotal > 0) can show the input while every item is 0 and the
+        // backend rejects with "No valid players for discount". Mirror currentTotal's composition:
+        //   • existing registration (has financials) → its owed balance (li.amount), both options
+        //   • new selection under Deposit            → the team deposit (matches depositTotal)
+        //   • new selection under PIF                → the full line amount (li.amount)
+        const items: ApplyDiscountItemDto[] = this.lineItems().map(li => {
+            const hasExisting = !!this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials;
+            const amount = option === 'Deposit' && !hasExisting
+                ? (Number(this.teams.getTeamById(li.teamId)?.deposit ?? 0) || 0)
+                : li.amount;
+            return { playerId: li.playerId, amount };
+        });
         if (items.length === 0) {
             this._discountMessage.set('No payable items eligible for discount');
             return;
@@ -482,12 +491,6 @@ export class PaymentV2Service {
             return total > 0 ? total : this.getAmount(team);
         }
         return deposit > 0 ? deposit : this.getAmount(team);
-    }
-
-    getDepositForPlayer(playerId: string): number {
-        const teamId = this.playerState.selectedTeams()[playerId];
-        const team = this.teams.getTeamById(teamId as string);
-        return Number(team?.deposit ?? 0) || 0;
     }
 
     submitPayment(request: PaymentRequestDto): Observable<PaymentResponseDto> {
