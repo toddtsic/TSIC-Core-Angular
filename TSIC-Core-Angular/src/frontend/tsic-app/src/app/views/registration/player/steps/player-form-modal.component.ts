@@ -25,11 +25,18 @@ import type { ChildDto } from '@core/api';
           <button type="button" class="btn-close" (click)="closed.emit()" aria-label="Close"></button>
         </div>
         <div class="modal-body">
+          @if (identityLocked) {
+            <div class="alert alert-info py-2 small d-flex align-items-start gap-2 mb-3">
+              <i class="bi bi-lock-fill mt-1"></i>
+              <span>This player is already registered, so their name, gender, and date of birth are locked. You can still update contact details below. To correct identity details, contact your administrator.</span>
+            </div>
+          }
           <div class="row g-2">
             <div class="col-6">
               <label for="pfm-first" class="form-label small fw-medium mb-1">First Name</label>
               <input id="pfm-first" type="text" class="form-control form-control-sm"
                      [value]="firstName()" (input)="firstName.set($any($event.target).value)"
+                     [disabled]="identityLocked"
                      [class.is-invalid]="submitted() && !firstName().trim()" />
               @if (submitted() && !firstName().trim()) {
                 <div class="invalid-feedback">Required</div>
@@ -39,6 +46,7 @@ import type { ChildDto } from '@core/api';
               <label for="pfm-last" class="form-label small fw-medium mb-1">Last Name</label>
               <input id="pfm-last" type="text" class="form-control form-control-sm"
                      [value]="lastName()" (input)="lastName.set($any($event.target).value)"
+                     [disabled]="identityLocked"
                      [class.is-invalid]="submitted() && !lastName().trim()" />
               @if (submitted() && !lastName().trim()) {
                 <div class="invalid-feedback">Required</div>
@@ -48,6 +56,7 @@ import type { ChildDto } from '@core/api';
               <label for="pfm-gender" class="form-label small fw-medium mb-1">Gender</label>
               <select id="pfm-gender" class="form-select form-select-sm"
                       [ngModel]="gender()" (ngModelChange)="gender.set($event)"
+                      [disabled]="identityLocked"
                       [class.is-invalid]="submitted() && !gender()">
                 <option value="">— Select —</option>
                 @for (opt of genderOptions; track opt.value) {
@@ -61,7 +70,8 @@ import type { ChildDto } from '@core/api';
             <div class="col-6">
               <label for="pfm-dob" class="form-label small fw-medium mb-1">Date of Birth</label>
               <input id="pfm-dob" type="date" class="form-control form-control-sm"
-                     [value]="dob()" (input)="dob.set($any($event.target).value)" />
+                     [value]="dob()" (input)="dob.set($any($event.target).value)"
+                     [disabled]="identityLocked" />
             </div>
           </div>
           <hr class="form-divider my-3">
@@ -106,6 +116,9 @@ import type { ChildDto } from '@core/api';
 export class PlayerFormModalComponent implements OnInit {
     @Input() mode: 'add' | 'edit' = 'add';
     @Input() playerId: string | null = null;
+    /** When true, identity fields (name/gender/DOB) are locked — the player already has a
+     *  registration and those fields anchor its history. Enforced server-side in UpdateChildAsync. */
+    @Input() identityLocked = false;
     @Input() initialData: { firstName?: string; lastName?: string; gender?: string; dob?: string; email?: string; phone?: string } | null = null;
 
     readonly saved = output<void>();

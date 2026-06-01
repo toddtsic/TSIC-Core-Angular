@@ -9,6 +9,8 @@ export type FamilyPlayerDto = {
     lastName: string;
     gender: string;
     dob?: string | null;
+    email?: string | null;
+    phone?: string | null;
     registered: boolean;
     selected: boolean;
     priorRegistrations: Array<FamilyPlayerRegistrationDto>;

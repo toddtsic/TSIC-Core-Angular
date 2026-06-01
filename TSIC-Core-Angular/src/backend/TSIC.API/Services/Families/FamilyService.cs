@@ -109,6 +109,10 @@ public sealed class FamilyService : IFamilyService
         // Build team name lookup
         var teamNameMap = await BuildTeamNameMapAsync(jobId, regsRaw);
 
+        // Division name per assigned team → lets BuildRegistrationDto flag genuinely "pending"
+        // priors (Unassigned division) distinctly from dropped/waitlist priors (other divisions).
+        var teamDivNameMap = await BuildTeamDivNameMapAsync(jobId, regsRaw);
+
         // Job-level payment state (rates only) → lets BuildRegistrationDto surface each
         // registration's eCheck-method owed via the canonical PaymentState.ResolveOwed, so the
         // wizard's eCheck total equals exactly what the eCheck charge engine debits.
@@ -119,7 +123,7 @@ public sealed class FamilyService : IFamilyService
             .GroupBy(r => r.UserId!)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(r => BuildRegistrationDto(r, mappedFields, visibleFieldNames, teamNameMap, echeckState)).ToList(),
+                g => g.Select(r => BuildRegistrationDto(r, mappedFields, visibleFieldNames, teamNameMap, teamDivNameMap, echeckState)).ToList(),
                 StringComparer.Ordinal);
 
         // For players not yet registered in this job, compute latest defaults across ALL jobs.
@@ -401,7 +405,7 @@ public sealed class FamilyService : IFamilyService
                 City = request.Address.City,
                 State = request.Address.State,
                 PostalCode = request.Address.PostalCode,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             };
             var createResult = await _userManager.CreateAsync(user, request.Password);
             if (!createResult.Succeeded)
@@ -429,7 +433,7 @@ public sealed class FamilyService : IFamilyService
             fam.DadLastName = request.Secondary.LastName;
             fam.DadCellphone = request.Secondary.Cellphone;
             fam.DadEmail = request.Secondary.Email;
-            fam.Modified = DateTime.UtcNow;
+            fam.Modified = DateTime.Now;
             await _familiesRepo.SaveChangesAsync();
         }
         else
@@ -445,7 +449,7 @@ public sealed class FamilyService : IFamilyService
                 DadLastName = request.Secondary.LastName,
                 DadCellphone = request.Secondary.Cellphone,
                 DadEmail = request.Secondary.Email,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
                 LebUserId = TsicConstants.SuperUserId
             };
             _familiesRepo.Add(fam);
@@ -502,7 +506,7 @@ public sealed class FamilyService : IFamilyService
         fam.DadLastName = request.Secondary.LastName;
         fam.DadCellphone = request.Secondary.Cellphone;
         fam.DadEmail = request.Secondary.Email;
-        fam.Modified = DateTime.UtcNow;
+        fam.Modified = DateTime.Now;
         if (string.IsNullOrWhiteSpace(fam.LebUserId)) fam.LebUserId = TsicConstants.SuperUserId;
         _familiesRepo.Update(fam);
         await _familiesRepo.SaveChangesAsync();
@@ -559,6 +563,29 @@ public sealed class FamilyService : IFamilyService
         if (childUser == null)
             return new ChildOperationResponse { Success = false, Message = "Child user not found." };
 
+        // Parse the requested DOB once — reused for change-detection and the write below.
+        DateTime? requestedDob = null;
+        if (!string.IsNullOrWhiteSpace(request.Dob) && DateTime.TryParseExact(request.Dob, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDob))
+            requestedDob = parsedDob;
+
+        // Identity fields (name, gender, DOB) anchor every registration / roster slot / payment
+        // FK'd to this user, so they're immutable once the child has any registration — otherwise a
+        // parent could repurpose a registered player into a different child and silently corrupt that
+        // history. Mirror RemoveChildAsync: hard-reject when identity changes against a registered
+        // child. Contact-only edits (email/phone) remain allowed.
+        var identityChanged =
+            !string.Equals(childUser.FirstName, request.FirstName, StringComparison.Ordinal) ||
+            !string.Equals(childUser.LastName, request.LastName, StringComparison.Ordinal) ||
+            !string.Equals(childUser.Gender, request.Gender, StringComparison.Ordinal) ||
+            (requestedDob.HasValue && childUser.Dob?.Date != requestedDob.Value.Date);
+
+        if (identityChanged)
+        {
+            var regs = await _registrationRepo.GetRegistrationsByUserIdsAsync(new List<string> { childUserId });
+            if (regs.Count > 0)
+                return new ChildOperationResponse { Success = false, Message = "Cannot change the name, gender, or date of birth of a child who has registrations. Contact your administrator." };
+        }
+
         childUser.FirstName = request.FirstName;
         childUser.LastName = request.LastName;
         childUser.Gender = request.Gender;
@@ -566,10 +593,10 @@ public sealed class FamilyService : IFamilyService
         childUser.PhoneNumber = string.IsNullOrWhiteSpace(request.Phone) ? childUser.PhoneNumber : request.Phone;
         childUser.Cellphone = string.IsNullOrWhiteSpace(request.Phone) ? childUser.Cellphone : request.Phone;
         childUser.Phone = string.IsNullOrWhiteSpace(request.Phone) ? childUser.Phone : request.Phone;
-        childUser.Modified = DateTime.UtcNow;
+        childUser.Modified = DateTime.Now;
 
-        if (!string.IsNullOrWhiteSpace(request.Dob) && DateTime.TryParseExact(request.Dob, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDob))
-            childUser.Dob = parsedDob;
+        if (requestedDob.HasValue)
+            childUser.Dob = requestedDob.Value;
 
         var result = await _userManager.UpdateAsync(childUser);
         if (!result.Succeeded)
@@ -626,7 +653,7 @@ public sealed class FamilyService : IFamilyService
             Gender = child.Gender,
             Cellphone = string.IsNullOrWhiteSpace(child.Phone) ? null : child.Phone,
             Phone = string.IsNullOrWhiteSpace(child.Phone) ? null : child.Phone,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         if (!string.IsNullOrWhiteSpace(child.Dob) && DateTime.TryParseExact(child.Dob, DateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDob))
         {
@@ -644,7 +671,7 @@ public sealed class FamilyService : IFamilyService
         {
             FamilyUserId = familyUserId,
             FamilyMemberUserId = childUser.Id,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = TsicConstants.SuperUserId
         };
         _familyMemberRepo.Add(fm);
@@ -738,10 +765,19 @@ public sealed class FamilyService : IFamilyService
         List<(string Name, string DbColumn)> mappedFields,
         HashSet<string> visibleFieldNames,
         Dictionary<Guid, string> teamNameMap,
+        Dictionary<Guid, string?> teamDivNameMap,
         TSIC.Contracts.Payments.PaymentState? echeckState)
     {
         var fv = FormValueMapper.BuildFormValuesDictionary(r, mappedFields);
         var formFieldValues = BuildVisibleFieldValues(fv, visibleFieldNames);
+
+        // A prior reg is "pending" (abandoned mid-payment, safe to rehydrate from) when it is
+        // inactive AND its assigned team sits in the "Unassigned" division. Dropped/Waitlist age
+        // groups use other division names, so they are NOT pending and must not rehydrate.
+        var isPending = r.BActive != true
+            && r.AssignedTeamId.HasValue
+            && teamDivNameMap.TryGetValue(r.AssignedTeamId.Value, out var divName)
+            && string.Equals(divName?.Trim(), "Unassigned", StringComparison.OrdinalIgnoreCase);
 
         // eCheck-method owed from the single canonical resolver (== OwedTotal when proc fees
         // are off or no job state is available).
@@ -753,6 +789,7 @@ public sealed class FamilyService : IFamilyService
         {
             RegistrationId = r.RegistrationId,
             Active = r.BActive == true,
+            IsPending = isPending,
             Financials = new RegistrationFinancialsDto
             {
                 FeeBase = r.FeeBase,
@@ -827,6 +864,22 @@ public sealed class FamilyService : IFamilyService
         return teamNameMap;
     }
 
+    private async Task<Dictionary<Guid, string?>> BuildTeamDivNameMapAsync(
+        Guid? jobId,
+        List<TSIC.Domain.Entities.Registrations> regsRaw)
+    {
+        var map = new Dictionary<Guid, string?>();
+        if (jobId != null)
+        {
+            var teamIds = regsRaw.Where(x => x.AssignedTeamId.HasValue).Select(x => x.AssignedTeamId!.Value).Distinct().ToList();
+            if (teamIds.Count > 0)
+            {
+                map = await _teamRepo.GetTeamDivisionNamesAsync(jobId.Value, teamIds);
+            }
+        }
+        return map;
+    }
+
     private async Task<Dictionary<string, List<TSIC.Domain.Entities.Registrations>>> LoadAllRegistrationsByUserAsync(List<string> linkedChildIds)
     {
         var allRegsForChildren = await _registrationRepo.GetRegistrationsByUserIdsAsync(linkedChildIds);
@@ -890,6 +943,8 @@ public sealed class FamilyService : IFamilyService
                 LastName = c.LastName ?? string.Empty,
                 Gender = c.Gender ?? string.Empty,
                 Dob = c.Dob.HasValue ? c.Dob.Value.ToString(DateFormat) : null,
+                Email = c.Email,
+                Phone = c.Cellphone ?? c.Phone,
                 Registered = registered,
                 Selected = registered,
                 PriorRegistrations = prior,

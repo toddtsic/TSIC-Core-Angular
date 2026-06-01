@@ -36,6 +36,15 @@ public record FamilyPlayerRegistrationDto
 {
     public required Guid RegistrationId { get; init; }
     public required bool Active { get; init; }
+
+    /// <summary>
+    /// True when this inactive registration is a genuinely abandoned/pending one — created at
+    /// PreSubmit but never paid — identified by its assigned team sitting in the "Unassigned"
+    /// division. Such registrations are safe to rehydrate form/team values from on return.
+    /// False for dropped/waitlist registrations (other division names), which must NOT rehydrate.
+    /// Always false when Active is true.
+    /// </summary>
+    public required bool IsPending { get; init; }
     public required RegistrationFinancialsDto Financials { get; init; }
     public Guid? AssignedTeamId { get; init; }
     public string? AssignedTeamName { get; init; }
@@ -55,6 +64,8 @@ public record FamilyPlayerDto
     public required string LastName { get; init; }
     public required string Gender { get; init; }
     public string? Dob { get; init; }
+    public string? Email { get; init; }
+    public string? Phone { get; init; }
     public required bool Registered { get; init; }
     public required bool Selected { get; init; }
     public required IReadOnlyList<FamilyPlayerRegistrationDto> PriorRegistrations { get; init; }

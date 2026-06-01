@@ -76,6 +76,11 @@ import { environment } from '@environments/environment';
                   <span class="reg-badge">
                     <i class="bi bi-check-circle-fill me-1"></i>Registered
                   </span>
+                } @else if (hasPendingReg(player)) {
+                  <span class="pending-badge"
+                        title="Registration started but not yet paid — select this player to resume where you left off">
+                    <i class="bi bi-hourglass-split me-1"></i>Pending
+                  </span>
                 }
                 <span class="action-group">
                   <button type="button" class="btn-action"
@@ -104,6 +109,7 @@ import { environment } from '@environments/environment';
       <app-player-form-modal
         [mode]="playerModalMode()"
         [playerId]="editingPlayerId()"
+        [identityLocked]="editingIdentityLocked()"
         [initialData]="editingPlayerData()"
         (saved)="onPlayerSaved()"
         (closed)="showPlayerModal.set(false)" />
@@ -236,6 +242,23 @@ import { environment } from '@environments/environment';
         white-space: nowrap;
       }
 
+      /* Pending = registration started at PreSubmit but never paid. Reads as a
+         needs-attention chip (vs the passive "Registered" text) so a returning
+         family can spot exactly which players to resume. Mirrors the project's
+         color-mix warning-chip recipe for palette/dark-mode safety. */
+      .pending-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px var(--space-2);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-warning);
+        background: color-mix(in srgb, var(--bs-warning) 15%, var(--bs-card-bg));
+        border: 1px solid color-mix(in srgb, var(--bs-warning) 25%, transparent);
+        border-radius: var(--radius-pill, 999px);
+        white-space: nowrap;
+      }
+
       .action-group {
         display: flex;
         gap: var(--space-1);
@@ -297,7 +320,17 @@ export class PlayerSelectionStepComponent {
     readonly showPlayerModal = signal(false);
     readonly playerModalMode = signal<'add' | 'edit'>('add');
     readonly editingPlayerId = signal<string | null>(null);
-    readonly editingPlayerData = signal<{ firstName?: string; lastName?: string; gender?: string; dob?: string } | null>(null);
+    readonly editingPlayerData = signal<{ firstName?: string; lastName?: string; gender?: string; dob?: string; email?: string; phone?: string } | null>(null);
+    /** Locks identity fields in the edit modal when the player already has a registration
+     *  (registered or pending) — their name/gender/DOB anchor that registration's history. */
+    readonly editingIdentityLocked = signal(false);
+
+    /** True when the player has a genuinely-pending prior registration (created at PreSubmit,
+     *  never paid — assigned to the "Unassigned" division, flagged server-side as isPending).
+     *  Distinct from dropped/waitlist priors, which must not surface a resume affordance. */
+    hasPendingReg(player: { priorRegistrations?: readonly { isPending: boolean }[] }): boolean {
+        return !!player.priorRegistrations?.some(r => r.isPending);
+    }
 
     toggle(playerId: string): void {
         this.state.togglePlayerSelection(playerId);
@@ -311,7 +344,7 @@ export class PlayerSelectionStepComponent {
         this.advance.emit();
     }
 
-    openEditPlayer(player: { playerId: string; firstName: string; lastName: string; gender: string; dob?: string | null }): void {
+    openEditPlayer(player: { playerId: string; firstName: string; lastName: string; gender: string; dob?: string | null; email?: string | null; phone?: string | null; registered?: boolean; priorRegistrations?: readonly { isPending: boolean }[] }): void {
         this.playerModalMode.set('edit');
         this.editingPlayerId.set(player.playerId);
         this.editingPlayerData.set({
@@ -319,7 +352,10 @@ export class PlayerSelectionStepComponent {
             lastName: player.lastName,
             gender: player.gender,
             dob: player.dob ?? undefined,
+            email: player.email ?? undefined,
+            phone: player.phone ?? undefined,
         });
+        this.editingIdentityLocked.set(!!player.registered || this.hasPendingReg(player));
         this.showPlayerModal.set(true);
     }
 
