@@ -92,7 +92,7 @@ public sealed class FieldManagementService : IFieldManagementService
             Latitude = request.Latitude,
             Longitude = request.Longitude,
             LebUserId = Guid.TryParse(userId, out var uid) ? uid : Guid.Empty,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _fieldRepo.Add(field);
@@ -129,7 +129,7 @@ public sealed class FieldManagementService : IFieldManagementService
         field.Latitude = request.Latitude;
         field.Longitude = request.Longitude;
         field.LebUserId = Guid.TryParse(userId, out var uid) ? uid : field.LebUserId;
-        field.Modified = DateTime.UtcNow;
+        field.Modified = DateTime.Now;
 
         await _fieldRepo.SaveChangesAsync(ct);
 

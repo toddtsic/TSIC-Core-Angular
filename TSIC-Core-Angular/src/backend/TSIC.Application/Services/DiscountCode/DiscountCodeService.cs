@@ -60,7 +60,7 @@ public class DiscountCodeService : IDiscountCodeService
             CodeStartDate = request.StartDate,
             CodeEndDate = request.EndDate,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _repository.Add(code);
@@ -116,7 +116,7 @@ public class DiscountCodeService : IDiscountCodeService
                 CodeStartDate = request.StartDate,
                 CodeEndDate = request.EndDate,
                 LebUserId = userId,
-                Modified = now
+                Modified = DateTime.Now
             };
             _repository.Add(code);
             codes.Add(code);
@@ -150,7 +150,7 @@ public class DiscountCodeService : IDiscountCodeService
         code.CodeStartDate = request.StartDate;
         code.CodeEndDate = request.EndDate;
         code.Active = request.IsActive;
-        code.Modified = DateTime.UtcNow;
+        code.Modified = DateTime.Now;
 
         await _repository.SaveChangesAsync(cancellationToken);
 
@@ -193,7 +193,7 @@ public class DiscountCodeService : IDiscountCodeService
             if (code != null && code.JobId == jobId) // Security: verify job ownership
             {
                 code.Active = isActive;
-                code.Modified = DateTime.UtcNow;
+                code.Modified = DateTime.Now;
                 updateCount++;
             }
         }

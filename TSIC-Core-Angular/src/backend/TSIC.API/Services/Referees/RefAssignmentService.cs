@@ -187,7 +187,7 @@ public sealed class RefAssignmentService : IRefAssignmentService
                 PostalCode = zip,
                 Dob = DateTime.TryParse(dobStr, out var dob) ? dob : new DateTime(1980, 1, 1),
                 LebUserId = auditUserId,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             };
 
             var createResult = await _userManager.CreateAsync(user, username);
@@ -204,8 +204,8 @@ public sealed class RefAssignmentService : IRefAssignmentService
                 RoleId = RoleConstants.Referee,
                 JobId = jobId,
                 BActive = true,
-                RegistrationTs = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
+                RegistrationTs = DateTime.Now,
+                Modified = DateTime.Now,
                 LebUserId = auditUserId,
                 SportAssnId = certNumber,
                 SportAssnIdexpDate = DateTime.TryParse(certExpiryStr, out var certExpiry) ? certExpiry : null
@@ -243,7 +243,7 @@ public sealed class RefAssignmentService : IRefAssignmentService
                 Gender = "U",
                 Dob = new DateTime(1990, 1, 1),
                 LebUserId = auditUserId,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             };
 
             var result = await _userManager.CreateAsync(user, username);
@@ -257,8 +257,8 @@ public sealed class RefAssignmentService : IRefAssignmentService
                 RoleId = RoleConstants.Referee,
                 JobId = jobId,
                 BActive = true,
-                RegistrationTs = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
+                RegistrationTs = DateTime.Now,
+                Modified = DateTime.Now,
                 LebUserId = auditUserId
             });
             await _registrationRepo.SaveChangesAsync(ct);

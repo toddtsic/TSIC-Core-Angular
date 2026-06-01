@@ -160,7 +160,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         {
             registration.FeeProcessing -= actualReduction;
             registration.OwedTotal = Math.Max(0m, registration.OwedTotal - actualReduction);
-            registration.Modified = DateTime.UtcNow;
+            registration.Modified = DateTime.Now;
             registration.LebUserId = userId;
         }
 
@@ -205,7 +205,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         {
             registration.FeeProcessing -= actualReduction;
             registration.OwedTotal = Math.Max(0m, registration.OwedTotal - actualReduction);
-            registration.Modified = DateTime.UtcNow;
+            registration.Modified = DateTime.Now;
             registration.LebUserId = userId;
         }
 
@@ -242,7 +242,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
 
         registration.FeeProcessing += reversal;
         registration.OwedTotal += reversal;
-        registration.Modified = DateTime.UtcNow;
+        registration.Modified = DateTime.Now;
         registration.LebUserId = userId;
 
         return reversal;
@@ -292,7 +292,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         {
             team.FeeProcessing = currentFee - actualReduction;
             team.OwedTotal = Math.Max(0m, (team.OwedTotal ?? 0m) - actualReduction);
-            team.Modified = DateTime.UtcNow;
+            team.Modified = DateTime.Now;
             team.LebUserId = userId;
         }
 
@@ -338,7 +338,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         {
             team.FeeProcessing = currentFee - actualReduction;
             team.OwedTotal = Math.Max(0m, (team.OwedTotal ?? 0m) - actualReduction);
-            team.Modified = DateTime.UtcNow;
+            team.Modified = DateTime.Now;
             team.LebUserId = userId;
         }
 
@@ -370,7 +370,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
 
         team.FeeProcessing = (team.FeeProcessing ?? 0m) + reversal;
         team.OwedTotal = (team.OwedTotal ?? 0m) + reversal;
-        team.Modified = DateTime.UtcNow;
+        team.Modified = DateTime.Now;
         team.LebUserId = userId;
 
         return reversal;

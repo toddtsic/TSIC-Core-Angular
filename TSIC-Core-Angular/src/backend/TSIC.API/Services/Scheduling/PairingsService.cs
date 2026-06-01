@@ -152,7 +152,7 @@ public sealed class PairingsService : IPairingsService
             GCnt = mp.GCnt,
             LeagueId = leagueId,
             LebUserId = userId,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             Rnd = mp.Rnd + maxRound,
             Season = season,
             T1 = mp.T1,
@@ -222,7 +222,7 @@ public sealed class PairingsService : IPairingsService
                 GCnt = null,
                 LeagueId = leagueId,
                 LebUserId = userId,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
                 Rnd = thisRound,
                 Season = season,
                 TCnt = teamCount
@@ -265,7 +265,7 @@ public sealed class PairingsService : IPairingsService
             Season = season,
             TCnt = request.TeamCount,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         await _pairingsRepo.AddRangeAsync([pairing], ct);
@@ -296,7 +296,7 @@ public sealed class PairingsService : IPairingsService
         if (request.T2Annotation != null) pairing.T2Annotation = request.T2Annotation;
 
         pairing.LebUserId = userId;
-        pairing.Modified = DateTime.UtcNow;
+        pairing.Modified = DateTime.Now;
 
         await _pairingsRepo.SaveChangesAsync(ct);
     }
@@ -370,7 +370,7 @@ public sealed class PairingsService : IPairingsService
             {
                 swapTeam.DivRank = team.DivRank;
                 swapTeam.LebUserId = userId;
-                swapTeam.Modified = DateTime.UtcNow;
+                swapTeam.Modified = DateTime.Now;
             }
 
             team.DivRank = request.DivRank;
@@ -380,7 +380,7 @@ public sealed class PairingsService : IPairingsService
             team.TeamName = request.TeamName;
 
         team.LebUserId = userId;
-        team.Modified = DateTime.UtcNow;
+        team.Modified = DateTime.Now;
         await _teamRepo.SaveChangesAsync(ct);
 
         // Renumber to ensure contiguous 1..N

@@ -509,7 +509,7 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         settlement.Status = "Settled";
         settlement.SettledAt = now;
         settlement.LastCheckedAt = now;
@@ -581,7 +581,7 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         // Mark Settlement returned.
         settlement.Status = "Returned";

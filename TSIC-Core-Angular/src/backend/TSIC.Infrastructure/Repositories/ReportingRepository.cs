@@ -311,7 +311,7 @@ public class ReportingRepository : IReportingRepository
     {
         var record = new JobReportExportHistory
         {
-            ExportDate = DateTime.UtcNow,
+            ExportDate = DateTime.Now,
             RegistrationId = registrationId,
             ReportName = reportName,
             StoredProcedureName = storedProcedureName

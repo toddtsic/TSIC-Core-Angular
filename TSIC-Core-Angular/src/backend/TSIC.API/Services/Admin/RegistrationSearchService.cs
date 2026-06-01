@@ -237,8 +237,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             CheckNo = request.CheckNo,
             PromoCode = request.PromoCode,
             Active = true,
-            Createdate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -250,7 +250,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         reg.PaidTotal += request.PaidAmount ?? 0;
         reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-        reg.Modified = DateTime.UtcNow;
+        reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
 
         await _accountingRepo.SaveChangesAsync(ct);
@@ -326,7 +326,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 reversedAmount = original.Payamt ?? 0; // void reverses full original amount
 
                 // Mark original record as voided
-                original.Paymeth = (original.Paymeth ?? "") + $" VOIDED {DateTime.UtcNow}";
+                original.Paymeth = (original.Paymeth ?? "") + $" VOIDED {DateTime.Now}";
                 original.Payamt = 0;
             }
             else if (txStatus == "settledSuccessfully")
@@ -364,8 +364,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                     AdnCcexpDate = original.AdnCcexpDate,
                     AdnInvoiceNo = original.AdnInvoiceNo,
                     Active = true,
-                    Createdate = DateTime.UtcNow,
-                    Modified = DateTime.UtcNow,
+                    Createdate = DateTime.Now,
+                    Modified = DateTime.Now,
                     LebUserId = userId
                 });
             }
@@ -378,7 +378,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             var reg = original.Registration;
             reg.PaidTotal -= reversedAmount;
             reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-            reg.Modified = DateTime.UtcNow;
+            reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
 
             await _accountingRepo.SaveChangesAsync(ct);
@@ -466,8 +466,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             CheckNo = request.CheckNo,
             Comment = request.Comment,
             Active = true,
-            Createdate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -485,7 +485,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         // Recalculate totals after processing fee change
         reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
         reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-        reg.Modified = DateTime.UtcNow;
+        reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
 
         await _accountingRepo.SaveChangesAsync(ct);
@@ -529,7 +529,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         record.Comment = request.Comment;
         record.CheckNo = request.CheckNo;
-        record.Modified = DateTime.UtcNow;
+        record.Modified = DateTime.Now;
         record.LebUserId = userId;
 
         await _accountingRepo.SaveChangesAsync(ct);
@@ -625,7 +625,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         }
 
         reg.AdnSubscriptionStatus = "canceled";
-        reg.Modified = DateTime.UtcNow;
+        reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
 
         await _accountingRepo.SaveChangesAsync(ct);
@@ -821,7 +821,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         // Update the registration
         reg.JobId = request.NewJobId;
         reg.AssignedTeamId = newTeamId;
-        reg.Modified = DateTime.UtcNow;
+        reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
 
         await _registrationRepo.SaveChangesAsync(ct);

@@ -118,7 +118,7 @@ public class AdultRegistrationRepository : IAdultRegistrationRepository
                 && r.BActive == true)
             .ToListAsync(cancellationToken);
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         foreach (var r in existing)
         {
             r.BActive = false;

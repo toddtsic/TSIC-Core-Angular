@@ -253,7 +253,7 @@ public sealed class LadtService : ILadtService
         league.BHideStandings = request.BHideStandings;
         league.RescheduleEmailsToAddon = request.RescheduleEmailsToAddon;
         league.LebUserId = userId;
-        league.Modified = DateTime.UtcNow;
+        league.Modified = DateTime.Now;
 
         await _leagueRepo.SaveChangesAsync(cancellationToken);
 
@@ -303,7 +303,7 @@ public sealed class LadtService : ILadtService
             BHideStandings = request.BHideStandings,
             SortAge = request.SortAge,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _agegroupRepo.Add(ag);
@@ -315,7 +315,7 @@ public sealed class LadtService : ILadtService
             AgegroupId = ag.AgegroupId,
             DivName = UnassignedDivisionName,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _divisionRepo.Add(stubDiv);
 
@@ -354,7 +354,7 @@ public sealed class LadtService : ILadtService
         ag.BHideStandings = request.BHideStandings;
         ag.SortAge = request.SortAge;
         ag.LebUserId = userId;
-        ag.Modified = DateTime.UtcNow;
+        ag.Modified = DateTime.Now;
 
         // Cascade rename to "WAITLIST - {oldName}" sibling if it exists
         if (nameChanged)
@@ -370,7 +370,7 @@ public sealed class LadtService : ILadtService
                 {
                     waitlistMirror.AgegroupName = $"WAITLIST - {request.AgegroupName}";
                     waitlistMirror.LebUserId = userId;
-                    waitlistMirror.Modified = DateTime.UtcNow;
+                    waitlistMirror.Modified = DateTime.Now;
                 }
             }
         }
@@ -391,7 +391,7 @@ public sealed class LadtService : ILadtService
 
         ag.Color = color;
         ag.LebUserId = userId;
-        ag.Modified = DateTime.UtcNow;
+        ag.Modified = DateTime.Now;
 
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
     }
@@ -439,7 +439,7 @@ public sealed class LadtService : ILadtService
             MaxTeams = source.MaxTeams,
             MaxTeamsPerClub = source.MaxTeamsPerClub,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         if (request.CopyEligibility)
@@ -484,7 +484,7 @@ public sealed class LadtService : ILadtService
                     TeamId = null,
                     Deposit = sf.Deposit,
                     BalanceDue = sf.BalanceDue,
-                    Modified = DateTime.UtcNow,
+                    Modified = DateTime.Now,
                     LebUserId = userId
                 });
                 foreach (var mod in sf.FeeModifiers)
@@ -497,7 +497,7 @@ public sealed class LadtService : ILadtService
                         Amount = mod.Amount,
                         StartDate = mod.StartDate,
                         EndDate = mod.EndDate,
-                        Modified = DateTime.UtcNow,
+                        Modified = DateTime.Now,
                         LebUserId = userId
                     });
                 }
@@ -519,7 +519,7 @@ public sealed class LadtService : ILadtService
                     DivName = sd.DivName,
                     MaxRoundNumberToShow = sd.MaxRoundNumberToShow,
                     LebUserId = userId,
-                    Modified = DateTime.UtcNow
+                    Modified = DateTime.Now
                 });
                 if (string.Equals(sd.DivName, UnassignedDivisionName, StringComparison.OrdinalIgnoreCase))
                     hasUnassigned = true;
@@ -536,7 +536,7 @@ public sealed class LadtService : ILadtService
                 AgegroupId = clone.AgegroupId,
                 DivName = UnassignedDivisionName,
                 LebUserId = userId,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             });
         }
 
@@ -560,7 +560,7 @@ public sealed class LadtService : ILadtService
             MaxTeamsPerClub = 0,
             SortAge = 0,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _agegroupRepo.Add(ag);
 
@@ -571,7 +571,7 @@ public sealed class LadtService : ILadtService
             AgegroupId = ag.AgegroupId,
             DivName = UnassignedDivisionName,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _divisionRepo.Add(stubDiv);
 
@@ -608,7 +608,7 @@ public sealed class LadtService : ILadtService
             DivName = request.DivName,
             MaxRoundNumberToShow = request.MaxRoundNumberToShow,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _divisionRepo.Add(div);
@@ -646,7 +646,7 @@ public sealed class LadtService : ILadtService
         div.DivName = request.DivName;
         div.MaxRoundNumberToShow = request.MaxRoundNumberToShow;
         div.LebUserId = userId;
-        div.Modified = DateTime.UtcNow;
+        div.Modified = DateTime.Now;
 
         // Cascade rename to WAITLIST division mirror if it exists
         if (divNameChanged)
@@ -669,7 +669,7 @@ public sealed class LadtService : ILadtService
                         {
                             trackedDiv.DivName = $"WAITLIST - {request.DivName}";
                             trackedDiv.LebUserId = userId;
-                            trackedDiv.Modified = DateTime.UtcNow;
+                            trackedDiv.Modified = DateTime.Now;
                         }
                     }
                 }
@@ -725,7 +725,7 @@ public sealed class LadtService : ILadtService
             AgegroupId = agegroupId,
             DivName = divName,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _divisionRepo.Add(div);
@@ -798,8 +798,8 @@ public sealed class LadtService : ILadtService
             KeywordPairs = request.KeywordPairs,
             TeamComments = request.TeamComments,
             LebUserId = userId,
-            Createdate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now
         };
 
         _teamRepo.Add(team);
@@ -849,7 +849,7 @@ public sealed class LadtService : ILadtService
         team.KeywordPairs = request.KeywordPairs;
         team.TeamComments = request.TeamComments;
         team.LebUserId = userId;
-        team.Modified = DateTime.UtcNow;
+        team.Modified = DateTime.Now;
 
         // Cascade rename to WAITLIST team mirror if it exists
         if (teamNameChanged)
@@ -872,7 +872,7 @@ public sealed class LadtService : ILadtService
                         {
                             trackedTeam.TeamName = $"WAITLIST - {request.TeamName}";
                             trackedTeam.LebUserId = userId;
-                            trackedTeam.Modified = DateTime.UtcNow;
+                            trackedTeam.Modified = DateTime.Now;
                         }
                     }
                 }
@@ -909,7 +909,7 @@ public sealed class LadtService : ILadtService
             var divId = team.DivId;
             var clubRepId = team.ClubrepRegistrationid;
             team.Active = false;
-            team.Modified = DateTime.UtcNow;
+            team.Modified = DateTime.Now;
             await _teamRepo.SaveChangesAsync(cancellationToken);
 
             // Renumber remaining active teams to maintain contiguous 1..N ranking
@@ -1005,7 +1005,7 @@ public sealed class LadtService : ILadtService
         team.DivId = droppedDivId;
         team.Active = false;
         team.LebUserId = userId;
-        team.Modified = DateTime.UtcNow;
+        team.Modified = DateTime.Now;
 
         await _teamRepo.SaveChangesAsync(cancellationToken);
 
@@ -1044,7 +1044,7 @@ public sealed class LadtService : ILadtService
             MaxTeamsPerClub = 999,
             SortAge = 254,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _agegroupRepo.Add(ag);
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
@@ -1066,7 +1066,7 @@ public sealed class LadtService : ILadtService
             AgegroupId = droppedAgId,
             DivName = DroppedTeamsName,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _divisionRepo.Add(div);
         await _divisionRepo.SaveChangesAsync(cancellationToken);
@@ -1106,8 +1106,8 @@ public sealed class LadtService : ILadtService
             Season = source.Season,
             Year = source.Year,
             LebUserId = userId,
-            Createdate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now
         };
 
         if (request.CopyEligibility)
@@ -1160,7 +1160,7 @@ public sealed class LadtService : ILadtService
                         ClubTeamGradYear = sourceClubTeam.ClubTeamGradYear,
                         ClubTeamLevelOfPlay = sourceClubTeam.ClubTeamLevelOfPlay,
                         LebUserId = userId,
-                        Modified = DateTime.UtcNow
+                        Modified = DateTime.Now
                     };
                     _clubTeamRepo.Add(newClubTeam);
                     await _clubTeamRepo.SaveChangesAsync(cancellationToken);
@@ -1188,7 +1188,7 @@ public sealed class LadtService : ILadtService
                     TeamId = clone.TeamId,
                     Deposit = sf.Deposit,
                     BalanceDue = sf.BalanceDue,
-                    Modified = DateTime.UtcNow,
+                    Modified = DateTime.Now,
                     LebUserId = userId
                 });
                 foreach (var mod in sf.FeeModifiers)
@@ -1201,7 +1201,7 @@ public sealed class LadtService : ILadtService
                         Amount = mod.Amount,
                         StartDate = mod.StartDate,
                         EndDate = mod.EndDate,
-                        Modified = DateTime.UtcNow,
+                        Modified = DateTime.Now,
                         LebUserId = userId
                     });
                 }
@@ -1252,8 +1252,8 @@ public sealed class LadtService : ILadtService
             MaxCount = 0,
             BHideRoster = false,
             LebUserId = userId,
-            Createdate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now
         };
 
         _teamRepo.Add(team);
@@ -1354,7 +1354,7 @@ public sealed class LadtService : ILadtService
                             ClubTeamGradYear = sourceClubTeam.ClubTeamGradYear,
                             ClubTeamLevelOfPlay = sourceClubTeam.ClubTeamLevelOfPlay,
                             LebUserId = userId,
-                            Modified = DateTime.UtcNow
+                            Modified = DateTime.Now
                         };
                         _clubTeamRepo.Add(newCt);
                         await _clubTeamRepo.SaveChangesAsync(ct);
@@ -1364,7 +1364,7 @@ public sealed class LadtService : ILadtService
             }
 
             t.LebUserId = userId;
-            t.Modified = DateTime.UtcNow;
+            t.Modified = DateTime.Now;
         }
 
         // 9. Save all team changes
@@ -1469,7 +1469,7 @@ public sealed class LadtService : ILadtService
                     IsFullPaymentRequired = isFullPaymentRequired
                 }, cancellationToken);
 
-            reg.Modified = DateTime.UtcNow;
+            reg.Modified = DateTime.Now;
             updated++;
         }
 
@@ -1630,7 +1630,7 @@ public sealed class LadtService : ILadtService
 
                 tracked.DivName = newName;
                 tracked.LebUserId = userId;
-                tracked.Modified = DateTime.UtcNow;
+                tracked.Modified = DateTime.Now;
                 renamed++;
 
                 await _scheduleRepo.SynchronizeScheduleDivisionNameAsync(

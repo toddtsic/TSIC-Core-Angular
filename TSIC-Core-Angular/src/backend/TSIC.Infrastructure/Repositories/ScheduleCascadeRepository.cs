@@ -43,13 +43,13 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
             // GamePlacement/BetweenRoundRows (e.g., SaveStrategyProfilesAsync).
             if (defaults.GameGuarantee.HasValue)
                 existing.GameGuarantee = defaults.GameGuarantee;
-            existing.Modified = DateTime.UtcNow;
+            existing.Modified = DateTime.Now;
             if (defaults.LebUserId != null)
                 existing.LebUserId = defaults.LebUserId;
         }
         else
         {
-            defaults.Modified = DateTime.UtcNow;
+            defaults.Modified = DateTime.Now;
             _context.EventScheduleDefaults.Add(defaults);
         }
     }
@@ -82,12 +82,12 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
             existing.BetweenRoundRows = profile.BetweenRoundRows;
             existing.GameGuarantee = profile.GameGuarantee;
             existing.BracketDepth = profile.BracketDepth;
-            existing.Modified = DateTime.UtcNow;
+            existing.Modified = DateTime.Now;
             existing.LebUserId = profile.LebUserId;
         }
         else
         {
-            profile.Modified = DateTime.UtcNow;
+            profile.Modified = DateTime.Now;
             _context.AgegroupScheduleProfile.Add(profile);
         }
     }
@@ -132,12 +132,12 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
             existing.GamePlacement = profile.GamePlacement;
             existing.BetweenRoundRows = profile.BetweenRoundRows;
             existing.GameGuarantee = profile.GameGuarantee;
-            existing.Modified = DateTime.UtcNow;
+            existing.Modified = DateTime.Now;
             existing.LebUserId = profile.LebUserId;
         }
         else
         {
-            profile.Modified = DateTime.UtcNow;
+            profile.Modified = DateTime.Now;
             _context.DivisionScheduleProfile.Add(profile);
         }
     }
@@ -180,7 +180,7 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
 
         if (waves.Count > 0)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             foreach (var w in waves)
             {
                 w.AgegroupId = agegroupId;
@@ -230,7 +230,7 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
 
         if (waves.Count > 0)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             foreach (var w in waves)
             {
                 w.DivisionId = divisionId;
@@ -382,7 +382,7 @@ public class ScheduleCascadeRepository : IScheduleCascadeRepository
 
         if (entries.Count > 0)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             foreach (var e in entries)
             {
                 e.JobId = jobId;

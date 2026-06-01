@@ -66,7 +66,7 @@ public sealed class MenuAdminService : IMenuAdminService
             ?? throw new KeyNotFoundException($"Menu {menuId} not found");
 
         menu.Active = active;
-        menu.Modified = DateTime.UtcNow;
+        menu.Modified = DateTime.Now;
         menu.LebUserId = userId;
 
         await _menuRepo.SaveChangesAsync(cancellationToken);
@@ -94,7 +94,7 @@ public sealed class MenuAdminService : IMenuAdminService
             Index = siblingCount + 1,
             BCollapsed = false,
             BTextWrap = false,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -113,7 +113,7 @@ public sealed class MenuAdminService : IMenuAdminService
                 Index = 1,
                 BCollapsed = false,
                 BTextWrap = false,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
                 LebUserId = userId
             };
             _menuRepo.AddMenuItem(stubChild);
@@ -163,7 +163,7 @@ public sealed class MenuAdminService : IMenuAdminService
         item.Controller = request.Controller;
         item.Action = request.Action;
         item.Target = request.Target;
-        item.Modified = DateTime.UtcNow;
+        item.Modified = DateTime.Now;
         item.LebUserId = userId;
 
         await _menuRepo.SaveChangesAsync(cancellationToken);
@@ -205,7 +205,7 @@ public sealed class MenuAdminService : IMenuAdminService
         {
             // Soft delete — last sibling, just deactivate
             item.Active = false;
-            item.Modified = DateTime.UtcNow;
+            item.Modified = DateTime.Now;
         }
 
         await _menuRepo.SaveChangesAsync(cancellationToken);
@@ -218,7 +218,7 @@ public sealed class MenuAdminService : IMenuAdminService
             request.MenuId, request.ParentMenuItemId, cancellationToken);
 
         var lookup = siblings.ToDictionary(s => s.MenuItemId);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         for (var i = 0; i < request.OrderedItemIds.Count; i++)
         {
@@ -237,7 +237,7 @@ public sealed class MenuAdminService : IMenuAdminService
         Guid jobId, string userId, CancellationToken cancellationToken = default)
     {
         var existingRoleIds = await _menuRepo.GetExistingMenuRoleIdsForJobAsync(jobId, cancellationToken);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         foreach (var (roleId, _) in MenuRoles)
         {

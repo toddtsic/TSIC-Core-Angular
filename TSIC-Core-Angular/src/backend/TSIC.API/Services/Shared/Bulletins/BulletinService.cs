@@ -119,8 +119,8 @@ public class BulletinService : IBulletinService
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             LebUserId = userId,
-            CreateDate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow
+            CreateDate = DateTime.Now,
+            Modified = DateTime.Now
         };
 
         _bulletinRepository.Add(bulletin);
@@ -164,7 +164,7 @@ public class BulletinService : IBulletinService
         bulletin.StartDate = request.StartDate;
         bulletin.EndDate = request.EndDate;
         bulletin.LebUserId = userId;
-        bulletin.Modified = DateTime.UtcNow;
+        bulletin.Modified = DateTime.Now;
 
         await _bulletinRepository.SaveChangesAsync(cancellationToken);
 

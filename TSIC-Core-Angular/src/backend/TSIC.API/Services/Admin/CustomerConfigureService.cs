@@ -70,7 +70,7 @@ public class CustomerConfigureService : ICustomerConfigureService
             AdnLoginId = adnLogin,
             AdnTransactionKey = adnKey,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _repo.AddCustomer(entity);
@@ -105,7 +105,7 @@ public class CustomerConfigureService : ICustomerConfigureService
         entity.AdnLoginId = request.AdnLoginId;
         entity.AdnTransactionKey = request.AdnTransactionKey;
         entity.LebUserId = userId;
-        entity.Modified = DateTime.UtcNow;
+        entity.Modified = DateTime.Now;
 
         await _repo.SaveChangesAsync(ct);
 

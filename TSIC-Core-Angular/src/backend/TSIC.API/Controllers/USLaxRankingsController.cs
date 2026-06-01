@@ -198,7 +198,7 @@ public class USLaxRankingsController : ControllerBase
             _ => 0.50
         };
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var teamsToUpdate = alignment.AlignedTeams
             .Where(a => a.MatchScore >= minScore)
             .ToDictionary(

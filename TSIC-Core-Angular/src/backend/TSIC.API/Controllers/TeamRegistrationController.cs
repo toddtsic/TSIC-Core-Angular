@@ -770,7 +770,8 @@ public class TeamRegistrationController : ControllerBase
         if (jobId is null)
             return NotFound(new { message = $"Job not found: {request.JobPath}" });
 
-        var now = DateTime.UtcNow;
+        // Discount-code start/end dates are stored in local AZ server time, not UTC.
+        var now = DateTime.Now;
         var codeLower = request.Code.Trim().ToLowerInvariant();
         var discountCodeRecord = await _discountCodeRepo.GetActiveCodeAsync(jobId.Value, codeLower, now);
 
@@ -872,7 +873,7 @@ public class TeamRegistrationController : ControllerBase
                     if (clubRep != null)
                     {
                         clubRep.DiscountCodeId = discountCodeId;
-                        clubRep.Modified = DateTime.UtcNow;
+                        clubRep.Modified = DateTime.Now;
                         clubRep.LebUserId = userId;
                         await _registrationRepository.SaveChangesAsync();
                     }
@@ -950,7 +951,7 @@ public class TeamRegistrationController : ControllerBase
         await _feeAdjustment.ReduceTeamProcessingFeeProportionalAsync(team, discountAmount, jobId, userId);
 
         team.RecalcTotals();
-        team.Modified = DateTime.UtcNow;
+        team.Modified = DateTime.Now;
         team.LebUserId = userId;
 
         // 100% DC: create correction accounting record so team isn't invisible in ledger
@@ -967,8 +968,8 @@ public class TeamRegistrationController : ControllerBase
                 Payamt = discountAmount,
                 Comment = $"DC: 100% discount ({detail})",
                 Active = true,
-                Createdate = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
+                Createdate = DateTime.Now,
+                Modified = DateTime.Now,
                 LebUserId = userId
             });
             team.PaidTotal = (team.PaidTotal ?? 0m) + discountAmount;

@@ -251,7 +251,7 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
                 SendTo = string.Join(";", sentAddresses),
                 SendFrom = null,
                 SenderUserId = senderUserId,
-                SendTs = DateTime.UtcNow
+                SendTs = DateTime.Now
             }, ct);
         }
         catch (Exception ex)

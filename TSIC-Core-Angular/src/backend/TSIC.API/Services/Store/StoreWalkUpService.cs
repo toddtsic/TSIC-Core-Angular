@@ -79,7 +79,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 			City = request.City,
 			State = request.State,
 			PostalCode = request.Zip,
-			Modified = DateTime.UtcNow
+			Modified = DateTime.Now
 		};
 
 		var randomPassword = $"WU!{Guid.NewGuid():N}";
@@ -98,7 +98,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 			MomLastName = request.LastName,
 			MomCellphone = request.Phone,
 			MomEmail = request.Email,
-			Modified = DateTime.UtcNow,
+			Modified = DateTime.Now,
 			LebUserId = TsicConstants.SuperUserId
 		};
 		_familiesRepo.Add(family);
@@ -112,7 +112,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 		var registration = new Registrations
 		{
 			RegistrationId = regId,
-			RegistrationTs = DateTime.UtcNow,
+			RegistrationTs = DateTime.Now,
 			RegistrationCategory = "Store Purchase",
 			Assignment = "Store Purchase",
 			RoleId = RoleConstants.Player,
@@ -121,7 +121,7 @@ public sealed class StoreWalkUpService : IStoreWalkUpService
 			JobId = jobId,
 			AssignedTeamId = storeMerchTeamId,
 			BActive = true,
-			Modified = DateTime.UtcNow,
+			Modified = DateTime.Now,
 			LebUserId = TsicConstants.SuperUserId
 		};
 		_registrationRepo.Add(registration);

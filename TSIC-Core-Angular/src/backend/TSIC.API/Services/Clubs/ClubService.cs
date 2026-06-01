@@ -154,7 +154,7 @@ public sealed class ClubService : IClubService
                 City = request.City,
                 State = request.State,
                 PostalCode = request.PostalCode,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             };
 
             var createResult = await _userManager.CreateAsync(user, request.Password);
@@ -181,7 +181,7 @@ public sealed class ClubService : IClubService
             {
                 ClubName = request.ClubName,
                 LebUserId = user.Id,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             };
             _clubRepo.Add(club);
             await _clubRepo.SaveChangesAsync();
@@ -395,7 +395,7 @@ public sealed class ClubService : IClubService
         user.City = request.City;
         user.State = request.State;
         user.PostalCode = request.PostalCode;
-        user.Modified = DateTime.UtcNow;
+        user.Modified = DateTime.Now;
 
         var result = await _userManager.UpdateAsync(user);
         return result.Succeeded;

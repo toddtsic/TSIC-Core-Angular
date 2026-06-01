@@ -46,7 +46,7 @@ public class TeamDocsRepository : ITeamDocsRepository
             UserId = userId,
             Label = label,
             DocUrl = docUrl,
-            CreateDate = DateTime.UtcNow
+            CreateDate = DateTime.Now
         };
         _context.TeamDocs.Add(doc);
         return doc;

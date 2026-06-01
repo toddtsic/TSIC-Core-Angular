@@ -29,7 +29,7 @@ namespace TSIC.Infrastructure.Data.Identity
         // Multi-tenant auditing/ownership
         public string LebUserId { get; set; } = TsicConstants.SuperUserId;
 
-        // Modified timestamp (default to UTC now in app layer)
-        public DateTime Modified { get; set; } = DateTime.UtcNow;
+        // Modified timestamp (default to local AZ now in app layer)
+        public DateTime Modified { get; set; } = DateTime.Now;
     }
 }

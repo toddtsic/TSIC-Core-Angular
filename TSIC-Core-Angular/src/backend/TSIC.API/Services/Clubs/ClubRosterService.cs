@@ -75,7 +75,7 @@ public sealed class ClubRosterService : IClubRosterService
             reg.AssignedDivId = targetTeam.DivId;
             reg.AssignedLeagueId = targetTeam.LeagueId;
             reg.Assignment = $"Player: {targetTeam.TeamName}";
-            reg.Modified = DateTime.UtcNow;
+            reg.Modified = DateTime.Now;
 
             moved++;
         }
@@ -136,7 +136,7 @@ public sealed class ClubRosterService : IClubRosterService
             await ValidateTeamOwnershipAsync(reg.AssignedTeamId.Value, clubRepRegistrationId, jobId, ct);
 
         reg.UniformNo = request.UniformNumber?.Trim();
-        reg.Modified = DateTime.UtcNow;
+        reg.Modified = DateTime.Now;
 
         await _registrationRepo.SaveChangesAsync(ct);
     }

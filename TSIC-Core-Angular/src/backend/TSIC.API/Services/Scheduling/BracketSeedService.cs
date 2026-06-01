@@ -97,7 +97,7 @@ public class BracketSeedService : IBracketSeedService
                 {
                     Gid = game.Gid,
                     LebUserId = userId,
-                    Modified = DateTime.UtcNow
+                    Modified = DateTime.Now
                 }, ct);
                 newlyCreatedGids.Add(game.Gid);
             }
@@ -141,7 +141,7 @@ public class BracketSeedService : IBracketSeedService
         seed.T2SeedDivId = request.T2SeedDivId;
         seed.T2SeedRank = request.T2SeedRank;
         seed.LebUserId = userId;
-        seed.Modified = DateTime.UtcNow;
+        seed.Modified = DateTime.Now;
 
         // Update Schedule.T1Name/T2Name with seed annotations
         var schedule = await _repo.GetScheduleTrackedAsync(request.Gid, ct);
@@ -257,7 +257,7 @@ public class BracketSeedService : IBracketSeedService
             seed.T1SeedRank = t1DivId != null ? sourceSeed.T1SeedRank : null;
             seed.T2SeedDivId = t2DivId;
             seed.T2SeedRank = t2DivId != null ? sourceSeed.T2SeedRank : null;
-            seed.Modified = DateTime.UtcNow;
+            seed.Modified = DateTime.Now;
             anyUpdated = true;
         }
 

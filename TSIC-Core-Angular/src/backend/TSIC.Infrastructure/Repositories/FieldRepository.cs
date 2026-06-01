@@ -123,7 +123,7 @@ public class FieldRepository : IFieldRepository
         string userId,
         CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var records = fieldIds.Select(fid => new FieldsLeagueSeason
         {
             FlsId = Guid.NewGuid(),
@@ -190,7 +190,7 @@ public class FieldRepository : IFieldRepository
         if (fls != null)
         {
             fls.FieldPreference = fieldPreference;
-            fls.Modified = DateTime.UtcNow;
+            fls.Modified = DateTime.Now;
             await _context.SaveChangesAsync(ct);
         }
     }

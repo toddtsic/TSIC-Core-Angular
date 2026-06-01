@@ -53,7 +53,7 @@ public class AgeRangeService : IAgeRangeService
             RangeLeft = request.RangeLeft,
             RangeRight = request.RangeRight,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _ageRangeRepository.Add(entity);
@@ -112,7 +112,7 @@ public class AgeRangeService : IAgeRangeService
         entity.RangeLeft = request.RangeLeft;
         entity.RangeRight = request.RangeRight;
         entity.LebUserId = userId;
-        entity.Modified = DateTime.UtcNow;
+        entity.Modified = DateTime.Now;
 
         await _ageRangeRepository.SaveChangesAsync(cancellationToken);
 

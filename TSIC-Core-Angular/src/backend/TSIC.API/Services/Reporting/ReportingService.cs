@@ -105,7 +105,7 @@ public sealed class ReportingService : IReportingService
         entity.GroupLabel = dto.GroupLabel;
         entity.SortOrder = dto.SortOrder;
         entity.Active = dto.Active;
-        entity.Modified = DateTime.UtcNow;
+        entity.Modified = DateTime.Now;
         entity.LebUserId = lebUserId;
 
         await _reportingRepository.SaveChangesAsync(cancellationToken);
@@ -145,7 +145,7 @@ public sealed class ReportingService : IReportingService
             GroupLabel = dto.GroupLabel,
             SortOrder = dto.SortOrder,
             Active = dto.Active,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = lebUserId,
         };
 

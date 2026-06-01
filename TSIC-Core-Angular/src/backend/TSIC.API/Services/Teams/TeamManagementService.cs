@@ -98,7 +98,7 @@ public sealed class TeamManagementService : ITeamManagementService
             LebUserId = userId,
             PushText = request.PushText,
             DeviceCount = sentCount,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _pushRepo.AddNotificationRecord(record);
         await _pushRepo.SaveChangesAsync(ct);

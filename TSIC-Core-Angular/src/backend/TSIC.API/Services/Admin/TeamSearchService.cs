@@ -239,7 +239,7 @@ public sealed class TeamSearchService : ITeamSearchService
         if (request.LevelOfPlay != null) team.LevelOfPlay = request.LevelOfPlay;
         if (request.TeamComments != null) team.TeamComments = request.TeamComments;
 
-        team.Modified = DateTime.UtcNow;
+        team.Modified = DateTime.Now;
         team.LebUserId = userId;
 
         await _teamRepo.SaveChangesAsync(ct);
@@ -303,7 +303,7 @@ public sealed class TeamSearchService : ITeamSearchService
                 refundTransId = voidResult.TransactionId ?? "";
 
                 // Void reverses the full original amount
-                original.Paymeth = (original.Paymeth ?? "") + $" VOIDED {DateTime.UtcNow}";
+                original.Paymeth = (original.Paymeth ?? "") + $" VOIDED {DateTime.Now}";
                 original.Payamt = 0;
             }
             else if (txStatus == "settledSuccessfully")
@@ -340,8 +340,8 @@ public sealed class TeamSearchService : ITeamSearchService
                     AdnCcexpDate = original.AdnCcexpDate,
                     AdnInvoiceNo = original.AdnInvoiceNo,
                     Active = true,
-                    Createdate = DateTime.UtcNow,
-                    Modified = DateTime.UtcNow,
+                    Createdate = DateTime.Now,
+                    Modified = DateTime.Now,
                     LebUserId = userId
                 });
             }
@@ -594,14 +594,14 @@ public sealed class TeamSearchService : ITeamSearchService
                     Active = true,
                     CheckNo = request.CheckNo,
                     Comment = request.Comment,
-                    Createdate = DateTime.UtcNow,
+                    Createdate = DateTime.Now,
                     Dueamt = calculatedTeamCheckAmount,
                     Payamt = calculatedTeamCheckAmount,
                     PaymentMethodId = paymentMethodId,
                     TeamId = team.TeamId,
                     RegistrationId = clubRep.RegistrationId,
                     LebUserId = userId,
-                    Modified = DateTime.UtcNow
+                    Modified = DateTime.Now
                 });
 
                 team.PaidTotal = (team.PaidTotal ?? 0) + calculatedTeamCheckAmount;
@@ -677,7 +677,7 @@ public sealed class TeamSearchService : ITeamSearchService
         if (sourceReg != null)
         {
             sourceReg.BActive = false;
-            sourceReg.Modified = DateTime.UtcNow;
+            sourceReg.Modified = DateTime.Now;
             sourceReg.LebUserId = userId;
             await _registrationRepo.SaveChangesAsync(ct);
         }

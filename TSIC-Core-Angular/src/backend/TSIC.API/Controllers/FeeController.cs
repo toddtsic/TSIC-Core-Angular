@@ -77,7 +77,7 @@ public class FeeController : ControllerBase
         {
             existing.Deposit = request.Deposit;
             existing.BalanceDue = request.BalanceDue;
-            existing.Modified = DateTime.UtcNow;
+            existing.Modified = DateTime.Now;
             existing.LebUserId = userId;
             SyncModifiers(existing, request.Modifiers, userId);
             row = existing;
@@ -93,7 +93,7 @@ public class FeeController : ControllerBase
                 TeamId = request.TeamId,
                 Deposit = request.Deposit,
                 BalanceDue = request.BalanceDue,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
                 LebUserId = userId
             };
             _feeRepo.Add(row);
@@ -110,7 +110,7 @@ public class FeeController : ControllerBase
                         Amount = mod.Amount,
                         StartDate = mod.StartDate,
                         EndDate = mod.EndDate,
-                        Modified = DateTime.UtcNow,
+                        Modified = DateTime.Now,
                         LebUserId = userId
                     });
                 }
@@ -168,7 +168,7 @@ public class FeeController : ControllerBase
                     existing.Amount = mod.Amount;
                     existing.StartDate = mod.StartDate;
                     existing.EndDate = mod.EndDate;
-                    existing.Modified = DateTime.UtcNow;
+                    existing.Modified = DateTime.Now;
                     existing.LebUserId = userId;
                 }
             }
@@ -182,7 +182,7 @@ public class FeeController : ControllerBase
                     Amount = mod.Amount,
                     StartDate = mod.StartDate,
                     EndDate = mod.EndDate,
-                    Modified = DateTime.UtcNow,
+                    Modified = DateTime.Now,
                     LebUserId = userId
                 });
             }

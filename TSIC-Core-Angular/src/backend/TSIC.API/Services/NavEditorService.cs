@@ -57,7 +57,7 @@ public class NavEditorService : INavEditorService
                 throw new InvalidOperationException($"Platform default already exists for role {request.RoleId}");
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var nav = new Nav
         {
             RoleId = request.RoleId,
@@ -85,7 +85,7 @@ public class NavEditorService : INavEditorService
     public async Task<NavEditorNavItemDto> CreateNavItemAsync(
         CreateNavItemRequest request, string userId, CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         // Hide rows are root-level override items with DefaultNavItemId set — skip 2-level and stub logic
         if (request.DefaultNavItemId != null)
@@ -254,7 +254,7 @@ public class NavEditorService : INavEditorService
         item.NavigateUrl = request.NavigateUrl;
         item.Target = request.Target;
         item.VisibilityRules = request.VisibilityRules;
-        item.Modified = DateTime.UtcNow;
+        item.Modified = DateTime.Now;
         item.ModifiedBy = userId;
 
         await _navEditorRepo.SaveChangesAsync(ct);
@@ -280,7 +280,7 @@ public class NavEditorService : INavEditorService
     {
         var matches = await _navEditorRepo.GetMatchingItemsAcrossDefaultNavsAsync(request.NavItemId, ct);
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         foreach (var match in matches)
         {
             match.RouterLink = request.RouterLink;
@@ -333,7 +333,7 @@ public class NavEditorService : INavEditorService
         ReorderNavItemsRequest request, string userId, CancellationToken ct = default)
     {
         var siblings = await _navEditorRepo.GetSiblingItemsAsync(request.NavId, request.ParentNavItemId, ct);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         for (int i = 0; i < request.OrderedItemIds.Count; i++)
         {
@@ -375,7 +375,7 @@ public class NavEditorService : INavEditorService
             throw new InvalidOperationException("Item is already under this parent");
 
         var oldParentId = item.ParentNavItemId.Value;
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         // 5. Append to end of target group
         var targetSiblingCount = await _navEditorRepo.GetSiblingCountAsync(item.NavId, targetParent.NavItemId, ct);
@@ -420,7 +420,7 @@ public class NavEditorService : INavEditorService
                 RoleId = request.TargetRoleId,
                 JobId = null,
                 Active = true,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
                 ModifiedBy = userId
             };
             _navEditorRepo.AddNav(nav);
@@ -441,7 +441,7 @@ public class NavEditorService : INavEditorService
 
         // Get current max sort order
         var existingCount = await _navEditorRepo.GetSiblingCountAsync(nav.NavId, null, ct);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var sortOrder = existingCount;
 
         // Import root items and their children
@@ -502,7 +502,7 @@ public class NavEditorService : INavEditorService
             throw new InvalidOperationException($"Nav {navId} not found");
 
         nav.Active = active;
-        nav.Modified = DateTime.UtcNow;
+        nav.Modified = DateTime.Now;
         await _navEditorRepo.SaveChangesAsync(ct);
     }
 
@@ -555,7 +555,7 @@ public class NavEditorService : INavEditorService
 
         // 5. Determine sort order for new parent
         var siblingCount = await _navEditorRepo.GetSiblingCountAsync(request.TargetNavId, null, ct);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         // 6. Create the cloned parent
         var clonedParent = new NavItem
@@ -622,7 +622,7 @@ public class NavEditorService : INavEditorService
             RoleId = roleId,
             JobId = jobId,
             Active = true,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             ModifiedBy = userId
         };
         _navEditorRepo.AddNav(overrideNav);
@@ -644,7 +644,7 @@ public class NavEditorService : INavEditorService
                 RoleId = roleId,
                 JobId = jobId,
                 Active = true,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
                 ModifiedBy = userId
             };
             _navEditorRepo.AddNav(overrideNav);
@@ -666,7 +666,7 @@ public class NavEditorService : INavEditorService
                     Text = null,
                     Active = false,
                     SortOrder = 0,
-                    Modified = DateTime.UtcNow,
+                    Modified = DateTime.Now,
                     ModifiedBy = userId
                 };
                 _navEditorRepo.AddNavItem(hideRow);
@@ -702,7 +702,7 @@ public class NavEditorService : INavEditorService
             RoleConstants.StpAdmin,
         };
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var created = 0;
 
         foreach (var roleId in standardRoleIds)

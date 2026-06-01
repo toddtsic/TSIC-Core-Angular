@@ -236,7 +236,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
             ?? throw new ArgumentException("Target division not found.");
 
         bool agegroupChanges = sourceDivision.AgegroupId != targetDivision.AgegroupId;
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         if (request.IsSymmetricalSwap && request.SourceTeamIds.Count != request.TargetTeamIds.Count)
             throw new ArgumentException("Symmetrical swap requires equal numbers of source and target teams.");
@@ -439,7 +439,7 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
             throw new ArgumentException("Team does not belong to this job.");
 
         team.Active = active;
-        team.Modified = DateTime.UtcNow;
+        team.Modified = DateTime.Now;
         team.LebUserId = adminUserId;
         await _teamRepo.SaveChangesAsync(ct);
 
@@ -469,12 +469,12 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
         if (swapTeam != null)
         {
             swapTeam.DivRank = oldRank;
-            swapTeam.Modified = DateTime.UtcNow;
+            swapTeam.Modified = DateTime.Now;
             swapTeam.LebUserId = adminUserId;
         }
 
         team.DivRank = divRank;
-        team.Modified = DateTime.UtcNow;
+        team.Modified = DateTime.Now;
         team.LebUserId = adminUserId;
         await _teamRepo.SaveChangesAsync(ct);
     }

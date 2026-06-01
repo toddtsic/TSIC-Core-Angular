@@ -230,9 +230,9 @@ public partial class VerticalInsureService
                 if (team != null)
                 {
                     team.ViPolicyId = policy.policy_number;
-                    team.ViPolicyCreateDate = DateTime.UtcNow;
+                    team.ViPolicyCreateDate = DateTime.Now;
                     team.ViPolicyClubRepRegId = clubRepRegId;
-                    team.Modified = DateTime.UtcNow;
+                    team.Modified = DateTime.Now;
                     policyDict[team.TeamId] = policy.policy_number;
                 }
             }
@@ -259,9 +259,9 @@ public partial class VerticalInsureService
         {
             var policyNo = $"TPOL-{team.TeamId.ToString("N").Substring(0, 8).ToUpper()}";
             team.ViPolicyId = policyNo;
-            team.ViPolicyCreateDate = DateTime.UtcNow;
+            team.ViPolicyCreateDate = DateTime.Now;
             team.ViPolicyClubRepRegId = clubRepRegId;
-            team.Modified = DateTime.UtcNow;
+            team.Modified = DateTime.Now;
             policyDict[team.TeamId] = policyNo;
         }
 

@@ -35,7 +35,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
         var newStore = new Stores
         {
             JobId = jobId,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -78,7 +78,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
             StoreItemPrice = request.StoreItemPrice,
             Active = true,
             SortOrder = 0,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -113,7 +113,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
         item.StoreItemPrice = request.StoreItemPrice;
         item.Active = request.Active;
         item.SortOrder = request.SortOrder;
-        item.Modified = DateTime.UtcNow;
+        item.Modified = DateTime.Now;
         item.LebUserId = userId;
 
         await _itemRepo.SaveChangesAsync();
@@ -136,7 +136,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
 
         sku.Active = request.Active;
         sku.MaxCanSell = request.MaxCanSell;
-        sku.Modified = DateTime.UtcNow;
+        sku.Modified = DateTime.Now;
         sku.LebUserId = userId;
 
         await _itemRepo.SaveChangesAsync();
@@ -164,7 +164,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
         var color = new StoreColors
         {
             StoreColorName = request.StoreColorName,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -185,7 +185,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
             ?? throw new InvalidOperationException($"Color {storeColorId} not found.");
 
         color.StoreColorName = request.StoreColorName;
-        color.Modified = DateTime.UtcNow;
+        color.Modified = DateTime.Now;
         color.LebUserId = userId;
 
         await _storeRepo.SaveChangesAsync();
@@ -228,7 +228,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
         var size = new StoreSizes
         {
             StoreSizeName = request.StoreSizeName,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -249,7 +249,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
             ?? throw new InvalidOperationException($"Size {storeSizeId} not found.");
 
         size.StoreSizeName = request.StoreSizeName;
-        size.Modified = DateTime.UtcNow;
+        size.Modified = DateTime.Now;
         size.LebUserId = userId;
 
         await _storeRepo.SaveChangesAsync();
@@ -287,7 +287,7 @@ public sealed class StoreCatalogService : IStoreCatalogService
         int storeItemId, List<int> colorIds, List<int> sizeIds, int maxCanSell, string userId)
     {
         var skus = new List<StoreItemSkus>();
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         if (colorIds.Count > 0 && sizeIds.Count > 0)
         {

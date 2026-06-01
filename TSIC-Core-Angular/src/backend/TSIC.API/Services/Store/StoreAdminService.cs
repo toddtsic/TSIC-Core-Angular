@@ -75,7 +75,7 @@ public sealed class StoreAdminService : IStoreAdminService
         {
             StoreCartBatchSkuId = request.StoreCartBatchSkuId,
             RestockCount = request.RestockCount,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -90,9 +90,9 @@ public sealed class StoreAdminService : IStoreAdminService
         var batch = await _analyticsRepo.GetBatchByIdAsync(request.StoreCartBatchId)
             ?? throw new InvalidOperationException($"Batch {request.StoreCartBatchId} not found.");
 
-        batch.SignedForDate = DateTime.UtcNow;
+        batch.SignedForDate = DateTime.Now;
         batch.SignedForBy = request.SignedForBy;
-        batch.Modified = DateTime.UtcNow;
+        batch.Modified = DateTime.Now;
         batch.LebUserId = userId;
 
         await _analyticsRepo.SaveChangesAsync();

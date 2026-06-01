@@ -82,7 +82,7 @@ public sealed class StoreCartService : IStoreCartService
         {
             existingLineItem.Quantity += request.Quantity;
             RecalculateLineItemFees(existingLineItem, config);
-            existingLineItem.Modified = DateTime.UtcNow;
+            existingLineItem.Modified = DateTime.Now;
             existingLineItem.LebUserId = userId;
         }
         else
@@ -106,8 +106,8 @@ public sealed class StoreCartService : IStoreCartService
                 PaidTotal = 0m,
                 RefundedTotal = 0m,
                 Restocked = 0,
-                CreateDate = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
+                CreateDate = DateTime.Now,
+                Modified = DateTime.Now,
                 LebUserId = userId
             };
 
@@ -149,7 +149,7 @@ public sealed class StoreCartService : IStoreCartService
 
         lineItem.Quantity = request.Quantity;
         RecalculateLineItemFees(lineItem, config);
-        lineItem.Modified = DateTime.UtcNow;
+        lineItem.Modified = DateTime.Now;
         lineItem.LebUserId = userId;
 
         await _cartRepo.SaveChangesAsync();
@@ -256,7 +256,7 @@ public sealed class StoreCartService : IStoreCartService
             RecalculateLineItemFees(lineItem, config);
             var lineTotal = lineItem.UnitPrice * lineItem.Quantity + lineItem.FeeTotal;
             lineItem.PaidTotal = lineTotal;
-            lineItem.Modified = DateTime.UtcNow;
+            lineItem.Modified = DateTime.Now;
             lineItem.LebUserId = userId;
             totalPaid += lineTotal;
         }
@@ -329,14 +329,14 @@ public sealed class StoreCartService : IStoreCartService
             StoreCartBatchId = batch.StoreCartBatchId,
             PaymentMethodId = request.PaymentMethodId,
             Paid = totalPaid,
-            CreateDate = DateTime.UtcNow,
+            CreateDate = DateTime.Now,
             Cclast4 = ccLast4,
             CcexpDate = ccExpDate,
             AdnInvoiceNo = adnInvoiceNo,
             AdnTransactionId = adnTransactionId,
             Comment = request.Comment,
             DiscountCodeAi = request.DiscountCodeAi,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
 
@@ -368,7 +368,7 @@ public sealed class StoreCartService : IStoreCartService
             {
                 StoreId = storeId,
                 FamilyUserId = familyUserId,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
                 LebUserId = userId
             };
             _cartRepo.AddCart(cart);
@@ -382,7 +382,7 @@ public sealed class StoreCartService : IStoreCartService
             batch = new StoreCartBatches
             {
                 StoreCartId = cart.StoreCartId,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
                 LebUserId = userId
             };
             _cartRepo.AddBatch(batch);

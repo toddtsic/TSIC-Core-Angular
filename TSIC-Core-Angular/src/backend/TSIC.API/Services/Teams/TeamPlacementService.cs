@@ -132,7 +132,7 @@ public class TeamPlacementService : ITeamPlacementService
             BChampionsByDivision = false,
             BHideStandings = true,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _agegroupRepo.Add(waitlistAg);
         await _agegroupRepo.SaveChangesAsync(cancellationToken);
@@ -228,7 +228,7 @@ public class TeamPlacementService : ITeamPlacementService
             AgegroupId = agegroupId,
             DivName = divName,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _divisionRepo.Add(division);
         await _divisionRepo.SaveChangesAsync(cancellationToken);
@@ -274,8 +274,8 @@ public class TeamPlacementService : ITeamPlacementService
             Startdate = sourceTeam.Startdate,
             Enddate = sourceTeam.Enddate,
             LebUserId = userId,
-            Createdate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now
         };
         _teamRepo.Add(waitlistTeam);
         await _teamRepo.SaveChangesAsync(cancellationToken);

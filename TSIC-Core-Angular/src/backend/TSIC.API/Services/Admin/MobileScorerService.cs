@@ -59,7 +59,7 @@ public class MobileScorerService : IMobileScorerService
             Gender = "U",
             Dob = new DateTime(1980, 1, 1),
             LebUserId = currentUserId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         var result = await _userManager.CreateAsync(user, password: username);
@@ -80,9 +80,9 @@ public class MobileScorerService : IMobileScorerService
             AssignedTeamId = null,
             FamilyUserId = null,
             RegistrationFormName = null,
-            RegistrationTs = DateTime.UtcNow,
+            RegistrationTs = DateTime.Now,
             LebUserId = currentUserId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _repo.AddRegistration(registration);
@@ -112,7 +112,7 @@ public class MobileScorerService : IMobileScorerService
         // Update registration active status
         registration.BActive = request.BActive;
         registration.LebUserId = currentUserId;
-        registration.Modified = DateTime.UtcNow;
+        registration.Modified = DateTime.Now;
 
         // Update user contact fields
         var user = await _userManager.FindByIdAsync(registration.UserId!)
@@ -120,7 +120,7 @@ public class MobileScorerService : IMobileScorerService
 
         user.Email = request.Email?.Trim();
         user.Cellphone = request.Cellphone?.Trim();
-        user.Modified = DateTime.UtcNow;
+        user.Modified = DateTime.Now;
 
         await _userManager.UpdateAsync(user);
         await _repo.SaveChangesAsync(ct);

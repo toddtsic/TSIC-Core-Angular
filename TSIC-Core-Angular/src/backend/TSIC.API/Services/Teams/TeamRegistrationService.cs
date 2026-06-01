@@ -188,8 +188,8 @@ public class TeamRegistrationService : ITeamRegistrationService
                 RegistrationCategory = $"Club Rep: {clubName}",
                 BActive = true,
                 BConfirmationSent = false,
-                RegistrationTs = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
+                RegistrationTs = DateTime.Now,
+                Modified = DateTime.Now,
                 FeeBase = 0,
                 FeeProcessing = 0
             };
@@ -640,7 +640,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 ClubTeamGradYear = request.ClubTeamGradYear,
                 ClubTeamLevelOfPlay = request.LevelOfPlay ?? string.Empty,
                 LebUserId = userId,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             };
             _clubTeams.Add(newClubTeam);
             await _clubTeams.SaveChangesAsync();
@@ -696,8 +696,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             OwedTotal = 0,
             PaidTotal = 0,
             Active = true,
-            Createdate = DateTime.UtcNow,
-            Modified = DateTime.UtcNow,
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now,
             LebUserId = userId
         };
         _teams.Add(team);
@@ -825,7 +825,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 if (tracked != null)
                 {
                     tracked.ClubTeamLevelOfPlay = lop;
-                    tracked.Modified = DateTime.UtcNow;
+                    tracked.Modified = DateTime.Now;
                     await _clubTeams.SaveChangesAsync();
                 }
             }
@@ -849,7 +849,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeamGradYear = gradYear,
             ClubTeamLevelOfPlay = lop,
             Active = true,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             LebUserId = userId,
         };
         _clubTeams.Add(entity);
@@ -906,7 +906,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         entity.ClubTeamName = name;
         entity.ClubTeamGradYear = gradYear;
         entity.ClubTeamLevelOfPlay = lop;
-        entity.Modified = DateTime.UtcNow;
+        entity.Modified = DateTime.Now;
         entity.LebUserId = userId;
         await _clubTeams.SaveChangesAsync();
 
@@ -941,7 +941,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("This team is already archived.");
 
         entity.Active = false;
-        entity.Modified = DateTime.UtcNow;
+        entity.Modified = DateTime.Now;
         entity.LebUserId = userId;
         await _clubTeams.SaveChangesAsync();
 
@@ -971,7 +971,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("This team is not archived.");
 
         entity.Active = true;
-        entity.Modified = DateTime.UtcNow;
+        entity.Modified = DateTime.Now;
         entity.LebUserId = userId;
         await _clubTeams.SaveChangesAsync();
 
@@ -1054,7 +1054,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             club = new Domain.Entities.Clubs
             {
                 ClubName = clubName,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             };
             _clubs.Add(club);
             await _clubs.SaveChangesAsync();
@@ -1065,7 +1065,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             ClubId = club.ClubId,
             ClubRepUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _clubReps.Add(clubRep);
@@ -1302,7 +1302,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             if (newFeeBase != oldFeeBase || newFeeProcessing != oldFeeProcessing)
             {
                 team.LebUserId = userId;
-                team.Modified = DateTime.UtcNow;
+                team.Modified = DateTime.Now;
 
                 if (team.ClubrepRegistrationid.HasValue)
                 {

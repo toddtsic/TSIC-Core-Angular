@@ -44,7 +44,7 @@ public class ChatRepository : IChatRepository
             TeamId = teamId,
             CreatorUserId = userId,
             Message = message,
-            Created = DateTime.UtcNow
+            Created = DateTime.Now
         };
         _context.ChatMessages.Add(entity);
         await _context.SaveChangesAsync(ct);

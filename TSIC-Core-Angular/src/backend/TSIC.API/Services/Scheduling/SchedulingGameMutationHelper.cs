@@ -30,7 +30,7 @@ public static class SchedulingGameMutationHelper
             gameA.FieldId = request.TargetFieldId;
             gameA.FName = field?.FName ?? "";
             gameA.RescheduleCount = (gameA.RescheduleCount ?? 0) + 1;
-            gameA.Modified = DateTime.UtcNow;
+            gameA.Modified = DateTime.Now;
             gameA.LebUserId = userId;
 
             logger.LogInformation("MoveGame: Gid={Gid} → {NewDate} field {FieldName}",
@@ -47,14 +47,14 @@ public static class SchedulingGameMutationHelper
             gameA.FieldId = gameB.FieldId;
             gameA.FName = gameB.FName;
             gameA.RescheduleCount = (gameA.RescheduleCount ?? 0) + 1;
-            gameA.Modified = DateTime.UtcNow;
+            gameA.Modified = DateTime.Now;
             gameA.LebUserId = userId;
 
             gameB.GDate = tempDate;
             gameB.FieldId = tempFieldId;
             gameB.FName = tempFName;
             gameB.RescheduleCount = (gameB.RescheduleCount ?? 0) + 1;
-            gameB.Modified = DateTime.UtcNow;
+            gameB.Modified = DateTime.Now;
             gameB.LebUserId = userId;
 
             logger.LogInformation("SwapGames: Gid={GidA} ↔ Gid={GidB}", request.Gid, gameB.Gid);

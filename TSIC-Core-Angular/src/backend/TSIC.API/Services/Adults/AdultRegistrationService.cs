@@ -170,7 +170,7 @@ public class AdultRegistrationService : IAdultRegistrationService
             PostalCode = request.PostalCode.Trim(),
             Dob = new DateTime(1980, 1, 1),  // Legacy default — adults have no DOB field
             LebUserId = TsicConstants.SuperUserId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         // Resolve role server-side (security model gate). This validates roleKey,
@@ -899,9 +899,9 @@ public class AdultRegistrationService : IAdultRegistrationService
             AssignedTeamId = assignedTeamId,
             FamilyUserId = null,
             RegistrationFormName = null,
-            RegistrationTs = DateTime.UtcNow,
+            RegistrationTs = DateTime.Now,
             LebUserId = auditUserId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         // Apply dynamic form values via reflection

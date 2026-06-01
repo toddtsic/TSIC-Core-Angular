@@ -904,7 +904,7 @@ public class RegistrationRepository : IRegistrationRepository
             registration.FeeTotal = totals?.FeeTotal ?? 0;
             registration.OwedTotal = totals?.OwedTotal ?? 0;
             registration.PaidTotal = totals?.PaidTotal ?? 0;
-            registration.Modified = DateTime.UtcNow;
+            registration.Modified = DateTime.Now;
             registration.LebUserId = userId;
 
             await _context.SaveChangesAsync(cancellationToken);
@@ -949,7 +949,7 @@ public class RegistrationRepository : IRegistrationRepository
             reg.FeeLatefee = 0;
             reg.FeeTotal = 0;
             reg.OwedTotal = 0;
-            reg.Modified = DateTime.UtcNow;
+            reg.Modified = DateTime.Now;
         }
 
         if (registrations.Count > 0)
@@ -2104,7 +2104,7 @@ public class RegistrationRepository : IRegistrationRepository
             }
         }
 
-        reg.Modified = DateTime.UtcNow;
+        reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
 
         await _context.SaveChangesAsync(ct);
@@ -2137,7 +2137,7 @@ public class RegistrationRepository : IRegistrationRepository
         family.DadLastName = fc.DadLastName;
         family.DadCellphone = fc.DadCellphone;
         family.DadEmail = fc.DadEmail;
-        family.Modified = DateTime.UtcNow;
+        family.Modified = DateTime.Now;
         family.LebUserId = userId;
 
         await _context.SaveChangesAsync(ct);

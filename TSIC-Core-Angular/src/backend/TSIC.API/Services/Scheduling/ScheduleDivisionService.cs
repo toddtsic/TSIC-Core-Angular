@@ -247,7 +247,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
             T1Ann = pairing.T1Annotation,
             T2Ann = pairing.T2Annotation,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _scheduleRepo.AddGame(game);
@@ -454,7 +454,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
                 T2CalcType = pairing.T2CalcType,
                 T2GnoRef = pairing.T2GnoRef,
                 LebUserId = userId,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             };
 
             _scheduleRepo.AddGame(game);
@@ -590,7 +590,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
 
             game.GDate = parkingSlot.Value;
             game.RescheduleCount = (game.RescheduleCount ?? 0) + 1;
-            game.Modified = DateTime.UtcNow;
+            game.Modified = DateTime.Now;
             game.LebUserId = userId;
 
             parkedGames.Add(new ParkedGameInfo
@@ -728,7 +728,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
                 var game = games.First(g => g.Gid == move.Gid);
                 game.GDate = move.TargetGDate;
                 game.RescheduleCount = (game.RescheduleCount ?? 0) + 1;
-                game.Modified = DateTime.UtcNow;
+                game.Modified = DateTime.Now;
                 game.LebUserId = userId;
             }
 

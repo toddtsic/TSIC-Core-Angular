@@ -49,7 +49,7 @@ public class TeamAttendanceRepository : ITeamAttendanceRepository
             EventDate = request.EventDate,
             EventLocation = request.EventLocation,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
         _context.TeamAttendanceEvents.Add(entity);
         await _context.SaveChangesAsync(ct);
@@ -117,7 +117,7 @@ public class TeamAttendanceRepository : ITeamAttendanceRepository
         {
             existing.Present = present;
             existing.LebUserId = userId;
-            existing.Modified = DateTime.UtcNow;
+            existing.Modified = DateTime.Now;
         }
         else
         {
@@ -127,7 +127,7 @@ public class TeamAttendanceRepository : ITeamAttendanceRepository
                 PlayerId = playerId,
                 Present = present,
                 LebUserId = userId,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             });
         }
     }

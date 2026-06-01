@@ -298,7 +298,7 @@ public sealed class ViewScheduleService : IViewScheduleService
         // Entering a score implies the game has concluded → default to 6 (final).
         game.GStatusCode = request.GStatusCode ?? 6;
         game.LebUserId = userId;
-        game.Modified = DateTime.UtcNow;
+        game.Modified = DateTime.Now;
 
         await _scheduleRepo.SaveChangesAsync(ct);
     }
@@ -320,7 +320,7 @@ public sealed class ViewScheduleService : IViewScheduleService
         if (request.GStatusCode.HasValue) game.GStatusCode = request.GStatusCode;
 
         game.LebUserId = userId;
-        game.Modified = DateTime.UtcNow;
+        game.Modified = DateTime.Now;
 
         await _scheduleRepo.SaveChangesAsync(ct);
     }

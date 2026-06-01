@@ -59,7 +59,7 @@ public class PushNotificationService : IPushNotificationService
             JobId = jobId,
             LebUserId = userId,
             PushText = pushText,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             DeviceCount = deviceCount
         };
 

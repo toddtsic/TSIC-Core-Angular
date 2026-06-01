@@ -94,7 +94,7 @@ public class JobConfigService : IJobConfigService
             job.JobCode = req.JobCode;
         }
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
     }
 
@@ -160,7 +160,7 @@ public class JobConfigService : IJobConfigService
             job.AdnStartDateAfterTrial = req.AdnStartDateAfterTrial;
         }
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
 
         // Auto-recalculate team fees if any team-fee-affecting flag changed
@@ -225,7 +225,7 @@ public class JobConfigService : IJobConfigService
         job.Alwayscopyemaillist = req.Alwayscopyemaillist;
         job.BDisallowCcplayerConfirmations = req.BDisallowCcplayerConfirmations;
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
     }
 
@@ -260,7 +260,7 @@ public class JobConfigService : IJobConfigService
                 job.PlayerProfileMetadataJson = req.PlayerProfileMetadataJson;
         }
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
     }
 
@@ -293,7 +293,7 @@ public class JobConfigService : IJobConfigService
                 job.BOfferTeamRegsaverInsurance = req.BOfferTeamRegsaverInsurance.Value;
         }
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
 
         if (prevShowTeamNameOnly != req.BShowTeamNameOnlyInSchedules)
@@ -321,7 +321,7 @@ public class JobConfigService : IJobConfigService
         job.RecruiterRegConfirmationEmail = req.RecruiterRegConfirmationEmail;
         job.RecruiterRegConfirmationOnScreen = req.RecruiterRegConfirmationOnScreen;
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
     }
 
@@ -354,7 +354,7 @@ public class JobConfigService : IJobConfigService
                     QuarterMinutes = req.GameClock.QuarterMinutes,
                     QuarterTimeMinutes = req.GameClock.QuarterTimeMinutes,
                     UtcoffsetHours = req.GameClock.UtcOffsetHours,
-                    Modified = DateTime.UtcNow,
+                    Modified = DateTime.Now,
                 };
                 _repo.AddGameClockParams(gcp);
             }
@@ -370,11 +370,11 @@ public class JobConfigService : IJobConfigService
                 gcp.QuarterMinutes = req.GameClock.QuarterMinutes;
                 gcp.QuarterTimeMinutes = req.GameClock.QuarterTimeMinutes;
                 gcp.UtcoffsetHours = req.GameClock.UtcOffsetHours;
-                gcp.Modified = DateTime.UtcNow;
+                gcp.Modified = DateTime.Now;
             }
         }
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
     }
 
@@ -406,7 +406,7 @@ public class JobConfigService : IJobConfigService
             job.StoreTsicrate = req.StoreTsicrate;
         }
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
     }
 
@@ -446,7 +446,7 @@ public class JobConfigService : IJobConfigService
             Comment = req.Comment,
             Year = req.Year,
             Month = req.Month,
-            CreateDate = DateTime.UtcNow,
+            CreateDate = DateTime.Now,
         };
 
         _repo.AddAdminCharge(charge);
@@ -498,7 +498,7 @@ public class JobConfigService : IJobConfigService
             jdo.ParallaxSlide1Text2 = NewlineToBr(req.BannerOverlayText2);
         }
 
-        job.Modified = DateTime.UtcNow;
+        job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
     }
 

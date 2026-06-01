@@ -75,7 +75,7 @@ public sealed class RefAssignmentRepository : IRefAssignmentRepository
         _context.RefGameAssigments.RemoveRange(existing);
 
         // Insert new
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         foreach (var regId in refRegistrationIds)
         {
             _context.RefGameAssigments.Add(new RefGameAssigments

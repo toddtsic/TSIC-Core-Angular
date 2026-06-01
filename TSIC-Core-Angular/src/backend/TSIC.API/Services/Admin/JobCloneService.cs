@@ -124,7 +124,7 @@ public sealed class JobCloneService : IJobCloneService
         // Validate + resolve user-driven defaults (Step 4 + Step 5 wizard inputs).
         ValidateChoices(request);
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var newJobId = Guid.NewGuid();
         var summary = new CloneSummaryBuilder();
         var yearDelta = ComputeYearDelta(sourceJob.Year, request.YearTarget);
@@ -464,7 +464,7 @@ public sealed class JobCloneService : IJobCloneService
         if (await _repo.JobPathExistsAsync(request.JobPathTarget, ct))
             throw new InvalidOperationException($"Job path '{request.JobPathTarget}' already exists.");
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var newJobId = Guid.NewGuid();
 
         await _repo.BeginTransactionAsync(ct);
@@ -762,7 +762,7 @@ public sealed class JobCloneService : IJobCloneService
         if (authorCustomerId.HasValue && authorCustomerId.Value != job.CustomerId)
             throw new UnauthorizedAccessException("Cannot release a job for a different customer.");
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         job.BSuspendPublic = false;
         job.Modified = now;
         job.LebUserId = actorUserId;
@@ -808,7 +808,7 @@ public sealed class JobCloneService : IJobCloneService
                 $"Registration(s) not found on job {jobId}: {string.Join(", ", missing)}");
         }
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         foreach (var r in regs)
         {
             r.BActive = true;

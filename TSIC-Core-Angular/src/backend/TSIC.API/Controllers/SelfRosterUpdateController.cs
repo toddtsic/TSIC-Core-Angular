@@ -138,7 +138,7 @@ public class SelfRosterUpdateController : ControllerBase
         reg.Position = request.Position;
         reg.AssignedTeamId = request.TeamId;
         reg.Assignment = $"Player: {teamName}";
-        reg.Modified = DateTime.UtcNow;
+        reg.Modified = DateTime.Now;
 
         // reg is already tracked (FindAsync); do NOT call Update() — it marks
         // ALL columns as modified including the RegistrationAI identity column.

@@ -140,7 +140,8 @@ public class PlayerRegistrationPaymentController : ControllerBase
         if (jobId is null)
             return NotFound(new { message = $"Job not found: {request.JobPath}" });
 
-        var now = DateTime.UtcNow;
+        // Discount-code start/end dates are stored in local AZ server time, not UTC.
+        var now = DateTime.Now;
         var codeLower = request.Code.Trim().ToLowerInvariant();
         var rec = await _discountCodeRepo.GetActiveCodeAsync(jobId.Value, codeLower, now);
 
@@ -288,7 +289,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
             reg.FeeProcessing = proc;
             reg.FeeTotal = totalFee;
             reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
-            reg.Modified = DateTime.UtcNow;
+            reg.Modified = DateTime.Now;
             reg.LebUserId = familyUserId;
 
             // 100% DC: create correction accounting record so registration isn't invisible in ledger
@@ -304,8 +305,8 @@ public class PlayerRegistrationPaymentController : ControllerBase
                     Payamt = d,
                     Comment = $"DC: {request.Code.Trim()} ({detail})",
                     Active = true,
-                    Createdate = DateTime.UtcNow,
-                    Modified = DateTime.UtcNow,
+                    Createdate = DateTime.Now,
+                    Modified = DateTime.Now,
                     LebUserId = familyUserId
                 });
                 reg.PaidTotal += d;

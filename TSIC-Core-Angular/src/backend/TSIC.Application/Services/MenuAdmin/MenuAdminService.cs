@@ -49,7 +49,7 @@ public class MenuAdminService : IMenuAdminService
             throw new InvalidOperationException($"Menu {menuId} not found");
 
         menu.Active = active;
-        menu.Modified = DateTime.UtcNow;
+        menu.Modified = DateTime.Now;
         menu.LebUserId = userId;
 
         await _menuRepo.SaveChangesAsync();
@@ -57,7 +57,7 @@ public class MenuAdminService : IMenuAdminService
 
     public async Task<MenuItemAdminDto> CreateMenuItemAsync(Guid jobId, CreateMenuItemRequest request, string userId)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         if (request.ParentMenuItemId == null)
         {
@@ -184,7 +184,7 @@ public class MenuAdminService : IMenuAdminService
         item.Action = request.Action;
         item.Target = request.Target;
         item.Active = request.Active;
-        item.Modified = DateTime.UtcNow;
+        item.Modified = DateTime.Now;
         item.LebUserId = userId;
 
         await _menuRepo.SaveChangesAsync();
@@ -224,7 +224,7 @@ public class MenuAdminService : IMenuAdminService
         {
             // Soft delete - last sibling, prevent orphaning
             item.Active = false;
-            item.Modified = DateTime.UtcNow;
+            item.Modified = DateTime.Now;
         }
 
         await _menuRepo.SaveChangesAsync();
@@ -233,7 +233,7 @@ public class MenuAdminService : IMenuAdminService
     public async Task ReorderMenuItemsAsync(ReorderMenuItemsRequest request, string userId)
     {
         var siblings = await _menuRepo.GetSiblingItemsAsync(request.MenuId, request.ParentMenuItemId);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         // Assign sequential indexes based on ordered list
         for (int i = 0; i < request.OrderedItemIds.Count; i++)
@@ -253,7 +253,7 @@ public class MenuAdminService : IMenuAdminService
     public async Task<int> EnsureAllRoleMenusAsync(Guid jobId, string userId)
     {
         var existingRoleIds = await _menuRepo.GetExistingMenuRoleIdsForJobAsync(jobId);
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         // 6 standard roles for per-login-role menus
         var standardRoles = new[]

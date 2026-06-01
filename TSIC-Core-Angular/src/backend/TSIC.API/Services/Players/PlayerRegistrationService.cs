@@ -342,7 +342,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             var countBefore = teamResults.Count;
             if (ctx.ExistingByPlayerTeam.TryGetValue((playerId, effectiveTeamId), out var existing))
             {
-                existing.Modified = DateTime.UtcNow;
+                existing.Modified = DateTime.Now;
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
                 if (applyFormValues)
                 {
@@ -373,7 +373,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
     private async Task UpdateExistingRegistrationAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
     {
-        regToUpdate.Modified = DateTime.UtcNow;
+        regToUpdate.Modified = DateTime.Now;
         if (string.Equals(ctx.RegistrationMode, "PP", StringComparison.OrdinalIgnoreCase))
         {
             await UpdateExistingPPModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
@@ -457,8 +457,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 UserId = playerId,
                 AssignedTeamId = team.TeamId,
                 BActive = false,
-                Modified = DateTime.UtcNow,
-                RegistrationTs = DateTime.UtcNow,
+                Modified = DateTime.Now,
+                RegistrationTs = DateTime.Now,
                 RoleId = RoleConstants.Player,
                 Assignment = $"Player: {team.TeamName}"
             };
@@ -493,8 +493,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             UserId = playerId,
             AssignedTeamId = team.TeamId,
             BActive = false,
-            Modified = DateTime.UtcNow,
-            RegistrationTs = DateTime.UtcNow,
+            Modified = DateTime.Now,
+            RegistrationTs = DateTime.Now,
             RoleId = RoleConstants.Player,
             Assignment = $"Player: {team.TeamName}"
         };
@@ -566,7 +566,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             if (reg.FeeBase != oldFeeBase || reg.FeeProcessing != oldFeeProcessing)
             {
                 reg.LebUserId = userId;
-                reg.Modified = DateTime.UtcNow;
+                reg.Modified = DateTime.Now;
                 updated++;
 
                 _logger.LogInformation(
@@ -648,7 +648,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
             reg.PaymentMethodChosen = CheckMethodCode;
             reg.BActive = true;
-            reg.Modified = DateTime.UtcNow;
+            reg.Modified = DateTime.Now;
             reg.LebUserId = callerUserId;
             updated.Add(reg.RegistrationId);
             changedCount++;

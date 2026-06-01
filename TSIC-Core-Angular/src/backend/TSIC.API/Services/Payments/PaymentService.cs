@@ -302,7 +302,7 @@ public class PaymentService : IPaymentService
             {
                 // Settlement.RegistrationAccountingId is the identity-generated AId on RA;
                 // requires the RA inserts above to be saved first.
-                var nextCheckAt = DateTime.UtcNow.AddDays(1);
+                var nextCheckAt = DateTime.Now.AddDays(1);
                 foreach (var (ra, txId) in pendingSettlements)
                 {
                     _settleRepo.Add(new Settlement
@@ -311,12 +311,12 @@ public class PaymentService : IPaymentService
                         RegistrationAccountingId = ra.AId,
                         AdnTransactionId = txId,
                         Status = "Pending",
-                        SubmittedAt = DateTime.UtcNow,
+                        SubmittedAt = DateTime.Now,
                         NextCheckAt = nextCheckAt,
                         AccountLast4 = acctLast4,
                         AccountType = bankAccount!.AccountType,
                         NameOnAccount = nameOnAcct,
-                        Modified = DateTime.UtcNow,
+                        Modified = DateTime.Now,
                         LebUserId = userId
                     });
                 }
@@ -849,7 +849,7 @@ public class PaymentService : IPaymentService
             {
                 // Settlement.RegistrationAccountingId = identity-generated AId on the RA;
                 // requires the RA inserts above to be saved first.
-                var nextCheckAt = DateTime.UtcNow.AddDays(1);
+                var nextCheckAt = DateTime.Now.AddDays(1);
                 foreach (var (ra, txId) in pendingSettlements)
                 {
                     _settleRepo.Add(new Settlement
@@ -858,12 +858,12 @@ public class PaymentService : IPaymentService
                         RegistrationAccountingId = ra.AId,
                         AdnTransactionId = txId,
                         Status = "Pending",
-                        SubmittedAt = DateTime.UtcNow,
+                        SubmittedAt = DateTime.Now,
                         NextCheckAt = nextCheckAt,
                         AccountLast4 = last4,
                         AccountType = bankAccount!.AccountType,
                         NameOnAccount = nameOnAcct,
-                        Modified = DateTime.UtcNow,
+                        Modified = DateTime.Now,
                         LebUserId = userId
                     });
                 }
@@ -1375,8 +1375,8 @@ public class PaymentService : IPaymentService
                 Dueamt = plan[item.RegistrationId].Charge,
                 Payamt = 0m,
                 Active = true,
-                Createdate = DateTime.UtcNow,
-                Modified = DateTime.UtcNow,
+                Createdate = DateTime.Now,
+                Modified = DateTime.Now,
                 LebUserId = userId
             };
             _acct.Add(ra);
@@ -1461,7 +1461,7 @@ public class PaymentService : IPaymentService
                 firstError ??= err;
                 ra.Active = false;
                 ra.Comment = $"FAILED: {err}";
-                ra.Modified = DateTime.UtcNow;
+                ra.Modified = DateTime.Now;
                 outcomes.Add(new RegistrationCcChargeOutcome
                 {
                     RegistrationId = item.RegistrationId,
@@ -1483,12 +1483,12 @@ public class PaymentService : IPaymentService
             ra.AdnCc4 = ccLast4;
             ra.AdnCcexpDate = expiry;
             ra.Paymeth = kind == RegistrationChargeKind.Cc
-                ? $"paid by cc: {charge:C} on {DateTime.UtcNow:G} txID: {transId}"
-                : $"eCheck pending settlement: {charge:C} on {DateTime.UtcNow:G} txID: {transId} (acct ****{bankLast4})";
+                ? $"paid by cc: {charge:C} on {DateTime.Now:G} txID: {transId}"
+                : $"eCheck pending settlement: {charge:C} on {DateTime.Now:G} txID: {transId} (acct ****{bankLast4})";
             ra.Comment = kind == RegistrationChargeKind.Cc
                 ? "Registration Payment"
                 : "eCheck Registration Payment (Pending Settlement)";
-            ra.Modified = DateTime.UtcNow;
+            ra.Modified = DateTime.Now;
 
             // eCheck: convert the CC-rate proc embedded in this charge to the eCheck rate by
             // dropping BOTH FeeProcessing and FeeTotal by the credit. Registrations has no
@@ -1507,7 +1507,7 @@ public class PaymentService : IPaymentService
             // success branch must match — every consumer (rosters, coach views,
             // batch email, division counts, JobFilterTree, ARB) gates on BActive==true.
             reg.BActive = true;
-            reg.Modified = DateTime.UtcNow;
+            reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
 
             pendingSettlements?.Add((ra, transId));
@@ -1530,7 +1530,7 @@ public class PaymentService : IPaymentService
         // flush above must precede this.
         if (pendingSettlements is { Count: > 0 })
         {
-            var nextCheckAt = DateTime.UtcNow.AddDays(1);
+            var nextCheckAt = DateTime.Now.AddDays(1);
             foreach (var (ra, txId) in pendingSettlements)
             {
                 _settleRepo.Add(new Settlement
@@ -1539,12 +1539,12 @@ public class PaymentService : IPaymentService
                     RegistrationAccountingId = ra.AId,
                     AdnTransactionId = txId,
                     Status = "Pending",
-                    SubmittedAt = DateTime.UtcNow,
+                    SubmittedAt = DateTime.Now,
                     NextCheckAt = nextCheckAt,
                     AccountLast4 = bankLast4,
                     AccountType = bankAccount!.AccountType,
                     NameOnAccount = bankNameOnAcct,
-                    Modified = DateTime.UtcNow,
+                    Modified = DateTime.Now,
                     LebUserId = userId
                 });
             }

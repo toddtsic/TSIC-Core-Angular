@@ -58,7 +58,7 @@ public class UserRepository : IUserRepository
         if (user != null)
         {
             user.BTsicwaiverSigned = true;
-            user.TsicwaiverSignedTs = DateTime.UtcNow;
+            user.TsicwaiverSignedTs = DateTime.Now;
             await _context.SaveChangesAsync(cancellationToken);
         }
     }
@@ -73,7 +73,7 @@ public class UserRepository : IUserRepository
         if (user != null)
         {
             user.BTsicwaiverSigned = true;
-            user.TsicwaiverSignedTs = DateTime.UtcNow;
+            user.TsicwaiverSignedTs = DateTime.Now;
             await _context.SaveChangesAsync(cancellationToken);
         }
     }

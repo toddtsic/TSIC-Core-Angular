@@ -31,7 +31,7 @@ public class EcheckSettlementRepository : IEcheckSettlementRepository
     {
         var log = new SweepLog
         {
-            StartedAt = DateTime.UtcNow,
+            StartedAt = DateTime.Now,
             TriggeredBy = triggeredBy
         };
         _context.SweepLog.Add(log);
@@ -48,7 +48,7 @@ public class EcheckSettlementRepository : IEcheckSettlementRepository
         string? errorMessage,
         CancellationToken ct = default)
     {
-        log.CompletedAt = DateTime.UtcNow;
+        log.CompletedAt = DateTime.Now;
         log.RecordsChecked = recordsChecked;
         log.RecordsSettled = recordsSettled;
         log.RecordsReturned = recordsReturned;

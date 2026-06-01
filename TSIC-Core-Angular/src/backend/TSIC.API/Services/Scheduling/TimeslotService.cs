@@ -334,7 +334,7 @@ public sealed class TimeslotService : ITimeslotService
             Season = season,
             Year = year,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _tsRepo.AddDate(date);
@@ -351,7 +351,7 @@ public sealed class TimeslotService : ITimeslotService
         date.GDate = request.GDate;
         date.Rnd = request.Rnd;
         date.LebUserId = userId;
-        date.Modified = DateTime.UtcNow;
+        date.Modified = DateTime.Now;
 
         await _tsRepo.SaveChangesAsync(ct);
     }
@@ -388,7 +388,7 @@ public sealed class TimeslotService : ITimeslotService
         var dateRows = await _tsRepo.GetDatesByDateTrackedAsync(
             leagueId, request.OldDate, season, year, ct);
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         foreach (var row in dateRows)
         {
             row.GDate = request.NewDate;
@@ -603,7 +603,7 @@ public sealed class TimeslotService : ITimeslotService
             Season = source.Season,
             Year = source.Year,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         switch (request.CloneType.ToLowerInvariant())
@@ -674,7 +674,7 @@ public sealed class TimeslotService : ITimeslotService
                     Season = season,
                     Year = year,
                     LebUserId = userId,
-                    Modified = DateTime.UtcNow
+                    Modified = DateTime.Now
                 });
             }
         }
@@ -704,7 +704,7 @@ public sealed class TimeslotService : ITimeslotService
         if (request.FieldId.HasValue) ts.FieldId = request.FieldId.Value;
         if (request.DivId.HasValue) ts.DivId = request.DivId;
         ts.LebUserId = userId;
-        ts.Modified = DateTime.UtcNow;
+        ts.Modified = DateTime.Now;
 
         await _tsRepo.SaveChangesAsync(ct);
     }
@@ -748,7 +748,7 @@ public sealed class TimeslotService : ITimeslotService
                 Season = season,
                 Year = year,
                 LebUserId = userId,
-                Modified = DateTime.UtcNow
+                Modified = DateTime.Now
             });
         }
 
@@ -779,7 +779,7 @@ public sealed class TimeslotService : ITimeslotService
             Season = season,
             Year = year,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         }).ToList();
 
         if (clones.Count > 0)
@@ -814,7 +814,7 @@ public sealed class TimeslotService : ITimeslotService
             Season = season,
             Year = year,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         }).ToList();
 
         if (clones.Count > 0)
@@ -846,7 +846,7 @@ public sealed class TimeslotService : ITimeslotService
             Season = season,
             Year = year,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         }).ToList();
 
         if (clones.Count > 0)
@@ -878,7 +878,7 @@ public sealed class TimeslotService : ITimeslotService
             Season = season,
             Year = year,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         }).ToList();
 
         if (clones.Count > 0)
@@ -910,7 +910,7 @@ public sealed class TimeslotService : ITimeslotService
             Season = source.Season,
             Year = source.Year,
             LebUserId = userId,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         };
 
         _tsRepo.AddFieldTimeslot(clone);
@@ -970,7 +970,7 @@ public sealed class TimeslotService : ITimeslotService
                     Season = season,
                     Year = year,
                     LebUserId = userId,
-                    Modified = DateTime.UtcNow
+                    Modified = DateTime.Now
                 });
 
                 dateCreated = true;
@@ -1004,7 +1004,7 @@ public sealed class TimeslotService : ITimeslotService
                             Season = season,
                             Year = year,
                             LebUserId = userId,
-                            Modified = DateTime.UtcNow
+                            Modified = DateTime.Now
                         });
                     }
                 }
@@ -1130,7 +1130,7 @@ public sealed class TimeslotService : ITimeslotService
             if (changed)
             {
                 row.LebUserId = userId;
-                row.Modified = DateTime.UtcNow;
+                row.Modified = DateTime.Now;
                 updated++;
             }
         }
@@ -1268,7 +1268,7 @@ public sealed class TimeslotService : ITimeslotService
                 if (changed)
                 {
                     row.LebUserId = userId;
-                    row.Modified = DateTime.UtcNow;
+                    row.Modified = DateTime.Now;
                     updated++;
                 }
             }
@@ -1389,7 +1389,7 @@ public sealed class TimeslotService : ITimeslotService
                 if (changed)
                 {
                     row.LebUserId = userId;
-                    row.Modified = DateTime.UtcNow;
+                    row.Modified = DateTime.Now;
                     updated++;
                 }
             }
@@ -1536,7 +1536,7 @@ public sealed class TimeslotService : ITimeslotService
                             Season = season,
                             Year = year,
                             LebUserId = userId,
-                            Modified = DateTime.UtcNow
+                            Modified = DateTime.Now
                         });
                     }
                 }
@@ -1614,7 +1614,7 @@ public sealed class TimeslotService : ITimeslotService
                                     Season = season,
                                     Year = year,
                                     LebUserId = userId,
-                                    Modified = DateTime.UtcNow
+                                    Modified = DateTime.Now
                                 });
                             }
                         }

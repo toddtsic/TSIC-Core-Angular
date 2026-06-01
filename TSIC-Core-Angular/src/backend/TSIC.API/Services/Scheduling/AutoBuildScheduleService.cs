@@ -1272,7 +1272,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                 T2CalcType = pairing.T2CalcType,
                 T2GnoRef = pairing.T2GnoRef,
                 LebUserId = userId,
-                Modified = DateTime.UtcNow,
+                Modified = DateTime.Now,
             };
 
             _scheduleRepo.AddGame(scheduleGame);
@@ -2451,7 +2451,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             JobId = jobId,
             GamePlacement = gamePlacement,
             BetweenRoundRows = betweenRoundRows,
-            Modified = DateTime.UtcNow
+            Modified = DateTime.Now
         }, ct);
 
         // For non-uniform strategies, save per-division overrides.
@@ -2498,7 +2498,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                             DivisionId = div.DivId,
                             GamePlacement = entryGp,
                             BetweenRoundRows = entryBrr,
-                            Modified = DateTime.UtcNow
+                            Modified = DateTime.Now
                         }, ct);
                 }
             }
@@ -2695,7 +2695,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                     Season = season,
                     Year = year,
                     LebUserId = userId,
-                    Modified = DateTime.UtcNow
+                    Modified = DateTime.Now
                 });
             }
             seeded++;
@@ -2767,7 +2767,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
 
             if (sourceFlsEntries.Count > 0)
             {
-                var now = DateTime.UtcNow;
+                var now = DateTime.Now;
                 var newFlsRows = sourceFlsEntries.Select(src => new FieldsLeagueSeason
                 {
                     FlsId = Guid.NewGuid(),
@@ -2881,7 +2881,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                         MaxGamesPerField = maxGames,
                         StartTime = startTimeStr,
                         LebUserId = userId,
-                        Modified = DateTime.UtcNow
+                        Modified = DateTime.Now
                     });
                 }
             }
@@ -2928,7 +2928,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
                         Season = season,
                         Year = year,
                         LebUserId = userId,
-                        Modified = DateTime.UtcNow
+                        Modified = DateTime.Now
                     });
                     agDatesAdded++;
                 }
@@ -3461,7 +3461,7 @@ public sealed class AutoBuildScheduleService : IAutoBuildScheduleService
             var gameOffset = tgtMaxGame - srcMinGame + 1;
             var roundOffset = tgtMaxRound - srcMinRound + 1;
 
-            var now = DateTime.UtcNow;
+            var now = DateTime.Now;
             var cloned = srcChampPairings.Select(p => new PairingsLeagueSeason
             {
                 LeagueId = tgtLeagueId,

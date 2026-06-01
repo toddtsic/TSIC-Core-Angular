@@ -201,7 +201,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
 
         var isSourceUnassigned = request.SourcePoolId == Guid.Empty;
         var isTargetUnassigned = request.TargetPoolId == Guid.Empty;
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         int playersTransferred = 0;
         int staffCreated = 0;
@@ -414,7 +414,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
             throw new ArgumentException("Registration does not belong to this job.");
 
         reg.BActive = active;
-        reg.Modified = DateTime.UtcNow;
+        reg.Modified = DateTime.Now;
         reg.LebUserId = adminUserId;
         // Entity is already tracked via FindAsync — EF detects property changes automatically
         await _registrationRepo.SaveChangesAsync(ct);

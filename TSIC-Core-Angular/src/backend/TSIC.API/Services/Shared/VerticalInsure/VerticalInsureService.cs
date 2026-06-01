@@ -197,8 +197,8 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
                 if (reg != null)
                 {
                     reg.RegsaverPolicyId = policy.policy_number;
-                    reg.RegsaverPolicyIdCreateDate = DateTime.UtcNow;
-                    reg.Modified = DateTime.UtcNow;
+                    reg.RegsaverPolicyIdCreateDate = DateTime.Now;
+                    reg.Modified = DateTime.Now;
                     reg.LebUserId = familyUserId;
                     policyDict[reg.RegistrationId] = policy.policy_number;
                 }
@@ -259,8 +259,8 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         {
             var policyNo = $"POL-{reg.RegistrationId.ToString("N").Substring(0, 8).ToUpper()}";
             reg.RegsaverPolicyId = policyNo;
-            reg.RegsaverPolicyIdCreateDate = DateTime.UtcNow;
-            reg.Modified = DateTime.UtcNow;
+            reg.RegsaverPolicyIdCreateDate = DateTime.Now;
+            reg.Modified = DateTime.Now;
             reg.LebUserId = familyUserId;
             policyDict[reg.RegistrationId] = policyNo;
         }

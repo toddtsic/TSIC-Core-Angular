@@ -67,9 +67,9 @@ public sealed class AdministratorService : IAdministratorService
             BActive = true,
             JobId = jobId,
             LebUserId = currentUserId,
-            Modified = DateTime.UtcNow,
+            Modified = DateTime.Now,
             RegistrationCategory = "Director",
-            RegistrationTs = DateTime.UtcNow,
+            RegistrationTs = DateTime.Now,
             RoleId = roleId,
             UserId = user.Id,
             FeeBase = 0,
@@ -108,7 +108,7 @@ public sealed class AdministratorService : IAdministratorService
 
         registration.BActive = request.IsActive;
         registration.RoleId = roleId;
-        registration.Modified = DateTime.UtcNow;
+        registration.Modified = DateTime.Now;
         registration.LebUserId = currentUserId;
 
         await _adminRepo.SaveChangesAsync(cancellationToken);
@@ -146,7 +146,7 @@ public sealed class AdministratorService : IAdministratorService
             throw new InvalidOperationException("Cannot modify a Superuser registration.");
 
         registration.BActive = !(registration.BActive ?? false);
-        registration.Modified = DateTime.UtcNow;
+        registration.Modified = DateTime.Now;
 
         await _adminRepo.SaveChangesAsync(cancellationToken);
         return await _adminRepo.GetByJobIdAsync(jobId, cancellationToken);
@@ -162,7 +162,7 @@ public sealed class AdministratorService : IAdministratorService
         foreach (var reg in registrations)
         {
             reg.BActive = isActive;
-            reg.Modified = DateTime.UtcNow;
+            reg.Modified = DateTime.Now;
         }
 
         await _adminRepo.SaveChangesAsync(cancellationToken);
