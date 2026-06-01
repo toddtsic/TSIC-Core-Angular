@@ -1,6 +1,6 @@
 .prd {
     padding: var(--space-6);
-    max-width: 1100px;
+    max-width: 1320px;
     margin: 0 auto;
 
     &__header {
@@ -47,11 +47,130 @@
         color: var(--brand-text-muted);
     }
 
-    &__grid {
+    &__workspace {
         display: grid;
-        grid-template-columns: 2fr 1fr;
+        grid-template-columns: minmax(0, 1fr) 560px;
         gap: var(--space-5);
         align-items: start;
+    }
+
+    &__controls {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-5);
+        min-width: 0;
+    }
+
+    &__preview-rail {
+        position: sticky;
+        top: var(--space-4);
+        max-height: calc(100vh - var(--space-10));
+        overflow: auto;
+    }
+
+    // ── Simulated printed page ───────────────────────────────────────────────
+    // Deliberate literal ink/paper colors (exception to the no-hardcoded-colors
+    // rule): this depicts a physical black-on-white PDF sheet, so it must read as
+    // paper in every palette and in dark mode — not adapt to the app theme.
+    &__page {
+        background: #ffffff;
+        color: #111111;
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-sm);
+        padding: var(--space-4);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--space-3);
+        box-shadow: var(--shadow-sm);
+    }
+
+    &__page-title {
+        font-weight: 700;
+        text-align: center;
+        color: #111111;
+    }
+
+    &__preview-empty {
+        color: #555555;
+        font-style: italic;
+        padding: var(--space-6) var(--space-4);
+        text-align: center;
+    }
+
+    &__card {
+        position: relative;
+        box-sizing: border-box;
+        background: #ffffff;
+        border: 1px solid #111111;
+    }
+
+    &__card-header {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        color: #111111;
+    }
+
+    &__card-rep {
+        position: absolute;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        overflow: hidden;
+        color: #111111;
+    }
+
+    &__card-underline {
+        position: absolute;
+        left: 0;
+        width: 100%;
+        border-top: 1px solid #111111;
+    }
+
+    &__roster {
+        position: absolute;
+        overflow: hidden;
+    }
+
+    &__roster-row {
+        display: flex;
+        width: 100%;
+        box-sizing: border-box;
+        align-items: flex-start;
+        border-bottom: 1px solid #888888;
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    &__cell {
+        box-sizing: border-box;
+        padding: 1px 1px 0;
+        line-height: 1.15;
+        white-space: nowrap;
+        overflow: hidden;
+        color: #111111;
+
+        &--bold {
+            font-weight: 700;
+        }
+
+        &--wrap {
+            white-space: normal;
+            word-break: break-word;
+            overflow: visible;
+        }
     }
 
     &__panel-title {

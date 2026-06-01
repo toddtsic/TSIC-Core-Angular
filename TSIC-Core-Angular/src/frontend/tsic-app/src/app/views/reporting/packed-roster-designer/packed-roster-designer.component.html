@@ -18,15 +18,22 @@
     } @else {
         <div class="prd__presets">
             <span class="prd__presets-label">Start from:</span>
-            <button type="button" class="btn btn-outline-primary" (click)="applyClassic3Up()">
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'classic3'"
+                    [attr.aria-pressed]="activePreset() === 'classic3'"
+                    (click)="applyClassic3Up()">
                 Classic 3-up
             </button>
-            <button type="button" class="btn btn-outline-primary" (click)="applyCollegeCommit2Up()">
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'collegeCommit2'"
+                    [attr.aria-pressed]="activePreset() === 'collegeCommit2'"
+                    (click)="applyCollegeCommit2Up()">
                 College Commit 2-up
             </button>
         </div>
 
-        <div class="prd__grid">
+        <div class="prd__workspace">
+            <div class="prd__controls">
             <!-- Columns -->
             <section class="card prd__panel">
                 <div class="card-body">
@@ -137,6 +144,77 @@
                     </label>
                 </div>
             </section>
+            </div>
+
+            <!-- Live preview -->
+            <aside class="prd__preview-rail">
+                <section class="card prd__panel">
+                    <div class="card-body">
+                        <h2 class="prd__panel-title">Live preview</h2>
+                        <p class="prd__hint">
+                            Approximate — mirrors the PDF card geometry with sample data. Generate for exact output.
+                        </p>
+
+                        <div class="prd__page">
+                            <div class="prd__page-title" [style.font-size.px]="titlePx">
+                                {{ divisionTitle }}
+                            </div>
+
+                            @if (selectedColumns().length === 0) {
+                                <p class="prd__preview-empty">Pick at least one column to see the card.</p>
+                            } @else {
+                                <div class="prd__card"
+                                     [style.width.px]="cardWidthPx()"
+                                     [style.height.px]="cardHeightPx">
+                                    <div class="prd__card-header"
+                                         [style.height.px]="headerHPx"
+                                         [style.font-size.px]="headerPx">
+                                        {{ teamName }}
+                                    </div>
+
+                                    @if (previewRepLine().length > 0) {
+                                        <div class="prd__card-rep"
+                                             [style.top.px]="repTopPx"
+                                             [style.left.px]="repInsetPx"
+                                             [style.width.px]="cardWidthPx() - repInsetPx * 2"
+                                             [style.height.px]="repLineHPx"
+                                             [style.font-size.px]="repPx">
+                                            {{ previewRepLine() }}
+                                        </div>
+                                    }
+
+                                    <div class="prd__card-underline" [style.top.px]="underlineTopPx"></div>
+
+                                    <div class="prd__roster"
+                                         [style.top.px]="rosterTopPx"
+                                         [style.left.px]="rosterLeftPx"
+                                         [style.width.px]="rosterWidthPx()"
+                                         [style.height.px]="rosterHeightPx">
+                                        @for (row of previewRows(); track $index) {
+                                            <div class="prd__roster-row" [style.min-height.px]="baseRowHPx">
+                                                @for (cell of row.cells; track $index) {
+                                                    <span class="prd__cell"
+                                                          [class.prd__cell--bold]="cell.bold"
+                                                          [class.prd__cell--wrap]="cell.wrap"
+                                                          [style.width.%]="cell.widthPct"
+                                                          [style.text-align]="cell.align"
+                                                          [style.font-size.px]="cell.bold ? keyPx : cellPx">
+                                                        {{ cell.text }}
+                                                    </span>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+
+                        <p class="prd__hint prd__hint--spaced">
+                            Card 1 of many · {{ nUp() }}-up newspaper layout · one division per page
+                        </p>
+                    </div>
+                </section>
+            </aside>
         </div>
     }
 </div>
