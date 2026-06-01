@@ -321,8 +321,10 @@ export class PlayerSelectionStepComponent {
     readonly playerModalMode = signal<'add' | 'edit'>('add');
     readonly editingPlayerId = signal<string | null>(null);
     readonly editingPlayerData = signal<{ firstName?: string; lastName?: string; gender?: string; dob?: string; email?: string; phone?: string } | null>(null);
-    /** Locks identity fields in the edit modal when the player already has a registration
-     *  (registered or pending) — their name/gender/DOB anchor that registration's history. */
+    /** Locks identity fields in the edit modal when the player has ANY registration in ANY
+     *  job at ANY time — their name/gender/DOB anchor every registration FK'd to this user.
+     *  Mirrors the all-jobs rule enforced server-side in UpdateChildAsync; driven by the
+     *  server's `hasAnyRegistration` flag, NOT the job-scoped `registered`/pending signals. */
     readonly editingIdentityLocked = signal(false);
 
     /** True when the player has a genuinely-pending prior registration (created at PreSubmit,
@@ -344,7 +346,7 @@ export class PlayerSelectionStepComponent {
         this.advance.emit();
     }
 
-    openEditPlayer(player: { playerId: string; firstName: string; lastName: string; gender: string; dob?: string | null; email?: string | null; phone?: string | null; registered?: boolean; priorRegistrations?: readonly { isPending: boolean }[] }): void {
+    openEditPlayer(player: { playerId: string; firstName: string; lastName: string; gender: string; dob?: string | null; email?: string | null; phone?: string | null; hasAnyRegistration?: boolean; registered?: boolean; priorRegistrations?: readonly { isPending: boolean }[] }): void {
         this.playerModalMode.set('edit');
         this.editingPlayerId.set(player.playerId);
         this.editingPlayerData.set({
@@ -355,7 +357,7 @@ export class PlayerSelectionStepComponent {
             email: player.email ?? undefined,
             phone: player.phone ?? undefined,
         });
-        this.editingIdentityLocked.set(!!player.registered || this.hasPendingReg(player));
+        this.editingIdentityLocked.set(!!player.hasAnyRegistration);
         this.showPlayerModal.set(true);
     }
 

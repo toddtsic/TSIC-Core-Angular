@@ -12,6 +12,7 @@ export type FamilyPlayerDto = {
     email?: string | null;
     phone?: string | null;
     registered: boolean;
+    hasAnyRegistration: boolean;
     selected: boolean;
     priorRegistrations: Array<FamilyPlayerRegistrationDto>;
     defaultFieldValues?: any | null;

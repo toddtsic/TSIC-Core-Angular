@@ -67,6 +67,13 @@ public record FamilyPlayerDto
     public string? Email { get; init; }
     public string? Phone { get; init; }
     public required bool Registered { get; init; }
+    /// <summary>
+    /// True if this user has ANY registration in ANY job at ANY time. Identity fields
+    /// (name/gender/DOB) are immutable once this is true — mirrors the all-jobs rule
+    /// enforced server-side in <c>UpdateChildAsync</c>. Distinct from <see cref="Registered"/>,
+    /// which is scoped to the active registration in the current job only.
+    /// </summary>
+    public required bool HasAnyRegistration { get; init; }
     public required bool Selected { get; init; }
     public required IReadOnlyList<FamilyPlayerRegistrationDto> PriorRegistrations { get; init; }
     public IReadOnlyDictionary<string, JsonElement>? DefaultFieldValues { get; init; }

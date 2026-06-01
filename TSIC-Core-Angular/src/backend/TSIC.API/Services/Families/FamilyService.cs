@@ -924,6 +924,9 @@ public sealed class FamilyService : IFamilyService
         {
             var prior = regsByUser.TryGetValue(c.Id, out var list) ? (IReadOnlyList<FamilyPlayerRegistrationDto>)list : Array.Empty<FamilyPlayerRegistrationDto>();
             var registered = regSet.Contains(c.Id);
+            // Locked-for-edit signal: ANY registration in ANY job at ANY time. allRegsByUser is
+            // loaded with no job filter, so this mirrors UpdateChildAsync's all-jobs rejection.
+            var hasAnyRegistration = allRegsByUser.TryGetValue(c.Id, out var anyRegs) && anyRegs.Count > 0;
             IReadOnlyDictionary<string, JsonElement>? defaults = null;
             if (!registered && jobId != null && mappedFields.Count > 0 && visibleFieldNames.Count > 0)
             {
@@ -946,6 +949,7 @@ public sealed class FamilyService : IFamilyService
                 Email = c.Email,
                 Phone = c.Cellphone ?? c.Phone,
                 Registered = registered,
+                HasAnyRegistration = hasAnyRegistration,
                 Selected = registered,
                 PriorRegistrations = prior,
                 DefaultFieldValues = defaults

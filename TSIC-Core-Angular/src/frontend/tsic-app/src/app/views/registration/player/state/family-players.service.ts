@@ -322,6 +322,7 @@ export class FamilyPlayersService {
                 gender: getPropertyCI<string>(p, 'gender') ?? '',
                 dob: getPropertyCI<string>(p, 'dob') ?? undefined,
                 registered: !!getPropertyCI<boolean>(p, 'registered'),
+                hasAnyRegistration: !!getPropertyCI<boolean>(p, 'hasAnyRegistration'),
                 selected: false,
                 priorRegistrations: priorRegs,
                 defaultFieldValues: getPropertyCI<Record<string, unknown>>(p, 'defaultFieldValues') ?? undefined,
