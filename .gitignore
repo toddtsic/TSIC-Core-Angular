@@ -33,6 +33,7 @@ src/backend/TSIC.API/logs/
 
 # Scratch / temp working files
 tmp/
+tmpprcheck/
 
 # OS files
 .DS_Store
