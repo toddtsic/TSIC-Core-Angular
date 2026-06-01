@@ -79,8 +79,8 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
             {
                 Available = true,
                 PlayerObject = playerObj,
-                ExpiresUtc = DateTime.UtcNow.AddMinutes(10),
-                StateId = $"vi-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}"
+                ExpiresUtc = DateTime.Now.AddMinutes(10),
+                StateId = $"vi-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}"
             };
         }
         catch (Exception ex)

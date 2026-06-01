@@ -20,7 +20,8 @@ public class DiscountCodeService : IDiscountCodeService
     public async Task<List<DiscountCodeDto>> GetDiscountCodesAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         var codes = await _repository.GetAllByJobIdAsync(jobId, cancellationToken);
-        var now = DateTime.UtcNow;
+        // Discount-code start/end dates are stored in local AZ time, not UTC.
+        var now = DateTime.Now;
 
         var dtos = new List<DiscountCodeDto>();
         foreach (var code in codes)
@@ -66,7 +67,7 @@ public class DiscountCodeService : IDiscountCodeService
         _repository.Add(code);
         await _repository.SaveChangesAsync(cancellationToken);
 
-        return MapToDto(code, 0, DateTime.UtcNow);
+        return MapToDto(code, 0, DateTime.Now);
     }
 
     public async Task<List<DiscountCodeDto>> BulkAddDiscountCodesAsync(
@@ -101,7 +102,8 @@ public class DiscountCodeService : IDiscountCodeService
 
         // Create all codes
         var codes = new List<JobDiscountCodes>();
-        var now = DateTime.UtcNow;
+        // Discount-code start/end dates are stored in local AZ time, not UTC.
+        var now = DateTime.Now;
         var isPercent = request.DiscountType == "Percentage";
 
         foreach (var codeName in codeNames)
@@ -155,7 +157,7 @@ public class DiscountCodeService : IDiscountCodeService
         await _repository.SaveChangesAsync(cancellationToken);
 
         var usageCount = await _repository.GetUsageCountAsync(ai, cancellationToken);
-        return MapToDto(code, usageCount, DateTime.UtcNow);
+        return MapToDto(code, usageCount, DateTime.Now);
     }
 
     public async Task<bool> DeleteDiscountCodeAsync(int ai, CancellationToken cancellationToken = default)

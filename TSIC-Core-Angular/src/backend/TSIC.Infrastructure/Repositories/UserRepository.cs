@@ -45,7 +45,7 @@ public class UserRepository : IUserRepository
         // Require signature if never signed or if signature is more than 1 year old
         return !user.BTsicwaiverSigned ||
                user.TsicwaiverSignedTs == null ||
-               user.TsicwaiverSignedTs.Value.AddYears(1) < DateTime.UtcNow;
+               user.TsicwaiverSignedTs.Value.AddYears(1) < DateTime.Now;
     }
 
     public async Task UpdateTosAcceptanceAsync(

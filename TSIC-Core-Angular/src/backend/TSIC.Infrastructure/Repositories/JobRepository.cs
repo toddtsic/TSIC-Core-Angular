@@ -418,7 +418,7 @@ public class JobRepository : IJobRepository
             .AsNoTracking()
             .Where(j => j.CustomerId == customerId
                 && j.JobId != jobId
-                && (j.ExpiryUsers == DateTime.MinValue || j.ExpiryUsers > DateTime.UtcNow))
+                && (j.ExpiryUsers == DateTime.MinValue || j.ExpiryUsers > DateTime.Now))
             .OrderBy(j => j.JobName)
             .Select(j => new Contracts.Dtos.RegistrationSearch.JobOptionDto
             {
@@ -448,7 +448,7 @@ public class JobRepository : IJobRepository
 
     public async Task<Contracts.Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
 
         // Step 1: pulse fields + identity (CustomerId, JobName, JobId) for the supersession check.
         var row = await _context.Jobs
@@ -571,7 +571,7 @@ public class JobRepository : IJobRepository
     {
         if (customerIds.Count == 0) return [];
 
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         var isFamily = audience == Contracts.Dtos.SuggestedEventAudience.Family;
         return await (
             from j in _context.Jobs
@@ -718,7 +718,7 @@ public class JobRepository : IJobRepository
 
     public async Task<List<EventListingDto>> GetActivePublicEventsAsync(CancellationToken ct = default)
     {
-        var now = DateTime.UtcNow;
+        var now = DateTime.Now;
         return await _context.Jobs.AsNoTracking()
             .Where(j => j.ExpiryUsers >= now && !j.BSuspendPublic && j.BScheduleAllowPublicAccess == true)
             .Select(j => new EventListingDto
@@ -780,10 +780,12 @@ public class JobRepository : IJobRepository
                 + gcParams.TransitionMinutes
             : gcParams.PlayoffMinutes + gcParams.TransitionMinutes;
 
-        // Event-local "now" computed from UTC and the event offset (positive hours west of UTC).
-        // Mirrors the mobile client's getNow() but without assuming the server is in Arizona.
+        // Event-local "now": match legacy GetActiveGame exactly — derive from server (AZ)
+        // local time and the event's UTC offset, NOT from UtcNow. (Identical while the
+        // server is in AZ; this mirrors the proven legacy route rather than reinventing it.)
+        const int azUtcHoursOffset = 7;
         int eventOffset = gcParams.UtcoffsetHours ?? 0;
-        var now = DateTime.UtcNow.AddHours(-eventOffset);
+        var now = DateTime.Now.AddHours(azUtcHoursOffset - eventOffset);
 
         var rr = await GetBucketAsync(jobId, now, rrDuration, isRoundRobin: true, ct);
         var po = poDuration > 0m

@@ -24,7 +24,8 @@ public class BulletinRepository : IBulletinRepository
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
+        // Bulletin start/end dates are stored in local AZ time, not UTC.
+        var now = DateTime.Now;
 
         return await _context.Bulletins
             .AsNoTracking()

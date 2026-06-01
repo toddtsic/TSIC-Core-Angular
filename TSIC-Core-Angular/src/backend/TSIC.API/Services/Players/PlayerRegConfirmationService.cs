@@ -160,7 +160,7 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
     {
         var policies = regs
             .Where(r => !string.IsNullOrWhiteSpace(r.RegsaverPolicyId))
-            .Select(r => new PlayerRegPolicyDto(r.RegistrationId, r.RegsaverPolicyId!, r.RegsaverPolicyIdCreateDate ?? DateTime.UtcNow, 0))
+            .Select(r => new PlayerRegPolicyDto(r.RegistrationId, r.RegsaverPolicyId!, r.RegsaverPolicyIdCreateDate ?? DateTime.Now, 0))
             .ToList();
         return new PlayerRegInsuranceStatusDto(regs.Count > 0, policies.Count > 0, policies.Count == 0 && regs.Count > 0, policies.Count > 0, policies);
     }

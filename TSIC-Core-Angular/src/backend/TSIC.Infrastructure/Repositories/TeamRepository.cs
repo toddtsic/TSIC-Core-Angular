@@ -128,7 +128,8 @@ public class TeamRepository : ITeamRepository
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        var now = DateTime.UtcNow;
+        // Team effective/expire dates are stored in local AZ time, not UTC.
+        var now = DateTime.Now;
 
         return await _context.Teams
             .AsNoTracking()

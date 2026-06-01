@@ -50,7 +50,7 @@ public partial class VerticalInsureService
             // Don't surface an offer the carrier will reject. VI's 14-day cutoff is
             // measured against EventStartDate; mirror it here so reps don't see a
             // widget that would 400 on quote.
-            if (jobOffer.EventStartDate.Value.Date < DateTime.UtcNow.Date.AddDays(14))
+            if (jobOffer.EventStartDate.Value.Date < DateTime.Now.Date.AddDays(14))
             {
                 return new PreSubmitTeamInsuranceDto { Available = false };
             }
@@ -76,8 +76,8 @@ public partial class VerticalInsureService
             {
                 Available = true,
                 TeamObject = teamObj,
-                ExpiresUtc = DateTime.UtcNow.AddMinutes(10),
-                StateId = $"vi-team-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}"
+                ExpiresUtc = DateTime.Now.AddMinutes(10),
+                StateId = $"vi-team-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}"
             };
         }
         catch (Exception ex)
