@@ -223,6 +223,31 @@
                         <p>No active players on this team yet.</p>
                     </div>
                 } @else {
+                    <div class="roster-toolbar">
+                        <div class="search-bar">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="search" class="field-input search-input"
+                                   placeholder="Search by name, club, or school…"
+                                   [value]="playerSearch()"
+                                   (input)="playerSearch.set($any($event.target).value)" />
+                            @if (playerSearch()) {
+                                <button type="button" class="search-clear"
+                                        (click)="playerSearch.set('')" aria-label="Clear search">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            }
+                        </div>
+                        @if (playerSearch()) {
+                            <span class="search-count">{{ filteredPlayers().length }} of {{ players().length }} shown</span>
+                        }
+                    </div>
+
+                    @if (filteredPlayers().length === 0) {
+                        <div class="empty-state-inline">
+                            <i class="bi bi-search"></i>
+                            <p>No players match “{{ playerSearch() }}”.</p>
+                        </div>
+                    } @else {
                     <div class="checkin-table-wrap">
                         <table class="checkin-table">
                             <thead>
@@ -235,14 +260,14 @@
                                     @if (showRoommate()) {
                                         <th class="col-roommate">Roommate</th>
                                     }
-                                    <th class="col-contact">Parent Contact</th>
+                                    <th class="col-contact">Contacts</th>
                                     <th class="col-doc">Med Form</th>
                                     <th class="col-balance">Balance</th>
                                     <th class="col-action"></th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @for (p of players(); track p.registrationId) {
+                                @for (p of filteredPlayers(); track p.registrationId) {
                                     <tr [class.checked-in]="!!p.checkedInTs">
                                         <td class="col-status">
                                             @if (p.checkedInTs) {
@@ -261,9 +286,16 @@
                                             }
                                         </td>
                                         <td class="col-name">
-                                            <button type="button" class="link-name" (click)="openPlayerDetail(p)">
-                                                {{ p.lastName }}, {{ p.firstName }}
-                                            </button>
+                                            <span class="name-with-email">
+                                                <button type="button" class="link-name" (click)="openPlayerDetail(p)">
+                                                    {{ p.lastName }}, {{ p.firstName }}
+                                                </button>
+                                                @if (p.email) {
+                                                    <a class="email-link" href="mailto:{{ p.email }}" [title]="p.email" aria-label="Email player">
+                                                        <i class="bi bi-envelope-fill"></i>
+                                                    </a>
+                                                }
+                                            </span>
                                         </td>
                                         <td class="col-grad">{{ p.gradYear }}</td>
                                         <td class="col-club">{{ p.clubName }}</td>
@@ -277,39 +309,35 @@
                                             @if (p.momName || p.momCellphone || p.dadName || p.dadCellphone) {
                                                 <div class="contact-list">
                                                     @if (p.momName || p.momCellphone) {
-                                                        <div class="contact-line">
-                                                            <span class="contact-role">Mom</span>
-                                                            <span class="contact-info">
-                                                                @if (p.momName) { <span class="contact-name">{{ p.momName }}</span> }
-                                                                @if (p.momCellphone) {
-                                                                    <a class="contact-phone" href="tel:{{ p.momCellphone }}">
-                                                                        <i class="bi bi-telephone-fill"></i>{{ p.momCellphone | phone }}
-                                                                    </a>
-                                                                }
+                                                        <div class="contact-person">
+                                                            @if (p.momName) {
                                                                 @if (p.momEmail) {
-                                                                    <a class="contact-mail" href="mailto:{{ p.momEmail }}" [title]="p.momEmail">
-                                                                        <i class="bi bi-envelope-fill"></i>
-                                                                    </a>
+                                                                    <a class="contact-name contact-name-link" href="mailto:{{ p.momEmail }}" [title]="p.momEmail">{{ p.momName }}</a>
+                                                                } @else {
+                                                                    <span class="contact-name">{{ p.momName }}</span>
                                                                 }
-                                                            </span>
+                                                            }
+                                                            @if (p.momCellphone) {
+                                                                <a class="contact-phone" href="tel:{{ p.momCellphone }}">
+                                                                    <i class="bi bi-telephone-fill"></i>{{ p.momCellphone | phone }}
+                                                                </a>
+                                                            }
                                                         </div>
                                                     }
                                                     @if (p.dadName || p.dadCellphone) {
-                                                        <div class="contact-line">
-                                                            <span class="contact-role">Dad</span>
-                                                            <span class="contact-info">
-                                                                @if (p.dadName) { <span class="contact-name">{{ p.dadName }}</span> }
-                                                                @if (p.dadCellphone) {
-                                                                    <a class="contact-phone" href="tel:{{ p.dadCellphone }}">
-                                                                        <i class="bi bi-telephone-fill"></i>{{ p.dadCellphone | phone }}
-                                                                    </a>
-                                                                }
+                                                        <div class="contact-person">
+                                                            @if (p.dadName) {
                                                                 @if (p.dadEmail) {
-                                                                    <a class="contact-mail" href="mailto:{{ p.dadEmail }}" [title]="p.dadEmail">
-                                                                        <i class="bi bi-envelope-fill"></i>
-                                                                    </a>
+                                                                    <a class="contact-name contact-name-link" href="mailto:{{ p.dadEmail }}" [title]="p.dadEmail">{{ p.dadName }}</a>
+                                                                } @else {
+                                                                    <span class="contact-name">{{ p.dadName }}</span>
                                                                 }
-                                                            </span>
+                                                            }
+                                                            @if (p.dadCellphone) {
+                                                                <a class="contact-phone" href="tel:{{ p.dadCellphone }}">
+                                                                    <i class="bi bi-telephone-fill"></i>{{ p.dadCellphone | phone }}
+                                                                </a>
+                                                            }
                                                         </div>
                                                     }
                                                 </div>
@@ -361,6 +389,7 @@
                             </tbody>
                         </table>
                     </div>
+                    }
                 }
             }
         </div>

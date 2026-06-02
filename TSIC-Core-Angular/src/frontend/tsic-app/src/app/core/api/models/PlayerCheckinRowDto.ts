@@ -7,6 +7,7 @@ export type PlayerCheckinRowDto = {
     playerUserId: string;
     firstName: string;
     lastName: string;
+    email?: string | null;
     clubName?: string | null;
     schoolName?: string | null;
     gradYear?: string | null;

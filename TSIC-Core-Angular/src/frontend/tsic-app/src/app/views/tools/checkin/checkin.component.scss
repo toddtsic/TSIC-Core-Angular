@@ -189,6 +189,72 @@
     flex-shrink: 0;
 }
 
+// ── Roster search toolbar (player mode) ─────────
+
+.roster-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.search-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1;
+    max-width: 360px;
+
+    > .bi-search {
+        position: absolute;
+        left: var(--space-2);
+        color: var(--bs-secondary-color);
+        font-size: 0.9em;
+        pointer-events: none;
+    }
+}
+
+.search-input {
+    width: 100%;
+    // Room for the leading search icon and trailing clear button.
+    padding-left: var(--space-6);
+    padding-right: var(--space-6);
+}
+
+.search-clear {
+    position: absolute;
+    right: var(--space-1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--bs-secondary-color);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+
+    &:hover {
+        color: var(--brand-text);
+        background: color-mix(in srgb, var(--bs-secondary) 14%, transparent);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+.search-count {
+    flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+}
+
 // ── Check-in table ──────────────────────────────
 
 .checkin-table-wrap {
@@ -267,49 +333,32 @@
     white-space: nowrap;
 }
 
-// ── Parent contact (player check-in) ────────────
-// Two compact lines (Mom / Dad), each a tap-to-call phone link so staff can
-// reach a guardian when a player hasn't arrived.
+// ── Contacts (player check-in) ──────────────────
+// Each guardian as two lines — name over a tap-to-call phone link — so staff
+// can reach a parent when a player hasn't arrived. No role labels.
 
 .contact-list {
     display: flex;
     flex-direction: column;
-    gap: var(--space-1);
-}
-
-.contact-line {
-    display: flex;
-    align-items: baseline;
     gap: var(--space-2);
     font-size: var(--font-size-xs);
 }
 
-.contact-role {
-    flex-shrink: 0;
-    min-width: 30px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-    color: var(--bs-secondary-color);
+.contact-person {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.35;
 }
 
-.contact-info {
-    display: inline-flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: var(--space-1) var(--space-2);
-}
-
-.contact-name { color: var(--brand-text); }
-
-.contact-phone {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    color: var(--bs-primary);
+.contact-name {
+    color: var(--brand-text);
     font-weight: 500;
+}
+
+// Contact name as a mailto link (when the guardian has an email on file).
+.contact-name-link {
+    color: var(--bs-primary);
     text-decoration: none;
-    white-space: nowrap;
 
     &:hover { text-decoration: underline; }
 
@@ -320,12 +369,37 @@
     }
 }
 
-.contact-mail {
+// Player name + email icon sit inline; the icon is a subtle mailto affordance.
+.name-with-email {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.email-link {
     display: inline-flex;
     align-items: center;
     color: var(--bs-secondary-color);
+    text-decoration: none;
 
     &:hover { color: var(--bs-primary); }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+        border-radius: var(--radius-sm);
+    }
+}
+
+.contact-phone {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--bs-primary);
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover { text-decoration: underline; }
 
     &:focus-visible {
         outline: none;

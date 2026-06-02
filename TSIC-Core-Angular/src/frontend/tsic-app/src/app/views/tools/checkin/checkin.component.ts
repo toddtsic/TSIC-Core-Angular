@@ -72,6 +72,19 @@ export class CheckinComponent {
         () => this.players().some(p => !!p.roommatePref)
     );
 
+    // Client-side roster filter — camp sessions can have hundreds of players.
+    readonly playerSearch = signal('');
+    readonly filteredPlayers = computed(() => {
+        const q = this.playerSearch().trim().toLowerCase();
+        const list = this.players();
+        if (!q) return list;
+        return list.filter(p =>
+            `${p.lastName} ${p.firstName}`.toLowerCase().includes(q)
+            || (p.clubName?.toLowerCase().includes(q) ?? false)
+            || (p.schoolName?.toLowerCase().includes(q) ?? false)
+        );
+    });
+
     constructor() {
         const jobType = this.jobService.currentJob()?.jobTypeId;
         const teamBased = jobType === JOB_TYPE_TOURNAMENT || jobType === JOB_TYPE_LEAGUE;
@@ -172,6 +185,7 @@ export class CheckinComponent {
     private loadPlayers(teamId: string): void {
         this.isLoadingPlayers.set(true);
         this.players.set([]);
+        this.playerSearch.set(''); // reset filter when switching sessions
         this.service.getPlayers(teamId).subscribe({
             next: players => {
                 this.players.set(players);

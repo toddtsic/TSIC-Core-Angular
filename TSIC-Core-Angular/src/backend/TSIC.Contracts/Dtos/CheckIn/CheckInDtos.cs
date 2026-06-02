@@ -42,6 +42,8 @@ public record PlayerCheckinRowDto
     public required string PlayerUserId { get; init; }   // AspNetUsers.Id — keys the med-form file
     public required string FirstName { get; init; }
     public required string LastName { get; init; }
+    /// <summary>Player's account email (AspNetUsers.Email) — for the name mailto link. Null if none.</summary>
+    public string? Email { get; init; }
     public string? ClubName { get; init; }
     public string? SchoolName { get; init; }
     public string? GradYear { get; init; }

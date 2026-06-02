@@ -66,13 +66,14 @@ public class CheckinRepository : ICheckinRepository
             where r.AssignedTeamId == teamId
                   && r.BActive == true
                   && r.RoleId == RoleConstants.Player
-            orderby r.GradYear, u.LastName, u.FirstName
+            orderby u.LastName, u.FirstName
             select new PlayerCheckinRowDto
             {
                 RegistrationId = r.RegistrationId,
                 PlayerUserId = u.Id,
                 FirstName = u.FirstName ?? string.Empty,
                 LastName = u.LastName ?? string.Empty,
+                Email = u.Email,
                 ClubName = r.ClubName,
                 SchoolName = r.SchoolName,
                 GradYear = r.GradYear,
