@@ -1,3 +1,4 @@
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -159,7 +160,9 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (actualReduction > 0m || isDepositScenario)
         {
             registration.FeeProcessing -= actualReduction;
-            registration.OwedTotal = Math.Max(0m, registration.OwedTotal - actualReduction);
+            // Derive FeeTotal + OwedTotal from the now-reduced components (single source of truth)
+            // instead of hand-decrementing OwedTotal and leaving FeeTotal stale.
+            registration.RecalcTotals();
             registration.Modified = DateTime.Now;
             registration.LebUserId = userId;
         }
@@ -204,7 +207,9 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (actualReduction > 0m || isDepositScenario)
         {
             registration.FeeProcessing -= actualReduction;
-            registration.OwedTotal = Math.Max(0m, registration.OwedTotal - actualReduction);
+            // Derive FeeTotal + OwedTotal from the now-reduced components (single source of truth)
+            // instead of hand-decrementing OwedTotal and leaving FeeTotal stale.
+            registration.RecalcTotals();
             registration.Modified = DateTime.Now;
             registration.LebUserId = userId;
         }
@@ -241,7 +246,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (reversal <= 0m) return 0m;
 
         registration.FeeProcessing += reversal;
-        registration.OwedTotal += reversal;
+        registration.RecalcTotals();
         registration.Modified = DateTime.Now;
         registration.LebUserId = userId;
 
@@ -291,7 +296,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (actualReduction > 0m || isDepositScenario)
         {
             team.FeeProcessing = currentFee - actualReduction;
-            team.OwedTotal = Math.Max(0m, (team.OwedTotal ?? 0m) - actualReduction);
+            team.RecalcTotals();
             team.Modified = DateTime.Now;
             team.LebUserId = userId;
         }
@@ -337,7 +342,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (actualReduction > 0m || isDepositScenario)
         {
             team.FeeProcessing = currentFee - actualReduction;
-            team.OwedTotal = Math.Max(0m, (team.OwedTotal ?? 0m) - actualReduction);
+            team.RecalcTotals();
             team.Modified = DateTime.Now;
             team.LebUserId = userId;
         }
@@ -369,7 +374,7 @@ public class RegistrationFeeAdjustmentService : IRegistrationFeeAdjustmentServic
         if (reversal <= 0m) return 0m;
 
         team.FeeProcessing = (team.FeeProcessing ?? 0m) + reversal;
-        team.OwedTotal = (team.OwedTotal ?? 0m) + reversal;
+        team.RecalcTotals();
         team.Modified = DateTime.Now;
         team.LebUserId = userId;
 
