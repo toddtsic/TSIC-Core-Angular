@@ -237,9 +237,15 @@
                                 </button>
                             }
                         </div>
-                        @if (playerSearch()) {
-                            <span class="search-count">{{ filteredPlayers().length }} of {{ players().length }} shown</span>
-                        }
+                        <div class="toolbar-right">
+                            @if (playerSearch()) {
+                                <span class="search-count">{{ filteredPlayers().length }} of {{ players().length }} shown</span>
+                            }
+                            <button type="button" class="btn-print" (click)="printSheet()"
+                                    title="Print a check-in sheet for this session">
+                                <i class="bi bi-printer"></i> Print sheet
+                            </button>
+                        </div>
                     </div>
 
                     @if (filteredPlayers().length === 0) {

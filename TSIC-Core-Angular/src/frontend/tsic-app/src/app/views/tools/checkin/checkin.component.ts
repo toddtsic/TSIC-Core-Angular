@@ -249,6 +249,102 @@ export class CheckinComponent {
         });
     }
 
+    /**
+     * Build a printable check-in sheet for the selected session and print it via a
+     * hidden iframe (client-side "Save as PDF"). Static by design: balance is plain
+     * text, the med-form box is pre-checked from hasMedForm, and Arrived is a blank
+     * box to mark by hand. Prints the full session roster regardless of the search filter.
+     */
+    printSheet(): void {
+        const team = this.selectedTeam();
+        if (!team) return;
+        const rows = this.players();
+        const showRoom = this.showRoommate();
+
+        const escMap: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+        const esc = (s: string | null | undefined): string =>
+            (s ?? '').replace(/[&<>"]/g, c => escMap[c] ?? c);
+
+        const phone = (s: string | null | undefined): string => {
+            if (!s) return '';
+            let d = s.replace(/\D/g, '');
+            if (d.length === 11 && d.startsWith('1')) d = d.slice(1);
+            return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : esc(s);
+        };
+
+        const CHECKED = '&#9745;';
+        const EMPTY = '&#9744;';
+
+        const contactCell = (p: PlayerCheckinRowDto): string => {
+            const lines: string[] = [];
+            if (p.momName || p.momCellphone) lines.push(`${esc(p.momName)} ${phone(p.momCellphone)}`.trim());
+            if (p.dadName || p.dadCellphone) lines.push(`${esc(p.dadName)} ${phone(p.dadCellphone)}`.trim());
+            return lines.join('<br>') || '—';
+        };
+
+        const body = rows.map((p, i) => {
+            const bal = p.owedTotal > 0 ? `$${p.owedTotal.toFixed(2)} due` : 'Paid';
+            const med = p.hasMedForm
+                ? `${CHECKED} Uploaded&nbsp;&nbsp;${EMPTY} Pending`
+                : `${EMPTY} Uploaded&nbsp;&nbsp;${CHECKED} Pending`;
+            const dn = `${esc(p.dayGroup) || 'N.A.'} / ${esc(p.nightGroup) || 'N.A.'}`;
+            const room = showRoom ? `<td>${esc(p.roommatePref) || '—'}</td>` : '';
+            return '<tr>'
+                + `<td class="num">${i + 1}</td>`
+                + `<td>${esc(p.lastName)}, ${esc(p.firstName)}</td>`
+                + `<td>${dn}</td>`
+                + room
+                + `<td class="contact">${contactCell(p)}</td>`
+                + `<td class="bal">${bal}</td>`
+                + `<td class="med">${med}</td>`
+                + `<td class="arrived">${EMPTY}</td>`
+                + '</tr>';
+        }).join('');
+
+        const css =
+            '@page{size:landscape;margin:.4in}'
+            + '*{box-sizing:border-box}'
+            + 'body{font-family:Arial,Helvetica,sans-serif;font-size:9pt;color:#000;margin:0}'
+            + '.hd{display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:8px}'
+            + '.hd h1{font-size:14pt;margin:0}.hd .sub{font-size:10pt}'
+            + 'table{width:100%;border-collapse:collapse}'
+            + 'th,td{border:1px solid #999;padding:3px 5px;text-align:left;vertical-align:top}'
+            + 'thead th{background:#eee;font-size:8pt;text-transform:uppercase;letter-spacing:.03em}'
+            + 'tbody tr{page-break-inside:avoid}'
+            + 'td.num{text-align:center;width:26px;color:#555}'
+            + 'td.bal{white-space:nowrap}td.med{white-space:nowrap;font-size:8.5pt}'
+            + 'td.contact{font-size:8pt}'
+            + 'td.arrived{text-align:center;font-size:14pt;width:70px}';
+
+        const html =
+            '<!doctype html><html><head><meta charset="utf-8">'
+            + `<title>Check-In — ${esc(team.teamName)}</title>`
+            + `<style>${css}</style></head><body>`
+            + `<div class="hd"><h1>Check-In Sheet</h1><div class="sub">${esc(team.teamName)} · ${rows.length} players</div></div>`
+            + '<table><thead><tr>'
+            + '<th class="num">#</th><th>Player</th><th>Day/Night</th>'
+            + (showRoom ? '<th>Roommate</th>' : '')
+            + '<th>Contacts</th><th>Balance</th><th>Med Form</th><th>Arrived</th>'
+            + '</tr></thead><tbody>' + body + '</tbody></table>'
+            + '</body></html>';
+
+        const iframe = document.createElement('iframe');
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+        document.body.appendChild(iframe);
+        const win = iframe.contentWindow;
+        if (!win) { iframe.remove(); return; }
+        win.document.open();
+        win.document.write(html);
+        win.document.close();
+        // Let the iframe lay out before invoking the print dialog, then clean up.
+        setTimeout(() => {
+            win.focus();
+            win.print();
+            setTimeout(() => iframe.remove(), 1000);
+        }, 300);
+    }
+
     // ── Detail / payment fly-in ─────────────────────
     // Opens the same Search detail panel (Accounting tab has record-check /
     // charge-cc / refund already wired). Player rows open their own registration;
