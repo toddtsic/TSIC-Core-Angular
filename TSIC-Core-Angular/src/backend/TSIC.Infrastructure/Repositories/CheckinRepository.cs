@@ -47,6 +47,10 @@ public class CheckinRepository : ICheckinRepository
                     : null,
                 OwedTotal = cr != null ? cr.OwedTotal : 0m,
                 PaidTotal = cr != null ? cr.PaidTotal : 0m,
+                StartDate = t.Startdate,
+                EndDate = t.Enddate,
+                EffectiveDate = t.Effectiveasofdate,
+                ExpiryDate = t.Expireondate,
                 CheckedInTs = t.TeamCheckIns != null ? t.TeamCheckIns!.CheckedInTs : (DateTime?)null,
                 CheckedInByRegId = t.TeamCheckIns != null ? t.TeamCheckIns!.CheckedInByRegId : null,
             })
@@ -73,6 +77,18 @@ public class CheckinRepository : ICheckinRepository
                 SchoolName = r.SchoolName,
                 GradYear = r.GradYear,
                 Position = r.Position,
+                DayGroup = r.DayGroup,
+                NightGroup = r.NightGroup,
+                MomName = r.FamilyUser != null
+                    ? (((r.FamilyUser.MomFirstName ?? string.Empty) + " " + (r.FamilyUser.MomLastName ?? string.Empty)).Trim())
+                    : null,
+                MomCellphone = r.FamilyUser != null ? r.FamilyUser.MomCellphone : null,
+                MomEmail = r.FamilyUser != null ? r.FamilyUser.MomEmail : null,
+                DadName = r.FamilyUser != null
+                    ? (((r.FamilyUser.DadFirstName ?? string.Empty) + " " + (r.FamilyUser.DadLastName ?? string.Empty)).Trim())
+                    : null,
+                DadCellphone = r.FamilyUser != null ? r.FamilyUser.DadCellphone : null,
+                DadEmail = r.FamilyUser != null ? r.FamilyUser.DadEmail : null,
                 OwedTotal = r.OwedTotal,
                 PaidTotal = r.PaidTotal,
                 HasMedForm = r.BUploadedMedForm ?? false,

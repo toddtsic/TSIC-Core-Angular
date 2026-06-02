@@ -11,6 +11,14 @@ export type PlayerCheckinRowDto = {
     schoolName?: string | null;
     gradYear?: string | null;
     position?: string | null;
+    dayGroup?: string | null;
+    nightGroup?: string | null;
+    momName?: string | null;
+    momCellphone?: string | null;
+    momEmail?: string | null;
+    dadName?: string | null;
+    dadCellphone?: string | null;
+    dadEmail?: string | null;
     owedTotal: number;
     paidTotal: number;
     hasMedForm: boolean;

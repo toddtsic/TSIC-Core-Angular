@@ -18,6 +18,14 @@ public record TeamCheckinRowDto
     public string? ClubRepName { get; init; }
     public required decimal OwedTotal { get; init; }
     public required decimal PaidTotal { get; init; }
+    /// <summary>When the team "runs" — start of its active window. Null if unset.</summary>
+    public DateTime? StartDate { get; init; }
+    /// <summary>When the team "runs" — end of its active window. Null if unset.</summary>
+    public DateTime? EndDate { get; init; }
+    /// <summary>Public registration opens (Effectiveasofdate). Null if unset.</summary>
+    public DateTime? EffectiveDate { get; init; }
+    /// <summary>Public registration closes (Expireondate). Null if unset.</summary>
+    public DateTime? ExpiryDate { get; init; }
     public DateTime? CheckedInTs { get; init; }
     public Guid? CheckedInByRegId { get; init; }
 }
@@ -38,6 +46,17 @@ public record PlayerCheckinRowDto
     public string? SchoolName { get; init; }
     public string? GradYear { get; init; }
     public string? Position { get; init; }
+    /// <summary>Camp day-session group label (Registrations.DayGroup). Null if unset.</summary>
+    public string? DayGroup { get; init; }
+    /// <summary>Camp night-session group label (Registrations.NightGroup). Null if unset.</summary>
+    public string? NightGroup { get; init; }
+    /// <summary>Parent contact (from the player's family) — for reaching a guardian at check-in.</summary>
+    public string? MomName { get; init; }
+    public string? MomCellphone { get; init; }
+    public string? MomEmail { get; init; }
+    public string? DadName { get; init; }
+    public string? DadCellphone { get; init; }
+    public string? DadEmail { get; init; }
     public required decimal OwedTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required bool HasMedForm { get; init; }

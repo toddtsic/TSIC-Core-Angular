@@ -215,11 +215,89 @@
     .col-grad { width: 60px; }
     .col-club { min-width: 120px; }
     .col-rep { min-width: 140px; }
+    .col-dates { min-width: 110px; color: var(--bs-secondary-color); }
+    .col-groups { min-width: 90px; white-space: nowrap; }
+    .col-contact { min-width: 190px; }
     .col-doc { width: 90px; }
     .col-balance { width: 130px; }
     .col-action { width: 130px; text-align: right; }
 
+    // Allow long identity text to wrap to multiple lines rather than force the
+    // table into horizontal scroll (esp. with the added date columns).
+    .col-name, .col-club, .col-rep { white-space: normal; word-break: break-word; }
+
     .muted { color: var(--bs-secondary-color); }
+}
+
+// Keep each date pair (start – end) intact on one line; the column itself
+// flexes/wraps if space is tight.
+.date-range { white-space: nowrap; }
+
+// ── Parent contact (player check-in) ────────────
+// Two compact lines (Mom / Dad), each a tap-to-call phone link so staff can
+// reach a guardian when a player hasn't arrived.
+
+.contact-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.contact-line {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    font-size: var(--font-size-xs);
+}
+
+.contact-role {
+    flex-shrink: 0;
+    min-width: 30px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    color: var(--bs-secondary-color);
+}
+
+.contact-info {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-1) var(--space-2);
+}
+
+.contact-name { color: var(--brand-text); }
+
+.contact-phone {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--bs-primary);
+    font-weight: 500;
+    text-decoration: none;
+    white-space: nowrap;
+
+    &:hover { text-decoration: underline; }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+        border-radius: var(--radius-sm);
+    }
+}
+
+.contact-mail {
+    display: inline-flex;
+    align-items: center;
+    color: var(--bs-secondary-color);
+
+    &:hover { color: var(--bs-primary); }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+        border-radius: var(--radius-sm);
+    }
 }
 
 // ── Clickable name (opens detail/payment fly-in) ─

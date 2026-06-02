@@ -13,6 +13,10 @@ export type TeamCheckinRowDto = {
     clubRepName?: string | null;
     owedTotal: number;
     paidTotal: number;
+    startDate?: string | null;
+    endDate?: string | null;
+    effectiveDate?: string | null;
+    expiryDate?: string | null;
     checkedInTs?: string | null;
     checkedInByRegId?: string | null;
 };

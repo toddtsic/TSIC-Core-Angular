@@ -52,6 +52,8 @@
                             <th class="col-age">Agegroup</th>
                             <th class="col-club">Club</th>
                             <th class="col-rep">Club Rep</th>
+                            <th class="col-dates">Runs</th>
+                            <th class="col-dates">Registration</th>
                             <th class="col-balance">Balance</th>
                             <th class="col-action"></th>
                         </tr>
@@ -82,6 +84,20 @@
                                 </td>
                                 <td class="col-club">{{ t.clubName }}</td>
                                 <td class="col-rep">{{ t.clubRepName }}</td>
+                                <td class="col-dates">
+                                    @if (t.startDate || t.endDate) {
+                                        <span class="date-range">{{ (t.startDate | date:'M/d/yy') || '—' }} – {{ (t.endDate | date:'M/d/yy') || '—' }}</span>
+                                    } @else {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
+                                <td class="col-dates">
+                                    @if (t.effectiveDate || t.expiryDate) {
+                                        <span class="date-range">{{ (t.effectiveDate | date:'M/d/yy') || '—' }} – {{ (t.expiryDate | date:'M/d/yy') || '—' }}</span>
+                                    } @else {
+                                        <span class="muted">—</span>
+                                    }
+                                </td>
                                 <td class="col-balance">
                                     @if (t.owedTotal > 0) {
                                         <span class="balance-chip balance-chip--due">
@@ -187,6 +203,8 @@
                                     <th class="col-name">Name</th>
                                     <th class="col-grad">Grad</th>
                                     <th class="col-club">Club</th>
+                                    <th class="col-groups">Day/Night</th>
+                                    <th class="col-contact">Parent Contact</th>
                                     <th class="col-doc">Med Form</th>
                                     <th class="col-balance">Balance</th>
                                     <th class="col-action"></th>
@@ -214,6 +232,53 @@
                                         </td>
                                         <td class="col-grad">{{ p.gradYear }}</td>
                                         <td class="col-club">{{ p.clubName }}</td>
+                                        <td class="col-groups">
+                                            {{ p.dayGroup || 'N.A.' }} / {{ p.nightGroup || 'N.A.' }}
+                                        </td>
+                                        <td class="col-contact">
+                                            @if (p.momName || p.momCellphone || p.dadName || p.dadCellphone) {
+                                                <div class="contact-list">
+                                                    @if (p.momName || p.momCellphone) {
+                                                        <div class="contact-line">
+                                                            <span class="contact-role">Mom</span>
+                                                            <span class="contact-info">
+                                                                @if (p.momName) { <span class="contact-name">{{ p.momName }}</span> }
+                                                                @if (p.momCellphone) {
+                                                                    <a class="contact-phone" href="tel:{{ p.momCellphone }}">
+                                                                        <i class="bi bi-telephone-fill"></i>{{ p.momCellphone }}
+                                                                    </a>
+                                                                }
+                                                                @if (p.momEmail) {
+                                                                    <a class="contact-mail" href="mailto:{{ p.momEmail }}" [title]="p.momEmail">
+                                                                        <i class="bi bi-envelope-fill"></i>
+                                                                    </a>
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                    @if (p.dadName || p.dadCellphone) {
+                                                        <div class="contact-line">
+                                                            <span class="contact-role">Dad</span>
+                                                            <span class="contact-info">
+                                                                @if (p.dadName) { <span class="contact-name">{{ p.dadName }}</span> }
+                                                                @if (p.dadCellphone) {
+                                                                    <a class="contact-phone" href="tel:{{ p.dadCellphone }}">
+                                                                        <i class="bi bi-telephone-fill"></i>{{ p.dadCellphone }}
+                                                                    </a>
+                                                                }
+                                                                @if (p.dadEmail) {
+                                                                    <a class="contact-mail" href="mailto:{{ p.dadEmail }}" [title]="p.dadEmail">
+                                                                        <i class="bi bi-envelope-fill"></i>
+                                                                    </a>
+                                                                }
+                                                            </span>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            } @else {
+                                                <span class="muted">—</span>
+                                            }
+                                        </td>
                                         <td class="col-doc">
                                             @if (p.hasMedForm) {
                                                 <button type="button" class="doc-link"
