@@ -6,6 +6,7 @@ using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Configuration;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -609,11 +610,8 @@ public sealed class AdnSweepService : IAdnSweepService
             {
                 team.PaidTotal = (team.PaidTotal ?? 0m) - amount;
                 await _feeAdj.ReverseTeamProcessingFeeForEcheckAsync(team, amount, reg.JobId, SystemUserId);
-                team.FeeTotal = (team.FeeBase ?? 0m)
-                    + (team.FeeProcessing ?? 0m)
-                    - (team.FeeDiscount ?? 0m) - (team.FeeDiscountMp ?? 0m)
-                    + (team.FeeDonation ?? 0m) + (team.FeeLatefee ?? 0m);
-                team.OwedTotal = (team.FeeTotal ?? 0m) - (team.PaidTotal ?? 0m);
+                // Drops the legacy FeeDiscountMp subtraction; reconciled to FeeMath (Mp=0 for active clients).
+                team.RecalcTotals();
                 team.Modified = now;
                 team.LebUserId = SystemUserId;
             }
@@ -623,8 +621,7 @@ public sealed class AdnSweepService : IAdnSweepService
             // Reverse payment on the registration; recompute totals after fee restore.
             reg.PaidTotal -= amount;
             await _feeAdj.ReverseProcessingFeeForEcheckAsync(reg, amount, reg.JobId, SystemUserId);
-            reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
-            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+            reg.RecalcTotals();
             reg.Modified = now;
             reg.LebUserId = SystemUserId;
         }

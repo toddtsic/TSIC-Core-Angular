@@ -1,3 +1,4 @@
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -324,8 +325,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 2, MidpointRounding.AwayFromZero)
             : 0m;
 
-        reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
-        reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+        reg.RecalcTotals();
     }
 
     private async Task ApplyTeamProcessingAndTotalsAsync(
@@ -368,11 +368,6 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
         team.FeeProcessing = feeProcessing;
 
-        team.FeeTotal = (team.FeeBase ?? 0m)
-                      + (team.FeeProcessing ?? 0m)
-                      - (team.FeeDiscount ?? 0m)
-                      + (team.FeeDonation ?? 0m)
-                      + (team.FeeLatefee ?? 0m);
-        team.OwedTotal = (team.FeeTotal ?? 0m) - (team.PaidTotal ?? 0m);
+        team.RecalcTotals();
     }
 }

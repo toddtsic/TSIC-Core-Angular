@@ -6,6 +6,8 @@ using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Extensions;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -249,7 +251,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             ?? throw new InvalidOperationException("Registration not found.");
 
         reg.PaidTotal += request.PaidAmount ?? 0;
-        reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+        reg.OwedTotal = FeeMath.ComputeOwed(reg.FeeTotal, reg.PaidTotal);
         reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
 
@@ -377,7 +379,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             // Update registration financials
             var reg = original.Registration;
             reg.PaidTotal -= reversedAmount;
-            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+            reg.OwedTotal = FeeMath.ComputeOwed(reg.FeeTotal, reg.PaidTotal);
             reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
 
@@ -483,8 +485,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
 
         // Recalculate totals after processing fee change
-        reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
-        reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+        reg.RecalcTotals();
         reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
 

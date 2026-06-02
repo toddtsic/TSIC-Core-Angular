@@ -7,6 +7,7 @@ using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.AdultRegistration;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -783,7 +784,7 @@ public class AdultRegistrationService : IAdultRegistrationService
                 });
 
                 r.PaidTotal += thisAmt;
-                r.OwedTotal = r.FeeTotal - r.PaidTotal;
+                r.OwedTotal = FeeMath.ComputeOwed(r.FeeTotal, r.PaidTotal);
                 r.PaymentMethodChosen = 1; // CC
             }
 
