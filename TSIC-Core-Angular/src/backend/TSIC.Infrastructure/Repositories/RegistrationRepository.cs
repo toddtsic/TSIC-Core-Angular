@@ -947,8 +947,10 @@ public class RegistrationRepository : IRegistrationRepository
             reg.FeeDiscountMp = 0;
             reg.FeeDonation = 0;
             reg.FeeLatefee = 0;
-            reg.FeeTotal = 0;
-            reg.OwedTotal = 0;
+            // Derive FeeTotal + OwedTotal from the zeroed components. A player who already paid
+            // toward this now-dropped team is owed that money back, so OwedTotal becomes
+            // -PaidTotal (OVER PAID / refund owed) rather than being hidden as a flat 0.
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
         }
 
