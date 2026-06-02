@@ -50,6 +50,8 @@ public record PlayerCheckinRowDto
     public string? DayGroup { get; init; }
     /// <summary>Camp night-session group label (Registrations.NightGroup). Null if unset.</summary>
     public string? NightGroup { get; init; }
+    /// <summary>Camp roommate preference (Registrations.RoommatePref). Null if unset.</summary>
+    public string? RoommatePref { get; init; }
     /// <summary>Parent contact (from the player's family) — for reaching a guardian at check-in.</summary>
     public string? MomName { get; init; }
     public string? MomCellphone { get; init; }

@@ -1,14 +1,24 @@
 namespace TSIC.Contracts.Dtos.CampGroups;
 
 /// <summary>
-/// Team summary for the camp-groups admin left pane: one row per active team
-/// in the job with its current rostered Player count.
+/// Team summary for the left pane of both the camp-groups admin and the
+/// check-in player-mode team picker: one row per active team in the job with
+/// its rostered Player count. The date fields drive the check-in picker's
+/// run / public-registration windows (unused by camp-groups).
 /// </summary>
 public record TeamRosterCountDto
 {
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
     public required int PlayerCount { get; init; }
+    /// <summary>When the team "runs" — start of its active window. Null if unset.</summary>
+    public DateTime? StartDate { get; init; }
+    /// <summary>When the team "runs" — end of its active window. Null if unset.</summary>
+    public DateTime? EndDate { get; init; }
+    /// <summary>Public registration opens (Effectiveasofdate). Null if unset.</summary>
+    public DateTime? EffectiveDate { get; init; }
+    /// <summary>Public registration closes (Expireondate). Null if unset.</summary>
+    public DateTime? ExpiryDate { get; init; }
 }
 
 /// <summary>

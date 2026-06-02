@@ -86,14 +86,20 @@
                                 <td class="col-rep">{{ t.clubRepName }}</td>
                                 <td class="col-dates">
                                     @if (t.startDate || t.endDate) {
-                                        <span class="date-range">{{ (t.startDate | date:'M/d/yy') || '—' }} – {{ (t.endDate | date:'M/d/yy') || '—' }}</span>
+                                        <span class="date-stack">
+                                            <span>{{ (t.startDate | date:'M/d/yy') || '—' }}</span>
+                                            <span>{{ (t.endDate | date:'M/d/yy') || '—' }}</span>
+                                        </span>
                                     } @else {
                                         <span class="muted">—</span>
                                     }
                                 </td>
                                 <td class="col-dates">
                                     @if (t.effectiveDate || t.expiryDate) {
-                                        <span class="date-range">{{ (t.effectiveDate | date:'M/d/yy') || '—' }} – {{ (t.expiryDate | date:'M/d/yy') || '—' }}</span>
+                                        <span class="date-stack">
+                                            <span>{{ (t.effectiveDate | date:'M/d/yy') || '—' }}</span>
+                                            <span>{{ (t.expiryDate | date:'M/d/yy') || '—' }}</span>
+                                        </span>
                                     } @else {
                                         <span class="muted">—</span>
                                     }
@@ -162,7 +168,25 @@
                              (keydown.enter)="selectTeam(team)"
                              tabindex="0"
                              role="button">
-                            <span class="team-name">{{ team.teamName }}</span>
+                            <div class="team-item-main">
+                                <span class="team-name">{{ team.teamName }}</span>
+                                @if (team.startDate || team.endDate || team.effectiveDate || team.expiryDate) {
+                                    <div class="team-dates">
+                                        @if (team.startDate || team.endDate) {
+                                            <span class="team-date-line">
+                                                <i class="bi bi-calendar-event"></i>
+                                                <span>Runs {{ (team.startDate | date:'M/d/yy') || '—' }} – {{ (team.endDate | date:'M/d/yy') || '—' }}</span>
+                                            </span>
+                                        }
+                                        @if (team.effectiveDate || team.expiryDate) {
+                                            <span class="team-date-line">
+                                                <i class="bi bi-card-checklist"></i>
+                                                <span>Reg {{ (team.effectiveDate | date:'M/d/yy') || '—' }} – {{ (team.expiryDate | date:'M/d/yy') || '—' }}</span>
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                            </div>
                             <span class="count-badge">{{ team.playerCount }}</span>
                         </div>
                     }
@@ -204,6 +228,9 @@
                                     <th class="col-grad">Grad</th>
                                     <th class="col-club">Club</th>
                                     <th class="col-groups">Day/Night</th>
+                                    @if (showRoommate()) {
+                                        <th class="col-roommate">Roommate</th>
+                                    }
                                     <th class="col-contact">Parent Contact</th>
                                     <th class="col-doc">Med Form</th>
                                     <th class="col-balance">Balance</th>
@@ -235,6 +262,9 @@
                                         <td class="col-groups">
                                             {{ p.dayGroup || 'N.A.' }} / {{ p.nightGroup || 'N.A.' }}
                                         </td>
+                                        @if (showRoommate()) {
+                                            <td class="col-roommate">{{ p.roommatePref || '—' }}</td>
+                                        }
                                         <td class="col-contact">
                                             @if (p.momName || p.momCellphone || p.dadName || p.dadCellphone) {
                                                 <div class="contact-list">

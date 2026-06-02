@@ -79,6 +79,7 @@ public class CheckinRepository : ICheckinRepository
                 Position = r.Position,
                 DayGroup = r.DayGroup,
                 NightGroup = r.NightGroup,
+                RoommatePref = r.RoommatePref,
                 MomName = r.FamilyUser != null
                     ? (((r.FamilyUser.MomFirstName ?? string.Empty) + " " + (r.FamilyUser.MomLastName ?? string.Empty)).Trim())
                     : null,

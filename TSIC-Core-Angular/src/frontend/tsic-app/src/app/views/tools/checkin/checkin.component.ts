@@ -65,6 +65,12 @@ export class CheckinComponent {
         () => this.players().filter(p => !!p.checkedInTs).length
     );
 
+    // Roommate is a camp-only field; only surface the column when at least one
+    // loaded player actually has a value, so non-camp/early rosters stay clean.
+    readonly showRoommate = computed(
+        () => this.players().some(p => !!p.roommatePref)
+    );
+
     constructor() {
         const jobType = this.jobService.currentJob()?.jobTypeId;
         const teamBased = jobType === JOB_TYPE_TOURNAMENT || jobType === JOB_TYPE_LEAGUE;

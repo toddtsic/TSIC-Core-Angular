@@ -6,5 +6,9 @@ export type TeamRosterCountDto = {
     teamId: string;
     teamName: string;
     playerCount: number;
+    startDate?: string | null;
+    endDate?: string | null;
+    effectiveDate?: string | null;
+    expiryDate?: string | null;
 };
 

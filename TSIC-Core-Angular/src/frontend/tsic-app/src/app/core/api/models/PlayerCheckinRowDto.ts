@@ -13,6 +13,7 @@ export type PlayerCheckinRowDto = {
     position?: string | null;
     dayGroup?: string | null;
     nightGroup?: string | null;
+    roommatePref?: string | null;
     momName?: string | null;
     momCellphone?: string | null;
     momEmail?: string | null;

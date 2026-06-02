@@ -112,7 +112,7 @@
 .team-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     padding: var(--space-3) var(--space-4);
     cursor: pointer;
     border-bottom: 1px solid var(--border-color);
@@ -136,14 +136,42 @@
     }
 }
 
+.team-item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    margin-right: var(--space-2);
+}
+
 .team-name {
     font-weight: 500;
     color: var(--brand-text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    flex: 1;
-    margin-right: var(--space-2);
+    // Let long camp/session names wrap to multiple lines instead of truncating.
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+// Run / public-registration windows under each session name in the picker.
+.team-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+}
+
+.team-date-line {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--font-size-xs);
+    color: var(--bs-secondary-color);
+
+    i {
+        flex-shrink: 0;
+        font-size: 0.85em;
+        opacity: 0.8;
+    }
 }
 
 .count-badge {
@@ -171,13 +199,13 @@
 .checkin-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-xs);
 
     thead th {
         position: sticky;
         top: 0;
         background: var(--bs-secondary-bg);
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-1) var(--space-2);
         text-align: left;
         font-weight: 600;
         color: var(--brand-text);
@@ -186,7 +214,7 @@
     }
 
     tbody td {
-        padding: var(--space-2) var(--space-3);
+        padding: var(--space-1) var(--space-2);
         border-bottom: 1px solid var(--border-color);
         color: var(--brand-text);
         vertical-align: middle;
@@ -209,18 +237,19 @@
         }
     }
 
-    .col-status { width: 110px; }
-    .col-name { font-weight: 500; min-width: 160px; }
-    .col-age { min-width: 120px; }
-    .col-grad { width: 60px; }
-    .col-club { min-width: 120px; }
-    .col-rep { min-width: 140px; }
-    .col-dates { min-width: 110px; color: var(--bs-secondary-color); }
-    .col-groups { min-width: 90px; white-space: nowrap; }
-    .col-contact { min-width: 190px; }
-    .col-doc { width: 90px; }
-    .col-balance { width: 130px; }
-    .col-action { width: 130px; text-align: right; }
+    .col-status { width: 96px; }
+    .col-name { font-weight: 500; min-width: 120px; }
+    .col-age { min-width: 84px; }
+    .col-grad { width: 56px; }
+    .col-club { min-width: 90px; }
+    .col-rep { min-width: 100px; }
+    .col-dates { min-width: 64px; color: var(--bs-secondary-color); }
+    .col-groups { min-width: 84px; white-space: nowrap; }
+    .col-roommate { min-width: 110px; white-space: normal; word-break: break-word; }
+    .col-contact { min-width: 180px; }
+    .col-doc { width: 84px; }
+    .col-balance { width: 104px; }
+    .col-action { width: 104px; text-align: right; }
 
     // Allow long identity text to wrap to multiple lines rather than force the
     // table into horizontal scroll (esp. with the added date columns).
@@ -229,9 +258,14 @@
     .muted { color: var(--bs-secondary-color); }
 }
 
-// Keep each date pair (start – end) intact on one line; the column itself
-// flexes/wraps if space is tight.
-.date-range { white-space: nowrap; }
+// Stack each date pair (start over end) so the Runs / Registration columns
+// stay narrow instead of forcing the table into horizontal scroll.
+.date-stack {
+    display: inline-flex;
+    flex-direction: column;
+    line-height: 1.3;
+    white-space: nowrap;
+}
 
 // ── Parent contact (player check-in) ────────────
 // Two compact lines (Mom / Dad), each a tap-to-call phone link so staff can

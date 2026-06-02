@@ -1666,7 +1666,11 @@ public class TeamRepository : ITeamRepository
                 PlayerCount = _context.Registrations.Count(r =>
                     r.AssignedTeamId == t.TeamId
                     && r.BActive == true
-                    && r.RoleId == RoleConstants.Player)
+                    && r.RoleId == RoleConstants.Player),
+                StartDate = t.Startdate,
+                EndDate = t.Enddate,
+                EffectiveDate = t.Effectiveasofdate,
+                ExpiryDate = t.Expireondate
             })
             .AsNoTracking()
             .ToListAsync(ct);
