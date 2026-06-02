@@ -261,9 +261,11 @@ public class PlayerRegistrationPaymentController : ControllerBase
             // Proportionally reduce processing fee by discount amount (discount reduces CC transaction)
             await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, d, jobId.Value, familyUserId);
 
-            // Recalculate totals with updated processing fee
+            // Recalculate totals using the proc already adjusted by ReduceProcessingFee. Pass it
+            // directly (0 included) — collapsing 0 to null makes ComputeTotals fall back to default
+            // proc, which would re-inflate a full discount that legitimately zeroed the processing fee.
             var (proc, totalFee) = _feeCalc.ComputeTotals(reg.FeeBase, newDiscount, reg.FeeDonation,
-                reg.FeeProcessing > 0m ? reg.FeeProcessing : null);
+                reg.FeeProcessing);
             reg.FeeDiscount = newDiscount;
             reg.FeeProcessing = proc;
             reg.FeeTotal = totalFee;
