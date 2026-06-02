@@ -418,6 +418,47 @@ WHERE s.DedupRn = 1
 
 DECLARE @InsertedCount INT = @@ROWCOUNT;
 
+-- ----------------------------------------------------------------------------
+-- Net-new SpaComponent: Check-In station (no legacy ancestor)
+-- ----------------------------------------------------------------------------
+-- Unlike the PackedRoster Designer, Check-In replaces no legacy report, so it
+-- has no menu row to ride the @ActionMap remap. Seed it directly as a
+-- cross-join of qualifying jobs × reachable roles, mirroring the two existing
+-- gates so the catalogue can't diverge from them:
+--   * Jobs : JobType IN (Tournament/League Scheduling, Camp Registration) —
+--            the nav manifest's jobTypes gate (scripts/5) — within @ImportYears
+--            (same job scope as the legacy populate above).
+--   * Roles: Superuser / Director / SuperDirector — the route guard
+--            (app.routes.ts: tools/checkin).
+--   * Action 'tools/checkin' is the jobPath-relative SPA route; Kind is forced
+--     to 'SpaComponent' so the library navigates instead of downloading.
+-- 'tools/checkin' is in neither @ExcludeActions nor @ActionMap, so it is never
+-- touched by the sweep DELETEs above — the NOT EXISTS guard makes this purely
+-- additive, and SU edits/removals to these rows survive re-runs.
+INSERT INTO reporting.JobReports (
+    JobId, RoleId, Title, IconName, Controller, [Action], Kind, GroupLabel, SortOrder, Active
+)
+SELECT
+    j.JobId, r.Id, N'Check-In', N'clipboard-check', N'Reporting', N'tools/checkin',
+    N'SpaComponent', N'Registrations', 0, 1
+FROM Jobs.Jobs j
+INNER JOIN reference.JobTypes jt ON j.JobTypeId = jt.JobTypeId
+CROSS JOIN dbo.AspNetRoles r
+WHERE jt.JobTypeName IN (N'Tournament Scheduling', N'League Scheduling', N'Camp Registration')
+  AND j.[Year] IN (SELECT [Year] FROM @ImportYears)
+  AND r.[Name]  IN (N'Superuser', N'Director', N'SuperDirector')
+  AND NOT EXISTS (
+        SELECT 1
+        FROM reporting.JobReports jr
+        WHERE jr.JobId      = j.JobId
+          AND jr.RoleId     = r.Id
+          AND jr.Controller = N'Reporting'
+          AND jr.[Action]   = N'tools/checkin'
+          AND ISNULL(jr.GroupLabel, N'') = N'Registrations'
+  );
+
+DECLARE @CheckinCount INT = @@ROWCOUNT;
+
 -- All sweep + populate DML succeeded — commit the atomic rebuild.
 -- (@@ROWCOUNT captured into @InsertedCount above; COMMIT would reset it.)
 COMMIT TRANSACTION;
@@ -425,6 +466,7 @@ COMMIT TRANSACTION;
 PRINT '';
 PRINT '=== Populate Result ===';
 PRINT CONCAT('Inserted ', @InsertedCount, ' new row(s) into reporting.JobReports (idempotent on (JobId, RoleId, Controller, Action, GroupLabel))');
+PRINT CONCAT('Inserted ', @CheckinCount, ' net-new Check-In SpaComponent row(s) (jobs x roles, idempotent)');
 
 -- ============================================================================
 -- Section 4: Final state — totals + breakdown
