@@ -429,7 +429,12 @@ builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 if (!builder.Environment.IsEnvironment("Testing"))
 {
     // Fee-totals write-chokepoint (Stage A: observe/shadow — logs FeeTotal/OwedTotal drift, mutates nothing).
-    builder.Services.AddSingleton<TSIC.Infrastructure.Data.Interceptors.FeeTotalsInterceptor>();
+    // Non-Production emits a per-save Information "observed/consistent" heartbeat so OBSERVE is verifiable;
+    // gated OFF in Production here, so prod only ever logs real drift (Warning), never the per-save heartbeat.
+    var emitFeeObservationHeartbeat = !builder.Environment.IsProduction();
+    builder.Services.AddSingleton(sp => new TSIC.Infrastructure.Data.Interceptors.FeeTotalsInterceptor(
+        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TSIC.Infrastructure.Data.Interceptors.FeeTotalsInterceptor>>(),
+        emitObservationHeartbeat: emitFeeObservationHeartbeat));
     builder.Services.AddDbContext<SqlDbContext>((sp, options) =>
         options.UseSqlServer(
             builder.Configuration.GetConnectionString("DefaultConnection"),

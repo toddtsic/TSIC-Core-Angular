@@ -24,6 +24,10 @@ namespace TSIC.Infrastructure.Data.Interceptors;
 ///
 /// Stage B will flip this to derive FeeTotal/OwedTotal from the components on save; until the
 /// drift log reads clean it derives nothing, so it cannot corrupt money during the migration.
+///
+/// In non-Production a per-save Information "FeeTotalsObserved" heartbeat is also emitted (gated
+/// off in Production at registration), so "no drift" is provably "observed and agreed" rather
+/// than "never ran". Production logs only real drift, at Warning.
 /// </summary>
 public sealed class FeeTotalsInterceptor : SaveChangesInterceptor
 {
@@ -41,7 +45,16 @@ public sealed class FeeTotalsInterceptor : SaveChangesInterceptor
 
     private readonly ILogger<FeeTotalsInterceptor> _logger;
 
-    public FeeTotalsInterceptor(ILogger<FeeTotalsInterceptor> logger) => _logger = logger;
+    // When true (non-Production), every checked fee entity emits an Information "observed"
+    // heartbeat — so OBSERVE is positively verifiable (interceptor is alive, the save was seen,
+    // the numbers agree), not just silent-unless-drift. Set OFF for Production at registration.
+    private readonly bool _emitObservationHeartbeat;
+
+    public FeeTotalsInterceptor(ILogger<FeeTotalsInterceptor> logger, bool emitObservationHeartbeat)
+    {
+        _logger = logger;
+        _emitObservationHeartbeat = emitObservationHeartbeat;
+    }
 
     public override InterceptionResult<int> SavingChanges(
         DbContextEventData eventData, InterceptionResult<int> result)
@@ -100,7 +113,16 @@ public sealed class FeeTotalsInterceptor : SaveChangesInterceptor
 
         var feeDrift = Math.Abs(computedFeeTotal - storedFeeTotal) > Tolerance;
         var owedDrift = Math.Abs(computedOwed - storedOwed) > Tolerance;
-        if (!feeDrift && !owedDrift) return;
+        if (!feeDrift && !owedDrift)
+        {
+            // Consistent save — the actionable drift log stays silent, but in non-Production emit a
+            // heartbeat so "no drift" is provably "observed and agreed", not "the interceptor never ran".
+            if (_emitObservationHeartbeat)
+                _logger.LogInformation(
+                    "FeeTotalsObserved {Kind} {Id}: feeTotal={FeeTotal} owed={Owed} consistent",
+                    kind, id, computedFeeTotal, computedOwed);
+            return;
+        }
 
         // FeeDiscountMp is a retired discount excluded from FeeMath (kept only as a stub).
         // If the stored value matches the OLD subtract-Mp formula, this drift is purely that
