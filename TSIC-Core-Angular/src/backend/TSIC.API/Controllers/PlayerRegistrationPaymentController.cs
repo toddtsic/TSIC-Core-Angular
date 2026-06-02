@@ -16,6 +16,7 @@ using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Application.Services.Shared.Discount;
@@ -32,7 +33,6 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
     private readonly IRegistrationRepository _registrations;
-    private readonly IPlayerFeeCalculator _feeCalc;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentStateService _paymentState;
 
@@ -44,7 +44,6 @@ public class PlayerRegistrationPaymentController : ControllerBase
         IJobDiscountCodeRepository discountCodeRepo,
         IRegistrationAccountingRepository accountingRepo,
         IRegistrationRepository registrations,
-        IPlayerFeeCalculator feeCalc,
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentStateService paymentState,
         ILogger<PlayerRegistrationPaymentController> logger)
@@ -54,7 +53,6 @@ public class PlayerRegistrationPaymentController : ControllerBase
         _discountCodeRepo = discountCodeRepo;
         _accountingRepo = accountingRepo;
         _registrations = registrations;
-        _feeCalc = feeCalc;
         _feeAdjustment = feeAdjustment;
         _paymentState = paymentState;
         _logger = logger;
@@ -261,14 +259,16 @@ public class PlayerRegistrationPaymentController : ControllerBase
             // Proportionally reduce processing fee by discount amount (discount reduces CC transaction)
             await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, d, jobId.Value, familyUserId);
 
-            // Recalculate totals using the proc already adjusted by ReduceProcessingFee. Pass it
-            // directly (0 included) — collapsing 0 to null makes ComputeTotals fall back to default
-            // proc, which would re-inflate a full discount that legitimately zeroed the processing fee.
-            var (proc, totalFee) = _feeCalc.ComputeTotals(reg.FeeBase, newDiscount, reg.FeeDonation,
-                reg.FeeProcessing);
+            // Set the new discount, then derive FeeTotal from the single canonical formula (FeeMath),
+            // replacing the retired PlayerFeeCalculator.ComputeTotals (whose divergent formula subtracted
+            // donation and dropped the late fee — a discount code silently wiped any late fee). FeeProcessing
+            // was already adjusted in-place by ReduceProcessingFeeProportionalAsync above (and stays ≥0), so
+            // it is passed straight through (0 included) — we do NOT collapse 0 to a default proc, which
+            // would re-inflate a full discount that legitimately zeroed the processing fee. Owed clamp
+            // (Math.Max) is intentionally unchanged here; the signed-vs-clamped policy is a separate step.
             reg.FeeDiscount = newDiscount;
-            reg.FeeProcessing = proc;
-            reg.FeeTotal = totalFee;
+            reg.FeeTotal = FeeMath.ComputeFeeTotal(
+                reg.FeeBase, reg.FeeProcessing, reg.FeeDiscount, reg.FeeDonation, reg.FeeLatefee);
             reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
             reg.Modified = DateTime.Now;
             reg.LebUserId = familyUserId;

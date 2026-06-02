@@ -220,7 +220,6 @@ builder.Services.AddScoped<IJobLookupService, JobLookupService>();
 builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
 builder.Services.AddScoped<IAdnApiService, AdnApiService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
-builder.Services.AddScoped<TSIC.Contracts.Services.IPlayerFeeCalculator, PlayerFeeCalculator>();
 builder.Services.AddScoped<IPlayerRegistrationService, PlayerRegistrationService>();
 builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationService>();
 builder.Services.AddScoped<IFeeResolutionService, FeeResolutionService>();
