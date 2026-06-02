@@ -106,19 +106,35 @@ export class AuthService {
    *
    *   Phase 1 token (no regId) → /:jobPath/role-selection?returnUrl=<intended>
    *   Phase 2 token (has regId) → navigateByUrl(<intended>)
+   *
+   * Exception: when the intended URL is a registration wizard (a public,
+   * self-contained entry point that runs on a Phase-1 token), a Phase-1 user is
+   * sent straight there. The role-selection detour is not only unnecessary but a
+   * dead end for a brand-new family account — it has no active registration to
+   * select, so role-selection shows "No Active Registrations" instead of the
+   * family-player listing. This matches what the embedded wizard login does on a
+   * TOS-less login (loginSuccess → wizard auto-advance).
    */
   navigateAfterAuth(router: Router, returnUrl: string, jobPathFallback?: string | null): void {
     const user = this.getCurrentUser();
-    if (!user) {
-      router.navigateByUrl(returnUrl);
-      return;
-    }
-    if (!user.regId) {
+    if (user && !user.regId && !this.isRegistrationWizardUrl(returnUrl)) {
       const jp = user.jobPath || jobPathFallback || 'tsic';
       router.navigate([`/${jp}/role-selection`], { queryParams: { returnUrl } });
       return;
     }
     router.navigateByUrl(returnUrl);
+  }
+
+  /**
+   * Registration wizards (/registration/entry|player|team|adult|family) are
+   * public (allowAnonymous) entry points that function on a Phase-1 token and
+   * require no selected role, so they can be navigated to directly — skipping
+   * the role-selection detour that role-gated destinations need. Matches only a
+   * trailing-slash segment so the role-gated "/search/registrations" list and
+   * "/update-cc/:registrationId" routes are not misclassified.
+   */
+  private isRegistrationWizardUrl(returnUrl: string): boolean {
+    return returnUrl.split('?')[0].includes('/registration/');
   }
 
   /**

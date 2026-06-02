@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, output, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ClubService } from '@infrastructure/services/club.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
@@ -283,6 +283,7 @@ export class TeamLoginStepComponent implements OnInit {
     private readonly state = inject(TeamWizardStateService);
     private readonly teamReg = inject(TeamRegistrationService);
     private readonly router = inject(Router);
+    private readonly route = inject(ActivatedRoute);
     private readonly destroyRef = inject(DestroyRef);
 
     readonly error = signal<string | null>(null);
@@ -305,7 +306,13 @@ export class TeamLoginStepComponent implements OnInit {
 
     returnUrl(): string {
         const jobPath = this.state.jobPath();
-        return jobPath ? `/${jobPath}/registration/team` : '/tsic/role-selection';
+        if (!jobPath) return '/tsic/role-selection';
+        // Preserve ?invite=<regId> so a ToS bounce-back re-enters through the invite
+        // guard with the token intact — invite-only events would otherwise reject the
+        // returning club rep.
+        const invite = this.route.snapshot.queryParamMap.get('invite');
+        const base = `/${jobPath}/registration/team`;
+        return invite ? `${base}?invite=${encodeURIComponent(invite)}` : base;
     }
 
     /** Display name from loaded profile, with username fallback. */

@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, OnInit, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -158,6 +158,7 @@ export class FamilyCheckStepComponent implements OnInit {
     readonly advance = output<void>();
     readonly auth = inject(AuthService);
     private readonly router = inject(Router);
+    private readonly route = inject(ActivatedRoute);
     private readonly jobService = inject(JobService);
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
@@ -183,7 +184,13 @@ export class FamilyCheckStepComponent implements OnInit {
 
     returnUrl(): string {
         const jobPath = this.jobService.getCurrentJob()?.jobPath;
-        return jobPath ? `/${jobPath}/registration/player` : '/tsic/role-selection';
+        if (!jobPath) return '/tsic/role-selection';
+        // Preserve ?invite=<regId> so a ToS bounce-back re-enters through the invite
+        // guard with the token intact — invite-only events would otherwise reject the
+        // returning user. (Mirrors the adult step's ?role= preservation.)
+        const invite = this.route.snapshot.queryParamMap.get('invite');
+        const base = `/${jobPath}/registration/player`;
+        return invite ? `${base}?invite=${encodeURIComponent(invite)}` : base;
     }
 
     onContinue(): void {
