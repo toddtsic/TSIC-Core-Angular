@@ -104,10 +104,12 @@ public class SubmitByCheckTests
             .Setup(r => r.GetByIdsAsync(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Registrations> { reg });
 
-        var before = DateTime.UtcNow;
+        // Modified is stamped with DateTime.Now (local AZ) per the local-AZ datetime convention,
+        // so bracket with DateTime.Now too — UtcNow would be 7h ahead and fail the assertion.
+        var before = DateTime.Now;
         var result = await svc.SubmitByCheckAsync(
             TestJobId, TestFamilyUserId, MakeRequest(reg.RegistrationId), TestFamilyUserId);
-        var after = DateTime.UtcNow;
+        var after = DateTime.Now;
 
         result.Success.Should().BeTrue();
         result.UpdatedRegistrationIds.Should().ContainSingle().Which.Should().Be(reg.RegistrationId);
