@@ -428,10 +428,13 @@ builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 // Tests will provide in-memory versions via WebApplicationTestFactory
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    builder.Services.AddDbContext<SqlDbContext>(options =>
+    // Fee-totals write-chokepoint (Stage A: observe/shadow — logs FeeTotal/OwedTotal drift, mutates nothing).
+    builder.Services.AddSingleton<TSIC.Infrastructure.Data.Interceptors.FeeTotalsInterceptor>();
+    builder.Services.AddDbContext<SqlDbContext>((sp, options) =>
         options.UseSqlServer(
             builder.Configuration.GetConnectionString("DefaultConnection"),
-            x => x.UseNetTopologySuite()));
+            x => x.UseNetTopologySuite())
+        .AddInterceptors(sp.GetRequiredService<TSIC.Infrastructure.Data.Interceptors.FeeTotalsInterceptor>()));
 
     // Separate DbContext for Identity operations only
     builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
