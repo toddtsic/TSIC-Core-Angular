@@ -5,6 +5,7 @@ import { JobService } from '@infrastructure/services/job.service';
 import { CheckinService } from './checkin.service';
 import { RegistrationDetailPanelComponent } from '../../search/registrations/components/registration-detail-panel.component';
 import { RegistrationSearchService } from '../../search/registrations/services/registration-search.service';
+import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
 import type {
     TeamRosterCountDto,
     TeamCheckinRowDto,
@@ -22,7 +23,7 @@ const JOB_TYPE_LEAGUE = 3;
 @Component({
     selector: 'app-checkin',
     standalone: true,
-    imports: [CommonModule, RegistrationDetailPanelComponent],
+    imports: [CommonModule, RegistrationDetailPanelComponent, PhonePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './checkin.component.html',
     styleUrl: './checkin.component.scss',

@@ -65,11 +65,15 @@
                                     @if (t.checkedInTs) {
                                         <span class="status-chip status-chip--in">
                                             <i class="bi bi-check-circle-fill"></i>
-                                            <span>{{ t.checkedInTs | date:'shortTime' }}</span>
+                                            <span class="date-stack">
+                                                <span>{{ t.checkedInTs | date:'M/d/yy' }}</span>
+                                                <span>{{ t.checkedInTs | date:'h:mm a' }}</span>
+                                            </span>
                                         </span>
                                     } @else {
                                         <span class="status-chip status-chip--out">
-                                            <span>Not in</span>
+                                            <i class="bi bi-clock"></i>
+                                            <span>Pending</span>
                                         </span>
                                     }
                                 </td>
@@ -244,11 +248,15 @@
                                             @if (p.checkedInTs) {
                                                 <span class="status-chip status-chip--in">
                                                     <i class="bi bi-check-circle-fill"></i>
-                                                    <span>{{ p.checkedInTs | date:'shortTime' }}</span>
+                                                    <span class="date-stack">
+                                                        <span>{{ p.checkedInTs | date:'M/d/yy' }}</span>
+                                                        <span>{{ p.checkedInTs | date:'h:mm a' }}</span>
+                                                    </span>
                                                 </span>
                                             } @else {
                                                 <span class="status-chip status-chip--out">
-                                                    <span>Not in</span>
+                                                    <i class="bi bi-clock"></i>
+                                                    <span>Pending</span>
                                                 </span>
                                             }
                                         </td>
@@ -275,7 +283,7 @@
                                                                 @if (p.momName) { <span class="contact-name">{{ p.momName }}</span> }
                                                                 @if (p.momCellphone) {
                                                                     <a class="contact-phone" href="tel:{{ p.momCellphone }}">
-                                                                        <i class="bi bi-telephone-fill"></i>{{ p.momCellphone }}
+                                                                        <i class="bi bi-telephone-fill"></i>{{ p.momCellphone | phone }}
                                                                     </a>
                                                                 }
                                                                 @if (p.momEmail) {
@@ -293,7 +301,7 @@
                                                                 @if (p.dadName) { <span class="contact-name">{{ p.dadName }}</span> }
                                                                 @if (p.dadCellphone) {
                                                                     <a class="contact-phone" href="tel:{{ p.dadCellphone }}">
-                                                                        <i class="bi bi-telephone-fill"></i>{{ p.dadCellphone }}
+                                                                        <i class="bi bi-telephone-fill"></i>{{ p.dadCellphone | phone }}
                                                                     </a>
                                                                 }
                                                                 @if (p.dadEmail) {
