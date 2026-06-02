@@ -1,24 +1,31 @@
+using TSIC.Contracts.Payments;
+
 namespace TSIC.Contracts.Extensions;
 
 /// <summary>
-/// Consistent FeeTotal formula for team entities. Use this everywhere instead of inline math.
+/// Consistent FeeTotal/OwedTotal recompute for team entities — the Teams half of
+/// <see cref="RegistrationFeeExtensions"/>. Both delegate to <see cref="FeeMath"/> so the
+/// arithmetic has exactly one definition. Use this everywhere instead of inline math.
 /// FeeTotal = FeeBase + FeeProcessing - FeeDiscount + FeeDonation + FeeLatefee.
-/// OwedTotal = FeeTotal - PaidTotal.
+/// OwedTotal = FeeTotal - PaidTotal (signed; overpayment stays negative).
+/// (FeeDiscountMp is a retired stub excluded from the formula — see FeeMath.)
 /// </summary>
 public static class TeamFeeExtensions
 {
     /// <summary>
     /// Recalculates FeeTotal and OwedTotal from current fee fields.
-    /// Call this after any change to FeeBase, FeeProcessing, FeeDiscount, FeeDonation, or FeeLatefee.
+    /// Call this after any change to FeeBase, FeeProcessing, FeeDiscount, FeeDonation,
+    /// FeeLatefee, or PaidTotal. Teams fee columns are nullable, so callers coalesce here.
     /// </summary>
     public static void RecalcTotals(this TSIC.Domain.Entities.Teams team)
     {
-        team.FeeTotal = (team.FeeBase ?? 0m)
-                      + (team.FeeProcessing ?? 0m)
-                      - (team.FeeDiscount ?? 0m)
-                      + (team.FeeDonation ?? 0m)
-                      + (team.FeeLatefee ?? 0m);
-        team.OwedTotal = (team.FeeTotal ?? 0m) - (team.PaidTotal ?? 0m);
+        team.FeeTotal = FeeMath.ComputeFeeTotal(
+            team.FeeBase ?? 0m,
+            team.FeeProcessing ?? 0m,
+            team.FeeDiscount ?? 0m,
+            team.FeeDonation ?? 0m,
+            team.FeeLatefee ?? 0m);
+        team.OwedTotal = FeeMath.ComputeOwed(team.FeeTotal ?? 0m, team.PaidTotal ?? 0m);
     }
 
     /// <summary>
