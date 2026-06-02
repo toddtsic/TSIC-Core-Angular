@@ -23,18 +23,18 @@ namespace TSIC.Tests.PlayerRegistration.DiscountCode;
 /// DISCOUNT CODE TESTS
 ///
 /// These tests validate the ApplyDiscount action on PlayerRegistrationPaymentController.
-/// Covers absolute and percent discounts, proportional multi-player distribution,
-/// processing fee reduction, zero-balance correction rows, clamping, and rejection paths.
+/// Covers absolute and percent discounts, multi-player application, processing fee
+/// reduction, zero-balance correction rows, capping, and rejection paths.
 ///
 /// Each test uses real repositories against an in-memory database.
 /// Only IJobLookupService, IPaymentService, IJobRepository, IFeeResolutionService, and ILogger are mocked.
 ///
-/// IMPORTANT — ComputeTotals behavior:
-/// When reg.FeeProcessing is 0, the controller passes null as the processing override,
-/// so ComputeTotals falls back to default 3.5% of FeeBase (FeeConstants.MinProcessingFeePercent).
-/// Tests that need clean zero-balance scenarios use bAddProcessingFees=true with explicit
-/// processing fees on the registration so the override path is taken and ReduceProcessingFee
-/// properly adjusts the fee before ComputeTotals.
+/// IMPORTANT — discount base &amp; processing fee:
+/// The discount is computed from the registration's FeeBase (never the client-submitted item
+/// amount, which is the proc-inclusive owed balance). Percent = FeeBase x pct; fixed = min(code,
+/// FeeBase). After ReduceProcessingFee adjusts the proc, the controller passes the adjusted
+/// FeeProcessing directly to ComputeTotals (0 included), so a full discount that legitimately
+/// zeroes the proc is NOT re-inflated, and a no-proc job keeps proc at 0.
 /// </summary>
 public class DiscountCodeTests
 {
@@ -187,7 +187,7 @@ public class DiscountCodeTests
     // 1. Absolute partial discount with processing fees
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Absolute: $100 off $615.83 (base=$595 + 3.5% proc) → proc reduced, total=$512.33")]
+    [Fact(DisplayName = "Absolute: $100 off $595 (base=$595 + 3.5% proc) → proc reduced, total=$512.33")]
     public async Task Absolute_PartialDiscount_WithProcessingFees()
     {
         var (controller, ctx, _) = await CreateControllerAsync(
@@ -207,6 +207,7 @@ public class DiscountCodeTests
         dto.TotalDiscount.Should().Be(100m);
         dto.SuccessCount.Should().Be(1);
 
+        // Fixed $100 (< FeeBase 595). ReduceProcessingFee: 100 * 0.035 = 3.50, proc 20.83 → 17.33.
         var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
         dbReg.FeeDiscount.Should().Be(100m);
         dbReg.FeeProcessing.Should().Be(17.33m);
@@ -219,11 +220,10 @@ public class DiscountCodeTests
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // 2. Absolute partial discount — no processing fees on job
-    //    (ComputeTotals adds default 3.5% processing when reg.FeeProcessing is 0)
+    // 2. Absolute partial discount — no-proc job → no processing fee invented
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Absolute: $100 off $595 (no proc on reg) → ComputeTotals adds default proc, total=$515.83")]
+    [Fact(DisplayName = "Absolute: $100 off $595 (no-proc job) → no proc added, total=$495")]
     public async Task Absolute_PartialDiscount_NoProcessingOnReg()
     {
         var (controller, ctx, _) = await CreateControllerAsync(bAddProcessingFees: false);
@@ -240,12 +240,13 @@ public class DiscountCodeTests
         dto.Success.Should().BeTrue();
         dto.TotalDiscount.Should().Be(100m);
 
-        // ComputeTotals fallback: 3.5% of 595 = 20.83 processing added
+        // No-proc job: ReduceProcessingFee is a no-op and the adjusted proc (0) flows straight to
+        // ComputeTotals, so no phantom processing fee is invented. total = 595 - 100 = 495.
         var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
         dbReg.FeeDiscount.Should().Be(100m);
-        dbReg.FeeProcessing.Should().Be(20.83m);
-        dbReg.FeeTotal.Should().Be(515.83m);
-        dbReg.OwedTotal.Should().Be(515.83m);
+        dbReg.FeeProcessing.Should().Be(0m);
+        dbReg.FeeTotal.Should().Be(495m);
+        dbReg.OwedTotal.Should().Be(495m);
         dbReg.PaidTotal.Should().Be(0m);
 
         var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
@@ -253,11 +254,10 @@ public class DiscountCodeTests
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // 3. Absolute exact match — zero balance triggers correction row
-    //    Uses processing fees so the override path yields clean zero
+    // 3. Fixed code larger than base — capped at FeeBase, zero balance
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Absolute: $103.50 off $103.50 (base=$100 + $3.50 proc) → zero balance, correction row")]
+    [Fact(DisplayName = "Absolute: $103.50 code capped at $100 FeeBase → zero balance, $100 correction row")]
     public async Task Absolute_ExactMatch_ZeroBalance()
     {
         var (controller, ctx, _) = await CreateControllerAsync(
@@ -274,30 +274,29 @@ public class DiscountCodeTests
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
         dto.Success.Should().BeTrue();
-        dto.TotalDiscount.Should().Be(103.50m);
+        dto.TotalDiscount.Should().Be(100m);
 
-        // ReduceProcessingFee: 103.50 * 0.035 = 3.62 capped at 3.50 → FeeProcessing becomes 0
-        // ComputeTotals(100, 103.50, 0, null) — null because FeeProcessing is now 0
-        //   → default proc = 100*0.035 = 3.50, total = max(0, 100+3.50-103.50) = 0
+        // Fixed $103.50 capped at FeeBase $100. ReduceProcessingFee: 100 * 0.035 = 3.50 → proc 0.
+        // ComputeTotals(100, 100, 0, 0): total = max(0, 100 + 0 - 100) = 0 → zero balance, waiver row.
         var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
-        dbReg.FeeDiscount.Should().Be(103.50m);
-        dbReg.FeeProcessing.Should().Be(3.50m);
+        dbReg.FeeDiscount.Should().Be(100m);
+        dbReg.FeeProcessing.Should().Be(0m);
         dbReg.FeeTotal.Should().Be(0m);
         dbReg.OwedTotal.Should().Be(0m);
-        dbReg.PaidTotal.Should().Be(103.50m);
+        dbReg.PaidTotal.Should().Be(100m);
 
         var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
         acctRows.Should().HaveCount(1);
-        acctRows[0].Payamt.Should().Be(103.50m);
-        acctRows[0].Dueamt.Should().Be(103.50m);
+        acctRows[0].Payamt.Should().Be(100m);
+        acctRows[0].Dueamt.Should().Be(100m);
         acctRows[0].PaymentMethodId.Should().Be(AccountingDataBuilder.CorrectionMethodId);
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // 4. Absolute exceeds fee — clamped to total
+    // 4. Fixed code far exceeds fee — still capped at FeeBase
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Absolute: $200 off $103.50 (base=$100 + $3.50 proc) → clamped to $103.50, correction row")]
+    [Fact(DisplayName = "Absolute: $200 code capped at $100 FeeBase → zero balance, $100 correction row")]
     public async Task Absolute_ExceedsFee_ClampsToFeeTotal()
     {
         var (controller, ctx, _) = await CreateControllerAsync(
@@ -314,28 +313,28 @@ public class DiscountCodeTests
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
         dto.Success.Should().BeTrue();
-        dto.TotalDiscount.Should().Be(103.50m);
+        dto.TotalDiscount.Should().Be(100m);
 
-        // ReduceProcessingFee: 103.50 * 0.035 = 3.62 capped at 3.50 → FeeProcessing becomes 0
-        // ComputeTotals(100, 103.50, 0, null): default proc=3.50, total = max(0, 100+3.50-103.50) = 0
+        // Fixed $200 capped at FeeBase $100 (can't discount more than the base fee).
+        // ReduceProcessingFee: 100 * 0.035 = 3.50 → proc 0. total = max(0, 100 + 0 - 100) = 0.
         var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
-        dbReg.FeeDiscount.Should().Be(103.50m);
-        dbReg.FeeProcessing.Should().Be(3.50m);
+        dbReg.FeeDiscount.Should().Be(100m);
+        dbReg.FeeProcessing.Should().Be(0m);
         dbReg.FeeTotal.Should().Be(0m);
         dbReg.OwedTotal.Should().Be(0m);
-        dbReg.PaidTotal.Should().Be(103.50m);
+        dbReg.PaidTotal.Should().Be(100m);
 
         var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
         acctRows.Should().HaveCount(1);
-        acctRows[0].Payamt.Should().Be(103.50m);
+        acctRows[0].Payamt.Should().Be(100m);
         acctRows[0].PaymentMethodId.Should().Be(AccountingDataBuilder.CorrectionMethodId);
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // 5. Percent 100% discount — full waiver
+    // 5. Percent 100% discount — full waiver, proc zeroed (not re-inflated)
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Percent: 100% off $615.83 (base=$595 + $20.83 proc) → full waiver, correction row")]
+    [Fact(DisplayName = "Percent: 100% off $595 base → full waiver (proc zeroed), $595 correction row")]
     public async Task Percent_FullDiscount_100Pct()
     {
         var (controller, ctx, _) = await CreateControllerAsync(
@@ -352,29 +351,28 @@ public class DiscountCodeTests
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
         dto.Success.Should().BeTrue();
-        dto.TotalDiscount.Should().Be(615.83m);
+        dto.TotalDiscount.Should().Be(595m);
 
-        // Percent discount: 615.83 * 1.0 = 615.83
-        // ReduceProcessingFee: 615.83 * 0.035 = 21.55 capped at 20.83 → FeeProcessing becomes 0
-        // ComputeTotals(595, 615.83, 0, null): default proc=20.83, total = max(0, 595+20.83-615.83) = 0
+        // 100% of FeeBase 595 = 595. ReduceProcessingFee: 595 * 0.035 = 20.83 → proc 0.
+        // ComputeTotals(595, 595, 0, 0): total = max(0, 595 + 0 - 595) = 0 → free (no stranded proc).
         var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
-        dbReg.FeeDiscount.Should().Be(615.83m);
-        dbReg.FeeProcessing.Should().Be(20.83m);
+        dbReg.FeeDiscount.Should().Be(595m);
+        dbReg.FeeProcessing.Should().Be(0m);
         dbReg.FeeTotal.Should().Be(0m);
         dbReg.OwedTotal.Should().Be(0m);
-        dbReg.PaidTotal.Should().Be(615.83m);
+        dbReg.PaidTotal.Should().Be(595m);
 
         var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
         acctRows.Should().HaveCount(1);
-        acctRows[0].Payamt.Should().Be(615.83m);
+        acctRows[0].Payamt.Should().Be(595m);
         acctRows[0].PaymentMethodId.Should().Be(AccountingDataBuilder.CorrectionMethodId);
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // 6. Percent 50% discount — partial
+    // 6. Percent 50% discount — off FeeBase (not the proc-inclusive amount)
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Percent: 50% off $207.00 (base=$200 + $7.00 proc) → discount=$103.50, total=$100")]
+    [Fact(DisplayName = "Percent: 50% off $200 base → discount=$100, proc 3.50, total=$103.50")]
     public async Task Percent_PartialDiscount_50Pct()
     {
         var (controller, ctx, _) = await CreateControllerAsync(
@@ -391,16 +389,15 @@ public class DiscountCodeTests
         var ok = result.Should().BeOfType<OkObjectResult>().Subject;
         var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
         dto.Success.Should().BeTrue();
-        dto.TotalDiscount.Should().Be(103.50m);
+        dto.TotalDiscount.Should().Be(100m);
 
-        // Percent discount: 207.00 * 0.50 = 103.50
-        // ReduceProcessingFee: 103.50 * 0.035 = 3.62, feeProcessing 7.00 → 3.38
-        // ComputeTotals(200, 103.50, 0, override=3.38): total = 200 + 3.38 - 103.50 = 99.88
+        // 50% of FeeBase 200 = 100 (NOT 50% of the proc-inclusive 207). ReduceProcessingFee:
+        // 100 * 0.035 = 3.50, proc 7.00 → 3.50. ComputeTotals(200, 100, 0, 3.50): total = 103.50.
         var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
-        dbReg.FeeDiscount.Should().Be(103.50m);
-        dbReg.FeeProcessing.Should().Be(3.38m);
-        dbReg.FeeTotal.Should().Be(99.88m);
-        dbReg.OwedTotal.Should().Be(99.88m);
+        dbReg.FeeDiscount.Should().Be(100m);
+        dbReg.FeeProcessing.Should().Be(3.50m);
+        dbReg.FeeTotal.Should().Be(103.50m);
+        dbReg.OwedTotal.Should().Be(103.50m);
         dbReg.PaidTotal.Should().Be(0m);
 
         var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
@@ -408,10 +405,10 @@ public class DiscountCodeTests
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // 7. Two players — proportional distribution
+    // 7. Two players — per-player application off each reg's FeeBase
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Absolute: $100 across 2 players ($414/$207) → per-player application with proc reduction")]
+    [Fact(DisplayName = "Absolute: $100 across 2 players (base $400/$200) → per-player application with proc reduction")]
     public async Task Absolute_TwoPlayers_PerPlayerApplication()
     {
         var (controller, ctx, _) = await CreateControllerAsync(
@@ -424,7 +421,7 @@ public class DiscountCodeTests
         var reg2 = AddRegistration(ctx, userId: player2Id, feeBase: 200m, feeProcessing: 7.00m, insuredName: "Player Two");
         await ctx.SaveChangesAsync();
 
-        // Items amounts are what frontend sends: base+processing
+        // Item amounts (base+proc) are ignored by the server — discount is computed off each reg's FeeBase.
         var request = MakeRequest("SPLIT", (player1Id, 414m), (player2Id, 207m));
         var result = await controller.ApplyDiscount(request);
 
@@ -437,7 +434,7 @@ public class DiscountCodeTests
         var dbReg1 = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg1.RegistrationId);
         var dbReg2 = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg2.RegistrationId);
 
-        // Per-player: each player gets the full $100 (capped at their fee)
+        // Per-player: each player gets the full $100 (each base > 100, so uncapped at $100).
         dbReg1.FeeDiscount.Should().Be(100m);
         dbReg2.FeeDiscount.Should().Be(100m);
 
@@ -529,10 +526,10 @@ public class DiscountCodeTests
     }
 
     // ────────────────────────────────────────────────────────────────────────
-    // 10. Pathological — zero fee base (SP-018)
+    // 10. Pathological — zero amount filtered out before the loop (SP-018)
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Pathological: $100 code on $0 feeBase → items filtered out (Amount=0), 'No valid players'")]
+    [Fact(DisplayName = "Pathological: $100 code with Amount=0 item → filtered out, 'No valid players'")]
     public async Task Pathological_ZeroFeeBase()
     {
         var (controller, ctx, _) = await CreateControllerAsync(bAddProcessingFees: false);
@@ -558,5 +555,72 @@ public class DiscountCodeTests
 
         var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
         acctRows.Should().BeEmpty();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 11. Regression — percent off FeeBase, NOT the client-submitted proc-inclusive amount
+    //     The original bug: 50% of $615.83 owed (= $307.92) instead of 50% of $595 base.
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact(DisplayName = "Regression: 50% off $595 base ignores client's $615.83 amount → discount=$297.50, total=$307.92")]
+    public async Task Percent_UsesFeeBase_NotClientAmount()
+    {
+        var (controller, ctx, _) = await CreateControllerAsync(
+            processingFeePercent: 3.5m,
+            bAddProcessingFees: true);
+        var playerId = Guid.NewGuid().ToString();
+        AddDiscountCode(ctx, codeAmount: 50m, bAsPercent: true, codeName: "HALF595");
+        var reg = AddRegistration(ctx, userId: playerId, feeBase: 595m, feeProcessing: 20.83m);
+        await ctx.SaveChangesAsync();
+
+        // Client sends the proc-inclusive owed balance (615.83). The server must IGNORE it and
+        // compute the discount off FeeBase (595). The old bug computed 50% of 615.83 = 307.92.
+        var request = MakeRequest("HALF595", (playerId, 615.83m));
+        var result = await controller.ApplyDiscount(request);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
+        dto.Success.Should().BeTrue();
+        dto.TotalDiscount.Should().Be(297.50m);
+
+        // 50% of FeeBase 595 = 297.50. ReduceProcessingFee: 297.50 * 0.035 = 10.41, proc 20.83 → 10.42.
+        // ComputeTotals(595, 297.50, 0, 10.42): total = 595 + 10.42 - 297.50 = 307.92.
+        var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
+        dbReg.FeeDiscount.Should().Be(297.50m);
+        dbReg.FeeProcessing.Should().Be(10.42m);
+        dbReg.FeeTotal.Should().Be(307.92m);
+        dbReg.OwedTotal.Should().Be(307.92m);
+        dbReg.PaidTotal.Should().Be(0m);
+
+        var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
+        acctRows.Should().BeEmpty();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 12. Pathological — positive amount but $0 FeeBase → computes to 0, no discount
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact(DisplayName = "Pathological: positive amount but $0 FeeBase → d=0, 'No discount applicable'")]
+    public async Task Pathological_ZeroFeeBase_PositiveAmount()
+    {
+        var (controller, ctx, _) = await CreateControllerAsync(bAddProcessingFees: false);
+        var playerId = Guid.NewGuid().ToString();
+        AddDiscountCode(ctx, codeAmount: 50m, bAsPercent: true, codeName: "ZB2");
+        var reg = AddRegistration(ctx, userId: playerId, feeBase: 0m);
+        await ctx.SaveChangesAsync();
+
+        // Amount > 0 passes the selection filter, but FeeBase is 0 so the discount computes to 0.
+        var request = MakeRequest("ZB2", (playerId, 100m));
+        var result = await controller.ApplyDiscount(request);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
+        dto.Success.Should().BeFalse();
+        dto.SuccessCount.Should().Be(0);
+        dto.Results[0].Success.Should().BeFalse();
+        dto.Results[0].Message.Should().Contain("No discount applicable");
+
+        var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
+        dbReg.FeeDiscount.Should().Be(0m);
     }
 }
