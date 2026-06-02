@@ -62,7 +62,10 @@ import { JobService } from '@infrastructure/services/job.service';
                 </div>
                 @if (!(state.jobCtx.isCacMode() && getLineItemsForPlayer(player.userId).length > 1)) {
                   <div class="review-player-amount">
-                    @if (getBaseFeeForPlayer(player.userId) !== null) {
+                    @if (isPlayerFeeUnconfigured(player.userId)) {
+                      <span class="review-fee-label">Registration Fee</span>
+                      <span class="review-fee-unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
+                    } @else if (getBaseFeeForPlayer(player.userId) !== null) {
                       <span class="review-fee-label">Registration Fee</span>
                       {{ getBaseFeeForPlayer(player.userId) | currency }}
                     } @else {
@@ -76,7 +79,11 @@ import { JobService } from '@infrastructure/services/job.service';
                   @for (li of getLineItemsForPlayer(player.userId); track li.teamId) {
                     <li>
                       <span class="event-name">{{ li.teamName }}</span>
-                      <span class="event-fee">{{ li.feeBase | currency }}</span>
+                      @if (li.feeConfigured === false) {
+                        <span class="event-fee event-fee--unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
+                      } @else {
+                        <span class="event-fee">{{ li.feeBase | currency }}</span>
+                      }
                     </li>
                   }
                 </ul>
@@ -325,6 +332,14 @@ import { JobService } from '@infrastructure/services/job.service';
         color: var(--text-muted);
       }
 
+      /* Fee unconfigured — pre-existing orphan registration; can't be priced or charged. */
+      .review-fee-unset,
+      .event-fee--unset {
+        color: var(--bs-danger);
+        font-weight: var(--font-weight-semibold);
+        white-space: nowrap;
+      }
+
       /* ── Total row ────────────────────────────────────── */
       .review-total-row {
         display: flex;
@@ -430,6 +445,14 @@ export class ReviewStepComponent {
     getBaseFeeForPlayer(playerId: string): number | null {
         const li = this.paySvc.lineItems().find(i => i.playerId === playerId);
         return li ? li.feeBase : null;
+    }
+
+    /** True when the player's (single) line has no configured fee — render "Fee not set"
+     *  rather than a currency value (only reachable for pre-existing orphan registrations;
+     *  new selections are blocked upstream at team selection). */
+    isPlayerFeeUnconfigured(playerId: string): boolean {
+        const li = this.paySvc.lineItems().find(i => i.playerId === playerId);
+        return li?.feeConfigured === false;
     }
 
     getLineItemsForPlayer(playerId: string) {

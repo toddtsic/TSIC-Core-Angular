@@ -43,7 +43,7 @@ public class FeeRepository : IFeeRepository
             .OrderByDescending(x => x.Priority)
             .ToListAsync(ct);
 
-        if (rows.Count == 0) return null;
+        if (rows.Count == 0) return ResolvedFee.NotConfigured;
 
         // Cascade per field: most specific non-null wins
         decimal? deposit = null;
@@ -54,7 +54,7 @@ public class FeeRepository : IFeeRepository
             balanceDue ??= row.BalanceDue;
         }
 
-        return new ResolvedFee { Deposit = deposit, BalanceDue = balanceDue };
+        return new ResolvedFee { FeeConfigured = true, Deposit = deposit, BalanceDue = balanceDue };
     }
 
     public async Task<ResolvedFee?> GetResolvedFeeForAgegroupAsync(
@@ -76,7 +76,7 @@ public class FeeRepository : IFeeRepository
             .OrderByDescending(x => x.Priority)
             .ToListAsync(ct);
 
-        if (rows.Count == 0) return null;
+        if (rows.Count == 0) return ResolvedFee.NotConfigured;
 
         decimal? deposit = null;
         decimal? balanceDue = null;
@@ -86,7 +86,7 @@ public class FeeRepository : IFeeRepository
             balanceDue ??= row.BalanceDue;
         }
 
-        return new ResolvedFee { Deposit = deposit, BalanceDue = balanceDue };
+        return new ResolvedFee { FeeConfigured = true, Deposit = deposit, BalanceDue = balanceDue };
     }
 
     public async Task<List<FeeModifiers>> GetActiveModifiersAsync(
@@ -137,9 +137,9 @@ public class FeeRepository : IFeeRepository
             .Select(jf => new { jf.Deposit, jf.BalanceDue })
             .SingleOrDefaultAsync(ct);
 
-        if (row == null) return null;
+        if (row == null) return ResolvedFee.NotConfigured;
 
-        return new ResolvedFee { Deposit = row.Deposit, BalanceDue = row.BalanceDue };
+        return new ResolvedFee { FeeConfigured = true, Deposit = row.Deposit, BalanceDue = row.BalanceDue };
     }
 
     public async Task<List<FeeModifiers>> GetActiveModifiersForJobLevelAsync(
@@ -234,7 +234,12 @@ public class FeeRepository : IFeeRepository
             decimal? deposit = teamRow?.Deposit ?? agRow?.Deposit ?? jobDefault?.Deposit;
             decimal? balanceDue = teamRow?.BalanceDue ?? agRow?.BalanceDue ?? jobDefault?.BalanceDue;
 
-            result[ta.TeamId] = new ResolvedFee { Deposit = deposit, BalanceDue = balanceDue };
+            result[ta.TeamId] = new ResolvedFee
+            {
+                FeeConfigured = teamRow != null || agRow != null || jobDefault != null,
+                Deposit = deposit,
+                BalanceDue = balanceDue
+            };
         }
 
         return result;

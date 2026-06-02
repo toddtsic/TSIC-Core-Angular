@@ -727,8 +727,8 @@ public class EarlyBirdLateFeeTests
         modifiers.TotalLateFee.Should().Be(0m);
     }
 
-    [Fact(DisplayName = "No fee row configured: ResolveFee returns null")]
-    public async Task NoFeeRow_ReturnsNull()
+    [Fact(DisplayName = "No fee row configured: ResolveFee returns NotConfigured (never null)")]
+    public async Task NoFeeRow_ReturnsNotConfigured()
     {
         var ctx = DbContextFactory.Create();
         var builder = new FeeDataBuilder(ctx);
@@ -747,7 +747,74 @@ public class EarlyBirdLateFeeTests
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
 
         var resolved = await svc.ResolveFeeAsync(job.JobId, RoleConstants.Player, ag.AgegroupId, team.TeamId);
-        resolved.Should().BeNull();
+
+        // The resolver no longer returns null — it returns a sentinel whose FeeConfigured flag
+        // is the single source of truth for "no fee configured" (drives fail-loud at stamp time).
+        resolved.Should().NotBeNull();
+        resolved!.FeeConfigured.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "ApplyNewRegistrationFees: orphan team (no fee row) → throws FeeNotConfiguredException, never silent $0")]
+    public async Task ApplyNewRegistrationFees_NoFeeRow_ThrowsFeeNotConfigured()
+    {
+        // The exact bug shape: a team with no JobFees row at any cascade level. The old code
+        // stamped FeeBase=$0 and registered the family for free. It must now fail loud.
+        var ctx = DbContextFactory.Create();
+        var builder = new FeeDataBuilder(ctx);
+        var job = builder.AddJob();
+        var league = builder.AddLeague(job.JobId);
+        var ag = builder.AddAgegroup(league.LeagueId);
+        var team = builder.AddTeam(job.JobId, ag.AgegroupId);
+        // Deliberately NO JobFees row.
+        await builder.SaveAsync();
+
+        var feeRepo = new FeeRepository(ctx);
+        var jobRepo = new Mock<IJobRepository>();
+        jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(3.5m);
+        var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
+
+        var reg = new Registrations
+        {
+            RegistrationId = Guid.NewGuid(),
+            JobId = job.JobId,
+            FeeDonation = 0m,
+            PaidTotal = 0m,
+            Modified = DateTime.UtcNow
+        };
+
+        var act = async () => await svc.ApplyNewRegistrationFeesAsync(
+            reg, job.JobId, ag.AgegroupId, team.TeamId,
+            new FeeApplicationContext { AddProcessingFees = false });
+
+        await act.Should().ThrowAsync<FeeNotConfiguredException>();
+    }
+
+    [Fact(DisplayName = "ApplyNewRegistrationFees: configured $0 event → stamps $0 (configured-free is allowed, not a fail-loud)")]
+    public async Task ApplyNewRegistrationFees_ConfiguredZeroFee_StampsZero()
+    {
+        // A JobFees row EXISTS with BalanceDue=$0 → FeeConfigured=true → a legitimately free
+        // event. This must succeed and stamp $0 — distinct from the unconfigured orphan above.
+        var (svc, _, _, jobId, agId, teamId, _) = await CreateServiceAsync(baseFee: 0m);
+
+        var reg = new Registrations
+        {
+            RegistrationId = Guid.NewGuid(),
+            JobId = jobId,
+            FeeDonation = 0m,
+            PaidTotal = 0m,
+            Modified = DateTime.UtcNow
+        };
+
+        await svc.ApplyNewRegistrationFeesAsync(
+            reg, jobId, agId, teamId,
+            new FeeApplicationContext { AddProcessingFees = false });
+
+        reg.FeeBase.Should().Be(0m, "a configured free event stamps $0 without throwing");
+        reg.FeeProcessing.Should().Be(0m, "no processing on a $0 base");
+        reg.FeeTotal.Should().Be(0m);
+        reg.OwedTotal.Should().Be(0m);
     }
 
     [Fact(DisplayName = "Multiple modifier types on same JobFee: each counted separately")]

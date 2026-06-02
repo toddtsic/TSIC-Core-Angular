@@ -91,6 +91,14 @@ public class PlayerRosterCapacityTests
             .Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
+        // Default: the selected team has a configured fee. This is the precondition for
+        // reaching the roster-capacity logic — the fail-loud guard short-circuits with a
+        // "Fee not set" failed result before any reserve when no fee is configured.
+        feeService
+            .Setup(f => f.ResolveFeeAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResolvedFee { FeeConfigured = true, Deposit = 0m, BalanceDue = 100m });
+
         var svc = new PlayerRegistrationService(
             logger.Object,
             feeService.Object,

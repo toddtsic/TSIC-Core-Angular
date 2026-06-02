@@ -111,7 +111,9 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.Staff, agegroupId, teamId, ct);
-        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
+        if (resolved is not { FeeConfigured: true })
+            throw new FeeNotConfiguredException(jobId, RoleConstants.Staff, agegroupId, teamId);
+        var baseFee = resolved.EffectiveBalanceDue;
 
         var modifiers = await EvaluateModifiersAsync(
             jobId, RoleConstants.Staff, agegroupId, teamId, DateTime.Now, ct);
@@ -131,7 +133,9 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveJobLevelFeeAsync(jobId, roleId, ct);
-        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
+        if (resolved is not { FeeConfigured: true })
+            throw new FeeNotConfiguredException(jobId, roleId, null, null);
+        var baseFee = resolved.EffectiveBalanceDue;
 
         // Evaluate job-level modifiers only (no agegroup/team)
         var modifiers = await _feeRepo.GetActiveModifiersForJobLevelAsync(
@@ -165,8 +169,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.Player, agegroupId, teamId, ct);
-        var deposit = resolved?.EffectiveDeposit ?? 0m;
-        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+        if (resolved is not { FeeConfigured: true })
+            throw new FeeNotConfiguredException(jobId, RoleConstants.Player, agegroupId, teamId);
+        var deposit = resolved.EffectiveDeposit;
+        var balanceDue = resolved.EffectiveBalanceDue;
 
         decimal baseFee;
         if (ctx.IsFullPaymentRequired)
@@ -237,9 +243,11 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.ClubRep, agegroupId, team.TeamId, ct);
+        if (resolved is not { FeeConfigured: true })
+            throw new FeeNotConfiguredException(jobId, RoleConstants.ClubRep, agegroupId, team.TeamId);
 
-        var deposit = resolved?.EffectiveDeposit ?? 0m;
-        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
+        var deposit = resolved.EffectiveDeposit;
+        var balanceDue = resolved.EffectiveBalanceDue;
 
         decimal feeBase;
         if (ctx.IsFullPaymentRequired)

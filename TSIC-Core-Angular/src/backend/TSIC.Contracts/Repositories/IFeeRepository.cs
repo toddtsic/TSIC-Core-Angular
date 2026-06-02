@@ -11,7 +11,8 @@ public interface IFeeRepository
     /// <summary>
     /// Resolves the effective base fee for a role at a specific team,
     /// cascading Team → Agegroup → Job (most specific non-null wins per field).
-    /// Returns null if no fee row exists at any level.
+    /// Never returns null — returns <see cref="ResolvedFee.NotConfigured"/> when no fee
+    /// row exists at any level; check <see cref="ResolvedFee.FeeConfigured"/>.
     /// </summary>
     Task<ResolvedFee?> GetResolvedFeeAsync(
         Guid jobId, string roleId, Guid agegroupId, Guid teamId,
@@ -44,7 +45,8 @@ public interface IFeeRepository
     /// <summary>
     /// Resolves the job-level fee row (AgegroupId IS NULL, TeamId IS NULL).
     /// Used by adult registration where there is no agegroup/team context.
-    /// Returns null if no fee configured at job level for the role.
+    /// Never returns null — returns <see cref="ResolvedFee.NotConfigured"/> when no fee
+    /// is configured at job level for the role; check <see cref="ResolvedFee.FeeConfigured"/>.
     /// </summary>
     Task<ResolvedFee?> GetJobLevelFeeAsync(
         Guid jobId, string roleId,
@@ -140,6 +142,16 @@ public interface IFeeRepository
 /// </summary>
 public record ResolvedFee
 {
+    /// <summary>
+    /// True when a JobFees row exists at some cascade level (team/agegroup/job).
+    /// False = no fee configured anywhere. This distinguishes a genuinely
+    /// <b>unconfigured</b> team (must fail loud — never silently charge $0) from a
+    /// legitimately <b>free</b> configured event (FeeConfigured=true, amount $0).
+    /// Value-readers can keep using EffectiveBalanceDue (0m either way); new-registration
+    /// stamps must check this flag.
+    /// </summary>
+    public bool FeeConfigured { get; init; }
+
     /// <summary>Deposit amount (NULL = no deposit, use BalanceDue).</summary>
     public decimal? Deposit { get; init; }
 
@@ -156,4 +168,7 @@ public record ResolvedFee
     /// Effective balance due: BalanceDue if set, otherwise 0.
     /// </summary>
     public decimal EffectiveBalanceDue => BalanceDue ?? 0m;
+
+    /// <summary>Sentinel for "no fee row at any cascade level" (FeeConfigured = false).</summary>
+    public static readonly ResolvedFee NotConfigured = new() { FeeConfigured = false };
 }

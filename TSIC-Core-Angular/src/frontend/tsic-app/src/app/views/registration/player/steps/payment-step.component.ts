@@ -302,6 +302,19 @@ import type { LineItem } from '../state/payment-v2.service';
             (confirmed)="confirmViAndContinue()" />
         }
 
+        <!-- Fee not configured for a selected event — hard block, never complete for free -->
+        @if (hasUnconfiguredFee()) {
+          <div class="alert alert-danger border-0 mb-3" role="alert">
+            <div class="d-flex align-items-start gap-2">
+              <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+              <div>
+                <div class="fw-semibold">Fee not set for one or more of your events</div>
+                <div class="small">One of the events in your cart doesn't have a fee configured yet, so registration can't be completed. Please remove it and contact the event director.</div>
+              </div>
+            </div>
+          </div>
+        }
+
         <!-- No-payment-due info -->
         @if (showNoPaymentInfo()) {
           <div class="alert alert-success border-0 mb-3" role="status">
@@ -761,6 +774,13 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly familyUser = computed(() => this.state.familyPlayers.familyUser());
     readonly currentTotal = computed(() => this.paySvc.currentTotal());
 
+    /** True when any line in the cart belongs to a team with no configured fee. Such a line
+     *  must never complete (it would register free / on a fabricated price), so this hard-blocks
+     *  submission and suppresses the "no payment due → proceed" path. Legitimately-free
+     *  configured events are feeConfigured=true and are unaffected. */
+    readonly hasUnconfiguredFee = computed(() =>
+        this.paySvc.lineItems().some(li => li.feeConfigured === false));
+
     private readonly relevantRegs = computed(() => {
         const playerIds = new Set(this.state.familyPlayers.familyPlayers().filter(p => p.selected || p.registered).map(p => p.playerId));
         return this.state.familyPlayers.familyPlayers().filter(p => playerIds.has(p.playerId)).flatMap(p => p.priorRegistrations || []);
@@ -801,7 +821,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     );
     readonly showEcheckSection = computed(() => this.tsicChargeDueNow() && this.paySvc.isEcheckPayment());
     readonly showCheckSection = computed(() => this.tsicChargeDueNow() && this.paySvc.isCheckPayment());
-    readonly showNoPaymentInfo = computed(() => !this.tsicChargeDueNow() && !this.isViCcOnlyFlow());
+    readonly showNoPaymentInfo = computed(() => !this.tsicChargeDueNow() && !this.isViCcOnlyFlow() && !this.hasUnconfiguredFee());
     readonly showMethodSelector = computed(() => this.paySvc.showPaymentMethodSelector() && this.tsicChargeDueNow());
     readonly isCc = computed(() => this.paySvc.isCcPayment());
     readonly isEcheck = computed(() => this.paySvc.isEcheckPayment());
@@ -816,7 +836,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         if (this.arbHideAllOptions()) return false;
         const ccNeeded = this.showCcSection();
         const ccOk = !ccNeeded || this.ccValid();
-        return this.tsicChargeDueNow() && ccOk && !this.submitting();
+        return this.tsicChargeDueNow() && ccOk && !this.submitting() && !this.hasUnconfiguredFee();
     });
 
     readonly canSubmitEcheck = computed(() =>
@@ -824,12 +844,13 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         && this.paySvc.isEcheckPayment()
         && this.bankAccountValid()
         && !this.submitting()
+        && !this.hasUnconfiguredFee()
     );
 
     readonly canInsuranceOnlySubmit = computed(() => {
         if (!this.isViCcOnlyFlow()) return false;
         const ccOk = !this.showCcSection() || this.ccValid();
-        return ccOk && !this.submitting();
+        return ccOk && !this.submitting() && !this.hasUnconfiguredFee();
     });
 
     readonly viQuotedPlayers = computed(() => this.insuranceSvc.quotedPlayers());

@@ -88,6 +88,7 @@ public class TeamLookupService : ITeamLookupService
                 Fee = fee,
                 Deposit = deposit,
                 EffectiveFee = effectiveFee,
+                FeeConfigured = resolved?.FeeConfigured ?? false,
                 JobUsesWaitlists = jobUsesWaitlists,
                 WaitlistTeamId = null,
                 StartDate = t.StartDate,
@@ -142,7 +143,7 @@ public class TeamLookupService : ITeamLookupService
         var resolved = await _feeService.ResolveFeeAsync(
             team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
 
-        if (resolved == null) return (0m, 0m);
+        if (resolved is not { FeeConfigured: true }) return (0m, 0m);
 
         var fee = resolved.EffectiveBalanceDue;
         var deposit = resolved.EffectiveDeposit;

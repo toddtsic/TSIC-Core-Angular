@@ -46,6 +46,10 @@ export interface LineItem {
      *  Equals `amount` when there's no credit (proc off, deposit phase, or a client PIF upgrade
      *  the server's per-reg figure doesn't model). Display only — the backend recomputes. */
     echeckAmount: number;
+    /** False when this line's team has no fee configured at any cascade level — the wizard
+     *  blocks completion instead of charging/fabricating. Always true for existing
+     *  registrations (already stamped with a real fee). */
+    feeConfigured: boolean;
 }
 
 /**
@@ -361,9 +365,12 @@ export class PaymentV2Service {
         return Math.max(0, base - discount - paid);
     }
 
+    // Never fabricate a price. A team with no resolvable fee returns 0 here; the line is
+    // flagged feeConfigured=false (see buildLineItem) so the wizard blocks completion rather
+    // than charging an invented amount. The old hardcoded $100 fallback masked missing fees.
     private getAmount(team: { fee?: number | string | null } | null | undefined): number {
         const v = Number(team?.fee ?? 0);
-        return Number.isNaN(v) || v <= 0 ? 100 : v;
+        return Number.isNaN(v) || v < 0 ? 0 : v;
     }
 
     /**
@@ -382,7 +389,7 @@ export class PaymentV2Service {
         playerId: string,
         playerName: string,
         teamId: string,
-        team: { fee?: number | string | null; deposit?: number | string | null; teamName?: string | null } | null | undefined,
+        team: { fee?: number | string | null; deposit?: number | string | null; teamName?: string | null; feeConfigured?: boolean | null } | null | undefined,
         registration: { assignedTeamName?: string | null; financials?: RegistrationFinancialsDto | null } | null | undefined,
         phaseExpectsFull: boolean,
     ): LineItem {
@@ -421,6 +428,11 @@ export class PaymentV2Service {
             tenderPaid,
             amount,
             echeckAmount,
+            // The team's current cascade signal. New orphan lines (and a pre-existing orphan
+            // registration whose team is still fee-less) flag false; a missing/unknown team
+            // defaults to true so only an explicit false blocks completion. A legitimately-free
+            // configured event is feeConfigured=true with fee 0 — it proceeds normally.
+            feeConfigured: team?.feeConfigured ?? true,
         };
     }
 

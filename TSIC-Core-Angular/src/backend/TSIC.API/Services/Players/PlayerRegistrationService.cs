@@ -253,6 +253,16 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             }
         }
 
+        // Fail loud, never fabricate: a team with no fee configured at any cascade level
+        // must not silently register at $0. Block just this line; other teams still proceed.
+        var feeCheck = await _feeService.ResolveFeeAsync(team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
+        if (feeCheck is not { FeeConfigured: true })
+        {
+            AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty,
+                "Fee not set for this event — contact the director.", false);
+            return;
+        }
+
         Registrations? regToUpdate = null;
         if (ctx.ExistingByPlayer.TryGetValue(playerId, out var list) && list.Count > 0)
         {
@@ -339,6 +349,16 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                     continue;
                 }
             }
+
+            // Fail loud, never fabricate: skip teams with no configured fee (see ProcessSingleTeamSelectionAsync).
+            var feeCheck = await _feeService.ResolveFeeAsync(team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
+            if (feeCheck is not { FeeConfigured: true })
+            {
+                AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty,
+                    "Fee not set for this event — contact the director.", false);
+                continue;
+            }
+
             var countBefore = teamResults.Count;
             if (ctx.ExistingByPlayerTeam.TryGetValue((playerId, effectiveTeamId), out var existing))
             {

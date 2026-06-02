@@ -76,6 +76,13 @@ public class PlayerMedFormStampTests
             .Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
+        // Default: the selected team has a configured fee. The fail-loud guard short-circuits
+        // the reserve with a "Fee not set" result before any med-form stamp when none is configured.
+        feeService
+            .Setup(f => f.ResolveFeeAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResolvedFee { FeeConfigured = true, Deposit = 0m, BalanceDue = 100m });
+
         var svc = new PlayerRegistrationService(
             logger.Object,
             feeService.Object,

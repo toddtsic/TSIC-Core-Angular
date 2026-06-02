@@ -21,6 +21,9 @@ export interface AvailableTeam {
     fee?: number | null;
     deposit?: number | null;
     effectiveFee?: number | null;
+    /** False = no fee configured at any cascade level → not registerable; the wizard
+     *  shows "Fee not set" and blocks selection instead of fabricating/charging $0. */
+    feeConfigured?: boolean | null;
     jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
     startDate?: string | null;

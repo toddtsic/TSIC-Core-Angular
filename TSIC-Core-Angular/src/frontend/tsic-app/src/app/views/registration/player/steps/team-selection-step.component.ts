@@ -134,8 +134,10 @@ const JOB_TYPE_TOURNAMENT = 2;
                                     <i class="bi bi-calendar3 me-1"></i>{{ formatCampDates(team) }}
                                   </span>
                                 }
-                                @if (team.perRegistrantFee != null && team.perRegistrantFee > 0) {
-                                  <span class="camp-fee">{{ team.perRegistrantFee | currency }}</span>
+                                @if (team.feeConfigured === false) {
+                                  <span class="camp-fee-unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
+                                } @else if (team.effectiveFee != null && team.effectiveFee > 0) {
+                                  <span class="camp-fee">{{ team.effectiveFee | currency }}</span>
                                 }
                               </div>
                               @if (isCampAlreadyRegistered(pid, team.teamId)) {
@@ -158,11 +160,12 @@ const JOB_TYPE_TOURNAMENT = 2;
                       <div class="camp-list">
                         @for (team of filterCamps(getUnselectedCamps(pid), getCampFilter(pid)); track team.teamId) {
                           <label class="camp-card"
-                                 [class.is-full]="isTeamFull(team)">
+                                 [class.is-full]="isTeamFull(team)"
+                                 [class.is-unset]="team.feeConfigured === false">
                             <input type="checkbox"
                                    [checked]="false"
                                    (change)="toggleCampSelection(pid, team.teamId)"
-                                   [disabled]="isTeamFull(team)">
+                                   [disabled]="isTeamFull(team) || team.feeConfigured === false">
                             <div class="camp-info">
                               <span class="camp-name">{{ team.teamName }}</span>
                               @if (team.divisionName) {
@@ -174,8 +177,10 @@ const JOB_TYPE_TOURNAMENT = 2;
                                     <i class="bi bi-calendar3 me-1"></i>{{ formatCampDates(team) }}
                                   </span>
                                 }
-                                @if (team.perRegistrantFee != null && team.perRegistrantFee > 0) {
-                                  <span class="camp-fee">{{ team.perRegistrantFee | currency }}</span>
+                                @if (team.feeConfigured === false) {
+                                  <span class="camp-fee-unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
+                                } @else if (team.effectiveFee != null && team.effectiveFee > 0) {
+                                  <span class="camp-fee">{{ team.effectiveFee | currency }}</span>
                                 }
                               </div>
                               @if (isTeamFull(team)) {
@@ -577,7 +582,7 @@ const JOB_TYPE_TOURNAMENT = 2;
         cursor: pointer;
         transition: border-color 0.15s ease, background-color 0.15s ease;
 
-        &:hover:not(.is-full):not(.is-registered) {
+        &:hover:not(.is-full):not(.is-unset):not(.is-registered) {
           border-left-color: var(--bs-primary);
           background: rgba(var(--bs-primary-rgb), 0.03);
         }
@@ -596,6 +601,11 @@ const JOB_TYPE_TOURNAMENT = 2;
         }
 
         &.is-full:not(.is-checked) {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        &.is-unset:not(.is-checked) {
           opacity: 0.5;
           cursor: not-allowed;
         }
@@ -642,6 +652,12 @@ const JOB_TYPE_TOURNAMENT = 2;
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-semibold);
         color: var(--bs-primary);
+      }
+
+      .camp-fee-unset {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-danger);
       }
 
       .camp-registered-badge {
@@ -726,7 +742,11 @@ export class TeamSelectionStepComponent {
             }
 
             let status = '';
-            if (team.rosterIsFull && team.jobUsesWaitlists) {
+            if (team.feeConfigured === false) {
+                // Fee unconfigured at every cascade level — show it but it can't be picked.
+                status = 'unset';
+                label = '⚠ FEE NOT SET · ' + label;
+            } else if (team.rosterIsFull && team.jobUsesWaitlists) {
                 status = 'waitlist';
                 label = '⚠ WAITLIST · ' + label;
             } else if (team.rosterIsFull) {
@@ -891,6 +911,10 @@ export class TeamSelectionStepComponent {
 
     onTeamChange(playerId: string, teamId: string): void {
         if (!teamId) return;
+        // Chokepoint for every selection path (PP dropdown + CAC card). A team with no
+        // configured fee is labeled but not registerable — never add it to the cart.
+        const team = this.teamService.getTeamById(teamId);
+        if (team?.feeConfigured === false) return;
         const current = { ...this.state.eligibility.selectedTeams() };
         if (this.isMultiTeamMode()) {
             const existing = Array.isArray(current[playerId]) ? [...(current[playerId] as string[])] : current[playerId] ? [current[playerId] as string] : [];
