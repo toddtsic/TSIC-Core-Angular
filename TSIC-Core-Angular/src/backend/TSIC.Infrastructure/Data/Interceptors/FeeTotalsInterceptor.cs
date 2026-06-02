@@ -18,8 +18,9 @@ namespace TSIC.Infrastructure.Data.Interceptors;
 /// On every save it computes what <see cref="FeeMath"/> would produce for each changed
 /// <see cref="Registrations"/> / <see cref="Teams"/> and compares it to the value the code
 /// actually wrote — <b>logging any drift, mutating nothing</b>. This proves FeeMath agrees
-/// with every existing write path on real traffic (and resolves the FeeDiscountMp question
-/// from the data) BEFORE the interceptor is ever granted authority to derive the values.
+/// with every existing write path on real traffic BEFORE the interceptor is ever granted
+/// authority to derive the values. (FeeDiscountMp is excluded from FeeMath as a retired stub;
+/// drift attributable purely to it on legacy data is flagged via legacyMpWouldMatch.)
 ///
 /// Stage B will flip this to derive FeeTotal/OwedTotal from the components on save; until the
 /// drift log reads clean it derives nothing, so it cannot corrupt money during the migration.
@@ -94,20 +95,22 @@ public sealed class FeeTotalsInterceptor : SaveChangesInterceptor
         decimal storedFeeTotal, decimal storedOwed)
     {
         var computedFeeTotal = FeeMath.ComputeFeeTotal(
-            feeBase, feeProcessing, feeDiscount, feeDiscountMp, feeDonation, feeLatefee);
+            feeBase, feeProcessing, feeDiscount, feeDonation, feeLatefee);
         var computedOwed = FeeMath.ComputeOwed(computedFeeTotal, paidTotal);
 
         var feeDrift = Math.Abs(computedFeeTotal - storedFeeTotal) > Tolerance;
         var owedDrift = Math.Abs(computedOwed - storedOwed) > Tolerance;
         if (!feeDrift && !owedDrift) return;
 
-        // Diagnostic for the unresolved FeeDiscountMp question: would EXCLUDING DiscountMp
-        // (the current FeeResolutionService formula) have matched the stored value instead?
-        var excludingMpMatches = Math.Abs((computedFeeTotal + feeDiscountMp) - storedFeeTotal) <= Tolerance;
+        // FeeDiscountMp is a retired discount excluded from FeeMath (kept only as a stub).
+        // If the stored value matches the OLD subtract-Mp formula, this drift is purely that
+        // dead concept on legacy/club-rep data — expected, not a real inconsistency.
+        var legacyMpWouldMatch = feeDiscountMp != 0m
+            && Math.Abs((computedFeeTotal - feeDiscountMp) - storedFeeTotal) <= Tolerance;
 
         _logger.LogWarning(
-            "FeeTotalsShadowDrift {Kind} {Id}: storedFeeTotal={StoredFeeTotal} feeMathFeeTotal={ComputedFeeTotal} excludingMpMatches={ExcludingMpMatches} storedOwed={StoredOwed} feeMathOwed={ComputedOwed} | base={FeeBase} proc={FeeProcessing} disc={FeeDiscount} discMp={FeeDiscountMp} don={FeeDonation} late={FeeLatefee} paid={PaidTotal}",
-            kind, id, storedFeeTotal, computedFeeTotal, excludingMpMatches, storedOwed, computedOwed,
+            "FeeTotalsShadowDrift {Kind} {Id}: storedFeeTotal={StoredFeeTotal} feeMathFeeTotal={ComputedFeeTotal} legacyMpWouldMatch={LegacyMpWouldMatch} storedOwed={StoredOwed} feeMathOwed={ComputedOwed} | base={FeeBase} proc={FeeProcessing} disc={FeeDiscount} discMp={FeeDiscountMp} don={FeeDonation} late={FeeLatefee} paid={PaidTotal}",
+            kind, id, storedFeeTotal, computedFeeTotal, legacyMpWouldMatch, storedOwed, computedOwed,
             feeBase, feeProcessing, feeDiscount, feeDiscountMp, feeDonation, feeLatefee, paidTotal);
     }
 }
