@@ -356,6 +356,8 @@ public class PaymentFeeRecalcTests
             BApplyProcessingFeesToTeamDeposit = bApplyProcessingFeesToTeamDeposit ?? job.BApplyProcessingFeesToTeamDeposit,
             BTeamsFullPaymentRequired = bTeamsFullPaymentRequired ?? job.BTeamsFullPaymentRequired,
             BPlayersFullPaymentRequired = bPlayersFullPaymentRequired ?? job.BPlayersFullPaymentRequired,
+            BIncludePlayerDonation = job.BIncludePlayerDonation,
+            BIncludeTeamDonation = job.BIncludeTeamDonation,
             BAllowRefundsInPriorMonths = job.BAllowRefundsInPriorMonths,
             BAllowCreditAll = job.BAllowCreditAll,
             PerPlayerCharge = job.PerPlayerCharge,

@@ -145,6 +145,8 @@ public class JobConfigService : IJobConfigService
         job.Balancedueaspercent = req.Balancedueaspercent;
         job.BTeamsFullPaymentRequired = req.BTeamsFullPaymentRequired;
         job.BPlayersFullPaymentRequired = req.BPlayersFullPaymentRequired;
+        job.BIncludePlayerDonation = req.BIncludePlayerDonation;
+        job.BIncludeTeamDonation = req.BIncludeTeamDonation;
         job.BAllowRefundsInPriorMonths = req.BAllowRefundsInPriorMonths;
         job.BAllowCreditAll = req.BAllowCreditAll;
 
@@ -630,6 +632,8 @@ public class JobConfigService : IJobConfigService
         Balancedueaspercent = job.Balancedueaspercent,
         BTeamsFullPaymentRequired = job.BTeamsFullPaymentRequired,
         BPlayersFullPaymentRequired = job.BPlayersFullPaymentRequired,
+        BIncludePlayerDonation = job.BIncludePlayerDonation,
+        BIncludeTeamDonation = job.BIncludeTeamDonation,
         BAllowRefundsInPriorMonths = job.BAllowRefundsInPriorMonths,
         BAllowCreditAll = job.BAllowCreditAll,
         // SuperUser-only — ARB
