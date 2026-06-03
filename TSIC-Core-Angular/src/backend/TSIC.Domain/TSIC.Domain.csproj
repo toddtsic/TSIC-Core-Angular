@@ -11,11 +11,4 @@
     <PackageReference Include="SonarAnalyzer.CSharp" />
   </ItemGroup>
 
-  <!-- RecalcTotals (TSIC.Contracts) is the sole writer of the internal-set FeeTotal/OwedTotal
-       setters on Registrations/Teams; tests construct entities with those fields directly. -->
-  <ItemGroup>
-    <InternalsVisibleTo Include="TSIC.Contracts" />
-    <InternalsVisibleTo Include="TSIC.Tests" />
-  </ItemGroup>
-
 </Project>

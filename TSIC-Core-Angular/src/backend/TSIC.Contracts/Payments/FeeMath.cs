@@ -2,9 +2,8 @@ namespace TSIC.Contracts.Payments;
 
 /// <summary>
 /// THE single definition of the registration/team fee-total and amount-owed formulas.
-/// Every write path derives FeeTotal/OwedTotal from this — directly, via the
-/// RecalcTotals entity helpers, or via the SaveChanges fee-totals interceptor — so the
-/// arithmetic cannot drift across the codebase.
+/// Every write path derives FeeTotal/OwedTotal from this — directly or via the
+/// RecalcTotals entity helpers — so the arithmetic cannot drift across the codebase.
 ///
 ///   FeeTotal  = FeeBase + FeeProcessing − FeeDiscount + FeeDonation + FeeLatefee
 ///   OwedTotal = FeeTotal − PaidTotal

@@ -427,8 +427,8 @@ builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 // Tests will provide in-memory versions via WebApplicationTestFactory
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    // FeeTotal/OwedTotal DRY is enforced at compile time (internal set + InternalsVisibleTo on
-    // Registrations/Teams), so the Stage-A observe/shadow interceptor was removed as redundant.
+    // FeeTotal/OwedTotal are derived money written solely by RecalcTotals (TSIC.Contracts),
+    // so the Stage-A observe/shadow interceptor was removed as redundant.
     builder.Services.AddDbContext<SqlDbContext>(options =>
         options.UseSqlServer(
             builder.Configuration.GetConnectionString("DefaultConnection"),

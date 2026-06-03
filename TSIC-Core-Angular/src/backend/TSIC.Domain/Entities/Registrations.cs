@@ -49,12 +49,9 @@ public partial class Registrations
 
     public decimal FeeLatefee { get; set; }
 
-    // FeeTotal/OwedTotal are derived money. internal set + InternalsVisibleTo(TSIC.Contracts)
-    // makes RegistrationFeeExtensions.RecalcTotals the ONLY writer; any other assignment is a
-    // compile error. EF still materializes the non-public setter via reflection.
-    public decimal FeeTotal { get; internal set; }
+    public decimal FeeTotal { get; set; }
 
-    public decimal OwedTotal { get; internal set; }
+    public decimal OwedTotal { get; set; }
 
     public decimal PaidTotal { get; set; }
 
