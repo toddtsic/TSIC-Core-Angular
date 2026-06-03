@@ -427,18 +427,12 @@ builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 // Tests will provide in-memory versions via WebApplicationTestFactory
 if (!builder.Environment.IsEnvironment("Testing"))
 {
-    // Fee-totals write-chokepoint (Stage A: observe/shadow — logs FeeTotal/OwedTotal drift, mutates nothing).
-    // Non-Production emits a per-save Information "observed/consistent" heartbeat so OBSERVE is verifiable;
-    // gated OFF in Production here, so prod only ever logs real drift (Warning), never the per-save heartbeat.
-    var emitFeeObservationHeartbeat = !builder.Environment.IsProduction();
-    builder.Services.AddSingleton(sp => new TSIC.Infrastructure.Data.Interceptors.FeeTotalsInterceptor(
-        sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<TSIC.Infrastructure.Data.Interceptors.FeeTotalsInterceptor>>(),
-        emitObservationHeartbeat: emitFeeObservationHeartbeat));
-    builder.Services.AddDbContext<SqlDbContext>((sp, options) =>
+    // FeeTotal/OwedTotal DRY is enforced at compile time (internal set + InternalsVisibleTo on
+    // Registrations/Teams), so the Stage-A observe/shadow interceptor was removed as redundant.
+    builder.Services.AddDbContext<SqlDbContext>(options =>
         options.UseSqlServer(
             builder.Configuration.GetConnectionString("DefaultConnection"),
-            x => x.UseNetTopologySuite())
-        .AddInterceptors(sp.GetRequiredService<TSIC.Infrastructure.Data.Interceptors.FeeTotalsInterceptor>()));
+            x => x.UseNetTopologySuite()));
 
     // Separate DbContext for Identity operations only
     builder.Services.AddDbContext<TsicIdentityDbContext>(options =>
