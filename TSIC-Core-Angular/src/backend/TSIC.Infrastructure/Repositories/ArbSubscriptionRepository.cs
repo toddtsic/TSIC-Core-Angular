@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Arb;
-using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -200,23 +199,5 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
             reg.AdnSubscriptionStatus = newStatus;
             await _context.SaveChangesAsync(ct);
         }
-    }
-
-    public async Task RecordPaymentAsync(
-        RegistrationAccounting entry, decimal amount, string userId,
-        CancellationToken ct = default)
-    {
-        _context.RegistrationAccounting.Add(entry);
-
-        var reg = await _context.Registrations.FindAsync(new object[] { entry.RegistrationId! }, ct);
-        if (reg != null)
-        {
-            reg.PaidTotal += amount;
-            reg.RecalcTotals();
-            reg.Modified = DateTime.Now;
-            reg.LebUserId = userId;
-        }
-
-        await _context.SaveChangesAsync(ct);
     }
 }

@@ -336,7 +336,7 @@ public sealed class AdnSweepService : IAdnSweepService
 
         var settleAmount = tx.transactionStatus == "settledSuccessfully" ? tx.settleAmount : 0;
 
-        _accountingRepo.Add(new RegistrationAccounting
+        var raRow = new RegistrationAccounting
         {
             RegistrationId = reg.RegistrationId,
             Active = true,
@@ -352,17 +352,22 @@ public sealed class AdnSweepService : IAdnSweepService
             Createdate = DateTime.Now,
             Modified = DateTime.Now,
             LebUserId = SystemUserId
-        });
+        };
 
         if (tx.transactionStatus == "settledSuccessfully")
         {
-            reg.PaidTotal += settleAmount;
-            reg.RecalcTotals();
-            reg.Modified = DateTime.Now;
-            reg.LebUserId = reg.FamilyUserId;
+            // Record the settled installment and re-derive the registration's totals from
+            // the ledger in one transaction. The sweep is the actor, so the registration is
+            // stamped with the system superuser (matches the audit row and the team-side
+            // settle) — NOT the registrant's FamilyUserId.
+            await _accountingRepo.RecordPaymentAndRecomputeAsync(raRow, SystemUserId, ct);
         }
-
-        await _accountingRepo.SaveChangesAsync(ct);
+        else
+        {
+            // Non-settling transaction: keep the audit row, apply no payment (totals unchanged).
+            _accountingRepo.Add(raRow);
+            await _accountingRepo.SaveChangesAsync(ct);
+        }
 
         var (owedNow, paymentXofY, nextInstallment) = ComputeInstallmentMath(reg);
 

@@ -11,6 +11,7 @@ using TSIC.Contracts.Configuration;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Tests.Sweep;
@@ -236,7 +237,7 @@ public class AdnSweepServiceTests
 
     // ── Tests ──────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "ARB settled tx → RA inserted, PaidTotal/OwedTotal bumped, sub-status synced")]
+    [Fact(DisplayName = "ARB settled tx → recorded via the ledger chokepoint, stamped SystemUser (not the registrant)")]
     public async Task Arb_Settled_ImportsAndBumpsBalances()
     {
         var reg = BuildReg(paid: 0m, owed: 100m);
@@ -250,9 +251,21 @@ public class AdnSweepServiceTests
         _regRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("777", It.IsAny<CancellationToken>()))
             .ReturnsAsync(reg);
 
+        // A settled installment goes through the ledger chokepoint, which writes the row AND
+        // re-derives the registration's PaidTotal/OwedTotal in one transaction (the recompute
+        // itself is proven in RecordPaymentAndRecomputeTests). Here we assert the sweep's half:
+        // it hands the chokepoint the right row, stamped with the system superuser — the sweep
+        // is the actor, NOT the registrant (FamilyUserId would be a mis-attribution).
         RegistrationAccounting? capturedRa = null;
-        _accountingRepo.Setup(a => a.Add(It.IsAny<RegistrationAccounting>()))
-            .Callback<RegistrationAccounting>(ra => capturedRa = ra);
+        string? capturedUserId = null;
+        _accountingRepo.Setup(a => a.RecordPaymentAndRecomputeAsync(
+                It.IsAny<RegistrationAccounting>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<RegistrationAccounting, string, CancellationToken>((ra, uid, _) =>
+            {
+                capturedRa = ra;
+                capturedUserId = uid;
+            })
+            .Returns(Task.CompletedTask);
 
         var result = await BuildSut().RunAsync("Test");
 
@@ -266,8 +279,8 @@ public class AdnSweepServiceTests
         capturedRa.AdnInvoiceNo.Should().Be("TSIC_123_456");
         capturedRa.AdnCc4.Should().Be("1234");
 
-        reg.PaidTotal.Should().Be(50m);
-        reg.OwedTotal.Should().Be(50m);
+        capturedUserId.Should().Be(TsicConstants.SuperUserId,
+            "the sweep is the actor — the registration is stamped with the system superuser, not the registrant");
     }
 
     [Fact(DisplayName = "ARB declined tx → RA inserted with Payamt=$0, no balance change")]

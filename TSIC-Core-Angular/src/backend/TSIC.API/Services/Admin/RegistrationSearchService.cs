@@ -244,18 +244,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             LebUserId = userId
         };
 
-        _accountingRepo.Add(entity);
-
-        // Update registration financial totals
-        var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new InvalidOperationException("Registration not found.");
-
-        reg.PaidTotal += request.PaidAmount ?? 0;
-        reg.RecalcTotals();
-        reg.Modified = DateTime.Now;
-        reg.LebUserId = userId;
-
-        await _accountingRepo.SaveChangesAsync(ct);
+        // Record the row and re-derive PaidTotal/OwedTotal from the ledger in one
+        // transaction, so the registration's totals can't drift from its accounting rows.
+        // (Existence/ownership already validated above.)
+        await _accountingRepo.RecordPaymentAndRecomputeAsync(entity, userId, ct);
 
         return new AccountingRecordDto
         {

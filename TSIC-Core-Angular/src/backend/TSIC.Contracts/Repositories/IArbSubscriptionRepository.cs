@@ -1,5 +1,4 @@
 using TSIC.Contracts.Dtos.Arb;
-using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
 
@@ -26,8 +25,4 @@ public interface IArbSubscriptionRepository
 
     Task UpdateSubscriptionStatusAsync(
         Guid registrationId, string newStatus, CancellationToken ct = default);
-
-    Task RecordPaymentAsync(
-        RegistrationAccounting entry, decimal amount, string userId,
-        CancellationToken ct = default);
 }

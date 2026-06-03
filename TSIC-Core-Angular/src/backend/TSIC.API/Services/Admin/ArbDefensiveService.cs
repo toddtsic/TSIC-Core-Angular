@@ -13,6 +13,7 @@ public class ArbDefensiveService : IArbDefensiveService
     private const int GraceHours = 48;
 
     private readonly IArbSubscriptionRepository _arbRepo;
+    private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IEmailLogRepository _emailLogRepo;
     private readonly IAdnApiService _adnApi;
     private readonly IEmailService _emailService;
@@ -20,12 +21,14 @@ public class ArbDefensiveService : IArbDefensiveService
 
     public ArbDefensiveService(
         IArbSubscriptionRepository arbRepo,
+        IRegistrationAccountingRepository accountingRepo,
         IEmailLogRepository emailLogRepo,
         IAdnApiService adnApi,
         IEmailService emailService,
         ILogger<ArbDefensiveService> logger)
     {
         _arbRepo = arbRepo;
+        _accountingRepo = accountingRepo;
         _emailLogRepo = emailLogRepo;
         _adnApi = adnApi;
         _emailService = emailService;
@@ -426,7 +429,7 @@ public class ArbDefensiveService : IArbDefensiveService
                 amountCharged = request.BalanceDue;
                 transactionId = chargeResult.TransactionId;
 
-                await _arbRepo.RecordPaymentAsync(new RegistrationAccounting
+                await _accountingRepo.RecordPaymentAndRecomputeAsync(new RegistrationAccounting
                 {
                     Active = true,
                     AdnCc4 = request.CardNumber[^4..],
@@ -442,7 +445,7 @@ public class ArbDefensiveService : IArbDefensiveService
                     Paymeth = "Autocharge of previously failed ARB transactions",
                     LebUserId = userId,
                     Modified = DateTime.Now
-                }, request.BalanceDue, userId, ct);
+                }, userId, ct);
 
                 message += $" Card charged {request.BalanceDue:C} for failed ARB payments.";
             }
