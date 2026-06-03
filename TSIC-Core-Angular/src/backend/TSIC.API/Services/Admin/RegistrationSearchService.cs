@@ -251,7 +251,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             ?? throw new InvalidOperationException("Registration not found.");
 
         reg.PaidTotal += request.PaidAmount ?? 0;
-        reg.OwedTotal = FeeMath.ComputeOwed(reg.FeeTotal, reg.PaidTotal);
+        reg.RecalcTotals();
         reg.Modified = DateTime.Now;
         reg.LebUserId = userId;
 
@@ -379,7 +379,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             // Update registration financials
             var reg = original.Registration;
             reg.PaidTotal -= reversedAmount;
-            reg.OwedTotal = FeeMath.ComputeOwed(reg.FeeTotal, reg.PaidTotal);
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
 

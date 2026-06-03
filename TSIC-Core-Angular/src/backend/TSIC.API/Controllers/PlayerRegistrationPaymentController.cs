@@ -19,6 +19,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Contracts.Extensions;
 using TSIC.Application.Services.Shared.Discount;
 
 namespace TSIC.API.Controllers;
@@ -254,20 +255,16 @@ public class PlayerRegistrationPaymentController : ControllerBase
             // Proportionally reduce processing fee by discount amount (discount reduces CC transaction)
             await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, d, jobId.Value, familyUserId);
 
-            // Set the new discount, then derive FeeTotal from the single canonical formula (FeeMath),
-            // replacing the retired PlayerFeeCalculator.ComputeTotals (whose divergent formula subtracted
-            // donation and dropped the late fee — a discount code silently wiped any late fee). FeeProcessing
-            // was already adjusted in-place by ReduceProcessingFeeProportionalAsync above (and stays ≥0), so
-            // it is passed straight through (0 included) — we do NOT collapse 0 to a default proc, which
-            // would re-inflate a full discount that legitimately zeroed the processing fee. Owed clamp
-            // (Math.Max) is intentionally unchanged here; the signed-vs-clamped policy is a separate step.
+            // Set the new discount, record which code on the reg, then recompute totals through the
+            // single canonical helper (RecalcTotals → FeeMath). FeeProcessing was already adjusted in
+            // place by ReduceProcessingFeeProportionalAsync above (and stays ≥0), so it flows straight
+            // through (0 included) — a full discount that legitimately zeroed the proc is not re-inflated.
+            // OwedTotal is now signed (RecalcTotals drops the old Math.Max clamp) per the signed-owed policy.
             reg.FeeDiscount = newDiscount;
             // Which code, recorded on the registration itself — the canonical redemption-count
             // source (JobDiscountCodeRepository.GetUsageCountAsync reads reg.DiscountCodeId).
             reg.DiscountCodeId = discountCodeAi;
-            reg.FeeTotal = FeeMath.ComputeFeeTotal(
-                reg.FeeBase, reg.FeeProcessing, reg.FeeDiscount, reg.FeeDonation, reg.FeeLatefee);
-            reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
             reg.LebUserId = familyUserId;
 
