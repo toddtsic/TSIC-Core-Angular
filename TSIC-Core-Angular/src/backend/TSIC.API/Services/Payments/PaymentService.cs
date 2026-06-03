@@ -474,9 +474,10 @@ public class PaymentService : IPaymentService
             // Modifiers are frozen on the team row from registration time.
             var discount = (team.FeeDiscount ?? 0m) + (team.FeeDiscountMp ?? 0m);
             var lateFee = team.FeeLatefee ?? 0m;
+            var donation = team.FeeDonation ?? 0m;
 
             var split = ArbTrialFeeSplitter.Split(
-                rawDeposit, rawBalance, discount, lateFee, processingRate,
+                rawDeposit, rawBalance, discount, lateFee, donation, processingRate,
                 bAddProcessingFees: bAddProcessing,
                 bApplyProcessingFeesToTeamDeposit: bApplyToDeposit);
 
@@ -566,13 +567,15 @@ public class PaymentService : IPaymentService
             }
 
             // Stamp full schedule onto the team row. FeeBase is the raw service amount
-            // (deposit + balance) — discount/latefee stay in their dedicated columns;
-            // FeeProcessing carries the splitter-computed processing total.
+            // (deposit + balance); discount/latefee/donation stay in their dedicated columns;
+            // FeeProcessing carries the splitter-computed processing total (now levied on the
+            // donation too, since the splitter folds donation into netBase).
             team.FeeBase = rawDeposit + rawBalance;
             team.FeeProcessing = split.TotalProcessing;
             // RecalcTotals derives FeeTotal from the frozen components (base + proc - discount
-            // + latefee), which == split.DepositCharge + split.BalanceCharge for active clients.
-            // Only the retired FeeDiscountMp diverges, and FeeMath excludes it (it is 0 here).
+            // + donation + latefee), which == split.DepositCharge + split.BalanceCharge.
+            // The only residual divergence is the retired FeeDiscountMp (FeeMath excludes it;
+            // the splitter still subtracts it in `discount` — both are 0 for active clients).
             team.RecalcTotals();
 
             team.AdnSubscriptionId = arbResult.SubscriptionId;
@@ -676,13 +679,14 @@ public class PaymentService : IPaymentService
             var rawBalance = resolved?.EffectiveBalanceDue ?? 0m;
             var discount = (team.FeeDiscount ?? 0m) + (team.FeeDiscountMp ?? 0m);
             var lateFee = team.FeeLatefee ?? 0m;
+            var donation = team.FeeDonation ?? 0m;
 
             // Always splits at CC rate. For eCheck, the (CC−EC) credit is applied below
             // via _feeAdj so the team row carries the same processing-fee history that
             // ProcessTeamEcheckPaymentAsync would have written — sweep NSF reversal is
             // identical for both paths.
             var split = ArbTrialFeeSplitter.Split(
-                rawDeposit, rawBalance, discount, lateFee, ccProcessingRate,
+                rawDeposit, rawBalance, discount, lateFee, donation, ccProcessingRate,
                 bAddProcessingFees: bAddProcessing,
                 bApplyProcessingFeesToTeamDeposit: bApplyToDeposit);
 
@@ -703,8 +707,9 @@ public class PaymentService : IPaymentService
             team.FeeBase = rawDeposit + rawBalance;
             team.FeeProcessing = split.TotalProcessing;
             // RecalcTotals derives FeeTotal from the frozen components (base + proc - discount
-            // + latefee), which == ccFullCharge for active clients. Only the retired
-            // FeeDiscountMp diverges, and FeeMath excludes it (it is 0 here).
+            // + donation + latefee), which == ccFullCharge. The only residual divergence is the
+            // retired FeeDiscountMp (FeeMath excludes it; the splitter still subtracts it in
+            // `discount` — both are 0 for active clients).
             team.RecalcTotals();
             team.Modified = DateTime.Now;
             team.LebUserId = userId;
