@@ -454,8 +454,7 @@ public sealed class AdnSweepService : IAdnSweepService
         if (tx.transactionStatus == "settledSuccessfully")
         {
             team.PaidTotal = (team.PaidTotal ?? 0m) + settleAmount;
-            team.OwedTotal = (team.OwedTotal ?? 0m) - settleAmount;
-            if ((team.OwedTotal ?? 0m) < 0m) team.OwedTotal = 0m;
+            team.RecalcTotals();
             team.Modified = DateTime.Now;
             team.LebUserId = SystemUserId;
         }

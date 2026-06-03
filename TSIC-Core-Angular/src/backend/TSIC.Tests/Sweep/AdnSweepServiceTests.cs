@@ -771,7 +771,8 @@ public class AdnSweepServiceTests
     [Fact(DisplayName = "ARB tx for team-side sub → team financials updated, rep aggregate synced")]
     public async Task Arb_TeamSide_Settled_UpdatesTeamAndSyncsRep()
     {
-        var team = BuildTeam(owed: 510m, subId: "888");
+        // Consistent seed: FeeBase 500 + FeeProcessing 10.50 = FeeTotal 510.50, PaidTotal 0 -> owed 510.50.
+        var team = BuildTeam(owed: 510.50m, subId: "888");
         StubSweepLogAndCreds();
         var tx = ArbTxSummary("settledSuccessfully", 200m, "888", "TX-TEAM-DEPOSIT", "TSIC_100_1");
         StubBatchListWith(tx);
@@ -794,7 +795,7 @@ public class AdnSweepServiceTests
         result.ArbImported.Should().Be(1);
         result.Errored.Should().Be(0);
         team.PaidTotal.Should().Be(200m, "settled deposit increments team PaidTotal");
-        team.OwedTotal.Should().Be(310m, "OwedTotal drops by the settled amount");
+        team.OwedTotal.Should().Be(310.50m, "OwedTotal drops by the settled amount (510.50 - 200)");
         // RA tagged with both rep RegistrationId AND TeamId so refunds/audits resolve cleanly.
         capturedRa.Should().NotBeNull();
         capturedRa!.RegistrationId.Should().Be(team.ClubrepRegistrationid);
@@ -830,7 +831,8 @@ public class AdnSweepServiceTests
     [Fact(DisplayName = "ARB tx for team-side: registration lookup tried first, team lookup is fallback")]
     public async Task Arb_TeamSide_RegistrationCheckedFirst()
     {
-        var team = BuildTeam(owed: 510m, subId: "888");
+        // Consistent seed: FeeBase 500 + FeeProcessing 10.50 = FeeTotal 510.50, PaidTotal 0 -> owed 510.50.
+        var team = BuildTeam(owed: 510.50m, subId: "888");
         StubSweepLogAndCreds();
         var tx = ArbTxSummary("settledSuccessfully", 200m, "888", "TX-LOOKUP", "TSIC_100_1");
         StubBatchListWith(tx);

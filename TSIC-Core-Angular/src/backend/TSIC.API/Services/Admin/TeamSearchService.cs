@@ -361,7 +361,7 @@ public sealed class TeamSearchService : ITeamSearchService
                         : request.RefundAmount;     // refund reverses requested amount
 
                     team.PaidTotal = (team.PaidTotal ?? 0) - refundAmt;
-                    team.OwedTotal = (team.OwedTotal ?? 0) + refundAmt;
+                    team.RecalcTotals();
                 }
             }
 
@@ -605,9 +605,9 @@ public sealed class TeamSearchService : ITeamSearchService
                 });
 
                 team.PaidTotal = (team.PaidTotal ?? 0) + calculatedTeamCheckAmount;
-                team.OwedTotal = (team.OwedTotal ?? 0) - calculatedTeamCheckAmount;
+                team.RecalcTotals();
                 clubRep.PaidTotal += calculatedTeamCheckAmount;
-                clubRep.OwedTotal -= calculatedTeamCheckAmount;
+                clubRep.RecalcTotals();
 
                 await _accountingRepo.SaveChangesAsync(ct);
                 await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRep.RegistrationId, userId, ct);

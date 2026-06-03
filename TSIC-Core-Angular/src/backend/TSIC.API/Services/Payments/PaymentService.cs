@@ -277,8 +277,7 @@ public class PaymentService : IPaymentService
                     team.RecalcTotals();
                 }
                 team.PaidTotal = (team.PaidTotal ?? 0m) + charge;
-                team.OwedTotal = (team.OwedTotal ?? 0m) - charge;
-                if ((team.OwedTotal ?? 0m) < 0m) team.OwedTotal = 0m;
+                team.RecalcTotals();
                 team.Modified = DateTime.Now;
                 team.LebUserId = userId;
 
@@ -571,8 +570,10 @@ public class PaymentService : IPaymentService
             // FeeProcessing carries the splitter-computed processing total.
             team.FeeBase = rawDeposit + rawBalance;
             team.FeeProcessing = split.TotalProcessing;
-            team.FeeTotal = split.DepositCharge + split.BalanceCharge;
-            team.OwedTotal = team.FeeTotal - (team.PaidTotal ?? 0m);
+            // RecalcTotals derives FeeTotal from the frozen components (base + proc - discount
+            // + latefee), which == split.DepositCharge + split.BalanceCharge for active clients.
+            // Only the retired FeeDiscountMp diverges, and FeeMath excludes it (it is 0 here).
+            team.RecalcTotals();
 
             team.AdnSubscriptionId = arbResult.SubscriptionId;
             team.AdnSubscriptionStatus = "active";
@@ -701,8 +702,10 @@ public class PaymentService : IPaymentService
             // Stamp full CC schedule on the team.
             team.FeeBase = rawDeposit + rawBalance;
             team.FeeProcessing = split.TotalProcessing;
-            team.FeeTotal = ccFullCharge;
-            team.OwedTotal = ccFullCharge - (team.PaidTotal ?? 0m);
+            // RecalcTotals derives FeeTotal from the frozen components (base + proc - discount
+            // + latefee), which == ccFullCharge for active clients. Only the retired
+            // FeeDiscountMp diverges, and FeeMath excludes it (it is 0 here).
+            team.RecalcTotals();
             team.Modified = DateTime.Now;
             team.LebUserId = userId;
 
@@ -785,8 +788,7 @@ public class PaymentService : IPaymentService
             // payment immediately. NSF reversal in the sweep undoes both PaidTotal and
             // the processing-fee credit if the bank returns the item.
             team.PaidTotal = (team.PaidTotal ?? 0m) + chargeAmount;
-            team.OwedTotal = (team.OwedTotal ?? 0m) - chargeAmount;
-            if ((team.OwedTotal ?? 0m) < 0m) team.OwedTotal = 0m;
+            team.RecalcTotals();
             team.Modified = DateTime.Now;
             team.LebUserId = userId;
 
@@ -1491,17 +1493,14 @@ public class PaymentService : IPaymentService
             ra.Modified = DateTime.Now;
 
             // eCheck: convert the CC-rate proc embedded in this charge to the eCheck rate by
-            // dropping BOTH FeeProcessing and FeeTotal by the credit. Registrations has no
-            // RecalcTotals(), so FeeTotal must move explicitly — otherwise the OwedTotal
-            // recompute below leaves the rate delta as a phantom balance. No-op for CC.
+            // dropping FeeProcessing by the credit; RecalcTotals re-derives FeeTotal + OwedTotal
+            // from components below. No-op for CC.
             if (credit > 0m)
             {
                 reg.FeeProcessing -= credit;
-                reg.FeeTotal -= credit;
             }
             reg.PaidTotal += charge;
-            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-            if (reg.OwedTotal < 0m) reg.OwedTotal = 0m;
+            reg.RecalcTotals();
             // Flip the registration active. Pre-refactor parent CC went through
             // UpdateRegistrationsForCharge which set this; the canonical engine
             // success branch must match — every consumer (rosters, coach views,
@@ -1693,8 +1692,7 @@ public class PaymentService : IPaymentService
             var baseFee = deposit > 0m ? deposit : balanceDue;
             if (baseFee <= 0) continue;
             if (reg.FeeBase <= 0) reg.FeeBase = baseFee;
-            if (reg.FeeTotal <= 0) reg.FeeTotal = reg.FeeBase;
-            if (reg.OwedTotal <= 0 && reg.PaidTotal <= 0) reg.OwedTotal = reg.FeeTotal;
+            reg.RecalcTotals();
         }
     }
 
@@ -1715,9 +1713,8 @@ public class PaymentService : IPaymentService
         {
             if (reg.FeeProcessing <= 0m) continue;
             var removed = reg.FeeProcessing;
-            reg.OwedTotal = Math.Max(0m, reg.OwedTotal - removed);
-            if (reg.FeeTotal >= removed) reg.FeeTotal -= removed;
             reg.FeeProcessing = 0m;
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
             _logger.LogInformation("ARB normalization removed processing fee {Removed} from registration {RegistrationId} (job {JobId}).", removed, reg.RegistrationId, jobId);
