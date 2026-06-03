@@ -363,9 +363,20 @@ public class AdnSweepServiceTests
         _regRepo.Setup(r => r.GetDirectorContactForJobAsync(reg.JobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new DirectorContactInfo { Email = "director@example.com", PaymentPlan = false });
 
+        // The reversal lands through the ledger chokepoint (writes the -amount row AND re-derives
+        // the registration's totals in one txn; the recompute is proven in
+        // RecordPaymentAndRecomputeTests). Assert the sweep's half: the right reversal row,
+        // keyed to the registration (no TeamId), stamped SystemUser.
         RegistrationAccounting? capturedReversal = null;
-        _accountingRepo.Setup(a => a.Add(It.IsAny<RegistrationAccounting>()))
-            .Callback<RegistrationAccounting>(ra => capturedReversal = ra);
+        string? capturedUserId = null;
+        _accountingRepo.Setup(a => a.RecordPaymentAndRecomputeAsync(
+                It.IsAny<RegistrationAccounting>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<RegistrationAccounting, string, CancellationToken>((ra, uid, _) =>
+            {
+                capturedReversal = ra;
+                capturedUserId = uid;
+            })
+            .Returns(Task.CompletedTask);
 
         var result = await BuildSut().RunAsync("Test");
 
@@ -378,6 +389,9 @@ public class AdnSweepServiceTests
         capturedReversal!.PaymentMethodId.Should().Be(FailedEcheckPaymentMethodId);
         capturedReversal.Payamt.Should().Be(-100m);
         capturedReversal.AdnTransactionId.Should().Be("RETURN-TX-200");
+        capturedReversal.TeamId.Should().BeNull("player eCheck return reverses on the registration, not a team");
+        capturedUserId.Should().Be(TsicConstants.SuperUserId,
+            "the NSF sweep is the actor — stamped with the system superuser");
 
         _feeAdj.Verify(f => f.ReverseProcessingFeeForEcheckAsync(
             reg, 100m, reg.JobId, It.IsAny<string>()), Times.Once);
@@ -799,22 +813,34 @@ public class AdnSweepServiceTests
         _teamRepo.Setup(r => r.GetByAdnSubscriptionIdAsync("888", It.IsAny<CancellationToken>()))
             .ReturnsAsync(team);
 
+        // A settled team installment goes through the ledger chokepoint, which writes the row
+        // AND re-derives the team's PaidTotal/OwedTotal in one transaction (the recompute itself
+        // is proven in RecordPaymentAndRecomputeTests). Assert the sweep's half here.
         RegistrationAccounting? capturedRa = null;
-        _accountingRepo.Setup(a => a.Add(It.IsAny<RegistrationAccounting>()))
-            .Callback<RegistrationAccounting>(ra => capturedRa = ra);
+        string? capturedUserId = null;
+        _accountingRepo.Setup(a => a.RecordPaymentAndRecomputeAsync(
+                It.IsAny<RegistrationAccounting>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<RegistrationAccounting, string, CancellationToken>((ra, uid, _) =>
+            {
+                capturedRa = ra;
+                capturedUserId = uid;
+            })
+            .Returns(Task.CompletedTask);
 
         var result = await BuildSut().RunAsync("Test");
 
         result.ArbImported.Should().Be(1);
         result.Errored.Should().Be(0);
-        team.PaidTotal.Should().Be(200m, "settled deposit increments team PaidTotal");
-        team.OwedTotal.Should().Be(310.50m, "OwedTotal drops by the settled amount (510.50 - 200)");
-        // RA tagged with both rep RegistrationId AND TeamId so refunds/audits resolve cleanly.
+        // RA tagged with both rep RegistrationId AND TeamId so refunds/audits resolve cleanly,
+        // keyed to the team so the chokepoint recomputes the team, stamped SystemUser.
         capturedRa.Should().NotBeNull();
         capturedRa!.RegistrationId.Should().Be(team.ClubrepRegistrationid);
         capturedRa.TeamId.Should().Be(team.TeamId);
+        capturedRa.Payamt.Should().Be(200m);
         capturedRa.AdnTransactionId.Should().Be("TX-TEAM-DEPOSIT");
-        // Rep aggregate sync fires AFTER the team save so it reads the new team totals.
+        capturedUserId.Should().Be(TsicConstants.SuperUserId,
+            "the sweep is the actor — stamped with the system superuser, not the registrant");
+        // Rep aggregate sync fires AFTER the chokepoint so it reads the new team totals.
         _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(
             team.ClubrepRegistrationid!.Value, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -915,13 +941,30 @@ public class AdnSweepServiceTests
         _regRepo.Setup(r => r.GetDirectorContactForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((DirectorContactInfo?)null);
 
+        // The reversal is recorded through the ledger chokepoint, keyed to the team (TeamId set),
+        // which re-derives the team's PaidTotal/OwedTotal (proven in RecordPaymentAndRecomputeTests).
+        RegistrationAccounting? capturedReversal = null;
+        string? capturedUserId = null;
+        _accountingRepo.Setup(a => a.RecordPaymentAndRecomputeAsync(
+                It.IsAny<RegistrationAccounting>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Callback<RegistrationAccounting, string, CancellationToken>((ra, uid, _) =>
+            {
+                capturedReversal = ra;
+                capturedUserId = uid;
+            })
+            .Returns(Task.CompletedTask);
+
         var result = await BuildSut().RunAsync("Test");
 
         result.EcheckReturnsProcessed.Should().Be(1);
         settlement.Status.Should().Be("Returned");
 
-        // Reversal lands on the TEAM, not the rep registration directly.
-        team.PaidTotal.Should().Be(0m);
+        // Reversal is recorded against the TEAM (TeamId set), not the rep registration directly.
+        capturedReversal.Should().NotBeNull();
+        capturedReversal!.TeamId.Should().Be(team.TeamId, "team eCheck return reverses on the team");
+        capturedReversal.Payamt.Should().Be(-510.50m);
+        capturedReversal.PaymentMethodId.Should().Be(FailedEcheckPaymentMethodId);
+        capturedUserId.Should().Be(TsicConstants.SuperUserId);
         _feeAdj.Verify(f => f.ReverseTeamProcessingFeeForEcheckAsync(
             team, 510.50m, team.JobId, It.IsAny<string>()), Times.Once);
         // Player-side reversal must NOT run for team-side NSFs.

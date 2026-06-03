@@ -435,7 +435,7 @@ public sealed class AdnSweepService : IAdnSweepService
         // Write the per-tx accounting row against the rep's Registrations row but
         // tag it with TeamId so refunds/audits can resolve back to the originating
         // team without a DB scan.
-        _accountingRepo.Add(new RegistrationAccounting
+        var raRow = new RegistrationAccounting
         {
             RegistrationId = clubRepRegId ?? Guid.Empty,
             TeamId = team.TeamId,
@@ -454,18 +454,21 @@ public sealed class AdnSweepService : IAdnSweepService
             Createdate = DateTime.Now,
             Modified = DateTime.Now,
             LebUserId = SystemUserId
-        });
+        };
 
         if (tx.transactionStatus == "settledSuccessfully")
         {
-            team.PaidTotal = (team.PaidTotal ?? 0m) + settleAmount;
-            team.RecalcTotals();
-            team.Modified = DateTime.Now;
-            team.LebUserId = SystemUserId;
+            // Record the settled installment and re-derive the team's totals from the ledger
+            // in one transaction. Other tracked edits on the shared sweep context (e.g. the
+            // subscription-status sync above) flush with it.
+            await _accountingRepo.RecordPaymentAndRecomputeAsync(raRow, SystemUserId, ct);
         }
-
-        await _accountingRepo.SaveChangesAsync(ct);
-        await _teamRepo.SaveChangesAsync(ct);
+        else
+        {
+            // Non-settling transaction: keep the audit row, apply no payment (totals unchanged).
+            _accountingRepo.Add(raRow);
+            await _accountingRepo.SaveChangesAsync(ct);
+        }
 
         // Roll team-level deltas (PaidTotal, OwedTotal, status changes) onto the rep's
         // Registrations row so search/balance UI shows the post-sweep aggregate.
@@ -602,36 +605,33 @@ public sealed class AdnSweepService : IAdnSweepService
         // The earlier ReduceTeamProcessingFeeForEcheckAsync (applied at submit) is mirrored
         // here by ReverseTeamProcessingFeeForEcheckAsync. ARB-Trial fallback follows the same
         // pattern, so this single branch covers both.
+        // Restore the processing-fee credit on the reversed entity (save-free; the chokepoint
+        // below re-derives FeeTotal/OwedTotal). PaidTotal is recomputed from the ledger once the
+        // reversal row lands, so there is no hand-decrement here.
         if (ra.TeamId.HasValue)
         {
             var team = await _teamRepo.GetTeamFromTeamId(ra.TeamId.Value, ct);
             if (team == null)
             {
-                _logger.LogWarning("Settlement {Id}: RA.TeamId {TeamId} not found — falling back to registration-side reversal",
+                _logger.LogWarning("Settlement {Id}: RA.TeamId {TeamId} not found — reversal row written, team totals left as-is",
                     settlement.SettlementId, ra.TeamId);
             }
             else
             {
-                team.PaidTotal = (team.PaidTotal ?? 0m) - amount;
                 await _feeAdj.ReverseTeamProcessingFeeForEcheckAsync(team, amount, reg.JobId, SystemUserId);
-                // Drops the legacy FeeDiscountMp subtraction; reconciled to FeeMath (Mp=0 for active clients).
-                team.RecalcTotals();
-                team.Modified = now;
-                team.LebUserId = SystemUserId;
             }
         }
         else
         {
-            // Reverse payment on the registration; recompute totals after fee restore.
-            reg.PaidTotal -= amount;
             await _feeAdj.ReverseProcessingFeeForEcheckAsync(reg, amount, reg.JobId, SystemUserId);
-            reg.RecalcTotals();
-            reg.Modified = now;
-            reg.LebUserId = SystemUserId;
         }
 
-        // Write the reversal RA row.
-        _accountingRepo.Add(new RegistrationAccounting
+        // Record the reversal row and re-derive the keyed entity's totals from the ledger in one
+        // transaction. row.TeamId routes the recompute to the team (else the registration),
+        // mirroring the branch above; a missing team is a no-op recompute (the row is still
+        // written). Pending edits on the shared sweep context (settlement status, fee restore)
+        // flush with it, so the separate settlement save is no longer needed.
+        await _accountingRepo.RecordPaymentAndRecomputeAsync(new RegistrationAccounting
         {
             RegistrationId = ra.RegistrationId,
             TeamId = ra.TeamId,
@@ -644,9 +644,7 @@ public sealed class AdnSweepService : IAdnSweepService
             Createdate = now,
             Modified = now,
             LebUserId = SystemUserId
-        });
-
-        await _settleRepo.SaveChangesAsync(ct);
+        }, SystemUserId, ct);
 
         // For team-side reversals, roll the team delta onto the rep aggregate. Doing
         // this AFTER SaveChanges so the team's reversed PaidTotal/OwedTotal are visible

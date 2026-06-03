@@ -465,23 +465,16 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             LebUserId = userId
         };
 
-        _accountingRepo.Add(entity);
-
-        // Update registration financial totals
+        // Reduce the processing fee proportionally first (non-CC payments; core accounting
+        // principle), then record the row and re-derive PaidTotal/OwedTotal from the ledger in
+        // one transaction. The reducer mutates the tracked registration without saving and does
+        // not read PaidTotal, so the chokepoint's recompute picks up the reduced FeeProcessing.
         var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct)
             ?? throw new InvalidOperationException("Registration not found.");
 
-        reg.PaidTotal += request.Amount;
-
-        // Non-CC payments reduce processing fee proportionally (core accounting principle)
         await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
 
-        // Recalculate totals after processing fee change
-        reg.RecalcTotals();
-        reg.Modified = DateTime.Now;
-        reg.LebUserId = userId;
-
-        await _accountingRepo.SaveChangesAsync(ct);
+        await _accountingRepo.RecordPaymentAndRecomputeAsync(entity, userId, ct);
 
         _logger.LogInformation("{Type} recorded: RegId={RegId}, Amount={Amount}, ProcessingFeeReduced={Reduced}",
             request.PaymentType, request.RegistrationId, request.Amount, reg.FeeProcessing);

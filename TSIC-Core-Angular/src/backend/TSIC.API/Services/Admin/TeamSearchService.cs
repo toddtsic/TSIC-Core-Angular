@@ -568,7 +568,11 @@ public sealed class TeamSearchService : ITeamSearchService
                 var calculatedTeamCheckAmount = Math.Min(baseOwed, remainingBalance);
                 if (calculatedTeamCheckAmount <= 0) continue;
 
-                // Step 3: Fee reduction = allocation × rate (canonical full-CC-rate credit)
+                // Step 3: Fee reduction = allocation × rate (canonical full-CC-rate credit).
+                // Reduce only the team's processing fee; the chokepoint below re-derives the
+                // team's FeeTotal/OwedTotal from the ledger, and SynchronizeClubRepFinancials
+                // re-aggregates the rep from its teams (the sole writer of rep totals — the old
+                // inline clubRep math was redundant with it).
                 decimal processingFeeReduction = 0;
                 if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0)
                 {
@@ -577,19 +581,13 @@ public sealed class TeamSearchService : ITeamSearchService
                         2, MidpointRounding.AwayFromZero);
 
                     team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
-                    team.RecalcTotals();
-
-                    clubRep.FeeProcessing -= processingFeeReduction;
-                    // Reducing FeeProcessing drops both FeeTotal and OwedTotal by the same amount.
-                    clubRep.RecalcTotals();
-
-                    await _accountingRepo.SaveChangesAsync(ct);
                 }
 
                 remainingBalance -= calculatedTeamCheckAmount;
 
-                // Create accounting record
-                _accountingRepo.Add(new RegistrationAccounting
+                // Record the check row and re-derive the team's totals from the ledger in one
+                // transaction, then re-aggregate the rep from its teams.
+                await _accountingRepo.RecordPaymentAndRecomputeAsync(new RegistrationAccounting
                 {
                     Active = true,
                     CheckNo = request.CheckNo,
@@ -602,14 +600,8 @@ public sealed class TeamSearchService : ITeamSearchService
                     RegistrationId = clubRep.RegistrationId,
                     LebUserId = userId,
                     Modified = DateTime.Now
-                });
+                }, userId, ct);
 
-                team.PaidTotal = (team.PaidTotal ?? 0) + calculatedTeamCheckAmount;
-                team.RecalcTotals();
-                clubRep.PaidTotal += calculatedTeamCheckAmount;
-                clubRep.RecalcTotals();
-
-                await _accountingRepo.SaveChangesAsync(ct);
                 await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRep.RegistrationId, userId, ct);
 
                 allocations.Add(new TeamPaymentAllocation
