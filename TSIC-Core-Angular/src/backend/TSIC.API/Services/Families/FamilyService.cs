@@ -782,7 +782,7 @@ public sealed class FamilyService : IFamilyService
         // eCheck-method owed from the single canonical resolver (== OwedTotal when proc fees
         // are off or no job state is available).
         var echeckOwedTotal = echeckState != null
-            ? echeckState.ResolveOwed(r.OwedTotal, r.FeeBase, r.FeeDiscount, r.FeeLatefee, r.FeeProcessing).Echeck
+            ? echeckState.ResolveOwed(r.OwedTotal, r.FeeBase, r.FeeDiscount, r.FeeLatefee, r.FeeDonation, r.FeeProcessing).Echeck
             : r.OwedTotal;
 
         return new FamilyPlayerRegistrationDto

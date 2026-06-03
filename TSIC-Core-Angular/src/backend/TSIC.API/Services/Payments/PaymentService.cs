@@ -165,7 +165,7 @@ public class PaymentService : IPaymentService
             // drift would re-trip the AMOUNT_MISMATCH tripwire below). CC charges the full
             // owed (credit 0); eCheck charges the lower eCheck-rate gross.
             var owed = state.ResolveOwed(
-                owedTotal, team.FeeBase ?? 0m, team.FeeDiscount ?? 0m, team.FeeLatefee ?? 0m, team.FeeProcessing ?? 0m);
+                owedTotal, team.FeeBase ?? 0m, team.FeeDiscount ?? 0m, team.FeeLatefee ?? 0m, team.FeeDonation ?? 0m, team.FeeProcessing ?? 0m);
             var charge = kind == TeamChargeKind.Cc ? owed.Cc : owed.Echeck;
             var credit = owedTotal - charge; // proc backed out for this method (0 for CC)
             if (charge <= 0m) continue;
@@ -1349,7 +1349,7 @@ public class PaymentService : IPaymentService
         {
             var reg = regsById[item.RegistrationId];
             var state = states.GetValueOrDefault(item.RegistrationId) ?? emptyState;
-            var owed = state.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing);
+            var owed = state.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing);
             // Tripwire: never charge more than the resolver currently shows for the CC bucket
             // (item.Amount is always the CC-basis charge). Penny tolerance covers rounding
             // between the display path and here.
@@ -1359,7 +1359,7 @@ public class PaymentService : IPaymentService
                     $"Payment amount is out of date (requested {item.Amount:C}, now {owed.Cc:C}). Please refresh and try again.",
                     regIds);
             var credit = kind == RegistrationChargeKind.Echeck
-                ? state.ProcCreditForCharge(item.Amount, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing, state.EcheckRate)
+                ? state.ProcCreditForCharge(item.Amount, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing, state.EcheckRate)
                 : 0m;
             plan[item.RegistrationId] = (item.Amount - credit, credit);
         }

@@ -126,7 +126,9 @@ public sealed class TeamSearchService : ITeamSearchService
             // Canonical per-method owed from the single resolver. CkOwedTotal is the
             // check/correction owed (CC owed minus the capped proc credit) — exactly what
             // recording a check will settle. CC owed is OwedTotal itself.
-            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
+            // donation: 0m — ClubTeamSummaryDto display; a paid-in-full donation nets out of the
+            // resolver's principal-remaining (it lands in both base and PrincipalPaid).
+            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
             return t with
             {
                 CkOwedTotal = owed.Check
@@ -522,6 +524,7 @@ public sealed class TeamSearchService : ITeamSearchService
                         capTeam.FeeBase ?? 0m,
                         capTeam.FeeDiscount ?? 0m,
                         capTeam.FeeLatefee ?? 0m,
+                        capTeam.FeeDonation ?? 0m,
                         capTeam.FeeProcessing ?? 0m);
                     scopeCheckOwed += capOwed.Check;
                 }
@@ -562,7 +565,8 @@ public sealed class TeamSearchService : ITeamSearchService
                 var feeBase = team.FeeBase ?? 0m;
                 var feeDiscount = team.FeeDiscount ?? 0m;
                 var feeLatefee = team.FeeLatefee ?? 0m;
-                var baseOwed = state.PrincipalRemaining(feeBase, feeDiscount, feeLatefee);
+                var feeDonation = team.FeeDonation ?? 0m;
+                var baseOwed = state.PrincipalRemaining(feeBase, feeDiscount, feeLatefee, feeDonation);
 
                 // Step 2: Allocate base amount from remaining check balance
                 var calculatedTeamCheckAmount = Math.Min(baseOwed, remainingBalance);

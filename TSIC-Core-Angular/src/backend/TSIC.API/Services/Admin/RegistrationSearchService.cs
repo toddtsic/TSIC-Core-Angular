@@ -438,6 +438,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 regForValidation.FeeBase,
                 regForValidation.FeeDiscount,
                 regForValidation.FeeLatefee,
+                regForValidation.FeeDonation,
                 regForValidation.FeeProcessing);
             if (request.Amount > owed.Check)
                 return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Check payment ${request.Amount:F2} exceeds the check balance owed of ${owed.Check:F2}." };
