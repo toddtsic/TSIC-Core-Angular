@@ -245,6 +245,10 @@ public partial class Jobs
 
     public bool BRestrictPublicRosters { get; set; }
 
+    public bool BIncludePlayerDonation { get; set; }
+
+    public bool BIncludeTeamDonation { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();
