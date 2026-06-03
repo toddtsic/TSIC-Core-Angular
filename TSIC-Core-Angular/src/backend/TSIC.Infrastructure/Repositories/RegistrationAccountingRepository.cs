@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -19,6 +20,85 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
     public void Add(RegistrationAccounting entry)
     {
         _context.RegistrationAccounting.Add(entry);
+    }
+
+    public async Task RecordPaymentAndRecomputeAsync(
+        RegistrationAccounting row, string userId, CancellationToken cancellationToken = default)
+    {
+        // The ledger is the source of truth; PaidTotal is a cached projection of it.
+        // Persist the row, then re-sum the ledger (now including this row) and stamp the
+        // result onto the keyed entity. One transaction — joined to the caller's if it
+        // already opened one — so the row and the recomputed total can never commit apart.
+        var ownsTransaction = _context.Database.CurrentTransaction is null;
+        var transaction = ownsTransaction
+            ? await _context.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        try
+        {
+            _context.RegistrationAccounting.Add(row);
+            await _context.SaveChangesAsync(cancellationToken); // row must be visible to the re-sum below
+
+            if (row.TeamId.HasValue)
+                await RecomputeTeamPaidTotalAsync(row.TeamId.Value, userId, cancellationToken);
+            else if (row.RegistrationId.HasValue)
+                await RecomputeRegistrationPaidTotalAsync(row.RegistrationId.Value, userId, cancellationToken);
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            if (transaction is not null)
+                await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+        finally
+        {
+            if (transaction is not null)
+                await transaction.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Re-derives one registration's PaidTotal from the ledger (sum of the five payment
+    /// buckets) and recomputes OwedTotal. Does NOT save — the caller owns the transaction.
+    /// </summary>
+    private async Task RecomputeRegistrationPaidTotalAsync(Guid registrationId, string userId, CancellationToken ct)
+    {
+        var totals = await GetPaymentTotalsByEntityAsync(
+            PaymentEntityKind.Registration, new[] { registrationId }, ct);
+        var paid = totals.TryGetValue(registrationId, out var t) ? t.GrossPaid : 0m;
+
+        var reg = await _context.Registrations
+            .FirstOrDefaultAsync(r => r.RegistrationId == registrationId, ct);
+        if (reg is null) return;
+
+        reg.PaidTotal = paid;
+        reg.RecalcTotals();
+        reg.Modified = DateTime.Now;
+        reg.LebUserId = userId;
+    }
+
+    /// <summary>
+    /// Re-derives one team's PaidTotal from the ledger (sum of the five payment buckets)
+    /// and recomputes OwedTotal. Does NOT save — the caller owns the transaction.
+    /// </summary>
+    private async Task RecomputeTeamPaidTotalAsync(Guid teamId, string userId, CancellationToken ct)
+    {
+        var totals = await GetPaymentTotalsByEntityAsync(
+            PaymentEntityKind.Team, new[] { teamId }, ct);
+        var paid = totals.TryGetValue(teamId, out var t) ? t.GrossPaid : 0m;
+
+        var team = await _context.Teams
+            .FirstOrDefaultAsync(x => x.TeamId == teamId, ct);
+        if (team is null) return;
+
+        team.PaidTotal = paid;
+        team.RecalcTotals();
+        team.Modified = DateTime.Now;
+        team.LebUserId = userId;
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
