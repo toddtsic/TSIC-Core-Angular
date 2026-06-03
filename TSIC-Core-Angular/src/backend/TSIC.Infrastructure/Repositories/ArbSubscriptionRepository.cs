@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.Arb;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -211,7 +212,7 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
         if (reg != null)
         {
             reg.PaidTotal += amount;
-            reg.OwedTotal -= amount;
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
         }

@@ -901,9 +901,10 @@ public class RegistrationRepository : IRegistrationRepository
             registration.FeeProcessing = totals?.FeeProcessing ?? 0;
             registration.FeeDonation = totals?.FeeDonation ?? 0;
             registration.FeeLatefee = totals?.FeeLatefee ?? 0;
-            registration.FeeTotal = totals?.FeeTotal ?? 0;
-            registration.OwedTotal = totals?.OwedTotal ?? 0;
             registration.PaidTotal = totals?.PaidTotal ?? 0;
+            // FeeTotal/OwedTotal derive from the summed components above. FeeMath is linear, so
+            // RecalcTotals(sum of components) == the old sum of each team's stored total/owed.
+            registration.RecalcTotals();
             registration.Modified = DateTime.Now;
             registration.LebUserId = userId;
 

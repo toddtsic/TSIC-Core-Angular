@@ -121,9 +121,14 @@ public partial class Teams
 
     public decimal? FeeLatefee { get; set; }
 
-    public decimal? FeeTotal { get; set; }
+    // FeeTotal/OwedTotal are derived money. internal set + InternalsVisibleTo(TSIC.Contracts)
+    // makes TeamFeeExtensions.RecalcTotals the ONLY writer; any other assignment is a compile
+    // error. EF still materializes the non-public setter via reflection.
+    // Default 0 (not null) so a fee-less team matches the historical explicit-zero stamp;
+    // RecalcTotals overwrites once components exist. No consumer distinguishes null from 0.
+    public decimal? FeeTotal { get; internal set; } = 0m;
 
-    public decimal? OwedTotal { get; set; }
+    public decimal? OwedTotal { get; internal set; } = 0m;
 
     public decimal? PaidTotal { get; set; }
 

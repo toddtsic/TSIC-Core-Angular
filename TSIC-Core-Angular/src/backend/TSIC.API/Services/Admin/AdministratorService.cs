@@ -78,8 +78,6 @@ public sealed class AdministratorService : IAdministratorService
             FeeDonation = 0,
             FeeLatefee = 0,
             FeeProcessing = 0,
-            FeeTotal = 0,
-            OwedTotal = 0,
             PaidTotal = 0
         };
 

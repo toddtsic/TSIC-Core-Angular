@@ -1167,8 +1167,9 @@ public class PaymentService : IPaymentService
             if (!pifSnapshot.TryGetValue(reg.RegistrationId, out var snap)) continue;
             reg.FeeBase       = snap.FeeBase;
             reg.FeeProcessing = snap.FeeProcessing;
-            reg.FeeTotal      = snap.FeeTotal;
-            reg.OwedTotal     = snap.OwedTotal;
+            // PIF mutates only FeeBase/FeeProcessing (ApplyPifUpgradeAsync preserves
+            // discount/donation/latefee), so RecalcTotals reproduces snap.FeeTotal/OwedTotal.
+            reg.RecalcTotals();
             restored = true;
         }
         if (restored) await _registrations.SaveChangesAsync();

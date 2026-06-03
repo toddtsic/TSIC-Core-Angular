@@ -247,8 +247,6 @@ public sealed class RosterSwapperService : IRosterSwapperService
                     FeeDiscountMp = 0,
                     FeeDonation = 0,
                     FeeLatefee = 0,
-                    FeeTotal = 0,
-                    OwedTotal = 0,
                     PaidTotal = 0,
                     LebUserId = adminUserId,
                     Modified = now,

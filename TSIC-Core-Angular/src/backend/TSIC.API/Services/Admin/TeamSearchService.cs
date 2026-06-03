@@ -580,8 +580,8 @@ public sealed class TeamSearchService : ITeamSearchService
                     team.RecalcTotals();
 
                     clubRep.FeeProcessing -= processingFeeReduction;
-                    clubRep.OwedTotal -= processingFeeReduction;
-                    clubRep.FeeTotal -= processingFeeReduction;
+                    // Reducing FeeProcessing drops both FeeTotal and OwedTotal by the same amount.
+                    clubRep.RecalcTotals();
 
                     await _accountingRepo.SaveChangesAsync(ct);
                 }

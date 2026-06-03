@@ -357,7 +357,7 @@ public sealed class AdnSweepService : IAdnSweepService
         if (tx.transactionStatus == "settledSuccessfully")
         {
             reg.PaidTotal += settleAmount;
-            reg.OwedTotal -= settleAmount;
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
             reg.LebUserId = reg.FamilyUserId;
         }

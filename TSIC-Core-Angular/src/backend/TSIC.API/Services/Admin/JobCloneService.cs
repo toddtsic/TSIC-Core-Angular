@@ -244,7 +244,7 @@ public sealed class JobCloneService : IJobCloneService
                     LebUserId = superUserId,
                     Modified = now,
                     FeeBase = 0, FeeProcessing = 0, FeeDiscount = 0, FeeDiscountMp = 0,
-                    FeeDonation = 0, FeeLatefee = 0, FeeTotal = 0, OwedTotal = 0, PaidTotal = 0,
+                    FeeDonation = 0, FeeLatefee = 0, PaidTotal = 0,
                 };
                 _repo.AddRegistrations([actorReg]);
                 actorNewRegistrationId = actorReg.RegistrationId;
@@ -498,8 +498,6 @@ public sealed class JobCloneService : IJobCloneService
                 FeeDiscountMp = 0,
                 FeeDonation = 0,
                 FeeLatefee = 0,
-                FeeTotal = 0,
-                OwedTotal = 0,
                 PaidTotal = 0,
             };
             _repo.AddRegistrations(new[] { authorReg });
@@ -1302,8 +1300,6 @@ public sealed class JobCloneService : IJobCloneService
                 FeeDiscountMp = 0,
                 FeeDonation = 0,
                 FeeLatefee = 0,
-                FeeTotal = 0,
-                OwedTotal = 0,
                 PaidTotal = 0,
             };
         }).ToList();
@@ -1520,8 +1516,6 @@ public sealed class JobCloneService : IJobCloneService
                 FeeDiscountMp = 0m,
                 FeeDonation = 0m,
                 FeeLatefee = 0m,
-                FeeTotal = 0m,
-                OwedTotal = 0m,
                 PaidTotal = 0m,
 
                 // ── Standings — reset; new season starts at 0-0 ──
