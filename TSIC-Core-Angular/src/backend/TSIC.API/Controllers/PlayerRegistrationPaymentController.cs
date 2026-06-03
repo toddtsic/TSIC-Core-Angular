@@ -30,19 +30,15 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IPaymentService _paymentService;
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
-    private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
     private readonly IRegistrationRepository _registrations;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentStateService _paymentState;
 
-    private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
-
     public PlayerRegistrationPaymentController(
         IJobLookupService jobLookupService,
         IPaymentService paymentService,
         IJobDiscountCodeRepository discountCodeRepo,
-        IRegistrationAccountingRepository accountingRepo,
         IRegistrationRepository registrations,
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentStateService paymentState,
@@ -51,7 +47,6 @@ public class PlayerRegistrationPaymentController : ControllerBase
         _jobLookupService = jobLookupService;
         _paymentService = paymentService;
         _discountCodeRepo = discountCodeRepo;
-        _accountingRepo = accountingRepo;
         _registrations = registrations;
         _feeAdjustment = feeAdjustment;
         _paymentState = paymentState;
@@ -267,32 +262,19 @@ public class PlayerRegistrationPaymentController : ControllerBase
             // would re-inflate a full discount that legitimately zeroed the processing fee. Owed clamp
             // (Math.Max) is intentionally unchanged here; the signed-vs-clamped policy is a separate step.
             reg.FeeDiscount = newDiscount;
+            // Which code, recorded on the registration itself — the canonical redemption-count
+            // source (JobDiscountCodeRepository.GetUsageCountAsync reads reg.DiscountCodeId).
+            reg.DiscountCodeId = discountCodeAi;
             reg.FeeTotal = FeeMath.ComputeFeeTotal(
                 reg.FeeBase, reg.FeeProcessing, reg.FeeDiscount, reg.FeeDonation, reg.FeeLatefee);
             reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
             reg.Modified = DateTime.Now;
             reg.LebUserId = familyUserId;
 
-            // 100% DC: create correction accounting record so registration isn't invisible in ledger
-            if (reg.OwedTotal <= 0m)
-            {
-                var detail = (bAsPercent ?? false) ? $"{amount:0}%" : $"${amount:0.00}";
-                _accountingRepo.Add(new Domain.Entities.RegistrationAccounting
-                {
-                    RegistrationId = reg.RegistrationId,
-                    PaymentMethodId = CorrectionMethodId,
-                    DiscountCodeAi = discountCodeAi,
-                    Dueamt = d,
-                    Payamt = d,
-                    Comment = $"DC: {request.Code.Trim()} ({detail})",
-                    Active = true,
-                    Createdate = DateTime.Now,
-                    Modified = DateTime.Now,
-                    LebUserId = familyUserId
-                });
-                reg.PaidTotal += d;
-                reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
-            }
+            // A discount is a fee modifier, not a payment: it reduces FeeTotal and is recorded on the
+            // reg (DiscountCodeId) — it never writes a RegistrationAccounting row or PaidTotal. (A 100% DC
+            // used to stamp a fake Correction Payamt + PaidTotal +=, double-booking the discount and —
+            // under signed OwedTotal — surfacing a phantom -discount.)
 
             updatedFinancials[reg.UserId!] = new RegistrationFinancialsDto
             {

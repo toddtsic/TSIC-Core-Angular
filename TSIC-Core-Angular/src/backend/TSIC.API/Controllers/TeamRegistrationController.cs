@@ -48,12 +48,9 @@ public class TeamRegistrationController : ControllerBase
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
     private readonly ITeamRepository _teamRepository;
     private readonly IRegistrationRepository _registrationRepository;
-    private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly ITokenService _tokenService;
     private readonly UserManager<ApplicationUser> _userManager;
-
-    private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
 
     public TeamRegistrationController(
         ITeamRegistrationService teamRegistrationService,
@@ -62,7 +59,6 @@ public class TeamRegistrationController : ControllerBase
         IJobDiscountCodeRepository discountCodeRepo,
         ITeamRepository teamRepository,
         IRegistrationRepository registrationRepository,
-        IRegistrationAccountingRepository accountingRepo,
         IRegistrationFeeAdjustmentService feeAdjustment,
         ITokenService tokenService,
         UserManager<ApplicationUser> userManager)
@@ -73,7 +69,6 @@ public class TeamRegistrationController : ControllerBase
         _discountCodeRepo = discountCodeRepo;
         _teamRepository = teamRepository;
         _registrationRepository = registrationRepository;
-        _accountingRepo = accountingRepo;
         _feeAdjustment = feeAdjustment;
         _tokenService = tokenService;
         _userManager = userManager;
@@ -955,27 +950,10 @@ public class TeamRegistrationController : ControllerBase
         team.Modified = DateTime.Now;
         team.LebUserId = userId;
 
-        // 100% DC: create correction accounting record so team isn't invisible in ledger
-        if ((team.OwedTotal ?? 0m) <= 0m)
-        {
-            var detail = bAsPercent ? $"{amount:0}%" : $"${amount:0.00}";
-            _accountingRepo.Add(new Domain.Entities.RegistrationAccounting
-            {
-                RegistrationId = team.ClubrepRegistrationid,
-                TeamId = team.TeamId,
-                PaymentMethodId = CorrectionMethodId,
-                DiscountCodeAi = discountCodeId,
-                Dueamt = discountAmount,
-                Payamt = discountAmount,
-                Comment = $"DC: 100% discount ({detail})",
-                Active = true,
-                Createdate = DateTime.Now,
-                Modified = DateTime.Now,
-                LebUserId = userId
-            });
-            team.PaidTotal = (team.PaidTotal ?? 0m) + discountAmount;
-            team.RecalcTotals();
-        }
+        // A discount is a fee modifier, not a payment: it reduces FeeTotal and is recorded on the team
+        // (DiscountCodeId, set above) — it never writes a RegistrationAccounting row or PaidTotal. (A 100%
+        // DC used to stamp a fake Correction Payamt + PaidTotal +=, double-booking the discount and —
+        // under signed OwedTotal — surfacing a phantom -discount.)
 
         return new TeamDiscountResult
         {
