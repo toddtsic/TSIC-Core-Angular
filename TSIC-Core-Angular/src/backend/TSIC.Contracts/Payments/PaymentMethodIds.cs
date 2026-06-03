@@ -11,9 +11,14 @@ namespace TSIC.Contracts.Payments;
 /// "Correction" vs "Online Correction By Client".
 ///
 /// Excluded by design:
-///   • Credit Card Void, Failed Credit Card Payment, Failed Credit Card Credit,
-///     Failed E-Check Payment — no money moved.
+///   • Credit Card Void, Failed Credit Card Payment, Failed Credit Card Credit
+///     — no money moved (the charge never cleared).
 ///   • BALANCE DUE — opening balance entry, not a payment.
+///
+/// NOTE: Failed E-Check Payment IS bucketed (in Echeck), unlike the failed-CC
+/// methods. An eCheck settles provisionally and can be RETURNED (NSF) days
+/// later — by then the money was already credited, so its negative reversal
+/// row must net the bounced payment back out. See the Echeck bucket comment.
 /// </summary>
 public static class PaymentMethodIds
 {
@@ -32,9 +37,15 @@ public static class PaymentMethodIds
     };
 
     // ACH / eCheck — Payamt is principal; eCheck-specific proc rate applied at swipe.
+    // NSF / return reversals (Failed E-Check Payment) post LATER as a NEGATIVE
+    // Payamt row, so they net into this same sum as a clawback of the bounced
+    // payment — mirroring how Credit Card Credit nets in CcPaid. (An eCheck
+    // settles provisionally then can be returned; the failed-CC methods, by
+    // contrast, mean the charge never cleared, so they move no money and stay out.)
     public static readonly IReadOnlySet<Guid> Echeck = new HashSet<Guid>
     {
         Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D"), // E-Check Payment
+        Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D"), // Failed E-Check Payment (NSF return — negative Payamt, nets out the bounced payment)
     };
 
     // Paper checks — Payamt is principal, no proc collected.

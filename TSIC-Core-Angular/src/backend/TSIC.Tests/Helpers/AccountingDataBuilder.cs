@@ -23,6 +23,7 @@ public class AccountingDataBuilder
     public static readonly Guid CheckMethodId = Guid.Parse("32ECA575-A268-E111-9D56-F04DA202060D");
     public static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
     public static readonly Guid EcheckMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
+    public static readonly Guid FailedEcheckMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
 
     public AccountingDataBuilder(SqlDbContext ctx)
     {
@@ -38,7 +39,8 @@ public class AccountingDataBuilder
             new AccountingPaymentMethods { PaymentMethodId = CcCreditMethodId, PaymentMethod = "Credit Card Credit", Modified = DateTime.UtcNow },
             new AccountingPaymentMethods { PaymentMethodId = CheckMethodId, PaymentMethod = "Check Payment By Client", Modified = DateTime.UtcNow },
             new AccountingPaymentMethods { PaymentMethodId = CorrectionMethodId, PaymentMethod = "Correction", Modified = DateTime.UtcNow },
-            new AccountingPaymentMethods { PaymentMethodId = EcheckMethodId, PaymentMethod = "E-Check Payment", Modified = DateTime.UtcNow }
+            new AccountingPaymentMethods { PaymentMethodId = EcheckMethodId, PaymentMethod = "E-Check Payment", Modified = DateTime.UtcNow },
+            new AccountingPaymentMethods { PaymentMethodId = FailedEcheckMethodId, PaymentMethod = "Failed E-Check Payment", Modified = DateTime.UtcNow }
         );
     }
 

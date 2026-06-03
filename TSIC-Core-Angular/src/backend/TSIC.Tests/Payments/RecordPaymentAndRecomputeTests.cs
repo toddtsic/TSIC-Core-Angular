@@ -155,6 +155,32 @@ public class RecordPaymentAndRecomputeTests
     }
 
     [Fact]
+    public async Task EcheckNsfReversal_NegativePayamt_NetsBouncedPaymentBackOut()
+    {
+        // An eCheck settles provisionally (PaidTotal reflects it), then is RETURNED
+        // for NSF days later: the sweep posts a Failed E-Check Payment row with a
+        // NEGATIVE Payamt. That reversal must net the bounced money out of PaidTotal,
+        // exactly as a Credit Card Credit nets a CC refund. Regression guard for the
+        // bug where Failed E-Check Payment sat OUTSIDE the Echeck bucket, so the
+        // reversal was silently dropped and the bounced payment read as still paid.
+        // (The AdnSweep tests mock the chokepoint, so only a real recompute catches this.)
+        var ctx = DbContextFactory.Create();
+        var b = new AccountingDataBuilder(ctx);
+        var job = b.AddJob();
+        var reg = b.AddPlayerRegistration(job.JobId, feeBase: 100m, paidTotal: 0m);
+        b.AddPayment(reg.RegistrationId, null, 100m, AccountingDataBuilder.EcheckMethodId);
+        await b.SaveAsync();
+
+        var repo = new RegistrationAccountingRepository(ctx);
+        await repo.RecordPaymentAndRecomputeAsync(
+            NewRow(reg.RegistrationId, null, -100m, AccountingDataBuilder.FailedEcheckMethodId), UserId);
+
+        var updated = await GetRegAsync(ctx, reg.RegistrationId);
+        updated.PaidTotal.Should().Be(0m, "the NSF reversal nets the bounced eCheck back out");
+        updated.OwedTotal.Should().Be(100m, "the full fee is owed again once the payment bounced");
+    }
+
+    [Fact]
     public async Task NonBucketMethod_ExcludedFromPaidTotal()
     {
         var ctx = DbContextFactory.Create();
