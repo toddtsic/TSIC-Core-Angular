@@ -1,11 +1,8 @@
 <div class="prd">
     <header class="prd__header">
         <div>
-            <h1 class="prd__title">PackedRoster Designer</h1>
-            <p class="prd__subtitle">
-                Build a packed tournament roster: pick the player columns, set the layout, and
-                generate the PDF. Start from a preset or design your own.
-            </p>
+            <h1 class="prd__title">{{ headerTitle() }}</h1>
+            <p class="prd__subtitle">{{ headerSubtitle() }}</p>
         </div>
         <button type="button" class="btn btn-primary prd__generate"
                 [disabled]="!canGenerate()" (click)="generate()">
@@ -13,9 +10,26 @@
         </button>
     </header>
 
+    <div class="prd__style-toggle" role="group" aria-label="Report style">
+        <button type="button" class="prd__style-btn"
+                [class.prd__style-btn--active]="reportStyle() === 'packed'"
+                [attr.aria-pressed]="reportStyle() === 'packed'"
+                (click)="setReportStyle('packed')">
+            <span class="prd__style-name">Packed Roster</span>
+            <span class="prd__style-desc">Pick columns · N-up grid · configurable</span>
+        </button>
+        <button type="button" class="prd__style-btn"
+                [class.prd__style-btn--active]="reportStyle() === 'recruiter'"
+                [attr.aria-pressed]="reportStyle() === 'recruiter'"
+                (click)="setReportStyle('recruiter')">
+            <span class="prd__style-name">Recruiter Cards</span>
+            <span class="prd__style-desc">One card per player · fixed layout</span>
+        </button>
+    </div>
+
     @if (isLoading()) {
-        <div class="prd__loading">Loading fields…</div>
-    } @else {
+        <div class="prd__loading">Loading…</div>
+    } @else if (reportStyle() === 'packed') {
         <div class="prd__presets">
             <span class="prd__presets-label">Start from:</span>
             <button type="button" class="btn btn-outline-primary"
@@ -211,6 +225,80 @@
 
                         <p class="prd__hint prd__hint--spaced">
                             Card 1 of many · {{ nUp() }}-up newspaper layout · one division per page
+                        </p>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    } @else {
+        <!-- Recruiter mode: fixed layout, nothing to configure — info + preview only. -->
+        <div class="prd__workspace">
+            <div class="prd__controls">
+                <section class="card prd__panel">
+                    <div class="card-body">
+                        <h2 class="prd__panel-title">What this produces</h2>
+                        <p class="prd__hint">
+                            A college-coach recruiting packet — one page per team with 2-up
+                            player cards — reproduced from live registration data. There's
+                            nothing to configure: the layout is fixed. Click
+                            <strong>Generate PDF</strong> to build it for this job.
+                        </p>
+
+                        <h3 class="prd__rec-subhead">Each player card shows</h3>
+                        <ul class="prd__rec-fieldlist">
+                            <li>Uniform #, name &amp; graduation year</li>
+                            <li>GPA and SAT</li>
+                            <li>Email address</li>
+                            <li>Mailing address</li>
+                            <li>Phone</li>
+                            <li>Club &amp; high school</li>
+                            <li>College commitment (when committed)</li>
+                        </ul>
+
+                        <p class="prd__hint">
+                            Grouped by team under a coach line; players ordered by uniform number.
+                        </p>
+                    </div>
+                </section>
+            </div>
+
+            <aside class="prd__preview-rail">
+                <section class="card prd__panel">
+                    <div class="card-body">
+                        <h2 class="prd__panel-title">Live preview</h2>
+                        <p class="prd__hint">
+                            Approximate — sample data. Generate for exact output.
+                        </p>
+
+                        <div class="prd__page">
+                            <div class="prd__page-title" [style.font-size.px]="titlePx">
+                                {{ recruiterTitle }}
+                            </div>
+                            <div class="prd__rec-coach">{{ recruiterCoach }}</div>
+
+                            <div class="prd__rec-cards">
+                                @for (card of recruiterCards; track card.name) {
+                                    <div class="prd__rec-card">
+                                        <div class="prd__rec-line1">
+                                            <span class="prd__rec-uni">{{ card.uniformNo }}</span>
+                                            <span class="prd__rec-name">{{ card.name }}</span>
+                                            <span class="prd__rec-grad">({{ card.gradYear }})</span>
+                                        </div>
+                                        <div class="prd__rec-metrics">{{ card.metrics }}</div>
+                                        <div class="prd__rec-row">{{ card.email }}</div>
+                                        <div class="prd__rec-row">{{ card.address }}</div>
+                                        <div class="prd__rec-row">{{ card.phone }}</div>
+                                        <div class="prd__rec-clubschool">{{ card.clubSchool }}</div>
+                                        @if (card.collegeCommit) {
+                                            <div class="prd__rec-commit">{{ card.collegeCommit }}</div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <p class="prd__hint prd__hint--spaced">
+                            Page 1 of many · one team per page · 2-up player cards
                         </p>
                     </div>
                 </section>

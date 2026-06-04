@@ -54,4 +54,21 @@ public class PackedRosterController : ControllerBase
         var result = await _packedRosterService.GenerateAsync(request, jobId.Value, cancellationToken);
         return File(result.FileBytes, result.ContentType, result.FileName);
     }
+
+    /// <summary>
+    /// Renders the recruiter report (player-as-card) PDF for the caller's current job —
+    /// reproduces the legacy LFTC Recruiters report off the same EF roster query.
+    /// </summary>
+    [HttpGet("recruiter")]
+    public async Task<ActionResult> GenerateRecruiter(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        var result = await _packedRosterService.GenerateRecruiterAsync(jobId.Value, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 }

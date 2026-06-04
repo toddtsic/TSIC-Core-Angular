@@ -136,6 +136,17 @@ public interface IReportingRepository
     Task<List<ScheduleGameForICalDto>> GetScheduleGamesForICalAsync(
         List<int> gameIds,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Raw per-registrant rows for the tournament roster family (packed roster + recruiter
+    /// report) — the EF replacement for <c>reporting_migrate.TournamentRosterPacked_Flat</c>.
+    /// Scope mirrors the proc: active Staff/Player on active, schedule-listed teams, excluding
+    /// WAITLIST/DROPPED agegroups. Returns the unshaped superset; the PDF layer owns all
+    /// display shaping, ordering, and last-row detection.
+    /// </summary>
+    Task<List<TournamentRosterRowDto>> GetTournamentRosterRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

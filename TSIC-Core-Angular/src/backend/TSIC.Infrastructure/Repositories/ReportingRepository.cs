@@ -342,4 +342,84 @@ public class ReportingRepository : IReportingRepository
             })
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<TournamentRosterRowDto>> GetTournamentRosterRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Per-registrant raw rows for the tournament roster family. Mirrors the team set of
+        // reporting_migrate.TournamentRosterPacked_Flat: active Staff/Player whose assigned
+        // team is active, appears in the job's schedule, and is not in a WAITLIST/DROPPED
+        // agegroup. The `from t in Teams.Where(...)` (no DefaultIfEmpty) is an INNER JOIN that
+        // yields a non-null team without tripping the Guid?/Guid join-key mismatch; the
+        // optional club-rep + family-user + family fallbacks ride navigation properties that
+        // EF emits as LEFT JOINs. The proc's window columns (divTeamRow, isLastRow) are
+        // intentionally dropped — the PDF layer owns team ordering and last-row detection.
+        var query =
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
+            from uF in _context.AspNetUsers.AsNoTracking()
+                .Where(x => x.Id == r.FamilyUserId).DefaultIfEmpty()
+            where r.BActive == true
+                && (roles.Name == "Staff" || roles.Name == "Player")
+                && t.Active == true
+                && t.DivId != null
+                && t.Agegroup.AgegroupName != null
+                && !t.Agegroup.AgegroupName.Contains("WAITLIST")
+                && !t.Agegroup.AgegroupName.Contains("DROPPED")
+                && _context.Schedule.Any(s => s.JobId == jobId
+                    && (s.T1Id == t.TeamId || s.T2Id == t.TeamId))
+            select new TournamentRosterRowDto
+            {
+                TeamId = t.TeamId,
+                AgegroupName = t.Agegroup.AgegroupName ?? "",
+                DivName = t.Div != null ? (t.Div.DivName ?? "") : "",
+                TeamName = t.TeamName ?? "",
+
+                ClubName = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName : null,
+                ClubRepFirstName = t.ClubrepRegistration != null && t.ClubrepRegistration.User != null
+                    ? t.ClubrepRegistration.User.FirstName : null,
+                ClubRepLastName = t.ClubrepRegistration != null && t.ClubrepRegistration.User != null
+                    ? t.ClubrepRegistration.User.LastName : null,
+                ClubRepEmail = t.ClubrepRegistration != null && t.ClubrepRegistration.User != null
+                    ? t.ClubrepRegistration.User.Email : null,
+                ClubRepCellphone = t.ClubrepRegistration != null && t.ClubrepRegistration.User != null
+                    ? t.ClubrepRegistration.User.Cellphone : null,
+
+                RoleName = roles.Name,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                UniformNo = r.UniformNo,
+                Position = r.Position,
+                SchoolName = r.SchoolName,
+                GradYear = r.GradYear,
+                Gpa = r.Gpa,
+                BCollegeCommit = r.BCollegeCommit,
+                CollegeCommit = r.CollegeCommit,
+                Cellphone = u.Cellphone,
+
+                PlayerEmail = u.Email,
+                PlayerStreet = u.StreetAddress,
+                PlayerCity = u.City,
+                PlayerState = u.State,
+                PlayerZip = u.PostalCode,
+
+                FamilyEmail = uF != null ? uF.Email : null,
+                FamilyStreet = uF != null ? uF.StreetAddress : null,
+                FamilyCity = uF != null ? uF.City : null,
+                FamilyState = uF != null ? uF.State : null,
+                FamilyZip = uF != null ? uF.PostalCode : null,
+
+                // Optional nav → EF emits a LEFT JOIN, yielding null when there's no family.
+                MomCellphone = r.FamilyUser!.MomCellphone,
+
+                SatMath = r.SatMath,
+                SatVerbal = r.SatVerbal,
+                SatWriting = r.SatWriting,
+            };
+
+        return await query.ToListAsync(cancellationToken);
+    }
 }

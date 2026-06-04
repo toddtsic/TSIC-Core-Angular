@@ -22,4 +22,13 @@ public interface IPackedRosterPdfService
         PackedRosterRequestDto request,
         Guid jobId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Renders the recruiter report (player-as-card) PDF for a job — reproduces the legacy
+    /// LFTC Recruiters report off the same EF roster query: page = team, 2-up player cards
+    /// (name + grad/GPA/SAT, email, address, phone, club/HS, italic college commit).
+    /// </summary>
+    Task<ReportExportResult> GenerateRecruiterAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
 }

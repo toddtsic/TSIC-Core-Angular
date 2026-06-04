@@ -499,6 +499,48 @@ WHERE jt.JobTypeName IN (N'Tournament Scheduling', N'League Scheduling')
 
 DECLARE @ScheduleDesignerCount INT = @@ROWCOUNT;
 
+-- ----------------------------------------------------------------------------
+-- Net-new SpaComponent: Tournament Recruiting Report (Designer) (additive)
+-- ----------------------------------------------------------------------------
+-- Reproduces the legacy Crystal "TournamentRecruitingReport" (college-coach
+-- recruiting packet) off the same EF roster query that fuels the PackedRoster
+-- Designer. Seeded as a NET-NEW tile (not an @ActionMap remap) so it is purely
+-- additive: the legacy Crystal recruiting report keeps working until it is
+-- verified reproducible and retired deliberately (the catalog-removal step of
+-- the migration convention).
+-- Gate mirrors the legacy recruiting report's visibility (PRE_LEAGUE_TOURNAMENT
+-- in type1-report-catalog.ts) and the Designer route guard:
+--   * Jobs : JobType IN (Tournament/League Scheduling) within @ImportYears.
+--   * Roles: Superuser / Director / SuperDirector (route guard, app.routes.ts).
+--   * Action 'reporting/packed-roster-designer/recruiter' is the jobPath-relative
+--     SPA route that opens the Designer in recruiter mode (data.mode); Kind
+--     forced to 'SpaComponent' so the library navigates, not downloads.
+-- Not in @ExcludeActions nor @ActionMap, so the sweep DELETEs never touch it; the
+-- NOT EXISTS guard makes it idempotent and SU edits/removals survive re-runs.
+INSERT INTO reporting.JobReports (
+    JobId, RoleId, Title, IconName, Controller, [Action], Kind, GroupLabel, SortOrder, Active
+)
+SELECT
+    j.JobId, r.Id, N'Tournament Recruiting Report (Designer)', N'journal-bookmark', N'Reporting',
+    N'reporting/packed-roster-designer/recruiter', N'SpaComponent', N'Recruiting', 0, 1
+FROM Jobs.Jobs j
+INNER JOIN reference.JobTypes jt ON j.JobTypeId = jt.JobTypeId
+CROSS JOIN dbo.AspNetRoles r
+WHERE jt.JobTypeName IN (N'Tournament Scheduling', N'League Scheduling')
+  AND j.[Year] IN (SELECT [Year] FROM @ImportYears)
+  AND r.[Name]  IN (N'Superuser', N'Director', N'SuperDirector')
+  AND NOT EXISTS (
+        SELECT 1
+        FROM reporting.JobReports jr
+        WHERE jr.JobId      = j.JobId
+          AND jr.RoleId     = r.Id
+          AND jr.Controller = N'Reporting'
+          AND jr.[Action]   = N'reporting/packed-roster-designer/recruiter'
+          AND ISNULL(jr.GroupLabel, N'') = N'Recruiting'
+  );
+
+DECLARE @RecruiterDesignerCount INT = @@ROWCOUNT;
+
 -- All sweep + populate DML succeeded — commit the atomic rebuild.
 -- (@@ROWCOUNT captured into @InsertedCount above; COMMIT would reset it.)
 COMMIT TRANSACTION;
@@ -508,6 +550,7 @@ PRINT '=== Populate Result ===';
 PRINT CONCAT('Inserted ', @InsertedCount, ' new row(s) into reporting.JobReports (idempotent on (JobId, RoleId, Controller, Action, GroupLabel))');
 PRINT CONCAT('Inserted ', @CheckinCount, ' net-new Check-In SpaComponent row(s) (jobs x roles, idempotent)');
 PRINT CONCAT('Inserted ', @ScheduleDesignerCount, ' net-new Schedule List Designer SpaComponent row(s) (jobs x roles, idempotent)');
+PRINT CONCAT('Inserted ', @RecruiterDesignerCount, ' net-new Recruiting Report (Designer) SpaComponent row(s) (jobs x roles, idempotent)');
 
 -- ============================================================================
 -- Section 4: Final state — totals + breakdown

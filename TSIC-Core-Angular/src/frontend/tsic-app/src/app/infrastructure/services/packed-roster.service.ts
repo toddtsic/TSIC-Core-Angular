@@ -25,4 +25,16 @@ export class PackedRosterService {
             observe: 'response',
         });
     }
+
+    /**
+     * Renders the recruiter report (player-as-card) PDF for the caller's current job —
+     * reproduces the legacy LFTC Recruiters report off the same EF roster query. Fixed
+     * layout, so no config: a plain GET, jobId derived server-side from JWT claims.
+     */
+    generateRecruiter(): Observable<HttpResponse<Blob>> {
+        return this.http.get(`${this.apiUrl}/packed-roster/recruiter`, {
+            responseType: 'blob',
+            observe: 'response',
+        });
+    }
 }

@@ -2,11 +2,28 @@ import {
     ChangeDetectionStrategy, Component, computed, inject, OnInit, signal,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { ActivatedRoute } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ToastService } from '@shared-ui/toast.service';
 import { PackedRosterService } from '@infrastructure/services/packed-roster.service';
 import { ReportingService } from '@infrastructure/services/reporting.service';
 import type { PackedRosterFieldDto, PackedRosterRequestDto } from '@core/api';
+
+/** Which report this Designer is currently building. */
+type ReportStyle = 'packed' | 'recruiter';
+
+/** One representative recruiter card used only to fill the recruiter-mode preview. */
+interface RecruiterSampleCard {
+    uniformNo: string;
+    name: string;
+    gradYear: string;
+    metrics: string;        // e.g. "GPA 4.0  ·  SAT 1480"
+    email: string;
+    address: string;
+    phone: string;
+    clubSchool: string;     // "CLUB / High School"
+    collegeCommit: string;  // italic line; '' when uncommitted
+}
 
 /** Working column model — a chosen field plus its placement/render options. */
 interface DesignerColumn {
@@ -76,6 +93,33 @@ const SAMPLE_ROWS: readonly SampleRow[] = [
     { isStaff: false, isCommitted: false, uniformNo: '6',  player: 'Liam Walsh',     position: 'MF', schoolName: 'Casteel',                 gradYear: '2027', gpa: '3.6', collegeCommit: '' },
 ];
 
+// ── Recruiter-mode preview sample (one team's page; never sent to the backend) ──
+// Mirrors PackedRosterPdfService.GenerateRecruiterAsync: page = team, title is
+// "{Agegroup}  {CLUB:TEAM}", a coach line, then 2-up player cards.
+const RECRUITER_SAMPLE_TITLE = '2027  COPPERMINE:2027 NORTH';
+const RECRUITER_SAMPLE_COACH = 'Coach: Jamie Smith   jsmith@coppermine.org   602-555-0142';
+
+const RECRUITER_SAMPLE_CARDS: readonly RecruiterSampleCard[] = [
+    {
+        uniformNo: '11', name: 'Diego Santos', gradYear: '2027',
+        metrics: 'GPA 4.0   ·   SAT 1480',
+        email: 'diego.santos@email.com',
+        address: '123 Main St, Phoenix, AZ 85001',
+        phone: '602-555-0143',
+        clubSchool: 'COPPERMINE / Hamilton High School',
+        collegeCommit: 'Committed: Duke University',
+    },
+    {
+        uniformNo: '7', name: 'Avery Lee', gradYear: '2028',
+        metrics: 'GPA 3.8   ·   SAT 1390',
+        email: 'avery.lee@email.com',
+        address: '456 Oak Ave, Tempe, AZ 85281',
+        phone: '480-555-0177',
+        clubSchool: 'COPPERMINE / Brophy College Prep',
+        collegeCommit: '',
+    },
+];
+
 /**
  * PackedRoster Designer — director-built replacement for the canned "Tournament Roster
  * Packed" Bold RDLs. Pick + order + size player columns, toggle the card chrome, then
@@ -93,6 +137,20 @@ export class PackedRosterDesignerComponent implements OnInit {
     private readonly packedSvc = inject(PackedRosterService);
     private readonly reportingSvc = inject(ReportingService);
     private readonly toast = inject(ToastService);
+    private readonly route = inject(ActivatedRoute);
+
+    /**
+     * Which report the Designer is building. Recruiter is a fixed-layout report (no column
+     * picker), so it shares this shell but swaps the body. Initial value comes from the
+     * route's `data.mode` (the catalog seeds a recruiter tile that deep-links here), then
+     * the user can flip styles in-place.
+     */
+    readonly reportStyle = signal<ReportStyle>('packed');
+
+    // Recruiter-mode preview data (exposed read-only to the template).
+    readonly recruiterTitle = RECRUITER_SAMPLE_TITLE;
+    readonly recruiterCoach = RECRUITER_SAMPLE_COACH;
+    readonly recruiterCards = RECRUITER_SAMPLE_CARDS;
 
     readonly availableFields = signal<PackedRosterFieldDto[]>([]);
     readonly selectedColumns = signal<DesignerColumn[]>([]);
@@ -111,8 +169,21 @@ export class PackedRosterDesignerComponent implements OnInit {
     readonly isLoading = signal(true);
     readonly isGenerating = signal(false);
 
-    readonly canGenerate = computed(() => this.selectedColumns().length > 0 && !this.isGenerating());
+    // Recruiter is fixed-layout, so it's always generatable; packed needs ≥1 column.
+    readonly canGenerate = computed(() =>
+        !this.isGenerating() &&
+        (this.reportStyle() === 'recruiter' || this.selectedColumns().length > 0));
     readonly selectedKeys = computed(() => new Set(this.selectedColumns().map(c => c.key)));
+
+    // Header copy adapts to the active report style.
+    readonly headerTitle = computed(() =>
+        this.reportStyle() === 'recruiter' ? 'Recruiting Report' : 'PackedRoster Designer');
+    readonly headerSubtitle = computed(() =>
+        this.reportStyle() === 'recruiter'
+            ? 'A college-coach recruiting packet: one card per player — grades, contact, club & high '
+              + 'school, and any college commit — grouped by team. Fixed layout, so just generate.'
+            : 'Build a packed tournament roster: pick the player columns, set the layout, and '
+              + 'generate the PDF. Start from a preset or design your own.');
 
     // ── Live preview (schematic; mirrors PackedRosterPdfService geometry) ──
     readonly divisionTitle = SAMPLE_TEAM.divisionTitle;
@@ -205,6 +276,12 @@ export class PackedRosterDesignerComponent implements OnInit {
     }
 
     ngOnInit(): void {
+        // The recruiter catalog tile deep-links here with data.mode = 'recruiter'.
+        if (this.route.snapshot.data['mode'] === 'recruiter') {
+            this.reportStyle.set('recruiter');
+        }
+
+        // Always load the packed field pool (cheap) so flipping to packed needs no reload.
         this.packedSvc.getFields().subscribe({
             next: (fields) => {
                 this.availableFields.set(fields);
@@ -216,6 +293,10 @@ export class PackedRosterDesignerComponent implements OnInit {
                 this.toast.show('Failed to load packed-roster fields', 'danger');
             },
         });
+    }
+
+    setReportStyle(style: ReportStyle): void {
+        this.reportStyle.set(style);
     }
 
     // ── Field selection ──
@@ -286,7 +367,14 @@ export class PackedRosterDesignerComponent implements OnInit {
 
     generate(): void {
         if (!this.canGenerate()) return;
+        if (this.reportStyle() === 'recruiter') {
+            this.generateRecruiter();
+        } else {
+            this.generatePacked();
+        }
+    }
 
+    private generatePacked(): void {
         const request: PackedRosterRequestDto = {
             nUp: this.nUp(),
             columns: this.selectedColumns().map(c => ({
@@ -312,6 +400,20 @@ export class PackedRosterDesignerComponent implements OnInit {
             error: () => {
                 this.isGenerating.set(false);
                 this.toast.show('Failed to generate packed roster', 'danger');
+            },
+        });
+    }
+
+    private generateRecruiter(): void {
+        this.isGenerating.set(true);
+        this.packedSvc.generateRecruiter().subscribe({
+            next: (response) => {
+                this.reportingSvc.triggerDownload(response, 'RecruitingReport');
+                this.isGenerating.set(false);
+            },
+            error: () => {
+                this.isGenerating.set(false);
+                this.toast.show('Failed to generate recruiting report', 'danger');
             },
         });
     }

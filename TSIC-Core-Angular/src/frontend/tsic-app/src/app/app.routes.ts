@@ -441,6 +441,14 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/reporting/packed-roster-designer/packed-roster-designer.component').then(m => m.PackedRosterDesignerComponent)
 			},
 			{
+				// Same Designer component, opened in recruiter mode (data.mode). The
+				// recruiter catalog tile deep-links here; the user can still flip styles.
+				path: 'reporting/packed-roster-designer/recruiter',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], mode: 'recruiter' },
+				loadComponent: () => import('./views/reporting/packed-roster-designer/packed-roster-designer.component').then(m => m.PackedRosterDesignerComponent)
+			},
+			{
 				path: 'reporting/schedule-list-designer',
 				canActivate: [authGuard],
 				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
