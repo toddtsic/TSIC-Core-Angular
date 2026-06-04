@@ -58,28 +58,42 @@ export class FamilyPaymentComponent {
 
   // Each "player" row is a RegisteredTeamDto (TeamId = the child's registrationId).
   allPlayers = computed<RegisteredTeamDto[]>(() => this.data()?.players ?? []);
-  activePlayers = computed(() => this.allPlayers().filter(p => p.active));
-  inactivePlayers = computed(() => this.allPlayers().filter(p => !p.active));
+
+  // Genuinely-pending players (server-computed: inactive but on the "Unassigned" division — a
+  // pay-by-check sibling awaiting its mailed check). These owe real money and count toward the
+  // family balance, UNLIKE dropped/waitlist siblings. Keyed by registrationId (== row.teamId).
+  private readonly pendingIds = computed(() => new Set(this.data()?.pendingPlayerRegistrationIds ?? []));
+  isPending = (p: RegisteredTeamDto): boolean => !p.active && this.pendingIds().has(p.teamId);
+
+  // Three states drive the grouping:
+  //   active  — bActive=1, on a real roster
+  //   pending — bActive=0 on "Unassigned" (check-payer mid-payment)
+  //   dropped — bActive=0 in any other division (waitlist/dropped) — reference-only
+  // "Counted" (active + pending) owes real money and feeds the family balance + breakdown grid;
+  // dropped sits in its own muted group, excluded from the balance, so a parent never shows owed
+  // money for a dropped child.
+  countedPlayers = computed(() => this.allPlayers().filter(p => p.active || this.isPending(p)));
+  droppedPlayers = computed(() => this.allPlayers().filter(p => !p.active && !this.isPending(p)));
   playerCount = computed(() => this.allPlayers().length);
 
-  // The scope selector lists EVERY player (active-first), not just active ones: a pay-by-check
-  // sibling starts life bActive=0 (pending payment, on the Unassigned team), so the admin must be
-  // able to pick it to record the mailed check. Inactive chips are styled muted (see template).
-  // Activation stays a separate, deliberate director action via the detail-panel Active toggle —
-  // recording a payment never flips bActive here.
-  chipPlayers = computed(() =>
-    [...this.allPlayers()].sort((a, b) => Number(b.active) - Number(a.active)));
+  // Chips let the admin pick any one player and record its check — money is ALWAYS entered
+  // per-player (there is no family-wide charge here, unlike teams). The "balance due" group
+  // (active + pending) renders first, active-first; dropped players render in their own group
+  // below a divider (see template). Both groups are selectable; states are styled + tagged.
+  private rank = (p: RegisteredTeamDto): number => p.active ? 0 : this.isPending(p) ? 1 : 2;
+  countedChips = computed(() =>
+    [...this.countedPlayers()].sort((a, b) => this.rank(a) - this.rank(b)));
 
   selectedPlayer = computed(() =>
     this.allPlayers().find(p => p.teamId === this.activePlayerId()) ?? null);
 
-  // Grid feed: active players in family scope, the anchor player in player scope.
+  // Grid feed: counted players (active + pending) in family scope, the anchor player in player scope.
   gridPlayers = computed<RegisteredTeamDto[]>(() => {
     if (this.scope() === 'player') {
       const p = this.selectedPlayer();
       return p ? [p] : [];
     }
-    return this.activePlayers();
+    return this.countedPlayers();
   });
 
   familyName = computed(() => this.data()?.familyName ?? '');
@@ -88,11 +102,12 @@ export class FamilyPaymentComponent {
   // (most don't). Conditional, mirroring how the grid auto-shows Discount/Fee-Adj.
   hasDeposit = computed(() => this.allPlayers().some(p => p.deposit > 0));
 
-  // Family totals (active players only — matches the club-rep "scheduled teams" rule).
-  familyFeeTotal = computed(() => this.activePlayers().reduce((s, p) => s + p.feeTotal, 0));
-  familyPaidTotal = computed(() => this.activePlayers().reduce((s, p) => s + p.paidTotal, 0));
-  familyOwedTotal = computed(() => this.activePlayers().reduce((s, p) => s + p.owedTotal, 0));
-  familyCheckOwed = computed(() => this.activePlayers().reduce((s, p) => s + p.ckOwedTotal, 0));
+  // Family totals — active + pending ("balance due" group). Dropped/waitlist siblings are
+  // intentionally excluded so the family overview matches what the parent actually owes.
+  familyFeeTotal = computed(() => this.countedPlayers().reduce((s, p) => s + p.feeTotal, 0));
+  familyPaidTotal = computed(() => this.countedPlayers().reduce((s, p) => s + p.paidTotal, 0));
+  familyOwedTotal = computed(() => this.countedPlayers().reduce((s, p) => s + p.owedTotal, 0));
+  familyCheckOwed = computed(() => this.countedPlayers().reduce((s, p) => s + p.ckOwedTotal, 0));
 
   // Scope-resolved summary fed to the ledger. Player scope mirrors the anchor child exactly,
   // so the payment modal's balance-due is correct for the registration we charge.
@@ -103,10 +118,12 @@ export class FamilyPaymentComponent {
 
   // Neutral groups for the ledger's bucketing + per-row attribution (one per child;
   // key = TeamId = the child's registrationId, matching each record's ownerRegistrationId).
+  // `active` here means "counted" (active OR pending) so a pending check-payer's records sit in
+  // the balance bucket, not the muted dropped/inactive bucket.
   ledgerGroups = computed<LedgerGroup[]>(() => this.allPlayers().map(p => ({
     key: p.teamId,
     label: p.teamName,
-    active: p.active
+    active: p.active || this.isPending(p)
   })));
 
   allRecords = computed(() => this.data()?.accountingRecords ?? []);

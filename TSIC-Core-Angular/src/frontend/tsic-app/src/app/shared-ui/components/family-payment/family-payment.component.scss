@@ -40,11 +40,20 @@
     font-weight: var(--font-weight-semibold);
   }
 
-  // Inactive player (bActive=0) — e.g. a pay-by-check sibling awaiting its mailed check.
-  // Muted + dashed border to read as "not yet on rosters", but still fully selectable so the
-  // admin can record the check. The dashed border + "Inactive" tag carry the meaning (not
-  // color alone). When selected, the .active rule above wins and the chip lights up normally.
-  &.inactive:not(.active) {
+  // Pending player (bActive=0 on "Unassigned") — a pay-by-check sibling awaiting its mailed
+  // check. It OWES real money and counts in the balance, so it reads as "action needed": a warm
+  // amber-tinted, solid (not dashed) chip — distinct from both active and dropped. Fully
+  // selectable. When selected, the .active rule above wins and the chip lights up normally.
+  &.pending:not(.active) {
+    border-color: var(--bs-warning-border-subtle);
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+  }
+
+  // Dropped / waitlisted player — NOT counted in the balance. Muted + dashed to read as
+  // "off the rosters, reference only". Still selectable so a late payment can be recorded
+  // (which reactivates them). The dashed border + "Dropped" tag carry the meaning, not color.
+  &.dropped:not(.active) {
     border-style: dashed;
     border-color: var(--bs-border-color);
     background: var(--bs-tertiary-bg);
@@ -52,14 +61,25 @@
   }
 }
 
-.chip-inactive-tag {
+// Full-width separator between the balance-due chips and the dropped/inactive group.
+.chip-group-divider {
+  flex-basis: 100%;
+  margin-top: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--bs-border-color);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+}
+
+.chip-tag {
   display: inline-flex;
   align-items: center;
   margin-left: var(--space-2);
   padding: 0 var(--space-2);
   border-radius: var(--radius-pill);
-  background: var(--bs-secondary-bg);
-  color: var(--text-muted);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   text-transform: uppercase;
@@ -67,11 +87,21 @@
 
   .bi { font-size: 0.9em; }
 
-  // Selected inactive chip: tag sits on the primary fill, so lift it to a readable inverse.
+  // Selected chip: tag sits on the primary fill, so lift it to a readable inverse.
   .scope-btn.active & {
     background: rgba(255, 255, 255, 0.25);
     color: var(--bs-white);
   }
+}
+
+.chip-tag-pending {
+  background: var(--bs-warning);
+  color: var(--neutral-900);
+}
+
+.chip-tag-dropped {
+  background: var(--bs-secondary-bg);
+  color: var(--text-muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

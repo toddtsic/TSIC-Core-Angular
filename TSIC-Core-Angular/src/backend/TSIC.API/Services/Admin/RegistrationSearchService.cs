@@ -185,6 +185,23 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             : !string.IsNullOrWhiteSpace(family?.MomLastName) ? $"{family!.MomLastName} Family"
             : "Family";
 
+        // Genuinely-pending players: inactive (bActive=0) but assigned to the "Unassigned"
+        // division — a pay-by-check sibling mid-payment. They owe real money and count toward the
+        // family balance; dropped/waitlist siblings (inactive in OTHER divisions) do not. Reuses
+        // the canonical predicate + division-name lookup FamilyService uses for rehydration.
+        var teamIds = rawPlayers.Where(p => p.AssignedTeamId.HasValue)
+            .Select(p => p.AssignedTeamId!.Value).Distinct().ToList();
+        var divNameMap = teamIds.Count > 0
+            ? await _teamRepo.GetTeamDivisionNamesAsync(jobId, teamIds, ct)
+            : new Dictionary<Guid, string?>();
+        var pendingIds = rawPlayers
+            .Where(p => !p.Active
+                && p.AssignedTeamId.HasValue
+                && divNameMap.TryGetValue(p.AssignedTeamId.Value, out var divName)
+                && string.Equals(divName?.Trim(), "Unassigned", StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.RegistrationId)
+            .ToList();
+
         return new FamilyAccountingDto
         {
             AnchorRegistrationId = registrationId,
@@ -193,7 +210,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             PaidTotal = rawPlayers.Sum(p => p.PaidTotal),
             OwedTotal = rawPlayers.Sum(p => p.OwedTotal),
             Players = playerRows,
-            AccountingRecords = records.OrderByDescending(r => r.Date).ToList()
+            AccountingRecords = records.OrderByDescending(r => r.Date).ToList(),
+            PendingPlayerRegistrationIds = pendingIds
         };
     }
 
@@ -475,10 +493,18 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
 
+        // A recorded check is money in — activate the registration, mirroring the canonical CC
+        // engine (PaymentService sets BActive=true on charge success). Pending pay-by-check siblings
+        // start life bActive=0 on the Unassigned team; this is what puts them onto rosters/coach
+        // views/division counts once their check lands. Corrections are fee adjustments, not tender,
+        // so they do NOT activate. reg is tracked — RecordPaymentAndRecomputeAsync's save persists it.
+        if (isCheck)
+            reg.BActive = true;
+
         await _accountingRepo.RecordPaymentAndRecomputeAsync(entity, userId, ct);
 
-        _logger.LogInformation("{Type} recorded: RegId={RegId}, Amount={Amount}, ProcessingFeeReduced={Reduced}",
-            request.PaymentType, request.RegistrationId, request.Amount, reg.FeeProcessing);
+        _logger.LogInformation("{Type} recorded: RegId={RegId}, Amount={Amount}, ProcessingFeeReduced={Reduced}, Activated={Activated}",
+            request.PaymentType, request.RegistrationId, request.Amount, reg.FeeProcessing, isCheck);
 
         return new RegistrationCheckOrCorrectionResponse { Success = true };
     }
