@@ -72,12 +72,24 @@ export class JobContextService {
     private readonly _mailinPaymentWarning = signal<string | null>(null);
     /** Per-job opt-in for eCheck (ACH). Independent of paymentMethodsAllowedCode. */
     private readonly _bEnableEcheck = signal(false);
+    /** Per-job opt-in: offer an optional donation field on the player payment page. */
+    private readonly _bIncludePlayerDonation = signal(false);
+    /** Effective (clamped) CC processing rate as a decimal multiplier (e.g. 0.035 = 3.5%).
+     *  Server-supplied; the payment step multiplies a typed donation by this to reprice proc
+     *  client-side without a round trip (the same rate the server charges). */
+    private readonly _effectiveProcessingRate = signal(0);
+    /** Effective (clamped) eCheck processing rate as a decimal multiplier (e.g. 0.015 = 1.5%). */
+    private readonly _effectiveEcheckProcessingRate = signal(0);
     readonly paymentMethodsAllowedCode = this._paymentMethodsAllowedCode.asReadonly();
     readonly bAddProcessingFees = this._bAddProcessingFees.asReadonly();
     readonly payTo = this._payTo.asReadonly();
     readonly mailTo = this._mailTo.asReadonly();
     readonly mailinPaymentWarning = this._mailinPaymentWarning.asReadonly();
     readonly bEnableEcheck = this._bEnableEcheck.asReadonly();
+    /** True when the job offers an optional donation field on the player payment page. */
+    readonly bIncludePlayerDonation = this._bIncludePlayerDonation.asReadonly();
+    readonly effectiveProcessingRate = this._effectiveProcessingRate.asReadonly();
+    readonly effectiveEcheckProcessingRate = this._effectiveEcheckProcessingRate.asReadonly();
 
     // ── Discount/Amex flags (from /family/players response) ───────────
     private readonly _jobHasActiveDiscountCodes = signal(false);
@@ -187,6 +199,9 @@ export class JobContextService {
                     this._mailTo.set(getPropertyCI<string>(m, 'mailTo') ?? null);
                     this._mailinPaymentWarning.set(getPropertyCI<string>(m, 'mailinPaymentWarning') ?? null);
                     this._bEnableEcheck.set(!!getPropertyCI<boolean>(m, 'bEnableEcheck'));
+                    this._bIncludePlayerDonation.set(!!getPropertyCI<boolean>(m, 'bIncludePlayerDonation'));
+                    this._effectiveProcessingRate.set(getPropertyCI<number>(m, 'effectiveProcessingRate') ?? 0);
+                    this._effectiveEcheckProcessingRate.set(getPropertyCI<number>(m, 'effectiveEcheckProcessingRate') ?? 0);
 
                     // RegSaver insurance offer flag
                     const offer = getPropertyCI<boolean>(m, 'offerPlayerRegsaverInsurance');
@@ -355,6 +370,9 @@ export class JobContextService {
         this._mailTo.set(null);
         this._mailinPaymentWarning.set(null);
         this._bEnableEcheck.set(false);
+        this._bIncludePlayerDonation.set(false);
+        this._effectiveProcessingRate.set(0);
+        this._effectiveEcheckProcessingRate.set(0);
         this._jobHasActiveDiscountCodes.set(false);
         this._jobUsesAmex.set(false);
         this._offerPlayerRegSaver.set(false);

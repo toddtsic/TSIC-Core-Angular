@@ -75,6 +75,16 @@ export class PaymentV2Service {
     readonly discountAppliedOk = this._discountAppliedOk.asReadonly();
     readonly selectedPaymentMethod = this._selectedPaymentMethod.asReadonly();
 
+    /** Optional donor-entered gift (principal). Repriced client-side off the server-supplied
+     *  effective rate; the server is authoritative on submit (it re-levies the same proc). */
+    private readonly _donation = signal(0);
+    readonly donation = this._donation.asReadonly();
+    setDonation(v: number | string): void {
+        const n = typeof v === 'string' ? Number.parseFloat(v) : v;
+        this._donation.set(Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0);
+    }
+    resetDonation(): void { this._donation.set(0); }
+
     /**
      * Both phase datasets, computed once per dependency change. The radio toggle
      * reduces to a selector pick — the per-row math runs once per change in
@@ -174,12 +184,32 @@ export class PaymentV2Service {
         });
     });
 
-    currentTotal = computed(() => {
+    /** Charge total BEFORE any optional donation — the pre-donation base every method total
+     *  derives from. Equals currentTotal when no donation is entered (donation 0 ⇒ no number moves). */
+    readonly baseTotal = computed(() => {
         const opt = this.jobCtx.paymentOption();
         const existing = this.existingBalanceTotal();
         const base = opt === 'Deposit' ? existing + this.depositTotal() : this.totalAmount();
         return Math.max(0, base);
     });
+
+    /** Donation's CC-path contribution: principal + CC processing (when the job adds proc). */
+    readonly donationCc = computed(() => {
+        const d = this.donation();
+        if (d <= 0) return 0;
+        return d + (this.jobCtx.bAddProcessingFees() ? d * this.jobCtx.effectiveProcessingRate() : 0);
+    });
+    /** Donation's eCheck-path contribution: principal + eCheck processing (the lower ACH rate). */
+    readonly donationEcheck = computed(() => {
+        const d = this.donation();
+        if (d <= 0) return 0;
+        return d + (this.jobCtx.bAddProcessingFees() ? d * this.jobCtx.effectiveEcheckProcessingRate() : 0);
+    });
+    /** Just the CC processing levied on the donation — itemized as its own accounting line. */
+    readonly donationProcessing = computed(() => Math.max(0, this.donationCc() - this.donation()));
+
+    /** CC charge total INCLUDING any donation — drives the accounting Total Due and the CC button. */
+    currentTotal = computed(() => this.baseTotal() + this.donationCc());
 
     arbOccurrences = computed(() => this.jobCtx.adnArbBillingOccurences() || 10);
     arbIntervalLength = computed(() => this.jobCtx.adnArbIntervalLength() || 1);
@@ -234,8 +264,9 @@ export class PaymentV2Service {
         this.jobCtx.bAddProcessingFees() ? this.totalProcessingFees() : 0
     );
 
-    /** Check payment amount (total minus processing fees). */
-    checkTotal = computed(() => Math.max(0, this.currentTotal() - this.processingFeeSavings()));
+    /** Check payment amount (base minus processing fees). Donation is excluded — a mailed check
+     *  is not an online charge the system can levy a gift on, so it is never offered with check. */
+    checkTotal = computed(() => Math.max(0, this.baseTotal() - this.processingFeeSavings()));
 
     /**
      * Amount saved by paying with eCheck instead of CC — the (CC − eCheck) proc-rate credit,
@@ -248,8 +279,9 @@ export class PaymentV2Service {
         return this.lineItems().reduce((sum, li) => sum + Math.max(0, li.amount - li.echeckAmount), 0);
     });
 
-    /** eCheck payment amount (CC total minus the eCheck proc-rate savings). */
-    echeckTotal = computed(() => Math.max(0, this.currentTotal() - this.echeckSavings()));
+    /** eCheck payment amount: the base minus the eCheck proc-rate savings, plus the donation
+     *  charged at the (lower) eCheck rate. */
+    echeckTotal = computed(() => Math.max(0, this.baseTotal() - this.echeckSavings()) + this.donationEcheck());
 
     selectPaymentMethod(method: 'CC' | 'Echeck' | 'Check'): void {
         this._selectedPaymentMethod.set(method);
