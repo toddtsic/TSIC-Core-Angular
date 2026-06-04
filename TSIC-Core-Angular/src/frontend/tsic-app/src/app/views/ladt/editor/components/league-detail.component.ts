@@ -72,21 +72,25 @@ const JOB_TYPE_TOURNAMENT = 2;
           </div>
         </div>
 
-        <!-- ── League-wide Early Bird / Late Fee ── -->
+        <!-- ── League Fees (Deposit / Balance Due + Early Bird / Late Fee) ── -->
         @if (isTournament()) {
-          <app-fee-card header="Club Rep / Team — League Early Bird / Late Fee" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [modifiers]="clubRepModifiers" [showBaseFee]="false"
-            hintText="Applies to every age group in this league unless an age group or team sets its own. Most-specific wins (never stacked)." />
-          <app-fee-card header="Player — League Early Bird / Late Fee" headerIcon="bi-person" variant="player"
-            namePrefix="player" [modifiers]="playerModifiers" [showBaseFee]="false"
-            hintText="Applies to every age group in this league unless an age group or team sets its own. Most-specific wins (never stacked)." />
+          <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
+            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+            [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+            hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
+          <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
+            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
+            [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers" placeholder="Optional"
+            hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
         } @else {
-          <app-fee-card header="Player — League Early Bird / Late Fee" headerIcon="bi-person" variant="player"
-            namePrefix="player" [modifiers]="playerModifiers" [showBaseFee]="false"
-            hintText="Applies to every age group in this league unless an age group or team sets its own. Most-specific wins (never stacked)." />
-          <app-fee-card header="Club Rep / Team — League Early Bird / Late Fee" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [modifiers]="clubRepModifiers" [showBaseFee]="false"
-            hintText="Applies to every age group in this league unless an age group or team sets its own. Most-specific wins (never stacked)." />
+          <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
+            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
+            [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers" placeholder="Optional"
+            hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
+          <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
+            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
+            [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+            hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
         }
 
         <!-- ── Save ── -->
@@ -141,7 +145,14 @@ export class LeagueDetailComponent implements OnChanges {
 
   form: any = {};
 
-  // League-level early-bird/late-fee modifiers (no base fee — base does not cascade through league).
+  // League is the top tier of the Deposit/BalanceDue cascade (Team -> Agegroup ->
+  // League) and carries early-bird/late-fee modifiers.
+  feeForm = {
+    playerDeposit: null as number | null,
+    playerBalanceDue: null as number | null,
+    clubRepDeposit: null as number | null,
+    clubRepBalanceDue: null as number | null
+  };
   playerModifiers: ModifierForm[] = [];
   clubRepModifiers: ModifierForm[] = [];
   private playerFeeId: string | null = null;
@@ -176,6 +187,13 @@ export class LeagueDetailComponent implements OnChanges {
 
     this.playerFeeId = playerFee?.jobFeeId ?? null;
     this.clubRepFeeId = clubRepFee?.jobFeeId ?? null;
+
+    this.feeForm = {
+      playerDeposit: playerFee?.deposit ?? null,
+      playerBalanceDue: playerFee?.balanceDue ?? null,
+      clubRepDeposit: clubRepFee?.deposit ?? null,
+      clubRepBalanceDue: clubRepFee?.balanceDue ?? null
+    };
 
     this.playerModifiers = (playerFee?.modifiers ?? []).map(m => this.toModifierForm(m));
     this.clubRepModifiers = (clubRepFee?.modifiers ?? []).map(m => this.toModifierForm(m));
@@ -226,14 +244,15 @@ export class LeagueDetailComponent implements OnChanges {
       this.ladtService.updateLeague(this.leagueId, request)
     ];
 
-    // League-scoped fee rows carry modifiers only (no deposit/balance).
+    // League-scoped fee rows carry Deposit/BalanceDue (cascade top tier) + modifiers.
     const playerMods = this.toModifierDtos(this.playerModifiers);
-    if (playerMods.length > 0) {
+    if (this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null
+        || playerMods.length > 0) {
       saves.push(this.ladtService.saveFee({
         roleId: PLAYER_ROLE,
         leagueId: this.leagueId,
-        deposit: null,
-        balanceDue: null,
+        deposit: this.feeForm.playerDeposit,
+        balanceDue: this.feeForm.playerBalanceDue,
         modifiers: playerMods
       }));
     } else if (this.playerFeeId) {
@@ -241,12 +260,13 @@ export class LeagueDetailComponent implements OnChanges {
     }
 
     const clubRepMods = this.toModifierDtos(this.clubRepModifiers);
-    if (clubRepMods.length > 0) {
+    if (this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null
+        || clubRepMods.length > 0) {
       saves.push(this.ladtService.saveFee({
         roleId: CLUBREP_ROLE,
         leagueId: this.leagueId,
-        deposit: null,
-        balanceDue: null,
+        deposit: this.feeForm.clubRepDeposit,
+        balanceDue: this.feeForm.clubRepBalanceDue,
         modifiers: clubRepMods
       }));
     } else if (this.clubRepFeeId) {

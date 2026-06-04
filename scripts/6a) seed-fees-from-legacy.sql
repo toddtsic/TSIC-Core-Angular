@@ -152,11 +152,16 @@ WHERE j.JobTypeId = 3
 PRINT '5B Director-managed league agegroup rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
--- 6. League player fee fallback — job level
-INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
+-- 6. League player fee fallback — LEAGUE level
+--    PlayerFeeOverride lives per-league on Leagues.leagues, so it seeds as a
+--    league-scoped row (LeagueId set, Agegroup/Team NULL) — the top tier of the
+--    Deposit/BalanceDue cascade (Team -> Agegroup -> League). Previously this was
+--    flattened to a job-level row (all keys NULL); job is no longer a fee scope
+--    for Player/ClubRep.
+INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, LeagueId, Deposit, BalanceDue, Modified)
 SELECT
     NEWID(), j.JobId, 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A',
-    NULL, NULL,
+    NULL, NULL, l.LeagueId,
     NULL,
     l.PlayerFeeOverride,
     GETUTCDATE()
@@ -166,7 +171,7 @@ JOIN Jobs.Jobs j ON jl.JobId = j.JobId
 WHERE j.JobTypeId = 3
   AND j.Year IN ('2025', '2026', '2027')
   AND l.PlayerFeeOverride IS NOT NULL AND l.PlayerFeeOverride > 0;
-PRINT '6  League player fee job-level rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
+PRINT '6  League player fee LEAGUE-level rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
 -- Verification
@@ -179,6 +184,7 @@ SELECT
     CASE
         WHEN jf.TeamId IS NOT NULL THEN 'Team'
         WHEN jf.AgegroupId IS NOT NULL THEN 'Agegroup'
+        WHEN jf.LeagueId IS NOT NULL THEN 'League'
         ELSE 'Job'
     END AS [Scope],
     COUNT(*) AS [Rows],
@@ -194,6 +200,7 @@ GROUP BY
     CASE
         WHEN jf.TeamId IS NOT NULL THEN 'Team'
         WHEN jf.AgegroupId IS NOT NULL THEN 'Agegroup'
+        WHEN jf.LeagueId IS NOT NULL THEN 'League'
         ELSE 'Job'
     END
 ORDER BY 1, 2;

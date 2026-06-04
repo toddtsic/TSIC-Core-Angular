@@ -64,12 +64,11 @@ public class EarlyBirdLateFeeTests
         var ag = builder.AddAgegroup(league.LeagueId, "U12");
         var team = builder.AddTeam(job.JobId, ag.AgegroupId, "Hawks");
 
-        // Job-level fee row carries the base fee (base cascade = team→agegroup→job).
-        builder.AddJobFee(job.JobId, RoleConstants.Player, balanceDue: baseFee);
-
-        // League-scoped row hosts the modifiers — league is the top tier for
-        // early-bird/late-fee. Tests attach modifiers to this row's id.
-        var leagueFee = builder.AddJobFee(job.JobId, RoleConstants.Player, leagueId: league.LeagueId);
+        // League-scoped row carries the base fee AND hosts the modifiers — league
+        // is the top tier for both (base cascade = team→agegroup→league; early-bird/
+        // late-fee top tier = league). Tests attach modifiers to this row's id.
+        var leagueFee = builder.AddJobFee(job.JobId, RoleConstants.Player,
+            leagueId: league.LeagueId, balanceDue: baseFee);
 
         await builder.SaveAsync();
 
@@ -591,10 +590,11 @@ public class EarlyBirdLateFeeTests
         var teamA = builder.AddTeam(job.JobId, ag.AgegroupId, "Hawks");
         var teamB = builder.AddTeam(job.JobId, ag.AgegroupId, "Eagles");
 
-        // Job-level fee $200 + early bird $25 + late fee $30
-        var jobFee = builder.AddJobFee(job.JobId, RoleConstants.Player, balanceDue: 200m);
-        builder.AddModifier(jobFee.JobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
-        builder.AddModifier(jobFee.JobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
+        // League-level fee $200 + early bird $25 + late fee $30 (league = base cascade
+        // top tier + early-bird/late-fee top tier).
+        var leagueFee = builder.AddJobFee(job.JobId, RoleConstants.Player, leagueId: league.LeagueId, balanceDue: 200m);
+        builder.AddModifier(leagueFee.JobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(leagueFee.JobFeeId, FeeConstants.ModifierLateFee, 30m, LateFeeStart, LateFeeEnd);
 
         await builder.SaveAsync();
 

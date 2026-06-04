@@ -679,7 +679,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     interface FeeEntry {
       deposit: number | null;
       balanceDue: number | null;
-      source: 'job' | 'agegroup' | 'team';
+      source: 'job' | 'league' | 'agegroup' | 'team';
       modifiers: { type: string; amount: number; active: boolean }[];
     }
 
@@ -693,17 +693,8 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         active: (!m.startDate || new Date(m.startDate) <= now) && (!m.endDate || new Date(m.endDate) >= now)
       }));
 
-    // Layer 1: Job-level defaults
-    for (const f of fees) {
-      if (!f.agegroupId && !f.teamId && f.roleId) {
-        roleMap.set(f.roleId, {
-          deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
-          source: 'job', modifiers: extractModifiers(f)
-        });
-      }
-    }
-
-    // Layer 2: Agegroup-level
+    // Resolve the agegroup in scope (team scope walks up through its division)
+    // and that agegroup's league — the top inherited tier of the cascade.
     let agId: string | undefined;
     if (scopeType === 'team') {
       const teamNode = this.flatNodes().find(n => n.id === scopeId);
@@ -712,7 +703,32 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     } else {
       agId = scopeId;
     }
+    const leagueId = agId ? this.flatNodes().find(n => n.id === agId)?.parentId ?? undefined : undefined;
 
+    // Layer 1: Job-level defaults (Player/ClubRep no longer seed here; exclude
+    // league-scoped rows so they don't masquerade as job-level).
+    for (const f of fees) {
+      if (!f.agegroupId && !f.teamId && !f.leagueId && f.roleId) {
+        roleMap.set(f.roleId, {
+          deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
+          source: 'job', modifiers: extractModifiers(f)
+        });
+      }
+    }
+
+    // Layer 2: League-level (top tier of the Deposit/BalanceDue cascade)
+    if (leagueId) {
+      for (const f of fees) {
+        if (f.leagueId === leagueId && !f.agegroupId && !f.teamId && f.roleId) {
+          roleMap.set(f.roleId, {
+            deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
+            source: 'league', modifiers: extractModifiers(f)
+          });
+        }
+      }
+    }
+
+    // Layer 3: Agegroup-level
     if (agId) {
       for (const f of fees) {
         if (f.agegroupId === agId && !f.teamId && f.roleId) {
@@ -724,7 +740,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       }
     }
 
-    // Layer 3: Team-level (only for team scope)
+    // Layer 4: Team-level (only for team scope)
     if (scopeType === 'team') {
       for (const f of fees) {
         if (f.teamId === scopeId && f.roleId) {
@@ -739,7 +755,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     // Determine what's "inherited" vs "own" based on scope
     return Array.from(roleMap.entries()).map(([roleId, entry]) => {
       const inherited = scopeType === 'agegroup'
-        ? entry.source === 'job'           // agegroup grid: job-level = inherited
+        ? entry.source !== 'agegroup'      // agegroup grid: job/league = inherited
         : entry.source !== 'team';         // team grid: anything not team-level = inherited
 
       const activeModifiers = entry.modifiers.filter(m => m.active);

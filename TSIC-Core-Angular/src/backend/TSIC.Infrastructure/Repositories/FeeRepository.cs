@@ -18,7 +18,15 @@ public class FeeRepository : IFeeRepository
         Guid jobId, string roleId, Guid agegroupId, Guid teamId,
         CancellationToken ct = default)
     {
-        // Fetch all candidate rows in one query: team-level, agegroup-level, job-level
+        // League is the top tier of the Deposit/BalanceDue cascade — resolve the
+        // agegroup's league. Job is no longer a fee scope for Player/ClubRep.
+        var leagueId = await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => a.AgegroupId == agegroupId)
+            .Select(a => (Guid?)a.LeagueId)
+            .FirstOrDefaultAsync(ct);
+
+        // Fetch all candidate rows in one query: team-level, agegroup-level, league-level
         var rows = await _context.JobFees
             .AsNoTracking()
             .Where(jf => jf.JobId == jobId
@@ -28,15 +36,14 @@ public class FeeRepository : IFeeRepository
                     (jf.AgegroupId == agegroupId && jf.TeamId == teamId)
                     // Agegroup level
                     || (jf.AgegroupId == agegroupId && jf.TeamId == null)
-                    // Job level (LeagueId == null excludes league-scoped rows —
-                    // base fee does NOT cascade through league)
-                    || (jf.AgegroupId == null && jf.TeamId == null && jf.LeagueId == null)
+                    // League level (top tier — replaces job for base fees)
+                    || (jf.LeagueId == leagueId && jf.AgegroupId == null && jf.TeamId == null)
                 ))
             .Select(jf => new
             {
                 jf.Deposit,
                 jf.BalanceDue,
-                // Priority: team=3, agegroup=2, job=1
+                // Priority: team=3, agegroup=2, league=1
                 Priority = jf.TeamId != null ? 3
                          : jf.AgegroupId != null ? 2
                          : 1
@@ -62,12 +69,20 @@ public class FeeRepository : IFeeRepository
         Guid jobId, string roleId, Guid agegroupId,
         CancellationToken ct = default)
     {
+        // League is the fallback tier — resolve the agegroup's league.
+        var leagueId = await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => a.AgegroupId == agegroupId)
+            .Select(a => (Guid?)a.LeagueId)
+            .FirstOrDefaultAsync(ct);
+
         var rows = await _context.JobFees
             .AsNoTracking()
             .Where(jf => jf.JobId == jobId
                 && jf.RoleId == roleId
                 && jf.TeamId == null
-                && (jf.AgegroupId == agegroupId || (jf.AgegroupId == null && jf.LeagueId == null)))
+                && (jf.AgegroupId == agegroupId
+                    || (jf.AgegroupId == null && jf.LeagueId == leagueId)))
             .Select(jf => new
             {
                 jf.Deposit,
@@ -231,6 +246,16 @@ public class FeeRepository : IFeeRepository
 
         var agegroupIds = teamAgegroups.Select(ta => ta.AgegroupId).Distinct().ToList();
 
+        // Map each agegroup to its league — league is the top tier of the cascade
+        // (replaces the old job-level default for Player/ClubRep base fees).
+        var agegroupLeagues = await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => agegroupIds.Contains(a.AgegroupId))
+            .Select(a => new { a.AgegroupId, a.LeagueId })
+            .ToListAsync(ct);
+        var leagueByAgegroup = agegroupLeagues.ToDictionary(x => x.AgegroupId, x => x.LeagueId);
+        var leagueIds = agegroupLeagues.Select(x => x.LeagueId).Distinct().ToList();
+
         // Get all potentially relevant fee rows in one query
         var allRows = await _context.JobFees
             .AsNoTracking()
@@ -241,33 +266,36 @@ public class FeeRepository : IFeeRepository
                     (jf.TeamId != null && teamIds.Contains(jf.TeamId.Value))
                     // Agegroup-level rows for relevant agegroups
                     || (jf.TeamId == null && jf.AgegroupId != null && agegroupIds.Contains(jf.AgegroupId.Value))
-                    // Job-level default (LeagueId == null excludes league-scoped rows)
-                    || (jf.TeamId == null && jf.AgegroupId == null && jf.LeagueId == null)
+                    // League-level rows for relevant leagues (top tier — replaces job)
+                    || (jf.TeamId == null && jf.AgegroupId == null
+                        && jf.LeagueId != null && leagueIds.Contains(jf.LeagueId.Value))
                 ))
             .Select(jf => new
             {
                 jf.AgegroupId,
                 jf.TeamId,
+                jf.LeagueId,
                 jf.Deposit,
                 jf.BalanceDue
             })
             .ToListAsync(ct);
-
-        // Job-level default (if any)
-        var jobDefault = allRows.FirstOrDefault(r => r.AgegroupId == null && r.TeamId == null);
 
         var result = new Dictionary<Guid, ResolvedFee>(teamIds.Count);
         foreach (var ta in teamAgegroups)
         {
             var teamRow = allRows.FirstOrDefault(r => r.TeamId == ta.TeamId);
             var agRow = allRows.FirstOrDefault(r => r.AgegroupId == ta.AgegroupId && r.TeamId == null);
+            var leagueId = leagueByAgegroup.TryGetValue(ta.AgegroupId, out var lg) ? (Guid?)lg : null;
+            var leagueRow = leagueId != null
+                ? allRows.FirstOrDefault(r => r.LeagueId == leagueId && r.AgegroupId == null && r.TeamId == null)
+                : null;
 
-            decimal? deposit = teamRow?.Deposit ?? agRow?.Deposit ?? jobDefault?.Deposit;
-            decimal? balanceDue = teamRow?.BalanceDue ?? agRow?.BalanceDue ?? jobDefault?.BalanceDue;
+            decimal? deposit = teamRow?.Deposit ?? agRow?.Deposit ?? leagueRow?.Deposit;
+            decimal? balanceDue = teamRow?.BalanceDue ?? agRow?.BalanceDue ?? leagueRow?.BalanceDue;
 
             result[ta.TeamId] = new ResolvedFee
             {
-                FeeConfigured = teamRow != null || agRow != null || jobDefault != null,
+                FeeConfigured = teamRow != null || agRow != null || leagueRow != null,
                 Deposit = deposit,
                 BalanceDue = balanceDue
             };
