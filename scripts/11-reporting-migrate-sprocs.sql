@@ -1911,3 +1911,68 @@ GO
 
 PRINT 'reporting_migrate.TournamentRosterPacked_Flat installed.';
 GO
+
+-- -----------------------------------------------------------------------------
+-- Report : ScheduleList_Flat  (PDF; flat game list for the Schedule List Designer)
+-- Replaces: the Schedule_ExportExcel family of canned schedule reports
+--           (ScheduleMaster, ScheduleByDay, FieldUtilization*, Schedule_Export)
+--           plus the Score_Input blank-score sheet -- all collapsed into one
+--           in-app designer (director picks grouping / sort / columns / score
+--           mode and renders the PDF on the fly via Syncfusion.Pdf).
+-- Source : Cloned from reporting.Schedule_ExportExcel. Trivial nvarchar->varchar
+--          converts stripped (cast policy); the redundant T1_Name/T2_Name "full
+--          name" columns dropped -- t1Name/t2Name carry the display name (incl.
+--          bracket-round labels Finals/Semis/Quarters/R16 for TBD slots).
+-- Contract: one row per scheduled game. agegroup color denormalized for the
+--           designer's optional section accent. clubRep1/2 = each side's club rep
+--           (name/email/cellphone). Ordered by G_Date; the service regroups/sorts.
+-- -----------------------------------------------------------------------------
+CREATE OR ALTER PROCEDURE [reporting_migrate].[ScheduleList_Flat]
+    @jobID uniqueidentifier = '89e67d8c-f1a6-4034-94bd-76360479a2d4' -- dev-time default; executor overrides
+AS
+SET NOCOUNT ON;
+
+select
+        s.GID
+    ,   s.agegroupName
+    ,   s.divName
+    ,   l.leagueName
+    ,   f.fName as fieldName
+    ,   ag.color
+    ,   convert(char(10), s.G_Date, 101) as gDay
+    ,   s.G_Date as gDateTime
+    ,   case when s.T1_ID is null
+             then case s.t1_type when 'F' then 'Finals' when 'S' then 'Semis' when 'Q' then 'Quarters' when 'X' then 'R16' else s.t1_type end + ' ' + s.t1_ann
+             else coalesce(s.t1_name, case s.t1_type when 'F' then 'Finals' when 'S' then 'Semis' when 'Q' then 'Quarters' when 'X' then 'R16' else s.t1_type end + ' ' + s.t1_ann)
+        end as t1Name
+    ,   s.T1_Score as t1Score
+    ,   case when s.T2_ID is null
+             then case s.t2_type when 'F' then 'Finals' when 'S' then 'Semis' when 'Q' then 'Quarters' when 'X' then 'R16' else s.t2_type end + ' ' + s.t2_ann
+             else coalesce(s.t2_name, case s.t2_type when 'F' then 'Finals' when 'S' then 'Semis' when 'Q' then 'Quarters' when 'X' then 'R16' else s.t2_type end + ' ' + s.t2_ann)
+        end as t2Name
+    ,   s.T2_Score as t2Score
+    ,   u1.FirstName + ' ' + u1.LastName as clubRep1
+    ,   u1.email as clubRep1Email
+    ,   u1.cellphone as clubRep1Cellphone
+    ,   u2.FirstName + ' ' + u2.LastName as clubRep2
+    ,   u2.email as clubRep2Email
+    ,   u2.cellphone as clubRep2Cellphone
+from
+    Leagues.schedule s
+    inner join Leagues.agegroups ag on s.agegroupID = ag.agegroupID
+    inner join Leagues.leagues l on s.leagueID = l.leagueID
+    inner join reference.Fields f on s.fieldID = f.fieldID
+    left join Leagues.teams t1 on s.T1_ID = t1.teamID
+    left join Jobs.Registrations r1 on t1.clubrep_registrationid = r1.RegistrationID
+    left join dbo.AspNetUsers u1 on r1.UserId = u1.Id
+    left join Leagues.teams t2 on s.T2_ID = t2.teamID
+    left join Jobs.Registrations r2 on t2.clubrep_registrationid = r2.RegistrationID
+    left join dbo.AspNetUsers u2 on r2.UserId = u2.Id
+where
+    s.jobID = @jobID
+order by
+    s.G_Date asc;
+GO
+
+PRINT 'reporting_migrate.ScheduleList_Flat installed.';
+GO

@@ -441,6 +441,12 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/reporting/packed-roster-designer/packed-roster-designer.component').then(m => m.PackedRosterDesignerComponent)
 			},
 			{
+				path: 'reporting/schedule-list-designer',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				loadComponent: () => import('./views/reporting/schedule-list-designer/schedule-list-designer.component').then(m => m.ScheduleListDesignerComponent)
+			},
+			{
 				path: 'reporting/:action',
 				loadComponent: () => import('./views/reporting/report-launcher/report-launcher.component').then(m => m.ReportLauncherComponent)
 			},

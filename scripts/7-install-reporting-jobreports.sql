@@ -459,6 +459,46 @@ WHERE jt.JobTypeName IN (N'Tournament Scheduling', N'League Scheduling', N'Camp 
 
 DECLARE @CheckinCount INT = @@ROWCOUNT;
 
+-- ----------------------------------------------------------------------------
+-- Net-new SpaComponent: Schedule List Designer (additive; retires nothing yet)
+-- ----------------------------------------------------------------------------
+-- The director-built replacement for the Schedule_ExportExcel report family
+-- (ScheduleMaster, ScheduleByDay, ScheduleByAgDiv, FieldUtilization*, the
+-- Unscored export) plus the Score_Input blank-score sheet. Seeded as a NET-NEW
+-- tile (not an @ActionMap remap) so it is purely additive: the legacy schedule
+-- reports keep working until each is verified reproducible in the designer and
+-- retired deliberately (the catalog-removal step of the migration convention).
+-- Gate mirrors where schedules exist:
+--   * Jobs : JobType IN (Tournament/League Scheduling) within @ImportYears.
+--   * Roles: Superuser / Director / SuperDirector (route guard, app.routes.ts).
+--   * Action 'reporting/schedule-list-designer' is the jobPath-relative SPA
+--     route; Kind forced to 'SpaComponent' so the library navigates, not downloads.
+-- Not in @ExcludeActions nor @ActionMap, so the sweep DELETEs never touch it; the
+-- NOT EXISTS guard makes it idempotent and SU edits/removals survive re-runs.
+INSERT INTO reporting.JobReports (
+    JobId, RoleId, Title, IconName, Controller, [Action], Kind, GroupLabel, SortOrder, Active
+)
+SELECT
+    j.JobId, r.Id, N'Schedule List (Designer)', N'calendar-week', N'Reporting',
+    N'reporting/schedule-list-designer', N'SpaComponent', N'Schedules', 0, 1
+FROM Jobs.Jobs j
+INNER JOIN reference.JobTypes jt ON j.JobTypeId = jt.JobTypeId
+CROSS JOIN dbo.AspNetRoles r
+WHERE jt.JobTypeName IN (N'Tournament Scheduling', N'League Scheduling')
+  AND j.[Year] IN (SELECT [Year] FROM @ImportYears)
+  AND r.[Name]  IN (N'Superuser', N'Director', N'SuperDirector')
+  AND NOT EXISTS (
+        SELECT 1
+        FROM reporting.JobReports jr
+        WHERE jr.JobId      = j.JobId
+          AND jr.RoleId     = r.Id
+          AND jr.Controller = N'Reporting'
+          AND jr.[Action]   = N'reporting/schedule-list-designer'
+          AND ISNULL(jr.GroupLabel, N'') = N'Schedules'
+  );
+
+DECLARE @ScheduleDesignerCount INT = @@ROWCOUNT;
+
 -- All sweep + populate DML succeeded — commit the atomic rebuild.
 -- (@@ROWCOUNT captured into @InsertedCount above; COMMIT would reset it.)
 COMMIT TRANSACTION;
@@ -467,6 +507,7 @@ PRINT '';
 PRINT '=== Populate Result ===';
 PRINT CONCAT('Inserted ', @InsertedCount, ' new row(s) into reporting.JobReports (idempotent on (JobId, RoleId, Controller, Action, GroupLabel))');
 PRINT CONCAT('Inserted ', @CheckinCount, ' net-new Check-In SpaComponent row(s) (jobs x roles, idempotent)');
+PRINT CONCAT('Inserted ', @ScheduleDesignerCount, ' net-new Schedule List Designer SpaComponent row(s) (jobs x roles, idempotent)');
 
 -- ============================================================================
 -- Section 4: Final state — totals + breakdown

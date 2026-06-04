@@ -1,0 +1,289 @@
+.sld {
+    padding: var(--space-6);
+    max-width: 1320px;
+    margin: 0 auto;
+
+    &__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: var(--space-6);
+        margin-bottom: var(--space-5);
+    }
+
+    &__title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--brand-text);
+        margin: 0 0 var(--space-1);
+    }
+
+    &__subtitle {
+        color: var(--brand-text-muted);
+        margin: 0;
+        max-width: 60ch;
+    }
+
+    &__generate {
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    &__loading {
+        color: var(--brand-text-muted);
+        padding: var(--space-8);
+        text-align: center;
+    }
+
+    &__presets {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        margin-bottom: var(--space-5);
+    }
+
+    &__presets-label {
+        font-weight: 600;
+        color: var(--brand-text-muted);
+    }
+
+    &__workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 560px;
+        gap: var(--space-5);
+        align-items: start;
+    }
+
+    &__controls {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-5);
+        min-width: 0;
+    }
+
+    &__preview-rail {
+        position: sticky;
+        top: var(--space-4);
+        max-height: calc(100vh - var(--space-10));
+        overflow: auto;
+    }
+
+    // ── Simulated printed page ───────────────────────────────────────────────
+    // Deliberate literal ink/paper colors (exception to the no-hardcoded-colors
+    // rule): this depicts a physical black-on-white PDF sheet, so it must read as
+    // paper in every palette and in dark mode — not adapt to the app theme.
+    &__page {
+        background: #ffffff;
+        color: #111111;
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-sm);
+        padding: var(--space-4);
+        box-shadow: var(--shadow-sm);
+    }
+
+    &__preview-empty {
+        color: #555555;
+        font-style: italic;
+        padding: var(--space-6) var(--space-4);
+        text-align: center;
+    }
+
+    &__group-header {
+        font-weight: 700;
+        font-size: 0.85rem;
+        padding: var(--space-2) var(--space-3);
+        margin-bottom: var(--space-1);
+    }
+
+    &__row {
+        display: flex;
+        width: 100%;
+        box-sizing: border-box;
+        align-items: flex-start;
+        border-bottom: 1px solid #c8c8c8;
+
+        &--head {
+            border-bottom: 1px solid #111111;
+        }
+
+        &:last-child {
+            border-bottom: 0;
+        }
+    }
+
+    &__cell {
+        box-sizing: border-box;
+        padding: 2px 3px;
+        font-size: 0.72rem;
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        color: #111111;
+
+        &--head {
+            font-weight: 700;
+        }
+
+        &--wrap {
+            white-space: normal;
+            word-break: break-word;
+            overflow: visible;
+        }
+    }
+
+    &__score-box {
+        display: inline-block;
+        width: 16px;
+        height: 11px;
+        border: 1px solid #777777;
+        vertical-align: middle;
+    }
+
+    &__panel-title {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--brand-text);
+        margin: 0 0 var(--space-3);
+    }
+
+    &__hint {
+        color: var(--brand-text-muted);
+        font-size: 0.85rem;
+        margin: 0 0 var(--space-3);
+
+        &--spaced {
+            margin-top: var(--space-5);
+        }
+    }
+
+    &__fields {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-2) var(--space-4);
+    }
+
+    &__field-toggle {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        cursor: pointer;
+    }
+
+    &__empty {
+        color: var(--brand-text-muted);
+        font-style: italic;
+        padding: var(--space-4);
+        border: 1px dashed var(--bs-border-color);
+        border-radius: var(--radius-md);
+    }
+
+    &__selected {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+    }
+
+    &__col {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-3);
+        background: var(--bg-surface);
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-sm);
+    }
+
+    &__col-handle {
+        cursor: grab;
+        color: var(--brand-text-muted);
+        font-weight: 700;
+        user-select: none;
+    }
+
+    &__col-name {
+        font-weight: 600;
+        color: var(--brand-text);
+        flex: 1 1 auto;
+    }
+
+    &__col-field {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        font-size: 0.8rem;
+        color: var(--brand-text-muted);
+    }
+
+    &__col-width,
+    &__col-trunc {
+        width: 4rem;
+    }
+
+    &__col-align,
+    &__col-longtext {
+        width: 6.5rem;
+    }
+
+    &__selects {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-4);
+        margin-bottom: var(--space-4);
+    }
+
+    &__select-field {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--brand-text-muted);
+
+        select {
+            min-width: 11rem;
+        }
+    }
+
+    &__check {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        cursor: pointer;
+        margin: var(--space-2) 0;
+        color: var(--brand-text);
+    }
+}
+
+// Interactive focus states (design-system requirement)
+.sld__field-toggle:focus-within,
+.sld__check:focus-within,
+.sld__select-field:focus-within {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+}
+
+// CDK drag visuals
+.cdk-drag-preview {
+    box-shadow: var(--shadow-lg);
+    border-radius: var(--radius-md);
+}
+
+.cdk-drag-placeholder {
+    opacity: 0.4;
+}
+
+.cdk-drag-animating {
+    transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cdk-drag-animating {
+        transition: none !important;
+    }
+}

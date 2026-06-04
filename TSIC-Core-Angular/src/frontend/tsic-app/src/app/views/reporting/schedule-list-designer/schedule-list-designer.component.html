@@ -1,0 +1,224 @@
+<div class="sld">
+    <header class="sld__header">
+        <div>
+            <h1 class="sld__title">Schedule List Designer</h1>
+            <p class="sld__subtitle">
+                Build a schedule report: pick the columns, set grouping, sort, and how scores
+                print. Start from a preset or design your own — then generate the PDF.
+            </p>
+        </div>
+        <button type="button" class="btn btn-primary sld__generate"
+                [disabled]="!canGenerate()" (click)="generate()">
+            {{ isGenerating() ? 'Generating…' : 'Generate PDF' }}
+        </button>
+    </header>
+
+    @if (isLoading()) {
+        <div class="sld__loading">Loading fields…</div>
+    } @else {
+        <div class="sld__presets">
+            <span class="sld__presets-label">Start from:</span>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'master'"
+                    [attr.aria-pressed]="activePreset() === 'master'"
+                    (click)="applyMaster()">Schedule Master</button>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'byDay'"
+                    [attr.aria-pressed]="activePreset() === 'byDay'"
+                    (click)="applyByDay()">By Day</button>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'fieldUtil'"
+                    [attr.aria-pressed]="activePreset() === 'fieldUtil'"
+                    (click)="applyFieldUtil()">Field Utilization</button>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'scoreSheet'"
+                    [attr.aria-pressed]="activePreset() === 'scoreSheet'"
+                    (click)="applyScoreSheet()">Score Sheet</button>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'flat'"
+                    [attr.aria-pressed]="activePreset() === 'flat'"
+                    (click)="applyFlat()">Flat</button>
+        </div>
+
+        <div class="sld__workspace">
+            <div class="sld__controls">
+                <!-- Columns -->
+                <section class="card sld__panel">
+                    <div class="card-body">
+                        <h2 class="sld__panel-title">Columns</h2>
+
+                        <p class="sld__hint">Choose the fields to include.</p>
+                        <div class="sld__fields">
+                            @for (field of availableFields(); track field.key) {
+                                <label class="sld__field-toggle">
+                                    <input type="checkbox"
+                                           [checked]="isSelected(field.key)"
+                                           (change)="toggleField(field)" />
+                                    <span>{{ field.label }}</span>
+                                </label>
+                            }
+                        </div>
+
+                        <p class="sld__hint sld__hint--spaced">Drag to reorder · set width &amp; long-text behavior.</p>
+                        @if (selectedColumns().length === 0) {
+                            <p class="sld__empty">No columns selected yet — pick at least one above.</p>
+                        } @else {
+                            <ul class="sld__selected" cdkDropList (cdkDropListDropped)="onDropColumn($event)">
+                                @for (col of selectedColumns(); track col.key) {
+                                    <li class="sld__col" cdkDrag>
+                                        <span class="sld__col-handle" cdkDragHandle aria-hidden="true">⋮⋮</span>
+                                        <span class="sld__col-name">{{ col.label }}</span>
+
+                                        <label class="sld__col-field">
+                                            <span>Width</span>
+                                            <input type="number" min="1" class="field-input sld__col-width"
+                                                   [value]="col.widthWeight"
+                                                   (change)="updateColumn(col.key, { widthWeight: +$any($event.target).value })" />
+                                        </label>
+
+                                        <label class="sld__col-field">
+                                            <span>Align</span>
+                                            <select class="field-select sld__col-align"
+                                                    [value]="col.align"
+                                                    (change)="updateColumn(col.key, { align: $any($event.target).value })">
+                                                <option value="Left">Left</option>
+                                                <option value="Center">Center</option>
+                                                <option value="Right">Right</option>
+                                            </select>
+                                        </label>
+
+                                        @if (col.supportsLongText) {
+                                            <label class="sld__col-field">
+                                                <span>Long text</span>
+                                                <select class="field-select sld__col-longtext"
+                                                        [value]="col.longText"
+                                                        (change)="updateColumn(col.key, { longText: $any($event.target).value })">
+                                                    <option value="Truncate">Truncate</option>
+                                                    <option value="Wrap">Wrap</option>
+                                                </select>
+                                            </label>
+
+                                            @if (col.longText === 'Truncate') {
+                                                <label class="sld__col-field">
+                                                    <span>At</span>
+                                                    <input type="number" min="1" class="field-input sld__col-trunc"
+                                                           [value]="col.truncateAt ?? 28"
+                                                           (change)="updateColumn(col.key, { truncateAt: +$any($event.target).value })" />
+                                                </label>
+                                            }
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </section>
+
+                <!-- Layout -->
+                <section class="card sld__panel">
+                    <div class="card-body">
+                        <h2 class="sld__panel-title">Layout</h2>
+
+                        <div class="sld__selects">
+                            <label class="sld__select-field">
+                                <span>Group by</span>
+                                <select class="field-select" [value]="groupBy()"
+                                        (change)="setGroupBy($any($event.target).value)">
+                                    @for (o of groupByOptions; track o.value) {
+                                        <option [value]="o.value">{{ o.label }}</option>
+                                    }
+                                </select>
+                            </label>
+
+                            <label class="sld__select-field">
+                                <span>Sort within group</span>
+                                <select class="field-select" [value]="sortBy()"
+                                        (change)="setSortBy($any($event.target).value)">
+                                    @for (o of sortByOptions; track o.value) {
+                                        <option [value]="o.value">{{ o.label }}</option>
+                                    }
+                                </select>
+                            </label>
+
+                            <label class="sld__select-field">
+                                <span>Scores</span>
+                                <select class="field-select" [value]="scoreMode()"
+                                        (change)="setScoreMode($any($event.target).value)">
+                                    @for (o of scoreModeOptions; track o.value) {
+                                        <option [value]="o.value">{{ o.label }}</option>
+                                    }
+                                </select>
+                            </label>
+                        </div>
+
+                        <label class="sld__check">
+                            <input type="checkbox" [checked]="pageBreakPerGroup()"
+                                   (change)="setChecked(pageBreakPerGroup.set, $event)" />
+                            <span>Start each group on a new page</span>
+                        </label>
+                        <label class="sld__check">
+                            <input type="checkbox" [checked]="colorAccent()"
+                                   (change)="setChecked(colorAccent.set, $event)" />
+                            <span>Tint group headers with the age-group color</span>
+                        </label>
+                    </div>
+                </section>
+            </div>
+
+            <!-- Live preview -->
+            <aside class="sld__preview-rail">
+                <section class="card sld__panel">
+                    <div class="card-body">
+                        <h2 class="sld__panel-title">Live preview</h2>
+                        <p class="sld__hint">
+                            Approximate — mirrors the PDF table with sample data. Generate for exact output.
+                        </p>
+
+                        <div class="sld__page">
+                            @if (previewColumns().length === 0) {
+                                <p class="sld__preview-empty">Pick at least one column to see the table.</p>
+                            } @else {
+                                @if (previewGroupLabel().length > 0) {
+                                    <div class="sld__group-header"
+                                         [style.background]="accentColor() || '#e8e8e8'"
+                                         [style.color]="accentColor() ? '#ffffff' : '#111111'">
+                                        {{ previewGroupLabel() }}
+                                    </div>
+                                }
+
+                                <div class="sld__row sld__row--head">
+                                    @for (h of previewHeaders(); track $index) {
+                                        <span class="sld__cell sld__cell--head"
+                                              [style.width.%]="h.widthPct"
+                                              [style.text-align]="h.align">{{ h.label }}</span>
+                                    }
+                                </div>
+
+                                @for (row of previewRows(); track $index) {
+                                    <div class="sld__row">
+                                        @for (cell of row.cells; track $index) {
+                                            <span class="sld__cell"
+                                                  [class.sld__cell--wrap]="cell.wrap"
+                                                  [style.width.%]="cell.widthPct"
+                                                  [style.text-align]="cell.align">
+                                                @if (cell.box) {
+                                                    <span class="sld__score-box" aria-hidden="true"></span>
+                                                } @else {
+                                                    {{ cell.text }}
+                                                }
+                                            </span>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+
+                        <p class="sld__hint sld__hint--spaced">
+                            Group 1 of many · {{ scoreMode() === 'Blank' ? 'blank write-in score boxes' : (scoreMode() === 'Hidden' ? 'scores hidden' : 'printed scores') }}
+                        </p>
+                    </div>
+                </section>
+            </aside>
+        </div>
+    }
+</div>
