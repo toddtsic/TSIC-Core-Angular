@@ -14,6 +14,12 @@
        group that is NOT summed into the family balance. Every chip is selectable. -->
   @if (playerCount() > 1) {
     <div class="scope-selector">
+      <!-- Family overview banner — always the first, full-width chip so it can't get lost among
+           the per-player / inactive chips. Selecting it shows the whole-family (read-mostly) view. -->
+      <button type="button" class="scope-btn scope-btn-family" [class.active]="scope() === 'family'" (click)="setScope('family')">
+        <i class="bi bi-people-fill me-1"></i>All Family: {{ familyName() }} ({{ countedPlayers().length }} players, {{ familyOwedTotal() | currency }} owed)
+      </button>
+
       @for (p of countedChips(); track p.teamId) {
         <button type="button" class="scope-btn" [class.pending]="isPending(p)"
                 [class.active]="scope() === 'player' && activePlayerId() === p.teamId"
@@ -24,18 +30,15 @@
           }
         </button>
       }
-      <button type="button" class="scope-btn scope-btn-family" [class.active]="scope() === 'family'" (click)="setScope('family')">
-        All Family: {{ familyName() }} ({{ countedPlayers().length }} players, {{ familyOwedTotal() | currency }} owed)
-      </button>
 
       @if (droppedPlayers().length) {
-        <div class="chip-group-divider">Dropped / Inactive — not in balance</div>
+        <div class="chip-group-divider">Inactive — not in balance</div>
         @for (p of droppedPlayers(); track p.teamId) {
           <button type="button" class="scope-btn dropped"
                   [class.active]="scope() === 'player' && activePlayerId() === p.teamId"
                   (click)="selectPlayer(p.teamId)">
             {{ p.teamName }} · {{ p.owedTotal | currency }} owed
-            <span class="chip-tag chip-tag-dropped"><i class="bi bi-slash-circle me-1"></i>Dropped</span>
+            <span class="chip-tag chip-tag-dropped"><i class="bi bi-slash-circle me-1"></i>Inactive</span>
           </button>
         }
       }
@@ -72,7 +75,7 @@
       @if (scope() === 'family' && droppedPlayers().length) {
         <button type="button" class="other-players-toggle" (click)="showInactive.set(!showInactive())">
           <i class="bi" [class.bi-chevron-right]="!showInactive()" [class.bi-chevron-down]="showInactive()"></i>
-          {{ droppedPlayers().length }} dropped / inactive
+          {{ droppedPlayers().length }} inactive
         </button>
         @if (showInactive()) {
           <div class="other-players-grid">
@@ -104,7 +107,7 @@
     [checkOwed]="checkOwed()"
     [groups]="ledgerGroups()"
     [groupHeading]="'Player'"
-    [otherBucketLabel]="'Dropped / inactive'"
+    [otherBucketLabel]="'Inactive'"
     [allowAdd]="scope() === 'player'"
     (refundSubmitted)="onRefundSubmitted($event)"
     (ccChargeSubmitted)="onCcCharge($event)"

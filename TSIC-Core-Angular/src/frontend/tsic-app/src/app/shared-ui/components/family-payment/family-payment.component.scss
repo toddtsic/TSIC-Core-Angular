@@ -109,6 +109,11 @@
 }
 
 .scope-btn-family {
+  // Full-width banner row so the family overview is always present and unmistakable — never
+  // squeezed in among the per-player chips (3+ flex chips were crowding it off the row).
+  flex-basis: 100%;
+  font-weight: var(--font-weight-semibold);
+
   &.active {
     border-color: var(--bs-warning);
     background: var(--bs-warning);
