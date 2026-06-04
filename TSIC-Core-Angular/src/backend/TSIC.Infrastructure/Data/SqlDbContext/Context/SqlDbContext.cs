@@ -4085,20 +4085,7 @@ public partial class SqlDbContext : DbContext
                 .HasDefaultValueSql("(newsequentialid())")
                 .HasColumnName("JobLeagueID");
             entity.Property(e => e.BIsPrimary).HasColumnName("bIsPrimary");
-            entity.Property(e => e.BaseFee)
-                .HasColumnType("money")
-                .HasColumnName("baseFee");
-            entity.Property(e => e.DiscountFee)
-                .HasColumnType("money")
-                .HasColumnName("discountFee");
-            entity.Property(e => e.DiscountFeeEnd).HasColumnName("discountFeeEnd");
-            entity.Property(e => e.DiscountFeeStart).HasColumnName("discountFeeStart");
             entity.Property(e => e.JobId).HasColumnName("jobID");
-            entity.Property(e => e.LateFee)
-                .HasColumnType("money")
-                .HasColumnName("lateFee");
-            entity.Property(e => e.LateFeeEnd).HasColumnName("lateFeeEnd");
-            entity.Property(e => e.LateFeeStart).HasColumnName("lateFeeStart");
             entity.Property(e => e.LeagueId).HasColumnName("leagueID");
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)

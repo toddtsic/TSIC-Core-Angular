@@ -17,20 +17,6 @@ public partial class JobLeagues
 
     public DateTime Modified { get; set; }
 
-    public DateTime? LateFeeEnd { get; set; }
-
-    public decimal? LateFee { get; set; }
-
-    public DateTime? LateFeeStart { get; set; }
-
-    public decimal? DiscountFee { get; set; }
-
-    public DateTime? DiscountFeeStart { get; set; }
-
-    public DateTime? DiscountFeeEnd { get; set; }
-
-    public decimal? BaseFee { get; set; }
-
     public virtual Jobs Job { get; set; } = null!;
 
     public virtual Leagues League { get; set; } = null!;

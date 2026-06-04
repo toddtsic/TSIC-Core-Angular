@@ -116,14 +116,6 @@ public class JobCloneRepository : IJobCloneRepository
             .FirstOrDefaultAsync(ct);
     }
 
-    public async Task<JobLeagues?> GetSourceJobLeagueAsync(Guid jobId, Guid leagueId, CancellationToken ct = default)
-    {
-        // Per-league fee fields live on this link row (BaseFee, LateFee*, DiscountFee*).
-        return await _context.JobLeagues
-            .AsNoTracking()
-            .FirstOrDefaultAsync(jl => jl.JobId == jobId && jl.LeagueId == leagueId, ct);
-    }
-
     public async Task<List<Agegroups>> GetSourceAgegroupsAsync(Guid leagueId, string? season, CancellationToken ct = default)
     {
         var query = _context.Agegroups
