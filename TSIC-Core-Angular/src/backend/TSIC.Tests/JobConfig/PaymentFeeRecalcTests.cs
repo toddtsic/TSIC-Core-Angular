@@ -343,7 +343,9 @@ public class PaymentFeeRecalcTests
         decimal? processingFeePercent = null,
         string? payTo = null,
         string? mailTo = null,
-        bool? bPlayersFullPaymentRequired = null)
+        bool? bPlayersFullPaymentRequired = null,
+        bool? bIncludePlayerDonation = null,
+        bool? bIncludeTeamDonation = null)
     {
         var job = ctx.Jobs.First(j => j.JobId == jobId);
         return new UpdateJobConfigPaymentRequest
@@ -356,8 +358,8 @@ public class PaymentFeeRecalcTests
             BApplyProcessingFeesToTeamDeposit = bApplyProcessingFeesToTeamDeposit ?? job.BApplyProcessingFeesToTeamDeposit,
             BTeamsFullPaymentRequired = bTeamsFullPaymentRequired ?? job.BTeamsFullPaymentRequired,
             BPlayersFullPaymentRequired = bPlayersFullPaymentRequired ?? job.BPlayersFullPaymentRequired,
-            BIncludePlayerDonation = job.BIncludePlayerDonation,
-            BIncludeTeamDonation = job.BIncludeTeamDonation,
+            BIncludePlayerDonation = bIncludePlayerDonation ?? job.BIncludePlayerDonation,
+            BIncludeTeamDonation = bIncludeTeamDonation ?? job.BIncludeTeamDonation,
             BAllowRefundsInPriorMonths = job.BAllowRefundsInPriorMonths,
             BAllowCreditAll = job.BAllowCreditAll,
             PerPlayerCharge = job.PerPlayerCharge,
@@ -408,6 +410,40 @@ public class PaymentFeeRecalcTests
         }
 
         PrintResult("FeeBase moved from $500 → $2,000. OwedTotal matches. PASS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TEST: Donation opt-in flags round-trip through Update + MapPayment
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task DonationFlags_RoundTrip_ThroughUpdateAndMap()
+    {
+        PrintScenario("Donation opt-ins: OFF → ON",
+            "Director enables optional player + team donations. Both persist to Jobs and read back through MapPayment.");
+
+        var (svc, ctx, jobId, _) = await CreateServiceAsync(
+            bTeamsFullPaymentRequired: false, teamFeeBase: Deposit);
+
+        // Sanity: both default OFF on a fresh job.
+        var before = await svc.GetFullConfigAsync(jobId, isSuperUser: false);
+        before.Payment.BIncludePlayerDonation.Should().BeFalse();
+        before.Payment.BIncludeTeamDonation.Should().BeFalse();
+
+        var req = BuildRequest(ctx, jobId, bIncludePlayerDonation: true, bIncludeTeamDonation: true);
+        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
+
+        // Write persisted to the entity (independent flags — both must flip)...
+        var job = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == jobId);
+        job.BIncludePlayerDonation.Should().BeTrue();
+        job.BIncludeTeamDonation.Should().BeTrue();
+
+        // ...and the read path (MapPayment) reflects both.
+        var after = await svc.GetFullConfigAsync(jobId, isSuperUser: false);
+        after.Payment.BIncludePlayerDonation.Should().BeTrue();
+        after.Payment.BIncludeTeamDonation.Should().BeTrue();
+
+        PrintResult("Both donation flags wrote to Jobs and round-tripped through MapPayment. PASS");
     }
 
     // ═══════════════════════════════════════════════════════════════
