@@ -60,4 +60,12 @@ public class JobMetadataResponse
     // Per-job opt-in for eCheck (ACH) as a customer-facing payment method.
     // When true, the player checkout shows the Pay-by-eCheck option alongside CC.
     public bool BEnableEcheck { get; set; }
+    // Per-job opt-in: offer an optional donation field on the player / team payment page.
+    public bool BIncludePlayerDonation { get; set; }
+    public bool BIncludeTeamDonation { get; set; }
+    // Effective (clamped) processing-fee rates as decimal multipliers (e.g. 0.035 = 3.5%).
+    // The wizard multiplies a freely-typed donation by these to reprice proc client-side; they
+    // are the SAME rates the server charges, so the team payment's amount tripwire stays quiet.
+    public decimal EffectiveProcessingRate { get; set; }
+    public decimal EffectiveEcheckProcessingRate { get; set; }
 }

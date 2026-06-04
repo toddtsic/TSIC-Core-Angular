@@ -45,5 +45,9 @@ export type JobMetadataResponse = {
     mailTo?: string | null;
     mailinPaymentWarning?: string | null;
     bEnableEcheck?: boolean;
+    bIncludePlayerDonation?: boolean;
+    bIncludeTeamDonation?: boolean;
+    effectiveProcessingRate?: number;
+    effectiveEcheckProcessingRate?: number;
 };
 

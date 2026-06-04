@@ -117,6 +117,12 @@ public record JobMetadataDto
     /// defaults and director-controlled balance-due workflow.
     /// </summary>
     public required bool BPlayersFullPaymentRequired { get; init; }
+
+    /// <summary>Per-job opt-in: offer an optional donation field on the player payment page.</summary>
+    public required bool BIncludePlayerDonation { get; init; }
+
+    /// <summary>Per-job opt-in: offer an optional donation field on the team payment page.</summary>
+    public required bool BIncludeTeamDonation { get; init; }
 }
 
 public record JobRegistrationStatus
