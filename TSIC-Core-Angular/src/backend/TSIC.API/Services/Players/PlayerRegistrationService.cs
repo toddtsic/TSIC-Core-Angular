@@ -414,6 +414,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             }
             await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
+            ActivateIfFree(regToUpdate, applyFormValues);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
             return;
         }
@@ -462,6 +463,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             }
             regToUpdate.Assignment = $"Player: {team.TeamName}";
             await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
+            ActivateIfFree(regToUpdate, applyFormValues);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             return;
         }
@@ -488,6 +490,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             }
             newReg.BUploadedMedForm = _medForms.Exists(playerId);
             await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
+            ActivateIfFree(newReg, applyFormValues);
             _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
             return;
@@ -524,8 +527,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
         reg.BUploadedMedForm = _medForms.Exists(playerId);
         await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
+        ActivateIfFree(reg, applyFormValues);
         _registrations.Add(reg);
-        AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created, pending payment.", true);
+        AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created.", true);
     }
 
     private async Task ApplyInitialFeesAsync(Registrations reg, Guid jobId, Guid agegroupId, Guid teamId, bool isFullPaymentRequired)
@@ -538,6 +542,27 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         await _feeService.ApplyNewRegistrationFeesAsync(
             reg, jobId, agegroupId, teamId,
             new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired });
+    }
+
+    /// <summary>
+    /// Activate a free registration at final submit. A configured $0-fee event leaves nothing owed,
+    /// and there is no payment to ride — so unless we flip BActive here it would stay inactive
+    /// forever (off rosters, missing from the confirmation), exactly the symptom a 100% discount
+    /// code hit. Mirrors legacy (PlayerBaseController: "free events start life active, otherwise
+    /// start inactive and convert upon payment").
+    ///
+    /// Gated on <paramref name="isFinalSubmit"/> (PreSubmit's applyFormValues=true): the reserve
+    /// step (applyFormValues=false) holds a roster spot BEFORE forms/waivers are complete, so a
+    /// free reg must stay inactive there — identical to how a paid reg only activates at the
+    /// post-forms payment step. Paid events (OwedTotal &gt; 0) are untouched and still activate via
+    /// ProcessPaymentAsync's charge path.
+    /// </summary>
+    private static void ActivateIfFree(Registrations reg, bool isFinalSubmit)
+    {
+        if (isFinalSubmit && reg.OwedTotal <= 0m)
+        {
+            reg.BActive = true;
+        }
     }
 
     public async Task<int> RecalculatePlayerFeesAsync(Guid jobId, string userId, CancellationToken ct = default)

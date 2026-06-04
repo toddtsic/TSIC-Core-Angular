@@ -152,7 +152,8 @@ public class DiscountCodeTests
         decimal feeProcessing = 0m,
         decimal feeDiscount = 0m,
         decimal paidTotal = 0m,
-        string? insuredName = null)
+        string? insuredName = null,
+        bool bActive = true)
     {
         var feeTotal = feeBase + feeProcessing - feeDiscount;
         var reg = new Registrations
@@ -169,7 +170,7 @@ public class DiscountCodeTests
             FeeTotal = feeTotal,
             PaidTotal = paidTotal,
             OwedTotal = Math.Max(0m, feeTotal - paidTotal),
-            BActive = true,
+            BActive = bActive,
             InsuredName = insuredName ?? "Test Player",
             Modified = DateTime.UtcNow
         };
@@ -633,5 +634,58 @@ public class DiscountCodeTests
         dbReg.FeeDiscount.Should().Be(0m);
         // No discount applied → the code is NOT stamped, so usage isn't over-counted.
         dbReg.DiscountCodeId.Should().BeNull();
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // 13. Activation — a 100% code activates a pending (BActive=false) registration
+    //     Regression: the fee/owed DRY refactor removed the fake "Correction" payment
+    //     that used to flip BActive on a full waiver. With no payment to ride, a fully
+    //     discounted reg stayed inactive — off rosters, missing from the confirmation.
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact(DisplayName = "Activation: 100% code on a pending reg flips BActive true (owes nothing → active)")]
+    public async Task Percent_FullDiscount_ActivatesPendingRegistration()
+    {
+        var (controller, ctx, _) = await CreateControllerAsync(
+            processingFeePercent: 3.5m,
+            bAddProcessingFees: true);
+        var playerId = Guid.NewGuid().ToString();
+        AddDiscountCode(ctx, codeAmount: 100m, bAsPercent: true, codeName: "FREE");
+        // Registration was created pending payment (BActive=false) — the real-world state at
+        // the payment step before any charge.
+        var reg = AddRegistration(ctx, userId: playerId, feeBase: 595m, feeProcessing: 20.83m, bActive: false);
+        await ctx.SaveChangesAsync();
+
+        var request = MakeRequest("FREE", (playerId, 615.83m));
+        var result = await controller.ApplyDiscount(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
+        dbReg.OwedTotal.Should().Be(0m);
+        dbReg.BActive.Should().BeTrue();   // fully waived → activated (no phantom payment row)
+        dbReg.PaidTotal.Should().Be(0m);
+
+        var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
+        acctRows.Should().BeEmpty();
+    }
+
+    [Fact(DisplayName = "Activation: a partial (50%) code leaves a pending reg inactive — payment still activates it")]
+    public async Task Percent_PartialDiscount_LeavesPendingRegistrationInactive()
+    {
+        var (controller, ctx, _) = await CreateControllerAsync(
+            processingFeePercent: 3.5m,
+            bAddProcessingFees: true);
+        var playerId = Guid.NewGuid().ToString();
+        AddDiscountCode(ctx, codeAmount: 50m, bAsPercent: true, codeName: "HALF");
+        var reg = AddRegistration(ctx, userId: playerId, feeBase: 200m, feeProcessing: 7.00m, bActive: false);
+        await ctx.SaveChangesAsync();
+
+        var request = MakeRequest("HALF", (playerId, 207.00m));
+        var result = await controller.ApplyDiscount(request);
+
+        result.Should().BeOfType<OkObjectResult>();
+        var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
+        dbReg.OwedTotal.Should().Be(103.50m);
+        dbReg.BActive.Should().BeFalse();   // still owes → not activated until payment
     }
 }

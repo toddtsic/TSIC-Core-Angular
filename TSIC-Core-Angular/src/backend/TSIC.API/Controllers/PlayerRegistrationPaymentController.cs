@@ -265,6 +265,16 @@ public class PlayerRegistrationPaymentController : ControllerBase
             // source (JobDiscountCodeRepository.GetUsageCountAsync reads reg.DiscountCodeId).
             reg.DiscountCodeId = discountCodeAi;
             reg.RecalcTotals();
+            // A full waiver (100% code, or a fixed code that clears the balance) zeroes OwedTotal:
+            // the registration owes nothing, so it must be activated here. Activation otherwise rides
+            // ProcessPaymentAsync's charge path, which never runs when there is no payment. This
+            // mirrors the legacy "owes nothing → active" rule (PlayerBaseController) and replaces the
+            // activation side-effect of the removed fake "Correction" payment a 100% DC used to stamp.
+            // Partial discounts leave OwedTotal > 0 and still activate on payment, as before.
+            if (reg.OwedTotal <= 0m)
+            {
+                reg.BActive = true;
+            }
             reg.Modified = DateTime.Now;
             reg.LebUserId = familyUserId;
 

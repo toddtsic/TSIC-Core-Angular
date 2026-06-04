@@ -6,6 +6,7 @@ using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.VerticalInsure;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -358,5 +359,91 @@ public class PlayerRosterCapacityTests
         result.NextTab.Should().Be("Team",
             "when a team is full, the wizard should send the user back to choose a different team");
         result.HasFullTeams.Should().BeTrue();
+    }
+
+    // ── Free-event activation (zero-balance) ─────────────────────────────
+    //
+    // A configured $0-fee event leaves nothing owed, so there is no payment to ride.
+    // Unless the final submit flips BActive, the reg stays inactive forever — off rosters,
+    // missing from the confirmation (the same symptom a 100% discount code produced).
+    // Legacy: "free events start life active, otherwise start inactive and convert upon payment."
+
+    /// <summary>Configure the fee mock so applying fees stamps the given base and recomputes totals
+    /// (OwedTotal), mirroring the real FeeResolutionService — the mock otherwise leaves fees at 0.</summary>
+    private static void SetupFee(Mock<IFeeResolutionService> feeService, decimal balanceDue)
+    {
+        feeService
+            .Setup(f => f.ResolveFeeAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResolvedFee { FeeConfigured = true, Deposit = 0m, BalanceDue = balanceDue });
+
+        feeService
+            .Setup(f => f.ApplyNewRegistrationFeesAsync(
+                It.IsAny<Registrations>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()))
+            .Callback<Registrations, Guid, Guid, Guid, FeeApplicationContext, CancellationToken>(
+                (reg, _, _, _, _, _) => { reg.FeeBase = balanceDue; reg.RecalcTotals(); })
+            .Returns(Task.CompletedTask);
+    }
+
+    private static PreSubmitPlayerRegistrationRequestDto MakePreSubmitRequest(Guid teamId) => new()
+    {
+        JobPath = "test-job",
+        TeamSelections = new List<PreSubmitTeamSelectionDto>
+        {
+            new() { PlayerId = TestPlayerId, TeamId = teamId }
+        }
+    };
+
+    [Fact(DisplayName = "PreSubmit: free event ($0 fee) → new reg lands BActive=true (owes nothing → active)")]
+    public async Task PreSubmit_FreeEvent_ActivatesNewRegistration()
+    {
+        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
+        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 0);
+        SetupFee(feeService, balanceDue: 0m);
+
+        Registrations? captured = null;
+        regRepo.Setup(r => r.Add(It.IsAny<Registrations>())).Callback<Registrations>(reg => captured = reg);
+
+        await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(team.TeamId), TestFamilyUserId);
+
+        captured.Should().NotBeNull("a registration should have been created");
+        captured!.OwedTotal.Should().Be(0m);
+        captured.BActive.Should().BeTrue("a free event owes nothing, so it activates at final submit");
+    }
+
+    [Fact(DisplayName = "PreSubmit: paid event → new reg stays BActive=false (activates only on payment)")]
+    public async Task PreSubmit_PaidEvent_LeavesNewRegistrationInactive()
+    {
+        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
+        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 0);
+        SetupFee(feeService, balanceDue: 100m);
+
+        Registrations? captured = null;
+        regRepo.Setup(r => r.Add(It.IsAny<Registrations>())).Callback<Registrations>(reg => captured = reg);
+
+        await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(team.TeamId), TestFamilyUserId);
+
+        captured.Should().NotBeNull();
+        captured!.OwedTotal.Should().Be(100m);
+        captured.BActive.Should().BeFalse("a paid event still activates only when payment clears");
+    }
+
+    [Fact(DisplayName = "Reserve: free event → BActive=false (spot-hold before forms must stay inactive)")]
+    public async Task Reserve_FreeEvent_StaysInactiveUntilFinalSubmit()
+    {
+        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
+        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 0);
+        SetupFee(feeService, balanceDue: 0m);
+
+        Registrations? captured = null;
+        regRepo.Setup(r => r.Add(It.IsAny<Registrations>())).Callback<Registrations>(reg => captured = reg);
+
+        await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
+
+        captured.Should().NotBeNull();
+        // Reserve holds the roster spot BEFORE forms/waivers — a free reg must not go active yet,
+        // exactly like a paid reg. Activation waits for the final (post-forms) submit.
+        captured!.BActive.Should().BeFalse("reserve never activates; only the final submit does");
     }
 }
