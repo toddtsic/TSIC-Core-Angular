@@ -136,6 +136,17 @@ public interface IFeeResolutionService
         FeeApplicationContext ctx,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Re-levies a registration's processing fee + totals from its CURRENT snapshot fields
+    /// (FeeBase / FeeDiscount / FeeLatefee / FeeDonation) and payment history, WITHOUT
+    /// re-resolving the base fee. Use when a modifier already stamped on the row changes the
+    /// derived money — e.g. a donation added at payment time on the deposit path, where the
+    /// PIF recompute (<see cref="ApplyPifUpgradeAsync"/>) does not run. FeeProcessing is reset
+    /// from PaymentState.FeeProcessingTarget (not incremented), so repeat calls are idempotent.
+    /// </summary>
+    Task RecomputeRegistrationFinancialsAsync(
+        Registrations reg, Guid jobId, CancellationToken ct = default);
+
     // ── Application (Team entities) ─────────────────────────────
 
     /// <summary>

@@ -199,6 +199,63 @@ public class TeamCcPaymentServiceTests
         _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never);
     }
 
+    private void StubProcEnabledState(decimal ccRate)
+    {
+        // Override BuildSut's proc-disabled default so the donation's CC proc is levied.
+        _paymentState.Setup(p => p.ForTeamAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PaymentState.Empty(bAddProcessingFees: true, ccRate: ccRate, echeckRate: 0.015m));
+    }
+
+    [Fact(DisplayName = "Donation rides the first team's charge (principal + proc); other teams unaffected")]
+    public async Task Donation_LandsOnFirstTeam_chargedInFull()
+    {
+        var jobId = Guid.NewGuid();
+        var regId = Guid.NewGuid();
+        var t1 = Team(jobId, owed: 300m, teamAi: 1, name: "U10 Red");
+        var t2 = Team(jobId, owed: 500m, teamAi: 2, name: "U12 Blue");
+        StubJobAndCreds(regId, jobId);
+        StubTeams(jobId, [t1.TeamId, t2.TeamId], t1, t2);
+        StubAdnChargeSuccess("TX-T1", "TX-T2");
+        var sut = BuildSut();
+        StubProcEnabledState(ccRate: 0.03m);
+
+        // serverTotal = (300 + 25 gift + 0.75 gift-proc) + 500 = 825.75
+        var result = await sut.ProcessTeamPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 825.75m, ValidCard(), donation: 25m);
+
+        result.Success.Should().BeTrue();
+        t1.FeeDonation.Should().Be(25m, "the gift lands on the client's first team");
+        t2.FeeDonation.Should().BeNull("only the first team carries the gift");
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 325.75m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 500m)), Times.Once);
+        t1.PaidTotal.Should().Be(325.75m);
+        t1.OwedTotal.Should().Be(0m);
+    }
+
+    [Fact(DisplayName = "Donation already on the first team → re-submit does not double it (idempotent)")]
+    public async Task Donation_AlreadyApplied_notDoubledOnResubmit()
+    {
+        var jobId = Guid.NewGuid();
+        var regId = Guid.NewGuid();
+        // t1 already paid WITH the gift on a prior submit; t2 still owes its balance.
+        var t1 = Team(jobId, owed: 0m, teamAi: 1);
+        t1.FeeDonation = 25m; t1.FeeProcessing = 0.75m; t1.FeeTotal = 325.75m; t1.PaidTotal = 325.75m;
+        var t2 = Team(jobId, owed: 500m, teamAi: 2);
+        StubJobAndCreds(regId, jobId);
+        StubTeams(jobId, [t1.TeamId, t2.TeamId], t1, t2);
+        StubAdnChargeSuccess("TX-T2");
+        var sut = BuildSut();
+        StubProcEnabledState(ccRate: 0.03m);
+
+        var result = await sut.ProcessTeamPaymentAsync(regId, ActingUserId, [t1.TeamId, t2.TeamId], 500m, ValidCard(), donation: 25m);
+
+        result.Success.Should().BeTrue();
+        // The idempotent guard skipped re-applying the gift: FeeProcessing not bumped a 2nd time.
+        t1.FeeDonation.Should().Be(25m);
+        t1.FeeProcessing.Should().Be(0.75m);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount == 500m)), Times.Once);
+        _adn.Verify(a => a.ADN_Charge_Result(It.Is<AdnChargeRequest>(r => r.Amount != 500m)), Times.Never);
+    }
+
     [Fact]
     public async Task TeamNotFound_returnsTeamNotFound_andNoCharge()
     {

@@ -212,6 +212,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
         await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct);
     }
 
+    // ── Player Registration: Recompute (modifier already on the row) ──
+
+    public Task RecomputeRegistrationFinancialsAsync(
+        Registrations reg, Guid jobId, CancellationToken ct = default)
+        => ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct);
+
     // ── Player Registration: Swap ───────────────────────────────
 
     public async Task ApplySwapFeesAsync(

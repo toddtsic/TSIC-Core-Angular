@@ -19,6 +19,11 @@ public record PaymentRequestDto
     // Set when the customer pays by eCheck (ACH bank-account debit). Mutually exclusive with CreditCard.
     public BankAccountInfo? BankAccount { get; init; }
     public string? IdempotencyKey { get; init; }
+    // Optional per-job donation entered on the payment page. Charged in full (principal +
+    // processing) with this payment and stamped on the first registration in the charge set.
+    // Defaults to 0 when absent — every existing flow is a no-op.
+    [Range(0, double.MaxValue)]
+    public decimal? Donation { get; init; }
     // Independent VerticalInsure (RegSaver) policy info: populated only when insurance was purchased separately
     public bool? ViConfirmed { get; init; }
     public string? ViPolicyNumber { get; init; }

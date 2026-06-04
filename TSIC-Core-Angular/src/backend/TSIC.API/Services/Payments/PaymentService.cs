@@ -67,7 +67,8 @@ public class PaymentService : IPaymentService
         string userId,
         IReadOnlyCollection<Guid> teamIds,
         decimal totalAmount,
-        CreditCardInfo creditCard)
+        CreditCardInfo creditCard,
+        decimal donation = 0m)
     {
         var jobId = await _registrations.GetRegistrationJobIdAsync(regId);
         if (jobId == null)
@@ -81,7 +82,7 @@ public class PaymentService : IPaymentService
 
         return await ChargeTeamsAsync(
             regId, userId, jobIdValue, teamIds, totalAmount,
-            TeamChargeKind.Cc, credentials, env, creditCard, bankAccount: null);
+            TeamChargeKind.Cc, credentials, env, creditCard, bankAccount: null, donation);
     }
 
     public async Task<TeamPaymentResponseDto> ProcessTeamEcheckPaymentAsync(
@@ -89,7 +90,8 @@ public class PaymentService : IPaymentService
         string userId,
         IReadOnlyCollection<Guid> teamIds,
         decimal totalAmount,
-        BankAccountInfo bankAccount)
+        BankAccountInfo bankAccount,
+        decimal donation = 0m)
     {
         var jobId = await _registrations.GetRegistrationJobIdAsync(regId);
         if (jobId == null)
@@ -114,7 +116,7 @@ public class PaymentService : IPaymentService
 
         return await ChargeTeamsAsync(
             regId, userId, jobIdValue, teamIds, totalAmount,
-            TeamChargeKind.Echeck, credentials, env, creditCard: null, bankAccount);
+            TeamChargeKind.Echeck, credentials, env, creditCard: null, bankAccount, donation);
     }
 
     private enum TeamChargeKind { Cc, Echeck }
@@ -137,7 +139,7 @@ public class PaymentService : IPaymentService
         Guid regId, string userId, Guid jobIdValue,
         IReadOnlyCollection<Guid> teamIds, decimal totalAmount,
         TeamChargeKind kind, AdnCredentialsViewModel credentials, AuthorizeNet.Environment env,
-        CreditCardInfo? creditCard, BankAccountInfo? bankAccount)
+        CreditCardInfo? creditCard, BankAccountInfo? bankAccount, decimal donation = 0m)
     {
         var teams = await _teams.GetTeamsWithJobAndCustomerAsync(jobIdValue, teamIds);
         if (teams.Count != teamIds.Count)
@@ -149,6 +151,25 @@ public class PaymentService : IPaymentService
         var rateRef = teamStates.Values.FirstOrDefault()
             ?? await _paymentState.ForTeamAsync(teams[0].TeamId, jobIdValue);
         var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);
+
+        // Optional donation: the gift lands in full on ONE team (the client's first) and rides
+        // this payment — ChargeTeamsAsync bills each team's full OwedTotal, which now carries it.
+        // Proc is levied at the CC rate exactly as the splitter folds donation into netBase; the
+        // eCheck (CC−EC) credit below then converts that proc to the eCheck rate. Idempotent
+        // guard: skip when the gift is already on the row (so a partial-success re-submit, which
+        // charges only the still-owed teams, never re-levies the donation onto the first team).
+        if (donation > 0m)
+        {
+            var firstTeam = teams.First(t => t.TeamId == teamIds.First());
+            if ((firstTeam.FeeDonation ?? 0m) != donation)
+            {
+                firstTeam.FeeDonation = donation;
+                if (rateRef.BAddProcessingFees && rateRef.CcRate > 0m)
+                    firstTeam.FeeProcessing = (firstTeam.FeeProcessing ?? 0m)
+                        + Math.Round(donation * rateRef.CcRate, 2, MidpointRounding.AwayFromZero);
+                firstTeam.RecalcTotals();
+            }
+        }
 
         // Pre-compute each team's charge + proc credit (no mutation) so the amount-mismatch
         // tripwire sees the method-correct total before any gateway hit.
@@ -366,7 +387,8 @@ public class PaymentService : IPaymentService
         string userId,
         IReadOnlyCollection<Guid> teamIds,
         CreditCardInfo? creditCard,
-        BankAccountInfo? bankAccount)
+        BankAccountInfo? bankAccount,
+        decimal donation = 0m)
     {
         if (creditCard != null && bankAccount != null)
             return FailTrial("PAYMENT_METHOD_AMBIGUOUS", "Provide either credit card or bank account, not both");
@@ -402,6 +424,13 @@ public class PaymentService : IPaymentService
         var teams = await _teams.GetTeamsWithJobAndCustomerAsync(jobIdValue, teamIds);
         if (teams.Count != teamIds.Count)
             return FailTrial("TEAM_NOT_FOUND", "One or more teams not found");
+
+        // Optional donation: stamp the gift on the client's first team so the ArbTrialFeeSplitter
+        // folds it into that team's trial deposit (proc levied on it via netBase). Both the trial
+        // loop and the fallback path read team.FeeDonation; the loop resets FeeProcessing from the
+        // splitter each pass, so the set is idempotent.
+        if (donation > 0m)
+            teams.First(t => t.TeamId == teamIds.First()).FeeDonation = donation;
 
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobIdValue);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
@@ -471,13 +500,14 @@ public class PaymentService : IPaymentService
             var rawDeposit = resolved?.EffectiveDeposit ?? 0m;
             var rawBalance = resolved?.EffectiveBalanceDue ?? 0m;
 
-            // Modifiers are frozen on the team row from registration time.
+            // Modifiers are frozen on the team row from registration time. teamDonation reads
+            // back the gift stamped above on the first team (0 on the rest).
             var discount = (team.FeeDiscount ?? 0m) + (team.FeeDiscountMp ?? 0m);
             var lateFee = team.FeeLatefee ?? 0m;
-            var donation = team.FeeDonation ?? 0m;
+            var teamDonation = team.FeeDonation ?? 0m;
 
             var split = ArbTrialFeeSplitter.Split(
-                rawDeposit, rawBalance, discount, lateFee, donation, processingRate,
+                rawDeposit, rawBalance, discount, lateFee, teamDonation, processingRate,
                 bAddProcessingFees: bAddProcessing,
                 bApplyProcessingFeesToTeamDeposit: bApplyToDeposit);
 
@@ -982,7 +1012,8 @@ public class PaymentService : IPaymentService
             ViPolicyNumber = request.ViPolicyNumber,
             ViPolicyCreateDate = request.ViPolicyCreateDate,
             ViQuoteIds = request.ViQuoteIds,
-            ViToken = request.ViToken
+            ViToken = request.ViToken,
+            Donation = request.Donation
         };
 
         // Use internal validation that still expects JobId and FamilyUserId
@@ -995,23 +1026,52 @@ public class PaymentService : IPaymentService
         await NormalizeFeesAsync(registrations, jobId);
         if (effective == PaymentOption.ARB)
             return await ProcessArbAsync(jobId, familyUserId, internalRequest, userId, registrations, job, cc);
+        // Optional donation: the gift lands on ONE primary registration (the first in the
+        // charge set) and is charged in full — principal + processing — WITH this payment.
+        var donation = internalRequest.Donation ?? 0m;
+        var primary = registrations.FirstOrDefault(r => r.RegistrationId != Guid.Empty);
+        var hasDonation = donation > 0m && primary != null;
+
         // PIF chosen → re-stamp registrations with full amount (Deposit + BalanceDue)
         // before computing charges. Validation above already verified ALLOWPIF.
-        // Snapshot the PRE-PIF FeeBase/FeeProcessing/FeeTotal/OwedTotal BEFORE
-        // UpgradeRegistrationsToPifAsync mutates them — the engine's pre-gateway
-        // SaveChangesAsync (PaymentService.cs:1373) flushes the PIF mutations to
-        // the DB along with the placeholder RA, so a declined card otherwise
-        // persists PIF posture with no charge to back it. The snapshot is passed
-        // to ExecutePrimaryChargeAsync for restore on engine failure.
-        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal)>? pifSnapshot = null;
-        if (effective == PaymentOption.PIF)
+        // Snapshot the PRE-mutation FeeBase/FeeProcessing/FeeTotal/OwedTotal/FeeDonation BEFORE
+        // UpgradeRegistrationsToPifAsync OR the donation stamp mutates them — the engine's
+        // pre-gateway SaveChangesAsync (PaymentService.cs:~1393) flushes those mutations to the
+        // DB along with the placeholder RA, so a declined card otherwise persists the
+        // upgraded/donated posture with no charge to back it. The snapshot is passed to
+        // ExecutePrimaryChargeAsync for restore on engine failure. (Taken for PIF and/or donation.)
+        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot = null;
+        if (effective == PaymentOption.PIF || hasDonation)
         {
             pifSnapshot = registrations.ToDictionary(
                 r => r.RegistrationId,
-                r => (r.FeeBase, r.FeeProcessing, r.FeeTotal, r.OwedTotal));
+                r => (r.FeeBase, r.FeeProcessing, r.FeeTotal, r.OwedTotal, r.FeeDonation));
+        }
+
+        decimal donationGross = 0m;
+        if (hasDonation) primary!.FeeDonation = donation; // single primary carries the gift (idempotent set)
+
+        if (effective == PaymentOption.PIF)
+        {
+            // PIF recompute re-levies FeeProcessing on the new base AND the stamped donation,
+            // so ComputeChargesAsync(PIF) below (== OwedTotal) already bills the gift.
             await UpgradeRegistrationsToPifAsync(registrations, jobId);
         }
+        else if (hasDonation)
+        {
+            // Deposit/non-PIF: the PIF recompute didn't run. Re-levy this registration's
+            // processing+totals through the canonical path so proc lands on the donation and
+            // OwedTotal carries the proc-inclusive gift. The OwedTotal delta IS that gift; add
+            // it to the deposit charge below (the deposit cap in ComputeChargesAsync would
+            // otherwise drop it).
+            var owedBefore = pifSnapshot![primary!.RegistrationId].OwedTotal;
+            await _feeService.RecomputeRegistrationFinancialsAsync(primary, jobId);
+            donationGross = primary.OwedTotal - owedBefore;
+        }
+
         var charges = await ComputeChargesAsync(registrations, effective);
+        if (donationGross > 0m)
+            charges[primary!.RegistrationId] = charges.GetValueOrDefault(primary.RegistrationId) + donationGross;
         var total = charges.Values.Sum();
         if (total <= 0m) return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
         return await ExecutePrimaryChargeAsync(jobId, familyUserId, internalRequest, userId, registrations, cc, charges, total, effective, pifSnapshot);
@@ -1035,20 +1095,45 @@ public class PaymentService : IPaymentService
         var bank = v.Bank!;
         var effective = v.Effective;
         await NormalizeFeesAsync(registrations, jobId);
-        // Snapshot the PRE-PIF fee posture BEFORE UpgradeRegistrationsToPifAsync mutates it, so a
-        // declined eCheck rolls back per-reg (CC-symmetric — see ExecutePrimaryChargeAsync). The
-        // canonical engine's pre-gateway placeholder-RA flush persists the PIF mutation, so
-        // without this a declined eCheck would strand the registration in PIF posture with no
-        // charge to back it.
-        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal)>? pifSnapshot = null;
-        if (effective == PaymentOption.PIF)
+
+        // Optional donation: same model as the CC path — the gift lands on ONE primary
+        // registration and is charged in full (principal + proc) with this eCheck.
+        var donation = request.Donation ?? 0m;
+        var primary = registrations.FirstOrDefault(r => r.RegistrationId != Guid.Empty);
+        var hasDonation = donation > 0m && primary != null;
+
+        // Snapshot the PRE-mutation fee posture (incl. FeeDonation) BEFORE UpgradeRegistrationsToPifAsync
+        // OR the donation stamp mutates it, so a declined eCheck rolls back per-reg (CC-symmetric —
+        // see ExecutePrimaryChargeAsync). The canonical engine's pre-gateway placeholder-RA flush
+        // persists the mutation, so without this a declined eCheck would strand the registration in
+        // the upgraded/donated posture with no charge to back it.
+        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot = null;
+        if (effective == PaymentOption.PIF || hasDonation)
         {
             pifSnapshot = registrations.ToDictionary(
                 r => r.RegistrationId,
-                r => (r.FeeBase, r.FeeProcessing, r.FeeTotal, r.OwedTotal));
+                r => (r.FeeBase, r.FeeProcessing, r.FeeTotal, r.OwedTotal, r.FeeDonation));
+        }
+
+        decimal donationGross = 0m;
+        if (hasDonation) primary!.FeeDonation = donation; // single primary carries the gift (idempotent set)
+
+        if (effective == PaymentOption.PIF)
+        {
             await UpgradeRegistrationsToPifAsync(registrations, jobId);
         }
+        else if (hasDonation)
+        {
+            // Deposit/non-PIF: re-levy proc on the donation via the canonical path; the OwedTotal
+            // delta is the proc-inclusive gift, added to the deposit charge below.
+            var owedBefore = pifSnapshot![primary!.RegistrationId].OwedTotal;
+            await _feeService.RecomputeRegistrationFinancialsAsync(primary, jobId);
+            donationGross = primary.OwedTotal - owedBefore;
+        }
+
         var charges = await ComputeChargesAsync(registrations, effective);
+        if (donationGross > 0m)
+            charges[primary!.RegistrationId] = charges.GetValueOrDefault(primary.RegistrationId) + donationGross;
         var total = charges.Values.Sum();
         if (total <= 0m)
             return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
@@ -1119,7 +1204,7 @@ public class PaymentService : IPaymentService
     private async Task<PaymentResponseDto> ExecuteEcheckChargeAsync(
         Guid jobId, string familyUserId, PaymentRequestDto request, string userId,
         List<Registrations> registrations, BankAccountInfo bank, Dictionary<Guid, decimal> charges,
-        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal)>? pifSnapshot)
+        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot)
     {
         var items = charges
             .Where(kv => kv.Value > 0m && kv.Key != Guid.Empty)
@@ -1160,7 +1245,7 @@ public class PaymentService : IPaymentService
     /// </summary>
     private async Task RestoreFailedPifRegsAsync(
         IEnumerable<Registrations> registrations,
-        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal)>? pifSnapshot,
+        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot,
         IReadOnlyList<RegistrationCcChargeOutcome> outcomes)
     {
         if (pifSnapshot == null) return;
@@ -1172,8 +1257,10 @@ public class PaymentService : IPaymentService
             if (!pifSnapshot.TryGetValue(reg.RegistrationId, out var snap)) continue;
             reg.FeeBase       = snap.FeeBase;
             reg.FeeProcessing = snap.FeeProcessing;
-            // PIF mutates only FeeBase/FeeProcessing (ApplyPifUpgradeAsync preserves
-            // discount/donation/latefee), so RecalcTotals reproduces snap.FeeTotal/OwedTotal.
+            reg.FeeDonation   = snap.FeeDonation;
+            // PIF mutates FeeBase/FeeProcessing; a payment-time donation mutates FeeDonation
+            // (+ FeeProcessing) on the primary reg. Restoring those three lets RecalcTotals
+            // reproduce snap.FeeTotal/OwedTotal exactly (discount/latefee untouched by both).
             reg.RecalcTotals();
             restored = true;
         }
@@ -1605,7 +1692,7 @@ public class PaymentService : IPaymentService
             }).ToList()
         };
 
-    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total, PaymentOption effectiveOption, Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal)>? pifSnapshot)
+    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total, PaymentOption effectiveOption, Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot)
     {
         // Route the parent self-pay through the same canonical engine the admin path
         // uses. The primitive owns ResolveOwed validation, the placeholder-RA audit
