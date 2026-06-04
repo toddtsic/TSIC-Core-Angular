@@ -105,8 +105,10 @@ public class FeeRepository : IFeeRepository
         Guid jobId, string roleId, Guid agegroupId, Guid teamId, DateTime asOfDate,
         CancellationToken ct = default)
     {
-        // Get all modifiers from all cascade levels in a single query
-        return await _context.FeeModifiers
+        // Pull every active modifier across the cascade, tagged with its scope
+        // priority (team=3, agegroup=2, job=1) — the same precedence the base-fee
+        // resolver uses in GetResolvedFeeAsync.
+        var rows = await _context.FeeModifiers
             .AsNoTracking()
             .Where(m =>
                 m.JobFee.JobId == jobId
@@ -121,7 +123,26 @@ public class FeeRepository : IFeeRepository
                 )
                 && (m.StartDate == null || m.StartDate <= asOfDate)
                 && (m.EndDate == null || m.EndDate >= asOfDate))
+            .Select(m => new
+            {
+                Modifier = m,
+                Priority = m.JobFee.TeamId != null ? 3
+                         : m.JobFee.AgegroupId != null ? 2
+                         : 1
+            })
             .ToListAsync(ct);
+
+        // Coalesce per modifier type: the most-specific scope that has an active
+        // modifier of a given type wins outright — scopes do NOT sum. Multiple
+        // active windows of the same type AT that winning scope still stack.
+        return rows
+            .GroupBy(x => x.Modifier.ModifierType)
+            .SelectMany(g =>
+            {
+                var topPriority = g.Max(x => x.Priority);
+                return g.Where(x => x.Priority == topPriority).Select(x => x.Modifier);
+            })
+            .ToList();
     }
 
     public async Task<ResolvedFee?> GetJobLevelFeeAsync(

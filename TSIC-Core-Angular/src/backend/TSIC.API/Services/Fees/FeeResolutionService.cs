@@ -87,7 +87,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         return new ResolvedModifiers
         {
             TotalDiscount = modifiers
-                .Where(m => m.ModifierType == FeeConstants.ModifierDiscount || m.ModifierType == FeeConstants.ModifierEarlyBird)
+                .Where(m => m.ModifierType == FeeConstants.ModifierEarlyBird)
                 .Sum(m => m.Amount),
             TotalLateFee = modifiers
                 .Where(m => m.ModifierType == FeeConstants.ModifierLateFee)
@@ -143,7 +143,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
             jobId, roleId, DateTime.Now, ct);
 
         var totalDiscount = modifiers
-            .Where(m => m.ModifierType == FeeConstants.ModifierDiscount || m.ModifierType == FeeConstants.ModifierEarlyBird)
+            .Where(m => m.ModifierType == FeeConstants.ModifierEarlyBird)
             .Sum(m => m.Amount);
         var totalLateFee = modifiers
             .Where(m => m.ModifierType == FeeConstants.ModifierLateFee)

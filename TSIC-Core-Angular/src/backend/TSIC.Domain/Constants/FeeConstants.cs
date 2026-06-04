@@ -42,5 +42,4 @@ public static class FeeConstants
     // Modifier types stored in fees.FeeModifiers.ModifierType
     public const string ModifierEarlyBird = "EarlyBird";
     public const string ModifierLateFee = "LateFee";
-    public const string ModifierDiscount = "Discount";
 }

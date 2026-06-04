@@ -648,8 +648,7 @@ public sealed class JobCloneService : IJobCloneService
 
                 var mods = agegroupModifiers.TryGetValue(ag.AgegroupId, out var m) ? m : new List<FeeModifiers>();
                 var earlyBird = mods.FirstOrDefault(x =>
-                    x.ModifierType == FeeConstants.ModifierEarlyBird
-                    || x.ModifierType == FeeConstants.ModifierDiscount);
+                    x.ModifierType == FeeConstants.ModifierEarlyBird);
                 var lateFee = mods.FirstOrDefault(x => x.ModifierType == FeeConstants.ModifierLateFee);
 
                 agegroupPreviews.Add(new AgegroupPreviewDto

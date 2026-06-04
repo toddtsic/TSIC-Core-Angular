@@ -256,11 +256,11 @@ public class EarlyBirdLateFeeTests
     }
 
     // ════════════════════════════════════════════════════════════
-    //  CASCADE STACKING: MODIFIERS FROM MULTIPLE LEVELS
+    //  CASCADE COALESCE: MOST-SPECIFIC SCOPE WINS PER TYPE (no summing)
     // ════════════════════════════════════════════════════════════
 
-    [Fact(DisplayName = "Cascade stacking: job + agegroup early bird discounts sum")]
-    public async Task Cascade_JobPlusAgegroup_EarlyBirdStack()
+    [Fact(DisplayName = "Cascade coalesce: agegroup early bird overrides job early bird")]
+    public async Task Cascade_JobPlusAgegroup_AgegroupWins()
     {
         var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
@@ -276,11 +276,11 @@ public class EarlyBirdLateFeeTests
         var modifiers = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
 
-        modifiers.TotalDiscount.Should().Be(25m, "job $10 + agegroup $15 = $25 total");
+        modifiers.TotalDiscount.Should().Be(15m, "agegroup $15 wins (coalesce, most-specific); job $10 ignored");
     }
 
-    [Fact(DisplayName = "Cascade stacking: job + agegroup + team modifiers all stack")]
-    public async Task Cascade_AllThreeLevels_Stack()
+    [Fact(DisplayName = "Cascade coalesce: team early bird wins over agegroup and job")]
+    public async Task Cascade_AllThreeLevels_TeamWins()
     {
         var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
@@ -300,11 +300,11 @@ public class EarlyBirdLateFeeTests
         var modifiers = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
 
-        modifiers.TotalDiscount.Should().Be(18m, "job $10 + agegroup $5 + team $3 = $18 total");
+        modifiers.TotalDiscount.Should().Be(3m, "team $3 wins (coalesce, most-specific); agegroup $5 and job $10 ignored");
     }
 
-    [Fact(DisplayName = "Cascade stacking: late fees from different levels sum")]
-    public async Task Cascade_LateFees_Stack()
+    [Fact(DisplayName = "Cascade coalesce: agegroup late fee overrides job late fee")]
+    public async Task Cascade_LateFees_AgegroupWins()
     {
         var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
@@ -320,7 +320,7 @@ public class EarlyBirdLateFeeTests
         var modifiers = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
 
-        modifiers.TotalLateFee.Should().Be(30m, "job $20 + agegroup $10 = $30 total");
+        modifiers.TotalLateFee.Should().Be(10m, "agegroup $10 wins (coalesce, most-specific); job $20 ignored");
     }
 
     [Fact(DisplayName = "Cascade: mixed early bird + late fee at different levels")]
@@ -338,45 +338,17 @@ public class EarlyBirdLateFeeTests
 
         await builder.SaveAsync();
 
-        // During early bird window: job $10 + agegroup $5 discount, no late fee
+        // Early-bird window: agegroup $5 wins the early-bird coalesce (job $10 ignored), no late fee
         var earlyMods = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
-        earlyMods.TotalDiscount.Should().Be(15m);
+        earlyMods.TotalDiscount.Should().Be(5m, "agegroup $5 wins (coalesce); job $10 ignored");
         earlyMods.TotalLateFee.Should().Be(0m);
 
-        // During late fee window: no discount, job $20 late fee only
+        // Late-fee window: no discount; job $20 late fee applies (job is the only scope that defines one)
         var lateMods = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
         lateMods.TotalDiscount.Should().Be(0m);
-        lateMods.TotalLateFee.Should().Be(20m);
-    }
-
-    // ════════════════════════════════════════════════════════════
-    //  DISCOUNT + EARLY BIRD STACKING (same ModifierType category)
-    // ════════════════════════════════════════════════════════════
-
-    [Fact(DisplayName = "EarlyBird + Discount both reduce FeeDiscount (they stack)")]
-    public async Task EarlyBirdPlusDiscount_BothStack()
-    {
-        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
-
-        // Always-active Discount (null dates)
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierDiscount, 10m, null, null);
-
-        // Time-windowed EarlyBird
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 25m, EarlyBirdStart, EarlyBirdEnd);
-
-        await builder.SaveAsync();
-
-        // During early bird: both apply
-        var earlyMods = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
-        earlyMods.TotalDiscount.Should().Be(35m, "Discount $10 + EarlyBird $25 = $35");
-
-        // After early bird: only flat discount
-        var normalMods = await svc.EvaluateModifiersAsync(
-            jobId, RoleConstants.Player, agId, teamId, DateInNormal);
-        normalMods.TotalDiscount.Should().Be(10m, "only always-active Discount $10");
+        lateMods.TotalLateFee.Should().Be(20m, "job $20 late fee applies — only scope that defines one");
     }
 
     // ════════════════════════════════════════════════════════════
@@ -426,7 +398,7 @@ public class EarlyBirdLateFeeTests
     {
         var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierDiscount, 15m, null, null);
+        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 15m, null, null);
         await builder.SaveAsync();
 
         var mods = await svc.EvaluateModifiersAsync(
@@ -826,7 +798,6 @@ public class EarlyBirdLateFeeTests
         var start = new DateTime(2026, 3, 1);
         var end = new DateTime(2026, 3, 31);
 
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierDiscount, 10m, start, end);
         builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 15m, start, end);
         builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 20m, start, end);
 
@@ -835,7 +806,7 @@ public class EarlyBirdLateFeeTests
         var mods = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, new DateTime(2026, 3, 15));
 
-        mods.TotalDiscount.Should().Be(25m, "Discount $10 + EarlyBird $15 both go to TotalDiscount");
+        mods.TotalDiscount.Should().Be(15m, "EarlyBird $15 goes to TotalDiscount");
         mods.TotalLateFee.Should().Be(20m, "LateFee $20 goes to TotalLateFee separately");
     }
 
