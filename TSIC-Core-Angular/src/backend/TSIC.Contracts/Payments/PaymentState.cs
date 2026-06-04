@@ -89,10 +89,10 @@ public record PaymentState
     /// would be collected if remaining principal were paid by CC. Matches the
     /// entity-level state per-payment handlers maintain incrementally.
     /// </summary>
-    public decimal FeeProcessingTarget(decimal feeBase, decimal discount, decimal lateFee)
+    public decimal FeeProcessingTarget(decimal feeBase, decimal discount, decimal lateFee, decimal donation)
     {
         if (!BAddProcessingFees) return 0m;
-        var principalBase = feeBase - discount + lateFee;
+        var principalBase = feeBase - discount + lateFee + donation;
         var remainingCcBillable = System.Math.Max(0m, principalBase - PrincipalPaid);
         return ProcCollected + remainingCcBillable * CcRate;
     }
@@ -100,8 +100,8 @@ public record PaymentState
     /// <summary>
     /// Principal still owed if the remainder is paid by check (no further proc).
     /// </summary>
-    public decimal PrincipalRemaining(decimal feeBase, decimal discount, decimal lateFee) =>
-        System.Math.Max(0m, (feeBase - discount + lateFee) - PrincipalPaid);
+    public decimal PrincipalRemaining(decimal feeBase, decimal discount, decimal lateFee, decimal donation) =>
+        System.Math.Max(0m, (feeBase - discount + lateFee + donation) - PrincipalPaid);
 
     /// <summary>
     /// Deposit-phase principal still owed. Mirrors <see cref="PrincipalRemaining"/>
@@ -115,9 +115,9 @@ public record PaymentState
     /// anchors on OwedTotal — this helper only powers the per-row "Deposit Due"
     /// display column.
     /// </summary>
-    public decimal DepositPrincipalRemaining(decimal deposit, decimal discount, decimal lateFee)
+    public decimal DepositPrincipalRemaining(decimal deposit, decimal discount, decimal lateFee, decimal donation)
     {
-        var effective = System.Math.Max(0m, deposit - discount + lateFee);
+        var effective = System.Math.Max(0m, deposit - discount + lateFee + donation);
         return System.Math.Max(0m, effective - PrincipalPaid);
     }
 
@@ -138,19 +138,19 @@ public record PaymentState
     /// Only meaningful in the full-payment phase, where FeeBase = Deposit +
     /// BalanceDue; in the deposit phase the balance is not yet active.
     /// </summary>
-    public decimal BalancePrincipalRemaining(decimal feeBase, decimal deposit, decimal discount, decimal lateFee) =>
+    public decimal BalancePrincipalRemaining(decimal feeBase, decimal deposit, decimal discount, decimal lateFee, decimal donation) =>
         System.Math.Max(
             0m,
-            PrincipalRemaining(feeBase, discount, lateFee)
-                - DepositPrincipalRemaining(deposit, discount, lateFee));
+            PrincipalRemaining(feeBase, discount, lateFee, donation)
+                - DepositPrincipalRemaining(deposit, discount, lateFee, donation));
 
     /// <summary>
     /// Proc-fee component currently owed (display "ProcFee Due") — what would
     /// still be charged as proc if the remaining principal is CC-billed.
     /// </summary>
-    public decimal ProcFeeDue(decimal feeBase, decimal discount, decimal lateFee) =>
+    public decimal ProcFeeDue(decimal feeBase, decimal discount, decimal lateFee, decimal donation) =>
         BAddProcessingFees
-            ? PrincipalRemaining(feeBase, discount, lateFee) * CcRate
+            ? PrincipalRemaining(feeBase, discount, lateFee, donation) * CcRate
             : 0m;
 
     /// <summary>
@@ -175,11 +175,11 @@ public record PaymentState
     /// doesn't model.
     /// </summary>
     public decimal ProcCreditForCharge(
-        decimal ccCharge, decimal feeBase, decimal discount, decimal lateFee,
+        decimal ccCharge, decimal feeBase, decimal discount, decimal lateFee, decimal donation,
         decimal feeProcessing, decimal methodRate)
     {
         if (!BAddProcessingFees || methodRate >= CcRate) return 0m;
-        var principalRemaining = PrincipalRemaining(feeBase, discount, lateFee);
+        var principalRemaining = PrincipalRemaining(feeBase, discount, lateFee, donation);
         var rawCredit = PaymentRateMath.AppliedProcCredit(principalRemaining, feeProcessing, CcRate, methodRate);
         var procEmbeddedInCharge = System.Math.Max(0m, ccCharge - principalRemaining);
         return System.Math.Min(rawCredit, procEmbeddedInCharge);
@@ -201,9 +201,9 @@ public record PaymentState
     /// over-credit phantom proc and proc-disabled jobs fall through to owedTotal.
     /// </summary>
     public OwedByMethod ResolveOwed(
-        decimal owedTotal, decimal feeBase, decimal discount, decimal lateFee, decimal feeProcessing)
+        decimal owedTotal, decimal feeBase, decimal discount, decimal lateFee, decimal donation, decimal feeProcessing)
     {
-        var principalRemaining = PrincipalRemaining(feeBase, discount, lateFee);
+        var principalRemaining = PrincipalRemaining(feeBase, discount, lateFee, donation);
         decimal OwedFor(decimal methodRate) => System.Math.Max(
             0m,
             owedTotal - PaymentRateMath.AppliedProcCredit(principalRemaining, feeProcessing, CcRate, methodRate));

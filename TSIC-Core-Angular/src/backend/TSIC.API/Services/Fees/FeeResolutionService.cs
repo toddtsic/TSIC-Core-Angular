@@ -1,3 +1,4 @@
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -211,6 +212,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
         await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct);
     }
 
+    // ── Player Registration: Recompute (modifier already on the row) ──
+
+    public Task RecomputeRegistrationFinancialsAsync(
+        Registrations reg, Guid jobId, CancellationToken ct = default)
+        => ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct);
+
     // ── Player Registration: Swap ───────────────────────────────
 
     public async Task ApplySwapFeesAsync(
@@ -320,12 +327,11 @@ public sealed class FeeResolutionService : IFeeResolutionService
             : await _paymentState.ForRegistrationAsync(reg.RegistrationId, jobId, ct);
 
         reg.FeeProcessing = reg.FeeBase > 0m
-            ? Math.Round(state.FeeProcessingTarget(reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee),
+            ? Math.Round(state.FeeProcessingTarget(reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation),
                 2, MidpointRounding.AwayFromZero)
             : 0m;
 
-        reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
-        reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+        reg.RecalcTotals();
     }
 
     private async Task ApplyTeamProcessingAndTotalsAsync(
@@ -335,6 +341,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var feeBase = team.FeeBase ?? 0m;
         var discount = team.FeeDiscount ?? 0m;
         var lateFee = team.FeeLatefee ?? 0m;
+        var donation = team.FeeDonation ?? 0m;
 
         decimal feeProcessing = 0m;
         if (ctx.AddProcessingFees)
@@ -361,18 +368,13 @@ public sealed class FeeResolutionService : IFeeResolutionService
                     : await _paymentState.ForTeamAsync(team.TeamId, jobId, ct);
 
                 feeProcessing = Math.Round(
-                    state.FeeProcessingTarget(billableBase, discount, lateFee),
+                    state.FeeProcessingTarget(billableBase, discount, lateFee, donation),
                     2, MidpointRounding.AwayFromZero);
             }
         }
 
         team.FeeProcessing = feeProcessing;
 
-        team.FeeTotal = (team.FeeBase ?? 0m)
-                      + (team.FeeProcessing ?? 0m)
-                      - (team.FeeDiscount ?? 0m)
-                      + (team.FeeDonation ?? 0m)
-                      + (team.FeeLatefee ?? 0m);
-        team.OwedTotal = (team.FeeTotal ?? 0m) - (team.PaidTotal ?? 0m);
+        team.RecalcTotals();
     }
 }

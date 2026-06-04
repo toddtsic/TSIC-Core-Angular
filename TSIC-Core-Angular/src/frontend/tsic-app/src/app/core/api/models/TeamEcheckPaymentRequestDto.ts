@@ -7,5 +7,6 @@ export type TeamEcheckPaymentRequestDto = {
     teamIds: Array<string>;
     totalAmount: number;
     bankAccount: BankAccountInfo;
+    donation?: number | null;
 };
 

@@ -177,6 +177,33 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             }
           }
 
+          <!-- ═══ OPTIONAL DONATION ═══ -->
+          @if (showDonationInput()) {
+            <div class="donation-block mb-3">
+              <label for="teamDonationAmount" class="field-label donation-label">
+                <i class="bi bi-heart-fill me-1"></i>Add a Donation
+                <span class="donation-optional">optional</span>
+              </label>
+              <div class="donation-input-row">
+                <span class="donation-currency" aria-hidden="true">$</span>
+                <input type="number" min="0" step="1" inputmode="decimal"
+                       class="field-input donation-input" id="teamDonationAmount"
+                       [ngModel]="donation() || null"
+                       (ngModelChange)="setDonation($event)"
+                       placeholder="0.00"
+                       aria-describedby="teamDonationHelp">
+              </div>
+              <div id="teamDonationHelp" class="field-help donation-help">
+                @if (donation() > 0) {
+                  <i class="bi bi-check-circle-fill text-success me-1"></i>Thank you! Your
+                  {{ donation() | currency }} gift is added to this payment@if (donationProcessing() > 0) { (plus {{ donationProcessing() | currency }} processing) }.
+                } @else {
+                  Your optional gift is charged in full with this payment.
+                }
+              </div>
+            </div>
+          }
+
           <!-- ═══ PAYMENT METHOD SELECTOR (CC, eCheck, Check) ═══ -->
           @if (showMethodSelector()) {
             <div class="method-selector mb-3">
@@ -272,7 +299,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
             <button type="button" class="btn btn-primary"
                     (click)="submit()"
                     [disabled]="!canSubmitCc()">
-              {{ submitting() ? 'Processing...' : 'Pay ' + (balanceDue() | currency) + ' Now' }}
+              {{ submitting() ? 'Processing...' : 'Pay ' + (ccPayTotal() | currency) + ' Now' }}
             </button>
             @if (viPayHintVisible()) {
               <div class="vi-pay-hint mt-2 small d-flex align-items-center gap-1" role="status">
@@ -684,6 +711,57 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
         white-space: pre-line;
       }
 
+      /* Optional donation — bordered + subtle primary wash so it reads as part of
+         the charge. Heart accent (danger) is the recognizable donation cue. */
+      .donation-block {
+        padding: var(--space-3);
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+        border-radius: var(--radius-md);
+        background: rgba(var(--bs-primary-rgb), 0.03);
+      }
+      .donation-label {
+        display: flex;
+        align-items: center;
+        margin-bottom: var(--space-2);
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-base);
+
+        i { color: var(--bs-danger); }
+      }
+      .donation-optional {
+        margin-left: var(--space-2);
+        padding: 1px var(--space-2);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-normal);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--brand-text-muted);
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        border-radius: var(--radius-sm);
+      }
+      .donation-input-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        max-width: 220px;
+      }
+      .donation-currency {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text-muted);
+      }
+      .donation-input {
+        background-color: var(--neutral-0);
+      }
+      .donation-input:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+      }
+      .donation-help {
+        margin-top: var(--space-2);
+      }
+
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -750,7 +828,22 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly checkAmount = computed(() => this.state.teamPayment.totalCkOwed());
     // eCheck total (lower than CC by the proc-rate spread) — what the rep is shown AND
     // submits. Must equal the engine's debit, so it comes from the server-computed total.
-    readonly echeckAmount = computed(() => this.state.teamPayment.totalEkOwed());
+    // Includes any optional donation at the eCheck rate (the server re-levies the same).
+    readonly echeckAmount = computed(() => this.state.teamPayment.totalEkOwed() + this.state.teamPayment.donationEcheck());
+
+    // ── Optional donation (CC / eCheck immediate charge only) ─────────────
+    readonly donation = computed(() => this.state.teamPayment.donation());
+    readonly donationProcessing = computed(() => this.state.teamPayment.donationProcessing());
+    setDonation(v: number | string): void { this.state.teamPayment.setDonation(v); }
+    /** CC charge total INCLUDING any donation — the CC button + submit + receipt use this. */
+    readonly ccPayTotal = computed(() => this.balanceDue() + this.state.teamPayment.donationCc());
+    /** Donation input shows only for the immediate-charge online methods (CC / eCheck). ARB-Trial
+     *  (deposit/balance split) and mail-in check can't carry a charged-in-full gift in v1. */
+    readonly showDonationInput = computed(() =>
+        this.state.teamPayment.bIncludeTeamDonation()
+        && this.hasBalance()
+        && (this.isCc() || this.isEcheck())
+    );
     readonly payTo = computed(() => this.state.teamPayment.payTo());
     readonly mailTo = computed(() => this.state.teamPayment.mailTo());
     readonly mailinPaymentWarning = computed(() => this.state.teamPayment.mailinPaymentWarning());
@@ -873,6 +966,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
 
     // ── Lifecycle ────────────────────────────────────────────────────────
     ngAfterViewInit(): void {
+        this.state.teamPayment.resetDonation();
         if (this.insuranceState.offerTeamRegSaver()) {
             this.viInitTimeout = setTimeout(() => this.loadAndInitVi(), 0);
         }
@@ -1037,10 +1131,11 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         const teamIds = this.state.teamPayment.teamIdsWithBalance();
         const request = {
             teamIds,
-            totalAmount: this.balanceDue(),
+            totalAmount: this.ccPayTotal(),
             jobPath: this.state.jobPath(),
             creditCard: ccInfo,
             idempotencyKey: this.lastIdemKey,
+            donation: this.state.teamPayment.donation() || undefined,
         };
 
         this.state.teamPayment.submitPayment(request)
@@ -1055,7 +1150,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                         // already-successful registration payment.
                         this.chainViPurchaseAndAdvance(teamIds, ccInfo, {
                             transactionId: resp.transactionId || undefined,
-                            amount: this.balanceDue(),
+                            amount: this.ccPayTotal(),
                             message: resp.message || 'Payment successful',
                         });
                     } else {
@@ -1150,6 +1245,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
             teamIds,
             totalAmount: this.echeckAmount(),
             bankAccount,
+            donation: this.state.teamPayment.donation() || undefined,
         };
 
         this.state.teamPayment.submitEcheckPayment(request as unknown as Record<string, unknown>)

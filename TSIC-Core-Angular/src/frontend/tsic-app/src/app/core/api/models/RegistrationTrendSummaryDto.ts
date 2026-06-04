@@ -8,5 +8,6 @@ export type RegistrationTrendSummaryDto = {
     totalOutstanding: number;
     paidInFull: number;
     underpaid: number;
+    overPaid: number;
 };
 

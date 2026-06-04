@@ -101,6 +101,9 @@ export class TeamWizardStateService {
             meta.bEnableEcheck,
             meta.adnArbTrial ?? false,
             meta.adnStartDateAfterTrial ?? null,
+            meta.bIncludeTeamDonation ?? false,
+            meta.effectiveProcessingRate ?? 0,
+            meta.effectiveEcheckProcessingRate ?? 0,
         );
         this._hasActiveDiscountCodes.set(meta.hasActiveDiscountCodes);
         this._fullPaymentRequired.set(meta.bTeamsFullPaymentRequired ?? true);

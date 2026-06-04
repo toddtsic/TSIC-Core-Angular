@@ -108,6 +108,8 @@ public record JobConfigPaymentDto
     public required string? Balancedueaspercent { get; init; }
     public required bool? BTeamsFullPaymentRequired { get; init; }
     public required bool BPlayersFullPaymentRequired { get; init; }
+    public required bool BIncludePlayerDonation { get; init; }
+    public required bool BIncludeTeamDonation { get; init; }
     public required bool? BAllowRefundsInPriorMonths { get; init; }
     public required bool? BAllowCreditAll { get; init; }
 
@@ -141,6 +143,8 @@ public record UpdateJobConfigPaymentRequest
     public required string? Balancedueaspercent { get; init; }
     public required bool? BTeamsFullPaymentRequired { get; init; }
     public required bool BPlayersFullPaymentRequired { get; init; }
+    public required bool BIncludePlayerDonation { get; init; }
+    public required bool BIncludeTeamDonation { get; init; }
     public required bool? BAllowRefundsInPriorMonths { get; init; }
     public required bool? BAllowCreditAll { get; init; }
 

@@ -105,6 +105,7 @@ public class WidgetRepository : IWidgetRepository
                 TotalOwed = g.Where(r => r.BActive == true).Sum(r => r.OwedTotal),
                 PaidInFull = g.Count(r => r.BActive == true && r.OwedTotal == 0),
                 Underpaid = g.Count(r => r.BActive == true && r.OwedTotal > 0),
+                OverPaid = g.Count(r => r.BActive == true && r.OwedTotal < 0),
             })
             .FirstOrDefaultAsync(ct);
 
@@ -137,6 +138,7 @@ public class WidgetRepository : IWidgetRepository
                 TotalOwed = regStats?.TotalOwed ?? 0,
                 PaidInFull = regStats?.PaidInFull ?? 0,
                 Underpaid = regStats?.Underpaid ?? 0,
+                OverPaid = regStats?.OverPaid ?? 0,
             },
             Scheduling = new SchedulingMetrics
             {
@@ -176,6 +178,7 @@ public class WidgetRepository : IWidgetRepository
                 TotalOutstanding = g.Sum(r => r.OwedTotal),
                 PaidInFull = g.Count(r => r.OwedTotal == 0),
                 Underpaid = g.Count(r => r.OwedTotal > 0),
+                OverPaid = g.Count(r => r.OwedTotal < 0),
             })
             .FirstOrDefaultAsync(ct);
 
@@ -206,6 +209,7 @@ public class WidgetRepository : IWidgetRepository
                 TotalOutstanding = summary?.TotalOutstanding ?? 0,
                 PaidInFull = summary?.PaidInFull ?? 0,
                 Underpaid = summary?.Underpaid ?? 0,
+                OverPaid = summary?.OverPaid ?? 0,
             }
         };
     }
@@ -238,6 +242,7 @@ public class WidgetRepository : IWidgetRepository
                 TotalOutstanding = g.Sum(r => r.OwedTotal),
                 PaidInFull = g.Count(r => r.OwedTotal == 0),
                 Underpaid = g.Count(r => r.OwedTotal > 0),
+                OverPaid = g.Count(r => r.OwedTotal < 0),
             })
             .FirstOrDefaultAsync(ct);
 
@@ -267,6 +272,7 @@ public class WidgetRepository : IWidgetRepository
                 TotalOutstanding = summary?.TotalOutstanding ?? 0,
                 PaidInFull = summary?.PaidInFull ?? 0,
                 Underpaid = summary?.Underpaid ?? 0,
+                OverPaid = summary?.OverPaid ?? 0,
             }
         };
     }
@@ -300,6 +306,7 @@ public class WidgetRepository : IWidgetRepository
                 TotalOutstanding = g.Sum(t => t.OwedTotal ?? 0m),
                 PaidInFull = g.Count(t => (t.OwedTotal ?? 0m) == 0m),
                 Underpaid = g.Count(t => (t.OwedTotal ?? 0m) > 0m),
+                OverPaid = g.Count(t => (t.OwedTotal ?? 0m) < 0m),
             })
             .FirstOrDefaultAsync(ct);
 
@@ -329,6 +336,7 @@ public class WidgetRepository : IWidgetRepository
                 TotalOutstanding = summary?.TotalOutstanding ?? 0m,
                 PaidInFull = summary?.PaidInFull ?? 0,
                 Underpaid = summary?.Underpaid ?? 0,
+                OverPaid = summary?.OverPaid ?? 0,
             }
         };
     }

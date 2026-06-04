@@ -126,7 +126,9 @@ public sealed class TeamSearchService : ITeamSearchService
             // Canonical per-method owed from the single resolver. CkOwedTotal is the
             // check/correction owed (CC owed minus the capped proc credit) — exactly what
             // recording a check will settle. CC owed is OwedTotal itself.
-            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
+            // donation: 0m — ClubTeamSummaryDto display; a paid-in-full donation nets out of the
+            // resolver's principal-remaining (it lands in both base and PrincipalPaid).
+            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
             return t with
             {
                 CkOwedTotal = owed.Check
@@ -361,7 +363,7 @@ public sealed class TeamSearchService : ITeamSearchService
                         : request.RefundAmount;     // refund reverses requested amount
 
                     team.PaidTotal = (team.PaidTotal ?? 0) - refundAmt;
-                    team.OwedTotal = (team.OwedTotal ?? 0) + refundAmt;
+                    team.RecalcTotals();
                 }
             }
 
@@ -522,6 +524,7 @@ public sealed class TeamSearchService : ITeamSearchService
                         capTeam.FeeBase ?? 0m,
                         capTeam.FeeDiscount ?? 0m,
                         capTeam.FeeLatefee ?? 0m,
+                        capTeam.FeeDonation ?? 0m,
                         capTeam.FeeProcessing ?? 0m);
                     scopeCheckOwed += capOwed.Check;
                 }
@@ -562,13 +565,18 @@ public sealed class TeamSearchService : ITeamSearchService
                 var feeBase = team.FeeBase ?? 0m;
                 var feeDiscount = team.FeeDiscount ?? 0m;
                 var feeLatefee = team.FeeLatefee ?? 0m;
-                var baseOwed = state.PrincipalRemaining(feeBase, feeDiscount, feeLatefee);
+                var feeDonation = team.FeeDonation ?? 0m;
+                var baseOwed = state.PrincipalRemaining(feeBase, feeDiscount, feeLatefee, feeDonation);
 
                 // Step 2: Allocate base amount from remaining check balance
                 var calculatedTeamCheckAmount = Math.Min(baseOwed, remainingBalance);
                 if (calculatedTeamCheckAmount <= 0) continue;
 
-                // Step 3: Fee reduction = allocation × rate (canonical full-CC-rate credit)
+                // Step 3: Fee reduction = allocation × rate (canonical full-CC-rate credit).
+                // Reduce only the team's processing fee; the chokepoint below re-derives the
+                // team's FeeTotal/OwedTotal from the ledger, and SynchronizeClubRepFinancials
+                // re-aggregates the rep from its teams (the sole writer of rep totals — the old
+                // inline clubRep math was redundant with it).
                 decimal processingFeeReduction = 0;
                 if (bAddProcessingFees && (team.FeeProcessing ?? 0) > 0)
                 {
@@ -577,19 +585,13 @@ public sealed class TeamSearchService : ITeamSearchService
                         2, MidpointRounding.AwayFromZero);
 
                     team.FeeProcessing = (team.FeeProcessing ?? 0) - processingFeeReduction;
-                    team.RecalcTotals();
-
-                    clubRep.FeeProcessing -= processingFeeReduction;
-                    clubRep.OwedTotal -= processingFeeReduction;
-                    clubRep.FeeTotal -= processingFeeReduction;
-
-                    await _accountingRepo.SaveChangesAsync(ct);
                 }
 
                 remainingBalance -= calculatedTeamCheckAmount;
 
-                // Create accounting record
-                _accountingRepo.Add(new RegistrationAccounting
+                // Record the check row and re-derive the team's totals from the ledger in one
+                // transaction, then re-aggregate the rep from its teams.
+                await _accountingRepo.RecordPaymentAndRecomputeAsync(new RegistrationAccounting
                 {
                     Active = true,
                     CheckNo = request.CheckNo,
@@ -602,14 +604,8 @@ public sealed class TeamSearchService : ITeamSearchService
                     RegistrationId = clubRep.RegistrationId,
                     LebUserId = userId,
                     Modified = DateTime.Now
-                });
+                }, userId, ct);
 
-                team.PaidTotal = (team.PaidTotal ?? 0) + calculatedTeamCheckAmount;
-                team.OwedTotal = (team.OwedTotal ?? 0) - calculatedTeamCheckAmount;
-                clubRep.PaidTotal += calculatedTeamCheckAmount;
-                clubRep.OwedTotal -= calculatedTeamCheckAmount;
-
-                await _accountingRepo.SaveChangesAsync(ct);
                 await _registrationRepo.SynchronizeClubRepFinancialsAsync(clubRep.RegistrationId, userId, ct);
 
                 allocations.Add(new TeamPaymentAllocation

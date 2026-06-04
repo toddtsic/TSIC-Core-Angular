@@ -6,6 +6,8 @@ using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.Scheduling;
+using TSIC.Contracts.Extensions;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -242,18 +244,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             LebUserId = userId
         };
 
-        _accountingRepo.Add(entity);
-
-        // Update registration financial totals
-        var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct)
-            ?? throw new InvalidOperationException("Registration not found.");
-
-        reg.PaidTotal += request.PaidAmount ?? 0;
-        reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-        reg.Modified = DateTime.Now;
-        reg.LebUserId = userId;
-
-        await _accountingRepo.SaveChangesAsync(ct);
+        // Record the row and re-derive PaidTotal/OwedTotal from the ledger in one
+        // transaction, so the registration's totals can't drift from its accounting rows.
+        // (Existence/ownership already validated above.)
+        await _accountingRepo.RecordPaymentAndRecomputeAsync(entity, userId, ct);
 
         return new AccountingRecordDto
         {
@@ -377,7 +371,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             // Update registration financials
             var reg = original.Registration;
             reg.PaidTotal -= reversedAmount;
-            reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
             reg.LebUserId = userId;
 
@@ -444,6 +438,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 regForValidation.FeeBase,
                 regForValidation.FeeDiscount,
                 regForValidation.FeeLatefee,
+                regForValidation.FeeDonation,
                 regForValidation.FeeProcessing);
             if (request.Amount > owed.Check)
                 return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Check payment ${request.Amount:F2} exceeds the check balance owed of ${owed.Check:F2}." };
@@ -471,24 +466,16 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             LebUserId = userId
         };
 
-        _accountingRepo.Add(entity);
-
-        // Update registration financial totals
+        // Reduce the processing fee proportionally first (non-CC payments; core accounting
+        // principle), then record the row and re-derive PaidTotal/OwedTotal from the ledger in
+        // one transaction. The reducer mutates the tracked registration without saving and does
+        // not read PaidTotal, so the chokepoint's recompute picks up the reduced FeeProcessing.
         var reg = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct)
             ?? throw new InvalidOperationException("Registration not found.");
 
-        reg.PaidTotal += request.Amount;
-
-        // Non-CC payments reduce processing fee proportionally (core accounting principle)
         await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, request.Amount, jobId, userId);
 
-        // Recalculate totals after processing fee change
-        reg.FeeTotal = reg.FeeBase + reg.FeeProcessing - reg.FeeDiscount + reg.FeeDonation + reg.FeeLatefee;
-        reg.OwedTotal = reg.FeeTotal - reg.PaidTotal;
-        reg.Modified = DateTime.Now;
-        reg.LebUserId = userId;
-
-        await _accountingRepo.SaveChangesAsync(ct);
+        await _accountingRepo.RecordPaymentAndRecomputeAsync(entity, userId, ct);
 
         _logger.LogInformation("{Type} recorded: RegId={RegId}, Amount={Amount}, ProcessingFeeReduced={Reduced}",
             request.PaymentType, request.RegistrationId, request.Amount, reg.FeeProcessing);

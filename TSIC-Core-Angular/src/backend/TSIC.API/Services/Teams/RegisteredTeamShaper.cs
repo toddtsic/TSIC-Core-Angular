@@ -106,7 +106,11 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             // Deposit-phase owed goes through the parallel DepositPrincipalRemaining
             // helper so the display row factors discount/late-fee the same way owed math does.
             var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
-            var depositDue = state.DepositPrincipalRemaining(deposit, t.FeeDiscount, t.FeeLatefee);
+            // donation: 0m — a donation is always charged in full with its payment, so it sits in
+            // BOTH the principal base and PrincipalPaid and nets out of these post-payment display
+            // columns. RegisteredTeamInfo doesn't carry FeeDonation; threading it would change
+            // nothing here. (The charge/stamp paths pass the real FeeDonation.)
+            var depositDue = state.DepositPrincipalRemaining(deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m);
             // Full-payment phase: the balance is active (FeeBase = Deposit + BalanceDue),
             // so "Balance Due" must net out every payment — including a director-recorded
             // check/correction applied while the rep was away. Derive it from the canonical
@@ -114,9 +118,9 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             // CC/Check Owed columns. Deposit phase: balance not yet active — show the
             // configured structural balance as a forward-looking "still to come" value.
             var additionalDue = bTeamsFullPaymentRequired
-                ? state.BalancePrincipalRemaining(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee)
+                ? state.BalancePrincipalRemaining(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m)
                 : balanceDue;
-            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, t.FeeProcessing);
+            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
             var ccOwedTotal = owed.Cc;
             var ckOwedTotal = owed.Check;
             var ekOwedTotal = owed.Echeck;

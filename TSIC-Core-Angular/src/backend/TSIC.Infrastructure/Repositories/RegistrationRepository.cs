@@ -901,9 +901,10 @@ public class RegistrationRepository : IRegistrationRepository
             registration.FeeProcessing = totals?.FeeProcessing ?? 0;
             registration.FeeDonation = totals?.FeeDonation ?? 0;
             registration.FeeLatefee = totals?.FeeLatefee ?? 0;
-            registration.FeeTotal = totals?.FeeTotal ?? 0;
-            registration.OwedTotal = totals?.OwedTotal ?? 0;
             registration.PaidTotal = totals?.PaidTotal ?? 0;
+            // FeeTotal/OwedTotal derive from the summed components above. FeeMath is linear, so
+            // RecalcTotals(sum of components) == the old sum of each team's stored total/owed.
+            registration.RecalcTotals();
             registration.Modified = DateTime.Now;
             registration.LebUserId = userId;
 
@@ -947,8 +948,10 @@ public class RegistrationRepository : IRegistrationRepository
             reg.FeeDiscountMp = 0;
             reg.FeeDonation = 0;
             reg.FeeLatefee = 0;
-            reg.FeeTotal = 0;
-            reg.OwedTotal = 0;
+            // Derive FeeTotal + OwedTotal from the zeroed components. A player who already paid
+            // toward this now-dropped team is owed that money back, so OwedTotal becomes
+            // -PaidTotal (OVER PAID / refund owed) rather than being hidden as a flat 0.
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
         }
 

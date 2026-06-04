@@ -12,9 +12,10 @@ namespace TSIC.API.Services.Fees;
 /// Round-once-remainder: total processing is rounded once; deposit's share is rounded;
 /// balance's share is the subtraction remainder so the two always sum exactly.
 ///
-/// Discount and late fee fold into netBase universally and allocate proportionally
-/// regardless of the bApplyProcessingFeesToTeamDeposit flag — the flag governs only
-/// where the PROCESSING fee lands.
+/// Discount, late fee, and donation fold into netBase universally and allocate
+/// proportionally regardless of the bApplyProcessingFeesToTeamDeposit flag — the flag
+/// governs only where the PROCESSING fee lands. Donation increases netBase like a late
+/// fee, so processing is levied on it and the donation principal is charged.
 ///
 /// This helper has no I/O — pure math, easy to test.
 /// </summary>
@@ -41,6 +42,8 @@ public static class ArbTrialFeeSplitter
     /// <param name="rawBalance">EffectiveBalanceDue from the JobFees cascade.</param>
     /// <param name="discount">Resolved discount (FeeDiscount + FeeDiscountMp). Reduces netBase.</param>
     /// <param name="lateFee">Resolved late fee. Increases netBase.</param>
+    /// <param name="donation">Resolved donation add-on. Increases netBase like a late fee, so the
+    /// donation principal is charged and processing is levied on it.</param>
     /// <param name="processingRate">Whole-percent rate as a fraction (e.g., 0.035 for 3.5%).</param>
     /// <param name="bAddProcessingFees">Per-job processing-fees-on-or-off flag.</param>
     /// <param name="bApplyProcessingFeesToTeamDeposit">
@@ -52,12 +55,13 @@ public static class ArbTrialFeeSplitter
         decimal rawBalance,
         decimal discount,
         decimal lateFee,
+        decimal donation,
         decimal processingRate,
         bool bAddProcessingFees,
         bool bApplyProcessingFeesToTeamDeposit)
     {
         var rawTotal = rawDeposit + rawBalance;
-        var netBase = System.Math.Max(rawTotal - discount + lateFee, 0m);
+        var netBase = System.Math.Max(rawTotal - discount + lateFee + donation, 0m);
 
         // Allocate netBase proportionally to the raw deposit/balance ratio. Defensive:
         // when rawTotal == 0, send everything to the balance side.

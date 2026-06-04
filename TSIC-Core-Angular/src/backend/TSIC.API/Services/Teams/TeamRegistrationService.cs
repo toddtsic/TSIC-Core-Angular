@@ -400,6 +400,11 @@ public class TeamRegistrationService : ITeamRegistrationService
             catch { /* malformed JSON — return empty list */ }
         }
 
+        // Effective (clamped) processing rates — the same multipliers the server charges, so the
+        // wizard can reprice a freely-typed donation client-side without tripping the amount tripwire.
+        var ccRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
+        var echeckRate = await _feeService.GetEffectiveEcheckProcessingRateAsync(jobId);
+
         return new TeamsMetadataResponse
         {
             ClubId = effectiveClubId,
@@ -426,6 +431,9 @@ public class TeamRegistrationService : ITeamRegistrationService
             AdnArbTrial = job.AdnArbTrial,
             AdnArbStartDate = job.AdnArbStartDate,
             AdnStartDateAfterTrial = job.AdnStartDateAfterTrial,
+            BIncludeTeamDonation = job.BIncludeTeamDonation,
+            EffectiveProcessingRate = ccRate,
+            EffectiveEcheckProcessingRate = echeckRate,
         };
     }
 
@@ -692,8 +700,6 @@ public class TeamRegistrationService : ITeamRegistrationService
             FeeDiscount = 0,
             FeeLatefee = 0,
             FeeDonation = 0,
-            FeeTotal = 0,
-            OwedTotal = 0,
             PaidTotal = 0,
             Active = true,
             Createdate = DateTime.Now,

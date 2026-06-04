@@ -41,6 +41,8 @@ export class PaymentTabComponent implements OnInit {
   balancedueaspercent = linkedSignal(() => this.svc.payment()?.balancedueaspercent ?? null);
   bTeamsFullPaymentRequired = linkedSignal(() => this.svc.payment()?.bTeamsFullPaymentRequired ?? null);
   bPlayersFullPaymentRequired = linkedSignal(() => this.svc.payment()?.bPlayersFullPaymentRequired ?? false);
+  bIncludePlayerDonation = linkedSignal(() => this.svc.payment()?.bIncludePlayerDonation ?? false);
+  bIncludeTeamDonation = linkedSignal(() => this.svc.payment()?.bIncludeTeamDonation ?? false);
   bAllowRefundsInPriorMonths = linkedSignal(() => this.svc.payment()?.bAllowRefundsInPriorMonths ?? null);
   bAllowCreditAll = linkedSignal(() => this.svc.payment()?.bAllowCreditAll ?? null);
 
@@ -75,6 +77,8 @@ export class PaymentTabComponent implements OnInit {
       balancedueaspercent: p.balancedueaspercent,
       bTeamsFullPaymentRequired: p.bTeamsFullPaymentRequired,
       bPlayersFullPaymentRequired: p.bPlayersFullPaymentRequired,
+      bIncludePlayerDonation: p.bIncludePlayerDonation,
+      bIncludeTeamDonation: p.bIncludeTeamDonation,
       bAllowRefundsInPriorMonths: p.bAllowRefundsInPriorMonths,
       bAllowCreditAll: p.bAllowCreditAll,
     };
@@ -152,6 +156,8 @@ export class PaymentTabComponent implements OnInit {
       balancedueaspercent: this.balancedueaspercent(),
       bTeamsFullPaymentRequired: this.bTeamsFullPaymentRequired(),
       bPlayersFullPaymentRequired: this.bPlayersFullPaymentRequired(),
+      bIncludePlayerDonation: this.bIncludePlayerDonation(),
+      bIncludeTeamDonation: this.bIncludeTeamDonation(),
       bAllowRefundsInPriorMonths: this.bAllowRefundsInPriorMonths(),
       bAllowCreditAll: this.bAllowCreditAll(),
     };

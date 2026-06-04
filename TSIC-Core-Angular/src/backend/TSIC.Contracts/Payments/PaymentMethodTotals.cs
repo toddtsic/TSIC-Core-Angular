@@ -15,6 +15,14 @@ public record PaymentMethodTotals
     public required decimal Cash { get; init; }
     public required decimal Correction { get; init; }
 
+    /// <summary>
+    /// Net money this entity has paid: the sum of all five method buckets. This is the
+    /// figure written into entity.PaidTotal (mirrors <see cref="PaymentState.GrossPaid"/>),
+    /// so a PaidTotal recomputed from the ledger reads <c>totals.GrossPaid</c> directly.
+    /// Refunds/voids already net in via negative/zeroed Payamt rows.
+    /// </summary>
+    public decimal GrossPaid => CreditCard + Echeck + Check + Cash + Correction;
+
     public static readonly PaymentMethodTotals Zero = new()
     {
         CreditCard = 0m, Echeck = 0m, Check = 0m, Cash = 0m, Correction = 0m,

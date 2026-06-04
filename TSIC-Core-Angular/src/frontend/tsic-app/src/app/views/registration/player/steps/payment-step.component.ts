@@ -159,6 +159,20 @@ import type { LineItem } from '../state/payment-v2.service';
                     }
                   </tbody>
                   <tfoot>
+                    @if (paySvc.donation() > 0) {
+                      <tr class="donation-row">
+                        <td colspan="7" class="text-end">
+                          <i class="bi bi-heart-fill me-1 text-danger"></i>Donation
+                        </td>
+                        <td class="text-end fw-semibold">{{ paySvc.donation() | currency }}</td>
+                      </tr>
+                      @if (paySvc.donationProcessing() > 0) {
+                        <tr class="donation-row">
+                          <td colspan="7" class="text-end text-muted small">Donation processing fee</td>
+                          <td class="text-end text-muted small">{{ paySvc.donationProcessing() | currency }}</td>
+                        </tr>
+                      }
+                    }
                     <tr class="table-primary due-now-row">
                       <th colspan="7" class="text-end">Total Due</th>
                       <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
@@ -366,6 +380,33 @@ import type { LineItem } from '../state/payment-v2.service';
               {{ paySvc.discountMessage() }}
             </div>
           }
+        }
+
+        <!-- ═══ OPTIONAL DONATION ═══ -->
+        @if (showDonationInput()) {
+          <div class="donation-block mb-3">
+            <label for="donationAmount" class="field-label donation-label">
+              <i class="bi bi-heart-fill me-1"></i>Add a Donation
+              <span class="donation-optional">optional</span>
+            </label>
+            <div class="donation-input-row">
+              <span class="donation-currency" aria-hidden="true">$</span>
+              <input type="number" min="0" step="1" inputmode="decimal"
+                     class="field-input donation-input" id="donationAmount"
+                     [ngModel]="paySvc.donation() || null"
+                     (ngModelChange)="paySvc.setDonation($event)"
+                     placeholder="0.00"
+                     aria-describedby="donationHelp">
+            </div>
+            <div id="donationHelp" class="field-help donation-help">
+              @if (paySvc.donation() > 0) {
+                <i class="bi bi-check-circle-fill text-success me-1"></i>Thank you! Your
+                {{ paySvc.donation() | currency }} gift is added to this payment@if (paySvc.donationProcessing() > 0) { (plus {{ paySvc.donationProcessing() | currency }} processing) }.
+              } @else {
+                Your optional gift is charged in full with this payment.
+              }
+            </div>
+          </div>
         }
 
         <!-- ═══ PAYMENT METHOD SELECTOR (CC, eCheck, Check) ═══ -->
@@ -724,6 +765,57 @@ import type { LineItem } from '../state/payment-v2.service';
       .check-address {
         white-space: pre-line;
       }
+
+      /* Optional donation — visually echoes the elevated accounting card (border +
+         subtle primary wash) so it reads as part of the charge, not an afterthought. */
+      .donation-block {
+        padding: var(--space-3);
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.25);
+        border-radius: var(--radius-md);
+        background: rgba(var(--bs-primary-rgb), 0.03);
+      }
+      .donation-label {
+        display: flex;
+        align-items: center;
+        margin-bottom: var(--space-2);
+        color: var(--bs-primary);
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-base);
+
+        i { color: var(--bs-danger); }
+      }
+      .donation-optional {
+        margin-left: var(--space-2);
+        padding: 1px var(--space-2);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-normal);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--brand-text-muted);
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        border-radius: var(--radius-sm);
+      }
+      .donation-input-row {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        max-width: 220px;
+      }
+      .donation-currency {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-bold);
+        color: var(--brand-text-muted);
+      }
+      .donation-input {
+        background-color: var(--neutral-0);
+      }
+      .donation-input:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+      }
+      .donation-help {
+        margin-top: var(--space-2);
+      }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -823,6 +915,14 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly showCheckSection = computed(() => this.tsicChargeDueNow() && this.paySvc.isCheckPayment());
     readonly showNoPaymentInfo = computed(() => !this.tsicChargeDueNow() && !this.isViCcOnlyFlow() && !this.hasUnconfiguredFee());
     readonly showMethodSelector = computed(() => this.paySvc.showPaymentMethodSelector() && this.tsicChargeDueNow());
+    /** Donation input shows only for the immediate-charge online methods (CC / eCheck) on a
+     *  non-ARB charge. ARB (recurring) and mail-in check can't levy a charge-time gift in v1. */
+    readonly showDonationInput = computed(() =>
+        this.jobCtx.bIncludePlayerDonation()
+        && !this.paySvc.isArbScenario()
+        && this.paySvc.baseTotal() > 0
+        && (this.paySvc.isCcPayment() || this.paySvc.isEcheckPayment())
+    );
     readonly isCc = computed(() => this.paySvc.isCcPayment());
     readonly isEcheck = computed(() => this.paySvc.isEcheckPayment());
     readonly isCheck = computed(() => this.paySvc.isCheckPayment());
@@ -860,6 +960,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     // ── Lifecycle ────────────────────────────────────────────────────────
     ngOnInit(): void {
         this.paySvc.initPaymentMethod();
+        this.paySvc.resetDonation();
     }
 
     ngAfterViewInit(): void {
@@ -1152,6 +1253,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             paymentOption: mapPaymentOption(this.paymentState.paymentOption()),
             bankAccount,
             idempotencyKey: this.lastIdemKey,
+            donation: this.paySvc.donation() || undefined,
         };
 
         this.paySvc.submitEcheckPayment(request)
@@ -1200,6 +1302,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             paymentOption: mapPaymentOption(this.paymentState.paymentOption()),
             creditCard: creditCardPayload,
             idempotencyKey: this.lastIdemKey,
+            donation: this.paySvc.donation() || undefined,
             viConfirmed: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureConfirmed() : undefined,
             viPolicyNumber: (this.insuranceState.verticalInsureConfirmed()
                 ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,
@@ -1220,10 +1323,13 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             this.lastError.set(null);
             this.clearStoredIdem();
             this.lastIdemKey = null;
+            // Receipt reflects the method actually charged: eCheck pays echeckTotal (lower proc,
+            // incl. any donation at the ACH rate); CC pays currentTotal. Both include the donation.
+            const chargedAmount = this.paySvc.isEcheckPayment() ? this.echeckTotal() : this.currentTotal();
             try {
                 this.paymentState.setLastPayment({
                     option: this.paymentState.paymentOption(),
-                    amount: this.currentTotal(),
+                    amount: chargedAmount,
                     transactionId: response.transactionId || undefined,
                     subscriptionId: response.subscriptionId || undefined,
                     viPolicyNumber: rs?.policyNumber ?? null,

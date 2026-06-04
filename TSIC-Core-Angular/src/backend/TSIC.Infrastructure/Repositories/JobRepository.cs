@@ -149,6 +149,8 @@ public class JobRepository : IJobRepository
                 MailinPaymentWarning = jdo.Job.MailinPaymentWarning,
                 AllowPif = jdo.Job.CoreRegformPlayer != null && jdo.Job.CoreRegformPlayer.Contains("ALLOWPIF"),
                 BPlayersFullPaymentRequired = jdo.Job.BPlayersFullPaymentRequired,
+                BIncludePlayerDonation = jdo.Job.BIncludePlayerDonation,
+                BIncludeTeamDonation = jdo.Job.BIncludeTeamDonation,
                 BEnableEcheck = jdo.Job.BEnableEcheck
             })
             .SingleOrDefaultAsync(cancellationToken);
@@ -290,6 +292,7 @@ public class JobRepository : IJobRepository
                 MailTo = j.MailTo,
                 MailinPaymentWarning = j.MailinPaymentWarning,
                 BEnableEcheck = j.BEnableEcheck,
+                BIncludeTeamDonation = j.BIncludeTeamDonation,
                 AdnArbTrial = j.AdnArbtrial,
                 AdnArbStartDate = j.AdnArbstartDate,
                 AdnStartDateAfterTrial = j.AdnStartDateAfterTrial,

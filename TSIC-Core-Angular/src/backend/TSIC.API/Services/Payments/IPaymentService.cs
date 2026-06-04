@@ -49,7 +49,8 @@ public interface IPaymentService
         string userId,
         IReadOnlyCollection<Guid> teamIds,
         decimal totalAmount,
-        CreditCardInfo creditCard);
+        CreditCardInfo creditCard,
+        decimal donation = 0m);
 
     /// <summary>
     /// eCheck (ACH) counterpart to <see cref="ProcessTeamPaymentAsync"/>. Charges each
@@ -63,7 +64,8 @@ public interface IPaymentService
         string userId,
         IReadOnlyCollection<Guid> teamIds,
         decimal totalAmount,
-        BankAccountInfo bankAccount);
+        BankAccountInfo bankAccount,
+        decimal donation = 0m);
 
     /// <summary>
     /// ARB-Trial team registration payment. Creates one ADN ARB subscription per team:
@@ -80,5 +82,6 @@ public interface IPaymentService
         string userId,
         IReadOnlyCollection<Guid> teamIds,
         CreditCardInfo? creditCard,
-        BankAccountInfo? bankAccount);
+        BankAccountInfo? bankAccount,
+        decimal donation = 0m);
 }

@@ -14,6 +14,9 @@ public sealed record TeamPaymentRequestDto
     public required List<Guid> TeamIds { get; init; }
     public required decimal TotalAmount { get; init; }
     public required CreditCardInfo CreditCard { get; init; }
+    // Optional per-job donation; charged in full (principal + processing) with this payment
+    // and stamped on the first team. Defaults to 0 when absent.
+    public decimal? Donation { get; init; }
 }
 
 public class TeamPaymentRequestDtoValidator : AbstractValidator<TeamPaymentRequestDto>
@@ -28,6 +31,10 @@ public class TeamPaymentRequestDtoValidator : AbstractValidator<TeamPaymentReque
 
         RuleFor(x => x.CreditCard)
             .NotNull().WithMessage("Credit card information is required");
+
+        RuleFor(x => x.Donation)
+            .GreaterThanOrEqualTo(0m).When(x => x.Donation.HasValue)
+            .WithMessage("Donation cannot be negative");
     }
 }
 
@@ -40,6 +47,9 @@ public sealed record TeamEcheckPaymentRequestDto
     public required List<Guid> TeamIds { get; init; }
     public required decimal TotalAmount { get; init; }
     public required BankAccountInfo BankAccount { get; init; }
+    // Optional per-job donation; charged in full (principal + processing) with this payment
+    // and stamped on the first team. Defaults to 0 when absent.
+    public decimal? Donation { get; init; }
 }
 
 public class TeamEcheckPaymentRequestDtoValidator : AbstractValidator<TeamEcheckPaymentRequestDto>
@@ -49,6 +59,9 @@ public class TeamEcheckPaymentRequestDtoValidator : AbstractValidator<TeamEcheck
         RuleFor(x => x.TeamIds).NotEmpty().WithMessage("At least one team is required for payment");
         RuleFor(x => x.TotalAmount).GreaterThan(0).WithMessage("Payment amount must be greater than zero");
         RuleFor(x => x.BankAccount).NotNull().WithMessage("Bank account information is required");
+        RuleFor(x => x.Donation)
+            .GreaterThanOrEqualTo(0m).When(x => x.Donation.HasValue)
+            .WithMessage("Donation cannot be negative");
     }
 }
 
@@ -76,6 +89,9 @@ public sealed record TeamArbTrialPaymentRequestDto
     public required List<Guid> TeamIds { get; init; }
     public CreditCardInfo? CreditCard { get; init; }
     public BankAccountInfo? BankAccount { get; init; }
+    // Optional per-job donation; folded into the first team's trial deposit via the
+    // ArbTrialFeeSplitter (proc levied on it). Defaults to 0 when absent.
+    public decimal? Donation { get; init; }
 }
 
 public class TeamArbTrialPaymentRequestDtoValidator : AbstractValidator<TeamArbTrialPaymentRequestDto>
@@ -87,6 +103,9 @@ public class TeamArbTrialPaymentRequestDtoValidator : AbstractValidator<TeamArbT
             .WithMessage("Either credit card or bank account information is required");
         RuleFor(x => x).Must(x => !(x.CreditCard != null && x.BankAccount != null))
             .WithMessage("Provide either credit card or bank account, not both");
+        RuleFor(x => x.Donation)
+            .GreaterThanOrEqualTo(0m).When(x => x.Donation.HasValue)
+            .WithMessage("Donation cannot be negative");
     }
 }
 

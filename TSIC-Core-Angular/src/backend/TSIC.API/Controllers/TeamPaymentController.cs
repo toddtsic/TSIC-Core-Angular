@@ -54,7 +54,8 @@ public class TeamPaymentController : ControllerBase
                 userId,
                 request.TeamIds,
                 request.TotalAmount,
-                request.CreditCard);
+                request.CreditCard,
+                request.Donation ?? 0m);
 
             if (!response.Success)
             {
@@ -106,7 +107,8 @@ public class TeamPaymentController : ControllerBase
                 userId,
                 request.TeamIds,
                 request.TotalAmount,
-                request.BankAccount);
+                request.BankAccount,
+                request.Donation ?? 0m);
 
             return response.Success ? Ok(response) : BadRequest(response);
         }
@@ -154,7 +156,8 @@ public class TeamPaymentController : ControllerBase
                 userId,
                 request.TeamIds,
                 request.CreditCard,
-                request.BankAccount);
+                request.BankAccount,
+                request.Donation ?? 0m);
 
             return response.Success ? Ok(response) : BadRequest(response);
         }

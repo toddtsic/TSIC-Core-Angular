@@ -16,8 +16,10 @@ using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Contracts.Extensions;
 using TSIC.Application.Services.Shared.Discount;
 
 namespace TSIC.API.Controllers;
@@ -29,22 +31,16 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IJobLookupService _jobLookupService;
     private readonly IPaymentService _paymentService;
     private readonly IJobDiscountCodeRepository _discountCodeRepo;
-    private readonly IRegistrationAccountingRepository _accountingRepo;
     private readonly ILogger<PlayerRegistrationPaymentController> _logger;
     private readonly IRegistrationRepository _registrations;
-    private readonly IPlayerFeeCalculator _feeCalc;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentStateService _paymentState;
-
-    private static readonly Guid CorrectionMethodId = Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D");
 
     public PlayerRegistrationPaymentController(
         IJobLookupService jobLookupService,
         IPaymentService paymentService,
         IJobDiscountCodeRepository discountCodeRepo,
-        IRegistrationAccountingRepository accountingRepo,
         IRegistrationRepository registrations,
-        IPlayerFeeCalculator feeCalc,
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentStateService paymentState,
         ILogger<PlayerRegistrationPaymentController> logger)
@@ -52,9 +48,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         _jobLookupService = jobLookupService;
         _paymentService = paymentService;
         _discountCodeRepo = discountCodeRepo;
-        _accountingRepo = accountingRepo;
         _registrations = registrations;
-        _feeCalc = feeCalc;
         _feeAdjustment = feeAdjustment;
         _paymentState = paymentState;
         _logger = logger;
@@ -261,38 +255,23 @@ public class PlayerRegistrationPaymentController : ControllerBase
             // Proportionally reduce processing fee by discount amount (discount reduces CC transaction)
             await _feeAdjustment.ReduceProcessingFeeProportionalAsync(reg, d, jobId.Value, familyUserId);
 
-            // Recalculate totals using the proc already adjusted by ReduceProcessingFee. Pass it
-            // directly (0 included) — collapsing 0 to null makes ComputeTotals fall back to default
-            // proc, which would re-inflate a full discount that legitimately zeroed the processing fee.
-            var (proc, totalFee) = _feeCalc.ComputeTotals(reg.FeeBase, newDiscount, reg.FeeDonation,
-                reg.FeeProcessing);
+            // Set the new discount, record which code on the reg, then recompute totals through the
+            // single canonical helper (RecalcTotals → FeeMath). FeeProcessing was already adjusted in
+            // place by ReduceProcessingFeeProportionalAsync above (and stays ≥0), so it flows straight
+            // through (0 included) — a full discount that legitimately zeroed the proc is not re-inflated.
+            // OwedTotal is now signed (RecalcTotals drops the old Math.Max clamp) per the signed-owed policy.
             reg.FeeDiscount = newDiscount;
-            reg.FeeProcessing = proc;
-            reg.FeeTotal = totalFee;
-            reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
+            // Which code, recorded on the registration itself — the canonical redemption-count
+            // source (JobDiscountCodeRepository.GetUsageCountAsync reads reg.DiscountCodeId).
+            reg.DiscountCodeId = discountCodeAi;
+            reg.RecalcTotals();
             reg.Modified = DateTime.Now;
             reg.LebUserId = familyUserId;
 
-            // 100% DC: create correction accounting record so registration isn't invisible in ledger
-            if (reg.OwedTotal <= 0m)
-            {
-                var detail = (bAsPercent ?? false) ? $"{amount:0}%" : $"${amount:0.00}";
-                _accountingRepo.Add(new Domain.Entities.RegistrationAccounting
-                {
-                    RegistrationId = reg.RegistrationId,
-                    PaymentMethodId = CorrectionMethodId,
-                    DiscountCodeAi = discountCodeAi,
-                    Dueamt = d,
-                    Payamt = d,
-                    Comment = $"DC: {request.Code.Trim()} ({detail})",
-                    Active = true,
-                    Createdate = DateTime.Now,
-                    Modified = DateTime.Now,
-                    LebUserId = familyUserId
-                });
-                reg.PaidTotal += d;
-                reg.OwedTotal = Math.Max(0m, reg.FeeTotal - reg.PaidTotal);
-            }
+            // A discount is a fee modifier, not a payment: it reduces FeeTotal and is recorded on the
+            // reg (DiscountCodeId) — it never writes a RegistrationAccounting row or PaidTotal. (A 100% DC
+            // used to stamp a fake Correction Payamt + PaidTotal +=, double-booking the discount and —
+            // under signed OwedTotal — surfacing a phantom -discount.)
 
             updatedFinancials[reg.UserId!] = new RegistrationFinancialsDto
             {
@@ -304,7 +283,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 FeeTotal = reg.FeeTotal,
                 OwedTotal = reg.OwedTotal,
                 PaidTotal = reg.PaidTotal,
-                EcheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeProcessing).Echeck,
+                EcheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing).Echeck,
                 // Canonical Fee-Adj / TenderPaid (job-level state → no corrections in this path).
                 FeeAdj = echeckState.FeeAdjustment(reg.FeeDiscount, reg.FeeLatefee),
                 TenderPaid = reg.PaidTotal - echeckState.CorrectionApplied

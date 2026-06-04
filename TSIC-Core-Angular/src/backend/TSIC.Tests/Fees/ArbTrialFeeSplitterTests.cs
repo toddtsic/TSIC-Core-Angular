@@ -17,7 +17,7 @@ public class ArbTrialFeeSplitterTests
     {
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 200m, rawBalance: 800m,
-            discount: 0m, lateFee: 0m,
+            discount: 0m, lateFee: 0m, donation: 0m,
             processingRate: Rate,
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
@@ -38,7 +38,7 @@ public class ArbTrialFeeSplitterTests
     {
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 200m, rawBalance: 800m,
-            discount: 0m, lateFee: 0m,
+            discount: 0m, lateFee: 0m, donation: 0m,
             processingRate: Rate,
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: false);
@@ -58,7 +58,7 @@ public class ArbTrialFeeSplitterTests
     {
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 200m, rawBalance: 800m,
-            discount: 0m, lateFee: 0m,
+            discount: 0m, lateFee: 0m, donation: 0m,
             processingRate: Rate,
             bAddProcessingFees: false,
             bApplyProcessingFeesToTeamDeposit: true);
@@ -76,7 +76,7 @@ public class ArbTrialFeeSplitterTests
         // Deposit ratio = 200/1000.
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 200m, rawBalance: 800m,
-            discount: 10m, lateFee: 0m,
+            discount: 10m, lateFee: 0m, donation: 0m,
             processingRate: 0.03m,
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
@@ -97,7 +97,7 @@ public class ArbTrialFeeSplitterTests
         // $10 late fee at 3%. netBase = 1010, processing = 30.30, FeeTotal = 1040.30.
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 200m, rawBalance: 800m,
-            discount: 0m, lateFee: 10m,
+            discount: 0m, lateFee: 10m, donation: 0m,
             processingRate: 0.03m,
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
@@ -113,6 +113,48 @@ public class ArbTrialFeeSplitterTests
     }
 
     [Fact]
+    public void Donation_IncreasesNetBaseAndIncursProcessing_TrueTrue()
+    {
+        // $100 donation at 3.5%. netBase = 1000 + 100 = 1100, processing = round(1100 × 0.035) = 38.50.
+        // vs. the no-donation run (1035.00), donation adds 100 principal + 3.50 processing = 103.50.
+        var r = ArbTrialFeeSplitter.Split(
+            rawDeposit: 200m, rawBalance: 800m,
+            discount: 0m, lateFee: 0m, donation: 100m,
+            processingRate: 0.035m,
+            bAddProcessingFees: true,
+            bApplyProcessingFeesToTeamDeposit: true);
+
+        // depositBase = round(1100 × 200/1000) = 220, balanceBase = 880
+        // totalProcessing = round(1100 × 0.035) = 38.50
+        // depositProcessing = round(38.50 × 0.2) = 7.70, balanceProcessing = 30.80
+        r.TotalProcessing.Should().Be(38.50m);
+        r.DepositCharge.Should().Be(227.70m);
+        r.BalanceCharge.Should().Be(910.80m);
+        (r.DepositCharge + r.BalanceCharge).Should().Be(1138.50m);
+    }
+
+    [Fact]
+    public void Donation_IncursProcessingOnBalanceShare_TrueFalse()
+    {
+        // Balance-only processing mode: donation still folds into netBase, so its balance
+        // share carries processing. netBase = 1100, balanceBase = 880, processing = round(880 × 0.035) = 30.80.
+        var r = ArbTrialFeeSplitter.Split(
+            rawDeposit: 200m, rawBalance: 800m,
+            discount: 0m, lateFee: 0m, donation: 100m,
+            processingRate: 0.035m,
+            bAddProcessingFees: true,
+            bApplyProcessingFeesToTeamDeposit: false);
+
+        r.DepositProcessing.Should().Be(0m);
+        r.BalanceProcessing.Should().Be(30.80m);
+        r.TotalProcessing.Should().Be(30.80m);
+        // depositCharge = 220 (no processing), balanceCharge = 880 + 30.80 = 910.80
+        r.DepositCharge.Should().Be(220m);
+        r.BalanceCharge.Should().Be(910.80m);
+        (r.DepositCharge + r.BalanceCharge).Should().Be(1130.80m);
+    }
+
+    [Fact]
     public void EvenSplit_OneCentRoundingResolvedByRemainder()
     {
         // $0.50 deposit + $0.50 balance, 3% rate.
@@ -122,7 +164,7 @@ public class ArbTrialFeeSplitterTests
         // balanceProcessing = 0.03 − 0.02 = 0.01 (the remainder absorbs the cent).
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 0.50m, rawBalance: 0.50m,
-            discount: 0m, lateFee: 0m,
+            discount: 0m, lateFee: 0m, donation: 0m,
             processingRate: 0.03m,
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
@@ -138,7 +180,7 @@ public class ArbTrialFeeSplitterTests
         // $0.01 deposit + $99.99 balance, 3.5% rate.
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 0.01m, rawBalance: 99.99m,
-            discount: 0m, lateFee: 0m,
+            discount: 0m, lateFee: 0m, donation: 0m,
             processingRate: 0.035m,
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
@@ -152,7 +194,7 @@ public class ArbTrialFeeSplitterTests
     {
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 0m, rawBalance: 1000m,
-            discount: 50m, lateFee: 0m,
+            discount: 50m, lateFee: 0m, donation: 0m,
             processingRate: 0.035m,
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
@@ -169,7 +211,7 @@ public class ArbTrialFeeSplitterTests
         // Defense: discount > raw total → netBase clamps to 0, no negative charges.
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 200m, rawBalance: 800m,
-            discount: 5000m, lateFee: 0m,
+            discount: 5000m, lateFee: 0m, donation: 0m,
             processingRate: 0.035m,
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
@@ -193,7 +235,7 @@ public class ArbTrialFeeSplitterTests
         {
             var r = ArbTrialFeeSplitter.Split(
                 rawDeposit: 100m, rawBalance: 233m,
-                discount: 7m, lateFee: 0m,
+                discount: 7m, lateFee: 0m, donation: 0m,
                 processingRate: 0.035m,
                 bAddProcessingFees: true,
                 bApplyProcessingFeesToTeamDeposit: true);

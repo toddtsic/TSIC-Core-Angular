@@ -200,22 +200,4 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
             await _context.SaveChangesAsync(ct);
         }
     }
-
-    public async Task RecordPaymentAsync(
-        RegistrationAccounting entry, decimal amount, string userId,
-        CancellationToken ct = default)
-    {
-        _context.RegistrationAccounting.Add(entry);
-
-        var reg = await _context.Registrations.FindAsync(new object[] { entry.RegistrationId! }, ct);
-        if (reg != null)
-        {
-            reg.PaidTotal += amount;
-            reg.OwedTotal -= amount;
-            reg.Modified = DateTime.Now;
-            reg.LebUserId = userId;
-        }
-
-        await _context.SaveChangesAsync(ct);
-    }
 }

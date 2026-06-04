@@ -175,6 +175,88 @@ public class PlayerCcPaymentServiceTests
         reg.OwedTotal.Should().Be(0m);
     }
 
+    private PaymentRequestDto DepositReq(decimal donation) => new()
+    {
+        JobPath = "test-job",
+        PaymentOption = PaymentOption.Deposit,
+        CreditCard = ValidCard(),
+        Donation = donation
+    };
+
+    /// <summary>
+    /// Stub <c>RecomputeRegistrationFinancialsAsync</c> to simulate the canonical deposit-path
+    /// recompute the orchestration relies on: proc re-levied on FeeBase + the (already-stamped)
+    /// donation, pushing the proc-inclusive gift into OwedTotal. The real proc math lives in
+    /// PaymentStateTests; here we only need OwedTotal to move by the gift so the orchestration
+    /// (donationGross add + the AMOUNT_MISMATCH tripwire) is observable.
+    /// </summary>
+    private void StubDepositDonationRecompute(decimal newFeeProcessing, decimal newOwed)
+    {
+        _feeService.Setup(f => f.RecomputeRegistrationFinancialsAsync(
+                It.IsAny<Registrations>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback<Registrations, Guid, CancellationToken>((reg, _, _) =>
+            {
+                reg.FeeProcessing = newFeeProcessing;
+                reg.FeeTotal = reg.FeeBase + newFeeProcessing - reg.FeeDiscount + reg.FeeLatefee + reg.FeeDonation;
+                reg.OwedTotal = newOwed;
+            })
+            .Returns(Task.CompletedTask);
+    }
+
+    [Fact(DisplayName = "Deposit + donation → charges deposit + gift (principal + proc), stamps FeeDonation on primary")]
+    public async Task DepositDonation_ChargesDepositPlusGift()
+    {
+        var jobId = Guid.NewGuid();
+        var reg = Reg(jobId, owed: 100m);
+        reg.FeeProcessing = 3m; reg.FeeTotal = 103m; reg.OwedTotal = 103m; // proc-enabled deposit-phase posture
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, reg);
+        _teamLookup.Setup(t => t.ResolvePerRegistrantAsync(It.IsAny<Guid>())).ReturnsAsync((100m, 100m)); // (fee, deposit)
+        StubDepositDonationRecompute(newFeeProcessing: 3.75m, newOwed: 128.75m); // proc on (100 + 25 gift); +25 gift
+        decimal charged = 0m;
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Callback<AdnChargeRequest>(r => charged = r.Amount)
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "txn", ResponseCode = "1", MessageForUser = "Approved" });
+        var sut = BuildSut();
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, DepositReq(25m), ActingUserId);
+
+        result.Success.Should().BeTrue();
+        reg.FeeDonation.Should().Be(25m, "the gift is stamped on the primary registration");
+        // deposit (100) + gift principal (25) + proc on the gift (0.75). Without the donationGross
+        // add, ComputeChargesAsync's deposit cap (Math.Min(dep, OwedTotal)) would drop the gift.
+        charged.Should().Be(125.75m);
+        reg.PaidTotal.Should().Be(125.75m);
+        reg.OwedTotal.Should().Be(3.00m, "the deposit's own proc remains owed; the gift netted to zero");
+    }
+
+    [Fact(DisplayName = "Deposit + donation decline → gift rolled back (no stranded FeeDonation)")]
+    public async Task DepositDonationDecline_RollsBackGift()
+    {
+        var jobId = Guid.NewGuid();
+        var reg = Reg(jobId, owed: 100m);
+        reg.FeeProcessing = 3m; reg.FeeTotal = 103m; reg.OwedTotal = 103m;
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, reg);
+        _teamLookup.Setup(t => t.ResolvePerRegistrantAsync(It.IsAny<Guid>())).ReturnsAsync((100m, 100m));
+        StubDepositDonationRecompute(newFeeProcessing: 3.75m, newOwed: 128.75m);
+        StubAdnDecline();
+        var sut = BuildSut();
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, DepositReq(25m), ActingUserId);
+
+        result.Success.Should().BeFalse();
+        result.ErrorCode.Should().Be("CHARGE_GATEWAY_ERROR");
+        // The snapshot is taken BEFORE the stamp/recompute and now carries FeeDonation, so a
+        // declined deposit+donation restores the pre-gift posture instead of stranding the gift
+        // (the engine's pre-gateway SaveChanges otherwise persists FeeDonation=25 with no charge).
+        reg.FeeDonation.Should().Be(0m);
+        reg.FeeBase.Should().Be(100m);
+        reg.FeeProcessing.Should().Be(3m);
+        reg.OwedTotal.Should().Be(103m);
+        reg.PaidTotal.Should().Be(0m);
+    }
+
     [Fact(DisplayName = "PIF + ADN decline → pre-PIF fee fields are restored (003 Issue 1)")]
     public async Task PifDecline_RestoresPrePifFeeFields()
     {

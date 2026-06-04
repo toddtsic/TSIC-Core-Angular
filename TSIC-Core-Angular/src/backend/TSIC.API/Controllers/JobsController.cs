@@ -36,6 +36,7 @@ public class JobsController : ControllerBase
     private readonly IJobRepository _jobRepository;
     private readonly IUserRepository _userRepository;
     private readonly IPlayerRegistrationMetadataService _metadataService;
+    private readonly IFeeResolutionService _feeService;
 
     public JobsController(
         ILogger<JobsController> logger,
@@ -45,7 +46,8 @@ public class JobsController : ControllerBase
         IHttpContextAccessor httpContextAccessor,
         IJobRepository jobRepository,
         IUserRepository userRepository,
-        IPlayerRegistrationMetadataService metadataService)
+        IPlayerRegistrationMetadataService metadataService,
+        IFeeResolutionService feeService)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
@@ -55,6 +57,7 @@ public class JobsController : ControllerBase
         _jobRepository = jobRepository;
         _userRepository = userRepository;
         _metadataService = metadataService;
+        _feeService = feeService;
     }
 
     [AllowAnonymous]
@@ -69,6 +72,11 @@ public class JobsController : ControllerBase
         {
             return NotFound(new { message = $"Job not found: {jobPath}" });
         }
+
+        // Effective (clamped) processing rates — the same multipliers the server charges, so the
+        // wizard can reprice a freely-typed donation client-side without tripping the amount tripwire.
+        var ccRate = await _feeService.GetEffectiveProcessingRateAsync(jobMetadata.JobId);
+        var echeckRate = await _feeService.GetEffectiveEcheckProcessingRateAsync(jobMetadata.JobId);
 
         // Map to response DTO
         var response = new JobMetadataResponse
@@ -115,7 +123,11 @@ public class JobsController : ControllerBase
             PayTo = jobMetadata.PayTo,
             MailTo = jobMetadata.MailTo,
             MailinPaymentWarning = jobMetadata.MailinPaymentWarning,
-            BEnableEcheck = jobMetadata.BEnableEcheck
+            BEnableEcheck = jobMetadata.BEnableEcheck,
+            BIncludePlayerDonation = jobMetadata.BIncludePlayerDonation,
+            BIncludeTeamDonation = jobMetadata.BIncludeTeamDonation,
+            EffectiveProcessingRate = ccRate,
+            EffectiveEcheckProcessingRate = echeckRate
         };
 
         return Ok(response);

@@ -25,6 +25,7 @@ public record FinancialMetrics
     public required decimal TotalOwed { get; init; }
     public required int PaidInFull { get; init; }
     public required int Underpaid { get; init; }
+    public required int OverPaid { get; init; }
 }
 
 public record SchedulingMetrics
@@ -70,6 +71,7 @@ public record RegistrationTrendSummaryDto
     public required decimal TotalOutstanding { get; init; }
     public required int PaidInFull { get; init; }
     public required int Underpaid { get; init; }
+    public required int OverPaid { get; init; }
 }
 
 // ═══════════════════════════════════════════════════════════

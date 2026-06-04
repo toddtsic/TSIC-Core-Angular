@@ -31,5 +31,8 @@ export type TeamsMetadataResponse = {
     adnArbTrial?: boolean | null;
     adnArbStartDate?: string | null;
     adnStartDateAfterTrial?: string | null;
+    bIncludeTeamDonation: boolean;
+    effectiveProcessingRate: number;
+    effectiveEcheckProcessingRate: number;
 };
 

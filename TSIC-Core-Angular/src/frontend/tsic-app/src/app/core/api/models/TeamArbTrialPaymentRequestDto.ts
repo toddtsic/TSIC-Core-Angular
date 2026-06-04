@@ -8,5 +8,6 @@ export type TeamArbTrialPaymentRequestDto = {
     teamIds: Array<string>;
     creditCard?: (null | CreditCardInfo);
     bankAccount?: (null | BankAccountInfo);
+    donation?: number | null;
 };
 

@@ -88,14 +88,14 @@ public class PaymentStateTests
     public void Target_NoPayments_BaseTimesRate()
     {
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        s.FeeProcessingTarget(1650m, 0m, 0m).Should().BeApproximately(62.70m, 0.005m);
+        s.FeeProcessingTarget(1650m, 0m, 0m, 0m).Should().BeApproximately(62.70m, 0.005m);
     }
 
     [Fact(DisplayName = "Target after $500 check: shrinks by $500 × ccRate")]
     public void Target_AfterCheck_ShrinksFully()
     {
         var s = State(check: 500m);
-        s.FeeProcessingTarget(1650m, 0m, 0m)
+        s.FeeProcessingTarget(1650m, 0m, 0m, 0m)
             .Should().BeApproximately((1650m - 500m) * 0.038m, 0.005m);   // 43.70
     }
 
@@ -107,7 +107,7 @@ public class PaymentStateTests
         // recalc lumped eCheck into "non-CC" and subtracted only the principal — it
         // computed $43.70 and lost the $5 already-collected eCheck proc credit on recalc.
         var s = State(echeck: 505m);
-        s.FeeProcessingTarget(1650m, 0m, 0m)
+        s.FeeProcessingTarget(1650m, 0m, 0m, 0m)
             .Should().BeApproximately(48.70m, 0.005m);
     }
 
@@ -117,7 +117,7 @@ public class PaymentStateTests
         // CC paid $450 principal + $17.10 proc. Target stays $62.70:
         //   ProcCollected $17.10 + remaining $1200 × 0.038 = $17.10 + $45.60 = $62.70.
         var s = State(cc: 467.10m);
-        s.FeeProcessingTarget(1650m, 0m, 0m)
+        s.FeeProcessingTarget(1650m, 0m, 0m, 0m)
             .Should().BeApproximately(62.70m, 0.005m);
     }
 
@@ -125,7 +125,7 @@ public class PaymentStateTests
     public void Target_ProcDisabled_Zero()
     {
         var s = State(check: 500m, bAdd: false, ccRate: 0m);
-        s.FeeProcessingTarget(1650m, 0m, 0m).Should().Be(0m);
+        s.FeeProcessingTarget(1650m, 0m, 0m, 0m).Should().Be(0m);
     }
 
     // ── Display: PrincipalRemaining + ProcFeeDue ──
@@ -135,7 +135,7 @@ public class PaymentStateTests
     {
         var s = State(cc: 467.10m, check: 200m, ccRate: 0.038m);
         // CC principal = 450, check = 200, total paid principal = 650.
-        s.PrincipalRemaining(1650m, 0m, 0m).Should().BeApproximately(1000m, 0.005m);
+        s.PrincipalRemaining(1650m, 0m, 0m, 0m).Should().BeApproximately(1000m, 0.005m);
     }
 
     [Fact(DisplayName = "ProcFeeDue = principal-remaining × ccRate (the team display bug fix)")]
@@ -144,14 +144,14 @@ public class PaymentStateTests
         // FeeBase $2100, $450 paid principal via CC. Remaining principal $1650.
         // ProcFee Due = $1650 × .038 = $62.70 — what Ann's screenshot wanted.
         var s = State(cc: 467.10m, ccRate: 0.038m);
-        s.ProcFeeDue(2100m, 0m, 0m).Should().BeApproximately(62.70m, 0.005m);
+        s.ProcFeeDue(2100m, 0m, 0m, 0m).Should().BeApproximately(62.70m, 0.005m);
     }
 
     [Fact(DisplayName = "PrincipalRemaining clamps at 0 (overpayment)")]
     public void PrincipalRemaining_OverPaid_ClampsAtZero()
     {
         var s = State(check: 2000m);
-        s.PrincipalRemaining(1500m, 0m, 0m).Should().Be(0m);
+        s.PrincipalRemaining(1500m, 0m, 0m, 0m).Should().Be(0m);
     }
 
     // ── Discount + late fee threading ──
@@ -161,8 +161,8 @@ public class PaymentStateTests
     {
         var s = State(check: 100m);
         // base = 1000 − 50 + 25 = 975, paid 100 → remaining 875; proc due = 875 × .038
-        s.PrincipalRemaining(1000m, 50m, 25m).Should().BeApproximately(875m, 0.005m);
-        s.ProcFeeDue(1000m, 50m, 25m).Should().BeApproximately(875m * 0.038m, 0.005m);
+        s.PrincipalRemaining(1000m, 50m, 25m, 0m).Should().BeApproximately(875m, 0.005m);
+        s.ProcFeeDue(1000m, 50m, 25m, 0m).Should().BeApproximately(875m * 0.038m, 0.005m);
     }
 
     // ── DepositPrincipalRemaining: deposit-phase analog of PrincipalRemaining ──
@@ -178,7 +178,7 @@ public class PaymentStateTests
     {
         // Deposit $600 − $100 discount = $500 effective; CC gross $519 → $500 principal.
         var s = State(cc: 519m, ccRate: 0.038m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 0m)
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 0m, donation: 0m)
             .Should().BeApproximately(0m, 0.005m);
     }
 
@@ -188,7 +188,7 @@ public class PaymentStateTests
         // Deposit $600 fully paid: CC gross $622.80 = $600 principal + $22.80 proc.
         // Old formula `paidTotal >= deposit` worked here by luck; new formula clears via principal.
         var s = State(cc: 622.80m, ccRate: 0.038m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m)
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m)
             .Should().BeApproximately(0m, 0.005m);
     }
 
@@ -196,7 +196,7 @@ public class PaymentStateTests
     public void DepositRemaining_NoPaymentNoModifiers_FullDeposit()
     {
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m).Should().Be(600m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m).Should().Be(600m);
     }
 
     [Fact(DisplayName = "DepositRemaining: late fee added before payment — owes inflated deposit")]
@@ -205,7 +205,7 @@ public class PaymentStateTests
         // Symmetric to the discount bug: previously late fee was ignored, so a team
         // that registered late would under-display Deposit Due as just the structural $600.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 50m).Should().Be(650m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 50m, donation: 0m).Should().Be(650m);
     }
 
     [Fact(DisplayName = "DepositRemaining: late-fee-inclusive deposit paid — clears to 0")]
@@ -213,7 +213,7 @@ public class PaymentStateTests
     {
         // Deposit $600 + $50 late = $650; CC gross $674.70 = $650 principal + $24.70 proc.
         var s = State(cc: 674.70m, ccRate: 0.038m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 50m)
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 50m, donation: 0m)
             .Should().BeApproximately(0m, 0.005m);
     }
 
@@ -223,7 +223,7 @@ public class PaymentStateTests
         // Effective = 600 − 100 + 50 = 550; CC gross paid $570.90 = $549.999... principal
         // (within decimal precision of $550).
         var s = State(cc: 570.90m, ccRate: 0.038m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 50m)
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 50m, donation: 0m)
             .Should().BeApproximately(0m, 0.005m);
     }
 
@@ -232,7 +232,7 @@ public class PaymentStateTests
     {
         // Big discount swallows the deposit entirely; remainder floats to balance via OwedTotal.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 800m, lateFee: 0m).Should().Be(0m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 800m, lateFee: 0m, donation: 0m).Should().Be(0m);
     }
 
     [Fact(DisplayName = "DepositRemaining: partial pay — owes the gap")]
@@ -240,14 +240,14 @@ public class PaymentStateTests
     {
         // Deposit $600 − $100 discount = $500 effective; paid $300 by check.
         var s = State(check: 300m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 0m).Should().Be(200m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 100m, lateFee: 0m, donation: 0m).Should().Be(200m);
     }
 
     [Fact(DisplayName = "DepositRemaining: proc disabled — gross = principal, exact-pay clears")]
     public void DepositRemaining_ProcDisabled_GrossEqualsPrincipal()
     {
         var s = State(cc: 500m, bAdd: false);
-        s.DepositPrincipalRemaining(deposit: 500m, discount: 0m, lateFee: 0m).Should().Be(0m);
+        s.DepositPrincipalRemaining(deposit: 500m, discount: 0m, lateFee: 0m, donation: 0m).Should().Be(0m);
     }
 
     [Fact(DisplayName = "DepositRemaining: deposit overpaid (balance bleed) — clamps at 0")]
@@ -255,7 +255,7 @@ public class PaymentStateTests
     {
         // Team paid into balance phase; deposit obligation long satisfied.
         var s = State(check: 1500m);
-        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m).Should().Be(0m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m).Should().Be(0m);
     }
 
     // ── BalancePrincipalRemaining: full-payment-phase "Balance Due" display column ──
@@ -273,7 +273,7 @@ public class PaymentStateTests
     {
         // Deposit $600, balance $2000, FeeBase $2600. Deposit unpaid → balance untouched.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m)
             .Should().Be(2000m);
     }
 
@@ -282,7 +282,7 @@ public class PaymentStateTests
     {
         // $600 deposit paid by check; deposit obligation cleared, balance unchanged.
         var s = State(check: 600m);
-        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m)
             .Should().Be(2000m);
     }
 
@@ -293,7 +293,7 @@ public class PaymentStateTests
         // Deposit $600 satisfied first; remaining $400 reduces the $2,000 balance → $1,600.
         // Old display returned the structural $2,000 (identical to an unpaid team).
         var s = State(check: 1000m);
-        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m)
             .Should().Be(1600m);
     }
 
@@ -301,7 +301,7 @@ public class PaymentStateTests
     public void BalanceRemaining_FullyPaid_Zero()
     {
         var s = State(check: 2600m);
-        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m)
             .Should().Be(0m);
     }
 
@@ -312,7 +312,7 @@ public class PaymentStateTests
         // while the (discounted) deposit is unpaid. Mirrors PrincipalRemaining/DepositRemaining
         // both carrying the discount, which cancels in the difference.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 100m, lateFee: 0m)
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 100m, lateFee: 0m, donation: 0m)
             .Should().Be(2000m);
     }
 
@@ -321,7 +321,7 @@ public class PaymentStateTests
     {
         // CC gross $1038 → $1000 principal at 3.8%. Deposit $600 cleared, $400 into balance.
         var s = State(cc: 1038m, ccRate: 0.038m);
-        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m)
+        s.BalancePrincipalRemaining(feeBase: 2600m, deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m)
             .Should().BeApproximately(1600m, 0.01m);
     }
 
@@ -332,7 +332,7 @@ public class PaymentStateTests
     {
         // base 500, embedded proc 19 (500 × 3.8%), owed 519, nothing paid.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        var owed = s.ResolveOwed(owedTotal: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m);
+        var owed = s.ResolveOwed(owedTotal: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 19m);
 
         owed.Cc.Should().BeApproximately(519m, 0.005m);     // full CC-inclusive owed
         owed.Check.Should().BeApproximately(500m, 0.005m);  // proc removed → principal only
@@ -343,7 +343,7 @@ public class PaymentStateTests
     public void ResolveOwed_ProcDisabled_AllMethodsEqualOwed()
     {
         var s = PaymentState.Empty(false, 0.038m, 0.01m);
-        var owed = s.ResolveOwed(owedTotal: 500m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 0m);
+        var owed = s.ResolveOwed(owedTotal: 500m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 0m);
 
         owed.Cc.Should().Be(500m);
         owed.Check.Should().Be(500m);
@@ -356,7 +356,7 @@ public class PaymentStateTests
         // base 2100; CC deposit $467.10 = $450 principal + $17.10 proc.
         // Embedded FeeProcessing target = 17.10 + 1650 × 3.8% = 79.80; owed = 2179.80 − 467.10 = 1712.70.
         var s = State(cc: 467.10m, ccRate: 0.038m, echeckRate: 0.01m);
-        var owed = s.ResolveOwed(owedTotal: 1712.70m, feeBase: 2100m, discount: 0m, lateFee: 0m, feeProcessing: 79.80m);
+        var owed = s.ResolveOwed(owedTotal: 1712.70m, feeBase: 2100m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 79.80m);
 
         owed.Cc.Should().BeApproximately(1712.70m, 0.005m);
         owed.Check.Should().BeApproximately(1650m, 0.005m);     // remaining principal only
@@ -369,7 +369,7 @@ public class PaymentStateTests
         // base 500 + donation 10 + proc 19 → owed 529. Check drops the 19 proc but KEEPS the donation.
         // (Guards the latent bug where check-owed = PrincipalRemaining would silently drop the donation.)
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        var owed = s.ResolveOwed(owedTotal: 529m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m);
+        var owed = s.ResolveOwed(owedTotal: 529m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 10m, feeProcessing: 19m);
 
         owed.Check.Should().BeApproximately(510m, 0.005m); // 500 base + 10 donation, proc removed
     }
@@ -378,7 +378,7 @@ public class PaymentStateTests
     public void ResolveOwed_NothingOwed_ClampsAtZero()
     {
         var s = State(check: 600m);
-        var owed = s.ResolveOwed(owedTotal: 0m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 0m);
+        var owed = s.ResolveOwed(owedTotal: 0m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 0m);
 
         owed.Cc.Should().Be(0m);
         owed.Check.Should().Be(0m);
@@ -396,10 +396,10 @@ public class PaymentStateTests
     {
         // OwedTotal = 519 (500 base + 19 proc); eCheck credit at (3.8 − 1.0)% = $14.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
-        var owed = s.ResolveOwed(owedTotal: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m);
+        var owed = s.ResolveOwed(owedTotal: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 19m);
 
         var credit = s.ProcCreditForCharge(
-            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.01m);
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 19m, methodRate: 0.01m);
 
         credit.Should().BeApproximately(519m - owed.Echeck, 0.005m);
     }
@@ -410,7 +410,7 @@ public class PaymentStateTests
         // Base 500, full owed 519; a $100 deposit is principal-only. No CC proc to credit.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
         var credit = s.ProcCreditForCharge(
-            ccCharge: 100m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.01m);
+            ccCharge: 100m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 19m, methodRate: 0.01m);
 
         credit.Should().Be(0m);
     }
@@ -422,7 +422,7 @@ public class PaymentStateTests
         // Raw rate-delta credit = 500 × 0.028 = $14. Capped at $5 = the proc in this charge.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
         var credit = s.ProcCreditForCharge(
-            ccCharge: 505m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.01m);
+            ccCharge: 505m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 19m, methodRate: 0.01m);
 
         credit.Should().Be(5m);
     }
@@ -432,7 +432,7 @@ public class PaymentStateTests
     {
         var s = PaymentState.Empty(bAddProcessingFees: false, ccRate: 0.038m, echeckRate: 0.01m);
         var credit = s.ProcCreditForCharge(
-            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.01m);
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 19m, methodRate: 0.01m);
 
         credit.Should().Be(0m);
     }
@@ -442,7 +442,7 @@ public class PaymentStateTests
     {
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
         var credit = s.ProcCreditForCharge(
-            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 19m, methodRate: 0.038m);
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 19m, methodRate: 0.038m);
 
         credit.Should().Be(0m);
     }
@@ -453,8 +453,40 @@ public class PaymentStateTests
         // Raw rate-delta would credit $14, but the reg has only $3 of proc left.
         var s = PaymentState.Empty(true, 0.038m, 0.01m);
         var credit = s.ProcCreditForCharge(
-            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, feeProcessing: 3m, methodRate: 0.01m);
+            ccCharge: 519m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 0m, feeProcessing: 3m, methodRate: 0.01m);
 
         credit.Should().Be(3m);
+    }
+
+    // ── Donation threading: a donation is a late-fee-shaped, proc-bearing modifier ──
+
+    [Fact(DisplayName = "FeeProcessingTarget: donation adds to the proc-bearing base")]
+    public void Target_Donation_LeviesProcOnDonation()
+    {
+        // base 1000 + donation 100 = 1100 proc-bearing principal; nothing paid.
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        s.FeeProcessingTarget(1000m, 0m, 0m, donation: 100m)
+            .Should().BeApproximately(1100m * 0.038m, 0.005m); // 41.80
+    }
+
+    [Fact(DisplayName = "DepositRemaining: donation adds to the deposit obligation like a late fee")]
+    public void DepositRemaining_Donation_AddsToDepositDue()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m, donation: 25m)
+            .Should().Be(625m);
+    }
+
+    [Fact(DisplayName = "ResolveOwed: donation is proc-bearing — eCheck owes its principal plus eCheck proc")]
+    public void ResolveOwed_Donation_EcheckIncludesDonation()
+    {
+        // base 500 + donation 100 -> proc-bearing 600. CC owed 622.80 (600 x 1.038);
+        // check owed 600 (CC proc removed); eCheck owed 606 (600 x 1.01).
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        var owed = s.ResolveOwed(owedTotal: 622.80m, feeBase: 500m, discount: 0m, lateFee: 0m, donation: 100m, feeProcessing: 22.80m);
+
+        owed.Cc.Should().BeApproximately(622.80m, 0.005m);
+        owed.Check.Should().BeApproximately(600m, 0.005m);
+        owed.Echeck.Should().BeApproximately(606m, 0.005m);
     }
 }

@@ -80,7 +80,11 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
             var balanceDue = resolved?.BalanceDue ?? 0m;
 
             var state = paymentStates.GetValueOrDefault(p.RegistrationId, emptyState);
-            var depositDue = state.DepositPrincipalRemaining(deposit, p.FeeDiscount, p.FeeLatefee);
+            // donation: 0m — a donation is always charged in full with its payment, so it sits in
+            // BOTH the principal base and PrincipalPaid and nets out of these post-payment display
+            // columns. RegisteredPlayerInfo doesn't carry FeeDonation; threading it would change
+            // nothing here. (The charge/stamp paths pass the real FeeDonation.)
+            var depositDue = state.DepositPrincipalRemaining(deposit, p.FeeDiscount, p.FeeLatefee, donation: 0m);
 
             // Per-player phase: deposit phase (FeeBase == Deposit) shows the structural balance
             // forward; once upgraded to pay-in-full (FeeBase covers deposit + balance) the
@@ -88,10 +92,10 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
             // flag — family siblings can be on different phases.
             var bFull = p.FeeBase >= deposit + balanceDue - 0.005m;
             var additionalDue = bFull
-                ? state.BalancePrincipalRemaining(p.FeeBase, deposit, p.FeeDiscount, p.FeeLatefee)
+                ? state.BalancePrincipalRemaining(p.FeeBase, deposit, p.FeeDiscount, p.FeeLatefee, donation: 0m)
                 : balanceDue;
 
-            var owed = state.ResolveOwed(p.OwedTotal, p.FeeBase, p.FeeDiscount, p.FeeLatefee, p.FeeProcessing);
+            var owed = state.ResolveOwed(p.OwedTotal, p.FeeBase, p.FeeDiscount, p.FeeLatefee, donation: 0m, p.FeeProcessing);
 
             return new RegisteredTeamDto
             {

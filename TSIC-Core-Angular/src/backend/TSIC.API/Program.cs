@@ -220,7 +220,6 @@ builder.Services.AddScoped<IJobLookupService, JobLookupService>();
 builder.Services.AddScoped<ITeamLookupService, TeamLookupService>();
 builder.Services.AddScoped<IAdnApiService, AdnApiService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
-builder.Services.AddScoped<TSIC.Contracts.Services.IPlayerFeeCalculator, PlayerFeeCalculator>();
 builder.Services.AddScoped<IPlayerRegistrationService, PlayerRegistrationService>();
 builder.Services.AddScoped<IPlayerFormValidationService, PlayerFormValidationService>();
 builder.Services.AddScoped<IFeeResolutionService, FeeResolutionService>();
@@ -428,6 +427,8 @@ builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 // Tests will provide in-memory versions via WebApplicationTestFactory
 if (!builder.Environment.IsEnvironment("Testing"))
 {
+    // FeeTotal/OwedTotal are derived money written solely by RecalcTotals (TSIC.Contracts),
+    // so the Stage-A observe/shadow interceptor was removed as redundant.
     builder.Services.AddDbContext<SqlDbContext>(options =>
         options.UseSqlServer(
             builder.Configuration.GetConnectionString("DefaultConnection"),

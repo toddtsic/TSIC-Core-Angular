@@ -4573,6 +4573,8 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.BEnableTsicteams)
                 .HasDefaultValue(false)
                 .HasColumnName("bEnableTSICTeams");
+            entity.Property(e => e.BIncludePlayerDonation).HasColumnName("bIncludePlayerDonation");
+            entity.Property(e => e.BIncludeTeamDonation).HasColumnName("bIncludeTeamDonation");
             entity.Property(e => e.BOfferPlayerRegsaverInsurance)
                 .HasDefaultValue(false)
                 .HasColumnName("bOfferPlayerRegsaverInsurance");
