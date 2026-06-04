@@ -62,6 +62,14 @@ export class FamilyPaymentComponent {
   inactivePlayers = computed(() => this.allPlayers().filter(p => !p.active));
   playerCount = computed(() => this.allPlayers().length);
 
+  // The scope selector lists EVERY player (active-first), not just active ones: a pay-by-check
+  // sibling starts life bActive=0 (pending payment, on the Unassigned team), so the admin must be
+  // able to pick it to record the mailed check. Inactive chips are styled muted (see template).
+  // Activation stays a separate, deliberate director action via the detail-panel Active toggle —
+  // recording a payment never flips bActive here.
+  chipPlayers = computed(() =>
+    [...this.allPlayers()].sort((a, b) => Number(b.active) - Number(a.active)));
+
   selectedPlayer = computed(() =>
     this.allPlayers().find(p => p.teamId === this.activePlayerId()) ?? null);
 

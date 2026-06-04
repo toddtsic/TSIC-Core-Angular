@@ -39,6 +39,43 @@
     color: var(--bs-white);
     font-weight: var(--font-weight-semibold);
   }
+
+  // Inactive player (bActive=0) — e.g. a pay-by-check sibling awaiting its mailed check.
+  // Muted + dashed border to read as "not yet on rosters", but still fully selectable so the
+  // admin can record the check. The dashed border + "Inactive" tag carry the meaning (not
+  // color alone). When selected, the .active rule above wins and the chip lights up normally.
+  &.inactive:not(.active) {
+    border-style: dashed;
+    border-color: var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    color: var(--text-muted);
+  }
+}
+
+.chip-inactive-tag {
+  display: inline-flex;
+  align-items: center;
+  margin-left: var(--space-2);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bs-secondary-bg);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+
+  .bi { font-size: 0.9em; }
+
+  // Selected inactive chip: tag sits on the primary fill, so lift it to a readable inverse.
+  .scope-btn.active & {
+    background: rgba(255, 255, 255, 0.25);
+    color: var(--bs-white);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scope-btn { transition: none; }
 }
 
 .scope-btn-family {
