@@ -8,5 +8,6 @@ export type FinancialMetrics = {
     totalOwed: number;
     paidInFull: number;
     underpaid: number;
+    overPaid: number;
 };
 

@@ -144,6 +144,21 @@
           <span class="field-label mb-0">Players Full Payment Required</span>
         </label>
       </div>
+      <p class="field-help mt-1 mb-2">Offer an optional donation field on the payment page. The amount is charged in full (plus processing) with the registrant's payment.</p>
+      <div class="field-check-row">
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bIncludePlayerDonation()"
+            (ngModelChange)="bIncludePlayerDonation.set($event); onFieldChange()" />
+          <span class="field-label mb-0">Enable Player Donations</span>
+        </label>
+        <label class="field-check">
+          <input type="checkbox"
+            [ngModel]="bIncludeTeamDonation()"
+            (ngModelChange)="bIncludeTeamDonation.set($event); onFieldChange()" />
+          <span class="field-label mb-0">Enable Team Donations</span>
+        </label>
+      </div>
     </div>
 
     <!-- SuperUser: ARB Settings -->

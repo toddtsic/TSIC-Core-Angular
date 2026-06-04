@@ -18,6 +18,8 @@ export type UpdateJobConfigPaymentRequest = {
     balancedueaspercent: string | null;
     bTeamsFullPaymentRequired: boolean | null;
     bPlayersFullPaymentRequired: boolean;
+    bIncludePlayerDonation: boolean;
+    bIncludeTeamDonation: boolean;
     bAllowRefundsInPriorMonths: boolean | null;
     bAllowCreditAll: boolean | null;
     adnArb?: boolean | null;

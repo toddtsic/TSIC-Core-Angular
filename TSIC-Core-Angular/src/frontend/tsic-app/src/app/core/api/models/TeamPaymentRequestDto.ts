@@ -7,5 +7,6 @@ export type TeamPaymentRequestDto = {
     teamIds: Array<string>;
     totalAmount: number;
     creditCard: CreditCardInfo;
+    donation?: number | null;
 };
 

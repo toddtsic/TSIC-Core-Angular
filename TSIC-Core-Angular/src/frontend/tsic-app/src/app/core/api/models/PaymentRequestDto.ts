@@ -11,6 +11,7 @@ export type PaymentRequestDto = {
     creditCard?: (null | CreditCardInfo);
     bankAccount?: (null | BankAccountInfo);
     idempotencyKey?: string | null;
+    donation?: number | null;
     viConfirmed?: boolean | null;
     viPolicyNumber?: string | null;
     viPolicyCreateDate?: string | null;
