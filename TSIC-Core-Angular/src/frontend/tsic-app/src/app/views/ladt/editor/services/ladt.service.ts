@@ -178,6 +178,10 @@ export class LadtService {
     return this.http.get<JobFeeDto[]>(`${environment.apiUrl}/fees/agegroup/${agegroupId}`);
   }
 
+  getLeagueFees(leagueId: string): Observable<JobFeeDto[]> {
+    return this.http.get<JobFeeDto[]>(`${environment.apiUrl}/fees/league/${leagueId}`);
+  }
+
   getJobFees(): Observable<JobFeeDto[]> {
     return this.http.get<JobFeeDto[]>(`${environment.apiUrl}/fees/job`);
   }

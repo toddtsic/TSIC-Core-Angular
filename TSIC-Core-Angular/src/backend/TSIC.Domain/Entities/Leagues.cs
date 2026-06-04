@@ -47,6 +47,8 @@ public partial class Leagues
 
     public virtual ICollection<FieldsLeagueSeason> FieldsLeagueSeason { get; set; } = new List<FieldsLeagueSeason>();
 
+    public virtual ICollection<JobFees> JobFees { get; set; } = new List<JobFees>();
+
     public virtual ICollection<JobLeagues> JobLeagues { get; set; } = new List<JobLeagues>();
 
     public virtual ICollection<LeagueAgeGroupGameDayInfo> LeagueAgeGroupGameDayInfo { get; set; } = new List<LeagueAgeGroupGameDayInfo>();

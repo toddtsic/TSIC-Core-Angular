@@ -107,9 +107,10 @@ public class FeeDataBuilder
 
     /// <summary>
     /// Adds a fee row at the specified scope.
-    /// Job-level: agegroupId=null, teamId=null.
-    /// Agegroup-level: teamId=null.
-    /// Team-level: both set.
+    /// Job-level: all scope ids null.
+    /// League-level: leagueId set (modifier top tier for early-bird/late-fee).
+    /// Agegroup-level: agegroupId set, teamId null.
+    /// Team-level: agegroupId + teamId set.
     /// </summary>
     public JobFees AddJobFee(
         Guid jobId,
@@ -117,7 +118,8 @@ public class FeeDataBuilder
         Guid? agegroupId = null,
         Guid? teamId = null,
         decimal? deposit = null,
-        decimal? balanceDue = null)
+        decimal? balanceDue = null,
+        Guid? leagueId = null)
     {
         var jf = new JobFees
         {
@@ -126,6 +128,7 @@ public class FeeDataBuilder
             RoleId = roleId,
             AgegroupId = agegroupId,
             TeamId = teamId,
+            LeagueId = leagueId,
             Deposit = deposit,
             BalanceDue = balanceDue,
             Modified = DateTime.UtcNow

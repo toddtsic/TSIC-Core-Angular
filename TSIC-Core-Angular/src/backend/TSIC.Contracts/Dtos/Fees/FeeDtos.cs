@@ -11,6 +11,7 @@ public record JobFeeDto
     public string? RoleName { get; init; }
     public Guid? AgegroupId { get; init; }
     public Guid? TeamId { get; init; }
+    public Guid? LeagueId { get; init; }
     public decimal? Deposit { get; init; }
     public decimal? BalanceDue { get; init; }
     public List<FeeModifierDto>? Modifiers { get; init; }
@@ -47,6 +48,7 @@ public record SaveJobFeeRequest
     public required string RoleId { get; init; }
     public Guid? AgegroupId { get; init; }
     public Guid? TeamId { get; init; }
+    public Guid? LeagueId { get; init; }
     public decimal? Deposit { get; init; }
     public decimal? BalanceDue { get; init; }
     public List<FeeModifierDto>? Modifiers { get; init; }

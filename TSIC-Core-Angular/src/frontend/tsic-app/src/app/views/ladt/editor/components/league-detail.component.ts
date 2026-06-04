@@ -1,13 +1,20 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, computed, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
-import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto } from '../../../../core/api';
+import { FeeCardComponent, type ModifierForm } from './fee-card.component';
+import { JobService } from '../../../../infrastructure/services/job.service';
+import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto, JobFeeDto, FeeModifierDto } from '../../../../core/api';
+
+const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
+const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+const JOB_TYPE_TOURNAMENT = 2;
 
 @Component({
   selector: 'app-league-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, FeeCardComponent],
   template: `
     <div class="detail-header">
       <div class="d-flex align-items-center gap-2">
@@ -65,6 +72,23 @@ import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto } from '../..
           </div>
         </div>
 
+        <!-- ── League-wide Early Bird / Late Fee ── -->
+        @if (isTournament()) {
+          <app-fee-card header="Club Rep / Team — League Early Bird / Late Fee" headerIcon="bi-shield" variant="clubrep"
+            namePrefix="clubRep" [modifiers]="clubRepModifiers" [showBaseFee]="false"
+            hintText="Applies to every age group in this league unless an age group or team sets its own. Most-specific wins (never stacked)." />
+          <app-fee-card header="Player — League Early Bird / Late Fee" headerIcon="bi-person" variant="player"
+            namePrefix="player" [modifiers]="playerModifiers" [showBaseFee]="false"
+            hintText="Applies to every age group in this league unless an age group or team sets its own. Most-specific wins (never stacked)." />
+        } @else {
+          <app-fee-card header="Player — League Early Bird / Late Fee" headerIcon="bi-person" variant="player"
+            namePrefix="player" [modifiers]="playerModifiers" [showBaseFee]="false"
+            hintText="Applies to every age group in this league unless an age group or team sets its own. Most-specific wins (never stacked)." />
+          <app-fee-card header="Club Rep / Team — League Early Bird / Late Fee" headerIcon="bi-shield" variant="clubrep"
+            namePrefix="clubRep" [modifiers]="clubRepModifiers" [showBaseFee]="false"
+            hintText="Applies to every age group in this league unless an age group or team sets its own. Most-specific wins (never stacked)." />
+        }
+
         <!-- ── Save ── -->
         <div class="d-flex align-items-center gap-3 mt-3">
           <button type="submit" class="btn btn-sm btn-primary px-4" [disabled]="isSaving()">
@@ -105,6 +129,9 @@ export class LeagueDetailComponent implements OnChanges {
   @Output() saved = new EventEmitter<void>();
 
   private readonly ladtService = inject(LadtService);
+  private readonly jobService = inject(JobService);
+
+  readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
   league = signal<LeagueDetailDto | null>(null);
   sports = signal<SportOptionDto[]>([]);
@@ -113,6 +140,12 @@ export class LeagueDetailComponent implements OnChanges {
   saveMessage = signal<string | null>(null);
 
   form: any = {};
+
+  // League-level early-bird/late-fee modifiers (no base fee — base does not cascade through league).
+  playerModifiers: ModifierForm[] = [];
+  clubRepModifiers: ModifierForm[] = [];
+  private playerFeeId: string | null = null;
+  private clubRepFeeId: string | null = null;
 
   ngOnChanges(): void {
     this.loadDetail();
@@ -123,14 +156,51 @@ export class LeagueDetailComponent implements OnChanges {
     this.isLoading.set(true);
     this.saveMessage.set(null);
 
-    this.ladtService.getLeague(this.leagueId).subscribe({
-      next: (detail) => {
+    forkJoin({
+      detail: this.ladtService.getLeague(this.leagueId),
+      fees: this.ladtService.getLeagueFees(this.leagueId)
+    }).subscribe({
+      next: ({ detail, fees }) => {
         this.league.set(detail);
         this.form = { ...detail };
+        this.populateFeeForm(fees);
         this.isLoading.set(false);
       },
       error: () => this.isLoading.set(false)
     });
+  }
+
+  private populateFeeForm(fees: JobFeeDto[]): void {
+    const playerFee = fees.find(f => f.roleId === PLAYER_ROLE);
+    const clubRepFee = fees.find(f => f.roleId === CLUBREP_ROLE);
+
+    this.playerFeeId = playerFee?.jobFeeId ?? null;
+    this.clubRepFeeId = clubRepFee?.jobFeeId ?? null;
+
+    this.playerModifiers = (playerFee?.modifiers ?? []).map(m => this.toModifierForm(m));
+    this.clubRepModifiers = (clubRepFee?.modifiers ?? []).map(m => this.toModifierForm(m));
+  }
+
+  private toModifierForm(m: FeeModifierDto): ModifierForm {
+    return {
+      feeModifierId: m.feeModifierId,
+      modifierType: m.modifierType,
+      amount: m.amount,
+      startDate: m.startDate ? String(m.startDate).substring(0, 10) : null,
+      endDate: m.endDate ? String(m.endDate).substring(0, 10) : null
+    };
+  }
+
+  private toModifierDtos(mods: ModifierForm[]): FeeModifierDto[] {
+    return mods
+      .filter(m => m.amount != null && m.amount > 0)
+      .map(m => ({
+        feeModifierId: m.feeModifierId,
+        modifierType: m.modifierType,
+        amount: m.amount!,
+        startDate: m.startDate || null,
+        endDate: m.endDate || null
+      }));
   }
 
   private loadSports(): void {
@@ -152,8 +222,40 @@ export class LeagueDetailComponent implements OnChanges {
       rescheduleEmailsToAddon: this.form.rescheduleEmailsToAddon
     };
 
-    this.ladtService.updateLeague(this.leagueId, request).subscribe({
-      next: (updated) => {
+    const saves: Observable<any>[] = [
+      this.ladtService.updateLeague(this.leagueId, request)
+    ];
+
+    // League-scoped fee rows carry modifiers only (no deposit/balance).
+    const playerMods = this.toModifierDtos(this.playerModifiers);
+    if (playerMods.length > 0) {
+      saves.push(this.ladtService.saveFee({
+        roleId: PLAYER_ROLE,
+        leagueId: this.leagueId,
+        deposit: null,
+        balanceDue: null,
+        modifiers: playerMods
+      }));
+    } else if (this.playerFeeId) {
+      saves.push(this.ladtService.deleteFee(this.playerFeeId));
+    }
+
+    const clubRepMods = this.toModifierDtos(this.clubRepModifiers);
+    if (clubRepMods.length > 0) {
+      saves.push(this.ladtService.saveFee({
+        roleId: CLUBREP_ROLE,
+        leagueId: this.leagueId,
+        deposit: null,
+        balanceDue: null,
+        modifiers: clubRepMods
+      }));
+    } else if (this.clubRepFeeId) {
+      saves.push(this.ladtService.deleteFee(this.clubRepFeeId));
+    }
+
+    forkJoin(saves).subscribe({
+      next: (results) => {
+        const updated = results[0] as LeagueDetailDto;
         this.league.set(updated);
         this.form = { ...updated };
         this.isSaving.set(false);

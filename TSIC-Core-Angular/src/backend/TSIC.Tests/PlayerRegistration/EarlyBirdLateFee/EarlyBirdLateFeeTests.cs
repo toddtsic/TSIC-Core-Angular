@@ -64,8 +64,12 @@ public class EarlyBirdLateFeeTests
         var ag = builder.AddAgegroup(league.LeagueId, "U12");
         var team = builder.AddTeam(job.JobId, ag.AgegroupId, "Hawks");
 
-        // Job-level fee for Player role
-        var jobFee = builder.AddJobFee(job.JobId, RoleConstants.Player, balanceDue: baseFee);
+        // Job-level fee row carries the base fee (base cascade = team→agegroup→job).
+        builder.AddJobFee(job.JobId, RoleConstants.Player, balanceDue: baseFee);
+
+        // League-scoped row hosts the modifiers — league is the top tier for
+        // early-bird/late-fee. Tests attach modifiers to this row's id.
+        var leagueFee = builder.AddJobFee(job.JobId, RoleConstants.Player, leagueId: league.LeagueId);
 
         await builder.SaveAsync();
 
@@ -77,7 +81,8 @@ public class EarlyBirdLateFeeTests
         var paymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
         var svc = new FeeResolutionService(feeRepo, jobRepo.Object, paymentState);
 
-        return (svc, builder, ctx, job.JobId, ag.AgegroupId, team.TeamId, jobFee.JobFeeId);
+        // 7th element = the league-scoped fee row id (top modifier tier); tests attach modifiers here.
+        return (svc, builder, ctx, job.JobId, ag.AgegroupId, team.TeamId, leagueFee.JobFeeId);
     }
 
     // ════════════════════════════════════════════════════════════
@@ -259,13 +264,13 @@ public class EarlyBirdLateFeeTests
     //  CASCADE COALESCE: MOST-SPECIFIC SCOPE WINS PER TYPE (no summing)
     // ════════════════════════════════════════════════════════════
 
-    [Fact(DisplayName = "Cascade coalesce: agegroup early bird overrides job early bird")]
-    public async Task Cascade_JobPlusAgegroup_AgegroupWins()
+    [Fact(DisplayName = "Cascade coalesce: agegroup early bird overrides league early bird")]
+    public async Task Cascade_LeaguePlusAgegroup_AgegroupWins()
     {
-        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, leagueFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        // Job-level: $10 early bird
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
+        // League-level (top tier): $10 early bird
+        builder.AddModifier(leagueFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
 
         // Agegroup-level fee + $15 early bird
         var agFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, balanceDue: 200m);
@@ -276,16 +281,16 @@ public class EarlyBirdLateFeeTests
         var modifiers = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
 
-        modifiers.TotalDiscount.Should().Be(15m, "agegroup $15 wins (coalesce, most-specific); job $10 ignored");
+        modifiers.TotalDiscount.Should().Be(15m, "agegroup $15 wins (coalesce, most-specific); league $10 ignored");
     }
 
-    [Fact(DisplayName = "Cascade coalesce: team early bird wins over agegroup and job")]
+    [Fact(DisplayName = "Cascade coalesce: team early bird wins over agegroup and league")]
     public async Task Cascade_AllThreeLevels_TeamWins()
     {
-        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, leagueFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        // Job-level: $10 early bird
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
+        // League-level (top tier): $10 early bird
+        builder.AddModifier(leagueFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
 
         // Agegroup-level: $5 early bird
         var agFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, balanceDue: 200m);
@@ -300,16 +305,16 @@ public class EarlyBirdLateFeeTests
         var modifiers = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
 
-        modifiers.TotalDiscount.Should().Be(3m, "team $3 wins (coalesce, most-specific); agegroup $5 and job $10 ignored");
+        modifiers.TotalDiscount.Should().Be(3m, "team $3 wins (coalesce, most-specific); agegroup $5 and league $10 ignored");
     }
 
-    [Fact(DisplayName = "Cascade coalesce: agegroup late fee overrides job late fee")]
+    [Fact(DisplayName = "Cascade coalesce: agegroup late fee overrides league late fee")]
     public async Task Cascade_LateFees_AgegroupWins()
     {
-        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, leagueFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        // Job-level: $20 late fee
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 20m, LateFeeStart, LateFeeEnd);
+        // League-level (top tier): $20 late fee
+        builder.AddModifier(leagueFeeId, FeeConstants.ModifierLateFee, 20m, LateFeeStart, LateFeeEnd);
 
         // Agegroup-level: $10 late fee
         var agFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, balanceDue: 200m);
@@ -320,17 +325,17 @@ public class EarlyBirdLateFeeTests
         var modifiers = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
 
-        modifiers.TotalLateFee.Should().Be(10m, "agegroup $10 wins (coalesce, most-specific); job $20 ignored");
+        modifiers.TotalLateFee.Should().Be(10m, "agegroup $10 wins (coalesce, most-specific); league $20 ignored");
     }
 
     [Fact(DisplayName = "Cascade: mixed early bird + late fee at different levels")]
     public async Task Cascade_MixedModifierTypes()
     {
-        var (svc, builder, _, jobId, agId, teamId, jobFeeId) = await CreateServiceAsync(baseFee: 200m);
+        var (svc, builder, _, jobId, agId, teamId, leagueFeeId) = await CreateServiceAsync(baseFee: 200m);
 
-        // Job-level: $10 early bird AND $20 late fee (different windows)
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
-        builder.AddModifier(jobFeeId, FeeConstants.ModifierLateFee, 20m, LateFeeStart, LateFeeEnd);
+        // League-level (top tier): $10 early bird AND $20 late fee (different windows)
+        builder.AddModifier(leagueFeeId, FeeConstants.ModifierEarlyBird, 10m, EarlyBirdStart, EarlyBirdEnd);
+        builder.AddModifier(leagueFeeId, FeeConstants.ModifierLateFee, 20m, LateFeeStart, LateFeeEnd);
 
         // Agegroup-level: $5 early bird
         var agFee = builder.AddJobFee(jobId, RoleConstants.Player, agegroupId: agId, balanceDue: 200m);
@@ -338,17 +343,34 @@ public class EarlyBirdLateFeeTests
 
         await builder.SaveAsync();
 
-        // Early-bird window: agegroup $5 wins the early-bird coalesce (job $10 ignored), no late fee
+        // Early-bird window: agegroup $5 wins the early-bird coalesce (league $10 ignored), no late fee
         var earlyMods = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
-        earlyMods.TotalDiscount.Should().Be(5m, "agegroup $5 wins (coalesce); job $10 ignored");
+        earlyMods.TotalDiscount.Should().Be(5m, "agegroup $5 wins (coalesce); league $10 ignored");
         earlyMods.TotalLateFee.Should().Be(0m);
 
-        // Late-fee window: no discount; job $20 late fee applies (job is the only scope that defines one)
+        // Late-fee window: no discount; league $20 late fee applies (league is the only scope that defines one)
         var lateMods = await svc.EvaluateModifiersAsync(
             jobId, RoleConstants.Player, agId, teamId, DateInLateFee);
         lateMods.TotalDiscount.Should().Be(0m);
-        lateMods.TotalLateFee.Should().Be(20m, "job $20 late fee applies — only scope that defines one");
+        lateMods.TotalLateFee.Should().Be(20m, "league $20 late fee applies — only scope that defines one");
+    }
+
+    [Fact(DisplayName = "Cascade coalesce: job-level modifier is ignored (league is the top tier)")]
+    public async Task Cascade_JobLevelModifier_Ignored()
+    {
+        var (svc, builder, _, jobId, agId, teamId, _) = await CreateServiceAsync(baseFee: 200m);
+
+        // A genuine job-level fee row (all scope ids null) with an early bird — must NOT apply.
+        var jobFee = builder.AddJobFee(jobId, RoleConstants.Player);
+        builder.AddModifier(jobFee.JobFeeId, FeeConstants.ModifierEarlyBird, 50m, EarlyBirdStart, EarlyBirdEnd);
+
+        await builder.SaveAsync();
+
+        var modifiers = await svc.EvaluateModifiersAsync(
+            jobId, RoleConstants.Player, agId, teamId, DateInEarlyBird);
+
+        modifiers.TotalDiscount.Should().Be(0m, "job-level modifiers are not a source — league is the top tier");
     }
 
     // ════════════════════════════════════════════════════════════

@@ -4050,6 +4050,10 @@ public partial class SqlDbContext : DbContext
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_JobFees_Jobs");
 
+            entity.HasOne(d => d.League).WithMany(p => p.JobFees)
+                .HasForeignKey(d => d.LeagueId)
+                .HasConstraintName("FK_JobFees_Leagues");
+
             entity.HasOne(d => d.LebUser).WithMany(p => p.JobFees)
                 .HasForeignKey(d => d.LebUserId)
                 .HasConstraintName("FK_JobFees_LebUser");

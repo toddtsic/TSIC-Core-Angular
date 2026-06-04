@@ -26,28 +26,30 @@ export interface ModifierForm {
         <p class="fee-hint">{{ hintText }}</p>
       }
 
-      <div class="fee-row">
-        <div class="fee-field">
-          <label class="fee-label">Deposit</label>
-          <div class="input-group input-group-sm">
-            <span class="input-group-text">$</span>
-            <input class="form-control" type="number" step="1"
-                   [ngModel]="deposit" (ngModelChange)="depositChange.emit($event)"
-                   [name]="namePrefix + 'Deposit'"
-                   [placeholder]="placeholder">
+      @if (showBaseFee) {
+        <div class="fee-row">
+          <div class="fee-field">
+            <label class="fee-label">Deposit</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">$</span>
+              <input class="form-control" type="number" step="1"
+                     [ngModel]="deposit" (ngModelChange)="depositChange.emit($event)"
+                     [name]="namePrefix + 'Deposit'"
+                     [placeholder]="placeholder">
+            </div>
+          </div>
+          <div class="fee-field">
+            <label class="fee-label">Balance Due</label>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text">$</span>
+              <input class="form-control" type="number" step="1"
+                     [ngModel]="balanceDue" (ngModelChange)="balanceDueChange.emit($event)"
+                     [name]="namePrefix + 'BalanceDue'"
+                     [placeholder]="placeholder">
+            </div>
           </div>
         </div>
-        <div class="fee-field">
-          <label class="fee-label">Balance Due</label>
-          <div class="input-group input-group-sm">
-            <span class="input-group-text">$</span>
-            <input class="form-control" type="number" step="1"
-                   [ngModel]="balanceDue" (ngModelChange)="balanceDueChange.emit($event)"
-                   [name]="namePrefix + 'BalanceDue'"
-                   [placeholder]="placeholder">
-          </div>
-        </div>
-      </div>
+      }
 
       @for (mod of modifiers; track $index) {
         @if ($index === 0) {
@@ -178,6 +180,8 @@ export class FeeCardComponent {
   @Input() modifiers: ModifierForm[] = [];
   @Input() hintText: string | null = null;
   @Input() placeholder = '';
+  /** When false, hides the Deposit/Balance Due fields (e.g. league scope = modifiers only). */
+  @Input() showBaseFee = true;
 
   @Output() depositChange = new EventEmitter<number | null>();
   @Output() balanceDueChange = new EventEmitter<number | null>();

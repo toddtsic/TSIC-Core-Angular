@@ -46,6 +46,18 @@ public class FeeController : ControllerBase
     }
 
     /// <summary>
+    /// Get the league-scoped fee rows for a league (league-level early-bird/late-fee).
+    /// </summary>
+    [HttpGet("league/{leagueId:guid}")]
+    public async Task<ActionResult<List<JobFeeDto>>> GetLeagueFees(
+        Guid leagueId, CancellationToken ct)
+    {
+        var jobId = await ResolveJobIdAsync();
+        var rows = await _feeRepo.GetJobFeesByLeagueAsync(jobId, leagueId, ct);
+        return Ok(rows.Select(MapToDto).ToList());
+    }
+
+    /// <summary>
     /// Get all fee rows for the entire job (all roles, all scopes).
     /// </summary>
     [HttpGet("job")]
@@ -70,7 +82,7 @@ public class FeeController : ControllerBase
 
         // Find existing row for this scope (tracked for update)
         var existing = await _feeRepo.GetTrackedByScopeAsync(
-            jobId, request.RoleId, request.AgegroupId, request.TeamId, ct);
+            jobId, request.RoleId, request.AgegroupId, request.TeamId, request.LeagueId, ct);
 
         JobFees row;
         if (existing != null)
@@ -91,6 +103,7 @@ public class FeeController : ControllerBase
                 RoleId = request.RoleId,
                 AgegroupId = request.AgegroupId,
                 TeamId = request.TeamId,
+                LeagueId = request.LeagueId,
                 Deposit = request.Deposit,
                 BalanceDue = request.BalanceDue,
                 Modified = DateTime.Now,
@@ -196,6 +209,7 @@ public class FeeController : ControllerBase
         RoleId = jf.RoleId,
         AgegroupId = jf.AgegroupId,
         TeamId = jf.TeamId,
+        LeagueId = jf.LeagueId,
         Deposit = jf.Deposit,
         BalanceDue = jf.BalanceDue,
         Modifiers = jf.FeeModifiers?.Select(m => new FeeModifierDto

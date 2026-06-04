@@ -23,11 +23,15 @@ public partial class JobFees
 
     public string? LebUserId { get; set; }
 
+    public Guid? LeagueId { get; set; }
+
     public virtual Agegroups? Agegroup { get; set; }
 
     public virtual ICollection<FeeModifiers> FeeModifiers { get; set; } = new List<FeeModifiers>();
 
     public virtual Jobs Job { get; set; } = null!;
+
+    public virtual Leagues? League { get; set; }
 
     public virtual AspNetUsers? LebUser { get; set; }
 

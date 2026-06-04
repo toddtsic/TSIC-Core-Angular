@@ -380,6 +380,17 @@ public sealed class JobCloneService : IJobCloneService
                         newTeamId = mappedTeam;
                     }
 
+                    // League-level fees: only the cloned (primary) league is remapped.
+                    // A fee row scoped to any other league has no cloned league to point at — skip.
+                    Guid? newLeagueId = null;
+                    if (sourceFee.LeagueId.HasValue)
+                    {
+                        if (!clonedLeagueId.HasValue || sourceLeague == null
+                            || sourceFee.LeagueId.Value != sourceLeague.LeagueId)
+                            continue;
+                        newLeagueId = clonedLeagueId.Value;
+                    }
+
                     var newFeeId = Guid.NewGuid();
                     _feeRepo.Add(new JobFees
                     {
@@ -388,6 +399,7 @@ public sealed class JobCloneService : IJobCloneService
                         RoleId = sourceFee.RoleId,
                         AgegroupId = newAgegroupId,
                         TeamId = newTeamId,
+                        LeagueId = newLeagueId,
                         Deposit = sourceFee.Deposit,
                         BalanceDue = sourceFee.BalanceDue,
                         Modified = now,

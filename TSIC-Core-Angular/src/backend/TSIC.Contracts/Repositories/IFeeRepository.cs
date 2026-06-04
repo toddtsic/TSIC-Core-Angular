@@ -35,8 +35,10 @@ public interface IFeeRepository
         CancellationToken ct = default);
 
     /// <summary>
-    /// Gets all active modifiers across all cascade levels (team, agegroup, job)
-    /// for a role at a specific team. Modifiers from all levels are stacked.
+    /// Gets the active modifiers for a role at a specific team, coalesced across the
+    /// cascade (team → agegroup → league). Per modifier type, the most-specific scope
+    /// that has an active modifier wins outright — scopes do NOT sum. Job-level rows are
+    /// not a source for modifiers; league is the top tier (resolved from the agegroup).
     /// </summary>
     Task<List<FeeModifiers>> GetActiveModifiersForCascadeAsync(
         Guid jobId, string roleId, Guid agegroupId, Guid teamId, DateTime asOfDate,
@@ -77,6 +79,14 @@ public interface IFeeRepository
         CancellationToken ct = default);
 
     /// <summary>
+    /// Gets the league-scoped JobFees rows (AgegroupId/TeamId null) for a league.
+    /// Used by the LADT league detail panel to edit league-level early-bird/late-fee.
+    /// </summary>
+    Task<List<JobFees>> GetJobFeesByLeagueAsync(
+        Guid jobId, Guid leagueId,
+        CancellationToken ct = default);
+
+    /// <summary>
     /// Batch: resolves fees for multiple teams in a single query.
     /// Used by LADT bulk fee recalculation.
     /// Returns resolved fee per teamId.
@@ -90,7 +100,7 @@ public interface IFeeRepository
     /// Returns null if not found.
     /// </summary>
     Task<JobFees?> GetTrackedByScopeAsync(
-        Guid jobId, string roleId, Guid? agegroupId, Guid? teamId,
+        Guid jobId, string roleId, Guid? agegroupId, Guid? teamId, Guid? leagueId,
         CancellationToken ct = default);
 
     /// <summary>

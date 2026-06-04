@@ -9,6 +9,7 @@ export type JobFeeDto = {
     roleName?: string | null;
     agegroupId?: string | null;
     teamId?: string | null;
+    leagueId?: string | null;
     deposit?: number | null;
     balanceDue?: number | null;
     modifiers?: any[] | null;

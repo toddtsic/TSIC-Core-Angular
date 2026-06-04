@@ -6,6 +6,7 @@ export type SaveJobFeeRequest = {
     roleId: string;
     agegroupId?: string | null;
     teamId?: string | null;
+    leagueId?: string | null;
     deposit?: number | null;
     balanceDue?: number | null;
     modifiers?: any[] | null;

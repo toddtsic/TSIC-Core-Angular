@@ -28,8 +28,9 @@ public class FeeRepository : IFeeRepository
                     (jf.AgegroupId == agegroupId && jf.TeamId == teamId)
                     // Agegroup level
                     || (jf.AgegroupId == agegroupId && jf.TeamId == null)
-                    // Job level
-                    || (jf.AgegroupId == null && jf.TeamId == null)
+                    // Job level (LeagueId == null excludes league-scoped rows —
+                    // base fee does NOT cascade through league)
+                    || (jf.AgegroupId == null && jf.TeamId == null && jf.LeagueId == null)
                 ))
             .Select(jf => new
             {
@@ -66,7 +67,7 @@ public class FeeRepository : IFeeRepository
             .Where(jf => jf.JobId == jobId
                 && jf.RoleId == roleId
                 && jf.TeamId == null
-                && (jf.AgegroupId == agegroupId || jf.AgegroupId == null))
+                && (jf.AgegroupId == agegroupId || (jf.AgegroupId == null && jf.LeagueId == null)))
             .Select(jf => new
             {
                 jf.Deposit,
@@ -105,21 +106,28 @@ public class FeeRepository : IFeeRepository
         Guid jobId, string roleId, Guid agegroupId, Guid teamId, DateTime asOfDate,
         CancellationToken ct = default)
     {
+        // League is the top scope for modifiers — resolve the agegroup's league.
+        var leagueId = await _context.Agegroups
+            .AsNoTracking()
+            .Where(a => a.AgegroupId == agegroupId)
+            .Select(a => (Guid?)a.LeagueId)
+            .FirstOrDefaultAsync(ct);
+
         // Pull every active modifier across the cascade, tagged with its scope
-        // priority (team=3, agegroup=2, job=1) — the same precedence the base-fee
-        // resolver uses in GetResolvedFeeAsync.
+        // priority (team=3, agegroup=2, league=1). Job-level modifier rows are NOT
+        // a source for early-bird/late-fee — league is the top tier for these.
         var rows = await _context.FeeModifiers
             .AsNoTracking()
             .Where(m =>
                 m.JobFee.JobId == jobId
                 && m.JobFee.RoleId == roleId
                 && (
-                    // Team level
+                    // Team scope
                     (m.JobFee.AgegroupId == agegroupId && m.JobFee.TeamId == teamId)
-                    // Agegroup level
+                    // Agegroup scope
                     || (m.JobFee.AgegroupId == agegroupId && m.JobFee.TeamId == null)
-                    // Job level
-                    || (m.JobFee.AgegroupId == null && m.JobFee.TeamId == null)
+                    // League scope (top tier — replaces job-level for modifiers)
+                    || (m.JobFee.LeagueId == leagueId && m.JobFee.AgegroupId == null && m.JobFee.TeamId == null)
                 )
                 && (m.StartDate == null || m.StartDate <= asOfDate)
                 && (m.EndDate == null || m.EndDate >= asOfDate))
@@ -154,7 +162,8 @@ public class FeeRepository : IFeeRepository
             .Where(jf => jf.JobId == jobId
                 && jf.RoleId == roleId
                 && jf.AgegroupId == null
-                && jf.TeamId == null)
+                && jf.TeamId == null
+                && jf.LeagueId == null)
             .Select(jf => new { jf.Deposit, jf.BalanceDue })
             .SingleOrDefaultAsync(ct);
 
@@ -174,6 +183,7 @@ public class FeeRepository : IFeeRepository
                 && m.JobFee.RoleId == roleId
                 && m.JobFee.AgegroupId == null
                 && m.JobFee.TeamId == null
+                && m.JobFee.LeagueId == null
                 && (m.StartDate == null || m.StartDate <= asOfDate)
                 && (m.EndDate == null || m.EndDate >= asOfDate))
             .ToListAsync(ct);
@@ -198,7 +208,7 @@ public class FeeRepository : IFeeRepository
         return await _context.JobFees
             .AsNoTracking()
             .Where(jf => jf.JobId == jobId
-                && (jf.AgegroupId == agegroupId || jf.AgegroupId == null))
+                && (jf.AgegroupId == agegroupId || (jf.AgegroupId == null && jf.LeagueId == null)))
             .Include(jf => jf.FeeModifiers)
             .OrderBy(jf => jf.RoleId)
             .ThenByDescending(jf => jf.AgegroupId)
@@ -231,8 +241,8 @@ public class FeeRepository : IFeeRepository
                     (jf.TeamId != null && teamIds.Contains(jf.TeamId.Value))
                     // Agegroup-level rows for relevant agegroups
                     || (jf.TeamId == null && jf.AgegroupId != null && agegroupIds.Contains(jf.AgegroupId.Value))
-                    // Job-level default
-                    || (jf.TeamId == null && jf.AgegroupId == null)
+                    // Job-level default (LeagueId == null excludes league-scoped rows)
+                    || (jf.TeamId == null && jf.AgegroupId == null && jf.LeagueId == null)
                 ))
             .Select(jf => new
             {
@@ -267,7 +277,7 @@ public class FeeRepository : IFeeRepository
     }
 
     public async Task<JobFees?> GetTrackedByScopeAsync(
-        Guid jobId, string roleId, Guid? agegroupId, Guid? teamId,
+        Guid jobId, string roleId, Guid? agegroupId, Guid? teamId, Guid? leagueId,
         CancellationToken ct = default)
     {
         return await _context.JobFees
@@ -275,8 +285,24 @@ public class FeeRepository : IFeeRepository
             .Where(jf => jf.JobId == jobId
                 && jf.RoleId == roleId
                 && jf.AgegroupId == agegroupId
-                && jf.TeamId == teamId)
+                && jf.TeamId == teamId
+                && jf.LeagueId == leagueId)
             .SingleOrDefaultAsync(ct);
+    }
+
+    public async Task<List<JobFees>> GetJobFeesByLeagueAsync(
+        Guid jobId, Guid leagueId, CancellationToken ct = default)
+    {
+        // League-scoped rows only (AgegroupId/TeamId null) — for the LADT league detail panel.
+        return await _context.JobFees
+            .AsNoTracking()
+            .Where(jf => jf.JobId == jobId
+                && jf.LeagueId == leagueId
+                && jf.AgegroupId == null
+                && jf.TeamId == null)
+            .Include(jf => jf.FeeModifiers)
+            .OrderBy(jf => jf.RoleId)
+            .ToListAsync(ct);
     }
 
     public async Task<JobFees?> GetTrackedByIdAsync(Guid jobFeeId, CancellationToken ct = default)
