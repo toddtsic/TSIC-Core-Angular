@@ -292,6 +292,7 @@ public class JobRepository : IJobRepository
                 MailTo = j.MailTo,
                 MailinPaymentWarning = j.MailinPaymentWarning,
                 BEnableEcheck = j.BEnableEcheck,
+                BIncludeTeamDonation = j.BIncludeTeamDonation,
                 AdnArbTrial = j.AdnArbtrial,
                 AdnArbStartDate = j.AdnArbstartDate,
                 AdnStartDateAfterTrial = j.AdnStartDateAfterTrial,

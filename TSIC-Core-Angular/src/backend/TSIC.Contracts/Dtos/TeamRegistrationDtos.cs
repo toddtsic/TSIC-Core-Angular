@@ -105,6 +105,13 @@ public sealed record TeamsMetadataResponse
     public bool? AdnArbTrial { get; init; }
     public DateTime? AdnArbStartDate { get; init; }
     public DateTime? AdnStartDateAfterTrial { get; init; }
+    // Per-job opt-in: offer an optional donation field on the team payment page.
+    public required bool BIncludeTeamDonation { get; init; }
+    // Effective (clamped) processing-fee rates as decimal multipliers (e.g. 0.035 = 3.5%).
+    // The wizard multiplies a freely-typed donation by these to reprice proc client-side; they
+    // are the SAME rates the server charges, so the team payment's amount tripwire stays quiet.
+    public required decimal EffectiveProcessingRate { get; init; }
+    public required decimal EffectiveEcheckProcessingRate { get; init; }
 }
 
 public sealed record ClubTeamDto

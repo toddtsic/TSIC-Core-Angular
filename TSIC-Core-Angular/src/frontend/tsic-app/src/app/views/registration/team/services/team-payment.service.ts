@@ -64,6 +64,13 @@ export class TeamPaymentService {
     private readonly _appliedDiscountResponse = signal<ApplyTeamDiscountResponseDto | null>(null);
     private readonly _discountMessage = signal<string>('');
     private readonly _discountApplying = signal<boolean>(false);
+    /** Optional donor-entered gift (principal). Repriced client-side off the server-supplied
+     *  effective rates; sent alongside a donation-inclusive totalAmount so the server's
+     *  AMOUNT_MISMATCH tripwire (which re-stamps + recomputes the gift) stays quiet. */
+    private readonly _donation = signal(0);
+    private readonly _bIncludeTeamDonation = signal(false);
+    private readonly _effectiveCcRate = signal(0);
+    private readonly _effectiveEcheckRate = signal(0);
 
     readonly teams = this._teams.asReadonly();
     readonly paymentMethodsAllowedCode = this._paymentMethodsAllowedCode.asReadonly();
@@ -85,12 +92,37 @@ export class TeamPaymentService {
         const resp = this._appliedDiscountResponse();
         return !!resp?.success && resp.successCount > 0;
     });
+    readonly donation = this._donation.asReadonly();
+    /** True when the job offers an optional donation field on the team payment page. */
+    readonly bIncludeTeamDonation = this._bIncludeTeamDonation.asReadonly();
+    setDonation(v: number | string): void {
+        const n = typeof v === 'string' ? Number.parseFloat(v) : v;
+        this._donation.set(Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0);
+    }
+    resetDonation(): void { this._donation.set(0); }
+
+    /** Donation's CC-path contribution: principal + CC processing, at the same effective rate the
+     *  server charges and rounded the same way, so the submitted total matches serverTotal. */
+    readonly donationCc = computed(() => {
+        const d = this._donation();
+        if (d <= 0) return 0;
+        return d + (this._bAddProcessingFees() ? Math.round(d * this._effectiveCcRate() * 100) / 100 : 0);
+    });
+    /** Donation's eCheck-path contribution: principal + eCheck processing (the lower ACH rate). */
+    readonly donationEcheck = computed(() => {
+        const d = this._donation();
+        if (d <= 0) return 0;
+        return d + (this._bAddProcessingFees() ? Math.round(d * this._effectiveEcheckRate() * 100) / 100 : 0);
+    });
+    /** Just the CC processing levied on the donation — for the help-text breakdown. */
+    readonly donationProcessing = computed(() => Math.max(0, this.donationCc() - this._donation()));
 
     // Controlled mutators
     setTeams(value: RegisteredTeamDto[]): void { this._teams.set(value); }
     setPaymentConfig(code: number, addFees: boolean, applyToDeposit: boolean,
         payTo?: string | null, mailTo?: string | null, mailinPaymentWarning?: string | null,
-        enableEcheck = false, adnArbTrial = false, adnStartDateAfterTrial: string | null = null): void {
+        enableEcheck = false, adnArbTrial = false, adnStartDateAfterTrial: string | null = null,
+        includeTeamDonation = false, ccRate = 0, echeckRate = 0): void {
         this._paymentMethodsAllowedCode.set(code);
         this._bAddProcessingFees.set(addFees);
         this._bApplyProcessingFeesToTeamDeposit.set(applyToDeposit);
@@ -100,6 +132,9 @@ export class TeamPaymentService {
         this._bEnableEcheck.set(enableEcheck);
         this._adnArbTrial.set(adnArbTrial);
         this._adnStartDateAfterTrial.set(adnStartDateAfterTrial);
+        this._bIncludeTeamDonation.set(includeTeamDonation);
+        this._effectiveCcRate.set(ccRate);
+        this._effectiveEcheckRate.set(echeckRate);
         // Default to the first visible button in priority order CC > Echeck > Check
         // so we never land on a hidden method (e.g. check-only + eCheck enabled).
         // ArbTrial is opt-in, so we don't auto-select it on load.
@@ -163,8 +198,8 @@ export class TeamPaymentService {
     amountToCharge = computed(() => {
         switch (this.selectedPaymentMethod()) {
             case 'Check': return this.totalCkOwed();
-            case 'Echeck': return this.totalEkOwed();
-            default: return this.totalCcOwed();
+            case 'Echeck': return this.totalEkOwed() + this.donationEcheck();
+            default: return this.totalCcOwed() + this.donationCc();
         }
     });
 
@@ -344,6 +379,10 @@ export class TeamPaymentService {
         this._bEnableEcheck.set(false);
         this._adnArbTrial.set(false);
         this._adnStartDateAfterTrial.set(null);
+        this._donation.set(0);
+        this._bIncludeTeamDonation.set(false);
+        this._effectiveCcRate.set(0);
+        this._effectiveEcheckRate.set(0);
         this._selectedPaymentMethod.set('CC');
         this._arbTrialSource.set('CC');
         this._jobPath.set('');
