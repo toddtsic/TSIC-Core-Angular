@@ -29,6 +29,7 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
     private const float MarginX = 28.8f, MarginTop = 18f, MarginBottom = 28.8f;
     private const float ContentW = PageW - (MarginX * 2);   // 554.4
     private const float ContentH = PageH - MarginTop - MarginBottom; // 745.2
+    private const float FooterH = 18f;       // bottom page-template band; eats into the drawable client area
     private const float TitleH = 22f;
     private const float CardGap = 3f;        // L/R/T gap of cardOuter inside its grid cell
     private const float CardOuterH = 314f;
@@ -358,7 +359,7 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
     {
         var footerFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7);
         var gray = new PdfSolidBrush(new PdfColor(102, 102, 102));
-        var footer = new PdfPageTemplateElement(new RectangleF(0, 0, ContentW, 18));
+        var footer = new PdfPageTemplateElement(new RectangleF(0, 0, ContentW, FooterH));
 
         footer.Graphics.DrawString("Reports By TeamSportsInfo.com", footerFont, gray, new PointF(2, 4));
 
@@ -384,8 +385,8 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
     // ════════════════════════════════════════════════════════════════════════════
 
     private const float RecTitleH = 34f;       // team title line + coach contact line
-    private const float RecCardRowH = 79f;     // card height + vertical gap (≈9 rows/page)
-    private const float RecCardOuterH = 73f;
+    private const float RecCardRowH = 76f;     // card pitch — sized so 9 rows + the footer band fit one page
+    private const float RecCardOuterH = 70f;   // card height (holds the 5 recruiting lines: 3pt pad + 5×12.5)
 
     public async Task<ReportExportResult> GenerateRecruiterAsync(
         Guid jobId,
@@ -409,7 +410,9 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         var cellFont = new PdfStandardFont(PdfFontFamily.Helvetica, 6.5f);
         var commitFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7.5f, PdfFontStyle.Bold | PdfFontStyle.Italic);
 
-        var rowsPerPage = Math.Max(1, (int)((ContentH - RecTitleH) / RecCardRowH));
+        // Reserve the footer band so the last card row never renders under the footer
+        // (Syncfusion's bottom page template eats into the page's drawable client area).
+        var rowsPerPage = Math.Max(1, (int)((ContentH - FooterH - RecTitleH) / RecCardRowH));
         var cardsPerPage = rowsPerPage * 2;
         var cardColW = ContentW / 2f;
         var cardOuterW = cardColW - (CardGap * 2);
@@ -602,7 +605,7 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         var isDummy = string.Equals(first, "Club", StringComparison.OrdinalIgnoreCase)
             && string.Equals(last, "Rep", StringComparison.OrdinalIgnoreCase);
         var name = isDummy ? "" : $"{first} {last}".Trim();
-        var parts = new[] { name, (h.ClubRepEmail ?? "").Trim(), (h.ClubRepCellphone ?? "").Trim() }
+        var parts = new[] { name, (h.ClubRepEmail ?? "").Trim(), FormatPhone(h.ClubRepCellphone) }
             .Where(s => s.Length > 0);
         return string.Join("   ", parts);
     }
