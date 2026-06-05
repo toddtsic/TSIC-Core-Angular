@@ -7,7 +7,7 @@
 export interface LadtColumnDef {
   field: string;
   header: string;
-  type: 'string' | 'number' | 'boolean' | 'currency' | 'date' | 'dateOnly' | 'fees';
+  type: 'string' | 'number' | 'boolean' | 'currency' | 'date' | 'dateOnly' | 'fees' | 'modifier';
   group?: string;
   frozen?: boolean;
   width?: string;
@@ -31,6 +31,8 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: 'agegroupName', header: 'Age Group', type: 'string', frozen: true, width: '180px', colorField: 'color' },
   { field: 'gender', header: 'Gender', type: 'string', width: '60px' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
+  { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
+  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '75px' },
   // Settings
@@ -56,6 +58,8 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'playerCount', header: 'Players', type: 'number', width: '75px' },
   { field: 'maxCount', header: 'Max Roster', type: 'number', width: '75px' },
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
+  { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
+  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
   // Dates
   { field: 'startdate', header: 'Start', type: 'date', group: 'Dates', width: '100px' },
   { field: 'enddate', header: 'End', type: 'date', group: 'Dates', width: '100px' },

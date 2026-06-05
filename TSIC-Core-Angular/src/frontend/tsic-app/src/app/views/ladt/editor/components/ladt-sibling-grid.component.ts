@@ -116,19 +116,32 @@ export interface ParentBreadcrumb {
                             <span class="fee-amount text-body-tertiary">—</span>
                           }
                           @if (fee.inherited) {
-                            <span class="fee-from-badge">from {{ fee.source === 'job' ? 'job' : fee.source === 'agegroup' ? 'ag' : fee.source }}</span>
+                            <span class="fee-from-badge">from {{ sourceLabel(fee.source) }}</span>
                           } @else {
-                            <span class="fee-set-badge">{{ fee.source === 'job' ? 'job' : fee.source === 'agegroup' ? 'ag' : 'team' }} set</span>
+                            <span class="fee-set-badge">{{ sourceLabel(fee.source) }} set</span>
                           }
-                          @if (fee.activeDiscount) {
-                            <span class="fee-modifier fee-discount" title="Active discount">
-                              -\${{ fee.activeDiscount | number:'1.0-0' }}
-                            </span>
-                          }
-                          @if (fee.activeLateFee) {
-                            <span class="fee-modifier fee-latefee" title="Active late fee">
-                              +\${{ fee.activeLateFee | number:'1.0-0' }}
-                            </span>
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <span class="text-body-tertiary">—</span>
+                  }
+                }
+                @case ('modifier') {
+                  @if (data[col.field]?.length) {
+                    <div class="fee-pills">
+                      @for (mod of data[col.field]; track mod.roleId) {
+                        <div class="fee-pill" [class.fee-inherited]="mod.inherited">
+                          <span class="fee-role">{{ mod.roleLabel }}</span>
+                          <span class="fee-amount"
+                                [class.fee-discount-text]="col.field === '_earlyBird'"
+                                [class.fee-latefee-text]="col.field === '_lateFee'">
+                            {{ col.field === '_lateFee' ? '+' : '-' }}\${{ mod.amount | number:'1.0-0' }}
+                          </span>
+                          @if (mod.inherited) {
+                            <span class="fee-from-badge">from {{ sourceLabel(mod.source) }}</span>
+                          } @else {
+                            <span class="fee-set-badge">{{ sourceLabel(mod.source) }} set</span>
                           }
                         </div>
                       }
@@ -453,21 +466,8 @@ export interface ParentBreadcrumb {
       background: rgba(var(--bs-success-rgb), 0.1);
       color: var(--bs-success);
     }
-    .fee-modifier {
-      font-size: 0.65rem;
-      font-weight: 600;
-      padding: 0 3px;
-      border-radius: 3px;
-      margin-left: 2px;
-    }
-    .fee-discount {
-      color: var(--bs-success-text-emphasis);
-      background: var(--bs-success-bg-subtle);
-    }
-    .fee-latefee {
-      color: var(--bs-danger-text-emphasis);
-      background: var(--bs-danger-bg-subtle);
-    }
+    .fee-discount-text { color: var(--bs-success); font-weight: 600; }
+    .fee-latefee-text { color: var(--bs-danger); font-weight: 600; }
   `]
 })
 export class LadtSiblingGridComponent implements OnChanges {
@@ -661,6 +661,17 @@ export class LadtSiblingGridComponent implements OnChanges {
     if (col.type === 'boolean') return 'Center';
     if (col.type === 'number' || col.type === 'currency') return 'Right';
     return 'Left';
+  }
+
+  /** Short tier label for fee / modifier source badges (Job→League→Agegroup→Team cascade). */
+  sourceLabel(source: string): string {
+    switch (source) {
+      case 'job': return 'job';
+      case 'league': return 'league';
+      case 'agegroup': return 'ag';
+      case 'team': return 'team';
+      default: return source;
+    }
   }
 
   getBadgeClass(level: number): string {

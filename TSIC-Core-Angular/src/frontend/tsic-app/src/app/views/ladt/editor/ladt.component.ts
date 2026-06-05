@@ -671,27 +671,64 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     '6A26171F-4D94-4928-94FA-2FEFD42C3C3E': 'ClubRep',
   };
 
-  /** Build fee pill data for a grid row from cached jobFees */
-  private buildFeePills(scopeId: string, scopeType: 'agegroup' | 'team'): any[] {
+  /**
+   * Resolve the Deposit/BalanceDue chip and the Early Bird / Late Fee columns
+   * for a grid row from cached jobFees.
+   *
+   * The base fee (deposit/balanceDue) cascades Job → League → Agegroup → Team,
+   * most-specific tier wins as a unit. Each modifier type (EarlyBird, LateFee)
+   * runs the SAME cascade INDEPENDENTLY — most-specific tier that actually has a
+   * modifier of that type wins, tiers do NOT sum (mirrors the backend's
+   * FeeRepository.GetActiveModifiersForCascadeAsync). Job tier is not a modifier
+   * source. A modifier's source can therefore differ from the base fee's source.
+   */
+  private buildFeeData(scopeId: string, scopeType: 'agegroup' | 'team'): {
+    fees: any[]; earlyBird: any[]; lateFee: any[];
+  } {
     const fees = this.jobFees();
-    if (!fees.length) return [];
+    if (!fees.length) return { fees: [], earlyBird: [], lateFee: [] };
 
+    interface ModWin { amount: number; source: 'league' | 'agegroup' | 'team'; active: boolean; }
     interface FeeEntry {
       deposit: number | null;
       balanceDue: number | null;
       source: 'job' | 'league' | 'agegroup' | 'team';
-      modifiers: { type: string; amount: number; active: boolean }[];
+      earlyBird: ModWin | null;
+      lateFee: ModWin | null;
     }
 
     const roleMap = new Map<string, FeeEntry>();
     const now = new Date();
 
-    const extractModifiers = (f: JobFeeDto) =>
-      (f.modifiers ?? []).map(m => ({
-        type: m.modifierType,
-        amount: m.amount,
-        active: (!m.startDate || new Date(m.startDate) <= now) && (!m.endDate || new Date(m.endDate) >= now)
-      }));
+    const upsert = (roleId: string): FeeEntry => {
+      let e = roleMap.get(roleId);
+      if (!e) {
+        e = { deposit: null, balanceDue: null, source: 'job', earlyBird: null, lateFee: null };
+        roleMap.set(roleId, e);
+      }
+      return e;
+    };
+
+    // Sum a single fee row's modifiers of one type into one winner candidate.
+    // Multiple active windows of the same type at one tier stack (mirrors backend).
+    const modForType = (f: JobFeeDto, type: string): { amount: number; active: boolean } | null => {
+      const mods = (f.modifiers ?? []).filter(m => m.modifierType === type);
+      if (!mods.length) return null;
+      const amount = mods.reduce((s, m) => s + m.amount, 0);
+      const active = mods.some(m =>
+        (!m.startDate || new Date(m.startDate) <= now) && (!m.endDate || new Date(m.endDate) >= now));
+      return { amount, active };
+    };
+
+    // Overwrite a modifier winner only when this tier's row actually carries that
+    // type — so a more-specific base-fee row without modifiers can't wipe an
+    // inherited modifier from a less-specific tier.
+    const applyMods = (e: FeeEntry, f: JobFeeDto, src: 'league' | 'agegroup' | 'team') => {
+      const eb = modForType(f, 'EarlyBird');
+      if (eb) e.earlyBird = { ...eb, source: src };
+      const lf = modForType(f, 'LateFee');
+      if (lf) e.lateFee = { ...lf, source: src };
+    };
 
     // Resolve the agegroup in scope (team scope walks up through its division)
     // and that agegroup's league — the top inherited tier of the cascade.
@@ -705,25 +742,23 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     }
     const leagueId = agId ? this.flatNodes().find(n => n.id === agId)?.parentId ?? undefined : undefined;
 
-    // Layer 1: Job-level defaults (Player/ClubRep no longer seed here; exclude
-    // league-scoped rows so they don't masquerade as job-level).
+    // Layer 1: Job-level base defaults (Player/ClubRep no longer seed here; exclude
+    // league-scoped rows so they don't masquerade as job-level). Job tier is NOT a
+    // modifier source.
     for (const f of fees) {
       if (!f.agegroupId && !f.teamId && !f.leagueId && f.roleId) {
-        roleMap.set(f.roleId, {
-          deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
-          source: 'job', modifiers: extractModifiers(f)
-        });
+        const e = upsert(f.roleId);
+        e.deposit = f.deposit ?? null; e.balanceDue = f.balanceDue ?? null; e.source = 'job';
       }
     }
 
-    // Layer 2: League-level (top tier of the Deposit/BalanceDue cascade)
+    // Layer 2: League-level (top tier of base cascade AND modifier cascade)
     if (leagueId) {
       for (const f of fees) {
         if (f.leagueId === leagueId && !f.agegroupId && !f.teamId && f.roleId) {
-          roleMap.set(f.roleId, {
-            deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
-            source: 'league', modifiers: extractModifiers(f)
-          });
+          const e = upsert(f.roleId);
+          e.deposit = f.deposit ?? null; e.balanceDue = f.balanceDue ?? null; e.source = 'league';
+          applyMods(e, f, 'league');
         }
       }
     }
@@ -732,10 +767,9 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     if (agId) {
       for (const f of fees) {
         if (f.agegroupId === agId && !f.teamId && f.roleId) {
-          roleMap.set(f.roleId, {
-            deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
-            source: 'agegroup', modifiers: extractModifiers(f)
-          });
+          const e = upsert(f.roleId);
+          e.deposit = f.deposit ?? null; e.balanceDue = f.balanceDue ?? null; e.source = 'agegroup';
+          applyMods(e, f, 'agegroup');
         }
       }
     }
@@ -744,47 +778,62 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     if (scopeType === 'team') {
       for (const f of fees) {
         if (f.teamId === scopeId && f.roleId) {
-          roleMap.set(f.roleId, {
-            deposit: f.deposit ?? null, balanceDue: f.balanceDue ?? null,
-            source: 'team', modifiers: extractModifiers(f)
-          });
+          const e = upsert(f.roleId);
+          e.deposit = f.deposit ?? null; e.balanceDue = f.balanceDue ?? null; e.source = 'team';
+          applyMods(e, f, 'team');
         }
       }
     }
 
-    // Determine what's "inherited" vs "own" based on scope
-    return Array.from(roleMap.entries()).map(([roleId, entry]) => {
-      const inherited = scopeType === 'agegroup'
-        ? entry.source !== 'agegroup'      // agegroup grid: job/league = inherited
-        : entry.source !== 'team';         // team grid: anything not team-level = inherited
+    // "inherited" = the winning tier is above this grid's own scope.
+    const isInherited = (src: string) => scopeType === 'agegroup'
+      ? src !== 'agegroup'   // agegroup grid: job/league = inherited
+      : src !== 'team';      // team grid: anything not team-level = inherited
 
-      const activeModifiers = entry.modifiers.filter(m => m.active);
+    const feesOut: any[] = [];
+    const earlyBird: any[] = [];
+    const lateFee: any[] = [];
 
-      return {
-        roleId,
-        roleLabel: LadtEditorComponent.ROLE_LABELS[roleId] ?? roleId.substring(0, 6),
-        deposit: entry.deposit,
-        balanceDue: entry.balanceDue,
-        inherited,
-        source: entry.source,
-        activeDiscount: activeModifiers.filter(m => m.type === 'Discount' || m.type === 'EarlyBird').reduce((s, m) => s + m.amount, 0) || null,
-        activeLateFee: activeModifiers.filter(m => m.type === 'LateFee').reduce((s, m) => s + m.amount, 0) || null,
-      };
-    });
-  }
-
-  /** Enrich grid rows with _fees pill data */
-  private enrichWithFees(data: any[], level: number): void {
-    if (level === 1) {
-      for (const row of data) {
-        row._fees = this.buildFeePills(row.agegroupId, 'agegroup');
+    for (const [roleId, e] of roleMap.entries()) {
+      const roleLabel = LadtEditorComponent.ROLE_LABELS[roleId] ?? roleId.substring(0, 6);
+      feesOut.push({
+        roleId, roleLabel,
+        deposit: e.deposit, balanceDue: e.balanceDue,
+        inherited: isInherited(e.source), source: e.source,
+      });
+      if (e.earlyBird) {
+        earlyBird.push({
+          roleId, roleLabel, amount: e.earlyBird.amount,
+          source: e.earlyBird.source, active: e.earlyBird.active,
+          inherited: isInherited(e.earlyBird.source),
+        });
       }
-    } else if (level === 3) {
-      for (const row of data) {
-        row._fees = this.buildFeePills(row.teamId, 'team');
+      if (e.lateFee) {
+        lateFee.push({
+          roleId, roleLabel, amount: e.lateFee.amount,
+          source: e.lateFee.source, active: e.lateFee.active,
+          inherited: isInherited(e.lateFee.source),
+        });
       }
     }
-    // level 2 (Divisions): no fee pills — divisions aren't a scope in fees.JobFees.
+
+    return { fees: feesOut, earlyBird, lateFee };
+  }
+
+  /** Enrich grid rows with _fees / _earlyBird / _lateFee column data */
+  private enrichWithFees(data: any[], level: number): void {
+    const assign = (row: any, scopeId: string, scopeType: 'agegroup' | 'team') => {
+      const d = this.buildFeeData(scopeId, scopeType);
+      row._fees = d.fees;
+      row._earlyBird = d.earlyBird;
+      row._lateFee = d.lateFee;
+    };
+    if (level === 1) {
+      for (const row of data) assign(row, row.agegroupId, 'agegroup');
+    } else if (level === 3) {
+      for (const row of data) assign(row, row.teamId, 'team');
+    }
+    // level 2 (Divisions): no fee columns — divisions aren't a scope in fees.JobFees.
   }
 
   private getParentParts(node: LadtFlatNode): ParentBreadcrumb[] {

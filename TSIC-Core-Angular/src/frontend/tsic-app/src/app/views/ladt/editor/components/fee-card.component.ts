@@ -51,8 +51,8 @@ export interface ModifierForm {
         </div>
       }
 
-      @for (mod of modifiers; track $index) {
-        @if ($index === 0) {
+      @for (mod of modifiers; track mod.modifierType) {
+        @if ($first) {
           <div class="modifier-labels">
             <span class="mod-label mod-label-type">Type</span>
             <span class="mod-label mod-label-amount">Amount</span>
@@ -60,11 +60,11 @@ export interface ModifierForm {
           </div>
         }
         <div class="modifier-row">
-          <select class="form-select form-select-sm mod-type"
-                  [(ngModel)]="mod.modifierType" [name]="namePrefix + 'ModType' + $index">
-            <option value="EarlyBird">Early Bird</option>
-            <option value="LateFee">Late Fee</option>
-          </select>
+          <span class="mod-type-label"
+                [class.mod-type-earlybird]="mod.modifierType !== 'LateFee'"
+                [class.mod-type-latefee]="mod.modifierType === 'LateFee'">
+            {{ modLabel(mod.modifierType) }}
+          </span>
           <div class="input-group input-group-sm mod-amount">
             <span class="input-group-text">$</span>
             <input class="form-control" type="number" step="1"
@@ -96,11 +96,18 @@ export interface ModifierForm {
         </div>
       }
 
-      <button type="button" class="btn btn-sm btn-link text-body-secondary p-0 mt-1"
-              [disabled]="!canAddModifier()"
-              (click)="addModifier()">
-        <i class="bi bi-plus-circle me-1"></i>Add Early Bird / Late Fee
-      </button>
+      <div class="d-flex flex-wrap gap-3 mt-1">
+        <button type="button" class="btn btn-sm btn-link text-body-secondary p-0"
+                [disabled]="hasModifier('EarlyBird')"
+                (click)="addModifier('EarlyBird')">
+          <i class="bi bi-plus-circle me-1"></i>Add Early Bird Discount
+        </button>
+        <button type="button" class="btn btn-sm btn-link text-body-secondary p-0"
+                [disabled]="hasModifier('LateFee')"
+                (click)="addModifier('LateFee')">
+          <i class="bi bi-plus-circle me-1"></i>Add Late Fee
+        </button>
+      </div>
     </div>
   `,
   styles: [`
@@ -158,7 +165,20 @@ export interface ModifierForm {
       align-items: center;
     }
     .modifier-row:first-of-type { margin-top: 0; }
-    .mod-type { min-width: 0; }
+    .mod-type-label {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      font-size: var(--font-size-xs);
+      font-weight: 600;
+      padding: 0 var(--space-2);
+      height: calc(1.5em + 0.5rem + 2px); /* matches form-control-sm height */
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--bs-border-color);
+      background: var(--bs-tertiary-bg);
+    }
+    .mod-type-earlybird { color: var(--bs-success); border-left: 3px solid var(--bs-success); }
+    .mod-type-latefee { color: var(--bs-danger); border-left: 3px solid var(--bs-danger); }
     .mod-amount { min-width: 0; }
     .mod-dates {
       grid-column: 1 / -1;
@@ -186,14 +206,17 @@ export class FeeCardComponent {
   @Output() depositChange = new EventEmitter<number | null>();
   @Output() balanceDueChange = new EventEmitter<number | null>();
 
-  canAddModifier(): boolean {
-    if (this.modifiers.length === 0) return true;
-    return this.modifiers.every(m => m.amount != null && m.amount > 0);
+  modLabel(type: string): string {
+    return type === 'LateFee' ? 'Late Fee' : 'Early Bird Discount';
   }
 
-  addModifier(): void {
-    if (!this.canAddModifier()) return;
-    this.modifiers.push({ modifierType: 'EarlyBird', amount: null, startDate: null, endDate: null });
+  hasModifier(type: 'EarlyBird' | 'LateFee'): boolean {
+    return this.modifiers.some(m => m.modifierType === type);
+  }
+
+  addModifier(type: 'EarlyBird' | 'LateFee'): void {
+    if (this.hasModifier(type)) return;   // max one of each type
+    this.modifiers.push({ modifierType: type, amount: null, startDate: null, endDate: null });
   }
 
   removeModifier(index: number): void {
