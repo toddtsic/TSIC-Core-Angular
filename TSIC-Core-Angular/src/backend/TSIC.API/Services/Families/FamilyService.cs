@@ -109,8 +109,8 @@ public sealed class FamilyService : IFamilyService
         // Build team name lookup
         var teamNameMap = await BuildTeamNameMapAsync(jobId, regsRaw);
 
-        // Division name per assigned team → lets BuildRegistrationDto flag genuinely "pending"
-        // priors (Unassigned division) distinctly from dropped/waitlist priors (other divisions).
+        // Division name per assigned team → lets BuildRegistrationDto exclude dropped/waitlist
+        // priors (parked in "Dropped *"/"WAITLIST - *" divisions) from the genuinely-pending set.
         var teamDivNameMap = await BuildTeamDivNameMapAsync(jobId, regsRaw);
 
         // Job-level payment state (rates only) → lets BuildRegistrationDto surface each
@@ -772,12 +772,21 @@ public sealed class FamilyService : IFamilyService
         var formFieldValues = BuildVisibleFieldValues(fv, visibleFieldNames);
 
         // A prior reg is "pending" (abandoned mid-payment, safe to rehydrate from) when it is
-        // inactive AND its assigned team sits in the "Unassigned" division. Dropped/Waitlist age
-        // groups use other division names, so they are NOT pending and must not rehydrate.
+        // inactive, nothing has been paid against it, and it is NOT parked in a Waitlist/Dropped
+        // division. Genuinely-pending regs are created at PreSubmit and stay in their REAL target
+        // division ("A", "Summer Camp", etc.) with paid_total = 0 — the abandoned-at-payment
+        // fingerprint. Dropped/Waitlist players are moved to dedicated divisions ("Dropped Teams",
+        // "Dropped Players", "WAITLIST - *"), which are excluded here. NOTE: do NOT gate on
+        // owed_total > 0 — $0/free events leave owed_total = 0 yet are still genuinely pending.
+        var divName = r.AssignedTeamId.HasValue
+            && teamDivNameMap.TryGetValue(r.AssignedTeamId.Value, out var dn) ? dn?.Trim() : null;
+        var isParkedDivision = divName != null
+            && (divName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
+                || divName.StartsWith("Dropped", StringComparison.OrdinalIgnoreCase));
         var isPending = r.BActive != true
             && r.AssignedTeamId.HasValue
-            && teamDivNameMap.TryGetValue(r.AssignedTeamId.Value, out var divName)
-            && string.Equals(divName?.Trim(), "Unassigned", StringComparison.OrdinalIgnoreCase);
+            && r.PaidTotal <= 0m
+            && !isParkedDivision;
 
         // eCheck-method owed from the single canonical resolver (== OwedTotal when proc fees
         // are off or no job state is available).
