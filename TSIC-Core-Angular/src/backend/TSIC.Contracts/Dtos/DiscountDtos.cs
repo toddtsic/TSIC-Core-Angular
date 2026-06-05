@@ -9,6 +9,13 @@ public sealed record ApplyDiscountItemDto
     [Required]
     public required string PlayerId { get; init; } = string.Empty;
 
+    // The camp/team this line represents. A player can register for multiple camps in one
+    // job — each is its own Registrations row (same UserId, distinct AssignedTeamId). Without
+    // this, the backend can only match the first reg per player, so only one camp gets the
+    // discount. Nullable for backward compatibility; when absent the backend spreads each item
+    // across the player's next unconsumed registration.
+    public Guid? TeamId { get; init; }
+
     [Range(0, double.MaxValue)]
     public required decimal Amount { get; init; }
 }

@@ -202,9 +202,17 @@ public class PlayerRegistrationPaymentController : ControllerBase
         // Job rates (once) so each updated financial carries the canonical eCheck-method owed.
         var echeckState = await _paymentState.ForJobAsync(jobId.Value);
 
+        // A player can register for multiple camps in one job — each is its own reg row (same
+        // UserId, distinct AssignedTeamId). Match each item to its specific camp via TeamId, and
+        // track consumed reg rows so a player with N camps gets N discounts (not just the first).
+        var processedRegIds = new HashSet<Guid>();
+
         foreach (var item in items)
         {
-            var reg = targetRegs.FirstOrDefault(r => r.UserId?.Equals(item.PlayerId, StringComparison.OrdinalIgnoreCase) ?? false);
+            var reg = targetRegs.FirstOrDefault(r =>
+                (r.UserId?.Equals(item.PlayerId, StringComparison.OrdinalIgnoreCase) ?? false)
+                && (item.TeamId == null || r.AssignedTeamId == item.TeamId)
+                && !processedRegIds.Contains(r.RegistrationId));
 
             if (reg == null)
             {
@@ -218,6 +226,10 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 });
                 continue;
             }
+
+            // Consume this reg row so the next item for the same player (another camp) matches a
+            // different row — even on the TeamId-absent fallback path.
+            processedRegIds.Add(reg.RegistrationId);
 
             // Check if already discounted
             if (reg.FeeDiscount > 0m)

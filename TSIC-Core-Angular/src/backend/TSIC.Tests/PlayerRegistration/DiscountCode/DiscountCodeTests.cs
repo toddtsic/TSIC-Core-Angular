@@ -464,6 +464,56 @@ public class DiscountCodeTests
     }
 
     // ────────────────────────────────────────────────────────────────────────
+    // 7b. One player, multiple camps — TeamId routes the discount to every reg row
+    // ────────────────────────────────────────────────────────────────────────
+
+    [Fact(DisplayName = "CAC: one player, two camps (distinct teams) → both reg rows discounted, not just the first")]
+    public async Task Absolute_OnePlayer_TwoCamps_DiscountsBoth()
+    {
+        var (controller, ctx, _) = await CreateControllerAsync(
+            processingFeePercent: 3.5m,
+            bAddProcessingFees: true);
+        var playerId = Guid.NewGuid().ToString();
+        var teamA = Guid.NewGuid();
+        var teamB = Guid.NewGuid();
+        var ai = AddDiscountCode(ctx, codeAmount: 100m, codeName: "MULTICAMP");
+        // Same player (UserId), two camps — one reg row per camp, distinct AssignedTeamId.
+        var regA = AddRegistration(ctx, userId: playerId, feeBase: 400m, feeProcessing: 14.00m, insuredName: "Camper");
+        regA.AssignedTeamId = teamA;
+        var regB = AddRegistration(ctx, userId: playerId, feeBase: 200m, feeProcessing: 7.00m, insuredName: "Camper");
+        regB.AssignedTeamId = teamB;
+        await ctx.SaveChangesAsync();
+
+        // Two items, same playerId, distinct teamId — the camp identity that routes each to its reg.
+        var request = new ApplyDiscountRequestDto
+        {
+            JobPath = JobPath,
+            Code = "MULTICAMP",
+            Items = new List<ApplyDiscountItemDto>
+            {
+                new() { PlayerId = playerId, TeamId = teamA, Amount = 414m },
+                new() { PlayerId = playerId, TeamId = teamB, Amount = 207m },
+            }
+        };
+        var result = await controller.ApplyDiscount(request);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
+        dto.Success.Should().BeTrue();
+        dto.SuccessCount.Should().Be(2);
+        dto.TotalDiscount.Should().Be(200m);
+
+        var dbA = await ctx.Registrations.FirstAsync(r => r.RegistrationId == regA.RegistrationId);
+        var dbB = await ctx.Registrations.FirstAsync(r => r.RegistrationId == regB.RegistrationId);
+
+        // Both camps discounted — the bug was that only the first reg per player was touched.
+        dbA.FeeDiscount.Should().Be(100m);
+        dbB.FeeDiscount.Should().Be(100m);
+        dbA.DiscountCodeId.Should().Be(ai);
+        dbB.DiscountCodeId.Should().Be(ai);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
     // 8. Rejected — already discounted
     // ────────────────────────────────────────────────────────────────────────
 

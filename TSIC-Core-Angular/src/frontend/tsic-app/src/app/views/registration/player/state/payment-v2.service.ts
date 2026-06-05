@@ -322,7 +322,9 @@ export class PaymentV2Service {
             const amount = option === 'Deposit' && !hasExisting
                 ? (Number(this.teams.getTeamById(li.teamId)?.deposit ?? 0) || 0)
                 : li.amount;
-            return { playerId: li.playerId, amount };
+            // teamId identifies which camp this line is — a player with multiple camps has one
+            // reg row per camp, so the backend needs it to discount every camp, not just the first.
+            return { playerId: li.playerId, teamId: li.teamId, amount };
         });
         if (items.length === 0) {
             this._discountMessage.set('No payable items eligible for discount');

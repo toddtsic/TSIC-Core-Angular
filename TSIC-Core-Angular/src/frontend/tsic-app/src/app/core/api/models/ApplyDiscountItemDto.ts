@@ -4,6 +4,7 @@
 /* eslint-disable */
 export type ApplyDiscountItemDto = {
     playerId: string;
+    teamId?: string | null;
     amount: number;
 };
 
