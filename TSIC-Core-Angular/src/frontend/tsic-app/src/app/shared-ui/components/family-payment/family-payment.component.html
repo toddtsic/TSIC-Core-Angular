@@ -33,14 +33,15 @@
   }
 
   <!-- Per-Player Breakdown — the SAME rich registered-teams-grid the club rep view uses
-       (DRY: app-registered-teams-grid). ALL players in family scope, the single selected player in
-       player scope. The age-group / deposit / balance columns are hidden (not meaningful per
-       player); Discount / Fee-Adj auto-appear when any row is non-zero. -->
-  @if (gridPlayers().length) {
+       (DRY: app-registered-teams-grid). Family scope renders two summed sections, Active then
+       Inactive (each grid's aggregate footer is that section's summation); player scope renders
+       the single selected child. Age-group / deposit / balance columns are hidden (not meaningful
+       per player); Discount / Fee-Adj auto-appear when any row is non-zero. -->
+  @for (sec of breakdownSections(); track sec.title) {
     <div class="family-summary-card">
-      <h5 class="section-title">{{ scope() === 'player' ? 'Player Breakdown' : 'Family Players Breakdown' }}</h5>
+      <h5 class="section-title">{{ sec.title }}</h5>
       <app-registered-teams-grid
-        [teams]="gridPlayers()"
+        [teams]="sec.teams"
         [teamColHeader]="'Player'"
         [procFeeField]="'feeProcessing'"
         [showAgeGroup]="false"

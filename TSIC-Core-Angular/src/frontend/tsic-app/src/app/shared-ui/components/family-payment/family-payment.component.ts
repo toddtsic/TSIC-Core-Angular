@@ -59,23 +59,35 @@ export class FamilyPaymentComponent {
   allPlayers = computed<RegisteredTeamDto[]>(() => this.data()?.players ?? []);
   playerCount = computed(() => this.allPlayers().length);
 
-  // Director's family ledger shows EVERY player and counts them all. Chips list all players,
-  // active-first; inactive ones (e.g. a pay-by-check sibling awaiting its mailed check) keep an
-  // "Inactive" tag for status but are still selectable (money is always entered per-player — there
-  // is no family-wide charge here, unlike teams) and still counted in the family totals.
+  // The family breakdown is split into two summed sections: Active (bActive=1) and Inactive
+  // (bActive=0 — e.g. a pay-by-check sibling awaiting its mailed check). Each section's grid shows
+  // its own aggregate footer (per-group summation); both groups count toward the family balance.
+  activePlayers = computed(() => this.allPlayers().filter(p => p.active));
+  inactivePlayers = computed(() => this.allPlayers().filter(p => !p.active));
+
+  // Chips list all players, active-first; inactive ones keep an "Inactive" tag but are still
+  // selectable (money is always entered per-player — there is no family-wide charge here, unlike
+  // teams) and still counted in the family totals.
   chipPlayers = computed(() =>
     [...this.allPlayers()].sort((a, b) => Number(b.active) - Number(a.active)));
 
   selectedPlayer = computed(() =>
     this.allPlayers().find(p => p.teamId === this.activePlayerId()) ?? null);
 
-  // Grid feed: all players in family scope, the anchor player in player scope.
-  gridPlayers = computed<RegisteredTeamDto[]>(() => {
+  // Breakdown sections driving the grids: player scope = the one selected child; family scope =
+  // two summed sections, Active then Inactive (each non-empty). Each grid renders its own
+  // aggregate-footer summation, so every section shows its own totals.
+  breakdownSections = computed<{ title: string; teams: RegisteredTeamDto[] }[]>(() => {
     if (this.scope() === 'player') {
       const p = this.selectedPlayer();
-      return p ? [p] : [];
+      return p ? [{ title: 'Player Breakdown', teams: [p] }] : [];
     }
-    return this.allPlayers();
+    const sections: { title: string; teams: RegisteredTeamDto[] }[] = [];
+    const active = this.activePlayers();
+    const inactive = this.inactivePlayers();
+    if (active.length) sections.push({ title: `Active (${active.length})`, teams: active });
+    if (inactive.length) sections.push({ title: `Inactive (${inactive.length})`, teams: inactive });
+    return sections;
   });
 
   familyName = computed(() => this.data()?.familyName ?? '');
