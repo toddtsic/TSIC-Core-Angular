@@ -690,20 +690,25 @@ public class AdnApiService : IAdnApiService
     {
         // Force the amount to a penny regardless of caller-supplied value.
         var verifyReq = request with { Amount = 0.01m };
-        var authResp = ADN_Authorize(verifyReq);
 
-        if (authResp?.messages?.resultCode != messageTypeEnum.Ok
-            || authResp.transactionResponse?.messages == null
-            || string.IsNullOrWhiteSpace(authResp.transactionResponse.transId))
+        // Judge the authOnly by the per-transaction verdict (responseCode == "1" + a real
+        // transId) via ParseTxnResponse — NOT the envelope messages.resultCode. Authorize.Net
+        // can wrap an approved transaction in an Error envelope (observed in sandbox), so the
+        // envelope is unreliable. Same rule the charge/refund/void paths use.
+        var authResp = ADN_Authorize(verifyReq);
+        var authResult = ParseTxnResponse(authResp);
+        if (!authResult.Success)
         {
+            // Prefer the gateway's own decline text; fall back to a card-validation-friendly
+            // default when the gateway returned nothing usable (e.g. a null response).
             var err = authResp?.transactionResponse?.errors?.FirstOrDefault()?.errorText
                 ?? authResp?.messages?.message?.FirstOrDefault()?.text
                 ?? "Card validation failed.";
             return new AdnPennyVerifyResult { Success = false, ErrorMessage = err };
         }
 
-        var authTxId = authResp.transactionResponse.transId;
-        var voidResp = ADN_Void(new AdnVoidRequest
+        var authTxId = authResult.TransactionId!;
+        var voidResult = ADN_Void_Result(new AdnVoidRequest
         {
             Env = request.Env,
             LoginId = request.LoginId,
@@ -711,19 +716,17 @@ public class AdnApiService : IAdnApiService
             TransactionId = authTxId
         });
 
-        if (voidResp?.messages?.resultCode != messageTypeEnum.Ok)
+        if (!voidResult.Success)
         {
             // Auth succeeded but void didn't — gateway is unstable. Bail rather than
             // proceed with the deferred-charge operation; the auth hold will expire
-            // naturally in a few days.
-            var err = voidResp?.transactionResponse?.errors?.FirstOrDefault()?.errorText
-                ?? voidResp?.messages?.message?.FirstOrDefault()?.text
-                ?? "Penny auth void failed.";
-            _logger.LogWarning("Penny auth ok but void failed for tx {TxId}: {Error}", authTxId, err);
+            // naturally in a few days. Void verdict also rides the transaction-level
+            // responseCode (via ParseTxnResponse), not the envelope.
+            _logger.LogWarning("Penny auth ok but void failed for tx {TxId}: {Error}", authTxId, voidResult.MessageForUser);
             return new AdnPennyVerifyResult
             {
                 Success = false,
-                ErrorMessage = $"Card validated but void failed: {err}",
+                ErrorMessage = $"Card validated but void failed: {voidResult.MessageForUser}",
                 AuthTransactionId = authTxId
             };
         }

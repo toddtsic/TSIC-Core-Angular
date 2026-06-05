@@ -42,7 +42,8 @@ public class AdnApiServiceTests
             AuthFn = _ => new createTransactionResponse
             {
                 messages = new messagesType { resultCode = messageTypeEnum.Ok },
-                transactionResponse = new transactionResponse { transId = "" }
+                // Approved code but no transId — ParseTxnResponse must still reject it.
+                transactionResponse = new transactionResponse { responseCode = "1", transId = "" }
             }
         };
 
@@ -145,6 +146,7 @@ public class AdnApiServiceTests
         },
         transactionResponse = new transactionResponse
         {
+            responseCode = "1", // 1 = Approved — the per-transaction verdict ParseTxnResponse reads.
             transId = txId,
             messages = [new transactionResponseMessage { code = "1", description = "Approved." }]
         }
@@ -165,7 +167,14 @@ public class AdnApiServiceTests
 
     private static createTransactionResponse OkVoidResponse() => new()
     {
-        messages = new messagesType { resultCode = messageTypeEnum.Ok }
+        messages = new messagesType { resultCode = messageTypeEnum.Ok },
+        // A real ADN void returns a transactionResponse with responseCode "1" (Approved) and
+        // the original transId — ParseTxnResponse judges the void on that, not the envelope.
+        transactionResponse = new transactionResponse
+        {
+            responseCode = "1",
+            transId = "VOID-OK"
+        }
     };
 
     private static createTransactionResponse ErrorVoidResponse(string code, string text) => new()
