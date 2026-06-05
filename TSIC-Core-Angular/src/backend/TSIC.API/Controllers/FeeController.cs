@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TSIC.Contracts.Dtos.Fees;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
@@ -80,6 +81,13 @@ public class FeeController : ControllerBase
         var jobId = await ResolveJobIdAsync();
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
+        // Guard: an Early Bird Discount and a Late Fee on the same fee card must
+        // not have overlapping date windows. A registrant active in the overlap
+        // would be stamped BOTH (feeAdj = lateFee − discount), which is never intended.
+        var windowError = ValidateModifierWindows(request.Modifiers);
+        if (windowError != null)
+            return BadRequest(new { message = windowError });
+
         // Find existing row for this scope (tracked for update)
         var existing = await _feeRepo.GetTrackedByScopeAsync(
             jobId, request.RoleId, request.AgegroupId, request.TeamId, request.LeagueId, ct);
@@ -152,6 +160,39 @@ public class FeeController : ControllerBase
     }
 
     // ── Helpers ──
+
+    /// <summary>
+    /// Rejects a save where an Early Bird Discount window overlaps a Late Fee window
+    /// on the same fee card. Null start = open-ended past, null end = open-ended future;
+    /// boundaries are inclusive (both active on a shared boundary date counts as overlap).
+    /// Returns an error message, or null when valid.
+    /// </summary>
+    private static string? ValidateModifierWindows(List<FeeModifierDto>? modifiers)
+    {
+        if (modifiers == null) return null;
+
+        var earlyBirds = modifiers.Where(m => m.ModifierType == FeeConstants.ModifierEarlyBird).ToList();
+        var lateFees = modifiers.Where(m => m.ModifierType == FeeConstants.ModifierLateFee).ToList();
+        if (earlyBirds.Count == 0 || lateFees.Count == 0) return null;
+
+        foreach (var eb in earlyBirds)
+            foreach (var lf in lateFees)
+                if (WindowsOverlap(eb.StartDate, eb.EndDate, lf.StartDate, lf.EndDate))
+                    return "Early Bird Discount and Late Fee date windows overlap. A registrant "
+                         + "active in the overlap would receive both — set the Early Bird to end "
+                         + "before the Late Fee begins.";
+
+        return null;
+    }
+
+    private static bool WindowsOverlap(DateTime? aStart, DateTime? aEnd, DateTime? bStart, DateTime? bEnd)
+    {
+        var s1 = aStart ?? DateTime.MinValue;
+        var e1 = aEnd ?? DateTime.MaxValue;
+        var s2 = bStart ?? DateTime.MinValue;
+        var e2 = bEnd ?? DateTime.MaxValue;
+        return s1 <= e2 && s2 <= e1;
+    }
 
     private void SyncModifiers(JobFees row, List<FeeModifierDto>? requested, string? userId)
     {

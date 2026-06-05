@@ -20,6 +20,9 @@ export interface LadtColumnDef {
 export const LEAGUE_COLUMNS: LadtColumnDef[] = [
   { field: 'leagueName', header: 'League', type: 'string', frozen: true, width: '180px' },
   { field: 'sportName', header: 'Sport', type: 'string', width: '140px' },
+  { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
+  { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
+  { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
   { field: 'rescheduleEmailsToAddon', header: 'Reschedule Emails', type: 'string', width: '180px' },
   { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean', width: '70px' },
   { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', width: '70px' },

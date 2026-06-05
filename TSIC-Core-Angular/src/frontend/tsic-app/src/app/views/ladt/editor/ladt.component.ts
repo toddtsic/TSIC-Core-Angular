@@ -573,7 +573,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     else fetch$ = this.ladtService.getTeamSiblings(node.parentId!);
 
     // For levels that show fees, load fees in parallel
-    const needsFees = level === 1 || level === 2 || level === 3;
+    const needsFees = level === 0 || level === 1 || level === 2 || level === 3;
     const feesLoaded = this.jobFees().length > 0;
 
     const combined$ = needsFees && !feesLoaded
@@ -682,7 +682,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
    * FeeRepository.GetActiveModifiersForCascadeAsync). Job tier is not a modifier
    * source. A modifier's source can therefore differ from the base fee's source.
    */
-  private buildFeeData(scopeId: string, scopeType: 'agegroup' | 'team'): {
+  private buildFeeData(scopeId: string, scopeType: 'league' | 'agegroup' | 'team'): {
     fees: any[]; earlyBird: any[]; lateFee: any[];
   } {
     const fees = this.jobFees();
@@ -730,25 +730,41 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       if (lf) e.lateFee = { ...lf, source: src };
     };
 
-    // Resolve the agegroup in scope (team scope walks up through its division)
-    // and that agegroup's league — the top inherited tier of the cascade.
+    // Base fee cascades per field, most-specific NON-NULL wins (mirrors backend
+    // FeeRepository.GetResolvedFeeAsync's `??=`). Update a field + its source ONLY
+    // when this tier supplies a value — otherwise a modifier-only row (e.g. a
+    // team/agegroup late fee with no Deposit/BalanceDue) would blank the inherited
+    // base and the grid would show $0.
+    const applyBase = (e: FeeEntry, f: JobFeeDto, src: 'job' | 'league' | 'agegroup' | 'team') => {
+      if (f.deposit != null) { e.deposit = f.deposit; e.source = src; }
+      if (f.balanceDue != null) { e.balanceDue = f.balanceDue; e.source = src; }
+    };
+
+    // Resolve the agegroup + league in scope. Team scope walks up through its
+    // division to the agegroup; agegroup scope IS the agegroup; league scope has
+    // no agegroup (only the job→league base + league-tier modifiers apply).
     let agId: string | undefined;
+    let leagueId: string | undefined;
     if (scopeType === 'team') {
       const teamNode = this.flatNodes().find(n => n.id === scopeId);
       const agNode = teamNode ? this.flatNodes().find(n => n.id === teamNode.parentId) : null;
       agId = agNode?.level === 2 ? agNode.parentId ?? undefined : agNode?.id;
-    } else {
+      leagueId = agId ? this.flatNodes().find(n => n.id === agId)?.parentId ?? undefined : undefined;
+    } else if (scopeType === 'agegroup') {
       agId = scopeId;
+      leagueId = this.flatNodes().find(n => n.id === agId)?.parentId ?? undefined;
+    } else {
+      // league scope
+      agId = undefined;
+      leagueId = scopeId;
     }
-    const leagueId = agId ? this.flatNodes().find(n => n.id === agId)?.parentId ?? undefined : undefined;
 
     // Layer 1: Job-level base defaults (Player/ClubRep no longer seed here; exclude
     // league-scoped rows so they don't masquerade as job-level). Job tier is NOT a
     // modifier source.
     for (const f of fees) {
       if (!f.agegroupId && !f.teamId && !f.leagueId && f.roleId) {
-        const e = upsert(f.roleId);
-        e.deposit = f.deposit ?? null; e.balanceDue = f.balanceDue ?? null; e.source = 'job';
+        applyBase(upsert(f.roleId), f, 'job');
       }
     }
 
@@ -757,7 +773,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       for (const f of fees) {
         if (f.leagueId === leagueId && !f.agegroupId && !f.teamId && f.roleId) {
           const e = upsert(f.roleId);
-          e.deposit = f.deposit ?? null; e.balanceDue = f.balanceDue ?? null; e.source = 'league';
+          applyBase(e, f, 'league');
           applyMods(e, f, 'league');
         }
       }
@@ -768,7 +784,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       for (const f of fees) {
         if (f.agegroupId === agId && !f.teamId && f.roleId) {
           const e = upsert(f.roleId);
-          e.deposit = f.deposit ?? null; e.balanceDue = f.balanceDue ?? null; e.source = 'agegroup';
+          applyBase(e, f, 'agegroup');
           applyMods(e, f, 'agegroup');
         }
       }
@@ -779,16 +795,15 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       for (const f of fees) {
         if (f.teamId === scopeId && f.roleId) {
           const e = upsert(f.roleId);
-          e.deposit = f.deposit ?? null; e.balanceDue = f.balanceDue ?? null; e.source = 'team';
+          applyBase(e, f, 'team');
           applyMods(e, f, 'team');
         }
       }
     }
 
-    // "inherited" = the winning tier is above this grid's own scope.
-    const isInherited = (src: string) => scopeType === 'agegroup'
-      ? src !== 'agegroup'   // agegroup grid: job/league = inherited
-      : src !== 'team';      // team grid: anything not team-level = inherited
+    // "inherited" = the winning tier is above this grid's own scope. A value
+    // sourced from this grid's own tier is "set" here; anything higher is inherited.
+    const isInherited = (src: string) => src !== scopeType;
 
     const feesOut: any[] = [];
     const earlyBird: any[] = [];
@@ -822,13 +837,15 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   /** Enrich grid rows with _fees / _earlyBird / _lateFee column data */
   private enrichWithFees(data: any[], level: number): void {
-    const assign = (row: any, scopeId: string, scopeType: 'agegroup' | 'team') => {
+    const assign = (row: any, scopeId: string, scopeType: 'league' | 'agegroup' | 'team') => {
       const d = this.buildFeeData(scopeId, scopeType);
       row._fees = d.fees;
       row._earlyBird = d.earlyBird;
       row._lateFee = d.lateFee;
     };
-    if (level === 1) {
+    if (level === 0) {
+      for (const row of data) assign(row, row.leagueId, 'league');
+    } else if (level === 1) {
       for (const row of data) assign(row, row.agegroupId, 'agegroup');
     } else if (level === 3) {
       for (const row of data) assign(row, row.teamId, 'team');

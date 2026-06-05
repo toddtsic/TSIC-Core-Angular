@@ -108,6 +108,14 @@ export interface ModifierForm {
           <i class="bi bi-plus-circle me-1"></i>Add Late Fee
         </button>
       </div>
+
+      @if (hasWindowOverlap()) {
+        <div class="overlap-warning">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          Early Bird and Late Fee date windows overlap — a registrant in the overlap
+          would receive both. End the Early Bird before the Late Fee begins.
+        </div>
+      }
     </div>
   `,
   styles: [`
@@ -180,6 +188,15 @@ export interface ModifierForm {
     .mod-type-earlybird { color: var(--bs-success); border-left: 3px solid var(--bs-success); }
     .mod-type-latefee { color: var(--bs-danger); border-left: 3px solid var(--bs-danger); }
     .mod-amount { min-width: 0; }
+    .overlap-warning {
+      margin-top: var(--space-2);
+      padding: var(--space-2);
+      font-size: var(--font-size-xs);
+      color: var(--bs-warning-text-emphasis);
+      background: var(--bs-warning-bg-subtle);
+      border: 1px solid var(--bs-warning-border-subtle);
+      border-radius: var(--radius-sm);
+    }
     .mod-dates {
       grid-column: 1 / -1;
       display: flex;
@@ -217,6 +234,23 @@ export class FeeCardComponent {
   addModifier(type: 'EarlyBird' | 'LateFee'): void {
     if (this.hasModifier(type)) return;   // max one of each type
     this.modifiers.push({ modifierType: type, amount: null, startDate: null, endDate: null });
+  }
+
+  /** True when an Early Bird and a Late Fee on this card have overlapping date windows. */
+  hasWindowOverlap(): boolean {
+    const ebs = this.modifiers.filter(m => m.modifierType === 'EarlyBird');
+    const lfs = this.modifiers.filter(m => m.modifierType === 'LateFee');
+    for (const a of ebs) {
+      for (const b of lfs) {
+        // null start = open past, null end = open future; boundaries inclusive.
+        const s1 = a.startDate ? new Date(a.startDate).getTime() : -Infinity;
+        const e1 = a.endDate ? new Date(a.endDate).getTime() : Infinity;
+        const s2 = b.startDate ? new Date(b.startDate).getTime() : -Infinity;
+        const e2 = b.endDate ? new Date(b.endDate).getTime() : Infinity;
+        if (s1 <= e2 && s2 <= e1) return true;
+      }
+    }
+    return false;
   }
 
   removeModifier(index: number): void {
