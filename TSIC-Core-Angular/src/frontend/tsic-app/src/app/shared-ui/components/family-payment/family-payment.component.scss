@@ -40,38 +40,16 @@
     font-weight: var(--font-weight-semibold);
   }
 
-  // Pending player (bActive=0 on "Unassigned") — a pay-by-check sibling awaiting its mailed
-  // check. It OWES real money and counts in the balance, so it reads as "action needed": a warm
-  // amber-tinted, solid (not dashed) chip — distinct from both active and dropped. Fully
-  // selectable. When selected, the .active rule above wins and the chip lights up normally.
-  &.pending:not(.active) {
-    border-color: var(--bs-warning-border-subtle);
-    background: var(--bs-warning-bg-subtle);
-    color: var(--bs-warning-text-emphasis);
-  }
-
-  // Dropped / waitlisted player — NOT counted in the balance. Muted + dashed to read as
-  // "off the rosters, reference only". Still selectable so a late payment can be recorded
-  // (which reactivates them). The dashed border + "Dropped" tag carry the meaning, not color.
-  &.dropped:not(.active) {
+  // Inactive player (bActive=0) — e.g. a pay-by-check sibling awaiting its mailed check. Muted +
+  // dashed to flag status at a glance, but still fully selectable and still counted in the family
+  // balance. The dashed border + "Inactive" tag carry the meaning (not color alone). When selected,
+  // the .active rule above wins and the chip lights up normally.
+  &.inactive:not(.active) {
     border-style: dashed;
     border-color: var(--bs-border-color);
     background: var(--bs-tertiary-bg);
     color: var(--text-muted);
   }
-}
-
-// Full-width separator between the balance-due chips and the dropped/inactive group.
-.chip-group-divider {
-  flex-basis: 100%;
-  margin-top: var(--space-1);
-  padding-top: var(--space-2);
-  border-top: 1px dashed var(--bs-border-color);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-muted);
 }
 
 .chip-tag {
@@ -94,12 +72,7 @@
   }
 }
 
-.chip-tag-pending {
-  background: var(--bs-warning);
-  color: var(--neutral-900);
-}
-
-.chip-tag-dropped {
+.chip-tag-inactive {
   background: var(--bs-secondary-bg);
   color: var(--text-muted);
 }

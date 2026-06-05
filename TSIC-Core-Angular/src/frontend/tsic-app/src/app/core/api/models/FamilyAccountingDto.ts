@@ -12,6 +12,5 @@ export type FamilyAccountingDto = {
     owedTotal: number;
     players: Array<RegisteredTeamDto>;
     accountingRecords: Array<AccountingRecordDto>;
-    pendingPlayerRegistrationIds: Array<string>;
 };
 

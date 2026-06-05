@@ -29,16 +29,6 @@ public record FamilyAccountingDto
     /// </summary>
     public required List<RegisteredTeamDto> Players { get; init; }
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
-
-    /// <summary>
-    /// RegistrationIds (matching <see cref="RegisteredTeamDto.TeamId"/>) of the genuinely-pending
-    /// players — inactive (bActive=0) but assigned to the "Unassigned" division, e.g. a pay-by-check
-    /// sibling awaiting its mailed check. These owe real money and DO count toward the family balance.
-    /// Dropped/Waitlist siblings (inactive in other divisions) are NOT listed here: they are
-    /// reference-only and excluded from the balance. Same predicate <c>FamilyService</c> uses for
-    /// rehydration (inactive + assigned-team division == "Unassigned").
-    /// </summary>
-    public required List<Guid> PendingPlayerRegistrationIds { get; init; }
 }
 
 /// <summary>
