@@ -290,9 +290,11 @@ interface FilterChip {
                     <button class="segment-btn"
                             [class.active]="activeTab() === 'standings'"
                             (click)="switchTab('standings')" role="tab">Standings</button>
-                    <button class="segment-btn"
-                            [class.active]="activeTab() === 'brackets'"
-                            (click)="switchTab('brackets')" role="tab">Brackets</button>
+                    @if (filterOptions()?.jobHasBrackets) {
+                        <button class="segment-btn"
+                                [class.active]="activeTab() === 'brackets'"
+                                (click)="switchTab('brackets')" role="tab">Brackets</button>
+                    }
                     @if (!capabilities()?.hideContacts) {
                         <button class="segment-btn"
                                 [class.active]="activeTab() === 'contacts'"
@@ -1538,17 +1540,34 @@ export class ViewScheduleComponent implements OnInit {
     }
 
     /**
-     * One-shot gate: only show the game-clock FAB if there's at least one current-live
-     * or upcoming RR or PO game for this job. PO support is provisional pending review.
+     * One-shot gate: only show the game-clock FAB if the job has a usable interval
+     * clock configured AND there's at least one current-live or upcoming RR/PO game.
+     *
+     * "Configured" means non-zero half-minutes or quarter-minutes. Without them the
+     * round-robin game duration computes to 0, so no game ever falls inside an active
+     * window — the clock could only ever count down to the next game's start, never
+     * show an in-game interval. The vast majority of jobs leave these at 0, so we hide
+     * the clock entirely rather than show a misleading next-game countdown.
+     * PO support is provisional pending review.
      */
     private probeGameClock(): void {
         const jobId = this.currentJobId();
         if (!jobId) return;
-        this.svc.getActiveGames(jobId).subscribe({
-            next: (data) => {
-                const has = (data.availableRRGameData?.length ?? 0) > 0
-                    || (data.availablePOGameData?.length ?? 0) > 0;
-                this.hasGameClockGames.set(has);
+        this.svc.getGameClockConfig(jobId).subscribe({
+            next: (cfg) => {
+                const configured = (cfg.halfMinutes ?? 0) > 0 || (cfg.quarterMinutes ?? 0) > 0;
+                if (!configured) {
+                    this.hasGameClockGames.set(false);
+                    return;
+                }
+                this.svc.getActiveGames(jobId).subscribe({
+                    next: (data) => {
+                        const has = (data.availableRRGameData?.length ?? 0) > 0
+                            || (data.availablePOGameData?.length ?? 0) > 0;
+                        this.hasGameClockGames.set(has);
+                    },
+                    error: () => this.hasGameClockGames.set(false)
+                });
             },
             error: () => this.hasGameClockGames.set(false)
         });

@@ -682,13 +682,22 @@ public sealed class ScheduleRepository : IScheduleRepository
             .Select(m => $"{m / 60:D2}:{m % 60:D2}")
             .ToList();
 
+        // 9. Does this job have any bracket games? Mirrors the bracket-type set used by
+        //    GetBracketGamesAsync — a round-robin-only job has none, so the Brackets tab hides.
+        var bracketTypes = new[] { "Q", "S", "F", "X", "Y", "Z" };
+        var jobHasBrackets = await _context.Schedule
+            .AsNoTracking()
+            .AnyAsync(s => s.JobId == jobId
+                && (bracketTypes.Contains(s.T1Type) || bracketTypes.Contains(s.T2Type)), ct);
+
         return new ScheduleFilterOptionsDto
         {
             Clubs = cadtTree,
             Agegroups = ladtTree,
             GameDays = gameDays,
             Times = timeStrings,
-            Fields = fields
+            Fields = fields,
+            JobHasBrackets = jobHasBrackets
         };
     }
 
