@@ -215,11 +215,8 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 ?? throw new ArgumentException("Target team not found.");
             var (targetTeam, _) = targetContext;
 
-            // Capacity check
-            var currentCount = await _teamRepo.GetPlayerCountAsync(request.TargetPoolId, ct);
-            if (targetTeam.MaxCount > 0 && currentCount + registrations.Count > targetTeam.MaxCount)
-                throw new InvalidOperationException(
-                    $"Target team capacity exceeded. Current: {currentCount}/{targetTeam.MaxCount}, attempting to add {registrations.Count}.");
+            // No capacity check: roster MaxCount gates self-rostering registrants, NOT admins.
+            // The Roster Swapper is an admin-discretion tool and may overfill a team intentionally.
 
             foreach (var reg in registrations)
             {
@@ -332,11 +329,9 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 ?? throw new ArgumentException("Target team not found.");
             var (targetTeam, _) = targetContext;
 
-            // Capacity check
-            var currentCount = await _teamRepo.GetPlayerCountAsync(request.TargetPoolId, ct);
-            if (targetTeam.MaxCount > 0 && currentCount + registrations.Count > targetTeam.MaxCount)
-                throw new InvalidOperationException(
-                    $"Target team capacity exceeded. Current: {currentCount}/{targetTeam.MaxCount}, attempting to add {registrations.Count}.");
+            // No capacity check: roster MaxCount gates self-rostering registrants, NOT admins.
+            // The Roster Swapper is an admin-discretion tool (e.g. moving a waitlisted player
+            // onto a full active team) and may overfill a team intentionally.
 
             var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(targetTeam.JobId, ct);
             var isFullPaymentRequired = jobPaymentInfo?.BPlayersFullPaymentRequired ?? false;
