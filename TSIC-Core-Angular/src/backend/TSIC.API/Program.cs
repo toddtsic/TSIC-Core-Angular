@@ -359,6 +359,7 @@ builder.Services.Configure<ReportingSettings>(builder.Configuration.GetSection("
 builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddScoped<IPackedRosterPdfService, PackedRosterPdfService>();
 builder.Services.AddScoped<IScheduleListReportService, ScheduleListReportService>();
+builder.Services.AddScoped<IRosterTablePdfService, RosterTablePdfService>();
 builder.Services.AddHttpClient("CrystalReports");
 // Email (Amazon SES only)
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));

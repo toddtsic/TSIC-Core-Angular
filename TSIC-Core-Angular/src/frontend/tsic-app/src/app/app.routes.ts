@@ -455,6 +455,20 @@ export const routes: Routes = [
 				loadComponent: () => import('./views/reporting/schedule-list-designer/schedule-list-designer.component').then(m => m.ScheduleListDesignerComponent)
 			},
 			{
+				path: 'reporting/roster-table-designer',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				loadComponent: () => import('./views/reporting/roster-table-designer/roster-table-designer.component').then(m => m.RosterTableDesignerComponent)
+			},
+			{
+				// Same Designer, opened on the camp-groups preset (data.mode). The camp catalog
+				// tile deep-links here; the user can still switch grouping/columns in-place.
+				path: 'reporting/roster-table-designer/camp',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], mode: 'camp' },
+				loadComponent: () => import('./views/reporting/roster-table-designer/roster-table-designer.component').then(m => m.RosterTableDesignerComponent)
+			},
+			{
 				path: 'reporting/:action',
 				loadComponent: () => import('./views/reporting/report-launcher/report-launcher.component').then(m => m.ReportLauncherComponent)
 			},

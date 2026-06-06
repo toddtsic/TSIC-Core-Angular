@@ -11,5 +11,7 @@ export type PackedRosterRequestDto = {
     showRepEmail: boolean;
     showRepPhone: boolean;
     schoolShowsCommit: boolean;
+    showClubAffiliation: boolean;
+    sortBy: string;
 };
 

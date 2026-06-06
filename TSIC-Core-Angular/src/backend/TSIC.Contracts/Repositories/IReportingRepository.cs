@@ -147,6 +147,31 @@ public interface IReportingRepository
     Task<List<TournamentRosterRowDto>> GetTournamentRosterRowsAsync(
         Guid jobId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// One flat row per scheduled game for the Schedule List Designer — the EF replacement for
+    /// <c>reporting_migrate.ScheduleList_Flat</c>. Mirrors the proc: inner joins on agegroup
+    /// (color), league (name), and field (name) — so games with no assigned field are excluded,
+    /// as in the proc — plus a left club-rep chain per side. Denormalized AgegroupName/DivName
+    /// and team names ride straight off <c>Schedule</c>; the PDF layer applies the TBD-slot
+    /// bracket labels and score/rep-name shaping.
+    /// </summary>
+    Task<List<ScheduleListGameDto>> GetScheduleListGamesAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// One flat row per active, team-assigned registrant for the Roster Table Designer — the EF
+    /// replacement for the wide-roster Crystal family (Club Rosters, No-Medical, Coaches,
+    /// WithClubRep, STEPS, Recruiting roster). Scope mirrors those procs: bActive=1 registrants on
+    /// active teams, NOT schedule-gated (unlike the tournament packed query). <paramref name="playersOnly"/>
+    /// restricts to the Player role (recruiting / STEPS); otherwise Staff + Player are both returned
+    /// (club rosters). Returns the unshaped superset; the PDF layer picks/orders/formats columns.
+    /// </summary>
+    Task<List<RosterTableRowDto>> GetRosterTableRowsAsync(
+        Guid jobId,
+        bool playersOnly,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

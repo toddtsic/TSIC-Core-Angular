@@ -310,6 +310,17 @@
         color: var(--brand-text);
     }
 
+    // A label that holds a select instead of a checkbox (e.g. "Sort players").
+    &__check--inline-select {
+        cursor: default;
+        gap: var(--space-3);
+
+        select {
+            flex: 0 0 auto;
+            min-width: 9rem;
+        }
+    }
+
     // ── Report-style toggle (Packed Roster vs Recruiter Cards) ───────────────
     &__style-toggle {
         display: flex;

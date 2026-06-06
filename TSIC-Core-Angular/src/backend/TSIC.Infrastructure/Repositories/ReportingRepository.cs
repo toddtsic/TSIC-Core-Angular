@@ -393,6 +393,9 @@ public class ReportingRepository : IReportingRepository
                 LastName = u.LastName,
                 UniformNo = r.UniformNo,
                 Position = r.Position,
+                PlayerClubName = r.ClubName,
+                PlayerClubTeamName = r.ClubTeamName,
+                DayGroup = r.DayGroup,
                 SchoolName = r.SchoolName,
                 GradYear = r.GradYear,
                 Gpa = r.Gpa,
@@ -418,6 +421,154 @@ public class ReportingRepository : IReportingRepository
                 SatMath = r.SatMath,
                 SatVerbal = r.SatVerbal,
                 SatWriting = r.SatWriting,
+            };
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<ScheduleListGameDto>> GetScheduleListGamesAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting_migrate.ScheduleList_Flat. The inner joins on agegroup
+        // (color), league (name), and field (name) reproduce the proc's existence filter:
+        // agegroup/field ride a correlated Where (the FKs are Guid? — this avoids the Guid?/Guid
+        // join-key mismatch and yields an INNER JOIN with no DefaultIfEmpty), league a plain join
+        // (LeagueId is non-null). A null FieldId therefore drops the row, exactly as the proc's
+        // `inner join reference.Fields` did. Each side's club rep contact rides the optional
+        // Schedule.T1/T2 → ClubrepRegistration → User chain, which EF emits as LEFT JOINs.
+        // Denormalized AgegroupName/DivName/team names are taken straight off Schedule, as in
+        // the proc; the proc's bracket-label CASE and rep-name concat move to the PDF layer.
+        var query =
+            from s in _context.Schedule.AsNoTracking()
+            from ag in _context.Agegroups.AsNoTracking().Where(x => x.AgegroupId == s.AgegroupId)
+            join l in _context.Leagues.AsNoTracking() on s.LeagueId equals l.LeagueId
+            from f in _context.Fields.AsNoTracking().Where(x => x.FieldId == s.FieldId)
+            where s.JobId == jobId
+            orderby s.GDate
+            select new ScheduleListGameDto
+            {
+                Gid = s.Gid,
+                AgegroupName = s.AgegroupName,
+                DivName = s.DivName,
+                LeagueName = l.LeagueName,
+                FieldName = f.FName,
+                Color = ag.Color,
+                GDate = s.GDate,
+
+                T1Id = s.T1Id,
+                T1Name = s.T1Name,
+                T1Type = s.T1Type,
+                T1Ann = s.T1Ann,
+                T1Score = s.T1Score,
+
+                T2Id = s.T2Id,
+                T2Name = s.T2Name,
+                T2Type = s.T2Type,
+                T2Ann = s.T2Ann,
+                T2Score = s.T2Score,
+
+                // Optional nav chains → EF emits LEFT JOINs, yielding null when a side has no
+                // team / clubrep / user (same idiom as r.FamilyUser! above). The ! is compile-
+                // time only; this is an expression tree, never dereferenced in C#.
+                ClubRep1First = s.T1!.ClubrepRegistration!.User!.FirstName,
+                ClubRep1Last = s.T1!.ClubrepRegistration!.User!.LastName,
+                ClubRep2First = s.T2!.ClubrepRegistration!.User!.FirstName,
+                ClubRep2Last = s.T2!.ClubrepRegistration!.User!.LastName,
+            };
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<RosterTableRowDto>> GetRosterTableRowsAsync(
+        Guid jobId,
+        bool playersOnly,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the wide-roster Crystal family. All active, team-assigned registrants
+        // on active teams (NOT schedule-gated — club/camp/showcase rosters aren't on a tournament
+        // schedule). Role filter: Player-only, or Staff+Player. Roles/user are inner joins; the
+        // assigned team rides a correlated Where (Guid? FK → INNER, no DefaultIfEmpty); family
+        // (Mom/Dad) and the per-team club rep ride optional navs that EF emits as LEFT JOINs.
+        var query =
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
+            where r.JobId == jobId
+                && r.BActive == true
+                && t.Active == true
+                && (roles.Name == "Player" || (!playersOnly && roles.Name == "Staff"))
+            orderby t.Agegroup.AgegroupName, t.TeamName, u.LastName, u.FirstName
+            select new RosterTableRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                RoleName = roles.Name,
+
+                LeagueName = t.League.LeagueName,
+                AgegroupName = t.Agegroup.AgegroupName,
+                DivName = t.Div != null ? t.Div.DivName : null,
+                TeamName = t.TeamName,
+                ClubName = r.ClubName,
+                ClubTeamName = r.ClubTeamName,
+                Color = t.Agegroup.Color,
+
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Gender = u.Gender,
+                Dob = u.Dob,
+
+                UniformNo = r.UniformNo,
+                Position = r.Position,
+                SchoolName = r.SchoolName,
+                SchoolGrade = r.SchoolGrade,
+                GradYear = r.GradYear,
+                Gpa = r.Gpa,
+                SatMath = r.SatMath,
+                SatVerbal = r.SatVerbal,
+                SatWriting = r.SatWriting,
+                Act = r.Act,
+                DayGroup = r.DayGroup,
+                NightGroup = r.NightGroup,
+                Roommate = r.RoommatePref,
+
+                Email = u.Email,
+                Cellphone = u.Cellphone,
+                StreetAddress = u.StreetAddress,
+                City = u.City,
+                State = u.State,
+                PostalCode = u.PostalCode,
+
+                // Optional FamilyUser nav → LEFT JOIN, null when the registrant has no family record.
+                MomFirstName = r.FamilyUser!.MomFirstName,
+                MomLastName = r.FamilyUser!.MomLastName,
+                MomEmail = r.FamilyUser!.MomEmail,
+                MomCellphone = r.FamilyUser!.MomCellphone,
+                DadFirstName = r.FamilyUser!.DadFirstName,
+                DadLastName = r.FamilyUser!.DadLastName,
+                DadEmail = r.FamilyUser!.DadEmail,
+                DadCellphone = r.FamilyUser!.DadCellphone,
+
+                MedicalNote = r.MedicalNote,
+                PaidTotal = r.PaidTotal,
+                OwedTotal = r.OwedTotal,
+
+                JerseySize = r.JerseySize,
+                ShortsSize = r.ShortsSize,
+                Kilt = r.Kilt,
+                TShirt = r.TShirt,
+                Reversible = r.Reversible,
+                Gloves = r.Gloves,
+                Shoes = r.Shoes,
+
+                SportAssnId = r.SportAssnId,
+                SportAssnIdexpDate = r.SportAssnIdexpDate,
+
+                // Optional ClubrepRegistration→User nav chain → LEFT JOINs.
+                ClubRepFirstName = t.ClubrepRegistration!.User!.FirstName,
+                ClubRepLastName = t.ClubrepRegistration!.User!.LastName,
+                ClubRepEmail = t.ClubrepRegistration!.User!.Email,
+                ClubRepCellphone = t.ClubrepRegistration!.User!.Cellphone,
             };
 
         return await query.ToListAsync(cancellationToken);

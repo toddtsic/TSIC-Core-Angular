@@ -12,6 +12,9 @@ import type { PackedRosterFieldDto, PackedRosterRequestDto } from '@core/api';
 /** Which report this Designer is currently building. */
 type ReportStyle = 'packed' | 'recruiter';
 
+/** Within-card player order. */
+type PackedSortBy = 'Uniform' | 'Position' | 'Name';
+
 /** One representative recruiter card used only to fill the recruiter-mode preview. */
 interface RecruiterSampleCard {
     uniformNo: string;
@@ -47,6 +50,8 @@ interface SampleRow {
     gradYear: string;
     gpa: string;
     collegeCommit: string;
+    club: string;       // player's own club — shown as "NAME / CLUB" when affiliation is on
+    dayGroup: string;   // camp/showcase day-group label
 }
 
 /** A resolved preview cell — text already projected through the same rules the PDF uses. */
@@ -77,20 +82,20 @@ const SAMPLE_TEAM = {
 };
 
 const SAMPLE_ROWS: readonly SampleRow[] = [
-    { isStaff: true,  isCommitted: false, uniformNo: '', player: 'Jamie Smith',   position: '', schoolName: '(602) 555-0142', gradYear: '', gpa: '', collegeCommit: '' },
-    { isStaff: true,  isCommitted: false, uniformNo: '', player: 'Pat Rivera',    position: '', schoolName: '(602) 555-0188', gradYear: '', gpa: '', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '7',  player: 'Avery Lee',      position: 'MF', schoolName: 'Brophy College Prep',    gradYear: '2026', gpa: '3.8', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '10', player: 'Brandon Cruz',   position: 'GK', schoolName: 'Desert Vista High School', gradYear: '2026', gpa: '3.5', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '4',  player: 'Carlos Mendez',  position: 'D',  schoolName: 'Mountain Pointe',         gradYear: '2027', gpa: '3.9', collegeCommit: '' },
-    { isStaff: false, isCommitted: true,  uniformNo: '11', player: 'Diego Santos',   position: 'F',  schoolName: 'Hamilton High School',    gradYear: '2026', gpa: '4.0', collegeCommit: 'Duke University' },
-    { isStaff: false, isCommitted: false, uniformNo: '22', player: 'Ethan Park',     position: 'MF', schoolName: 'Chaparral',               gradYear: '2027', gpa: '3.6', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '8',  player: "Finn O'Brien",   position: 'D',  schoolName: 'Pinnacle',                gradYear: '2026', gpa: '3.7', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '9',  player: 'Gabriel Ruiz',   position: 'F',  schoolName: 'Corona del Sol',          gradYear: '2026', gpa: '3.4', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '3',  player: 'Henry Nguyen',   position: 'GK', schoolName: 'Red Mountain',            gradYear: '2028', gpa: '3.9', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '14', player: 'Isaac Romero',   position: 'MF', schoolName: 'Perry High School',       gradYear: '2027', gpa: '3.2', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '5',  player: 'Jacob Kim',      position: 'D',  schoolName: 'Basha',                   gradYear: '2026', gpa: '3.8', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '17', player: 'Kevin Patel',    position: 'F',  schoolName: 'Highland',                gradYear: '2026', gpa: '3.5', collegeCommit: '' },
-    { isStaff: false, isCommitted: false, uniformNo: '6',  player: 'Liam Walsh',     position: 'MF', schoolName: 'Casteel',                 gradYear: '2027', gpa: '3.6', collegeCommit: '' },
+    { isStaff: true,  isCommitted: false, uniformNo: '', player: 'Jamie Smith',   position: '', schoolName: '(602) 555-0142', gradYear: '', gpa: '', collegeCommit: '', club: '', dayGroup: '' },
+    { isStaff: true,  isCommitted: false, uniformNo: '', player: 'Pat Rivera',    position: '', schoolName: '(602) 555-0188', gradYear: '', gpa: '', collegeCommit: '', club: '', dayGroup: '' },
+    { isStaff: false, isCommitted: false, uniformNo: '7',  player: 'Avery Lee',      position: 'MF', schoolName: 'Brophy College Prep',    gradYear: '2026', gpa: '3.8', collegeCommit: '', club: 'AZ Thunder',     dayGroup: 'AM' },
+    { isStaff: false, isCommitted: false, uniformNo: '10', player: 'Brandon Cruz',   position: 'GK', schoolName: 'Desert Vista High School', gradYear: '2026', gpa: '3.5', collegeCommit: '', club: 'Desert FC',      dayGroup: 'AM' },
+    { isStaff: false, isCommitted: false, uniformNo: '4',  player: 'Carlos Mendez',  position: 'D',  schoolName: 'Mountain Pointe',         gradYear: '2027', gpa: '3.9', collegeCommit: '', club: 'Phoenix Rising', dayGroup: 'AM' },
+    { isStaff: false, isCommitted: true,  uniformNo: '11', player: 'Diego Santos',   position: 'F',  schoolName: 'Hamilton High School',    gradYear: '2026', gpa: '4.0', collegeCommit: 'Duke University', club: 'AZ Thunder', dayGroup: 'PM' },
+    { isStaff: false, isCommitted: false, uniformNo: '22', player: 'Ethan Park',     position: 'MF', schoolName: 'Chaparral',               gradYear: '2027', gpa: '3.6', collegeCommit: '', club: 'Desert FC',      dayGroup: 'PM' },
+    { isStaff: false, isCommitted: false, uniformNo: '8',  player: "Finn O'Brien",   position: 'D',  schoolName: 'Pinnacle',                gradYear: '2026', gpa: '3.7', collegeCommit: '', club: 'Phoenix Rising', dayGroup: 'AM' },
+    { isStaff: false, isCommitted: false, uniformNo: '9',  player: 'Gabriel Ruiz',   position: 'F',  schoolName: 'Corona del Sol',          gradYear: '2026', gpa: '3.4', collegeCommit: '', club: 'AZ Thunder',     dayGroup: 'PM' },
+    { isStaff: false, isCommitted: false, uniformNo: '3',  player: 'Henry Nguyen',   position: 'GK', schoolName: 'Red Mountain',            gradYear: '2028', gpa: '3.9', collegeCommit: '', club: 'Desert FC',      dayGroup: 'AM' },
+    { isStaff: false, isCommitted: false, uniformNo: '14', player: 'Isaac Romero',   position: 'MF', schoolName: 'Perry High School',       gradYear: '2027', gpa: '3.2', collegeCommit: '', club: 'Phoenix Rising', dayGroup: 'PM' },
+    { isStaff: false, isCommitted: false, uniformNo: '5',  player: 'Jacob Kim',      position: 'D',  schoolName: 'Basha',                   gradYear: '2026', gpa: '3.8', collegeCommit: '', club: 'AZ Thunder',     dayGroup: 'AM' },
+    { isStaff: false, isCommitted: false, uniformNo: '17', player: 'Kevin Patel',    position: 'F',  schoolName: 'Highland',                gradYear: '2026', gpa: '3.5', collegeCommit: '', club: 'Desert FC',      dayGroup: 'PM' },
+    { isStaff: false, isCommitted: false, uniformNo: '6',  player: 'Liam Walsh',     position: 'MF', schoolName: 'Casteel',                 gradYear: '2027', gpa: '3.6', collegeCommit: '', club: 'Phoenix Rising', dayGroup: 'AM' },
 ];
 
 // ── Recruiter-mode preview sample (one team's page; never sent to the backend) ──
@@ -157,7 +162,7 @@ export class PackedRosterDesignerComponent implements OnInit {
     readonly nUp = signal<2 | 3>(3);
 
     /** Which starter preset is active. Radio-style: exactly one is always selected. */
-    readonly activePreset = signal<'classic3' | 'collegeCommit2'>('classic3');
+    readonly activePreset = signal<'classic3' | 'collegeCommit2' | 'byPosition' | 'xpo'>('classic3');
 
     // Card chrome toggles
     readonly showCoaches = signal(true);
@@ -165,6 +170,17 @@ export class PackedRosterDesignerComponent implements OnInit {
     readonly showRepEmail = signal(true);
     readonly showRepPhone = signal(true);
     readonly schoolShowsCommit = signal(false);
+
+    /** Append the player's own club to the name ("NAME / CLUB") — the PackedByPosition look. */
+    readonly showClubAffiliation = signal(false);
+    /** Within-card player order. */
+    readonly sortBy = signal<PackedSortBy>('Uniform');
+
+    readonly sortByOptions: readonly { value: PackedSortBy; label: string }[] = [
+        { value: 'Uniform', label: 'Uniform #' },
+        { value: 'Position', label: 'Position' },
+        { value: 'Name', label: 'Name' },
+    ];
 
     readonly isLoading = signal(true);
     readonly isGenerating = signal(false);
@@ -227,8 +243,7 @@ export class PackedRosterDesignerComponent implements OnInit {
         const sumW = cols.reduce((s, c) => s + Math.max(1, c.widthWeight), 0) || 1;
         const showCommit = this.schoolShowsCommit();
 
-        return SAMPLE_ROWS
-            .filter(r => this.showCoaches() || !r.isStaff)
+        return this.sortSample(SAMPLE_ROWS.filter(r => this.showCoaches() || !r.isStaff))
             .map(r => ({
                 cells: cols.map((c): PreviewCell => {
                     const truncAt = c.supportsLongText && c.longText === 'Truncate'
@@ -259,6 +274,7 @@ export class PackedRosterDesignerComponent implements OnInit {
             case 'gradYear': return r.isStaff ? '' : r.gradYear;
             case 'gpa': return r.isStaff || r.isCommitted ? '' : r.gpa;
             case 'collegeCommit': return r.isStaff ? '' : r.collegeCommit;
+            case 'dayGroup': return r.isStaff ? '' : r.dayGroup;
             default: return '';
         }
     }
@@ -266,7 +282,24 @@ export class PackedRosterDesignerComponent implements OnInit {
     private resolveName(r: SampleRow, showCommit: boolean): string {
         if (r.isStaff) return 'Coach ' + r.player;
         const showAsterisk = r.isCommitted && !showCommit;
-        return showAsterisk ? '* ' + r.player : r.player;
+        let name = showAsterisk ? '* ' + r.player : r.player;
+        // PackedByPosition appends the player's own club; the No-Club sibling (toggle off) omits it.
+        if (this.showClubAffiliation() && r.club.length > 0) {
+            name = `${name} / ${r.club.toUpperCase()}`;
+        }
+        return name;
+    }
+
+    /** Staff first, then players by the chosen key — mirrors the PDF's within-card order. */
+    private sortSample(rows: readonly SampleRow[]): SampleRow[] {
+        const by = this.sortBy();
+        const uni = (u: string) => { const n = parseInt(u, 10); return isNaN(n) ? Number.MAX_SAFE_INTEGER : n; };
+        return rows.slice().sort((a, b) => {
+            if (a.isStaff !== b.isStaff) return a.isStaff ? -1 : 1;
+            if (by === 'Position') return a.position.localeCompare(b.position) || uni(a.uniformNo) - uni(b.uniformNo);
+            if (by === 'Name') return a.player.localeCompare(b.player);
+            return uni(a.uniformNo) - uni(b.uniformNo) || a.player.localeCompare(b.player);
+        });
     }
 
     private resolveSchool(r: SampleRow, showCommit: boolean): string {
@@ -343,6 +376,8 @@ export class PackedRosterDesignerComponent implements OnInit {
         this.showRepEmail.set(true);
         this.showRepPhone.set(true);
         this.schoolShowsCommit.set(false);
+        this.showClubAffiliation.set(false);
+        this.sortBy.set('Uniform');
     }
 
     applyCollegeCommit2Up(): void {
@@ -361,6 +396,54 @@ export class PackedRosterDesignerComponent implements OnInit {
         this.showRepEmail.set(true);
         this.showRepPhone.set(true);
         this.schoolShowsCommit.set(false);
+        this.showClubAffiliation.set(false);
+        this.sortBy.set('Uniform');
+    }
+
+    /**
+     * Packed By Position — the legacy PackedByPosition look: players ordered by position with
+     * their own club appended ("NAME / CLUB"). Flip the affiliation toggle off for the
+     * "No Club Players" sibling.
+     */
+    applyByPosition(): void {
+        this.activePreset.set('byPosition');
+        this.nUp.set(3);
+        this.selectedColumns.set([
+            this.buildColumn('uniform_no'),
+            this.buildColumn('player'),
+            this.buildColumn('position'),
+            this.buildColumn('gradYear'),
+        ]);
+        this.showCoaches.set(true);
+        this.showRepName.set(true);
+        this.showRepEmail.set(true);
+        this.showRepPhone.set(true);
+        this.schoolShowsCommit.set(false);
+        this.showClubAffiliation.set(true);
+        this.sortBy.set('Position');
+    }
+
+    /**
+     * Packed XPO — approximate replacement for the showcase XPO layout (the original .rpt isn't
+     * available to clone). A compact by-position card with the day-group column and a name-only
+     * rep line; editable like any preset.
+     */
+    applyXpo(): void {
+        this.activePreset.set('xpo');
+        this.nUp.set(3);
+        this.selectedColumns.set([
+            this.buildColumn('uniform_no'),
+            this.buildColumn('player'),
+            this.buildColumn('position'),
+            this.buildColumn('dayGroup'),
+        ]);
+        this.showCoaches.set(true);
+        this.showRepName.set(true);
+        this.showRepEmail.set(false);
+        this.showRepPhone.set(false);
+        this.schoolShowsCommit.set(false);
+        this.showClubAffiliation.set(true);
+        this.sortBy.set('Position');
     }
 
     // ── Generate ──
@@ -389,6 +472,8 @@ export class PackedRosterDesignerComponent implements OnInit {
             showRepEmail: this.showRepEmail(),
             showRepPhone: this.showRepPhone(),
             schoolShowsCommit: this.schoolShowsCommit(),
+            showClubAffiliation: this.showClubAffiliation(),
+            sortBy: this.sortBy(),
         };
 
         this.isGenerating.set(true);
@@ -422,6 +507,10 @@ export class PackedRosterDesignerComponent implements OnInit {
 
     setNUp(n: 2 | 3): void {
         this.nUp.set(n);
+    }
+
+    setSortBy(v: string): void {
+        this.sortBy.set(v as PackedSortBy);
     }
 
     setChecked(setter: (v: boolean) => void, event: Event): void {

@@ -74,4 +74,17 @@ public record PackedRosterRequestDto
     /// and the "* " committed-player marker on the name is dropped.
     /// </summary>
     public required bool SchoolShowsCommit { get; init; }
+
+    /// <summary>
+    /// Append the player's OWN club affiliation to the name ("NAME / CLUB"), reproducing the
+    /// legacy PackedByPosition look (proc <c>JobRosters_Get_Teamplayers_Withcoach</c>). False is
+    /// the "No Club Players" sibling (plain names). Staff rows are never affiliated.
+    /// </summary>
+    public required bool ShowClubAffiliation { get; init; }
+
+    /// <summary>
+    /// Within-card player order: "Uniform" (default) | "Position" | "Name". Staff always sort
+    /// first. "Position" reproduces the by-position grouping of the PackedByPosition family.
+    /// </summary>
+    public required string SortBy { get; init; }
 }

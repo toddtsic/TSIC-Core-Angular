@@ -1,4 +1,3 @@
-using System.Data;
 using System.Globalization;
 using Syncfusion.Drawing;
 using Syncfusion.Pdf;
@@ -9,10 +8,10 @@ using TSIC.Contracts.Repositories;
 namespace TSIC.API.Services.Reporting;
 
 /// <summary>
-/// Hand-drawn schedule-list PDF (Syncfusion.Pdf). One flat game dataset
-/// (reporting_migrate.ScheduleList_Flat) is grouped, sorted, and projected to a
-/// full-width table entirely from a runtime config — the single designer that retires
-/// the Schedule_ExportExcel report family. Score columns render the recorded score, a
+/// Hand-drawn schedule-list PDF (Syncfusion.Pdf). One flat EF game dataset
+/// (<see cref="IReportingRepository.GetScheduleListGamesAsync"/>) is grouped, sorted, and
+/// projected to a full-width table entirely from a runtime config — the single designer that
+/// retires the Schedule_ExportExcel report family. Score columns render the recorded score, a
 /// blank write-in box (officials' sheet), or nothing, per the request's ScoreMode.
 /// </summary>
 public sealed class ScheduleListReportService : IScheduleListReportService
@@ -24,24 +23,32 @@ public sealed class ScheduleListReportService : IScheduleListReportService
         _reportingRepository = reportingRepository;
     }
 
-    private const string ProcName = "reporting_migrate.ScheduleList_Flat";
-
     // ── Page + table geometry (points; Letter portrait, 0.4in margins) ──
     private const float PageW = 612f, PageH = 792f;
     private const float MarginX = 28.8f, MarginTop = 28.8f, MarginBottom = 28.8f;
     private const float ContentW = PageW - (MarginX * 2);          // 554.4
     private const float ContentBottom = PageH - MarginBottom;       // 763.2
+    private const float FooterH = 18f;
+    // Last drawable Y in page (client) coords. Reserve the bottom footer template — Syncfusion
+    // draws it inside the client area — plus a hair, so the last row and its score box never clip.
+    private const float MaxContentY = ContentBottom - MarginTop - FooterH - 2f;   // 714.4
     private const float GroupHeaderH = 18f;
     private const float ColHeaderH = 15f;
     private const float BaseRowH = 14f;
     private const float CellPadX = 3f;
+
+    // Score cells always render as a boxed, fillable field. A subtle drop shadow (a light-gray
+    // rect offset behind a white-filled box) gives it a raised, write-in feel.
+    private const float ScoreBoxShadowOffset = 1.1f;
+    private static readonly PdfBrush ScoreBoxShadowBrush = new PdfSolidBrush(new PdfColor(208, 208, 208));
+    private static readonly PdfStringFormat ScoreCellFormat = new(PdfTextAlignment.Center, PdfVerticalAlignment.Middle);
 
     public IReadOnlyList<ScheduleListFieldDto> GetAvailableFields() => AvailableFields;
 
     private static readonly IReadOnlyList<ScheduleListFieldDto> AvailableFields = new[]
     {
         new ScheduleListFieldDto { Key = "date",      Label = "Date",      DefaultWidthWeight = 52, DefaultAlign = "Left",   SupportsLongText = false, IsScore = false },
-        new ScheduleListFieldDto { Key = "time",      Label = "Time",      DefaultWidthWeight = 40, DefaultAlign = "Left",   SupportsLongText = false, IsScore = false },
+        new ScheduleListFieldDto { Key = "time",      Label = "Date / Time", DefaultWidthWeight = 80, DefaultAlign = "Left",   SupportsLongText = false, IsScore = false },
         new ScheduleListFieldDto { Key = "field",     Label = "Field",     DefaultWidthWeight = 120, DefaultAlign = "Left",  SupportsLongText = true,  IsScore = false },
         new ScheduleListFieldDto { Key = "agegroup",  Label = "Age Group", DefaultWidthWeight = 72, DefaultAlign = "Left",   SupportsLongText = false, IsScore = false },
         new ScheduleListFieldDto { Key = "division",  Label = "Division",  DefaultWidthWeight = 38, DefaultAlign = "Center", SupportsLongText = false, IsScore = false },
@@ -61,21 +68,8 @@ public sealed class ScheduleListReportService : IScheduleListReportService
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        var (reader, connection) = await _reportingRepository.ExecuteStoredProcedureAsync(
-            ProcName, jobId, useJobId: true, cancellationToken: cancellationToken);
-
-        var table = new DataTable("MainReportData");
-        try
-        {
-            table.Load(reader);
-        }
-        finally
-        {
-            await reader.CloseAsync();
-            await connection.CloseAsync();
-        }
-
-        var games = table.Rows.Cast<DataRow>().Select(GameRow.From).ToList();
+        var rows = await _reportingRepository.GetScheduleListGamesAsync(jobId, cancellationToken);
+        var games = rows.Select(GameRow.From).ToList();
 
         // Drop the score columns entirely when scores are hidden; everything else is
         // normalized full-width across whatever the director chose.
@@ -121,7 +115,7 @@ public sealed class ScheduleListReportService : IScheduleListReportService
             firstGroup = false;
 
             // Keep the group header with at least its column header + one row.
-            if (y + GroupHeaderH + ColHeaderH + BaseRowH > ContentBottom - MarginTop)
+            if (y + GroupHeaderH + ColHeaderH + BaseRowH > MaxContentY)
             {
                 g = document.Pages.Add().Graphics;
                 y = 0f;
@@ -136,7 +130,7 @@ public sealed class ScheduleListReportService : IScheduleListReportService
             foreach (var game in group.Games)
             {
                 var rowH = MeasureRowHeight(game, columns, widths, fonts);
-                if (y + rowH > ContentBottom - MarginTop)
+                if (y + rowH > MaxContentY)
                 {
                     g = document.Pages.Add().Graphics;
                     y = 0f;
@@ -270,19 +264,30 @@ public sealed class ScheduleListReportService : IScheduleListReportService
         PdfGraphics g, GameRow game, List<ScheduleListColumnDto> cols, float[] widths,
         float y, float rowH, string scoreMode, Fonts fonts, Pens pens)
     {
-        var blank = string.Equals(scoreMode, "Blank", StringComparison.OrdinalIgnoreCase);
         var x = 0f;
         for (var i = 0; i < cols.Count; i++)
         {
             var col = cols[i];
-            if (IsScoreKey(col.Key) && blank)
+            if (IsScoreKey(col.Key))
             {
-                // Write-in box: a small centered rectangle the official fills by hand.
+                // Score cells always render as a boxed field — empty in Blank mode (write-in),
+                // value-holder in Printed mode, and still an empty box when no score was recorded.
+                // So a null and a recorded score read as the same fillable box.
                 var boxW = Math.Min(widths[i] - (CellPadX * 2), 22f);
                 var boxH = Math.Min(rowH - 4f, 11f);
                 var bx = x + (widths[i] - boxW) / 2f;
                 var by = y + (rowH - boxH) / 2f;
-                g.DrawRectangle(pens.Box, new RectangleF(bx, by, boxW, boxH));
+                var boxRect = new RectangleF(bx, by, boxW, boxH);
+
+                // Drop shadow behind, then a white-filled bordered box on top.
+                g.DrawRectangle(ScoreBoxShadowBrush, new RectangleF(bx + ScoreBoxShadowOffset, by + ScoreBoxShadowOffset, boxW, boxH));
+                g.DrawRectangle(pens.Box, PdfBrushes.White, boxRect);
+
+                var score = ResolveCell(game, col, scoreMode);
+                if (score.Length > 0)
+                {
+                    g.DrawString(score, fonts.Cell, PdfBrushes.Black, boxRect, ScoreCellFormat);
+                }
             }
             else
             {
@@ -327,7 +332,10 @@ public sealed class ScheduleListReportService : IScheduleListReportService
         var value = col.Key switch
         {
             "date" => g.GDateTime.ToString("M/d/yyyy", CultureInfo.InvariantCulture),
-            "time" => g.GDateTime.ToString("h:mm tt", CultureInfo.InvariantCulture),
+            // Date + time so a row is unambiguous even when a group spans multiple days
+            // (e.g. Field/Division grouping). Day-grouped reports already carry the date in
+            // the group header, but repeating the weekday per row reads fine there too.
+            "time" => g.GDateTime.ToString("ddd M/d  h:mm tt", CultureInfo.InvariantCulture),
             "field" => g.FieldName,
             "agegroup" => g.AgegroupName,
             "division" => g.DivName,
@@ -395,18 +403,22 @@ public sealed class ScheduleListReportService : IScheduleListReportService
     {
         var footerFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7);
         var gray = new PdfSolidBrush(new PdfColor(102, 102, 102));
-        var footer = new PdfPageTemplateElement(new RectangleF(0, 0, ContentW, 18));
+        var footer = new PdfPageTemplateElement(new RectangleF(0, 0, ContentW, FooterH));
 
         footer.Graphics.DrawString("Reports By TeamSportsInfo.com", footerFont, gray, new PointF(2, 4));
 
+        // Right-aligned page number. A PdfCompositeField only honors its StringFormat
+        // alignment within its Bounds — drawn at a bare point it renders left-aligned, so
+        // "Page X / Y" overflows the template's right edge and the total gets clipped.
         var composite = new PdfCompositeField(
-            footerFont, gray, "{0} of {1}",
+            footerFont, gray, "Page {0} / {1}",
             new PdfPageNumberField(footerFont, gray),
             new PdfPageCountField(footerFont, gray))
         {
+            Bounds = new RectangleF(0, 4, ContentW - 2, FooterH),
             StringFormat = new PdfStringFormat(PdfTextAlignment.Right),
         };
-        composite.Draw(footer.Graphics, new PointF(ContentW - 2, 4));
+        composite.Draw(footer.Graphics, new PointF(0, 4));
 
         document.Template.Bottom = footer;
     }
@@ -434,7 +446,7 @@ public sealed class ScheduleListReportService : IScheduleListReportService
         public required List<GameRow> Games { get; init; }
     }
 
-    /// <summary>One materialized proc row (one scheduled game).</summary>
+    /// <summary>One game, display-shaped (the proc's SQL CASE/concat applied here in C#).</summary>
     private sealed record GameRow
     {
         public required int Gid { get; init; }
@@ -452,25 +464,50 @@ public sealed class ScheduleListReportService : IScheduleListReportService
         public required string ClubRep1 { get; init; }
         public required string ClubRep2 { get; init; }
 
-        public static GameRow From(DataRow r) => new()
+        public static GameRow From(ScheduleListGameDto d)
         {
-            Gid = r["GID"] is int i ? i : 0,
-            AgegroupName = Str(r, "agegroupName"),
-            DivName = Str(r, "divName"),
-            LeagueName = Str(r, "leagueName"),
-            FieldName = Str(r, "fieldName"),
-            Color = Str(r, "color"),
-            GDay = Str(r, "gDay").Trim(),
-            GDateTime = r["gDateTime"] is DateTime dt ? dt : DateTime.MinValue,
-            T1Name = Str(r, "t1Name"),
-            T1Score = Str(r, "t1Score"),
-            T2Name = Str(r, "t2Name"),
-            T2Score = Str(r, "t2Score"),
-            ClubRep1 = Str(r, "clubRep1"),
-            ClubRep2 = Str(r, "clubRep2"),
-        };
+            var when = d.GDate ?? DateTime.MinValue;
+            return new GameRow
+            {
+                Gid = d.Gid,
+                AgegroupName = d.AgegroupName ?? "",
+                DivName = d.DivName ?? "",
+                LeagueName = d.LeagueName ?? "",
+                FieldName = d.FieldName ?? "",
+                Color = d.Color ?? "",
+                GDay = when.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+                GDateTime = when,
+                T1Name = ComposeTeamName(d.T1Id, d.T1Name, d.T1Type, d.T1Ann),
+                T1Score = d.T1Score?.ToString(CultureInfo.InvariantCulture) ?? "",
+                T2Name = ComposeTeamName(d.T2Id, d.T2Name, d.T2Type, d.T2Ann),
+                T2Score = d.T2Score?.ToString(CultureInfo.InvariantCulture) ?? "",
+                ClubRep1 = ComposeRep(d.ClubRep1First, d.ClubRep1Last),
+                ClubRep2 = ComposeRep(d.ClubRep2First, d.ClubRep2Last),
+            };
+        }
 
-        private static string Str(DataRow r, string col)
-            => r.Table.Columns.Contains(col) && r[col] is not DBNull ? Convert.ToString(r[col]) ?? "" : "";
+        // proc: CASE WHEN T1_ID IS NULL THEN <bracket> ELSE COALESCE(t1_name, <bracket>).
+        // A null id is a TBD bracket slot → "<Round> <annotation>" (Finals/Semis/Quarters/R16);
+        // a real team uses its denormalized name, falling back to the bracket label if absent.
+        private static string ComposeTeamName(Guid? id, string? name, string? type, string? ann)
+        {
+            if (id != null && !string.IsNullOrWhiteSpace(name))
+            {
+                return name!.Trim();
+            }
+            var round = type switch
+            {
+                "F" => "Finals",
+                "S" => "Semis",
+                "Q" => "Quarters",
+                "X" => "R16",
+                _ => type ?? "",
+            };
+            return $"{round} {ann}".Trim();
+        }
+
+        // proc: u.FirstName + ' ' + u.LastName (left-joined club rep; "" when the side has none).
+        private static string ComposeRep(string? first, string? last)
+            => $"{first} {last}".Trim();
     }
 }

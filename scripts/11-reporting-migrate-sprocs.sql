@@ -1913,6 +1913,9 @@ PRINT 'reporting_migrate.TournamentRosterPacked_Flat installed.';
 GO
 
 -- -----------------------------------------------------------------------------
+-- DEPRECATED 2026-06-04 -- the Schedule List Designer now sources its games from EF
+--   (IReportingRepository.GetScheduleListGamesAsync), not this proc, for SQL Server ->
+--   Postgres portability. Left installable for any ad-hoc caller; no longer on the app path.
 -- Report : ScheduleList_Flat  (PDF; flat game list for the Schedule List Designer)
 -- Replaces: the Schedule_ExportExcel family of canned schedule reports
 --           (ScheduleMaster, ScheduleByDay, FieldUtilization*, Schedule_Export)

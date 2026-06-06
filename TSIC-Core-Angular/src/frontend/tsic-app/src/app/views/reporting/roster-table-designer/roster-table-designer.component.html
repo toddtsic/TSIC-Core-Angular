@@ -1,56 +1,64 @@
-<div class="sld">
-    <header class="sld__header">
+<div class="rtd">
+    <header class="rtd__header">
         <div>
-            <h1 class="sld__title">Schedule List Designer</h1>
-            <p class="sld__subtitle">
-                Build a schedule report: pick the columns, set grouping, sort, and how scores
-                print. Start from a preset or design your own — then generate the PDF.
+            <h1 class="rtd__title">Roster Table Designer</h1>
+            <p class="rtd__subtitle">
+                Build a roster: pick the columns, set grouping, sort, and orientation. Start from a
+                preset — Club Roster, Sizes, Recruiting and more — or design your own, then generate the PDF.
             </p>
         </div>
-        <button type="button" class="btn btn-primary sld__generate"
+        <button type="button" class="btn btn-primary rtd__generate"
                 [disabled]="!canGenerate()" (click)="generate()">
             {{ isGenerating() ? 'Generating…' : 'Generate PDF' }}
         </button>
     </header>
 
     @if (isLoading()) {
-        <div class="sld__loading">Loading fields…</div>
+        <div class="rtd__loading">Loading fields…</div>
     } @else {
-        <div class="sld__presets">
-            <span class="sld__presets-label">Start from:</span>
+        <div class="rtd__presets">
+            <span class="rtd__presets-label">Start from:</span>
             <button type="button" class="btn btn-outline-primary"
-                    [class.active]="activePreset() === 'master'"
-                    [attr.aria-pressed]="activePreset() === 'master'"
-                    (click)="applyMaster()">Schedule Master</button>
+                    [class.active]="activePreset() === 'club'"
+                    [attr.aria-pressed]="activePreset() === 'club'"
+                    (click)="applyClubRoster()">Club Roster</button>
             <button type="button" class="btn btn-outline-primary"
-                    [class.active]="activePreset() === 'byDay'"
-                    [attr.aria-pressed]="activePreset() === 'byDay'"
-                    (click)="applyByDay()">By Day</button>
+                    [class.active]="activePreset() === 'noMedical'"
+                    [attr.aria-pressed]="activePreset() === 'noMedical'"
+                    (click)="applyNoMedical()">No-Medical</button>
             <button type="button" class="btn btn-outline-primary"
-                    [class.active]="activePreset() === 'fieldUtil'"
-                    [attr.aria-pressed]="activePreset() === 'fieldUtil'"
-                    (click)="applyFieldUtil()">Field Utilization</button>
+                    [class.active]="activePreset() === 'coaches'"
+                    [attr.aria-pressed]="activePreset() === 'coaches'"
+                    (click)="applyCoaches()">Coaches</button>
             <button type="button" class="btn btn-outline-primary"
-                    [class.active]="activePreset() === 'scoreSheet'"
-                    [attr.aria-pressed]="activePreset() === 'scoreSheet'"
-                    (click)="applyScoreSheet()">Score Sheet</button>
+                    [class.active]="activePreset() === 'withClubRep'"
+                    [attr.aria-pressed]="activePreset() === 'withClubRep'"
+                    (click)="applyWithClubRep()">With Club Rep</button>
             <button type="button" class="btn btn-outline-primary"
-                    [class.active]="activePreset() === 'flat'"
-                    [attr.aria-pressed]="activePreset() === 'flat'"
-                    (click)="applyFlat()">Flat</button>
+                    [class.active]="activePreset() === 'steps'"
+                    [attr.aria-pressed]="activePreset() === 'steps'"
+                    (click)="applySteps()">Sizes</button>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'recruiting'"
+                    [attr.aria-pressed]="activePreset() === 'recruiting'"
+                    (click)="applyRecruiting()">Recruiting</button>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'camp'"
+                    [attr.aria-pressed]="activePreset() === 'camp'"
+                    (click)="applyCamp()">Camp Groups</button>
         </div>
 
-        <div class="sld__workspace">
-            <div class="sld__controls">
+        <div class="rtd__workspace">
+            <div class="rtd__controls">
                 <!-- Columns -->
-                <section class="card sld__panel">
+                <section class="card rtd__panel">
                     <div class="card-body">
-                        <h2 class="sld__panel-title">Columns</h2>
+                        <h2 class="rtd__panel-title">Columns</h2>
 
-                        <p class="sld__hint">Choose the fields to include.</p>
-                        <div class="sld__fields">
+                        <p class="rtd__hint">Choose the fields to include.</p>
+                        <div class="rtd__fields">
                             @for (field of availableFields(); track field.key) {
-                                <label class="sld__field-toggle">
+                                <label class="rtd__field-toggle">
                                     <input type="checkbox"
                                            [checked]="isSelected(field.key)"
                                            (change)="toggleField(field)" />
@@ -59,26 +67,26 @@
                             }
                         </div>
 
-                        <p class="sld__hint sld__hint--spaced">Drag to reorder · set width &amp; long-text behavior.</p>
+                        <p class="rtd__hint rtd__hint--spaced">Drag to reorder · set width &amp; long-text behavior.</p>
                         @if (selectedColumns().length === 0) {
-                            <p class="sld__empty">No columns selected yet — pick at least one above.</p>
+                            <p class="rtd__empty">No columns selected yet — pick at least one above.</p>
                         } @else {
-                            <ul class="sld__selected" cdkDropList (cdkDropListDropped)="onDropColumn($event)">
+                            <ul class="rtd__selected" cdkDropList (cdkDropListDropped)="onDropColumn($event)">
                                 @for (col of selectedColumns(); track col.key) {
-                                    <li class="sld__col" cdkDrag>
-                                        <span class="sld__col-handle" cdkDragHandle aria-hidden="true">⋮⋮</span>
-                                        <span class="sld__col-name">{{ col.label }}</span>
+                                    <li class="rtd__col" cdkDrag>
+                                        <span class="rtd__col-handle" cdkDragHandle aria-hidden="true">⋮⋮</span>
+                                        <span class="rtd__col-name">{{ col.label }}</span>
 
-                                        <label class="sld__col-field">
+                                        <label class="rtd__col-field">
                                             <span>Width</span>
-                                            <input type="number" min="1" class="field-input sld__col-width"
+                                            <input type="number" min="1" class="field-input rtd__col-width"
                                                    [value]="col.widthWeight"
                                                    (change)="updateColumn(col.key, { widthWeight: +$any($event.target).value })" />
                                         </label>
 
-                                        <label class="sld__col-field">
+                                        <label class="rtd__col-field">
                                             <span>Align</span>
-                                            <select class="field-select sld__col-align"
+                                            <select class="field-select rtd__col-align"
                                                     [value]="col.align"
                                                     (change)="updateColumn(col.key, { align: $any($event.target).value })">
                                                 <option value="Left">Left</option>
@@ -88,9 +96,9 @@
                                         </label>
 
                                         @if (col.supportsLongText) {
-                                            <label class="sld__col-field">
+                                            <label class="rtd__col-field">
                                                 <span>Long text</span>
-                                                <select class="field-select sld__col-longtext"
+                                                <select class="field-select rtd__col-longtext"
                                                         [value]="col.longText"
                                                         (change)="updateColumn(col.key, { longText: $any($event.target).value })">
                                                     <option value="Truncate">Truncate</option>
@@ -99,9 +107,9 @@
                                             </label>
 
                                             @if (col.longText === 'Truncate') {
-                                                <label class="sld__col-field">
+                                                <label class="rtd__col-field">
                                                     <span>At</span>
-                                                    <input type="number" min="1" class="field-input sld__col-trunc"
+                                                    <input type="number" min="1" class="field-input rtd__col-trunc"
                                                            [value]="col.truncateAt ?? 28"
                                                            (change)="updateColumn(col.key, { truncateAt: +$any($event.target).value })" />
                                                 </label>
@@ -115,12 +123,12 @@
                 </section>
 
                 <!-- Layout -->
-                <section class="card sld__panel">
+                <section class="card rtd__panel">
                     <div class="card-body">
-                        <h2 class="sld__panel-title">Layout</h2>
+                        <h2 class="rtd__panel-title">Layout</h2>
 
-                        <div class="sld__selects">
-                            <label class="sld__select-field">
+                        <div class="rtd__selects">
+                            <label class="rtd__select-field">
                                 <span>Group by</span>
                                 <select class="field-select" [value]="groupBy()"
                                         (change)="setGroupBy($any($event.target).value)">
@@ -130,7 +138,7 @@
                                 </select>
                             </label>
 
-                            <label class="sld__select-field">
+                            <label class="rtd__select-field">
                                 <span>Sort within group</span>
                                 <select class="field-select" [value]="sortBy()"
                                         (change)="setSortBy($any($event.target).value)">
@@ -140,23 +148,28 @@
                                 </select>
                             </label>
 
-                            <label class="sld__select-field">
-                                <span>Scores</span>
-                                <select class="field-select" [value]="scoreMode()"
-                                        (change)="setScoreMode($any($event.target).value)">
-                                    @for (o of scoreModeOptions; track o.value) {
+                            <label class="rtd__select-field">
+                                <span>Orientation</span>
+                                <select class="field-select" [value]="orientation()"
+                                        (change)="setOrientation($any($event.target).value)">
+                                    @for (o of orientationOptions; track o.value) {
                                         <option [value]="o.value">{{ o.label }}</option>
                                     }
                                 </select>
                             </label>
                         </div>
 
-                        <label class="sld__check">
+                        <label class="rtd__check">
+                            <input type="checkbox" [checked]="playersOnly()"
+                                   (change)="setChecked(playersOnly.set, $event)" />
+                            <span>Players only (exclude staff)</span>
+                        </label>
+                        <label class="rtd__check">
                             <input type="checkbox" [checked]="pageBreakPerGroup()"
                                    (change)="setChecked(pageBreakPerGroup.set, $event)" />
                             <span>Start each group on a new page</span>
                         </label>
-                        <label class="sld__check">
+                        <label class="rtd__check">
                             <input type="checkbox" [checked]="colorAccent()"
                                    (change)="setChecked(colorAccent.set, $event)" />
                             <span>Tint group headers with the age-group color</span>
@@ -166,55 +179,49 @@
             </div>
 
             <!-- Live preview -->
-            <aside class="sld__preview-rail">
-                <section class="card sld__panel">
+            <aside class="rtd__preview-rail">
+                <section class="card rtd__panel">
                     <div class="card-body">
-                        <h2 class="sld__panel-title">Live preview</h2>
-                        <p class="sld__hint">
+                        <h2 class="rtd__panel-title">Live preview</h2>
+                        <p class="rtd__hint">
                             Approximate — mirrors the PDF table with sample data. Generate for exact output.
                         </p>
 
-                        <div class="sld__page">
+                        <div class="rtd__page">
                             @if (previewColumns().length === 0) {
-                                <p class="sld__preview-empty">Pick at least one column to see the table.</p>
+                                <p class="rtd__preview-empty">Pick at least one column to see the table.</p>
                             } @else {
                                 @if (previewGroupLabel().length > 0) {
-                                    <div class="sld__group-header"
+                                    <div class="rtd__group-header"
                                          [style.background]="accentColor() || '#e8e8e8'"
                                          [style.color]="accentColor() ? '#ffffff' : '#111111'">
                                         {{ previewGroupLabel() }}
                                     </div>
                                 }
 
-                                <div class="sld__row sld__row--head">
+                                <div class="rtd__row rtd__row--head">
                                     @for (h of previewHeaders(); track $index) {
-                                        <span class="sld__cell sld__cell--head"
+                                        <span class="rtd__cell rtd__cell--head"
                                               [style.width.%]="h.widthPct"
                                               [style.text-align]="h.align">{{ h.label }}</span>
                                     }
                                 </div>
 
                                 @for (row of previewRows(); track $index) {
-                                    <div class="sld__row">
+                                    <div class="rtd__row">
                                         @for (cell of row.cells; track $index) {
-                                            <span class="sld__cell"
-                                                  [class.sld__cell--wrap]="cell.wrap"
+                                            <span class="rtd__cell"
+                                                  [class.rtd__cell--wrap]="cell.wrap"
                                                   [style.width.%]="cell.widthPct"
-                                                  [style.text-align]="cell.align">
-                                                @if (cell.box) {
-                                                    <span class="sld__score-box">{{ cell.text }}</span>
-                                                } @else {
-                                                    {{ cell.text }}
-                                                }
-                                            </span>
+                                                  [style.text-align]="cell.align">{{ cell.text }}</span>
                                         }
                                     </div>
                                 }
                             }
                         </div>
 
-                        <p class="sld__hint sld__hint--spaced">
-                            Group 1 of many · {{ scoreMode() === 'Blank' ? 'blank write-in score boxes' : (scoreMode() === 'Hidden' ? 'scores hidden' : 'printed scores') }}
+                        <p class="rtd__hint rtd__hint--spaced">
+                            Group 1 of many · {{ orientation() === 'Landscape' ? 'landscape' : 'portrait' }} · {{ playersOnly() ? 'players only' : 'players + staff' }}
                         </p>
                     </div>
                 </section>

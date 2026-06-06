@@ -149,8 +149,8 @@ export class ScheduleListDesignerComponent implements OnInit {
 
         return SAMPLE_GAMES.map(g => ({
             cells: cols.map((c): PreviewCell => {
-                const box = c.isScore && mode === 'Blank';
-                let text = box ? '' : this.resolveCell(g, c.key, mode);
+                const box = c.isScore;   // score cells always render as a box (hidden cols already filtered)
+                let text = this.resolveCell(g, c.key, mode);   // value in Printed, '' in Blank → empty box
                 if (!box && c.longText === 'Truncate') {
                     const at = c.truncateAt ?? 28;
                     if (at > 0 && text.length > at) text = text.slice(0, at);
@@ -169,7 +169,12 @@ export class ScheduleListDesignerComponent implements OnInit {
     private resolveCell(g: SampleGame, key: string, mode: ScoreMode): string {
         switch (key) {
             case 'date': return g.date;
-            case 'time': return g.time;
+            case 'time': {
+                // Mirror the PDF's "ddd M/d  h:mm tt" so a row shows its day, not just the time.
+                const d = new Date(g.date);
+                const dow = isNaN(d.getTime()) ? '' : `${d.toLocaleDateString('en-US', { weekday: 'short' })} `;
+                return `${dow}${g.date.replace(/\/\d{4}$/, '')}  ${g.time}`;
+            }
             case 'field': return g.field;
             case 'agegroup': return g.agegroup;
             case 'division': return g.division;
@@ -211,6 +216,13 @@ export class ScheduleListDesignerComponent implements OnInit {
         if (cols.some(c => c.key === field.key)) {
             this.selectedColumns.set(cols.filter(c => c.key !== field.key));
         } else {
+            // Adding a score column while Score Mode is Hidden would silently do
+            // nothing — Hidden strips score columns from both the preview and the
+            // PDF. Treat checking the column as intent to show scores: flip Hidden
+            // -> Printed so the column the user just added actually renders.
+            if (field.isScore && this.scoreMode() === 'Hidden') {
+                this.scoreMode.set('Printed');
+            }
             this.selectedColumns.set([...cols, this.buildColumn(field.key)]);
         }
     }
@@ -272,7 +284,8 @@ export class ScheduleListDesignerComponent implements OnInit {
 
     applyFlat(): void {
         this.activePreset.set('flat');
-        this.setColumns(['date', 'time', 'field', 'agegroup', 'home', 'homeScore', 'away', 'awayScore']);
+        // 'time' now carries the date (ddd M/d h:mm tt), so a standalone date column is redundant.
+        this.setColumns(['time', 'field', 'agegroup', 'home', 'homeScore', 'away', 'awayScore']);
         this.groupBy.set('None');
         this.sortBy.set('Time');
         this.scoreMode.set('Printed');

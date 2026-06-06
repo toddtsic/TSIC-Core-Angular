@@ -52,7 +52,48 @@ public record ScheduleListColumnDto
 }
 
 /// <summary>
-/// Full Schedule List Designer generate request. The single proc returns the superset of
+/// One flat row per scheduled game — the EF (<c>GetScheduleListGamesAsync</c>) replacement for
+/// <c>reporting_migrate.ScheduleList_Flat</c>. Raw superset: denormalized AgegroupName/DivName
+/// and the team name/type/ann/score fields come straight off <c>Schedule</c>; LeagueName /
+/// FieldName / Color are the joined lookups; ClubRep first/last are each side's club rep. The
+/// PDF layer owns all display shaping — the proc's TBD-slot bracket CASE (Finals/Semis/Quarters/
+/// R16 + annotation), score→string, and rep "First Last" concat are applied in C#, not here.
+/// </summary>
+public record ScheduleListGameDto
+{
+    public required int Gid { get; init; }
+
+    public string? AgegroupName { get; init; }
+    public string? DivName { get; init; }
+    public string? LeagueName { get; init; }
+    public string? FieldName { get; init; }
+
+    /// <summary>Age group accent color (hex like "#RRGGBB"); not denormalized on Schedule.</summary>
+    public string? Color { get; init; }
+
+    public DateTime? GDate { get; init; }
+
+    /// <summary>Null = a TBD bracket slot (use Type + Ann for the label); else a real team.</summary>
+    public Guid? T1Id { get; init; }
+    public string? T1Name { get; init; }
+    public string? T1Type { get; init; }
+    public string? T1Ann { get; init; }
+    public int? T1Score { get; init; }
+
+    public Guid? T2Id { get; init; }
+    public string? T2Name { get; init; }
+    public string? T2Type { get; init; }
+    public string? T2Ann { get; init; }
+    public int? T2Score { get; init; }
+
+    public string? ClubRep1First { get; init; }
+    public string? ClubRep1Last { get; init; }
+    public string? ClubRep2First { get; init; }
+    public string? ClubRep2Last { get; init; }
+}
+
+/// <summary>
+/// Full Schedule List Designer generate request. The flat game dataset carries the superset of
 /// game fields; this payload selects/orders the columns, groups + sorts the games, and
 /// chooses how scores render.
 /// </summary>

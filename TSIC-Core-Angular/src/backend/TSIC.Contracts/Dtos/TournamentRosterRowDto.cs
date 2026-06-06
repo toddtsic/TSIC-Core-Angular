@@ -34,6 +34,17 @@ public record TournamentRosterRowDto
     public string? LastName { get; init; }
     public string? UniformNo { get; init; }
     public string? Position { get; init; }
+
+    /// <summary>
+    /// The registrant's OWN club / club-team (proc <c>r.club_name</c> / <c>r.ClubTeamName</c>) — the
+    /// "NAME / CLUB" affiliation appended in the by-position packed roster. Distinct from
+    /// <see cref="ClubName"/> (which is the team's club-rep club).
+    /// </summary>
+    public string? PlayerClubName { get; init; }
+    public string? PlayerClubTeamName { get; init; }
+
+    /// <summary>Camp/showcase day-group label (proc <c>r.dayGroup</c>).</summary>
+    public string? DayGroup { get; init; }
     public string? SchoolName { get; init; }
     public string? GradYear { get; init; }
     public string? Gpa { get; init; }

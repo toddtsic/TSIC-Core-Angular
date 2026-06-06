@@ -51,6 +51,7 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         new PackedRosterFieldDto { Key = "gradYear",      Label = "Grad Yr",         DefaultWidthWeight = 26, DefaultAlign = "Center", SupportsLongText = false },
         new PackedRosterFieldDto { Key = "gpa",           Label = "GPA",             DefaultWidthWeight = 22, DefaultAlign = "Center", SupportsLongText = false },
         new PackedRosterFieldDto { Key = "collegeCommit", Label = "College Commit",  DefaultWidthWeight = 57, DefaultAlign = "Right",  SupportsLongText = true  },
+        new PackedRosterFieldDto { Key = "dayGroup",      Label = "Day Group",       DefaultWidthWeight = 26, DefaultAlign = "Center", SupportsLongText = false },
     };
 
     public async Task<ReportExportResult> GenerateAsync(
@@ -63,17 +64,31 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         // Single EF query returns the unshaped superset; we sort it to the legacy proc's
         // ORDER BY (agegroup → div → club:team → teamId, then Staff-first, uniform#, name)
         // and shape each row in C#. Replaces reporting_migrate.TournamentRosterPacked_Flat.
-        var rows = (await _reportingRepository.GetTournamentRosterRowsAsync(jobId, cancellationToken))
+        var ordered = (await _reportingRepository.GetTournamentRosterRowsAsync(jobId, cancellationToken))
             .OrderBy(d => d.AgegroupName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(d => ComposeClubTeam(d), StringComparer.OrdinalIgnoreCase)
             .ThenBy(d => d.TeamId)
-            .ThenBy(d => string.Equals(d.RoleName, "Staff", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-            .ThenBy(d => UniformSort(d.UniformNo))
-            .ThenBy(d => d.LastName, StringComparer.OrdinalIgnoreCase)
-            .ThenBy(d => d.FirstName, StringComparer.OrdinalIgnoreCase)
-            .Select(RosterRow.FromDto)
-            .ToList();
+            .ThenBy(d => string.Equals(d.RoleName, "Staff", StringComparison.OrdinalIgnoreCase) ? 0 : 1);
+
+        // Staff sort first (above); players then order by the chosen key. "Position" reproduces
+        // the by-position grouping of the PackedByPosition family; default is uniform # (proc order).
+        ordered = request.SortBy switch
+        {
+            "Position" => ordered
+                .ThenBy(d => (d.Position ?? "").Trim(), StringComparer.OrdinalIgnoreCase)
+                .ThenBy(d => UniformSort(d.UniformNo))
+                .ThenBy(d => d.LastName, StringComparer.OrdinalIgnoreCase),
+            "Name" => ordered
+                .ThenBy(d => d.LastName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(d => d.FirstName, StringComparer.OrdinalIgnoreCase),
+            _ => ordered
+                .ThenBy(d => UniformSort(d.UniformNo))
+                .ThenBy(d => d.LastName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(d => d.FirstName, StringComparer.OrdinalIgnoreCase),
+        };
+
+        var rows = ordered.Select(RosterRow.FromDto).ToList();
 
         using var document = new PdfDocument();
         document.PageSettings.Size = PdfPageSize.Letter;
@@ -297,6 +312,7 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
             // CC RDL blanks GPA for committed players.
             "gpa" => row.IsStaff || row.IsCommitted ? "" : row.Gpa,
             "collegeCommit" => row.IsStaff ? "" : row.CollegeCommit,
+            "dayGroup" => row.IsStaff ? "" : row.DayGroup,
             _ => "",
         };
 
@@ -321,7 +337,14 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         // Asterisk marks committed players only when the school column ISN'T already
         // showing their commit (legacy base behavior). SchoolShowsCommit retires it.
         var showAsterisk = row.IsCommitted && !request.SchoolShowsCommit;
-        return showAsterisk ? "* " + row.Player : row.Player;
+        var name = showAsterisk ? "* " + row.Player : row.Player;
+        // PackedByPosition appends the player's own club ("NAME / CLUB"); the No-Club sibling
+        // (toggle off) prints plain names. Staff are handled above, so never affiliated here.
+        if (request.ShowClubAffiliation && row.ClubAffiliation.Length > 0)
+        {
+            name = $"{name} / {row.ClubAffiliation}";
+        }
+        return name;
     }
 
     private static string ResolveSchool(RosterRow row, PackedRosterRequestDto request)
@@ -363,14 +386,18 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
 
         footer.Graphics.DrawString("Reports By TeamSportsInfo.com", footerFont, gray, new PointF(2, 4));
 
+        // Right-aligned page number. A PdfCompositeField only honors its StringFormat
+        // alignment within its Bounds — drawn at a bare point it renders left-aligned, so
+        // "Page X / Y" overflows the template's right edge and the total gets clipped.
         var composite = new PdfCompositeField(
-            footerFont, gray, "{0} of {1}",
+            footerFont, gray, "Page {0} / {1}",
             new PdfPageNumberField(footerFont, gray),
             new PdfPageCountField(footerFont, gray))
         {
+            Bounds = new RectangleF(0, 4, ContentW - 2, FooterH),
             StringFormat = new PdfStringFormat(PdfTextAlignment.Right),
         };
-        composite.Draw(footer.Graphics, new PointF(ContentW - 2, 4));
+        composite.Draw(footer.Graphics, new PointF(0, 4));
 
         document.Template.Bottom = footer;
     }
@@ -558,7 +585,8 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
     /// <summary>
     /// SAT = SatMath + SatVerbal + SatWriting when all three parse. NOTE: the legacy proc's
     /// condition was inverted (required satVerbal IS NULL), so the CR report showed SAT blank
-    /// almost everywhere — this is the sensible version. Flip to faithful-blank on request.
+    /// almost everywhere. SUM is the decided behavior — user confirmed "SAT should be sum"
+    /// 2026-06-05 (faithful-to-legacy blank was the alternative, declined).
     /// </summary>
     private static string ComputeSat(TournamentRosterRowDto r)
         => int.TryParse(r.SatMath, out var m) && int.TryParse(r.SatVerbal, out var v) && int.TryParse(r.SatWriting, out var w)
@@ -623,6 +651,8 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         public required string ClubRepEmail { get; init; }
         public required string ClubRepCellphone { get; init; }
         public required string Player { get; init; }
+        public required string ClubAffiliation { get; init; }
+        public required string DayGroup { get; init; }
         public required string UniformNo { get; init; }
         public required string Position { get; init; }
         public required string SchoolName { get; init; }
@@ -658,6 +688,10 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
                 ClubRepEmail = repIsDummy ? "" : (d.ClubRepEmail ?? "").Trim(),
                 ClubRepCellphone = repIsDummy ? "" : FormatPhone(d.ClubRepCellphone),
                 Player = $"{d.FirstName} {d.LastName}".Trim(),
+                ClubAffiliation = isStaff
+                    ? ""
+                    : (FirstNonBlank(d.PlayerClubName, d.PlayerClubTeamName) ?? "").Trim().ToUpperInvariant(),
+                DayGroup = (d.DayGroup ?? "").Trim(),
                 UniformNo = CleanUniform(d.UniformNo),
                 Position = (d.Position ?? "").Trim(),
                 SchoolName = isStaff ? FormatPhone(d.Cellphone) : (d.SchoolName ?? "").Trim(),

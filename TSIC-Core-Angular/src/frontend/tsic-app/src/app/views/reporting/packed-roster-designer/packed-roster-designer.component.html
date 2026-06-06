@@ -44,6 +44,18 @@
                     (click)="applyCollegeCommit2Up()">
                 College Commit 2-up
             </button>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'byPosition'"
+                    [attr.aria-pressed]="activePreset() === 'byPosition'"
+                    (click)="applyByPosition()">
+                By Position
+            </button>
+            <button type="button" class="btn btn-outline-primary"
+                    [class.active]="activePreset() === 'xpo'"
+                    [attr.aria-pressed]="activePreset() === 'xpo'"
+                    (click)="applyXpo()">
+                Packed XPO
+            </button>
         </div>
 
         <div class="prd__workspace">
@@ -124,12 +136,28 @@
                         </button>
                     </div>
 
+                    <label class="prd__check prd__check--inline-select">
+                        <span>Sort players</span>
+                        <select class="field-select" [value]="sortBy()"
+                                (change)="setSortBy($any($event.target).value)">
+                            @for (o of sortByOptions; track o.value) {
+                                <option [value]="o.value">{{ o.label }}</option>
+                            }
+                        </select>
+                    </label>
+
                     <h2 class="prd__panel-title prd__panel-title--spaced">Card details</h2>
 
                     <label class="prd__check">
                         <input type="checkbox" [checked]="showCoaches()"
                                (change)="setChecked(showCoaches.set, $event)" />
                         <span>Show coaches</span>
+                    </label>
+
+                    <label class="prd__check">
+                        <input type="checkbox" [checked]="showClubAffiliation()"
+                               (change)="setChecked(showClubAffiliation.set, $event)" />
+                        <span>Show club affiliation (NAME / CLUB)</span>
                     </label>
 
                     <fieldset class="prd__fieldset">

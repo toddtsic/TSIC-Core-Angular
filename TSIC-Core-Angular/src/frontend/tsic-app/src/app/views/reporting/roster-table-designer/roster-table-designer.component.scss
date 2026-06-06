@@ -1,4 +1,4 @@
-.sld {
+.rtd {
     padding: var(--space-6);
     max-width: 1320px;
     margin: 0 auto;
@@ -132,21 +132,6 @@
         }
     }
 
-    &__score-box {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 16px;
-        height: 11px;
-        padding: 0 2px;
-        border: 1px solid #777777;
-        background: #ffffff;
-        box-shadow: 1px 1px 0 #d0d0d0;
-        font-size: 0.7rem;
-        line-height: 1;
-        vertical-align: middle;
-    }
-
     &__panel-title {
         font-size: 1rem;
         font-weight: 700;
@@ -268,9 +253,9 @@
 }
 
 // Interactive focus states (design-system requirement)
-.sld__field-toggle:focus-within,
-.sld__check:focus-within,
-.sld__select-field:focus-within {
+.rtd__field-toggle:focus-within,
+.rtd__check:focus-within,
+.rtd__select-field:focus-within {
     outline: none;
     box-shadow: var(--shadow-focus);
 }
