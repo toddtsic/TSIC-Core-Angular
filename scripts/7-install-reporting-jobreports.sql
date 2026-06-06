@@ -215,7 +215,43 @@ INSERT INTO @ExcludeActions VALUES
     -- here so prior runs' Bold rows are scrubbed; the legacy Crystal actions are
     -- NOT excluded — they remain in @ActionMap to drive the Designer remap.
     (N'ExportBoldReport?reportName=TournamentRosterPacked&bUseJobId=true'),
-    (N'ExportBoldReport?reportName=TournamentRosterPacked_CollegeCommit&bUseJobId=true');
+    (N'ExportBoldReport?reportName=TournamentRosterPacked_CollegeCommit&bUseJobId=true'),
+    -- CR-retirement Phase 0, Tier 1 (2026-06-05): legacy Crystal reports whose
+    -- replacement Designer/station is runtime-verified. Removed from
+    -- type1-report-catalog.ts (the regular-role frontend source) in the same change;
+    -- excluded here so the SuperUser DB-sourced view drops them too. The replacement
+    -- endpoints stay live, so re-listing or un-listing is fully reversible.
+    -- NOTE: TournamentRosterPacked is intentionally NOT listed -- it is already
+    -- remapped to the PackedRoster Designer via @ActionMap below; excluding it here
+    -- would delete that Designer row instead of retiring the legacy Crystal.
+    (N'Job_Club_Rosters'),                                  -- -> Roster Table Designer (Club Roster preset)
+    (N'camp_daygroups'),                                    -- -> Roster Table Designer (Day Group / Camp preset)
+    (N'Get_JobRosters_PackedByPositionAGNoClubPlayers'),    -- -> PackedRoster Designer (club-affiliation OFF)
+    (N'Get_JobRosters_PackedByPosition_XPO'),               -- -> PackedRoster Designer (Packed XPO preset)
+    (N'TournamentRecruitingReport'),                        -- -> PackedRoster Designer (recruiter mode)
+    (N'TournyCheckin'),                                     -- -> Check-In live station
+    (N'AmericanSelectTournyCheckin'),                       -- -> Check-In live station
+    (N'Job_CampCheckin'),                                   -- -> Check-In live station
+    (N'JobRosters_TryoutsCheckReport'),                     -- -> Check-In live station
+    (N'ISP_CheckinFlat'),                                   -- -> Check-In live station
+    -- CR-retirement Phase 0, Tier 2 (2026-06-05): Field Utilization family ->
+    -- Schedule List Designer "Field Utilization" preset (runtime-verified 2026-06-05).
+    (N'FieldUtilizationAcrossLeaguesTournament'),           -- -> Schedule List Designer (Field Utilization preset)
+    (N'FieldUtilizationAcrossLeaguesByDateTournament'),     -- -> Schedule List Designer (Field Utilization + date)
+    (N'Score_Input'),                                       -- -> Schedule List Designer (Score Entry Sheets / Blank preset)
+    (N'Get_JobPlayers_STEPS'),                              -- -> Roster Table Designer (Sizes preset, was STEPS)
+    (N'Get_JobRosters_RecruitingReport'),                   -- -> Roster Table Designer (Recruiting tabular preset)
+    (N'Get_JobRosters_RecruitingReport_XPO'),               -- -> Roster Table Designer (Recruiting tabular preset)
+    (N'Job_Rosters_NoMedical'),                             -- -> Roster Table Designer (No-Medical preset)
+    (N'clubrostersNoMedicalII'),                            -- -> Roster Table Designer (Coaches preset)
+    -- Camp Tier-2 (2026-06-05): folded into Roster Table Designer "camp" mode
+    -- (Day/Night/Roommate group-by + stacked/packed-XPO approx layouts). Night has
+    -- no data in any camp job; Day/Roommate group-by verified. User: "assume all ok."
+    (N'camp_daygroups_pdf'),                                -- -> Camp Groups Designer (Day Group, stacked approx)
+    (N'camp_nightgroups'),                                  -- -> Camp Groups Designer (Night Group; no data anywhere)
+    (N'camp_nightgroups_pdf'),                              -- -> Camp Groups Designer (Night Group, stacked approx)
+    (N'camp_roomies'),                                      -- -> Camp Groups Designer (Roommate group-by)
+    (N'JobRosters_DayGroupsPackedXPO');                     -- -> PackedRoster Designer (Day Group packed XPO approx)
 
 -- CR -> SP-Excel conversions. Maps a report's legacy (Crystal) action to its
 -- SP-Excel action so the populate below emits a StoredProcedure row pointing at
@@ -541,6 +577,90 @@ WHERE jt.JobTypeName IN (N'Tournament Scheduling', N'League Scheduling')
 
 DECLARE @RecruiterDesignerCount INT = @@ROWCOUNT;
 
+-- ----------------------------------------------------------------------------
+-- Net-new SpaComponent: Roster Table Designer (additive; retires nothing yet)
+-- ----------------------------------------------------------------------------
+-- The director-built replacement for the wide-roster Crystal family (Club
+-- Rosters, No-Medical/clubrostersNoMedicalII, Teamplayers-Withcoach, Rosters
+-- WithClubRep, STEPS, the tabular Recruiting roster). One broad EF dataset +
+-- a runtime column/group/sort/orientation config renders a full-width table
+-- PDF in-process; each retired report survives as a starter preset inside the
+-- Designer. Seeded as a NET-NEW tile (not an @ActionMap remap) so it is purely
+-- additive: the legacy roster reports keep working until each is verified
+-- reproducible in the designer and retired deliberately (the catalog-removal
+-- step of the migration convention).
+-- Gate mirrors the other roster/schedule designers:
+--   * Jobs : JobType IN (Tournament/League Scheduling) within @ImportYears.
+--   * Roles: Superuser / Director / SuperDirector (route guard, app.routes.ts).
+--   * Action 'reporting/roster-table-designer' is the jobPath-relative SPA
+--     route; Kind forced to 'SpaComponent' so the library navigates, not downloads.
+-- Not in @ExcludeActions nor @ActionMap, so the sweep DELETEs never touch it; the
+-- NOT EXISTS guard makes it idempotent and SU edits/removals survive re-runs.
+INSERT INTO reporting.JobReports (
+    JobId, RoleId, Title, IconName, Controller, [Action], Kind, GroupLabel, SortOrder, Active
+)
+SELECT
+    j.JobId, r.Id, N'Roster Table (Designer)', N'card-list', N'Reporting',
+    N'reporting/roster-table-designer', N'SpaComponent', N'Rosters', 0, 1
+FROM Jobs.Jobs j
+INNER JOIN reference.JobTypes jt ON j.JobTypeId = jt.JobTypeId
+CROSS JOIN dbo.AspNetRoles r
+WHERE jt.JobTypeName IN (N'Tournament Scheduling', N'League Scheduling')
+  AND j.[Year] IN (SELECT [Year] FROM @ImportYears)
+  AND r.[Name]  IN (N'Superuser', N'Director', N'SuperDirector')
+  AND NOT EXISTS (
+        SELECT 1
+        FROM reporting.JobReports jr
+        WHERE jr.JobId      = j.JobId
+          AND jr.RoleId     = r.Id
+          AND jr.Controller = N'Reporting'
+          AND jr.[Action]   = N'reporting/roster-table-designer'
+          AND ISNULL(jr.GroupLabel, N'') = N'Rosters'
+  );
+
+DECLARE @RosterTableDesignerCount INT = @@ROWCOUNT;
+
+-- ----------------------------------------------------------------------------
+-- Net-new SpaComponent: Camp Groups Designer (additive; retires nothing yet)
+-- ----------------------------------------------------------------------------
+-- The camp-roster Crystal family (camp_daygroups(_pdf), camp_nightgroups(_pdf),
+-- camp_roomies, JobRosters_DayGroupsPackedXPO) is just rosters grouped by a camp
+-- field (Day Group / Night Group / Roommate), so it folds into the SAME Roster
+-- Table Designer engine — this tile deep-links to `…/roster-table-designer/camp`
+-- (route data.mode='camp') which opens on the camp preset (group by Day Group;
+-- the director can switch to Night Group / Roommate in-place). Net-new + additive:
+-- the legacy camp reports keep working until each is verified + retired.
+-- Gate differs from the other roster designers — CAMP jobs, not Tournament/League:
+--   * Jobs : JobType = 'Camp Registration' within @ImportYears.
+--   * Roles: Superuser / Director / SuperDirector (route guard, app.routes.ts).
+--   * Action 'reporting/roster-table-designer/camp' is the jobPath-relative SPA
+--     route; Kind forced to 'SpaComponent' so the library navigates, not downloads.
+-- Not in @ExcludeActions nor @ActionMap, so the sweep DELETEs never touch it; the
+-- NOT EXISTS guard makes it idempotent and SU edits/removals survive re-runs.
+INSERT INTO reporting.JobReports (
+    JobId, RoleId, Title, IconName, Controller, [Action], Kind, GroupLabel, SortOrder, Active
+)
+SELECT
+    j.JobId, r.Id, N'Camp Groups (Designer)', N'people', N'Reporting',
+    N'reporting/roster-table-designer/camp', N'SpaComponent', N'Camp', 0, 1
+FROM Jobs.Jobs j
+INNER JOIN reference.JobTypes jt ON j.JobTypeId = jt.JobTypeId
+CROSS JOIN dbo.AspNetRoles r
+WHERE jt.JobTypeName IN (N'Camp Registration')
+  AND j.[Year] IN (SELECT [Year] FROM @ImportYears)
+  AND r.[Name]  IN (N'Superuser', N'Director', N'SuperDirector')
+  AND NOT EXISTS (
+        SELECT 1
+        FROM reporting.JobReports jr
+        WHERE jr.JobId      = j.JobId
+          AND jr.RoleId     = r.Id
+          AND jr.Controller = N'Reporting'
+          AND jr.[Action]   = N'reporting/roster-table-designer/camp'
+          AND ISNULL(jr.GroupLabel, N'') = N'Camp'
+  );
+
+DECLARE @CampGroupsDesignerCount INT = @@ROWCOUNT;
+
 -- All sweep + populate DML succeeded — commit the atomic rebuild.
 -- (@@ROWCOUNT captured into @InsertedCount above; COMMIT would reset it.)
 COMMIT TRANSACTION;
@@ -551,6 +671,8 @@ PRINT CONCAT('Inserted ', @InsertedCount, ' new row(s) into reporting.JobReports
 PRINT CONCAT('Inserted ', @CheckinCount, ' net-new Check-In SpaComponent row(s) (jobs x roles, idempotent)');
 PRINT CONCAT('Inserted ', @ScheduleDesignerCount, ' net-new Schedule List Designer SpaComponent row(s) (jobs x roles, idempotent)');
 PRINT CONCAT('Inserted ', @RecruiterDesignerCount, ' net-new Recruiting Report (Designer) SpaComponent row(s) (jobs x roles, idempotent)');
+PRINT CONCAT('Inserted ', @RosterTableDesignerCount, ' net-new Roster Table (Designer) SpaComponent row(s) (jobs x roles, idempotent)');
+PRINT CONCAT('Inserted ', @CampGroupsDesignerCount, ' net-new Camp Groups (Designer) SpaComponent row(s) (jobs x roles, idempotent)');
 
 -- ============================================================================
 -- Section 4: Final state — totals + breakdown
