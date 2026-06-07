@@ -446,4 +446,111 @@ public class PlayerRosterCapacityTests
         // exactly like a paid reg. Activation waits for the final (post-forms) submit.
         captured!.BActive.Should().BeFalse("reserve never activates; only the final submit does");
     }
+
+    // ── Team change before payment re-prices the registration ────────────
+    //
+    // Parent reaches Payment, goes BACK to team selection, picks a DIFFERENT team, advances.
+    // The reg already has the old team's fee stamped. ApplyInitialFeesAsync no-ops once
+    // FeeBase>0, so without an explicit re-stamp the moved reg would keep the OLD team's fee
+    // and the payment tab would show the prior team's numbers. The no-payment team-change path
+    // must re-stamp the fee for the NEW team.
+
+    [Fact(DisplayName = "PreSubmit: team changed before payment → fee re-stamped for the NEW team")]
+    public async Task PreSubmit_TeamChangedBeforePayment_RestampsFeeForNewTeam()
+    {
+        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
+
+        // Existing pending reg on team A, already priced at 100 (team A's fee).
+        var teamAId = Guid.NewGuid();
+        var regA = new Registrations
+        {
+            RegistrationId = Guid.NewGuid(),
+            JobId = TestJobId,
+            UserId = TestPlayerId,
+            FamilyUserId = TestFamilyUserId,
+            AssignedTeamId = teamAId,
+            AssignedAgegroupId = Guid.NewGuid(),
+            FeeBase = 100m,
+            FeeTotal = 100m,
+            OwedTotal = 100m,
+            PaidTotal = 0m,
+            BActive = false,
+            Modified = DateTime.Now,
+        };
+
+        // Parent re-picks team B, priced at 250.
+        var teamB = RegistrationDataBuilder.BuildTeam(TestJobId, Guid.NewGuid(), maxCount: 10);
+        teamRepo
+            .Setup(t => t.GetTeamsForJobAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Teams> { teamB });
+        regRepo
+            .Setup(r => r.GetActiveTeamRosterCountsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, int> { { teamB.TeamId, 0 } });
+        regRepo
+            .Setup(r => r.GetFamilyRegistrationsForPlayersTrackedAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Registrations> { regA });
+        feeService
+            .Setup(f => f.ResolveFeeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResolvedFee { FeeConfigured = true, Deposit = 0m, BalanceDue = 250m });
+        feeService
+            .Setup(f => f.ApplyNewRegistrationFeesAsync(
+                It.IsAny<Registrations>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()))
+            .Callback<Registrations, Guid, Guid, Guid, FeeApplicationContext, CancellationToken>(
+                (reg, _, _, _, _, _) => { reg.FeeBase = 250m; reg.RecalcTotals(); })
+            .Returns(Task.CompletedTask);
+
+        await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(teamB.TeamId), TestFamilyUserId);
+
+        regA.AssignedTeamId.Should().Be(teamB.TeamId, "the reg should move to the newly selected team");
+        regA.FeeBase.Should().Be(250m, "the fee must be re-stamped for the new team, not left at the old team's price");
+        regA.OwedTotal.Should().Be(250m, "owed must reflect the new team's price");
+        feeService.Verify(f => f.ApplyNewRegistrationFeesAsync(
+            regA, TestJobId, teamB.AgegroupId, teamB.TeamId, It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()),
+            Times.Once, "a team change before payment forces a fresh fee stamp for the new team");
+    }
+
+    [Fact(DisplayName = "PreSubmit: same team re-submitted → fee NOT recomputed (no spurious re-stamp)")]
+    public async Task PreSubmit_SameTeamResubmitted_DoesNotRestampFee()
+    {
+        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
+
+        var teamA = RegistrationDataBuilder.BuildTeam(TestJobId, Guid.NewGuid(), maxCount: 10);
+        var regA = new Registrations
+        {
+            RegistrationId = Guid.NewGuid(),
+            JobId = TestJobId,
+            UserId = TestPlayerId,
+            FamilyUserId = TestFamilyUserId,
+            AssignedTeamId = teamA.TeamId,
+            AssignedAgegroupId = teamA.AgegroupId,
+            FeeBase = 100m,
+            FeeTotal = 100m,
+            OwedTotal = 100m,
+            PaidTotal = 0m,
+            BActive = false,
+            Modified = DateTime.Now,
+        };
+
+        teamRepo
+            .Setup(t => t.GetTeamsForJobAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Teams> { teamA });
+        regRepo
+            .Setup(r => r.GetActiveTeamRosterCountsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, int> { { teamA.TeamId, 0 } });
+        regRepo
+            .Setup(r => r.GetFamilyRegistrationsForPlayersTrackedAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Registrations> { regA });
+        feeService
+            .Setup(f => f.ResolveFeeAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResolvedFee { FeeConfigured = true, Deposit = 0m, BalanceDue = 100m });
+
+        await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(teamA.TeamId), TestFamilyUserId);
+
+        regA.FeeBase.Should().Be(100m, "no team change → existing fee is preserved");
+        feeService.Verify(f => f.ApplyNewRegistrationFeesAsync(
+            It.IsAny<Registrations>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+            It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()),
+            Times.Never, "re-submitting the same team must not re-stamp the fee");
+    }
 }

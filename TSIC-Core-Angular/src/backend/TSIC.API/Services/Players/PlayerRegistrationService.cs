@@ -407,13 +407,30 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var hasPayment = (regToUpdate.PaidTotal > 0) || (regToUpdate.OwedTotal > 0 && regToUpdate.PaidTotal > 0);
         if (!hasPayment)
         {
+            var teamChanged = regToUpdate.AssignedTeamId != team.TeamId;
             regToUpdate.AssignedTeamId = team.TeamId;
             regToUpdate.Assignment = $"Player: {team.TeamName}";
             if (applyFormValues)
             {
                 FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             }
-            await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
+            if (teamChanged)
+            {
+                // Team changed before any payment (e.g. parent went back from Payment, re-picked a
+                // different team). The previously-stamped fee belongs to the OLD team, and
+                // ApplyInitialFeesAsync no-ops once FeeBase>0 — which would leave the old team's
+                // pricing on the moved registration and surface the wrong team's numbers on the
+                // payment tab. Re-stamp from scratch for the new team: base + re-evaluated
+                // discount/late-fee modifiers + processing + totals. The team's fee was already
+                // confirmed configured upstream in ProcessSingleTeamSelectionAsync.
+                await _feeService.ApplyNewRegistrationFeesAsync(
+                    regToUpdate, team.JobId, team.AgegroupId, team.TeamId,
+                    new FeeApplicationContext { IsFullPaymentRequired = ctx.BPlayersFullPaymentRequired });
+            }
+            else
+            {
+                await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
+            }
             ActivateIfFree(regToUpdate, applyFormValues);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
             return;
