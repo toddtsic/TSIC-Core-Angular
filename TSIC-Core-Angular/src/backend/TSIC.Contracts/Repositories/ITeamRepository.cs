@@ -282,6 +282,13 @@ public interface ITeamRepository
     Task<int> GetPlayerCountAsync(Guid teamId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get the capacity count for a team: active + inactive (pending) players assigned to it,
+    /// role-filtered to players. Use for waitlist/overflow decisions — distinct from
+    /// <see cref="GetPlayerCountAsync"/> (active-only, used for delete-eligibility and display).
+    /// </summary>
+    Task<int> GetAssignedPlayerCountAsync(Guid teamId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get player counts for all teams in a job (bulk, for tree).
     /// </summary>
     Task<Dictionary<Guid, int>> GetPlayerCountsByTeamAsync(Guid jobId, CancellationToken cancellationToken = default);

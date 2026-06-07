@@ -110,8 +110,8 @@ public class PlayerMedFormStampTests
             .ReturnsAsync(new List<Teams> { team });
 
         regRepo
-            .Setup(r => r.GetActiveTeamRosterCountsAsync(
-                It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetRosterCountsByTeamAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, int> { { team.TeamId, 0 } });
 
         return team;

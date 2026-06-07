@@ -580,8 +580,14 @@ public class RegistrationRepository : IRegistrationRepository
         IReadOnlyCollection<Guid> teamIds,
         CancellationToken cancellationToken = default)
     {
+        // Capacity count per team: active + inactive (pending) PLAYERS. Role-filtered so
+        // staff dropped on a team via the swapper don't inflate player capacity; no BActive
+        // filter so pending counts (Todd: "max must include pending"). Canonical source for
+        // the picker's rosterFull AND the PreSubmit capacity seed, so both agree with the
+        // overflow decision (GetAssignedPlayerCountAsync).
         return await _context.Registrations
-            .Where(r => r.AssignedTeamId != null && teamIds.Contains(r.AssignedTeamId.Value))
+            .Where(r => r.AssignedTeamId != null && teamIds.Contains(r.AssignedTeamId.Value)
+                     && r.RoleId == RoleConstants.Player)
             .GroupBy(r => r.AssignedTeamId!.Value)
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);

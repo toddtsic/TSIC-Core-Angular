@@ -17,17 +17,20 @@ public class TeamPlacementService : ITeamPlacementService
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly IDivisionRepository _divisionRepo;
+    private readonly IFeeRepository _feeRepo;
 
     public TeamPlacementService(
         IJobRepository jobRepo,
         IAgeGroupRepository agegroupRepo,
         ITeamRepository teamRepo,
-        IDivisionRepository divisionRepo)
+        IDivisionRepository divisionRepo,
+        IFeeRepository feeRepo)
     {
         _jobRepo = jobRepo;
         _agegroupRepo = agegroupRepo;
         _teamRepo = teamRepo;
         _divisionRepo = divisionRepo;
+        _feeRepo = feeRepo;
     }
 
     public async Task<TeamPlacementResult> ResolvePlacementAsync(
@@ -152,46 +155,19 @@ public class TeamPlacementService : ITeamPlacementService
         // Check roster capacity (MaxCount=0 means unlimited)
         if (team.MaxCount > 0)
         {
-            var rosterCount = await _teamRepo.GetPlayerCountAsync(sourceTeamId, cancellationToken);
+            var rosterCount = await _teamRepo.GetAssignedPlayerCountAsync(sourceTeamId, cancellationToken);
             if (rosterCount >= team.MaxCount)
             {
-                // Roster is full — check if job uses waitlists
-                var usesWaitlists = await _jobRepo.GetUsesWaitlistsAsync(jobId, cancellationToken);
-                if (!usesWaitlists)
-                {
-                    throw new InvalidOperationException("Team roster is full");
-                }
-
-                // Load parent agegroup + division for mirror creation
-                var agegroup = await _agegroupRepo.GetByIdAsync(team.AgegroupId, cancellationToken)
-                    ?? throw new KeyNotFoundException($"Agegroup {team.AgegroupId} not found.");
-
-                string? divName = null;
-                if (team.DivId.HasValue)
-                {
-                    var div = await _divisionRepo.GetByIdReadOnlyAsync(team.DivId.Value, cancellationToken);
-                    divName = div?.DivName;
-                }
-
-                // Reuse same find-or-create for agegroup + division (idempotent with team placement path)
-                var waitlistAgName = $"WAITLIST - {agegroup.AgegroupName}";
-                var waitlistAg = await FindOrCreateWaitlistAgegroupAsync(
-                    agegroup, waitlistAgName, userId, cancellationToken);
-
-                var waitlistDivName = $"WAITLIST - {divName ?? agegroup.AgegroupName}";
-                var waitlistDiv = await FindOrCreateDivisionAsync(
-                    waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
-
-                // Find-or-create WAITLIST team mirror
-                var waitlistTeamName = $"WAITLIST - {team.TeamName}";
-                var waitlistTeam = await FindOrCreateWaitlistTeamAsync(
-                    team, waitlistAg, waitlistDiv, waitlistTeamName, jobId, userId, cancellationToken);
+                // Roster is full — mint (or reuse) the waitlist mirror. Null means the
+                // job does not use waitlists → hard-stop, same as the legacy behavior.
+                var waitlistTeam = await MintWaitlistMirrorAsync(jobId, sourceTeamId, userId, cancellationToken)
+                    ?? throw new InvalidOperationException("Team roster is full");
 
                 return new RosterPlacementResult
                 {
                     TeamId = waitlistTeam.TeamId,
                     IsWaitlisted = true,
-                    WaitlistTeamName = waitlistTeamName
+                    WaitlistTeamName = waitlistTeam.TeamName
                 };
             }
         }
@@ -202,6 +178,61 @@ public class TeamPlacementService : ITeamPlacementService
             TeamId = sourceTeamId,
             IsWaitlisted = false
         };
+    }
+
+    /// <inheritdoc />
+    public async Task EnsureWaitlistMirrorAsync(
+        Guid jobId,
+        Guid realTeamId,
+        string? userId = null,
+        CancellationToken cancellationToken = default)
+    {
+        // Fire-and-forget mint — callers only need the side effect (the mirror exists).
+        await MintWaitlistMirrorAsync(jobId, realTeamId, userId, cancellationToken);
+    }
+
+    /// <summary>
+    /// Find-or-create the full WAITLIST mirror (agegroup + division + team + its $0 fee
+    /// stamp) for a real team. Gated on the job's BUseWaitlists flag — returns null when
+    /// the job does not use waitlists. Performs no capacity check; idempotent. Shared by
+    /// the live overflow path (<see cref="ResolveRosterPlacementAsync"/>) and the proactive
+    /// mint-on-fill hook (<see cref="EnsureWaitlistMirrorAsync"/>).
+    /// </summary>
+    private async Task<Domain.Entities.Teams?> MintWaitlistMirrorAsync(
+        Guid jobId, Guid realTeamId, string? userId,
+        CancellationToken cancellationToken)
+    {
+        var usesWaitlists = await _jobRepo.GetUsesWaitlistsAsync(jobId, cancellationToken);
+        if (!usesWaitlists)
+            return null;
+
+        var team = await _teamRepo.GetTeamFromTeamId(realTeamId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Team {realTeamId} not found.");
+
+        // Load parent agegroup + division for mirror creation
+        var agegroup = await _agegroupRepo.GetByIdAsync(team.AgegroupId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Agegroup {team.AgegroupId} not found.");
+
+        string? divName = null;
+        if (team.DivId.HasValue)
+        {
+            var div = await _divisionRepo.GetByIdReadOnlyAsync(team.DivId.Value, cancellationToken);
+            divName = div?.DivName;
+        }
+
+        // Reuse same find-or-create for agegroup + division (idempotent with team placement path)
+        var waitlistAgName = $"WAITLIST - {agegroup.AgegroupName}";
+        var waitlistAg = await FindOrCreateWaitlistAgegroupAsync(
+            agegroup, waitlistAgName, userId, cancellationToken);
+
+        var waitlistDivName = $"WAITLIST - {divName ?? agegroup.AgegroupName}";
+        var waitlistDiv = await FindOrCreateDivisionAsync(
+            waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
+
+        // Find-or-create WAITLIST team mirror (also stamps its $0 fee row)
+        var waitlistTeamName = $"WAITLIST - {team.TeamName}";
+        return await FindOrCreateWaitlistTeamAsync(
+            team, waitlistAg, waitlistDiv, waitlistTeamName, jobId, userId, cancellationToken);
     }
 
     // ── Find-or-create helpers ──
@@ -249,6 +280,10 @@ public class TeamPlacementService : ITeamPlacementService
 
         if (existing != null)
         {
+            // Idempotent: an older mirror (minted before the $0-stamp invariant)
+            // may lack its fee row — ensure it before handing the team back.
+            await EnsureWaitlistTeamFeeAsync(
+                jobId, waitlistAg.AgegroupId, existing.TeamId, userId, cancellationToken);
             return await _teamRepo.GetTeamFromTeamId(existing.TeamId, cancellationToken) ?? existing;
         }
 
@@ -280,6 +315,41 @@ public class TeamPlacementService : ITeamPlacementService
         _teamRepo.Add(waitlistTeam);
         await _teamRepo.SaveChangesAsync(cancellationToken);
 
+        await EnsureWaitlistTeamFeeAsync(
+            jobId, waitlistAg.AgegroupId, waitlistTeam.TeamId, userId, cancellationToken);
+
         return waitlistTeam;
+    }
+
+    /// <summary>
+    /// Stamps an explicit $0 Player fee row on a waitlist mirror team (idempotent).
+    /// The mirror inherits no <c>fees.JobFees</c> row, so without this the cascade
+    /// would resolve a player overflowing onto it up to the league tier (charged) or
+    /// fail loud with "Fee not set". A team-scoped (Deposit=0, BalanceDue=0) row makes
+    /// the resolver return (0, 0, FeeConfigured=true) — genuinely free, but configured.
+    /// </summary>
+    private async Task EnsureWaitlistTeamFeeAsync(
+        Guid jobId, Guid waitlistAgegroupId, Guid waitlistTeamId, string? userId,
+        CancellationToken cancellationToken)
+    {
+        var existing = await _feeRepo.GetTrackedByScopeAsync(
+            jobId, RoleConstants.Player, waitlistAgegroupId, waitlistTeamId, null, cancellationToken);
+        if (existing != null)
+            return;
+
+        _feeRepo.Add(new JobFees
+        {
+            JobFeeId = Guid.NewGuid(),
+            JobId = jobId,
+            RoleId = RoleConstants.Player,
+            AgegroupId = waitlistAgegroupId,
+            TeamId = waitlistTeamId,
+            LeagueId = null,
+            Deposit = 0m,
+            BalanceDue = 0m,
+            Modified = DateTime.Now,
+            LebUserId = userId
+        });
+        await _feeRepo.SaveChangesAsync(cancellationToken);
     }
 }

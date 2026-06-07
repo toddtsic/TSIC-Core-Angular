@@ -500,6 +500,21 @@ public class TeamRepository : ITeamRepository
             .CountAsync(r => r.AssignedTeamId == teamId && r.BActive == true, cancellationToken);
     }
 
+    public async Task<int> GetAssignedPlayerCountAsync(Guid teamId, CancellationToken cancellationToken = default)
+    {
+        // Capacity count: active + inactive (pending) PLAYERS assigned to the team.
+        // Distinct from GetPlayerCountAsync (active-only — feeds LADT delete-eligibility
+        // and display). No BActive filter so a pending registrant consumes a spot (Todd:
+        // "max must include pending"); role-filtered so staff dropped on a team via the
+        // swapper never inflate roster capacity. Mirrors GetRosterCountsByTeamAsync so the
+        // picker gate, the PreSubmit seed, and the overflow decision all agree.
+        return await _context.Registrations
+            .AsNoTracking()
+            .CountAsync(
+                r => r.AssignedTeamId == teamId && r.RoleId == RoleConstants.Player,
+                cancellationToken);
+    }
+
     public async Task<Dictionary<Guid, int>> GetPlayerCountsByTeamAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations

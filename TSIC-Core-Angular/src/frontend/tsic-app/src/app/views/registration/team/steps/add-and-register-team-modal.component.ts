@@ -184,7 +184,10 @@ import type { AgeGroupDto } from '@core/api';
                     @if (ag.isRecommended) { <i class="bi bi-star-fill age-pill-star"></i> }
                     @if (selectedAgeGroup() === ag.ageGroupId) { <i class="bi bi-check-circle-fill age-pill-check"></i> }
                   </span>
-                  <span class="age-pill-fee">{{ ag.fee | currency }}</span>
+                  <span class="age-pill-fee">
+                    @if (ag.isFull) { Free }
+                    @else { {{ ag.fee | currency }} }
+                  </span>
                   <span class="age-pill-spots"
                         [class.text-warning]="ag.isAlmostFull && !ag.isFull"
                         [class.text-danger]="ag.isFull">

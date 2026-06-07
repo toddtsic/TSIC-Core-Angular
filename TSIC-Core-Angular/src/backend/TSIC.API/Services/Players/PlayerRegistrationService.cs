@@ -92,6 +92,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
         await _registrations.SaveChangesAsync();
 
+        // Mint-on-fill (same as PreSubmit): a reservation can also bring a team to max.
+        await EnsureWaitlistMirrorsForFilledTeamsAsync(ctx, fakeRequest);
+
         return new ReserveTeamsResponseDto { TeamResults = teamResults };
     }
 
@@ -135,6 +138,12 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
 
         await _registrations.SaveChangesAsync();
+
+        // Mint-on-fill: now that the rows are committed, proactively create the WAITLIST
+        // mirror for any real team this submission brought to its roster max, so the picker
+        // can offer the twin immediately rather than lazily on the next overflow.
+        await EnsureWaitlistMirrorsForFilledTeamsAsync(ctx, request);
+
         // Delegate insurance offer construction to VerticalInsure service.
         var finalInsurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
         return new PreSubmitPlayerRegistrationResponseDto
@@ -150,7 +159,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     {
         var teamIds = request.TeamSelections.Select(ts => ts.TeamId).Distinct().ToList();
         var teams = await _teams.GetTeamsForJobAsync(jobId, teamIds);
-        var teamRosterCounts = await _registrations.GetActiveTeamRosterCountsAsync(jobId, teamIds);
+        // Capacity seed = active + inactive (pending) players, matching the picker's
+        // GetRosterCountsByTeamAsync so the isFull gate agrees with the picker's rosterFull
+        // and with the overflow recount (GetAssignedPlayerCountAsync). Pending must count
+        // (Todd: "max must include pending").
+        var teamRosterCounts = await _registrations.GetRosterCountsByTeamAsync(teamIds);
 
         var jobEntity = await _jobs.GetPreSubmitMetadataAsync(jobId);
 
@@ -183,6 +196,31 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             ExistingByPlayer = existingByPlayer,
             ExistingByPlayerTeam = existingByPlayerTeam
         };
+    }
+
+    /// <summary>
+    /// After a submission commits, ensure the WAITLIST mirror exists for every real team the
+    /// submission brought to (or past) its roster max. Proactive mint-on-fill so the picker
+    /// can surface the twin the instant a team fills, instead of waiting for the next
+    /// registrant to overflow. Idempotent and gated on the job's waitlist flag
+    /// (EnsureWaitlistMirrorAsync no-ops for non-waitlist jobs). The >= MaxCount guard skips
+    /// unlimited teams (MaxCount &lt;= 0) and the mirror teams themselves (MaxCount=100000,
+    /// never reached).
+    /// </summary>
+    private async Task EnsureWaitlistMirrorsForFilledTeamsAsync(
+        PreSubmitContext ctx, PreSubmitPlayerRegistrationRequestDto request)
+    {
+        foreach (var teamId in request.TeamSelections.Select(s => s.TeamId).Distinct())
+        {
+            var team = ctx.Teams.Find(t => t.TeamId == teamId);
+            if (team == null || team.MaxCount <= 0)
+                continue;
+
+            // Fresh committed count (post-save): active + inactive (pending) players.
+            var committed = await _teams.GetAssignedPlayerCountAsync(team.TeamId);
+            if (committed >= team.MaxCount)
+                await _placement.EnsureWaitlistMirrorAsync(ctx.JobId, team.TeamId, ctx.FamilyUserId);
+        }
     }
 
     private async Task ProcessPlayerSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)

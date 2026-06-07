@@ -98,7 +98,14 @@ public class TeamLookupService : ITeamLookupService
             };
         }).ToList();
 
-        // Populate WaitlistTeamId for full teams when job uses waitlists
+        // When a real team is full, surface its WAITLIST twin in its place: the entry keeps
+        // the real team's name + agegroup for display, but routes registration to the twin's
+        // teamId at $0 (the twin's team-level fee stamp). So the parent sees the team they
+        // wanted, flagged "Waitlist · Free", and the twin's id — NOT the real id — flows
+        // through registration; ActivateIfFree then activates the $0 reg (legacy: waitlist
+        // players ARE active). A not-full team is emitted unchanged (real id, full price);
+        // its twin, if any, is never shown — this is the swap-out case, where a team that
+        // dropped back below max correctly reappears as the bookable real team.
         if (jobUsesWaitlists)
         {
             var fullTeamNames = dtos
@@ -108,21 +115,24 @@ public class TeamLookupService : ITeamLookupService
 
             if (fullTeamNames.Count > 0)
             {
-                // Find existing waitlist team mirrors by name
+                // Find the existing waitlist team mirrors by name (minted on fill, change 3).
                 var allTeams = await _teamRepo.GetTeamsForJobByNamesAsync(jobId, fullTeamNames);
                 var waitlistLookup = allTeams.ToDictionary(
                     t => t.TeamName ?? string.Empty,
                     t => t.TeamId,
                     StringComparer.OrdinalIgnoreCase);
 
-                foreach (var dto in dtos.Where(d => d.RosterIsFull))
+                dtos = dtos.Select(dto =>
                 {
-                    var wlName = $"WAITLIST - {dto.TeamName}";
-                    if (waitlistLookup.TryGetValue(wlName, out var wlTeamId))
-                    {
-                        dto.WaitlistTeamId = wlTeamId;
-                    }
-                }
+                    if (!dto.RosterIsFull)
+                        return dto;
+                    // Route to the twin at $0 when it exists. If mint-on-fill has not run yet
+                    // (no twin), leave the real entry — the registration-time overflow swap
+                    // still places the player on the then-minted mirror at $0.
+                    return waitlistLookup.TryGetValue($"WAITLIST - {dto.TeamName}", out var wlTeamId)
+                        ? dto with { TeamId = wlTeamId, Fee = 0m, Deposit = 0m, EffectiveFee = 0m }
+                        : dto;
+                }).ToList();
             }
         }
 

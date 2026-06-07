@@ -131,8 +131,8 @@ public class PlayerRosterCapacityTests
             .ReturnsAsync(new List<Teams> { team });
 
         regRepo
-            .Setup(r => r.GetActiveTeamRosterCountsAsync(
-                It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetRosterCountsByTeamAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, int> { { team.TeamId, currentRosterCount } });
 
         return team;
@@ -484,7 +484,7 @@ public class PlayerRosterCapacityTests
             .Setup(t => t.GetTeamsForJobAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Teams> { teamB });
         regRepo
-            .Setup(r => r.GetActiveTeamRosterCountsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetRosterCountsByTeamAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, int> { { teamB.TeamId, 0 } });
         regRepo
             .Setup(r => r.GetFamilyRegistrationsForPlayersTrackedAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
@@ -536,7 +536,7 @@ public class PlayerRosterCapacityTests
             .Setup(t => t.GetTeamsForJobAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Teams> { teamA });
         regRepo
-            .Setup(r => r.GetActiveTeamRosterCountsAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetRosterCountsByTeamAsync(It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new Dictionary<Guid, int> { { teamA.TeamId, 0 } });
         regRepo
             .Setup(r => r.GetFamilyRegistrationsForPlayersTrackedAsync(It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))

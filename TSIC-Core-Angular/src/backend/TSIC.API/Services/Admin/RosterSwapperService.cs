@@ -21,19 +21,22 @@ public sealed class RosterSwapperService : IRosterSwapperService
     private readonly IDeviceRepository _deviceRepo;
     private readonly IFeeResolutionService _feeService;
     private readonly IJobRepository _jobRepo;
+    private readonly ITeamPlacementService _placement;
 
     public RosterSwapperService(
         IRegistrationRepository registrationRepo,
         ITeamRepository teamRepo,
         IDeviceRepository deviceRepo,
         IFeeResolutionService feeService,
-        IJobRepository jobRepo)
+        IJobRepository jobRepo,
+        ITeamPlacementService placement)
     {
         _registrationRepo = registrationRepo;
         _teamRepo = teamRepo;
         _deviceRepo = deviceRepo;
         _feeService = feeService;
         _jobRepo = jobRepo;
+        _placement = placement;
     }
 
     public async Task<List<SwapperPoolOptionDto>> GetPoolOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -381,6 +384,18 @@ public sealed class RosterSwapperService : IRosterSwapperService
             }
 
             await _registrationRepo.SaveChangesAsync(ct);
+
+            // Mint-on-fill (parity with the registration submit path): if this admin transfer
+            // brought the target team to its roster max, proactively create its WAITLIST mirror
+            // so the picker can surface the twin. Player-count-based (GetAssignedPlayerCountAsync
+            // ignores the staff FLOW 4 moves), idempotent, and a no-op for non-waitlist jobs.
+            // Admins may overfill — this never blocks the transfer.
+            if (playersTransferred > 0 && targetTeam.MaxCount > 0)
+            {
+                var committed = await _teamRepo.GetAssignedPlayerCountAsync(targetTeam.TeamId, ct);
+                if (committed >= targetTeam.MaxCount)
+                    await _placement.EnsureWaitlistMirrorAsync(jobId, targetTeam.TeamId, adminUserId, ct);
+            }
 
             var parts = new List<string>();
             if (playersTransferred > 0) parts.Add($"{playersTransferred} transferred");

@@ -739,6 +739,10 @@ export class TeamSelectionStepComponent {
                 label += ` · ${this.formatCurrency(deposit + fee)} (${this.formatCurrency(deposit)} deposit)`;
             } else if (fee > 0) {
                 label += ` (${this.formatCurrency(fee)})`;
+            } else if (team.feeConfigured !== false) {
+                // $0 but configured — a waitlist twin (full team surfaced as its $0 mirror)
+                // or a genuinely free event. Say so explicitly instead of a bare name.
+                label += ' (Free)';
             }
 
             let status = '';
@@ -825,11 +829,10 @@ export class TeamSelectionStepComponent {
         const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
         const teams = this.teamService.filterByEligibility(eligValue, player?.gender);
 
-        // Hide full teams whose waitlist replacement exists in the list
-        const teamIdsInList = new Set(teams.map(t => t.teamId));
-        let filtered = teams.filter(t =>
-            !(t.rosterIsFull && t.waitlistTeamId && teamIdsInList.has(t.waitlistTeamId)),
-        );
+        // The backend emits exactly one entry per team: a full team is surfaced as its $0
+        // WAITLIST twin (twin teamId, real name, "Waitlist · Free"), a not-full team as
+        // itself. No client-side waitlist substitution needed.
+        let filtered = [...teams];
 
         // CAC: sort by start date (earliest first), then by name
         if (this.state.jobCtx.isCacMode()) {

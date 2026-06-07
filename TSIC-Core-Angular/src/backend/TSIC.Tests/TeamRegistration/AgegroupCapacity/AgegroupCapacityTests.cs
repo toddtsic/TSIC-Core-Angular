@@ -63,8 +63,12 @@ public class AgegroupCapacityTests
         var agegroupRepo = new AgeGroupRepository(ctx);
         var divisionRepo = new DivisionRepository(ctx);
 
+        // Agegroup placement never mints a waitlist TEAM (only the roster path does), so
+        // the fee repo is never exercised here — a default mock is sufficient.
+        var feeRepo = new Mock<IFeeRepository>();
+
         var svc = new TeamPlacementService(
-            jobRepo.Object, agegroupRepo, teamRepo.Object, divisionRepo);
+            jobRepo.Object, agegroupRepo, teamRepo.Object, divisionRepo, feeRepo.Object);
 
         return (svc, builder, ctx, jobRepo, teamRepo, job.JobId, ag);
     }
