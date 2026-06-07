@@ -835,4 +835,104 @@ public class ReportingRepository : IReportingRepository
             })
             .ToList();
     }
+
+    public async Task<List<PlayerStatsE120RowDto>> GetPlayerStatsE120RowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.PlayerStats_E120. Active Players in the job (NO team-active
+        // filter — the proc has none), joined role/user/team/agegroup; the four combine stats ride
+        // straight off Registrations (null until tested → blank entry-form cells).
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Player"
+            orderby t.Agegroup.AgegroupName, t.TeamName, u.LastName, u.FirstName
+            select new PlayerStatsE120RowDto
+            {
+                RegistrationId = r.RegistrationId,
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                UniformNo = r.UniformNo,
+                Fastestshot = r.Fastestshot,
+                FiveTenFive = r.FiveTenFive,
+                Fourtyyarddash = r.Fourtyyarddash,
+                Threehundredshuttle = r.Threehundredshuttle,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<AmericanSelectEvaluationRowDto>> GetAmericanSelectEvaluationRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.AmericanSelectPlayerData. Active tryout Players (team name
+        // contains "Tryout"), INNER-joined to Families (mom contact → familyless registrants drop).
+        // City is the PLAYER's city (u.City). Tryout match is CI under the DB's default collation.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            from f in _context.Families.AsNoTracking().Where(x => x.FamilyUserId == r.FamilyUserId)
+            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Player"
+                && t.TeamName != null && t.TeamName.Contains("Tryout")
+            orderby t.Agegroup.AgegroupName, u.LastName, u.FirstName
+            select new AmericanSelectEvaluationRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                JobName = j.JobName,
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+                UniformNo = r.UniformNo,
+                GradYear = r.GradYear,
+                Position = r.Position,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                ClubTeamName = r.ClubTeamName,
+                SchoolName = r.SchoolName,
+                City = u.City,
+                MomFirstName = f.MomFirstName,
+                MomLastName = f.MomLastName,
+                MomCellphone = f.MomCellphone,
+            }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<AmericanSelectMainEventRosterRowDto>> GetAmericanSelectMainEventRosterRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Flattened EF replacement for the master-detail proc pair _Teams + _TeamRoster. All active
+        // Players on non-"Registration" agegroups; INNER Families + family-user (Hometown = the family
+        // user's city). One flat query; the PDF layer groups by agegroup → team into per-team cards.
+        return await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            from f in _context.Families.AsNoTracking().Where(x => x.FamilyUserId == r.FamilyUserId)
+            from uF in _context.AspNetUsers.AsNoTracking().Where(x => x.Id == r.FamilyUserId)
+            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
+            where r.JobId == jobId && r.BActive == true && roles.Name == "Player"
+                && t.Agegroup.AgegroupName != "Registration"
+            orderby t.Agegroup.AgegroupName, t.TeamName, u.LastName, u.FirstName
+            select new AmericanSelectMainEventRosterRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                TeamId = t.TeamId,
+                JobName = j.JobName,
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+                UniformNo = r.UniformNo,
+                Position = r.Position,
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                SchoolName = r.SchoolName,
+                Hometown = uF.City,
+            }).ToListAsync(cancellationToken);
+    }
 }

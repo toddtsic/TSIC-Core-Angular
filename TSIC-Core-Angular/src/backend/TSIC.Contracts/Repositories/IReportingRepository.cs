@@ -212,6 +212,37 @@ public interface IReportingRepository
     Task<List<FeeYtdRowDto>> GetFeeYtdRowsAsync(
         DateTime asOfLocal,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active Player rows with athletic-combine stats for the E120 entry form — the EF replacement for
+    /// <c>reporting.PlayerStats_E120</c>. Job-scoped; <c>Registrations</c>⋈role⋈user⋈team⋈agegroup,
+    /// bActive=1, Player role; ordered agegroup → team → last → first. The four stat values ride
+    /// straight off <c>Registrations</c> (usually null until tested).
+    /// </summary>
+    Task<List<PlayerStatsE120RowDto>> GetPlayerStatsE120RowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active tryout-Player rows for the American Select Evaluation sheet — the EF replacement for
+    /// <c>reporting.AmericanSelectPlayerData</c>. Job-scoped; same roster joins plus an INNER join to
+    /// <c>Families</c> (mom contact, so familyless registrants drop, as in the proc) and a team-name
+    /// "Tryout" filter; ordered agegroup → last → first.
+    /// </summary>
+    Task<List<AmericanSelectEvaluationRowDto>> GetAmericanSelectEvaluationRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Active Player rows (all non-"Registration" agegroups) for the American Select Main Event roster
+    /// sheets — the flattened EF replacement for the master-detail proc pair
+    /// <c>reporting.AmericanSelectPlayerDataMainEvent_Teams</c> + <c>…_TeamRoster</c>. Job-scoped; one
+    /// flat query (roster joins + INNER <c>Families</c> + family-user for Hometown city); the PDF layer
+    /// groups by agegroup → team into per-team cards.
+    /// </summary>
+    Task<List<AmericanSelectMainEventRosterRowDto>> GetAmericanSelectMainEventRosterRowsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

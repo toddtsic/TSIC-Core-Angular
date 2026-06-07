@@ -23,6 +23,8 @@ public class ReportingController : ControllerBase
     private readonly IDailyRegCountsPdfService _dailyRegCountsService;
     private readonly IInvoiceReportPdfService _invoiceReportService;
     private readonly IFeeYtdReportPdfService _feeYtdReportService;
+    private readonly IPlayerStatsReportPdfService _playerStatsReportService;
+    private readonly IAmericanSelectReportPdfService _americanSelectReportService;
 
     // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
     // Mirrors the local map pattern used by NavController / WidgetDashboardService /
@@ -46,13 +48,17 @@ public class ReportingController : ControllerBase
         IJobLookupService jobLookupService,
         IDailyRegCountsPdfService dailyRegCountsService,
         IInvoiceReportPdfService invoiceReportService,
-        IFeeYtdReportPdfService feeYtdReportService)
+        IFeeYtdReportPdfService feeYtdReportService,
+        IPlayerStatsReportPdfService playerStatsReportService,
+        IAmericanSelectReportPdfService americanSelectReportService)
     {
         _reportingService = reportingService;
         _jobLookupService = jobLookupService;
         _dailyRegCountsService = dailyRegCountsService;
         _invoiceReportService = invoiceReportService;
         _feeYtdReportService = feeYtdReportService;
+        _playerStatsReportService = playerStatsReportService;
+        _americanSelectReportService = americanSelectReportService;
     }
 
     /// <summary>
@@ -380,15 +386,27 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> AmericanSelectTournyCheckin([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("americanselecttournycheckin", exportFormat);
 
+    // American Select main-event rosters — EF + Syncfusion replacement for Crystal
+    // "americanselectmaineventrosters" (master-detail proc pair, flattened). Job from JWT.
     [HttpGet("AmericanSelectMainEventRosters")]
     [AllowAnonymous]
-    public Task<ActionResult> AmericanSelectMainEventRosters([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("americanselectmaineventrosters", exportFormat);
+    public async Task<ActionResult> AmericanSelectMainEventRosters(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _americanSelectReportService.GenerateMainEventRostersAsync(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
+    // American Select tryout evaluation — EF + Syncfusion replacement for Crystal
+    // "americanselectevaluation" (proc reporting.AmericanSelectPlayerData). Job from JWT.
     [HttpGet("AmericanSelectEvaluation")]
     [AllowAnonymous]
-    public Task<ActionResult> AmericanSelectEvaluation([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("americanselectevaluation", exportFormat);
+    public async Task<ActionResult> AmericanSelectEvaluation(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _americanSelectReportService.GenerateEvaluationAsync(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("FieldUtilizationAcrossLeaguesByDateTournament")]
     [AllowAnonymous]
@@ -566,10 +584,16 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> JobCampCheckinII()
         => CrystalReportAsync("Job_CampCheckinII", 1);
 
+    // E120 player-stats entry form — EF + Syncfusion replacement for Crystal "PlayerStats_E120"
+    // (proc reporting.PlayerStats_E120). Job-scoped from JWT.
     [HttpGet("PlayerStats_E120")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> PlayerStatsE120()
-        => CrystalReportAsync("PlayerStats_E120", 1);
+    public async Task<ActionResult> PlayerStatsE120(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _playerStatsReportService.GenerateE120Async(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("CustomerJobRevenueRollups")]
     [Authorize(Policy = "AdminOnly")]
