@@ -251,7 +251,15 @@ INSERT INTO @ExcludeActions VALUES
     (N'camp_nightgroups'),                                  -- -> Camp Groups Designer (Night Group; no data anywhere)
     (N'camp_nightgroups_pdf'),                              -- -> Camp Groups Designer (Night Group, stacked approx)
     (N'camp_roomies'),                                      -- -> Camp Groups Designer (Roommate group-by)
-    (N'JobRosters_DayGroupsPackedXPO');                     -- -> PackedRoster Designer (Day Group packed XPO approx)
+    (N'JobRosters_DayGroupsPackedXPO'),                     -- -> PackedRoster Designer (Day Group packed XPO approx)
+    -- CR-retirement (2026-06-07): the legacy "Evaluation Report (Excel)" SP dump
+    -- (reporting.AmericanSelectEvaluationSheet) is superseded by the EF+Syncfusion
+    -- "Evaluation Report (pdf)" (AmericanSelectEvaluation endpoint, verified vs the
+    -- user's target on americanselect-newjersey-2026). Unlike the entries above this
+    -- is a StoredProcedure-kind tile, not Crystal -- the full Export* action is the
+    -- match key. Excluded so the redundant Excel tile drops from the DB-sourced
+    -- library; the proc itself is left in place (orphaned, harmless).
+    (N'ExportStoredProcedureResults?spName=[reporting].[AmericanSelectEvaluationSheet]&bUseJobId=true&bUseDateUnscheduled=false');
 
 -- CR -> SP-Excel conversions. Maps a report's legacy (Crystal) action to its
 -- SP-Excel action so the populate below emits a StoredProcedure row pointing at
