@@ -431,15 +431,11 @@ export class ReviewStepComponent {
     getTeamsForPlayer(playerId: string): string[] {
         const teams = this.state.eligibility.selectedTeams()[playerId];
         if (!teams) return [];
-        const allTeams = this.teamService.filterByEligibility(null);
+        // Waitlist-aware: a full team's $0 twin renders as "WAITLIST - {name}".
         if (Array.isArray(teams)) {
-            return teams.map((tid: string) => {
-                const team = allTeams.find(t => t.teamId === tid);
-                return team?.teamName || tid;
-            });
+            return teams.map((tid: string) => this.teamService.getTeamDisplayName(tid));
         }
-        const team = allTeams.find(t => t.teamId === teams);
-        return [team?.teamName || teams];
+        return [this.teamService.getTeamDisplayName(teams)];
     }
 
     getBaseFeeForPlayer(playerId: string): number | null {

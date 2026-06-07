@@ -74,6 +74,13 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
             var family = await _familyRepo.GetFamilyContactAsync(familyUserId);
             var director = await _registrationRepo.GetDirectorContactForJobAsync(jobId);
             var products = await BuildProductsAsync(regs, family, director, jobOffer.JobName);
+            if (products.Count == 0)
+            {
+                // Every eligible registration resolved to a $0 insurable amount (e.g. a full
+                // team surfaced as its free WAITLIST twin) — nothing to insure, so present no
+                // offer at all rather than an empty widget.
+                return new PreSubmitInsuranceDto { Available = false };
+            }
             var playerObj = BuildPlayerObject(products);
             return new PreSubmitInsuranceDto
             {
@@ -287,6 +294,23 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         {
             // Centralized fee resolution for insurable amount: prefer per-registrant fee from resolver; fallback to fee total.
             var (fee, _) = await _teamLookupService.ResolvePerRegistrantAsync(r.AssignedTeamId);
+
+            // Gate: a free team has nothing to insure — never offer RegSaver on it. "Free" is
+            // the team's CONFIGURED fee: neither the cascade resolver nor the team's
+            // per-registrant fee is positive (e.g. a full team registered onto its $0 WAITLIST
+            // twin, or a genuinely free event). We deliberately do NOT consult the stamped
+            // FeeTotal for this decision — a free team can still carry a non-zero FeeTotal from
+            // a donation, and we must not insure a free registration. VerticalInsure also
+            // rejects a $0 policy, so this avoids a guaranteed failure.
+            var configuredTeamFee = fee > 0m ? fee : (r.PerRegistrantFee ?? 0m);
+            if (configuredTeamFee <= 0m)
+            {
+                _logger.LogInformation(
+                    "[VerticalInsure] Skipping registration {RegistrationId}: free team ($0 configured fee) — no RegSaver offer.",
+                    r.RegistrationId);
+                continue;
+            }
+
             var insurable = InsurableAmountCalculator.ComputeInsurableAmountFromCentralized(fee, r.PerRegistrantFee, r.FeeTotal);
             var product = new VIPlayerProductDto
             {

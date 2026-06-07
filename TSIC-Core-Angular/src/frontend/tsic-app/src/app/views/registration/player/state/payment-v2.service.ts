@@ -451,7 +451,10 @@ export class PaymentV2Service {
             playerId,
             playerName,
             teamId,
-            teamName: team?.teamName || registration?.assignedTeamName || '',
+            // Waitlist-aware display name: a full team's $0 twin renders as "WAITLIST - {name}".
+            // Existing registrations fall back to the server's assignedTeamName (already the
+            // twin's canonical name when the prior placement was a waitlist).
+            teamName: team ? this.teams.getTeamDisplayName(teamId) : (registration?.assignedTeamName || ''),
             feeBase,
             feeProcessing,
             feeDiscount,

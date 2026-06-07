@@ -156,6 +156,24 @@ export class TeamService {
         return teams?.find(t => t.teamId === teamId);
     }
 
+    /**
+     * Display name for a *selected* team. A full team under a waitlist job is surfaced
+     * in the picker as its $0 WAITLIST twin, but the entry keeps the real team's name
+     * there for findability/sorting (parents scan for "Hawks", not "WAITLIST - Hawks").
+     * Once selected, every downstream surface — the forms badge, review, payment — must
+     * name it as the waitlist placement it is: "WAITLIST - {name}", matching the twin
+     * team's actual name everywhere post-registration (confirmation, director rosters,
+     * LADT). The waitlist signal lives in the entry's flags, not the name string, so we
+     * reconstruct the canonical name here rather than baking it into the picker list.
+     */
+    getTeamDisplayName(teamId: string): string {
+        const team = this.getTeamById(teamId);
+        if (!team) return teamId;
+        return team.rosterIsFull && team.jobUsesWaitlists
+            ? `WAITLIST - ${team.teamName}`
+            : team.teamName;
+    }
+
     /** Call explicitly when the job context is ready (replaces constructor effect). */
     loadForJob(jobPath: string): void {
         if (jobPath) {
