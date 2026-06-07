@@ -187,11 +187,15 @@ fields + a **Camp preset**, and a Camp-Registration-gated tile **Camp Groups (De
 
 | Report (endpoint) | EF entities | Status |
 |---|---|---|
-| Get_JobPlayers_TSICDAILY (daily reg counts) | present (`Registrations`) — **easy** | ☐ |
-| TSICFeesYTDByCustomer | `adn` schema — confirm/scaffold | ☐ |
-| TSICFeesYTDByCustomerAndJob | `adn` schema — confirm/scaffold | ☐ |
-| Get_Invoices_LastMonth | `adn` schema — confirm/scaffold | ☐ |
-| Get_Invoices_LastMonthSummariesOnly | `adn` schema — confirm/scaffold | ☐ |
+| Get_JobPlayers_TSICDAILY (daily reg counts) | present (`Registrations`) — **easy** | ◐ built — EF+Syncfusion, **migrate-in-place** (no Designer; tile/endpoint unchanged); verify pending |
+| TSICFeesYTDByCustomer | `adn.tsicFeesYTDAndLastYear` proc (small) — entities mapped | ◐ built — `GetFeeYtdRowsAsync` + `FeeYtdReportPdfService` (customer rollup); money **VERIFIED penny-exact vs proc** (274 keys, grand $98,380.00, 2025 $51,002 / 2026 $47,378); **layout INFERRED** (no .rpt/PDF ground truth) — user visual check pending |
+| TSICFeesYTDByCustomerAndJob | same proc | ◐ built — same service (customer→job breakout, YoY change col); shares verified proc-exact data; layout inferred, user check pending |
+| Get_Invoices_LastMonth | `adn.rpt_invoice` proc → **full EF reproduction** | ◐ built — player branch **VERIFIED penny-exact vs legacy PDF** (Camps&Clinics May-2026 balance $6,908.55); team branch built-to-spec, UNVERIFIED; PDF layout not yet user-checked |
+| Get_Invoices_LastMonthSummariesOnly | same proc, summary-only render | ◐ built — shares verified summary math; layout not yet user-checked |
+
+**Financials decision (2026-06-06):** user chose **full EF reproduction** (not render-swap), tips: (1) query base tables, NOT the `adn.vTxs` view; (2) keep ADN's raw-text settlement date as text (year/month via fixed substring positions), no datetime coercion / schema change. `adn.rpt_invoice` reproduced as `GetInvoiceLinesAsync` (player + team flat branches off base `adn.Txs`) + `InvoiceReportPdfService` (landscape itemized + per-venue Accounting Summary). Money verified end-to-end against the ground-truth PDF via a throwaway SqlServer-backed test (deleted). All five `adn` entities were already mapped — no scaffolding needed.
+
+**Fee-YTD (2026-06-07):** `adn.tsicFeesYTDAndLastYear` reproduced as `GetFeeYtdRowsAsync` (pure LINQ off `Jobs`⋈`Customers`⋈`Monthly_Job_Stats`; per-row fee = NewPlayers×perPlayerCharge + NewTeams×perTeamCharge; the proc's `isnumeric(Jobs.year)=1` guard done in C# via `int.TryParse` — no portable LINQ for ISNUMERIC). One `FeeYtdReportPdfService` renders both reports (portrait): customer rollup + customer→job breakout, each a this-year-YTD vs last-year-YTD comparison (months 1..lastMonth both years) with a YoY change column. **Data verified penny-exact** vs the proc through the same connection (throwaway test, deleted): identical 274 (year,customer,job) keys, grand total $98,380.00, per-year 2025 $51,002 / 2026 $47,378. **Layout is INFERRED** — the `lastMonthsNewJobs.xlsx` the user supplied was a different "new jobs" report; there is no `.rpt`/PDF ground truth for the fee pair, only the proc defines the data. Needs a user visual check.
 | AmericanSelectEvaluation | scaffold (only a 2021 archive entity today) | ☐ |
 | AmericanSelectMainEventRosters | scaffold (master-detail → flat) | ☐ |
 | PlayerStats_E120 | scaffold | ☐ |

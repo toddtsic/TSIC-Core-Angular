@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
@@ -572,5 +573,266 @@ public class ReportingRepository : IReportingRepository
             };
 
         return await query.ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<DailyRegCountRowDto>> GetDailyRegCountsAsync(
+        DateTime asOfLocal,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for reporting.Get_Registrations_TSIC_Today. The proc is two passes:
+        // (1) today's active reg counts grouped by (customer, job, role), then (2) the same combos
+        // joined back to ALL active regs for the to-date total. We reproduce that as two grouped
+        // queries keyed on (JobId, RoleId) — equivalent to (customer, job, role) since job→customer
+        // and role↔roleId are 1:1 — and stitch them in C#. The AspNetUsers inner join is an
+        // existence filter that matches the proc (a reg with no user is dropped); names ride
+        // Job/Customer. Sargable date range (>= dayStart && < dayEnd) instead of CONVERT(char,..)
+        // so it stays index-friendly and Postgres-portable.
+        var dayStart = asOfLocal.Date;
+        var dayEnd = dayStart.AddDays(1);
+
+        var todayGroups = await (
+            from r in _context.Registrations.AsNoTracking()
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            join c in _context.Customers.AsNoTracking() on j.CustomerId equals c.CustomerId
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where r.BActive == true
+                && r.RegistrationTs >= dayStart
+                && r.RegistrationTs < dayEnd
+            group r by new { r.JobId, c.CustomerName, j.JobName, RoleId = roles.Id, RoleName = roles.Name } into grp
+            select new
+            {
+                grp.Key.JobId,
+                grp.Key.CustomerName,
+                grp.Key.JobName,
+                grp.Key.RoleId,
+                grp.Key.RoleName,
+                Daily = grp.Count(),
+            })
+            .ToListAsync(cancellationToken);
+
+        if (todayGroups.Count == 0)
+        {
+            return new List<DailyRegCountRowDto>();
+        }
+
+        var jobIds = todayGroups.Select(x => x.JobId).Distinct().ToList();
+
+        var toDateGroups = await (
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            where r.BActive == true && jobIds.Contains(r.JobId)
+            group r by new { r.JobId, RoleId = roles.Id } into grp
+            select new { grp.Key.JobId, grp.Key.RoleId, ToDate = grp.Count() })
+            .ToListAsync(cancellationToken);
+
+        var toDate = toDateGroups.ToDictionary(x => (x.JobId, x.RoleId), x => x.ToDate);
+
+        return todayGroups
+            .Select(x => new DailyRegCountRowDto
+            {
+                CustomerName = x.CustomerName ?? string.Empty,
+                JobName = x.JobName ?? string.Empty,
+                RoleName = x.RoleName ?? string.Empty,
+                CountDaily = x.Daily,
+                CountToDate = toDate.TryGetValue((x.JobId, x.RoleId), out var td) ? td : x.Daily,
+            })
+            .OrderBy(x => x.CustomerName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.JobName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.RoleName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    // adn.rpt_invoice hardcodes this payment-method GUID = "Credit Card Payment"; CC-payment lines
+    // are only billable once their settlement carries an invoice number (the proc's gate).
+    private static readonly Guid CreditCardPaymentMethodId = new("30ECA575-A268-E111-9D56-F04DA202060D");
+
+    public async Task<List<InvoiceLineRawDto>> GetInvoiceLinesAsync(
+        int settlementYear,
+        int settlementMonth,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for adn.rpt_invoice. Two flat queries (player + team), concatenated =
+        // the proc's UNION ALL. We read the BASE adn.Txs table (NOT the adn.vTxs view) and keep the
+        // settlement date/amount as RAW TEXT: year/month for the month filter come from fixed
+        // substring positions in "DD-Mon-YYYY ..." (SQL chars 8-11 = year, 4-6 = month abbr — i.e.
+        // C# Substring(7,4) / Substring(3,3)), exactly as the view's own SettlementYear/Month do, so
+        // there is no datetime coercion and no schema change. Amount text→decimal and the credit
+        // negation happen in the service. Each line carries its job fee rates + that month's
+        // adn.Monthly_Job_Stats counts (LEFT JOIN), denormalized — the report needs no subreport.
+        var yearStr = settlementYear.ToString(CultureInfo.InvariantCulture);
+        var monthAbbr = CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(settlementMonth); // "May"
+        var monthStart = new DateTime(settlementYear, settlementMonth, 1);
+        var monthEnd = monthStart.AddMonths(1);
+        var ccPaymentId = CreditCardPaymentMethodId;
+
+        // ── Player branch: Registration_Accounting.teamID IS NULL ──
+        var playerLines = await (
+            from ata in _context.RegistrationAccounting.AsNoTracking()
+            where ata.Active == true && ata.TeamId == null && (ata.Payamt ?? 0m) != 0m
+            from at in _context.Registrations.AsNoTracking().Where(x => x.RegistrationId == ata.RegistrationId)
+            join j in _context.Jobs.AsNoTracking() on at.JobId equals j.JobId
+            join c in _context.Customers.AsNoTracking() on j.CustomerId equals c.CustomerId
+            join pm in _context.AccountingPaymentMethods.AsNoTracking() on ata.PaymentMethodId equals pm.PaymentMethodId
+            from u in _context.AspNetUsers.AsNoTracking().Where(x => x.Id == at.UserId)
+            from txs in _context.Txs.AsNoTracking().Where(t =>
+                    t.TransactionId == ata.AdnTransactionId
+                    && t.TransactionStatus != "Declined" && t.TransactionStatus != "Voided")
+                .DefaultIfEmpty()
+            from mjs in _context.MonthlyJobStats.AsNoTracking().Where(m =>
+                    m.JobId == j.JobId && m.Year == settlementYear && m.Month == settlementMonth)
+                .DefaultIfEmpty()
+            where
+                // Effective settlement month = settlement-text-month when settled, else ata.Modified.
+                ((txs != null && txs.SettlementDateTime != null
+                    && txs.SettlementDateTime.Substring(7, 4) == yearStr
+                    && txs.SettlementDateTime.Substring(3, 3) == monthAbbr)
+                 || ((txs == null || txs.SettlementDateTime == null)
+                    && ata.Modified >= monthStart && ata.Modified < monthEnd))
+                // CC-payment gate: a Credit Card Payment line needs a settled invoice number.
+                && (ata.PaymentMethodId != ccPaymentId || (txs != null && txs.InvoiceNumber != null))
+            select new InvoiceLineRawDto
+            {
+                JobId = j.JobId,
+                CustomerName = c.CustomerName,
+                JobName = j.JobName,
+                JobTypeId = j.JobTypeId,
+                PerPlayerCharge = j.PerPlayerCharge,
+                PerTeamCharge = j.PerTeamCharge,
+                ProcessingFeePercent = j.ProcessingFeePercent,
+                CountActivePlayersToDate = mjs != null ? mjs.CountActivePlayersToDate : null,
+                CountActivePlayersToDateLastMonth = mjs != null ? mjs.CountActivePlayersToDateLastMonth : null,
+                CountNewPlayersThisMonth = mjs != null ? mjs.CountNewPlayersThisMonth : null,
+                CountActiveTeamsToDate = mjs != null ? mjs.CountActiveTeamsToDate : null,
+                CountActiveTeamsToDateLastMonth = mjs != null ? mjs.CountActiveTeamsToDateLastMonth : null,
+                CountNewTeamsThisMonth = mjs != null ? mjs.CountNewTeamsThisMonth : null,
+                IsTeam = false,
+                PaymentMethodName = pm.PaymentMethod,
+                PaymentMethodId = pm.PaymentMethodId,
+                SettlementDateTimeText = txs != null ? txs.SettlementDateTime : null,
+                SettlementAmountText = txs != null ? txs.SettlementAmount : null,
+                TransactionStatus = txs != null ? txs.TransactionStatus : null,
+                TxnInvoiceNumber = txs != null ? txs.InvoiceNumber : null,
+                Payamt = ata.Payamt,
+                CheckNo = ata.CheckNo,
+                AcctModified = ata.Modified,
+                AcctCreatedate = ata.Createdate,
+                AcctAId = ata.AId,
+                UserFirstName = u.FirstName,
+                UserLastName = u.LastName,
+                UserName = u.UserName,
+                RegistrationTs = at.RegistrationTs,
+                AgegroupName = null,
+                TeamName = null,
+                ClubCustomerName = null,
+            }).ToListAsync(cancellationToken);
+
+        // ── Team branch: Registration_Accounting.teamID IS NOT NULL ──
+        var teamLines = await (
+            from ja in _context.RegistrationAccounting.AsNoTracking()
+            where ja.Active == true && ja.TeamId != null
+            from r in _context.Registrations.AsNoTracking().Where(x => x.RegistrationId == ja.RegistrationId)
+            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
+            join c in _context.Customers.AsNoTracking() on j.CustomerId equals c.CustomerId
+            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == ja.TeamId)
+            from tClub in _context.Customers.AsNoTracking().Where(x => x.CustomerId == t.CustomerId).DefaultIfEmpty()
+            from ru in _context.AspNetUsers.AsNoTracking().Where(x => x.Id == r.UserId).DefaultIfEmpty()
+            from pm in _context.AccountingPaymentMethods.AsNoTracking().Where(p => p.PaymentMethodId == ja.PaymentMethodId).DefaultIfEmpty()
+            from txs in _context.Txs.AsNoTracking().Where(tx =>
+                    tx.TransactionId == ja.AdnTransactionId
+                    && tx.TransactionStatus != "Declined" && tx.TransactionStatus != "Voided")
+                .DefaultIfEmpty()
+            from mjs in _context.MonthlyJobStats.AsNoTracking().Where(m =>
+                    m.JobId == j.JobId && m.Year == settlementYear && m.Month == settlementMonth)
+                .DefaultIfEmpty()
+            where
+                // Team effective month = settlement-text-month when settled, else ja.Createdate.
+                ((txs != null && txs.SettlementDateTime != null
+                    && txs.SettlementDateTime.Substring(7, 4) == yearStr
+                    && txs.SettlementDateTime.Substring(3, 3) == monthAbbr)
+                 || ((txs == null || txs.SettlementDateTime == null)
+                    && ja.Createdate >= monthStart && ja.Createdate < monthEnd))
+                && (ja.PaymentMethodId != ccPaymentId || (txs != null && txs.InvoiceNumber != null))
+            select new InvoiceLineRawDto
+            {
+                JobId = j.JobId,
+                CustomerName = c.CustomerName,
+                JobName = j.JobName,
+                JobTypeId = j.JobTypeId,
+                PerPlayerCharge = j.PerPlayerCharge,
+                PerTeamCharge = j.PerTeamCharge,
+                ProcessingFeePercent = j.ProcessingFeePercent,
+                CountActivePlayersToDate = mjs != null ? mjs.CountActivePlayersToDate : null,
+                CountActivePlayersToDateLastMonth = mjs != null ? mjs.CountActivePlayersToDateLastMonth : null,
+                CountNewPlayersThisMonth = mjs != null ? mjs.CountNewPlayersThisMonth : null,
+                CountActiveTeamsToDate = mjs != null ? mjs.CountActiveTeamsToDate : null,
+                CountActiveTeamsToDateLastMonth = mjs != null ? mjs.CountActiveTeamsToDateLastMonth : null,
+                CountNewTeamsThisMonth = mjs != null ? mjs.CountNewTeamsThisMonth : null,
+                IsTeam = true,
+                PaymentMethodName = pm != null ? pm.PaymentMethod : null,
+                PaymentMethodId = ja.PaymentMethodId,
+                SettlementDateTimeText = txs != null ? txs.SettlementDateTime : null,
+                SettlementAmountText = txs != null ? txs.SettlementAmount : null,
+                TransactionStatus = txs != null ? txs.TransactionStatus : null,
+                TxnInvoiceNumber = txs != null ? txs.InvoiceNumber : null,
+                Payamt = ja.Payamt,
+                CheckNo = ja.CheckNo,
+                AcctModified = ja.Modified,
+                AcctCreatedate = ja.Createdate,
+                AcctAId = ja.AId,
+                UserFirstName = ru != null ? ru.FirstName : null,
+                UserLastName = ru != null ? ru.LastName : null,
+                UserName = ru != null ? ru.UserName : null,
+                RegistrationTs = r.RegistrationTs,
+                AgegroupName = t.Agegroup.AgegroupName,
+                TeamName = t.TeamName,
+                ClubCustomerName = tClub != null ? tClub.CustomerName : null,
+            }).ToListAsync(cancellationToken);
+
+        return playerLines.Concat(teamLines).ToList();
+    }
+
+    public async Task<List<FeeYtdRowDto>> GetFeeYtdRowsAsync(
+        DateTime asOfLocal,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for adn.tsicFeesYTDAndLastYear. Window = months 1..maxMonth for BOTH
+        // this year (maxYear) and last year (minYear), where max = the last completed month — an
+        // apples-to-apples YTD comparison. Per-row fee = NewPlayers×perPlayerCharge +
+        // NewTeams×perTeamCharge. The proc's isnumeric(Jobs.year)=1 guard (drop jobs whose text
+        // year isn't a number) is applied in C# — ISNUMERIC has no portable LINQ translation.
+        var prev = asOfLocal.AddMonths(-1);
+        var maxMonth = prev.Month;
+        var maxYear = prev.Year;
+        var minYear = maxYear - 1;
+
+        var rows = await (
+            from j in _context.Jobs.AsNoTracking()
+            join c in _context.Customers.AsNoTracking() on j.CustomerId equals c.CustomerId
+            join mjs in _context.MonthlyJobStats.AsNoTracking() on j.JobId equals mjs.JobId
+            where mjs.Year >= minYear && mjs.Year <= maxYear && mjs.Month >= 1 && mjs.Month <= maxMonth
+            select new
+            {
+                StatYear = mjs.Year,
+                StatMonth = mjs.Month,
+                c.CustomerName,
+                j.JobName,
+                JobYear = j.Year,
+                Fees = ((mjs.CountNewPlayersThisMonth ?? 0) * (j.PerPlayerCharge ?? 0m))
+                     + ((mjs.CountNewTeamsThisMonth ?? 0) * (j.PerTeamCharge ?? 0m)),
+            }).ToListAsync(cancellationToken);
+
+        return rows
+            .Where(r => int.TryParse(r.JobYear, out _))
+            .Select(r => new FeeYtdRowDto
+            {
+                Year = r.StatYear,
+                Month = r.StatMonth,
+                CustomerName = r.CustomerName ?? string.Empty,
+                JobName = r.JobName ?? string.Empty,
+                TsicFees = r.Fees,
+            })
+            .ToList();
     }
 }

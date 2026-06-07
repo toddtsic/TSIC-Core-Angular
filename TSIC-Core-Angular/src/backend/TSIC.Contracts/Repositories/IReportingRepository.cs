@@ -172,6 +172,46 @@ public interface IReportingRepository
         Guid jobId,
         bool playersOnly,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Per-(customer, job, role) registration counts for every job that took at least one active
+    /// registration on <paramref name="asOfLocal"/>'s date — the EF replacement for
+    /// <c>reporting.Get_Registrations_TSIC_Today</c> (legacy Crystal "JobPlayers_TSICDaily").
+    /// Mirrors the proc: inner joins Job→Customer, role, and user, filters bActive=1, and reports
+    /// today's count plus the running active to-date total for each combo. Cross-job (no jobId
+    /// scoping); only combos with same-day activity appear, exactly as the proc's @t-join did.
+    /// </summary>
+    Task<List<DailyRegCountRowDto>> GetDailyRegCountsAsync(
+        DateTime asOfLocal,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Flat per-payment lines for the monthly client-invoice report — the EF replacement for
+    /// <c>adn.rpt_invoice</c> (legacy Crystal "invoices2015" / "invoices2015SummariesOnly").
+    /// Concatenates the proc's player + team UNION branches for the given settlement month,
+    /// querying the base <c>adn.Txs</c> table directly (NOT the <c>adn.vTxs</c> view) and leaving
+    /// ADN's text settlement date/amount RAW (year/month filtered from fixed substring positions,
+    /// no datetime coercion / schema change). Each line carries its job's fee rates and that
+    /// month's <c>adn.Monthly_Job_Stats</c> counts denormalized, so the whole report renders from
+    /// this one flat set (no subreport). All money parsing, credit negation, CC-fee computation,
+    /// and per-venue summary aggregation happen in the service layer.
+    /// </summary>
+    Task<List<InvoiceLineRawDto>> GetInvoiceLinesAsync(
+        int settlementYear,
+        int settlementMonth,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Per-(year, month, customer, job) TSIC-fee rows for the YTD comparison reports — the EF
+    /// replacement for <c>adn.tsicFeesYTDAndLastYear</c> (legacy Crystal "tsicTSICFeesYTD" /
+    /// "...ByCustomer"). Returns months 1..lastMonth for both this year and last year (last month
+    /// derived from <paramref name="asOfLocal"/>), each row's fee = NewPlayers×perPlayerCharge +
+    /// NewTeams×perTeamCharge off <c>adn.Monthly_Job_Stats</c>. Mirrors the proc's
+    /// <c>isnumeric(Jobs.year)=1</c> guard (jobs with a numeric text year only).
+    /// </summary>
+    Task<List<FeeYtdRowDto>> GetFeeYtdRowsAsync(
+        DateTime asOfLocal,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

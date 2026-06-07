@@ -20,6 +20,9 @@ public class ReportingController : ControllerBase
 {
     private readonly IReportingService _reportingService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IDailyRegCountsPdfService _dailyRegCountsService;
+    private readonly IInvoiceReportPdfService _invoiceReportService;
+    private readonly IFeeYtdReportPdfService _feeYtdReportService;
 
     // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
     // Mirrors the local map pattern used by NavController / WidgetDashboardService /
@@ -40,10 +43,16 @@ public class ReportingController : ControllerBase
 
     public ReportingController(
         IReportingService reportingService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IDailyRegCountsPdfService dailyRegCountsService,
+        IInvoiceReportPdfService invoiceReportService,
+        IFeeYtdReportPdfService feeYtdReportService)
     {
         _reportingService = reportingService;
         _jobLookupService = jobLookupService;
+        _dailyRegCountsService = dailyRegCountsService;
+        _invoiceReportService = invoiceReportService;
+        _feeYtdReportService = feeYtdReportService;
     }
 
     /// <summary>
@@ -304,9 +313,14 @@ public class ReportingController : ControllerBase
     // Crystal Reports — No Auth / Public
     // ──────────────────────────────────────────────────────────────
 
+    // Daily registration counts — EF + Syncfusion replacement for the legacy Crystal
+    // "JobPlayers_TSICDaily" (proc reporting.Get_Registrations_TSIC_Today). Cross-job, public.
     [HttpGet("Get_JobPlayers_TSICDAILY")]
-    public Task<ActionResult> GetJobPlayersTsicDaily()
-        => CrystalReportAsync("JobPlayers_TSICDaily", 1);
+    public async Task<ActionResult> GetJobPlayersTsicDaily(CancellationToken cancellationToken)
+    {
+        var result = await _dailyRegCountsService.GenerateAsync(cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("Score_Input")]
     public Task<ActionResult> ScoreInput()
@@ -443,15 +457,23 @@ public class ReportingController : ControllerBase
         return Ok(result);
     }
 
+    // Monthly client invoices — EF + Syncfusion replacement for Crystal "invoices2015"
+    // (proc adn.rpt_invoice). Renders the most recently completed month across all jobs.
     [HttpGet("Get_Invoices_LastMonth")]
     [Authorize(Roles = "Superuser")]
-    public Task<ActionResult> GetInvoicesLastMonth()
-        => CrystalReportAsync("invoices2015", 1);
+    public async Task<ActionResult> GetInvoicesLastMonth(CancellationToken cancellationToken)
+    {
+        var result = await _invoiceReportService.GenerateItemizedAsync(cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("Get_Invoices_LastMonthSummariesOnly")]
     [Authorize(Roles = "Superuser")]
-    public Task<ActionResult> GetInvoicesLastMonthSummariesOnly()
-        => CrystalReportAsync("invoices2015SummariesOnly", 1);
+    public async Task<ActionResult> GetInvoicesLastMonthSummariesOnly(CancellationToken cancellationToken)
+    {
+        var result = await _invoiceReportService.GenerateSummaryOnlyAsync(cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     // ──────────────────────────────────────────────────────────────
     // Crystal Reports — Superuser/Director/Player Roles
@@ -504,15 +526,25 @@ public class ReportingController : ControllerBase
     // Crystal Reports — AdminOnly Policy
     // ──────────────────────────────────────────────────────────────
 
+    // TSIC fee YTD comparison — EF + Syncfusion replacement for Crystal "tsicTSICFeesYTD"
+    // (proc adn.tsicFeesYTDAndLastYear). This-year-YTD vs last-year-YTD across all jobs, by
+    // customer + job. PDF only (exportFormat is legacy and ignored).
     [HttpGet("TSICFeesYTDByCustomerAndJob")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> TsicFeesYtdByCustomerAndJob([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("tsicTSICFeesYTD", exportFormat);
+    public async Task<ActionResult> TsicFeesYtdByCustomerAndJob(CancellationToken cancellationToken)
+    {
+        var result = await _feeYtdReportService.GenerateByCustomerAndJobAsync(cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
+    // Customer rollup variant — Crystal "tsicTSICFeesYTDByCustomer" (same proc, no job breakout).
     [HttpGet("TSICFeesYTDByCustomer")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> TsicFeesYtdByCustomer([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("tsicTSICFeesYTDByCustomer", exportFormat);
+    public async Task<ActionResult> TsicFeesYtdByCustomer(CancellationToken cancellationToken)
+    {
+        var result = await _feeYtdReportService.GenerateByCustomerAsync(cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("ISP_CheckinFlat")]
     [Authorize(Policy = "AdminOnly")]

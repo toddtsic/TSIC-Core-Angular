@@ -360,6 +360,9 @@ builder.Services.AddScoped<IReportingService, ReportingService>();
 builder.Services.AddScoped<IPackedRosterPdfService, PackedRosterPdfService>();
 builder.Services.AddScoped<IScheduleListReportService, ScheduleListReportService>();
 builder.Services.AddScoped<IRosterTablePdfService, RosterTablePdfService>();
+builder.Services.AddScoped<IDailyRegCountsPdfService, DailyRegCountsPdfService>();
+builder.Services.AddScoped<IInvoiceReportPdfService, InvoiceReportPdfService>();
+builder.Services.AddScoped<IFeeYtdReportPdfService, FeeYtdReportPdfService>();
 builder.Services.AddHttpClient("CrystalReports");
 // Email (Amazon SES only)
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
