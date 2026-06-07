@@ -546,9 +546,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         try
         {
-            // Subscription IDs are always from production ADN — use bProdOnly to bypass sandbox
-            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
-            var env = _adnApi.GetADNEnvironment(bProdOnly: true);
+            // Read the subscription from the same ADN account that created it — sandbox on
+            // Staging/Dev, production on Production. No-op on Production. A sandbox-origin
+            // subscription cannot be resolved against the production account (and vice versa),
+            // so the read env must match the create env (PaymentService.ProcessArbAsync).
+            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+            var env = _adnApi.GetADNEnvironment();
 
             _logger.LogInformation(
                 "Fetching subscription from ADN: RegId={RegId}, SubscriptionId={SubId}, Env={Env}",
