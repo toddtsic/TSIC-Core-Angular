@@ -1351,11 +1351,12 @@ public class PaymentService : IPaymentService
         NormalizeProcessingFees(registrations, jobId, userId);
         await _registrations.SaveChangesAsync();
         var args = new ArbSubArgs(env, credentials.AdnLoginId!, credentials.AdnTransactionKey!, occur, intervalLen, start, cc, userId);
-        var (subs, failed) = await CreateArbSubscriptionsAsync(registrations, args);
+        var (subs, failed, activatedNoCharge) = await CreateArbSubscriptionsAsync(registrations, args);
         await _registrations.SaveChangesAsync();
-        var response = BuildArbResponse(subs, failed);
-        // Always attempt confirmation email after any successful subscription creation.
-        if (response.Success && subs.Count > 0)
+        var response = BuildArbResponse(subs, failed, activatedNoCharge);
+        // Attempt confirmation email after any successful completion — whether a subscription was
+        // created or the registrant was activated with nothing left to finance.
+        if (response.Success && (subs.Count > 0 || activatedNoCharge.Count > 0))
         {
             await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
         }
@@ -1816,14 +1817,32 @@ public class PaymentService : IPaymentService
 
     private sealed record ArbSubArgs(AuthorizeNet.Environment Env, string LoginId, string TransactionKey, short Occur, short IntervalLen, DateTime StartDate, CreditCardInfo Card, string UserId);
 
-    private async Task<(Dictionary<Guid, string> Subs, List<Guid> Failed)> CreateArbSubscriptionsAsync(IEnumerable<Registrations> registrations, ArbSubArgs args)
+    private async Task<(Dictionary<Guid, string> Subs, List<Guid> Failed, List<Guid> ActivatedNoCharge)> CreateArbSubscriptionsAsync(IEnumerable<Registrations> registrations, ArbSubArgs args)
     {
         var subs = new Dictionary<Guid, string>();
         var failed = new List<Guid>();
+        var activatedNoCharge = new List<Guid>();
         foreach (var reg in registrations)
         {
             var basis = reg.OwedTotal < 0m ? 0m : reg.OwedTotal;
             var perOccur = Math.Round(basis / args.Occur, 2, MidpointRounding.AwayFromZero);
+            // Zero-basis chokepoint. Every fee modifier (discount code, early-bird, scholarship,
+            // late fee, prior payment) has already netted into OwedTotal via FeeMath before we get
+            // here, so this single test is modifier-agnostic by construction. When nothing is left
+            // to finance (perOccur <= 0) there is no subscription to create — Authorize.Net rejects
+            // a $0 recurring charge, which would drop the reg into the failed branch below and leave
+            // it bActive=0 with no subscription id. The registrant owes nothing, so activate it
+            // directly, mirroring the "owes nothing -> active" rule already used by the discount
+            // endpoint (PlayerRegistrationPaymentController.ApplyDiscount) and the immediate path.
+            if (perOccur <= 0m)
+            {
+                reg.BActive = true;
+                reg.Modified = DateTime.Now;
+                reg.LebUserId = args.UserId;
+                activatedNoCharge.Add(reg.RegistrationId);
+                _logger.LogInformation("ARB: registration {RegistrationId} owes nothing after modifiers (basis={Basis}); activated without a subscription.", reg.RegistrationId, basis);
+                continue;
+            }
             _logger.LogInformation("Creating ARB subscription for registration {RegistrationId}: perOccurrence={PerOccur} occur={Occur} start={StartDate} basis={Basis}.", reg.RegistrationId, perOccur, args.Occur, args.StartDate, basis);
             var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(reg.JobId, reg.RegistrationId);
             var description = await BuildArbSubscriptionDescriptionAsync(reg);
@@ -1860,19 +1879,31 @@ public class PaymentService : IPaymentService
                 _logger.LogWarning("ARB subscription failed for registration {RegistrationId}: {Message}", reg.RegistrationId, msgText);
             }
         }
-        return (subs, failed);
+        return (subs, failed, activatedNoCharge);
     }
 
-    private static PaymentResponseDto BuildArbResponse(Dictionary<Guid, string> subs, List<Guid> failed)
+    private static PaymentResponseDto BuildArbResponse(Dictionary<Guid, string> subs, List<Guid> failed, List<Guid> activatedNoCharge)
     {
-        if (subs.Count == 0)
-            return new PaymentResponseDto { Success = false, Message = "All ARB subscription attempts failed.", ErrorCode = "ARB_SUB_CREATE_FAIL", FailedSubscriptionIds = failed };
-        if (failed.Count == 0)
+        // Any outright failure (with a penny-verified card, an ADN reject on a non-zero charge).
+        if (failed.Count > 0)
+        {
+            if (subs.Count == 0 && activatedNoCharge.Count == 0)
+                return new PaymentResponseDto { Success = false, Message = "All ARB subscription attempts failed.", ErrorCode = "ARB_SUB_CREATE_FAIL", FailedSubscriptionIds = failed };
+            return new PaymentResponseDto { Success = false, Message = $"{subs.Count} subscription(s) created; {failed.Count} failed.", ErrorCode = "ARB_PARTIAL_FAIL", SubscriptionIds = subs, FailedSubscriptionIds = failed };
+        }
+        // No failures: some mix of subscriptions created and/or registrants activated with nothing
+        // left to finance (fully covered by discount/early-bird/other modifiers).
+        if (subs.Count > 0)
         {
             var single = subs.Count == 1 ? subs.Values.First() : null;
-            return new PaymentResponseDto { Success = true, Message = subs.Count == 1 ? "ARB subscription created" : "ARB subscriptions created", SubscriptionId = single, SubscriptionIds = subs };
+            var msg = activatedNoCharge.Count > 0
+                ? $"{subs.Count} ARB subscription(s) created; {activatedNoCharge.Count} registration(s) activated with nothing due"
+                : (subs.Count == 1 ? "ARB subscription created" : "ARB subscriptions created");
+            return new PaymentResponseDto { Success = true, Message = msg, SubscriptionId = single, SubscriptionIds = subs };
         }
-        return new PaymentResponseDto { Success = false, Message = $"{subs.Count} subscription(s) created; {failed.Count} failed.", ErrorCode = "ARB_PARTIAL_FAIL", SubscriptionIds = subs, FailedSubscriptionIds = failed };
+        if (activatedNoCharge.Count > 0)
+            return new PaymentResponseDto { Success = true, Message = activatedNoCharge.Count == 1 ? "Registration activated; nothing due after discount." : $"{activatedNoCharge.Count} registrations activated; nothing due after discount." };
+        return new PaymentResponseDto { Success = false, Message = "No registrations were processed.", ErrorCode = "ARB_NOTHING_PROCESSED" };
     }
 
     private static PaymentResponseDto Fail(string msg, string code) => new PaymentResponseDto { Success = false, Message = msg, ErrorCode = code };
