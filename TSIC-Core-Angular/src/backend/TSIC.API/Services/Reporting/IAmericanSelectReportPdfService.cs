@@ -10,8 +10,9 @@ namespace TSIC.API.Services.Reporting;
 /// </summary>
 public interface IAmericanSelectReportPdfService
 {
-    /// <summary>Tryout evaluation sheet: one row per tryout player, grouped by agegroup, with a
-    /// check-in box and mom contact (landscape).</summary>
+    /// <summary>Evaluator scoring sheet (portrait): grouped by tryout team (page break per team,
+    /// team name as subtitle) then by position, one row per player with five blank write-in
+    /// score boxes (Physical / PsnSpecific / StickSkills / Notes / Total).</summary>
     Task<ReportExportResult> GenerateEvaluationAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>Main event rosters: per-team roster cards grouped agegroup → team (portrait).</summary>
