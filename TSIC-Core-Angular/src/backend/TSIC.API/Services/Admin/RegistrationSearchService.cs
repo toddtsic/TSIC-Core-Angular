@@ -323,8 +323,17 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 refundTransId = voidResult.TransactionId ?? "";
                 reversedAmount = original.Payamt ?? 0; // void reverses full original amount
 
-                // Mark original record as voided
-                original.Paymeth = (original.Paymeth ?? "") + $" VOIDED {DateTime.Now}";
+                // Mark original record as voided. Write the void fact into Comment — the field
+                // the accounting tab actually renders. (Paymeth is NOT shown: the display prefers
+                // the AccountingPaymentMethods lookup name, so anything appended to Paymeth is
+                // invisible.) Make it unmistakably a VOID, not a refund, so admin can tell at a glance.
+                var voidNote = $"VOIDED {DateTime.Now:g} — CC was not yet settled at "
+                    + $"Authorize.Net, so the original ${reversedAmount:F2} charge was VOIDED (not refunded). "
+                    + $"ADN void tx {refundTransId}."
+                    + (string.IsNullOrWhiteSpace(request.Reason) ? "" : $" Reason: {request.Reason}");
+                original.Comment = string.IsNullOrWhiteSpace(original.Comment)
+                    ? voidNote
+                    : $"{original.Comment} | {voidNote}";
                 original.Payamt = 0;
             }
             else if (txStatus == "settledSuccessfully")
