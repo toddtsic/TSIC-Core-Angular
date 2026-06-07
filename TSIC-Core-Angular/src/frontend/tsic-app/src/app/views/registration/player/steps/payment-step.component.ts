@@ -1,6 +1,6 @@
 import {
     ChangeDetectionStrategy, Component, DestroyRef, ElementRef, ViewChild,
-    AfterViewInit, OnInit, OnDestroy, inject, signal, computed, output,
+    AfterViewInit, OnInit, OnDestroy, inject, signal, computed, effect, output,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -20,6 +20,7 @@ import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.compone
 import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
+import { scrollWizardToTop } from '@views/registration/shared/services/vi-scroll.util';
 import type { BankAccountInfo, PaymentResponseDto, PaymentRequestDto } from '@core/api';
 import type { VIOfferData, CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import type { LineItem } from '../state/payment-v2.service';
@@ -861,6 +862,25 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     private pendingCheckSubmit = false;
     private viInitRetries = 0;
     private viInitTimeout?: ReturnType<typeof setTimeout>;
+    /** True once we've restored the scroll position after the VI embed's first mount —
+     *  guards against re-scrolling on any later widget re-ready. */
+    private viScrollRestored = false;
+    private readonly viScrollTimers: ReturnType<typeof setTimeout>[] = [];
+
+    constructor() {
+        // The VI embed steals scroll on mount (its iframe autofocuses), dropping the
+        // user partway down the Payment page. When the widget first reports ready,
+        // restore the top. Once-gated so it fires on arrival only — not on a later
+        // re-ready — keeping parity with the team flow's remount-on-toggle.
+        effect(() => {
+            if (!this.insuranceSvc.widgetInitialized() || this.viScrollRestored) return;
+            this.viScrollRestored = true;
+            // Fire just after ready and once more shortly after, to land past the
+            // embed's own delayed focus/scroll.
+            this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 50));
+            this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 300));
+        });
+    }
 
     // ── Computed helpers ────────────────────────────────────────────────
     readonly familyUser = computed(() => this.state.familyPlayers.familyUser());
@@ -982,6 +1002,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
 
     ngOnDestroy(): void {
         clearTimeout(this.viInitTimeout);
+        this.viScrollTimers.forEach(clearTimeout);
         this.insuranceSvc.resetWidgetInit();
     }
 

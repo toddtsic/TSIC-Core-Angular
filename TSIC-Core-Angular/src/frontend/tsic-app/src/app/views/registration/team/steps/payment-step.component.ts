@@ -1,6 +1,6 @@
 import {
     AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy,
-    ViewChild, inject, signal, computed, output,
+    ViewChild, inject, signal, computed, effect, output,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CurrencyPipe } from '@angular/common';
@@ -17,6 +17,7 @@ import { ViChargeConfirmModalComponent } from '@views/registration/shared/compon
 import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
+import { scrollWizardToTop } from '@views/registration/shared/services/vi-scroll.util';
 import { DatePipe } from '@angular/common';
 import type {
     BankAccountInfo, CreditCardInfo,
@@ -800,6 +801,26 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     private viInitRetries = 0;
     /** Which submit path triggered the modal — needed so confirmViAndContinue routes back correctly. */
     private pendingViSubmitFlow: 'cc' | 'arbTrial' | 'viOnly' | null = null;
+    /** True once we've restored the scroll position after the VI embed's first mount.
+     *  Guards against re-scrolling on the remount that a payment-method toggle triggers
+     *  (scheduleViWidgetSync → reset → re-init → widget re-ready). */
+    private viScrollRestored = false;
+    private readonly viScrollTimers: ReturnType<typeof setTimeout>[] = [];
+
+    constructor() {
+        // The VI embed steals scroll on mount (its iframe autofocuses), dropping the
+        // rep partway down the Payment page. When the widget first reports ready,
+        // restore the top — but only on the first arrival, never on a toggle-driven
+        // remount (which would yank a scrolled-down rep back up).
+        effect(() => {
+            if (!this.insuranceSvc.widgetInitialized() || this.viScrollRestored) return;
+            this.viScrollRestored = true;
+            // Fire just after ready and once more shortly after, to land past the
+            // embed's own delayed focus/scroll.
+            this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 50));
+            this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 300));
+        });
+    }
 
     readonly clubRepContact = computed(() => this.state.clubRepContact());
     readonly hasBalance = computed(() => this.state.teamPayment.hasBalance());
@@ -974,6 +995,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
 
     ngOnDestroy(): void {
         clearTimeout(this.viInitTimeout);
+        this.viScrollTimers.forEach(clearTimeout);
         this.insuranceSvc.reset();
     }
 
