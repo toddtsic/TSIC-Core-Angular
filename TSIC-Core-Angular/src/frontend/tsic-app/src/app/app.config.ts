@@ -1,6 +1,6 @@
 import { ApplicationConfig, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter, withInMemoryScrolling, withRouterConfig } from '@angular/router';
-import { provideHttpClient, withInterceptors } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { authInterceptor } from './infrastructure/interceptors/auth.interceptor';
 
 import { routes } from './app.routes';
@@ -17,7 +17,7 @@ export const appConfig: ApplicationConfig = {
       withRouterConfig({ onSameUrlNavigation: 'ignore', paramsInheritanceStrategy: 'emptyOnly' }),
       withInMemoryScrolling({ scrollPositionRestoration: 'top' })
     ),
-    provideHttpClient(
+    provideHttpClient(withXhr(), 
       withInterceptors([authInterceptor])
     ),
     // Ensure LastLocationService is instantiated at startup to begin tracking

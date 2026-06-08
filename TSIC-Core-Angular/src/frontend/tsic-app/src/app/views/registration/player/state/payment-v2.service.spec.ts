@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal, WritableSignal } from '@angular/core';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { PaymentV2Service } from './payment-v2.service';
 import { JobContextService } from './job-context.service';
@@ -114,7 +114,7 @@ describe('PaymentV2Service', () => {
 
         TestBed.configureTestingModule({
             providers: [
-                provideHttpClient(),
+                provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 PaymentV2Service,
                 { provide: JobContextService, useValue: jobCtx },
