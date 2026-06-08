@@ -452,6 +452,7 @@ public class ReportingRepository : IReportingRepository
                 Gid = s.Gid,
                 AgegroupName = s.AgegroupName,
                 DivName = s.DivName,
+                DivId = s.DivId,
                 LeagueName = l.LeagueName,
                 FieldName = f.FName,
                 Color = ag.Color,
@@ -460,12 +461,14 @@ public class ReportingRepository : IReportingRepository
                 T1Id = s.T1Id,
                 T1Name = s.T1Name,
                 T1Type = s.T1Type,
+                T1No = s.T1No,
                 T1Ann = s.T1Ann,
                 T1Score = s.T1Score,
 
                 T2Id = s.T2Id,
                 T2Name = s.T2Name,
                 T2Type = s.T2Type,
+                T2No = (int?)s.T2No,
                 T2Ann = s.T2Ann,
                 T2Score = s.T2Score,
 
@@ -476,6 +479,37 @@ public class ReportingRepository : IReportingRepository
                 ClubRep1Last = s.T1!.ClubrepRegistration!.User!.LastName,
                 ClubRep2First = s.T2!.ClubrepRegistration!.User!.FirstName,
                 ClubRep2Last = s.T2!.ClubrepRegistration!.User!.LastName,
+            };
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<GameBoardStandingTeamDto>> GetScheduleStandingsTeamsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default)
+    {
+        // Standings roster per division for the Game Boards report (Schedule_ByAgegroup). The printed
+        // box is blank write-in (Wins/Losses/Ties/Goals Against), so only the team list per division is
+        // needed. Mirrors reporting.Schedule_Get_DivTeamsAndStandings: active teams, excluding the
+        // Unassigned holding division, name = club-rep ClubName ':' TeamName (else TeamName) — the same
+        // shape the schedule denormalizes into T1Name/T2Name — ordered by DivRank. Scoped by JobId (a job
+        // is one season/year, standing in for the proc's year+divID args). The club-rep registration
+        // rides an optional nav → LEFT JOIN; Div is an inner relationship (DivId is filtered non-null).
+        var query =
+            from t in _context.Teams.AsNoTracking()
+            where t.JobId == jobId
+                && t.Active == true
+                && t.DivId != null
+                && t.Div!.DivName != "Unassigned"
+            orderby t.DivRank
+            select new GameBoardStandingTeamDto
+            {
+                DivId = t.DivId,
+                TeamFullName =
+                    t.ClubrepRegistration != null && t.ClubrepRegistration.ClubName != null
+                        ? t.ClubrepRegistration.ClubName + ":" + (t.TeamName ?? string.Empty)
+                        : (t.TeamName ?? string.Empty),
+                DivRank = t.DivRank,
             };
 
         return await query.ToListAsync(cancellationToken);

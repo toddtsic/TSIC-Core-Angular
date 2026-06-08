@@ -54,7 +54,10 @@ verified Day Group): `camp_daygroups_pdf`, `camp_nightgroups`, `camp_nightgroups
 `FieldUtilizationWithNominations` (4 rows, not in frontend catalog) NOT retired (user didn't opt in).
 **Frontend catalog now = the 11 Tier-3 keeps only** (verified by grep).
 
-**Tier 3 — KEEP (not covered):** `Schedule_ByAgegroup` (game-board engine, out of v1) ·
+**Tier 3 — KEEP (not covered):** ~~`Schedule_ByAgegroup` (game-board engine, out of v1)~~ **DONE
+2026-06-08** — Game Boards built as a focused `GameBoardsPdfService` (EF + Syncfusion, NOT the list
+engine), endpoint swapped off Crystal, badged SF; **verified vs the legacy target PDF on
+`lftc-summer-2026`** (in-app runtime check pending) ·
 `TournamentRosterPacked_PositionSchool` (group-by-school not built — ALSO: its `@ActionMap`
 remap to the Designer is premature; consider un-remapping until the feature lands) ·
 `camp_commuters` (team-name filter, not built) · 8 E-residuals (American Select eval/main-event,
@@ -86,7 +89,7 @@ col from Flat); and pagination reserves the footer height so the last row + scor
 | FieldUtilizationAcrossLeaguesTournament | `fieldUtil` preset | present | ☐ |
 | FieldUtilizationAcrossLeaguesByDateTournament | `fieldUtil` + date | present | ☐ |
 | Score_Input | `scoreSheet` preset | present | ☐ |
-| Schedule_ByAgegroup (game boards) | game-board matrix — future Game Board engine | present | ☐ out of v1 list engine (per design memory) |
+| Schedule_ByAgegroup (game boards) | **focused `GameBoardsPdfService`** — standings write-in box + home/away score boxes + per-agegroup "Championship Round" (NOT the list engine) | present | ✔ BUILT + verified vs target PDF 2026-06-08 (lftc-summer-2026); endpoint EF-swapped + badged SF; in-app check pending. Games group by `DivId` (not `Div2Id`); bracket seed types Z/Y/X/Q/S/F; same-time games sorted by **field** (Allentown-01, 02, … — more usable than legacy's non-deterministic order; the proc sorts by G_Date only) |
 
 > **Render-shape discovery (2026-06-05).** The "Rosters" family is **not** one designer — it's
 > **two render shapes**: (B1) tight **packed cards** (existing `PackedRosterPdfService`) and (B2) a

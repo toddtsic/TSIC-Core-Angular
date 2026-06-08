@@ -365,6 +365,7 @@ builder.Services.AddScoped<IInvoiceReportPdfService, InvoiceReportPdfService>();
 builder.Services.AddScoped<IFeeYtdReportPdfService, FeeYtdReportPdfService>();
 builder.Services.AddScoped<IPlayerStatsReportPdfService, PlayerStatsReportPdfService>();
 builder.Services.AddScoped<IAmericanSelectReportPdfService, AmericanSelectReportPdfService>();
+builder.Services.AddScoped<IGameBoardsPdfService, GameBoardsPdfService>();
 builder.Services.AddHttpClient("CrystalReports");
 // Email (Amazon SES only)
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));

@@ -64,6 +64,7 @@ const MIGRATED_EF_ACTIONS = new Set<string>([
     'Get_Invoices_LastMonthSummariesOnly',
     'TSICFeesYTDByCustomerAndJob',
     'TSICFeesYTDByCustomer',
+    'Schedule_ByAgegroup',
 ]);
 
 function parseSpRunParams(parametersJson: string | null | undefined): SpRunParams {
