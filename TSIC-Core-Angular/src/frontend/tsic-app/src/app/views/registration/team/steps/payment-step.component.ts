@@ -871,9 +871,16 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
 
     /** VI is offered only when a CC form is on screen (CC method or ARB-Trial w/ CC source).
      *  VI premium is charged via the same CC the rep enters for TSIC, so we must
-     *  not present the offer on eCheck or mail-in check methods. */
+     *  not present the offer on eCheck or mail-in check methods.
+     *
+     *  Also requires an actual offer payload for this submission. The backend returns
+     *  `Available=false` / data=null when there is nothing to insure — all teams free
+     *  (the repo excludes FeeTotal=0 rows), within VI's 14-day cutoff, or no event date.
+     *  Without the data check the section renders a perpetual "Getting Quote..." spinner
+     *  the widget can never mount (the standalone section below already guards on data). */
     readonly showViSection = computed(() =>
         this.insuranceState.offerTeamRegSaver()
+        && this.insuranceState.verticalInsureOffer().data !== null
         && this.hasBalance()
         && (this.isCc() || (this.isArbTrial() && this.arbTrialSource() === 'CC'))
     );
