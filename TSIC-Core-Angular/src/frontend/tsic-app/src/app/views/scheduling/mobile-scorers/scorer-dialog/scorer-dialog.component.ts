@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { MobileScorerDto } from '@core/api';
@@ -14,20 +14,20 @@ export type ScorerDialogMode = 'add' | 'edit';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ScorerDialogComponent implements OnInit {
-    @Input() mode: ScorerDialogMode = 'add';
-    @Input() scorer: MobileScorerDto | null = null;
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<{
-        mode: ScorerDialogMode;
-        data: {
-            username?: string;
-            firstName?: string;
-            lastName?: string;
-            email?: string;
-            cellphone?: string;
-            bActive?: boolean;
-        };
-    }>();
+    readonly mode = input<ScorerDialogMode>('add');
+    readonly scorer = input<MobileScorerDto | null>(null);
+    readonly close = output<void>();
+    readonly saved = output<{
+    mode: ScorerDialogMode;
+    data: {
+        username?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        cellphone?: string;
+        bActive?: boolean;
+    };
+}>();
 
     // Form fields
     username = signal('');
@@ -41,13 +41,14 @@ export class ScorerDialogComponent implements OnInit {
     isSaving = signal(false);
 
     ngOnInit(): void {
-        if (this.mode === 'edit' && this.scorer) {
-            this.username.set(this.scorer.username ?? '');
-            this.firstName.set(this.scorer.firstName ?? '');
-            this.lastName.set(this.scorer.lastName ?? '');
-            this.email.set(this.scorer.email ?? '');
-            this.cellphone.set(this.scorer.cellphone ?? '');
-            this.bActive.set(this.scorer.bActive);
+        const scorer = this.scorer();
+        if (this.mode() === 'edit' && scorer) {
+            this.username.set(scorer.username ?? '');
+            this.firstName.set(scorer.firstName ?? '');
+            this.lastName.set(scorer.lastName ?? '');
+            this.email.set(scorer.email ?? '');
+            this.cellphone.set(scorer.cellphone ?? '');
+            this.bActive.set(scorer.bActive);
         }
     }
 
@@ -61,7 +62,7 @@ export class ScorerDialogComponent implements OnInit {
     }
 
     isValid(): boolean {
-        if (this.mode === 'add') {
+        if (this.mode() === 'add') {
             return this.username().trim().length >= 6
                 && this.firstName().trim().length > 0
                 && this.lastName().trim().length > 0;
@@ -74,7 +75,7 @@ export class ScorerDialogComponent implements OnInit {
         if (!this.isValid() || this.isSaving()) return;
         this.isSaving.set(true);
 
-        if (this.mode === 'add') {
+        if (this.mode() === 'add') {
             this.saved.emit({
                 mode: 'add',
                 data: {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, HostListener, computed, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, HostListener, computed, signal, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -34,8 +34,8 @@ const JOB_TYPE_TOURNAMENT = 2;
           <i class="bi bi-copy me-1"></i>Clone
         </button>
         <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()"
-                [disabled]="isSaving() || !canDelete"
-                [title]="!canDelete ? 'Remove all teams before deleting this age group' : 'Delete this age group'">
+                [disabled]="isSaving() || !canDelete()"
+                [title]="!canDelete() ? 'Remove all teams before deleting this age group' : 'Delete this age group'">
           <i class="bi bi-trash me-1"></i>Delete
         </button>
       </div>
@@ -245,12 +245,12 @@ const JOB_TYPE_TOURNAMENT = 2;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AgegroupDetailComponent implements OnChanges {
-  @Input({ required: true }) agegroupId!: string;
-  @Input() canDelete = true;
-  @Input() playerCount = 0;
-  @Output() saved = new EventEmitter<void>();
-  @Output() deleted = new EventEmitter<void>();
-  @Output() cloned = new EventEmitter<string>();
+  readonly agegroupId = input.required<string>();
+  readonly canDelete = input(true);
+  readonly playerCount = input(0);
+  readonly saved = output<void>();
+  readonly deleted = output<void>();
+  readonly cloned = output<string>();
 
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
@@ -298,8 +298,8 @@ export class AgegroupDetailComponent implements OnChanges {
     this.showDeleteConfirm.set(false);
 
     forkJoin({
-      detail: this.ladtService.getAgegroup(this.agegroupId),
-      fees: this.ladtService.getAgegroupFees(this.agegroupId)
+      detail: this.ladtService.getAgegroup(this.agegroupId()),
+      fees: this.ladtService.getAgegroupFees(this.agegroupId())
     }).subscribe({
       next: ({ detail, fees }) => {
         this.agegroup.set(detail);
@@ -377,15 +377,16 @@ export class AgegroupDetailComponent implements OnChanges {
     };
 
     const saves: Observable<any>[] = [
-      this.ladtService.updateAgegroup(this.agegroupId, request)
+      this.ladtService.updateAgegroup(this.agegroupId(), request)
     ];
 
     // Save player fee row + modifiers
+    const agegroupId = this.agegroupId();
     if (this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null
         || this.playerModifiers.length > 0) {
       saves.push(this.ladtService.saveFee({
         roleId: PLAYER_ROLE,
-        agegroupId: this.agegroupId,
+        agegroupId: agegroupId,
         deposit: this.feeForm.playerDeposit,
         balanceDue: this.feeForm.playerBalanceDue,
         modifiers: this.toModifierDtos(this.playerModifiers)
@@ -399,7 +400,7 @@ export class AgegroupDetailComponent implements OnChanges {
         || this.clubRepModifiers.length > 0) {
       saves.push(this.ladtService.saveFee({
         roleId: CLUBREP_ROLE,
-        agegroupId: this.agegroupId,
+        agegroupId: agegroupId,
         deposit: this.feeForm.clubRepDeposit,
         balanceDue: this.feeForm.clubRepBalanceDue,
         modifiers: this.toModifierDtos(this.clubRepModifiers)
@@ -414,6 +415,7 @@ export class AgegroupDetailComponent implements OnChanges {
         this.isError.set(false);
         this.saveMessage.set('Age group saved successfully.');
         this.originalFees = { ...this.feeForm };
+        // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },
       error: (err) => {
@@ -425,7 +427,7 @@ export class AgegroupDetailComponent implements OnChanges {
   }
 
   hasFeesChanged(): boolean {
-    if (this.playerCount === 0) return false;
+    if (this.playerCount() === 0) return false;
     return this.feeForm.playerDeposit !== this.originalFees.playerDeposit ||
            this.feeForm.playerBalanceDue !== this.originalFees.playerBalanceDue ||
            this.feeForm.clubRepDeposit !== this.originalFees.clubRepDeposit ||
@@ -458,9 +460,10 @@ export class AgegroupDetailComponent implements OnChanges {
 
   doDelete(): void {
     this.isSaving.set(true);
-    this.ladtService.deleteAgegroup(this.agegroupId).subscribe({
+    this.ladtService.deleteAgegroup(this.agegroupId()).subscribe({
       next: () => {
         this.isSaving.set(false);
+        // TODO: The 'emit' function requires a mandatory void argument
         this.deleted.emit();
       },
       error: (err) => {
@@ -474,7 +477,7 @@ export class AgegroupDetailComponent implements OnChanges {
 
   pushFees(): void {
     this.isSaving.set(true);
-    this.ladtService.updatePlayerFeesToAgegroupFees(this.agegroupId).subscribe({
+    this.ladtService.updatePlayerFeesToAgegroupFees(this.agegroupId()).subscribe({
       next: (count) => {
         this.isSaving.set(false);
         this.isError.set(false);

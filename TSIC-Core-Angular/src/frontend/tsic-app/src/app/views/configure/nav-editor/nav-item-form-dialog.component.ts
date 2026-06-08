@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnInit, inject, signal, input, output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { Route, Router } from '@angular/router';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -197,7 +197,7 @@ export interface NavItemFormResult {
             }
 
             <!-- ── Visibility Rules (platform defaults only) ── -->
-            @if (isDefaultNav && visibilityOptions) {
+            @if (isDefaultNav() && visibilityOptions) {
               <hr class="my-3">
               <div class="visibility-rules">
                 <div class="d-flex align-items-center mb-2 cursor-pointer" (click)="rulesExpanded.set(!rulesExpanded())">
@@ -575,14 +575,14 @@ export class NavItemFormDialogComponent implements OnInit {
     private readonly fb = inject(FormBuilder);
     private readonly router = inject(Router);
 
-    @Input() navId!: number;
-    @Input() parentNavItemId?: number;
-    @Input() existingItem?: NavEditorNavItemDto;
-    @Input() isDefaultNav = false;
+    readonly navId = input.required<number>();
+    readonly parentNavItemId = input<number>();
+    readonly existingItem = input<NavEditorNavItemDto>();
+    readonly isDefaultNav = input(false);
     @Input() visibilityOptions?: NavVisibilityOptionsDto;
 
-    @Output() saved = new EventEmitter<NavItemFormResult>();
-    @Output() cancelled = new EventEmitter<void>();
+    readonly saved = output<NavItemFormResult>();
+    readonly cancelled = output<void>();
 
     form!: FormGroup;
     navType = 'router';
@@ -609,8 +609,9 @@ export class NavItemFormDialogComponent implements OnInit {
     readonly knownRoutes: string[] = this.buildKnownRoutes();
 
     ngOnInit(): void {
-        this.isEditMode.set(!!this.existingItem);
-        this.isParentItem = this.parentNavItemId == null && !this.existingItem?.parentNavItemId;
+        const existingItem = this.existingItem();
+        this.isEditMode.set(!!existingItem);
+        this.isParentItem = this.parentNavItemId() == null && !existingItem?.parentNavItemId;
         this.initializeForm();
         this.detectNavigationType();
         if (this.isParentItem) {
@@ -621,22 +622,23 @@ export class NavItemFormDialogComponent implements OnInit {
 
     private initializeForm(): void {
         this.form = this.fb.group({
-            text: [this.existingItem?.text || '', Validators.required],
-            active: [this.existingItem?.active ?? true],
-            iconName: [this.existingItem?.iconName || ''],
-            routerLink: [this.existingItem?.routerLink || ''],
-            navigateUrl: [this.existingItem?.navigateUrl || ''],
-            target: [this.existingItem?.target || '_self']
+            text: [this.existingItem()?.text || '', Validators.required],
+            active: [this.existingItem()?.active ?? true],
+            iconName: [this.existingItem()?.iconName || ''],
+            routerLink: [this.existingItem()?.routerLink || ''],
+            navigateUrl: [this.existingItem()?.navigateUrl || ''],
+            target: [this.existingItem()?.target || '_self']
         });
     }
 
     private detectNavigationType(): void {
-        if (!this.existingItem) return;
+        const existingItem = this.existingItem();
+        if (!existingItem) return;
 
-        if (this.existingItem.routerLink) {
+        if (existingItem.routerLink) {
             this.navType = 'router';
-            this.useCustomRoute = !this.knownRoutes.includes(this.existingItem.routerLink);
-        } else if (this.existingItem.navigateUrl) {
+            this.useCustomRoute = !this.knownRoutes.includes(existingItem.routerLink);
+        } else if (existingItem.navigateUrl) {
             this.navType = 'external';
         } else {
             this.navType = 'none';
@@ -644,10 +646,11 @@ export class NavItemFormDialogComponent implements OnInit {
     }
 
     private initializeVisibilityRules(): void {
-        if (!this.existingItem?.visibilityRules) return;
+        const existingItem = this.existingItem();
+        if (!existingItem?.visibilityRules) return;
 
         try {
-            const rules: VisibilityRules = JSON.parse(this.existingItem.visibilityRules);
+            const rules: VisibilityRules = JSON.parse(existingItem.visibilityRules);
             this.selectedSports.set(rules.sports ?? []);
             this.selectedJobTypes.set(rules.jobTypes ?? []);
             this.selectedCustomersDeny.set(rules.customersDeny ?? []);
@@ -728,7 +731,7 @@ export class NavItemFormDialogComponent implements OnInit {
         if (this.form.invalid) return;
 
         const v = this.form.value;
-        const visibilityRules = this.isDefaultNav ? this.serializeVisibilityRules() : (this.existingItem?.visibilityRules ?? null);
+        const visibilityRules = this.isDefaultNav() ? this.serializeVisibilityRules() : (this.existingItem()?.visibilityRules ?? null);
 
         const cleanedData = {
             text: v.text,
@@ -743,15 +746,15 @@ export class NavItemFormDialogComponent implements OnInit {
         if (this.isEditMode()) {
             this.saved.emit({
                 type: 'update',
-                navItemId: this.existingItem!.navItemId,
+                navItemId: this.existingItem()!.navItemId,
                 data: cleanedData as UpdateNavItemRequest
             });
         } else {
             this.saved.emit({
                 type: 'create',
                 data: {
-                    navId: this.navId,
-                    parentNavItemId: this.parentNavItemId,
+                    navId: this.navId(),
+                    parentNavItemId: this.parentNavItemId(),
                     ...cleanedData
                 } as CreateNavItemRequest
             });
@@ -763,6 +766,7 @@ export class NavItemFormDialogComponent implements OnInit {
     }
 
     cancel(): void {
+        // TODO: The 'emit' function requires a mandatory void argument
         this.cancelled.emit();
     }
 

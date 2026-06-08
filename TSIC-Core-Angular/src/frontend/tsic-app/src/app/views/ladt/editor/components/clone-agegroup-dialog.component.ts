@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -151,11 +151,11 @@ import type { CloneAgegroupRequest, AgegroupDetailDto } from '../../../../core/a
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CloneAgegroupDialogComponent implements OnInit {
-  @Input({ required: true }) sourceAgegroupId!: string;
-  @Input({ required: true }) sourceAgegroupName!: string;
+  readonly sourceAgegroupId = input.required<string>();
+  readonly sourceAgegroupName = input.required<string>();
 
-  @Output() cancelled = new EventEmitter<void>();
-  @Output() cloned = new EventEmitter<AgegroupDetailDto>();
+  readonly cancelled = output<void>();
+  readonly cloned = output<AgegroupDetailDto>();
 
   private readonly ladtService = inject(LadtService);
 
@@ -170,16 +170,17 @@ export class CloneAgegroupDialogComponent implements OnInit {
   errorMessage = signal<string | null>(null);
 
   ngOnInit(): void {
-    this.agegroupName = `${this.sourceAgegroupName} (Copy)`;
+    this.agegroupName = `${this.sourceAgegroupName()} (Copy)`;
   }
 
   canClone(): boolean {
     const name = this.agegroupName.trim();
-    return !!name && name !== this.sourceAgegroupName && !this.isSaving();
+    return !!name && name !== this.sourceAgegroupName() && !this.isSaving();
   }
 
   cancel(): void {
     if (this.isSaving()) return;
+    // TODO: The 'emit' function requires a mandatory void argument
     this.cancelled.emit();
   }
 
@@ -198,7 +199,7 @@ export class CloneAgegroupDialogComponent implements OnInit {
     this.isSaving.set(true);
     this.errorMessage.set(null);
 
-    this.ladtService.cloneAgegroup(this.sourceAgegroupId, request).subscribe({
+    this.ladtService.cloneAgegroup(this.sourceAgegroupId(), request).subscribe({
       next: (clone) => {
         this.isSaving.set(false);
         this.cloned.emit(clone);

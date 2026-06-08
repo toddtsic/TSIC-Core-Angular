@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, inject, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, inject, signal, computed, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { ProfileMetadata, ProfileMetadataField } from '@infrastructure/view-models/profile-migration.models';
@@ -27,9 +27,9 @@ export class ProfileFormPreviewComponent {
         this._jobOptions.set(value);
     }
 
-    @Input() showFieldNumbers = true;
-    @Input() showValidationHints = true;
-    @Input() readonly = false; // Allow interaction to test dropdowns
+    readonly showFieldNumbers = input(true);
+    readonly showValidationHints = input(true);
+    readonly readonly = input(false); // Allow interaction to test dropdowns
 
     private readonly _metadata = signal<ProfileMetadata | null>(null);
     readonly _jobOptions = signal<Record<string, unknown> | null>(null);
@@ -123,7 +123,7 @@ export class ProfileFormPreviewComponent {
         for (const field of meta.fields) {
             // Initialize with empty value based on input type
             const initialValue = this.getInitialValue(field);
-            group[field.name] = [{ value: initialValue, disabled: this.readonly }];
+            group[field.name] = [{ value: initialValue, disabled: this.readonly() }];
         }
 
         this.formGroup.set(this.fb.group(group));

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject, signal, OnInit, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, inject, signal, OnInit, effect, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -16,7 +16,7 @@ export type ModalMode = 'add' | 'edit';
         <tsic-dialog [open]="true" size="md" (requestClose)="close.emit()">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ mode === 'add' ? 'Add Discount Code' : 'Edit Discount Code' }}</h5>
+                    <h5 class="modal-title">{{ mode() === 'add' ? 'Add Discount Code' : 'Edit Discount Code' }}</h5>
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -30,7 +30,7 @@ export type ModalMode = 'add' | 'edit';
                                 placeholder="e.g., SUMMER2026"
                                 [value]="codeName()"
                                 (input)="onCodeNameInput($event)"
-                                [disabled]="mode === 'edit'"
+                                [disabled]="mode() === 'edit'"
                                 [class.is-invalid]="codeExists()"
                                 maxlength="50" />
                             @if (codeExists()) {
@@ -102,7 +102,7 @@ export type ModalMode = 'add' | 'edit';
                             }
                         </div>
 
-                        @if (mode === 'edit') {
+                        @if (mode() === 'edit') {
                             <div class="col-md-6">
                                 <div class="field-check">
                                     <input id="activeToggle" type="checkbox" role="switch"
@@ -134,7 +134,7 @@ export type ModalMode = 'add' | 'edit';
                         @if (isSaving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
-                        {{ mode === 'add' ? 'Add Code' : 'Save Changes' }}
+                        {{ mode() === 'add' ? 'Add Code' : 'Save Changes' }}
                     </button>
                 </div>
             </div>
@@ -151,10 +151,10 @@ export type ModalMode = 'add' | 'edit';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CodeFormModalComponent implements OnInit {
-    @Input() mode: ModalMode = 'add';
+    readonly mode = input<ModalMode>('add');
     @Input() code: DiscountCodeDto | null = null;
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<void>();
+    readonly close = output<void>();
+    readonly saved = output<void>();
 
     private readonly discountCodeService = inject(DiscountCodeService);
     private readonly toastService = inject(ToastService);
@@ -175,7 +175,7 @@ export class CodeFormModalComponent implements OnInit {
         // Check for duplicate code names on input (add mode only)
         effect(() => {
             const name = this.codeName();
-            if (this.mode === 'add' && name.length >= 3) {
+            if (this.mode() === 'add' && name.length >= 3) {
                 this.discountCodeService.checkCodeExists(name).subscribe({
                     next: (result) => this.codeExists.set(result.exists),
                     error: () => this.codeExists.set(false)
@@ -185,7 +185,7 @@ export class CodeFormModalComponent implements OnInit {
     }
 
     ngOnInit(): void {
-        if (this.mode === 'edit' && this.code) {
+        if (this.mode() === 'edit' && this.code) {
             this.codeName.set(this.code.codeName);
             this.discountType.set(this.code.discountType as 'Percentage' | 'DollarAmount');
             this.amount.set(this.code.amount);
@@ -224,7 +224,7 @@ export class CodeFormModalComponent implements OnInit {
 
         this.isSaving.set(true);
 
-        if (this.mode === 'add') {
+        if (this.mode() === 'add') {
             const request: AddDiscountCodeRequest = {
                 codeName: this.codeName(),
                 discountType: this.discountType(),
@@ -236,6 +236,7 @@ export class CodeFormModalComponent implements OnInit {
             this.discountCodeService.addDiscountCode(request).subscribe({
                 next: () => {
                     this.toastService.show(`Discount code "${this.codeName()}" created`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {
@@ -255,6 +256,7 @@ export class CodeFormModalComponent implements OnInit {
             this.discountCodeService.updateDiscountCode(this.code.ai, request).subscribe({
                 next: () => {
                     this.toastService.show(`Discount code "${this.codeName()}" updated`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {

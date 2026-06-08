@@ -1,6 +1,8 @@
 import {
-  Component, Input, Output, EventEmitter, signal, computed,
-  ChangeDetectionStrategy, SimpleChanges, OnChanges
+  Component, Input, signal, computed,
+  ChangeDetectionStrategy, SimpleChanges, OnChanges,
+  input,
+  output
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { LadtAgegroupNode } from '@core/api';
@@ -41,11 +43,11 @@ export interface LadtSelectionEvent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="ladt-tree-filter">
-      @if (showSearch) {
+      @if (showSearch()) {
         <div class="tree-search">
           <input type="text"
                  class="tree-search-input"
-                 [placeholder]="searchPlaceholder"
+                 [placeholder]="searchPlaceholder()"
                  [ngModel]="searchTerm()"
                  (ngModelChange)="searchTerm.set($event)" />
           @if (searchTerm()) {
@@ -252,14 +254,14 @@ export interface LadtSelectionEvent {
 })
 export class LadtTreeFilterComponent implements OnChanges {
   /** LADT data: Agegroup \u2192 Division \u2192 Team. */
-  @Input() treeData: LadtAgegroupNode[] = [];
-  @Input() hideRootLevel = false;
-  @Input() searchPlaceholder = 'Filter agegroups...';
-  @Input() showSearch = true;
+  readonly treeData = input<LadtAgegroupNode[]>([]);
+  readonly hideRootLevel = input(false);
+  readonly searchPlaceholder = input('Filter agegroups...');
+  readonly showSearch = input(true);
   /** When set, wraps all agegroups under a synthetic root node (e.g. job name). */
-  @Input() rootLabel = '';
-  @Input() headerLabel = '';
-  @Output() checkedIdsChange = new EventEmitter<Set<string>>();
+  readonly rootLabel = input('');
+  readonly headerLabel = input('');
+  readonly checkedIdsChange = output<Set<string>>();
 
   readonly checkedIdsSignal = signal(new Set<string>());
 
@@ -346,7 +348,7 @@ export class LadtTreeFilterComponent implements OnChanges {
     // Pass 3: expansion visibility
     const visible: LadtFlatNode[] = [];
     for (const node of filteredNodes) {
-      if (this.hideRootLevel && node.level === 0) continue;
+      if (this.hideRootLevel() && node.level === 0) continue;
       if (this.isNodeVisible(node, expanded, filteredNodes)) {
         visible.push(node);
       }
@@ -379,7 +381,7 @@ export class LadtTreeFilterComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['treeData'] || changes['rootLabel']) {
-      if (this.treeData?.length) {
+      if (this.treeData()?.length) {
         this.buildFlatNodes();
       } else {
         this.flatNodes.set([]);
@@ -391,16 +393,17 @@ export class LadtTreeFilterComponent implements OnChanges {
   private buildFlatNodes(): void {
     const result: LadtFlatNode[] = [];
     this.parentMap.clear();
-    const levelOffset = this.rootLabel ? 1 : 0;
+    const levelOffset = this.rootLabel() ? 1 : 0;
 
-    if (this.rootLabel) {
+    const rootLabel = this.rootLabel();
+    if (rootLabel) {
       const rootId = 'root:job';
       this.parentMap.set(rootId, null);
 
       const allDescendants: string[] = [];
       let totalTeams = 0;
       let totalPlayers = 0;
-      for (const ag of this.treeData) {
+      for (const ag of this.treeData()) {
         allDescendants.push(`ag:${ag.agegroupId}`);
         totalTeams += ag.teamCount ?? 0;
         totalPlayers += ag.playerCount ?? 0;
@@ -415,7 +418,7 @@ export class LadtTreeFilterComponent implements OnChanges {
       result.push({
         id: rootId,
         parentId: null,
-        name: this.rootLabel,
+        name: rootLabel,
         level: 0,
         isLeaf: false,
         expandable: true,
@@ -426,9 +429,9 @@ export class LadtTreeFilterComponent implements OnChanges {
       });
     }
 
-    for (const ag of this.treeData) {
+    for (const ag of this.treeData()) {
       const agId = `ag:${ag.agegroupId}`;
-      const agParent = this.rootLabel ? 'root:job' : null;
+      const agParent = rootLabel ? 'root:job' : null;
       this.parentMap.set(agId, agParent);
 
       const agDescendants: string[] = [];

@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA, viewChild, viewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel, SelectionSettingsModel } from '@syncfusion/ej2-angular-grids';
@@ -96,10 +96,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     };
   });
 
-  @ViewChild('grid') grid!: GridComponent;
-  @ViewChild('ladtTreeRef') ladtTreeRef?: LadtTreeFilterComponent;
-  @ViewChild('cadtTreeRef') cadtTreeRef?: CadtTreeFilterComponent;
-  @ViewChildren(MultiSelectComponent) multiSelects!: QueryList<MultiSelectComponent>;
+  readonly grid = viewChild.required<GridComponent>('grid');
+  readonly ladtTreeRef = viewChild<LadtTreeFilterComponent>('ladtTreeRef');
+  readonly cadtTreeRef = viewChild<CadtTreeFilterComponent>('cadtTreeRef');
+  readonly multiSelects = viewChildren(MultiSelectComponent);
 
   // Filter options
   filterOptions = signal<RegistrationFilterOptionsDto | null>(null);
@@ -457,7 +457,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   /** Close all other multiselect popups and collapse trees when one opens */
   onMultiSelectOpen(opened: MultiSelectComponent): void {
-    this.multiSelects?.forEach(ms => {
+    this.multiSelects()?.forEach(ms => {
       if (ms !== opened) ms.hidePopup();
     });
     this.treesCollapsed.set(true);
@@ -471,7 +471,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   /** Close every multiselect popup */
   closeAllMultiSelects(): void {
-    this.multiSelects?.forEach(ms => ms.hidePopup());
+    this.multiSelects()?.forEach(ms => ms.hidePopup());
   }
 
   removeFilterChip(chip: FilterChip): void {
@@ -569,13 +569,13 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   onRowSelected(): void {
-    const selectedRecords = this.grid.getSelectedRecords() as RegistrationSearchResultDto[];
-    const pageSize = (this.grid.pageSettings.pageSize as number) || 20;
-    const currentPageRecords = this.grid.getCurrentViewRecords().length;
+    const selectedRecords = this.grid().getSelectedRecords() as RegistrationSearchResultDto[];
+    const pageSize = (this.grid().pageSettings.pageSize as number) || 20;
+    const currentPageRecords = this.grid().getCurrentViewRecords().length;
 
     // Header "select all" click = open Email All immediately
     if (selectedRecords.length >= currentPageRecords && currentPageRecords === pageSize) {
-      this.grid.clearSelection();
+      this.grid().clearSelection();
       this.selectedRegistrations.set(new Set());
       this.onEmailAll();
       return;
@@ -595,10 +595,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   refreshRowNumbers(): void {
-    const pageSize = this.grid.pageSettings.pageSize as number ?? 20;
-    const currentPage = this.grid.pageSettings.currentPage ?? 1;
+    const pageSize = this.grid().pageSettings.pageSize as number ?? 20;
+    const currentPage = this.grid().pageSettings.currentPage ?? 1;
     const start = (currentPage - 1) * pageSize;
-    const gridEl = this.grid.element;
+    const gridEl = this.grid().element;
     if (!gridEl) return;
     const rows = gridEl.querySelectorAll('.e-frozencontent tbody tr, .e-frozencontentdiv tbody tr');
     if (rows.length) {
@@ -607,7 +607,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         if (cell) cell.textContent = String(start + i + 1);
       });
     } else {
-      this.grid.getRows().forEach((row, i) => {
+      this.grid().getRows().forEach((row, i) => {
         const cell = row.querySelector('td.e-rowcell');
         if (cell) cell.textContent = String(start + i + 1);
       });
@@ -658,8 +658,9 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   exportExcel(): void {
     const results = this.searchResults();
-    if (this.grid && results) {
-      this.grid.excelExport({ dataSource: results.result, includeHiddenColumn: true });
+    const grid = this.grid();
+    if (grid && results) {
+      grid.excelExport({ dataSource: results.result, includeHiddenColumn: true });
     }
   }
 
@@ -692,7 +693,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         email: r.email
       })) ?? [];
     }
-    const records = this.grid.getSelectedRecords() as RegistrationSearchResultDto[];
+    const records = this.grid().getSelectedRecords() as RegistrationSearchResultDto[];
     return records.map(r => ({
       name: `${r.lastName}, ${r.firstName}`,
       email: r.email
@@ -708,7 +709,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   onEmailAll(): void {
     if (this.searchResults()?.result?.length) {
-      this.grid.clearSelection();
+      this.grid().clearSelection();
       this.selectedRegistrations.set(new Set());
       this.emailMode.set('all');
       this.showBatchEmailModal.set(true);
@@ -725,7 +726,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.searchService.setEmailOptOut(data.registrationId, newValue).subscribe({
       next: () => {
         (data as Record<string, unknown>)['emailOptOut'] = newValue;
-        this.grid.refresh();
+        this.grid().refresh();
         this.toast.show(newValue ? 'Opted out of emails' : 'Opted back in to emails', 'success', 3000);
       },
       error: () => this.toast.show('Failed to update opt-out status', 'danger', 4000)

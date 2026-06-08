@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, Input, OnInit, OnChanges, DestroyRef, inject, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnChanges, DestroyRef, inject, SimpleChanges, input, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 
@@ -11,7 +11,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
       <h6 id="cc-title" class="cc-form-heading">
         <i class="bi bi-credit-card me-2"></i>Credit Card Information
       </h6>
-      @if (viOnly) {
+      @if (viOnly()) {
         <div class="alert alert-secondary border-0" role="status">
           Your TSIC registration balance is $0. The card details below are for Vertical Insure only.
         </div>
@@ -126,20 +126,20 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CreditCardFormComponent implements OnInit, OnChanges {
-  @Input() viOnly: boolean = false;
+  readonly viOnly = input<boolean>(false);
   // Default prefill values (from family user or ccInfo). Only applied to blank, pristine fields.
-  @Input() defaultFirstName: string | null = null;
-  @Input() defaultLastName: string | null = null;
-  @Input() defaultAddress: string | null = null;
-  @Input() defaultZip: string | null = null;
-  @Input() defaultEmail: string | null = null;
-  @Input() defaultPhone: string | null = null;
+  readonly defaultFirstName = input<string | null>(null);
+  readonly defaultLastName = input<string | null>(null);
+  readonly defaultAddress = input<string | null>(null);
+  readonly defaultZip = input<string | null>(null);
+  readonly defaultEmail = input<string | null>(null);
+  readonly defaultPhone = input<string | null>(null);
   // Original outputs retained for compatibility
-  @Output() ccValidChange = new EventEmitter<boolean>();
-  @Output() ccValueChange = new EventEmitter<Record<string, string>>();
+  readonly ccValidChange = output<boolean>();
+  readonly ccValueChange = output<Record<string, string>>();
   // Additional outputs matching payment component template expectations (no aliasing)
-  @Output() validChange = new EventEmitter<boolean>();
-  @Output() valueChange = new EventEmitter<Record<string, string>>();
+  readonly validChange = output<boolean>();
+  readonly valueChange = output<Record<string, string>>();
 
   private readonly fb = inject(FormBuilder);
   private readonly destroyRef = inject(DestroyRef);
@@ -200,12 +200,12 @@ export class CreditCardFormComponent implements OnInit, OnChanges {
       const raw = String(ctrl.value || '').trim();
       if (!raw && ctrl.pristine) ctrl.setValue(String(value).trim(), { emitEvent: true });
     };
-    setIfBlank('firstName', this.defaultFirstName);
-    setIfBlank('lastName', this.defaultLastName);
-    setIfBlank('address', this.defaultAddress);
-    setIfBlank('zip', this.defaultZip);
-    setIfBlank('email', this.defaultEmail);
-    setIfBlank('phone', this.defaultPhone);
+    setIfBlank('firstName', this.defaultFirstName());
+    setIfBlank('lastName', this.defaultLastName());
+    setIfBlank('address', this.defaultAddress());
+    setIfBlank('zip', this.defaultZip());
+    setIfBlank('email', this.defaultEmail());
+    setIfBlank('phone', this.defaultPhone());
   }
 
   formatNumber() {

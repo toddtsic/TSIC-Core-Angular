@@ -1,6 +1,7 @@
 import {
-	Component, ChangeDetectionStrategy, inject, signal, computed,
-	OnInit, OnDestroy, ViewChild, ElementRef, NgZone,
+  Component, ChangeDetectionStrategy, inject, signal, computed,
+  OnInit, OnDestroy, ElementRef, NgZone,
+  viewChild
 } from '@angular/core';
 import type { MasterScheduleResponse, MasterScheduleDay } from '@core/api';
 import { MasterScheduleService } from './services/master-schedule.service';
@@ -16,8 +17,8 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 	private readonly svc = inject(MasterScheduleService);
 	private readonly zone = inject(NgZone);
 
-	@ViewChild('msGrid') msGridRef?: ElementRef<HTMLElement>;
-	@ViewChild('minimapCanvas') minimapCanvasRef?: ElementRef<HTMLCanvasElement>;
+	readonly msGridRef = viewChild<ElementRef<HTMLElement>>('msGrid');
+	readonly minimapCanvasRef = viewChild<ElementRef<HTMLCanvasElement>>('minimapCanvas');
 
 	readonly masterData = signal<MasterScheduleResponse | null>(null);
 	readonly isLoading = signal(true);
@@ -125,7 +126,7 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 		if (!this.scrollContainer) {
 			// Walk up from the grid to find the nearest ancestor with vertical overflow.
 			// The hub layout uses .hub-content (overflow-y: auto), NOT <main>.
-			let node = this.msGridRef?.nativeElement.parentElement;
+			let node = this.msGridRef()?.nativeElement.parentElement;
 			while (node && node !== document.documentElement) {
 				const ov = getComputedStyle(node).overflowY;
 				if (ov === 'auto' || ov === 'scroll') {
@@ -140,7 +141,7 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 
 	private openMinimap(): void {
 		this.renderMinimap();
-		const el = this.msGridRef?.nativeElement;
+		const el = this.msGridRef()?.nativeElement;
 		const main = this.getScrollContainer();
 		this.scrollHandler = () => this.renderMinimap();
 		// Grid scrolls horizontally; <main> scrolls vertically
@@ -155,15 +156,15 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 	private closeMinimap(): void {
 		this.minimapOpen.set(false);
 		if (this.scrollHandler) {
-			this.msGridRef?.nativeElement.removeEventListener('scroll', this.scrollHandler);
+			this.msGridRef()?.nativeElement.removeEventListener('scroll', this.scrollHandler);
 			this.getScrollContainer()?.removeEventListener('scroll', this.scrollHandler);
 			this.scrollHandler = undefined;
 		}
 	}
 
 	renderMinimap(): void {
-		const canvas = this.minimapCanvasRef?.nativeElement;
-		const el = this.msGridRef?.nativeElement;
+		const canvas = this.minimapCanvasRef()?.nativeElement;
+		const el = this.msGridRef()?.nativeElement;
 		const day = this.activeDay();
 		if (!canvas || !el || !day) return;
 
@@ -245,8 +246,8 @@ export class MasterScheduleComponent implements OnInit, OnDestroy {
 	}
 
 	private scrollFromMinimap(e: MouseEvent): void {
-		const canvas = this.minimapCanvasRef?.nativeElement;
-		const el = this.msGridRef?.nativeElement;
+		const canvas = this.minimapCanvasRef()?.nativeElement;
+		const el = this.msGridRef()?.nativeElement;
 		const main = this.getScrollContainer();
 		if (!canvas || !el) return;
 

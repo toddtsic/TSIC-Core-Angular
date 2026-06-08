@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 export interface ModifierForm {
@@ -16,26 +16,26 @@ export interface ModifierForm {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="section-card"
-         [class.fee-card-player]="variant === 'player'"
-         [class.fee-card-clubrep]="variant === 'clubrep'">
+         [class.fee-card-player]="variant() === 'player'"
+         [class.fee-card-clubrep]="variant() === 'clubrep'">
       <div class="section-card-header">
-        <i class="bi {{ headerIcon }}"></i> {{ header }}
+        <i class="bi {{ headerIcon() }}"></i> {{ header() }}
       </div>
 
       @if (hintText) {
         <p class="fee-hint">{{ hintText }}</p>
       }
 
-      @if (showBaseFee) {
+      @if (showBaseFee()) {
         <div class="fee-row">
           <div class="fee-field">
             <label class="fee-label">Deposit</label>
             <div class="input-group input-group-sm">
               <span class="input-group-text">$</span>
               <input class="form-control" type="number" step="1"
-                     [ngModel]="deposit" (ngModelChange)="depositChange.emit($event)"
-                     [name]="namePrefix + 'Deposit'"
-                     [placeholder]="placeholder">
+                     [ngModel]="deposit()" (ngModelChange)="depositChange.emit($event)"
+                     [name]="namePrefix() + 'Deposit'"
+                     [placeholder]="placeholder()">
             </div>
           </div>
           <div class="fee-field">
@@ -43,15 +43,15 @@ export interface ModifierForm {
             <div class="input-group input-group-sm">
               <span class="input-group-text">$</span>
               <input class="form-control" type="number" step="1"
-                     [ngModel]="balanceDue" (ngModelChange)="balanceDueChange.emit($event)"
-                     [name]="namePrefix + 'BalanceDue'"
-                     [placeholder]="placeholder">
+                     [ngModel]="balanceDue()" (ngModelChange)="balanceDueChange.emit($event)"
+                     [name]="namePrefix() + 'BalanceDue'"
+                     [placeholder]="placeholder()">
             </div>
           </div>
         </div>
       }
 
-      @for (mod of modifiers; track mod.modifierType) {
+      @for (mod of modifiers(); track mod.modifierType) {
         @if ($first) {
           <div class="modifier-labels">
             <span class="mod-label mod-label-type">Type</span>
@@ -68,7 +68,7 @@ export interface ModifierForm {
           <div class="input-group input-group-sm mod-amount">
             <span class="input-group-text">$</span>
             <input class="form-control" type="number" step="1"
-                   [(ngModel)]="mod.amount" [name]="namePrefix + 'ModAmt' + $index">
+                   [(ngModel)]="mod.amount" [name]="namePrefix() + 'ModAmt' + $index">
           </div>
           <button type="button" class="btn btn-sm btn-outline-danger btn-icon"
                   (click)="removeModifier($index)">
@@ -79,18 +79,18 @@ export interface ModifierForm {
               <div class="mod-date-field">
                 <span class="mod-label">Start Date</span>
                 <input class="form-control form-control-sm" type="date"
-                       [(ngModel)]="mod.startDate" [name]="namePrefix + 'ModStart' + $index">
+                       [(ngModel)]="mod.startDate" [name]="namePrefix() + 'ModStart' + $index">
               </div>
               <div class="mod-date-field">
                 <span class="mod-label">End Date</span>
                 <input class="form-control form-control-sm" type="date"
-                       [(ngModel)]="mod.endDate" [name]="namePrefix + 'ModEnd' + $index">
+                       [(ngModel)]="mod.endDate" [name]="namePrefix() + 'ModEnd' + $index">
               </div>
             } @else {
               <input class="form-control form-control-sm" type="date"
-                     [(ngModel)]="mod.startDate" [name]="namePrefix + 'ModStart' + $index">
+                     [(ngModel)]="mod.startDate" [name]="namePrefix() + 'ModStart' + $index">
               <input class="form-control form-control-sm" type="date"
-                     [(ngModel)]="mod.endDate" [name]="namePrefix + 'ModEnd' + $index">
+                     [(ngModel)]="mod.endDate" [name]="namePrefix() + 'ModEnd' + $index">
             }
           </div>
         </div>
@@ -208,38 +208,41 @@ export interface ModifierForm {
   `]
 })
 export class FeeCardComponent {
-  @Input({ required: true }) header!: string;
-  @Input({ required: true }) headerIcon!: string;
-  @Input({ required: true }) variant!: 'player' | 'clubrep';
-  @Input({ required: true }) namePrefix!: string;
-  @Input() deposit: number | null = null;
-  @Input() balanceDue: number | null = null;
-  @Input() modifiers: ModifierForm[] = [];
+  readonly header = input.required<string>();
+  readonly headerIcon = input.required<string>();
+  readonly variant = input.required<'player' | 'clubrep'>();
+  readonly namePrefix = input.required<string>();
+  readonly deposit = input<number | null>(null);
+  readonly balanceDue = input<number | null>(null);
+  readonly modifiers = input<ModifierForm[]>([]);
+  // TODO: Skipped for migration because:
+  //  This input is used in a control flow expression (e.g. `@if` or `*ngIf`)
+  //  and migrating would break narrowing currently.
   @Input() hintText: string | null = null;
-  @Input() placeholder = '';
+  readonly placeholder = input('');
   /** When false, hides the Deposit/Balance Due fields (e.g. league scope = modifiers only). */
-  @Input() showBaseFee = true;
+  readonly showBaseFee = input(true);
 
-  @Output() depositChange = new EventEmitter<number | null>();
-  @Output() balanceDueChange = new EventEmitter<number | null>();
+  readonly depositChange = output<number | null>();
+  readonly balanceDueChange = output<number | null>();
 
   modLabel(type: string): string {
     return type === 'LateFee' ? 'Late Fee' : 'Early Bird Discount';
   }
 
   hasModifier(type: 'EarlyBird' | 'LateFee'): boolean {
-    return this.modifiers.some(m => m.modifierType === type);
+    return this.modifiers().some(m => m.modifierType === type);
   }
 
   addModifier(type: 'EarlyBird' | 'LateFee'): void {
     if (this.hasModifier(type)) return;   // max one of each type
-    this.modifiers.push({ modifierType: type, amount: null, startDate: null, endDate: null });
+    this.modifiers().push({ modifierType: type, amount: null, startDate: null, endDate: null });
   }
 
   /** True when an Early Bird and a Late Fee on this card have overlapping date windows. */
   hasWindowOverlap(): boolean {
-    const ebs = this.modifiers.filter(m => m.modifierType === 'EarlyBird');
-    const lfs = this.modifiers.filter(m => m.modifierType === 'LateFee');
+    const ebs = this.modifiers().filter(m => m.modifierType === 'EarlyBird');
+    const lfs = this.modifiers().filter(m => m.modifierType === 'LateFee');
     for (const a of ebs) {
       for (const b of lfs) {
         // null start = open past, null end = open future; boundaries inclusive.
@@ -254,6 +257,6 @@ export class FeeCardComponent {
   }
 
   removeModifier(index: number): void {
-    this.modifiers.splice(index, 1);
+    this.modifiers().splice(index, 1);
   }
 }

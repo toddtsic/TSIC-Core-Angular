@@ -1,7 +1,7 @@
 <tsic-dialog [open]="true" size="md" (requestClose)="close.emit()">
     <div class="modal-content">
         <div class="modal-header">
-            <h5 class="modal-title">{{ mode === 'add' ? 'Add Scorer' : 'Edit Scorer' }}</h5>
+            <h5 class="modal-title">{{ mode() === 'add' ? 'Add Scorer' : 'Edit Scorer' }}</h5>
             <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
         </div>
 
@@ -9,7 +9,7 @@
             <!-- Username -->
             <div class="mb-3">
                 <label for="username" class="form-label fw-semibold">Username</label>
-                @if (mode === 'add') {
+                @if (mode() === 'add') {
                     <input
                         id="username"
                         type="text"
@@ -31,7 +31,7 @@
             <!-- First Name -->
             <div class="mb-3">
                 <label for="firstName" class="form-label fw-semibold">First Name</label>
-                @if (mode === 'add') {
+                @if (mode() === 'add') {
                     <input
                         id="firstName"
                         type="text"
@@ -52,7 +52,7 @@
             <!-- Last Name -->
             <div class="mb-3">
                 <label for="lastName" class="form-label fw-semibold">Last Name</label>
-                @if (mode === 'add') {
+                @if (mode() === 'add') {
                     <input
                         id="lastName"
                         type="text"
@@ -97,7 +97,7 @@
             </div>
 
             <!-- Active (edit only) -->
-            @if (mode === 'edit') {
+            @if (mode() === 'edit') {
                 <div class="form-check form-switch">
                     <input
                         id="bActive"
@@ -119,7 +119,7 @@
                 @if (isSaving()) {
                     <span class="spinner-border spinner-border-sm me-1"></span>
                 }
-                {{ mode === 'add' ? 'Add Scorer' : 'Save Changes' }}
+                {{ mode() === 'add' ? 'Add Scorer' : 'Save Changes' }}
             </button>
         </div>
     </div>

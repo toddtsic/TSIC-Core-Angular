@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, ElementRef, ViewChild, AfterViewInit, OnChanges, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, AfterViewInit, OnChanges, SimpleChanges, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FocusTrapDirective } from '../../directives/focus-trap.directive';
 
@@ -94,27 +94,28 @@ import { FocusTrapDirective } from '../../directives/focus-trap.directive';
 })
 export class TsicDialogComponent implements AfterViewInit, OnChanges {
     /** Controls the native <dialog> open state. Often left as true when wrapped in an @if block. */
-    @Input() open = true;
+    readonly open = input(true);
     /** Size variant to add modifier class (e.g., tsic-dialog-lg). */
-    @Input() size: 'sm' | 'md' | 'lg' | '' = '';
+    readonly size = input<'sm' | 'md' | 'lg' | ''>('');
     /** Whether pressing ESC should emit requestClose (default true). */
-    @Input() closeOnEsc = true;
+    readonly closeOnEsc = input(true);
     /** Close the dialog when clicking on the backdrop area (outside content). Default true. */
-    @Input() closeOnBackdrop = true;
+    readonly closeOnBackdrop = input(true);
 
-    @Output() requestClose = new EventEmitter<void>();
+    readonly requestClose = output<void>();
 
-    @ViewChild('dlg', { static: true }) dialogEl!: ElementRef<HTMLDialogElement>;
+    readonly dialogEl = viewChild.required<ElementRef<HTMLDialogElement>>('dlg');
 
     get sizeClass() {
         return {
-            'tsic-dialog-sm': this.size === 'sm',
-            'tsic-dialog-lg': this.size === 'lg',
+            'tsic-dialog-sm': this.size() === 'sm',
+            'tsic-dialog-lg': this.size() === 'lg',
         };
     }
 
     onEsc() {
-        if (this.closeOnEsc) {
+        if (this.closeOnEsc()) {
+            // TODO: The 'emit' function requires a mandatory void argument
             this.requestClose.emit();
         }
     }
@@ -127,13 +128,14 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
     }
 
     onBackdropClick(event: MouseEvent) {
-        if (!this.closeOnBackdrop) return;
-        const dialog = this.dialogEl?.nativeElement;
+        if (!this.closeOnBackdrop()) return;
+        const dialog = this.dialogEl()?.nativeElement;
         if (!dialog) return;
         // Only close if BOTH mousedown and click landed on the <dialog> itself (backdrop area).
         // This prevents closing when the user clicks inside an input and the mouseup
         // drifts onto the dialog element (common with text selection or slight drags).
         if (event.target === dialog && this.mousedownTarget === dialog) {
+            // TODO: The 'emit' function requires a mandatory void argument
             this.requestClose.emit();
         }
     }
@@ -149,20 +151,22 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
     }
 
     private syncOpenState() {
-        const dialog = this.dialogEl?.nativeElement;
+        const dialog = this.dialogEl()?.nativeElement;
         if (!dialog) return;
         try {
-            if (this.open && !dialog.open) {
+            const open = this.open();
+            if (open && !dialog.open) {
                 dialog.showModal();
-            } else if (!this.open && dialog.open) {
+            } else if (!open && dialog.open) {
                 dialog.close();
             }
         } catch {
             // In case showModal throws due to DOM not ready yet, try on next frame
             requestAnimationFrame(() => {
                 try {
-                    if (this.open && !dialog.open) dialog.showModal();
-                    else if (!this.open && dialog.open) dialog.close();
+                    const open = this.open();
+                    if (open && !dialog.open) dialog.showModal();
+                    else if (!open && dialog.open) dialog.close();
                 } catch { /* no-op */ }
             });
         }

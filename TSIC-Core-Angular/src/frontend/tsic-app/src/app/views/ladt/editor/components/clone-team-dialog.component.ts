@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -30,7 +30,7 @@ import type { CloneTeamRequest, TeamDetailDto } from '../../../../core/api';
           <div class="wizard-tip">Must differ from the source team's name.</div>
         </div>
 
-        @if (hasClubRep) {
+        @if (hasClubRep()) {
           <div class="toggle-row">
             <div class="form-check">
               <input class="form-check-input" type="checkbox" id="copyClubLinkage"
@@ -40,7 +40,7 @@ import type { CloneTeamRequest, TeamDetailDto } from '../../../../core/api';
               <label class="form-check-label" for="copyClubLinkage">Copy club linkage</label>
             </div>
             <div class="wizard-tip">
-              Assigns the clone to {{ clubName || 'the same club rep' }} and creates a matching
+              Assigns the clone to {{ clubName() || 'the same club rep' }} and creates a matching
               club-team entry. When on, fees must be copied so the club rep's balance is correct.
             </div>
           </div>
@@ -173,13 +173,13 @@ import type { CloneTeamRequest, TeamDetailDto } from '../../../../core/api';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CloneTeamDialogComponent implements OnInit {
-  @Input({ required: true }) sourceTeamId!: string;
-  @Input({ required: true }) sourceTeamName!: string;
-  @Input() hasClubRep = false;
-  @Input() clubName: string | null = null;
+  readonly sourceTeamId = input.required<string>();
+  readonly sourceTeamName = input.required<string>();
+  readonly hasClubRep = input(false);
+  readonly clubName = input<string | null>(null);
 
-  @Output() cancelled = new EventEmitter<void>();
-  @Output() cloned = new EventEmitter<TeamDetailDto>();
+  readonly cancelled = output<void>();
+  readonly cloned = output<TeamDetailDto>();
 
   private readonly ladtService = inject(LadtService);
 
@@ -195,11 +195,11 @@ export class CloneTeamDialogComponent implements OnInit {
   errorMessage = signal<string | null>(null);
 
   // Fees toggle is locked (forced on) when club linkage is being copied.
-  copyFeesLocked = computed(() => this.hasClubRep && this.copyClubLinkage);
+  copyFeesLocked = computed(() => this.hasClubRep() && this.copyClubLinkage);
 
   ngOnInit(): void {
-    this.teamName = `${this.sourceTeamName} (Copy)`;
-    this.copyClubLinkage = this.hasClubRep;
+    this.teamName = `${this.sourceTeamName()} (Copy)`;
+    this.copyClubLinkage = this.hasClubRep();
   }
 
   onClubLinkageChange(): void {
@@ -208,11 +208,12 @@ export class CloneTeamDialogComponent implements OnInit {
 
   canClone(): boolean {
     const name = this.teamName.trim();
-    return !!name && name !== this.sourceTeamName && !this.isSaving();
+    return !!name && name !== this.sourceTeamName() && !this.isSaving();
   }
 
   cancel(): void {
     if (this.isSaving()) return;
+    // TODO: The 'emit' function requires a mandatory void argument
     this.cancelled.emit();
   }
 
@@ -221,7 +222,7 @@ export class CloneTeamDialogComponent implements OnInit {
 
     const request: CloneTeamRequest = {
       teamName: this.teamName.trim(),
-      addToClubLibrary: this.hasClubRep && this.copyClubLinkage,
+      addToClubLibrary: this.hasClubRep() && this.copyClubLinkage,
       copyFees: this.copyFeesLocked() ? true : this.copyFees,
       copyEligibility: this.copyEligibility,
       copyRosterSettings: this.copyRosterSettings,
@@ -232,7 +233,7 @@ export class CloneTeamDialogComponent implements OnInit {
     this.isSaving.set(true);
     this.errorMessage.set(null);
 
-    this.ladtService.cloneTeam(this.sourceTeamId, request).subscribe({
+    this.ladtService.cloneTeam(this.sourceTeamId(), request).subscribe({
       next: (clone) => {
         this.isSaving.set(false);
         this.cloned.emit(clone);

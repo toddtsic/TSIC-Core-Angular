@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, output, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { SuggestedEventDto } from '@core/api';
@@ -29,7 +29,7 @@ import type { SuggestedEventDto } from '@core/api';
           <p class="suggested-modal-lede">Based on events you've registered for before.</p>
 
           <ul class="suggested-events-list">
-            @for (event of events; track event.jobId) {
+            @for (event of events(); track event.jobId) {
             <li class="suggested-event">
               @if (event.jobLogo) {
               <img class="suggested-event-logo" [src]="event.jobLogo" alt="" aria-hidden="true" />
@@ -178,6 +178,6 @@ import type { SuggestedEventDto } from '@core/api';
     `]
 })
 export class SuggestedEventsModalComponent {
-    @Input({ required: true }) events!: SuggestedEventDto[];
+    readonly events = input.required<SuggestedEventDto[]>();
     closed = output<void>();
 }

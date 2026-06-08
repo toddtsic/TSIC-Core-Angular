@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, DestroyRef, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject, output } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, DestroyRef, ElementRef, OnDestroy, signal, HostBinding, Input, OnInit, inject, output, input, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -23,8 +23,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
 
-  @ViewChild('usernameInput', { static: false }) usernameInput!: ElementRef<HTMLInputElement>;
-  @ViewChild('passwordInput', { static: false }) passwordInput!: ElementRef<HTMLInputElement>;
+  readonly usernameInput = viewChild.required<ElementRef<HTMLInputElement>>('usernameInput');
+  readonly passwordInput = viewChild.required<ElementRef<HTMLInputElement>>('passwordInput');
 
   form!: FormGroup;
   submitted = signal(false);
@@ -35,9 +35,9 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() subHeaderText = 'Sign in to continue';
   @Input() theme: 'login' | 'player' | 'family' | '' = '';
   // Optional client-provided return URL to prefer over query param
-  @Input() returnUrl: string | null | undefined = undefined;
+  readonly returnUrl = input<string | null>();
   // When true, strips wrapper padding and card max-width for side-by-side layouts
-  @Input() embedded = false;
+  readonly embedded = input(false);
 
   /** Emitted when login succeeds in embedded mode (parent handles navigation). */
   readonly loginSuccess = output<void>();
@@ -49,7 +49,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   // Apply per-wizard theme class when embedded in wizard flows (player/family)
   @HostBinding('class.wizard-theme-player') get isPlayerTheme() { return this.theme === 'player'; }
   @HostBinding('class.wizard-theme-family') get isFamilyTheme() { return this.theme === 'family'; }
-  @HostBinding('class.login-embedded') get isEmbedded() { return this.embedded; }
+  @HostBinding('class.login-embedded') get isEmbedded() { return this.embedded(); }
 
   constructor() {
     // Pre-fill username from JWT token if available
@@ -99,7 +99,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
     this._returnUrlFromQuery = qp.get('returnUrl');
 
     // Build escape route query params so user can switch to generic login retaining original intent
-    const effectiveReturnUrl = this.returnUrl?.trim() || this._returnUrlFromQuery || '';
+    const effectiveReturnUrl = this.returnUrl()?.trim() || this._returnUrlFromQuery || '';
     this.escapeQueryParams = {
       theme: 'login',
       ...(effectiveReturnUrl ? { returnUrl: effectiveReturnUrl } : {}),
@@ -109,14 +109,15 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     // Focus the username input on load
-    setTimeout(() => this.usernameInput?.nativeElement.focus(), 0);
+    setTimeout(() => this.usernameInput()?.nativeElement.focus(), 0);
 
     // One-time sync in case the browser autofilled without firing input events
     setTimeout(() => this.syncAutofillOnce(), 250);
 
     // Monitor ongoing autofill changes reliably
-    if (this.usernameInput) {
-      this.autofill.monitor(this.usernameInput)
+    const usernameInput = this.usernameInput();
+    if (usernameInput) {
+      this.autofill.monitor(usernameInput)
         .subscribe(event => {
           if (event.isAutofilled && event.target instanceof HTMLInputElement) {
             const v = event.target.value;
@@ -126,8 +127,9 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         });
     }
-    if (this.passwordInput) {
-      this.autofill.monitor(this.passwordInput)
+    const passwordInput = this.passwordInput();
+    if (passwordInput) {
+      this.autofill.monitor(passwordInput)
         .subscribe(event => {
           if (event.isAutofilled && event.target instanceof HTMLInputElement) {
             const v = event.target.value;
@@ -140,8 +142,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private syncAutofillOnce() {
-    const u = this.usernameInput?.nativeElement.value;
-    const p = this.passwordInput?.nativeElement.value;
+    const u = this.usernameInput()?.nativeElement.value;
+    const p = this.passwordInput()?.nativeElement.value;
     if (u && !this.form.get('username')?.value) {
       this.form.get('username')?.setValue(u);
     }
@@ -161,8 +163,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private _processSubmit() {
     // Force-sync autofilled values from the DOM
-    const u = this.usernameInput?.nativeElement.value;
-    const p = this.passwordInput?.nativeElement.value;
+    const u = this.usernameInput()?.nativeElement.value;
+    const p = this.passwordInput()?.nativeElement.value;
     if (u) this.form.get('username')?.setValue(u);
     if (p) this.form.get('password')?.setValue(p);
     this.form.updateValueAndValidity();
@@ -200,7 +202,7 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
         }
 
         // Embedded mode: parent owns post-login flow — just signal success
-        if (this.embedded) {
+        if (this.embedded()) {
           this.loginSuccess.emit();
           return;
         }
@@ -233,13 +235,15 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     // Stop monitoring to avoid leaks
-    if (this.usernameInput) this.autofill.stopMonitoring(this.usernameInput);
-    if (this.passwordInput) this.autofill.stopMonitoring(this.passwordInput);
+    const usernameInput = this.usernameInput();
+    if (usernameInput) this.autofill.stopMonitoring(usernameInput);
+    const passwordInput = this.passwordInput();
+    if (passwordInput) this.autofill.stopMonitoring(passwordInput);
   }
 
   private _computeReturnUrl(jobPathFromToken: string | undefined | null): string {
     // Prefer explicit input returnUrl
-    const inputReturnUrlRaw = (this.returnUrl ?? '').trim();
+    const inputReturnUrlRaw = (this.returnUrl() ?? '').trim();
     if (inputReturnUrlRaw) {
       const parsed = this._safeInternalUrl(inputReturnUrlRaw);
       if (parsed) return parsed;

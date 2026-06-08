@@ -1,6 +1,7 @@
 import {
-    ChangeDetectionStrategy, Component, DestroyRef, ElementRef, ViewChild,
-    AfterViewInit, OnInit, OnDestroy, inject, signal, computed, effect, output,
+  ChangeDetectionStrategy, Component, DestroyRef, ElementRef,
+  AfterViewInit, OnInit, OnDestroy, inject, signal, computed, effect, output,
+  viewChild
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -827,7 +828,7 @@ import type { LineItem } from '../state/payment-v2.service';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
-    @ViewChild('viOffer') viOffer?: ElementRef<HTMLDivElement>;
+    readonly viOffer = viewChild<ElementRef<HTMLDivElement>>('viOffer');
     readonly advance = output<void>();
 
     readonly state = inject(PlayerWizardStateService);

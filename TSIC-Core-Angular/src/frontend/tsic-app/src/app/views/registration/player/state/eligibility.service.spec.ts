@@ -30,6 +30,7 @@ function makePlayer(overrides: Partial<FamilyPlayerDto> = {}): FamilyPlayerDto {
         registered: false,
         selected: true,
         priorRegistrations: [],
+        hasAnyRegistration: false,
         defaultFieldValues: null,
         ...overrides,
     };

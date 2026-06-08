@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, Input, computed, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, output, signal, input } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -32,7 +32,7 @@ import type { AgeGroupDto } from '@core/api';
             <span><i class="bi bi-trophy-fill me-1"></i>Register Your First Team</span>
           </div>
           <h5 class="register-hero-title">
-            for <span class="register-event-name">{{ eventName }}</span>
+            for <span class="register-event-name">{{ eventName() }}</span>
           </h5>
           <button type="button" class="register-hero-close" (click)="closed.emit()" aria-label="Close">
             <i class="bi bi-x-lg"></i>
@@ -62,7 +62,7 @@ import type { AgeGroupDto } from '@core/api';
                    [class.is-required]="!teamName().trim()"
                    [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub())" />
             <div class="wizard-tip">
-              Instead of <span class="text-danger fw-semibold">{{ clubName }} 2028 Blue</span>,
+              Instead of <span class="text-danger fw-semibold">{{ clubName() }} 2028 Blue</span>,
               enter <span class="text-success fw-semibold">2028 Blue</span> &mdash; schedules already display your club name.
             </div>
             @if (submitted() && !teamName().trim()) {
@@ -150,7 +150,7 @@ import type { AgeGroupDto } from '@core/api';
                 @if (selectedAgeGroup()) { <i class="bi bi-check-lg"></i> } @else { 3 }
               </span>
               <span class="step-title" id="step-3-title">
-                Age Group for <span class="step-title-event">{{ eventName }}</span>
+                Age Group for <span class="step-title-event">{{ eventName() }}</span>
               </span>
             </div>
 
@@ -531,9 +531,9 @@ import type { AgeGroupDto } from '@core/api';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AddAndRegisterTeamModalComponent {
-    @Input() clubName = '';
-    @Input() eventName = '';
-    @Input() ageGroups: AgeGroupDto[] = [];
+    readonly clubName = input('');
+    readonly eventName = input('');
+    readonly ageGroups = input<AgeGroupDto[]>([]);
 
     readonly saved = output<void>();
     readonly closed = output<void>();
@@ -573,7 +573,7 @@ export class AddAndRegisterTeamModalComponent {
 
     /** True when the team name contains the club name (case-insensitive). */
     readonly nameContainsClub = computed(() => {
-        const club = this.clubName.trim().toLowerCase();
+        const club = this.clubName().trim().toLowerCase();
         const name = this.teamName().trim().toLowerCase();
         return club.length > 0 && name.length > 0 && name.includes(club);
     });
@@ -612,7 +612,7 @@ export class AddAndRegisterTeamModalComponent {
     /** Age-group cards with derived presentation flags (mirrors age-group-picker-modal). */
     readonly pills = computed(() => {
         const recommended = this.bestMatch();
-        return this.ageGroups.map(ag => {
+        return this.ageGroups().map(ag => {
             const spotsLeft = Math.max(0, ag.maxTeams - ag.registeredCount);
             return {
                 ageGroupId: ag.ageGroupId,
@@ -697,10 +697,11 @@ export class AddAndRegisterTeamModalComponent {
     /** Pick the age group whose name matches the team's grad year (best discoverability hint). */
     private bestMatch(): string {
         const yr = this.gradYear();
-        if (!yr || !this.ageGroups.length) return '';
-        const exact = this.ageGroups.find(ag => ag.ageGroupName === yr);
+        const ageGroups = this.ageGroups();
+        if (!yr || !ageGroups.length) return '';
+        const exact = ageGroups.find(ag => ag.ageGroupName === yr);
         if (exact) return exact.ageGroupId;
-        const contains = this.ageGroups.find(ag => ag.ageGroupName.includes(yr));
+        const contains = ageGroups.find(ag => ag.ageGroupName.includes(yr));
         if (contains) return contains.ageGroupId;
         return '';
     }

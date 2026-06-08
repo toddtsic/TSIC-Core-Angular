@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, effect, ChangeDetectionStrategy, ViewChild } from '@angular/core';
+import { Component, inject, signal, computed, effect, ChangeDetectionStrategy, viewChild } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { GridAllModule, GridComponent, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { EmailLogService } from './services/email-log.service';
@@ -17,7 +17,7 @@ export class EmailLogComponent {
     private readonly emailLogService = inject(EmailLogService);
     private readonly jobService = inject(JobService);
 
-    @ViewChild('grid') grid!: GridComponent;
+    readonly grid = viewChild.required<GridComponent>('grid');
 
     // Data
     readonly emails = signal<EmailLogSummaryDto[]>([]);
@@ -79,10 +79,11 @@ export class EmailLogComponent {
 
     // Row numbers
     refreshRowNumbers(): void {
-        if (!this.grid) return;
-        const rows = this.grid.getRows();
-        const page = this.grid.pageSettings?.currentPage ?? 1;
-        const size = this.grid.pageSettings?.pageSize ?? rows.length;
+        const grid = this.grid();
+        if (!grid) return;
+        const rows = grid.getRows();
+        const page = grid.pageSettings?.currentPage ?? 1;
+        const size = grid.pageSettings?.pageSize ?? rows.length;
         const offset = (page - 1) * size;
         rows.forEach((row, i) => {
             const cell = row.querySelector('td');

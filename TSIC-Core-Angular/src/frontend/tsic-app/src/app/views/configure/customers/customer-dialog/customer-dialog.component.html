@@ -1,7 +1,7 @@
 <tsic-dialog [open]="true" size="md" (requestClose)="close.emit()">
     <div class="modal-content">
         <div class="modal-header">
-            <h5 class="modal-title">{{ mode === 'add' ? 'Add Customer' : 'Edit Customer' }}</h5>
+            <h5 class="modal-title">{{ mode() === 'add' ? 'Add Customer' : 'Edit Customer' }}</h5>
             <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
         </div>
 
@@ -39,7 +39,7 @@
                             (change)="onTzChange($event)"
                             [class.is-invalid]="tzId() === null">
                             <option value="" disabled>Select a timezone</option>
-                            @for (tz of timezones; track tz.tzId) {
+                            @for (tz of timezones(); track tz.tzId) {
                                 <option [value]="tz.tzId">{{ tz.tzName }}</option>
                             }
                         </select>
@@ -72,7 +72,7 @@
                                 maxlength="100" />
                         </div>
                     </div>
-                    @if (mode === 'add') {
+                    @if (mode() === 'add') {
                         <p class="field-help mt-1 mb-0">Leave blank to use platform defaults.</p>
                     }
                 </fieldset>
@@ -87,7 +87,7 @@
                 @if (isSaving()) {
                     <span class="spinner-border spinner-border-sm me-1"></span>
                 }
-                {{ mode === 'add' ? 'Add Customer' : 'Save Changes' }}
+                {{ mode() === 'add' ? 'Add Customer' : 'Save Changes' }}
             </button>
         </div>
     </div>

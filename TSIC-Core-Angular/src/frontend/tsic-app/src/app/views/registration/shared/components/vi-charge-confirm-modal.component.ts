@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 
@@ -22,7 +22,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
     <tsic-dialog [open]="true" (requestClose)="onCancel()">
       <div class="modal-content">
         <div class="modal-header vi-header">
-          @if (viCcOnlyFlow) {
+          @if (viCcOnlyFlow()) {
             <h5 class="modal-title">Confirm Insurance Purchase</h5>
           } @else {
             <h5 class="modal-title">Confirm Registration Payment + Insurance</h5>
@@ -33,25 +33,25 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
           <ul class="vi-summary-list" aria-label="Insurance purchase summary">
             <li>
               <span class="vi-summary-icon" aria-hidden="true">•</span>
-              @if (viCcOnlyFlow) {
-                <div>Insurance premium(s) for <strong>{{ quotedPlayers.join(', ') }}</strong> will be charged by <span class="vi-brand">VERTICAL INSURANCE</span>.</div>
+              @if (viCcOnlyFlow()) {
+                <div>Insurance premium(s) for <strong>{{ quotedPlayers().join(', ') }}</strong> will be charged by <span class="vi-brand">VERTICAL INSURANCE</span>.</div>
               } @else {
-                <div>The registration insurance premium(s) for <strong>{{ quotedPlayers.join(', ') }}</strong> will be charged by <span class="vi-brand">VERTICAL INSURANCE</span> (not <span class="vi-brand">TEAMSPORTSINFO.COM</span>).</div>
+                <div>The registration insurance premium(s) for <strong>{{ quotedPlayers().join(', ') }}</strong> will be charged by <span class="vi-brand">VERTICAL INSURANCE</span> (not <span class="vi-brand">TEAMSPORTSINFO.COM</span>).</div>
               }
             </li>
             <li>
               <span class="vi-summary-icon" aria-hidden="true">•</span>
-              <div>An email receipt will be sent to <strong>{{ email }}</strong> immediately after processing.</div>
+              <div>An email receipt will be sent to <strong>{{ email() }}</strong> immediately after processing.</div>
             </li>
             <li class="vi-total">
               <span class="vi-summary-icon" aria-hidden="true">•</span>
-              @if (viCcOnlyFlow) {
-                <div>Total Insurance Premium: <span>{{ premiumTotal | currency }}</span></div>
+              @if (viCcOnlyFlow()) {
+                <div>Total Insurance Premium: <span>{{ premiumTotal() | currency }}</span></div>
               } @else {
-                <div>Total Insurance Premium (in addition to your TSIC payment): <span>{{ premiumTotal | currency }}</span></div>
+                <div>Total Insurance Premium (in addition to your TSIC payment): <span>{{ premiumTotal() | currency }}</span></div>
               }
             </li>
-            @if (!viCcOnlyFlow) {
+            @if (!viCcOnlyFlow()) {
               <li>
                 <span class="vi-summary-icon" aria-hidden="true">•</span>
                 <div>Your TSIC registration payment will also be processed now.</div>
@@ -75,12 +75,12 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ViChargeConfirmModalComponent {
-  @Input() quotedPlayers: string[] = [];
-  @Input() premiumTotal = 0;
-  @Input() email = '';
-  @Input() viCcOnlyFlow = false;
-  @Output() cancelled = new EventEmitter<void>();
-  @Output() confirmed = new EventEmitter<void>();
+  readonly quotedPlayers = input<string[]>([]);
+  readonly premiumTotal = input(0);
+  readonly email = input('');
+  readonly viCcOnlyFlow = input(false);
+  readonly cancelled = output<void>();
+  readonly confirmed = output<void>();
 
   onCancel(): void { this.cancelled.emit(); }
   onConfirm(): void { this.confirmed.emit(); }

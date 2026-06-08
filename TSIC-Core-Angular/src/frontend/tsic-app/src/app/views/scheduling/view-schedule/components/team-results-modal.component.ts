@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, EventEmitter, input, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import type { TeamResultDto } from '@core/api';
 
@@ -254,8 +254,8 @@ export class TeamResultsModalComponent {
     teamName = input<string>('');
     visible = input<boolean>(false);
 
-    @Output() close = new EventEmitter<void>();
-    @Output() viewOpponent = new EventEmitter<string>();
+    readonly close = output<void>();
+    readonly viewOpponent = output<string>();
 
     readonly record = computed(() => {
         const items = this.results();

@@ -1,11 +1,10 @@
 import {
-    Component,
-    ChangeDetectionStrategy,
-    input,
-    signal,
-    computed,
-    Output,
-    EventEmitter
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  signal,
+  computed,
+  output
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { ViewGameDto } from '@core/api';
@@ -698,11 +697,15 @@ export class GamesTabComponent {
     readonly followedTeamIds = input<readonly string[]>([]);
 
     // ── Outputs ──
-    @Output() quickScore = new EventEmitter<{ gid: number; t1Score: number; t2Score: number }>();
-    @Output() editGame = new EventEmitter<number>();
-    @Output() viewTeamResults = new EventEmitter<string>();
+    readonly quickScore = output<{
+    gid: number;
+    t1Score: number;
+    t2Score: number;
+}>();
+    readonly editGame = output<number>();
+    readonly viewTeamResults = output<string>();
     /** Emits the teamId when the user clicks a star — parent toggles the set. */
-    @Output() toggleFollow = new EventEmitter<string>();
+    readonly toggleFollow = output<string>();
 
     // ── Derived ──
     private readonly followedSet = computed(() => new Set(this.followedTeamIds()));

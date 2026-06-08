@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signal, WritableSignal } from '@angular/core';
-import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { PaymentV2Service } from './payment-v2.service';
 import { JobContextService } from './job-context.service';
@@ -33,6 +33,7 @@ function makePlayer(overrides: Partial<FamilyPlayerDto> & { playerId: string }):
         registered: false,
         selected: true,
         priorRegistrations: [],
+        hasAnyRegistration: false,
         ...overrides,
     };
 }
@@ -91,6 +92,13 @@ function createTeamServiceStub() {
     const _teams = new Map<string, AvailableTeam>();
     return {
         getTeamById: (id: string) => _teams.get(id),
+        // Mirror production TeamService.getTeamDisplayName (waitlist-aware) so the
+        // lineItems computed can resolve teamName under the merged master logic.
+        getTeamDisplayName: (id: string) => {
+            const t = _teams.get(id);
+            if (!t) return id;
+            return t.rosterIsFull && t.jobUsesWaitlists ? `WAITLIST - ${t.teamName}` : t.teamName;
+        },
         _addTeam: (t: AvailableTeam) => _teams.set(t.teamId, t),
         _clear: () => _teams.clear(),
     };
@@ -113,7 +121,7 @@ describe('PaymentV2Service', () => {
 
         TestBed.configureTestingModule({
             providers: [
-                provideHttpClient(),
+                provideHttpClient(withXhr()),
                 provideHttpClientTesting(),
                 PaymentV2Service,
                 { provide: JobContextService, useValue: jobCtx },

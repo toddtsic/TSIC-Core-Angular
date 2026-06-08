@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, computed, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, computed, signal, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -129,8 +129,8 @@ const JOB_TYPE_TOURNAMENT = 2;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LeagueDetailComponent implements OnChanges {
-  @Input({ required: true }) leagueId!: string;
-  @Output() saved = new EventEmitter<void>();
+  readonly leagueId = input.required<string>();
+  readonly saved = output<void>();
 
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
@@ -168,8 +168,8 @@ export class LeagueDetailComponent implements OnChanges {
     this.saveMessage.set(null);
 
     forkJoin({
-      detail: this.ladtService.getLeague(this.leagueId),
-      fees: this.ladtService.getLeagueFees(this.leagueId)
+      detail: this.ladtService.getLeague(this.leagueId()),
+      fees: this.ladtService.getLeagueFees(this.leagueId())
     }).subscribe({
       next: ({ detail, fees }) => {
         this.league.set(detail);
@@ -241,16 +241,17 @@ export class LeagueDetailComponent implements OnChanges {
     };
 
     const saves: Observable<any>[] = [
-      this.ladtService.updateLeague(this.leagueId, request)
+      this.ladtService.updateLeague(this.leagueId(), request)
     ];
 
     // League-scoped fee rows carry Deposit/BalanceDue (cascade top tier) + modifiers.
     const playerMods = this.toModifierDtos(this.playerModifiers);
+    const leagueId = this.leagueId();
     if (this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null
         || playerMods.length > 0) {
       saves.push(this.ladtService.saveFee({
         roleId: PLAYER_ROLE,
-        leagueId: this.leagueId,
+        leagueId: leagueId,
         deposit: this.feeForm.playerDeposit,
         balanceDue: this.feeForm.playerBalanceDue,
         modifiers: playerMods
@@ -264,7 +265,7 @@ export class LeagueDetailComponent implements OnChanges {
         || clubRepMods.length > 0) {
       saves.push(this.ladtService.saveFee({
         roleId: CLUBREP_ROLE,
-        leagueId: this.leagueId,
+        leagueId: leagueId,
         deposit: this.feeForm.clubRepDeposit,
         balanceDue: this.feeForm.clubRepBalanceDue,
         modifiers: clubRepMods
@@ -280,6 +281,7 @@ export class LeagueDetailComponent implements OnChanges {
         this.form = { ...updated };
         this.isSaving.set(false);
         this.saveMessage.set('League saved successfully.');
+        // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },
       error: () => this.isSaving.set(false)

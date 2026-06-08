@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ElementRef, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RefereeAssignmentService } from '@infrastructure/services/referee-assignment.service';
@@ -161,7 +161,7 @@ export class RefereeAssignmentComponent implements OnInit {
 	readonly deleteConfirmText = signal('');
 	readonly isDeleteLoading = signal(false);
 
-	@ViewChild('gridScrollContainer') gridScrollEl?: ElementRef<HTMLElement>;
+	readonly gridScrollEl = viewChild<ElementRef<HTMLElement>>('gridScrollContainer');
 
 	// ══════════════════════════════════════════════════════════════
 	// Lifecycle

@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnDestroy, ViewChild, computed, input, output, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnDestroy, computed, input, output, signal, viewChild } from '@angular/core';
 import type { AgeGroupDto, ClubTeamDto } from '@core/api';
 
 export interface RegisteredInfo {
@@ -1332,7 +1332,7 @@ export interface RegisterRequest {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
-    @ViewChild('flyinRoot', { static: true }) private flyinRoot!: ElementRef<HTMLElement>;
+    private readonly flyinRoot = viewChild.required<ElementRef<HTMLElement>>('flyinRoot');
 
     /**
      * The library-flyin lives inside <router-outlet> inside <main>, and <main>
@@ -1345,14 +1345,14 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
      * overlays do at the root level.
      */
     ngAfterViewInit(): void {
-        const root = this.flyinRoot?.nativeElement;
+        const root = this.flyinRoot()?.nativeElement;
         if (root && root.parentElement !== document.body) {
             document.body.appendChild(root);
         }
     }
 
     ngOnDestroy(): void {
-        const root = this.flyinRoot?.nativeElement;
+        const root = this.flyinRoot()?.nativeElement;
         if (root?.parentNode) {
             root.parentNode.removeChild(root);
         }

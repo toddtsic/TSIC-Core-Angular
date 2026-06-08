@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, ViewChild, inject, signal, computed, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, input, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
@@ -42,8 +42,8 @@ export type ModalMode = 'add' | 'edit';
             <div class="modal-content bulletin-modal">
                 <div class="modal-header">
                     <h5 class="modal-title">
-                        <i class="bi" [class]="mode === 'add' ? 'bi-plus-circle' : 'bi-pencil'"></i>
-                        {{ mode === 'add' ? 'Add Bulletin' : 'Edit Bulletin' }}
+                        <i class="bi" [class]="mode() === 'add' ? 'bi-plus-circle' : 'bi-pencil'"></i>
+                        {{ mode() === 'add' ? 'Add Bulletin' : 'Edit Bulletin' }}
                     </h5>
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
@@ -227,7 +227,7 @@ export type ModalMode = 'add' | 'edit';
                         @if (isSaving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
-                        <i class="bi bi-check-lg me-1"></i>{{ mode === 'add' ? 'Add Bulletin' : 'Save Changes' }}
+                        <i class="bi bi-check-lg me-1"></i>{{ mode() === 'add' ? 'Add Bulletin' : 'Save Changes' }}
                     </button>
                 </div>
             </div>
@@ -386,12 +386,12 @@ export type ModalMode = 'add' | 'edit';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BulletinFormModalComponent implements OnInit {
-    @Input() mode: ModalMode = 'add';
-    @Input() bulletin: BulletinAdminDto | null = null;
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<void>();
+    readonly mode = input<ModalMode>('add');
+    readonly bulletin = input<BulletinAdminDto | null>(null);
+    readonly close = output<void>();
+    readonly saved = output<void>();
 
-    @ViewChild('rteEditor') rteEditor!: RichTextEditorComponent;
+    readonly rteEditor = viewChild.required<RichTextEditorComponent>('rteEditor');
 
     private readonly bulletinService = inject(BulletinAdminService);
     private readonly toastService = inject(ToastService);
@@ -436,12 +436,13 @@ export class BulletinFormModalComponent implements OnInit {
     private readonly previewTrigger$ = new Subject<void>();
 
     ngOnInit(): void {
-        if (this.mode === 'edit' && this.bulletin) {
-            this.title.set(this.bulletin.title ?? '');
-            this.text.set(this.bulletin.text ?? '');
-            this.startDate.set(this.formatDateForInput(this.bulletin.startDate));
-            this.endDate.set(this.formatDateForInput(this.bulletin.endDate));
-            this.active.set(this.bulletin.active);
+        const bulletin = this.bulletin();
+        if (this.mode() === 'edit' && bulletin) {
+            this.title.set(bulletin.title ?? '');
+            this.text.set(bulletin.text ?? '');
+            this.startDate.set(this.formatDateForInput(bulletin.startDate));
+            this.endDate.set(this.formatDateForInput(bulletin.endDate));
+            this.active.set(bulletin.active);
         } else {
             this.startDate.set(this.formatDateForInput(new Date().toISOString()));
         }
@@ -489,8 +490,8 @@ export class BulletinFormModalComponent implements OnInit {
     }
 
     insertToken(token: string): void {
-        this.rteEditor.focusIn();
-        this.rteEditor.executeCommand('insertText', token);
+        this.rteEditor().focusIn();
+        this.rteEditor().executeCommand('insertText', token);
     }
 
     draftWithAi(): void {
@@ -502,8 +503,9 @@ export class BulletinFormModalComponent implements OnInit {
             next: (response) => {
                 this.title.set(response.subject);
                 this.text.set(response.body);
-                if (this.rteEditor) {
-                    this.rteEditor.value = response.body;
+                const rteEditor = this.rteEditor();
+                if (rteEditor) {
+                    rteEditor.value = response.body;
                 }
                 this.isDrafting.set(false);
             },
@@ -524,7 +526,8 @@ export class BulletinFormModalComponent implements OnInit {
         this.bulletinService.aiFormatBulletin(current).subscribe({
             next: (response) => {
                 this.text.set(response.html);
-                if (this.rteEditor) { this.rteEditor.value = response.html; }
+                const rteEditor = this.rteEditor();
+                if (rteEditor) { rteEditor.value = response.html; }
                 this.isFormatting.set(false);
                 if (this.previewOpen()) { this.previewTrigger$.next(); }
             },
@@ -540,7 +543,8 @@ export class BulletinFormModalComponent implements OnInit {
         const previous = this.preFormatHtml();
         if (previous === null) { return; }
         this.text.set(previous);
-        if (this.rteEditor) { this.rteEditor.value = previous; }
+        const rteEditor = this.rteEditor();
+        if (rteEditor) { rteEditor.value = previous; }
         this.preFormatHtml.set(null);
         if (this.previewOpen()) { this.previewTrigger$.next(); }
     }
@@ -578,7 +582,8 @@ export class BulletinFormModalComponent implements OnInit {
 
         this.isSaving.set(true);
 
-        if (this.mode === 'add') {
+        const bulletin = this.bulletin();
+        if (this.mode() === 'add') {
             const request: CreateBulletinRequest = {
                 title: this.title().trim(),
                 text: this.text(),
@@ -590,6 +595,7 @@ export class BulletinFormModalComponent implements OnInit {
             this.bulletinService.createBulletin(request).subscribe({
                 next: () => {
                     this.toastService.show(`Bulletin "${this.title()}" created`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {
@@ -597,7 +603,7 @@ export class BulletinFormModalComponent implements OnInit {
                     this.isSaving.set(false);
                 }
             });
-        } else if (this.bulletin) {
+        } else if (bulletin) {
             const request: UpdateBulletinRequest = {
                 title: this.title().trim(),
                 text: this.text(),
@@ -606,9 +612,10 @@ export class BulletinFormModalComponent implements OnInit {
                 endDate: this.endDate() ? new Date(this.endDate()).toISOString() : undefined
             };
 
-            this.bulletinService.updateBulletin(this.bulletin.bulletinId, request).subscribe({
+            this.bulletinService.updateBulletin(bulletin.bulletinId, request).subscribe({
                 next: () => {
                     this.toastService.show(`Bulletin "${this.title()}" updated`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {

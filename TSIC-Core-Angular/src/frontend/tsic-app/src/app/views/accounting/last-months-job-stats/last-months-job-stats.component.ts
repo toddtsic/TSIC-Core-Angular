@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, ViewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, viewChild } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { GridAllModule, GridComponent, EditSettingsModel, ToolbarItems } from '@syncfusion/ej2-angular-grids';
@@ -34,7 +34,7 @@ export class LastMonthsJobStatsComponent {
 
     readonly toolbar: ToolbarItems[] = ['Edit', 'Cancel', 'Update', 'ExcelExport'];
 
-    @ViewChild('grid') grid!: GridComponent;
+    readonly grid = viewChild.required<GridComponent>('grid');
 
     constructor() {
         this.load();
@@ -64,7 +64,7 @@ export class LastMonthsJobStatsComponent {
 
     onToolbarClick(args: { item?: { id?: string } }): void {
         if (args.item?.id?.includes('excelexport')) {
-            this.grid.excelExport();
+            this.grid().excelExport();
         }
     }
 

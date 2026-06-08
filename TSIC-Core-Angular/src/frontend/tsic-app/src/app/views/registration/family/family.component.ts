@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
@@ -41,8 +41,8 @@ export class FamilyWizardV2Component implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
     readonly state = inject(FamilyStateService);
 
-    @ViewChild(CredentialsStepComponent) credentialsStep?: CredentialsStepComponent;
-    @ViewChild(ChildrenStepComponent) childrenStep?: ChildrenStepComponent;
+    readonly credentialsStep = viewChild(CredentialsStepComponent);
+    readonly childrenStep = viewChild(ChildrenStepComponent);
 
     // ── Step management ─────────────────────────────────────────────
     readonly currentIndex = signal(0);
@@ -124,7 +124,8 @@ export class FamilyWizardV2Component implements OnInit {
         }
 
         // Flush any unsaved Add Player form input before leaving the Children step.
-        if (this.currentStepId() === 'children' && this.childrenStep && !this.childrenStep.commitPending()) {
+        const childrenStep = this.childrenStep();
+        if (this.currentStepId() === 'children' && childrenStep && !childrenStep.commitPending()) {
             return;
         }
 
@@ -149,8 +150,9 @@ export class FamilyWizardV2Component implements OnInit {
     /** Validate credentials against backend, then advance or show error. */
     private validateAndAdvance(): void {
         this.validating.set(true);
-        if (this.credentialsStep) {
-            this.credentialsStep.validationError.set(null);
+        const credentialsStep = this.credentialsStep();
+        if (credentialsStep) {
+            credentialsStep.validationError.set(null);
         }
 
         this.familyHttp.validateCredentials({
@@ -162,8 +164,9 @@ export class FamilyWizardV2Component implements OnInit {
                     this.validating.set(false);
                     if (res.message) {
                         // Backend returned an error (wrong password, privilege conflict)
-                        if (this.credentialsStep) {
-                            this.credentialsStep.validationError.set(res.message);
+                        const credentialsStepValue = this.credentialsStep();
+                        if (credentialsStepValue) {
+                            credentialsStepValue.validationError.set(res.message);
                         }
                         return;
                     }
@@ -183,8 +186,9 @@ export class FamilyWizardV2Component implements OnInit {
                     this.validating.set(false);
                     const httpErr = err as { error?: { message?: string } };
                     const msg = httpErr?.error?.message ?? 'Unable to validate credentials. Please try again.';
-                    if (this.credentialsStep) {
-                        this.credentialsStep.validationError.set(msg);
+                    const credentialsStepValue = this.credentialsStep();
+                    if (credentialsStepValue) {
+                        credentialsStepValue.validationError.set(msg);
                     }
                 },
             });

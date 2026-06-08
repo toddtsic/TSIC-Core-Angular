@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ViewChild } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RichTextEditorModule } from '@syncfusion/ej2-angular-richtexteditor';
@@ -34,7 +34,7 @@ export class ReschedulerComponent implements OnInit {
     private readonly jobFilterTreeSvc = inject(JobFilterTreeService);
     private readonly toast = inject(ToastService);
 
-    @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
+    readonly scheduleGrid = viewChild<ScheduleGridComponent>('scheduleGrid');
 
     // ── Filter state ──
     readonly filterOptions = signal<ScheduleFilterOptionsDto | null>(null);
@@ -477,7 +477,7 @@ export class ReschedulerComponent implements OnInit {
             next: (data) => {
                 this.gridResponse.set(data);
                 this.isGridLoading.set(false);
-                this.scheduleGrid?.scrollToGame(gid);
+                this.scheduleGrid()?.scrollToGame(gid);
                 this.movedHighlightTimer = setTimeout(() => this.movedGameGid.set(null), 3000);
             },
             error: () => this.isGridLoading.set(false)

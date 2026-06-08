@@ -1,6 +1,8 @@
 import {
-  Component, Input, Output, EventEmitter, signal, computed,
-  ChangeDetectionStrategy, SimpleChanges, OnChanges
+  Component, Input, signal, computed,
+  ChangeDetectionStrategy, SimpleChanges, OnChanges,
+  input,
+  output
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { CadtClubNode } from '@core/api';
@@ -46,11 +48,11 @@ export interface CadtSelectionEvent {
   template: `
     <div class="cadt-tree-filter">
       <!-- Search box -->
-      @if (showSearch) {
+      @if (showSearch()) {
         <div class="tree-search">
           <input type="text"
                  class="tree-search-input"
-                 [placeholder]="searchPlaceholder"
+                 [placeholder]="searchPlaceholder()"
                  [ngModel]="searchTerm()"
                  (ngModelChange)="searchTerm.set($event)" />
           @if (searchTerm()) {
@@ -384,15 +386,15 @@ export interface CadtSelectionEvent {
 })
 export class CadtTreeFilterComponent implements OnChanges {
   /** CADT data: Club → Agegroup → Division → Team. */
-  @Input() treeData: CadtClubNode[] = [];
-  @Input() hideRootLevel = false;
-  @Input() searchPlaceholder = 'Filter clubs...';
-  @Input() showSearch = true;
+  readonly treeData = input<CadtClubNode[]>([]);
+  readonly hideRootLevel = input(false);
+  readonly searchPlaceholder = input('Filter clubs...');
+  readonly showSearch = input(true);
   /** When set, wraps all clubs under a synthetic root node (e.g. job name). */
-  @Input() rootLabel = '';
+  readonly rootLabel = input('');
   /** Header label shown flush-left above the tree (e.g. "Club/Agegroup/Division/Team") */
-  @Input() headerLabel = '';
-  @Output() checkedIdsChange = new EventEmitter<Set<string>>();
+  readonly headerLabel = input('');
+  readonly checkedIdsChange = output<Set<string>>();
 
   /** Internal signal for checked state — synced from parent @Input, updated on user interaction. */
   readonly checkedIdsSignal = signal(new Set<string>());
@@ -487,7 +489,7 @@ export class CadtTreeFilterComponent implements OnChanges {
     // Pass 3: expansion visibility
     const visible: CadtFlatNode[] = [];
     for (const node of filteredNodes) {
-      if (this.hideRootLevel && node.level === 0) continue;
+      if (this.hideRootLevel() && node.level === 0) continue;
       if (this.isNodeVisible(node, expanded, filteredNodes)) {
         visible.push(node);
       }
@@ -521,7 +523,7 @@ export class CadtTreeFilterComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['treeData'] || changes['rootLabel']) {
-      if (this.treeData?.length) {
+      if (this.treeData()?.length) {
         this.buildFlatNodes();
       } else {
         this.flatNodes.set([]);
@@ -533,17 +535,18 @@ export class CadtTreeFilterComponent implements OnChanges {
   private buildFlatNodes(): void {
     const result: CadtFlatNode[] = [];
     this.parentMap.clear();
-    const levelOffset = this.rootLabel ? 1 : 0;
+    const levelOffset = this.rootLabel() ? 1 : 0;
 
     // Synthetic root node when rootLabel is provided
-    if (this.rootLabel) {
+    const rootLabel = this.rootLabel();
+    if (rootLabel) {
       const rootId = 'root:job';
       this.parentMap.set(rootId, null);
 
       const allDescendants: string[] = [];
       let totalTeams = 0;
       let totalPlayers = 0;
-      for (const club of this.treeData) {
+      for (const club of this.treeData()) {
         const clubId = `club:${club.clubName}`;
         allDescendants.push(clubId);
         totalTeams += club.teamCount ?? 0;
@@ -562,7 +565,7 @@ export class CadtTreeFilterComponent implements OnChanges {
       result.push({
         id: rootId,
         parentId: null,
-        name: this.rootLabel,
+        name: rootLabel,
         level: 0,
         isLeaf: false,
         expandable: true,
@@ -573,9 +576,9 @@ export class CadtTreeFilterComponent implements OnChanges {
       });
     }
 
-    for (const club of this.treeData) {
+    for (const club of this.treeData()) {
       const clubId = `club:${club.clubName}`;
-      const clubParent = this.rootLabel ? 'root:job' : null;
+      const clubParent = rootLabel ? 'root:job' : null;
       this.parentMap.set(clubId, clubParent);
 
       const clubDescendants: string[] = [];

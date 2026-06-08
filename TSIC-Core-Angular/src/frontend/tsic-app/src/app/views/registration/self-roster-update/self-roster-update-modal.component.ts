@@ -46,13 +46,13 @@ interface PlayerEditState {
               <div class="field-row mb-2">
                 <label class="field-label" for="sru-user">Username</label>
                 <input id="sru-user" class="field-input" type="text" name="username"
-                       [(ngModel)]="username" required autocomplete="username" autofocus>
+                       [ngModel]="username()" (ngModelChange)="username.set($event)" required autocomplete="username" autofocus>
               </div>
               <div class="field-row mb-3">
                 <label class="field-label" for="sru-pass">Password</label>
                 <div class="position-relative">
                   <input id="sru-pass" class="field-input pe-5" [type]="showPassword() ? 'text' : 'password'" name="password"
-                         [(ngModel)]="password" required autocomplete="current-password">
+                         [ngModel]="password()" (ngModelChange)="password.set($event)" required autocomplete="current-password">
                   <button type="button" class="password-toggle"
                           (click)="showPassword.set(!showPassword())"
                           [attr.aria-label]="showPassword() ? 'Hide password' : 'Show password'" tabindex="-1">
@@ -64,7 +64,7 @@ interface PlayerEditState {
                 <div class="field-error mb-2">{{ loginError() }}</div>
               }
               <button type="submit" class="btn btn-primary w-100"
-                      [disabled]="loggingIn() || !username || !password">
+                      [disabled]="loggingIn() || !username() || !password()">
                 @if (loggingIn()) {
                   <span class="spinner-border spinner-border-sm me-1"></span>Signing in...
                 } @else {
@@ -258,8 +258,8 @@ export class SelfRosterUpdateModalComponent {
     readonly edits = signal<Record<string, PlayerEditState>>({});
     private snapshots: Record<string, PlayerEditState> = {};
 
-    username = '';
-    password = '';
+    readonly username = signal('');
+    readonly password = signal('');
     readonly showPassword = signal(false);
 
     constructor() {
@@ -272,14 +272,14 @@ export class SelfRosterUpdateModalComponent {
     }
 
     submitLogin(): void {
-        if (!this.username || !this.password) return;
+        if (!this.username() || !this.password()) return;
         this.loggingIn.set(true);
         this.loginError.set(null);
 
-        this.auth.login({ username: this.username, password: this.password }).subscribe({
+        this.auth.login({ username: this.username(), password: this.password() }).subscribe({
             next: () => {
                 this.loggingIn.set(false);
-                this.password = '';
+                this.password.set('');
                 this.phase.set('loading');
                 this.loadPlayers();
             },

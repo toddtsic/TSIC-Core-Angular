@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, ViewChild, computed, signal, output, inject, input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, signal, output, inject, input, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { JobService } from '@infrastructure/services/job.service';
 import type { AgegroupWithDivisionsDto } from '@core/api';
@@ -74,12 +74,12 @@ export class ScheduleConfigPanelComponent {
   readonly cascade = this.cascadeSvc.cascade;
 
   // ── Tab ViewChild refs (only active tab is resolved at a time) ──
-  @ViewChild(DatesTabComponent) private datesTab?: DatesTabComponent;
-  @ViewChild(FieldsTabComponent) private fieldsTab?: FieldsTabComponent;
-  @ViewChild(BuildRulesTabComponent) private buildRulesTab?: BuildRulesTabComponent;
-  @ViewChild(RoundsTabComponent) private roundsTab?: RoundsTabComponent;
-  @ViewChild(BuildOrderTabComponent) private buildOrderTab?: BuildOrderTabComponent;
-  @ViewChild(GridTabComponent) private gridTab?: GridTabComponent;
+  private readonly datesTab = viewChild(DatesTabComponent);
+  private readonly fieldsTab = viewChild(FieldsTabComponent);
+  private readonly buildRulesTab = viewChild(BuildRulesTabComponent);
+  private readonly roundsTab = viewChild(RoundsTabComponent);
+  private readonly buildOrderTab = viewChild(BuildOrderTabComponent);
+  private readonly gridTab = viewChild(GridTabComponent);
 
   // ── Derived state ──
   readonly eventName = computed(() => this.jobSvc.currentJob()?.jobName ?? '');
@@ -161,12 +161,12 @@ export class ScheduleConfigPanelComponent {
 
   reloadActiveTab(): void {
     switch (this.activeTab()) {
-      case 'dates': this.datesTab?.reload(); break;
-      case 'fields': this.fieldsTab?.reload(); break;
-      case 'buildRules': this.buildRulesTab?.reload(); break;
-      case 'rounds': this.roundsTab?.reload(); break;
-      case 'buildOrder': this.buildOrderTab?.reload(); break;
-      case 'grid': this.gridTab?.reload(); break;
+      case 'dates': this.datesTab()?.reload(); break;
+      case 'fields': this.fieldsTab()?.reload(); break;
+      case 'buildRules': this.buildRulesTab()?.reload(); break;
+      case 'rounds': this.roundsTab()?.reload(); break;
+      case 'buildOrder': this.buildOrderTab()?.reload(); break;
+      case 'grid': this.gridTab()?.reload(); break;
       // waves tab uses computed signals — no reload needed
     }
   }

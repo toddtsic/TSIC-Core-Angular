@@ -1,7 +1,9 @@
 import {
-    ChangeDetectionStrategy, Component, computed, effect,
-    ElementRef, EventEmitter, input, OnDestroy, Output,
-    signal, ViewChild
+  ChangeDetectionStrategy, Component, computed, effect,
+  ElementRef, input, OnDestroy,
+  signal,
+  output,
+  viewChild
 } from '@angular/core';
 import type { DivisionBracketResponse } from '@core/api';
 import {
@@ -160,18 +162,18 @@ export class BracketsTabComponent implements OnDestroy {
 
     private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
 
-    @Output() editBracketScore = new EventEmitter<{
-        gid: number;
-        t1Name: string;
-        t2Name: string;
-        t1Score: number | null;
-        t2Score: number | null;
-    }>();
+    readonly editBracketScore = output<{
+    gid: number;
+    t1Name: string;
+    t2Name: string;
+    t1Score: number | null;
+    t2Score: number | null;
+}>();
 
-    @Output() viewTeamResults = new EventEmitter<string>();
-    @Output() viewFieldInfo = new EventEmitter<string>();
+    readonly viewTeamResults = output<string>();
+    readonly viewFieldInfo = output<string>();
 
-    @ViewChild('diagramHost', { static: false }) diagramHost!: ElementRef<HTMLDivElement>;
+    readonly diagramHost = viewChild.required<ElementRef<HTMLDivElement>>('diagramHost');
 
     // ── Tab state ──
     readonly activeTabIndex = signal(0);
@@ -225,8 +227,9 @@ export class BracketsTabComponent implements OnDestroy {
     }
 
     private destroyDiagram(): void {
-        if (this.clickListener && this.diagramHost?.nativeElement) {
-            this.diagramHost.nativeElement.removeEventListener('click', this.clickListener);
+        const diagramHost = this.diagramHost();
+        if (this.clickListener && diagramHost?.nativeElement) {
+            diagramHost.nativeElement.removeEventListener('click', this.clickListener);
             this.clickListener = null;
         }
         if (this.diagramInstance) {
@@ -238,9 +241,10 @@ export class BracketsTabComponent implements OnDestroy {
     private buildDiagram(bracket: DivisionBracketResponse | null): void {
         this.destroyDiagram();
 
-        if (!bracket || bracket.matches.length === 0 || !this.diagramHost) return;
+        const diagramHost = this.diagramHost();
+        if (!bracket || bracket.matches.length === 0 || !diagramHost) return;
 
-        const host = this.diagramHost.nativeElement;
+        const host = diagramHost.nativeElement;
         // Clear any previous content and create a fresh div
         host.innerHTML = '<div id="bracket-diagram"></div>';
         const container = host.querySelector('#bracket-diagram') as HTMLElement;

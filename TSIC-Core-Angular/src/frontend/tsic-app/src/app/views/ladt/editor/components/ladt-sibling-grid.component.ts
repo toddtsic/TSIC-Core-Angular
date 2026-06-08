@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, ViewChild, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
 import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
@@ -18,8 +18,8 @@ export interface ParentBreadcrumb {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="sibling-grid-header">
-      <i class="bi {{ levelIcon }} me-2"></i>
-      <span class="fw-semibold">{{ levelLabel }}s</span>
+      <i class="bi {{ levelIcon() }} me-2"></i>
+      <span class="fw-semibold">{{ levelLabel() }}s</span>
       @if (parentParts.length) {
         <span class="text-body-secondary ms-2">under</span>
         @for (part of parentParts; track part.level) {
@@ -30,13 +30,13 @@ export interface ParentBreadcrumb {
           </span>
         }
       }
-      @if (level > 0) {
-        <span class="add-badge ms-auto" title="Add {{ levelLabel }}"
+      @if (level() > 0) {
+        <span class="add-badge ms-auto" title="Add {{ levelLabel() }}"
               (click)="addSibling.emit(); $event.stopPropagation()">
-          <i class="bi bi-plus-circle me-1"></i>Add New {{ levelLabel }}
+          <i class="bi bi-plus-circle me-1"></i>Add New {{ levelLabel() }}
         </span>
       }
-      <span class="badge bg-primary-subtle text-primary-emphasis" [class.ms-auto]="level === 0" [class.ms-2]="level > 0">{{ dataSignal().length }}</span>
+      <span class="badge bg-primary-subtle text-primary-emphasis" [class.ms-auto]="level() === 0" [class.ms-2]="level() > 0">{{ dataSignal().length }}</span>
     </div>
 
     <ejs-grid #grid
@@ -62,7 +62,7 @@ export interface ParentBreadcrumb {
                   [allowSorting]="false" [allowResizing]="false">
           <ng-template #template let-data>
             <button class="btn-action btn-edit" title="Edit"
-                    (click)="editRow.emit(data[idField]); $event.stopPropagation()">
+                    (click)="editRow.emit(data[idField()]); $event.stopPropagation()">
               <i class="bi bi-pencil"></i>
             </button>
             @if (hasMenuItems(data)) {
@@ -75,7 +75,7 @@ export interface ParentBreadcrumb {
         </e-column>
 
         <!-- Data columns — dynamic via @for -->
-        @for (col of columns; track col.field) {
+        @for (col of columns(); track col.field) {
           <e-column [field]="col.field" [headerText]="col.header"
                     [width]="parseWidth(col.width)"
                     [textAlign]="getTextAlign(col)"
@@ -179,17 +179,17 @@ export interface ParentBreadcrumb {
             <i class="bi bi-arrow-down-short me-2"></i>{{ drillDownLabel(mr) }}
           </button>
         }
-        @if (level === 1) {
+        @if (level() === 1) {
           <button type="button" class="menu-item" (click)="menuClone()">
             <i class="bi bi-copy me-2"></i>Clone age group
           </button>
         }
-        @if (level === 3) {
+        @if (level() === 3) {
           <button type="button" class="menu-item" (click)="menuClone()">
             <i class="bi bi-copy me-2"></i>Clone team
           </button>
         }
-        @if (canDeleteFn(mr)) {
+        @if (canDeleteFn()(mr)) {
           <button type="button" class="menu-item menu-item-danger" (click)="menuDelete()">
             <i class="bi bi-trash me-2"></i>Delete
           </button>
@@ -471,26 +471,26 @@ export interface ParentBreadcrumb {
   `]
 })
 export class LadtSiblingGridComponent implements OnChanges {
-  @Input() columns: LadtColumnDef[] = [];
-  @Input() data: any[] = [];
-  @Input() selectedId = '';
-  @Input() idField = 'id';
-  @Input() levelLabel = '';
-  @Input() levelIcon = 'bi-list';
+  readonly columns = input<LadtColumnDef[]>([]);
+  readonly data = input<any[]>([]);
+  readonly selectedId = input('');
+  readonly idField = input('id');
+  readonly levelLabel = input('');
+  readonly levelIcon = input('bi-list');
   @Input() parentParts: ParentBreadcrumb[] = [];
 
-  @Input() level = 0; // 0=league, 1=agegroup, 2=division, 3=team
-  @Input() canDeleteFn: (row: any) => boolean = () => true;
+  readonly level = input(0); // 0=league, 1=agegroup, 2=division, 3=team
+  readonly canDeleteFn = input<(row: any) => boolean>(() => true);
 
-  @Output() rowSelected = new EventEmitter<string>();
-  @Output() drillDown = new EventEmitter<string>();
-  @Output() editRow = new EventEmitter<string>();
-  @Output() deleteRow = new EventEmitter<string>();
-  @Output() addSibling = new EventEmitter<void>();
-  @Output() cloneRow = new EventEmitter<any>();
-  @Output() navigateTo = new EventEmitter<string>();
+  readonly rowSelected = output<string>();
+  readonly drillDown = output<string>();
+  readonly editRow = output<string>();
+  readonly deleteRow = output<string>();
+  readonly addSibling = output<void>();
+  readonly cloneRow = output<any>();
+  readonly navigateTo = output<string>();
 
-  @ViewChild('grid') grid!: GridComponent;
+  readonly grid = viewChild.required<GridComponent>('grid');
 
   // Sort state
   sortField = signal<string | null>(null);
@@ -500,7 +500,7 @@ export class LadtSiblingGridComponent implements OnChanges {
   dataSignal = signal<any[]>([]);
 
   // Frozen column count (action col + frozen data cols)
-  frozenCount = computed(() => countFrozenColumns(this.columns));
+  frozenCount = computed(() => countFrozenColumns(this.columns()));
 
   // Uniform action column width — fits pencil + ⋮ menu (nav badges moved into menu)
   actionColWidth(): number {
@@ -518,26 +518,30 @@ export class LadtSiblingGridComponent implements OnChanges {
 
   // ── Nav helpers (used by menu items) ──
   parentNavTarget(row: any): string | null {
-    if (this.level === 2) return row?.['_parentAgId'] ?? null;
-    if (this.level === 3) return row?.['_parentDivId'] ?? null;
+    const level = this.level();
+    if (level === 2) return row?.['_parentAgId'] ?? null;
+    if (level === 3) return row?.['_parentDivId'] ?? null;
     return null;
   }
   parentNavLabel(): string {
-    if (this.level === 2) return 'Go up to Age Group';
-    if (this.level === 3) return 'Go up to Division';
+    const level = this.level();
+    if (level === 2) return 'Go up to Age Group';
+    if (level === 3) return 'Go up to Division';
     return '';
   }
   drillDownCount(row: any): number {
-    if (this.level === 0) return row?.['agegroupCount'] ?? 0;
-    if (this.level === 1) return row?.['divisionCount'] ?? 0;
-    if (this.level === 2) return row?.['teamCount'] ?? 0;
+    const level = this.level();
+    if (level === 0) return row?.['agegroupCount'] ?? 0;
+    if (level === 1) return row?.['divisionCount'] ?? 0;
+    if (level === 2) return row?.['teamCount'] ?? 0;
     return 0;
   }
   drillDownLabel(row: any): string {
     const n = this.drillDownCount(row);
-    if (this.level === 0) return `Drill into ${n} Age Group${n === 1 ? '' : 's'}`;
-    if (this.level === 1) return `Drill into ${n} Division${n === 1 ? '' : 's'}`;
-    if (this.level === 2) return `Drill into ${n} Team${n === 1 ? '' : 's'}`;
+    const level = this.level();
+    if (level === 0) return `Drill into ${n} Age Group${n === 1 ? '' : 's'}`;
+    if (level === 1) return `Drill into ${n} Division${n === 1 ? '' : 's'}`;
+    if (level === 2) return `Drill into ${n} Team${n === 1 ? '' : 's'}`;
     return '';
   }
 
@@ -550,7 +554,7 @@ export class LadtSiblingGridComponent implements OnChanges {
 
   menuDrillDown(): void {
     const row = this.menuRow();
-    if (row) this.drillDown.emit(row[this.idField]);
+    if (row) this.drillDown.emit(row[this.idField()]);
     this.closeMenu();
   }
 
@@ -570,7 +574,7 @@ export class LadtSiblingGridComponent implements OnChanges {
 
   menuDelete(): void {
     const row = this.menuRow();
-    if (row) this.deleteRow.emit(row[this.idField]);
+    if (row) this.deleteRow.emit(row[this.idField()]);
     this.closeMenu();
   }
 
@@ -609,7 +613,7 @@ export class LadtSiblingGridComponent implements OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['data']) {
-      this.dataSignal.set(this.data);
+      this.dataSignal.set(this.data());
       // Reset sort when data source changes (different entity selected)
       this.sortField.set(null);
       this.sortDirection.set('asc');
@@ -633,7 +637,7 @@ export class LadtSiblingGridComponent implements OnChanges {
     const row = args.data;
     if (!row || !args.row) return;
 
-    if (row[this.idField] === this.selectedId) {
+    if (row[this.idField()] === this.selectedId()) {
       args.row.classList.add('row-selected');
     }
     if (row['active'] === false) {
@@ -645,7 +649,7 @@ export class LadtSiblingGridComponent implements OnChanges {
   }
 
   onRowSelect(args: any): void {
-    const id = args.data?.[this.idField];
+    const id = args.data?.[this.idField()];
     if (id) {
       this.rowSelected.emit(id);
     }

@@ -4,7 +4,7 @@
 
       <div class="card-body">
         <div class="auth-hero login-hero">
-          @if (!embedded) {
+          @if (!embedded()) {
           <img src="favicon.svg" alt="" aria-hidden="true" class="auth-hero-icon" />
           }
           <h2 id="login-title" class="auth-hero-title" [innerHTML]="headerText"></h2>
@@ -75,7 +75,7 @@
             </a>
           </div>
 
-          @if (theme !== 'login' && !embedded) {
+          @if (theme !== 'login' && !embedded()) {
           <div class="text-center login-escape">
             <a [routerLink]="['/tsic/login']" [queryParams]="escapeQueryParams" class="small text-decoration-underline">
               Not your login type? Switch

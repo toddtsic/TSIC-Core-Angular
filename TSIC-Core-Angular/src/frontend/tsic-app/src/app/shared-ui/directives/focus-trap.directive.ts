@@ -1,4 +1,4 @@
-import { Directive, ElementRef, HostListener, Input } from '@angular/core';
+import { Directive, ElementRef, HostListener, input } from '@angular/core';
 
 /**
  * Simple focus trap for native <dialog> and modal-like containers.
@@ -10,7 +10,7 @@ import { Directive, ElementRef, HostListener, Input } from '@angular/core';
     standalone: true,
 })
 export class FocusTrapDirective {
-    @Input('tsicFocusTrap') active = true;
+    readonly active = input(true, { alias: "tsicFocusTrap" });
 
     constructor(private readonly el: ElementRef<HTMLElement>) { }
 
@@ -32,7 +32,7 @@ export class FocusTrapDirective {
 
     @HostListener('keydown', ['$event'])
     onKeydown(event: KeyboardEvent) {
-        if (!this.active) return;
+        if (!this.active()) return;
         if (event.key !== 'Tab') return;
 
         const focusables = this.getFocusableElements();

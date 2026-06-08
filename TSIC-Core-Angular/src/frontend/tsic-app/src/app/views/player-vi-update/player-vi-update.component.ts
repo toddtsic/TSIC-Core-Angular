@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy, ViewChild, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy, computed, inject, signal, viewChild } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -247,7 +247,7 @@ type ViewState = 'login' | 'loading' | 'offer' | 'nothing' | 'success' | 'error'
     `,
 })
 export class PlayerVIUpdateComponent implements OnDestroy {
-    @ViewChild('viOffer') viOfferRef?: ElementRef<HTMLElement>;
+    readonly viOfferRef = viewChild<ElementRef<HTMLElement>>('viOffer');
 
     readonly insuranceSvc = inject(InsuranceV2Service);
     readonly fp = inject(FamilyPlayersService);
@@ -378,7 +378,7 @@ export class PlayerVIUpdateComponent implements OnDestroy {
     }
 
     private tryInitWidget(offerData: VIOfferData): void {
-        if (!this.viOfferRef) {
+        if (!this.viOfferRef()) {
             if (this.viInitRetries++ < 20) {
                 this.viInitTimeout = setTimeout(() => this.tryInitWidget(offerData), 150);
             }

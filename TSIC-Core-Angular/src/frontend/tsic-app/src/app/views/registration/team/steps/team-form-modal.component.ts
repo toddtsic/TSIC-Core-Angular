@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, Input, inject, OnInit, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, Input, inject, OnInit, output, signal, input } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { DragDropModule } from '@angular/cdk/drag-drop';
@@ -63,7 +63,7 @@ import type { ClubTeamDto } from '@core/api';
                    [class.is-invalid]="submitted() && (!teamName().trim() || nameContainsClub() || nameIsDuplicate())"
                    [class.has-warning]="!submitted() && (nameContainsClub() || nameIsDuplicate())" />
             <div class="wizard-tip">
-              Instead of entering <span class="text-danger fw-semibold">{{ clubName }} 2028 Blue</span>,
+              Instead of entering <span class="text-danger fw-semibold">{{ clubName() }} 2028 Blue</span>,
               enter <span class="text-success fw-semibold">2028 Blue</span> — schedules already display your club name.
             </div>
             @if (submitted() && !teamName().trim()) {
@@ -276,11 +276,13 @@ import type { ClubTeamDto } from '@core/api';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TeamFormModalComponent implements OnInit {
-    @Input() clubName = '';
+    readonly clubName = input('');
     /** When supplied, the modal is in edit mode and updates this team instead of creating. */
+    // TODO: Skipped for migration because:
+    //  Your application code writes to the input. This prevents migration.
     @Input() editingTeam: ClubTeamDto | null = null;
     /** Existing library teams — used to block duplicate names (case-insensitive). */
-    @Input() existingTeams: readonly ClubTeamDto[] = [];
+    readonly existingTeams = input<readonly ClubTeamDto[]>([]);
 
     readonly saved = output<void>();
     readonly closed = output<void>();
@@ -318,7 +320,7 @@ export class TeamFormModalComponent implements OnInit {
 
     /** True when the team name contains the club name (case-insensitive). */
     readonly nameContainsClub = computed(() => {
-        const club = this.clubName.trim().toLowerCase();
+        const club = this.clubName().trim().toLowerCase();
         const name = this.teamName().trim().toLowerCase();
         return club.length > 0 && name.length > 0 && name.includes(club);
     });
@@ -329,7 +331,7 @@ export class TeamFormModalComponent implements OnInit {
         const name = this.teamName().trim().toLowerCase();
         if (!name) return false;
         const editingId = this.editingTeam?.clubTeamId;
-        return this.existingTeams.some(t =>
+        return this.existingTeams().some(t =>
             t.clubTeamId !== editingId &&
             (t.clubTeamName ?? '').trim().toLowerCase() === name,
         );

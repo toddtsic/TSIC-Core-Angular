@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, OnInit, signal, computed } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { AdminTeamLinkDto, CreateTeamLinkRequest, UpdateTeamLinkRequest, TeamLinkTeamOptionDto } from '@core/api';
@@ -22,7 +22,7 @@ const ALL_TEAMS_SENTINEL = '__all-teams__';
         <tsic-dialog [open]="true" size="sm" (requestClose)="close.emit()">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ mode === 'add' ? 'Add Team Link' : 'Edit Team Link' }}</h5>
+                    <h5 class="modal-title">{{ mode() === 'add' ? 'Add Team Link' : 'Edit Team Link' }}</h5>
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -34,7 +34,7 @@ const ALL_TEAMS_SENTINEL = '__all-teams__';
                                 (ngModelChange)="onTeamChange($event)">
                                 <option value="" disabled>Select a team...</option>
                                 <option [value]="allTeamsSentinel">— All Teams —</option>
-                                @for (t of availableTeams; track t.teamId) {
+                                @for (t of availableTeams(); track t.teamId) {
                                     <option [value]="t.teamId">{{ t.display }}</option>
                                 }
                             </select>
@@ -66,7 +66,7 @@ const ALL_TEAMS_SENTINEL = '__all-teams__';
                         @if (saving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
-                        {{ mode === 'add' ? 'Add' : 'Save' }}
+                        {{ mode() === 'add' ? 'Add' : 'Save' }}
                     </button>
                 </div>
             </div>
@@ -75,12 +75,12 @@ const ALL_TEAMS_SENTINEL = '__all-teams__';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamLinkFormModalComponent implements OnInit {
-    @Input() mode: TeamLinkModalMode = 'add';
-    @Input() availableTeams: TeamLinkTeamOptionDto[] = [];
-    @Input() editLink: AdminTeamLinkDto | null = null;
+    readonly mode = input<TeamLinkModalMode>('add');
+    readonly availableTeams = input<TeamLinkTeamOptionDto[]>([]);
+    readonly editLink = input<AdminTeamLinkDto | null>(null);
 
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<TeamLinkFormResult>();
+    readonly close = output<void>();
+    readonly saved = output<TeamLinkFormResult>();
 
     readonly allTeamsSentinel = ALL_TEAMS_SENTINEL;
 
@@ -97,10 +97,11 @@ export class TeamLinkFormModalComponent implements OnInit {
     );
 
     ngOnInit() {
-        if (this.mode === 'edit' && this.editLink) {
-            this.selectedTeamValue.set(this.editLink.teamId ?? ALL_TEAMS_SENTINEL);
-            this.label.set(this.editLink.label);
-            this.docUrl.set(this.editLink.docUrl);
+        const editLink = this.editLink();
+        if (this.mode() === 'edit' && editLink) {
+            this.selectedTeamValue.set(editLink.teamId ?? ALL_TEAMS_SENTINEL);
+            this.label.set(editLink.label);
+            this.docUrl.set(editLink.docUrl);
         }
     }
 
@@ -118,12 +119,12 @@ export class TeamLinkFormModalComponent implements OnInit {
         const label = this.label().trim();
         const docUrl = this.docUrl().trim();
 
-        const result: TeamLinkFormResult = { mode: this.mode };
+        const result: TeamLinkFormResult = { mode: this.mode() };
 
-        if (this.mode === 'add') {
+        if (this.mode() === 'add') {
             result.addRequest = { teamId, label, docUrl };
         } else {
-            result.docId = this.editLink?.docId;
+            result.docId = this.editLink()?.docId;
             result.updateRequest = { teamId, label, docUrl };
         }
 
