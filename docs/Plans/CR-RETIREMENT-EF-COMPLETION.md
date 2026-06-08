@@ -54,7 +54,10 @@ verified Day Group): `camp_daygroups_pdf`, `camp_nightgroups`, `camp_nightgroups
 `FieldUtilizationWithNominations` (4 rows, not in frontend catalog) NOT retired (user didn't opt in).
 **Frontend catalog now = the 11 Tier-3 keeps only** (verified by grep).
 
-**Tier 3 — KEEP (not covered):** `Schedule_ByAgegroup` (game-board engine, out of v1) ·
+**Tier 3 — KEEP (not covered):** ~~`Schedule_ByAgegroup` (game-board engine, out of v1)~~ **DONE
+2026-06-08** — Game Boards built as a focused `GameBoardsPdfService` (EF + Syncfusion, NOT the list
+engine), endpoint swapped off Crystal, badged SF; **verified vs the legacy target PDF on
+`lftc-summer-2026`** (in-app runtime check pending) ·
 `TournamentRosterPacked_PositionSchool` (group-by-school not built — ALSO: its `@ActionMap`
 remap to the Designer is premature; consider un-remapping until the feature lands) ·
 `camp_commuters` (team-name filter, not built) · 8 E-residuals (American Select eval/main-event,
@@ -86,7 +89,7 @@ col from Flat); and pagination reserves the footer height so the last row + scor
 | FieldUtilizationAcrossLeaguesTournament | `fieldUtil` preset | present | ☐ |
 | FieldUtilizationAcrossLeaguesByDateTournament | `fieldUtil` + date | present | ☐ |
 | Score_Input | `scoreSheet` preset | present | ☐ |
-| Schedule_ByAgegroup (game boards) | game-board matrix — future Game Board engine | present | ☐ out of v1 list engine (per design memory) |
+| Schedule_ByAgegroup (game boards) | **focused `GameBoardsPdfService`** — standings write-in box + home/away score boxes + per-agegroup "Championship Round" (NOT the list engine) | present | ✔ BUILT + verified vs target PDF 2026-06-08 (lftc-summer-2026); endpoint EF-swapped + badged SF; in-app check pending. Games group by `DivId` (not `Div2Id`); bracket seed types Z/Y/X/Q/S/F; same-time games sorted by **field** (Allentown-01, 02, … — more usable than legacy's non-deterministic order; the proc sorts by G_Date only) |
 
 > **Render-shape discovery (2026-06-05).** The "Rosters" family is **not** one designer — it's
 > **two render shapes**: (B1) tight **packed cards** (existing `PackedRosterPdfService`) and (B2) a
@@ -190,8 +193,8 @@ fields + a **Camp preset**, and a Camp-Registration-gated tile **Camp Groups (De
 | Get_JobPlayers_TSICDAILY (daily reg counts) | present (`Registrations`) — **easy** | ◐ built — EF+Syncfusion, **migrate-in-place** (no Designer; tile/endpoint unchanged); verify pending |
 | TSICFeesYTDByCustomer | `adn.tsicFeesYTDAndLastYear` proc (small) — entities mapped | ◐ built — `GetFeeYtdRowsAsync` + `FeeYtdReportPdfService` (customer rollup); money **VERIFIED penny-exact vs proc** (274 keys, grand $98,380.00, 2025 $51,002 / 2026 $47,378); **layout INFERRED** (no .rpt/PDF ground truth) — user visual check pending |
 | TSICFeesYTDByCustomerAndJob | same proc | ◐ built — same service (customer→job breakout, YoY change col); shares verified proc-exact data; layout inferred, user check pending |
-| Get_Invoices_LastMonth | `adn.rpt_invoice` proc → **full EF reproduction** | ◐ built — player branch **VERIFIED penny-exact vs legacy PDF** (Camps&Clinics May-2026 balance $6,908.55); team branch built-to-spec, UNVERIFIED; PDF layout not yet user-checked |
-| Get_Invoices_LastMonthSummariesOnly | same proc, summary-only render | ◐ built — shares verified summary math; layout not yet user-checked |
+| Get_Invoices_LastMonth | `adn.rpt_invoice` proc → **full EF reproduction** | ✔ **USER-VERIFIED 2026-06-08** — player branch penny-exact ($6,908.55); **team branch confirmed** (user sees per-team txs render in the last-month run; same base `adn.Txs` reproduction as the verified player branch); layout "looks great" |
+| Get_Invoices_LastMonthSummariesOnly | same proc, summary-only render | ✔ **USER-VERIFIED 2026-06-08** — layout "looks great"; shares the verified summary math |
 
 **Financials decision (2026-06-06):** user chose **full EF reproduction** (not render-swap), tips: (1) query base tables, NOT the `adn.vTxs` view; (2) keep ADN's raw-text settlement date as text (year/month via fixed substring positions), no datetime coercion / schema change. `adn.rpt_invoice` reproduced as `GetInvoiceLinesAsync` (player + team flat branches off base `adn.Txs`) + `InvoiceReportPdfService` (landscape itemized + per-venue Accounting Summary). Money verified end-to-end against the ground-truth PDF via a throwaway SqlServer-backed test (deleted). All five `adn` entities were already mapped — no scaffolding needed.
 

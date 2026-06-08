@@ -25,6 +25,7 @@ public class ReportingController : ControllerBase
     private readonly IFeeYtdReportPdfService _feeYtdReportService;
     private readonly IPlayerStatsReportPdfService _playerStatsReportService;
     private readonly IAmericanSelectReportPdfService _americanSelectReportService;
+    private readonly IGameBoardsPdfService _gameBoardsPdfService;
 
     // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
     // Mirrors the local map pattern used by NavController / WidgetDashboardService /
@@ -50,7 +51,8 @@ public class ReportingController : ControllerBase
         IInvoiceReportPdfService invoiceReportService,
         IFeeYtdReportPdfService feeYtdReportService,
         IPlayerStatsReportPdfService playerStatsReportService,
-        IAmericanSelectReportPdfService americanSelectReportService)
+        IAmericanSelectReportPdfService americanSelectReportService,
+        IGameBoardsPdfService gameBoardsPdfService)
     {
         _reportingService = reportingService;
         _jobLookupService = jobLookupService;
@@ -59,6 +61,7 @@ public class ReportingController : ControllerBase
         _feeYtdReportService = feeYtdReportService;
         _playerStatsReportService = playerStatsReportService;
         _americanSelectReportService = americanSelectReportService;
+        _gameBoardsPdfService = gameBoardsPdfService;
     }
 
     /// <summary>
@@ -775,10 +778,18 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> JobStaffExcel()
         => CrystalReportAsync("JobStaff_Excel", 3);
 
+    // Game Boards — EF + Syncfusion replacement for Crystal "Schedule_ByAgegroup" (master-detail proc
+    // pair Schedule_Get_AgegroupScorecard + Schedule_Get_DivTeamsAndStandings, flattened). A blank
+    // game-day scoring board grouped agegroup → division (standings box + games) + a per-agegroup
+    // championship round. Job from JWT.
     [HttpGet("Schedule_ByAgegroup")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> ScheduleByAgegroup([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("Schedule_ByAgegroup", exportFormat);
+    public async Task<ActionResult> ScheduleByAgegroup(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _gameBoardsPdfService.GenerateAsync(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("JobRosters_MSYSA")]
     [Authorize(Policy = "AdminOnly")]

@@ -106,12 +106,12 @@
                 </h2>
                 <ul class="report-list">
                     @for (entry of searchResults(); track entry.id) {
-                        <li class="report-row" [class.report-row--cr]="entry.isCrystal" [class.report-row--running]="runningId() === entry.id">
+                        <li class="report-row" [class.report-row--cr]="entry.isCrystal && !entry.isMigrated" [class.report-row--migrated]="entry.isMigrated" [class.report-row--running]="runningId() === entry.id">
                             <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
                             <div class="report-row__body">
                                 <div class="report-row__heading">
                                     <h3 class="report-row__title">{{ entry.title }}</h3>
-                                    @if (entry.isCrystal) {
+                                    @if (entry.isMigrated) { <span class="report-row__migrated-badge" title="Now rendered natively — EF + Syncfusion (formerly Crystal). Temporary marker, removed once all reports are migrated."><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> SF</span> } @else if (entry.isCrystal) {
                                         <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
                                             <i class="bi bi-easel" aria-hidden="true"></i> Crystal
                                         </span>
@@ -163,12 +163,12 @@
                     </h2>
                     <ul class="report-list">
                         @for (entry of group.entries; track entry.id) {
-                            <li class="report-row" [class.report-row--cr]="entry.isCrystal" [class.report-row--running]="runningId() === entry.id">
+                            <li class="report-row" [class.report-row--cr]="entry.isCrystal && !entry.isMigrated" [class.report-row--migrated]="entry.isMigrated" [class.report-row--running]="runningId() === entry.id">
                                 <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
                                 <div class="report-row__body">
                                     <div class="report-row__heading">
                                         <h3 class="report-row__title">{{ entry.title }}</h3>
-                                        @if (entry.isCrystal) {
+                                        @if (entry.isMigrated) { <span class="report-row__migrated-badge" title="Now rendered natively — EF + Syncfusion (formerly Crystal). Temporary marker, removed once all reports are migrated."><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> SF</span> } @else if (entry.isCrystal) {
                                             <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
                                                 <i class="bi bi-easel" aria-hidden="true"></i> Crystal
                                             </span>
@@ -210,12 +210,12 @@
         } @else {
             <ul class="report-list">
                 @for (entry of tabEntries(); track entry.id) {
-                    <li class="report-row" [class.report-row--cr]="entry.isCrystal" [class.report-row--running]="runningId() === entry.id">
+                    <li class="report-row" [class.report-row--cr]="entry.isCrystal && !entry.isMigrated" [class.report-row--migrated]="entry.isMigrated" [class.report-row--running]="runningId() === entry.id">
                         <i class="bi bi-{{ entry.iconName || 'file-earmark-text' }} report-row__icon" aria-hidden="true"></i>
                         <div class="report-row__body">
                             <div class="report-row__heading">
                                 <h3 class="report-row__title">{{ entry.title }}</h3>
-                                @if (entry.isCrystal) {
+                                @if (entry.isMigrated) { <span class="report-row__migrated-badge" title="Now rendered natively — EF + Syncfusion (formerly Crystal). Temporary marker, removed once all reports are migrated."><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> SF</span> } @else if (entry.isCrystal) {
                                     <span class="report-row__cr-badge" title="Still served by Crystal Reports — pending migration to Type 2">
                                         <i class="bi bi-easel" aria-hidden="true"></i> Crystal
                                     </span>

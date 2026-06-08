@@ -275,8 +275,14 @@ import type { LineItem } from '../state/payment-v2.service';
         <!-- VerticalInsure / RegSaver region — card styling lives on the same
              wrapper that previously held the widget so we don't introduce an
              extra ancestor between #dVIOffer and the page (the widget script
-             targets #dVIOffer by id and clipping/positioning ancestors break it). -->
-        @if (insuranceState.offerPlayerRegSaver()) {
+             targets #dVIOffer by id and clipping/positioning ancestors break it).
+
+             Guard requires BOTH the job-level RegSaver flag AND an actual offer payload for
+             THIS submission. A free registrant (e.g. a $0 waitlist twin, or a genuinely free
+             event) comes back from PreSubmit as Available=false / data=null; without the data
+             check the section would render a perpetual "Getting Quote..." spinner that never
+             mounts a widget (the host #dVIOffer below is gated on the same data). -->
+        @if (insuranceState.offerPlayerRegSaver() && insuranceState.verticalInsureOffer().data) {
           <div class="insurance-wrapper mb-4">
             <header class="insurance-card-title">
               <i class="bi bi-shield-check me-2"></i>Registration Insurance
@@ -1106,7 +1112,10 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     private tryInitVerticalInsure(): void {
         if (!this.insuranceState.offerPlayerRegSaver()) return;
         const offerObj = this.insuranceState.verticalInsureOffer().data;
-        if (!offerObj) {
+        // Wait for BOTH the offer payload and its host element. #dVIOffer is now gated on
+        // offer data in the template, so a free submission (data=null) never renders it —
+        // the retries simply lapse and the section stays hidden, no orphaned mount attempt.
+        if (!offerObj || !document.getElementById('dVIOffer')) {
             if (this.viInitRetries++ < 20) {
                 this.viInitTimeout = setTimeout(() => this.tryInitVerticalInsure(), 150);
             }

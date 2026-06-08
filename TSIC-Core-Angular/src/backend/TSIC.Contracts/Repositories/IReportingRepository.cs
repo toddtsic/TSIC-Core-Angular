@@ -161,6 +161,16 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Per-division team roster for the Game Boards report (Schedule_ByAgegroup) — the EF stand-in for
+    /// <c>reporting.Schedule_Get_DivTeamsAndStandings</c>. The printed standings box is a blank write-in
+    /// grid, so only the team list per division is returned (club-rep–prefixed name, ordered by DivRank),
+    /// excluding the Unassigned holding division. Scoped by JobId. Group by <c>DivId</c> in the PDF layer.
+    /// </summary>
+    Task<List<GameBoardStandingTeamDto>> GetScheduleStandingsTeamsAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// One flat row per active, team-assigned registrant for the Roster Table Designer — the EF
     /// replacement for the wide-roster Crystal family (Club Rosters, No-Medical, Coaches,
     /// WithClubRep, STEPS, Recruiting roster). Scope mirrors those procs: bActive=1 registrants on

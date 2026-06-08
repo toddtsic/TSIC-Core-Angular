@@ -65,6 +65,11 @@ public record ScheduleListGameDto
 
     public string? AgegroupName { get; init; }
     public string? DivName { get; init; }
+
+    /// <summary>Primary division id (<c>Schedule.DivId</c>) — groups games into division blocks
+    /// and links each block to its standings roster. NOT <c>Div2Id</c>.</summary>
+    public Guid? DivId { get; init; }
+
     public string? LeagueName { get; init; }
     public string? FieldName { get; init; }
 
@@ -77,12 +82,21 @@ public record ScheduleListGameDto
     public Guid? T1Id { get; init; }
     public string? T1Name { get; init; }
     public string? T1Type { get; init; }
+
+    /// <summary>Seed/bracket slot number; with <see cref="T1Type"/> forms the slot label (e.g. "X7")
+    /// when there is no assigned team. Types: Z=R64, Y=R32, X=R16, Q=Quarters, S=Semis, F=Finals.</summary>
+    public int? T1No { get; init; }
+
     public string? T1Ann { get; init; }
     public int? T1Score { get; init; }
 
     public Guid? T2Id { get; init; }
     public string? T2Name { get; init; }
     public string? T2Type { get; init; }
+
+    /// <summary>Seed/bracket slot number for the away side (see <see cref="T1No"/>).</summary>
+    public int? T2No { get; init; }
+
     public string? T2Ann { get; init; }
     public int? T2Score { get; init; }
 
@@ -119,4 +133,22 @@ public record ScheduleListRequestDto
 
     /// <summary>Tint each group's section header with the age group's color.</summary>
     public required bool ColorAccent { get; init; }
+}
+
+/// <summary>
+/// One team in a division's standings box for the Game Boards report (Schedule_ByAgegroup) — the EF
+/// replacement for <c>reporting.Schedule_Get_DivTeamsAndStandings</c>. The printed box is a blank
+/// write-in grid (Wins / Losses / Ties / Goals Against), so only the per-division roster is needed:
+/// the club-rep–prefixed name (matching the schedule's denormalized team names) ordered by
+/// <see cref="DivRank"/>. Group by <see cref="DivId"/> in the render layer.
+/// </summary>
+public record GameBoardStandingTeamDto
+{
+    /// <summary>Primary division id — matches <c>ScheduleListGameDto.DivId</c>.</summary>
+    public Guid? DivId { get; init; }
+
+    /// <summary>"Club:Team" when the team's club rep carries a club name, else the bare team name.</summary>
+    public required string TeamFullName { get; init; }
+
+    public int DivRank { get; init; }
 }

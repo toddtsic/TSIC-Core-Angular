@@ -332,6 +332,16 @@
     &:hover { background: var(--bs-warning-bg-subtle); }
 }
 
+// Migrated rows — Crystal-kind reports now rendered natively by EF + Syncfusion.
+// Success-subtle tint marks them "migrated/done" vs the warning "pending" of real CR.
+// TEMP: remove this + .report-row__migrated-badge once all reports are off Crystal.
+.report-row--migrated {
+    background: var(--bs-success-bg-subtle);
+    box-shadow: inset 3px 0 0 0 var(--bs-success-border-subtle);
+
+    &:hover { background: var(--bs-success-bg-subtle); }
+}
+
 // Small "Crystal" pill — text label so the state isn't conveyed by color alone (WCAG).
 .report-row__cr-badge {
     display: inline-flex;
@@ -347,6 +357,27 @@
     background: var(--bs-body-bg);          // sits cleanly on the tinted row
     color: var(--bs-warning-text-emphasis);
     border: 1px solid var(--bs-warning-border-subtle);
+    white-space: nowrap;
+
+    i { font-size: 0.75rem; }
+}
+
+// Small "SF" pill — Crystal-kind report now rendered natively by EF + Syncfusion.
+// Success palette so it reads as "migrated", not "pending". TEMP marker (see above).
+.report-row__migrated-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex: 0 0 auto;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--bs-body-bg);
+    color: var(--bs-success-text-emphasis);
+    border: 1px solid var(--bs-success-border-subtle);
     white-space: nowrap;
 
     i { font-size: 0.75rem; }

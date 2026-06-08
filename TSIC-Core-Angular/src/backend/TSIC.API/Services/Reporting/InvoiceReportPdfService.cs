@@ -47,7 +47,7 @@ public sealed class InvoiceReportPdfService : IInvoiceReportPdfService
         ("Amount",       75f,  PdfTextAlignment.Right),
         ("Count",        50f,  PdfTextAlignment.Center),
         ("Online Reg'n Date", 90f, PdfTextAlignment.Center),
-        ("TSIC RegID",   79.4f, PdfTextAlignment.Left),
+        ("Id",           79.4f, PdfTextAlignment.Left),
     };
 
     private static readonly PdfColor BandColor = new(222, 222, 222);
@@ -187,6 +187,7 @@ public sealed class InvoiceReportPdfService : IInvoiceReportPdfService
             {
                 Title = $"{first.CustomerName}:{first.CustomerName}:{first.JobName}",
                 Categories = categories,
+                IsTeamJob = isTeamJob,
                 ActiveToDate = activeToDate,
                 BilledLastMonth = billedLastMonth,
                 NewThisMonth = newThisMonth,
@@ -230,7 +231,10 @@ public sealed class InvoiceReportPdfService : IInvoiceReportPdfService
         var paymentDate = r.IsTeam ? (settleDate ?? r.AcctCreatedate) : (settleDate ?? r.AcctModified);
 
         var inv = !string.IsNullOrEmpty(r.TxnInvoiceNumber) ? r.TxnInvoiceNumber : (r.CheckNo ?? string.Empty);
-        var regId = r.IsTeam ? r.AcctAId.ToString(CultureInfo.InvariantCulture) : ParseRegIdFromInvoice(inv);
+        // Both branches show the RegistrationAccounting.AId (autoincrement) under the "Id" column —
+        // a stable per-transaction row id. (Player rows previously parsed a RegID out of the ADN
+        // invoice number; the raw AId is more useful and consistent with the team rows.)
+        var regId = r.AcctAId.ToString(CultureInfo.InvariantCulture);
 
         var onlineDate = r.IsTeam ? (r.AcctCreatedate ?? settleDate) : r.RegistrationTs;
 
@@ -265,19 +269,6 @@ public sealed class InvoiceReportPdfService : IInvoiceReportPdfService
 
     private static decimal? ParseDecimal(string? text) =>
         decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var d) ? d : null;
-
-    // proc: substring AFTER the 2nd underscore of "jobNo_custNo_regId"; if <2 underscores, the
-    // whole string (matches the CHARINDEX fallback); empty stays empty.
-    private static string ParseRegIdFromInvoice(string inv)
-    {
-        if (string.IsNullOrEmpty(inv))
-        {
-            return string.Empty;
-        }
-        var first = inv.IndexOf('_');
-        var second = first < 0 ? -1 : inv.IndexOf('_', first + 1);
-        return second < 0 ? inv : inv[(second + 1)..];
-    }
 
     // ADN stores the settlement date as raw text "DD-Mon-YYYY HH:MM:SS tt ZZZ" (e.g.
     // "12-Sep-2023 06:17:37 PM EDT"). We slice fixed positions instead of coercing to datetime
@@ -478,12 +469,16 @@ public sealed class InvoiceReportPdfService : IInvoiceReportPdfService
         g.DrawLine(pens.Divider, new PointF((ContentW - hw) / 2f, y + 14f), new PointF((ContentW + hw) / 2f, y + 14f));
         y += 26f;
 
-        // Upper-left count rows.
+        // Upper-left count rows. A team-billed job (JobTypeId 2) counts/charges TEAMS, not
+        // registrants — the legacy report swaps the noun in exactly these four labels (the lower
+        // "TSIC Registrant Charges This Month" line stays "Registrant" for both).
+        var noun = v.IsTeamJob ? "Teams" : "Registrants";
+        var unit = v.IsTeamJob ? "Team" : "Registrant";
         var countTop = y;
-        DrawKv(g, "# Total Active Registrants To Date:", Int(v.ActiveToDate), countTop, false, fonts, 0f, 250f);
-        DrawKv(g, "# Total Registrants Billed Through Last Month:", Int(v.BilledLastMonth), countTop + 14f, false, fonts, 0f, 250f);
-        DrawKv(g, "# New Registrants Billed This Month:", Int(v.NewThisMonth), countTop + 28f, false, fonts, 0f, 250f);
-        DrawKv(g, "TSIC Charge Per Registrant:", v.ChargePerReg.HasValue ? Money(v.ChargePerReg.Value) : string.Empty,
+        DrawKv(g, $"# Total Active {noun} To Date:", Int(v.ActiveToDate), countTop, false, fonts, 0f, 250f);
+        DrawKv(g, $"# Total {noun} Billed Through Last Month:", Int(v.BilledLastMonth), countTop + 14f, false, fonts, 0f, 250f);
+        DrawKv(g, $"# New {noun} Billed This Month:", Int(v.NewThisMonth), countTop + 28f, false, fonts, 0f, 250f);
+        DrawKv(g, $"TSIC Charge Per {unit}:", v.ChargePerReg.HasValue ? Money(v.ChargePerReg.Value) : string.Empty,
             countTop + 46f, true, fonts, 0f, 250f);
 
         // Lower two-column money block.
@@ -551,6 +546,7 @@ public sealed class InvoiceReportPdfService : IInvoiceReportPdfService
     {
         public required string Title { get; init; }
         public required List<CategoryGroup> Categories { get; init; }
+        public bool IsTeamJob { get; init; }
         public int? ActiveToDate { get; init; }
         public int? BilledLastMonth { get; init; }
         public int? NewThisMonth { get; init; }

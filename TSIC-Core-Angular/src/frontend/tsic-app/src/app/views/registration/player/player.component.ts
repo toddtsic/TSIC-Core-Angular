@@ -345,8 +345,13 @@ export class PlayerWizardV2Component implements OnInit {
             } catch (err: unknown) {
                 console.warn('[PlayerWizard] post-preSubmit reload failed', err);
             }
-            // SP-042: Legacy success toast (verbatim) — only on new registration submit
-            if (newRegs) {
+            // SP-042: Legacy success toast (verbatim) — only on a NEW registration that
+            // actually owes something. A genuinely-free registration ($0 waitlist twin,
+            // self-rostering, or free CAC) is already active (OwedTotal=0 -> ActivateIfFree),
+            // so the "not paid in full -> INACTIVE -> pay to activate" message is both false
+            // and confusing. The payment tab's own "No payment due" alert (showNoPaymentInfo)
+            // covers that case; totalAmount() is the same balance signal that gates it.
+            if (newRegs && this.paySvc.totalAmount() > 0) {
                 this.toast.show(
                     'Player registration data HAS BEEN SAVED SUCCESSFULLY. '
                     + 'However, players not paid in full are marked INACTIVE and will NOT be placed on rosters. '

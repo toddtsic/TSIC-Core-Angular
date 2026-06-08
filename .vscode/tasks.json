@@ -62,8 +62,17 @@
 			"label": "dotnet: run (API)",
 			"type": "shell",
 			"command": "dotnet watch run --project TSIC-Core-Angular/src/backend/TSIC.API/TSIC.API.csproj --launch-profile https --non-interactive",
-			"problemMatcher": "$msCompile",
-			"isBackground": true
+			"isBackground": true,
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^$"
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "dotnet watch",
+					"endsPattern": "Application started|Now listening on"
+				}
+			}
 		},
 		{
 			"label": "Swagger: wait",

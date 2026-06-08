@@ -673,15 +673,16 @@ export class PlayerFormsStepComponent implements OnDestroy {
     }
 
     getTeamName(teamId: string): string {
-        const team = this.teamService.getTeamById(teamId);
-        return team?.teamName || teamId;
+        // Waitlist-aware: a full team's $0 twin renders as "WAITLIST - {name}".
+        return this.teamService.getTeamDisplayName(teamId);
     }
 
     getTeamPillLabel(teamId: string): string {
         const team = this.teamService.getTeamById(teamId);
         if (!team) return teamId;
+        const name = this.teamService.getTeamDisplayName(teamId);
         const club = team.clubName?.trim();
-        return club ? `${club}:${team.teamName}` : team.teamName;
+        return club ? `${club}:${name}` : name;
     }
 
     // ── CAC events expand/collapse ───────────────────────────────────
