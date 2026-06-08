@@ -112,6 +112,12 @@ Worktree `npm install` done (A21 baseline). Applied:
 
 > No `ChangeDetectorRef` usage exists anywhere today — prefer signal conversion as the fix; `markForCheck()` only as fallback.
 
+> **CORRECTION (2026-06-08, verified against templates + CD flow):** the audit above was over-mechanical. On inspection the 5 "Category A" sites are mostly NOT genuine stale-UI bugs:
+> - `gridRef` (uslax) and `lastColVis` (registered-teams-grid) — **false positives**: neither is referenced in any template; both only drive imperative EJ2 API calls (`clearSelection`, `showColumns`). No Angular render dependency → no zoneless risk. **No action.**
+> - `selectedStartDate`/`selectedEndDate` (customer-job-revenue) — `[(ngModel)]` two-way; set once in the **constructor before first render**, and user edits go through ngModel's event binding (CD-safe). Low risk; can't be naively signal-ified (would need `model()` rework). **Left for the flip.**
+> - `pivotDataSource` (customer-job-revenue) — reassigned in an HTTP callback, but a sibling `isLoading.set(false)` in the same callback already triggers CD that re-reads it, so likely not stale today either. Converted to a `signal` anyway as cheap defensive robustness (`2026-06-08`, build+tests green). **DONE.**
+> **Lesson: the real zoneless-risk list must be re-derived AT the flip with the running-app smoke matrix — a static audit produces false positives.**
+
 ## Phase 3 — `httpResource` read migration (paced)
 
 - **Pattern (service-layer):** read services expose `httpResource`-based methods that take the component's param signal(s) and return the resource; the component owns the filter signal and reads `.value()` / `.isLoading()` / `.error()`. *Injection-context gotcha:* create as a component field at construction (`x = this.svc.searchY(this.filter)`), not lazily.
