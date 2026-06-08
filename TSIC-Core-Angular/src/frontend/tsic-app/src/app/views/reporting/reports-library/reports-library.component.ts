@@ -19,6 +19,7 @@ import {
 
 interface LibraryEntry {
     readonly isCrystal: boolean;          // true = still served by Crystal (CR); false = SP-Excel or Bold
+    readonly isMigrated?: boolean;        // TEMP: Crystal-kind action actually rendered natively (EF + Syncfusion); drives the "SF" badge. Remove once all reports are off Crystal.
     readonly roles: readonly string[];    // assigned role names — populated for the SU all-roles view only
     readonly id: string;
     readonly title: string;
@@ -48,6 +49,22 @@ interface SpRunParams {
 const SP_RUN_DEFAULTS: SpRunParams = { bUseJobId: true, bUseDateUnscheduled: false };
 const RECENTS_LIMIT = 5;
 const RECENTS_KEY_PREFIX = 'tsic-reports-recents';
+
+// TEMP (CR retirement): Crystal-kind catalogue actions that are actually rendered
+// natively by EF + Syncfusion — the controller action calls our *PdfService, not the
+// Crystal engine. They intentionally keep Kind='CrystalReport' (the named-endpoint
+// routing bucket), so dispatch is unchanged; this set only drives the distinct "SF"
+// badge + tint. Remove this set + the badge markup once every report is off Crystal.
+const MIGRATED_EF_ACTIONS = new Set<string>([
+    'AmericanSelectEvaluation',
+    'AmericanSelectMainEventRosters',
+    'PlayerStats_E120',
+    'Get_JobPlayers_TSICDAILY',
+    'Get_Invoices_LastMonth',
+    'Get_Invoices_LastMonthSummariesOnly',
+    'TSICFeesYTDByCustomerAndJob',
+    'TSICFeesYTDByCustomer',
+]);
 
 function parseSpRunParams(parametersJson: string | null | undefined): SpRunParams {
     if (!parametersJson) return SP_RUN_DEFAULTS;
@@ -143,6 +160,7 @@ export class ReportsLibraryComponent implements OnInit {
             .filter(e => passesVisibilityRules(e.visibilityRules, ctx))
             .map(e => ({
                 isCrystal: true,
+                isMigrated: MIGRATED_EF_ACTIONS.has(e.endpointPath ?? ''),
                 roles: [],
                 id: e.id,
                 title: e.title,
@@ -245,6 +263,7 @@ export class ReportsLibraryComponent implements OnInit {
             const boldParsed = isBold ? parseBoldReportAction(base.action) : null;
             entries.push({
                 isCrystal,
+                isMigrated: isCrystal && MIGRATED_EF_ACTIONS.has(base.action),
                 roles: [...roles].sort(),
                 id: `su-${base.jobReportId}`,
                 title: base.title,
