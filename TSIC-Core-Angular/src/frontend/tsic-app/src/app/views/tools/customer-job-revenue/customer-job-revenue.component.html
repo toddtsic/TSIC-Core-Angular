@@ -103,7 +103,7 @@
 				<button class="btn btn-sm btn-outline-secondary" (click)="collapseAll()">Collapse All</button>
 			</div>
 			<ejs-pivotview #pivotView
-				[dataSourceSettings]="pivotDataSource"
+				[dataSourceSettings]="pivotDataSource()"
 				[height]="'600'"
 				[allowExcelExport]="true"
 				[allowPdfExport]="true"

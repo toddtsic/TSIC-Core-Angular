@@ -62,7 +62,7 @@ export class CustomerJobRevenueComponent {
 	selectedJobs: string[] = [];
 
 	// Pivot config
-	pivotDataSource: IDataOptions = {
+	readonly pivotDataSource = signal<IDataOptions>({
 		dataSource: [],
 		enableSorting: true,
 		expandAll: false,
@@ -81,7 +81,7 @@ export class CustomerJobRevenueComponent {
 		formatSettings: [
 			{ name: 'payAmount', format: 'C2', useGrouping: true }
 		]
-	};
+	});
 
 	// Grid edit settings (counts tab — SuperUser only)
 	isSuperUser = computed(() => {
@@ -160,10 +160,10 @@ export class CustomerJobRevenueComponent {
 	}
 
 	private updatePivotDataSource(data: JobRevenueDataDto): void {
-		this.pivotDataSource = {
-			...this.pivotDataSource,
+		this.pivotDataSource.set({
+			...this.pivotDataSource(),
 			dataSource: data.revenueRecords as any
-		};
+		});
 	}
 
 	onRefresh(): void {
