@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, computed, inject, ViewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, inject, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpParams } from '@angular/common/http';
@@ -94,12 +94,12 @@ export class CustomerJobRevenueComponent {
 	);
 	readOnlyToolbar: ToolbarItems[] = ['ExcelExport'];
 
-	@ViewChild('pivotView') pivotView!: PivotViewComponent;
-	@ViewChild('countsGrid') countsGrid!: GridComponent;
-	@ViewChild('adminFeesGrid') adminFeesGrid!: GridComponent;
-	@ViewChild('ccGrid') ccGrid!: GridComponent;
-	@ViewChild('checkGrid') checkGrid!: GridComponent;
-	@ViewChild('echeckGrid') echeckGrid!: GridComponent;
+	readonly pivotView = viewChild.required<PivotViewComponent>('pivotView');
+	readonly countsGrid = viewChild.required<GridComponent>('countsGrid');
+	readonly adminFeesGrid = viewChild.required<GridComponent>('adminFeesGrid');
+	readonly ccGrid = viewChild.required<GridComponent>('ccGrid');
+	readonly checkGrid = viewChild.required<GridComponent>('checkGrid');
+	readonly echeckGrid = viewChild.required<GridComponent>('echeckGrid');
 
 	constructor() {
 		this.buildMonthOptions();
@@ -176,45 +176,47 @@ export class CustomerJobRevenueComponent {
 
 	// Pivot toolbar actions
 	expandAll(): void {
-		if (this.pivotView) {
-			this.pivotView.dataSourceSettings.expandAll = true;
+		const pivotView = this.pivotView();
+  if (pivotView) {
+			pivotView.dataSourceSettings.expandAll = true;
 		}
 	}
 
 	collapseAll(): void {
-		if (this.pivotView) {
-			this.pivotView.dataSourceSettings.expandAll = false;
+		const pivotView = this.pivotView();
+  if (pivotView) {
+			pivotView.dataSourceSettings.expandAll = false;
 		}
 	}
 
 	// Grid toolbar click handlers
 	onCountsToolbarClick(args: any): void {
 		if (args.item?.id?.includes('excelexport')) {
-			this.countsGrid.excelExport();
+			this.countsGrid().excelExport();
 		}
 	}
 
 	onAdminFeesToolbarClick(args: any): void {
 		if (args.item?.id?.includes('excelexport')) {
-			this.adminFeesGrid.excelExport();
+			this.adminFeesGrid().excelExport();
 		}
 	}
 
 	onCcToolbarClick(args: any): void {
 		if (args.item?.id?.includes('excelexport')) {
-			this.ccGrid.excelExport();
+			this.ccGrid().excelExport();
 		}
 	}
 
 	onCheckToolbarClick(args: any): void {
 		if (args.item?.id?.includes('excelexport')) {
-			this.checkGrid.excelExport();
+			this.checkGrid().excelExport();
 		}
 	}
 
 	onEcheckToolbarClick(args: any): void {
 		if (args.item?.id?.includes('excelexport')) {
-			this.echeckGrid.excelExport();
+			this.echeckGrid().excelExport();
 		}
 	}
 

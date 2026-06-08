@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, OnInit, inject, output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, output, signal, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { FamilyService } from '@infrastructure/services/family.service';
@@ -19,13 +19,13 @@ import type { ChildDto } from '@core/api';
       <div class="modal-content">
         <div class="modal-header">
           <h5 class="modal-title">
-            <i class="bi me-2" [class.bi-person-plus-fill]="mode === 'add'" [class.bi-pencil-square]="mode === 'edit'"></i>
-            {{ mode === 'add' ? 'Add Player' : 'Edit Player' }}
+            <i class="bi me-2" [class.bi-person-plus-fill]="mode() === 'add'" [class.bi-pencil-square]="mode() === 'edit'"></i>
+            {{ mode() === 'add' ? 'Add Player' : 'Edit Player' }}
           </h5>
           <button type="button" class="btn-close" (click)="closed.emit()" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-          @if (identityLocked) {
+          @if (identityLocked()) {
             <div class="alert alert-info py-2 small d-flex align-items-start gap-2 mb-3">
               <i class="bi bi-lock-fill mt-1"></i>
               <span>This player is already registered, so their name, gender, and date of birth are locked. You can still update contact details below. To correct identity details, contact your administrator.</span>
@@ -36,7 +36,7 @@ import type { ChildDto } from '@core/api';
               <label for="pfm-first" class="form-label small fw-medium mb-1">First Name</label>
               <input id="pfm-first" type="text" class="form-control form-control-sm"
                      [value]="firstName()" (input)="firstName.set($any($event.target).value)"
-                     [disabled]="identityLocked"
+                     [disabled]="identityLocked()"
                      [class.is-invalid]="submitted() && !firstName().trim()" />
               @if (submitted() && !firstName().trim()) {
                 <div class="invalid-feedback">Required</div>
@@ -46,7 +46,7 @@ import type { ChildDto } from '@core/api';
               <label for="pfm-last" class="form-label small fw-medium mb-1">Last Name</label>
               <input id="pfm-last" type="text" class="form-control form-control-sm"
                      [value]="lastName()" (input)="lastName.set($any($event.target).value)"
-                     [disabled]="identityLocked"
+                     [disabled]="identityLocked()"
                      [class.is-invalid]="submitted() && !lastName().trim()" />
               @if (submitted() && !lastName().trim()) {
                 <div class="invalid-feedback">Required</div>
@@ -56,7 +56,7 @@ import type { ChildDto } from '@core/api';
               <label for="pfm-gender" class="form-label small fw-medium mb-1">Gender</label>
               <select id="pfm-gender" class="form-select form-select-sm"
                       [ngModel]="gender()" (ngModelChange)="gender.set($event)"
-                      [disabled]="identityLocked"
+                      [disabled]="identityLocked()"
                       [class.is-invalid]="submitted() && !gender()">
                 <option value="">— Select —</option>
                 @for (opt of genderOptions; track opt.value) {
@@ -71,7 +71,7 @@ import type { ChildDto } from '@core/api';
               <label for="pfm-dob" class="form-label small fw-medium mb-1">Date of Birth</label>
               <input id="pfm-dob" type="date" class="form-control form-control-sm"
                      [value]="dob()" (input)="dob.set($any($event.target).value)"
-                     [disabled]="identityLocked" />
+                     [disabled]="identityLocked()" />
             </div>
           </div>
           <hr class="form-divider my-3">
@@ -103,8 +103,8 @@ import type { ChildDto } from '@core/api';
             @if (saving()) {
               <span class="spinner-border spinner-border-sm me-1"></span>Saving...
             } @else {
-              <i class="bi me-1" [class.bi-plus-circle]="mode === 'add'" [class.bi-check-lg]="mode === 'edit'"></i>
-              {{ mode === 'add' ? 'Add Player' : 'Save Changes' }}
+              <i class="bi me-1" [class.bi-plus-circle]="mode() === 'add'" [class.bi-check-lg]="mode() === 'edit'"></i>
+              {{ mode() === 'add' ? 'Add Player' : 'Save Changes' }}
             }
           </button>
         </div>
@@ -114,12 +114,19 @@ import type { ChildDto } from '@core/api';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlayerFormModalComponent implements OnInit {
-    @Input() mode: 'add' | 'edit' = 'add';
-    @Input() playerId: string | null = null;
+    readonly mode = input<'add' | 'edit'>('add');
+    readonly playerId = input<string | null>(null);
     /** When true, identity fields (name/gender/DOB) are locked — the player already has a
      *  registration and those fields anchor its history. Enforced server-side in UpdateChildAsync. */
-    @Input() identityLocked = false;
-    @Input() initialData: { firstName?: string; lastName?: string; gender?: string; dob?: string; email?: string; phone?: string } | null = null;
+    readonly identityLocked = input(false);
+    readonly initialData = input<{
+    firstName?: string;
+    lastName?: string;
+    gender?: string;
+    dob?: string;
+    email?: string;
+    phone?: string;
+} | null>(null);
 
     readonly saved = output<void>();
     readonly closed = output<void>();
@@ -141,13 +148,14 @@ export class PlayerFormModalComponent implements OnInit {
     readonly errorMsg = signal<string | null>(null);
 
     ngOnInit(): void {
-        if (this.mode === 'edit' && this.initialData) {
-            this.firstName.set(this.initialData.firstName ?? '');
-            this.lastName.set(this.initialData.lastName ?? '');
-            this.gender.set(this.initialData.gender ?? '');
-            this.dob.set(this.initialData.dob ?? '');
-            this.email.set(this.initialData.email ?? '');
-            this.phone.set(this.initialData.phone ?? '');
+        const initialData = this.initialData();
+        if (this.mode() === 'edit' && initialData) {
+            this.firstName.set(initialData.firstName ?? '');
+            this.lastName.set(initialData.lastName ?? '');
+            this.gender.set(initialData.gender ?? '');
+            this.dob.set(initialData.dob ?? '');
+            this.email.set(initialData.email ?? '');
+            this.phone.set(initialData.phone ?? '');
         }
     }
 
@@ -174,15 +182,16 @@ export class PlayerFormModalComponent implements OnInit {
             phone: this.phone().trim() || null,
         };
 
-        const request$ = this.mode === 'edit' && this.playerId
-            ? this.familyService.updateChild(this.playerId, dto)
+        const playerId = this.playerId();
+        const request$ = this.mode() === 'edit' && playerId
+            ? this.familyService.updateChild(playerId, dto)
             : this.familyService.addChild(dto);
 
         request$.subscribe({
             next: (resp) => {
                 this.saving.set(false);
                 if (resp.success) {
-                    this.toast.show(this.mode === 'add' ? 'Player added' : 'Player updated', 'success', 2000);
+                    this.toast.show(this.mode() === 'add' ? 'Player added' : 'Player updated', 'success', 2000);
                     this.saved.emit();
                 } else {
                     this.errorMsg.set(resp.message || 'An error occurred.');
