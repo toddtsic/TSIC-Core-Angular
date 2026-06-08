@@ -72,7 +72,7 @@ Worktree `npm install` done (A21 baseline). Applied:
 > - `player.component.spec.ts` — 2: review-step navigation.
 > - `team.service.spec.ts` — 1: BYCLUBNAME substring filter.
 >
-> **The 3-mock compile fix should also land on master** so Ann's line has a compiling frontend suite (worktree merges one-way master→worktree, so a worktree-only fix won't flow back) — pending user go.
+> **The 3-mock compile fix lives on this branch (`fdbaca46`)** and rides into master at the gated cutover — NOT separately ported to master (decision 2026-06-07; master worktree also had Ann's uncommitted work in flight, so leave it be).
 
 ## Phase 1 — The v22 bump, zone-based, to GREEN — BLOCKED on Syncfusion A22
 
