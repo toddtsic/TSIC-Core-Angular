@@ -132,8 +132,10 @@ All three schematics confirmed **runnable on Angular 21** and run via official t
 - `5f4de7f7` — @Output → `output()`, **27** components.
 - `e1023a23` — @ViewChild/@ViewChildren → `viewChild()`, **21** components.
 
-**DEFERRED for supervised migration (14 components — NOT migrated; still decorator-based).** These handle money/PII/payment/accounting/registration entry and (mostly) have no unit-test coverage, so "compiles" would be the only check — left for human review. Run the schematics per-file under supervision when ready:
-`credit-card-form`, `bank-account-form`, `vi-charge-confirm-modal`, `player-form-modal`, `team-form-modal`, `add-and-register-team-modal`, `fee-card`, player `payment-step`, team `payment-step`, `family.component`, `clubrep-vi-update`, `player-vi-update`, `customer-job-revenue`, `last-months-job-stats`.
+**The 14 money/PII/payment/accounting components — MIGRATED under supervision 2026-06-08** (`4522130c` payment/PII set; `5dcd19a6` registration/accounting set). Official schematics; build green; tests 152/152 unchanged. Caveats:
+- **`vi-charge-confirm-modal` tool bug**: `output-migration --insert-todos` DUPLICATED the `onCancel`/`onConfirm` method signatures and broke the build — fixed by hand (removed 2 dup lines; `output<void>()`+`.emit()` intact). Watch for this bug if re-running output-migration with `--insert-todos` elsewhere.
+- **2 inputs intentionally left as `@Input`** (tool correctly refused; safe — decorators not removed in v22): `fee-card.hintText` (used in `@if` narrowing), `team-form-modal.editingTeam` (component writes to it).
+- These 14 have **no unit tests** → verified = compiles + types consistent; runtime behavior (payment forms, payment-steps, family ledger, revenue pivot) still needs the **August QA smoke pass**.
 
 > Still TODO on the migrated files (per the manual-review note above): two-way bindings, required inputs, and inputs read in `ngOnInit`/lifecycle hooks — schematic handles most but a human pass is warranted before cutover. Build+tests give confidence the *types/templates* are consistent; runtime behavior of non-test-covered components still needs the August QA smoke pass.
 
