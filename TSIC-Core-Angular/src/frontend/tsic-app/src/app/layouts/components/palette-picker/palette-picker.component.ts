@@ -1,11 +1,12 @@
-import { Component, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { PaletteService } from '../../../infrastructure/services/palette.service';
 
 @Component({
   selector: 'app-palette-picker',
   standalone: true,
   templateUrl: './palette-picker.component.html',
-  styleUrl: './palette-picker.component.scss'
+  styleUrl: './palette-picker.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class PalettePickerComponent {
   readonly paletteService = inject(PaletteService);
