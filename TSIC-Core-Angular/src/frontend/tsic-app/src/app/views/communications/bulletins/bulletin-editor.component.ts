@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
 import { GridAllModule, GridComponent, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { BulletinAdminService } from './services/bulletin-admin.service';
 import { ToastService } from '../../../shared-ui/toast.service';
@@ -18,7 +18,7 @@ export class BulletinEditorComponent implements OnInit {
   private readonly bulletinService = inject(BulletinAdminService);
   private readonly toastService = inject(ToastService);
 
-  @ViewChild('grid') grid!: GridComponent;
+  readonly grid = viewChild.required<GridComponent>('grid');
 
   // State signals
   bulletins = signal<BulletinAdminDto[]>([]);
@@ -64,10 +64,11 @@ export class BulletinEditorComponent implements OnInit {
 
   // Row numbers
   refreshRowNumbers(): void {
-    if (!this.grid) return;
-    const rows = this.grid.getRows();
-    const page = this.grid.pageSettings?.currentPage ?? 1;
-    const size = this.grid.pageSettings?.pageSize ?? rows.length;
+    const grid = this.grid();
+    if (!grid) return;
+    const rows = grid.getRows();
+    const page = grid.pageSettings?.currentPage ?? 1;
+    const size = grid.pageSettings?.pageSize ?? rows.length;
     const offset = (page - 1) * size;
     rows.forEach((row, i) => {
       const cell = row.querySelector('td');

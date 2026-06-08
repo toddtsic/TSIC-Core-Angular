@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ViewChild, inject, signal, computed, OnInit, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, computed, OnInit, input, output, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
@@ -391,7 +391,7 @@ export class BulletinFormModalComponent implements OnInit {
     readonly close = output<void>();
     readonly saved = output<void>();
 
-    @ViewChild('rteEditor') rteEditor!: RichTextEditorComponent;
+    readonly rteEditor = viewChild.required<RichTextEditorComponent>('rteEditor');
 
     private readonly bulletinService = inject(BulletinAdminService);
     private readonly toastService = inject(ToastService);
@@ -490,8 +490,8 @@ export class BulletinFormModalComponent implements OnInit {
     }
 
     insertToken(token: string): void {
-        this.rteEditor.focusIn();
-        this.rteEditor.executeCommand('insertText', token);
+        this.rteEditor().focusIn();
+        this.rteEditor().executeCommand('insertText', token);
     }
 
     draftWithAi(): void {
@@ -503,8 +503,9 @@ export class BulletinFormModalComponent implements OnInit {
             next: (response) => {
                 this.title.set(response.subject);
                 this.text.set(response.body);
-                if (this.rteEditor) {
-                    this.rteEditor.value = response.body;
+                const rteEditor = this.rteEditor();
+                if (rteEditor) {
+                    rteEditor.value = response.body;
                 }
                 this.isDrafting.set(false);
             },
@@ -525,7 +526,8 @@ export class BulletinFormModalComponent implements OnInit {
         this.bulletinService.aiFormatBulletin(current).subscribe({
             next: (response) => {
                 this.text.set(response.html);
-                if (this.rteEditor) { this.rteEditor.value = response.html; }
+                const rteEditor = this.rteEditor();
+                if (rteEditor) { rteEditor.value = response.html; }
                 this.isFormatting.set(false);
                 if (this.previewOpen()) { this.previewTrigger$.next(); }
             },
@@ -541,7 +543,8 @@ export class BulletinFormModalComponent implements OnInit {
         const previous = this.preFormatHtml();
         if (previous === null) { return; }
         this.text.set(previous);
-        if (this.rteEditor) { this.rteEditor.value = previous; }
+        const rteEditor = this.rteEditor();
+        if (rteEditor) { rteEditor.value = previous; }
         this.preFormatHtml.set(null);
         if (this.previewOpen()) { this.previewTrigger$.next(); }
     }

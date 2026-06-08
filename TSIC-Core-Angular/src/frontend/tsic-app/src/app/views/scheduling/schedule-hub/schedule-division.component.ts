@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnDestroy, OnInit, signal, ChangeDetectionStrategy, ViewChild, ElementRef } from '@angular/core';
+import { Component, computed, inject, OnDestroy, OnInit, signal, ChangeDetectionStrategy, ElementRef, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
@@ -84,11 +84,11 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
     private fullReadinessResponse: CanvasReadinessResponse | null = null;
     private agegroupsLoaded = false;
 
-    @ViewChild('scheduleGrid') scheduleGrid?: ScheduleGridComponent;
-    @ViewChild('rapidFieldInput') rapidFieldInputEl?: ElementRef<HTMLInputElement>;
-    @ViewChild(ScheduleConfigPanelComponent) configPanel?: ScheduleConfigPanelComponent;
-    @ViewChild(DivisionNavigatorComponent) navigator?: DivisionNavigatorComponent;
-    @ViewChild(PairingsPanelComponent) pairingsPanel?: PairingsPanelComponent;
+    readonly scheduleGrid = viewChild<ScheduleGridComponent>('scheduleGrid');
+    readonly rapidFieldInputEl = viewChild<ElementRef<HTMLInputElement>>('rapidFieldInput');
+    readonly configPanel = viewChild(ScheduleConfigPanelComponent);
+    readonly navigator = viewChild(DivisionNavigatorComponent);
+    readonly pairingsPanel = viewChild(PairingsPanelComponent);
 
     // ── Hub mode ──
     readonly mode = signal<'configure' | 'schedule' | 'master' | 'qa'>('configure');
@@ -615,7 +615,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                 this.trySeedWavesFromProjection();
 
                 // Explicitly reload the active config tab (replaces effect()-based cascade watching)
-                this.configPanel?.reloadActiveTab();
+                this.configPanel()?.reloadActiveTab();
             },
             error: () => {
                 // No cascade data — load from legacy endpoint as fallback
@@ -781,7 +781,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                 this.isGridLoading.set(false);
                 this.isGridRefreshing.set(false);
                 // Auto-open minimap for event-level overview after grid renders
-                setTimeout(() => this.scheduleGrid?.toggleMinimap());
+                setTimeout(() => this.scheduleGrid()?.toggleMinimap());
             },
             error: () => {
                 this.gridResponse.set(null);
@@ -844,7 +844,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         this.showDeleteConfirm.set(false);
         this.loadDivisionData(event.division.divId, event.agegroupId);
         // Defer to next tick so the pairings panel has rendered (it's @if'd on division scope).
-        setTimeout(() => this.pairingsPanel?.forceRrOpen());
+        setTimeout(() => this.pairingsPanel()?.forceRrOpen());
     }
 
     onAgegroupColorChanged(event: { agegroupId: string; color: string | null }): void {
@@ -986,7 +986,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                 if (highlightGid != null) {
                     // Post-move: scroll to moved game + temporary highlight
                     this.highlightGameGid.set(highlightGid);
-                    setTimeout(() => this.scheduleGrid?.scrollToGame(highlightGid));
+                    setTimeout(() => this.scheduleGrid()?.scrollToGame(highlightGid));
                     setTimeout(() => this.highlightGameGid.set(null), 3000);
                 } else {
                     // Normal load: scroll to first div game + flash division
@@ -995,9 +995,9 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                     this.flashAllDiv();
                     setTimeout(() => {
                         if (gid) {
-                            this.scheduleGrid?.scrollToGame(gid);
+                            this.scheduleGrid()?.scrollToGame(gid);
                         } else {
-                            this.scheduleGrid?.scrollToFirstRelevant(divId);
+                            this.scheduleGrid()?.scrollToFirstRelevant(divId);
                         }
                     });
                 }
@@ -1119,7 +1119,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
             this.selectedPairing.set(null);
         } else {
             this.selectedPairing.set(pairing);
-            this.scheduleGrid?.scrollToNextOpenSlot(0);
+            this.scheduleGrid()?.scrollToNextOpenSlot(0);
         }
     }
 
@@ -1128,7 +1128,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         if (!gid) return;
         this.highlightAllDiv.set(false);
         this.highlightGameGid.set(gid);
-        this.scheduleGrid?.scrollToGame(gid);
+        this.scheduleGrid()?.scrollToGame(gid);
     }
 
     private findGidForPairing(pairing: PairingDto): number | null {
@@ -1202,7 +1202,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                 if (nextPairing) {
                     const rows = this.gridRows();
                     const placedRowIdx = rows.findIndex(r => r.gDate === row.gDate);
-                    this.scheduleGrid?.scrollToNextOpenSlot(placedRowIdx + 1);
+                    this.scheduleGrid()?.scrollToNextOpenSlot(placedRowIdx + 1);
                 }
 
                 this.refreshGameSummary();
@@ -1264,7 +1264,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
 
         // Highlight the pairing and force pairings panel open
         this.highlightGameGid.set(gid);
-        setTimeout(() => this.pairingsPanel?.forceRrOpen());
+        setTimeout(() => this.pairingsPanel()?.forceRrOpen());
     }
 
     // ── Three-tier delete ──
@@ -1369,7 +1369,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
 
                 // Force config panel to Dates tab (logical starting point after reset).
                 // The tab switch creates a new DatesTabComponent whose ngOnInit() loads fresh data.
-                this.configPanel?.selectTab('dates');
+                this.configPanel()?.selectTab('dates');
             },
             error: () => {
                 this.showOperationModal.set(false);
@@ -2130,7 +2130,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
         this.rapidPairing.set(pairing);
         this.resetRapidSelections();
         this.showRapidModal.set(true);
-        setTimeout(() => this.rapidFieldInputEl?.nativeElement.focus(), 100);
+        setTimeout(() => this.rapidFieldInputEl()?.nativeElement.focus(), 100);
     }
 
     closeRapidModal(): void {
@@ -2295,7 +2295,7 @@ export class ScheduleDivisionComponent implements OnInit, OnDestroy {
                     this.rapidPairing.set(nextPairing);
                     this.resetRapidSelections();
                     this.selectRapidField(field);
-                    setTimeout(() => this.rapidFieldInputEl?.nativeElement.focus(), 100);
+                    setTimeout(() => this.rapidFieldInputEl()?.nativeElement.focus(), 100);
                 } else {
                     this.toast.show('All pairings scheduled!', 'success', 3000);
                     this.closeRapidModal();

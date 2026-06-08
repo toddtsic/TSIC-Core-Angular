@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, DestroyRef, ElementRef, ViewChild, OnDestroy, signal, HostBinding, Input, OnInit, inject, output, input } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, AfterViewInit, DestroyRef, ElementRef, OnDestroy, signal, HostBinding, Input, OnInit, inject, output, input, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, FormGroup } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
@@ -23,8 +23,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroyRef = inject(DestroyRef);
 
-  @ViewChild('usernameInput', { static: false }) usernameInput!: ElementRef<HTMLInputElement>;
-  @ViewChild('passwordInput', { static: false }) passwordInput!: ElementRef<HTMLInputElement>;
+  readonly usernameInput = viewChild.required<ElementRef<HTMLInputElement>>('usernameInput');
+  readonly passwordInput = viewChild.required<ElementRef<HTMLInputElement>>('passwordInput');
 
   form!: FormGroup;
   submitted = signal(false);
@@ -109,14 +109,15 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngAfterViewInit() {
     // Focus the username input on load
-    setTimeout(() => this.usernameInput?.nativeElement.focus(), 0);
+    setTimeout(() => this.usernameInput()?.nativeElement.focus(), 0);
 
     // One-time sync in case the browser autofilled without firing input events
     setTimeout(() => this.syncAutofillOnce(), 250);
 
     // Monitor ongoing autofill changes reliably
-    if (this.usernameInput) {
-      this.autofill.monitor(this.usernameInput)
+    const usernameInput = this.usernameInput();
+    if (usernameInput) {
+      this.autofill.monitor(usernameInput)
         .subscribe(event => {
           if (event.isAutofilled && event.target instanceof HTMLInputElement) {
             const v = event.target.value;
@@ -126,8 +127,9 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
           }
         });
     }
-    if (this.passwordInput) {
-      this.autofill.monitor(this.passwordInput)
+    const passwordInput = this.passwordInput();
+    if (passwordInput) {
+      this.autofill.monitor(passwordInput)
         .subscribe(event => {
           if (event.isAutofilled && event.target instanceof HTMLInputElement) {
             const v = event.target.value;
@@ -140,8 +142,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private syncAutofillOnce() {
-    const u = this.usernameInput?.nativeElement.value;
-    const p = this.passwordInput?.nativeElement.value;
+    const u = this.usernameInput()?.nativeElement.value;
+    const p = this.passwordInput()?.nativeElement.value;
     if (u && !this.form.get('username')?.value) {
       this.form.get('username')?.setValue(u);
     }
@@ -161,8 +163,8 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   private _processSubmit() {
     // Force-sync autofilled values from the DOM
-    const u = this.usernameInput?.nativeElement.value;
-    const p = this.passwordInput?.nativeElement.value;
+    const u = this.usernameInput()?.nativeElement.value;
+    const p = this.passwordInput()?.nativeElement.value;
     if (u) this.form.get('username')?.setValue(u);
     if (p) this.form.get('password')?.setValue(p);
     this.form.updateValueAndValidity();
@@ -233,8 +235,10 @@ export class LoginComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     // Stop monitoring to avoid leaks
-    if (this.usernameInput) this.autofill.stopMonitoring(this.usernameInput);
-    if (this.passwordInput) this.autofill.stopMonitoring(this.passwordInput);
+    const usernameInput = this.usernameInput();
+    if (usernameInput) this.autofill.stopMonitoring(usernameInput);
+    const passwordInput = this.passwordInput();
+    if (passwordInput) this.autofill.stopMonitoring(passwordInput);
   }
 
   private _computeReturnUrl(jobPathFromToken: string | undefined | null): string {

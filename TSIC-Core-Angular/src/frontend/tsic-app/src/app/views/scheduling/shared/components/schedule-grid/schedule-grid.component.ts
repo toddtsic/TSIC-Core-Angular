@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal, ElementRef, ViewChild, ChangeDetectionStrategy, NgZone, inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, computed, input, output, signal, ElementRef, ChangeDetectionStrategy, NgZone, inject, OnDestroy, OnInit, viewChild } from '@angular/core';
 import type { ScheduleGridResponse, ScheduleGridRow, ScheduleGameDto } from '@core/api';
 import { GameCardComponent } from '../game-card/game-card.component';
 import { formatDate, formatTimeOnly } from '../../utils/scheduling-helpers';
@@ -18,8 +18,8 @@ import {
 export class ScheduleGridComponent implements OnInit, OnDestroy {
     private readonly zone = inject(NgZone);
 
-    @ViewChild('gridScroll') gridScrollEl?: ElementRef<HTMLElement>;
-    @ViewChild('minimapCanvas') minimapCanvasRef?: ElementRef<HTMLCanvasElement>;
+    readonly gridScrollEl = viewChild<ElementRef<HTMLElement>>('gridScroll');
+    readonly minimapCanvasRef = viewChild<ElementRef<HTMLCanvasElement>>('minimapCanvas');
 
     ngOnInit(): void {
         this.zone.runOutsideAngular(() => {
@@ -244,7 +244,7 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     // ── Scroll methods (called by parent via ViewChild) ──
 
     scrollToRow(index: number): void {
-        const el = this.gridScrollEl?.nativeElement;
+        const el = this.gridScrollEl()?.nativeElement;
         if (!el) return;
         setTimeout(() => {
             const rows = el.querySelectorAll('tbody tr');
@@ -280,7 +280,7 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
         for (let ri = 0; ri < rows.length; ri++) {
             const ci = rows[ri].cells.findIndex(c => c && c.gid === gid);
             if (ci >= 0) {
-                const el = this.gridScrollEl?.nativeElement;
+                const el = this.gridScrollEl()?.nativeElement;
                 if (!el) return;
                 setTimeout(() => {
                     const cell = el.querySelector(`tbody tr:nth-child(${ri + 1}) td:nth-child(${ci + 2})`) as HTMLElement | null;
@@ -328,7 +328,7 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
         }
 
         // Arrow keys: page through the grid (with vertical scroll parent awareness)
-        const gridEl = this.gridScrollEl?.nativeElement;
+        const gridEl = this.gridScrollEl()?.nativeElement;
         if (!gridEl) return;
 
         const isArrow = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
@@ -382,7 +382,7 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
 
     private openMinimap(): void {
         this.renderMinimap();
-        const el = this.gridScrollEl?.nativeElement;
+        const el = this.gridScrollEl()?.nativeElement;
         if (el) {
             this.scrollHandler = () => this.renderMinimap();
             el.addEventListener('scroll', this.scrollHandler, { passive: true });
@@ -397,7 +397,7 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     private closeMinimap(): void {
         this.minimapOpen.set(false);
         if (this.scrollHandler) {
-            this.gridScrollEl?.nativeElement.removeEventListener('scroll', this.scrollHandler);
+            this.gridScrollEl()?.nativeElement.removeEventListener('scroll', this.scrollHandler);
             this.scrollParent?.removeEventListener('scroll', this.scrollHandler);
             this.scrollHandler = undefined;
             this.scrollParent = undefined;
@@ -405,8 +405,8 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     }
 
     renderMinimap(): void {
-        const canvas = this.minimapCanvasRef?.nativeElement;
-        const el = this.gridScrollEl?.nativeElement;
+        const canvas = this.minimapCanvasRef()?.nativeElement;
+        const el = this.gridScrollEl()?.nativeElement;
         if (!canvas || !el) return;
 
         const gridW = el.scrollWidth;
@@ -525,8 +525,8 @@ export class ScheduleGridComponent implements OnInit, OnDestroy {
     }
 
     private scrollFromMinimap(e: MouseEvent): void {
-        const canvas = this.minimapCanvasRef?.nativeElement;
-        const el = this.gridScrollEl?.nativeElement;
+        const canvas = this.minimapCanvasRef()?.nativeElement;
+        const el = this.gridScrollEl()?.nativeElement;
         if (!canvas || !el) return;
 
         const rect = canvas.getBoundingClientRect();

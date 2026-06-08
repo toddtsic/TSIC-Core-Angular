@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, ViewChild, inject, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, signal, input, viewChild } from '@angular/core';
 
 
 /**
@@ -82,7 +82,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, ViewChild
 export class InfoTooltipComponent {
   readonly message = input<string>('');
 
-  @ViewChild('btn', { static: false }) btnRef?: ElementRef<HTMLButtonElement>;
+  readonly btnRef = viewChild<ElementRef<HTMLButtonElement>>('btn');
 
   private readonly host = inject(ElementRef<HTMLElement>);
   readonly open = signal(false);
@@ -97,7 +97,7 @@ export class InfoTooltipComponent {
   }
 
   private updatePosition(): void {
-    const el = this.btnRef?.nativeElement ?? this.host.nativeElement.querySelector('button');
+    const el = this.btnRef()?.nativeElement ?? this.host.nativeElement.querySelector('button');
     if (!el) return;
     const rect = el.getBoundingClientRect();
     this.top.set(rect.bottom + 4);

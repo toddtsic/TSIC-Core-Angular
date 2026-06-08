@@ -1,4 +1,4 @@
-import { Component, inject, signal, ChangeDetectionStrategy, ViewChild } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy, viewChild } from '@angular/core';
 import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
@@ -18,7 +18,7 @@ export class MobileScorersComponent {
     private readonly service = inject(MobileScorersService);
     private readonly toast = inject(ToastService);
 
-    @ViewChild(ScorerDialogComponent) dialogRef?: ScorerDialogComponent;
+    readonly dialogRef = viewChild(ScorerDialogComponent);
 
     // ── Data signals ──────────────────────────────────
     readonly scorers = signal<MobileScorerDto[]>([]);
@@ -91,7 +91,7 @@ export class MobileScorersComponent {
                 },
                 error: err => {
                     this.toast.show(err?.error?.message || 'Failed to create scorer', 'danger');
-                    this.dialogRef?.resetSaving();
+                    this.dialogRef()?.resetSaving();
                 }
             });
         } else {
@@ -112,7 +112,7 @@ export class MobileScorersComponent {
                 },
                 error: err => {
                     this.toast.show(err?.error?.message || 'Failed to update scorer', 'danger');
-                    this.dialogRef?.resetSaving();
+                    this.dialogRef()?.resetSaving();
                 }
             });
         }

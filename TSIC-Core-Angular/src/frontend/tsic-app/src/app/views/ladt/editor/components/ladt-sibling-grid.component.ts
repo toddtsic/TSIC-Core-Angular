@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, ViewChild, CUSTOM_ELEMENTS_SCHEMA, input, output } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
 import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
@@ -490,7 +490,7 @@ export class LadtSiblingGridComponent implements OnChanges {
   readonly cloneRow = output<any>();
   readonly navigateTo = output<string>();
 
-  @ViewChild('grid') grid!: GridComponent;
+  readonly grid = viewChild.required<GridComponent>('grid');
 
   // Sort state
   sortField = signal<string | null>(null);

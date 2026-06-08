@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, ViewChild } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, ChangeDetectionStrategy, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -43,7 +43,7 @@ const BRACKET_OPTIONS = [
 })
 export class ManagePairingsComponent implements OnInit {
     private readonly svc = inject(PairingsService);
-    @ViewChild(DivisionNavigatorComponent) private navigator?: DivisionNavigatorComponent;
+    private readonly navigator = viewChild(DivisionNavigatorComponent);
 
     // ── Navigator state ──
     readonly agegroups = signal<AgegroupWithDivisionsDto[]>([]);

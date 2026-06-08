@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal, ViewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { GridAllModule, GridComponent, EditSettingsModel, ToolbarItems, IEditCell } from '@syncfusion/ej2-angular-grids';
@@ -46,7 +46,7 @@ export class LibraryEditorComponent {
         },
     };
 
-    @ViewChild('grid') grid!: GridComponent;
+    readonly grid = viewChild.required<GridComponent>('grid');
 
     constructor() {
         this.loadRoles();

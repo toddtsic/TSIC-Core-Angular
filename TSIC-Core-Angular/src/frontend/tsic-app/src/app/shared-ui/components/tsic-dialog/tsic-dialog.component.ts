@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnChanges, SimpleChanges, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, AfterViewInit, OnChanges, SimpleChanges, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FocusTrapDirective } from '../../directives/focus-trap.directive';
 
@@ -104,7 +104,7 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
 
     readonly requestClose = output<void>();
 
-    @ViewChild('dlg', { static: true }) dialogEl!: ElementRef<HTMLDialogElement>;
+    readonly dialogEl = viewChild.required<ElementRef<HTMLDialogElement>>('dlg');
 
     get sizeClass() {
         return {
@@ -129,7 +129,7 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
 
     onBackdropClick(event: MouseEvent) {
         if (!this.closeOnBackdrop()) return;
-        const dialog = this.dialogEl?.nativeElement;
+        const dialog = this.dialogEl()?.nativeElement;
         if (!dialog) return;
         // Only close if BOTH mousedown and click landed on the <dialog> itself (backdrop area).
         // This prevents closing when the user clicks inside an input and the mouseup
@@ -151,7 +151,7 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
     }
 
     private syncOpenState() {
-        const dialog = this.dialogEl?.nativeElement;
+        const dialog = this.dialogEl()?.nativeElement;
         if (!dialog) return;
         try {
             const open = this.open();

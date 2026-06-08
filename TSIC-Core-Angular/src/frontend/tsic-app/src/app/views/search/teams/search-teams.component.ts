@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, ViewChild, ViewChildren, QueryList, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA, viewChild, viewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService, DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
@@ -51,10 +51,10 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	private readonly searchService = inject(TeamSearchService);
 	private readonly toast = inject(ToastService);
 
-	@ViewChild('grid') grid!: GridComponent;
-	@ViewChild('ladtTreeRef') ladtTreeRef?: LadtTreeFilterComponent;
-	@ViewChild('cadtTreeRef') cadtTreeRef?: CadtTreeFilterComponent;
-	@ViewChildren(MultiSelectComponent) multiSelects!: QueryList<MultiSelectComponent>;
+	readonly grid = viewChild.required<GridComponent>('grid');
+	readonly ladtTreeRef = viewChild<LadtTreeFilterComponent>('ladtTreeRef');
+	readonly cadtTreeRef = viewChild<CadtTreeFilterComponent>('cadtTreeRef');
+	readonly multiSelects = viewChildren(MultiSelectComponent);
 
 	// Filter options
 	filterOptions = signal<TeamFilterOptionsDto | null>(null);
@@ -393,10 +393,10 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	}
 
 	refreshRowNumbers(): void {
-		const pageSize = this.grid.pageSettings.pageSize as number ?? 20;
-		const currentPage = this.grid.pageSettings.currentPage ?? 1;
+		const pageSize = this.grid().pageSettings.pageSize as number ?? 20;
+		const currentPage = this.grid().pageSettings.currentPage ?? 1;
 		const start = (currentPage - 1) * pageSize;
-		const gridEl = this.grid.element;
+		const gridEl = this.grid().element;
 		if (!gridEl) return;
 		// Target frozen pane rows (row # column is frozen)
 		const rows = gridEl.querySelectorAll('.e-frozencontent tbody tr, .e-frozencontentdiv tbody tr');
@@ -406,7 +406,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 				if (cell) cell.textContent = String(start + i + 1);
 			});
 		} else {
-			this.grid.getRows().forEach((row, i) => {
+			this.grid().getRows().forEach((row, i) => {
 				const cell = row.querySelector('td.e-rowcell');
 				if (cell) cell.textContent = String(start + i + 1);
 			});
@@ -441,8 +441,9 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	exportExcel(): void {
 		const results = this.searchResults();
-		if (this.grid && results) {
-			this.grid.excelExport({ dataSource: results.result });
+		const grid = this.grid();
+  if (grid && results) {
+			grid.excelExport({ dataSource: results.result });
 		}
 	}
 
@@ -564,7 +565,7 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	}
 
 	onMultiSelectOpen(opened: MultiSelectComponent): void {
-		this.multiSelects?.forEach(ms => {
+		this.multiSelects()?.forEach(ms => {
 			if (ms !== opened) ms.hidePopup();
 		});
 	}
