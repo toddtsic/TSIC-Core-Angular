@@ -14,7 +14,7 @@ export const appConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(
       routes,
-      withRouterConfig({ onSameUrlNavigation: 'ignore' }),
+      withRouterConfig({ onSameUrlNavigation: 'ignore', paramsInheritanceStrategy: 'emptyOnly' }),
       withInMemoryScrolling({ scrollPositionRestoration: 'top' })
     ),
     provideHttpClient(
