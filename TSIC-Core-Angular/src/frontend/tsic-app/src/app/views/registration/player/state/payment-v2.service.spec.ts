@@ -33,6 +33,7 @@ function makePlayer(overrides: Partial<FamilyPlayerDto> & { playerId: string }):
         registered: false,
         selected: true,
         priorRegistrations: [],
+        hasAnyRegistration: false,
         ...overrides,
     };
 }
