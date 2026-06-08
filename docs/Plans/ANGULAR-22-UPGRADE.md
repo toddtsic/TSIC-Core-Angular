@@ -123,6 +123,20 @@ Worktree `npm install` done (A21 baseline). Applied:
 - Run Angular's official signal schematics (`signal-input-migration`, `output-migration`, `signal-queries-migration` — confirm exact names via `ng g @angular/core:`). ~256 sites, mostly automated.
 - Manual review: two-way bindings, required inputs, inputs read in `ngOnInit`/lifecycle hooks.
 
+### Phase 4 — STATUS (2026-06-08 overnight, PARTIAL, committed + pushed)
+
+All three schematics confirmed **runnable on Angular 21** and run via official tooling (conservative default mode — skips problematic patterns; never hand-migrated). Each ran full-repo, then **money/PII/payment/accounting/registration-entry components were reverted** and left for supervised review; the rest committed after `ng build` green + `ng test` **152/152 unchanged vs baseline** (the 19 pre-existing failures never moved).
+
+- `ff6f2552` — APP_INITIALIZER → provideAppInitializer (4 providers).
+- `d8fbd5b6` — @Input → `input()`, **31** components.
+- `5f4de7f7` — @Output → `output()`, **27** components.
+- `e1023a23` — @ViewChild/@ViewChildren → `viewChild()`, **21** components.
+
+**DEFERRED for supervised migration (14 components — NOT migrated; still decorator-based).** These handle money/PII/payment/accounting/registration entry and (mostly) have no unit-test coverage, so "compiles" would be the only check — left for human review. Run the schematics per-file under supervision when ready:
+`credit-card-form`, `bank-account-form`, `vi-charge-confirm-modal`, `player-form-modal`, `team-form-modal`, `add-and-register-team-modal`, `fee-card`, player `payment-step`, team `payment-step`, `family.component`, `clubrep-vi-update`, `player-vi-update`, `customer-job-revenue`, `last-months-job-stats`.
+
+> Still TODO on the migrated files (per the manual-review note above): two-way bindings, required inputs, and inputs read in `ngOnInit`/lifecycle hooks — schematic handles most but a human pass is warranted before cutover. Build+tests give confidence the *types/templates* are consistent; runtime behavior of non-test-covered components still needs the August QA smoke pass.
+
 ## Going-forward conventions (no migration; new/changed code only)
 
 - **Signal Forms** for new forms — **not** the 6 existing registration/payment forms (money paths).
