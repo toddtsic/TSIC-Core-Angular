@@ -174,6 +174,36 @@ WHERE j.JobTypeId = 3
 PRINT '6  League player fee LEAGUE-level rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
+-- 7. Waitlist mirror teams — explicit $0 CONFIGURED row (free, but FeeConfigured=true).
+--    Sections 1-6 only seed POSITIVE legacy fees, so the free waitlist mirrors get no
+--    row; and the DELETE at the top of this script wipes any $0 stamp the runtime mint
+--    (TeamPlacementService.EnsureWaitlistTeamFeeAsync) wrote. Without a row the resolver
+--    returns FeeConfigured=false and the player wizard fail-loud blocks registration
+--    ("Fee not set") — no Registration row is written, so the player is invisible in
+--    search and the confirmation renders raw !TOKENS. Stamp a team-scoped (0,0) Player
+--    row for every team under a 'WAITLIST - %' agegroup so the mirror resolves as
+--    genuinely-free-but-configured, matching the runtime mint. NOT EXISTS preserves any
+--    row sections 1-6 already wrote (a mirror that somehow carries a positive legacy fee).
+INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
+SELECT
+    NEWID(), t.JobId, 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A',
+    t.AgegroupId, t.TeamId,
+    0, 0,
+    GETUTCDATE()
+FROM Leagues.teams t
+JOIN Leagues.agegroups ag ON t.AgegroupId = ag.AgegroupId
+JOIN Jobs.Jobs j ON t.JobId = j.JobId
+WHERE ag.AgegroupName LIKE 'WAITLIST - %'
+  AND j.Year IN ('2025', '2026', '2027')
+  AND NOT EXISTS (
+      SELECT 1 FROM fees.JobFees jf
+      WHERE jf.JobId = t.JobId
+        AND jf.TeamId = t.TeamId
+        AND jf.RoleId = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
+  );
+PRINT '7  Waitlist mirror $0 Player rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
+GO
+
 -- Verification
 SELECT
     CASE
