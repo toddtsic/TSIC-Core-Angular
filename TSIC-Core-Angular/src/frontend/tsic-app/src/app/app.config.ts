@@ -1,4 +1,4 @@
-import { ApplicationConfig, inject, provideAppInitializer, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, inject, provideAppInitializer, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter, withInMemoryScrolling, withRouterConfig } from '@angular/router';
 import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { authInterceptor } from './infrastructure/interceptors/auth.interceptor';
@@ -11,7 +11,7 @@ import { JobContextService } from './infrastructure/services/job-context.service
 
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideZoneChangeDetection({ eventCoalescing: true }),
+    provideZonelessChangeDetection(),
     provideRouter(
       routes,
       withRouterConfig({ onSameUrlNavigation: 'ignore', paramsInheritanceStrategy: 'emptyOnly' }),
