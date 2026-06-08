@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Output, EventEmitter, OnChanges, computed, signal, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, computed, signal, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -283,10 +283,10 @@ const JOB_TYPE_TOURNAMENT = 2;
 })
 export class TeamDetailComponent implements OnChanges {
   readonly teamId = input.required<string>();
-  @Output() saved = new EventEmitter<void>();
-  @Output() cloned = new EventEmitter<string>();
-  @Output() clubChanged = new EventEmitter<void>();
-  @Output() dropped = new EventEmitter<void>();
+  readonly saved = output<void>();
+  readonly cloned = output<string>();
+  readonly clubChanged = output<void>();
+  readonly dropped = output<void>();
 
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
@@ -461,6 +461,7 @@ export class TeamDetailComponent implements OnChanges {
         this.isSaving.set(false);
         this.isError.set(false);
         this.saveMessage.set('Team saved successfully.');
+        // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },
       error: (err) => {
@@ -481,6 +482,7 @@ export class TeamDetailComponent implements OnChanges {
       next: () => {
         this.isSaving.set(false);
         this.showDropConfirm.set(false);
+        // TODO: The 'emit' function requires a mandatory void argument
         this.dropped.emit();
       },
       error: (err) => {
@@ -544,6 +546,7 @@ export class TeamDetailComponent implements OnChanges {
         this.isError.set(false);
         this.saveMessage.set(result.message);
         this.loadDetail();
+        // TODO: The 'emit' function requires a mandatory void argument
         this.clubChanged.emit();
       },
       error: (err) => {

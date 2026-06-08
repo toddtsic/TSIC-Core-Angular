@@ -1,13 +1,12 @@
 import {
-    ChangeDetectionStrategy,
-    Component,
-    EventEmitter,
-    OnDestroy,
-    OnInit,
-    Output,
-    inject,
-    input,
-    signal
+  ChangeDetectionStrategy,
+  Component,
+  OnDestroy,
+  OnInit,
+  inject,
+  input,
+  signal,
+  output
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Subject, Subscription, interval, takeUntil } from 'rxjs';
@@ -233,7 +232,7 @@ interface InlineActiveGame {
 export class InlineGameClockComponent implements OnInit, OnDestroy {
     jobId = input.required<string>();
 
-    @Output() expand = new EventEmitter<void>();
+    readonly expand = output<void>();
 
     private readonly scheduleService = inject(ViewScheduleService);
 
@@ -258,6 +257,7 @@ export class InlineGameClockComponent implements OnInit, OnDestroy {
     }
 
     onClick(): void {
+        // TODO: The 'emit' function requires a mandatory void argument
         this.expand.emit();
     }
 

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, OnInit, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, OnInit, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -68,8 +68,8 @@ export type ModalMode = 'add' | 'edit';
 export class AgeRangeFormModalComponent implements OnInit {
     readonly mode = input<ModalMode>('add');
     readonly ageRange = input<AgeRangeDto | null>(null);
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<void>();
+    readonly close = output<void>();
+    readonly saved = output<void>();
 
     private readonly ageRangeService = inject(AgeRangeAdminService);
     private readonly toastService = inject(ToastService);
@@ -115,6 +115,7 @@ export class AgeRangeFormModalComponent implements OnInit {
             this.ageRangeService.createAgeRange(request).subscribe({
                 next: () => {
                     this.toastService.show(`Age range "${this.rangeName()}" created`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {
@@ -132,6 +133,7 @@ export class AgeRangeFormModalComponent implements OnInit {
             this.ageRangeService.updateAgeRange(ageRange.ageRangeId, request).subscribe({
                 next: () => {
                     this.toastService.show(`Age range "${this.rangeName()}" updated`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {

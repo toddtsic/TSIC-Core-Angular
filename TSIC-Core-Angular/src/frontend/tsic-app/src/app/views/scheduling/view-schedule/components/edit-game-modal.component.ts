@@ -1,6 +1,7 @@
 import {
-    ChangeDetectionStrategy, Component, computed, effect, EventEmitter,
-    input, Output, signal
+  ChangeDetectionStrategy, Component, computed, effect,
+  input, signal,
+  output
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { ViewGameDto, EditGameRequest, GameStatusOptionDto } from '@core/api';
@@ -252,8 +253,8 @@ export class EditGameModalComponent {
     teams = input<TeamOption[]>([]);
     statusOptions = input<GameStatusOptionDto[]>([]);
 
-    @Output() close = new EventEmitter<void>();
-    @Output() save = new EventEmitter<EditGameRequest>();
+    readonly close = output<void>();
+    readonly save = output<EditGameRequest>();
 
     /** Bracket mode: mock game from brackets has empty gDate */
     readonly isBracketMode = computed(() => !this.game()?.gDate);

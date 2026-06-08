@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, ViewChild, inject, signal, computed, OnInit, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ViewChild, inject, signal, computed, OnInit, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RichTextEditorAllModule, RichTextEditorComponent } from '@syncfusion/ej2-angular-richtexteditor';
@@ -388,8 +388,8 @@ export type ModalMode = 'add' | 'edit';
 export class BulletinFormModalComponent implements OnInit {
     readonly mode = input<ModalMode>('add');
     readonly bulletin = input<BulletinAdminDto | null>(null);
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<void>();
+    readonly close = output<void>();
+    readonly saved = output<void>();
 
     @ViewChild('rteEditor') rteEditor!: RichTextEditorComponent;
 
@@ -592,6 +592,7 @@ export class BulletinFormModalComponent implements OnInit {
             this.bulletinService.createBulletin(request).subscribe({
                 next: () => {
                     this.toastService.show(`Bulletin "${this.title()}" created`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {
@@ -611,6 +612,7 @@ export class BulletinFormModalComponent implements OnInit {
             this.bulletinService.updateBulletin(bulletin.bulletinId, request).subscribe({
                 next: () => {
                     this.toastService.show(`Bulletin "${this.title()}" updated`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {

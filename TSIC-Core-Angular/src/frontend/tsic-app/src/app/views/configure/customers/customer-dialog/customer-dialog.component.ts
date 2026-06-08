@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, OnInit, inject, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { CustomerConfigureService } from '../customer-configure.service';
@@ -19,8 +19,8 @@ export class CustomerDialogComponent implements OnInit {
     readonly mode = input<DialogMode>('add');
     readonly customerId = input<string | null>(null);
     readonly timezones = input<TimezoneDto[]>([]);
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<void>();
+    readonly close = output<void>();
+    readonly saved = output<void>();
 
     private readonly svc = inject(CustomerConfigureService);
     private readonly toast = inject(ToastService);
@@ -49,6 +49,7 @@ export class CustomerDialogComponent implements OnInit {
                 },
                 error: () => {
                     this.toast.show('Failed to load customer detail', 'danger');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.close.emit();
                 }
             });
@@ -85,6 +86,7 @@ export class CustomerDialogComponent implements OnInit {
             this.svc.create(request).subscribe({
                 next: () => {
                     this.toast.show(`Customer "${this.customerName().trim()}" created`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (err) => {
@@ -103,6 +105,7 @@ export class CustomerDialogComponent implements OnInit {
             this.svc.update(customerId, request).subscribe({
                 next: () => {
                     this.toast.show(`Customer "${this.customerName().trim()}" updated`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (err) => {

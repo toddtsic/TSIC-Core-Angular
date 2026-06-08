@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '../tsic-dialog/tsic-dialog.component';
 
@@ -74,8 +74,8 @@ export class ConfirmDialogComponent {
     readonly confirmVariant = input<'danger' | 'warning' | 'primary'>('primary');
     readonly requireConfirmText = input(false);
 
-    @Output() confirmed = new EventEmitter<void>();
-    @Output() cancelled = new EventEmitter<void>();
+    readonly confirmed = output<void>();
+    readonly cancelled = output<void>();
 
     confirmInput = signal('');
 }

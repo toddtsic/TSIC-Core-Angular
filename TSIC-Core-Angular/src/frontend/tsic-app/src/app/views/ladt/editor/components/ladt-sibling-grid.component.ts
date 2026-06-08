@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, ViewChild, CUSTOM_ELEMENTS_SCHEMA, input } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, ViewChild, CUSTOM_ELEMENTS_SCHEMA, input, output } from '@angular/core';
 import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
@@ -482,13 +482,13 @@ export class LadtSiblingGridComponent implements OnChanges {
   readonly level = input(0); // 0=league, 1=agegroup, 2=division, 3=team
   readonly canDeleteFn = input<(row: any) => boolean>(() => true);
 
-  @Output() rowSelected = new EventEmitter<string>();
-  @Output() drillDown = new EventEmitter<string>();
-  @Output() editRow = new EventEmitter<string>();
-  @Output() deleteRow = new EventEmitter<string>();
-  @Output() addSibling = new EventEmitter<void>();
-  @Output() cloneRow = new EventEmitter<any>();
-  @Output() navigateTo = new EventEmitter<string>();
+  readonly rowSelected = output<string>();
+  readonly drillDown = output<string>();
+  readonly editRow = output<string>();
+  readonly deleteRow = output<string>();
+  readonly addSibling = output<void>();
+  readonly cloneRow = output<any>();
+  readonly navigateTo = output<string>();
 
   @ViewChild('grid') grid!: GridComponent;
 

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Output, EventEmitter, OnChanges, HostListener, computed, signal, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, HostListener, computed, signal, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -248,9 +248,9 @@ export class AgegroupDetailComponent implements OnChanges {
   readonly agegroupId = input.required<string>();
   readonly canDelete = input(true);
   readonly playerCount = input(0);
-  @Output() saved = new EventEmitter<void>();
-  @Output() deleted = new EventEmitter<void>();
-  @Output() cloned = new EventEmitter<string>();
+  readonly saved = output<void>();
+  readonly deleted = output<void>();
+  readonly cloned = output<string>();
 
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
@@ -415,6 +415,7 @@ export class AgegroupDetailComponent implements OnChanges {
         this.isError.set(false);
         this.saveMessage.set('Age group saved successfully.');
         this.originalFees = { ...this.feeForm };
+        // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },
       error: (err) => {
@@ -462,6 +463,7 @@ export class AgegroupDetailComponent implements OnChanges {
     this.ladtService.deleteAgegroup(this.agegroupId()).subscribe({
       next: () => {
         this.isSaving.set(false);
+        // TODO: The 'emit' function requires a mandatory void argument
         this.deleted.emit();
       },
       error: (err) => {

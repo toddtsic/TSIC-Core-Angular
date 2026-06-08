@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Output, EventEmitter, OnChanges, signal, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, signal, inject, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -102,8 +102,8 @@ export class DivisionDetailComponent implements OnChanges {
   readonly divisionId = input.required<string>();
   readonly siblingNames = input<string[]>([]);
   readonly canDelete = input(true);
-  @Output() saved = new EventEmitter<void>();
-  @Output() deleted = new EventEmitter<void>();
+  readonly saved = output<void>();
+  readonly deleted = output<void>();
 
   private readonly ladtService = inject(LadtService);
 
@@ -168,6 +168,7 @@ export class DivisionDetailComponent implements OnChanges {
         this.isSaving.set(false);
         this.isError.set(false);
         this.saveMessage.set('Division saved successfully.');
+        // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },
       error: (err) => {
@@ -187,6 +188,7 @@ export class DivisionDetailComponent implements OnChanges {
     this.ladtService.deleteDivision(this.divisionId()).subscribe({
       next: () => {
         this.isSaving.set(false);
+        // TODO: The 'emit' function requires a mandatory void argument
         this.deleted.emit();
       },
       error: (err) => {

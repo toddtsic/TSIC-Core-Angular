@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, OnInit, Output, computed, inject, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -178,8 +178,8 @@ export class CloneTeamDialogComponent implements OnInit {
   readonly hasClubRep = input(false);
   readonly clubName = input<string | null>(null);
 
-  @Output() cancelled = new EventEmitter<void>();
-  @Output() cloned = new EventEmitter<TeamDetailDto>();
+  readonly cancelled = output<void>();
+  readonly cloned = output<TeamDetailDto>();
 
   private readonly ladtService = inject(LadtService);
 
@@ -213,6 +213,7 @@ export class CloneTeamDialogComponent implements OnInit {
 
   cancel(): void {
     if (this.isSaving()) return;
+    // TODO: The 'emit' function requires a mandatory void argument
     this.cancelled.emit();
   }
 

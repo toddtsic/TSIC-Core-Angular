@@ -1,7 +1,8 @@
 import {
-  Component, Input, Output, EventEmitter, signal, computed,
+  Component, Input, signal, computed,
   ChangeDetectionStrategy, SimpleChanges, OnChanges,
-  input
+  input,
+  output
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { LadtAgegroupNode } from '@core/api';
@@ -260,7 +261,7 @@ export class LadtTreeFilterComponent implements OnChanges {
   /** When set, wraps all agegroups under a synthetic root node (e.g. job name). */
   readonly rootLabel = input('');
   readonly headerLabel = input('');
-  @Output() checkedIdsChange = new EventEmitter<Set<string>>();
+  readonly checkedIdsChange = output<Set<string>>();
 
   readonly checkedIdsSignal = signal(new Set<string>());
 

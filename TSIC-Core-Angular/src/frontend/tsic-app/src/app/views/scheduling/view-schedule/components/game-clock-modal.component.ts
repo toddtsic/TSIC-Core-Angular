@@ -1,18 +1,17 @@
 import {
-    AfterViewInit,
-    ChangeDetectionStrategy,
-    Component,
-    ElementRef,
-    EventEmitter,
-    HostListener,
-    OnDestroy,
-    OnInit,
-    Output,
-    ViewChild,
-    computed,
-    inject,
-    input,
-    signal
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  HostListener,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  computed,
+  inject,
+  input,
+  signal,
+  output
 } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { Subject, Subscription, interval, takeUntil } from 'rxjs';
@@ -429,7 +428,7 @@ interface LiveGame {
 export class GameClockModalComponent implements OnInit, OnDestroy, AfterViewInit {
     jobId = input.required<string>();
 
-    @Output() close = new EventEmitter<void>();
+    readonly close = output<void>();
 
     private readonly scheduleService = inject(ViewScheduleService);
 
@@ -486,6 +485,7 @@ export class GameClockModalComponent implements OnInit, OnDestroy, AfterViewInit
 
     @HostListener('document:keydown.escape')
     onEscape(): void {
+        // TODO: The 'emit' function requires a mandatory void argument
         this.close.emit();
     }
 

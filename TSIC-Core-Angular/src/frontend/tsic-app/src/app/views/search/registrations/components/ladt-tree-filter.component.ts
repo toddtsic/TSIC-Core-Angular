@@ -1,7 +1,8 @@
 import {
-  Component, Output, EventEmitter, signal, computed,
+  Component, signal, computed,
   ChangeDetectionStrategy, SimpleChanges, OnChanges,
-  input
+  input,
+  output
 } from '@angular/core';
 import type { LadtTreeNodeDto } from '@core/api';
 
@@ -274,7 +275,7 @@ export class LadtTreeFilterComponent implements OnChanges {
   readonly rootLabel = input('');
   /** Header label shown flush-left above the tree (e.g. "League/Agegroup/Division/Team") */
   readonly headerLabel = input('');
-  @Output() checkedIdsChange = new EventEmitter<Set<string>>();
+  readonly checkedIdsChange = output<Set<string>>();
 
   // Internal state
   flatNodes = signal<TreeFlatNode[]>([]);

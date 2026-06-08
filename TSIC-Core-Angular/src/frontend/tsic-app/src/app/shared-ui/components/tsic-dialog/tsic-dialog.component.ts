@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, ElementRef, ViewChild, AfterViewInit, OnChanges, SimpleChanges, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, ViewChild, AfterViewInit, OnChanges, SimpleChanges, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FocusTrapDirective } from '../../directives/focus-trap.directive';
 
@@ -102,7 +102,7 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
     /** Close the dialog when clicking on the backdrop area (outside content). Default true. */
     readonly closeOnBackdrop = input(true);
 
-    @Output() requestClose = new EventEmitter<void>();
+    readonly requestClose = output<void>();
 
     @ViewChild('dlg', { static: true }) dialogEl!: ElementRef<HTMLDialogElement>;
 
@@ -115,6 +115,7 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
 
     onEsc() {
         if (this.closeOnEsc()) {
+            // TODO: The 'emit' function requires a mandatory void argument
             this.requestClose.emit();
         }
     }
@@ -134,6 +135,7 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
         // This prevents closing when the user clicks inside an input and the mouseup
         // drifts onto the dialog element (common with text selection or slight drags).
         if (event.target === dialog && this.mousedownTarget === dialog) {
+            // TODO: The 'emit' function requires a mandatory void argument
             this.requestClose.emit();
         }
     }

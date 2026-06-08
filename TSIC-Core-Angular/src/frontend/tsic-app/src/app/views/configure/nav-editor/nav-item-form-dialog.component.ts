@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, OnInit, Output, inject, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, OnInit, inject, signal, input, output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, FormsModule, Validators } from '@angular/forms';
 import { Route, Router } from '@angular/router';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -581,8 +581,8 @@ export class NavItemFormDialogComponent implements OnInit {
     readonly isDefaultNav = input(false);
     @Input() visibilityOptions?: NavVisibilityOptionsDto;
 
-    @Output() saved = new EventEmitter<NavItemFormResult>();
-    @Output() cancelled = new EventEmitter<void>();
+    readonly saved = output<NavItemFormResult>();
+    readonly cancelled = output<void>();
 
     form!: FormGroup;
     navType = 'router';
@@ -766,6 +766,7 @@ export class NavItemFormDialogComponent implements OnInit {
     }
 
     cancel(): void {
+        // TODO: The 'emit' function requires a mandatory void argument
         this.cancelled.emit();
     }
 

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject, signal, OnInit, effect, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, inject, signal, OnInit, effect, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -153,8 +153,8 @@ export type ModalMode = 'add' | 'edit';
 export class CodeFormModalComponent implements OnInit {
     readonly mode = input<ModalMode>('add');
     @Input() code: DiscountCodeDto | null = null;
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<void>();
+    readonly close = output<void>();
+    readonly saved = output<void>();
 
     private readonly discountCodeService = inject(DiscountCodeService);
     private readonly toastService = inject(ToastService);
@@ -236,6 +236,7 @@ export class CodeFormModalComponent implements OnInit {
             this.discountCodeService.addDiscountCode(request).subscribe({
                 next: () => {
                     this.toastService.show(`Discount code "${this.codeName()}" created`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {
@@ -255,6 +256,7 @@ export class CodeFormModalComponent implements OnInit {
             this.discountCodeService.updateDiscountCode(this.code.ai, request).subscribe({
                 next: () => {
                     this.toastService.show(`Discount code "${this.codeName()}" updated`, 'success');
+                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (error) => {

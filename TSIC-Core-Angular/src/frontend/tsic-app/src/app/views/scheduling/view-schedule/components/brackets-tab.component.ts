@@ -1,7 +1,8 @@
 import {
-    ChangeDetectionStrategy, Component, computed, effect,
-    ElementRef, EventEmitter, input, OnDestroy, Output,
-    signal, ViewChild
+  ChangeDetectionStrategy, Component, computed, effect,
+  ElementRef, input, OnDestroy,
+  signal, ViewChild,
+  output
 } from '@angular/core';
 import type { DivisionBracketResponse } from '@core/api';
 import {
@@ -160,16 +161,16 @@ export class BracketsTabComponent implements OnDestroy {
 
     private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
 
-    @Output() editBracketScore = new EventEmitter<{
-        gid: number;
-        t1Name: string;
-        t2Name: string;
-        t1Score: number | null;
-        t2Score: number | null;
-    }>();
+    readonly editBracketScore = output<{
+    gid: number;
+    t1Name: string;
+    t2Name: string;
+    t1Score: number | null;
+    t2Score: number | null;
+}>();
 
-    @Output() viewTeamResults = new EventEmitter<string>();
-    @Output() viewFieldInfo = new EventEmitter<string>();
+    readonly viewTeamResults = output<string>();
+    readonly viewFieldInfo = output<string>();
 
     @ViewChild('diagramHost', { static: false }) diagramHost!: ElementRef<HTMLDivElement>;
 

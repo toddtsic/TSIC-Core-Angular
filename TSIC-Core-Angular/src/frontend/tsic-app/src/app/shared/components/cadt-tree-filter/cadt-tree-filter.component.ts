@@ -1,7 +1,8 @@
 import {
-  Component, Input, Output, EventEmitter, signal, computed,
+  Component, Input, signal, computed,
   ChangeDetectionStrategy, SimpleChanges, OnChanges,
-  input
+  input,
+  output
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import type { CadtClubNode } from '@core/api';
@@ -393,7 +394,7 @@ export class CadtTreeFilterComponent implements OnChanges {
   readonly rootLabel = input('');
   /** Header label shown flush-left above the tree (e.g. "Club/Agegroup/Division/Team") */
   readonly headerLabel = input('');
-  @Output() checkedIdsChange = new EventEmitter<Set<string>>();
+  readonly checkedIdsChange = output<Set<string>>();
 
   /** Internal signal for checked state — synced from parent @Input, updated on user interaction. */
   readonly checkedIdsSignal = signal(new Set<string>());

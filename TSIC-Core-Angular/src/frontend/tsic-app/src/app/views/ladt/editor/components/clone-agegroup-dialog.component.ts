@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, OnInit, Output, inject, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, inject, signal, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -154,8 +154,8 @@ export class CloneAgegroupDialogComponent implements OnInit {
   readonly sourceAgegroupId = input.required<string>();
   readonly sourceAgegroupName = input.required<string>();
 
-  @Output() cancelled = new EventEmitter<void>();
-  @Output() cloned = new EventEmitter<AgegroupDetailDto>();
+  readonly cancelled = output<void>();
+  readonly cloned = output<AgegroupDetailDto>();
 
   private readonly ladtService = inject(LadtService);
 
@@ -180,6 +180,7 @@ export class CloneAgegroupDialogComponent implements OnInit {
 
   cancel(): void {
     if (this.isSaving()) return;
+    // TODO: The 'emit' function requires a mandatory void argument
     this.cancelled.emit();
   }
 

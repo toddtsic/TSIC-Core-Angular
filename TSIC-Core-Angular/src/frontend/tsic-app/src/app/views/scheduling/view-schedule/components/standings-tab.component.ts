@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, EventEmitter, input, Output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, input, signal, output } from '@angular/core';
 import type { StandingsByDivisionResponse } from '@core/api';
 
 type StandingsMode = 'all' | 'rr';
@@ -333,7 +333,7 @@ export class StandingsTabComponent {
     isLoading = input<boolean>(false);
     followedTeamIds = input<readonly string[]>([]);
 
-    @Output() viewTeamResults = new EventEmitter<string>();
+    readonly viewTeamResults = output<string>();
 
     private readonly followedSet = computed(() => new Set(this.followedTeamIds()));
     isFollowed(teamId: string | null | undefined): boolean {

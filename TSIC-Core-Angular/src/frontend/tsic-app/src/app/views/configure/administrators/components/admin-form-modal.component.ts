@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, OnInit, OnDestroy, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, OnInit, OnDestroy, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AdministratorService } from '../services/administrator.service';
@@ -129,8 +129,8 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     readonly mode = input<ModalMode>('add');
     readonly admin = input<AdministratorDto | null>(null);
 
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<AdminFormResult>();
+    readonly close = output<void>();
+    readonly saved = output<AdminFormResult>();
 
     private readonly adminService = inject(AdministratorService);
     private readonly destroy$ = new Subject<void>();

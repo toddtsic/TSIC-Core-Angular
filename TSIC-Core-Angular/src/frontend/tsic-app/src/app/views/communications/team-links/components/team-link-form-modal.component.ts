@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, OnInit, signal, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { AdminTeamLinkDto, CreateTeamLinkRequest, UpdateTeamLinkRequest, TeamLinkTeamOptionDto } from '@core/api';
@@ -79,8 +79,8 @@ export class TeamLinkFormModalComponent implements OnInit {
     readonly availableTeams = input<TeamLinkTeamOptionDto[]>([]);
     readonly editLink = input<AdminTeamLinkDto | null>(null);
 
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<TeamLinkFormResult>();
+    readonly close = output<void>();
+    readonly saved = output<TeamLinkFormResult>();
 
     readonly allTeamsSentinel = ALL_TEAMS_SENTINEL;
 

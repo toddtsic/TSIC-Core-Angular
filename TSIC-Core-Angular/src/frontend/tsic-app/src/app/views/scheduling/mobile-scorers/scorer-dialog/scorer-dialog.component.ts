@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, OnInit, signal, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, signal, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import type { MobileScorerDto } from '@core/api';
@@ -16,18 +16,18 @@ export type ScorerDialogMode = 'add' | 'edit';
 export class ScorerDialogComponent implements OnInit {
     readonly mode = input<ScorerDialogMode>('add');
     readonly scorer = input<MobileScorerDto | null>(null);
-    @Output() close = new EventEmitter<void>();
-    @Output() saved = new EventEmitter<{
-        mode: ScorerDialogMode;
-        data: {
-            username?: string;
-            firstName?: string;
-            lastName?: string;
-            email?: string;
-            cellphone?: string;
-            bActive?: boolean;
-        };
-    }>();
+    readonly close = output<void>();
+    readonly saved = output<{
+    mode: ScorerDialogMode;
+    data: {
+        username?: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        cellphone?: string;
+        bActive?: boolean;
+    };
+}>();
 
     // Form fields
     username = signal('');
