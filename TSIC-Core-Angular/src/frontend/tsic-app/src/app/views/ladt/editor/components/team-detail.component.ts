@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, computed, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Output, EventEmitter, OnChanges, computed, signal, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
@@ -70,7 +70,7 @@ const JOB_TYPE_TOURNAMENT = 2;
 
       @if (showCloneDialog() && team(); as t) {
         <app-clone-team-dialog
-          [sourceTeamId]="teamId"
+          [sourceTeamId]="teamId()"
           [sourceTeamName]="t.teamName ?? ''"
           [hasClubRep]="!!t.clubRepRegistrationId"
           [clubName]="t.clubName ?? null"
@@ -282,7 +282,7 @@ const JOB_TYPE_TOURNAMENT = 2;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TeamDetailComponent implements OnChanges {
-  @Input({ required: true }) teamId!: string;
+  readonly teamId = input.required<string>();
   @Output() saved = new EventEmitter<void>();
   @Output() cloned = new EventEmitter<string>();
   @Output() clubChanged = new EventEmitter<void>();
@@ -330,7 +330,7 @@ export class TeamDetailComponent implements OnChanges {
     this.showDropConfirm.set(false);
     this.showChangeClub.set(false);
 
-    this.ladtService.getTeam(this.teamId).subscribe({
+    this.ladtService.getTeam(this.teamId()).subscribe({
       next: (detail) => {
         this.team.set(detail);
         this.form = { ...detail };
@@ -343,8 +343,8 @@ export class TeamDetailComponent implements OnChanges {
         // Load fees for this team's agegroup (includes team-level overrides)
         this.ladtService.getAgegroupFees(detail.agegroupId).subscribe({
           next: (fees) => {
-            const playerFee = fees.find((f: JobFeeDto) => f.roleId === PLAYER_ROLE && f.teamId === this.teamId);
-            const clubRepFee = fees.find((f: JobFeeDto) => f.roleId === CLUBREP_ROLE && f.teamId === this.teamId);
+            const playerFee = fees.find((f: JobFeeDto) => f.roleId === PLAYER_ROLE && f.teamId === this.teamId());
+            const clubRepFee = fees.find((f: JobFeeDto) => f.roleId === CLUBREP_ROLE && f.teamId === this.teamId());
             this.playerFeeId = playerFee?.jobFeeId ?? null;
             this.clubRepFeeId = clubRepFee?.jobFeeId ?? null;
             this.feeForm = {
@@ -411,7 +411,7 @@ export class TeamDetailComponent implements OnChanges {
     };
 
     const saves: Observable<any>[] = [
-      this.ladtService.updateTeam(this.teamId, request)
+      this.ladtService.updateTeam(this.teamId(), request)
     ];
 
     const detail = this.team();
@@ -419,11 +419,12 @@ export class TeamDetailComponent implements OnChanges {
 
     // Save player fee override (team-level) if any value set or modifiers exist
     const hasPlayerFee = this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null || this.playerModifiers.length > 0;
+    const teamId = this.teamId();
     if (agegroupId && hasPlayerFee) {
       saves.push(this.ladtService.saveFee({
         roleId: PLAYER_ROLE,
         agegroupId,
-        teamId: this.teamId,
+        teamId: teamId,
         deposit: this.feeForm.playerDeposit,
         balanceDue: this.feeForm.playerBalanceDue,
         modifiers: this.playerModifiers
@@ -438,7 +439,7 @@ export class TeamDetailComponent implements OnChanges {
       saves.push(this.ladtService.saveFee({
         roleId: CLUBREP_ROLE,
         agegroupId,
-        teamId: this.teamId,
+        teamId: teamId,
         deposit: this.feeForm.clubRepDeposit,
         balanceDue: this.feeForm.clubRepBalanceDue,
         modifiers: this.clubRepModifiers
@@ -476,7 +477,7 @@ export class TeamDetailComponent implements OnChanges {
 
   doDrop(): void {
     this.isSaving.set(true);
-    this.ladtService.dropTeam(this.teamId).subscribe({
+    this.ladtService.dropTeam(this.teamId()).subscribe({
       next: () => {
         this.isSaving.set(false);
         this.showDropConfirm.set(false);
@@ -536,7 +537,7 @@ export class TeamDetailComponent implements OnChanges {
       moveAllFromClub: false
     };
 
-    this.ladtService.moveTeamToClub(this.teamId, request).subscribe({
+    this.ladtService.moveTeamToClub(this.teamId(), request).subscribe({
       next: (result) => {
         this.isMoving.set(false);
         this.showChangeClub.set(false);

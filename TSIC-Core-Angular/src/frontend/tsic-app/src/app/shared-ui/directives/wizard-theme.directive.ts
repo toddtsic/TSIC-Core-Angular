@@ -1,4 +1,4 @@
-import { Directive, Input, OnChanges, Renderer2, ElementRef, SimpleChanges } from '@angular/core';
+import { Directive, OnChanges, Renderer2, ElementRef, SimpleChanges, input } from '@angular/core';
 
 /**
  * Apply a wizard theme class to any host element.
@@ -11,7 +11,7 @@ import { Directive, Input, OnChanges, Renderer2, ElementRef, SimpleChanges } fro
     standalone: true
 })
 export class WizardThemeDirective implements OnChanges {
-    @Input('wizardTheme') theme: string | null = null;
+    readonly theme = input<string | null>(null, { alias: "wizardTheme" });
 
     private currentClass: string | null = null;
 
@@ -19,7 +19,7 @@ export class WizardThemeDirective implements OnChanges {
 
     ngOnChanges(changes: SimpleChanges): void {
         if ('theme' in changes) {
-            const t = this.theme?.trim();
+            const t = this.theme()?.trim();
             const next = t ? `wizard-theme-${t}` : null;
             if (this.currentClass && this.currentClass !== next) {
                 this.renderer.removeClass(this.el.nativeElement, this.currentClass);

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject, signal, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, OnInit, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -16,7 +16,7 @@ export type ModalMode = 'add' | 'edit';
         <tsic-dialog [open]="true" size="sm" (requestClose)="close.emit()">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ mode === 'add' ? 'Add Age Range' : 'Edit Age Range' }}</h5>
+                    <h5 class="modal-title">{{ mode() === 'add' ? 'Add Age Range' : 'Edit Age Range' }}</h5>
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -57,7 +57,7 @@ export type ModalMode = 'add' | 'edit';
                         @if (isSaving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
-                        {{ mode === 'add' ? 'Add Range' : 'Save Changes' }}
+                        {{ mode() === 'add' ? 'Add Range' : 'Save Changes' }}
                     </button>
                 </div>
             </div>
@@ -66,8 +66,8 @@ export type ModalMode = 'add' | 'edit';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AgeRangeFormModalComponent implements OnInit {
-    @Input() mode: ModalMode = 'add';
-    @Input() ageRange: AgeRangeDto | null = null;
+    readonly mode = input<ModalMode>('add');
+    readonly ageRange = input<AgeRangeDto | null>(null);
     @Output() close = new EventEmitter<void>();
     @Output() saved = new EventEmitter<void>();
 
@@ -83,10 +83,11 @@ export class AgeRangeFormModalComponent implements OnInit {
     isSaving = signal(false);
 
     ngOnInit(): void {
-        if (this.mode === 'edit' && this.ageRange) {
-            this.rangeName.set(this.ageRange.rangeName ?? '');
-            this.rangeLeft.set(this.formatDateForInput(this.ageRange.rangeLeft));
-            this.rangeRight.set(this.formatDateForInput(this.ageRange.rangeRight));
+        const ageRange = this.ageRange();
+        if (this.mode() === 'edit' && ageRange) {
+            this.rangeName.set(ageRange.rangeName ?? '');
+            this.rangeLeft.set(this.formatDateForInput(ageRange.rangeLeft));
+            this.rangeRight.set(this.formatDateForInput(ageRange.rangeRight));
         }
     }
 
@@ -103,7 +104,8 @@ export class AgeRangeFormModalComponent implements OnInit {
 
         this.isSaving.set(true);
 
-        if (this.mode === 'add') {
+        const ageRange = this.ageRange();
+        if (this.mode() === 'add') {
             const request: CreateAgeRangeRequest = {
                 rangeName: this.rangeName().trim(),
                 rangeLeft: new Date(this.rangeLeft()).toISOString(),
@@ -120,14 +122,14 @@ export class AgeRangeFormModalComponent implements OnInit {
                     this.isSaving.set(false);
                 }
             });
-        } else if (this.ageRange) {
+        } else if (ageRange) {
             const request: UpdateAgeRangeRequest = {
                 rangeName: this.rangeName().trim(),
                 rangeLeft: new Date(this.rangeLeft()).toISOString(),
                 rangeRight: new Date(this.rangeRight()).toISOString()
             };
 
-            this.ageRangeService.updateAgeRange(this.ageRange.ageRangeId, request).subscribe({
+            this.ageRangeService.updateAgeRange(ageRange.ageRangeId, request).subscribe({
                 next: () => {
                     this.toastService.show(`Age range "${this.rangeName()}" updated`, 'success');
                     this.saved.emit();

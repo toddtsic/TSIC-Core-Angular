@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, inject, signal, OnInit, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, inject, signal, OnInit, OnDestroy, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AdministratorService } from '../services/administrator.service';
@@ -22,12 +22,12 @@ export interface AdminFormResult {
         <tsic-dialog [open]="true" size="sm" (requestClose)="close.emit()">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ mode === 'add' ? 'Add Administrator' : 'Edit Administrator' }}</h5>
+                    <h5 class="modal-title">{{ mode() === 'add' ? 'Add Administrator' : 'Edit Administrator' }}</h5>
                     <button type="button" class="btn-close" (click)="close.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row g-2">
-                        @if (mode === 'add') {
+                        @if (mode() === 'add') {
                             <div class="col-12">
                                 <label for="userSearch" class="field-label">Username</label>
                                 <input
@@ -105,7 +105,7 @@ export interface AdminFormResult {
                         @if (saving()) {
                             <span class="spinner-border spinner-border-sm me-1"></span>
                         }
-                        {{ mode === 'add' ? 'Add' : 'Save' }}
+                        {{ mode() === 'add' ? 'Add' : 'Save' }}
                     </button>
                 </div>
             </div>
@@ -126,8 +126,8 @@ export interface AdminFormResult {
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AdminFormModalComponent implements OnInit, OnDestroy {
-    @Input() mode: ModalMode = 'add';
-    @Input() admin: AdministratorDto | null = null;
+    readonly mode = input<ModalMode>('add');
+    readonly admin = input<AdministratorDto | null>(null);
 
     @Output() close = new EventEmitter<void>();
     @Output() saved = new EventEmitter<AdminFormResult>();
@@ -152,10 +152,11 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     readonly isValid = signal(false);
 
     ngOnInit() {
-        if (this.mode === 'edit' && this.admin) {
-            this.editAdmin.set(this.admin);
-            this.selectedRole.set(this.admin.roleName ?? '');
-            this.isActive.set(this.admin.isActive);
+        const admin = this.admin();
+        if (this.mode() === 'edit' && admin) {
+            this.editAdmin.set(admin);
+            this.selectedRole.set(admin.roleName ?? '');
+            this.isActive.set(admin.isActive);
         }
 
         // Typeahead debounce
@@ -210,7 +211,7 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
     }
 
     updateValidity() {
-        if (this.mode === 'add') {
+        if (this.mode() === 'add') {
             this.isValid.set(!!this.selectedUser() && !!this.selectedRole());
         } else {
             this.isValid.set(!!this.selectedRole());
@@ -224,15 +225,15 @@ export class AdminFormModalComponent implements OnInit, OnDestroy {
         this.saving.set(true);
         this.errorMessage.set(null);
 
-        const result: AdminFormResult = { mode: this.mode };
+        const result: AdminFormResult = { mode: this.mode() };
 
-        if (this.mode === 'add') {
+        if (this.mode() === 'add') {
             result.addRequest = {
                 userName: this.selectedUser()!.userName,
                 roleName: this.selectedRole()
             };
         } else {
-            result.registrationId = this.admin?.registrationId;
+            result.registrationId = this.admin()?.registrationId;
             result.updateRequest = {
                 isActive: this.isActive(),
                 roleName: this.selectedRole()

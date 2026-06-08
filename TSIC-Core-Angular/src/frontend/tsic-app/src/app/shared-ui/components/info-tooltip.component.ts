@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, HostListener, Input, ViewChild, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, HostListener, ViewChild, inject, signal, input } from '@angular/core';
 
 
 /**
@@ -17,7 +17,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, Input, Vi
         type="button"
         class="btn btn-link p-0 ms-2 text-decoration-none info-tooltip-btn"
         tabindex="0"
-        [attr.aria-label]="'Information: ' + message"
+        [attr.aria-label]="'Information: ' + message()"
         [attr.aria-expanded]="open()"
         (click)="toggle($event)">
         <i class="bi bi-info-circle text-info" aria-hidden="true"></i>
@@ -26,7 +26,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, Input, Vi
         <span class="info-tooltip-panel" role="tooltip"
               [style.top.px]="top()"
               [style.left.px]="left()">
-          {{ message }}
+          {{ message() }}
         </span>
       }
     </span>
@@ -80,7 +80,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, Input, Vi
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class InfoTooltipComponent {
-  @Input() message: string = '';
+  readonly message = input<string>('');
 
   @ViewChild('btn', { static: false }) btnRef?: ElementRef<HTMLButtonElement>;
 

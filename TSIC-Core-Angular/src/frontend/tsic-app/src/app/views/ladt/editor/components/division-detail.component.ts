@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, Output, EventEmitter, OnChanges, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Output, EventEmitter, OnChanges, signal, inject, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
@@ -15,8 +15,8 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
         <h5 class="mb-0">Division Details</h5>
       </div>
       <button class="btn btn-sm btn-outline-danger" (click)="confirmDelete()"
-              [disabled]="isSaving() || !canDelete"
-              [title]="isUnassigned() ? 'The Unassigned division cannot be deleted' : !canDelete ? 'Remove all teams before deleting this division' : 'Delete this division'">
+              [disabled]="isSaving() || !canDelete()"
+              [title]="isUnassigned() ? 'The Unassigned division cannot be deleted' : !canDelete() ? 'Remove all teams before deleting this division' : 'Delete this division'">
         <i class="bi bi-trash me-1"></i>Delete
       </button>
     </div>
@@ -99,9 +99,9 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class DivisionDetailComponent implements OnChanges {
-  @Input({ required: true }) divisionId!: string;
-  @Input() siblingNames: string[] = [];
-  @Input() canDelete = true;
+  readonly divisionId = input.required<string>();
+  readonly siblingNames = input<string[]>([]);
+  readonly canDelete = input(true);
   @Output() saved = new EventEmitter<void>();
   @Output() deleted = new EventEmitter<void>();
 
@@ -126,7 +126,7 @@ export class DivisionDetailComponent implements OnChanges {
     this.saveMessage.set(null);
     this.showDeleteConfirm.set(false);
 
-    this.ladtService.getDivision(this.divisionId).subscribe({
+    this.ladtService.getDivision(this.divisionId()).subscribe({
       next: (detail) => {
         this.division.set(detail);
         this.form = { ...detail };
@@ -144,7 +144,7 @@ export class DivisionDetailComponent implements OnChanges {
     const newName = (this.form.divName ?? '').trim();
     const currentName = this.division()?.divName ?? '';
     if (newName.toUpperCase() !== currentName.toUpperCase()) {
-      const duplicate = this.siblingNames.some(
+      const duplicate = this.siblingNames().some(
         n => n.toUpperCase() === newName.toUpperCase()
       );
       if (duplicate) {
@@ -161,7 +161,7 @@ export class DivisionDetailComponent implements OnChanges {
       maxRoundNumberToShow: this.form.maxRoundNumberToShow
     };
 
-    this.ladtService.updateDivision(this.divisionId, request).subscribe({
+    this.ladtService.updateDivision(this.divisionId(), request).subscribe({
       next: (updated) => {
         this.division.set(updated);
         this.form = { ...updated };
@@ -184,7 +184,7 @@ export class DivisionDetailComponent implements OnChanges {
 
   doDelete(): void {
     this.isSaving.set(true);
-    this.ladtService.deleteDivision(this.divisionId).subscribe({
+    this.ladtService.deleteDivision(this.divisionId()).subscribe({
       next: () => {
         this.isSaving.set(false);
         this.deleted.emit();

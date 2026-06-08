@@ -1,6 +1,7 @@
 import {
-  Component, Input, Output, EventEmitter, signal, computed,
-  ChangeDetectionStrategy, SimpleChanges, OnChanges
+  Component, Output, EventEmitter, signal, computed,
+  ChangeDetectionStrategy, SimpleChanges, OnChanges,
+  input
 } from '@angular/core';
 import type { LadtTreeNodeDto } from '@core/api';
 
@@ -71,7 +72,7 @@ interface TreeFlatNode {
             <!-- Checkbox -->
             <input type="checkbox"
                    class="tree-checkbox"
-                   [checked]="checkedIds.has(node.id)"
+                   [checked]="checkedIds().has(node.id)"
                    [indeterminate]="checkState().get(node.id) === 'some'"
                    (change)="onCheck(node, $event)" />
 
@@ -265,14 +266,14 @@ interface TreeFlatNode {
   `]
 })
 export class LadtTreeFilterComponent implements OnChanges {
-  @Input() treeData: LadtTreeNodeDto[] = [];
-  @Input() checkedIds = new Set<string>();
+  readonly treeData = input<LadtTreeNodeDto[]>([]);
+  readonly checkedIds = input(new Set<string>());
   /** Auto-expand nodes at levels < this value on data load. -1 = all collapsed, 0 = expand root (shows L1). */
-  @Input() initialExpandLevel = -1;
+  readonly initialExpandLevel = input(-1);
   /** When set, overrides the display name of the level-0 root node. */
-  @Input() rootLabel = '';
+  readonly rootLabel = input('');
   /** Header label shown flush-left above the tree (e.g. "League/Agegroup/Division/Team") */
-  @Input() headerLabel = '';
+  readonly headerLabel = input('');
   @Output() checkedIdsChange = new EventEmitter<Set<string>>();
 
   // Internal state
@@ -297,7 +298,7 @@ export class LadtTreeFilterComponent implements OnChanges {
 
   // Check state per node: 'all' | 'some' | 'none'
   checkState = computed(() => {
-    const checked = this.checkedIds;
+    const checked = this.checkedIds();
     const nodes = this.flatNodes();
     const stateMap = new Map<string, 'all' | 'some' | 'none'>();
 
@@ -320,7 +321,7 @@ export class LadtTreeFilterComponent implements OnChanges {
   });
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['treeData'] && this.treeData?.length) {
+    if (changes['treeData'] && this.treeData()?.length) {
       this.buildFlatNodes();
     }
   }
@@ -375,10 +376,11 @@ export class LadtTreeFilterComponent implements OnChanges {
         // Agegroup (level 1) sets the color; children inherit it
         const nodeColor = node.level === 1 ? (node.color ?? null) : inheritedColor;
 
+        const rootLabel = this.rootLabel();
         result.push({
           id: node.id,
           parentId: node.parentId ?? null,
-          name: (node.level === 0 && this.rootLabel) ? this.rootLabel : node.name,
+          name: (node.level === 0 && rootLabel) ? rootLabel : node.name,
           level: node.level,
           isLeaf: node.isLeaf,
           teamCount: node.teamCount,
@@ -396,7 +398,7 @@ export class LadtTreeFilterComponent implements OnChanges {
       }
     };
 
-    recurse(this.treeData);
+    recurse(this.treeData());
     this.flatNodes.set(result);
 
     // Start collapsed — root not expanded, children hidden
@@ -440,7 +442,7 @@ export class LadtTreeFilterComponent implements OnChanges {
 
   onCheck(node: TreeFlatNode, event: Event): void {
     const isChecked = (event.target as HTMLInputElement).checked;
-    const next = new Set(this.checkedIds);
+    const next = new Set(this.checkedIds());
 
     if (isChecked) {
       // Check this node + all descendants

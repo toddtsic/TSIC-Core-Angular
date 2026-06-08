@@ -11,7 +11,7 @@
                     [class.admin-only]="field.visibility === 'adminOnly'" [class.hidden-field]="isHiddenField(field)">
                     <!-- Field Label with Order Number -->
                     <label [for]="field.name" class="form-label">
-                        @if (showFieldNumbers) {
+                        @if (showFieldNumbers()) {
                         <span class="badge bg-secondary me-2">{{ field.order }}</span>
                         }
                         <i class="bi {{ getFieldIcon(field) }} me-1"></i>
@@ -47,20 +47,20 @@
                     @else if (field.inputType === 'TEXT' || field.inputType === 'EMAIL' || field.inputType === 'TEL') {
                     <input [type]="field.inputType === 'EMAIL' ? 'email' : field.inputType === 'TEL' ? 'tel' : 'text'"
                         class="form-control" [id]="field.name" [formControlName]="field.name"
-                        [placeholder]="'Enter ' + field.displayName" [readonly]="readonly">
+                        [placeholder]="'Enter ' + field.displayName" [readonly]="readonly()">
                     }
 
                     <!-- NUMBER Input -->
                     @else if (field.inputType === 'NUMBER') {
                     <input type="number" class="form-control" [id]="field.name" [formControlName]="field.name"
                         [placeholder]="'Enter ' + field.displayName" [min]="field.validation?.min ?? null"
-                        [max]="field.validation?.max ?? null" [readonly]="readonly">
+                        [max]="field.validation?.max ?? null" [readonly]="readonly()">
                     }
 
                     <!-- DATE Input -->
                     @else if (field.inputType === 'DATE') {
                     <input type="date" class="form-control" [id]="field.name" [formControlName]="field.name"
-                        [readonly]="readonly">
+                        [readonly]="readonly()">
                     }
 
                     <!-- SELECT Input -->
@@ -88,21 +88,21 @@
 
                     <!-- FILE Input -->
                     @else if (field.inputType === 'FILE') {
-                    <input type="file" class="form-control" [id]="field.name" [disabled]="readonly">
+                    <input type="file" class="form-control" [id]="field.name" [disabled]="readonly()">
                     <small class="text-muted">File upload field (preview only)</small>
                     }
 
                     <!-- TEXTAREA Input -->
                     @else if (field.inputType === 'TEXTAREA') {
                     <textarea class="form-control" [id]="field.name" [formControlName]="field.name"
-                        rows="5" [readonly]="readonly" style="resize: vertical;"
+                        rows="5" [readonly]="readonly()" style="resize: vertical;"
                         [placeholder]="'Enter ' + field.displayName"></textarea>
                     }
 
                     <!-- Unknown Type -->
                     @else {
                     <input type="text" class="form-control" [id]="field.name" [formControlName]="field.name"
-                        [placeholder]="'Unknown type: ' + field.inputType" [readonly]="readonly">
+                        [placeholder]="'Unknown type: ' + field.inputType" [readonly]="readonly()">
                     }
                 </div>
             </div>

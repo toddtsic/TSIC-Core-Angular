@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, OnInit, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, OnInit, inject, signal, input } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { CustomerConfigureService } from '../customer-configure.service';
@@ -16,9 +16,9 @@ export type DialogMode = 'add' | 'edit';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CustomerDialogComponent implements OnInit {
-    @Input() mode: DialogMode = 'add';
-    @Input() customerId: string | null = null;
-    @Input() timezones: TimezoneDto[] = [];
+    readonly mode = input<DialogMode>('add');
+    readonly customerId = input<string | null>(null);
+    readonly timezones = input<TimezoneDto[]>([]);
     @Output() close = new EventEmitter<void>();
     @Output() saved = new EventEmitter<void>();
 
@@ -36,9 +36,10 @@ export class CustomerDialogComponent implements OnInit {
     isSaving = signal(false);
 
     ngOnInit(): void {
-        if (this.mode === 'edit' && this.customerId) {
+        const customerId = this.customerId();
+        if (this.mode() === 'edit' && customerId) {
             this.isLoadingDetail.set(true);
-            this.svc.getById(this.customerId).subscribe({
+            this.svc.getById(customerId).subscribe({
                 next: (detail) => {
                     this.customerName.set(detail.customerName ?? '');
                     this.tzId.set(detail.tzId);
@@ -72,7 +73,8 @@ export class CustomerDialogComponent implements OnInit {
         if (!this.isValid() || this.isSaving()) return;
         this.isSaving.set(true);
 
-        if (this.mode === 'add') {
+        const customerId = this.customerId();
+        if (this.mode() === 'add') {
             const request: CreateCustomerRequest = {
                 customerName: this.customerName().trim(),
                 tzId: this.tzId()!,
@@ -90,7 +92,7 @@ export class CustomerDialogComponent implements OnInit {
                     this.isSaving.set(false);
                 }
             });
-        } else if (this.customerId) {
+        } else if (customerId) {
             const request: UpdateCustomerRequest = {
                 customerName: this.customerName().trim(),
                 tzId: this.tzId()!,
@@ -98,7 +100,7 @@ export class CustomerDialogComponent implements OnInit {
                 adnTransactionKey: this.adnTransactionKey() || undefined
             };
 
-            this.svc.update(this.customerId, request).subscribe({
+            this.svc.update(customerId, request).subscribe({
                 next: () => {
                     this.toast.show(`Customer "${this.customerName().trim()}" updated`, 'success');
                     this.saved.emit();

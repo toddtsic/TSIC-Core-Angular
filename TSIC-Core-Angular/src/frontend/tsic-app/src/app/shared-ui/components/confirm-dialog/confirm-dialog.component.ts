@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Input, Output, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Output, signal, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '../tsic-dialog/tsic-dialog.component';
 
@@ -10,12 +10,12 @@ import { TsicDialogComponent } from '../tsic-dialog/tsic-dialog.component';
         <tsic-dialog [open]="true" size="sm" (requestClose)="cancelled.emit()">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">{{ title }}</h5>
+                    <h5 class="modal-title">{{ title() }}</h5>
                     <button type="button" class="btn-close" (click)="cancelled.emit()" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div [innerHTML]="message"></div>
-                    @if (requireConfirmText) {
+                    <div [innerHTML]="message()"></div>
+                    @if (requireConfirmText()) {
                         <div class="confirm-text-guard">
                             <label for="confirmTextInput" class="form-label text-muted">
                                 Type <strong>CONFIRM</strong> to proceed
@@ -32,16 +32,16 @@ import { TsicDialogComponent } from '../tsic-dialog/tsic-dialog.component';
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelled.emit()">
-                        {{ cancelLabel }}
+                        {{ cancelLabel() }}
                     </button>
                     <button type="button"
                         class="btn btn-sm"
-                        [class.btn-danger]="confirmVariant === 'danger'"
-                        [class.btn-warning]="confirmVariant === 'warning'"
-                        [class.btn-primary]="confirmVariant === 'primary'"
-                        [disabled]="requireConfirmText && confirmInput().toUpperCase() !== 'CONFIRM'"
+                        [class.btn-danger]="confirmVariant() === 'danger'"
+                        [class.btn-warning]="confirmVariant() === 'warning'"
+                        [class.btn-primary]="confirmVariant() === 'primary'"
+                        [disabled]="requireConfirmText() && confirmInput().toUpperCase() !== 'CONFIRM'"
                         (click)="confirmed.emit()">
-                        {{ confirmLabel }}
+                        {{ confirmLabel() }}
                     </button>
                 </div>
             </div>
@@ -67,12 +67,12 @@ import { TsicDialogComponent } from '../tsic-dialog/tsic-dialog.component';
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ConfirmDialogComponent {
-    @Input() title = 'Confirm';
-    @Input() message = 'Are you sure?';
-    @Input() confirmLabel = 'Confirm';
-    @Input() cancelLabel = 'Cancel';
-    @Input() confirmVariant: 'danger' | 'warning' | 'primary' = 'primary';
-    @Input() requireConfirmText = false;
+    readonly title = input('Confirm');
+    readonly message = input('Are you sure?');
+    readonly confirmLabel = input('Confirm');
+    readonly cancelLabel = input('Cancel');
+    readonly confirmVariant = input<'danger' | 'warning' | 'primary'>('primary');
+    readonly requireConfirmText = input(false);
 
     @Output() confirmed = new EventEmitter<void>();
     @Output() cancelled = new EventEmitter<void>();

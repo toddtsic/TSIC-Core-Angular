@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, input } from '@angular/core';
 
 import { FormsModule } from '@angular/forms';
 import { DragDropModule, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -19,7 +19,7 @@ export class OptionsPanelComponent {
     private readonly migrationService = inject(ProfileMigrationService);
     private readonly toast = inject(ToastService);
 
-    @Input({ required: true }) metadata: ProfileMetadata | null = null;
+    readonly metadata = input.required<ProfileMetadata | null>();
 
     // Local-only error state (service has its own optionsError signal)
     optionsError = signal<string | null>(null);
@@ -47,7 +47,7 @@ export class OptionsPanelComponent {
     showUsedOptionsOnly = signal(true);
     usedOptionKeys = computed(() => {
         const keys = new Set<string>();
-        const fields = this.metadata?.fields ?? [];
+        const fields = this.metadata()?.fields ?? [];
         for (const f of fields) {
             const k = (f.dataSource || '').trim();
             if (k) keys.add(k.toLowerCase());
