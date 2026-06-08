@@ -204,6 +204,58 @@ WHERE ag.AgegroupName LIKE 'WAITLIST - %'
 PRINT '7  Waitlist mirror $0 Player rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
+-- 8. Self-rostering free players — explicit $0 CONFIGURED Player row.
+--    Covers a genuinely-free CAC (Camps & Clinics) registration AND free
+--    tournament/league self-rostering: the player self-rosters onto an available team
+--    and is NOT charged (the club rep, not the player, pays any team/agegroup fee).
+--    Same hole as the waitlist mirror (section 7) — a free team matches none of
+--    sections 1-6 so it has no row, "no row" reads as FeeConfigured=false, the player
+--    wizard fail-loud blocks registration ("Fee not set"), no Registration row is
+--    written, the player is invisible in search and the confirmation renders raw
+--    !TOKENS. Self-rosterable = team OR agegroup bAllowSelfRostering set (matches the
+--    picker, TeamRepository.GetAvailableTeamsQueryResultsAsync).
+--
+--    Two money guards so this NEVER silently zeroes a real fee:
+--    (a) Type-correct free test. In tournament/league (2,3) RosterFee/TeamFee belong to
+--        the CLUB REP (section 3), NOT the player, so the player free-test there is
+--        PerRegistrantFee (+ PlayerFeeOverride for league type 3 only). In camps
+--        (1,4,6) the player fee is RosterFee + PerRegistrantFee. Only a team whose
+--        legacy PLAYER fee is genuinely 0 is zeroed.
+--    (b) Orphan-only NOT EXISTS. A team that already resolves a Player fee at any tier
+--        (team / agegroup incl. 5B director-managed / league section 6) is left alone;
+--        a team with a positive legacy player fee but no row stays orphan -> fail-loud,
+--        so a coverage gap surfaces instead of registering someone free.
+INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
+SELECT
+    NEWID(), t.JobId, 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A',
+    t.AgegroupId, t.TeamId,
+    0, 0,
+    GETUTCDATE()
+FROM Leagues.teams t
+JOIN Leagues.agegroups ag ON t.AgegroupId = ag.AgegroupId
+LEFT JOIN Leagues.leagues l ON ag.LeagueId = l.LeagueId
+JOIN Jobs.Jobs j ON t.JobId = j.JobId
+WHERE j.JobTypeId IN (1, 2, 3, 4, 6)
+  AND j.Year IN ('2025', '2026', '2027')
+  AND (ISNULL(t.bAllowSelfRostering, 0) = 1 OR ISNULL(ag.bAllowSelfRostering, 0) = 1)
+  AND ag.AgegroupName NOT LIKE 'WAITLIST%'
+  AND ag.AgegroupName NOT LIKE 'Dropped%'
+  -- (a) genuinely free per legacy, type-correctly (don't test ClubRep RosterFee in 2,3)
+  AND ISNULL(t.PerRegistrantFee, 0) = 0
+  AND (   (j.JobTypeId IN (1, 4, 6) AND ISNULL(ag.RosterFee, 0) = 0)
+       OR (j.JobTypeId = 2)
+       OR (j.JobTypeId = 3 AND ISNULL(l.PlayerFeeOverride, 0) = 0) )
+  -- (b) orphan-only: don't override any Player row sections 1-6 already wrote
+  AND NOT EXISTS (
+      SELECT 1 FROM fees.JobFees jf
+      WHERE jf.JobId = t.JobId
+        AND jf.RoleId = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
+        AND (   (jf.AgegroupId = t.AgegroupId AND jf.TeamId = t.TeamId)
+             OR (jf.AgegroupId = t.AgegroupId AND jf.TeamId IS NULL)
+             OR (jf.AgegroupId IS NULL AND jf.TeamId IS NULL AND jf.LeagueId = ag.LeagueId) ) );
+PRINT '8  Self-rostering free $0 Player rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
+GO
+
 -- Verification
 SELECT
     CASE
