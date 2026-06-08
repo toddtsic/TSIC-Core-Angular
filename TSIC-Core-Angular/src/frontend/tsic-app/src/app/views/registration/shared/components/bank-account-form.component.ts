@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, EventEmitter, Output, Input, OnInit, OnChanges, DestroyRef, inject, SimpleChanges } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, OnChanges, DestroyRef, inject, SimpleChanges, input, output } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 
@@ -147,16 +147,16 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class BankAccountFormComponent implements OnInit, OnChanges {
-    @Input() defaultFirstName: string | null = null;
-    @Input() defaultLastName: string | null = null;
-    @Input() defaultAddress: string | null = null;
-    @Input() defaultZip: string | null = null;
-    @Input() defaultEmail: string | null = null;
-    @Input() defaultPhone: string | null = null;
-    @Input() defaultNameOnAccount: string | null = null;
+    readonly defaultFirstName = input<string | null>(null);
+    readonly defaultLastName = input<string | null>(null);
+    readonly defaultAddress = input<string | null>(null);
+    readonly defaultZip = input<string | null>(null);
+    readonly defaultEmail = input<string | null>(null);
+    readonly defaultPhone = input<string | null>(null);
+    readonly defaultNameOnAccount = input<string | null>(null);
 
-    @Output() validChange = new EventEmitter<boolean>();
-    @Output() valueChange = new EventEmitter<Record<string, string>>();
+    readonly validChange = output<boolean>();
+    readonly valueChange = output<Record<string, string>>();
 
     private readonly fb = inject(FormBuilder);
     private readonly destroyRef = inject(DestroyRef);
@@ -216,16 +216,18 @@ export class BankAccountFormComponent implements OnInit, OnChanges {
             const raw = String(ctrl.value || '').trim();
             if (!raw && ctrl.pristine) ctrl.setValue(String(value).trim(), { emitEvent: true });
         };
-        setIfBlank('firstName', this.defaultFirstName);
-        setIfBlank('lastName', this.defaultLastName);
-        setIfBlank('address', this.defaultAddress);
-        setIfBlank('zip', this.defaultZip);
-        setIfBlank('email', this.defaultEmail);
-        setIfBlank('phone', this.defaultPhone);
+        const defaultFirstName = this.defaultFirstName();
+        setIfBlank('firstName', defaultFirstName);
+        const defaultLastName = this.defaultLastName();
+        setIfBlank('lastName', defaultLastName);
+        setIfBlank('address', this.defaultAddress());
+        setIfBlank('zip', this.defaultZip());
+        setIfBlank('email', this.defaultEmail());
+        setIfBlank('phone', this.defaultPhone());
         // If no explicit name-on-account default, fall back to "First Last" so the field
         // is not blank — most personal accounts match the cardholder's legal name.
-        const fallbackName = this.defaultNameOnAccount
-            || [this.defaultFirstName, this.defaultLastName].filter(Boolean).join(' ').trim()
+        const fallbackName = this.defaultNameOnAccount()
+            || [defaultFirstName, defaultLastName].filter(Boolean).join(' ').trim()
             || null;
         setIfBlank('nameOnAccount', fallbackName);
     }

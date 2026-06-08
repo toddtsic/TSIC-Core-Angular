@@ -1,6 +1,7 @@
 import {
-    AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy,
-    ViewChild, inject, signal, computed, effect, output,
+  AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy,
+  inject, signal, computed, effect, output,
+  viewChild
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CurrencyPipe } from '@angular/common';
@@ -767,7 +768,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
-    @ViewChild('viOffer') viOfferElement?: ElementRef<HTMLDivElement>;
+    readonly viOfferElement = viewChild<ElementRef<HTMLDivElement>>('viOffer');
 
     readonly submitted = output<void>();
     readonly state = inject(TeamWizardStateService);
@@ -1015,7 +1016,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         const offerData = this.insuranceState.verticalInsureOffer().data;
         if (!offerData) return;
         const visible = this.showViSection() || this.showViStandaloneSection();
-        if (this.viOfferElement?.nativeElement && visible) {
+        if (this.viOfferElement()?.nativeElement && visible) {
             this.viInitRetries = 0;
             this.insuranceSvc.initWidget('#dVITeamOffer', offerData as VIOfferData);
             return;
