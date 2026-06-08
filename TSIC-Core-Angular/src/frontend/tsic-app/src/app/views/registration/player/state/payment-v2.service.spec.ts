@@ -92,6 +92,13 @@ function createTeamServiceStub() {
     const _teams = new Map<string, AvailableTeam>();
     return {
         getTeamById: (id: string) => _teams.get(id),
+        // Mirror production TeamService.getTeamDisplayName (waitlist-aware) so the
+        // lineItems computed can resolve teamName under the merged master logic.
+        getTeamDisplayName: (id: string) => {
+            const t = _teams.get(id);
+            if (!t) return id;
+            return t.rosterIsFull && t.jobUsesWaitlists ? `WAITLIST - ${t.teamName}` : t.teamName;
+        },
         _addTeam: (t: AvailableTeam) => _teams.set(t.teamId, t),
         _clear: () => _teams.clear(),
     };
