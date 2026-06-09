@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 export interface ModifierForm {
@@ -50,24 +50,26 @@ export interface ModifierForm {
           </div>
         </div>
 
-        <div class="phase-toggle">
-          <div class="form-check form-switch mb-0">
-            <input class="form-check-input" type="checkbox" role="switch"
-                   [id]="namePrefix() + 'Phase'"
-                   [checked]="bFullPaymentRequired() === true"
-                   (change)="onPhaseToggle($any($event.target).checked)">
-            <label class="form-check-label phase-switch-label" [for]="namePrefix() + 'Phase'">
-              Require full payment now
-            </label>
+        @if (showPhaseToggle()) {
+          <div class="phase-toggle">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" role="switch"
+                     [id]="namePrefix() + 'Phase'"
+                     [checked]="bFullPaymentRequired() === true"
+                     (change)="onPhaseToggle($any($event.target).checked)">
+              <label class="form-check-label phase-switch-label" [for]="namePrefix() + 'Phase'">
+                Require full payment now
+              </label>
+            </div>
+            <span class="phase-hint" [class.phase-hint-on]="bFullPaymentRequired() === true">
+              @if (bFullPaymentRequired() === true) {
+                <i class="bi bi-cash-stack me-1"></i>Deposit + balance collected together — no balance-due phase.
+              } @else {
+                <i class="bi bi-hourglass-split me-1"></i>Inherits the phase (deposit now, balance later).
+              }
+            </span>
           </div>
-          <span class="phase-hint" [class.phase-hint-on]="bFullPaymentRequired() === true">
-            @if (bFullPaymentRequired() === true) {
-              <i class="bi bi-cash-stack me-1"></i>Deposit + balance collected together — no balance-due phase.
-            } @else {
-              <i class="bi bi-hourglass-split me-1"></i>Inherits the phase (deposit now, balance later).
-            }
-          </span>
-        </div>
+        }
       }
 
       @for (mod of modifiers(); track mod.modifierType) {
@@ -260,6 +262,14 @@ export class FeeCardComponent {
   readonly depositChange = output<number | null>();
   readonly balanceDueChange = output<number | null>();
   readonly bFullPaymentRequiredChange = output<boolean | null>();
+
+  /**
+   * The phase toggle only makes sense when this card carries a base fee (deposit or
+   * balance) or already has a phase set. Hides the dead switch on an empty card — e.g.
+   * a ClubRep card on a site (like a CAC) that has no club-rep fees.
+   */
+  readonly showPhaseToggle = computed(() =>
+    this.deposit() != null || this.balanceDue() != null || this.bFullPaymentRequired() != null);
 
   onPhaseToggle(checked: boolean): void {
     this.bFullPaymentRequiredChange.emit(checked ? true : null);
