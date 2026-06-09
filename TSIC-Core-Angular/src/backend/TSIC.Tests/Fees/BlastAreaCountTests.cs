@@ -24,17 +24,32 @@ public class BlastAreaCountTests
     private static readonly Guid TeamA = Guid.NewGuid();
     private static readonly Guid TeamB = Guid.NewGuid();
     private static readonly Guid TeamC = Guid.NewGuid();
+    private static readonly Guid TeamD = Guid.NewGuid();
     private static readonly Guid AgX = Guid.NewGuid();
     private static readonly Guid AgY = Guid.NewGuid();
     private static readonly Guid AgZ = Guid.NewGuid();
 
     // ── Players ──
 
+    // Agegroup is resolved THROUGH the team — a player carries only AssignedTeamId and the
+    // team's AgegroupId is the source of truth (Registrations.AssignedAgegroupId is obsolete).
+    private static List<Teams> PlayerTeams() => new()
+    {
+        Team(TeamA, AgX, "U10"),
+        Team(TeamB, AgX, "U10"),
+        Team(TeamC, AgY, "U12"),
+        Team(TeamD, AgZ, "U14"),
+    };
+
     private static PlayerRegistrationService BuildPlayerService(List<Registrations> regs)
     {
         var regRepo = new Mock<IRegistrationRepository>();
         regRepo.Setup(r => r.GetActivePlayerRegistrationsByJobAsync(JobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(regs);
+
+        var teamRepo = new Mock<ITeamRepository>();
+        teamRepo.Setup(t => t.GetTeamsWithDetailsForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PlayerTeams());
 
         return new PlayerRegistrationService(
             new Mock<ILogger<PlayerRegistrationService>>().Object,
@@ -43,29 +58,28 @@ public class BlastAreaCountTests
             new Mock<ITeamLookupService>().Object,
             new Mock<IPlayerFormValidationService>().Object,
             regRepo.Object,
-            new Mock<ITeamRepository>().Object,
+            teamRepo.Object,
             new Mock<IJobRepository>().Object,
             new Mock<ITeamPlacementService>().Object,
             new Mock<IMedFormService>().Object);
     }
 
-    private static Registrations PlayerReg(Guid teamId, Guid agId) => new()
+    private static Registrations PlayerReg(Guid teamId) => new()
     {
         RegistrationId = Guid.NewGuid(),
         JobId = JobId,
         AssignedTeamId = teamId,
-        AssignedAgegroupId = agId,
         BActive = true
     };
 
-    // TeamA/AgX: 2 · TeamB/AgX: 1 · TeamC/AgY: 1 · (TeamC again)/AgZ: 1  → 5 total
+    // TeamA/AgX: 2 · TeamB/AgX: 1 · TeamC/AgY: 1 · TeamD/AgZ: 1  → 5 total
     private static List<Registrations> PlayerFixture() => new()
     {
-        PlayerReg(TeamA, AgX),
-        PlayerReg(TeamA, AgX),
-        PlayerReg(TeamB, AgX),
-        PlayerReg(TeamC, AgY),
-        PlayerReg(TeamC, AgZ),
+        PlayerReg(TeamA),
+        PlayerReg(TeamA),
+        PlayerReg(TeamB),
+        PlayerReg(TeamC),
+        PlayerReg(TeamD),
     };
 
     [Fact(DisplayName = "Player blast: team scope counts only that team's active registrations")]

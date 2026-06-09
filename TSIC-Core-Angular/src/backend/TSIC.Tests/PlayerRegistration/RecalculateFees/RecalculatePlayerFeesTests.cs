@@ -39,7 +39,6 @@ public class RecalculatePlayerFeesTests
             RegistrationId = Guid.NewGuid(),
             JobId = jobId,
             AssignedTeamId = teamId,
-            AssignedAgegroupId = agegroupId,
             FeeBase = FullAmt,
             FeeProcessing = 17.85m,
             FeeTotal = PifPaid,
@@ -52,7 +51,6 @@ public class RecalculatePlayerFeesTests
             RegistrationId = Guid.NewGuid(),
             JobId = jobId,
             AssignedTeamId = teamId,
-            AssignedAgegroupId = agegroupId,
             FeeBase = DepositAmt,
             FeeProcessing = 7m,
             FeeTotal = DepositPaid,
@@ -65,7 +63,6 @@ public class RecalculatePlayerFeesTests
             RegistrationId = Guid.NewGuid(),
             JobId = jobId,
             AssignedTeamId = teamId,
-            AssignedAgegroupId = agegroupId,
             FeeBase = DepositAmt,
             FeeProcessing = 7m,
             FeeTotal = DepositPaid,
@@ -81,6 +78,11 @@ public class RecalculatePlayerFeesTests
         var regRepo = new Mock<IRegistrationRepository>();
         regRepo.Setup(r => r.GetActivePlayerRegistrationsByJobAsync(jobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Registrations> { pifReg, depositReg, unpaidReg });
+
+        // Agegroup now resolves through the team — map each reg's team to its agegroup.
+        var teamRepo = new Mock<ITeamRepository>();
+        teamRepo.Setup(t => t.GetTeamsWithDetailsForJobAsync(jobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Teams> { new() { TeamId = teamId, AgegroupId = agegroupId } });
 
         var feeService = new Mock<IFeeResolutionService>();
         feeService.Setup(f => f.ResolveFeeAsync(
@@ -109,7 +111,7 @@ public class RecalculatePlayerFeesTests
             new Mock<ITeamLookupService>().Object,
             new Mock<IPlayerFormValidationService>().Object,
             regRepo.Object,
-            new Mock<ITeamRepository>().Object,
+            teamRepo.Object,
             jobRepo.Object,
             new Mock<ITeamPlacementService>().Object,
             new Mock<IMedFormService>().Object);
@@ -162,7 +164,6 @@ public class RecalculatePlayerFeesTests
             RegistrationId = Guid.NewGuid(),
             JobId = jobId,
             AssignedTeamId = teamId,
-            AssignedAgegroupId = agegroupId,
             FeeBase = DepositAmt,
             FeeProcessing = 7m,
             FeeTotal = DepositPaid,
@@ -178,6 +179,11 @@ public class RecalculatePlayerFeesTests
         var regRepo = new Mock<IRegistrationRepository>();
         regRepo.Setup(r => r.GetActivePlayerRegistrationsByJobAsync(jobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Registrations> { reg });
+
+        // Agegroup now resolves through the team — map the reg's team to its agegroup.
+        var teamRepo = new Mock<ITeamRepository>();
+        teamRepo.Setup(t => t.GetTeamsWithDetailsForJobAsync(jobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Teams> { new() { TeamId = teamId, AgegroupId = agegroupId } });
 
         var feeService = new Mock<IFeeResolutionService>();
         feeService.Setup(f => f.ResolveFeeAsync(
@@ -209,7 +215,7 @@ public class RecalculatePlayerFeesTests
             new Mock<ITeamLookupService>().Object,
             new Mock<IPlayerFormValidationService>().Object,
             regRepo.Object,
-            new Mock<ITeamRepository>().Object,
+            teamRepo.Object,
             jobRepo.Object,
             new Mock<ITeamPlacementService>().Object,
             new Mock<IMedFormService>().Object);

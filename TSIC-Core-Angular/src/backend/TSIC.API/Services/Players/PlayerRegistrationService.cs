@@ -634,11 +634,21 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
         var registrations = await _registrations.GetActivePlayerRegistrationsByJobAsync(jobId, ct);
 
+        // Agegroup is resolved THROUGH the team (player → AssignedTeamId → Teams.AgegroupId).
+        // Registrations.AssignedAgegroupId is obsolete and no longer read. Build a
+        // team → agegroup map once, used for both the optional scope narrowing below and
+        // the per-registration fee resolve in the loop.
+        var teamAgegroup = (await _teams.GetTeamsWithDetailsForJobAsync(jobId, ct))
+            .ToDictionary(t => t.TeamId, t => t.AgegroupId);
+        Guid? AgegroupOf(Registrations r) =>
+            r.AssignedTeamId.HasValue && teamAgegroup.TryGetValue(r.AssignedTeamId.Value, out var ag)
+                ? ag : (Guid?)null;
+
         // Optional scope narrowing — the per-scope phase toggle and the LADT
         // "Push Fees to Players" button reprice a single agegroup/team. Filtered
         // in-memory off the job-wide fetch (admin action, not a hot path).
         if (agegroupId.HasValue)
-            registrations = registrations.Where(r => r.AssignedAgegroupId == agegroupId.Value).ToList();
+            registrations = registrations.Where(r => AgegroupOf(r) == agegroupId.Value).ToList();
         if (teamId.HasValue)
             registrations = registrations.Where(r => r.AssignedTeamId == teamId.Value).ToList();
 
@@ -653,7 +663,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var updated = 0;
         foreach (var reg in registrations)
         {
-            if (!reg.AssignedTeamId.HasValue || !reg.AssignedAgegroupId.HasValue) continue;
+            if (!reg.AssignedTeamId.HasValue) continue;
+            var regAgegroupId = AgegroupOf(reg);
+            if (regAgegroupId is null) continue;
 
             // Skip players already paid-in-full. Re-stamping FeeBase to deposit-only on
             // an unflip (true→false) would produce OwedTotal < 0 (bogus credit) for
@@ -661,7 +673,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             // payment cleared before the director changed their mind. PIF intent is
             // preserved by leaving these rows alone.
             var resolved = await _feeService.ResolveFeeAsync(
-                jobId, RoleConstants.Player, reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value, ct);
+                jobId, RoleConstants.Player, regAgegroupId.Value, reg.AssignedTeamId.Value, ct);
             var fullAmount = (resolved?.EffectiveDeposit ?? 0m) + (resolved?.EffectiveBalanceDue ?? 0m);
             if (fullAmount > 0m && reg.PaidTotal >= fullAmount)
             {
@@ -678,7 +690,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             var effectiveFullPayment = resolved?.BFullPaymentRequired ?? jobFullPaymentRequired;
 
             await _feeService.ApplySwapFeesAsync(
-                reg, jobId, reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value,
+                reg, jobId, regAgegroupId.Value, reg.AssignedTeamId.Value,
                 new FeeApplicationContext { IsFullPaymentRequired = effectiveFullPayment }, ct);
 
             if (reg.FeeBase != oldFeeBase || reg.FeeProcessing != oldFeeProcessing)
@@ -726,7 +738,13 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         if (agegroupIds is { Count: > 0 })
         {
             var set = agegroupIds as ISet<Guid> ?? agegroupIds.ToHashSet();
-            return registrations.Count(r => r.AssignedAgegroupId.HasValue && set.Contains(r.AssignedAgegroupId.Value));
+            // Agegroup is resolved through the team (Registrations.AssignedAgegroupId is obsolete).
+            var teamAgegroup = (await _teams.GetTeamsWithDetailsForJobAsync(jobId, ct))
+                .ToDictionary(t => t.TeamId, t => t.AgegroupId);
+            return registrations.Count(r =>
+                r.AssignedTeamId.HasValue
+                && teamAgegroup.TryGetValue(r.AssignedTeamId.Value, out var ag)
+                && set.Contains(ag));
         }
 
         return registrations.Count;
