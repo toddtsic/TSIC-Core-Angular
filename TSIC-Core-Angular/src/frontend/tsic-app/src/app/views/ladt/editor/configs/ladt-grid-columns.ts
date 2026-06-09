@@ -7,7 +7,7 @@
 export interface LadtColumnDef {
   field: string;
   header: string;
-  type: 'string' | 'number' | 'boolean' | 'currency' | 'date' | 'dateOnly' | 'fees' | 'modifier';
+  type: 'string' | 'number' | 'boolean' | 'currency' | 'date' | 'dateOnly' | 'fees' | 'modifier' | 'phase';
   group?: string;
   frozen?: boolean;
   width?: string;
@@ -23,6 +23,7 @@ export const LEAGUE_COLUMNS: LadtColumnDef[] = [
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
   { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
+  { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   { field: 'rescheduleEmailsToAddon', header: 'Reschedule Emails', type: 'string', width: '180px' },
   { field: 'bHideContacts', header: 'Hide Contacts', type: 'boolean', width: '70px' },
   { field: 'bHideStandings', header: 'Hide Standings', type: 'boolean', width: '70px' },
@@ -36,6 +37,7 @@ export const AGEGROUP_COLUMNS: LadtColumnDef[] = [
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
   { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
+  { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   // Limits
   { field: 'maxTeams', header: 'Max Teams', type: 'number', group: 'Limits', width: '75px' },
   // Settings
@@ -63,6 +65,7 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: '_fees', header: 'Fees', type: 'fees', width: '220px' },
   { field: '_earlyBird', header: 'Early Bird Discount', type: 'modifier', width: '160px' },
   { field: '_lateFee', header: 'Late Fee', type: 'modifier', width: '150px' },
+  { field: '_phase', header: 'Payment Phase', type: 'phase', width: '180px' },
   // Dates
   { field: 'startdate', header: 'Start', type: 'date', group: 'Dates', width: '100px' },
   { field: 'enddate', header: 'End', type: 'date', group: 'Dates', width: '100px' },

@@ -150,6 +150,27 @@ export interface ParentBreadcrumb {
                     <span class="text-body-tertiary">—</span>
                   }
                 }
+                @case ('phase') {
+                  @if (data['_phase']?.length) {
+                    <div class="fee-pills">
+                      @for (ph of data['_phase']; track ph.roleId) {
+                        <div class="fee-pill" [class.fee-inherited]="ph.inherited">
+                          <span class="fee-role">{{ ph.roleLabel }}</span>
+                          <span class="phase-value" [class.phase-value--full]="ph.fullPayment">{{ ph.fullPayment ? 'Full Payment' : 'Balance Due' }}</span>
+                          @if (ph.hasOverride) {
+                            @if (ph.inherited) {
+                              <span class="fee-from-badge">from {{ sourceLabel(ph.source) }}</span>
+                            } @else {
+                              <span class="fee-set-badge">{{ sourceLabel(ph.source) }} set</span>
+                            }
+                          }
+                        </div>
+                      }
+                    </div>
+                  } @else {
+                    <span class="text-body-tertiary">—</span>
+                  }
+                }
                 @default {
                   @if (col.colorField) {
                     <span class="ag-color-dot"
@@ -468,6 +489,15 @@ export interface ParentBreadcrumb {
     }
     .fee-discount-text { color: var(--bs-success); font-weight: 600; }
     .fee-latefee-text { color: var(--bs-danger); font-weight: 600; }
+    .phase-value {
+      font-weight: 500;
+      color: var(--bs-secondary-color);
+      white-space: nowrap;
+    }
+    .phase-value--full {
+      color: var(--bs-primary);
+      font-weight: 600;
+    }
   `]
 })
 export class LadtSiblingGridComponent implements OnChanges {

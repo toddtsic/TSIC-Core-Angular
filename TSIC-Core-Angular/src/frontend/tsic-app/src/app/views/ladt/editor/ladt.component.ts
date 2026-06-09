@@ -742,18 +742,20 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
    * source. A modifier's source can therefore differ from the base fee's source.
    */
   private buildFeeData(scopeId: string, scopeType: 'league' | 'agegroup' | 'team'): {
-    fees: any[]; earlyBird: any[]; lateFee: any[];
+    fees: any[]; earlyBird: any[]; lateFee: any[]; phase: any[];
   } {
     const fees = this.jobFees();
-    if (!fees.length) return { fees: [], earlyBird: [], lateFee: [] };
+    if (!fees.length) return { fees: [], earlyBird: [], lateFee: [], phase: [] };
 
     interface ModWin { amount: number; source: 'league' | 'agegroup' | 'team'; active: boolean; }
+    interface PhaseWin { value: boolean; source: 'league' | 'agegroup' | 'team'; }
     interface FeeEntry {
       deposit: number | null;
       balanceDue: number | null;
       source: 'job' | 'league' | 'agegroup' | 'team';
       earlyBird: ModWin | null;
       lateFee: ModWin | null;
+      phase: PhaseWin | null;
     }
 
     const roleMap = new Map<string, FeeEntry>();
@@ -762,7 +764,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     const upsert = (roleId: string): FeeEntry => {
       let e = roleMap.get(roleId);
       if (!e) {
-        e = { deposit: null, balanceDue: null, source: 'job', earlyBird: null, lateFee: null };
+        e = { deposit: null, balanceDue: null, source: 'job', earlyBird: null, lateFee: null, phase: null };
         roleMap.set(roleId, e);
       }
       return e;
@@ -787,6 +789,13 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       if (eb) e.earlyBird = { ...eb, source: src };
       const lf = modForType(f, 'LateFee');
       if (lf) e.lateFee = { ...lf, source: src };
+    };
+
+    // Full-payment phase cascades like a modifier — the most-specific tier that
+    // sets bFullPaymentRequired wins. Floor is League (the job baseline is not
+    // surfaced as a phase source here). null = no override at/above this scope.
+    const applyPhase = (e: FeeEntry, f: JobFeeDto, src: 'league' | 'agegroup' | 'team') => {
+      if (f.bFullPaymentRequired != null) e.phase = { value: f.bFullPaymentRequired, source: src };
     };
 
     // Base fee cascades per field, most-specific NON-NULL wins (mirrors backend
@@ -834,6 +843,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           const e = upsert(f.roleId);
           applyBase(e, f, 'league');
           applyMods(e, f, 'league');
+          applyPhase(e, f, 'league');
         }
       }
     }
@@ -845,6 +855,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           const e = upsert(f.roleId);
           applyBase(e, f, 'agegroup');
           applyMods(e, f, 'agegroup');
+          applyPhase(e, f, 'agegroup');
         }
       }
     }
@@ -856,6 +867,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           const e = upsert(f.roleId);
           applyBase(e, f, 'team');
           applyMods(e, f, 'team');
+          applyPhase(e, f, 'team');
         }
       }
     }
@@ -867,6 +879,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     const feesOut: any[] = [];
     const earlyBird: any[] = [];
     const lateFee: any[] = [];
+    const phase: any[] = [];
 
     for (const [roleId, e] of roleMap.entries()) {
       const roleLabel = LadtEditorComponent.ROLE_LABELS[roleId] ?? roleId.substring(0, 6);
@@ -889,18 +902,29 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           inherited: isInherited(e.lateFee.source),
         });
       }
+      // Phase pill renders for every role with fee context: an override shows
+      // "Full Payment"/"Balance Due" + a where-set badge; no override defaults
+      // to "Balance Due" with no badge.
+      phase.push({
+        roleId, roleLabel,
+        fullPayment: e.phase?.value ?? false,
+        hasOverride: e.phase != null,
+        source: e.phase?.source ?? null,
+        inherited: e.phase ? isInherited(e.phase.source) : false,
+      });
     }
 
-    return { fees: feesOut, earlyBird, lateFee };
+    return { fees: feesOut, earlyBird, lateFee, phase };
   }
 
-  /** Enrich grid rows with _fees / _earlyBird / _lateFee column data */
+  /** Enrich grid rows with _fees / _earlyBird / _lateFee / _phase column data */
   private enrichWithFees(data: any[], level: number): void {
     const assign = (row: any, scopeId: string, scopeType: 'league' | 'agegroup' | 'team') => {
       const d = this.buildFeeData(scopeId, scopeType);
       row._fees = d.fees;
       row._earlyBird = d.earlyBird;
       row._lateFee = d.lateFee;
+      row._phase = d.phase;
     };
     if (level === 0) {
       for (const row of data) assign(row, row.leagueId, 'league');
