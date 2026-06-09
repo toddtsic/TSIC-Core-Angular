@@ -725,24 +725,27 @@ export class TeamSelectionStepComponent {
     readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
     getTeamDropdownItems(playerId: string): { text: string; value: string; status: string }[] {
-        const tournament = this.isTournament();
         return this.getAvailableTeams(playerId).map(team => {
-            const clubPrefix = team.clubName?.trim() ? `${team.clubName.trim()}: ` : '';
-            let label = clubPrefix + team.teamName;
-            if (!tournament && team.divisionName) label += ` · ${team.divisionName}`;
+            // Identity reads clubName:agegroupName:teamName (club optional). Agegroup leads
+            // the team name because self-roster "free agent" teams share a generic name
+            // across agegroups — the agegroup is what disambiguates them in the list.
+            let label = [team.clubName, team.agegroupName, team.teamName]
+                .map(p => p?.trim())
+                .filter((p): p is string => !!p)
+                .join(':');
             // Two-phase jobs: lead with all-in total, hint at deposit so parent knows
             // a payment plan exists. Single-phase: lone price. Backend collapses
             // deposit==fee → deposit=0 so checking deposit > 0 is sufficient.
             const deposit = Number(team.deposit ?? 0) || 0;
             const fee = Number(team.effectiveFee ?? 0) || 0;
             if (fee > 0 && deposit > 0 && deposit !== fee) {
-                label += ` · ${this.formatCurrency(deposit + fee)} (${this.formatCurrency(deposit)} deposit)`;
+                label += ` (${this.formatCurrency(deposit + fee)}, ${this.formatCurrency(deposit)} deposit)`;
             } else if (fee > 0) {
                 label += ` (${this.formatCurrency(fee)})`;
             } else if (team.feeConfigured !== false) {
                 // $0 but configured — a waitlist twin (full team surfaced as its $0 mirror)
                 // or a genuinely free event. Say so explicitly instead of a bare name.
-                label += ' (Free)';
+                label += ` (${this.formatCurrency(0)})`;
             }
 
             let status = '';
@@ -830,7 +833,7 @@ export class TeamSelectionStepComponent {
         const teams = this.teamService.filterByEligibility(eligValue, player?.gender);
 
         // The backend emits exactly one entry per team: a full team is surfaced as its $0
-        // WAITLIST twin (twin teamId, real name, "Waitlist · Free"), a not-full team as
+        // WAITLIST twin (twin teamId, real name, "Waitlist · $0"), a not-full team as
         // itself. No client-side waitlist substitution needed.
         let filtered = [...teams];
 
