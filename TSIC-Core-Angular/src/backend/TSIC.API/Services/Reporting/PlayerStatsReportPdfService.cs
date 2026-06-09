@@ -1,4 +1,3 @@
-using System.Globalization;
 using Syncfusion.Drawing;
 using Syncfusion.Pdf;
 using Syncfusion.Pdf.Graphics;
@@ -9,9 +8,12 @@ namespace TSIC.API.Services.Reporting;
 
 /// <summary>
 /// Hand-drawn (Syncfusion.Pdf) E120 player-stats entry form — the EF replacement for the legacy
-/// Crystal "PlayerStats_E120" (<c>reporting.PlayerStats_E120</c>). Active Players for the job, grouped
-/// agegroup → team, with write-in cells for the four athletic-combine stats. Pre-fills any value
-/// already recorded on <c>Registrations</c>; otherwise the cell is a blank box for hand-entry.
+/// Crystal "PlayerStats_E120" (<c>reporting.PlayerStats_E120</c>). Active Players for the job,
+/// grouped agegroup → team; ONE page per team, titled "{agegroup}: {team}" (the teams are named by
+/// position — e.g. "2026 Attack" — so each page IS the position group; the proc carries no position
+/// column). Each player is a row of blank write-in boxes (a pair per combine stat) under the four
+/// stat headers — it is a blank collection form printed at the combine, so values are never
+/// pre-filled (matches the legacy).
 /// </summary>
 public sealed class PlayerStatsReportPdfService : IPlayerStatsReportPdfService
 {
@@ -25,28 +27,22 @@ public sealed class PlayerStatsReportPdfService : IPlayerStatsReportPdfService
     // Letter PORTRAIT.
     private const float PageW = 612f, PageH = 792f;
     private const float MarginX = 28.8f, MarginTop = 28.8f, MarginBottom = 28.8f;
-    private const float ContentW = PageW - (MarginX * 2);          // 554.4
-    private const float ContentBottom = PageH - MarginBottom;       // 763.2
-    private const float FooterH = 18f;
-    private const float MaxContentY = ContentBottom - MarginTop - FooterH - 2f;  // 714.4
-    private const float CellPadX = 4f;
-    private const float RowH = 16f;
-    private const float ColHeaderH = 26f;
+    private const float ContentW = PageW - (MarginX * 2);                 // 554.4
+    private const float MaxContentY = PageH - MarginTop - MarginBottom - 2f; // bottom of drawable area
 
-    // Columns (sum == ContentW). The four stat columns are write-in boxes.
-    private static readonly (string Key, float W, PdfTextAlignment Align)[] Cols =
-    {
-        ("#",            34f,    PdfTextAlignment.Center),
-        ("Player",       180.4f, PdfTextAlignment.Left),
-        ("Fastest Shot", 85f,    PdfTextAlignment.Center),
-        ("5-10-5",       85f,    PdfTextAlignment.Center),
-        ("40 Yd Dash",   85f,    PdfTextAlignment.Center),
-        ("300 Shuttle",  85f,    PdfTextAlignment.Center),
-    };
+    private const float TitleH = 48f;     // title + gap before the stat headers
+    private const float HeaderH = 18f;
+    private const float RowH = 30f;
+    private const float BoxH = 22f;
 
-    private static readonly PdfColor BandColor = new(222, 222, 222);
-    private static readonly PdfColor TeamBand = new(238, 238, 238);
-    private static readonly PdfColor TitleBlue = new(0, 0, 160);
+    private const float NameW = 150f;     // "#{uniform} Last, First"
+    private const float GroupW = (ContentW - NameW) / 4f;  // 101.1 per stat
+    private const float BoxPairW = 92f;   // a pair of write-in boxes, centered in the group
+    private const float BoxW = BoxPairW / 2f;              // 46
+
+    // Four athletic-combine stats; labels match the legacy abbreviations. Each is a PAIR of blank
+    // write-in boxes (the proc carries one value per stat, but the form is printed blank).
+    private static readonly string[] StatLabels = { "F-Shot", "5-10-5", "40-YD", "300-YD" };
 
     public async Task<ReportExportResult> GenerateE120Async(Guid jobId, CancellationToken cancellationToken = default)
     {
@@ -55,54 +51,45 @@ public sealed class PlayerStatsReportPdfService : IPlayerStatsReportPdfService
         var doc = NewDocument();
         var fonts = new Fonts();
         var pens = new Pens();
-        var printStamp = "Print Date: " + DateTime.Now.ToString("M/d/yyyy  h:mm tt", CultureInfo.InvariantCulture);
-
-        var g = doc.Pages.Add().Graphics;
-        var y = DrawTitle(g, printStamp, fonts);
 
         if (rows.Count == 0)
         {
-            g.DrawString("No active players for this job.", fonts.Label, PdfBrushes.Gray,
-                new RectangleF(0, y + 8f, ContentW, 18f), new PdfStringFormat(PdfTextAlignment.Left));
+            var g0 = doc.Pages.Add().Graphics;
+            g0.DrawString("No active players for this job.", fonts.Label, PdfBrushes.Gray,
+                new RectangleF(0, 40f, ContentW, 18f), new PdfStringFormat(PdfTextAlignment.Left));
             return Save(doc);
         }
 
-        y = DrawColumnHeader(g, y, fonts, pens);
+        // One page per team (agegroup → team), titled "{agegroup}: {team}". Order matches the proc
+        // (agegroup, team, last, first).
+        var teams = rows
+            .GroupBy(r => new { Ag = r.AgegroupName ?? string.Empty, Tn = r.TeamName ?? string.Empty })
+            .OrderBy(t => t.Key.Ag, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(t => t.Key.Tn, StringComparer.OrdinalIgnoreCase);
 
-        foreach (var ag in rows.GroupBy(r => r.AgegroupName ?? string.Empty))
+        foreach (var team in teams)
         {
-            if (y + RowH * 2 > MaxContentY)
-            {
-                g = doc.Pages.Add().Graphics;
-                y = DrawColumnHeader(g, DrawTitle(g, printStamp, fonts), fonts, pens);
-            }
-            y = DrawBand(g, BandColor, ag.Key, y, fonts.CellBold);
+            var title = $"{team.Key.Ag}: {team.Key.Tn}".Trim().Trim(':').Trim();
+            var g = doc.Pages.Add().Graphics;
+            var y = DrawTitle(g, title, fonts);
+            y = DrawStatHeaders(g, y, fonts);
 
-            foreach (var team in ag.GroupBy(r => r.TeamName ?? string.Empty))
+            foreach (var p in team
+                .OrderBy(x => x.LastName, StringComparer.OrdinalIgnoreCase)
+                .ThenBy(x => x.FirstName, StringComparer.OrdinalIgnoreCase))
             {
-                if (y + RowH * 2 > MaxContentY)
+                if (y + RowH > MaxContentY)
                 {
                     g = doc.Pages.Add().Graphics;
-                    y = DrawColumnHeader(g, DrawTitle(g, printStamp, fonts), fonts, pens);
+                    y = DrawTitle(g, title, fonts);   // overflow → repeat title + headers
+                    y = DrawStatHeaders(g, y, fonts);
                 }
-                y = DrawBand(g, TeamBand, "   " + team.Key, y, fonts.Cell);
-
-                foreach (var p in team)
-                {
-                    if (y + RowH > MaxContentY)
-                    {
-                        g = doc.Pages.Add().Graphics;
-                        y = DrawColumnHeader(g, DrawTitle(g, printStamp, fonts), fonts, pens);
-                    }
-                    y = DrawPlayerRow(g, p, y, fonts, pens);
-                }
+                y = DrawPlayerRow(g, p, y, fonts, pens);
             }
         }
 
         return Save(doc);
     }
-
-    // ── Drawing ─────────────────────────────────────────────────────────
 
     private static PdfDocument NewDocument()
     {
@@ -113,95 +100,54 @@ public sealed class PlayerStatsReportPdfService : IPlayerStatsReportPdfService
         doc.PageSettings.Margins.Right = MarginX;
         doc.PageSettings.Margins.Top = MarginTop;
         doc.PageSettings.Margins.Bottom = MarginBottom;
-        AddFooterTemplate(doc);
         return doc;
     }
 
-    private static float DrawTitle(PdfGraphics g, string printStamp, Fonts fonts)
+    private static float DrawTitle(PdfGraphics g, string title, Fonts fonts)
     {
-        g.DrawString("Player Stats — E120 Entry Form", fonts.Title, new PdfSolidBrush(TitleBlue),
-            new RectangleF(0, 0, ContentW, 18f), new PdfStringFormat(PdfTextAlignment.Center));
-        g.DrawString(printStamp, fonts.Small, new PdfSolidBrush(new PdfColor(110, 110, 110)),
-            new RectangleF(0, 20f, ContentW, 12f), new PdfStringFormat(PdfTextAlignment.Center));
-        return 38f;
+        g.DrawString(title, fonts.Title, PdfBrushes.Black,
+            new RectangleF(0, 0, ContentW, 22f), new PdfStringFormat(PdfTextAlignment.Center));
+        return TitleH;
     }
 
-    private static float DrawColumnHeader(PdfGraphics g, float y, Fonts fonts, Pens pens)
+    // The four stat labels, underlined, centered over each pair of write-in boxes. No name header
+    // and no band — matches the legacy.
+    private static float DrawStatHeaders(PdfGraphics g, float y, Fonts fonts)
     {
-        g.DrawRectangle(new PdfSolidBrush(BandColor), new RectangleF(0, y, ContentW, ColHeaderH));
-        var x = 0f;
-        foreach (var (key, w, _) in Cols)
+        for (var s = 0; s < StatLabels.Length; s++)
         {
-            g.DrawString(key, fonts.ColHeader, PdfBrushes.Black,
-                new RectangleF(x + CellPadX, y, w - (CellPadX * 2), ColHeaderH),
-                new PdfStringFormat(PdfTextAlignment.Center, PdfVerticalAlignment.Middle) { WordWrap = PdfWordWrapType.Word });
-            x += w;
+            var pairX = NameW + (s * GroupW) + ((GroupW - BoxPairW) / 2f);
+            g.DrawString(StatLabels[s], fonts.Header, PdfBrushes.Black,
+                new RectangleF(pairX, y, BoxPairW, HeaderH),
+                new PdfStringFormat(PdfTextAlignment.Center, PdfVerticalAlignment.Middle));
         }
-        g.DrawLine(pens.Header, new PointF(0, y + ColHeaderH), new PointF(ContentW, y + ColHeaderH));
-        return y + ColHeaderH + 1f;
-    }
-
-    private static float DrawBand(PdfGraphics g, PdfColor color, string text, float y, PdfStandardFont font)
-    {
-        g.DrawRectangle(new PdfSolidBrush(color), new RectangleF(0, y, ContentW, RowH));
-        g.DrawString(text, font, PdfBrushes.Black,
-            new RectangleF(CellPadX, y, ContentW - (CellPadX * 2), RowH),
-            new PdfStringFormat(PdfTextAlignment.Left, PdfVerticalAlignment.Middle));
-        return y + RowH;
+        return y + HeaderH + 6f;
     }
 
     private static float DrawPlayerRow(PdfGraphics g, PlayerStatsE120RowDto p, float y, Fonts fonts, Pens pens)
     {
         var name = $"{p.LastName}, {p.FirstName}".Trim().Trim(',').Trim();
-        var values = new[]
+        // The legacy printed a bare "#" jersey marker, but for un-numbered showcase players the
+        // uniform field is empty or the literal string "null" — suppress both so "#null" never shows.
+        var uniform = p.UniformNo?.Trim();
+        if (string.IsNullOrEmpty(uniform) || string.Equals(uniform, "null", StringComparison.OrdinalIgnoreCase))
         {
-            p.UniformNo ?? string.Empty,
-            name,
-            Stat(p.Fastestshot),
-            Stat(p.FiveTenFive),
-            Stat(p.Fourtyyarddash),
-            Stat(p.Threehundredshuttle),
-        };
-
-        var x = 0f;
-        for (var i = 0; i < Cols.Length; i++)
-        {
-            var (_, w, align) = Cols[i];
-            // Vertical separators on the four stat columns so each reads as a write-in box.
-            if (i >= 2)
-            {
-                g.DrawLine(pens.Divider, new PointF(x, y), new PointF(x, y + RowH));
-            }
-            if (values[i].Length > 0)
-            {
-                g.DrawString(values[i], fonts.Cell, PdfBrushes.Black,
-                    new RectangleF(x + CellPadX, y, w - (CellPadX * 2), RowH),
-                    new PdfStringFormat(align, PdfVerticalAlignment.Middle));
-            }
-            x += w;
+            uniform = null;
         }
-        g.DrawLine(pens.Divider, new PointF(0, y + RowH), new PointF(ContentW, y + RowH));
-        return y + RowH;
-    }
+        var label = uniform is null ? $"# {name}" : $"#{uniform} {name}";
+        g.DrawString(label, fonts.Cell, PdfBrushes.Black,
+            new RectangleF(0, y, NameW - 4f, RowH),
+            new PdfStringFormat(PdfTextAlignment.Left, PdfVerticalAlignment.Middle));
 
-    private static string Stat(double? v) => v.HasValue ? v.Value.ToString("0.##", CultureInfo.InvariantCulture) : string.Empty;
-
-    private static void AddFooterTemplate(PdfDocument document)
-    {
-        var footerFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7);
-        var gray = new PdfSolidBrush(new PdfColor(102, 102, 102));
-        var footer = new PdfPageTemplateElement(new RectangleF(0, 0, ContentW, FooterH));
-        footer.Graphics.DrawString("Reports By TeamSportsInfo.com", footerFont, gray, new PointF(2, 4));
-        var composite = new PdfCompositeField(
-            footerFont, gray, "Page {0} / {1}",
-            new PdfPageNumberField(footerFont, gray),
-            new PdfPageCountField(footerFont, gray))
+        var boxY = y + ((RowH - BoxH) / 2f);
+        for (var s = 0; s < StatLabels.Length; s++)
         {
-            Bounds = new RectangleF(0, 4, ContentW - 2, FooterH),
-            StringFormat = new PdfStringFormat(PdfTextAlignment.Right),
-        };
-        composite.Draw(footer.Graphics, new PointF(0, 4));
-        document.Template.Bottom = footer;
+            var pairX = NameW + (s * GroupW) + ((GroupW - BoxPairW) / 2f);
+            // A pair of adjacent blank write-in boxes per stat.
+            g.DrawRectangle(pens.Box, new RectangleF(pairX, boxY, BoxW, BoxH));
+            g.DrawRectangle(pens.Box, new RectangleF(pairX + BoxW, boxY, BoxW, BoxH));
+        }
+        return y + RowH;
     }
 
     private static ReportExportResult Save(PdfDocument doc)
@@ -214,17 +160,14 @@ public sealed class PlayerStatsReportPdfService : IPlayerStatsReportPdfService
 
     private sealed class Fonts
     {
-        public PdfStandardFont Title { get; } = new(PdfFontFamily.Helvetica, 13, PdfFontStyle.Bold);
-        public PdfStandardFont ColHeader { get; } = new(PdfFontFamily.Helvetica, 8, PdfFontStyle.Bold);
+        public PdfStandardFont Title { get; } = new(PdfFontFamily.Helvetica, 15, PdfFontStyle.Bold);
+        public PdfStandardFont Header { get; } = new(PdfFontFamily.Helvetica, 9, PdfFontStyle.Underline);
         public PdfStandardFont Cell { get; } = new(PdfFontFamily.Helvetica, 9);
-        public PdfStandardFont CellBold { get; } = new(PdfFontFamily.Helvetica, 9, PdfFontStyle.Bold);
         public PdfStandardFont Label { get; } = new(PdfFontFamily.Helvetica, 9);
-        public PdfStandardFont Small { get; } = new(PdfFontFamily.Helvetica, 8);
     }
 
     private sealed class Pens
     {
-        public PdfPen Header { get; } = new(new PdfColor(0, 0, 0), 0.75f);
-        public PdfPen Divider { get; } = new(new PdfColor(200, 200, 200), 0.5f);
+        public PdfPen Box { get; } = new(new PdfColor(0, 0, 0), 0.75f);
     }
 }
