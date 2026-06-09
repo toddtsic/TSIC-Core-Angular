@@ -115,7 +115,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                     job.JobId, RoleConstants.ClubRep, targetAgegroup.AgegroupId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
                 var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
-                newFeeBase = (job.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
+                newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved, job.BTeamsFullPaymentRequired ?? false)
+                    ? deposit + balanceDue : deposit;
                 newFeeTotal = newFeeBase; // preview estimate (excludes processing for simplicity)
                 feeDelta = newFeeTotal - (team.FeeTotal ?? 0m);
             }
@@ -159,7 +160,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                     job.JobId, RoleConstants.ClubRep, sourceAgegroup.AgegroupId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
                 var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
-                newFeeBase = (job.BTeamsFullPaymentRequired ?? false) ? deposit + balanceDue : deposit;
+                newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved, job.BTeamsFullPaymentRequired ?? false)
+                    ? deposit + balanceDue : deposit;
                 newFeeTotal = newFeeBase;
                 feeDelta = newFeeTotal - (team.FeeTotal ?? 0m);
             }

@@ -180,10 +180,12 @@ public record ResolvedModifiers
 
 /// <summary>
 /// Context for player fee application — controls phase and processing fee behavior.
-/// IsFullPaymentRequired is sourced from Jobs.BPlayersFullPaymentRequired (job-level
-/// phase flag, director-controlled). When true, FeeBase = Deposit + BalanceDue;
-/// when false, FeeBase = Deposit (deposit phase). ApplyPifUpgradeAsync remains the
-/// per-registration "parent voluntarily pays in full at checkout" path.
+/// IsFullPaymentRequired is the job-level BASELINE (Jobs.BPlayersFullPaymentRequired);
+/// FeeResolutionService overrides it per scope via ResolvedFee.ResolveFullPaymentPhase
+/// (a team/agegroup/league JobFees override wins). Effective full-payment → FeeBase =
+/// Deposit + BalanceDue; effective deposit phase → FeeBase = Deposit (or BalanceDue when
+/// no deposit configured). ApplyPifUpgradeAsync remains the per-registration "parent
+/// voluntarily pays in full at checkout" path.
 ///
 /// NonCcPayments is NOT in this context — FeeResolutionService looks it up from the
 /// registration's payment history when stamping FeeProcessing.
@@ -191,9 +193,9 @@ public record ResolvedModifiers
 public record FeeApplicationContext
 {
     /// <summary>
-    /// Job-level phase: true = full-payment phase, false = deposit phase.
-    /// Defaults to false (deposit phase); callers MUST populate from
-    /// Jobs.BPlayersFullPaymentRequired.
+    /// Job-level phase BASELINE: true = full-payment, false = deposit. Defaults to false.
+    /// Callers populate from Jobs.BPlayersFullPaymentRequired; the service treats this as
+    /// the FALLBACK — a per-scope JobFees override (BFullPaymentRequired) takes precedence.
     /// </summary>
     public bool IsFullPaymentRequired { get; init; }
 
@@ -209,7 +211,12 @@ public record FeeApplicationContext
 /// </summary>
 public record TeamFeeApplicationContext
 {
-    /// <summary>Whether this is the balance-due phase (true) or deposit phase (false).</summary>
+    /// <summary>
+    /// Job-level phase BASELINE: true = full-payment (balance-due) phase, false = deposit.
+    /// Callers populate from Jobs.BTeamsFullPaymentRequired; the service treats this as the
+    /// FALLBACK — a per-scope JobFees override (BFullPaymentRequired) takes precedence via
+    /// ResolvedFee.ResolveFullPaymentPhase.
+    /// </summary>
     public bool IsFullPaymentRequired { get; init; }
 
     /// <summary>Whether to apply CC processing fees.</summary>

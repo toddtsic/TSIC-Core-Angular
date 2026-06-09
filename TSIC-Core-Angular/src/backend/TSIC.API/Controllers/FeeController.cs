@@ -145,6 +145,13 @@ public class FeeController : ControllerBase
         if (windowError != null)
             return BadRequest(new { message = windowError });
 
+        // Guard: a deposit with no balance due is invalid. The deposit is the "part now"
+        // of a two-step structure — with nothing to defer there is no balance phase, so the
+        // amount belongs in Balance Due, not Deposit. (Balance-only is valid; deposit-only is not.)
+        var depositBalanceError = ValidateDepositBalance(request.Deposit, request.BalanceDue);
+        if (depositBalanceError != null)
+            return BadRequest(new { message = depositBalanceError });
+
         // Find existing row for this scope (tracked for update)
         var existing = await _feeRepo.GetTrackedByScopeAsync(
             jobId, request.RoleId, request.AgegroupId, request.TeamId, request.LeagueId, ct);
@@ -269,6 +276,17 @@ public class FeeController : ControllerBase
     /// boundaries are inclusive (both active on a shared boundary date counts as overlap).
     /// Returns an error message, or null when valid.
     /// </summary>
+    /// <summary>
+    /// A fee with a Deposit must also carry a Balance Due. A deposit is the "part now" of a
+    /// two-step (deposit → balance) structure; with no balance there is nothing to defer, so a
+    /// deposit-only fee is invalid. Balance-only (single payment) and both-set are both fine.
+    /// Returns an error message, or null when valid.
+    /// </summary>
+    private static string? ValidateDepositBalance(decimal? deposit, decimal? balanceDue)
+        => deposit > 0m && !(balanceDue > 0m)
+            ? "A fee with a deposit must also have a balance due. Enter a balance due, or move the amount to Balance Due."
+            : null;
+
     private static string? ValidateModifierWindows(List<FeeModifierDto>? modifiers)
     {
         if (modifiers == null) return null;

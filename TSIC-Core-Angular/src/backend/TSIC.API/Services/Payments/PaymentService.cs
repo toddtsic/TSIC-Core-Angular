@@ -1285,6 +1285,11 @@ public class PaymentService : IPaymentService
         // PIF allow-gate (ALLOWPIF / BPlayersFullPaymentRequired) is then only meaningful
         // when there's a deposit alternative being bypassed; when no deposit exists,
         // PIF is the only mode and ungated.
+        // NOTE: this gate stays JOB-LEVEL on purpose (not the per-scope resolved phase).
+        // A family payment can span multiple scopes; a full-payment-required scope is
+        // already stamped at full (no deposit offered), so its regs never reach this gate,
+        // and deposit-phase regs resolve to the job baseline anyway. Per-scope here would
+        // add risk for zero behavioral change.
         var hasDeposit = await IsDepositScenarioAsync(registrations);
         var effective = (!hasDeposit && request.PaymentOption == PaymentOption.Deposit) ? PaymentOption.PIF : request.PaymentOption;
         if (effective == PaymentOption.PIF && hasDeposit && !job.AllowPif && !job.BPlayersFullPaymentRequired) return (Fail("Pay In Full is not enabled for this job", "PIF_NOT_ALLOWED"), null, null, null, effective);

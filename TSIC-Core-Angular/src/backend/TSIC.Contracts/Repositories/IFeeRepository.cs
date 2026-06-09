@@ -191,4 +191,20 @@ public record ResolvedFee
 
     /// <summary>Sentinel for "no fee row at any cascade level" (FeeConfigured = false).</summary>
     public static readonly ResolvedFee NotConfigured = new() { FeeConfigured = false };
+
+    /// <summary>
+    /// THE canonical full-payment phase decision. A per-scope JobFees override
+    /// (<see cref="BFullPaymentRequired"/>, already cascaded team → agegroup → league)
+    /// wins; otherwise fall back to the job-level baseline bool
+    /// (Jobs.BPlayersFullPaymentRequired / BTeamsFullPaymentRequired).
+    ///
+    /// Every consumer that needs to know "deposit phase or balance-due phase?" —
+    /// fee stamping (<c>FeeResolutionService</c> chokepoint), the registered-teams
+    /// grid display (<c>RegisteredTeamShaper</c>), pool/roster re-price previews —
+    /// resolves it HERE. Do not re-implement the <c>?? jobBaseline</c> precedence inline.
+    /// Accepts a nullable resolved fee so call sites that may have no configured row
+    /// (swap/preview paths) can pass <c>resolved?</c> directly.
+    /// </summary>
+    public static bool ResolveFullPaymentPhase(ResolvedFee? resolved, bool jobBaseline)
+        => resolved?.BFullPaymentRequired ?? jobBaseline;
 }

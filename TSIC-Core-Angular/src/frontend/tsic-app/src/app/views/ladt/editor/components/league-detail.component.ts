@@ -79,23 +79,23 @@ const JOB_TYPE_TOURNAMENT = 2;
           <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
             [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
-            [modifiers]="clubRepModifiers"
+            [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
           <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [(deposit)]="feeForm.playerDeposit"
             [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
-            [modifiers]="playerModifiers" placeholder="Optional"
+            [modifiers]="playerModifiers" placeholder="Optional" [phaseNote]="phaseNote('player')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
         } @else {
           <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [(deposit)]="feeForm.playerDeposit"
             [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
-            [modifiers]="playerModifiers" placeholder="Optional"
+            [modifiers]="playerModifiers" placeholder="Optional" [phaseNote]="phaseNote('player')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
           <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
             [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
-            [modifiers]="clubRepModifiers"
+            [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
         }
 
@@ -108,8 +108,9 @@ const JOB_TYPE_TOURNAMENT = 2;
             Save
           </button>
           @if (saveMessage()) {
-            <span class="small text-success">
-              <i class="bi bi-check-circle me-1"></i>{{ saveMessage() }}
+            <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
+              <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
+              {{ saveMessage() }}
             </span>
           }
         </div>
@@ -160,6 +161,7 @@ export class LeagueDetailComponent implements OnChanges {
   isLoading = signal(false);
   isSaving = signal(false);
   saveMessage = signal<string | null>(null);
+  isError = signal(false);
 
   form: any = {};
 
@@ -259,6 +261,13 @@ export class LeagueDetailComponent implements OnChanges {
   }
 
   save(): void {
+    const feeError = this.depositBalanceError();
+    if (feeError) {
+      this.isError.set(true);
+      this.saveMessage.set(feeError);
+      return;
+    }
+
     const playerChanged = this.roleChanged('player');
     const clubRepChanged = this.roleChanged('clubRep');
 
@@ -364,6 +373,7 @@ export class LeagueDetailComponent implements OnChanges {
         this.league.set(updated);
         this.form = { ...updated };
         this.isSaving.set(false);
+        this.isError.set(false);
         this.saveMessage.set(this.savedMessage(results, 'League saved successfully.'));
         this.captureOriginals();
         // TODO: The 'emit' function requires a mandatory void argument
@@ -381,6 +391,31 @@ export class LeagueDetailComponent implements OnChanges {
 
   private scopeLabel(): string {
     return this.league()?.leagueName || 'this league';
+  }
+
+  /**
+   * Blocks an invalid deposit-without-balance fee (a deposit needs a balance to defer to).
+   * Mirrors the backend FeeController guard so the director gets immediate feedback.
+   */
+  private depositBalanceError(): string | null {
+    const bad = (dep: number | null, bal: number | null, who: string) =>
+      (dep ?? 0) > 0 && !((bal ?? 0) > 0)
+        ? `${who} fee: a deposit must also have a balance due.` : null;
+    return bad(this.feeForm.playerDeposit, this.feeForm.playerBalanceDue, 'Player')
+        ?? bad(this.feeForm.clubRepDeposit, this.feeForm.clubRepBalanceDue, 'Club Rep');
+  }
+
+  /**
+   * Read-only phase pointer for the league card. When a league-level fee exists, the card's
+   * own toggle + amount-aware explanation own the phase display, so this returns null (no
+   * duplicate line). When no fee is set here, phase is managed one tier down — point there
+   * (mirrors the "See age group level" fallback in the league grid's Payment Phase column).
+   */
+  phaseNote(role: 'player' | 'clubRep'): string | null {
+    const dep = role === 'player' ? this.feeForm.playerDeposit : this.feeForm.clubRepDeposit;
+    const bal = role === 'player' ? this.feeForm.playerBalanceDue : this.feeForm.clubRepBalanceDue;
+    if (dep != null || bal != null) return null;
+    return 'See age group level.';
   }
 
   private captureOriginals(): void {

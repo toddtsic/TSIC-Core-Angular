@@ -133,20 +133,20 @@ const JOB_TYPE_TOURNAMENT = 2;
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
             [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
-            [modifiers]="clubRepModifiers" />
+            [modifiers]="clubRepModifiers" [scope]="'agegroup'" />
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [(deposit)]="feeForm.playerDeposit"
             [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
-            [modifiers]="playerModifiers" placeholder="Optional" />
+            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" />
         } @else {
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [(deposit)]="feeForm.playerDeposit"
             [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
-            [modifiers]="playerModifiers" placeholder="Optional" />
+            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" />
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
             [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
-            [modifiers]="clubRepModifiers" />
+            [modifiers]="clubRepModifiers" [scope]="'agegroup'" />
         }
 
         <!-- ── Save ── -->
@@ -374,6 +374,13 @@ export class AgegroupDetailComponent implements OnChanges {
   }
 
   save(): void {
+    const feeError = this.depositBalanceError();
+    if (feeError) {
+      this.isError.set(true);
+      this.saveMessage.set(feeError);
+      return;
+    }
+
     const playerChanged = this.roleChanged('player');
     const clubRepChanged = this.roleChanged('clubRep');
 
@@ -512,6 +519,18 @@ export class AgegroupDetailComponent implements OnChanges {
 
   private scopeLabel(): string {
     return this.agegroup()?.agegroupName || 'this age group';
+  }
+
+  /**
+   * Blocks an invalid deposit-without-balance fee (a deposit needs a balance to defer to).
+   * Mirrors the backend FeeController guard so the director gets immediate feedback.
+   */
+  private depositBalanceError(): string | null {
+    const bad = (dep: number | null, bal: number | null, who: string) =>
+      (dep ?? 0) > 0 && !((bal ?? 0) > 0)
+        ? `${who} fee: a deposit must also have a balance due.` : null;
+    return bad(this.feeForm.playerDeposit, this.feeForm.playerBalanceDue, 'Player')
+        ?? bad(this.feeForm.clubRepDeposit, this.feeForm.clubRepBalanceDue, 'Club Rep');
   }
 
   private captureOriginals(): void {

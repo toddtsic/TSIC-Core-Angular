@@ -131,6 +131,28 @@ public class FeeControllerSaveTests
             Times.Never);
     }
 
+    [Fact(DisplayName = "Deposit with no balance due is rejected (400) and never reprices")]
+    public async Task DepositWithoutBalance_IsRejected()
+    {
+        var h = Build(ExistingRow(RoleConstants.Player, phase: null));
+        var request = new SaveJobFeeRequest
+        {
+            RoleId = RoleConstants.Player,
+            AgegroupId = AgId,
+            TeamId = TeamId,
+            Deposit = 100m,        // deposit set...
+            BalanceDue = null,     // ...but nothing to defer = invalid
+            RepriceExisting = true
+        };
+
+        var result = await h.Controller.SaveFee(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        h.PlayerSvc.Verify(p => p.RecalculatePlayerFeesAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     [Fact(DisplayName = "ClubRep 'update all prior' routes to the team engine, scoped to the team")]
     public async Task ClubRep_UpdateAllPrior_RoutesToTeamEngine()
     {
@@ -141,6 +163,7 @@ public class FeeControllerSaveTests
             AgegroupId = AgId,
             TeamId = TeamId,
             Deposit = 250m,
+            BalanceDue = 500m,             // valid deposit+balance shape
             RepriceExisting = true         // "update all prior"
         };
 

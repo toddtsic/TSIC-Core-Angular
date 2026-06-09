@@ -50,8 +50,12 @@ export interface ModifierForm {
           </div>
         </div>
 
-        @if (showPhaseToggle()) {
-          <div class="phase-toggle">
+      }
+
+      @if (showPhaseToggle() || phaseExplanation() || phaseNote()) {
+        <div class="phase-section">
+          <label class="fee-label phase-section-label">Payment Phase</label>
+          @if (showPhaseToggle()) {
             <div class="form-check form-switch mb-0">
               <input class="form-check-input" type="checkbox" role="switch"
                      [id]="namePrefix() + 'Phase'"
@@ -61,15 +65,16 @@ export interface ModifierForm {
                 Require full payment now
               </label>
             </div>
-            <span class="phase-hint" [class.phase-hint-on]="bFullPaymentRequired() === true">
-              @if (bFullPaymentRequired() === true) {
-                <i class="bi bi-cash-stack me-1"></i>Deposit + balance collected together — no balance-due phase.
-              } @else {
-                <i class="bi bi-hourglass-split me-1"></i>Inherits the phase (deposit now, balance later).
-              }
-            </span>
-          </div>
-        }
+          }
+          @if (phaseExplanation(); as explain) {
+            <p class="phase-explain" [class.on]="bFullPaymentRequired() === true">
+              <i class="bi {{ phaseIcon() }}"></i><span>{{ explain }}</span>
+            </p>
+          }
+          @if (phaseNote()) {
+            <p class="phase-note">{{ phaseNote() }}</p>
+          }
+        </div>
       }
 
       @for (mod of modifiers(); track mod.modifierType) {
@@ -173,14 +178,25 @@ export interface ModifierForm {
     .fee-label { font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
     .fee-hint { font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin: 0 0 var(--space-2) 0; font-style: italic; }
 
-    .phase-toggle {
-      display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-3);
-      margin-top: var(--space-2); padding-top: var(--space-2);
-      border-top: 1px dashed var(--bs-border-color);
+    .phase-section {
+      display: flex; flex-direction: column; gap: var(--space-2);
+      margin: var(--space-3) 0;
+      padding: var(--space-2) var(--space-3);
+      background: var(--bs-tertiary-bg);
+      border: 1px solid var(--bs-border-color);
+      border-radius: var(--radius-sm);
+    }
+    .phase-section-label {
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0;
     }
     .phase-switch-label { font-size: var(--font-size-xs); font-weight: 600; cursor: pointer; }
-    .phase-hint { font-size: var(--font-size-xs); color: var(--bs-secondary-color); }
-    .phase-hint-on { color: var(--bs-success); font-weight: 600; }
+    .phase-explain {
+      font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin: 0;
+      display: flex; align-items: flex-start; gap: 4px;
+    }
+    .phase-explain.on { color: var(--bs-success); font-weight: 600; }
+    .phase-explain i { margin-top: 1px; }
+    .phase-note { font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin: 0; display: flex; align-items: center; }
 
     .modifier-labels {
       display: grid;
@@ -259,20 +275,74 @@ export class FeeCardComponent {
    */
   readonly bFullPaymentRequired = input<boolean | null>(null);
 
+  /** Optional read-only phase status line — used at league scope when no fee is set here,
+   *  to point the admin to where phase is managed (age group / team). */
+  readonly phaseNote = input<string | null>(null);
+
+  /** Cascade scope — names who this card's setting flows down to (and who can override it)
+   *  in the phase explanation copy. */
+  readonly scope = input<'league' | 'agegroup' | 'team' | null>(null);
+
   readonly depositChange = output<number | null>();
   readonly balanceDueChange = output<number | null>();
   readonly bFullPaymentRequiredChange = output<boolean | null>();
 
   /**
-   * The phase toggle only makes sense when this card carries a base fee (deposit or
-   * balance) or already has a phase set. Hides the dead switch on an empty card — e.g.
-   * a ClubRep card on a site (like a CAC) that has no club-rep fees.
+   * The phase toggle only does something when there's a deposit to defer. With a
+   * balance-only fee, ON and OFF collect the same amount (the balance), so the toggle is a
+   * no-op — we hide it and show a single-payment line instead.
    */
-  readonly showPhaseToggle = computed(() =>
-    this.deposit() != null || this.balanceDue() != null || this.bFullPaymentRequired() != null);
+  readonly showPhaseToggle = computed(() => (this.deposit() ?? 0) > 0);
+
+  /**
+   * Director-facing explanation of the effective phase — amount-aware and scope-aware.
+   * Balance-only → single payment; deposit + balance → ON = full now (+ cascade down),
+   * OFF = inherit (+ a more-specific scope can still require full payment).
+   */
+  readonly phaseExplanation = computed<string | null>(() => {
+    const d = this.deposit() ?? 0;
+    const b = this.balanceDue() ?? 0;
+    if (d <= 0) {
+      return b > 0 ? `Single payment of ${this.money(b)} at registration — no deposit to defer.` : null;
+    }
+    if (this.bFullPaymentRequired() === true) {
+      return `Full payment now: collect ${this.money(d)} + ${this.money(b)} = ${this.money(d + b)} `
+           + `at registration — no Final Balance Due.${this.cascadeOn()}`;
+    }
+    return `Inheriting the payment phase. Unless a higher level requires full payment, registrants pay `
+         + `${this.money(d)} now and ${this.money(b)} later (Final Balance Due).${this.cascadeOff()}`;
+  });
+
+  readonly phaseIcon = computed(() => {
+    if ((this.deposit() ?? 0) <= 0) return 'bi-cash';
+    return this.bFullPaymentRequired() === true ? 'bi-cash-stack' : 'bi-hourglass-split';
+  });
 
   onPhaseToggle(checked: boolean): void {
     this.bFullPaymentRequiredChange.emit(checked ? true : null);
+  }
+
+  private money(n: number): string {
+    return '$' + Math.round(n).toLocaleString('en-US');
+  }
+
+  /** Downward reach when full payment is required at this scope. */
+  private cascadeOn(): string {
+    switch (this.scope()) {
+      case 'league': return ' Applies to every age group and team in this league.';
+      case 'agegroup': return ' Applies to every team in this age group.';
+      case 'team': return ' Applies to this team.';
+      default: return '';
+    }
+  }
+
+  /** Override note when this scope is inheriting (a more-specific scope can still escalate). */
+  private cascadeOff(): string {
+    switch (this.scope()) {
+      case 'league': return ' An age group or team can still require full payment on its own.';
+      case 'agegroup': return ' A team can still require full payment on its own.';
+      default: return '';
+    }
   }
 
   modLabel(type: string): string {

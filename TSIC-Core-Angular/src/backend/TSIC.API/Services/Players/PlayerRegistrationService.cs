@@ -686,12 +686,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             var oldFeeBase = reg.FeeBase;
             var oldFeeProcessing = reg.FeeProcessing;
 
-            // Effective phase = per-scope override (team → agegroup → league) ?? job baseline.
-            var effectiveFullPayment = resolved?.BFullPaymentRequired ?? jobFullPaymentRequired;
-
+            // Job baseline only — ApplySwapFeesAsync resolves the per-scope override
+            // (team → agegroup → league) over this via ResolvedFee.ResolveFullPaymentPhase.
             await _feeService.ApplySwapFeesAsync(
                 reg, jobId, regAgegroupId.Value, reg.AssignedTeamId.Value,
-                new FeeApplicationContext { IsFullPaymentRequired = effectiveFullPayment }, ct);
+                new FeeApplicationContext { IsFullPaymentRequired = jobFullPaymentRequired }, ct);
 
             if (reg.FeeBase != oldFeeBase || reg.FeeProcessing != oldFeeProcessing)
             {

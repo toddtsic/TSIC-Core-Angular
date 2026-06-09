@@ -141,19 +141,23 @@ public class RecalculatePlayerFeesTests
     }
 
     /// <summary>
-    /// The effective phase stamped onto each registration is the per-scope override
-    /// (JobFees.BFullPaymentRequired, resolved team → agegroup → league) when set,
-    /// otherwise the job-level baseline. This proves a single camp (team) can convert
-    /// to full payment while the rest of the job stays on deposit, and vice-versa.
+    /// The recalc engine forwards the JOB-LEVEL baseline to the fee applier; the per-scope
+    /// override (JobFees.BFullPaymentRequired, team → agegroup → league) is applied DOWNSTREAM
+    /// inside FeeResolutionService via the canonical ResolvedFee.ResolveFullPaymentPhase
+    /// chokepoint — not pre-resolved by the engine. (That a per-scope override actually flips
+    /// the stamped FeeBase is proven against the real applier in PaymentPhaseResolutionTests.)
+    /// This test pins the engine's contract: it hands the baseline through and does NOT
+    /// short-circuit resolution itself, even when a scope override is present on the resolved fee.
     /// </summary>
-    [Theory(DisplayName = "Effective phase = per-scope override ?? job baseline (into ApplySwapFees context)")]
-    [InlineData(false, true, true)]   // job deposit-phase, this scope converted   → full
-    [InlineData(true, false, false)]  // job full-phase,   this scope opted out    → deposit
-    [InlineData(false, null, false)]  // no scope override → job baseline (deposit)
-    [InlineData(true, null, true)]    // no scope override → job baseline (full)
-    public async Task RecalculatePlayerFees_EffectivePhase_PerScopeOverridesJobBaseline(
-        bool jobBaseline, bool? scopeOverride, bool expectedEffective)
+    [Theory(DisplayName = "Recalc engine forwards the job baseline to the applier (override resolved downstream)")]
+    [InlineData(false, true)]   // override present but engine still forwards the baseline…
+    [InlineData(true, false)]   // …in both directions
+    [InlineData(false, null)]   // no override → baseline
+    [InlineData(true, null)]    // no override → baseline
+    public async Task RecalculatePlayerFees_ForwardsJobBaseline_OverrideResolvedDownstream(
+        bool jobBaseline, bool? scopeOverride)
     {
+        var expectedEffective = jobBaseline;
         var jobId = Guid.NewGuid();
         var agegroupId = Guid.NewGuid();
         var teamId = Guid.NewGuid();

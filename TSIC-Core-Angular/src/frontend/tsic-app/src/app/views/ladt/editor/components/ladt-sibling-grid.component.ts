@@ -168,7 +168,11 @@ export interface ParentBreadcrumb {
                       }
                     </div>
                   } @else {
-                    <span class="text-body-tertiary">—</span>
+                    @if (level() === 0) {
+                      <span class="phase-hint">See age group level</span>
+                    } @else {
+                      <span class="text-body-tertiary">—</span>
+                    }
                   }
                 }
                 @default {
@@ -497,6 +501,12 @@ export interface ParentBreadcrumb {
     .phase-value--full {
       color: var(--bs-primary);
       font-weight: 600;
+    }
+    .phase-hint {
+      font-size: 0.8125rem;
+      font-style: italic;
+      color: var(--bs-secondary-color);
+      white-space: nowrap;
     }
   `]
 })

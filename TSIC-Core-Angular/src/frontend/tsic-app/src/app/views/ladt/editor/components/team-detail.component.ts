@@ -171,23 +171,23 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
             [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
             [modifiers]="clubRepModifiers"
-            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [(deposit)]="feeForm.playerDeposit"
             [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
             [modifiers]="playerModifiers"
-            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
         } @else {
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [(deposit)]="feeForm.playerDeposit"
             [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
             [modifiers]="playerModifiers"
-            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
             [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
             [modifiers]="clubRepModifiers"
-            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
+            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
         }
 
         <!-- ── Eligibility ── -->
@@ -405,6 +405,13 @@ export class TeamDetailComponent implements OnChanges {
   }
 
   save(): void {
+    const depErr = this.depositBalanceError();
+    if (depErr) {
+      this.isError.set(true);
+      this.saveMessage.set(depErr);
+      return;
+    }
+
     const playerChanged = this.roleChanged('player');
     const clubRepChanged = this.roleChanged('clubRep');
 
@@ -565,6 +572,14 @@ export class TeamDetailComponent implements OnChanges {
 
   private scopeLabel(): string {
     return this.team()?.teamName || 'this team';
+  }
+
+  private depositBalanceError(): string | null {
+    const bad = (dep: number | null, bal: number | null, who: string) =>
+      (dep ?? 0) > 0 && !((bal ?? 0) > 0)
+        ? `${who} fee: a deposit must also have a balance due.` : null;
+    return bad(this.feeForm.playerDeposit, this.feeForm.playerBalanceDue, 'Player')
+        ?? bad(this.feeForm.clubRepDeposit, this.feeForm.clubRepBalanceDue, 'Club Rep');
   }
 
   private captureOriginals(): void {

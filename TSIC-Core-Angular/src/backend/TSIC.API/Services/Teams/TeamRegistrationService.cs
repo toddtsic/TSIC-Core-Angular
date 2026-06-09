@@ -1292,8 +1292,10 @@ public class TeamRegistrationService : ITeamRegistrationService
                 team, jobId, team.AgegroupId,
                 new TeamFeeApplicationContext
                 {
-                    // Per-scope override (team → agegroup → league) ?? job baseline.
-                    IsFullPaymentRequired = resolved?.BFullPaymentRequired ?? (job.BTeamsFullPaymentRequired ?? false),
+                    // Job baseline only — ApplyTeamSwapFeesAsync resolves the per-scope
+                    // override (team → agegroup → league) over this via the canonical
+                    // ResolvedFee.ResolveFullPaymentPhase chokepoint.
+                    IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
                     AddProcessingFees = job.BAddProcessingFees ?? false,
                     ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
                     ProcessingFeePercent = processingRate
