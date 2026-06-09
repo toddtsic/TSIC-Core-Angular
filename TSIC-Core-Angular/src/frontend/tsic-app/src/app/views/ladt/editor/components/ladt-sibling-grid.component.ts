@@ -637,7 +637,15 @@ export class LadtSiblingGridComponent implements OnChanges {
       const bBottom = b['_isSpecial'] === true || b['active'] === false;
       if (aBottom !== bBottom) return aBottom ? 1 : -1;
 
-      if (!field) return 0;
+      // Default order (no column actively sorted): the age-group grid sorts
+      // alphabetically by name. WAITLIST/DROPPED holding groups already fall to
+      // the bottom via the _isSpecial push above, so this orders within each band.
+      if (!field) {
+        if (this.level() === 1) {
+          return String(a['agegroupName'] ?? '').localeCompare(String(b['agegroupName'] ?? ''));
+        }
+        return 0;
+      }
       const dir = this.sortDirection() === 'asc' ? 1 : -1;
       const va = a[field];
       const vb = b[field];

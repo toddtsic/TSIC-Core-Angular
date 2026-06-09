@@ -659,7 +659,10 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           const treeNodes = this.flatNodes();
           for (const row of data) {
             const upper = (row.agegroupName ?? '').toUpperCase();
-            row._isSpecial = upper === 'DROPPED TEAMS' || upper.startsWith('WAITLIST');
+            // "Special" = holding buckets whose name contains WAITLIST or DROPPED.
+            // Styled distinctly, no action menu, and always sorted to the bottom of
+            // the age-group grid.
+            row._isSpecial = upper.includes('WAITLIST') || upper.includes('DROPPED');
             const treeNode = treeNodes.find(n => n.id === row.agegroupId);
             if (treeNode) {
               row.teamCount = treeNode.teamCount;
