@@ -1258,10 +1258,12 @@ public class RegistrationRepository : IRegistrationRepository
 
         if (hasTeamIds || hasAgegroupIds || hasDivisionIds)
         {
+            // Agegroup/division resolve through the team (AssignedTeam.AgegroupId / .DivId);
+            // Registrations.AssignedAgegroupId / .AssignedDivId are obsolete.
             query = query.Where(r =>
                 (hasTeamIds && r.AssignedTeamId != null && request.TeamIds!.Contains(r.AssignedTeamId.Value)) ||
-                (hasAgegroupIds && r.AssignedAgegroupId != null && request.AgegroupIds!.Contains(r.AssignedAgegroupId.Value)) ||
-                (hasDivisionIds && r.AssignedDivId != null && request.DivisionIds!.Contains(r.AssignedDivId.Value))
+                (hasAgegroupIds && r.AssignedTeam != null && request.AgegroupIds!.Contains(r.AssignedTeam.AgegroupId)) ||
+                (hasDivisionIds && r.AssignedTeam != null && r.AssignedTeam.DivId != null && request.DivisionIds!.Contains(r.AssignedTeam.DivId.Value))
             );
         }
 
@@ -1687,16 +1689,16 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(ct);
 
         var agegroups = await baseQuery
-            .Where(r => r.AssignedAgegroupId != null)
-            .Join(_context.Agegroups, r => r.AssignedAgegroupId, ag => ag.AgegroupId, (r, ag) => ag)
+            .Where(r => r.AssignedTeam != null)
+            .Join(_context.Agegroups, r => r.AssignedTeam!.AgegroupId, ag => ag.AgegroupId, (r, ag) => ag)
             .GroupBy(ag => new { ag.AgegroupId, ag.AgegroupName })
             .OrderBy(g => g.Key.AgegroupName)
             .Select(g => new FilterOption { Value = g.Key.AgegroupId.ToString(), Text = g.Key.AgegroupName ?? "", Count = g.Count() })
             .ToListAsync(ct);
 
         var divisions = await baseQuery
-            .Where(r => r.AssignedDivId != null)
-            .Join(_context.Divisions, r => r.AssignedDivId, d => d.DivId, (r, d) => d)
+            .Where(r => r.AssignedTeam != null && r.AssignedTeam.DivId != null)
+            .Join(_context.Divisions, r => r.AssignedTeam!.DivId, d => d.DivId, (r, d) => d)
             .GroupBy(d => new { d.DivId, d.DivName })
             .OrderBy(g => g.Key.DivName)
             .Select(g => new FilterOption { Value = g.Key.DivId.ToString(), Text = g.Key.DivName ?? "", Count = g.Count() })

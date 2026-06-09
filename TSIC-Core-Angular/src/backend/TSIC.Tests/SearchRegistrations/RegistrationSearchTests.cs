@@ -409,11 +409,15 @@ public class RegistrationSearchTests
         var league = b.AddLeague(jobId);
         var ag1 = b.AddAgegroup(league.LeagueId, "U14 Boys");
         var ag2 = b.AddAgegroup(league.LeagueId, "U16 Boys");
+        // Agegroup resolves through the team (AssignedTeam.AgegroupId), not the obsolete
+        // Registrations.AssignedAgegroupId — assign each reg to a team in its agegroup.
+        var team1 = b.AddTeam(jobId, league.LeagueId, ag1.AgegroupId, "Thunder");
+        var team2 = b.AddTeam(jobId, league.LeagueId, ag2.AgegroupId, "Lightning");
 
         var u1 = b.AddUser("Alice", "Smith");
         var u2 = b.AddUser("Bob", "Jones");
-        b.AddRegistration(jobId, u1.Id, role.Id, assignedAgegroupId: ag1.AgegroupId);
-        b.AddRegistration(jobId, u2.Id, role.Id, assignedAgegroupId: ag2.AgegroupId);
+        b.AddRegistration(jobId, u1.Id, role.Id, assignedTeamId: team1.TeamId);
+        b.AddRegistration(jobId, u2.Id, role.Id, assignedTeamId: team2.TeamId);
         await b.SaveAsync();
 
         var result = await repo.SearchAsync(jobId, new RegistrationSearchRequest
