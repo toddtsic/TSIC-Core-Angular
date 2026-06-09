@@ -8,16 +8,18 @@ using TSIC.Contracts.Repositories;
 namespace TSIC.API.Services.Reporting;
 
 /// <summary>
-/// Hand-drawn (Syncfusion.Pdf) TSIC-fee year-to-date comparison reports — the EF replacement for the
-/// legacy Crystal "tsicTSICFeesYTD" (by customer + job) and "tsicTSICFeesYTDByCustomer" (customer
-/// rollup), both backed by <c>adn.tsicFeesYTDAndLastYear</c>. One flat EF row set
-/// (<see cref="IReportingRepository.GetFeeYtdRowsAsync"/>) of month-grain fees for this year and last
-/// year is rolled up to a this-year-YTD vs last-year-YTD comparison over the same months
-/// (1..lastMonth), grouped by customer (and job), with a year-over-year change column. Runs across ALL
-/// jobs; the period is the most recently completed month.
+/// Hand-drawn (Syncfusion.Pdf) TSIC-fee year-to-date reports — the EF replacement for the legacy
+/// Crystal "tsicTSICFeesYTDByCustomer" and "tsicTSICFeesYTD" (by customer + job), both backed by
+/// <c>adn.tsicFeesYTDAndLastYear</c>. These reproduce the legacy <b>cross-tab</b>: rows are
+/// Customer (→ Job) → calendar-month number, columns are the two years (last year, this year), and
+/// each cell is that month's fee. Per-group <c>Total</c> rows and a final grand <c>Total</c> close
+/// the tab. The flat EF row set (<see cref="IReportingRepository.GetFeeYtdRowsAsync"/>) supplies
+/// month-grain fees; this layer only pivots, sums, and draws.
 ///
 /// Fee math mirrors the proc exactly: each row's fee = NewPlayers×perPlayerCharge +
-/// NewTeams×perTeamCharge (computed in the repository); this layer only sums and groups.
+/// NewTeams×perTeamCharge (computed in the repository). Months with no activity are suppressed per
+/// group; zero-valued cells/rows are NOT suppressed (the legacy prints them). Runs across ALL jobs;
+/// the window is months 1..lastCompletedMonth for both years.
 /// </summary>
 public sealed class FeeYtdReportPdfService : IFeeYtdReportPdfService
 {
@@ -28,154 +30,305 @@ public sealed class FeeYtdReportPdfService : IFeeYtdReportPdfService
         _reportingRepository = reportingRepository;
     }
 
-    // Letter PORTRAIT (the comparison is a narrow 4-column table).
+    // Letter PORTRAIT (the cross-tab is a narrow, left-aligned table).
     private const float PageW = 612f, PageH = 792f;
     private const float MarginX = 28.8f, MarginTop = 28.8f, MarginBottom = 28.8f;
-    private const float ContentW = PageW - (MarginX * 2);          // 554.4
-    private const float ContentBottom = PageH - MarginBottom;       // 763.2
+    private const float ContentW = PageW - (MarginX * 2);                       // 554.4
     private const float FooterH = 18f;
-    private const float MaxContentY = ContentBottom - MarginTop - FooterH - 2f;  // 714.4
+    private const float MaxContentY = PageH - MarginTop - MarginBottom - FooterH - 2f;  // 714.4
     private const float CellPadX = 4f;
     private const float RowH = 15f;
 
-    // Columns (sum == ContentW). The label column carries customer/job names; the three money
-    // columns are last-year YTD, this-year YTD, and the year-over-year change.
-    private static readonly (string Key, float W, PdfTextAlignment Align)[] Cols =
+    public async Task<ReportExportResult> GenerateByCustomerAsync(CancellationToken cancellationToken = default)
     {
-        ("Customer / Job", 264.4f, PdfTextAlignment.Left),
-        ("Last Year YTD",   90f,   PdfTextAlignment.Right),
-        ("This Year YTD",   90f,   PdfTextAlignment.Right),
-        ("Change",         110f,   PdfTextAlignment.Right),
-    };
-
-    private static readonly PdfColor BandColor = new(222, 222, 222);
-    private static readonly PdfColor CustomerBand = new(238, 238, 238);
-    private static readonly PdfColor TitleBlue = new(0, 0, 160);
-
-    public Task<ReportExportResult> GenerateByCustomerAndJobAsync(CancellationToken cancellationToken = default)
-        => GenerateAsync(includeJobRows: true, "By Customer and Job", "TSICFeesYTD_ByCustomerAndJob.pdf", cancellationToken);
-
-    public Task<ReportExportResult> GenerateByCustomerAsync(CancellationToken cancellationToken = default)
-        => GenerateAsync(includeJobRows: false, "By Customer", "TSICFeesYTD_ByCustomer.pdf", cancellationToken);
-
-    private async Task<ReportExportResult> GenerateAsync(
-        bool includeJobRows, string subtitle, string fileName, CancellationToken ct)
-    {
-        var (thisYear, lastYear, maxMonth, customers) = await BuildAsync(ct);
-
-        var doc = NewDocument();
-        var fonts = new Fonts();
-        var pens = new Pens();
-
-        var monthAbbr = CultureInfo.InvariantCulture.DateTimeFormat.GetAbbreviatedMonthName(maxMonth);
-        var monthName = CultureInfo.InvariantCulture.DateTimeFormat.GetMonthName(maxMonth);
-        var period = $"Year-to-date through {monthName} {thisYear}  ·  Jan–{monthAbbr} vs same period {lastYear}";
-        var printStamp = "Print Date: " + DateTime.Now.ToString("M/d/yyyy  h:mm tt", CultureInfo.InvariantCulture);
-
-        var g = doc.Pages.Add().Graphics;
-        var y = DrawTitle(g, subtitle, period, printStamp, fonts);
-
-        if (customers.Count == 0)
-        {
-            g.DrawString($"No TSIC-fee activity for {monthName} {thisYear} or {lastYear}.", fonts.Label,
-                PdfBrushes.Gray, new RectangleF(0, y + 8f, ContentW, 18f),
-                new PdfStringFormat(PdfTextAlignment.Left));
-            return Save(doc, fileName);
-        }
-
-        y = DrawColumnHeader(g, y, fonts, pens);
-
-        decimal grandLast = 0m, grandThis = 0m;
-        foreach (var c in customers)
-        {
-            grandLast += c.LastYtd;
-            grandThis += c.ThisYtd;
-
-            // Keep the customer header with at least its total on the same page.
-            var need = RowH + (includeJobRows ? c.Jobs.Count * RowH : 0f) + RowH;
-            if (y + Math.Min(need, RowH * 3) > MaxContentY)
-            {
-                g = doc.Pages.Add().Graphics;
-                y = DrawColumnHeader(g, DrawTitle(g, subtitle, period, printStamp, fonts), fonts, pens);
-            }
-
-            y = DrawCustomerBand(g, c.Name, y, fonts);
-
-            if (includeJobRows)
-            {
-                foreach (var j in c.Jobs.OrderBy(j => j.Name, StringComparer.OrdinalIgnoreCase))
-                {
-                    if (y + RowH > MaxContentY)
-                    {
-                        g = doc.Pages.Add().Graphics;
-                        y = DrawColumnHeader(g, DrawTitle(g, subtitle, period, printStamp, fonts), fonts, pens);
-                    }
-                    y = DrawRow(g, "    " + j.Name, j.LastYtd, j.ThisYtd, y, fonts, pens, bold: false, indent: true);
-                }
-            }
-
-            if (y + RowH > MaxContentY)
-            {
-                g = doc.Pages.Add().Graphics;
-                y = DrawColumnHeader(g, DrawTitle(g, subtitle, period, printStamp, fonts), fonts, pens);
-            }
-            y = DrawRow(g, includeJobRows ? $"{c.Name} — Total" : c.Name, c.LastYtd, c.ThisYtd, y, fonts, pens,
-                bold: true, indent: false);
-            y += 4f;
-        }
-
-        // Grand total.
-        if (y + RowH + 6f > MaxContentY)
-        {
-            g = doc.Pages.Add().Graphics;
-            y = DrawColumnHeader(g, DrawTitle(g, subtitle, period, printStamp, fonts), fonts, pens);
-        }
-        g.DrawLine(pens.Header, new PointF(0, y + 1f), new PointF(ContentW, y + 1f));
-        DrawRow(g, "GRAND TOTAL", grandLast, grandThis, y + 2f, fonts, pens, bold: true, indent: false);
-
-        return Save(doc, fileName);
+        var (lastYear, thisYear, customers, g1, g2) = await BuildByCustomerAsync(cancellationToken);
+        return RenderByCustomer(customers, g1, g2, lastYear, thisYear, "TSICFeesYTD_ByCustomer.pdf");
     }
 
-    // ── Data shaping ────────────────────────────────────────────────────
+    public async Task<ReportExportResult> GenerateByCustomerAndJobAsync(CancellationToken cancellationToken = default)
+    {
+        var (lastYear, thisYear, customers, g1, g2) = await BuildByCustomerAndJobAsync(cancellationToken);
+        return RenderByCustomerAndJob(customers, g1, g2, lastYear, thisYear, "TSICFeesYTD_ByCustomerAndJob.pdf");
+    }
 
-    private async Task<(int ThisYear, int LastYear, int MaxMonth, List<CustomerBlock> Customers)> BuildAsync(
-        CancellationToken ct)
+    // ── Data shaping (pivot the flat rows into the cross-tab) ────────────
+
+    private async Task<(int LastYear, int ThisYear, List<CustBlock> Customers, decimal G1, decimal G2)>
+        BuildByCustomerAsync(CancellationToken ct)
     {
         var now = DateTime.Now;
-        var prev = now.AddMonths(-1);
-        var thisYear = prev.Year;
+        var thisYear = now.AddMonths(-1).Year;
         var lastYear = thisYear - 1;
-        var maxMonth = prev.Month;
 
         var rows = await _reportingRepository.GetFeeYtdRowsAsync(now, ct);
 
         var customers = rows
             .GroupBy(r => r.CustomerName, StringComparer.OrdinalIgnoreCase)
-            .Select(cg => new CustomerBlock
+            .OrderBy(cg => cg.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(cg => new CustBlock
+            {
+                Name = cg.Key,
+                Months = MonthCells(cg, lastYear, thisYear),
+                T1 = cg.Where(r => r.Year == lastYear).Sum(r => r.TsicFees),
+                T2 = cg.Where(r => r.Year == thisYear).Sum(r => r.TsicFees),
+            })
+            .ToList();
+
+        return (lastYear, thisYear, customers,
+            rows.Where(r => r.Year == lastYear).Sum(r => r.TsicFees),
+            rows.Where(r => r.Year == thisYear).Sum(r => r.TsicFees));
+    }
+
+    private async Task<(int LastYear, int ThisYear, List<CustJobBlock> Customers, decimal G1, decimal G2)>
+        BuildByCustomerAndJobAsync(CancellationToken ct)
+    {
+        var now = DateTime.Now;
+        var thisYear = now.AddMonths(-1).Year;
+        var lastYear = thisYear - 1;
+
+        var rows = await _reportingRepository.GetFeeYtdRowsAsync(now, ct);
+
+        var customers = rows
+            .GroupBy(r => r.CustomerName, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(cg => cg.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(cg => new CustJobBlock
             {
                 Name = cg.Key,
                 Jobs = cg.GroupBy(r => r.JobName, StringComparer.OrdinalIgnoreCase)
-                    .Select(jg => new JobRow
+                    .OrderBy(jg => jg.Key, StringComparer.OrdinalIgnoreCase)
+                    .Select(jg => new JobBlock
                     {
-                        Name = jg.Key,
-                        LastYtd = jg.Where(r => r.Year == lastYear).Sum(r => r.TsicFees),
-                        ThisYtd = jg.Where(r => r.Year == thisYear).Sum(r => r.TsicFees),
+                        Label = JobLabel(cg.Key, jg.Key),
+                        Months = MonthCells(jg, lastYear, thisYear),
+                        T1 = jg.Where(r => r.Year == lastYear).Sum(r => r.TsicFees),
+                        T2 = jg.Where(r => r.Year == thisYear).Sum(r => r.TsicFees),
                     })
-                    .Where(j => j.LastYtd != 0m || j.ThisYtd != 0m)
                     .ToList(),
-                LastYtd = cg.Where(r => r.Year == lastYear).Sum(r => r.TsicFees),
-                ThisYtd = cg.Where(r => r.Year == thisYear).Sum(r => r.TsicFees),
+                T1 = cg.Where(r => r.Year == lastYear).Sum(r => r.TsicFees),
+                T2 = cg.Where(r => r.Year == thisYear).Sum(r => r.TsicFees),
             })
-            .Where(c => c.LastYtd != 0m || c.ThisYtd != 0m)
-            .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        return (thisYear, lastYear, maxMonth, customers);
+        return (lastYear, thisYear, customers,
+            rows.Where(r => r.Year == lastYear).Sum(r => r.TsicFees),
+            rows.Where(r => r.Year == thisYear).Sum(r => r.TsicFees));
     }
 
-    // ── Drawing ─────────────────────────────────────────────────────────
+    // One MonthCell per calendar month present in the group (either year); cell value = sum of fees
+    // for that month/year (0 if none). Empty months are suppressed; zero cells are kept.
+    private static List<MonthCell> MonthCells(
+        IEnumerable<FeeYtdRowDto> group, int lastYear, int thisYear)
+    {
+        var rows = group as ICollection<FeeYtdRowDto> ?? group.ToList();
+        return rows
+            .Select(r => r.Month).Distinct().OrderBy(m => m)
+            .Select(m => new MonthCell
+            {
+                Month = m,
+                V1 = rows.Where(r => r.Month == m && r.Year == lastYear).Sum(r => r.TsicFees),
+                V2 = rows.Where(r => r.Month == m && r.Year == thisYear).Sum(r => r.TsicFees),
+            })
+            .ToList();
+    }
 
-    private const float ColHeaderH = 15f;
+    // Legacy job label = "Customer:JobName". Guard against doubling if JobName already carries it.
+    private static string JobLabel(string customer, string job)
+    {
+        var prefix = customer + ":";
+        return job.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? job : prefix + job;
+    }
+
+    // ── Render: By Customer (Customer | Month | Year1 | Year2) ───────────
+
+    private ReportExportResult RenderByCustomer(
+        List<CustBlock> customers, decimal g1, decimal g2, int lastYear, int thisYear, string fileName)
+    {
+        float[] xs = { 0f, 175f, 230f, 305f, 380f };
+        const int Cust = 0, Mon = 1, Y1 = 2, Y2 = 3;
+        const string title = "TSIC Fees Per Month YTD By Customer";
+
+        var doc = NewDocument();
+        var f = new Fonts();
+        var p = new Pens();
+
+        var g = doc.Pages.Add().Graphics;
+        var y = DrawHead(g, title, xs, lastYear, thisYear, f, p);
+
+        if (customers.Count == 0)
+        {
+            DrawCellText(g, "No TSIC-fee activity.", f.Cell, xs[0], y + 6f, ContentW, PdfTextAlignment.Left);
+            return Save(doc, fileName);
+        }
+
+        foreach (var c in customers)
+        {
+            var rows = new List<CrossRow>();
+            foreach (var mc in c.Months)
+            {
+                rows.Add(new CrossRow { Label = mc.Month.ToString(CultureInfo.InvariantCulture), V1 = mc.V1, V2 = mc.V2, Kind = RowKind.Detail });
+            }
+            rows.Add(new CrossRow { Label = "Total", V1 = c.T1, V2 = c.T2, Kind = RowKind.GroupTotal });
+
+            var i = 0;
+            while (i < rows.Count)
+            {
+                if (y + RowH > MaxContentY)
+                {
+                    g = doc.Pages.Add().Graphics;
+                    y = DrawHead(g, title, xs, lastYear, thisYear, f, p);
+                }
+                var fit = Math.Min(rows.Count - i, (int)((MaxContentY - y) / RowH));
+                if (fit <= 0)
+                {
+                    g = doc.Pages.Add().Graphics;
+                    y = DrawHead(g, title, xs, lastYear, thisYear, f, p);
+                    continue;
+                }
+
+                DrawLabel(g, c.Name, f.Cell, xs[Cust], y, xs[Cust + 1] - xs[Cust], fit * RowH);
+
+                for (var k = 0; k < fit; k++)
+                {
+                    var r = rows[i + k];
+                    DrawCellText(g, r.Label, f.Cell, xs[Mon], y, xs[Mon + 1] - xs[Mon], PdfTextAlignment.Left);
+                    DrawCellText(g, Money(r.V1), f.CellBold, xs[Y1], y, xs[Y1 + 1] - xs[Y1], PdfTextAlignment.Right);
+                    DrawCellText(g, Money(r.V2), f.CellBold, xs[Y2], y, xs[Y2 + 1] - xs[Y2], PdfTextAlignment.Right);
+                    DrawVerticals(g, xs, y, p);
+                    var lx = r.Kind == RowKind.GroupTotal ? xs[0] : xs[Mon];
+                    g.DrawLine(p.Grid, new PointF(lx, y + RowH), new PointF(xs[^1], y + RowH));
+                    y += RowH;
+                }
+                i += fit;
+            }
+        }
+
+        DrawGrandTotal(ref g, ref y, doc, xs, Cust, Y1, Y2, g1, g2, title, lastYear, thisYear, f, p);
+        return Save(doc, fileName);
+    }
+
+    // ── Render: By Customer and Job (Customer | Job | Month | Y1 | Y2) ───
+
+    private ReportExportResult RenderByCustomerAndJob(
+        List<CustJobBlock> customers, decimal g1, decimal g2, int lastYear, int thisYear, string fileName)
+    {
+        float[] xs = { 0f, 120f, 235f, 283f, 363f, 443f };
+        const int Cust = 0, Job = 1, Mon = 2, Y1 = 3, Y2 = 4;
+        const string title = "TSIC Fees Per Month YTD By Customer and Job";
+
+        var doc = NewDocument();
+        var f = new Fonts();
+        var p = new Pens();
+
+        var g = doc.Pages.Add().Graphics;
+        var y = DrawHead(g, title, xs, lastYear, thisYear, f, p);
+
+        if (customers.Count == 0)
+        {
+            DrawCellText(g, "No TSIC-fee activity.", f.Cell, xs[0], y + 6f, ContentW, PdfTextAlignment.Left);
+            return Save(doc, fileName);
+        }
+
+        foreach (var c in customers)
+        {
+            var rows = new List<CrossRow>();
+            for (var ji = 0; ji < c.Jobs.Count; ji++)
+            {
+                var job = c.Jobs[ji];
+                foreach (var mc in job.Months)
+                {
+                    rows.Add(new CrossRow { JobIndex = ji, Label = mc.Month.ToString(CultureInfo.InvariantCulture), V1 = mc.V1, V2 = mc.V2, Kind = RowKind.Detail });
+                }
+                rows.Add(new CrossRow { JobIndex = ji, Label = "Total", V1 = job.T1, V2 = job.T2, Kind = RowKind.JobTotal });
+            }
+            rows.Add(new CrossRow { Label = "Total", V1 = c.T1, V2 = c.T2, Kind = RowKind.CustTotal });
+
+            var i = 0;
+            while (i < rows.Count)
+            {
+                if (y + RowH > MaxContentY)
+                {
+                    g = doc.Pages.Add().Graphics;
+                    y = DrawHead(g, title, xs, lastYear, thisYear, f, p);
+                }
+                var fit = Math.Min(rows.Count - i, (int)((MaxContentY - y) / RowH));
+                if (fit <= 0)
+                {
+                    g = doc.Pages.Add().Graphics;
+                    y = DrawHead(g, title, xs, lastYear, thisYear, f, p);
+                    continue;
+                }
+
+                // Customer label spans the whole page-segment (all its jobs visible here).
+                DrawLabel(g, c.Name, f.Cell, xs[Cust], y, xs[Cust + 1] - xs[Cust], fit * RowH);
+
+                var k = 0;
+                while (k < fit)
+                {
+                    var r = rows[i + k];
+                    if (r.Kind == RowKind.CustTotal)
+                    {
+                        DrawCellText(g, "Total", f.Cell, xs[Job], y, xs[Job + 1] - xs[Job], PdfTextAlignment.Left);
+                        DrawCellText(g, Money(r.V1), f.CellBold, xs[Y1], y, xs[Y1 + 1] - xs[Y1], PdfTextAlignment.Right);
+                        DrawCellText(g, Money(r.V2), f.CellBold, xs[Y2], y, xs[Y2 + 1] - xs[Y2], PdfTextAlignment.Right);
+                        DrawVerticals(g, xs, y, p);
+                        g.DrawLine(p.Grid, new PointF(xs[0], y + RowH), new PointF(xs[^1], y + RowH));
+                        y += RowH;
+                        k++;
+                        continue;
+                    }
+
+                    // Run of consecutive rows for one job (its months + job Total) within this segment.
+                    var ji = r.JobIndex;
+                    var run = 0;
+                    while (k + run < fit && rows[i + k + run].Kind != RowKind.CustTotal && rows[i + k + run].JobIndex == ji)
+                    {
+                        run++;
+                    }
+
+                    DrawLabel(g, c.Jobs[ji].Label, f.CellSmall, xs[Job], y, xs[Job + 1] - xs[Job], run * RowH);
+
+                    for (var q = 0; q < run; q++)
+                    {
+                        var rr = rows[i + k + q];
+                        DrawCellText(g, rr.Label, f.Cell, xs[Mon], y, xs[Mon + 1] - xs[Mon], PdfTextAlignment.Left);
+                        DrawCellText(g, Money(rr.V1), f.CellBold, xs[Y1], y, xs[Y1 + 1] - xs[Y1], PdfTextAlignment.Right);
+                        DrawCellText(g, Money(rr.V2), f.CellBold, xs[Y2], y, xs[Y2 + 1] - xs[Y2], PdfTextAlignment.Right);
+                        DrawVerticals(g, xs, y, p);
+                        // Job Total closes the job (rule from the Job column); a month row's rule starts at Month.
+                        var lx = rr.Kind == RowKind.JobTotal ? xs[Job] : xs[Mon];
+                        g.DrawLine(p.Grid, new PointF(lx, y + RowH), new PointF(xs[^1], y + RowH));
+                        y += RowH;
+                    }
+                    k += run;
+                }
+                i += fit;
+            }
+        }
+
+        DrawGrandTotal(ref g, ref y, doc, xs, Cust, Y1, Y2, g1, g2, title, lastYear, thisYear, f, p);
+        return Save(doc, fileName);
+    }
+
+    // Final grand-total row: "Total" in the Customer column, full-width rules above and below.
+    private static void DrawGrandTotal(
+        ref PdfGraphics g, ref float y, PdfDocument doc, float[] xs, int cust, int y1, int y2,
+        decimal g1, decimal g2, string title, int lastYear, int thisYear, Fonts f, Pens p)
+    {
+        if (y + RowH > MaxContentY)
+        {
+            g = doc.Pages.Add().Graphics;
+            y = DrawHead(g, title, xs, lastYear, thisYear, f, p);
+        }
+        DrawCellText(g, "Total", f.Cell, xs[cust], y, xs[cust + 1] - xs[cust], PdfTextAlignment.Left);
+        DrawCellText(g, Money(g1), f.CellBold, xs[y1], y, xs[y1 + 1] - xs[y1], PdfTextAlignment.Right);
+        DrawCellText(g, Money(g2), f.CellBold, xs[y2], y, xs[y2 + 1] - xs[y2], PdfTextAlignment.Right);
+        DrawVerticals(g, xs, y, p);
+        g.DrawLine(p.Grid, new PointF(xs[0], y), new PointF(xs[^1], y));
+        g.DrawLine(p.Grid, new PointF(xs[0], y + RowH), new PointF(xs[^1], y + RowH));
+        y += RowH;
+    }
+
+    // ── Drawing primitives ──────────────────────────────────────────────
 
     private static PdfDocument NewDocument()
     {
@@ -190,88 +343,65 @@ public sealed class FeeYtdReportPdfService : IFeeYtdReportPdfService
         return doc;
     }
 
-    private static float DrawTitle(PdfGraphics g, string subtitle, string period, string printStamp, Fonts fonts)
+    // Title (bold, underlined, top-left) + the two boxed year-column headers; returns the body top y.
+    private static float DrawHead(PdfGraphics g, string title, float[] xs, int lastYear, int thisYear, Fonts f, Pens p)
     {
-        g.DrawString("TSIC Fees — Year-to-Date Comparison", fonts.Title, new PdfSolidBrush(TitleBlue),
-            new RectangleF(0, 0, ContentW, 18f), new PdfStringFormat(PdfTextAlignment.Center));
-        g.DrawString(subtitle, fonts.Subtitle, PdfBrushes.Black,
-            new RectangleF(0, 19f, ContentW, 14f), new PdfStringFormat(PdfTextAlignment.Center));
-        g.DrawString(period, fonts.Small, new PdfSolidBrush(new PdfColor(70, 70, 70)),
-            new RectangleF(0, 34f, ContentW, 12f), new PdfStringFormat(PdfTextAlignment.Center));
-        g.DrawString(printStamp, fonts.Small, new PdfSolidBrush(new PdfColor(110, 110, 110)),
-            new RectangleF(0, 46f, ContentW, 12f), new PdfStringFormat(PdfTextAlignment.Center));
-        return 64f;
+        g.DrawString(title, f.Title, PdfBrushes.Black,
+            new RectangleF(0, 0, ContentW, 18f), new PdfStringFormat(PdfTextAlignment.Left));
+
+        const float headTop = 26f, headH = 16f;
+        var n = xs.Length;
+        int y1 = n - 3, y2 = n - 2, right = n - 1;
+        var gray = new PdfSolidBrush(new PdfColor(80, 80, 80));
+
+        g.DrawString(lastYear.ToString(CultureInfo.InvariantCulture), f.Cell, gray,
+            new RectangleF(xs[y1] + CellPadX, headTop, (xs[y2] - xs[y1]) - (CellPadX * 2), headH),
+            new PdfStringFormat(PdfTextAlignment.Right, PdfVerticalAlignment.Middle));
+        g.DrawString(thisYear.ToString(CultureInfo.InvariantCulture), f.Cell, gray,
+            new RectangleF(xs[y2] + CellPadX, headTop, (xs[right] - xs[y2]) - (CellPadX * 2), headH),
+            new PdfStringFormat(PdfTextAlignment.Right, PdfVerticalAlignment.Middle));
+
+        g.DrawLine(p.Grid, new PointF(xs[y1], headTop), new PointF(xs[right], headTop));
+        g.DrawLine(p.Grid, new PointF(xs[y1], headTop + headH), new PointF(xs[right], headTop + headH));
+        g.DrawLine(p.Grid, new PointF(xs[y1], headTop), new PointF(xs[y1], headTop + headH));
+        g.DrawLine(p.Grid, new PointF(xs[y2], headTop), new PointF(xs[y2], headTop + headH));
+        g.DrawLine(p.Grid, new PointF(xs[right], headTop), new PointF(xs[right], headTop + headH));
+
+        var bodyTop = headTop + headH;
+        g.DrawLine(p.Grid, new PointF(xs[0], bodyTop), new PointF(xs[^1], bodyTop));
+        return bodyTop;
     }
 
-    private static float DrawColumnHeader(PdfGraphics g, float y, Fonts fonts, Pens pens)
+    private static void DrawLabel(PdfGraphics g, string text, PdfFont font, float x, float y, float w, float h)
+        => g.DrawString(text, font, PdfBrushes.Black,
+            new RectangleF(x + CellPadX, y + 1f, w - (CellPadX * 2), h - 2f),
+            new PdfStringFormat(PdfTextAlignment.Left, PdfVerticalAlignment.Top) { WordWrap = PdfWordWrapType.Word });
+
+    private static void DrawCellText(PdfGraphics g, string text, PdfFont font, float x, float y, float w, PdfTextAlignment align)
+        => g.DrawString(text, font, PdfBrushes.Black,
+            new RectangleF(x + CellPadX, y, w - (CellPadX * 2), RowH),
+            new PdfStringFormat(align, PdfVerticalAlignment.Middle));
+
+    private static void DrawVerticals(PdfGraphics g, float[] xs, float y, Pens p)
     {
-        g.DrawRectangle(new PdfSolidBrush(BandColor), new RectangleF(0, y, ContentW, ColHeaderH));
-        var x = 0f;
-        foreach (var (key, w, align) in Cols)
+        foreach (var x in xs)
         {
-            g.DrawString(key, fonts.ColHeader, PdfBrushes.Black,
-                new RectangleF(x + CellPadX, y, w - (CellPadX * 2), ColHeaderH),
-                new PdfStringFormat(align, PdfVerticalAlignment.Middle));
-            x += w;
+            g.DrawLine(p.Grid, new PointF(x, y), new PointF(x, y + RowH));
         }
-        g.DrawLine(pens.Header, new PointF(0, y + ColHeaderH), new PointF(ContentW, y + ColHeaderH));
-        return y + ColHeaderH + 1f;
     }
 
-    private static float DrawCustomerBand(PdfGraphics g, string name, float y, Fonts fonts)
-    {
-        g.DrawRectangle(new PdfSolidBrush(CustomerBand), new RectangleF(0, y, ContentW, RowH));
-        g.DrawString(name, fonts.CellBold, PdfBrushes.Black,
-            new RectangleF(CellPadX, y, ContentW - (CellPadX * 2), RowH),
-            new PdfStringFormat(PdfTextAlignment.Left, PdfVerticalAlignment.Middle));
-        return y + RowH;
-    }
-
-    private static float DrawRow(
-        PdfGraphics g, string label, decimal last, decimal cur, float y, Fonts fonts, Pens pens,
-        bool bold, bool indent)
-    {
-        var font = bold ? fonts.CellBold : fonts.Cell;
-        var change = cur - last;
-        var values = new[] { label, Money(last), Money(cur), ChangeText(change) };
-
-        var x = 0f;
-        for (var i = 0; i < Cols.Length; i++)
-        {
-            var (_, w, align) = Cols[i];
-            var brush = i == 3 && !bold
-                ? (change < 0 ? new PdfSolidBrush(new PdfColor(176, 0, 0)) : PdfBrushes.Black)
-                : PdfBrushes.Black;
-            g.DrawString(values[i], font, brush,
-                new RectangleF(x + CellPadX, y, w - (CellPadX * 2), RowH),
-                new PdfStringFormat(align, PdfVerticalAlignment.Middle));
-            x += w;
-        }
-        g.DrawLine(pens.Divider, new PointF(0, y + RowH), new PointF(ContentW, y + RowH));
-        return y + RowH;
-    }
-
-    private static string Money(decimal v) => v.ToString("$#,##0.00", CultureInfo.InvariantCulture);
-
-    // Year-over-year delta with an explicit sign so a drop reads clearly (paired with red, not color-only).
-    private static string ChangeText(decimal change)
-    {
-        if (change == 0m)
-        {
-            return "$0.00";
-        }
-        var sign = change < 0 ? "-" : "+";
-        return sign + Math.Abs(change).ToString("$#,##0.00", CultureInfo.InvariantCulture);
-    }
+    // Legacy cells are plain "#,##0.00" — no currency symbol; negatives carry a leading minus.
+    private static string Money(decimal v) => v.ToString("#,##0.00", CultureInfo.InvariantCulture);
 
     private static void AddFooterTemplate(PdfDocument document)
     {
-        var footerFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7);
-        var gray = new PdfSolidBrush(new PdfColor(102, 102, 102));
+        var footerFont = new PdfStandardFont(PdfFontFamily.Helvetica, 8);
+        var gray = new PdfSolidBrush(new PdfColor(90, 90, 90));
         var footer = new PdfPageTemplateElement(new RectangleF(0, 0, ContentW, FooterH));
-        footer.Graphics.DrawString("Reports By TeamSportsInfo.com", footerFont, gray, new PointF(2, 4));
+        footer.Graphics.DrawString(
+            DateTime.Now.ToString("M/d/yyyy", CultureInfo.InvariantCulture), footerFont, gray, new PointF(2, 4));
         var composite = new PdfCompositeField(
-            footerFont, gray, "Page {0} / {1}",
+            footerFont, gray, "Page {0} of {1}",
             new PdfPageNumberField(footerFont, gray),
             new PdfPageCountField(footerFont, gray))
         {
@@ -292,35 +422,58 @@ public sealed class FeeYtdReportPdfService : IFeeYtdReportPdfService
 
     // ── Render-time models ──────────────────────────────────────────────
 
-    private sealed class CustomerBlock
+    private enum RowKind { Detail, JobTotal, GroupTotal, CustTotal }
+
+    private sealed class CrossRow
     {
-        public required string Name { get; init; }
-        public required List<JobRow> Jobs { get; init; }
-        public decimal LastYtd { get; init; }
-        public decimal ThisYtd { get; init; }
+        public int JobIndex { get; init; } = -1;
+        public required string Label { get; init; }
+        public decimal V1 { get; init; }
+        public decimal V2 { get; init; }
+        public RowKind Kind { get; init; }
     }
 
-    private sealed class JobRow
+    private sealed class MonthCell
+    {
+        public int Month { get; init; }
+        public decimal V1 { get; init; }
+        public decimal V2 { get; init; }
+    }
+
+    private sealed class CustBlock
     {
         public required string Name { get; init; }
-        public decimal LastYtd { get; init; }
-        public decimal ThisYtd { get; init; }
+        public required List<MonthCell> Months { get; init; }
+        public decimal T1 { get; init; }
+        public decimal T2 { get; init; }
+    }
+
+    private sealed class JobBlock
+    {
+        public required string Label { get; init; }
+        public required List<MonthCell> Months { get; init; }
+        public decimal T1 { get; init; }
+        public decimal T2 { get; init; }
+    }
+
+    private sealed class CustJobBlock
+    {
+        public required string Name { get; init; }
+        public required List<JobBlock> Jobs { get; init; }
+        public decimal T1 { get; init; }
+        public decimal T2 { get; init; }
     }
 
     private sealed class Fonts
     {
-        public PdfStandardFont Title { get; } = new(PdfFontFamily.Helvetica, 13, PdfFontStyle.Bold);
-        public PdfStandardFont Subtitle { get; } = new(PdfFontFamily.Helvetica, 10, PdfFontStyle.Bold);
-        public PdfStandardFont ColHeader { get; } = new(PdfFontFamily.Helvetica, 8, PdfFontStyle.Bold);
+        public PdfStandardFont Title { get; } = new(PdfFontFamily.Helvetica, 12, PdfFontStyle.Bold | PdfFontStyle.Underline);
         public PdfStandardFont Cell { get; } = new(PdfFontFamily.Helvetica, 8);
         public PdfStandardFont CellBold { get; } = new(PdfFontFamily.Helvetica, 8, PdfFontStyle.Bold);
-        public PdfStandardFont Label { get; } = new(PdfFontFamily.Helvetica, 9);
-        public PdfStandardFont Small { get; } = new(PdfFontFamily.Helvetica, 8);
+        public PdfStandardFont CellSmall { get; } = new(PdfFontFamily.Helvetica, 7.5f);
     }
 
     private sealed class Pens
     {
-        public PdfPen Header { get; } = new(new PdfColor(0, 0, 0), 0.75f);
-        public PdfPen Divider { get; } = new(new PdfColor(210, 210, 210), 0.5f);
+        public PdfPen Grid { get; } = new(new PdfColor(0, 0, 0), 0.5f);
     }
 }
