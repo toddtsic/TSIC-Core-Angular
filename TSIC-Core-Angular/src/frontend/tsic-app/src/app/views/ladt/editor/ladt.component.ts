@@ -219,6 +219,28 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   isDetailOpen = signal(false);
   detailNode = signal<LadtFlatNode | null>(null);
 
+  // ── Fly-in sibling navigation (▲/▼) ──
+  // Siblings = same parent + same level, in tree order (matches the left panel).
+  flyinSiblings = computed(() => {
+    const node = this.detailNode();
+    if (!node) return [];
+    return this.flatNodes().filter(n => n.level === node.level && n.parentId === node.parentId);
+  });
+  flyinIndex = computed(() => {
+    const node = this.detailNode();
+    if (!node) return -1;
+    return this.flyinSiblings().findIndex(n => n.id === node.id);
+  });
+  canFlyinPrev = computed(() => this.flyinIndex() > 0);
+  canFlyinNext = computed(() => {
+    const i = this.flyinIndex();
+    return i >= 0 && i < this.flyinSiblings().length - 1;
+  });
+  flyinPosition = computed(() => {
+    const i = this.flyinIndex();
+    return i < 0 ? '' : `${i + 1} / ${this.flyinSiblings().length}`;
+  });
+
   // Actions dropdown
   actionsOpen = signal(false);
 
@@ -885,6 +907,40 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   @HostListener('document:keydown.escape')
   onEscapeKey(): void {
     if (this.isDetailOpen()) this.closeDetail();
+  }
+
+  /** Step to the previous/next sibling (same parent) without closing the fly-in. */
+  flyinNavigate(delta: number): void {
+    const target = this.flyinSiblings()[this.flyinIndex() + delta];
+    if (!target) return; // clamp at the ends
+    this.detailNode.set(target);       // panels reload via ngOnChanges on the new id
+    this.selectedNode.set(target);     // keep tree highlight + grid row in sync
+  }
+
+  @HostListener('document:keydown.arrowup', ['$event'])
+  onArrowUpKey(e: Event): void {
+    if (this.shouldHandleFlyinArrow(e)) this.flyinNavigate(-1);
+  }
+
+  @HostListener('document:keydown.arrowdown', ['$event'])
+  onArrowDownKey(e: Event): void {
+    if (this.shouldHandleFlyinArrow(e)) this.flyinNavigate(1);
+  }
+
+  /**
+   * Gate keyboard nav: only when the fly-in is open AND focus isn't in an
+   * editable field — so ↑/↓ still increment number inputs, move textarea
+   * carets, and change selects. Consumes the event only when we handle it.
+   */
+  private shouldHandleFlyinArrow(e: Event): boolean {
+    if (!this.isDetailOpen()) return false;
+    const t = e.target as HTMLElement | null;
+    const tag = t?.tagName;
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || t?.isContentEditable) {
+      return false;
+    }
+    e.preventDefault();
+    return true;
   }
 
   // ── Detail panel callbacks ──

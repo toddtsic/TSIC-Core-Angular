@@ -283,7 +283,25 @@
         <i class="bi {{ getLevelIcon(node.level) }}"></i>
         <span class="flyin-title-text">{{ node.name }}</span>
       </h5>
-      <button type="button" class="btn-close" (click)="closeDetail()"></button>
+      <div class="flyin-header-actions">
+        @if (flyinSiblings().length > 1) {
+          <div class="flyin-nav" role="group"
+               [attr.aria-label]="'Navigate ' + getLevelLabel(node.level) + 's'">
+            <button type="button" class="flyin-nav-btn" (click)="flyinNavigate(-1)"
+                    [disabled]="!canFlyinPrev()" aria-label="Previous"
+                    [title]="'Previous ' + getLevelLabel(node.level) + ' (↑)'">
+              <i class="bi bi-chevron-up"></i>
+            </button>
+            <span class="flyin-nav-count">{{ flyinPosition() }}</span>
+            <button type="button" class="flyin-nav-btn" (click)="flyinNavigate(1)"
+                    [disabled]="!canFlyinNext()" aria-label="Next"
+                    [title]="'Next ' + getLevelLabel(node.level) + ' (↓)'">
+              <i class="bi bi-chevron-down"></i>
+            </button>
+          </div>
+        }
+        <button type="button" class="btn-close" (click)="closeDetail()"></button>
+      </div>
     </div>
     <div class="flyin-body">
       @if (node.level === 0) {
