@@ -15,11 +15,16 @@ public class LadtController : ControllerBase
 {
     private readonly ILadtService _ladtService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IPlayerRegistrationService _playerRegService;
 
-    public LadtController(ILadtService ladtService, IJobLookupService jobLookupService)
+    public LadtController(
+        ILadtService ladtService,
+        IJobLookupService jobLookupService,
+        IPlayerRegistrationService playerRegService)
     {
         _ladtService = ladtService;
         _jobLookupService = jobLookupService;
+        _playerRegService = playerRegService;
     }
 
     // ═══════════════════════════════════════════
@@ -472,12 +477,17 @@ public class LadtController : ControllerBase
     [HttpPost("batch/update-fees/{agegroupId:guid}")]
     public async Task<ActionResult<int>> UpdatePlayerFeesToAgegroupFees(Guid agegroupId, CancellationToken cancellationToken)
     {
-        var (jobId, _, error) = await ResolveContext();
+        var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
         try
         {
-            var count = await _ladtService.UpdatePlayerFeesToAgegroupFeesAsync(agegroupId, jobId!.Value, cancellationToken);
+            // Canonical scoped player reprice — the same engine the job-level and
+            // per-scope phase toggles use. Re-prices every active player in the agegroup
+            // to current resolved fees + effective phase. Replaces the retired
+            // LadtService.UpdatePlayerFeesToAgegroupFeesAsync (which read the raw job bool).
+            var count = await _playerRegService.RecalculatePlayerFeesAsync(
+                jobId!.Value, userId!, agegroupId, ct: cancellationToken);
             return Ok(count);
         }
         catch (KeyNotFoundException) { return NotFound(); }

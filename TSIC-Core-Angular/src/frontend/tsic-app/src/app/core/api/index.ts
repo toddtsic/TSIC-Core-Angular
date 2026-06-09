@@ -30,6 +30,7 @@ export type { AdultRegistrationExistingRequest } from './models/AdultRegistratio
 export type { AdultRegistrationRequest } from './models/AdultRegistrationRequest';
 export type { AdultRoleType } from './models/AdultRoleType';
 export type { AffectedGameCountResponse } from './models/AffectedGameCountResponse';
+export type { AffectedRegistrationCountDto } from './models/AffectedRegistrationCountDto';
 export type { AgDowFieldConfigEntry } from './models/AgDowFieldConfigEntry';
 export type { AgegroupBuildEntry } from './models/AgegroupBuildEntry';
 export type { AgegroupCanvasReadinessDto } from './models/AgegroupCanvasReadinessDto';
@@ -547,6 +548,7 @@ export type { SaveFieldAssignmentsResponse } from './models/SaveFieldAssignments
 export type { SaveGameGuaranteeRequest } from './models/SaveGameGuaranteeRequest';
 export type { SaveGameGuaranteeResponse } from './models/SaveGameGuaranteeResponse';
 export type { SaveJobFeeRequest } from './models/SaveJobFeeRequest';
+export type { SaveJobFeeResponse } from './models/SaveJobFeeResponse';
 export type { SaveJobOverridesRequest } from './models/SaveJobOverridesRequest';
 export type { SaveProcessingOrderRequest } from './models/SaveProcessingOrderRequest';
 export type { SaveUserWidgetsRequest } from './models/SaveUserWidgetsRequest';

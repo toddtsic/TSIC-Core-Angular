@@ -13,5 +13,6 @@ export type PackedRosterRequestDto = {
     schoolShowsCommit: boolean;
     showClubAffiliation: boolean;
     sortBy: string;
+    requiresSchedule?: boolean;
 };
 

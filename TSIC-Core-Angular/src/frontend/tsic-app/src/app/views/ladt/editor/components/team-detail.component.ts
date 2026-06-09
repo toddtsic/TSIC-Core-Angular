@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
+import { FeeRepriceService } from '../services/fee-reprice.service';
 import { FeeCardComponent, type ModifierForm } from './fee-card.component';
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { CloneTeamDialogComponent } from './clone-team-dialog.component';
@@ -168,20 +169,24 @@ const JOB_TYPE_TOURNAMENT = 2;
         @if (isTournament()) {
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-            [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+            [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [modifiers]="clubRepModifiers"
             hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-            [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
+            [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [modifiers]="playerModifiers"
             hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
         } @else {
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-            [(balanceDue)]="feeForm.playerBalanceDue" [modifiers]="playerModifiers"
+            [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [modifiers]="playerModifiers"
             hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-            [(balanceDue)]="feeForm.clubRepBalanceDue" [modifiers]="clubRepModifiers"
+            [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [modifiers]="clubRepModifiers"
             hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" />
         }
 
@@ -259,6 +264,17 @@ const JOB_TYPE_TOURNAMENT = 2;
         (cancelled)="showChangeClubWarning.set(false)"
       />
     }
+
+    @if (repriceDialog(); as dlg) {
+      <confirm-dialog
+        [title]="dlg.isPhase ? 'Convert payment phase?' : 'Update existing registrations?'"
+        [message]="dlg.message"
+        [confirmLabel]="dlg.isPhase ? 'Convert' : 'Update all'"
+        [cancelLabel]="dlg.isPhase ? 'Cancel' : 'Future only'"
+        confirmVariant="warning"
+        (confirmed)="onRepriceConfirm()"
+        (cancelled)="onRepriceDismiss()" />
+    }
   `,
   styles: [`
     :host { display: block; }
@@ -290,6 +306,7 @@ export class TeamDetailComponent implements OnChanges {
 
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
+  private readonly feeReprice = inject(FeeRepriceService);
 
   readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
@@ -312,11 +329,19 @@ export class TeamDetailComponent implements OnChanges {
   feeForm = {
     playerDeposit: null as number | null,
     playerBalanceDue: null as number | null,
+    playerPhase: null as boolean | null,
     clubRepDeposit: null as number | null,
-    clubRepBalanceDue: null as number | null
+    clubRepBalanceDue: null as number | null,
+    clubRepPhase: null as boolean | null
   };
   playerModifiers: ModifierForm[] = [];
   clubRepModifiers: ModifierForm[] = [];
+
+  // Reprice prompt: null = closed; isPhase drives the confirm/cancel semantics + copy.
+  repriceDialog = signal<{ isPhase: boolean; message: string } | null>(null);
+
+  private originalSnapshot = { player: '', clubRep: '' };
+  private originalPhase = { player: null as boolean | null, clubRep: null as boolean | null };
   private playerFeeId: string | null = null;
   private clubRepFeeId: string | null = null;
 
@@ -350,8 +375,10 @@ export class TeamDetailComponent implements OnChanges {
             this.feeForm = {
               playerDeposit: playerFee?.deposit ?? null,
               playerBalanceDue: playerFee?.balanceDue ?? null,
+              playerPhase: playerFee?.bFullPaymentRequired ?? null,
               clubRepDeposit: clubRepFee?.deposit ?? null,
-              clubRepBalanceDue: clubRepFee?.balanceDue ?? null
+              clubRepBalanceDue: clubRepFee?.balanceDue ?? null,
+              clubRepPhase: clubRepFee?.bFullPaymentRequired ?? null
             };
             this.playerModifiers = (playerFee?.modifiers ?? []).map((m: any) => ({
               feeModifierId: m.feeModifierId,
@@ -367,6 +394,7 @@ export class TeamDetailComponent implements OnChanges {
               startDate: m.startDate?.substring(0, 10) ?? null,
               endDate: m.endDate?.substring(0, 10) ?? null
             }));
+            this.captureOriginals();
             this.isLoading.set(false);
           },
           error: () => this.isLoading.set(false)
@@ -377,6 +405,39 @@ export class TeamDetailComponent implements OnChanges {
   }
 
   save(): void {
+    const playerChanged = this.roleChanged('player');
+    const clubRepChanged = this.roleChanged('clubRep');
+
+    if (!playerChanged && !clubRepChanged) {
+      this.performSave(false);
+      return;
+    }
+
+    const phaseFlip = (playerChanged && this.feeForm.playerPhase !== this.originalPhase.player)
+                   || (clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep);
+
+    this.isSaving.set(true);
+    this.saveMessage.set(null);
+    this.feeReprice.getBlastArea(
+      { teamId: this.teamId() },
+      { player: playerChanged, clubRep: clubRepChanged }
+    ).subscribe({
+      next: (blast) => {
+        if (blast.playerCount + blast.teamCount === 0) {
+          this.performSave(false);
+          return;
+        }
+        this.repriceDialog.set({
+          isPhase: phaseFlip,
+          message: this.feeReprice.buildMessage(blast, this.scopeLabel(), phaseFlip)
+        });
+        this.isSaving.set(false);
+      },
+      error: () => this.performSave(false)
+    });
+  }
+
+  private performSave(repriceExisting: boolean): void {
     this.isSaving.set(true);
     this.saveMessage.set(null);
 
@@ -416,10 +477,11 @@ export class TeamDetailComponent implements OnChanges {
 
     const detail = this.team();
     const agegroupId = detail?.agegroupId;
+    const teamId = this.teamId();
 
     // Save player fee override (team-level) if any value set or modifiers exist
-    const hasPlayerFee = this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null || this.playerModifiers.length > 0;
-    const teamId = this.teamId();
+    const hasPlayerFee = this.feeForm.playerDeposit != null || this.feeForm.playerBalanceDue != null
+        || this.feeForm.playerPhase != null || this.playerModifiers.length > 0;
     if (agegroupId && hasPlayerFee) {
       saves.push(this.ladtService.saveFee({
         roleId: PLAYER_ROLE,
@@ -427,6 +489,8 @@ export class TeamDetailComponent implements OnChanges {
         teamId: teamId,
         deposit: this.feeForm.playerDeposit,
         balanceDue: this.feeForm.playerBalanceDue,
+        bFullPaymentRequired: this.feeForm.playerPhase,
+        repriceExisting,
         modifiers: this.playerModifiers
       }));
     } else if (this.playerFeeId) {
@@ -434,7 +498,8 @@ export class TeamDetailComponent implements OnChanges {
     }
 
     // Save club rep fee override (team-level) if any value set or modifiers exist
-    const hasClubRepFee = this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null || this.clubRepModifiers.length > 0;
+    const hasClubRepFee = this.feeForm.clubRepDeposit != null || this.feeForm.clubRepBalanceDue != null
+        || this.feeForm.clubRepPhase != null || this.clubRepModifiers.length > 0;
     if (agegroupId && hasClubRepFee) {
       saves.push(this.ladtService.saveFee({
         roleId: CLUBREP_ROLE,
@@ -442,6 +507,8 @@ export class TeamDetailComponent implements OnChanges {
         teamId: teamId,
         deposit: this.feeForm.clubRepDeposit,
         balanceDue: this.feeForm.clubRepBalanceDue,
+        bFullPaymentRequired: this.feeForm.clubRepPhase,
+        repriceExisting,
         modifiers: this.clubRepModifiers
       }));
     } else if (this.clubRepFeeId) {
@@ -460,7 +527,8 @@ export class TeamDetailComponent implements OnChanges {
         }
         this.isSaving.set(false);
         this.isError.set(false);
-        this.saveMessage.set('Team saved successfully.');
+        this.saveMessage.set(this.savedMessage(results, 'Team saved successfully.'));
+        this.captureOriginals();
         // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },
@@ -470,6 +538,54 @@ export class TeamDetailComponent implements OnChanges {
         this.saveMessage.set(err.error?.message || 'Failed to save team.');
       }
     });
+  }
+
+  onRepriceConfirm(): void {
+    this.repriceDialog.set(null);
+    this.performSave(true);
+  }
+
+  onRepriceDismiss(): void {
+    const dlg = this.repriceDialog();
+    this.repriceDialog.set(null);
+    if (dlg?.isPhase) {
+      this.feeForm.playerPhase = this.originalPhase.player;
+      this.feeForm.clubRepPhase = this.originalPhase.clubRep;
+      this.isSaving.set(false);
+    } else {
+      this.performSave(false);
+    }
+  }
+
+  private savedMessage(results: any[], plain: string): string {
+    const repriced = results.reduce(
+      (sum, r) => sum + (r && typeof r === 'object' && 'registrationsRepriced' in r ? r.registrationsRepriced : 0), 0);
+    return repriced > 0 ? `Saved. Repriced ${repriced} registration(s).` : plain;
+  }
+
+  private scopeLabel(): string {
+    return this.team()?.teamName || 'this team';
+  }
+
+  private captureOriginals(): void {
+    this.originalSnapshot = { player: this.feeSnapshot('player'), clubRep: this.feeSnapshot('clubRep') };
+    this.originalPhase = { player: this.feeForm.playerPhase, clubRep: this.feeForm.clubRepPhase };
+  }
+
+  private roleChanged(role: 'player' | 'clubRep'): boolean {
+    return this.feeSnapshot(role) !== this.originalSnapshot[role];
+  }
+
+  private feeSnapshot(role: 'player' | 'clubRep'): string {
+    const dep = role === 'player' ? this.feeForm.playerDeposit : this.feeForm.clubRepDeposit;
+    const bal = role === 'player' ? this.feeForm.playerBalanceDue : this.feeForm.clubRepBalanceDue;
+    const phase = role === 'player' ? this.feeForm.playerPhase : this.feeForm.clubRepPhase;
+    const mods = role === 'player' ? this.playerModifiers : this.clubRepModifiers;
+    const modKey = mods
+      .map(m => `${m.modifierType}:${m.amount}:${m.startDate}:${m.endDate}`)
+      .sort()
+      .join('|');
+    return `${dep}|${bal}|${phase}|${modKey}`;
   }
 
   confirmDrop(): void {

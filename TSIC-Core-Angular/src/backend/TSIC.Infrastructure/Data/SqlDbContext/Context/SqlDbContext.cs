@@ -4034,6 +4034,7 @@ public partial class SqlDbContext : DbContext
             entity.HasIndex(e => new { e.JobId, e.RoleId, e.AgegroupId, e.TeamId }, "UX_JobFees_Scope").IsUnique();
 
             entity.Property(e => e.JobFeeId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.BFullPaymentRequired).HasColumnName("bFullPaymentRequired");
             entity.Property(e => e.BalanceDue).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.Deposit).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.LebUserId).HasMaxLength(450);

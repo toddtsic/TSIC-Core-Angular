@@ -100,4 +100,65 @@ public class FeeCascadeResolutionTests
 
         resolved!.FeeConfigured.Should().BeFalse("job is no longer a tier in the base-fee cascade");
     }
+
+    // ── Full-payment phase (BFullPaymentRequired) cascade ──
+    // Same most-specific-non-null-wins cascade as base fee, resolved independently per
+    // field. NULL = no t/ag/l override → consumer falls back to the job-level baseline.
+
+    [Fact(DisplayName = "Phase: league override resolves when no agegroup or team sets it")]
+    public async Task Phase_LeagueOverrideResolves()
+    {
+        var f = Arrange();
+        f.Builder.AddJobFee(f.JobId, RoleConstants.Player, leagueId: f.LeagueId, balanceDue: 200m, bFullPaymentRequired: true);
+        await f.Builder.SaveAsync();
+
+        var resolved = await new FeeRepository(f.Ctx)
+            .GetResolvedFeeAsync(f.JobId, RoleConstants.Player, f.AgegroupId, f.TeamId);
+
+        resolved!.BFullPaymentRequired.Should().BeTrue();
+    }
+
+    [Fact(DisplayName = "Phase: team override wins over agegroup (most-specific, false treated as set)")]
+    public async Task Phase_TeamOverridesAgegroup()
+    {
+        var f = Arrange();
+        // Agegroup explicitly opts the phase to false; the more-specific team row turns it on.
+        f.Builder.AddJobFee(f.JobId, RoleConstants.Player, agegroupId: f.AgegroupId, balanceDue: 150m, bFullPaymentRequired: false);
+        f.Builder.AddJobFee(f.JobId, RoleConstants.Player, agegroupId: f.AgegroupId, teamId: f.TeamId, balanceDue: 120m, bFullPaymentRequired: true);
+        await f.Builder.SaveAsync();
+
+        var resolved = await new FeeRepository(f.Ctx)
+            .GetResolvedFeeAsync(f.JobId, RoleConstants.Player, f.AgegroupId, f.TeamId);
+
+        resolved!.BFullPaymentRequired.Should().BeTrue("team scope is most-specific and wins");
+    }
+
+    [Fact(DisplayName = "Phase coalesces independently of base fee (phase from team, fee from league)")]
+    public async Task Phase_CoalescesIndependentlyOfFee()
+    {
+        var f = Arrange();
+        f.Builder.AddJobFee(f.JobId, RoleConstants.Player, leagueId: f.LeagueId, balanceDue: 200m); // fee only, phase null
+        f.Builder.AddJobFee(f.JobId, RoleConstants.Player, agegroupId: f.AgegroupId, teamId: f.TeamId, bFullPaymentRequired: true); // phase only, no fee
+        await f.Builder.SaveAsync();
+
+        var resolved = await new FeeRepository(f.Ctx)
+            .GetResolvedFeeAsync(f.JobId, RoleConstants.Player, f.AgegroupId, f.TeamId);
+
+        resolved!.FeeConfigured.Should().BeTrue("a fee row exists at the league tier");
+        resolved.BalanceDue.Should().Be(200m, "fee cascades from the league tier");
+        resolved.BFullPaymentRequired.Should().BeTrue("phase cascades from the team tier independently of the fee");
+    }
+
+    [Fact(DisplayName = "Phase is null when no scope sets it (consumer falls back to the job baseline)")]
+    public async Task Phase_NullWhenUnset()
+    {
+        var f = Arrange();
+        f.Builder.AddJobFee(f.JobId, RoleConstants.Player, leagueId: f.LeagueId, balanceDue: 200m);
+        await f.Builder.SaveAsync();
+
+        var resolved = await new FeeRepository(f.Ctx)
+            .GetResolvedFeeAsync(f.JobId, RoleConstants.Player, f.AgegroupId, f.TeamId);
+
+        resolved!.BFullPaymentRequired.Should().BeNull("no t/ag/l override → caller applies the job-level baseline");
+    }
 }

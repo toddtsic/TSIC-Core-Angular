@@ -103,6 +103,16 @@ public interface ITeamRegistrationService
     Task<RecalculateTeamFeesResponse> RecalculateTeamFeesAsync(RecalculateTeamFeesRequest request, string userId);
 
     /// <summary>
+    /// The "blast area" for a team fee/phase change: how many eligible (non-WAITLIST/DROPPED)
+    /// teams fall in scope. Mirrors <see cref="RecalculateTeamFeesAsync"/>'s selection so the
+    /// count equals what a reprice would touch. <paramref name="teamId"/> wins; else
+    /// <paramref name="agegroupIds"/> (one agegroup, or a whole league's agegroups); else the
+    /// whole job. Read-only — informs the admin before a money change; no writes.
+    /// </summary>
+    Task<int> CountEligibleTeamsInScopeAsync(
+        Guid jobId, IReadOnlyCollection<Guid>? agegroupIds, Guid? teamId);
+
+    /// <summary>
     /// Get confirmation text with substituted variables for on-screen display.
     /// Uses AdultRegConfirmationOnScreen template.
     /// </summary>

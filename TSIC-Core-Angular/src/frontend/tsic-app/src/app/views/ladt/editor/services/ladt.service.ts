@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import type {
@@ -27,7 +27,9 @@ import type {
   DivisionNameSyncRequest,
   DivisionNameSyncResult,
   JobFeeDto,
-  SaveJobFeeRequest
+  SaveJobFeeRequest,
+  SaveJobFeeResponse,
+  AffectedRegistrationCountDto
 } from '../../../../core/api';
 
 @Injectable({
@@ -186,12 +188,29 @@ export class LadtService {
     return this.http.get<JobFeeDto[]>(`${environment.apiUrl}/fees/job`);
   }
 
-  saveFee(request: SaveJobFeeRequest): Observable<JobFeeDto> {
-    return this.http.put<JobFeeDto>(`${environment.apiUrl}/fees`, request);
+  saveFee(request: SaveJobFeeRequest): Observable<SaveJobFeeResponse> {
+    return this.http.put<SaveJobFeeResponse>(`${environment.apiUrl}/fees`, request);
   }
 
   deleteFee(jobFeeId: string): Observable<void> {
     return this.http.delete<void>(`${environment.apiUrl}/fees/${jobFeeId}`);
+  }
+
+  /**
+   * The "blast area" for a pending fee/phase change at a scope: how many existing
+   * registrations a save would reprice. Player role → active player registrations in scope;
+   * ClubRep role → eligible teams in scope. Called before prompting the admin so they see
+   * the impact, and to gate the prompt (0 = save silently).
+   */
+  getAffectedCount(
+    roleId: string,
+    scope: { leagueId?: string; agegroupId?: string; teamId?: string }
+  ): Observable<AffectedRegistrationCountDto> {
+    let params = new HttpParams().set('roleId', roleId);
+    if (scope.leagueId) params = params.set('leagueId', scope.leagueId);
+    if (scope.agegroupId) params = params.set('agegroupId', scope.agegroupId);
+    if (scope.teamId) params = params.set('teamId', scope.teamId);
+    return this.http.get<AffectedRegistrationCountDto>(`${environment.apiUrl}/fees/affected-count`, { params });
   }
 
   // ── Division Name Sync ──

@@ -620,18 +620,33 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
     }
 
-    public async Task<int> RecalculatePlayerFeesAsync(Guid jobId, string userId, CancellationToken ct = default)
+    public async Task<int> RecalculatePlayerFeesAsync(
+        Guid jobId, string userId, Guid? agegroupId = null, Guid? teamId = null,
+        CancellationToken ct = default)
     {
         var jobPaymentInfo = await _jobs.GetJobPaymentInfoAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
-        var isFullPaymentRequired = jobPaymentInfo.BPlayersFullPaymentRequired;
+        // The job-level flag is now only the BASELINE/fallback. The effective phase is
+        // resolved per registration below from JobFees (team → agegroup → league); a
+        // per-scope override wins over this job value. Legacy job-wide flips still work:
+        // with no per-scope override set, every row resolves null → this baseline.
+        var jobFullPaymentRequired = jobPaymentInfo.BPlayersFullPaymentRequired;
 
         var registrations = await _registrations.GetActivePlayerRegistrationsByJobAsync(jobId, ct);
+
+        // Optional scope narrowing — the per-scope phase toggle and the LADT
+        // "Push Fees to Players" button reprice a single agegroup/team. Filtered
+        // in-memory off the job-wide fetch (admin action, not a hot path).
+        if (agegroupId.HasValue)
+            registrations = registrations.Where(r => r.AssignedAgegroupId == agegroupId.Value).ToList();
+        if (teamId.HasValue)
+            registrations = registrations.Where(r => r.AssignedTeamId == teamId.Value).ToList();
+
         if (registrations.Count == 0)
         {
             _logger.LogInformation(
-                "No active player registrations to recalculate for job {JobId} (phase: {Phase})",
-                jobId, isFullPaymentRequired ? "full-payment" : "deposit");
+                "No active player registrations to recalculate for job {JobId} (job-baseline phase: {Phase})",
+                jobId, jobFullPaymentRequired ? "full-payment" : "deposit");
             return 0;
         }
 
@@ -659,9 +674,12 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             var oldFeeBase = reg.FeeBase;
             var oldFeeProcessing = reg.FeeProcessing;
 
+            // Effective phase = per-scope override (team → agegroup → league) ?? job baseline.
+            var effectiveFullPayment = resolved?.BFullPaymentRequired ?? jobFullPaymentRequired;
+
             await _feeService.ApplySwapFeesAsync(
                 reg, jobId, reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value,
-                new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired }, ct);
+                new FeeApplicationContext { IsFullPaymentRequired = effectiveFullPayment }, ct);
 
             if (reg.FeeBase != oldFeeBase || reg.FeeProcessing != oldFeeProcessing)
             {
@@ -679,8 +697,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         {
             await _registrations.SaveChangesAsync(ct);
             _logger.LogInformation(
-                "Recalculated {Count} player registration(s) for job {JobId} (phase: {Phase})",
-                updated, jobId, isFullPaymentRequired ? "full-payment" : "deposit");
+                "Recalculated {Count} player registration(s) for job {JobId} (job-baseline phase: {Phase})",
+                updated, jobId, jobFullPaymentRequired ? "full-payment" : "deposit");
         }
         else
         {
@@ -688,6 +706,30 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
 
         return updated;
+    }
+
+    /// <summary>
+    /// The "blast area" for a player fee/phase change — counts active player registrations in
+    /// scope WITHOUT writing. Reuses the same job-wide fetch and agegroup/team narrowing as
+    /// <see cref="RecalculatePlayerFeesAsync"/> so the count can't drift from what a reprice
+    /// would touch. (Paid-in-full rows are NOT excluded here: they are in the blast area; the
+    /// reprice protects them, so the post-save "updated N" may be smaller than this count.)
+    /// </summary>
+    public async Task<int> CountActivePlayersInScopeAsync(
+        Guid jobId, IReadOnlyCollection<Guid>? agegroupIds, Guid? teamId, CancellationToken ct = default)
+    {
+        var registrations = await _registrations.GetActivePlayerRegistrationsByJobAsync(jobId, ct);
+
+        if (teamId.HasValue)
+            return registrations.Count(r => r.AssignedTeamId == teamId.Value);
+
+        if (agegroupIds is { Count: > 0 })
+        {
+            var set = agegroupIds as ISet<Guid> ?? agegroupIds.ToHashSet();
+            return registrations.Count(r => r.AssignedAgegroupId.HasValue && set.Contains(r.AssignedAgegroupId.Value));
+        }
+
+        return registrations.Count;
     }
 
     public async Task<SubmitByCheckResponseDto> SubmitByCheckAsync(

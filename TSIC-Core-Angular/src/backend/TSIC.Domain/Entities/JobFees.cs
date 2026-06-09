@@ -25,6 +25,8 @@ public partial class JobFees
 
     public Guid? LeagueId { get; set; }
 
+    public bool? BFullPaymentRequired { get; set; }
+
     public virtual Agegroups? Agegroup { get; set; }
 
     public virtual ICollection<FeeModifiers> FeeModifiers { get; set; } = new List<FeeModifiers>();

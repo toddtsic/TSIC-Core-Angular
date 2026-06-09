@@ -172,7 +172,7 @@ public class PaymentFeeRecalcTests
         var playerMock = new Mock<IPlayerRegistrationService>();
         playerMock
             .Setup(p => p.RecalculatePlayerFeesAsync(
-                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(recalcReturnCount);
 
         var configService = new JobConfigService(
@@ -929,7 +929,7 @@ public class PaymentFeeRecalcTests
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
-            jobId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+            jobId, It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
 
         PrintResult("Player recalc triggered by flag flip OFF→ON. PASS");
     }
@@ -951,7 +951,7 @@ public class PaymentFeeRecalcTests
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
-            jobId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+            jobId, It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
 
         PrintResult("Player recalc triggered by flag flip ON→OFF. PASS");
     }
@@ -977,7 +977,7 @@ public class PaymentFeeRecalcTests
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
-            jobId, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+            jobId, It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Once);
 
         PrintResult("Player recalc triggered by rate change. PASS");
     }
@@ -1000,7 +1000,7 @@ public class PaymentFeeRecalcTests
         await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
 
         playerMock.Verify(p => p.RecalculatePlayerFeesAsync(
-            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()), Times.Never);
 
         PrintResult("Player recalc skipped when no fee-affecting fields change. PASS");
     }

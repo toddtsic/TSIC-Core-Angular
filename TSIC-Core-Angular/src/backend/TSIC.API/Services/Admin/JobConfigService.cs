@@ -208,7 +208,7 @@ public class JobConfigService : IJobConfigService
                 prevAddProcessing, req.BAddProcessingFees);
 
             var playerCount = await _playerRegService.RecalculatePlayerFeesAsync(
-                jobId, TsicConstants.SuperUserId, ct);
+                jobId, TsicConstants.SuperUserId, ct: ct);
 
             _logger.LogInformation("Auto-recalculated {Count} player fees for Job {JobId}", playerCount, jobId);
         }

@@ -128,22 +128,13 @@
     <!-- Payment Policy -->
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-clipboard-check me-2"></i>Payment Policy</h6>
-      <div class="field-check-row">
-        <label class="field-check" [class.is-disabled]="arbControlsBalance()">
-          <input type="checkbox"
-            [ngModel]="bTeamsFullPaymentRequired()"
-            (ngModelChange)="bTeamsFullPaymentRequired.set($event); onFieldChange()"
-            [disabled]="arbControlsBalance()" />
-          <span class="field-label mb-0">Teams Full Payment Required</span>
-        </label>
-        <label class="field-check" [class.is-disabled]="arbControlsBalance()">
-          <input type="checkbox"
-            [ngModel]="bPlayersFullPaymentRequired()"
-            (ngModelChange)="bPlayersFullPaymentRequired.set($event); onFieldChange()"
-            [disabled]="arbControlsBalance()" />
-          <span class="field-label mb-0">Players Full Payment Required</span>
-        </label>
-      </div>
+      <!--
+        Full-payment phase (Teams/Players) is now set per league/agegroup/team on the LADT
+        fee cards (most-specific scope wins; the job-level value below is the silent cascade
+        fallback). The two job-level toggles were intentionally removed from this UI; the
+        bTeamsFullPaymentRequired / bPlayersFullPaymentRequired values still round-trip
+        unchanged through save so legacy full-payment jobs are preserved.
+      -->
       <p class="field-help mt-1 mb-2">Offer an optional donation field on the payment page. The amount is charged in full (plus processing) with the registrant's payment.</p>
       <div class="field-check-row">
         <label class="field-check">

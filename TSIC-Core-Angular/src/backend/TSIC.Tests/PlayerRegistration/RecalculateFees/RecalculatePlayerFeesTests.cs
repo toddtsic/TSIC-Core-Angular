@@ -137,4 +137,86 @@ public class RecalculatePlayerFeesTests
                 It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    /// <summary>
+    /// The effective phase stamped onto each registration is the per-scope override
+    /// (JobFees.BFullPaymentRequired, resolved team → agegroup → league) when set,
+    /// otherwise the job-level baseline. This proves a single camp (team) can convert
+    /// to full payment while the rest of the job stays on deposit, and vice-versa.
+    /// </summary>
+    [Theory(DisplayName = "Effective phase = per-scope override ?? job baseline (into ApplySwapFees context)")]
+    [InlineData(false, true, true)]   // job deposit-phase, this scope converted   → full
+    [InlineData(true, false, false)]  // job full-phase,   this scope opted out    → deposit
+    [InlineData(false, null, false)]  // no scope override → job baseline (deposit)
+    [InlineData(true, null, true)]    // no scope override → job baseline (full)
+    public async Task RecalculatePlayerFees_EffectivePhase_PerScopeOverridesJobBaseline(
+        bool jobBaseline, bool? scopeOverride, bool expectedEffective)
+    {
+        var jobId = Guid.NewGuid();
+        var agegroupId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+
+        // Deposit-paid (207 < full 510) → skip guard does not fire → reg is re-priced.
+        var reg = new Registrations
+        {
+            RegistrationId = Guid.NewGuid(),
+            JobId = jobId,
+            AssignedTeamId = teamId,
+            AssignedAgegroupId = agegroupId,
+            FeeBase = DepositAmt,
+            FeeProcessing = 7m,
+            FeeTotal = DepositPaid,
+            PaidTotal = DepositPaid,
+            OwedTotal = 0m,
+            BActive = true,
+        };
+
+        var jobRepo = new Mock<IJobRepository>();
+        jobRepo.Setup(j => j.GetJobPaymentInfoAsync(jobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JobPaymentInfo { BPlayersFullPaymentRequired = jobBaseline });
+
+        var regRepo = new Mock<IRegistrationRepository>();
+        regRepo.Setup(r => r.GetActivePlayerRegistrationsByJobAsync(jobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Registrations> { reg });
+
+        var feeService = new Mock<IFeeResolutionService>();
+        feeService.Setup(f => f.ResolveFeeAsync(
+                jobId, RoleConstants.Player, agegroupId, teamId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResolvedFee
+            {
+                FeeConfigured = true,
+                Deposit = DepositAmt,
+                BalanceDue = BalanceDueAmt,
+                BFullPaymentRequired = scopeOverride
+            });
+
+        // Capture-only stub (no mutation → no SaveChanges needed). We assert what phase
+        // the engine handed the fee applier, not what the applier then does with it.
+        FeeApplicationContext? captured = null;
+        feeService.Setup(f => f.ApplySwapFeesAsync(
+                It.IsAny<Registrations>(), jobId, agegroupId, teamId,
+                It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()))
+            .Returns((Registrations _, Guid _, Guid _, Guid _, FeeApplicationContext ctx, CancellationToken _) =>
+            {
+                captured = ctx;
+                return Task.CompletedTask;
+            });
+
+        var svc = new PlayerRegistrationService(
+            new Mock<ILogger<PlayerRegistrationService>>().Object,
+            feeService.Object,
+            new Mock<IVerticalInsureService>().Object,
+            new Mock<ITeamLookupService>().Object,
+            new Mock<IPlayerFormValidationService>().Object,
+            regRepo.Object,
+            new Mock<ITeamRepository>().Object,
+            jobRepo.Object,
+            new Mock<ITeamPlacementService>().Object,
+            new Mock<IMedFormService>().Object);
+
+        await svc.RecalculatePlayerFeesAsync(jobId, "test-user");
+
+        captured.Should().NotBeNull("the deposit-paid reg is below full and must be re-priced");
+        captured!.IsFullPaymentRequired.Should().Be(expectedEffective);
+    }
 }

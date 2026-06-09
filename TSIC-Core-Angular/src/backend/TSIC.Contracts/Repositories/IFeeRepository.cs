@@ -169,6 +169,16 @@ public record ResolvedFee
     public decimal? BalanceDue { get; init; }
 
     /// <summary>
+    /// Per-scope full-payment phase override, cascaded team → agegroup → league
+    /// (most-specific non-null wins). NULL = no scope set it → caller falls back to the
+    /// job-level baseline (Jobs.BPlayersFullPaymentRequired / BTeamsFullPaymentRequired).
+    /// TRUE = full payment (balance due now) at this scope. FALSE is reserved for a future
+    /// explicit opt-out (tri-state); v1 only ever resolves NULL or TRUE.
+    /// Effective phase = <c>BFullPaymentRequired ?? jobBaseline</c>.
+    /// </summary>
+    public bool? BFullPaymentRequired { get; init; }
+
+    /// <summary>
     /// Effective deposit: Deposit if set, otherwise BalanceDue.
     /// For single-phase jobs, admin only sets BalanceDue and this returns it.
     /// </summary>

@@ -43,6 +43,7 @@ public class FeeRepository : IFeeRepository
             {
                 jf.Deposit,
                 jf.BalanceDue,
+                jf.BFullPaymentRequired,
                 // Priority: team=3, agegroup=2, league=1
                 Priority = jf.TeamId != null ? 3
                          : jf.AgegroupId != null ? 2
@@ -56,13 +57,15 @@ public class FeeRepository : IFeeRepository
         // Cascade per field: most specific non-null wins
         decimal? deposit = null;
         decimal? balanceDue = null;
+        bool? fullPaymentRequired = null;
         foreach (var row in rows)
         {
             deposit ??= row.Deposit;
             balanceDue ??= row.BalanceDue;
+            fullPaymentRequired ??= row.BFullPaymentRequired;
         }
 
-        return new ResolvedFee { FeeConfigured = true, Deposit = deposit, BalanceDue = balanceDue };
+        return new ResolvedFee { FeeConfigured = true, Deposit = deposit, BalanceDue = balanceDue, BFullPaymentRequired = fullPaymentRequired };
     }
 
     public async Task<ResolvedFee?> GetResolvedFeeForAgegroupAsync(
@@ -87,6 +90,7 @@ public class FeeRepository : IFeeRepository
             {
                 jf.Deposit,
                 jf.BalanceDue,
+                jf.BFullPaymentRequired,
                 Priority = jf.AgegroupId != null ? 2 : 1
             })
             .OrderByDescending(x => x.Priority)
@@ -96,13 +100,15 @@ public class FeeRepository : IFeeRepository
 
         decimal? deposit = null;
         decimal? balanceDue = null;
+        bool? fullPaymentRequired = null;
         foreach (var row in rows)
         {
             deposit ??= row.Deposit;
             balanceDue ??= row.BalanceDue;
+            fullPaymentRequired ??= row.BFullPaymentRequired;
         }
 
-        return new ResolvedFee { FeeConfigured = true, Deposit = deposit, BalanceDue = balanceDue };
+        return new ResolvedFee { FeeConfigured = true, Deposit = deposit, BalanceDue = balanceDue, BFullPaymentRequired = fullPaymentRequired };
     }
 
     public async Task<List<FeeModifiers>> GetActiveModifiersAsync(

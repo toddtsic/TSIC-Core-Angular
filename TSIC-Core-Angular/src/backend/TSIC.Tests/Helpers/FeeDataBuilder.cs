@@ -119,7 +119,8 @@ public class FeeDataBuilder
         Guid? teamId = null,
         decimal? deposit = null,
         decimal? balanceDue = null,
-        Guid? leagueId = null)
+        Guid? leagueId = null,
+        bool? bFullPaymentRequired = null)
     {
         var jf = new JobFees
         {
@@ -131,6 +132,7 @@ public class FeeDataBuilder
             LeagueId = leagueId,
             Deposit = deposit,
             BalanceDue = balanceDue,
+            BFullPaymentRequired = bFullPaymentRequired,
             Modified = DateTime.UtcNow
         };
         _ctx.JobFees.Add(jf);

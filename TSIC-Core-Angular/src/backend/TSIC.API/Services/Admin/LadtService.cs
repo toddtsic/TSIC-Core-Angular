@@ -26,7 +26,6 @@ public sealed class LadtService : ILadtService
     private readonly IRegistrationAccountingRepository _regAcctRepo;
     private readonly IJobRepository _jobRepo;
     private readonly IFeeResolutionService _feeService;
-    private readonly IPaymentStateService _paymentState;
     private readonly IClubTeamRepository _clubTeamRepo;
     private readonly IClubRepository _clubRepo;
     private readonly IScheduleRepository _scheduleRepo;
@@ -42,7 +41,6 @@ public sealed class LadtService : ILadtService
         IRegistrationAccountingRepository regAcctRepo,
         IJobRepository jobRepo,
         IFeeResolutionService feeService,
-        IPaymentStateService paymentState,
         IClubTeamRepository clubTeamRepo,
         IClubRepository clubRepo,
         IScheduleRepository scheduleRepo,
@@ -57,7 +55,6 @@ public sealed class LadtService : ILadtService
         _regAcctRepo = regAcctRepo;
         _jobRepo = jobRepo;
         _feeService = feeService;
-        _paymentState = paymentState;
         _clubTeamRepo = clubTeamRepo;
         _clubRepo = clubRepo;
         _scheduleRepo = scheduleRepo;
@@ -1410,73 +1407,6 @@ public sealed class LadtService : ILadtService
                 ? $"Team moved to {targetReg.ClubName}."
                 : $"{teamsToMove.Count} teams moved to {targetReg.ClubName}."
         };
-    }
-
-    // ═══════════════════════════════════════════
-    // Batch Operations
-    // ═══════════════════════════════════════════
-
-    public async Task<int> UpdatePlayerFeesToAgegroupFeesAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default)
-    {
-        await ValidateAgegroupOwnershipAsync(agegroupId, jobId, cancellationToken);
-
-        _ = await _agegroupRepo.GetByIdAsync(agegroupId, cancellationToken)
-            ?? throw new KeyNotFoundException($"Agegroup {agegroupId} not found.");
-
-        var teams = await _teamRepo.GetByAgegroupIdAsync(agegroupId, cancellationToken);
-        if (teams.Count == 0) return 0;
-
-        var teamIds = teams.Select(t => t.TeamId).ToList();
-        var registrations = await _registrationRepo.GetActivePlayerRegistrationsByTeamIdsAsync(jobId, teamIds, cancellationToken);
-        if (registrations.Count == 0) return 0;
-
-        // Batch-resolve player fees from new fee schema
-        var feeByTeam = await _feeService.ResolveFeesByTeamIdsAsync(
-            jobId, Domain.Constants.RoleConstants.Player, teamIds, cancellationToken);
-
-        var regIds = registrations.Select(r => r.RegistrationId).ToList();
-        // Refresh PaidTotal from actual accounting records — GrossPaid mirrors what
-        // entity.PaidTotal accumulates at write time (sum of Payamt across methods).
-        var paymentStates = await _paymentState.ForRegistrationsAsync(regIds, jobId, cancellationToken);
-
-        // Job-level phase: drives whether FeeBase stamps as Deposit (deposit phase) or
-        // Deposit+BalanceDue (full-payment phase) inside ApplySwapFeesAsync.
-        var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(jobId, cancellationToken);
-        var isFullPaymentRequired = jobPaymentInfo?.BPlayersFullPaymentRequired ?? false;
-
-        var updated = 0;
-        foreach (var reg in registrations)
-        {
-            if (!reg.AssignedTeamId.HasValue) continue;
-
-            var resolved = feeByTeam.TryGetValue(reg.AssignedTeamId.Value, out var rf) ? rf : null;
-            var resolvedFee = resolved?.EffectiveBalanceDue ?? 0m;
-
-            reg.PaidTotal = paymentStates.TryGetValue(reg.RegistrationId, out var state)
-                ? state.GrossPaid
-                : 0m;
-
-            // Guard: skip if fee unchanged and nothing owed
-            if (reg.FeeBase == resolvedFee && reg.OwedTotal <= 0)
-                continue;
-
-            // Swap-style recalc: only FeeBase changes, modifiers preserved.
-            // FeeResolutionService now fetches NonCcPayments internally — no need to thread.
-            await _feeService.ApplySwapFeesAsync(
-                reg, jobId, reg.AssignedAgegroupId ?? Guid.Empty, reg.AssignedTeamId.Value,
-                new FeeApplicationContext
-                {
-                    IsFullPaymentRequired = isFullPaymentRequired
-                }, cancellationToken);
-
-            reg.Modified = DateTime.Now;
-            updated++;
-        }
-
-        if (updated > 0)
-            await _registrationRepo.SaveChangesAsync(cancellationToken);
-
-        return updated;
     }
 
     // ═══════════════════════════════════════════

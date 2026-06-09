@@ -1249,12 +1249,7 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         _logger.LogInformation("Found {TeamCount} teams for recalculation", teams.Count);
 
-        var eligibleTeams = teams
-            .Where(t => t.Agegroup != null &&
-                       !string.IsNullOrEmpty(t.Agegroup.AgegroupName) &&
-                       !t.Agegroup.AgegroupName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase) &&
-                       !t.Agegroup.AgegroupName.Contains("DROPPED", StringComparison.OrdinalIgnoreCase))
-            .ToList();
+        var eligibleTeams = teams.Where(IsEligibleForReprice).ToList();
 
         _logger.LogInformation("Found {EligibleCount} eligible teams (filtered WAITLIST/DROPPED)", eligibleTeams.Count);
 
@@ -1297,7 +1292,8 @@ public class TeamRegistrationService : ITeamRegistrationService
                 team, jobId, team.AgegroupId,
                 new TeamFeeApplicationContext
                 {
-                    IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
+                    // Per-scope override (team → agegroup → league) ?? job baseline.
+                    IsFullPaymentRequired = resolved?.BFullPaymentRequired ?? (job.BTeamsFullPaymentRequired ?? false),
                     AddProcessingFees = job.BAddProcessingFees ?? false,
                     ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
                     ProcessingFeePercent = processingRate
@@ -1368,6 +1364,44 @@ public class TeamRegistrationService : ITeamRegistrationService
             SkippedCount = skippedReasons.Count,
             SkippedReasons = skippedReasons
         };
+    }
+
+    /// <summary>
+    /// A team is eligible for fee repricing unless it sits in a WAITLIST/DROPPED agegroup
+    /// (holding pens, not live registrations). Shared by <see cref="RecalculateTeamFeesAsync"/>
+    /// and <see cref="CountEligibleTeamsInScopeAsync"/> so the blast-area count can't drift
+    /// from what the reprice actually touches.
+    /// </summary>
+    private static bool IsEligibleForReprice(TSIC.Domain.Entities.Teams t) =>
+        t.Agegroup != null &&
+        !string.IsNullOrEmpty(t.Agegroup.AgegroupName) &&
+        !t.Agegroup.AgegroupName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase) &&
+        !t.Agegroup.AgegroupName.Contains("DROPPED", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The "blast area" for a team fee/phase change — counts eligible teams in scope WITHOUT
+    /// writing. Reuses the same job-wide fetch and WAITLIST/DROPPED exclusion as
+    /// <see cref="RecalculateTeamFeesAsync"/> so the count can't drift from what a reprice
+    /// would touch. <paramref name="teamId"/> wins; else <paramref name="agegroupIds"/> (one
+    /// agegroup, or a whole league's agegroups); else the whole job. (Paid-in-full teams are
+    /// NOT excluded here — they are in the blast area; the reprice protects them.)
+    /// </summary>
+    public async Task<int> CountEligibleTeamsInScopeAsync(
+        Guid jobId, IReadOnlyCollection<Guid>? agegroupIds, Guid? teamId)
+    {
+        var teams = await _teams.GetTeamsWithDetailsForJobAsync(jobId);
+        var eligible = teams.Where(IsEligibleForReprice);
+
+        if (teamId.HasValue)
+            return eligible.Count(t => t.TeamId == teamId.Value);
+
+        if (agegroupIds is { Count: > 0 })
+        {
+            var set = agegroupIds as ISet<Guid> ?? agegroupIds.ToHashSet();
+            return eligible.Count(t => set.Contains(t.AgegroupId));
+        }
+
+        return eligible.Count();
     }
 
     public async Task<string> GetConfirmationTextAsync(Guid registrationId, string userId)

@@ -58,10 +58,6 @@ public interface ILadtService
     Task<List<DivisionDetailDto>> GetDivisionsByAgegroupAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
     Task<List<TeamDetailDto>> GetTeamsByDivisionAsync(Guid divId, Guid jobId, CancellationToken cancellationToken = default);
 
-    // ── Batch operations ──
-
-    Task<int> UpdatePlayerFeesToAgegroupFeesAsync(Guid agegroupId, Guid jobId, CancellationToken cancellationToken = default);
-
     // ── Division Name Sync ──
 
     Task<List<DivisionNameSyncPreview>> PreviewDivisionNameSyncAsync(Guid jobId, List<string> themeNames, CancellationToken cancellationToken = default);

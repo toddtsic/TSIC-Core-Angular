@@ -12,6 +12,7 @@ export type JobFeeDto = {
     leagueId?: string | null;
     deposit?: number | null;
     balanceDue?: number | null;
+    bFullPaymentRequired?: boolean | null;
     modifiers?: any[] | null;
 };
 

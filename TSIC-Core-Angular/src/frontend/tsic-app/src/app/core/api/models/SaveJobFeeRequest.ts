@@ -9,6 +9,8 @@ export type SaveJobFeeRequest = {
     leagueId?: string | null;
     deposit?: number | null;
     balanceDue?: number | null;
+    bFullPaymentRequired?: boolean | null;
+    repriceExisting?: boolean;
     modifiers?: any[] | null;
 };
 

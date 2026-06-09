@@ -49,6 +49,25 @@ export interface ModifierForm {
             </div>
           </div>
         </div>
+
+        <div class="phase-toggle">
+          <div class="form-check form-switch mb-0">
+            <input class="form-check-input" type="checkbox" role="switch"
+                   [id]="namePrefix() + 'Phase'"
+                   [checked]="bFullPaymentRequired() === true"
+                   (change)="onPhaseToggle($any($event.target).checked)">
+            <label class="form-check-label phase-switch-label" [for]="namePrefix() + 'Phase'">
+              Require full payment now
+            </label>
+          </div>
+          <span class="phase-hint" [class.phase-hint-on]="bFullPaymentRequired() === true">
+            @if (bFullPaymentRequired() === true) {
+              <i class="bi bi-cash-stack me-1"></i>Deposit + balance collected together — no balance-due phase.
+            } @else {
+              <i class="bi bi-hourglass-split me-1"></i>Inherits the phase (deposit now, balance later).
+            }
+          </span>
+        </div>
       }
 
       @for (mod of modifiers(); track mod.modifierType) {
@@ -152,6 +171,15 @@ export interface ModifierForm {
     .fee-label { font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
     .fee-hint { font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin: 0 0 var(--space-2) 0; font-style: italic; }
 
+    .phase-toggle {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--space-3);
+      margin-top: var(--space-2); padding-top: var(--space-2);
+      border-top: 1px dashed var(--bs-border-color);
+    }
+    .phase-switch-label { font-size: var(--font-size-xs); font-weight: 600; cursor: pointer; }
+    .phase-hint { font-size: var(--font-size-xs); color: var(--bs-secondary-color); }
+    .phase-hint-on { color: var(--bs-success); font-weight: 600; }
+
     .modifier-labels {
       display: grid;
       grid-template-columns: 1fr 100px auto;
@@ -223,8 +251,19 @@ export class FeeCardComponent {
   /** When false, hides the Deposit/Balance Due fields (e.g. league scope = modifiers only). */
   readonly showBaseFee = input(true);
 
+  /**
+   * Per-scope full-payment phase override: true = on, null = inherit from a less-specific
+   * scope / the job baseline. v1 is two-state (the switch writes true or null).
+   */
+  readonly bFullPaymentRequired = input<boolean | null>(null);
+
   readonly depositChange = output<number | null>();
   readonly balanceDueChange = output<number | null>();
+  readonly bFullPaymentRequiredChange = output<boolean | null>();
+
+  onPhaseToggle(checked: boolean): void {
+    this.bFullPaymentRequiredChange.emit(checked ? true : null);
+  }
 
   modLabel(type: string): string {
     return type === 'LateFee' ? 'Late Fee' : 'Early Bird Discount';
