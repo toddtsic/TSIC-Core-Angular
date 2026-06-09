@@ -360,41 +360,61 @@
   white-space: nowrap;
 }
 
-.flyin-header-actions {
+// ── Sibling navigation dropdown (replaces ▲/▼) ──
+.flyin-nav-select {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+  margin-right: var(--space-3);
+}
+
+.flyin-nav-icon {
+  font-size: var(--font-size-lg);
+  color: var(--bs-secondary-color);
   flex-shrink: 0;
 }
 
-// ── Sibling navigation cluster (▲ / count / ▼) ──
-.flyin-nav {
+.flyin-nav-label {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--bs-secondary-color);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.flyin-nav-stepper {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 2px;
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--radius-pill, 999px);
-  background: var(--bs-tertiary-bg);
+  min-width: 0;
+  flex: 1;
+  max-width: 360px;
 }
 
 .flyin-nav-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
   padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-sm);
+  background: var(--bs-body-bg);
   color: var(--bs-secondary-color);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 
   &:hover:not(:disabled) {
-    background: var(--bs-body-bg);
+    border-color: var(--bs-primary);
     color: var(--bs-primary);
+    background: var(--bs-primary-bg-subtle);
   }
 
   &:focus-visible {
@@ -412,14 +432,10 @@
   }
 }
 
-.flyin-nav-count {
-  min-width: 2.5rem;
-  text-align: center;
-  font-size: var(--font-size-xs);
+.flyin-nav-ddl {
+  min-width: 0;
+  flex: 1;
   font-weight: var(--font-weight-semibold);
-  color: var(--bs-secondary-color);
-  font-variant-numeric: tabular-nums;
-  user-select: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -279,29 +279,40 @@
 <div class="detail-flyin" [class.open]="isDetailOpen()">
   @if (detailNode(); as node) {
     <div class="flyin-header">
-      <h5 class="flyin-title">
-        <i class="bi {{ getLevelIcon(node.level) }}"></i>
-        <span class="flyin-title-text">{{ node.name }}</span>
-      </h5>
-      <div class="flyin-header-actions">
-        @if (flyinSiblings().length > 1) {
-          <div class="flyin-nav" role="group"
-               [attr.aria-label]="'Navigate ' + getLevelLabel(node.level) + 's'">
+      @if (flyinSiblings().length > 1) {
+        <div class="flyin-nav-select">
+          <i class="bi {{ getLevelIcon(node.level) }} flyin-nav-icon"></i>
+          <label class="flyin-nav-label" [for]="'flyin-nav-' + node.id">{{ getLevelLabel(node.level) }}</label>
+          <div class="flyin-nav-stepper">
             <button type="button" class="flyin-nav-btn" (click)="flyinNavigate(-1)"
                     [disabled]="!canFlyinPrev()" aria-label="Previous"
                     [title]="'Previous ' + getLevelLabel(node.level) + ' (↑)'">
               <i class="bi bi-chevron-up"></i>
             </button>
-            <span class="flyin-nav-count">{{ flyinPosition() }}</span>
+            <select [id]="'flyin-nav-' + node.id"
+                    class="form-select form-select-sm flyin-nav-ddl"
+                    [ngModel]="node.id"
+                    [ngModelOptions]="{ standalone: true }"
+                    (ngModelChange)="flyinNavigateTo($event)"
+                    [attr.aria-label]="'Jump to ' + getLevelLabel(node.level)">
+              @for (sib of flyinSiblings(); track sib.id; let i = $index) {
+                <option [ngValue]="sib.id">{{ i + 1 }}. {{ sib.name }}</option>
+              }
+            </select>
             <button type="button" class="flyin-nav-btn" (click)="flyinNavigate(1)"
                     [disabled]="!canFlyinNext()" aria-label="Next"
                     [title]="'Next ' + getLevelLabel(node.level) + ' (↓)'">
               <i class="bi bi-chevron-down"></i>
             </button>
           </div>
-        }
-        <button type="button" class="btn-close" (click)="closeDetail()"></button>
-      </div>
+        </div>
+      } @else {
+        <h5 class="flyin-title">
+          <i class="bi {{ getLevelIcon(node.level) }}"></i>
+          <span class="flyin-title-text">{{ node.name }}</span>
+        </h5>
+      }
+      <button type="button" class="btn-close" (click)="closeDetail()"></button>
     </div>
     <div class="flyin-body">
       @if (node.level === 0) {

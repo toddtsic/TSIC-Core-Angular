@@ -666,8 +666,17 @@ export class LadtSiblingGridComponent implements OnChanges {
   private syncSelectedRow(): void {
     const grid = this.grid();
     if (!grid) return;
-    const rows = grid.getRows() as HTMLElement[] | null;
-    const records = grid.getCurrentViewRecords() as any[] | null;
+    let rows: HTMLElement[] | null;
+    let records: any[] | null;
+    try {
+      // getRows() throws if the grid's content module isn't rendered yet — the
+      // effect can fire at init before the first bind (and during teardown).
+      // Initial highlight is handled by onRowDataBound, so skipping is safe.
+      rows = grid.getRows() as HTMLElement[] | null;
+      records = grid.getCurrentViewRecords() as any[] | null;
+    } catch {
+      return;
+    }
     if (!rows || !records) return;
     const id = this.selectedId();
     const field = this.idField();

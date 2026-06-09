@@ -219,7 +219,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   isDetailOpen = signal(false);
   detailNode = signal<LadtFlatNode | null>(null);
 
-  // ── Fly-in sibling navigation (▲/▼) ──
+  // ── Fly-in sibling navigation (dropdown + ↑/↓ keys) ──
   // Siblings = same parent + same level, in tree order (matches the left panel).
   flyinSiblings = computed(() => {
     const node = this.detailNode();
@@ -235,10 +235,6 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   canFlyinNext = computed(() => {
     const i = this.flyinIndex();
     return i >= 0 && i < this.flyinSiblings().length - 1;
-  });
-  flyinPosition = computed(() => {
-    const i = this.flyinIndex();
-    return i < 0 ? '' : `${i + 1} / ${this.flyinSiblings().length}`;
   });
 
   // Actions dropdown
@@ -909,12 +905,21 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     if (this.isDetailOpen()) this.closeDetail();
   }
 
-  /** Step to the previous/next sibling (same parent) without closing the fly-in. */
+  /** Jump the fly-in to a sibling by id (dropdown selection). */
+  flyinNavigateTo(id: string): void {
+    this.setFlyinNode(this.flyinSiblings().find(n => n.id === id));
+  }
+
+  /** Step to the previous/next sibling (↑/↓ keys); clamps at the ends. */
   flyinNavigate(delta: number): void {
-    const target = this.flyinSiblings()[this.flyinIndex() + delta];
-    if (!target) return; // clamp at the ends
-    this.detailNode.set(target);       // panels reload via ngOnChanges on the new id
-    this.selectedNode.set(target);     // keep tree highlight + grid row in sync
+    this.setFlyinNode(this.flyinSiblings()[this.flyinIndex() + delta]);
+  }
+
+  /** Swap the fly-in to a sibling — panels reload via ngOnChanges; tree + grid stay in sync. */
+  private setFlyinNode(target: LadtFlatNode | undefined): void {
+    if (!target) return;
+    this.detailNode.set(target);
+    this.selectedNode.set(target);
   }
 
   @HostListener('document:keydown.arrowup', ['$event'])
