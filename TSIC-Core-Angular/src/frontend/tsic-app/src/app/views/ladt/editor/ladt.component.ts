@@ -19,6 +19,7 @@ import {
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
 import type { LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto } from '../../../core/api';
+import { AGEGROUP_COLORS } from '../../scheduling/shared/utils/scheduling-helpers';
 
 /** Flat node for CdkTree display */
 export interface LadtFlatNode {
@@ -240,6 +241,10 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   // Actions dropdown
   actionsOpen = signal(false);
 
+  // Age-group color picker (tree dot → popover)
+  colorPickerAgId = signal<string | null>(null);
+  readonly colorOptions = AGEGROUP_COLORS;
+
   // Mobile drawer
   drawerOpen = signal(false);
 
@@ -405,6 +410,42 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
       }
       return next;
     });
+  }
+
+  // ── Age-group color picker ──
+
+  /** Toggle the color popover for an age group. stopPropagation keeps the row
+   * click (selectNode) and the document:click closer from firing on the dot. */
+  openColorPicker(agId: string, e: MouseEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+    this.colorPickerAgId.set(this.colorPickerAgId() === agId ? null : agId);
+  }
+
+  /** Persist the chosen color, then patch the age group's own dot AND its
+   * divisions' inherited (parent) color in place so the subtree recolors live. */
+  selectAgegroupColor(agId: string, color: string | null): void {
+    const value = color?.toUpperCase() ?? null;
+    this.colorPickerAgId.set(null);
+
+    this.ladtService.updateAgegroupColor(agId, value).subscribe({
+      next: () => {
+        this.flatNodes.update(nodes => nodes.map(n => {
+          if (n.id === agId) return { ...n, color: value };
+          if (n.parentId === agId) return { ...n, parentColor: value };
+          return n;
+        }));
+        // Keep the selected reference consistent if it's the recolored node
+        const sel = this.selectedNode();
+        if (sel?.id === agId) this.selectedNode.set({ ...sel, color: value });
+      },
+      error: (err) => this.errorMessage.set(err.error?.message || 'Failed to update color')
+    });
+  }
+
+  @HostListener('document:click')
+  onDocumentClick(): void {
+    if (this.colorPickerAgId()) this.colorPickerAgId.set(null);
   }
 
   // ── Selection ──

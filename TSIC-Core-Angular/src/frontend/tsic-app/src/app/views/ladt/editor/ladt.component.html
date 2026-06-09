@@ -164,6 +164,26 @@
                 </button>
               }
             }
+            @if (colorPickerAgId() === node.id) {
+              <div class="color-picker-popover" (click)="$event.stopPropagation()">
+                <div class="color-picker-header">
+                  <span class="color-picker-title">{{ node.name }} Color</span>
+                </div>
+                <div class="color-picker-grid">
+                  <button class="color-swatch color-swatch--none"
+                          [class.active]="!node.color"
+                          (click)="selectAgegroupColor(node.id, null)"
+                          title="None"></button>
+                  @for (c of colorOptions; track c.value) {
+                    <button class="color-swatch"
+                            [style.background]="c.value"
+                            [class.active]="node.color?.toUpperCase() === c.value"
+                            (click)="selectAgegroupColor(node.id, c.value)"
+                            [title]="c.name"></button>
+                  }
+                </div>
+              </div>
+            }
           </cdk-tree-node>
 
           <cdk-tree-node *cdkTreeNodeDef="let node; when: hasChild" class="tree-node"
@@ -187,7 +207,13 @@
                   <span class="tree-label-secondary">{{ node.name }}</span>
                 </span>
               } @else {
-                @if (node.level === 1 && node.color) {
+                @if (node.level === 1 && !node.isSpecial) {
+                  <span class="tree-color-dot tree-color-dot--clickable"
+                        [class.tree-color-dot--empty]="!node.color"
+                        [style.background]="node.color ?? 'transparent'"
+                        (click)="openColorPicker(node.id, $event)"
+                        title="Change color"></span>
+                } @else if (node.level === 1 && node.color) {
                   <span class="tree-color-dot" [style.background]="node.color"></span>
                 }
                 @if (node.level === 2 && node.parentColor) {
@@ -227,6 +253,26 @@
               <button class="btn-add-child" title="Add Team" (click)="startAdd(node.id); $event.stopPropagation()">
                 <i class="bi bi-plus-circle"></i>
               </button>
+            }
+            @if (colorPickerAgId() === node.id) {
+              <div class="color-picker-popover" (click)="$event.stopPropagation()">
+                <div class="color-picker-header">
+                  <span class="color-picker-title">{{ node.name }} Color</span>
+                </div>
+                <div class="color-picker-grid">
+                  <button class="color-swatch color-swatch--none"
+                          [class.active]="!node.color"
+                          (click)="selectAgegroupColor(node.id, null)"
+                          title="None"></button>
+                  @for (c of colorOptions; track c.value) {
+                    <button class="color-swatch"
+                            [style.background]="c.value"
+                            [class.active]="node.color?.toUpperCase() === c.value"
+                            (click)="selectAgegroupColor(node.id, c.value)"
+                            [title]="c.name"></button>
+                  }
+                </div>
+              </div>
             }
           </cdk-tree-node>
         </cdk-tree>
