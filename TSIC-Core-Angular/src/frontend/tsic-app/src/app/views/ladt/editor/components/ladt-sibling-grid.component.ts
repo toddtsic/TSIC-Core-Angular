@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal, computed, effect, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
 import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
@@ -490,7 +490,16 @@ export class LadtSiblingGridComponent implements OnChanges {
   readonly cloneRow = output<any>();
   readonly navigateTo = output<string>();
 
-  readonly grid = viewChild.required<GridComponent>('grid');
+  readonly grid = viewChild<GridComponent>('grid');
+
+  // Repaint the custom row-selected highlight when selectedId changes without a
+  // data rebind — i.e. ▲/▼ sibling navigation from the LADT editor fly-in.
+  // onRowDataBound only runs on bind, so a selection-only change needs this.
+  private readonly selectionSync = effect(() => {
+    this.selectedId();   // track selection changes
+    this.grid();         // re-run once the grid view resolves
+    this.syncSelectedRow();
+  });
 
   // Sort state
   sortField = signal<string | null>(null);
@@ -646,6 +655,25 @@ export class LadtSiblingGridComponent implements OnChanges {
     if (row['_isSpecial'] === true) {
       args.row.classList.add('special-row');
     }
+  }
+
+  /**
+   * Re-apply the `row-selected` class to the already-rendered rows when the
+   * selection changes without a data rebind (▲/▼ sibling navigation from the
+   * fly-in). Toggles in place — no grid refresh, no scroll reset. getRows() and
+   * getCurrentViewRecords() are index-aligned in display order.
+   */
+  private syncSelectedRow(): void {
+    const grid = this.grid();
+    if (!grid) return;
+    const rows = grid.getRows() as HTMLElement[] | null;
+    const records = grid.getCurrentViewRecords() as any[] | null;
+    if (!rows || !records) return;
+    const id = this.selectedId();
+    const field = this.idField();
+    rows.forEach((tr, i) => {
+      tr.classList.toggle('row-selected', records[i]?.[field] === id);
+    });
   }
 
   onRowSelect(args: any): void {
