@@ -51,6 +51,9 @@ public class PlayerCcPaymentServiceTests
             .ReturnsAsync(new Dictionary<Guid, PaymentState>());
         _paymentState.Setup(p => p.ForRegistrationAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(PaymentState.Empty(bAddProcessingFees: false, ccRate: 0m, echeckRate: 0m));
+        // Agegroup resolves through the team now — echo a team carrying an agegroup for the reg's AssignedTeamId.
+        _teams.Setup(t => t.GetTeamFromTeamId(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid teamId, CancellationToken _) => new Teams { TeamId = teamId, AgegroupId = Guid.NewGuid() });
         return new PaymentService(
             _jobs.Object, _regRepo.Object, _teams.Object, _families.Object, _acct.Object,
             _adn.Object, _feeService.Object, _teamLookup.Object, _feeAdj.Object, _settleRepo.Object,
@@ -115,7 +118,6 @@ public class PlayerCcPaymentServiceTests
             JobId = jobId,
             FamilyUserId = FamilyUserId,
             AssignedTeamId = Guid.NewGuid(),
-            AssignedAgegroupId = Guid.NewGuid(),
             FeeBase = owed,
             FeeProcessing = 0m,
             FeeDiscount = 0m,

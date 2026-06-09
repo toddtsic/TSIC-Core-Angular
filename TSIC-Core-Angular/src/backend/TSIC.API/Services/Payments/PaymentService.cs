@@ -1777,10 +1777,13 @@ public class PaymentService : IPaymentService
         // must retain its Deposit + BalanceDue stamp through this call.
         foreach (var reg in registrations)
         {
-            if (!reg.AssignedTeamId.HasValue || !reg.AssignedAgegroupId.HasValue) continue;
+            if (!reg.AssignedTeamId.HasValue) continue;
+            // Agegroup resolves through the team (Registrations.AssignedAgegroupId is obsolete).
+            var team = await _teams.GetTeamFromTeamId(reg.AssignedTeamId.Value);
+            if (team is null) continue;
             var resolved = await _feeService.ResolveFeeAsync(
                 jobId, Domain.Constants.RoleConstants.Player,
-                reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value);
+                team.AgegroupId, reg.AssignedTeamId.Value);
             var deposit = resolved?.EffectiveDeposit ?? 0m;
             var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
             var baseFee = deposit > 0m ? deposit : balanceDue;
@@ -1794,9 +1797,12 @@ public class PaymentService : IPaymentService
     {
         foreach (var reg in registrations)
         {
-            if (!reg.AssignedTeamId.HasValue || !reg.AssignedAgegroupId.HasValue) continue;
+            if (!reg.AssignedTeamId.HasValue) continue;
+            // Agegroup resolves through the team (Registrations.AssignedAgegroupId is obsolete).
+            var team = await _teams.GetTeamFromTeamId(reg.AssignedTeamId.Value);
+            if (team is null) continue;
             await _feeService.ApplyPifUpgradeAsync(
-                reg, jobId, reg.AssignedAgegroupId.Value, reg.AssignedTeamId.Value,
+                reg, jobId, team.AgegroupId, reg.AssignedTeamId.Value,
                 new FeeApplicationContext { AddProcessingFees = true });
         }
     }
