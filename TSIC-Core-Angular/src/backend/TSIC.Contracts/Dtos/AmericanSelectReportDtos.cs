@@ -25,26 +25,3 @@ public record AmericanSelectEvaluationRowDto
     public string? MomLastName { get; init; }
     public string? MomCellphone { get; init; }
 }
-
-/// <summary>
-/// One player row for the American Select Main Event roster sheets — the flattened EF replacement for
-/// the master-detail proc pair <c>reporting.AmericanSelectPlayerDataMainEvent_Teams</c> +
-/// <c>…_TeamRoster</c> (legacy Crystal "AmericanSelectMainEventRosters"). One flat query returns every
-/// active Player on every non-"Registration" agegroup for the job; the PDF layer groups by
-/// agegroup → team into per-team roster cards. Hometown is the <em>family user's</em> city
-/// (<c>Families.FamilyUser.City</c>); inner-joined to <c>Families</c> like the proc.
-/// </summary>
-public record AmericanSelectMainEventRosterRowDto
-{
-    public required Guid RegistrationId { get; init; }
-    public required Guid TeamId { get; init; }
-    public string? JobName { get; init; }
-    public string? AgegroupName { get; init; }
-    public string? TeamName { get; init; }
-    public string? UniformNo { get; init; }
-    public string? Position { get; init; }
-    public string? FirstName { get; init; }
-    public string? LastName { get; init; }
-    public string? SchoolName { get; init; }
-    public string? Hometown { get; init; }
-}

@@ -25,6 +25,7 @@ public class ReportingController : ControllerBase
     private readonly IFeeYtdReportPdfService _feeYtdReportService;
     private readonly IPlayerStatsReportPdfService _playerStatsReportService;
     private readonly IAmericanSelectReportPdfService _americanSelectReportService;
+    private readonly IPackedRosterPdfService _packedRosterService;
     private readonly IGameBoardsPdfService _gameBoardsPdfService;
 
     // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
@@ -52,6 +53,7 @@ public class ReportingController : ControllerBase
         IFeeYtdReportPdfService feeYtdReportService,
         IPlayerStatsReportPdfService playerStatsReportService,
         IAmericanSelectReportPdfService americanSelectReportService,
+        IPackedRosterPdfService packedRosterService,
         IGameBoardsPdfService gameBoardsPdfService)
     {
         _reportingService = reportingService;
@@ -61,6 +63,7 @@ public class ReportingController : ControllerBase
         _feeYtdReportService = feeYtdReportService;
         _playerStatsReportService = playerStatsReportService;
         _americanSelectReportService = americanSelectReportService;
+        _packedRosterService = packedRosterService;
         _gameBoardsPdfService = gameBoardsPdfService;
     }
 
@@ -389,15 +392,36 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> AmericanSelectTournyCheckin([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("americanselecttournycheckin", exportFormat);
 
-    // American Select main-event rosters — EF + Syncfusion replacement for Crystal
-    // "americanselectmaineventrosters" (master-detail proc pair, flattened). Job from JWT.
+    // American Select main-event rosters — the offer-team rosters are just a packed roster, so
+    // they're served by the shared PackedRoster engine with a fixed AS preset (Player/Position/
+    // School, sorted by position, 2-up) instead of a bespoke renderer. requiresSchedule:false
+    // includes the offer teams (which play no scheduled games; the schedule gate would exclude
+    // them) and the engine's job/agegroup scope drops the "Registration" (tryout) teams. Job from JWT.
     [HttpGet("AmericanSelectMainEventRosters")]
     [AllowAnonymous]
     public async Task<ActionResult> AmericanSelectMainEventRosters(CancellationToken cancellationToken)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
-        var result = await _americanSelectReportService.GenerateMainEventRostersAsync(jobId ?? Guid.Empty, cancellationToken);
-        return File(result.FileBytes, result.ContentType, result.FileName);
+        var request = new PackedRosterRequestDto
+        {
+            NUp = 2,
+            Columns = new[]
+            {
+                new PackedRosterColumnDto { Key = "player", WidthWeight = 80, Align = "Left", LongText = "" },
+                new PackedRosterColumnDto { Key = "position", WidthWeight = 38, Align = "Left", LongText = "" },
+                new PackedRosterColumnDto { Key = "school_name", WidthWeight = 90, Align = "Left", LongText = "Wrap" },
+            },
+            ShowCoaches = false,
+            ShowRepName = false,
+            ShowRepEmail = false,
+            ShowRepPhone = false,
+            SchoolShowsCommit = false,
+            ShowClubAffiliation = false,
+            SortBy = "Position",
+            RequiresSchedule = false,
+        };
+        var result = await _packedRosterService.GenerateAsync(request, jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, "AmericanSelectMainEventRosters.pdf");
     }
 
     // American Select tryout evaluation — EF + Syncfusion replacement for Crystal

@@ -87,4 +87,12 @@ public record PackedRosterRequestDto
     /// first. "Position" reproduces the by-position grouping of the PackedByPosition family.
     /// </summary>
     public required string SortBy { get; init; }
+
+    /// <summary>
+    /// Optional (default <c>true</c>): require each team to appear in the job's schedule — the
+    /// tournament scope. Set <c>false</c> for showcase/offer rosters whose teams play no games
+    /// (e.g. American Select), so unscheduled teams are included (job-scoped by JobId, excluding
+    /// the "Registration" agegroup). Not required — existing payloads keep the tournament scope.
+    /// </summary>
+    public bool RequiresSchedule { get; init; } = true;
 }

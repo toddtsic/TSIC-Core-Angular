@@ -64,7 +64,7 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         // Single EF query returns the unshaped superset; we sort it to the legacy proc's
         // ORDER BY (agegroup → div → club:team → teamId, then Staff-first, uniform#, name)
         // and shape each row in C#. Replaces reporting_migrate.TournamentRosterPacked_Flat.
-        var ordered = (await _reportingRepository.GetTournamentRosterRowsAsync(jobId, cancellationToken))
+        var ordered = (await _reportingRepository.GetTournamentRosterRowsAsync(jobId, request.RequiresSchedule, cancellationToken))
             .OrderBy(d => d.AgegroupName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(d => d.DivName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(d => ComposeClubTeam(d), StringComparer.OrdinalIgnoreCase)
@@ -419,7 +419,7 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        var rows = await _reportingRepository.GetTournamentRosterRowsAsync(jobId, cancellationToken);
+        var rows = await _reportingRepository.GetTournamentRosterRowsAsync(jobId, cancellationToken: cancellationToken);
 
         using var document = new PdfDocument();
         document.PageSettings.Size = PdfPageSize.Letter;

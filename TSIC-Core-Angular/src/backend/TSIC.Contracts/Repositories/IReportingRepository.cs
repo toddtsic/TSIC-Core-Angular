@@ -140,12 +140,20 @@ public interface IReportingRepository
     /// <summary>
     /// Raw per-registrant rows for the tournament roster family (packed roster + recruiter
     /// report) — the EF replacement for <c>reporting_migrate.TournamentRosterPacked_Flat</c>.
-    /// Scope mirrors the proc: active Staff/Player on active, schedule-listed teams, excluding
-    /// WAITLIST/DROPPED agegroups. Returns the unshaped superset; the PDF layer owns all
-    /// display shaping, ordering, and last-row detection.
+    /// Scope mirrors the proc: active Staff/Player on active teams, excluding WAITLIST/DROPPED
+    /// agegroups. Returns the unshaped superset; the PDF layer owns all display shaping,
+    /// ordering, and last-row detection.
+    /// <para>
+    /// <paramref name="requiresSchedule"/> (default <c>true</c>) keeps the proc's tournament
+    /// scope: only teams that appear in the job's <c>Schedule</c> — which doubles as the job
+    /// filter. Pass <c>false</c> for showcase/offer rosters whose teams play no scheduled games
+    /// (e.g. American Select): the schedule gate is dropped, the job is scoped explicitly by
+    /// <c>JobId</c> instead, and the holding-pen "Registration" agegroup is excluded.
+    /// </para>
     /// </summary>
     Task<List<TournamentRosterRowDto>> GetTournamentRosterRowsAsync(
         Guid jobId,
+        bool requiresSchedule = true,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -240,17 +248,6 @@ public interface IReportingRepository
     /// "Tryout" filter; ordered agegroup → last → first.
     /// </summary>
     Task<List<AmericanSelectEvaluationRowDto>> GetAmericanSelectEvaluationRowsAsync(
-        Guid jobId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Active Player rows (all non-"Registration" agegroups) for the American Select Main Event roster
-    /// sheets — the flattened EF replacement for the master-detail proc pair
-    /// <c>reporting.AmericanSelectPlayerDataMainEvent_Teams</c> + <c>…_TeamRoster</c>. Job-scoped; one
-    /// flat query (roster joins + INNER <c>Families</c> + family-user for Hometown city); the PDF layer
-    /// groups by agegroup → team into per-team cards.
-    /// </summary>
-    Task<List<AmericanSelectMainEventRosterRowDto>> GetAmericanSelectMainEventRosterRowsAsync(
         Guid jobId,
         CancellationToken cancellationToken = default);
 }

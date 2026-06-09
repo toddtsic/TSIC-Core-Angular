@@ -346,16 +346,26 @@ public class ReportingRepository : IReportingRepository
 
     public async Task<List<TournamentRosterRowDto>> GetTournamentRosterRowsAsync(
         Guid jobId,
+        bool requiresSchedule = true,
         CancellationToken cancellationToken = default)
     {
         // Per-registrant raw rows for the tournament roster family. Mirrors the team set of
         // reporting_migrate.TournamentRosterPacked_Flat: active Staff/Player whose assigned
-        // team is active, appears in the job's schedule, and is not in a WAITLIST/DROPPED
-        // agegroup. The `from t in Teams.Where(...)` (no DefaultIfEmpty) is an INNER JOIN that
-        // yields a non-null team without tripping the Guid?/Guid join-key mismatch; the
-        // optional club-rep + family-user + family fallbacks ride navigation properties that
-        // EF emits as LEFT JOINs. The proc's window columns (divTeamRow, isLastRow) are
-        // intentionally dropped — the PDF layer owns team ordering and last-row detection.
+        // team is active and is not in a WAITLIST/DROPPED agegroup. The `from t in Teams.Where(...)`
+        // (no DefaultIfEmpty) is an INNER JOIN that yields a non-null team without tripping the
+        // Guid?/Guid join-key mismatch; the optional club-rep + family-user + family fallbacks
+        // ride navigation properties that EF emits as LEFT JOINs. The proc's window columns
+        // (divTeamRow, isLastRow) are intentionally dropped — the PDF layer owns team ordering
+        // and last-row detection.
+        //
+        // Job scope is conditional on requiresSchedule (default true):
+        //   true  → tournament scope: team must appear in this job's Schedule (the schedule gate
+        //           IS the job filter — a scheduled team belongs to the job).
+        //   false → showcase/offer scope (e.g. American Select offer rosters, which play no
+        //           games): the schedule gate is dropped, so scope the job explicitly by JobId
+        //           and exclude the holding-pen "Registration" agegroup (tryout teams). Existing
+        //           callers pass true → identical SQL/behavior (the false-branch predicate is
+        //           short-circuited away).
         var query =
             from r in _context.Registrations.AsNoTracking()
             join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
@@ -370,8 +380,10 @@ public class ReportingRepository : IReportingRepository
                 && t.Agegroup.AgegroupName != null
                 && !t.Agegroup.AgegroupName.Contains("WAITLIST")
                 && !t.Agegroup.AgegroupName.Contains("DROPPED")
-                && _context.Schedule.Any(s => s.JobId == jobId
-                    && (s.T1Id == t.TeamId || s.T2Id == t.TeamId))
+                && (!requiresSchedule || _context.Schedule.Any(s => s.JobId == jobId
+                    && (s.T1Id == t.TeamId || s.T2Id == t.TeamId)))
+                && (requiresSchedule || (r.JobId == jobId
+                    && t.Agegroup.AgegroupName != "Registration"))
             select new TournamentRosterRowDto
             {
                 TeamId = t.TeamId,
@@ -933,40 +945,6 @@ public class ReportingRepository : IReportingRepository
                 MomFirstName = f.MomFirstName,
                 MomLastName = f.MomLastName,
                 MomCellphone = f.MomCellphone,
-            }).ToListAsync(cancellationToken);
-    }
-
-    public async Task<List<AmericanSelectMainEventRosterRowDto>> GetAmericanSelectMainEventRosterRowsAsync(
-        Guid jobId,
-        CancellationToken cancellationToken = default)
-    {
-        // Flattened EF replacement for the master-detail proc pair _Teams + _TeamRoster. All active
-        // Players on non-"Registration" agegroups; INNER Families + family-user (Hometown = the family
-        // user's city). One flat query; the PDF layer groups by agegroup → team into per-team cards.
-        return await (
-            from r in _context.Registrations.AsNoTracking()
-            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
-            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
-            join j in _context.Jobs.AsNoTracking() on r.JobId equals j.JobId
-            from f in _context.Families.AsNoTracking().Where(x => x.FamilyUserId == r.FamilyUserId)
-            from uF in _context.AspNetUsers.AsNoTracking().Where(x => x.Id == r.FamilyUserId)
-            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
-            where r.JobId == jobId && r.BActive == true && roles.Name == "Player"
-                && t.Agegroup.AgegroupName != "Registration"
-            orderby t.Agegroup.AgegroupName, t.TeamName, u.LastName, u.FirstName
-            select new AmericanSelectMainEventRosterRowDto
-            {
-                RegistrationId = r.RegistrationId,
-                TeamId = t.TeamId,
-                JobName = j.JobName,
-                AgegroupName = t.Agegroup.AgegroupName,
-                TeamName = t.TeamName,
-                UniformNo = r.UniformNo,
-                Position = r.Position,
-                FirstName = u.FirstName,
-                LastName = u.LastName,
-                SchoolName = r.SchoolName,
-                Hometown = uF.City,
             }).ToListAsync(cancellationToken);
     }
 }
