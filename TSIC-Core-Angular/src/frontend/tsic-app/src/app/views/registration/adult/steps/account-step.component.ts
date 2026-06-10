@@ -234,6 +234,7 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                     <label class="field-label">Username <span class="req">*</span></label>
                                     <input type="text" class="field-input"
                                         name="adult-new-username"
+                                        autocomplete="off"
                                         [class.is-required]="state.username().trim().length < 6"
                                         [ngModel]="state.username()"
                                         (ngModelChange)="state.setUsername($event)"
@@ -245,6 +246,7 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                     <div class="position-relative">
                                         <input [type]="showPassword() ? 'text' : 'password'" class="field-input pe-5"
                                             name="adult-new-password"
+                                            autocomplete="new-password"
                                             [class.is-required]="state.password().length < 6"
                                             [ngModel]="state.password()"
                                             (ngModelChange)="state.setPassword($event)"
@@ -262,6 +264,7 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                     <div class="position-relative">
                                         <input [type]="showConfirm() ? 'text' : 'password'" class="field-input pe-5"
                                             name="adult-confirm-password"
+                                            autocomplete="new-password"
                                             [class.is-required]="!state.passwordsMatch()"
                                             [ngModel]="state.confirmPassword()"
                                             (ngModelChange)="state.setConfirmPassword($event)"
