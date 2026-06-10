@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, OnChanges, signal, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, signal, inject, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { LadtService } from '../services/ladt.service';
+import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/api';
 
 @Component({
@@ -63,9 +64,10 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
           </div>
         </div>
 
-        <!-- ── Save ── -->
-        <div class="d-flex align-items-center gap-3 mt-3">
-          <button type="submit" class="btn btn-sm btn-primary px-4" [disabled]="isSaving()">
+        <!-- ── Save (sticky footer) ── -->
+        <div class="detail-save-bar" [class.is-dirty]="isDirty()">
+          <button type="submit" class="btn btn-sm btn-primary px-4 detail-save-btn"
+                  [class.pulse]="isDirty()" [disabled]="isSaving()">
             @if (isSaving()) {
               <span class="spinner-border spinner-border-sm me-1"></span>
             }
@@ -75,6 +77,10 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
             <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
               <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
               {{ saveMessage() }}
+            </span>
+          } @else if (isDirty()) {
+            <span class="small unsaved-hint text-warning-emphasis">
+              <i class="bi bi-exclamation-circle me-1"></i>Unsaved changes
             </span>
           }
         </div>
@@ -98,7 +104,7 @@ import type { DivisionDetailDto, UpdateDivisionRequest } from '../../../../core/
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class DivisionDetailComponent implements OnChanges {
+export class DivisionDetailComponent implements OnChanges, OnInit, OnDestroy {
   readonly divisionId = input.required<string>();
   readonly siblingNames = input<string[]>([]);
   readonly canDelete = input(true);
@@ -106,6 +112,14 @@ export class DivisionDetailComponent implements OnChanges {
   readonly deleted = output<void>();
 
   private readonly ladtService = inject(LadtService);
+  private readonly editGuard = inject(LadtEditGuardService);
+
+  private readonly detailForm = viewChild(NgForm);
+
+  /** Unsaved-changes probe — NgForm.dirty over the division settings form.
+   *  See LadtEditGuardService. */
+  readonly isDirty = (): boolean => this.detailForm()?.dirty ?? false;
+  private readonly dirtyProbe = () => this.isDirty();
 
   division = signal<DivisionDetailDto | null>(null);
   isLoading = signal(false);
@@ -116,6 +130,14 @@ export class DivisionDetailComponent implements OnChanges {
   isUnassigned = signal(false);
 
   form: any = {};
+
+  ngOnInit(): void {
+    this.editGuard.register(this.dirtyProbe);
+  }
+
+  ngOnDestroy(): void {
+    this.editGuard.unregister(this.dirtyProbe);
+  }
 
   ngOnChanges(): void {
     this.loadDetail();

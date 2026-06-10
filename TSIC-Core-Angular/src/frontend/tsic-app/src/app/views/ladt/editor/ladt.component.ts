@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { CdkTreeModule } from '@angular/cdk/tree';
 import { Observable, forkJoin } from 'rxjs';
 import { LadtService } from './services/ladt.service';
+import { LadtEditGuardService } from './services/ladt-edit-guard.service';
 import { LeagueDetailComponent } from './components/league-detail.component';
 import { AgegroupDetailComponent } from './components/agegroup-detail.component';
 import { DivisionDetailComponent } from './components/division-detail.component';
@@ -58,10 +59,12 @@ export interface LadtFlatNode {
   ],
   templateUrl: './ladt.component.html',
   styleUrl: './ladt.component.scss',
+  providers: [LadtEditGuardService],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LadtEditorComponent implements OnInit, AfterViewChecked {
   private readonly ladtService = inject(LadtService);
+  private readonly editGuard = inject(LadtEditGuardService);
 
   // ── State ──
   isLoading = signal(false);
@@ -229,6 +232,10 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   // Fly-in detail panel
   isDetailOpen = signal(false);
   detailNode = signal<LadtFlatNode | null>(null);
+
+  // Unsaved-changes guard: a pending close/sibling-jump that's waiting on the
+  // "discard changes?" confirm. null = no pending action (dialog hidden).
+  pendingNav = signal<{ type: 'close' } | { type: 'sibling'; id: string } | null>(null);
 
   // ── Fly-in sibling navigation (dropdown + ↑/↓ keys) ──
   // Siblings = same parent + same level, in tree order (matches the left panel).
@@ -986,24 +993,65 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     }
   }
 
+  /** User-initiated close (X / backdrop / Esc). Guards unsaved edits first. */
   closeDetail(): void {
+    if (this.editGuard.isDirty()) {
+      this.pendingNav.set({ type: 'close' });
+      return;
+    }
+    this.forceCloseDetail();
+  }
+
+  /** Close without the unsaved-changes guard — used after a save/clone/drop has
+   *  already persisted (or been confirmed), so there's nothing to discard. */
+  private forceCloseDetail(): void {
+    this.pendingNav.set(null);
     this.isDetailOpen.set(false);
     this.detailNode.set(null);
   }
 
   @HostListener('document:keydown.escape')
   onEscapeKey(): void {
+    // While the discard prompt is up, let the dialog own Escape (it cancels).
+    if (this.pendingNav()) return;
     if (this.isDetailOpen()) this.closeDetail();
   }
 
   /** Jump the fly-in to a sibling by id (dropdown selection). */
   flyinNavigateTo(id: string): void {
-    this.setFlyinNode(this.flyinSiblings().find(n => n.id === id));
+    this.requestFlyinNav(this.flyinSiblings().find(n => n.id === id));
   }
 
   /** Step to the previous/next sibling (↑/↓ keys); clamps at the ends. */
   flyinNavigate(delta: number): void {
-    this.setFlyinNode(this.flyinSiblings()[this.flyinIndex() + delta]);
+    this.requestFlyinNav(this.flyinSiblings()[this.flyinIndex() + delta]);
+  }
+
+  /** Guard a sibling jump on unsaved edits before swapping the panel. */
+  private requestFlyinNav(target: LadtFlatNode | undefined): void {
+    if (!target || target.id === this.detailNode()?.id) return;
+    if (this.editGuard.isDirty()) {
+      this.pendingNav.set({ type: 'sibling', id: target.id });
+      return;
+    }
+    this.setFlyinNode(target);
+  }
+
+  /** "Discard" confirmed — carry out the pending close or sibling jump. */
+  onDiscardConfirmed(): void {
+    const nav = this.pendingNav();
+    this.pendingNav.set(null);
+    if (!nav) return;
+    if (nav.type === 'close') {
+      this.forceCloseDetail();
+    } else {
+      this.setFlyinNode(this.flyinSiblings().find(n => n.id === nav.id));
+    }
+  }
+
+  /** "Keep editing" — dismiss the prompt, stay where we are. */
+  onDiscardCancelled(): void {
+    this.pendingNav.set(null);
   }
 
   /** Swap the fly-in to a sibling — panels reload via ngOnChanges; tree + grid stay in sync. */
@@ -1044,7 +1092,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   onDetailSaved(): void {
     const node = this.selectedNode();
     this.jobFees.set([]); // invalidate fee cache so grid reloads fresh
-    this.closeDetail();
+    this.forceCloseDetail();
     this.loadTree();
     if (node) this.loadSiblings(node);
   }
@@ -1052,7 +1100,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   onDetailCloned(newTeamId: string): void {
     // Reload tree and refocus on the clone — fly-in stays open on the new team.
     this.jobFees.set([]);
-    this.closeDetail();
+    this.forceCloseDetail();
     this.loadTree(newTeamId, /* openDetailAfter */ true);
   }
 
@@ -1062,7 +1110,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
     // surfaces the team under the Dropped Teams agegroup.
     const dropped = this.selectedNode();
     this.jobFees.set([]);
-    this.closeDetail();
+    this.forceCloseDetail();
 
     if (!dropped) return;
 
@@ -1084,7 +1132,7 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
 
   onDetailDeleted(): void {
     const deleted = this.selectedNode();
-    this.closeDetail();
+    this.forceCloseDetail();
 
     if (!deleted) return;
 

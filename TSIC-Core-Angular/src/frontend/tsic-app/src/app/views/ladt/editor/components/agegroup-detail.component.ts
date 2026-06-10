@@ -1,11 +1,13 @@
-import { ChangeDetectionStrategy, Component, OnChanges, HostListener, computed, signal, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, HostListener, computed, signal, inject, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
+import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
+import { ToastService } from '../../../../shared-ui/toast.service';
 import { FeeCardComponent, type ModifierForm } from './fee-card.component';
-import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { RepriceConfirmComponent, type RepriceDialog } from './reprice-confirm.component';
 import { CloneAgegroupDialogComponent } from './clone-agegroup-dialog.component';
 import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, FeeModifierDto } from '../../../../core/api';
 import { AGEGROUP_COLORS } from '../../../scheduling/shared/utils/scheduling-helpers';
@@ -18,7 +20,7 @@ const JOB_TYPE_TOURNAMENT = 2;
 @Component({
   selector: 'app-agegroup-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent, CloneAgegroupDialogComponent],
+  imports: [CommonModule, FormsModule, FeeCardComponent, RepriceConfirmComponent, CloneAgegroupDialogComponent],
   template: `
     <div class="detail-header d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
@@ -157,34 +159,38 @@ const JOB_TYPE_TOURNAMENT = 2;
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         }
 
-        <!-- ── Save ── -->
-        <div class="d-flex align-items-center gap-3 mt-3">
-          <button type="submit" class="btn btn-sm btn-primary px-4" [disabled]="isSaving()">
-            @if (isSaving()) {
-              <span class="spinner-border spinner-border-sm me-1"></span>
+        <!-- ── Save (sticky footer) ── -->
+        <div class="detail-save-bar" [class.is-dirty]="isDirty()" [class.is-confirming]="repriceDialog() !== null">
+          @if (repriceDialog(); as dlg) {
+            <app-reprice-confirm
+              [dialog]="dlg"
+              (updateAll)="onRepriceConfirm()"
+              (convert)="onPhaseConvert($event)"
+              (secondary)="onRepriceDismiss()"
+              (keepEditing)="onRepriceCancel()" />
+          } @else {
+            <button type="submit" class="btn btn-sm btn-primary px-4 detail-save-btn"
+                    [class.pulse]="isDirty()" [disabled]="isSaving()">
+              @if (isSaving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Save
+            </button>
+            @if (saveMessage()) {
+              <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
+                <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
+                {{ saveMessage() }}
+              </span>
+            } @else if (isDirty()) {
+              <span class="small unsaved-hint text-warning-emphasis">
+                <i class="bi bi-exclamation-circle me-1"></i>Unsaved changes
+              </span>
             }
-            Save
-          </button>
-          @if (saveMessage()) {
-            <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
-              <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
-              {{ saveMessage() }}
-            </span>
           }
         </div>
       </form>
     }
 
-    @if (repriceDialog(); as dlg) {
-      <confirm-dialog
-        [title]="dlg.isPhase ? 'Convert payment phase?' : 'Update existing registrations?'"
-        [message]="dlg.message"
-        [confirmLabel]="dlg.isPhase ? 'Convert' : 'Update all'"
-        [cancelLabel]="dlg.isPhase ? 'Cancel' : 'Future only'"
-        confirmVariant="warning"
-        (confirmed)="onRepriceConfirm()"
-        (cancelled)="onRepriceDismiss()" />
-    }
   `,
   styles: [`
     :host { display: block; }
@@ -261,8 +267,11 @@ const JOB_TYPE_TOURNAMENT = 2;
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AgegroupDetailComponent implements OnChanges {
+export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   readonly agegroupId = input.required<string>();
+  /** Parent league (the level-1 node's parentId). Enables the "apply phase to every age
+   *  group in this league" scope choice on a phase flip; null = single-age-group only. */
+  readonly leagueId = input<string | null>(null);
   readonly canDelete = input(true);
   readonly playerCount = input(0);
   readonly saved = output<void>();
@@ -272,6 +281,19 @@ export class AgegroupDetailComponent implements OnChanges {
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
   private readonly feeReprice = inject(FeeRepriceService);
+  private readonly editGuard = inject(LadtEditGuardService);
+  private readonly toast = inject(ToastService);
+
+  /** Set per save() — true when this save flips a payment-phase toggle (either role/direction),
+   *  so performSave can fire the quantified success toast on completion. */
+  private phaseFlipPending = false;
+
+  private readonly detailForm = viewChild(NgForm);
+
+  /** Unsaved-changes probe — NgForm.dirty covers settings + fee-card controls (all
+   *  render inside this form). See LadtEditGuardService. */
+  readonly isDirty = (): boolean => this.detailForm()?.dirty ?? false;
+  private readonly dirtyProbe = () => this.isDirty();
 
   readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
@@ -300,7 +322,12 @@ export class AgegroupDetailComponent implements OnChanges {
   clubRepModifiers: ModifierForm[] = [];
 
   // Reprice prompt: null = closed; isPhase drives the confirm/cancel semantics + copy.
-  repriceDialog = signal<{ isPhase: boolean; message: string } | null>(null);
+  // leagueScope (phase flips only) carries the this-vs-all-age-groups counts for the selector.
+  repriceDialog = signal<RepriceDialog | null>(null);
+
+  /** Set when a phase Convert chose "all age groups" — the roles to fan out across the league
+   *  after this age group's own save completes. Consumed (and cleared) in performSave. */
+  private leagueApplyRoles: ('player' | 'clubRep')[] | null = null;
 
   // Snapshots taken at load + after each successful save, to detect what changed.
   private originalSnapshot = { player: '', clubRep: '' };
@@ -311,6 +338,14 @@ export class AgegroupDetailComponent implements OnChanges {
   @HostListener('document:click')
   onDocumentClick(): void {
     this.colorDropdownOpen.set(false);
+  }
+
+  ngOnInit(): void {
+    this.editGuard.register(this.dirtyProbe);
+  }
+
+  ngOnDestroy(): void {
+    this.editGuard.unregister(this.dirtyProbe);
   }
 
   ngOnChanges(): void {
@@ -391,6 +426,8 @@ export class AgegroupDetailComponent implements OnChanges {
 
     const playerChanged = this.roleChanged('player');
     const clubRepChanged = this.roleChanged('clubRep');
+    this.phaseFlipPending = (playerChanged && this.feeForm.playerPhase !== this.originalPhase.player)
+                         || (clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep);
 
     // Nothing fee-related changed → straight save (no reprice, no prompt).
     if (!playerChanged && !clubRepChanged) {
@@ -399,8 +436,9 @@ export class AgegroupDetailComponent implements OnChanges {
     }
 
     // A phase flip on any changed role is always retroactive (confirm, not future-only).
-    const phaseFlip = (playerChanged && this.feeForm.playerPhase !== this.originalPhase.player)
-                   || (clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep);
+    const phaseFlip = this.phaseFlipPending;
+    const playerPhaseFlipped = playerChanged && this.feeForm.playerPhase !== this.originalPhase.player;
+    const clubRepPhaseFlipped = clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep;
 
     this.isSaving.set(true);
     this.saveMessage.set(null);
@@ -412,6 +450,35 @@ export class AgegroupDetailComponent implements OnChanges {
         // No existing registrations in scope → just save the config (nothing to reprice).
         if (blast.playerCount + blast.teamCount === 0) {
           this.performSave(false);
+          return;
+        }
+        // Phase flip with a known parent league → offer the "all age groups" fan-out, with
+        // this-vs-league counts. Fetch the league-wide count (flipped roles only) alongside.
+        if (phaseFlip && this.leagueId()) {
+          this.feeReprice.getBlastArea(
+            { leagueId: this.leagueId()! },
+            { player: playerPhaseFlipped, clubRep: clubRepPhaseFlipped }
+          ).subscribe({
+            next: (leagueBlast) => {
+              this.repriceDialog.set({
+                isPhase: true,
+                message: 'Convert existing registrations to the new payment phase. Choose how widely to apply it:',
+                leagueScope: {
+                  thisCount: blast.playerCount + blast.teamCount,
+                  allCount: leagueBlast.playerCount + leagueBlast.teamCount
+                }
+              });
+              this.isSaving.set(false);
+            },
+            // League count probe failed → fall back to the single-age-group confirm.
+            error: () => {
+              this.repriceDialog.set({
+                isPhase: true,
+                message: this.feeReprice.buildMessage(blast, this.scopeLabel(), true)
+              });
+              this.isSaving.set(false);
+            }
+          });
           return;
         }
         this.repriceDialog.set({
@@ -427,7 +494,69 @@ export class AgegroupDetailComponent implements OnChanges {
 
   onRepriceConfirm(): void {
     this.repriceDialog.set(null);
-    this.performSave(true);   // "Update all" / "Convert" → retroactive reprice
+    this.performSave(true);   // "Update all" (amount change) → retroactive reprice
+  }
+
+  /**
+   * Phase "Convert". scope='this' reprices only this age group (the existing path); scope='all'
+   * additionally fans the flipped phase across every other age group in the league once this
+   * age group's own save lands (see applyLeagueThenFinish). Roles to fan out are captured now,
+   * before performSave re-snapshots the originals.
+   */
+  onPhaseConvert(scope: 'this' | 'all'): void {
+    this.repriceDialog.set(null);
+    this.leagueApplyRoles = scope === 'all' ? this.flippedPhaseRoles() : null;
+    this.performSave(true);
+  }
+
+  /** Roles whose payment phase differs from the last-saved snapshot (the ones being flipped). */
+  private flippedPhaseRoles(): ('player' | 'clubRep')[] {
+    const roles: ('player' | 'clubRep')[] = [];
+    if (this.feeForm.playerPhase !== this.originalPhase.player) roles.push('player');
+    if (this.feeForm.clubRepPhase !== this.originalPhase.clubRep) roles.push('clubRep');
+    return roles;
+  }
+
+  /**
+   * After this age group saved + repriced (thisCount), stamp the flipped phase onto the league's
+   * other age groups via the canonical endpoint, then toast the combined league-wide total. The
+   * endpoint's whole-job reprice is idempotent, so this age group's already-converted rows
+   * recompute unchanged and aren't double-counted — its registrations are in `thisCount`, the
+   * siblings' in the endpoint's `registrationsRepriced`.
+   */
+  private applyLeagueThenFinish(thisCount: number, roles: ('player' | 'clubRep')[]): void {
+    const leagueId = this.leagueId();
+    if (!leagueId || roles.length === 0) {
+      this.finishLeagueApply(thisCount, 0, 1);
+      return;
+    }
+    const calls = roles.map(role => this.ladtService.applyLeaguePhase(leagueId, {
+      roleId: role === 'player' ? PLAYER_ROLE : CLUBREP_ROLE,
+      bFullPaymentRequired: role === 'player' ? this.feeForm.playerPhase : this.feeForm.clubRepPhase
+    }));
+    forkJoin(calls).subscribe({
+      next: (responses) => {
+        const others = responses.reduce((sum, r) => sum + r.registrationsRepriced, 0);
+        const ags = responses.reduce((max, r) => Math.max(max, r.agegroupsApplied), 0);
+        this.finishLeagueApply(thisCount, others, ags);
+      },
+      // This age group already saved + converted; the fan-out failed. Report what did land.
+      error: () => {
+        this.isSaving.set(false);
+        this.toast.show(this.feeReprice.phaseToastMessage(thisCount), 'warning');
+        this.saved.emit();
+      }
+    });
+  }
+
+  private finishLeagueApply(thisCount: number, otherCount: number, agegroupsApplied: number): void {
+    this.isSaving.set(false);
+    const total = thisCount + otherCount;
+    const ags = Math.max(agegroupsApplied, 1);
+    this.toast.show(
+      `Converted ${total} registration${total === 1 ? '' : 's'} across ${ags} age group${ags === 1 ? '' : 's'}.`,
+      'success');
+    this.saved.emit();
   }
 
   onRepriceDismiss(): void {
@@ -442,6 +571,12 @@ export class AgegroupDetailComponent implements OnChanges {
       // "Future only" → save the config, leave existing registrations untouched.
       this.performSave(false);
     }
+  }
+
+  /** "Keep editing" — collapse the inline confirm and save nothing; stay in the editor. */
+  onRepriceCancel(): void {
+    this.repriceDialog.set(null);
+    this.isSaving.set(false);
   }
 
   private performSave(repriceExisting: boolean): void {
@@ -504,13 +639,27 @@ export class AgegroupDetailComponent implements OnChanges {
 
     forkJoin(saves).subscribe({
       next: (results) => {
-        this.isSaving.set(false);
         this.isError.set(false);
         this.saveMessage.set(this.savedMessage(results, 'Age group saved successfully.'));
         this.captureOriginals();
+
+        // "Apply to all age groups" chosen → keep the spinner up while the phase fans out
+        // across the league, then toast the combined total (handles its own emit).
+        const applyRoles = this.leagueApplyRoles;
+        this.leagueApplyRoles = null;
+        if (applyRoles && applyRoles.length > 0) {
+          this.applyLeagueThenFinish(this.feeReprice.repricedCount(results), applyRoles);
+          return;
+        }
+
+        this.isSaving.set(false);
+        if (this.phaseFlipPending) {
+          this.toast.show(this.feeReprice.phaseToastMessage(this.feeReprice.repricedCount(results)), 'success');
+        }
         this.saved.emit();
       },
       error: (err) => {
+        this.leagueApplyRoles = null;   // the save failed; don't fan out on a later save
         this.isSaving.set(false);
         this.isError.set(true);
         this.saveMessage.set(err.error?.message || 'Failed to save age group.');
@@ -589,7 +738,13 @@ export class AgegroupDetailComponent implements OnChanges {
   }
 
   selectColor(value: string | null): void {
-    this.form.color = value;
+    if (value !== this.form.color) {
+      this.form.color = value;
+      // The color picker is a dropdown, not a named <input>, so NgForm can't see this
+      // change. Flag the form dirty so the sticky save bar lights and the discard guard
+      // covers a color-only edit.
+      this.detailForm()?.form.markAsDirty();
+    }
     this.colorDropdownOpen.set(false);
   }
 

@@ -1,11 +1,14 @@
-import { ChangeDetectionStrategy, Component, OnChanges, computed, signal, inject, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnChanges, OnInit, OnDestroy, computed, signal, inject, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { forkJoin, Observable } from 'rxjs';
 import { LadtService } from '../services/ladt.service';
+import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
+import { ToastService } from '../../../../shared-ui/toast.service';
 import { FeeCardComponent, type ModifierForm } from './fee-card.component';
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { CloneTeamDialogComponent } from './clone-team-dialog.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { TeamDetailDto, UpdateTeamRequest, ClubRegistrationDto, MoveTeamToClubRequest, JobFeeDto } from '../../../../core/api';
@@ -17,7 +20,7 @@ const JOB_TYPE_TOURNAMENT = 2;
 @Component({
   selector: 'app-team-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent, CloneTeamDialogComponent],
+  imports: [CommonModule, FormsModule, FeeCardComponent, ConfirmDialogComponent, RepriceConfirmComponent, CloneTeamDialogComponent],
   template: `
     <div class="detail-header d-flex align-items-center justify-content-between">
       <div class="d-flex align-items-center gap-2">
@@ -244,19 +247,33 @@ const JOB_TYPE_TOURNAMENT = 2;
           </div>
         </div>
 
-        <!-- ── Save ── -->
-        <div class="d-flex align-items-center gap-3 mt-3">
-          <button type="submit" class="btn btn-sm btn-primary px-4" [disabled]="isSaving()">
-            @if (isSaving()) {
-              <span class="spinner-border spinner-border-sm me-1"></span>
+        <!-- ── Save (sticky footer) ── -->
+        <div class="detail-save-bar" [class.is-dirty]="isDirty()" [class.is-confirming]="repriceDialog() !== null">
+          @if (repriceDialog(); as dlg) {
+            <app-reprice-confirm
+              [dialog]="dlg"
+              (updateAll)="onRepriceConfirm()"
+              (convert)="onRepriceConfirm()"
+              (secondary)="onRepriceDismiss()"
+              (keepEditing)="onRepriceCancel()" />
+          } @else {
+            <button type="submit" class="btn btn-sm btn-primary px-4 detail-save-btn"
+                    [class.pulse]="isDirty()" [disabled]="isSaving()">
+              @if (isSaving()) {
+                <span class="spinner-border spinner-border-sm me-1"></span>
+              }
+              Save
+            </button>
+            @if (saveMessage()) {
+              <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
+                <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
+                {{ saveMessage() }}
+              </span>
+            } @else if (isDirty()) {
+              <span class="small unsaved-hint text-warning-emphasis">
+                <i class="bi bi-exclamation-circle me-1"></i>Unsaved changes
+              </span>
             }
-            Save
-          </button>
-          @if (saveMessage()) {
-            <span class="small" [class.text-success]="!isError()" [class.text-danger]="isError()">
-              <i class="bi me-1" [class.bi-check-circle]="!isError()" [class.bi-exclamation-triangle]="isError()"></i>
-              {{ saveMessage() }}
-            </span>
           }
         </div>
       </form>
@@ -273,16 +290,6 @@ const JOB_TYPE_TOURNAMENT = 2;
       />
     }
 
-    @if (repriceDialog(); as dlg) {
-      <confirm-dialog
-        [title]="dlg.isPhase ? 'Convert payment phase?' : 'Update existing registrations?'"
-        [message]="dlg.message"
-        [confirmLabel]="dlg.isPhase ? 'Convert' : 'Update all'"
-        [cancelLabel]="dlg.isPhase ? 'Cancel' : 'Future only'"
-        confirmVariant="warning"
-        (confirmed)="onRepriceConfirm()"
-        (cancelled)="onRepriceDismiss()" />
-    }
   `,
   styles: [`
     :host { display: block; }
@@ -305,7 +312,7 @@ const JOB_TYPE_TOURNAMENT = 2;
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TeamDetailComponent implements OnChanges {
+export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   readonly teamId = input.required<string>();
   readonly saved = output<void>();
   readonly cloned = output<string>();
@@ -315,6 +322,20 @@ export class TeamDetailComponent implements OnChanges {
   private readonly ladtService = inject(LadtService);
   private readonly jobService = inject(JobService);
   private readonly feeReprice = inject(FeeRepriceService);
+  private readonly editGuard = inject(LadtEditGuardService);
+  private readonly toast = inject(ToastService);
+
+  /** Set per save() — true when this save flips a payment-phase toggle (either role/direction),
+   *  so performSave can fire the quantified success toast on completion. */
+  private phaseFlipPending = false;
+
+  private readonly detailForm = viewChild(NgForm);
+
+  /** Unsaved-changes probe: NgForm.dirty covers every named control, including the
+   *  fee-card inputs (they render inside this form). Stays conservative — a hand-reverted
+   *  value still reads dirty, which is the safe side for a discard guard. */
+  readonly isDirty = (): boolean => this.detailForm()?.dirty ?? false;
+  private readonly dirtyProbe = () => this.isDirty();
 
   readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
@@ -352,6 +373,14 @@ export class TeamDetailComponent implements OnChanges {
   private originalPhase = { player: null as boolean | null, clubRep: null as boolean | null };
   private playerFeeId: string | null = null;
   private clubRepFeeId: string | null = null;
+
+  ngOnInit(): void {
+    this.editGuard.register(this.dirtyProbe);
+  }
+
+  ngOnDestroy(): void {
+    this.editGuard.unregister(this.dirtyProbe);
+  }
 
   ngOnChanges(): void {
     this.loadDetail();
@@ -422,14 +451,15 @@ export class TeamDetailComponent implements OnChanges {
 
     const playerChanged = this.roleChanged('player');
     const clubRepChanged = this.roleChanged('clubRep');
+    this.phaseFlipPending = (playerChanged && this.feeForm.playerPhase !== this.originalPhase.player)
+                         || (clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep);
 
     if (!playerChanged && !clubRepChanged) {
       this.performSave(false);
       return;
     }
 
-    const phaseFlip = (playerChanged && this.feeForm.playerPhase !== this.originalPhase.player)
-                   || (clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep);
+    const phaseFlip = this.phaseFlipPending;
 
     this.isSaving.set(true);
     this.saveMessage.set(null);
@@ -544,6 +574,9 @@ export class TeamDetailComponent implements OnChanges {
         this.isError.set(false);
         this.saveMessage.set(this.savedMessage(results, 'Team saved successfully.'));
         this.captureOriginals();
+        if (this.phaseFlipPending) {
+          this.toast.show(this.feeReprice.phaseToastMessage(this.feeReprice.repricedCount(results)), 'success');
+        }
         // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },
@@ -570,6 +603,12 @@ export class TeamDetailComponent implements OnChanges {
     } else {
       this.performSave(false);
     }
+  }
+
+  /** "Keep editing" — collapse the inline confirm and save nothing; stay in the editor. */
+  onRepriceCancel(): void {
+    this.repriceDialog.set(null);
+    this.isSaving.set(false);
   }
 
   private savedMessage(results: any[], plain: string): string {

@@ -369,6 +369,7 @@
       } @else if (node.level === 1) {
         <app-agegroup-detail
           [agegroupId]="node.id"
+          [leagueId]="node.parentId"
           [canDelete]="canDelete(node)"
           [playerCount]="node.playerCount"
           (saved)="onDetailSaved()"
@@ -395,6 +396,19 @@
     </div>
   }
 </div>
+
+<!-- Unsaved-changes guard for the fly-in (close / sibling jump) -->
+@if (pendingNav()) {
+  <confirm-dialog
+    title="Discard unsaved changes?"
+    message="This panel has changes you haven't saved. Leaving now will discard them."
+    confirmLabel="Discard changes"
+    cancelLabel="Keep editing"
+    confirmVariant="warning"
+    (confirmed)="onDiscardConfirmed()"
+    (cancelled)="onDiscardCancelled()"
+  />
+}
 
 <!-- Delete / Drop confirmation dialog -->
 @if (showDeleteConfirm()) {

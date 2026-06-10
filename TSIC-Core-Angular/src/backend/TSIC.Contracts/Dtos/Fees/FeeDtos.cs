@@ -93,3 +93,27 @@ public record AffectedRegistrationCountDto
 {
     public required int Count { get; init; }
 }
+
+/// <summary>
+/// Apply a payment-phase change to EVERY age group in a league at once (the LADT
+/// "apply to all age groups" action). Only the phase is propagated — deposits, balances,
+/// and modifiers on each age group are left as-is. A change is always retroactive.
+/// </summary>
+public record ApplyLeaguePhaseRequest
+{
+    public required string RoleId { get; init; }
+
+    /// <summary>Phase to stamp on every in-scope age group: true = full payment now, null = inherit/off.</summary>
+    public bool? BFullPaymentRequired { get; init; }
+}
+
+/// <summary>
+/// Result of an "apply to all age groups" phase change: how many age groups were stamped
+/// (those with an effective deposit, excluding WAITLIST/DROPPED buckets) and how many existing
+/// registrations were converted by the canonical reprice.
+/// </summary>
+public record ApplyLeaguePhaseResponse
+{
+    public required int AgegroupsApplied { get; init; }
+    public required int RegistrationsRepriced { get; init; }
+}

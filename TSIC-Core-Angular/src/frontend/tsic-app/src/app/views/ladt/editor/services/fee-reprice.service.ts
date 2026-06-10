@@ -63,4 +63,20 @@ export class FeeRepriceService {
     }
     return parts.length ? parts.join(' and ') : 'no existing registrations';
   }
+
+  /** Total existing registrations a save's reprice touched, summed from the save results
+   *  (each fee save returns `registrationsRepriced`). */
+  repricedCount(results: unknown[]): number {
+    return results.reduce<number>(
+      (sum, r) => sum + (r && typeof r === 'object' && 'registrationsRepriced' in r
+        ? (r as { registrationsRepriced: number }).registrationsRepriced : 0), 0);
+  }
+
+  /** Success-toast copy for a payment-phase change — quantified when registrations converted,
+   *  generic otherwise (a phase change with nothing in scope is still a successful change). */
+  phaseToastMessage(repriced: number): string {
+    return repriced > 0
+      ? `Payment phase updated — converted ${repriced} registration${repriced === 1 ? '' : 's'}.`
+      : 'Payment phase updated.';
+  }
 }

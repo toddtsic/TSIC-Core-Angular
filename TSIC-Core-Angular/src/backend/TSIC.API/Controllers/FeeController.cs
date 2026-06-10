@@ -252,6 +252,112 @@ public class FeeController : ControllerBase
     }
 
     /// <summary>
+    /// Apply a payment-phase change to EVERY age group in a league at once — the LADT
+    /// "apply to all age groups" action. For each age group that has an effective deposit for
+    /// the role (the phase toggle only matters when there's a deposit to defer) and is not a
+    /// WAITLIST/DROPPED holding bucket, this upserts a phase-only override (BFullPaymentRequired
+    /// only — deposits/balances/modifiers inherit), overwriting any per-age-group phase already
+    /// set. It then reprices existing registrations ONCE via the canonical engine — player
+    /// reprice, or team reprice (which also rolls each team's club-rep registration account up).
+    /// Returns how many age groups were stamped and how many registrations converted.
+    /// </summary>
+    [HttpPut("league/{leagueId:guid}/apply-phase")]
+    public async Task<ActionResult<ApplyLeaguePhaseResponse>> ApplyLeaguePhase(
+        Guid leagueId, [FromBody] ApplyLeaguePhaseRequest request, CancellationToken ct)
+    {
+        if (request.RoleId != RoleConstants.Player && request.RoleId != RoleConstants.ClubRep)
+            return BadRequest(new { message = "Payment phase applies only to Player or Club Rep fees." });
+
+        var jobId = await ResolveJobIdAsync();
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        var agegroups = await _ageGroups.GetByLeagueIdAsync(leagueId, ct);
+
+        var applied = 0;
+        foreach (var ag in agegroups)
+        {
+            if (IsHoldingBucket(ag.AgegroupName)) continue;
+
+            // Phase only matters where there's a real deposit to defer (own or inherited via
+            // the league cascade). EffectiveDeposit falls back to BalanceDue, so gate on the
+            // actual Deposit — a balance-only fee is a single payment with nothing to convert.
+            var resolved = await _feeRepo.GetResolvedFeeForAgegroupAsync(jobId, request.RoleId, ag.AgegroupId, ct);
+            if ((resolved?.Deposit ?? 0m) <= 0m) continue;
+
+            await UpsertAgegroupPhaseAsync(jobId, request.RoleId, ag.AgegroupId, request.BFullPaymentRequired, userId, ct);
+            applied++;
+        }
+
+        var repriced = 0;
+        if (applied > 0)
+        {
+            await _feeRepo.SaveChangesAsync(ct);
+            // One whole-job recalc per role; out-of-league/out-of-scope rows resolve unchanged
+            // (idempotent) and only the stamped age groups' registrations actually convert.
+            repriced = await RepriceRoleWholeJobAsync(jobId, request.RoleId, userId, ct);
+        }
+
+        return Ok(new ApplyLeaguePhaseResponse { AgegroupsApplied = applied, RegistrationsRepriced = repriced });
+    }
+
+    /// <summary>
+    /// Upsert a phase-only override for a role at an age group: set BFullPaymentRequired and
+    /// leave Deposit/BalanceDue null (a new row inherits amounts from the league cascade; an
+    /// existing row keeps its own amounts/modifiers). Caller saves changes once after the loop.
+    /// </summary>
+    private async Task UpsertAgegroupPhaseAsync(
+        Guid jobId, string roleId, Guid agegroupId, bool? phase, string? userId, CancellationToken ct)
+    {
+        var existing = await _feeRepo.GetTrackedByScopeAsync(jobId, roleId, agegroupId, null, null, ct);
+        if (existing != null)
+        {
+            existing.BFullPaymentRequired = phase;
+            existing.Modified = DateTime.Now;
+            existing.LebUserId = userId;
+        }
+        else
+        {
+            _feeRepo.Add(new JobFees
+            {
+                JobFeeId = Guid.NewGuid(),
+                JobId = jobId,
+                RoleId = roleId,
+                AgegroupId = agegroupId,
+                TeamId = null,
+                LeagueId = null,
+                Deposit = null,
+                BalanceDue = null,
+                BFullPaymentRequired = phase,
+                Modified = DateTime.Now,
+                LebUserId = userId
+            });
+        }
+    }
+
+    /// <summary>
+    /// Reprice every existing registration for a role across the whole job via the canonical
+    /// engine. ClubRep routes through team reprice, which also rolls up each team's club-rep
+    /// registration account (<c>SynchronizeClubRepFinancialsAsync</c>). Returns the changed count.
+    /// </summary>
+    private async Task<int> RepriceRoleWholeJobAsync(Guid jobId, string roleId, string? userId, CancellationToken ct)
+    {
+        var actor = userId ?? TsicConstants.SuperUserId;
+
+        if (roleId == RoleConstants.Player)
+            return await _playerRegService.RecalculatePlayerFeesAsync(jobId, actor, null, null, ct);
+
+        var result = await _teamRegService.RecalculateTeamFeesAsync(
+            new RecalculateTeamFeesRequest { JobId = jobId }, actor);
+        return result.UpdatedCount;
+    }
+
+    /// <summary>WAITLIST/DROPPED age groups are holding buckets — never fee-converted.</summary>
+    private static bool IsHoldingBucket(string? agegroupName) =>
+        !string.IsNullOrEmpty(agegroupName)
+        && (agegroupName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase)
+            || agegroupName.Contains("DROPPED", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// Delete a fee row (and its modifiers via cascade).
     /// </summary>
     [HttpDelete("{jobFeeId:guid}")]
