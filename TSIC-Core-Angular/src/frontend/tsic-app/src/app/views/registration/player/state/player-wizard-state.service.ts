@@ -10,10 +10,12 @@ import { EligibilityService } from './eligibility.service';
 import { PlayerFormsService } from './player-forms.service';
 import { InsuranceStateV2Service } from './insurance-state-v2.service';
 import { InsuranceV2Service } from './insurance-v2.service';
+import { TeamService } from '@views/registration/player/services/team.service';
 import type { ReserveTeamsResponseDto } from '@core/api';
 import type {
     FamilyPlayersResponseDto,
     FamilyPlayerDto,
+    PlayerProfileFieldSchema,
     PreSubmitPlayerRegistrationRequestDto,
     PreSubmitPlayerRegistrationResponseDto,
     PreSubmitTeamSelectionDto,
@@ -41,8 +43,45 @@ export class PlayerWizardStateService {
     readonly familyPlayers = inject(FamilyPlayersService);
     readonly eligibility = inject(EligibilityService);
     readonly playerForms = inject(PlayerFormsService);
+    private readonly teamService = inject(TeamService);
     private readonly insuranceState = inject(InsuranceStateV2Service);
     private readonly insuranceSvc = inject(InsuranceV2Service);
+
+    // ── Field visibility chokepoint ───────────────────────────────────
+    /**
+     * Single source of truth for "is this field visible for this player" across
+     * render, validation, field-error display, and review. Resolves the recruiting
+     * gate context (List_RecruitingGradYears + the registered team's grad year) here
+     * so every caller gates identically — no per-call-site drift.
+     */
+    isFieldVisibleForPlayer(playerId: string, field: PlayerProfileFieldSchema): boolean {
+        const wfn = this.jobCtx.waiverFieldNames();
+        const tct = this.eligibility.teamConstraintType();
+        const recruitingGradYears = this.jobCtx.recruitingGradYears();
+        const teamGradYear = this.resolveTeamGradYear(playerId, recruitingGradYears);
+        return this.playerForms.isFieldVisibleForPlayer(
+            playerId, field, wfn, tct, recruitingGradYears, teamGradYear,
+        );
+    }
+
+    /**
+     * Grad year of the team the player is registering for, used to gate the
+     * College Recruiting fields. Returns the recruiting grad year the selected
+     * team's agegroup/name matches (e.g. "2028"), or null if none — which hides
+     * the recruiting fields. Reuses the same agegroup/team-name match the team
+     * filter uses for BYGRADYEAR (team.service.ts). Mirrors legacy
+     * AdjustRecruittingInfoVisibility (registration grad year, no job-type gate).
+     */
+    private resolveTeamGradYear(playerId: string, recruitingGradYears: string[]): string | null {
+        if (recruitingGradYears.length === 0) return null;
+        const sel = this.eligibility.selectedTeams()[playerId];
+        const teamId = Array.isArray(sel) ? sel[0] : sel;
+        if (!teamId) return null;
+        const team = this.teamService.getTeamById(teamId);
+        if (!team) return null;
+        const hay = `${team.agegroupName ?? ''} ${team.teamName ?? ''}`.toLowerCase();
+        return recruitingGradYears.find(yr => hay.includes(yr.toLowerCase())) ?? null;
+    }
 
     // ── Orchestrator-owned signals ────────────────────────────────────
     private readonly _lastPayment = signal<PaymentSummary | null>(null);

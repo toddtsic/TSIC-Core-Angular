@@ -71,6 +71,7 @@ describe('PlayerWizardV2Component — next() navigation', () => {
             familyPlayers: familyPlayersStub,
             jobCtx: jobCtxStub,
             playerForms: playerFormsStub,
+            isFieldVisibleForPlayer: () => true,
             confirmation: signal(null),
             reset: vi.fn(),
             initialize: vi.fn(),

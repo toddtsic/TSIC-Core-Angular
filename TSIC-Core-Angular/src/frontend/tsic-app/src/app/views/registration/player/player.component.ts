@@ -177,12 +177,10 @@ export class PlayerWizardV2Component implements OnInit {
             case 'forms': {
                 const schemas = this.state.jobCtx.profileFieldSchemas();
                 const ids = this.state.familyPlayers.selectedPlayerIds();
-                const wfn = this.state.jobCtx.waiverFieldNames();
-                const tct = this.state.eligibility.teamConstraintType();
                 return this.state.playerForms.areFormsValid(
                     schemas, ids,
                     pid => this.state.familyPlayers.isPlayerLocked(pid),
-                    (pid, f) => this.state.playerForms.isFieldVisibleForPlayer(pid, f, wfn, tct),
+                    (pid, f) => this.state.isFieldVisibleForPlayer(pid, f),
                 );
             }
             case 'waivers': return this.state.jobCtx.allRequiredWaiversAccepted();

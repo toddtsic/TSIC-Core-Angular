@@ -653,9 +653,8 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
         }
 
         this.isSaving.set(false);
-        if (this.phaseFlipPending) {
-          this.toast.show(this.feeReprice.phaseToastMessage(this.feeReprice.repricedCount(results)), 'success');
-        }
+        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending);
+        if (toastMsg) this.toast.show(toastMsg, 'success');
         this.saved.emit();
       },
       error: (err) => {
@@ -669,9 +668,8 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
 
   /** "Saved. Repriced N registration(s)." when any fee save repriced existing rows. */
   private savedMessage(results: any[], plain: string): string {
-    const repriced = results.reduce(
-      (sum, r) => sum + (r && typeof r === 'object' && 'registrationsRepriced' in r ? r.registrationsRepriced : 0), 0);
-    return repriced > 0 ? `Saved. Repriced ${repriced} registration(s).` : plain;
+    const who = this.feeReprice.describeReprice(results);
+    return who ? `Saved. Repriced ${who}.` : plain;
   }
 
   private scopeLabel(): string {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, output, OnDestroy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, output, OnDestroy } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { NgTemplateOutlet } from '@angular/common';
 import { Subject } from 'rxjs';
@@ -7,14 +7,11 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 import { TeamService } from '@views/registration/player/services/team.service';
 import { UsLaxValidationService } from '@infrastructure/services/uslax-validation.service';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
-import { JobService } from '@infrastructure/services/job.service';
 import { MedFormUploadComponent } from '../components/medform-upload.component';
 import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/player-wizard.types';
 
-const JOB_TYPE_TOURNAMENT = 2;
-
 // PP20 canonical recruiting field order (lowercase schema name).
-// On tournament sites, these are hoisted into a single fieldset anchored at
+// When present and gated in, these are hoisted into a single fieldset anchored at
 // the position of the first canonical field present in the editor schema.
 const RECRUITING_ORDER: readonly string[] = [
     'gpa', 'classrank', 'act',
@@ -557,8 +554,6 @@ export class PlayerFormsStepComponent implements OnDestroy {
     readonly advance = output<void>();
     readonly state = inject(PlayerWizardStateService);
     private readonly usLaxService = inject(UsLaxValidationService);
-    private readonly jobService = inject(JobService);
-    readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
     private readonly usLaxTrigger$ = new Subject<{ playerId: string; value: string; field: PlayerProfileFieldSchema }>();
     private readonly destroy$ = new Subject<void>();
     private _autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -685,24 +680,6 @@ export class PlayerFormsStepComponent implements OnDestroy {
         return club ? `${club}:${name}` : name;
     }
 
-    /**
-     * Resolves the grad year of the team the player is registering for, used to
-     * gate the College Recruiting fieldset. Returns the recruiting grad year that
-     * the selected team's agegroup/name matches (e.g. "2028"), or null if none —
-     * which hides the recruiting fields. Reuses the same agegroup/team-name match
-     * the team filter uses for BYGRADYEAR (team.service.ts).
-     */
-    private selectedTeamGradYear(playerId: string, recruitingGradYears: string[]): string | null {
-        if (recruitingGradYears.length === 0) return null;
-        const sel = this.state.eligibility.selectedTeams()[playerId];
-        const teamId = Array.isArray(sel) ? sel[0] : sel;
-        if (!teamId) return null;
-        const team = this.teamService.getTeamById(teamId);
-        if (!team) return null;
-        const hay = `${team.agegroupName ?? ''} ${team.teamName ?? ''}`.toLowerCase();
-        return recruitingGradYears.find(yr => hay.includes(yr.toLowerCase())) ?? null;
-    }
-
     // ── CAC events expand/collapse ───────────────────────────────────
     // Default to expanded when event count <= threshold so parents can verify
     // their selections without clicking. Above the threshold, default collapsed
@@ -726,31 +703,19 @@ export class PlayerFormsStepComponent implements OnDestroy {
     /** Returns visible profile fields for a given player. */
     visibleFields(playerId: string): PlayerProfileFieldSchema[] {
         const schemas = this.state.jobCtx.profileFieldSchemas();
-        const wfn = this.state.jobCtx.waiverFieldNames();
-        const tct = this.state.eligibility.teamConstraintType();
-        const tournament = this.isTournament();
-        const recruitingGradYears = tournament ? this.state.jobCtx.recruitingGradYears() : [];
-        // Recruiting fields gate on the grad year of the TEAM being registered for
-        // (the division/agegroup), NOT the player's self-reported academic grad year.
-        // Mirrors legacy AdjustRecruittingInfoVisibility, which keyed off the
-        // registration grad-year dropdown that also filters available teams.
-        const teamGradYear = tournament
-            ? this.selectedTeamGradYear(playerId, recruitingGradYears)
-            : null;
-        return schemas.filter(f => this.state.playerForms.isFieldVisibleForPlayer(
-            playerId, f, wfn, tct, tournament, recruitingGradYears, teamGradYear,
-        ));
+        return schemas.filter(f => this.state.isFieldVisibleForPlayer(playerId, f));
     }
 
     /**
-     * SP-040: On tournament sites, hoist recruiting fields into a single fieldset.
+     * SP-040: hoist any visible recruiting fields into a single fieldset.
      * The fieldset is anchored at the position of the first canonical recruiting
      * field (per PP20 order) that appears in the editor schema; its contents are
-     * rendered in canonical PP20 order regardless of editor order.
+     * rendered in canonical PP20 order regardless of editor order. Recruiting fields
+     * only reach `visible` when gated in (see visibleFields), so no job-type guard
+     * is needed here — if none are present this is a no-op (single plain group).
      */
     visibleFieldGroups(playerId: string): FieldGroup[] {
         const visible = this.visibleFields(playerId);
-        if (!this.isTournament()) return [{ kind: 'plain', fields: visible }];
 
         const visibleByLName = new Map<string, PlayerProfileFieldSchema>();
         for (const f of visible) visibleByLName.set(f.name.toLowerCase(), f);
@@ -834,12 +799,10 @@ export class PlayerFormsStepComponent implements OnDestroy {
         // Only show errors once the field has been touched
         const raw = this.state.playerForms.getPlayerFieldValue(playerId, field.name);
         if (raw === null || raw === undefined) return null;
-        const wfn = this.state.jobCtx.waiverFieldNames();
-        const tct = this.state.eligibility.teamConstraintType();
         return this.state.playerForms.getFieldError(
             playerId, field,
             pid => this.state.familyPlayers.isPlayerLocked(pid),
-            (pid, f) => this.state.playerForms.isFieldVisibleForPlayer(pid, f, wfn, tct),
+            (pid, f) => this.state.isFieldVisibleForPlayer(pid, f),
         );
     }
 

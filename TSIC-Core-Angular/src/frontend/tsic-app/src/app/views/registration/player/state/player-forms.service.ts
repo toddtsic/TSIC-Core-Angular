@@ -11,8 +11,8 @@ import type {
 
 // Recruiting field names (lowercase, exact match on schema field name).
 // Canonical list = PP20.cshtml's `<div class="recruittinginfo">` block.
-// On tournament sites, gated by JsonOptions.List_RecruitingGradYears (NCAA).
-// On non-tournament sites, always shown (a club may still want these on profile).
+// Gated by JsonOptions.List_RecruitingGradYears vs the registered team's grad year
+// (NCAA), regardless of job type. No list configured → hidden.
 const RECRUITING_FIELD_NAMES = new Set<string>([
     'gpa', 'classrank', 'act',
     'satmath', 'satverbal', 'satwriting',
@@ -334,18 +334,18 @@ export class PlayerFormsService {
     // ── Visibility ────────────────────────────────────────────────────
     /**
      * Central visibility logic. waiverFieldNames + teamConstraintType come from JobContextService.
-     * Recruiting field gating (SP-040): on TOURNAMENT sites only, recruiting fields are
-     * shown only when the grad year of the TEAM being registered for ∈ recruitingGradYears
-     * (NCAA contact rules). The gating year is the team's division/agegroup grad year — not
-     * the player's self-reported academic grad year. On non-tournament sites the gating is
-     * bypassed — clubs may still want these fields on profile.
+     * Recruiting field gating (SP-040): recruiting fields are shown only when the grad
+     * year of the TEAM being registered for ∈ recruitingGradYears (NCAA contact rules).
+     * The gating year is the team's division/agegroup grad year — not the player's
+     * self-reported academic grad year, and NOT gated by job type. When the job has no
+     * List_RecruitingGradYears configured (recruitingGradYears empty), the fields are
+     * hidden — matching legacy AdjustRecruittingInfoVisibility for all job types.
      */
     isFieldVisibleForPlayer(
         playerId: string,
         field: PlayerProfileFieldSchema,
         waiverFieldNames: string[],
         teamConstraintType: string | null,
-        isTournament = false,
         recruitingGradYears: string[] = [],
         teamGradYear: string | null = null,
     ): boolean {
@@ -360,7 +360,7 @@ export class PlayerFormsService {
         if (tctype === 'BYAGEGROUP' && (hasAllParts(lname, ['age', 'group']) || hasAllParts(llabel, ['age', 'group']))) return false;
         if (tctype === 'BYAGERANGE' && (hasAllParts(lname, ['age', 'range']) || hasAllParts(llabel, ['age', 'range']))) return false;
         if (tctype === 'BYCLUBNAME' && (hasAllParts(lname, ['club']) || hasAllParts(llabel, ['club']))) return false;
-        if (RECRUITING_FIELD_NAMES.has(lname) && isTournament) {
+        if (RECRUITING_FIELD_NAMES.has(lname)) {
             if (recruitingGradYears.length === 0) return false;
             if (!teamGradYear) return false;
             return recruitingGradYears.includes(teamGradYear);

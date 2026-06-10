@@ -72,8 +72,49 @@ export class FeeRepriceService {
         ? (r as { registrationsRepriced: number }).registrationsRepriced : 0), 0);
   }
 
-  /** Success-toast copy for a payment-phase change — quantified when registrations converted,
-   *  generic otherwise (a phase change with nothing in scope is still a successful change). */
+  /** Repriced counts split by role from the save results — player registrations vs teams
+   *  (a ClubRep fee row reprices teams). Each fee save returns `{ fee, registrationsRepriced }`;
+   *  the role lives on `fee.roleId`. Non-fee saves (entity update/delete) carry neither and skip. */
+  repricedBreakdown(results: unknown[]): { players: number; teams: number } {
+    let players = 0;
+    let teams = 0;
+    for (const r of results) {
+      if (!r || typeof r !== 'object') continue;
+      const rec = r as { registrationsRepriced?: number; fee?: { roleId?: string } };
+      const n = rec.registrationsRepriced ?? 0;
+      if (n <= 0) continue;
+      if ((rec.fee?.roleId ?? '').toUpperCase() === CLUBREP_ROLE) teams += n;
+      else players += n;   // Player role (or an unattributed fee row) → player registrations
+    }
+    return { players, teams };
+  }
+
+  /** Quantified, role-split, pluralized description of what a save repriced —
+   *  e.g. "4 player registrations and 2 teams". Empty string when nothing was repriced. */
+  describeReprice(results: unknown[]): string {
+    const { players, teams } = this.repricedBreakdown(results);
+    const parts: string[] = [];
+    if (players > 0) parts.push(`${players} player registration${players === 1 ? '' : 's'}`);
+    if (teams > 0) parts.push(`${teams} team${teams === 1 ? '' : 's'}`);
+    return parts.join(' and ');
+  }
+
+  /**
+   * Quantified success-toast copy for a fee save, role-split by player/team. Phase flips always
+   * toast (a phase change with nothing in scope is still a successful change → generic copy);
+   * amount/modifier saves toast only when they actually repriced (null otherwise — the inline
+   * save-bar message covers a no-op config save).
+   */
+  saveToastMessage(results: unknown[], isPhaseFlip: boolean): string | null {
+    const who = this.describeReprice(results);
+    if (isPhaseFlip) {
+      return who ? `Payment phase updated — converted ${who}.` : 'Payment phase updated.';
+    }
+    return who ? `Fees updated — repriced ${who}.` : null;
+  }
+
+  /** Success-toast copy for a payment-phase change quantified by a pre-summed count (the league
+   *  fan-out path, whose per-age-group response carries only a total, not a role split). */
   phaseToastMessage(repriced: number): string {
     return repriced > 0
       ? `Payment phase updated — converted ${repriced} registration${repriced === 1 ? '' : 's'}.`

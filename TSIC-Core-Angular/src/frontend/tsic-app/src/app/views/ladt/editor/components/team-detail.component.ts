@@ -581,9 +581,8 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
         this.isError.set(false);
         this.saveMessage.set(this.savedMessage(results, 'Team saved successfully.'));
         this.captureOriginals();
-        if (this.phaseFlipPending) {
-          this.toast.show(this.feeReprice.phaseToastMessage(this.feeReprice.repricedCount(results)), 'success');
-        }
+        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending);
+        if (toastMsg) this.toast.show(toastMsg, 'success');
         // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },
@@ -619,9 +618,8 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   private savedMessage(results: any[], plain: string): string {
-    const repriced = results.reduce(
-      (sum, r) => sum + (r && typeof r === 'object' && 'registrationsRepriced' in r ? r.registrationsRepriced : 0), 0);
-    return repriced > 0 ? `Saved. Repriced ${repriced} registration(s).` : plain;
+    const who = this.feeReprice.describeReprice(results);
+    return who ? `Saved. Repriced ${who}.` : plain;
   }
 
   private scopeLabel(): string {

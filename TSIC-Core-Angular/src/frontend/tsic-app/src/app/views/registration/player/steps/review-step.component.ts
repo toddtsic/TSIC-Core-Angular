@@ -477,10 +477,8 @@ export class ReviewStepComponent {
 
     getFormFields(playerId: string): { name: string; label: string; value: string; required: boolean }[] {
         const schemas = this.state.jobCtx.profileFieldSchemas();
-        const wfn = this.state.jobCtx.waiverFieldNames();
-        const tct = this.state.eligibility.teamConstraintType();
         return schemas
-            .filter(f => this.state.playerForms.isFieldVisibleForPlayer(playerId, f, wfn, tct))
+            .filter(f => this.state.isFieldVisibleForPlayer(playerId, f))
             .map(f => {
                 const raw = this.state.playerForms.getPlayerFieldValue(playerId, f.name);
                 let value = '';
