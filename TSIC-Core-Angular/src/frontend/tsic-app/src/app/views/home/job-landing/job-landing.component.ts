@@ -13,6 +13,7 @@ import { ActivatedRoute, ActivatedRouteSnapshot, Router, RouterLink } from '@ang
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { Roles } from '@infrastructure/constants/roles.constants';
 import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
 import { ViewScheduleService } from '@views/scheduling/view-schedule/services/view-schedule.service';
@@ -109,10 +110,16 @@ export class JobLandingComponent implements OnDestroy {
 		const teamOpen = teamWouldOpen && !schedulePublished;
 
 		const out: { readonly label: string; readonly path: readonly string[]; readonly queryParams?: Record<string, string> }[] = [];
-		// A registered player (assigned to a team) sees their existing registration
-		// rather than a redundant Register Player CTA — deep-links to the players step.
-		if (p?.myAssignedTeamId != null) {
+		// myAssignedTeamId is populated for ANY registration with an assigned team —
+		// not just players. A tournament coach is the Staff role WITH an AssignedTeamId,
+		// so we must discriminate by role: a player's "My Registration" is the player
+		// wizard, a coach's is the adult wizard (roleKey 'coach'). Without this guard a
+		// coach's CTA mis-routed into the player wizard.
+		const role = this.auth.currentUser()?.role;
+		if (p?.myAssignedTeamId != null && (role === Roles.Family || role === Roles.Player)) {
 			out.push({ label: 'My Registration', path: ['/', jp, 'registration', 'player'], queryParams: { step: 'players' } });
+		} else if (p?.myAssignedTeamId != null && role === Roles.Staff) {
+			out.push({ label: 'My Registration', path: ['/', jp, 'registration', 'adult'], queryParams: { role: 'coach', step: 'profile' } });
 		} else if (playerOpen) {
 			out.push({ label: 'Register Player', path: ['/', jp, 'registration', 'player'] });
 		}

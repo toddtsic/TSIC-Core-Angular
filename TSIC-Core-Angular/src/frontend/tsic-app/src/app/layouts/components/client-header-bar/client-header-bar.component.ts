@@ -142,9 +142,11 @@ export class ClientHeaderBarComponent {
                 items.push({ icon: 'bi-credit-card', label: 'Update CC Info', route: `arb/update-cc/${user.regId}` });
             }
         } else if (role === Roles.Staff) {
-            items.push({ icon: 'bi-person-gear', label: 'My Registration', route: 'registration/adult?step=profile' });
+            // Staff = a self-rostered coach; the adult wizard REQUIRES ?role=<key> or it
+            // shows an "incomplete link" error, so the coach roleKey must ride the URL.
+            items.push({ icon: 'bi-person-gear', label: 'My Registration', route: 'registration/adult?role=coach&step=profile' });
             if ((pulse.myRegistrationOwedTotal ?? 0) > 0) {
-                items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/adult?step=payment' });
+                items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/adult?role=coach&step=payment' });
             }
             if (pulse.allowRosterViewAdult && pulse.myAssignedTeamId) {
                 items.push({ icon: 'bi-people', label: 'View Roster', route: 'rosters/view-rosters' });
