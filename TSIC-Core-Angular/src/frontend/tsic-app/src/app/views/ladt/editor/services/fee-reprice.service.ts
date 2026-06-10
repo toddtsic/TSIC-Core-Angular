@@ -101,16 +101,22 @@ export class FeeRepriceService {
 
   /**
    * Quantified success-toast copy for a fee save, role-split by player/team. Phase flips always
-   * toast (a phase change with nothing in scope is still a successful change → generic copy);
-   * amount/modifier saves toast only when they actually repriced (null otherwise — the inline
-   * save-bar message covers a no-op config save).
+   * toast (a phase change with nothing in scope is still a successful change → generic copy).
+   * Amount/modifier saves toast the repriced count when they repriced, and fall back to generic
+   * "Fees updated." copy when a fee genuinely changed but nothing was in scope to reprice. A save
+   * where no fee changed (entity-only edit) returns null — the inline save-bar message confirms it.
+   *
+   * `feeChanged` is the caller's authoritative "a fee value actually changed this save" signal
+   * (its roleChanged check) — not inferred from the results, because performSave re-persists an
+   * unchanged fee idempotently on an entity-only edit, which must NOT toast.
    */
-  saveToastMessage(results: unknown[], isPhaseFlip: boolean): string | null {
+  saveToastMessage(results: unknown[], isPhaseFlip: boolean, feeChanged: boolean): string | null {
     const who = this.describeReprice(results);
     if (isPhaseFlip) {
       return who ? `Payment phase updated — converted ${who}.` : 'Payment phase updated.';
     }
-    return who ? `Fees updated — repriced ${who}.` : null;
+    if (who) return `Fees updated — repriced ${who}.`;
+    return feeChanged ? 'Fees updated.' : null;
   }
 
   /** Success-toast copy for a payment-phase change quantified by a pre-summed count (the league

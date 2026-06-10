@@ -329,6 +329,10 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
    *  so performSave can fire the quantified success toast on completion. */
   private phaseFlipPending = false;
 
+  /** Set per save() — true when a player/club-rep fee value actually changed this save, so a
+   *  fee change with nothing to reprice still confirms with a toast (vs an entity-only edit). */
+  private feeChangedPending = false;
+
   private readonly detailForm = viewChild(NgForm);
 
   /** Unsaved-changes probe: NgForm.dirty covers every named control, including the
@@ -458,6 +462,7 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
 
     const playerChanged = this.roleChanged('player');
     const clubRepChanged = this.roleChanged('clubRep');
+    this.feeChangedPending = playerChanged || clubRepChanged;
     this.phaseFlipPending = (playerChanged && this.feeForm.playerPhase !== this.originalPhase.player)
                          || (clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep);
 
@@ -581,8 +586,8 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
         this.isError.set(false);
         this.saveMessage.set(this.savedMessage(results, 'Team saved successfully.'));
         this.captureOriginals();
-        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending);
-        if (toastMsg) this.toast.show(toastMsg, 'success');
+        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending, this.feeChangedPending);
+        if (toastMsg) this.toast.show(toastMsg, 'success', 10000);
         // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();
       },

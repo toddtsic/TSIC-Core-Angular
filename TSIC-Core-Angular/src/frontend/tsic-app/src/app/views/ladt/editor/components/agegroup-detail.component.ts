@@ -288,6 +288,10 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
    *  so performSave can fire the quantified success toast on completion. */
   private phaseFlipPending = false;
 
+  /** Set per save() — true when a player/club-rep fee value actually changed this save, so a
+   *  fee change with nothing to reprice still confirms with a toast (vs an entity-only edit). */
+  private feeChangedPending = false;
+
   private readonly detailForm = viewChild(NgForm);
 
   /** Unsaved-changes probe — NgForm.dirty covers settings + fee-card controls (all
@@ -426,6 +430,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
 
     const playerChanged = this.roleChanged('player');
     const clubRepChanged = this.roleChanged('clubRep');
+    this.feeChangedPending = playerChanged || clubRepChanged;
     this.phaseFlipPending = (playerChanged && this.feeForm.playerPhase !== this.originalPhase.player)
                          || (clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep);
 
@@ -555,7 +560,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
     const ags = Math.max(agegroupsApplied, 1);
     this.toast.show(
       `Converted ${total} registration${total === 1 ? '' : 's'} across ${ags} age group${ags === 1 ? '' : 's'}.`,
-      'success');
+      'success', 10000);
     this.saved.emit();
   }
 
@@ -653,8 +658,8 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
         }
 
         this.isSaving.set(false);
-        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending);
-        if (toastMsg) this.toast.show(toastMsg, 'success');
+        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending, this.feeChangedPending);
+        if (toastMsg) this.toast.show(toastMsg, 'success', 10000);
         this.saved.emit();
       },
       error: (err) => {
