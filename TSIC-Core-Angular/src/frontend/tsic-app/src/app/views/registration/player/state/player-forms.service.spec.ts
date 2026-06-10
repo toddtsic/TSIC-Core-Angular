@@ -267,17 +267,17 @@ describe('PlayerFormsService', () => {
             expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, true, [], '2026')).toBe(false);
         });
 
-        it('tournament: recruiting field hidden when player grad year not in list', () => {
+        it('tournament: recruiting field hidden when team grad year not in list', () => {
             const gpa = mkField({ name: 'gpa', label: 'GPA' });
             expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, true, ['2024', '2025'], '2030')).toBe(false);
         });
 
-        it('tournament: recruiting field visible when player grad year matches list', () => {
+        it('tournament: recruiting field visible when team grad year matches list', () => {
             const gpa = mkField({ name: 'gpa', label: 'GPA' });
             expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, true, ['2024', '2025', '2026'], '2025')).toBe(true);
         });
 
-        it('tournament: recruiting field hidden when player grad year is null', () => {
+        it('tournament: recruiting field hidden when team grad year is null', () => {
             const sat = mkField({ name: 'satMath', label: 'SAT Math' });
             expect(service.isFieldVisibleForPlayer('p1', sat, [], null, true, ['2024'], null)).toBe(false);
         });

@@ -685,6 +685,24 @@ export class PlayerFormsStepComponent implements OnDestroy {
         return club ? `${club}:${name}` : name;
     }
 
+    /**
+     * Resolves the grad year of the team the player is registering for, used to
+     * gate the College Recruiting fieldset. Returns the recruiting grad year that
+     * the selected team's agegroup/name matches (e.g. "2028"), or null if none —
+     * which hides the recruiting fields. Reuses the same agegroup/team-name match
+     * the team filter uses for BYGRADYEAR (team.service.ts).
+     */
+    private selectedTeamGradYear(playerId: string, recruitingGradYears: string[]): string | null {
+        if (recruitingGradYears.length === 0) return null;
+        const sel = this.state.eligibility.selectedTeams()[playerId];
+        const teamId = Array.isArray(sel) ? sel[0] : sel;
+        if (!teamId) return null;
+        const team = this.teamService.getTeamById(teamId);
+        if (!team) return null;
+        const hay = `${team.agegroupName ?? ''} ${team.teamName ?? ''}`.toLowerCase();
+        return recruitingGradYears.find(yr => hay.includes(yr.toLowerCase())) ?? null;
+    }
+
     // ── CAC events expand/collapse ───────────────────────────────────
     // Default to expanded when event count <= threshold so parents can verify
     // their selections without clicking. Above the threshold, default collapsed
@@ -712,12 +730,15 @@ export class PlayerFormsStepComponent implements OnDestroy {
         const tct = this.state.eligibility.teamConstraintType();
         const tournament = this.isTournament();
         const recruitingGradYears = tournament ? this.state.jobCtx.recruitingGradYears() : [];
-        const eligValue = this.state.eligibility.getEligibilityForPlayer(playerId) ?? null;
-        const playerGradYear = tournament
-            ? this.state.playerForms.getPlayerGradYearFromState(playerId, schemas, tct, eligValue)
+        // Recruiting fields gate on the grad year of the TEAM being registered for
+        // (the division/agegroup), NOT the player's self-reported academic grad year.
+        // Mirrors legacy AdjustRecruittingInfoVisibility, which keyed off the
+        // registration grad-year dropdown that also filters available teams.
+        const teamGradYear = tournament
+            ? this.selectedTeamGradYear(playerId, recruitingGradYears)
             : null;
         return schemas.filter(f => this.state.playerForms.isFieldVisibleForPlayer(
-            playerId, f, wfn, tct, tournament, recruitingGradYears, playerGradYear,
+            playerId, f, wfn, tct, tournament, recruitingGradYears, teamGradYear,
         ));
     }
 
