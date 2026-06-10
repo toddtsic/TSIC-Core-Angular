@@ -112,9 +112,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.Staff, agegroupId, teamId, ct);
-        if (resolved is not { FeeConfigured: true })
-            throw new FeeNotConfiguredException(jobId, RoleConstants.Staff, agegroupId, teamId);
-        var baseFee = resolved.EffectiveBalanceDue;
+        // Adult/coach roles were free in legacy (StaffTournamentController charged
+        // nothing) and have no fee-config UI or seed. An unconfigured resolution here
+        // means "free" ($0), NOT a misconfiguration — so unlike the paid Player/ClubRep
+        // paths we default to $0 rather than fail loud. A Staff JobFees row, if ever
+        // added manually, still prices normally.
+        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
 
         var modifiers = await EvaluateModifiersAsync(
             jobId, RoleConstants.Staff, agegroupId, teamId, DateTime.Now, ct);
@@ -134,9 +137,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveJobLevelFeeAsync(jobId, roleId, ct);
-        if (resolved is not { FeeConfigured: true })
-            throw new FeeNotConfiguredException(jobId, roleId, null, null);
-        var baseFee = resolved.EffectiveBalanceDue;
+        // See ApplyNewStaffRegistrationFeesAsync: adult roles (UA/Referee/Recruiter)
+        // were free in legacy and have no fee-config UI or seed, so an unconfigured
+        // resolution defaults to $0 rather than failing loud.
+        var baseFee = resolved?.EffectiveBalanceDue ?? 0m;
 
         // Evaluate job-level modifiers only (no agegroup/team)
         var modifiers = await _feeRepo.GetActiveModifiersForJobLevelAsync(
