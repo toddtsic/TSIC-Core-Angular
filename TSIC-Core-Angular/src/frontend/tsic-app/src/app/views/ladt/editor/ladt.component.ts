@@ -924,16 +924,19 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           inherited: isInherited(e.lateFee.source),
         });
       }
-      // Phase pill renders for every role with fee context: an override shows
-      // "Full Payment"/"Balance Due" + a where-set badge. With no override the value
-      // falls back to the job baseline (matching the backend resolver) and is badged
-      // "job default" so it reads as the source, not an unset blank.
+      // Phase pill renders for every role with fee context: a phase override shows
+      // "Full Payment"/"Balance Due" + a where-set badge. With no phase override the value
+      // falls back to the job baseline (matching the backend resolver), and the badge mirrors
+      // the EFFECTIVE source — the phase override's tier if any, else where the base fee lives
+      // (e.source) — so an inherited fee reads "from ag"/"from league" rather than a flat
+      // "job default". The render shows "job default" when that source is job/local.
+      const effSource = e.phase?.source ?? e.source;
       phase.push({
         roleId, roleLabel,
         fullPayment: e.phase?.value ?? this.jobBaselineFor(roleId),
         hasOverride: e.phase != null,
-        source: e.phase?.source ?? 'job',
-        inherited: e.phase ? isInherited(e.phase.source) : false,
+        source: effSource,
+        inherited: isInherited(effSource),
       });
     }
 

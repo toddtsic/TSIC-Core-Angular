@@ -171,27 +171,31 @@ const JOB_TYPE_TOURNAMENT = 2;
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
             [(bFullPaymentRequired)]="feeForm.clubRepPhase"
-            [modifiers]="clubRepModifiers"
-            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
+            [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
+            hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
+            placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
             [(bFullPaymentRequired)]="feeForm.playerPhase"
-            [modifiers]="playerModifiers"
-            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
+            [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
+            hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
+            placeholder="Agegroup default" [scope]="'team'" />
         } @else {
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
             [(bFullPaymentRequired)]="feeForm.playerPhase"
-            [modifiers]="playerModifiers"
-            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
+            [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
+            hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
+            placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
             [(bFullPaymentRequired)]="feeForm.clubRepPhase"
-            [modifiers]="clubRepModifiers"
-            hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
+            [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
+            hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
+            placeholder="Agegroup default" [scope]="'team'" />
         }
 
         <!-- ── Eligibility ── -->
@@ -592,6 +596,19 @@ export class TeamDetailComponent implements OnChanges {
       this.isError.set(false);
       this.saveMessage.set(null);
     }
+  }
+
+  /**
+   * Read-only phase pointer for the team card. When a team-level fee exists, the card's own
+   * toggle + amount-aware explanation own the phase display, so this returns null. The team is
+   * the leaf of the cascade — with no fee set here, phase is inherited from above, so point UP
+   * (the league/age-group fly-ins point down; the leaf has nothing below it).
+   */
+  phaseNote(role: 'player' | 'clubRep'): string | null {
+    const dep = role === 'player' ? this.feeForm.playerDeposit : this.feeForm.clubRepDeposit;
+    const bal = role === 'player' ? this.feeForm.playerBalanceDue : this.feeForm.clubRepBalanceDue;
+    if (dep != null || bal != null) return null;
+    return 'Inherits from the age group.';
   }
 
   private captureOriginals(): void {
