@@ -81,10 +81,18 @@
                   [ngModel]="editComments()" (ngModelChange)="editComments.set($event)" name="editComments">
                 </textarea>
               </div>
-              <button type="submit" class="btn btn-primary btn-sm" [disabled]="isSaving()">
-                @if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
-                Save Changes
-              </button>
+              <div class="edit-form-actions" [class.is-dirty]="isDirty()">
+                <button type="submit" class="btn btn-primary btn-sm detail-save-btn"
+                        [class.pulse]="isDirty()" [disabled]="isSaving()">
+                  @if (isSaving()) { <span class="spinner-border spinner-border-sm me-1"></span> }
+                  Save Changes
+                </button>
+                @if (isDirty()) {
+                  <span class="unsaved-hint small text-warning-emphasis">
+                    <i class="bi bi-exclamation-circle me-1"></i>Unsaved changes
+                  </span>
+                }
+              </div>
             </form>
           </div>
 
@@ -235,6 +243,19 @@
     </div>
   }
 </div>
+
+<!-- Discard unsaved Team Details edits (X / backdrop / Esc with a dirty form) -->
+@if (showDiscardConfirm()) {
+  <confirm-dialog
+    title="Discard unsaved changes?"
+    message="This team has changes you haven't saved. Leaving now will discard them."
+    confirmLabel="Discard changes"
+    cancelLabel="Keep editing"
+    confirmVariant="warning"
+    (confirmed)="confirmDiscard()"
+    (cancelled)="cancelDiscard()">
+  </confirm-dialog>
+}
 
 <!-- Move Team Confirm Dialog -->
 @if (showMoveTeamConfirm()) {

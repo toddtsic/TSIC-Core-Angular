@@ -356,6 +356,32 @@
   gap: var(--space-3);
 }
 
+// Save row — warms and shows an "Unsaved changes" hint when the form is dirty, so the
+// edit isn't lost by an accidental close. Pulse (.detail-save-btn.pulse) is global.
+.edit-form-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  transition: background 0.2s ease, border-color 0.2s ease;
+
+  &.is-dirty {
+    background: var(--bs-warning-bg-subtle);
+    border-color: var(--bs-warning-border-subtle);
+  }
+
+  .unsaved-hint {
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .edit-form-actions { transition: none; }
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

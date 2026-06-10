@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, effect, computed, HostListener, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, effect, computed, untracked, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -136,6 +136,33 @@ export class RegistrationDetailPanelComponent {
   emailSubject = signal<string>('');
   emailBody = signal<string>('');
 
+  // ── Unsaved-changes tracking ──
+  // Snapshots of the editable zones, taken when detail loads and after each save. Compared
+  // against current state to drive the per-section Save affordance + the discard-on-close
+  // guard. Email is intentionally excluded (a transient draft, cleared on send/load).
+  private snapshotContact = signal<string>('');
+  private snapshotProfile = signal<string>('');
+  showDiscardConfirm = signal<boolean>(false);
+
+  private serializeContact(): string {
+    const player = this.isPlayerRole() && this.hasFamilyLink();
+    return JSON.stringify({
+      demo: this.demographics(),
+      famContact: player ? this.familyContact() : null,
+      famDemo: player ? this.familyDemographics() : null
+    });
+  }
+  private serializeProfile(): string {
+    return JSON.stringify(this.profileValues());
+  }
+
+  /** Contact Info zone has unsaved edits (player/family demographics + family contact). */
+  readonly isContactDirty = computed(() => this.serializeContact() !== this.snapshotContact());
+  /** Player Profile zone has unsaved edits (metadata-driven profile values). */
+  readonly isProfileDirty = computed(() => this.serializeProfile() !== this.snapshotProfile());
+  /** Any savable zone is dirty — gates the close guard. */
+  readonly isDirty = computed(() => this.isContactDirty() || this.isProfileDirty());
+
   // AI compose
   aiPrompt = signal<string>('');
   isDraftingAi = signal<boolean>(false);
@@ -228,6 +255,14 @@ export class RegistrationDetailPanelComponent {
 
         this.emailSubject.set('');
         this.emailBody.set('');
+
+        // Baseline for dirty tracking. untracked() so reading the editable signals here
+        // doesn't make this effect a dependency of them (which would re-snapshot — and wipe
+        // the baseline — on every keystroke).
+        untracked(() => {
+          this.snapshotContact.set(this.serializeContact());
+          this.snapshotProfile.set(this.serializeProfile());
+        });
       }
     });
   }
@@ -237,7 +272,23 @@ export class RegistrationDetailPanelComponent {
     if (this.isOpen()) { this.close(); }
   }
 
-  close(): void { this.closed.emit(); }
+  close(): void {
+    // Don't let an accidental X / backdrop / Esc silently throw away edits in either zone.
+    if (this.isDirty()) {
+      this.showDiscardConfirm.set(true);
+      return;
+    }
+    this.closed.emit();
+  }
+
+  confirmDiscard(): void {
+    this.showDiscardConfirm.set(false);
+    this.closed.emit();
+  }
+
+  cancelDiscard(): void {
+    this.showDiscardConfirm.set(false);
+  }
 
   setActiveTab(tab: TabType): void {
     this.activeTab.set(tab);
@@ -333,6 +384,7 @@ export class RegistrationDetailPanelComponent {
     }).subscribe({
       next: () => {
         this.isSavingProfile.set(false);
+        this.snapshotProfile.set(this.serializeProfile());   // saved → zone is clean again
         this.toast.show('Player profile saved', 'success', 3000, 'Profile Updated');
         this.saved.emit();
       },
@@ -564,6 +616,7 @@ export class RegistrationDetailPanelComponent {
     forkJoin(calls).subscribe({
       next: () => {
         this.isSavingContact.set(false);
+        this.snapshotContact.set(this.serializeContact());   // saved → zone is clean again
         this.toast.show('Contact info saved', 'success', 3000);
         this.saved.emit();
       },

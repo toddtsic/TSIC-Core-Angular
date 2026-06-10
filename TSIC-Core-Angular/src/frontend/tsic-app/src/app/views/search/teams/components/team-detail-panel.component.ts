@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, inject, linkedSignal, HostListener } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, computed, inject, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto } from '@core/api';
@@ -44,6 +44,21 @@ export class TeamDetailPanelComponent {
 	editComments = linkedSignal(() => this.detail()?.teamComments ?? '');
 	isSaving = signal(false);
 
+	/** Unsaved edits in the Team Details form — compared signal-to-source so it survives the
+	 *  Details/Accounting tab switch (the form unmounts, but these signals persist). Drives the
+	 *  Save affordance and the discard-on-close guard. (Active is excluded — its own drop flow
+	 *  is an explicit, immediate confirm, not a deferred save.) */
+	readonly isDirty = computed(() => {
+		const d = this.detail();
+		if (!d) return false;
+		return (this.editTeamName() ?? '') !== (d.teamName ?? '')
+			|| (this.editLevelOfPlay() ?? '') !== (d.levelOfPlay ?? '')
+			|| (this.editComments() ?? '') !== (d.teamComments ?? '');
+	});
+
+	/** Discard-changes guard shown when closing with unsaved edits. */
+	showDiscardConfirm = signal(false);
+
 	// Active toggle (header)
 	isTogglingActive = signal(false);
 	showDropTeamConfirm = signal(false);
@@ -67,7 +82,21 @@ export class TeamDetailPanelComponent {
 	}
 
 	close(): void {
+		// Don't let an accidental X / backdrop / Esc silently throw away edits.
+		if (this.isDirty()) {
+			this.showDiscardConfirm.set(true);
+			return;
+		}
 		this.closed.emit();
+	}
+
+	confirmDiscard(): void {
+		this.showDiscardConfirm.set(false);
+		this.closed.emit();
+	}
+
+	cancelDiscard(): void {
+		this.showDiscardConfirm.set(false);
 	}
 
 	/** Format phone for display */

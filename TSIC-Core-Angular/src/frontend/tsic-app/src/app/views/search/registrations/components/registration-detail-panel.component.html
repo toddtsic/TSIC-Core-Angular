@@ -230,8 +230,14 @@
                 </div>
               }
 
-              <div class="contact-actions">
-                <button type="button" class="btn btn-primary btn-sm" (click)="saveContactInfo()" [disabled]="isSavingContact()">
+              <div class="contact-actions" [class.is-dirty]="isContactDirty()">
+                @if (isContactDirty()) {
+                  <span class="unsaved-hint small text-warning-emphasis">
+                    <i class="bi bi-exclamation-circle me-1"></i>Unsaved changes
+                  </span>
+                }
+                <button type="button" class="btn btn-primary btn-sm detail-save-btn"
+                        [class.pulse]="isContactDirty()" (click)="saveContactInfo()" [disabled]="isSavingContact()">
                   @if (isSavingContact()) { <span class="spinner-border spinner-border-sm me-1"></span> }
                   Save
                 </button>
@@ -318,8 +324,14 @@
                       </div>
                     }
                   </div>
-                  <div class="contact-actions">
-                    <button type="button" class="btn btn-primary btn-sm" (click)="saveProfileInfo()" [disabled]="isSavingProfile()">
+                  <div class="contact-actions" [class.is-dirty]="isProfileDirty()">
+                    @if (isProfileDirty()) {
+                      <span class="unsaved-hint small text-warning-emphasis">
+                        <i class="bi bi-exclamation-circle me-1"></i>Unsaved changes
+                      </span>
+                    }
+                    <button type="button" class="btn btn-primary btn-sm detail-save-btn"
+                            [class.pulse]="isProfileDirty()" (click)="saveProfileInfo()" [disabled]="isSavingProfile()">
                       @if (isSavingProfile()) { <span class="spinner-border spinner-border-sm me-1"></span> }
                       Save
                     </button>
@@ -536,6 +548,19 @@
           </button>
         </div>
       </div>
+    }
+
+    <!-- Discard unsaved Contact / Profile edits (X / backdrop / Esc with a dirty zone) -->
+    @if (showDiscardConfirm()) {
+      <confirm-dialog
+        title="Discard unsaved changes?"
+        message="This registration has changes you haven't saved. Leaving now will discard them."
+        confirmLabel="Discard changes"
+        cancelLabel="Keep editing"
+        confirmVariant="warning"
+        (confirmed)="confirmDiscard()"
+        (cancelled)="cancelDiscard()">
+      </confirm-dialog>
     }
 
     <!-- ═══════════════════════ DELETE REGISTRATION MODAL ═══════════════════════ -->
