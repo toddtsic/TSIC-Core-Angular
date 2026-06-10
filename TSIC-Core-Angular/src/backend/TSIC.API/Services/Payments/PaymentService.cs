@@ -1013,7 +1013,8 @@ public class PaymentService : IPaymentService
             ViPolicyCreateDate = request.ViPolicyCreateDate,
             ViQuoteIds = request.ViQuoteIds,
             ViToken = request.ViToken,
-            Donation = request.Donation
+            Donation = request.Donation,
+            ExpectedTotal = request.ExpectedTotal
         };
 
         // Use internal validation that still expects JobId and FamilyUserId
@@ -1074,7 +1075,7 @@ public class PaymentService : IPaymentService
             charges[primary!.RegistrationId] = charges.GetValueOrDefault(primary.RegistrationId) + donationGross;
         var total = charges.Values.Sum();
         if (total <= 0m) return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
-        return await ExecutePrimaryChargeAsync(jobId, familyUserId, internalRequest, userId, registrations, cc, charges, total, effective, pifSnapshot);
+        return await ExecutePrimaryChargeAsync(jobId, familyUserId, internalRequest, userId, registrations, cc, charges, total, effective, pifSnapshot, internalRequest.ExpectedTotal);
     }
 
     /// <summary>
@@ -1137,7 +1138,7 @@ public class PaymentService : IPaymentService
         var total = charges.Values.Sum();
         if (total <= 0m)
             return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
-        return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges, pifSnapshot);
+        return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges, pifSnapshot, request.ExpectedTotal);
     }
 
     private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, BankAccountInfo? Bank, PaymentOption Effective)> ValidateEcheckPaymentRequestAsync(Guid jobId, string familyUserId, PaymentRequestDto request)
@@ -1204,7 +1205,8 @@ public class PaymentService : IPaymentService
     private async Task<PaymentResponseDto> ExecuteEcheckChargeAsync(
         Guid jobId, string familyUserId, PaymentRequestDto request, string userId,
         List<Registrations> registrations, BankAccountInfo bank, Dictionary<Guid, decimal> charges,
-        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot)
+        Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot,
+        decimal? expectedTotal)
     {
         var items = charges
             .Where(kv => kv.Value > 0m && kv.Key != Guid.Empty)
@@ -1212,7 +1214,8 @@ public class PaymentService : IPaymentService
             .ToList();
 
         var result = await ChargeRegistrationsCoreAsync(
-            jobId, items, RegistrationChargeKind.Echeck, creditCard: null, bankAccount: bank, userId);
+            jobId, items, RegistrationChargeKind.Echeck, creditCard: null, bankAccount: bank, userId,
+            expectedTotal: expectedTotal);
 
         if (!result.Success)
         {
@@ -1391,8 +1394,9 @@ public class PaymentService : IPaymentService
         IReadOnlyList<RegistrationChargeItem> items,
         CreditCardInfo creditCard,
         string userId,
-        CancellationToken ct = default)
-        => ChargeRegistrationsCoreAsync(jobId, items, RegistrationChargeKind.Cc, creditCard, bankAccount: null, userId, ct);
+        CancellationToken ct = default,
+        decimal? expectedTotal = null)
+        => ChargeRegistrationsCoreAsync(jobId, items, RegistrationChargeKind.Cc, creditCard, bankAccount: null, userId, ct, expectedTotal);
 
     /// <summary>
     /// Canonical per-registration charge engine, shared by CC and eCheck (the <paramref name="kind"/>
@@ -1412,7 +1416,8 @@ public class PaymentService : IPaymentService
         CreditCardInfo? creditCard,
         BankAccountInfo? bankAccount,
         string userId,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        decimal? expectedTotal = null)
     {
         if (items == null || items.Count == 0)
             return FailCcResult("NO_ITEMS", "No registrations to charge.", Array.Empty<Guid>());
@@ -1455,6 +1460,29 @@ public class PaymentService : IPaymentService
                 ? state.ProcCreditForCharge(item.Amount, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing, state.EcheckRate)
                 : 0m;
             plan[item.RegistrationId] = (item.Amount - credit, credit);
+        }
+
+        // ── Promise guard: charge exactly what the screen showed, or refuse ──
+        // The self-pay flow computes the displayed total CLIENT-side and the charge SERVER-side
+        // (from PaymentOption) independently — nothing structural forces them to agree, which is
+        // how the deposit-proc bug billed $200 against a $207 screen. This is the one point both
+        // converge: plan[reg].Charge is the real per-reg gateway debit (CC gross for CC, ACH debit
+        // for eCheck), so its sum is precisely what is about to hit the customer's account. If that
+        // disagrees with expectedTotal (the Pay-button amount) beyond per-item rounding, REFUSE the
+        // whole batch before any gateway hit or placeholder RA — we never charge a number we did not
+        // promise. Bidirectional (catches under- AND over-charge; the ResolveOwed tripwire above is
+        // one-sided). null expectedTotal (admin charge, direct engine tests) skips the guard. The
+        // tolerance scales by item count to absorb aggregate-vs-per-item proc rounding (e.g. eCheck
+        // credits) without masking dollar-level drift.
+        if (expectedTotal.HasValue)
+        {
+            var gatewayTotal = plan.Values.Sum(p => p.Charge);
+            var tolerance = 0.01m * (plan.Count + 1);
+            if (Math.Abs(gatewayTotal - expectedTotal.Value) > tolerance)
+                return FailCcResult(
+                    "AMOUNT_CHANGED",
+                    $"The amount changed since this page loaded (shown {expectedTotal.Value:C}, now {gatewayTotal:C}). Please refresh and try again.",
+                    regIds);
         }
 
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
@@ -1698,7 +1726,7 @@ public class PaymentService : IPaymentService
             }).ToList()
         };
 
-    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total, PaymentOption effectiveOption, Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot)
+    private async Task<PaymentResponseDto> ExecutePrimaryChargeAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, CreditCardInfo cc, Dictionary<Guid, decimal> charges, decimal total, PaymentOption effectiveOption, Dictionary<Guid, (decimal FeeBase, decimal FeeProcessing, decimal FeeTotal, decimal OwedTotal, decimal FeeDonation)>? pifSnapshot, decimal? expectedTotal)
     {
         // Route the parent self-pay through the same canonical engine the admin path
         // uses. The primitive owns ResolveOwed validation, the placeholder-RA audit
@@ -1716,7 +1744,7 @@ public class PaymentService : IPaymentService
         // registration permanently in PIF posture with no charge to back it.
         // Restore the pre-PIF state on engine failure. (Deposit path passes null.)
 
-        var result = await ChargeRegistrationsCcAsync(jobId, items, cc, userId);
+        var result = await ChargeRegistrationsCcAsync(jobId, items, cc, userId, expectedTotal: expectedTotal);
         if (!result.Success)
         {
             // Per-player charges can partially succeed. Restore the pre-PIF state ONLY

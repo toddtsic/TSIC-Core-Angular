@@ -24,13 +24,19 @@ public interface IPaymentService
     /// registration; the tripwire prevents a stale UI total from charging more than the
     /// resolver currently shows. Caller-side concerns (RegSaver policy stamping, email)
     /// stay outside this method.
+    ///
+    /// <paramref name="expectedTotal"/> (when supplied) is the total the payment screen showed
+    /// the customer. The summed gateway debit is asserted equal to it before any charge — a
+    /// mismatch returns AMOUNT_CHANGED and nothing is billed, so the customer is never charged a
+    /// number other than the one displayed. Null (admin charge) skips the assertion.
     /// </summary>
     Task<RegistrationCcChargeResult> ChargeRegistrationsCcAsync(
         Guid jobId,
         IReadOnlyList<RegistrationChargeItem> items,
         CreditCardInfo creditCard,
         string userId,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        decimal? expectedTotal = null);
 
     /// <summary>
     /// eCheck (ACH) counterpart to <see cref="ProcessPaymentAsync"/>. Charges via

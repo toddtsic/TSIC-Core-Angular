@@ -181,6 +181,64 @@ public class PlayerCcPaymentServiceTests
         reg.OwedTotal.Should().Be(0m);
     }
 
+    [Fact(DisplayName = "Promise guard: ExpectedTotal below the server charge → AMOUNT_CHANGED, no gateway hit")]
+    public async Task ExpectedTotalMismatch_RefusesBeforeCharge()
+    {
+        var jobId = Guid.NewGuid();
+        var reg = Reg(jobId, owed: 250m); // server will charge OwedTotal = 250
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, reg);
+        StubAdnSuccess(); // stubbed but must never be reached
+        var sut = BuildSut();
+
+        // The screen claimed $200 but the server's authoritative charge is $250 (e.g. a dropped
+        // proc fee, the very class of bug this guard exists for). Refuse rather than bill $250.
+        var req = new PaymentRequestDto
+        {
+            JobPath = "test-job",
+            PaymentOption = PaymentOption.PIF,
+            CreditCard = ValidCard(),
+            ExpectedTotal = 200m
+        };
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, req, ActingUserId);
+
+        result.Success.Should().BeFalse();
+        result.ErrorCode.Should().Be("AMOUNT_CHANGED");
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never,
+            "no card may be charged when the amount disagrees with what the screen promised");
+        reg.PaidTotal.Should().Be(0m);
+        reg.BActive.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Promise guard: ExpectedTotal matching the server charge → proceeds normally")]
+    public async Task ExpectedTotalMatch_ChargesNormally()
+    {
+        var jobId = Guid.NewGuid();
+        var reg = Reg(jobId, owed: 250m);
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, reg);
+        decimal charged = 0m;
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Callback<AdnChargeRequest>(r => charged = r.Amount)
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "txn", ResponseCode = "1", MessageForUser = "Approved" });
+        var sut = BuildSut();
+
+        var req = new PaymentRequestDto
+        {
+            JobPath = "test-job",
+            PaymentOption = PaymentOption.PIF,
+            CreditCard = ValidCard(),
+            ExpectedTotal = 250m // matches OwedTotal
+        };
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, req, ActingUserId);
+
+        result.Success.Should().BeTrue();
+        charged.Should().Be(250m);
+        reg.PaidTotal.Should().Be(250m);
+    }
+
     private PaymentRequestDto DepositReq(decimal donation) => new()
     {
         JobPath = "test-job",

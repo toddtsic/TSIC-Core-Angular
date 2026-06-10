@@ -1285,6 +1285,8 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             bankAccount,
             idempotencyKey: this.lastIdemKey,
             donation: this.paySvc.donation() || undefined,
+            // The amount on the "Pay $X by eCheck" button — the server refuses to debit anything else.
+            expectedTotal: this.echeckTotal(),
         };
 
         this.paySvc.submitEcheckPayment(request)
@@ -1334,6 +1336,8 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             creditCard: creditCardPayload,
             idempotencyKey: this.lastIdemKey,
             donation: this.paySvc.donation() || undefined,
+            // The amount on the "Pay $X Now" button — the server refuses to charge anything else.
+            expectedTotal: this.currentTotal(),
             viConfirmed: this.insuranceState.offerPlayerRegSaver() ? this.insuranceState.verticalInsureConfirmed() : undefined,
             viPolicyNumber: (this.insuranceState.verticalInsureConfirmed()
                 ? (rs?.policyNumber || this.insuranceState.viConsent()?.policyNumber) : undefined) || undefined,

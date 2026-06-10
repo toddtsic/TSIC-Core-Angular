@@ -19,6 +19,12 @@ public record PaymentRequestDto
     // Set when the customer pays by eCheck (ACH bank-account debit). Mutually exclusive with CreditCard.
     public BankAccountInfo? BankAccount { get; init; }
     public string? IdempotencyKey { get; init; }
+    // The total the payment screen showed on the Pay button — the amount the customer agreed to
+    // (CC: currentTotal; eCheck: echeckTotal). The server computes the authoritative charge from
+    // PaymentOption independently of this, then asserts the two agree before hitting the gateway:
+    // if they disagree the charge is REFUSED (AMOUNT_CHANGED), never silently billed at a different
+    // number than was promised. Null from admin/server callers skips the check.
+    public decimal? ExpectedTotal { get; init; }
     // Optional per-job donation entered on the payment page. Charged in full (principal +
     // processing) with this payment and stamped on the first registration in the charge set.
     // Defaults to 0 when absent — every existing flow is a no-op.
