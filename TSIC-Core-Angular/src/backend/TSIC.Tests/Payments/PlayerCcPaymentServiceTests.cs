@@ -51,6 +51,10 @@ public class PlayerCcPaymentServiceTests
             .ReturnsAsync(new Dictionary<Guid, PaymentState>());
         _paymentState.Setup(p => p.ForRegistrationAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(PaymentState.Empty(bAddProcessingFees: false, ccRate: 0m, echeckRate: 0m));
+        // Default job rate context (proc off). The deposit charge engine reads this to gross the
+        // deposit by the CC rate; proc-on tests override it after BuildSut.
+        _paymentState.Setup(p => p.ForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PaymentState.Empty(bAddProcessingFees: false, ccRate: 0m, echeckRate: 0m));
         // Agegroup resolves through the team now — echo a team carrying an agegroup for the reg's AssignedTeamId.
         _teams.Setup(t => t.GetTeamFromTeamId(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Guid teamId, CancellationToken _) => new Teams { TeamId = teamId, AgegroupId = Guid.NewGuid() });
@@ -220,16 +224,21 @@ public class PlayerCcPaymentServiceTests
             .Callback<AdnChargeRequest>(r => charged = r.Amount)
             .Returns(new AdnTxnResult { Success = true, TransactionId = "txn", ResponseCode = "1", MessageForUser = "Approved" });
         var sut = BuildSut();
+        // Proc-enabled job: 3% CC rate. The deposit charge grosses the $100 deposit by its own
+        // proc ($3), matching the OwedTotal the payment screen shows.
+        _paymentState.Setup(p => p.ForJobAsync(jobId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(PaymentState.Empty(bAddProcessingFees: true, ccRate: 0.03m, echeckRate: 0m));
 
         var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, DepositReq(25m), ActingUserId);
 
         result.Success.Should().BeTrue();
         reg.FeeDonation.Should().Be(25m, "the gift is stamped on the primary registration");
-        // deposit (100) + gift principal (25) + proc on the gift (0.75). Without the donationGross
-        // add, ComputeChargesAsync's deposit cap (Math.Min(dep, OwedTotal)) would drop the gift.
-        charged.Should().Be(125.75m);
-        reg.PaidTotal.Should().Be(125.75m);
-        reg.OwedTotal.Should().Be(3.00m, "the deposit's own proc remains owed; the gift netted to zero");
+        // deposit principal (100) + deposit proc (3) + gift principal (25) + proc on the gift (0.75).
+        // The deposit now carries its own proc (the bug charged the bare $100 and stranded the $3),
+        // so the card is hit for the full proc-inclusive OwedTotal and nothing is left owed.
+        charged.Should().Be(128.75m);
+        reg.PaidTotal.Should().Be(128.75m);
+        reg.OwedTotal.Should().Be(0m, "deposit + its proc + the proc-inclusive gift are all collected");
     }
 
     [Fact(DisplayName = "Deposit + donation decline → gift rolled back (no stranded FeeDonation)")]

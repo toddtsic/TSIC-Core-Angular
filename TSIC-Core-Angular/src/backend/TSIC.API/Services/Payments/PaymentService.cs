@@ -1953,9 +1953,22 @@ public class PaymentService : IPaymentService
         else if (option == PaymentOption.Deposit)
         {
             var map = new Dictionary<Guid, decimal>();
+            // The deposit principal carries its own processing fee. Players ALWAYS levy proc on
+            // the FeeBase (FeeResolutionService.ApplyRegistrationProcessingAndTotalsAsync — there
+            // is no ApplyProcessingFeesToDeposit gate; that flag is teams-only), so a deposit-phase
+            // reg is stamped FeeBase=deposit, FeeProcessing=deposit×ccRate, OwedTotal=deposit+proc.
+            // The payment screen shows OwedTotal (proc-inclusive). Charging the bare principal hit
+            // the card for the deposit only and stranded the proc as a residual balance ($207 shown,
+            // $200 charged). Gross the deposit by the JOB CC rate (donation-independent — a payment-
+            // time gift is added separately via donationGross by the caller) and cap at OwedTotal.
+            var first = registrations.FirstOrDefault(r => r.RegistrationId != Guid.Empty);
+            var rateState = first != null ? await _paymentState.ForJobAsync(first.JobId) : null;
+            var ccRate = (rateState?.BAddProcessingFees ?? false) ? rateState!.CcRate : 0m;
             foreach (var reg in registrations)
             {
                 var dep = await ResolveDepositForRegAsync(reg);
+                if (dep > 0m && ccRate > 0m)
+                    dep += Math.Round(dep * ccRate, 2, MidpointRounding.AwayFromZero);
                 var cap = Math.Min(dep, reg.OwedTotal);
                 if (cap > 0 && reg.RegistrationId != Guid.Empty)
                     map[reg.RegistrationId] = cap;
