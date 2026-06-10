@@ -168,24 +168,28 @@ const JOB_TYPE_TOURNAMENT = 2;
 
         @if (isTournament()) {
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-            [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
             [modifiers]="clubRepModifiers"
             hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
-            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-            [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.playerPhase"
             [modifiers]="playerModifiers"
             hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
         } @else {
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
-            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-            [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.playerPhase"
             [modifiers]="playerModifiers"
             hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-            [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
             [modifiers]="clubRepModifiers"
             hintText="Leave blank to use the agegroup default." placeholder="Agegroup default" [scope]="'team'" />
         }
@@ -580,6 +584,14 @@ export class TeamDetailComponent implements OnChanges {
         ? `${who} fee: a deposit must also have a balance due.` : null;
     return bad(this.feeForm.playerDeposit, this.feeForm.playerBalanceDue, 'Player')
         ?? bad(this.feeForm.clubRepDeposit, this.feeForm.clubRepBalanceDue, 'Club Rep');
+  }
+
+  /** Clears a showing deposit/balance validation error once the inputs no longer violate it. */
+  clearFeeError(): void {
+    if (this.isError() && !this.depositBalanceError()) {
+      this.isError.set(false);
+      this.saveMessage.set(null);
+    }
   }
 
   private captureOriginals(): void {

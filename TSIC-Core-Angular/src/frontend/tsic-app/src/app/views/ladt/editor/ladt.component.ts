@@ -84,6 +84,16 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   // Fee data for grid enrichment
   private jobFees = signal<JobFeeDto[]>([]);
 
+  // Job-level full-payment phase baselines (from the tree root). The fee resolver falls back
+  // to these when no per-scope override exists, so the grid's Payment Phase column must too.
+  // Players flag → Player role; Teams flag → ClubRep role.
+  private jobPlayersFullPayment = signal(false);
+  private jobTeamsFullPayment = signal(false);
+
+  // Role IDs (mirror ROLE_LABELS) for the role→baseline split.
+  private static readonly PLAYER_ROLE_ID = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
+  private static readonly CLUBREP_ROLE_ID = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+
   // ── Team Status KPIs (computed from tree data) ──
   teamStatusKpis = computed(() => {
     const scheduledIds = this.scheduledTeamIds();
@@ -282,6 +292,8 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         this.totalTeams.set(root.totalTeams);
         this.totalPlayers.set(root.totalPlayers);
         this.scheduledTeamIds.set(new Set(root.scheduledTeamIds ?? []));
+        this.jobPlayersFullPayment.set(root.bPlayersFullPaymentRequired);
+        this.jobTeamsFullPayment.set(root.bTeamsFullPaymentRequired);
 
         const flat = this.flattenTree(root.leagues as LadtTreeNodeDto[]);
         this.flatNodes.set(flat);
@@ -744,6 +756,13 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
    * FeeRepository.GetActiveModifiersForCascadeAsync). Job tier is not a modifier
    * source. A modifier's source can therefore differ from the base fee's source.
    */
+  /** Job-level full-payment baseline for a role — the resolver's fallback when no override exists. */
+  private jobBaselineFor(roleId: string): boolean {
+    return roleId === LadtEditorComponent.CLUBREP_ROLE_ID
+      ? this.jobTeamsFullPayment()
+      : this.jobPlayersFullPayment();
+  }
+
   private buildFeeData(scopeId: string, scopeType: 'league' | 'agegroup' | 'team'): {
     fees: any[]; earlyBird: any[]; lateFee: any[]; phase: any[];
   } {
@@ -906,13 +925,14 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         });
       }
       // Phase pill renders for every role with fee context: an override shows
-      // "Full Payment"/"Balance Due" + a where-set badge; no override defaults
-      // to "Balance Due" with no badge.
+      // "Full Payment"/"Balance Due" + a where-set badge. With no override the value
+      // falls back to the job baseline (matching the backend resolver) and is badged
+      // "job default" so it reads as the source, not an unset blank.
       phase.push({
         roleId, roleLabel,
-        fullPayment: e.phase?.value ?? false,
+        fullPayment: e.phase?.value ?? this.jobBaselineFor(roleId),
         hasOverride: e.phase != null,
-        source: e.phase?.source ?? null,
+        source: e.phase?.source ?? 'job',
         inherited: e.phase ? isInherited(e.phase.source) : false,
       });
     }

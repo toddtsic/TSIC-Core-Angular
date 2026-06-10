@@ -77,24 +77,28 @@ const JOB_TYPE_TOURNAMENT = 2;
         <!-- ── League Fees (Deposit / Balance Due + Early Bird / Late Fee) ── -->
         @if (isTournament()) {
           <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-            [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
           <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
-            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-            [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.playerPhase"
             [modifiers]="playerModifiers" placeholder="Optional" [phaseNote]="phaseNote('player')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
         } @else {
           <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
-            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-            [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.playerPhase"
             [modifiers]="playerModifiers" placeholder="Optional" [phaseNote]="phaseNote('player')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
           <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-            [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
         }
@@ -403,6 +407,14 @@ export class LeagueDetailComponent implements OnChanges {
         ? `${who} fee: a deposit must also have a balance due.` : null;
     return bad(this.feeForm.playerDeposit, this.feeForm.playerBalanceDue, 'Player')
         ?? bad(this.feeForm.clubRepDeposit, this.feeForm.clubRepBalanceDue, 'Club Rep');
+  }
+
+  /** Clears a showing deposit/balance validation error once the inputs no longer violate it. */
+  clearFeeError(): void {
+    if (this.isError() && !this.depositBalanceError()) {
+      this.isError.set(false);
+      this.saveMessage.set(null);
+    }
   }
 
   /**

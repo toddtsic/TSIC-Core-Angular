@@ -131,22 +131,30 @@ const JOB_TYPE_TOURNAMENT = 2;
 
         @if (isTournament()) {
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-            [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
-            [modifiers]="clubRepModifiers" [scope]="'agegroup'" />
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
+            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
-            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-            [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
-            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" />
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
+            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         } @else {
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
-            namePrefix="player" [(deposit)]="feeForm.playerDeposit"
-            [(balanceDue)]="feeForm.playerBalanceDue" [(bFullPaymentRequired)]="feeForm.playerPhase"
-            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" />
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
+            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [(deposit)]="feeForm.clubRepDeposit"
-            [(balanceDue)]="feeForm.clubRepBalanceDue" [(bFullPaymentRequired)]="feeForm.clubRepPhase"
-            [modifiers]="clubRepModifiers" [scope]="'agegroup'" />
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
+            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         }
 
         <!-- ── Save ── -->
@@ -531,6 +539,27 @@ export class AgegroupDetailComponent implements OnChanges {
         ? `${who} fee: a deposit must also have a balance due.` : null;
     return bad(this.feeForm.playerDeposit, this.feeForm.playerBalanceDue, 'Player')
         ?? bad(this.feeForm.clubRepDeposit, this.feeForm.clubRepBalanceDue, 'Club Rep');
+  }
+
+  /** Clears a showing deposit/balance validation error once the inputs no longer violate it. */
+  clearFeeError(): void {
+    if (this.isError() && !this.depositBalanceError()) {
+      this.isError.set(false);
+      this.saveMessage.set(null);
+    }
+  }
+
+  /**
+   * Read-only phase pointer for the age-group card. When an age-group fee exists, the card's
+   * own toggle + amount-aware explanation own the phase display, so this returns null. When no
+   * fee is set here, phase can still be overridden one tier down — point there (mirrors the
+   * "See team settings" fallback in the age-group grid's Payment Phase column).
+   */
+  phaseNote(role: 'player' | 'clubRep'): string | null {
+    const dep = role === 'player' ? this.feeForm.playerDeposit : this.feeForm.clubRepDeposit;
+    const bal = role === 'player' ? this.feeForm.playerBalanceDue : this.feeForm.clubRepBalanceDue;
+    if (dep != null || bal != null) return null;
+    return 'See team settings.';
   }
 
   private captureOriginals(): void {

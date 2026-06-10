@@ -8,5 +8,7 @@ export type LadtTreeRootDto = {
     totalTeams: number;
     totalPlayers: number;
     scheduledTeamIds: Array<string>;
+    bPlayersFullPaymentRequired: boolean;
+    bTeamsFullPaymentRequired: boolean;
 };
 

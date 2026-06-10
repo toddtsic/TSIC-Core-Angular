@@ -10,6 +10,15 @@ public record LadtTreeRootDto
     public required int TotalTeams { get; init; }
     public required int TotalPlayers { get; init; }
     public required List<Guid> ScheduledTeamIds { get; init; }
+
+    /// <summary>
+    /// Job-level full-payment phase baselines — the fallback the fee resolver uses when
+    /// no per-scope JobFees override exists (ResolvedFee.ResolveFullPaymentPhase). The LADT
+    /// grid uses these so the Payment Phase column reflects the true resolved phase.
+    /// Players flag drives the Player role; Teams flag drives the ClubRep role.
+    /// </summary>
+    public required bool BPlayersFullPaymentRequired { get; init; }
+    public required bool BTeamsFullPaymentRequired { get; init; }
 }
 
 /// <summary>

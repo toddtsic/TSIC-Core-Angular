@@ -53,6 +53,19 @@ public class JobRepository : IJobRepository
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<JobFullPaymentBaseline?> GetFullPaymentBaselineAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobFullPaymentBaseline
+            {
+                BPlayersFullPaymentRequired = j.BPlayersFullPaymentRequired,
+                BTeamsFullPaymentRequired = j.BTeamsFullPaymentRequired ?? false
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<JobMetadata?> GetJobMetadataAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs

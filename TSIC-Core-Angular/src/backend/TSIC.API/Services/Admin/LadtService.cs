@@ -72,6 +72,7 @@ public sealed class LadtService : ILadtService
         var playerCounts = await _teamRepo.GetPlayerCountsByTeamAsync(jobId, cancellationToken);
         var clubNames = await _teamRepo.GetClubNamesByJobAsync(jobId, cancellationToken);
         var scheduledTeamIds = await _teamRepo.GetScheduledTeamIdsAsync(jobId, cancellationToken);
+        var phaseBaseline = await _jobRepo.GetFullPaymentBaselineAsync(jobId, cancellationToken);
 
         var totalTeams = 0;
         var totalPlayers = 0;
@@ -185,7 +186,9 @@ public sealed class LadtService : ILadtService
             Leagues = leagueNodes,
             TotalTeams = totalTeams,
             TotalPlayers = totalPlayers,
-            ScheduledTeamIds = scheduledTeamIds.ToList()
+            ScheduledTeamIds = scheduledTeamIds.ToList(),
+            BPlayersFullPaymentRequired = phaseBaseline?.BPlayersFullPaymentRequired ?? false,
+            BTeamsFullPaymentRequired = phaseBaseline?.BTeamsFullPaymentRequired ?? false
         };
     }
 

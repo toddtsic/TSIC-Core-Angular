@@ -163,6 +163,8 @@ export interface ParentBreadcrumb {
                             } @else {
                               <span class="fee-set-badge">{{ sourceLabel(ph.source) }} set</span>
                             }
+                          } @else {
+                            <span class="fee-from-badge">job default</span>
                           }
                         </div>
                       }
@@ -170,6 +172,8 @@ export interface ParentBreadcrumb {
                   } @else {
                     @if (level() === 0) {
                       <span class="phase-hint">See age group level</span>
+                    } @else if (level() === 1) {
+                      <span class="phase-hint">See team settings</span>
                     } @else {
                       <span class="text-body-tertiary">—</span>
                     }

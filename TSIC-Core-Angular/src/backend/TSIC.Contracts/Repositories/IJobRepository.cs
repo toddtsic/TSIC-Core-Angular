@@ -125,6 +125,17 @@ public record JobMetadataDto
     public required bool BIncludeTeamDonation { get; init; }
 }
 
+/// <summary>
+/// The two job-level full-payment phase baselines used as the fallback when no per-scope
+/// JobFees override exists (mirrors the jobBaseline arg of ResolvedFee.ResolveFullPaymentPhase).
+/// Players flag → Player role; Teams flag → ClubRep role.
+/// </summary>
+public record JobFullPaymentBaseline
+{
+    public required bool BPlayersFullPaymentRequired { get; init; }
+    public required bool BTeamsFullPaymentRequired { get; init; }
+}
+
 public record JobRegistrationStatus
 {
     public required bool BRegistrationAllowPlayer { get; init; }
@@ -155,6 +166,12 @@ public interface IJobRepository
     /// Fetch payment configuration for a job (ARB settings).
     /// </summary>
     Task<JobPaymentInfo?> GetJobPaymentInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Fetch the two job-level full-payment phase baselines (players + teams) in one query.
+    /// Used by the LADT tree so the grid's Payment Phase column can resolve like the backend.
+    /// </summary>
+    Task<JobFullPaymentBaseline?> GetFullPaymentBaselineAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Fetch job metadata fields (PlayerProfileMetadataJson, JsonOptions, CoreRegformPlayer).
