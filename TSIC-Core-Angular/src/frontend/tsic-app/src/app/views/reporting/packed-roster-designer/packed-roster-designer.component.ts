@@ -391,7 +391,8 @@ export class PackedRosterDesignerComponent implements OnInit {
             this.buildColumn('gpa'),
             this.buildColumn('collegeCommit', { longText: 'Wrap' }),
         ]);
-        this.showCoaches.set(false);
+        // The "by School" (_PositionSchool) legacy lists extra team staff as name-only rows.
+        this.showCoaches.set(true);
         this.showRepName.set(true);
         this.showRepEmail.set(true);
         this.showRepPhone.set(true);

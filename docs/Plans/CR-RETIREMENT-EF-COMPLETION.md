@@ -58,8 +58,6 @@ verified Day Group): `camp_daygroups_pdf`, `camp_nightgroups`, `camp_nightgroups
 2026-06-08** — Game Boards built as a focused `GameBoardsPdfService` (EF + Syncfusion, NOT the list
 engine), endpoint swapped off Crystal, badged SF; **verified vs the legacy target PDF on
 `lftc-summer-2026`** (in-app runtime check pending) ·
-`TournamentRosterPacked_PositionSchool` (group-by-school not built — ALSO: its `@ActionMap`
-remap to the Designer is premature; consider un-remapping until the feature lands) ·
 `camp_commuters` (team-name filter, not built) · 8 E-residuals (American Select eval/main-event,
 E120, daily-reg-counts, 4 financials).
 
@@ -86,9 +84,9 @@ col from Flat); and pagination reserves the footer height so the last row + scor
 | Report (endpoint) | Surface | EF entities | Status |
 |---|---|---|---|
 | _**proc→EF cutover**: `ScheduleList_Flat` → `GetScheduleListGamesAsync`_ | — | present | ✔ runtime-verified 2026-06-05 (lftc-summer-2026, Master preset) |
-| FieldUtilizationAcrossLeaguesTournament | `fieldUtil` preset | present | ☐ |
-| FieldUtilizationAcrossLeaguesByDateTournament | `fieldUtil` + date | present | ☐ |
-| Score_Input | `scoreSheet` preset | present | ☐ |
+| FieldUtilizationAcrossLeaguesTournament | `fieldUtil` preset | present | ✔ USER-VERIFIED 2026-06-05 (after the score-mode-trap fix) + retired in code (`@ExcludeActions`, script-7:239); pending only the Tier-2 script-7 re-run |
+| FieldUtilizationAcrossLeaguesByDateTournament | `fieldUtil` + date | present | ✔ USER-VERIFIED 2026-06-05 + retired in code (`@ExcludeActions`, script-7:240); pending script-7 re-run |
+| Score_Input | `scoreSheet` preset | present | ✔ USER-VERIFIED 2026-06-05 (Score Entry / Blank preset) + retired in code (`@ExcludeActions`, script-7:241); pending script-7 re-run |
 | Schedule_ByAgegroup (game boards) | **focused `GameBoardsPdfService`** — standings write-in box + home/away score boxes + per-agegroup "Championship Round" (NOT the list engine) | present | ✔ BUILT + verified vs target PDF 2026-06-08 (lftc-summer-2026); endpoint EF-swapped + badged SF; in-app check pending. Games group by `DivId` (not `Div2Id`); bracket seed types Z/Y/X/Q/S/F; same-time games sorted by **field** (Allentown-01, 02, … — more usable than legacy's non-deterministic order; the proc sorts by G_Date only) |
 
 > **Render-shape discovery (2026-06-05).** The "Rosters" family is **not** one designer — it's
@@ -109,13 +107,19 @@ preset is **approximate**, not a pixel clone — per the user's accepted trade-o
 
 **Runtime-verified 2026-06-05** (`lftc-summer-2026`): packed render + footer fix (`Page X / Y`)
 confirmed, plus the affiliation toggle, within-card sort, and By-Position / Packed-XPO presets.
-Still open: `_PositionSchool` (**group-by-school**) — that grouping mode is **not built**, so the
-variant stays ◐ (do **not** retire it yet).
+**`_PositionSchool` RESOLVED 2026-06-09** — it was never a group-by-school report. The legacy
+(`rosterPackedPositionSchool-legacy.pdf`, 143 pp) is the SAME team-cards-grouped-by-`AgDiv` layout
+as base packed, with the recruiting column set (`# · Player · Position · Grad Yr · GPA · College
+Commit`) + the rep contact line — i.e. the existing **"College Commit 2-up"** (`collegeCommit2`)
+preset. Two 1-line fidelity fixes vs the legacy: show GPA for committed players
+(`PackedRosterPdfService` ResolveCell `gpa` — dropped the `IsCommitted` blank) and flip
+`showCoaches` ON in the preset. So the `@ActionMap` remap was CORRECT, not premature; retired by
+removing the `type1-report-catalog.ts` entry (DB side already mapped to the Designer SpaComponent).
 
 | Report (endpoint) | Surface | EF entities | Status |
 |---|---|---|---|
 | TournamentRosterPacked | existing preset | present | ✔ runtime-verified 2026-06-05 (post EF-cutover + footer fix); retire pending |
-| TournamentRosterPacked_PositionSchool | by-school grouping | present | ◐ (group-by-school not yet added) |
+| TournamentRosterPacked_PositionSchool | `collegeCommit2` preset (recruiting columns, 2-up) | present | ✔ RESOLVED 2026-06-09 — legacy is base-packed layout + recruiting columns (NOT group-by-school); GPA-for-committed + `showCoaches` fixed; catalog entry removed → retired; in-app render check pending |
 | TournamentRecruitingReport (recruiter cards) | recruiter mode | present | ✔ runtime-verified 2026-06-05 (SAT=sum confirmed); retire pending |
 | Get_JobRosters_PackedByPositionAGNoClubPlayers | affiliation toggle OFF | present | ✔ runtime-verified 2026-06-05; retire pending |
 | Get_JobRosters_PackedByPosition_XPO | Packed XPO preset (approx) | present | ✔ runtime-verified 2026-06-05 (approximate accepted); retire pending |
@@ -183,22 +187,22 @@ fields + a **Camp preset**, and a Camp-Registration-gated tile **Camp Groups (De
 | camp_nightgroups | B2 group-by Night Group | present | ◐ built; verify pending |
 | camp_nightgroups_pdf | B2 grouped (stacked layout approx) | present | ◐ built (approx) |
 | camp_roomies | B2 group-by Roommate | present | ◐ built; verify pending |
-| camp_commuters | team-name "COMMUTER " filter | present | ☐ NOT built (deferred — a filter, not a grouping) |
+| camp_commuters | **fixed render** (commuter filter + Camp→SkillGroup two-level table) | present | ⏸ DEFERRED (user "skip for now" 2026-06-09). Legacy `umCampCommuters-legacy.pdf` ran **EMPTY** (no live commuters — UM commuter camps are historical/concluded). Skeleton recovered: a WIDE TABLE (B2 family, not packed) titled "COMMUTERS BY [BY] CAMP AND SKILL GROUP" (legacy double-"BY" typo), grouped **Camp → Skill Group**, cols `Camp·LastName·FirstName·grad_year·city·state·roomStatus·uniform_no·nightGroup`. Commuter discriminant: the documented `left(teamName,1)='C'` is WRONG vs real data (UM teams are "UM COMMUTER…"/"UM OVERNIGHT…" → start 'U'); real signal = team name CONTAINS "COMMUTER". Two-level group + filter don't fit B2's single-group model → fixed one-off recommended. Unresolved: Skill Group≈DayGroup? Camp≈teamName? + no live data to verify. **Side-note:** the same `roomStatus=left(teamName,1)` in the shipped `reporting_migrate.camp_excelexport_room_position` likely emits 'U' for UM campers (faithful-to-legacy but dubious) |
 | JobRosters_DayGroupsPackedXPO | B1 packed (dayGroup field + sort) | present | ◐ built (approx) |
 
 ## E — Fixed one-off renders  (residuals; sequence last)
 
 | Report (endpoint) | EF entities | Status |
 |---|---|---|
-| Get_JobPlayers_TSICDAILY (daily reg counts) | present (`Registrations`) — **easy** | ◐ built — EF+Syncfusion, **migrate-in-place** (no Designer; tile/endpoint unchanged); verify pending |
-| TSICFeesYTDByCustomer | `adn.tsicFeesYTDAndLastYear` proc (small) — entities mapped | ◐ built — `GetFeeYtdRowsAsync` + `FeeYtdReportPdfService` (customer rollup); money **VERIFIED penny-exact vs proc** (274 keys, grand $98,380.00, 2025 $51,002 / 2026 $47,378); **layout INFERRED** (no .rpt/PDF ground truth) — user visual check pending |
-| TSICFeesYTDByCustomerAndJob | same proc | ◐ built — same service (customer→job breakout, YoY change col); shares verified proc-exact data; layout inferred, user check pending |
+| Get_JobPlayers_TSICDAILY (daily reg counts) | present (`Registrations`) — **easy** | ✔ **2026-06-09 — user KEPT the grouped render, declined legacy-match.** Legacy is a flat 5-col table (Customer · Job · Role · Count (Daily) · Count (To Date), no totals); user: *"fine to keep your grouping work, you don't have to match legacy for this report."* So the shipped render stays grouped (customer band → job → role rows → job/grand totals). Data layer proc-faithful (proc `reporting.Get_Registrations_TSIC_Today` + ad-hoc SQL + the EF query all return 0 today on TSICV5). **Migrate-in-place, already committed** (no catalog/script-7 change). NOTE: the legacy PDF came from PROD/live data (showed 6/9/2026 activity); TSICV5 on this box is a staler restore (0 regs today; sample job 9,587 vs 9,735) — counts track whichever DB it runs against, not a logic gap |
+| TSICFeesYTDByCustomer | `adn.tsicFeesYTDAndLastYear` proc (small) — entities mapped | ✅ **DONE (`427ed1ec`)** — `GetFeeYtdRowsAsync` + `FeeYtdReportPdfService`; render **REBUILT as the Crystal CROSS-TAB** (Customer→month rows × last-year/this-year columns + group/grand totals), **matched to legacy**; money penny-exact vs proc (274 keys, grand $98,380.00). In-place migration (catalog tile + `MIGRATED_EF_ACTIONS`), committed |
+| TSICFeesYTDByCustomerAndJob | same proc | ✅ **DONE (`427ed1ec`)** — same service, Customer→Job→month cross-tab with job + customer + grand totals, matched to legacy; shares the penny-exact data. In-place migration, committed |
 | Get_Invoices_LastMonth | `adn.rpt_invoice` proc → **full EF reproduction** | ✔ **USER-VERIFIED 2026-06-08** — player branch penny-exact ($6,908.55); **team branch confirmed** (user sees per-team txs render in the last-month run; same base `adn.Txs` reproduction as the verified player branch); layout "looks great" |
 | Get_Invoices_LastMonthSummariesOnly | same proc, summary-only render | ✔ **USER-VERIFIED 2026-06-08** — layout "looks great"; shares the verified summary math |
 
 **Financials decision (2026-06-06):** user chose **full EF reproduction** (not render-swap), tips: (1) query base tables, NOT the `adn.vTxs` view; (2) keep ADN's raw-text settlement date as text (year/month via fixed substring positions), no datetime coercion / schema change. `adn.rpt_invoice` reproduced as `GetInvoiceLinesAsync` (player + team flat branches off base `adn.Txs`) + `InvoiceReportPdfService` (landscape itemized + per-venue Accounting Summary). Money verified end-to-end against the ground-truth PDF via a throwaway SqlServer-backed test (deleted). All five `adn` entities were already mapped — no scaffolding needed.
 
-**Fee-YTD (2026-06-07):** `adn.tsicFeesYTDAndLastYear` reproduced as `GetFeeYtdRowsAsync` (pure LINQ off `Jobs`⋈`Customers`⋈`Monthly_Job_Stats`; per-row fee = NewPlayers×perPlayerCharge + NewTeams×perTeamCharge; the proc's `isnumeric(Jobs.year)=1` guard done in C# via `int.TryParse` — no portable LINQ for ISNUMERIC). One `FeeYtdReportPdfService` renders both reports (portrait): customer rollup + customer→job breakout, each a this-year-YTD vs last-year-YTD comparison (months 1..lastMonth both years) with a YoY change column. **Data verified penny-exact** vs the proc through the same connection (throwaway test, deleted): identical 274 (year,customer,job) keys, grand total $98,380.00, per-year 2025 $51,002 / 2026 $47,378. **Layout is INFERRED** — the `lastMonthsNewJobs.xlsx` the user supplied was a different "new jobs" report; there is no `.rpt`/PDF ground truth for the fee pair, only the proc defines the data. Needs a user visual check.
+**Fee-YTD (2026-06-07):** `adn.tsicFeesYTDAndLastYear` reproduced as `GetFeeYtdRowsAsync` (pure LINQ off `Jobs`⋈`Customers`⋈`Monthly_Job_Stats`; per-row fee = NewPlayers×perPlayerCharge + NewTeams×perTeamCharge; the proc's `isnumeric(Jobs.year)=1` guard done in C# via `int.TryParse` — no portable LINQ for ISNUMERIC). One `FeeYtdReportPdfService` renders both reports (portrait): customer rollup + customer→job breakout, each a this-year-YTD vs last-year-YTD comparison (months 1..lastMonth both years) with a YoY change column. **Data verified penny-exact** vs the proc through the same connection (throwaway test, deleted): identical 274 (year,customer,job) keys, grand total $98,380.00, per-year 2025 $51,002 / 2026 $47,378. **Layout is INFERRED** — the `lastMonthsNewJobs.xlsx` the user supplied was a different "new jobs" report; there was no `.rpt`/PDF ground truth at that point. **SUPERSEDED by `427ed1ec`:** the render was later rebuilt as the Crystal **cross-tab** and matched to the legacy; the "layout inferred" caveat no longer applies — the pair is DONE + committed.
 | AmericanSelectEvaluation | **NO scaffold needed** — `Registrations`+`Families` already mapped | ◐ built — `GetAmericanSelectEvaluationRowsAsync` + `AmericanSelectReportPdfService.GenerateEvaluationAsync`; **live EF test PASSED vs proc** (166=166 rows); **render REBUILT 2026-06-07 as the evaluator scoring sheet (portrait: team→position groups, numeric uniform sort, 5 blank write-in boxes Physical/PsnSpecific/StickSkills/Notes/Total) — VERIFIED exact-match vs the user's target PDF on AS New Jersey 2026.** Prior landscape contact-sheet render was wrong; data layer unchanged. Not committed |
 | AmericanSelectMainEventRosters | **NO scaffold** — same graph + family-user city | ✔ **RETIRED 2026-06-08 (`6748c006`)** — consolidated into the packed engine via `GetTournamentRosterRowsAsync(requiresSchedule:false)` + a fixed Player/Position/School 2-up preset; the bespoke single-column renderer, `GetAmericanSelectMainEventRosterRowsAsync`, and its DTO were removed. Verified vs the legacy export (all 12 offer teams, tryouts excluded). Migrated in place (tile was already an EF action; no catalog/script-7 change) |
 | PlayerStats_E120 | **NO scaffold** — agegroup/team grouping on the roster graph (team name carries the position; the proc has no position column) | ✔ **USER-VERIFIED 2026-06-09** — render REBUILT as the legacy per-team blank entry form (one page per team titled "{agegroup}: {team}", four underlined stat headers F-Shot/5-10-5/40-YD/300-YD each over a PAIR of blank write-in boxes, "#{uniform} Last, First" rows, never pre-filled); exact roster match vs the legacy export on Players Series:Girls Summer Showcase 2025; legacy "#null" jersey artifact suppressed (bare "#"). Data layer unchanged (already proc-exact: agegroup/team grouping, no position, same filters/sort). **Migrated in place** — catalog tile + SuperUser DB row both route to the EF render via `MIGRATED_EF_ACTIONS` (green SF badge); NO catalog/`@ExcludeActions` change (would only cut access), same as AS Main Event. Committed to master |

@@ -309,8 +309,9 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
             "position" => row.IsStaff ? "" : row.Position,
             "school_name" => ResolveSchool(row, request),
             "gradYear" => row.IsStaff ? "" : row.GradYear,
-            // CC RDL blanks GPA for committed players.
-            "gpa" => row.IsStaff || row.IsCommitted ? "" : row.Gpa,
+            // GPA shows for every player, committed included (verified vs the by-School legacy
+            // export — e.g. "… 4.7 Shenandoah"); only staff rows blank it.
+            "gpa" => row.IsStaff ? "" : row.Gpa,
             "collegeCommit" => row.IsStaff ? "" : row.CollegeCommit,
             "dayGroup" => row.IsStaff ? "" : row.DayGroup,
             _ => "",
