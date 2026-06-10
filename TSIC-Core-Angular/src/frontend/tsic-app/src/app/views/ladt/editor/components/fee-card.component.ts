@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input, computed, input, output } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { ControlContainer, FormsModule, NgForm } from '@angular/forms';
 
 export interface ModifierForm {
   feeModifierId?: string | null;
@@ -13,6 +13,12 @@ export interface ModifierForm {
   selector: 'app-fee-card',
   standalone: true,
   imports: [FormsModule],
+  // Make this card's ngModel controls (deposit, balance, modifier amounts/dates) register
+  // with the host detail panel's <form>, so editing a fee dirties that form and the
+  // unsaved-changes guard fires. Without this, ngModel's @Host() lookup stops at this
+  // component and the controls stay standalone (silent data loss on close). The phase
+  // toggle has no control, so panels mark dirty on its change separately.
+  viewProviders: [{ provide: ControlContainer, useExisting: NgForm }],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="section-card"

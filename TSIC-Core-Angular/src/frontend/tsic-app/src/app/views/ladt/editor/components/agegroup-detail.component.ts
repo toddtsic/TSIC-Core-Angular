@@ -135,26 +135,26 @@ const JOB_TYPE_TOURNAMENT = 2;
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
             [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         } @else {
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
             [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         }
@@ -743,9 +743,16 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
       // The color picker is a dropdown, not a named <input>, so NgForm can't see this
       // change. Flag the form dirty so the sticky save bar lights and the discard guard
       // covers a color-only edit.
-      this.detailForm()?.form.markAsDirty();
+      this.markFeeDirty();
     }
     this.colorDropdownOpen.set(false);
+  }
+
+  /** Flag the form dirty for a control NgForm can't see on its own — the phase toggle (a
+   *  bare checkbox, no ngModel) and the color picker. Deposit/balance/modifier ngModels now
+   *  register with this form via fee-card's ControlContainer, so they dirty it directly. */
+  markFeeDirty(): void {
+    this.detailForm()?.form.markAsDirty();
   }
 
   openCloneDialog(): void {

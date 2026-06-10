@@ -81,26 +81,26 @@ const JOB_TYPE_TOURNAMENT = 2;
           <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
           <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
             [modifiers]="playerModifiers" placeholder="Optional" [phaseNote]="phaseNote('player')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
         } @else {
           <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
             [modifiers]="playerModifiers" placeholder="Optional" [phaseNote]="phaseNote('player')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
           <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')" [scope]="'league'"
             hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
         }
@@ -176,6 +176,13 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
    *  render inside this form). See LadtEditGuardService. */
   readonly isDirty = (): boolean => this.detailForm()?.dirty ?? false;
   private readonly dirtyProbe = () => this.isDirty();
+
+  /** Flag the form dirty for the phase toggle (a bare checkbox with no ngModel, which NgForm
+   *  can't see). Deposit/balance/modifier ngModels dirty the form directly via fee-card's
+   *  ControlContainer registration. */
+  markFeeDirty(): void {
+    this.detailForm()?.form.markAsDirty();
+  }
 
   readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 

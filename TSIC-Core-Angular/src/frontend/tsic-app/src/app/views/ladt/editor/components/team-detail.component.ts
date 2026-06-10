@@ -173,14 +173,14 @@ const JOB_TYPE_TOURNAMENT = 2;
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
             hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
             [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
             hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
@@ -188,14 +188,14 @@ const JOB_TYPE_TOURNAMENT = 2;
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.playerPhase"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
             [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
             hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [(bFullPaymentRequired)]="feeForm.clubRepPhase"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
             hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
@@ -336,6 +336,13 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
    *  value still reads dirty, which is the safe side for a discard guard. */
   readonly isDirty = (): boolean => this.detailForm()?.dirty ?? false;
   private readonly dirtyProbe = () => this.isDirty();
+
+  /** Flag the form dirty for the phase toggle (a bare checkbox with no ngModel, which NgForm
+   *  can't see). Deposit/balance/modifier ngModels dirty the form directly via fee-card's
+   *  ControlContainer registration. */
+  markFeeDirty(): void {
+    this.detailForm()?.form.markAsDirty();
+  }
 
   readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
