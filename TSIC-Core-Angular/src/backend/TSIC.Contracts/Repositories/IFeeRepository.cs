@@ -142,6 +142,13 @@ public interface IFeeRepository
     /// </summary>
     Task<int> DeleteByAgegroupIdAsync(Guid agegroupId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Batch-deletes every team-scoped JobFees override row (TeamId == teamId) and their modifiers.
+    /// Uses EF Core <c>ExecuteDeleteAsync</c>; commits immediately, independent of other tracked changes.
+    /// Call before hard-removing a team to clear FK_JobFees_Teams.
+    /// </summary>
+    Task<int> DeleteByTeamIdAsync(Guid teamId, CancellationToken ct = default);
+
     /// <summary>Persists all pending changes.</summary>
     Task SaveChangesAsync(CancellationToken ct = default);
 }

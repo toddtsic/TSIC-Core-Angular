@@ -932,6 +932,8 @@ public sealed class LadtService : ILadtService
             ?? throw new KeyNotFoundException($"Team {teamId} not found.");
         var deletedDivId = teamToDelete.DivId;
         var deletedClubRepId = teamToDelete.ClubrepRegistrationid;
+        // Clear team-scoped fee overrides first (FK_JobFees_Teams blocks the row delete otherwise).
+        await _feeRepo.DeleteByTeamIdAsync(teamId, cancellationToken);
         _teamRepo.Remove(teamToDelete);
         await _teamRepo.SaveChangesAsync(cancellationToken);
 
@@ -969,6 +971,8 @@ public sealed class LadtService : ILadtService
         if (!isScheduled && playerCount == 0 && !hasPayments)
         {
             var clubRepRegId = team.ClubrepRegistrationid;
+            // Clear team-scoped fee overrides first (FK_JobFees_Teams blocks the row delete otherwise).
+            await _feeRepo.DeleteByTeamIdAsync(teamId, cancellationToken);
             _teamRepo.Remove(team);
             await _teamRepo.SaveChangesAsync(cancellationToken);
 

@@ -380,5 +380,16 @@ public class FeeRepository : IFeeRepository
             .ExecuteDeleteAsync(ct);
     }
 
+    public async Task<int> DeleteByTeamIdAsync(Guid teamId, CancellationToken ct = default)
+    {
+        // Delete modifiers first (FK_FeeModifiers_JobFees), then the team-scoped fee rows.
+        await _context.FeeModifiers
+            .Where(m => m.JobFee!.TeamId == teamId)
+            .ExecuteDeleteAsync(ct);
+        return await _context.JobFees
+            .Where(jf => jf.TeamId == teamId)
+            .ExecuteDeleteAsync(ct);
+    }
+
     public async Task SaveChangesAsync(CancellationToken ct = default) => await _context.SaveChangesAsync(ct);
 }
