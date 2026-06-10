@@ -174,86 +174,79 @@ WHERE j.JobTypeId = 3
 PRINT '6  League player fee LEAGUE-level rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
--- 7. Waitlist mirror teams — explicit $0 CONFIGURED row (free, but FeeConfigured=true).
---    Sections 1-6 only seed POSITIVE legacy fees, so the free waitlist mirrors get no
---    row; and the DELETE at the top of this script wipes any $0 stamp the runtime mint
---    (TeamPlacementService.EnsureWaitlistTeamFeeAsync) wrote. Without a row the resolver
---    returns FeeConfigured=false and the player wizard fail-loud blocks registration
---    ("Fee not set") — no Registration row is written, so the player is invisible in
---    search and the confirmation renders raw !TOKENS. Stamp a team-scoped (0,0) Player
---    row for every team under a 'WAITLIST - %' agegroup so the mirror resolves as
---    genuinely-free-but-configured, matching the runtime mint. NOT EXISTS preserves any
---    row sections 1-6 already wrote (a mirror that somehow carries a positive legacy fee).
-INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
-SELECT
-    NEWID(), t.JobId, 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A',
-    t.AgegroupId, t.TeamId,
-    0, 0,
-    GETUTCDATE()
-FROM Leagues.teams t
-JOIN Leagues.agegroups ag ON t.AgegroupId = ag.AgegroupId
-JOIN Jobs.Jobs j ON t.JobId = j.JobId
-WHERE ag.AgegroupName LIKE 'WAITLIST - %'
-  AND j.Year IN ('2025', '2026', '2027')
-  AND NOT EXISTS (
-      SELECT 1 FROM fees.JobFees jf
-      WHERE jf.JobId = t.JobId
-        AND jf.TeamId = t.TeamId
-        AND jf.RoleId = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
-  );
-PRINT '7  Waitlist mirror $0 Player rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
-GO
-
--- 8. Self-rostering free players — explicit $0 CONFIGURED Player row.
---    Covers a genuinely-free CAC (Camps & Clinics) registration AND free
---    tournament/league self-rostering: the player self-rosters onto an available team
---    and is NOT charged (the club rep, not the player, pays any team/agegroup fee).
---    Same hole as the waitlist mirror (section 7) — a free team matches none of
---    sections 1-6 so it has no row, "no row" reads as FeeConfigured=false, the player
---    wizard fail-loud blocks registration ("Fee not set"), no Registration row is
---    written, the player is invisible in search and the confirmation renders raw
---    !TOKENS. Self-rosterable = team OR agegroup bAllowSelfRostering set (matches the
---    picker, TeamRepository.GetAvailableTeamsQueryResultsAsync).
+-- 7N. Agegroup-level $0 Player base — faithful encoding of legacy "free".
+--     REPLACES the old per-team §7 (waitlist mirrors) + §8 (self-roster-free). Legacy's
+--     player fee resolver bottoms out at 0 (IAccountingService.UpdatePlayerFeesRecord_
+--     TeamAgBasis: team.PerRegistrantFee ?? ag.RosterFee ?? leagues.PlayerFeeOverride ?? 0;
+--     tournament/type-2 skips the player charge entirely unless a league override exists).
+--     The new resolver instead reads "no JobFees row at any tier" as FeeConfigured=false
+--     -> "Fee not set" -> blocks the self-rostering player. So legacy "free" must be an
+--     EXPLICIT $0 row. Write it ONCE per agegroup, not per team:
+--       * Agegroup sits ABOVE team in the Team->Agegroup->League cascade, so one row
+--         covers every team in the agegroup — including teams a club rep creates AFTER
+--         seed-time (team creation writes no Player JobFees row), closing the hole the
+--         per-team rows could not.
+--       * Waitlist mirrors fold in via the 'WAITLIST - %' branches: one agegroup row
+--         covers all mirror teams (the runtime mint TeamPlacementService.
+--         EnsureWaitlistTeamFeeAsync still stamps per-team $0 for waitlist teams created
+--         after seed-time — harmless overlap, both resolve $0; kept as belt-and-suspenders).
 --
---    Two money guards so this NEVER silently zeroes a real fee:
---    (a) Type-correct free test. In tournament/league (2,3) RosterFee/TeamFee belong to
---        the CLUB REP (section 3), NOT the player, so the player free-test there is
---        PerRegistrantFee (+ PlayerFeeOverride for league type 3 only). In camps
---        (1,4,6) the player fee is RosterFee + PerRegistrantFee. Only a team whose
---        legacy PLAYER fee is genuinely 0 is zeroed.
---    (b) Orphan-only NOT EXISTS. A team that already resolves a Player fee at any tier
---        (team / agegroup incl. 5B director-managed / league section 6) is left alone;
---        a team with a positive legacy player fee but no row stays orphan -> fail-loud,
---        so a coverage gap surfaces instead of registering someone free.
+--     Two money guards (lifted from old §8, team tier -> agegroup tier) so this NEVER
+--     zeroes a fee legacy charged:
+--     (a) Type-correct free test — refuse the $0 base only where legacy carries a player
+--         charge at THIS (agegroup) tier, so a missing positive row fails loud instead of
+--         being masked.
+--           * Camps (1,4,6): agegroup base = ag.RosterFee -> free only when RosterFee=0
+--             (positive bases already written by §1A/§1B).
+--           * Tournament (2): legacy has NO agegroup/league player base. The player charge
+--             is purely team.PerRegistrantFee, seeded at TEAM tier by §4, which overrides
+--             this $0 base (team > agegroup) — even when a league PlayerFeeOverride flags
+--             the tournament as charging: the override is a FLAG, the amount is
+--             team.PerRegistrantFee (IAccountingService.UpdatePlayerFeesRecord_TeamAgBasis
+--             line 167). So every type-2 agegroup gets the $0 base; paid teams keep §4.
+--           * League (3): RosterFee/TeamFee belong to the CLUB REP (§3), not the player, so
+--             we cannot test them; gate on the PlayerFeeOverride flag instead (matches the
+--             prior shipped §8). Waitlist always free.
+--     (b) Orphan-only NOT EXISTS at the agegroup/league tier. An agegroup that already
+--         resolves a positive Player base (§1A/§1B/§5B) or whose league carries an override
+--         row (§6, type-3) is left alone; a paid team simply keeps its §2/§4/§5 team override
+--         on top of this $0 base (team > agegroup in the cascade) — the mixed-agegroup case.
+--         A genuine seeding gap (positive base missing) is NOT covered here, so it still
+--         fails loud rather than registering someone free.
 INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
 SELECT
-    NEWID(), t.JobId, 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A',
-    t.AgegroupId, t.TeamId,
+    NEWID(), j.JobId, 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A',
+    ag.AgegroupId, NULL,
     0, 0,
     GETUTCDATE()
-FROM Leagues.teams t
-JOIN Leagues.agegroups ag ON t.AgegroupId = ag.AgegroupId
+FROM Leagues.agegroups ag
+JOIN Jobs.Job_Leagues jl ON ag.LeagueId = jl.LeagueId
+JOIN Jobs.Jobs j ON jl.JobId = j.JobId
 LEFT JOIN Leagues.leagues l ON ag.LeagueId = l.LeagueId
-JOIN Jobs.Jobs j ON t.JobId = j.JobId
 WHERE j.JobTypeId IN (1, 2, 3, 4, 6)
   AND j.Year IN ('2025', '2026', '2027')
-  AND (ISNULL(t.bAllowSelfRostering, 0) = 1 OR ISNULL(ag.bAllowSelfRostering, 0) = 1)
-  AND ag.AgegroupName NOT LIKE 'WAITLIST%'
   AND ag.AgegroupName NOT LIKE 'Dropped%'
-  -- (a) genuinely free per legacy, type-correctly (don't test ClubRep RosterFee in 2,3)
-  AND ISNULL(t.PerRegistrantFee, 0) = 0
-  AND (   (j.JobTypeId IN (1, 4, 6) AND ISNULL(ag.RosterFee, 0) = 0)
-       OR (j.JobTypeId = 2)
-       OR (j.JobTypeId = 3 AND ISNULL(l.PlayerFeeOverride, 0) = 0) )
-  -- (b) orphan-only: don't override any Player row sections 1-6 already wrote
+  -- registerable: agegroup enabled OR has an active self-rosterable team OR is a waitlist mirror
+  AND ( ISNULL(ag.bAllowSelfRostering, 0) = 1
+        OR EXISTS ( SELECT 1 FROM Leagues.teams t
+                    WHERE t.AgegroupId = ag.AgegroupId
+                      AND ISNULL(t.bAllowSelfRostering, 0) = 1
+                      AND ISNULL(t.Active, 1) = 1 )
+        OR ag.AgegroupName LIKE 'WAITLIST - %' )
+  -- (a) type-correct legacy-free test
+  AND ( (j.JobTypeId IN (1, 4, 6) AND ISNULL(ag.RosterFee, 0) = 0)
+        OR (j.JobTypeId = 2)   -- type-2 player charge is purely team.PerRegistrantFee (§4, team tier); $0 agegroup base is safe
+        OR (j.JobTypeId = 3 AND ISNULL(l.PlayerFeeOverride, 0) = 0)
+        OR ag.AgegroupName LIKE 'WAITLIST - %' )
+  -- (b) orphan-only: never override a positive base (§1A/§1B/§5B) or league override (§6)
   AND NOT EXISTS (
       SELECT 1 FROM fees.JobFees jf
-      WHERE jf.JobId = t.JobId
+      WHERE jf.JobId = j.JobId
         AND jf.RoleId = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A'
-        AND (   (jf.AgegroupId = t.AgegroupId AND jf.TeamId = t.TeamId)
-             OR (jf.AgegroupId = t.AgegroupId AND jf.TeamId IS NULL)
-             OR (jf.AgegroupId IS NULL AND jf.TeamId IS NULL AND jf.LeagueId = ag.LeagueId) ) );
-PRINT '8  Self-rostering free $0 Player rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
+        AND jf.TeamId IS NULL
+        AND ( jf.AgegroupId = ag.AgegroupId
+              OR (jf.AgegroupId IS NULL AND jf.LeagueId = ag.LeagueId) ) );
+PRINT '7N Agegroup-level $0 Player base rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
 -- Verification
