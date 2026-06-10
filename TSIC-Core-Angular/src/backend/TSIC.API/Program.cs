@@ -254,6 +254,7 @@ builder.Services.AddHttpClient("verticalinsure", (sp, c) =>
     c.DefaultRequestHeaders.Add("User-Agent", "TSIC.API");
 });
 builder.Services.AddScoped<IFamilyService, FamilyService>();
+builder.Services.AddScoped<IUserProfileService, TSIC.API.Services.Account.UserProfileService>();
 builder.Services.AddScoped<IClubService, ClubService>();
 builder.Services.AddScoped<IClubRosterService, ClubRosterService>();
 builder.Services.AddScoped<IMyRosterService, TSIC.API.Services.MyRoster.MyRosterService>();

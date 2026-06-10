@@ -729,6 +729,8 @@ export type { UpdateUserEmailRequest } from './models/UpdateUserEmailRequest';
 export type { UpdateWidgetRequest } from './models/UpdateWidgetRequest';
 export type { UserContactInfoDto } from './models/UserContactInfoDto';
 export type { UserDemographicsDto } from './models/UserDemographicsDto';
+export type { UserProfileDto } from './models/UserProfileDto';
+export type { UserProfileUpdateRequest } from './models/UserProfileUpdateRequest';
 export type { UserSearchResultDto } from './models/UserSearchResultDto';
 export type { UserWidgetEntryDto } from './models/UserWidgetEntryDto';
 export type { UsLaxEmailRecipientDto } from './models/UsLaxEmailRecipientDto';

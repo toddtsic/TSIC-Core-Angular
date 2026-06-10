@@ -7,6 +7,7 @@ using TSIC.API.Services.Clubs;
 using TSIC.Application.Services.Users;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 using TSIC.Infrastructure.Data.Identity;
 
 namespace TSIC.Tests.TeamRegistration;
@@ -113,8 +114,10 @@ public class ClubRegistrationGateTests
 
         var cache = new MemoryCache(Options.Create(new MemoryCacheOptions()));
 
+        var userProfileService = new Mock<IUserProfileService>();
+
         var svc = new ClubService(userManager, clubRepo.Object, clubRepRepo.Object,
-            userRepo.Object, privilegeService.Object, cache);
+            userRepo.Object, privilegeService.Object, userProfileService.Object, cache);
 
         return (svc, clubRepo);
     }

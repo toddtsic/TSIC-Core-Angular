@@ -23,6 +23,7 @@ public sealed class ClubService : IClubService
     private readonly IClubRepRepository _clubRepRepo;
     private readonly IUserRepository _userRepo;
     private readonly IUserPrivilegeLevelService _privilegeService;
+    private readonly IUserProfileService _userProfileService;
     private readonly IMemoryCache _cache;
 
     public ClubService(
@@ -31,6 +32,7 @@ public sealed class ClubService : IClubService
         IClubRepRepository clubRepRepo,
         IUserRepository userRepo,
         IUserPrivilegeLevelService privilegeService,
+        IUserProfileService userProfileService,
         IMemoryCache cache)
     {
         _userManager = userManager;
@@ -38,6 +40,7 @@ public sealed class ClubService : IClubService
         _clubRepRepo = clubRepRepo;
         _userRepo = userRepo;
         _privilegeService = privilegeService;
+        _userProfileService = userProfileService;
         _cache = cache;
     }
 
@@ -348,57 +351,44 @@ public sealed class ClubService : IClubService
         return results;
     }
 
+    // Self-profile read/write is role-neutral ApplicationUser mutation — owned by
+    // IUserProfileService and shared with the adult-registration wizard. These two
+    // methods delegate + map to/from the club-rep DTO shape so the api/club-reps/me
+    // contract is unchanged.
     public async Task<ClubRepProfileDto?> GetSelfProfileAsync(string userId)
     {
-        var user = await _userManager.FindByIdAsync(userId);
-        if (user == null)
+        var profile = await _userProfileService.GetSelfProfileAsync(userId);
+        if (profile == null)
         {
             return null;
         }
 
         return new ClubRepProfileDto
         {
-            FirstName = user.FirstName ?? string.Empty,
-            LastName = user.LastName ?? string.Empty,
-            Email = user.Email ?? string.Empty,
-            Cellphone = user.Cellphone ?? string.Empty,
-            StreetAddress = user.StreetAddress ?? string.Empty,
-            City = user.City ?? string.Empty,
-            State = user.State ?? string.Empty,
-            PostalCode = user.PostalCode ?? string.Empty
+            FirstName = profile.FirstName,
+            LastName = profile.LastName,
+            Email = profile.Email,
+            Cellphone = profile.Cellphone,
+            StreetAddress = profile.StreetAddress,
+            City = profile.City,
+            State = profile.State,
+            PostalCode = profile.PostalCode
         };
     }
 
-    public async Task<bool> UpdateSelfProfileAsync(string userId, ClubRepProfileUpdateRequest request)
+    public Task<bool> UpdateSelfProfileAsync(string userId, ClubRepProfileUpdateRequest request)
     {
-        var user = await _userManager.FindByIdAsync(userId);
-        if (user == null)
+        return _userProfileService.UpdateSelfProfileAsync(userId, new UserProfileUpdateRequest
         {
-            return false;
-        }
-
-        // SetEmailAsync keeps the normalized email index in sync. Only call when changed.
-        if (!string.Equals(user.Email, request.Email, StringComparison.OrdinalIgnoreCase))
-        {
-            var emailResult = await _userManager.SetEmailAsync(user, request.Email);
-            if (!emailResult.Succeeded)
-            {
-                return false;
-            }
-        }
-
-        user.FirstName = request.FirstName;
-        user.LastName = request.LastName;
-        user.Cellphone = request.Cellphone;
-        user.Phone = request.Cellphone;
-        user.StreetAddress = request.StreetAddress;
-        user.City = request.City;
-        user.State = request.State;
-        user.PostalCode = request.PostalCode;
-        user.Modified = DateTime.Now;
-
-        var result = await _userManager.UpdateAsync(user);
-        return result.Succeeded;
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            Cellphone = request.Cellphone,
+            StreetAddress = request.StreetAddress,
+            City = request.City,
+            State = request.State,
+            PostalCode = request.PostalCode
+        });
     }
 
     public void InvalidateSearchCache()

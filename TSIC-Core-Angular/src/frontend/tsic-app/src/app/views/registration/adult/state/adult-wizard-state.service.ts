@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { AccountService } from '@infrastructure/services/account.service';
 import {
     AdultRegistrationService,
     type AdultRegField,
@@ -32,6 +33,7 @@ export type FormFieldValue = string | number | boolean | null;
 export class AdultWizardStateService {
     private readonly api = inject(AdultRegistrationService);
     private readonly auth = inject(AuthService);
+    private readonly account = inject(AccountService);
     private readonly destroyRef = inject(DestroyRef);
 
     // ── Mode ──────────────────────────────────────────────────────
@@ -83,6 +85,16 @@ export class AdultWizardStateService {
     readonly roleConfig = this._roleConfig.asReadonly();
     readonly roleConfigLoading = this._roleConfigLoading.asReadonly();
     readonly roleConfigError = this._roleConfigError.asReadonly();
+
+    // ── Self profile (returning-user account summary / edit) ──────
+    private readonly _selfProfileLoaded = signal(false);
+    private readonly _selfProfileLoading = signal(false);
+    private readonly _selfProfileSaving = signal(false);
+    private readonly _selfProfileError = signal<string | null>(null);
+    readonly selfProfileLoaded = this._selfProfileLoaded.asReadonly();
+    readonly selfProfileLoading = this._selfProfileLoading.asReadonly();
+    readonly selfProfileSaving = this._selfProfileSaving.asReadonly();
+    readonly selfProfileError = this._selfProfileError.asReadonly();
 
     // ── Existing registration (returning user prefill) ────────────
     private readonly _hasExistingRegistration = signal(false);
@@ -191,6 +203,21 @@ export class AdultWizardStateService {
     readonly accountStepReady = computed(() =>
         this._mode() === 'login' ? true : this.hasCompleteCreateForm());
 
+    /** Display name for the returning-user account summary. */
+    readonly fullName = computed(() => `${this._firstName()} ${this._lastName()}`.trim());
+
+    /**
+     * Self-profile edit form validity. Identity fields (name) are locked, so only
+     * contact + address are validated — mirrors the club-rep edit contract.
+     */
+    readonly selfProfileEditValid = computed(() =>
+        this.isEmailValid()
+        && this.isPhoneValid()
+        && this._streetAddress().trim().length > 0
+        && this._city().trim().length > 0
+        && this._state().trim().length > 0
+        && this._postalCode().trim().length > 0);
+
     readonly hasValidTeams = computed(() =>
         !this.needsTeamSelection() || this._teamIdsCoaching().length > 0);
 
@@ -259,6 +286,62 @@ export class AdultWizardStateService {
         const user = this.auth.currentUser();
         if (user?.username) {
             this._username.set(user.username);
+        }
+    }
+
+    // ── API: Self profile (returning-user account summary / edit) ──
+    /**
+     * Load the signed-in user's stored profile into the identity/contact/address
+     * signals so the account-summary view can display their name/email and the
+     * edit sub-view is pre-filled. Mirrors the club-rep getSelfProfile flow.
+     */
+    async loadSelfProfile(): Promise<void> {
+        this._selfProfileLoading.set(true);
+        this._selfProfileError.set(null);
+        try {
+            const p = await firstValueFrom(this.account.getMyProfile());
+            this._firstName.set(p.firstName ?? '');
+            this._lastName.set(p.lastName ?? '');
+            this._email.set(p.email ?? '');
+            this._confirmEmail.set(p.email ?? '');
+            this._phone.set((p.cellphone ?? '').replace(/\D/g, ''));
+            this._streetAddress.set(p.streetAddress ?? '');
+            this._city.set(p.city ?? '');
+            this._state.set(p.state ?? '');
+            this._postalCode.set(p.postalCode ?? '');
+            this._selfProfileLoaded.set(true);
+        } catch (err: unknown) {
+            // Non-fatal: summary falls back to the token username, edit stays usable.
+            this._selfProfileError.set(formatHttpError(err));
+        } finally {
+            this._selfProfileLoading.set(false);
+        }
+    }
+
+    /**
+     * Persist edits to the signed-in user's profile. Identity fields (name) are
+     * carried unchanged for contract parity but locked in the UI.
+     */
+    async saveSelfProfile(): Promise<boolean> {
+        this._selfProfileSaving.set(true);
+        this._selfProfileError.set(null);
+        try {
+            await firstValueFrom(this.account.updateMyProfile({
+                firstName: this._firstName(),
+                lastName: this._lastName(),
+                email: this._email().trim(),
+                cellphone: this._phone(),
+                streetAddress: this._streetAddress().trim(),
+                city: this._city().trim(),
+                state: this._state(),
+                postalCode: this._postalCode().trim(),
+            }));
+            return true;
+        } catch (err: unknown) {
+            this._selfProfileError.set(formatHttpError(err));
+            return false;
+        } finally {
+            this._selfProfileSaving.set(false);
         }
     }
 
@@ -547,6 +630,10 @@ export class AdultWizardStateService {
         this._roleConfig.set(null);
         this._roleConfigLoading.set(false);
         this._roleConfigError.set(null);
+        this._selfProfileLoaded.set(false);
+        this._selfProfileLoading.set(false);
+        this._selfProfileSaving.set(false);
+        this._selfProfileError.set(null);
         this._hasExistingRegistration.set(false);
         this._existingRegistrationIds.set([]);
         this._formValues.set({});
