@@ -7,7 +7,7 @@ import { PaymentV2Service } from './state/payment-v2.service';
 import { TeamService } from './services/team.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import type { ReserveTeamsResponseDto, PreSubmitPlayerRegistrationResponseDto } from '@core/api';
+import type { ReserveTeamsResponseDto, PreSubmitPlayerRegistrationResponseDto, FamilyPlayerDto } from '@core/api';
 
 /**
  * PLAYER WIZARD NAVIGATION TESTS
@@ -42,6 +42,9 @@ describe('PlayerWizardV2Component — next() navigation', () => {
     const familyPlayersStub = {
         familyUser: signal<{ familyUserId: string; userName: string } | null>(null),
         selectedPlayerIds: signal<string[]>([]),
+        // newRegistrationCount() reads this to label the review CTA / gate the legacy toast.
+        familyPlayers: signal<FamilyPlayerDto[]>([]),
+        loadFamilyPlayersOnce: vi.fn().mockResolvedValue(undefined),
         isPlayerLocked: () => false,
     };
 

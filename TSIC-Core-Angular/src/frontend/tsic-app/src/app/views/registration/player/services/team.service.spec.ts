@@ -22,6 +22,7 @@ function mkTeam(overrides: Partial<AvailableTeam>): AvailableTeam {
         fee: overrides.fee ?? null,
         deposit: overrides.deposit ?? null,
         jobUsesWaitlists: overrides.jobUsesWaitlists ?? false,
+        ...(overrides.clubName !== undefined && { clubName: overrides.clubName }),
         ...(overrides.teamAllowsSelfRostering !== undefined && { teamAllowsSelfRostering: overrides.teamAllowsSelfRostering }),
         ...(overrides.agegroupAllowsSelfRostering !== undefined && { agegroupAllowsSelfRostering: overrides.agegroupAllowsSelfRostering }),
         ...(overrides.waitlistTeamId !== undefined && { waitlistTeamId: overrides.waitlistTeamId }),
@@ -179,11 +180,13 @@ describe('TeamService', () => {
     // ── BYCLUBNAME ───────────────────────────────────────────────────
 
     describe('BYCLUBNAME', () => {
-        it('should filter teams by substring match in teamName', () => {
+        it('should filter teams by exact (case/space-insensitive) match on clubName', () => {
+            // BYCLUBNAME matches the dedicated clubName field exactly — NOT a teamName
+            // substring — so two clubs sharing a teamName prefix don't bleed together.
             const teams = [
-                mkTeam({ teamName: 'Northside Lightning U12' }),
-                mkTeam({ teamName: 'Southside Thunder U12' }),
-                mkTeam({ teamName: 'Northside Lightning U14' }),
+                mkTeam({ teamName: 'Lightning U12', clubName: 'Northside' }),
+                mkTeam({ teamName: 'Thunder U12', clubName: 'Southside' }),
+                mkTeam({ teamName: 'Lightning U14', clubName: ' northside ' }),
             ];
 
             constraintTypeSignal.set('BYCLUBNAME');
@@ -193,7 +196,7 @@ describe('TeamService', () => {
 
             const result = service.filteredTeams();
             expect(result).toHaveLength(2);
-            expect(result.every(t => t.teamName.includes('Northside'))).toBe(true);
+            expect(result.every(t => (t.clubName || '').trim().toLowerCase() === 'northside')).toBe(true);
         });
     });
 });

@@ -20,7 +20,9 @@ function makeTeam(overrides: Partial<AvailableTeam> & { teamId: string }): Avail
         rosterIsFull: false,
         jobUsesWaitlists: false,
         fee: 200,
-        deposit: 50,
+        // Single-phase by default: deposit 0 ⇒ `fee` IS the full price (FullPrice =
+        // deposit + balanceDue). Deposit-scenario tests set their own explicit deposit.
+        deposit: 0,
         ...overrides,
     };
 }
@@ -223,12 +225,15 @@ describe('PaymentV2Service', () => {
             expect(service.lineItems()[0].amount).toBe(250);
         });
 
-        it('should default to 100 when team fee is null or zero', () => {
+        it('should never fabricate a fee when team fee is null (no $100 fallback)', () => {
+            // The old hardcoded $100 fallback was removed (it masked missing fees). An
+            // unresolved fee now produces amount 0 — the line is flagged feeConfigured
+            // and the wizard blocks completion rather than charging an invented amount.
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: null }));
             fp._set([makePlayer({ playerId: 'p1' })]);
             playerState.setSelectedTeams({ p1: 't1' });
 
-            expect(service.lineItems()[0].amount).toBe(100);
+            expect(service.lineItems()[0].amount).toBe(0);
         });
     });
 
@@ -355,7 +360,7 @@ describe('PaymentV2Service', () => {
             fp._set([makePlayer({ playerId: 'p1' })]);
             playerState.setSelectedTeams({ p1: 't1' });
 
-            // The fee defaults to 100 via getAmount, so currentTotal should be >= 0
+            // Unresolved fee resolves to 0 (no fabrication), so currentTotal stays >= 0
             expect(service.currentTotal()).toBeGreaterThanOrEqual(0);
         });
 
