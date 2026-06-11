@@ -22,6 +22,7 @@ export type RegisteredTeamDto = {
     tenderPaid: number;
     deposit: number;
     balanceDue: number;
+    fullPaymentRequired: boolean;
     depositDue: number;
     additionalDue: number;
     registrationTs: string;

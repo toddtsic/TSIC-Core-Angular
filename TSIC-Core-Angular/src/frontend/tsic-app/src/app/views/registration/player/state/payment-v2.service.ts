@@ -86,13 +86,17 @@ export class PaymentV2Service {
     resetDonation(): void { this._donation.set(0); }
 
     /**
-     * Both phase datasets, computed once per dependency change. The radio toggle
-     * reduces to a selector pick — the per-row math runs once per change in
-     * familyPlayers, selectedTeams, or registrations, not per option flip.
+     * Per (player × team) pair: BOTH phase builds plus the pair's OWN resolved phase.
+     * Computed once per dependency change (familyPlayers, selectedTeams, registrations) —
+     * the radio toggle only re-selects, it does not re-run the per-row math.
+     *
+     * isFullPhase is per-row (NOT a cart-wide flag): a family cart can span scopes that
+     * differ in phase (per-scope JobFees.BFullPaymentRequired cascade). A full-payment line
+     * is ALWAYS billed in full; a deposit-eligible line follows the Deposit/PIF radio. This
+     * mirrors the server's per-registration charge (PaymentService.ComputeChargesAsync).
      */
-    private readonly lineItemsByPhase = computed<{ deposit: LineItem[]; pif: LineItem[] }>(() => {
-        const deposit: LineItem[] = [];
-        const pif: LineItem[] = [];
+    private readonly linePairs = computed<{ deposit: LineItem; pif: LineItem; isFullPhase: boolean }[]>(() => {
+        const pairs: { deposit: LineItem; pif: LineItem; isFullPhase: boolean }[] = [];
         const players = this.fp.familyPlayers()
             .filter(p => p.selected || p.registered)
             .map(p => ({ id: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
@@ -106,16 +110,20 @@ export class PaymentV2Service {
                 const team = this.teams.getTeamById(tid);
                 const registration = this.getExistingRegistrationForTeam(p.id, tid);
                 if (!team && !registration) continue;
-                deposit.push(this.buildLineItem(p.id, p.name, tid, team, registration, false));
-                pif.push(this.buildLineItem(p.id, p.name, tid, team, registration, true));
+                pairs.push({
+                    deposit: this.buildLineItem(p.id, p.name, tid, team, registration, false),
+                    pif: this.buildLineItem(p.id, p.name, tid, team, registration, true),
+                    isFullPhase: this.isLineFullPhase(tid, registration, team),
+                });
             }
         }
-        return { deposit, pif };
+        return pairs;
     });
 
     lineItems = computed<LineItem[]>(() => {
-        const both = this.lineItemsByPhase();
-        return this.jobCtx.paymentOption() === 'PIF' ? both.pif : both.deposit;
+        const pif = this.jobCtx.paymentOption() === 'PIF';
+        // Full-payment lines always bill in full; deposit-eligible lines follow the radio.
+        return this.linePairs().map(p => (p.isFullPhase || pif) ? p.pif : p.deposit);
     });
 
     private readonly existingBalanceTotal = computed(() =>
@@ -125,25 +133,32 @@ export class PaymentV2Service {
         this.lineItems().filter(li => !this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials).reduce((sum, li) => sum + li.amount, 0),
     );
 
+    // lineItems() now carries each line's resolved phase, so this per-line sum is the correct
+    // charge total for EITHER option (deposit-eligible lines reflect the radio; full lines stay
+    // full). baseTotal therefore derives straight from it — no separate deposit/PIF branch.
     totalAmount = computed(() => this.existingBalanceTotal() + this.newSelectionTotal());
 
+    /** Deposit charged TODAY for the NEW selections only (existing balances surface separately).
+     *  Phase-aware: a new full-payment line owes its FULL price today, a deposit line its deposit. */
     depositTotal = computed(() => {
         let sum = 0;
         for (const li of this.lineItems()) {
             if (this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials) continue;
             const team = this.teams.getTeamById(li.teamId);
-            sum += Number(team?.deposit ?? 0) || 0;
+            const deposit = Number(team?.deposit ?? 0) || 0;
+            const fee = Number(team?.fee ?? 0) || 0;
+            sum += team?.fullPaymentRequired ? (deposit + fee) : deposit;
         }
         return sum;
     });
 
     /**
-     * What the parent would be charged if they picked Deposit — independent of
-     * the currently selected option. Sums amounts from the precomputed deposit
-     * array (no re-iteration of per-row math).
+     * What the parent would be charged if they picked Deposit — independent of the currently
+     * selected option. Per-row: full-payment lines contribute their full charge, deposit-eligible
+     * lines their deposit. (Display only — drives the radio label.)
      */
     depositOptionTotal = computed(() =>
-        this.lineItemsByPhase().deposit.reduce((sum, li) => sum + li.amount, 0),
+        this.linePairs().reduce((sum, p) => sum + (p.isFullPhase ? p.pif.amount : p.deposit.amount), 0),
     );
 
     /**
@@ -157,41 +172,34 @@ export class PaymentV2Service {
 
     /**
      * What the parent would be charged if they picked Pay In Full — independent
-     * of the currently selected option. Sums amounts from the precomputed PIF
-     * array (no re-iteration of per-row math).
+     * of the currently selected option. Every line at its full charge.
      */
     pifOptionTotal = computed(() =>
-        this.lineItemsByPhase().pif.reduce((sum, li) => sum + li.amount, 0),
+        this.linePairs().reduce((sum, p) => sum + p.pif.amount, 0),
     );
 
     isArbScenario = computed(() => !!this.jobCtx.adnArb());
     isDepositScenario = computed(() => {
         if (this.isArbScenario()) return false;
-        if (this.jobCtx.bPlayersFullPaymentRequired()) return false;
-        // Eligible = new (unsubmitted) lines OR existing deposit-phase lines (paid or unpaid)
-        // where the parent could upgrade to PIF. Existing rows already at full-payment base
-        // do not open the radio because there is no upgrade path from this checkout.
-        const lines = this.lineItems();
-        const eligible = lines.filter(li => {
-            const reg = this.getExistingRegistrationForTeam(li.playerId, li.teamId);
-            if (!reg?.financials) return true;
-            return this.isExistingDepositPhase(li.teamId, reg.financials);
-        });
-        if (eligible.length === 0) return false;
-        return eligible.every(li => {
-            const team = this.teams.getTeamById(li.teamId);
+        // Open the Deposit/PIF radio when ANY line is in deposit phase — NOT all (mirrors the
+        // server's ANY-deposit rule, PaymentService.IsDepositScenarioAsync). A mixed cart still
+        // offers the deposit option for its deposit-eligible players; full-payment lines are
+        // billed in full regardless of the radio. Per-row isFullPhase already folds in the job
+        // baseline (bPlayersFullPaymentRequired) via the team's server-resolved phase, so no
+        // separate cart-wide gate is needed.
+        return this.linePairs().some(p => {
+            if (p.isFullPhase) return false;
+            const team = this.teams.getTeamById(p.deposit.teamId);
             return (Number(team?.deposit) > 0 && Number(team?.fee) > 0);
         });
     });
 
     /** Charge total BEFORE any optional donation — the pre-donation base every method total
-     *  derives from. Equals currentTotal when no donation is entered (donation 0 ⇒ no number moves). */
-    readonly baseTotal = computed(() => {
-        const opt = this.jobCtx.paymentOption();
-        const existing = this.existingBalanceTotal();
-        const base = opt === 'Deposit' ? existing + this.depositTotal() : this.totalAmount();
-        return Math.max(0, base);
-    });
+     *  derives from. Equals currentTotal when no donation is entered (donation 0 ⇒ no number moves).
+     *  lineItems() already carries each line's resolved phase (deposit-eligible lines follow the
+     *  radio; full lines stay full), so totalAmount IS the right base for either option — no
+     *  separate Deposit/PIF branch. This keeps client ExpectedTotal == the server per-reg charge. */
+    readonly baseTotal = computed(() => Math.max(0, this.totalAmount()));
 
     /** Donation's CC-path contribution: principal + CC processing (when the job adds proc). */
     readonly donationCc = computed(() => {
@@ -275,7 +283,11 @@ export class PaymentV2Service {
      * by either method, so savings are zero there.
      */
     echeckSavings = computed(() => {
-        if (!this.jobCtx.bAddProcessingFees() || this.jobCtx.paymentOption() === 'Deposit') return 0;
+        if (!this.jobCtx.bAddProcessingFees()) return 0;
+        // Per line: a full-payment line carries the (CC − eCheck) proc-rate credit in EITHER
+        // option; a deposit charge sits at/below principal and is debited the same by either
+        // method (echeckAmount == amount → contributes 0). So this per-line sum is correct even
+        // under Deposit, where a mixed cart can contain full-payment lines that DO carry a credit.
         return this.lineItems().reduce((sum, li) => sum + Math.max(0, li.amount - li.echeckAmount), 0);
     });
 
@@ -310,22 +322,15 @@ export class PaymentV2Service {
 
     applyDiscount(code: string): void {
         if (!code || this._discountApplying()) return;
-        const option = this.jobCtx.paymentOption();
         // Each item's amount must equal what that line actually contributes to currentTotal,
         // otherwise the gate (currentTotal > 0) can show the input while every item is 0 and the
-        // backend rejects with "No valid players for discount". Mirror currentTotal's composition:
-        //   • existing registration (has financials) → its owed balance (li.amount), both options
-        //   • new selection under Deposit            → the team deposit (matches depositTotal)
-        //   • new selection under PIF                → the full line amount (li.amount)
-        const items: ApplyDiscountItemDto[] = this.lineItems().map(li => {
-            const hasExisting = !!this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials;
-            const amount = option === 'Deposit' && !hasExisting
-                ? (Number(this.teams.getTeamById(li.teamId)?.deposit ?? 0) || 0)
-                : li.amount;
+        // backend rejects with "No valid players for discount". lineItems() already resolves each
+        // line's phase (existing owed; new full → full; new deposit → deposit), so li.amount IS
+        // that contribution — no per-option special-casing needed.
+        const items: ApplyDiscountItemDto[] = this.lineItems().map(li =>
             // teamId identifies which camp this line is — a player with multiple camps has one
             // reg row per camp, so the backend needs it to discount every camp, not just the first.
-            return { playerId: li.playerId, teamId: li.teamId, amount };
-        });
+            ({ playerId: li.playerId, teamId: li.teamId, amount: li.amount }));
         if (items.length === 0) {
             this._discountMessage.set('No payable items eligible for discount');
             return;
@@ -418,7 +423,7 @@ export class PaymentV2Service {
      */
 
     /** Build one LineItem at the given phase. Used twice per (player × team) pair
-     * by lineItemsByPhase to produce the deposit and PIF arrays in one pass. */
+     * by linePairs to produce the deposit and PIF builds in one pass. */
     private buildLineItem(
         playerId: string,
         playerName: string,
@@ -480,6 +485,25 @@ export class PaymentV2Service {
      * Test: team has deposit and fee configured AND stamped feeBase is below
      * the full (deposit+fee) total.
      */
+    /**
+     * Resolve a single line's payment phase (per-row, NOT cart-wide):
+     *   • existing registration → full when it is NOT in deposit phase (stamped FeeBase has
+     *     reached the full deposit+fee, i.e. !isExistingDepositPhase) — the same per-row signal
+     *     the server display shaper uses.
+     *   • new selection (no reg yet) → the team's server-resolved fullPaymentRequired flag
+     *     (ResolveFullPaymentPhase: per-scope override ?? job baseline).
+     * A full line is always billed in full; a deposit-eligible line follows the radio.
+     */
+    private isLineFullPhase(
+        teamId: string,
+        registration: { financials?: RegistrationFinancialsDto | null } | null | undefined,
+        team: { fullPaymentRequired?: boolean | null } | null | undefined,
+    ): boolean {
+        const financials = registration?.financials;
+        if (financials) return !this.isExistingDepositPhase(teamId, financials);
+        return team?.fullPaymentRequired === true;
+    }
+
     private isExistingDepositPhase(
         teamId: string,
         financials: RegistrationFinancialsDto,

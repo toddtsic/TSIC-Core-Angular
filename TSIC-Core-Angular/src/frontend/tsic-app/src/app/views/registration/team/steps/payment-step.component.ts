@@ -48,7 +48,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
         </h3>
         <span class="phase-badge">
           <span class="phase-badge__label">Payment Phase</span>
-          <span class="phase-badge__value">{{ state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only' }}</span>
+          <span class="phase-badge__value">{{ phaseBadgeLabel() }}</span>
         </span>
       </div>
       <div class="step-card-body">
@@ -147,8 +147,8 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               [showAgeGroup]="false"
               [showTotalFee]="false"
               [showDeposit]="true"
-              [showBalance]="state.fullPaymentRequired()"
-              [procFeeHeader]="state.fullPaymentRequired() ? 'ProcFee Due' : 'Proc Fee'"
+              [showBalance]="showBalanceColumn()"
+              [procFeeHeader]="procFeeHeaderLabel()"
               [frozenTeamCol]="true"
               [teamColWidth]="70"
               [gridHeight]="'auto'" />
@@ -827,6 +827,30 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly hasBalance = computed(() => this.state.teamPayment.hasBalance());
     readonly balanceDue = computed(() => this.state.teamPayment.balanceDue());
     readonly registeredTeams = computed(() => this.state.teamPayment.teams());
+    /**
+     * Cart phase derived PER-ROW from the teams' server-resolved fullPaymentRequired, NOT the
+     * single job-level flag — a club-rep cart can span scopes that differ in phase. 'mixed' when
+     * rows disagree. Drives the honest phase badge and the Balance-Due column visibility.
+     */
+    readonly cartPhase = computed<'deposit' | 'full' | 'mixed' | 'none'>(() => {
+        const teams = this.registeredTeams();
+        if (!teams.length) return 'none';
+        const full = teams.filter(t => t.fullPaymentRequired).length;
+        if (full === 0) return 'deposit';
+        if (full === teams.length) return 'full';
+        return 'mixed';
+    });
+    readonly phaseBadgeLabel = computed(() => {
+        switch (this.cartPhase()) {
+            case 'full': return 'Final Balance Due';
+            case 'mixed': return 'Mixed';
+            default: return 'Deposit Only';
+        }
+    });
+    /** Show the Balance-Due column whenever ANY row is full-payment (its balance is active);
+     *  each row's cell still renders its own additionalDue. An all-deposit cart hides it. */
+    readonly showBalanceColumn = computed(() => this.cartPhase() === 'full' || this.cartPhase() === 'mixed');
+    readonly procFeeHeaderLabel = computed(() => this.showBalanceColumn() ? 'ProcFee Due' : 'Proc Fee');
     readonly showProcessing = computed(() => this.state.teamPayment.bAddProcessingFees());
     // paymentMethodsAllowedCode: 1=CC only, 2=CC or Check, 3=Check only
     readonly allowsCc = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() !== 3);

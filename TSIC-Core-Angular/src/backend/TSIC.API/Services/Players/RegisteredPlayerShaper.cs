@@ -118,6 +118,7 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
                 TenderPaid = state.TenderPaid,
                 Deposit = deposit,
                 BalanceDue = balanceDue,
+                FullPaymentRequired = bFull,     // per-row stamped phase (FeeBase >= FullPrice)
                 DepositDue = depositDue,
                 AdditionalDue = additionalDue,
                 RegistrationTs = p.RegistrationTs,

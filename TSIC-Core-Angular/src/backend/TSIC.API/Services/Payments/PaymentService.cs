@@ -1785,21 +1785,22 @@ public class PaymentService : IPaymentService
 
     private async Task<bool> IsDepositScenarioAsync(IEnumerable<Registrations> registrations)
     {
-        // Deposit scenario requires every selected registration to have an assigned team
-        // whose per-registrant Fee > 0 and Deposit > 0.
+        // A deposit scenario exists when AT LEAST ONE selected registration is in deposit phase —
+        // i.e. not yet stamped to full price (IsRegFullPaymentPhase false) AND its scope offers a
+        // partial deposit slice (per-registrant Fee > 0 and Deposit > 0). This is intentionally
+        // ANY, not ALL: a mixed cart (some deposit-phase, some full-payment) stays in Deposit mode
+        // so ComputeChargesAsync can bill each reg by its OWN phase. Only when NO reg can take a
+        // deposit does the caller coerce the request to PIF (ComputeChargesAsync would charge each
+        // reg its full OwedTotal anyway, but coercion keeps the PIF allow-gate meaningful).
         foreach (var reg in registrations)
         {
-            if (!reg.AssignedTeamId.HasValue)
-            {
-                return false;
-            }
+            if (!reg.AssignedTeamId.HasValue) continue;
+            var resolved = await ResolveRegPlayerFeeAsync(reg);
+            if (IsRegFullPaymentPhase(reg, resolved)) continue;
             var (fee, deposit) = await _teamLookup.ResolvePerRegistrantAsync(reg.AssignedTeamId.Value);
-            if (fee <= 0m || deposit <= 0m)
-            {
-                return false;
-            }
+            if (fee > 0m && deposit > 0m) return true;
         }
-        return registrations.Any();
+        return false;
     }
 
     private async Task NormalizeFeesAsync(IEnumerable<Registrations> registrations, Guid jobId)
@@ -1981,6 +1982,15 @@ public class PaymentService : IPaymentService
         else if (option == PaymentOption.Deposit)
         {
             var map = new Dictionary<Guid, decimal>();
+            // Per-registration phase. A family "Deposit" submission can span scopes that differ
+            // in phase (per-scope JobFees.BFullPaymentRequired cascade), so the charge is decided
+            // PER REG, not by the single cart-wide option:
+            //   • full-payment reg → its OwedTotal already carries FullPrice+proc; charge it whole.
+            //   • deposit-phase reg → gross the deposit slice by the JOB CC rate and cap at OwedTotal.
+            // Phase is read from the reg's STAMPED FeeBase vs FullPrice — the same per-row signal the
+            // display layer (RegisteredPlayerShaper) uses — so the charge can never diverge from the
+            // screen total (the ExpectedTotal shown↔charged guard). See IsRegFullPaymentPhase.
+            //
             // The deposit principal carries its own processing fee. Players ALWAYS levy proc on
             // the FeeBase (FeeResolutionService.ApplyRegistrationProcessingAndTotalsAsync — there
             // is no ApplyProcessingFeesToDeposit gate; that flag is teams-only), so a deposit-phase
@@ -1994,12 +2004,23 @@ public class PaymentService : IPaymentService
             var ccRate = (rateState?.BAddProcessingFees ?? false) ? rateState!.CcRate : 0m;
             foreach (var reg in registrations)
             {
-                var dep = await ResolveDepositForRegAsync(reg);
-                if (dep > 0m && ccRate > 0m)
-                    dep += Math.Round(dep * ccRate, 2, MidpointRounding.AwayFromZero);
-                var cap = Math.Min(dep, reg.OwedTotal);
-                if (cap > 0 && reg.RegistrationId != Guid.Empty)
-                    map[reg.RegistrationId] = cap;
+                if (reg.RegistrationId == Guid.Empty) continue;
+                var resolved = await ResolveRegPlayerFeeAsync(reg);
+                decimal charge;
+                if (IsRegFullPaymentPhase(reg, resolved))
+                {
+                    // Full-payment scope: OwedTotal already = FullPrice + proc. Charge it whole.
+                    charge = Math.Max(0m, reg.OwedTotal);
+                }
+                else
+                {
+                    var dep = await ResolveDepositForRegAsync(reg);
+                    if (dep > 0m && ccRate > 0m)
+                        dep += Math.Round(dep * ccRate, 2, MidpointRounding.AwayFromZero);
+                    charge = Math.Min(dep, reg.OwedTotal);
+                }
+                if (charge > 0m)
+                    map[reg.RegistrationId] = charge;
             }
             return map;
         }
@@ -2014,6 +2035,34 @@ public class PaymentService : IPaymentService
             return resolved.Deposit;
         }
         return 0m;
+    }
+
+    /// <summary>
+    /// Resolve the cascaded Player fee (team → agegroup → league) for a registration's scope.
+    /// Agegroup resolves THROUGH the team (Registrations.AssignedAgegroupId is obsolete). Returns
+    /// null when the reg has no assigned team or no configured fee row at any cascade level.
+    /// </summary>
+    private async Task<ResolvedFee?> ResolveRegPlayerFeeAsync(Registrations reg)
+    {
+        if (!reg.AssignedTeamId.HasValue) return null;
+        var team = await _teams.GetTeamFromTeamId(reg.AssignedTeamId.Value);
+        if (team is null) return null;
+        return await _feeService.ResolveFeeAsync(
+            reg.JobId, RoleConstants.Player, team.AgegroupId, reg.AssignedTeamId.Value);
+    }
+
+    /// <summary>
+    /// True when a registration is in the full-payment phase, judged by the SAME per-row signal
+    /// the display layer uses (RegisteredPlayerShaper): the stamped FeeBase has reached the
+    /// canonical <see cref="ResolvedFee.FullPrice"/>. Chosen over a pure-config
+    /// <see cref="ResolvedFee.ResolveFullPaymentPhase"/> read so the charge can never diverge
+    /// from the screen total (the ExpectedTotal shown↔charged guard) — per-scope phase flips
+    /// re-price active regs, so the stamped FeeBase stays authoritative.
+    /// </summary>
+    private static bool IsRegFullPaymentPhase(Registrations reg, ResolvedFee? resolved)
+    {
+        var fullPrice = resolved?.FullPrice ?? 0m;
+        return fullPrice > 0m && reg.FeeBase >= fullPrice - 0.005m;
     }
 
     private static (short occur, short intervalLen, DateTime start) BuildArbSchedule(int? occur, int? intervalLen, DateTime? start)

@@ -45,7 +45,7 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
             </h3>
             <span class="phase-badge">
               <span class="phase-badge__label">Payment Phase</span>
-              <span class="phase-badge__value">{{ fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only' }}</span>
+              <span class="phase-badge__value">{{ phaseBadgeLabel() }}</span>
             </span>
           </div>
         }
@@ -609,8 +609,23 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly canRegisterTeam = this.state.canRegisterTeam;
     readonly canRemoveTeam = this.state.canRemoveTeam;
 
-    /** Job-config flag — drives phase-aware grid column visibility. */
+    /** Job-config flag — the phase baseline (default before any team is entered). */
     readonly fullPaymentRequired = this.state.fullPaymentRequired;
+
+    /**
+     * Phase badge label derived PER-ROW from the entered teams' server-resolved
+     * fullPaymentRequired — NOT the single job flag, since a club-rep cart can span scopes
+     * that differ in phase. 'Mixed' when the entered teams disagree. Falls back to the job
+     * baseline before any team is entered.
+     */
+    readonly phaseBadgeLabel = computed(() => {
+        const teams = this._registeredTeams();
+        if (!teams.length) return this.state.fullPaymentRequired() ? 'Final Balance Due' : 'Deposit Only';
+        const full = teams.filter(t => t.fullPaymentRequired).length;
+        if (full === 0) return 'Deposit Only';
+        if (full === teams.length) return 'Final Balance Due';
+        return 'Mixed';
+    });
 
     readonly loading = signal(true);
     readonly error = signal<string | null>(null);

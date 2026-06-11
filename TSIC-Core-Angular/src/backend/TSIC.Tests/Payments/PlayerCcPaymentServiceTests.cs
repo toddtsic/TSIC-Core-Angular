@@ -351,4 +351,131 @@ public class PlayerCcPaymentServiceTests
         reg.OwedTotal.Should().Be(500m);
         reg.PaidTotal.Should().Be(0m);
     }
+
+    // ── Mixed-phase cart (per-scope JobFees.BFullPaymentRequired) ───────────────
+    // A single family "Deposit" submission can span a deposit-phase scope and a full-payment
+    // scope. The charge must bill EACH registration by its own phase — never coerce the whole
+    // cart to PIF (the "backend assumes all are at PIF" bug).
+
+    /// <summary>
+    /// Stub the scope fee for a team: ResolveFeeAsync (used by ResolveRegPlayerFeeAsync /
+    /// IsRegFullPaymentPhase) plus ResolvePerRegistrantAsync (the deposit slice for the deposit
+    /// charge path), the latter mirroring TeamLookupService's deposit==fee → 0 collapse.
+    /// </summary>
+    private void StubScopeFee(Guid teamId, decimal deposit, decimal balanceDue, bool fullPayment)
+    {
+        _feeService.Setup(f => f.ResolveFeeAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), teamId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ResolvedFee
+            {
+                FeeConfigured = true,
+                Deposit = deposit,
+                BalanceDue = balanceDue,
+                BFullPaymentRequired = fullPayment
+            });
+        var fee = balanceDue;
+        var dep = deposit == fee ? 0m : deposit;
+        _teamLookup.Setup(t => t.ResolvePerRegistrantAsync(teamId)).ReturnsAsync((fee, dep));
+    }
+
+    private static Registrations RegOnTeam(Guid jobId, Guid teamId, decimal feeBase) =>
+        new()
+        {
+            RegistrationId = Guid.NewGuid(),
+            JobId = jobId,
+            FamilyUserId = FamilyUserId,
+            AssignedTeamId = teamId,
+            FeeBase = feeBase,
+            FeeProcessing = 0m,
+            FeeDiscount = 0m,
+            FeeLatefee = 0m,
+            FeeTotal = feeBase,
+            OwedTotal = feeBase,
+            PaidTotal = 0m,
+            BActive = false,
+        };
+
+    [Fact(DisplayName = "Mixed cart under Deposit: deposit player billed deposit, full-payment player billed full (no PIF coercion)")]
+    public async Task MixedPhaseCart_Deposit_BillsEachByOwnPhase()
+    {
+        var jobId = Guid.NewGuid();
+        var teamDeposit = Guid.NewGuid();  // deposit-phase scope: deposit 100, balance 400 (FullPrice 500)
+        var teamFull = Guid.NewGuid();     // full-payment scope:  deposit 200, balance 300 (FullPrice 500)
+        // Deposit reg stamped at its deposit slice; full reg stamped at FullPrice.
+        var regDeposit = RegOnTeam(jobId, teamDeposit, feeBase: 100m);
+        var regFull = RegOnTeam(jobId, teamFull, feeBase: 500m);
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, regDeposit, regFull);
+        StubScopeFee(teamDeposit, deposit: 100m, balanceDue: 400m, fullPayment: false);
+        StubScopeFee(teamFull, deposit: 200m, balanceDue: 300m, fullPayment: true);
+
+        var charged = new List<decimal>();
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Callback<AdnChargeRequest>(r => charged.Add(r.Amount))
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "txn", ResponseCode = "1", MessageForUser = "Approved" });
+        var sut = BuildSut();
+
+        var req = new PaymentRequestDto
+        {
+            JobPath = "test-job",
+            PaymentOption = PaymentOption.Deposit,
+            CreditCard = ValidCard(),
+            ExpectedTotal = 600m  // deposit 100 + full 500 — the per-line mix the screen shows
+        };
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, req, ActingUserId);
+
+        result.Success.Should().BeTrue();
+        // The crux: the deposit player paid 100 (NOT 500). A pre-fix cart coerced the WHOLE cart
+        // to PIF — upgrading both and billing 500 each — because one full-payment team flipped
+        // the all-or-nothing IsDepositScenarioAsync gate.
+        regDeposit.PaidTotal.Should().Be(100m, "deposit-phase player is billed only the deposit");
+        regFull.PaidTotal.Should().Be(500m, "full-payment-phase player is billed the full price");
+        regDeposit.OwedTotal.Should().Be(0m);
+        regFull.OwedTotal.Should().Be(0m);
+        charged.Sum().Should().Be(600m);
+        _feeService.Verify(f => f.ApplyPifUpgradeAsync(
+                It.IsAny<Registrations>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()),
+            Times.Never, "a mixed Deposit cart must NOT force-upgrade any registration to PIF");
+    }
+
+    [Fact(DisplayName = "All-deposit cart under Deposit: every player billed its deposit, no PIF coercion (regression guard)")]
+    public async Task AllDepositCart_Deposit_BillsDeposits()
+    {
+        var jobId = Guid.NewGuid();
+        var teamA = Guid.NewGuid();
+        var teamB = Guid.NewGuid();
+        var regA = RegOnTeam(jobId, teamA, feeBase: 100m); // deposit 100 of FullPrice 500
+        var regB = RegOnTeam(jobId, teamB, feeBase: 150m); // deposit 150 of FullPrice 600
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, regA, regB);
+        StubScopeFee(teamA, deposit: 100m, balanceDue: 400m, fullPayment: false);
+        StubScopeFee(teamB, deposit: 150m, balanceDue: 450m, fullPayment: false);
+
+        var charged = new List<decimal>();
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Callback<AdnChargeRequest>(r => charged.Add(r.Amount))
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "txn", ResponseCode = "1", MessageForUser = "Approved" });
+        var sut = BuildSut();
+
+        var req = new PaymentRequestDto
+        {
+            JobPath = "test-job",
+            PaymentOption = PaymentOption.Deposit,
+            CreditCard = ValidCard(),
+            ExpectedTotal = 250m // 100 + 150
+        };
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, req, ActingUserId);
+
+        result.Success.Should().BeTrue();
+        regA.PaidTotal.Should().Be(100m);
+        regB.PaidTotal.Should().Be(150m);
+        charged.Sum().Should().Be(250m);
+        _feeService.Verify(f => f.ApplyPifUpgradeAsync(
+                It.IsAny<Registrations>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
+                It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 }

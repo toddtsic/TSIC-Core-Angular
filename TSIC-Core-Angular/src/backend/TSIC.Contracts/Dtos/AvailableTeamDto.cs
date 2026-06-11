@@ -28,6 +28,15 @@ public record AvailableTeamDto
     /// (A legitimately-free event is FeeConfigured=true with Fee 0.)
     /// </summary>
     public required bool FeeConfigured { get; init; }
+    /// <summary>
+    /// Per-scope payment phase (canonical <see cref="TSIC.Contracts.Repositories.ResolvedFee.ResolveFullPaymentPhase"/>):
+    /// a JobFees.BFullPaymentRequired override (team → agegroup → league) wins, else the
+    /// job-level baseline (Jobs.BPlayersFullPaymentRequired). True → this team must be paid in
+    /// full (no deposit slice offered); false → a deposit may be taken. Lets the payment screen
+    /// pick the right phase PER NEW SELECTION (one that has no stamped registration yet) so a
+    /// family cart spanning deposit and full-payment scopes bills each line by its own phase.
+    /// </summary>
+    public required bool FullPaymentRequired { get; init; }
     public required bool JobUsesWaitlists { get; init; }
     public Guid? WaitlistTeamId { get; set; }
     public DateTime? StartDate { get; init; }

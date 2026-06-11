@@ -24,6 +24,11 @@ export interface AvailableTeam {
     /** False = no fee configured at any cascade level → not registerable; the wizard
      *  shows "Fee not set" and blocks selection instead of fabricating/charging $0. */
     feeConfigured?: boolean | null;
+    /** Per-scope payment phase (server-resolved via ResolveFullPaymentPhase): true = this
+     *  team must be paid in full (no deposit slice); false = a deposit may be taken. Drives
+     *  per-line phase for a NEW selection that has no stamped registration yet, so a family
+     *  cart spanning deposit and full-payment scopes bills each line by its own phase. */
+    fullPaymentRequired?: boolean | null;
     jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
     startDate?: string | null;

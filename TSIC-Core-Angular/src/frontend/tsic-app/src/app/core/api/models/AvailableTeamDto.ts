@@ -18,6 +18,7 @@ export type AvailableTeamDto = {
     deposit?: number | null;
     effectiveFee?: number | null;
     feeConfigured: boolean;
+    fullPaymentRequired: boolean;
     jobUsesWaitlists: boolean;
     waitlistTeamId?: string | null;
     startDate?: string | null;

@@ -149,6 +149,7 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
                 TenderPaid = state.TenderPaid,
                 Deposit = deposit,
                 BalanceDue = balanceDue,
+                FullPaymentRequired = teamFullPayment,
                 DepositDue = depositDue,
                 AdditionalDue = additionalDue,
                 RegistrationTs = t.RegistrationTs,

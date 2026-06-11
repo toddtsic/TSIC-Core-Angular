@@ -189,6 +189,12 @@ public sealed record RegisteredTeamDto
     // Used by the Teams step to surface phase-agnostic team properties.
     public required decimal Deposit { get; init; }
     public required decimal BalanceDue { get; init; }
+    // Per-scope payment phase (canonical ResolveFullPaymentPhase: a JobFees.BFullPaymentRequired
+    // override team→agegroup→league wins, else Jobs.BTeamsFullPaymentRequired). True → this team
+    // owes its full price now (balance active); false → deposit phase. Per-TEAM, not a cart-wide
+    // flag — a club-rep cart can span scopes that differ in phase, so the payment grid drives the
+    // "Balance Due" column and the phase badge from THIS, not the job-level setting.
+    public required bool FullPaymentRequired { get; init; }
     // Net-of-paid ledger state — used by the Payment step.
     public required decimal DepositDue { get; init; }
     public required decimal AdditionalDue { get; init; }
