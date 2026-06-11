@@ -262,9 +262,14 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             AddResult(teamResults, playerId, teamId, true, "Unknown", "Team not found.", false);
             return;
         }
-        // Check roster capacity — may redirect to waitlist team mirror
+        // Check roster capacity — may redirect to waitlist team mirror.
+        // A player who already holds a registration on THIS exact team (e.g. an admin
+        // roster-swapped them onto a now-full team) is counted in rosterCount against
+        // their own spot. Re-pricing that existing reg must never bounce them to the
+        // waitlist — they already own the seat. Only a genuinely NEW placement overflows.
         var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
-        var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
+        var alreadyOnThisTeam = ctx.ExistingByPlayerTeam.ContainsKey((playerId, team.TeamId));
+        var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount && !alreadyOnThisTeam;
         var isWaitlisted = false;
         string? waitlistTeamName = null;
         if (isFull)
@@ -359,9 +364,12 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 AddResult(teamResults, playerId, tId, true, "Unknown", "Team not found.", false);
                 continue;
             }
-            // Check roster capacity — may redirect to waitlist team mirror
+            // Check roster capacity — may redirect to waitlist team mirror.
+            // Same guard as ProcessSingleTeamSelectionAsync: a player already rostered on
+            // this exact team keeps their seat and is never bounced to the waitlist.
             var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
-            var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount;
+            var alreadyOnThisTeam = ctx.ExistingByPlayerTeam.ContainsKey((playerId, team.TeamId));
+            var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount && !alreadyOnThisTeam;
             var effectiveTeamId = team.TeamId;
             var isWaitlisted = false;
             string? waitlistTeamName = null;
@@ -672,14 +680,18 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             // voluntary-PIF registrations and any balance-due-phase registrant whose
             // payment cleared before the director changed their mind. PIF intent is
             // preserved by leaving these rows alone.
-            var resolved = await _feeService.ResolveFeeAsync(
-                jobId, RoleConstants.Player, regAgegroupId.Value, reg.AssignedTeamId.Value, ct);
-            var fullAmount = (resolved?.EffectiveDeposit ?? 0m) + (resolved?.EffectiveBalanceDue ?? 0m);
-            if (fullAmount > 0m && reg.PaidTotal >= fullAmount)
+            //
+            // Test on the registrant's OWN settled obligation: OwedTotal already nets
+            // FeeProcessing and FeeDiscount (RecalcTotals: OwedTotal = FeeTotal - PaidTotal,
+            // signed). The prior comparison of PaidTotal against the bare resolved
+            // deposit+balanceDue (no proc, no discount) misclassified any reg carrying a
+            // discount code: PaidTotal = principal + proc - discount could land on either
+            // side of the gross principal regardless of whether the reg was actually paid off.
+            if (reg.OwedTotal <= 0m)
             {
                 _logger.LogInformation(
-                    "Skipping player registration {RegistrationId}: PaidTotal {Paid} >= full {Full} (PIF or balance-due paid).",
-                    reg.RegistrationId, reg.PaidTotal, fullAmount);
+                    "Skipping player registration {RegistrationId}: OwedTotal {Owed} <= 0 (PIF or balance-due paid).",
+                    reg.RegistrationId, reg.OwedTotal);
                 continue;
             }
 

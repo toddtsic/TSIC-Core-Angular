@@ -1273,15 +1273,17 @@ public class TeamRegistrationService : ITeamRegistrationService
             // OwedTotal = FeeTotal - PaidTotal with no clamp, producing a negative
             // (bogus credit) that flows straight into the rep's pulse total.
             // Symmetric to PlayerRegistrationService.RecalculatePlayerFeesAsync.
-            var resolved = await _feeService.ResolveFeeAsync(
-                jobId, RoleConstants.ClubRep, team.AgegroupId, team.TeamId);
-            var fullAmount = (resolved?.EffectiveDeposit ?? 0m) + (resolved?.EffectiveBalanceDue ?? 0m);
-            if (fullAmount > 0m && (team.PaidTotal ?? 0m) >= fullAmount)
+            //
+            // Test on the team's OWN settled obligation: OwedTotal already nets
+            // FeeProcessing and FeeDiscount. Comparing PaidTotal against the bare resolved
+            // deposit+balanceDue (no proc, no discount) misclassified any team carrying a
+            // FeeDiscount.
+            if ((team.OwedTotal ?? 0m) <= 0m)
             {
                 _logger.LogInformation(
-                    "Skipping team {TeamId} ({TeamName}): PaidTotal {Paid} >= full {Full} (PIF or balance-due paid).",
-                    team.TeamId, team.TeamName, team.PaidTotal, fullAmount);
-                skippedReasons.Add($"Team '{team.TeamName}' (paid-in-full: {team.PaidTotal:C} of {fullAmount:C})");
+                    "Skipping team {TeamId} ({TeamName}): OwedTotal {Owed} <= 0 (PIF or balance-due paid).",
+                    team.TeamId, team.TeamName, team.OwedTotal);
+                skippedReasons.Add($"Team '{team.TeamName}' (paid-in-full: {team.PaidTotal:C})");
                 continue;
             }
 
