@@ -510,6 +510,63 @@ public class PlayerRosterCapacityTests
             Times.Once, "a team change before payment forces a fresh fee stamp for the new team");
     }
 
+    // ── Admin roster-swap onto a full team must survive the parent's review ──────
+    //
+    // A player is waitlisted, then an admin roster-swaps them onto a real team that is
+    // (or becomes) at capacity. The player's own active reg is counted in the roster
+    // total, so the team reads "full". When the parent returns to review/edit, the
+    // capacity re-check must NOT bounce the player back to the waitlist mirror — they
+    // already hold a legitimate seat on that team. Only a genuinely NEW placement
+    // overflows. (Bug-before-fix: isFull ignored the player's existing reg and the
+    // PreSubmit silently swapped them onto the WAITLIST twin.)
+
+    [Fact(DisplayName = "PreSubmit: player already rostered on a now-full team is NOT bounced to waitlist")]
+    public async Task PreSubmit_PlayerAlreadyOnFullTeam_KeepsTheirSeat()
+    {
+        var (svc, regRepo, teamRepo, placement, feeService) = CreateService();
+
+        // Team is at capacity (10/10) — and the registrant under review is one of those 10.
+        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 10);
+        SetupFee(feeService, balanceDue: 100m);
+
+        // The player already holds an active reg on this exact team (admin roster-swapped them in).
+        var existing = new Registrations
+        {
+            RegistrationId = Guid.NewGuid(),
+            JobId = TestJobId,
+            UserId = TestPlayerId,
+            FamilyUserId = TestFamilyUserId,
+            AssignedTeamId = team.TeamId,
+            AssignedAgegroupId = team.AgegroupId,
+            FeeBase = 100m,
+            FeeTotal = 100m,
+            OwedTotal = 100m,
+            PaidTotal = 0m,
+            BActive = true,
+            Modified = DateTime.Now,
+        };
+        regRepo
+            .Setup(r => r.GetFamilyRegistrationsForPlayersTrackedAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Registrations> { existing });
+
+        // Act
+        var result = await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(team.TeamId), TestFamilyUserId);
+
+        // Assert — the reg stays on the real team, not waitlisted, and no waitlist redirect happened.
+        result.TeamResults.Should().HaveCount(1);
+        result.TeamResults[0].IsWaitlisted.Should().BeFalse("the player already owns a seat on this team");
+        result.TeamResults[0].IsFull.Should().BeFalse();
+        result.TeamResults[0].TeamId.Should().Be(team.TeamId, "the player must remain on their assigned team");
+        existing.AssignedTeamId.Should().Be(team.TeamId, "the existing reg must not be moved to the waitlist mirror");
+
+        placement.Verify(p => p.ResolveRosterPlacementAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never, "an already-rostered player must skip the full-team waitlist redirect entirely");
+        regRepo.Verify(r => r.Add(It.IsAny<Registrations>()), Times.Never,
+            "no new registration — the existing one is updated in place");
+    }
+
     [Fact(DisplayName = "PreSubmit: same team re-submitted → fee NOT recomputed (no spurious re-stamp)")]
     public async Task PreSubmit_SameTeamResubmitted_DoesNotRestampFee()
     {
