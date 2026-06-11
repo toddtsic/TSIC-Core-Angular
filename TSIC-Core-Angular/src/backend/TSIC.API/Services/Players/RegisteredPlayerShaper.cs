@@ -90,7 +90,7 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
             // forward; once upgraded to pay-in-full (FeeBase covers deposit + balance) the
             // balance nets payments via the canonical helper. Detected per-row, not via a job
             // flag — family siblings can be on different phases.
-            var bFull = p.FeeBase >= deposit + balanceDue - 0.005m;
+            var bFull = p.FeeBase >= (resolved?.FullPrice ?? 0m) - 0.005m;
             var additionalDue = bFull
                 ? state.BalancePrincipalRemaining(p.FeeBase, deposit, p.FeeDiscount, p.FeeLatefee, donation: 0m)
                 : balanceDue;

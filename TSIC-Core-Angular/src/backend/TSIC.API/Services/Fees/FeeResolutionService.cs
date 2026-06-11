@@ -183,7 +183,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         decimal baseFee;
         if (ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired))
         {
-            baseFee = deposit + balanceDue;
+            baseFee = resolved.FullPrice;
         }
         else
         {
@@ -208,10 +208,11 @@ public sealed class FeeResolutionService : IFeeResolutionService
         CancellationToken ct = default)
     {
         var resolved = await ResolveFeeAsync(jobId, RoleConstants.Player, agegroupId, teamId, ct);
-        var deposit = resolved?.EffectiveDeposit ?? 0m;
-        var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
 
-        reg.FeeBase = deposit + balanceDue;
+        // PIF = pay the whole fee now. FullPrice is THE shared "deposit + balance" formula
+        // (NULL deposit → balance only, never double-counted), identical to the reserve-time
+        // stamp above — so the checkout recompute can never diverge from the screen total.
+        reg.FeeBase = resolved?.FullPrice ?? 0m;
         // FeeDiscount / FeeLatefee / FeeDonation preserved from initial stamp
 
         await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct);
@@ -237,7 +238,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // Phase follows the TARGET scope (team → ag → league override) ?? job baseline.
         if (ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired))
         {
-            reg.FeeBase = deposit + balanceDue;
+            reg.FeeBase = resolved?.FullPrice ?? 0m;
         }
         else
         {
@@ -265,7 +266,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // Per-scope override (team → ag → league) ?? job baseline (ctx). Decided ONCE
         // and threaded into the proc/totals helper so phase can never disagree there.
         var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired);
-        var feeBase = fullPayment ? deposit + balanceDue : deposit;
+        var feeBase = fullPayment ? resolved.FullPrice : deposit;
 
         var modifiers = await EvaluateModifiersAsync(
             jobId, RoleConstants.ClubRep, agegroupId, team.TeamId, DateTime.Now, ct);
@@ -291,7 +292,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
         // Phase follows the TARGET scope override ?? job baseline (ctx).
         var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired);
-        var feeBase = fullPayment ? deposit + balanceDue : deposit;
+        var feeBase = fullPayment ? (resolved?.FullPrice ?? 0m) : deposit;
 
         // Only FeeBase changes — modifiers FROZEN
         team.FeeBase = feeBase;

@@ -196,6 +196,24 @@ public record ResolvedFee
     /// </summary>
     public decimal EffectiveBalanceDue => BalanceDue ?? 0m;
 
+    /// <summary>
+    /// Full registration price across BOTH phases (deposit slice + balance slice).
+    /// Treats a NULL deposit as $0: the deposit and balance are SEPARATE amounts, so when
+    /// no deposit is configured the full price is just the balance.
+    /// <para>
+    /// NEVER sum <see cref="EffectiveDeposit"/> + <see cref="EffectiveBalanceDue"/> to get this —
+    /// EffectiveDeposit falls back to BalanceDue when Deposit is NULL, so that sum double-counts
+    /// the balance (a $325 no-deposit fee resolved to $650). That bug billed a single player
+    /// reg twice at Pay-In-Full while the deposit-charge path stayed correct.
+    /// </para>
+    /// </summary>
+    /// Every full-payment fee-application path — new registration, PIF upgrade, swap, team
+    /// new/swap, pool transfer preview, and the registered-grid "paid in full?" check — resolves
+    /// the full price HERE, so the reserve-time stamp and the checkout-time recompute can never
+    /// compute it differently. Do not re-implement <c>Deposit + BalanceDue</c> inline.
+    /// </summary>
+    public decimal FullPrice => (Deposit ?? 0m) + (BalanceDue ?? 0m);
+
     /// <summary>Sentinel for "no fee row at any cascade level" (FeeConfigured = false).</summary>
     public static readonly ResolvedFee NotConfigured = new() { FeeConfigured = false };
 

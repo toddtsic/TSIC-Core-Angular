@@ -114,9 +114,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 var resolved = await _feeService.ResolveFeeForAgegroupAsync(
                     job.JobId, RoleConstants.ClubRep, targetAgegroup.AgegroupId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
-                var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
                 newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved, job.BTeamsFullPaymentRequired ?? false)
-                    ? deposit + balanceDue : deposit;
+                    ? (resolved?.FullPrice ?? 0m) : deposit;
                 newFeeTotal = newFeeBase; // preview estimate (excludes processing for simplicity)
                 feeDelta = newFeeTotal - (team.FeeTotal ?? 0m);
             }
@@ -159,9 +158,8 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 var resolved = await _feeService.ResolveFeeForAgegroupAsync(
                     job.JobId, RoleConstants.ClubRep, sourceAgegroup.AgegroupId, ct);
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
-                var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
                 newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved, job.BTeamsFullPaymentRequired ?? false)
-                    ? deposit + balanceDue : deposit;
+                    ? (resolved?.FullPrice ?? 0m) : deposit;
                 newFeeTotal = newFeeBase;
                 feeDelta = newFeeTotal - (team.FeeTotal ?? 0m);
             }
