@@ -931,19 +931,23 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
           inherited: isInherited(e.lateFee.source),
         });
       }
-      // Phase pill renders for every role with fee context: a phase override shows
-      // "Full Payment"/"Balance Due" + a where-set badge. With no phase override the value
-      // falls back to the job baseline (matching the backend resolver), and the badge mirrors
-      // the EFFECTIVE source — the phase override's tier if any, else where the base fee lives
-      // (e.source) — so an inherited fee reads "from ag"/"from league" rather than a flat
-      // "job default". The render shows "job default" when that source is job/local.
-      const effSource = e.phase?.source ?? e.source;
+      // The phase pill carries two ORTHOGONAL facts:
+      //   value (WHAT) — Single / Deposit / PIF, the effective phase.
+      //   source (WHERE) — which tier set the phase. A phase override (applyPhase only ever
+      //     sets league/agegroup/team) names its tier; with NO override the phase is the job
+      //     baseline, so the source is the JOB — not where the base fee happens to live. The
+      //     fee's location is a separate axis (the Fees column); conflating them here misreported
+      //     where the phase came from.
+      const phaseSource = e.phase?.source ?? 'job';
       phase.push({
         roleId, roleLabel,
         fullPayment: e.phase?.value ?? this.jobBaselineFor(roleId),
-        hasOverride: e.phase != null,
-        source: effSource,
-        inherited: isInherited(effSource),
+        source: phaseSource,
+        inherited: isInherited(phaseSource), // job (and any higher-than-scope tier) → "from X"
+        // The phase choice only MEANS something when the fee has BOTH a deposit and a balance to
+        // split. A balance-only (or deposit-only) fee is a single payment — the phase is inert
+        // (both settings stamp the same FeeBase) — so the pill reads "Single", no phase, no badge.
+        twoPhase: (e.deposit ?? 0) > 0 && (e.balanceDue ?? 0) > 0,
       });
     }
 

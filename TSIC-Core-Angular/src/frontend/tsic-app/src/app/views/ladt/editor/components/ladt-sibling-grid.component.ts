@@ -154,19 +154,25 @@ export interface ParentBreadcrumb {
                   @if (data['_phase']?.length) {
                     <div class="fee-pills">
                       @for (ph of data['_phase']; track ph.roleId) {
-                        <div class="fee-pill" [class.fee-inherited]="ph.inherited">
-                          <span class="fee-role">{{ ph.roleLabel }}</span>
-                          <span class="phase-value" [class.phase-value--full]="ph.fullPayment">{{ ph.fullPayment ? 'Full Payment' : 'Balance Due' }}</span>
-                          @if (ph.hasOverride) {
-                            @if (ph.inherited) {
-                              <span class="fee-from-badge">from {{ sourceLabel(ph.source) }}</span>
+                        <div class="fee-pill fee-pill--phase" [class.fee-inherited]="ph.inherited">
+                          <div class="phase-line">
+                            <span class="fee-role">{{ ph.roleLabel }}</span>
+                            @if (ph.twoPhase) {
+                              <span class="phase-value" [class.phase-value--full]="ph.fullPayment">{{ ph.fullPayment ? 'PIF' : 'Deposit' }}</span>
                             } @else {
-                              <span class="fee-set-badge">{{ sourceLabel(ph.source) }} set</span>
+                              <span class="phase-value">Single</span>
                             }
-                          } @else if (ph.inherited && ph.source !== 'job') {
-                            <span class="fee-from-badge">from {{ sourceLabel(ph.source) }}</span>
-                          } @else {
-                            <span class="fee-from-badge">job default</span>
+                          </div>
+                          <!-- WHERE the phase was set. Two-phase only (Single has no phase). Set at
+                               this scope → "{tier} set"; inherited from a higher tier OR the job
+                               baseline → "from {tier}". Stacked on its own line so it never shares
+                               or clips the value line. -->
+                          @if (ph.twoPhase) {
+                            @if (ph.inherited) {
+                              <span class="phase-badge fee-from-badge">from {{ sourceLabel(ph.source) }}</span>
+                            } @else {
+                              <span class="phase-badge fee-set-badge">{{ sourceLabel(ph.source) }} set</span>
+                            }
                           }
                         </div>
                       }
@@ -509,6 +515,23 @@ export interface ParentBreadcrumb {
     .phase-value--full {
       color: var(--bs-primary);
       font-weight: 600;
+    }
+    /* Phase pill stacks: value on line 1, provenance badge on line 2, so the label text
+       (e.g. "Full payment now") never has to share a line with the badge and can't clip. */
+    .fee-pill--phase {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 1px;
+    }
+    .phase-line {
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
+    }
+    /* Indent the second-line badge under the value (past the role label) so it reads as
+       belonging to this role, and drop the inline-style left margin. */
+    .phase-badge {
+      margin-left: 56px;
     }
     .phase-hint {
       font-size: 0.8125rem;
