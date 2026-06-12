@@ -675,26 +675,13 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             var regAgegroupId = AgegroupOf(reg);
             if (regAgegroupId is null) continue;
 
-            // Skip players already paid-in-full. Re-stamping FeeBase to deposit-only on
-            // an unflip (true→false) would produce OwedTotal < 0 (bogus credit) for
-            // voluntary-PIF registrations and any balance-due-phase registrant whose
-            // payment cleared before the director changed their mind. PIF intent is
-            // preserved by leaving these rows alone.
-            //
-            // Test on the registrant's OWN settled obligation: OwedTotal already nets
-            // FeeProcessing and FeeDiscount (RecalcTotals: OwedTotal = FeeTotal - PaidTotal,
-            // signed). The prior comparison of PaidTotal against the bare resolved
-            // deposit+balanceDue (no proc, no discount) misclassified any reg carrying a
-            // discount code: PaidTotal = principal + proc - discount could land on either
-            // side of the gross principal regardless of whether the reg was actually paid off.
-            if (reg.OwedTotal <= 0m)
-            {
-                _logger.LogInformation(
-                    "Skipping player registration {RegistrationId}: OwedTotal {Owed} <= 0 (PIF or balance-due paid).",
-                    reg.RegistrationId, reg.OwedTotal);
-                continue;
-            }
-
+            // No paid-in-full skip here — every active reg is repriced. The applier
+            // (ApplySwapFeesAsync) decides phase per-reg from the cascade AND the registrant's
+            // own payments: paying past the deposit promotes the reg to full payment, so a
+            // paid-ahead reg is re-stamped to FullPrice (never DOWN to the deposit) and can
+            // never net a bogus credit. Removing the old OwedTotal<=0 gate is what lets a
+            // fee/price increase reach already-paid registrants — they correctly owe the delta,
+            // and a genuine over-payment surfaces as a (correct) negative OwedTotal.
             var oldFeeBase = reg.FeeBase;
             var oldFeeProcessing = reg.FeeProcessing;
 

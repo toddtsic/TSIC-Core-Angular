@@ -235,18 +235,29 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var deposit = resolved?.EffectiveDeposit ?? 0m;
         var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
 
-        // Phase follows the TARGET scope (team → ag → league override) ?? job baseline.
-        if (ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired))
-        {
-            reg.FeeBase = resolved?.FullPrice ?? 0m;
-        }
-        else
-        {
-            reg.FeeBase = deposit > 0m ? deposit : balanceDue;
-        }
+        // Phase is decided from BOTH the config cascade AND the registrant's own payments:
+        //   (1) Config: per-scope override (team → ag → league) ?? job baseline.
+        //   (2) Promotion: having paid PAST the deposit tier IS entering full payment. The
+        //       registrant's payment history overrides the scope's deposit-phase default, so a
+        //       fee/phase change can never re-stamp a paid-ahead reg DOWN to the deposit (which
+        //       would net a bogus credit), AND a price increase correctly reaches already-paid
+        //       registrants — they owe the delta.
+        // The threshold is principal-based (proc backed out per method via PaymentState) compared
+        // against the discount/late/donation-adjusted deposit, with a small tolerance so a reg
+        // that paid EXACTLY its deposit is not spuriously promoted. The same PaymentState is
+        // reused for the totals recompute below (one ledger read, not two).
+        const decimal depositPaidTolerance = 0.01m;
+        var state = await _paymentState.ForRegistrationAsync(reg.RegistrationId, jobId, ct);
+        var effectiveDeposit = Math.Max(0m, deposit - reg.FeeDiscount + reg.FeeLatefee + reg.FeeDonation);
+        var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
+
+        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
+        reg.FeeBase = fullPayment
+            ? (resolved?.FullPrice ?? 0m)
+            : (deposit > 0m ? deposit : balanceDue);
         // FeeDiscount / FeeLatefee / FeeDonation preserved
 
-        await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct);
+        await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct, state);
     }
 
     // ── Team Entity: New ────────────────────────────────────────
@@ -313,9 +324,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
     // (which don't), losing the eCheck partial credit on every recalc.
 
     private async Task ApplyRegistrationProcessingAndTotalsAsync(
-        Registrations reg, Guid jobId, bool isNew, CancellationToken ct)
+        Registrations reg, Guid jobId, bool isNew, CancellationToken ct, PaymentState? state = null)
     {
-        var state = isNew
+        // Callers that already resolved the registrant's PaymentState (the swap/reprice path,
+        // which needs it for the paid-past-deposit promotion) pass it through to avoid a second
+        // ledger read. Otherwise resolve it here: Empty for a brand-new reg, else from the ledger.
+        state ??= isNew
             ? PaymentState.Empty(
                 await GetAddProcessingFeesAsync(jobId, ct),
                 await GetEffectiveProcessingRateAsync(jobId, ct),
