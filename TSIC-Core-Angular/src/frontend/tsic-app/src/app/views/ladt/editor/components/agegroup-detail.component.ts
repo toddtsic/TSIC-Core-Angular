@@ -135,26 +135,26 @@ const JOB_TYPE_TOURNAMENT = 2;
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
             [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         } @else {
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
             [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         }
@@ -440,11 +440,17 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
 
-    // A phase flip on any changed role is always retroactive (confirm, not future-only).
-    const phaseFlip = this.phaseFlipPending;
-    const playerPhaseFlipped = playerChanged && this.feeForm.playerPhase !== this.originalPhase.player;
-    const clubRepPhaseFlipped = clubRepChanged && this.feeForm.clubRepPhase !== this.originalPhase.clubRep;
+    // Payment-phase flips are decided AT THE TOGGLE now (onPhaseToggle → openPhaseScopePrompt
+    // fires the "all age groups / just this" choice the moment the phase is flipped, and records
+    // the scope in leagueApplyRoles). The Save button isn't even reachable until that prompt is
+    // answered (it replaces the button), so by the time we're here the scope is chosen — commit
+    // it retroactively (a phase flip is always retroactive) and fan out only if "all" was picked.
+    if (this.phaseFlipPending) {
+      this.performSave(true);
+      return;
+    }
 
+    // Amount/modifier change only → the save-time "update existing, or future only?" prompt.
     this.isSaving.set(true);
     this.saveMessage.set(null);
     this.feeReprice.getBlastArea(
@@ -457,43 +463,76 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
           this.performSave(false);
           return;
         }
-        // Phase flip with a known parent league → offer the "all age groups" fan-out, with
-        // this-vs-league counts. Fetch the league-wide count (flipped roles only) alongside.
-        if (phaseFlip && this.leagueId()) {
-          this.feeReprice.getBlastArea(
-            { leagueId: this.leagueId()! },
-            { player: playerPhaseFlipped, clubRep: clubRepPhaseFlipped }
-          ).subscribe({
-            next: (leagueBlast) => {
-              this.repriceDialog.set({
-                isPhase: true,
-                message: 'Convert existing registrations to the new payment phase. Choose how widely to apply it:',
-                leagueScope: {
-                  thisCount: blast.playerCount + blast.teamCount,
-                  allCount: leagueBlast.playerCount + leagueBlast.teamCount
-                }
-              });
-              this.isSaving.set(false);
-            },
-            // League count probe failed → fall back to the single-age-group confirm.
-            error: () => {
-              this.repriceDialog.set({
-                isPhase: true,
-                message: this.feeReprice.buildMessage(blast, this.scopeLabel(), true)
-              });
-              this.isSaving.set(false);
-            }
-          });
-          return;
-        }
         this.repriceDialog.set({
-          isPhase: phaseFlip,
-          message: this.feeReprice.buildMessage(blast, this.scopeLabel(), phaseFlip)
+          isPhase: false,
+          message: this.feeReprice.buildMessage(blast, this.scopeLabel(), false)
         });
         this.isSaving.set(false);
       },
       // Count probe failed — don't block the save; persist config without repricing.
       error: () => this.performSave(false)
+    });
+  }
+
+  /**
+   * Payment-phase toggle handler. Flipping the phase is a decision in its own right, so the
+   * "convert all age groups in this league, or just this one?" question is asked RIGHT HERE —
+   * the instant you flip it — not deferred into the Save action. The chosen scope is recorded
+   * (onPhaseConvert) and committed when you click Save.
+   */
+  onPhaseToggle(role: 'player' | 'clubRep', value: boolean | null): void {
+    if (role === 'player') this.feeForm.playerPhase = value;
+    else this.feeForm.clubRepPhase = value;
+    this.markFeeDirty();
+    this.openPhaseScopePrompt();
+  }
+
+  /** Open (or clear) the phase-conversion scope prompt for the currently-flipped role(s). */
+  private openPhaseScopePrompt(): void {
+    const playerFlipped = this.feeForm.playerPhase !== this.originalPhase.player;
+    const clubRepFlipped = this.feeForm.clubRepPhase !== this.originalPhase.clubRep;
+
+    // Toggled back to the saved value → nothing to convert; drop any open phase prompt.
+    if (!playerFlipped && !clubRepFlipped) {
+      this.leagueApplyRoles = null;
+      if (this.repriceDialog()?.isPhase) this.repriceDialog.set(null);
+      return;
+    }
+
+    // A fresh flip supersedes any prior "all/this" pick until the new prompt is answered.
+    this.leagueApplyRoles = null;
+    const roles = { player: playerFlipped, clubRep: clubRepFlipped };
+    this.feeReprice.getBlastArea({ agegroupId: this.agegroupId() }, roles).subscribe({
+      next: (blast) => {
+        const thisCount = blast.playerCount + blast.teamCount;
+        // No existing registrations in scope → no conversion decision; Save just persists the flip.
+        if (thisCount === 0) {
+          if (this.repriceDialog()?.isPhase) this.repriceDialog.set(null);
+          return;
+        }
+        const leagueId = this.leagueId();
+        if (leagueId) {
+          this.feeReprice.getBlastArea({ leagueId }, roles).subscribe({
+            next: (lb) => this.repriceDialog.set({
+              isPhase: true,
+              message: 'Convert existing registrations to the new payment phase. Choose how widely to apply it:',
+              leagueScope: { thisCount, allCount: lb.playerCount + lb.teamCount }
+            }),
+            // League count probe failed → single-age-group confirm (no fan-out option).
+            error: () => this.repriceDialog.set({
+              isPhase: true,
+              message: this.feeReprice.buildMessage(blast, this.scopeLabel(), true)
+            })
+          });
+        } else {
+          this.repriceDialog.set({
+            isPhase: true,
+            message: this.feeReprice.buildMessage(blast, this.scopeLabel(), true)
+          });
+        }
+      },
+      // Count probe failed → don't block; Save will still persist the flip (no fan-out).
+      error: () => { if (this.repriceDialog()?.isPhase) this.repriceDialog.set(null); }
     });
   }
 
@@ -503,14 +542,16 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   /**
-   * Phase "Convert". scope='this' reprices only this age group (the existing path); scope='all'
-   * additionally fans the flipped phase across every other age group in the league once this
-   * age group's own save lands (see applyLeagueThenFinish). Roles to fan out are captured now,
-   * before performSave re-snapshots the originals.
+   * Phase "Convert" — the scope prompt IS the confirmation (counts already shown), so this commits
+   * immediately rather than staging the choice for a later Save. scope='all' fans the flip across
+   * every age group in the league (captured in leagueApplyRoles, consumed by performSave);
+   * scope='this' converts this age group only. Saving the phase saves the whole age-group form,
+   * so any other pending edits commit alongside it (a phase flip is always retroactive). Cancel
+   * (onRepriceDismiss) reverts the toggle and writes nothing.
    */
   onPhaseConvert(scope: 'this' | 'all'): void {
-    this.repriceDialog.set(null);
     this.leagueApplyRoles = scope === 'all' ? this.flippedPhaseRoles() : null;
+    this.repriceDialog.set(null);
     this.performSave(true);
   }
 
@@ -568,12 +609,13 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
     const dlg = this.repriceDialog();
     this.repriceDialog.set(null);
     if (dlg?.isPhase) {
-      // Cancelled a phase conversion → revert the flip (don't persist it); keep amount edits.
+      // Cancelled the phase conversion → revert the toggle (don't persist it) and the scope pick.
       this.feeForm.playerPhase = this.originalPhase.player;
       this.feeForm.clubRepPhase = this.originalPhase.clubRep;
+      this.leagueApplyRoles = null;
       this.isSaving.set(false);
     } else {
-      // "Future only" → save the config, leave existing registrations untouched.
+      // Amount change "Future only" → save the config, leave existing registrations untouched.
       this.performSave(false);
     }
   }

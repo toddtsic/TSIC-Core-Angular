@@ -168,8 +168,11 @@ export class RepriceConfirmComponent {
   /** Back-out — collapse and save nothing (amount change only). */
   readonly keepEditing = output<void>();
 
-  /** Selected fan-out scope; only meaningful when `dialog().leagueScope` is present. */
-  readonly selectedScope = signal<'this' | 'all'>('all');
+  /** Selected fan-out scope; only meaningful when `dialog().leagueScope` is present.
+   *  Defaults to 'this' (the age group you actually toggled) — the safe scope. Applying the
+   *  phase to the whole league is a deliberate, larger-blast choice, so it must be selected
+   *  on purpose rather than ridden in as a silent default. */
+  readonly selectedScope = signal<'this' | 'all'>('this');
 
   onConvert(): void {
     this.convert.emit(this.dialog().leagueScope ? this.selectedScope() : 'this');
