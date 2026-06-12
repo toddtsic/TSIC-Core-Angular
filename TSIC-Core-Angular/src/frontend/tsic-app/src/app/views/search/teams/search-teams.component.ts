@@ -89,6 +89,12 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	// Filters fly-in panel state
 	isFiltersPanelOpen = signal(false);
 
+	// "Forgot to click Search" guard — set true when the user tries to close the
+	// drawer (X / backdrop / Esc) with filter edits that were never run. Mirrors the
+	// ladt editor's unsaved-changes guard; the centered dialog stays reachable even
+	// when the footer Search button has scrolled below the fold.
+	pendingFilterClose = signal(false);
+
 	// Snapshot of the request last sent to the server — used to light up the
 	// footer Search button when filters differ from what was last queried.
 	private lastExecutedRequest = signal<string>('');
@@ -292,9 +298,37 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	@HostListener('document:keydown.escape')
 	onEscapeKey(): void {
+		// While the discard prompt is up, let the dialog own Escape (it dismisses).
+		if (this.pendingFilterClose()) return;
 		if (this.isFiltersPanelOpen()) {
-			this.isFiltersPanelOpen.set(false);
+			this.requestCloseFilters();
 		}
+	}
+
+	/** User-initiated drawer close (X / backdrop / Esc). If filters were edited but
+	 *  never searched, surface the centered "forgot to search" prompt instead of
+	 *  silently discarding the un-applied edits. */
+	requestCloseFilters(): void {
+		if (this.isFilterDirty()) {
+			this.pendingFilterClose.set(true);
+			return;
+		}
+		this.isFiltersPanelOpen.set(false);
+	}
+
+	/** "Search now" — run the staged filters (executeSearch closes the panel + records
+	 *  lastExecutedRequest, which clears the dirty state). */
+	onFilterCloseSearch(): void {
+		this.pendingFilterClose.set(false);
+		this.executeSearch();
+	}
+
+	/** "Close without searching" — close the drawer but keep the staged filters; they
+	 *  persist as chips and the chip-strip Search button keeps pulsing. Also the path
+	 *  for dismissing the dialog itself (its X / backdrop / Esc). */
+	onFilterCloseDiscard(): void {
+		this.pendingFilterClose.set(false);
+		this.isFiltersPanelOpen.set(false);
 	}
 
 	clearFilters(): void {
