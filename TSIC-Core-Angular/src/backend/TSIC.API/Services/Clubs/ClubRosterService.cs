@@ -9,13 +9,19 @@ public sealed class ClubRosterService : IClubRosterService
 {
     private readonly ITeamRepository _teamRepo;
     private readonly IRegistrationRepository _registrationRepo;
+    private readonly IFeeResolutionService _feeService;
+    private readonly IJobRepository _jobRepo;
 
     public ClubRosterService(
         ITeamRepository teamRepo,
-        IRegistrationRepository registrationRepo)
+        IRegistrationRepository registrationRepo,
+        IFeeResolutionService feeService,
+        IJobRepository jobRepo)
     {
         _teamRepo = teamRepo;
         _registrationRepo = registrationRepo;
+        _feeService = feeService;
+        _jobRepo = jobRepo;
     }
 
     public async Task<List<ClubRosterTeamDto>> GetTeamsAsync(
@@ -60,6 +66,11 @@ public sealed class ClubRosterService : IClubRosterService
         var targetTeam = await _teamRepo.GetByIdReadOnlyAsync(request.TargetTeamId, ct)
             ?? throw new KeyNotFoundException("Target team not found.");
 
+        // Job baseline phase for the fee re-resolve below; per-scope overrides win inside
+        // ApplySwapFeesAsync. One read for the whole batch (sequential — same scoped DbContext).
+        var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(jobId, ct);
+        var isFullPaymentRequired = jobPaymentInfo?.BPlayersFullPaymentRequired ?? false;
+
         var moved = 0;
         foreach (var regId in request.RegistrationIds)
         {
@@ -76,6 +87,18 @@ public sealed class ClubRosterService : IClubRosterService
             reg.AssignedLeagueId = targetTeam.LeagueId;
             reg.Assignment = $"Player: {targetTeam.TeamName}";
             reg.Modified = DateTime.Now;
+
+            // Re-resolve the player's fee from the NEW team's scope (team → agegroup → league)
+            // so a cross-agegroup move adapts price AND payment phase — the same canonical applier
+            // the admin Roster Swapper uses. Free self-rostering resolves to $0 (a no-op); the
+            // applier is no-throw on an unconfigured fee and preserves discount/late/donation.
+            // Player-only guard: a club roster holds players, but never reprice a non-player.
+            if (reg.RoleId == RoleConstants.Player)
+            {
+                await _feeService.ApplySwapFeesAsync(
+                    reg, jobId, targetTeam.AgegroupId, targetTeam.TeamId,
+                    new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired }, ct);
+            }
 
             moved++;
         }
