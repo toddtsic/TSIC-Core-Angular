@@ -33,7 +33,7 @@ export interface ModifierForm {
       }
 
       @if (showBaseFee()) {
-        <div class="fee-row">
+        <div class="fee-row" [class.fee-inputs-locked]="amountsDisabled()">
           <div class="fee-field">
             <label class="fee-label">Deposit</label>
             <div class="input-group input-group-sm">
@@ -41,7 +41,9 @@ export interface ModifierForm {
               <input class="form-control" type="number" step="1"
                      [ngModel]="deposit()" (ngModelChange)="depositChange.emit($event)"
                      [name]="namePrefix() + 'Deposit'"
-                     [placeholder]="placeholder()">
+                     [placeholder]="placeholder()"
+                     [attr.disabled]="amountsDisabled() ? '' : null"
+                     (blur)="amountCommitted.emit()">
             </div>
           </div>
           <div class="fee-field">
@@ -51,7 +53,9 @@ export interface ModifierForm {
               <input class="form-control" type="number" step="1"
                      [ngModel]="balanceDue()" (ngModelChange)="balanceDueChange.emit($event)"
                      [name]="namePrefix() + 'BalanceDue'"
-                     [placeholder]="placeholder()">
+                     [placeholder]="placeholder()"
+                     [attr.disabled]="amountsDisabled() ? '' : null"
+                     (blur)="amountCommitted.emit()">
             </div>
           </div>
         </div>
@@ -59,13 +63,14 @@ export interface ModifierForm {
       }
 
       @if (showPhaseToggle() || phaseExplanation() || phaseNote()) {
-        <div class="phase-section">
+        <div class="phase-section" [class.fee-inputs-locked]="toggleDisabled()">
           <label class="fee-label phase-section-label">Payment Phase</label>
           @if (showPhaseToggle()) {
             <div class="form-check form-switch mb-0">
               <input class="form-check-input" type="checkbox" role="switch"
                      [id]="namePrefix() + 'Phase'"
                      [checked]="bFullPaymentRequired() === true"
+                     [attr.disabled]="toggleDisabled() ? '' : null"
                      (change)="onPhaseToggle($any($event.target).checked)">
               <label class="form-check-label phase-switch-label" [for]="namePrefix() + 'Phase'">
                 Require full payment now
@@ -184,6 +189,11 @@ export interface ModifierForm {
     .fee-label { font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin-bottom: 2px; display: block; }
     .fee-hint { font-size: var(--font-size-xs); color: var(--bs-secondary-color); margin: 0 0 var(--space-2) 0; font-style: italic; }
 
+    .fee-inputs-locked {
+      opacity: 0.45;
+      pointer-events: none;
+    }
+
     .phase-section {
       display: flex; flex-direction: column; gap: var(--space-2);
       margin: var(--space-3) 0;
@@ -292,6 +302,12 @@ export class FeeCardComponent {
   readonly depositChange = output<number | null>();
   readonly balanceDueChange = output<number | null>();
   readonly bFullPaymentRequiredChange = output<boolean | null>();
+  /** Fires when the user commits a fee amount change (blur on deposit or balance-due). */
+  readonly amountCommitted = output<void>();
+  /** When true, deposit and balance-due inputs are visually locked (fee-phase or settings edits in progress). */
+  readonly amountsDisabled = input(false);
+  /** When true, the payment-phase toggle is visually locked (fee-amount or settings edits in progress). */
+  readonly toggleDisabled = input(false);
 
   /**
    * The phase toggle only does something when there's a deposit to defer. With a

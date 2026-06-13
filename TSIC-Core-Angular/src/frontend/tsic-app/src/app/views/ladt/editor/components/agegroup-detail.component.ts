@@ -64,18 +64,18 @@ const JOB_TYPE_TOURNAMENT = 2;
 
       <form (ngSubmit)="save()">
         <!-- ── Settings (identity + config) ── -->
-        <div class="section-card settings-card">
+        <div class="section-card settings-card" [class.section-locked]="settingsLocked()">
           <div class="section-card-header">
             <i class="bi bi-gear"></i> Settings
           </div>
           <div class="d-flex align-items-end gap-2 mb-2">
             <div class="flex-grow-1">
               <label class="fee-label">Name</label>
-              <input class="form-control form-control-sm" [(ngModel)]="form.agegroupName" name="agegroupName">
+              <input class="form-control form-control-sm" [(ngModel)]="form.agegroupName" name="agegroupName" (ngModelChange)="onSettingsChange()">
             </div>
             <div style="min-width: 90px;">
               <label class="fee-label">Gender</label>
-              <select class="form-select form-select-sm" [(ngModel)]="form.gender" name="gender">
+              <select class="form-select form-select-sm" [(ngModel)]="form.gender" name="gender" (ngModelChange)="onSettingsChange()">
                 <option [ngValue]="null">Any</option>
                 <option value="M">Male</option>
                 <option value="F">Female</option>
@@ -108,24 +108,24 @@ const JOB_TYPE_TOURNAMENT = 2;
             <div>
               <label class="fee-label">Max Teams</label>
               <input class="form-control form-control-sm text-center" type="number"
-                     [(ngModel)]="form.maxTeams" name="maxTeams" style="width: 60px;">
+                     [(ngModel)]="form.maxTeams" name="maxTeams" style="width: 60px;" (ngModelChange)="onSettingsChange()">
             </div>
           </div>
           <div class="settings-grid">
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering">
+              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">Self Rostering</label>
             </div>
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bChampionsByDivision" name="bChampionsByDivision">
+              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bChampionsByDivision" name="bChampionsByDivision" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">Champs by Division</label>
             </div>
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowApiRosterAccess" name="bAllowApiRosterAccess">
+              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowApiRosterAccess" name="bAllowApiRosterAccess" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">API Roster Access</label>
             </div>
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideStandings" name="bHideStandings">
+              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideStandings" name="bHideStandings" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">Hide Standings</label>
             </div>
           </div>
@@ -133,29 +133,33 @@ const JOB_TYPE_TOURNAMENT = 2;
 
         @if (isTournament()) {
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
             [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
+            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
-            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
+            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         } @else {
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
-            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
+            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
           <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
             [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
             [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
+            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
         }
 
@@ -264,6 +268,8 @@ const JOB_TYPE_TOURNAMENT = 2;
     }
     .color-option:hover { background: var(--bs-tertiary-bg); }
     .color-option.active { background: var(--bs-primary-bg-subtle); font-weight: 600; }
+
+    .section-locked { opacity: 0.45; pointer-events: none; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -309,6 +315,52 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   showDeleteConfirm = signal(false);
   showCloneDialog = signal(false);
   colorDropdownOpen = signal(false);
+
+  /** Enforces mutual exclusion between fee-amount, fee-phase, and settings edits.
+   *  Each save can only contain one category; the other sections lock visually. */
+  editMode = signal<'fee-amount' | 'fee-phase' | 'settings' | null>(null);
+
+  readonly feesAmountLocked = computed(() => this.editMode() === 'fee-phase' || this.editMode() === 'settings');
+  readonly feesPhaseLocked = computed(() => this.editMode() === 'fee-amount' || this.editMode() === 'settings');
+  readonly settingsLocked = computed(() => this.editMode() === 'fee-amount' || this.editMode() === 'fee-phase');
+
+  /** Called on first ngModelChange of any deposit/balance-due — locks settings + phase immediately. */
+  onFeeAmountStart(): void {
+    if (this.editMode() === null) this.editMode.set('fee-amount');
+  }
+
+  /**
+   * Called on blur of a fee amount input. Proactively fetches the blast-area count and shows the
+   * reprice prompt immediately, so "Update all" / "Future only" commits without a Save click.
+   */
+  onFeeAmountCommitted(): void {
+    const playerChanged = this.roleChanged('player');
+    const clubRepChanged = this.roleChanged('clubRep');
+    if (!playerChanged && !clubRepChanged) {
+      if (this.editMode() === 'fee-amount') this.editMode.set(null);
+      return;
+    }
+    this.editMode.set('fee-amount');
+    this.markFeeDirty();
+    this.feeReprice.getBlastArea(
+      { agegroupId: this.agegroupId() },
+      { player: playerChanged, clubRep: clubRepChanged }
+    ).subscribe({
+      next: (blast) => {
+        if (blast.playerCount + blast.teamCount === 0) return;
+        this.repriceDialog.set({
+          isPhase: false,
+          message: this.feeReprice.buildMessage(blast, this.scopeLabel(), false)
+        });
+      },
+      error: () => {}
+    });
+  }
+
+  /** Called on any settings (non-fee) field change — locks fee amounts + phase toggle. */
+  onSettingsChange(): void {
+    if (this.editMode() === null) this.editMode.set('settings');
+  }
 
   colorOptions = AGEGROUP_COLORS;
   form: any = {};
@@ -360,6 +412,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.isLoading.set(true);
     this.saveMessage.set(null);
     this.showDeleteConfirm.set(false);
+    this.editMode.set(null);
 
     forkJoin({
       detail: this.ladtService.getAgegroup(this.agegroupId()),
@@ -483,6 +536,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   onPhaseToggle(role: 'player' | 'clubRep', value: boolean | null): void {
     if (role === 'player') this.feeForm.playerPhase = value;
     else this.feeForm.clubRepPhase = value;
+    this.editMode.set('fee-phase');
     this.markFeeDirty();
     this.openPhaseScopePrompt();
   }
@@ -537,6 +591,8 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   onRepriceConfirm(): void {
+    this.feeChangedPending = this.roleChanged('player') || this.roleChanged('clubRep');
+    this.phaseFlipPending = false;
     this.repriceDialog.set(null);
     this.performSave(true);   // "Update all" (amount change) → retroactive reprice
   }
@@ -613,9 +669,12 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
       this.feeForm.playerPhase = this.originalPhase.player;
       this.feeForm.clubRepPhase = this.originalPhase.clubRep;
       this.leagueApplyRoles = null;
+      this.editMode.set(null);
       this.isSaving.set(false);
     } else {
       // Amount change "Future only" → save the config, leave existing registrations untouched.
+      this.feeChangedPending = this.roleChanged('player') || this.roleChanged('clubRep');
+      this.phaseFlipPending = false;
       this.performSave(false);
     }
   }
@@ -689,6 +748,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
         this.isError.set(false);
         this.saveMessage.set(this.savedMessage(results, 'Age group saved successfully.'));
         this.captureOriginals();
+        this.editMode.set(null);
 
         // "Apply to all age groups" chosen → keep the spinner up while the phase fans out
         // across the league, then toast the combined total (handles its own emit).
@@ -789,6 +849,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
       // change. Flag the form dirty so the sticky save bar lights and the discard guard
       // covers a color-only edit.
       this.markFeeDirty();
+      this.onSettingsChange();
     }
     this.colorDropdownOpen.set(false);
   }

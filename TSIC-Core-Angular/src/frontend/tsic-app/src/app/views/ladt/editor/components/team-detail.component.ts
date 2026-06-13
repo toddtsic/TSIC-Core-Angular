@@ -114,102 +114,106 @@ const JOB_TYPE_TOURNAMENT = 2;
 
       <form (ngSubmit)="save()">
         <!-- ── Settings ── -->
-        <div class="section-card settings-card">
+        <div class="section-card settings-card" [class.section-locked]="settingsLocked()">
           <div class="section-card-header">
             <i class="bi bi-gear"></i> Settings
           </div>
           <div class="d-flex align-items-end gap-2 mb-2">
             <div class="flex-grow-1">
               <label class="fee-label">Team Name</label>
-              <input class="form-control form-control-sm" [(ngModel)]="form.teamName" name="teamName">
+              <input class="form-control form-control-sm" [(ngModel)]="form.teamName" name="teamName" (ngModelChange)="onSettingsChange()">
             </div>
             <div class="form-check form-switch" style="padding-bottom: 4px;">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.active" name="active">
+              <input class="form-check-input" type="checkbox" [(ngModel)]="form.active" name="active" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">Active</label>
             </div>
           </div>
           <div class="d-flex align-items-center gap-2 mb-2">
             <label class="fee-label">Max Roster</label>
-            <input class="form-control form-control-sm" type="number" [(ngModel)]="form.maxCount" name="maxCount" style="width: 80px;">
+            <input class="form-control form-control-sm" type="number" [(ngModel)]="form.maxCount" name="maxCount" style="width: 80px;" (ngModelChange)="onSettingsChange()">
           </div>
           <div class="settings-grid">
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering">
+              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">Self Rostering</label>
             </div>
             <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideRoster" name="bHideRoster">
+              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideRoster" name="bHideRoster" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">Hide Roster</label>
             </div>
           </div>
         </div>
 
         <!-- ── Dates ── -->
-        <div class="section-card">
+        <div class="section-card" [class.section-locked]="settingsLocked()">
           <div class="section-card-header">
             <i class="bi bi-calendar3"></i> Dates
           </div>
           <div class="row g-2">
             <div class="col-6">
               <label class="fee-label">Start Date</label>
-              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.startdate" name="startdate">
+              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.startdate" name="startdate" (ngModelChange)="onSettingsChange()">
             </div>
             <div class="col-6">
               <label class="fee-label">End Date</label>
-              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.enddate" name="enddate">
+              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.enddate" name="enddate" (ngModelChange)="onSettingsChange()">
             </div>
             <div class="col-6">
               <label class="fee-label">Effective As Of</label>
-              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.effectiveasofdate" name="effectiveasofdate">
+              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.effectiveasofdate" name="effectiveasofdate" (ngModelChange)="onSettingsChange()">
             </div>
             <div class="col-6">
               <label class="fee-label">Expire On</label>
-              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.expireondate" name="expireondate">
+              <input class="form-control form-control-sm" type="date" [(ngModel)]="form.expireondate" name="expireondate" (ngModelChange)="onSettingsChange()">
             </div>
           </div>
         </div>
 
         @if (isTournament()) {
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
+            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
-            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
+            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
         } @else {
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
-            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
+            namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
+            [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+            [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
+            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
+            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
+            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
+            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
         }
 
         <!-- ── Eligibility ── -->
-        <div class="section-card">
+        <div class="section-card" [class.section-locked]="settingsLocked()">
           <div class="section-card-header">
             <i class="bi bi-funnel"></i> Eligibility
           </div>
           <div class="d-flex gap-2">
             <div style="min-width: 100px;">
               <label class="fee-label">Gender</label>
-              <select class="form-select form-select-sm" [(ngModel)]="form.gender" name="gender">
+              <select class="form-select form-select-sm" [(ngModel)]="form.gender" name="gender" (ngModelChange)="onSettingsChange()">
                 <option [ngValue]="null">Any</option>
                 <option value="M">Male</option>
                 <option value="F">Female</option>
@@ -218,7 +222,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             </div>
             <div style="min-width: 120px;">
               <label class="fee-label">Level of Play</label>
-              <select class="form-select form-select-sm" [(ngModel)]="form.levelOfPlay" name="levelOfPlay">
+              <select class="form-select form-select-sm" [(ngModel)]="form.levelOfPlay" name="levelOfPlay" (ngModelChange)="onSettingsChange()">
                 <option [ngValue]="null">—</option>
                 <option value="1">1</option>
                 <option value="2">2</option>
@@ -231,18 +235,18 @@ const JOB_TYPE_TOURNAMENT = 2;
         </div>
 
         <!-- ── Notes ── -->
-        <div class="section-card">
+        <div class="section-card" [class.section-locked]="settingsLocked()">
           <div class="section-card-header">
             <i class="bi bi-chat-text"></i> Notes
           </div>
           <div class="row g-2">
             <div class="col-6">
               <label class="fee-label">Requests</label>
-              <textarea class="form-control form-control-sm" rows="2" [(ngModel)]="form.requests" name="requests"></textarea>
+              <textarea class="form-control form-control-sm" rows="2" [(ngModel)]="form.requests" name="requests" (ngModelChange)="onSettingsChange()"></textarea>
             </div>
             <div class="col-6">
               <label class="fee-label">Team Comments</label>
-              <textarea class="form-control form-control-sm" rows="2" [(ngModel)]="form.teamComments" name="teamComments"></textarea>
+              <textarea class="form-control form-control-sm" rows="2" [(ngModel)]="form.teamComments" name="teamComments" (ngModelChange)="onSettingsChange()"></textarea>
             </div>
           </div>
         </div>
@@ -364,6 +368,75 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   showChangeClubWarning = signal(false);
   showCloneDialog = signal(false);
 
+  editMode = signal<'fee-amount' | 'fee-phase' | 'settings' | null>(null);
+  readonly feesAmountLocked = computed(() => this.editMode() === 'fee-phase' || this.editMode() === 'settings');
+  readonly feesPhaseLocked = computed(() => this.editMode() === 'fee-amount' || this.editMode() === 'settings');
+  readonly settingsLocked = computed(() => this.editMode() === 'fee-amount' || this.editMode() === 'fee-phase');
+
+  onFeeAmountStart(): void {
+    if (this.editMode() === null) this.editMode.set('fee-amount');
+  }
+
+  onFeeAmountCommitted(): void {
+    const playerChanged = this.roleChanged('player');
+    const clubRepChanged = this.roleChanged('clubRep');
+    if (!playerChanged && !clubRepChanged) {
+      if (this.editMode() === 'fee-amount') this.editMode.set(null);
+      return;
+    }
+    this.editMode.set('fee-amount');
+    this.markFeeDirty();
+    this.feeReprice.getBlastArea(
+      { teamId: this.teamId() },
+      { player: playerChanged, clubRep: clubRepChanged }
+    ).subscribe({
+      next: (blast) => {
+        if (blast.playerCount + blast.teamCount === 0) return;
+        this.repriceDialog.set({
+          isPhase: false,
+          message: this.feeReprice.buildMessage(blast, this.scopeLabel(), false)
+        });
+      },
+      error: () => {}
+    });
+  }
+
+  onPhaseToggle(role: 'player' | 'clubRep', value: boolean | null): void {
+    if (role === 'player') this.feeForm.playerPhase = value;
+    else this.feeForm.clubRepPhase = value;
+    this.editMode.set('fee-phase');
+    this.markFeeDirty();
+    this.openPhasePrompt();
+  }
+
+  private openPhasePrompt(): void {
+    const playerFlipped = this.feeForm.playerPhase !== this.originalPhase.player;
+    const clubRepFlipped = this.feeForm.clubRepPhase !== this.originalPhase.clubRep;
+    if (!playerFlipped && !clubRepFlipped) {
+      this.editMode.set(null);
+      if (this.repriceDialog()?.isPhase) this.repriceDialog.set(null);
+      return;
+    }
+    const roles = { player: playerFlipped, clubRep: clubRepFlipped };
+    this.feeReprice.getBlastArea({ teamId: this.teamId() }, roles).subscribe({
+      next: (blast) => {
+        if (blast.playerCount + blast.teamCount === 0) {
+          if (this.repriceDialog()?.isPhase) this.repriceDialog.set(null);
+          return;
+        }
+        this.repriceDialog.set({
+          isPhase: true,
+          message: this.feeReprice.buildMessage(blast, this.scopeLabel(), true)
+        });
+      },
+      error: () => { if (this.repriceDialog()?.isPhase) this.repriceDialog.set(null); }
+    });
+  }
+
+  onSettingsChange(): void {
+    if (this.editMode() === null) this.editMode.set('settings');
+  }
+
   form: any = {};
 
   feeForm = {
@@ -402,6 +475,7 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
     this.saveMessage.set(null);
     this.showDropConfirm.set(false);
     this.showChangeClub.set(false);
+    this.editMode.set(null);
 
     this.ladtService.getTeam(this.teamId()).subscribe({
       next: (detail) => {
@@ -586,6 +660,7 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
         this.isError.set(false);
         this.saveMessage.set(this.savedMessage(results, 'Team saved successfully.'));
         this.captureOriginals();
+        this.editMode.set(null);
         const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending, this.feeChangedPending, 'team');
         if (toastMsg) this.toast.show(toastMsg, 'success', 10000);
         // TODO: The 'emit' function requires a mandatory void argument
@@ -600,6 +675,8 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   onRepriceConfirm(): void {
+    this.feeChangedPending = this.roleChanged('player') || this.roleChanged('clubRep');
+    this.phaseFlipPending = false;
     this.repriceDialog.set(null);
     this.performSave(true);
   }
@@ -610,8 +687,11 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
     if (dlg?.isPhase) {
       this.feeForm.playerPhase = this.originalPhase.player;
       this.feeForm.clubRepPhase = this.originalPhase.clubRep;
+      this.editMode.set(null);
       this.isSaving.set(false);
     } else {
+      this.feeChangedPending = this.roleChanged('player') || this.roleChanged('clubRep');
+      this.phaseFlipPending = false;
       this.performSave(false);
     }
   }
