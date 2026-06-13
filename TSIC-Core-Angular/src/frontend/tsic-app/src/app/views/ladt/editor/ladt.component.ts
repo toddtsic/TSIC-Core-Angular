@@ -305,9 +305,11 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
         const flat = this.flattenTree(root.leagues as LadtTreeNodeDto[]);
         this.flatNodes.set(flat);
 
-        // First load: show leagues expanded (age groups visible)
+        // First load: show leagues expanded (age groups visible), auto-select the first one
         if (this.expandedIds().size === 0) {
           this.collapseAll();
+          const firstAgeGroup = flat.find(n => n.level === 1);
+          if (firstAgeGroup) this.selectNode(firstAgeGroup);
         }
 
         this.isLoading.set(false);
