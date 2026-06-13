@@ -106,11 +106,9 @@ export interface ParentBreadcrumb {
                     <div class="fee-pills">
                       @for (fee of data['_fees']; track fee.roleId) {
                         <div class="fee-pill" [class.fee-inherited]="fee.inherited">
-                          <span class="fee-role">{{ fee.roleLabel }}</span>
+                          <span class="fee-role">{{ fee.roleLabel }}:</span>
                           @if (fee.deposit != null && fee.deposit > 0) {
-                            <span class="fee-amount">\${{ fee.deposit | number:'1.0-0' }}</span>
-                            <span class="fee-sep">→</span>
-                            <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
+                            <span class="fee-amount">\${{ fee.deposit | number:'1.0-0' }}–\${{ fee.balanceDue | number:'1.0-0' }}</span>
                           } @else if (fee.balanceDue != null && fee.balanceDue > 0) {
                             <span class="fee-amount">\${{ fee.balanceDue | number:'1.0-0' }}</span>
                           } @else {
@@ -129,7 +127,7 @@ export interface ParentBreadcrumb {
                     <div class="fee-pills">
                       @for (mod of data[col.field]; track mod.roleId) {
                         <div class="fee-pill" [class.fee-inherited]="mod.inherited">
-                          <span class="fee-role">{{ mod.roleLabel }}</span>
+                          <span class="fee-role">{{ mod.roleLabel }}:</span>
                           <span class="fee-amount"
                                 [class.fee-discount-text]="col.field === '_earlyBird'"
                                 [class.fee-latefee-text]="col.field === '_lateFee'">
@@ -148,7 +146,7 @@ export interface ParentBreadcrumb {
                     <div class="fee-pills">
                       @for (ph of data['_phase']; track ph.roleId) {
                         <div class="fee-pill" [class.fee-inherited]="ph.inherited">
-                          <span class="fee-role">{{ ph.roleLabel }}</span>
+                          <span class="fee-role">{{ ph.roleLabel }}:</span>
                           @if (ph.twoPhase) {
                             <span class="phase-value" [class.phase-value--full]="ph.fullPayment">{{ ph.fullPayment ? 'PIF' : 'Deposit' }}</span>
                           } @else {
@@ -454,15 +452,10 @@ export interface ParentBreadcrumb {
     .fee-role {
       font-weight: 600;
       color: var(--bs-secondary-color);
-      min-width: 52px;
     }
     .fee-amount {
       font-weight: 500;
       color: var(--bs-body-color);
-    }
-    .fee-sep {
-      color: var(--bs-secondary-color);
-      font-size: 0.65rem;
     }
     .fee-inherited {
       opacity: 0.55;
