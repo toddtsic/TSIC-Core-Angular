@@ -3,6 +3,7 @@ import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
 import { countFrozenColumns } from '../configs/ladt-grid-columns';
+import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tooltip.component';
 
 export interface ParentBreadcrumb {
   name: string;
@@ -13,7 +14,7 @@ export interface ParentBreadcrumb {
 @Component({
   selector: 'app-ladt-sibling-grid',
   standalone: true,
-  imports: [DecimalPipe, NgClass, GridAllModule],
+  imports: [DecimalPipe, NgClass, GridAllModule, InfoTooltipComponent],
   schemas: [CUSTOM_ELEMENTS_SCHEMA],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -115,11 +116,7 @@ export interface ParentBreadcrumb {
                           } @else {
                             <span class="fee-amount text-body-tertiary">—</span>
                           }
-                          @if (fee.inherited) {
-                            <span class="fee-from-badge">from {{ sourceLabel(fee.source) }}</span>
-                          } @else {
-                            <span class="fee-set-badge">{{ sourceLabel(fee.source) }} set</span>
-                          }
+                          <app-info-tooltip trigger="hover" [message]="sourceTooltip(fee.source, fee.inherited)" />
                         </div>
                       }
                     </div>
@@ -138,11 +135,7 @@ export interface ParentBreadcrumb {
                                 [class.fee-latefee-text]="col.field === '_lateFee'">
                             {{ col.field === '_lateFee' ? '+' : '-' }}\${{ mod.amount | number:'1.0-0' }}
                           </span>
-                          @if (mod.inherited) {
-                            <span class="fee-from-badge">from {{ sourceLabel(mod.source) }}</span>
-                          } @else {
-                            <span class="fee-set-badge">{{ sourceLabel(mod.source) }} set</span>
-                          }
+                          <app-info-tooltip trigger="hover" [message]="sourceTooltip(mod.source, mod.inherited)" />
                         </div>
                       }
                     </div>
@@ -154,25 +147,15 @@ export interface ParentBreadcrumb {
                   @if (data['_phase']?.length) {
                     <div class="fee-pills">
                       @for (ph of data['_phase']; track ph.roleId) {
-                        <div class="fee-pill fee-pill--phase" [class.fee-inherited]="ph.inherited">
-                          <div class="phase-line">
-                            <span class="fee-role">{{ ph.roleLabel }}</span>
-                            @if (ph.twoPhase) {
-                              <span class="phase-value" [class.phase-value--full]="ph.fullPayment">{{ ph.fullPayment ? 'PIF' : 'Deposit' }}</span>
-                            } @else {
-                              <span class="phase-value">Single</span>
-                            }
-                          </div>
-                          <!-- WHERE the phase was set. Two-phase only (Single has no phase). Set at
-                               this scope → "{tier} set"; inherited from a higher tier OR the job
-                               baseline → "from {tier}". Stacked on its own line so it never shares
-                               or clips the value line. -->
+                        <div class="fee-pill" [class.fee-inherited]="ph.inherited">
+                          <span class="fee-role">{{ ph.roleLabel }}</span>
                           @if (ph.twoPhase) {
-                            @if (ph.inherited) {
-                              <span class="phase-badge fee-from-badge">from {{ sourceLabel(ph.source) }}</span>
-                            } @else {
-                              <span class="phase-badge fee-set-badge">{{ sourceLabel(ph.source) }} set</span>
-                            }
+                            <span class="phase-value" [class.phase-value--full]="ph.fullPayment">{{ ph.fullPayment ? 'PIF' : 'Deposit' }}</span>
+                          } @else {
+                            <span class="phase-value">Single</span>
+                          }
+                          @if (ph.twoPhase) {
+                            <app-info-tooltip trigger="hover" [message]="sourceTooltip(ph.source, ph.inherited)" />
                           }
                         </div>
                       }
@@ -485,26 +468,6 @@ export interface ParentBreadcrumb {
       opacity: 0.55;
       font-style: italic;
     }
-    .fee-from-badge,
-    .fee-set-badge {
-      font-size: 0.55rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      padding: 1px 4px;
-      border-radius: 3px;
-      margin-left: 3px;
-    }
-    .fee-from-badge {
-      border: 1px solid var(--bs-border-color);
-      background: var(--bs-body-color);
-      color: var(--bs-body-bg);
-    }
-    .fee-set-badge {
-      border: 1px solid rgba(var(--bs-success-rgb), 0.4);
-      background: rgba(var(--bs-success-rgb), 0.1);
-      color: var(--bs-success);
-    }
     .fee-discount-text { color: var(--bs-success); font-weight: 600; }
     .fee-latefee-text { color: var(--bs-danger); font-weight: 600; }
     .phase-value {
@@ -515,23 +478,6 @@ export interface ParentBreadcrumb {
     .phase-value--full {
       color: var(--bs-primary);
       font-weight: 600;
-    }
-    /* Phase pill stacks: value on line 1, provenance badge on line 2, so the label text
-       (e.g. "Full payment now") never has to share a line with the badge and can't clip. */
-    .fee-pill--phase {
-      flex-direction: column;
-      align-items: flex-start;
-      gap: 1px;
-    }
-    .phase-line {
-      display: flex;
-      align-items: center;
-      gap: var(--space-1);
-    }
-    /* Indent the second-line badge under the value (past the role label) so it reads as
-       belonging to this role, and drop the inline-style left margin. */
-    .phase-badge {
-      margin-left: 56px;
     }
     .phase-hint {
       font-size: 0.8125rem;
@@ -783,15 +729,13 @@ export class LadtSiblingGridComponent implements OnChanges {
     return 'Left';
   }
 
-  /** Short tier label for fee / modifier source badges (Job→League→Agegroup→Team cascade). */
-  sourceLabel(source: string): string {
-    switch (source) {
-      case 'job': return 'job';
-      case 'league': return 'league';
-      case 'agegroup': return 'ag';
-      case 'team': return 'team';
-      default: return source;
-    }
+  /** Tooltip text for the ⓘ icon: where in the L→AG→T cascade a fee/phase was set or inherited from. */
+  sourceTooltip(source: string, inherited: boolean): string {
+    const labels: Record<string, string> = {
+      job: 'job default', league: 'league', agegroup: 'age-group', team: 'team'
+    };
+    const label = labels[source] ?? source;
+    return inherited ? `Inherited from ${label}` : `Set at ${label} level`;
   }
 
   getBadgeClass(level: number): string {

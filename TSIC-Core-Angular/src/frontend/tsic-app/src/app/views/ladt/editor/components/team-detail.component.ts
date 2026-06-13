@@ -586,7 +586,7 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
         this.isError.set(false);
         this.saveMessage.set(this.savedMessage(results, 'Team saved successfully.'));
         this.captureOriginals();
-        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending, this.feeChangedPending);
+        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending, this.feeChangedPending, 'team');
         if (toastMsg) this.toast.show(toastMsg, 'success', 10000);
         // TODO: The 'emit' function requires a mandatory void argument
         this.saved.emit();

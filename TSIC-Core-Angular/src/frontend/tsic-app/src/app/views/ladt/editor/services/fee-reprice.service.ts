@@ -110,20 +110,22 @@ export class FeeRepriceService {
    * (its roleChanged check) — not inferred from the results, because performSave re-persists an
    * unchanged fee idempotently on an entity-only edit, which must NOT toast.
    */
-  saveToastMessage(results: unknown[], isPhaseFlip: boolean, feeChanged: boolean): string | null {
+  saveToastMessage(results: unknown[], isPhaseFlip: boolean, feeChanged: boolean, level?: string): string | null {
     const who = this.describeReprice(results);
+    const at = level ? ` at ${level} level` : '';
     if (isPhaseFlip) {
-      return who ? `Payment phase updated — converted ${who}.` : 'Payment phase updated.';
+      return who ? `Payment phase updated${at} — converted ${who}.` : `Payment phase updated${at}.`;
     }
-    if (who) return `Fees updated — repriced ${who}.`;
-    return feeChanged ? 'Fees updated.' : null;
+    if (who) return `Fees updated${at} — repriced ${who}.`;
+    return feeChanged ? `Fees updated${at}.` : null;
   }
 
   /** Success-toast copy for a payment-phase change quantified by a pre-summed count (the league
    *  fan-out path, whose per-age-group response carries only a total, not a role split). */
-  phaseToastMessage(repriced: number): string {
+  phaseToastMessage(repriced: number, level?: string): string {
+    const at = level ? ` at ${level} level` : '';
     return repriced > 0
-      ? `Payment phase updated — converted ${repriced} registration${repriced === 1 ? '' : 's'}.`
-      : 'Payment phase updated.';
+      ? `Payment phase updated${at} — converted ${repriced} registration${repriced === 1 ? '' : 's'}.`
+      : `Payment phase updated${at}.`;
   }
 }

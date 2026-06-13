@@ -2,9 +2,13 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, s
 
 
 /**
- * Click-triggered info popover. Self-contained (no Bootstrap JS dependency).
+ * Info icon that reveals a panel. Supports two triggers:
+ *   trigger="click"  (default) — toggle on click; closes on outside click or Escape.
+ *   trigger="hover"  — opens on mouseenter, closes on mouseleave; also keyboard-accessible.
+ *
  * Panel is position: fixed so it escapes overflow: hidden / scroll containers.
  * Usage: <app-info-tooltip message="Your help text here" />
+ *        <app-info-tooltip trigger="hover" message="..." />
  */
 @Component({
   selector: 'app-info-tooltip',
@@ -15,11 +19,15 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, s
       <button
         #btn
         type="button"
-        class="btn btn-link p-0 ms-2 text-decoration-none info-tooltip-btn"
+        class="btn btn-link p-0 ms-1 text-decoration-none info-tooltip-btn"
         tabindex="0"
         [attr.aria-label]="'Information: ' + message()"
         [attr.aria-expanded]="open()"
-        (click)="toggle($event)">
+        (click)="onClick($event)"
+        (mouseenter)="onMouseEnter()"
+        (mouseleave)="onMouseLeave()"
+        (focus)="onFocus()"
+        (blur)="onBlur()">
         <i class="bi bi-info-circle text-info" aria-hidden="true"></i>
       </button>
       @if (open()) {
@@ -81,6 +89,7 @@ import { ChangeDetectionStrategy, Component, ElementRef, HostListener, inject, s
 })
 export class InfoTooltipComponent {
   readonly message = input<string>('');
+  readonly trigger = input<'click' | 'hover'>('click');
 
   readonly btnRef = viewChild<ElementRef<HTMLButtonElement>>('btn');
 
@@ -89,11 +98,34 @@ export class InfoTooltipComponent {
   readonly top = signal(0);
   readonly left = signal(0);
 
-  toggle(event: MouseEvent): void {
+  onClick(event: MouseEvent): void {
+    if (this.trigger() !== 'click') return;
     event.stopPropagation();
     const willOpen = !this.open();
     this.open.set(willOpen);
     if (willOpen) this.updatePosition();
+  }
+
+  onMouseEnter(): void {
+    if (this.trigger() !== 'hover') return;
+    this.open.set(true);
+    this.updatePosition();
+  }
+
+  onMouseLeave(): void {
+    if (this.trigger() !== 'hover') return;
+    this.open.set(false);
+  }
+
+  onFocus(): void {
+    if (this.trigger() !== 'hover') return;
+    this.open.set(true);
+    this.updatePosition();
+  }
+
+  onBlur(): void {
+    if (this.trigger() !== 'hover') return;
+    this.open.set(false);
   }
 
   private updatePosition(): void {
@@ -106,7 +138,7 @@ export class InfoTooltipComponent {
 
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
-    if (!this.open()) return;
+    if (this.trigger() !== 'click' || !this.open()) return;
     if (!this.host.nativeElement.contains(event.target as Node)) {
       this.open.set(false);
     }

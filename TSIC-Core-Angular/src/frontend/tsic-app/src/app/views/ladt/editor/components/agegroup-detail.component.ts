@@ -589,7 +589,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
       // This age group already saved + converted; the fan-out failed. Report what did land.
       error: () => {
         this.isSaving.set(false);
-        this.toast.show(this.feeReprice.phaseToastMessage(thisCount), 'warning');
+        this.toast.show(this.feeReprice.phaseToastMessage(thisCount, 'age-group'), 'warning');
         this.saved.emit();
       }
     });
@@ -700,7 +700,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
         }
 
         this.isSaving.set(false);
-        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending, this.feeChangedPending);
+        const toastMsg = this.feeReprice.saveToastMessage(results, this.phaseFlipPending, this.feeChangedPending, 'age-group');
         if (toastMsg) this.toast.show(toastMsg, 'success', 10000);
         this.saved.emit();
       },
