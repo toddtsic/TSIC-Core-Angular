@@ -1,6 +1,6 @@
 # TSIC-Core-Angular
 
-.NET 8 backend + Angular 21 frontend. Standards live in [.claude/rules/](.claude/rules/) (auto-loaded every session) and `docs/`.
+.NET 10 backend + Angular 21 frontend. Standards live in [.claude/rules/](.claude/rules/) (auto-loaded every session) and `docs/`.
 
 ## Build & Workflow
 
