@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, Input, inject, signal, OnInit, effect, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, inject, signal, OnInit, AfterViewInit, ViewChild, ElementRef, effect, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -25,6 +25,7 @@ export type ModalMode = 'add' | 'edit';
                             <label for="codeName" class="field-label">Code Name</label>
                             <input
                                 id="codeName"
+                                #codeNameInput
                                 type="text"
                                 class="field-input"
                                 placeholder="e.g., SUMMER2026"
@@ -61,21 +62,23 @@ export type ModalMode = 'add' | 'edit';
                                     <span class="text-body-secondary">(0-100%)</span>
                                 }
                             </label>
-                            <div class="input-group input-group-sm">
+                            <div class="amount-field-wrap">
                                 @if (discountType() === 'DollarAmount') {
-                                    <span class="input-group-text">$</span>
+                                    <span class="amount-prefix">$</span>
                                 }
                                 <input
                                     id="amount"
                                     type="number"
                                     class="field-input"
+                                    [class.has-prefix]="discountType() === 'DollarAmount'"
+                                    [class.has-suffix]="discountType() === 'Percentage'"
                                     [value]="amount()"
                                     (input)="amount.set(+($any($event.target).value))"
                                     step="0.01"
                                     min="0.01"
                                     [max]="discountType() === 'Percentage' ? 100 : 999999" />
                                 @if (discountType() === 'Percentage') {
-                                    <span class="input-group-text">%</span>
+                                    <span class="amount-suffix">%</span>
                                 }
                             </div>
                         </div>
@@ -141,20 +144,31 @@ export type ModalMode = 'add' | 'edit';
         </tsic-dialog>
     `,
     styles: [`
-        .typeahead-dropdown {
-            max-height: 200px;
-            overflow-y: auto;
-            position: absolute;
-            z-index: 1000;
+        .amount-field-wrap {
+            position: relative;
         }
+        .amount-prefix, .amount-suffix {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: var(--font-size-sm);
+            color: var(--bs-secondary-color);
+            pointer-events: none;
+        }
+        .amount-prefix { left: var(--space-2); }
+        .amount-suffix { right: var(--space-2); }
+        .field-input.has-prefix { padding-left: var(--space-5); }
+        .field-input.has-suffix { padding-right: var(--space-5); }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class CodeFormModalComponent implements OnInit {
+export class CodeFormModalComponent implements OnInit, AfterViewInit {
     readonly mode = input<ModalMode>('add');
     @Input() code: DiscountCodeDto | null = null;
     readonly close = output<void>();
     readonly saved = output<void>();
+
+    @ViewChild('codeNameInput') codeNameInputRef!: ElementRef<HTMLInputElement>;
 
     private readonly discountCodeService = inject(DiscountCodeService);
     private readonly toastService = inject(ToastService);
@@ -193,15 +207,19 @@ export class CodeFormModalComponent implements OnInit {
             this.endDate.set(this.formatDateForInput(this.code.endDate));
             this.isActive.set(this.code.isActive);
         } else {
-            // Default to tomorrow and 30 days out
+            // Default to today and 30 days out
             const today = new Date();
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
             const monthOut = new Date(today);
             monthOut.setDate(monthOut.getDate() + 30);
-            
-            this.startDate.set(this.formatDateForInput(tomorrow.toISOString()));
+
+            this.startDate.set(this.formatDateForInput(today.toISOString()));
             this.endDate.set(this.formatDateForInput(monthOut.toISOString()));
+        }
+    }
+
+    ngAfterViewInit(): void {
+        if (this.mode() === 'add') {
+            this.codeNameInputRef?.nativeElement.focus();
         }
     }
 
