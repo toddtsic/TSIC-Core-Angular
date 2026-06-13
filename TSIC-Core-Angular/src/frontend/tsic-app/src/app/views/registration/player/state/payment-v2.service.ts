@@ -538,11 +538,15 @@ export class PaymentV2Service {
         const origBase = toNumber(financials.feeBase);
         const newBase = deposit + fee;
         if (newBase <= origBase) return null;
-        const procRatio = origBase > 0 ? newBase / origBase : 1;
         const origProc = toNumber(financials.feeProcessing);
-        const newProc = origProc * procRatio;
         const lateFee = toNumber(financials.feeLateFee);
         const discount = toNumber(financials.feeDiscount);
+        // origProc is calculated on (origBase - discount), so scale using net bases to
+        // preserve the proc rate — otherwise a discount makes the ratio use undiscounted
+        // origBase against a discounted origProc, understating the PIF proc.
+        const origNetBase = origBase - discount;
+        const procRatio = origNetBase > 0 ? (newBase - discount) / origNetBase : 1;
+        const newProc = origProc * procRatio;
         const paid = toNumber(financials.paidTotal);
         const total = newBase + newProc + lateFee - discount;
         return {
