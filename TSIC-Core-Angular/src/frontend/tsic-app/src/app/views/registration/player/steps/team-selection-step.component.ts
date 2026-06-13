@@ -886,8 +886,7 @@ export class TeamSelectionStepComponent {
     }
 
     getTeamName(teamId: string): string {
-        const team = this.teamService.getTeamById(teamId);
-        return team?.teamName || teamId;
+        return this.teamService.getTeamDisplayName(teamId);
     }
 
     isSelectedTeamWaitlisted(playerId: string): boolean {
