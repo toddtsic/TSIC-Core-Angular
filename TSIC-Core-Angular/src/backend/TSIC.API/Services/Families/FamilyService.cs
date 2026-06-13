@@ -772,17 +772,19 @@ public sealed class FamilyService : IFamilyService
         var formFieldValues = BuildVisibleFieldValues(fv, visibleFieldNames);
 
         // A prior reg is "pending" (abandoned mid-payment, safe to rehydrate from) when it is
-        // inactive, nothing has been paid against it, and it is NOT parked in a Waitlist/Dropped
-        // division. Genuinely-pending regs are created at PreSubmit and stay in their REAL target
-        // division ("A", "Summer Camp", etc.) with paid_total = 0 — the abandoned-at-payment
-        // fingerprint. Dropped/Waitlist players are moved to dedicated divisions ("Dropped Teams",
-        // "Dropped Players", "WAITLIST - *"), which are excluded here. NOTE: do NOT gate on
-        // owed_total > 0 — $0/free events leave owed_total = 0 yet are still genuinely pending.
+        // inactive, nothing has been paid against it, and it is NOT in a Dropped division.
+        // Genuinely-pending regs are created at PreSubmit with paid_total = 0; if the player
+        // completes payment (even on a free event via ActivateIfFree), bActive is set to 1 — so
+        // bActive=0 + paid_total=0 is the abandoned fingerprint regardless of division.
+        // Waitlist teams live in "WAITLIST - *" divisions; a player who abandoned registering
+        // to a WL team has bActive=0 + paid_total=0 and must be shown as pending. A confirmed
+        // WL player has bActive=1 and is already excluded. Only Dropped divisions are parked.
+        // NOTE: do NOT gate on owed_total > 0 — $0/free events leave owed_total = 0 yet are
+        // still genuinely pending.
         var divName = r.AssignedTeamId.HasValue
             && teamDivNameMap.TryGetValue(r.AssignedTeamId.Value, out var dn) ? dn?.Trim() : null;
         var isParkedDivision = divName != null
-            && (divName.StartsWith("WAITLIST", StringComparison.OrdinalIgnoreCase)
-                || divName.StartsWith("Dropped", StringComparison.OrdinalIgnoreCase));
+            && divName.StartsWith("Dropped", StringComparison.OrdinalIgnoreCase);
         var isPending = r.BActive != true
             && r.AssignedTeamId.HasValue
             && r.PaidTotal <= 0m

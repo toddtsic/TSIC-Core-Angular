@@ -39,9 +39,9 @@ public record FamilyPlayerRegistrationDto
 
     /// <summary>
     /// True when this inactive registration is a genuinely abandoned/pending one — created at
-    /// PreSubmit but never paid — identified by its assigned team sitting in the "Unassigned"
-    /// division. Such registrations are safe to rehydrate form/team values from on return.
-    /// False for dropped/waitlist registrations (other division names), which must NOT rehydrate.
+    /// PreSubmit but never paid (paid_total = 0, bActive = 0). Includes waitlist teams: a player
+    /// who abandoned registering to a WL team must be shown as pending; a confirmed WL player
+    /// has bActive=1 and is excluded by the Active check. False for Dropped-division registrations.
     /// Always false when Active is true.
     /// </summary>
     public required bool IsPending { get; init; }
