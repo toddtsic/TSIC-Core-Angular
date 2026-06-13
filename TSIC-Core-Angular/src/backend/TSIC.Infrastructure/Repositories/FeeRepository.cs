@@ -282,7 +282,8 @@ public class FeeRepository : IFeeRepository
                 jf.TeamId,
                 jf.LeagueId,
                 jf.Deposit,
-                jf.BalanceDue
+                jf.BalanceDue,
+                jf.BFullPaymentRequired
             })
             .ToListAsync(ct);
 
@@ -298,12 +299,14 @@ public class FeeRepository : IFeeRepository
 
             decimal? deposit = teamRow?.Deposit ?? agRow?.Deposit ?? leagueRow?.Deposit;
             decimal? balanceDue = teamRow?.BalanceDue ?? agRow?.BalanceDue ?? leagueRow?.BalanceDue;
+            bool? fullPaymentRequired = teamRow?.BFullPaymentRequired ?? agRow?.BFullPaymentRequired ?? leagueRow?.BFullPaymentRequired;
 
             result[ta.TeamId] = new ResolvedFee
             {
                 FeeConfigured = teamRow != null || agRow != null || leagueRow != null,
                 Deposit = deposit,
-                BalanceDue = balanceDue
+                BalanceDue = balanceDue,
+                BFullPaymentRequired = fullPaymentRequired
             };
         }
 
