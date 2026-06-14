@@ -58,8 +58,31 @@ verified Day Group): `camp_daygroups_pdf`, `camp_nightgroups`, `camp_nightgroups
 2026-06-08** — Game Boards built as a focused `GameBoardsPdfService` (EF + Syncfusion, NOT the list
 engine), endpoint swapped off Crystal, badged SF; **verified vs the legacy target PDF on
 `lftc-summer-2026`** (in-app runtime check pending) ·
-`camp_commuters` (team-name filter, not built) · 8 E-residuals (American Select eval/main-event,
+~~`camp_commuters` (team-name filter, not built)~~ **RETIRED OBSOLETE 2026-06-13** · 8 E-residuals (American Select eval/main-event,
 E120, daily-reg-counts, 4 financials).
+
+## Walk-list residue (2026-06-13) — the actions in `reporting.JobReports` not in any disposition list
+
+Found by crossing all 39 live `Kind='CrystalReport'` actions against `@ExcludeActions` / `@ActionMap` /
+`MIGRATED_EF_ACTIONS`. 10 were undispositioned; all but 2 (no legacy reference) now handled:
+
+| Action | Disposition |
+|---|---|
+| `camp_commuters` | ✅ RETIRED OBSOLETE (no live commuter camps) |
+| `covidtournycheckin` | ✅ RETIRED OBSOLETE (COVID-era, defunct) |
+| `Job_CampCheckinII` | ✅ RETIRED (live Check-In station covers it; live on `steps-summerprograms-2026`) |
+| `TournamentRecruitingReportASL` | ◐ BUILT — `GenerateRecruiterAslAsync` (contact-card one-off) |
+| `TournamentRecruitingReportUSL` | ◐ BUILT — `GenerateRecruiterUslAsync` (blank stat-capture one-off) |
+| `camp_excelexport_summer_pdf` | ◐ BUILT — Roster Table preset (in-place EF), camp session group-by, Player/Phone/Allergies(=medical)/Mom/Dad combined-contact columns |
+| `FieldUtilizationWithNominations` | ◐ BUILT — `ShowcaseScheduleReportService.GenerateFieldUtilizationNominationsAsync` one-off (date+field groups, boxed score + blank Player Nominations grid) |
+| `ScheduleByClubAgTPerPage` | ◐ BUILT — `ShowcaseScheduleReportService.GenerateScheduleByTeamAsync` one-off (one page per team; game prints on both teams' pages; bracket seed `(X4)`/`(Q5)` suffix) |
+| `Schedule_Gamecards` | ◐ BUILT — `ShowcaseScheduleReportService.GenerateGameCardsAsync` one-off (2-up blank score cards grouped by field; field/date/time + agegroup/div + both teams + blank Score boxes). Legacy verified on `compassnoreasterlax-ghostgames-2025` |
+| `Club_AllJobs_Rosters_NoMedical` | ⏸ PARKED — cross-job (a club's rosters across every job); Roster Table engine is job-scoped → needs new cross-job data plumbing. No legacy reference yet |
+
+All BUILT items: in-place EF (`MIGRATED_EF_ACTIONS` + controller rewired off Crystal), back+front build clean,
+**not yet runtime-verified in-app**. Title/layout fidelity points to verify on first live render:
+ASL/USL agegroup title composition (source job not on this TSICV5 restore); camp-summer cosmetic deltas
+(per-column Phone header, no row numbers/zebra); schedule one-offs' block spacing + bracket-seed suffix.
 
 ## Vehicles
 
@@ -121,6 +144,8 @@ removing the `type1-report-catalog.ts` entry (DB side already mapped to the Desi
 | TournamentRosterPacked | existing preset | present | ✔ runtime-verified 2026-06-05 (post EF-cutover + footer fix); retire pending |
 | TournamentRosterPacked_PositionSchool | `collegeCommit2` preset (recruiting columns, 2-up) | present | ✔ RESOLVED 2026-06-09 — legacy is base-packed layout + recruiting columns (NOT group-by-school); GPA-for-committed + `showCoaches` fixed; catalog entry removed → retired; in-app render check pending |
 | TournamentRecruitingReport (recruiter cards) | recruiter mode | present | ✔ runtime-verified 2026-06-05 (SAT=sum confirmed); retire pending |
+| TournamentRecruitingReportASL | **one-off EF** `GenerateRecruiterAslAsync` (contact sheet) | present | ◐ **BUILT 2026-06-13** — agegroup-grouped, boxed staff contact cards + player cards (name+grad/GPA+SAT/email/address/phone+position-club/school) off `GetTournamentRosterRowsAsync(requiresSchedule:false)`; in-place EF (`MIGRATED_EF_ACTIONS`, controller rewired off Crystal, DB-only tile so no catalog change). back+front build clean. **Layout matched to legacy `TournamentRecruitingReportASL.pdf`; title composition (agegroup vs div order) INFERRED — source job not on this TSICV5 restore → verify on first live render** |
+| TournamentRecruitingReportUSL | **one-off EF** `GenerateRecruiterUslAsync` (blank stat sheet) | present | ◐ **BUILT 2026-06-13** — same agegroup-grouped data as ASL; "Coach …" lines + player cards (name+grad/POSITION-CLUB/CITY,ST/SCHOOL) with a blank `G:/A: · GB:/DC: · S:` hand-entry grid (stats not in DB, recorded by hand — user-confirmed, `S:` left literal). In-place EF; back+front build clean. **Same title-composition verify-point as ASL** |
 | Get_JobRosters_PackedByPositionAGNoClubPlayers | affiliation toggle OFF | present | ✔ runtime-verified 2026-06-05; retire pending |
 | Get_JobRosters_PackedByPosition_XPO | Packed XPO preset (approx) | present | ✔ runtime-verified 2026-06-05 (approximate accepted); retire pending |
 
@@ -161,7 +186,9 @@ Ready to retire the 5 legacy check-in reports in the catalog-removal batch.
 | AmericanSelectTournyCheckin | live station | present | ✔ station confirmed 2026-06-05; retire pending |
 | ISP_CheckinFlat | live station | present | ✔ station confirmed 2026-06-05; retire pending |
 | Job_CampCheckin | live station | present | ✔ station confirmed 2026-06-05; retire pending |
+| Job_CampCheckinII | live station | present | ✅ **RETIRED 2026-06-13** — camp check-in variant covered by the live Check-In station; live on `steps-summerprograms-2026` (201 active regs). DB-only tile → `@ExcludeActions` only. Pending script-7 re-run |
 | JobRosters_TryoutsCheckReport | live station | present | ✔ station confirmed 2026-06-05; retire pending |
+| covidtournycheckin | — (defunct) | — | ✅ **RETIRED OBSOLETE 2026-06-13** — COVID-era check-in form; pandemic screening workflow defunct, live station covers current check-in. DB-only tile → `@ExcludeActions` only, no catalog change. Pending script-7 re-run |
 
 ## D — Camp Groups  (**folded into B2**, built 2026-06-05 — NOT a new designer)
 
@@ -187,7 +214,7 @@ fields + a **Camp preset**, and a Camp-Registration-gated tile **Camp Groups (De
 | camp_nightgroups | B2 group-by Night Group | present | ◐ built; verify pending |
 | camp_nightgroups_pdf | B2 grouped (stacked layout approx) | present | ◐ built (approx) |
 | camp_roomies | B2 group-by Roommate | present | ◐ built; verify pending |
-| camp_commuters | **fixed render** (commuter filter + Camp→SkillGroup two-level table) | present | ⏸ DEFERRED (user "skip for now" 2026-06-09). Legacy `umCampCommuters-legacy.pdf` ran **EMPTY** (no live commuters — UM commuter camps are historical/concluded). Skeleton recovered: a WIDE TABLE (B2 family, not packed) titled "COMMUTERS BY [BY] CAMP AND SKILL GROUP" (legacy double-"BY" typo), grouped **Camp → Skill Group**, cols `Camp·LastName·FirstName·grad_year·city·state·roomStatus·uniform_no·nightGroup`. Commuter discriminant: the documented `left(teamName,1)='C'` is WRONG vs real data (UM teams are "UM COMMUTER…"/"UM OVERNIGHT…" → start 'U'); real signal = team name CONTAINS "COMMUTER". Two-level group + filter don't fit B2's single-group model → fixed one-off recommended. Unresolved: Skill Group≈DayGroup? Camp≈teamName? + no live data to verify. **Side-note:** the same `roomStatus=left(teamName,1)` in the shipped `reporting_migrate.camp_excelexport_room_position` likely emits 'U' for UM campers (faithful-to-legacy but dubious) |
+| camp_commuters | ~~**fixed render** (commuter filter + Camp→SkillGroup two-level table)~~ | — | ✅ **RETIRED OBSOLETE 2026-06-13** (user "mark camp_commuters obsolete"): build never warranted — legacy ran EMPTY on all live jobs (no current commuter camps). Removed `t1-camp-commuters` from `type1-report-catalog.ts`; added `camp_commuters` to `@ExcludeActions` in `scripts/7`. Pending script-7 re-run. Skeleton notes kept below for the record. ⏸ ~~DEFERRED (user "skip for now" 2026-06-09).~~ Legacy `umCampCommuters-legacy.pdf` ran **EMPTY** (no live commuters — UM commuter camps are historical/concluded). Skeleton recovered: a WIDE TABLE (B2 family, not packed) titled "COMMUTERS BY [BY] CAMP AND SKILL GROUP" (legacy double-"BY" typo), grouped **Camp → Skill Group**, cols `Camp·LastName·FirstName·grad_year·city·state·roomStatus·uniform_no·nightGroup`. Commuter discriminant: the documented `left(teamName,1)='C'` is WRONG vs real data (UM teams are "UM COMMUTER…"/"UM OVERNIGHT…" → start 'U'); real signal = team name CONTAINS "COMMUTER". Two-level group + filter don't fit B2's single-group model → fixed one-off recommended. Unresolved: Skill Group≈DayGroup? Camp≈teamName? + no live data to verify. **Side-note:** the same `roomStatus=left(teamName,1)` in the shipped `reporting_migrate.camp_excelexport_room_position` likely emits 'U' for UM campers (faithful-to-legacy but dubious) |
 | JobRosters_DayGroupsPackedXPO | B1 packed (dayGroup field + sort) | present | ◐ built (approx) |
 
 ## E — Fixed one-off renders  (residuals; sequence last)

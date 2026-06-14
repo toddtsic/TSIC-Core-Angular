@@ -415,6 +415,7 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
     private const float RecTitleH = 34f;       // team title line + coach contact line
     private const float RecCardRowH = 76f;     // card pitch — sized so 9 rows + the footer band fit one page
     private const float RecCardOuterH = 70f;   // card height (holds the 5 recruiting lines: 3pt pad + 5×12.5)
+    private const float UslCardOuterH = 64f;   // USL stat card (4 left lines + 3-row blank G/A·GB/DC·S grid)
 
     public async Task<ReportExportResult> GenerateRecruiterAsync(
         Guid jobId,
@@ -600,6 +601,307 @@ public sealed class PackedRosterPdfService : IPackedRosterPdfService
         return digits.Length == 10
             ? $"{digits[..3]}-{digits.Substring(3, 3)}-{digits[6..]}"
             : (phone ?? "").Trim();
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  American Select recruiting reports (ASL / USL) — two card layouts over the
+    //  SAME EF roster query, grouped by AGEGROUP (not team): page title = agegroup,
+    //  STAFF first then players (2-up newspaper grid), players sorted by uniform#
+    //  across every team in the agegroup. Showcase scope (requiresSchedule:false),
+    //  same as the American Select main-event rosters.
+    //    • ASL = college-recruiter CONTACT sheet (boxed staff contact cards; player
+    //      cards = name+grad / GPA+SAT, email, address, phone+position-club, school).
+    //    • USL = blank STAT-CAPTURE sheet (unboxed "Coach …" lines; player cards =
+    //      name+grad / POSITION-CLUB / CITY,ST / SCHOOL on the left + a blank
+    //      G:/A: · GB:/DC: · S: hand-entry grid on the right — the stats are not in
+    //      the DB; coaches record them by hand on the printed sheet).
+    //  NOTE: the agegroup title composition is inferred from the legacy sample PDFs
+    //  (the source job is not on this restore) — verify it on the first live render.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    private sealed record RecruitGroup(TournamentRosterRowDto Header, List<TournamentRosterRowDto> Entries, int PlayerCount);
+
+    private static bool IsStaffRow(TournamentRosterRowDto r)
+        => string.Equals(r.RoleName, "Staff", StringComparison.OrdinalIgnoreCase);
+
+    private static List<RecruitGroup> GroupRecruitByAgegroup(List<TournamentRosterRowDto> rows)
+    {
+        var oic = StringComparer.OrdinalIgnoreCase;
+        return rows
+            .GroupBy(r => new { Ag = r.AgegroupName ?? "", Dv = r.DivName ?? "" })
+            .Select(grp =>
+            {
+                var staff = grp.Where(IsStaffRow)
+                    .OrderBy(r => r.LastName, oic).ThenBy(r => r.FirstName, oic).ToList();
+                var players = grp.Where(r => !IsStaffRow(r))
+                    .OrderBy(r => UniformSort(r.UniformNo))
+                    .ThenBy(r => r.LastName, oic).ThenBy(r => r.FirstName, oic).ToList();
+                return new RecruitGroup(grp.First(), staff.Concat(players).ToList(), players.Count);
+            })
+            .Where(g => g.PlayerCount > 0)
+            .OrderBy(g => g.Header.AgegroupName, oic)
+            .ThenBy(g => g.Header.DivName, oic)
+            .ToList();
+    }
+
+    private static void DrawRecruitTitle(PdfGraphics g, TournamentRosterRowDto h, PdfStandardFont titleFont)
+    {
+        var ag = (h.AgegroupName ?? "").Trim();
+        var dv = (h.DivName ?? "").Trim();
+        var title = dv.Length > 0 && !ag.Contains(dv, StringComparison.OrdinalIgnoreCase)
+            ? $"{ag}  {dv}"
+            : ag;
+        g.DrawString(title, titleFont, PdfBrushes.Black,
+            new RectangleF(0, 0, ContentW, 16),
+            new PdfStringFormat(PdfTextAlignment.Center, PdfVerticalAlignment.Middle));
+    }
+
+    public async Task<ReportExportResult> GenerateRecruiterAslAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var rows = await _reportingRepository.GetTournamentRosterRowsAsync(jobId, requiresSchedule: false, cancellationToken);
+        var groups = GroupRecruitByAgegroup(rows);
+
+        using var document = NewRecruitDocument();
+        var blackPen = new PdfPen(new PdfColor(0, 0, 0), 0.75f);
+        var titleFont = new PdfStandardFont(PdfFontFamily.Helvetica, 10, PdfFontStyle.Bold);
+        var nameFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7.5f, PdfFontStyle.Bold);
+        var acadFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7);
+        var cellFont = new PdfStandardFont(PdfFontFamily.Helvetica, 6.5f);
+
+        RenderRecruitGrid(document, groups, titleFont, RecCardRowH, (g, row, x, y, w) =>
+        {
+            if (IsStaffRow(row))
+                DrawAslStaffCard(g, row, x, y, w, blackPen, nameFont, cellFont);
+            else
+                DrawAslPlayerCard(g, row, x, y, w, blackPen, nameFont, acadFont, cellFont);
+        });
+
+        using var ms = new MemoryStream();
+        document.Save(ms);
+        return new ReportExportResult
+        {
+            FileBytes = ms.ToArray(),
+            ContentType = "application/pdf",
+            FileName = "TournamentRecruitingReportASL.pdf",
+        };
+    }
+
+    public async Task<ReportExportResult> GenerateRecruiterUslAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var rows = await _reportingRepository.GetTournamentRosterRowsAsync(jobId, requiresSchedule: false, cancellationToken);
+        var groups = GroupRecruitByAgegroup(rows);
+
+        using var document = NewRecruitDocument();
+        var blackPen = new PdfPen(new PdfColor(0, 0, 0), 0.75f);
+        var dotPen = new PdfPen(new PdfColor(0, 0, 0), 0.75f) { DashStyle = PdfDashStyle.Dot };
+        var titleFont = new PdfStandardFont(PdfFontFamily.Helvetica, 10, PdfFontStyle.Bold);
+        var nameFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7.5f, PdfFontStyle.Bold);
+        var cellFont = new PdfStandardFont(PdfFontFamily.Helvetica, 6.5f);
+        var statFont = new PdfStandardFont(PdfFontFamily.Helvetica, 7.5f, PdfFontStyle.Bold);
+
+        RenderRecruitGrid(document, groups, titleFont, RecCardRowH, (g, row, x, y, w) =>
+        {
+            if (IsStaffRow(row))
+                DrawUslCoachCell(g, row, x, y, cellFont);
+            else
+                DrawUslPlayerCard(g, row, x, y, w, blackPen, dotPen, nameFont, cellFont, statFont);
+        });
+
+        using var ms = new MemoryStream();
+        document.Save(ms);
+        return new ReportExportResult
+        {
+            FileBytes = ms.ToArray(),
+            ContentType = "application/pdf",
+            FileName = "TournamentRecruitingReportUSL.pdf",
+        };
+    }
+
+    private static PdfDocument NewRecruitDocument()
+    {
+        var document = new PdfDocument();
+        document.PageSettings.Size = PdfPageSize.Letter;
+        document.PageSettings.Margins.Left = MarginX;
+        document.PageSettings.Margins.Right = MarginX;
+        document.PageSettings.Margins.Top = MarginTop;
+        document.PageSettings.Margins.Bottom = MarginBottom;
+        AddFooterTemplate(document);
+        return document;
+    }
+
+    // Shared agegroup-grouped 2-up grid: title per page (repeated on overflow), then
+    // staff+player entries flow left→right / top→bottom. The per-entry draw delegate
+    // decides staff-vs-player rendering (the two reports differ only in the cell art).
+    private static void RenderRecruitGrid(
+        PdfDocument document, List<RecruitGroup> groups, PdfStandardFont titleFont,
+        float rowH, Action<PdfGraphics, TournamentRosterRowDto, float, float, float> drawCell)
+    {
+        var rowsPerPage = Math.Max(1, (int)((ContentH - FooterH - RecTitleH) / rowH));
+        var cardsPerPage = rowsPerPage * 2;
+        var cardColW = ContentW / 2f;
+        var cardOuterW = cardColW - (CardGap * 2);
+
+        foreach (var group in groups)
+        {
+            for (var start = 0; start < group.Entries.Count; start += cardsPerPage)
+            {
+                var page = document.Pages.Add();
+                var g = page.Graphics;
+                DrawRecruitTitle(g, group.Header, titleFont);
+
+                var slice = group.Entries.Skip(start).Take(cardsPerPage).ToList();
+                for (var i = 0; i < slice.Count; i++)
+                {
+                    var col = i % 2;
+                    var rowIdx = i / 2;
+                    var x = (col * cardColW) + CardGap;
+                    var y = RecTitleH + (rowIdx * rowH) + CardGap;
+                    drawCell(g, slice[i], x, y, cardOuterW);
+                }
+            }
+        }
+    }
+
+    // ── ASL (contact sheet) cells ────────────────────────────────────────────────
+
+    private static void DrawAslStaffCard(
+        PdfGraphics g, TournamentRosterRowDto row, float x, float y, float w,
+        PdfPen blackPen, PdfStandardFont nameFont, PdfStandardFont cellFont)
+    {
+        g.DrawRectangle(blackPen, new RectangleF(x, y, w, RecCardOuterH));
+        var leftTop = new PdfStringFormat(PdfTextAlignment.Left, PdfVerticalAlignment.Top) { LineLimit = false };
+        const float pad = 4f, lineH = 12.5f;
+        var lx = x + pad;
+        var innerW = w - (pad * 2);
+        var cy = y + 3f;
+
+        var name = $"{row.FirstName} {row.LastName}".Trim().ToUpperInvariant();
+        g.DrawString($"Staff:  {name}", nameFont, PdfBrushes.Black, new RectangleF(lx, cy, innerW, lineH), leftTop);
+        cy += lineH;
+        g.DrawString((FirstNonBlank(row.PlayerEmail, row.FamilyEmail) ?? "").Trim(), cellFont,
+            PdfBrushes.Black, new RectangleF(lx, cy, innerW, lineH), leftTop);
+        cy += lineH;
+        g.DrawString(ComposeAddress(row), cellFont, PdfBrushes.Black, new RectangleF(lx, cy, innerW, lineH), leftTop);
+        cy += lineH;
+        g.DrawString(FormatPhone(FirstNonBlank(row.Cellphone, row.MomCellphone)), cellFont,
+            PdfBrushes.Black, new RectangleF(lx, cy, innerW, lineH), leftTop);
+    }
+
+    private static void DrawAslPlayerCard(
+        PdfGraphics g, TournamentRosterRowDto row, float x, float y, float w,
+        PdfPen blackPen, PdfStandardFont nameFont, PdfStandardFont acadFont, PdfStandardFont cellFont)
+    {
+        g.DrawRectangle(blackPen, new RectangleF(x, y, w, RecCardOuterH));
+        var leftTop = new PdfStringFormat(PdfTextAlignment.Left, PdfVerticalAlignment.Top) { LineLimit = false };
+        var rightTop = new PdfStringFormat(PdfTextAlignment.Right, PdfVerticalAlignment.Top) { LineLimit = false };
+        const float pad = 4f, lineH = 12.5f;
+        var lx = x + pad;
+        var innerW = w - (pad * 2);
+        var cy = y + 3f;
+
+        // L1 — "# uni   NAME (grad)" | "GPA: x    SAT: y"
+        var uni = CleanUniform(row.UniformNo);
+        var name = $"{row.FirstName} {row.LastName}".Trim().ToUpperInvariant();
+        var grad = string.IsNullOrWhiteSpace(row.GradYear) ? "" : $" ({row.GradYear})";
+        g.DrawString($"# {uni}   {name}{grad}".Trim(), nameFont, PdfBrushes.Black,
+            new RectangleF(lx, cy, innerW * 0.60f, lineH), leftTop);
+        var gpa = string.IsNullOrWhiteSpace(row.Gpa) ? "" : $"GPA: {row.Gpa}";
+        g.DrawString($"{gpa}    SAT: {ComputeSat(row)}".Trim(), acadFont, PdfBrushes.Black,
+            new RectangleF(x + (innerW * 0.58f), cy, innerW * 0.42f, lineH), rightTop);
+        cy += lineH;
+
+        // L2 — email
+        g.DrawString((FirstNonBlank(row.PlayerEmail, row.FamilyEmail) ?? "").Trim(), cellFont,
+            PdfBrushes.Black, new RectangleF(lx, cy, innerW, lineH), leftTop);
+        cy += lineH;
+
+        // L3 — address
+        g.DrawString(ComposeAddress(row), cellFont, PdfBrushes.Black, new RectangleF(lx, cy, innerW, lineH), leftTop);
+        cy += lineH;
+
+        // L4 — phone | "position - club" (player's own club affiliation)
+        g.DrawString(FormatPhone(FirstNonBlank(row.Cellphone, row.MomCellphone)), cellFont,
+            PdfBrushes.Black, new RectangleF(lx, cy, innerW * 0.50f, lineH), leftTop);
+        g.DrawString(ComposePositionClub(row, upper: false), cellFont, PdfBrushes.Black,
+            new RectangleF(x + (innerW * 0.42f), cy, innerW * 0.58f, lineH), rightTop);
+        cy += lineH;
+
+        // L5 — school
+        g.DrawString((row.SchoolName ?? "").Trim().ToUpperInvariant(), cellFont, PdfBrushes.Black,
+            new RectangleF(lx, cy, innerW, lineH), leftTop);
+    }
+
+    // ── USL (blank stat-capture sheet) cells ─────────────────────────────────────
+
+    private static void DrawUslCoachCell(
+        PdfGraphics g, TournamentRosterRowDto row, float x, float y, PdfStandardFont cellFont)
+    {
+        var name = $"{row.FirstName} {row.LastName}".Trim().ToUpperInvariant();
+        var phone = FormatPhone(FirstNonBlank(row.Cellphone, row.MomCellphone));
+        var line = $"Coach {name}   {phone}".Trim();
+        g.DrawString(line, cellFont, PdfBrushes.Black, new PointF(x + 4f, y + 3f));
+    }
+
+    private static void DrawUslPlayerCard(
+        PdfGraphics g, TournamentRosterRowDto row, float x, float y, float w,
+        PdfPen blackPen, PdfPen dotPen, PdfStandardFont nameFont, PdfStandardFont cellFont, PdfStandardFont statFont)
+    {
+        g.DrawRectangle(blackPen, new RectangleF(x, y, w, UslCardOuterH));
+        var leftTop = new PdfStringFormat(PdfTextAlignment.Left, PdfVerticalAlignment.Top) { LineLimit = false };
+        const float pad = 4f, lineH = 12.5f;
+        var lx = x + pad;
+        var leftW = (w * 0.55f) - pad;
+        var cy = y + 3f;
+
+        // Left column — name+grad / POSITION-CLUB / CITY,ST / SCHOOL
+        var uni = CleanUniform(row.UniformNo);
+        var name = $"{row.FirstName} {row.LastName}".Trim().ToUpperInvariant();
+        var grad = string.IsNullOrWhiteSpace(row.GradYear) ? "" : $" ({row.GradYear})";
+        g.DrawString($"# {uni}   {name}{grad}".Trim(), nameFont, PdfBrushes.Black, new RectangleF(lx, cy, leftW, lineH), leftTop);
+        cy += lineH;
+        g.DrawString(ComposePositionClub(row, upper: true), cellFont, PdfBrushes.Black, new RectangleF(lx, cy, leftW, lineH), leftTop);
+        cy += lineH;
+        g.DrawString(ComposeCityState(row), cellFont, PdfBrushes.Black, new RectangleF(lx, cy, leftW, lineH), leftTop);
+        cy += lineH;
+        g.DrawString((row.SchoolName ?? "").Trim().ToUpperInvariant(), cellFont, PdfBrushes.Black, new RectangleF(lx, cy, leftW, lineH), leftTop);
+
+        // Right block — blank hand-entry grid: G:/A: · GB:/DC: · S:
+        var rx = x + (w * 0.56f);
+        var colW = (w - (w * 0.56f) - pad) / 2f;
+        var sy = y + 5f;
+        const float statRowH = 17f;
+        DrawStatField(g, "G:", rx, sy, colW, statFont, dotPen);
+        DrawStatField(g, "A:", rx + colW, sy, colW, statFont, dotPen);
+        DrawStatField(g, "GB:", rx, sy + statRowH, colW, statFont, dotPen);
+        DrawStatField(g, "DC:", rx + colW, sy + statRowH, colW, statFont, dotPen);
+        DrawStatField(g, "S:", rx, sy + (statRowH * 2), colW, statFont, dotPen);
+    }
+
+    private static void DrawStatField(
+        PdfGraphics g, string label, float fx, float fy, float fw, PdfStandardFont font, PdfPen dotPen)
+    {
+        g.DrawString(label, font, PdfBrushes.Black, new PointF(fx, fy));
+        var labelW = font.MeasureString(label).Width;
+        var lineY = fy + font.Height - 2f;
+        g.DrawLine(dotPen, fx + labelW + 3f, lineY, fx + fw - 4f, lineY);
+    }
+
+    private static string ComposePositionClub(TournamentRosterRowDto r, bool upper)
+    {
+        var pos = (r.Position ?? "").Trim();
+        var club = (FirstNonBlank(r.PlayerClubName, r.PlayerClubTeamName) ?? "").Trim();
+        var combined = pos.Length > 0 && club.Length > 0 ? $"{pos} - {club}"
+            : pos.Length > 0 ? pos : club;
+        return upper ? combined.ToUpperInvariant() : combined;
+    }
+
+    private static string ComposeCityState(TournamentRosterRowDto r)
+    {
+        var city = (FirstNonBlank(r.PlayerCity, r.FamilyCity) ?? "").Trim();
+        var st = (FirstNonBlank(r.PlayerState, r.FamilyState) ?? "").Trim();
+        return string.Join(", ", new[] { city, st }.Where(s => s.Length > 0)).ToUpperInvariant();
     }
 
     private static string ComposeClubTeam(TournamentRosterRowDto r)

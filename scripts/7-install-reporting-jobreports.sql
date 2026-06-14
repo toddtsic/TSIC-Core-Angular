@@ -234,6 +234,7 @@ INSERT INTO @ExcludeActions VALUES
     (N'Job_CampCheckin'),                                   -- -> Check-In live station
     (N'JobRosters_TryoutsCheckReport'),                     -- -> Check-In live station
     (N'ISP_CheckinFlat'),                                   -- -> Check-In live station
+    (N'Job_CampCheckinII'),                                  -- -> Check-In live station (camp variant; live on steps-summerprograms-2026)
     -- CR-retirement Phase 0, Tier 2 (2026-06-05): Field Utilization family ->
     -- Schedule List Designer "Field Utilization" preset (runtime-verified 2026-06-05).
     (N'FieldUtilizationAcrossLeaguesTournament'),           -- -> Schedule List Designer (Field Utilization preset)
@@ -252,6 +253,14 @@ INSERT INTO @ExcludeActions VALUES
     (N'camp_nightgroups_pdf'),                              -- -> Camp Groups Designer (Night Group, stacked approx)
     (N'camp_roomies'),                                      -- -> Camp Groups Designer (Roommate group-by)
     (N'JobRosters_DayGroupsPackedXPO'),                     -- -> PackedRoster Designer (Day Group packed XPO approx)
+    -- Retired as OBSOLETE (2026-06-13), not migrated: the legacy "Camp Commuters"
+    -- PDF runs empty on all live jobs (no current commuter camps; UM commuter camps
+    -- are historical/concluded). Build deferred indefinitely; user marked obsolete.
+    (N'camp_commuters'),                                    -- obsolete: no live commuter camps
+    -- Retired as OBSOLETE (2026-06-13), not migrated: COVID-era tournament check-in
+    -- form. The pandemic screening workflow it printed is defunct; the live Check-In
+    -- station covers current check-in. DB-only tile (no type1-report-catalog entry).
+    (N'covidtournycheckin'),                                -- obsolete: COVID-era check-in, defunct
     -- CR-retirement (2026-06-07): the legacy "Evaluation Report (Excel)" SP dump
     -- (reporting.AmericanSelectEvaluationSheet) is superseded by the EF+Syncfusion
     -- "Evaluation Report (pdf)" (AmericanSelectEvaluation endpoint, verified vs the

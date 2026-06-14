@@ -31,4 +31,23 @@ public interface IPackedRosterPdfService
     Task<ReportExportResult> GenerateRecruiterAsync(
         Guid jobId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// American Select recruiting CONTACT sheet (legacy TournamentRecruitingReportASL):
+    /// grouped by agegroup, boxed staff contact cards then player cards
+    /// (name+grad / GPA+SAT, email, address, phone+position-club, school).
+    /// </summary>
+    Task<ReportExportResult> GenerateRecruiterAslAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// American Select recruiting STAT-CAPTURE sheet (legacy TournamentRecruitingReportUSL):
+    /// grouped by agegroup, "Coach …" lines then player cards (name+grad / position-club /
+    /// city,st / school) with a blank G:/A: · GB:/DC: · S: hand-entry grid — the stats are
+    /// not in the DB; they are recorded by hand on the printed sheet.
+    /// </summary>
+    Task<ReportExportResult> GenerateRecruiterUslAsync(
+        Guid jobId,
+        CancellationToken cancellationToken = default);
 }

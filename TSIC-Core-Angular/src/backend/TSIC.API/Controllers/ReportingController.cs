@@ -27,6 +27,8 @@ public class ReportingController : ControllerBase
     private readonly IAmericanSelectReportPdfService _americanSelectReportService;
     private readonly IPackedRosterPdfService _packedRosterService;
     private readonly IGameBoardsPdfService _gameBoardsPdfService;
+    private readonly IRosterTablePdfService _rosterTableService;
+    private readonly IShowcaseScheduleReportService _showcaseScheduleService;
 
     // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
     // Mirrors the local map pattern used by NavController / WidgetDashboardService /
@@ -54,7 +56,9 @@ public class ReportingController : ControllerBase
         IPlayerStatsReportPdfService playerStatsReportService,
         IAmericanSelectReportPdfService americanSelectReportService,
         IPackedRosterPdfService packedRosterService,
-        IGameBoardsPdfService gameBoardsPdfService)
+        IGameBoardsPdfService gameBoardsPdfService,
+        IRosterTablePdfService rosterTableService,
+        IShowcaseScheduleReportService showcaseScheduleService)
     {
         _reportingService = reportingService;
         _jobLookupService = jobLookupService;
@@ -65,6 +69,8 @@ public class ReportingController : ControllerBase
         _americanSelectReportService = americanSelectReportService;
         _packedRosterService = packedRosterService;
         _gameBoardsPdfService = gameBoardsPdfService;
+        _rosterTableService = rosterTableService;
+        _showcaseScheduleService = showcaseScheduleService;
     }
 
     /// <summary>
@@ -480,10 +486,16 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> ScheduleExportExcel([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("Schedule_ExportExcel", exportFormat);
 
+    // Game Cards — EF + Syncfusion replacement for Crystal "Schedule_Gamecards": 2-up blank
+    // score cards grouped by field. Job from JWT.
     [HttpGet("Schedule_Gamecards")]
     [AllowAnonymous]
-    public Task<ActionResult> ScheduleGamecards([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("schedule_gamecards", exportFormat);
+    public async Task<ActionResult> ScheduleGamecards(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _showcaseScheduleService.GenerateGameCardsAsync(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("Schedule_ExportExcel_Unscored")]
     [AllowAnonymous]
@@ -692,10 +704,17 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> ScheduleByAgT([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("ScheduleByAgT", exportFormat);
 
+    // Schedules by Age Group and Team — EF + Syncfusion replacement for Crystal
+    // "ScheduleByClubAgTPerPage": one page per team listing that team's games (each game prints
+    // on both teams' pages). Job from JWT.
     [HttpGet("ScheduleByClubAgTPerPage")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> ScheduleByClubAgTPerPage([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("ScheduleByClubAgTPerPage", exportFormat);
+    public async Task<ActionResult> ScheduleByClubAgTPerPage(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _showcaseScheduleService.GenerateScheduleByTeamAsync(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("ScheduleByClubAgT")]
     [Authorize(Policy = "AdminOnly")]
@@ -722,10 +741,17 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> GetTeamTransactionsForExcelExport([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("JobTeamTransactions", exportFormat);
 
+    // Field Utilization with Player Nominations — EF + Syncfusion replacement for Crystal
+    // "FieldUtilizationWithNominations": games grouped by date+field, boxed score + a blank
+    // Player Nominations write-in grid per game. Job from JWT.
     [HttpGet("FieldUtilizationWithNominations")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> FieldUtilizationWithNominations([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("FieldUtilizationWithNominations", exportFormat);
+    public async Task<ActionResult> FieldUtilizationWithNominations(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _showcaseScheduleService.GenerateFieldUtilizationNominationsAsync(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("TournamentRosterPacked_PositionSchool")]
     [Authorize(Policy = "AdminOnly")]
@@ -737,15 +763,29 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> TournamentRecruitingReport([FromQuery] int exportFormat = 1)
         => CrystalReportAsync("TournamentRecruitingReport", exportFormat);
 
+    // American Select recruiting CONTACT sheet — EF + Syncfusion replacement for Crystal
+    // "TournamentRecruitingReportASL". Off the shared roster query (showcase scope), grouped
+    // by agegroup with staff contact cards then player cards. Job from JWT.
     [HttpGet("TournamentRecruitingReportASL")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> TournamentRecruitingReportAsl([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("TournamentRecruitingReportASL", exportFormat);
+    public async Task<ActionResult> TournamentRecruitingReportAsl(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _packedRosterService.GenerateRecruiterAslAsync(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
+    // American Select recruiting STAT-CAPTURE sheet — EF + Syncfusion replacement for Crystal
+    // "TournamentRecruitingReportUSL". Same roster data as ASL; blank hand-entry G/A/GB/DC/S
+    // grid (stats are recorded by hand, not stored). Job from JWT.
     [HttpGet("TournamentRecruitingReportUSL")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> TournamentRecruitingReportUsl([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("TournamentRecruitingReportUSL", exportFormat);
+    public async Task<ActionResult> TournamentRecruitingReportUsl(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _packedRosterService.GenerateRecruiterUslAsync(jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("TournamentPlayers_RosterRequestAndRegistrants_DataDump")]
     [Authorize(Policy = "AdminOnly")]
@@ -912,10 +952,35 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> CampExcelexportSummer([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("camp_excelexport_summer", exportFormat);
 
+    // Camp summer roster (PDF) — EF + Syncfusion replacement for Crystal
+    // "camp_excelexport_summer_pdf", served by the shared Roster Table engine with a fixed
+    // camp preset: grouped by session (agegroup), Player / Phone / Allergies (= medical note) /
+    // Mom (name+phone) / Dad (name+phone). Job from JWT.
     [HttpGet("camp_excelexport_summer_pdf")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> CampExcelexportSummerPdf([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("camp_excelexport_summer_pdf", exportFormat);
+    public async Task<ActionResult> CampExcelexportSummerPdf(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var request = new RosterTableRequestDto
+        {
+            GroupBy = "AgeGroup",
+            SortBy = "Name",
+            Orientation = "Portrait",
+            PlayersOnly = true,
+            PageBreakPerGroup = true,
+            ColorAccent = false,
+            Columns = new[]
+            {
+                new RosterTableColumnDto { Key = "player", WidthWeight = 95, Align = "Left", LongText = "Wrap" },
+                new RosterTableColumnDto { Key = "phone", WidthWeight = 60, Align = "Left", LongText = "Truncate" },
+                new RosterTableColumnDto { Key = "allergies", WidthWeight = 70, Align = "Left", LongText = "Wrap" },
+                new RosterTableColumnDto { Key = "momContact", WidthWeight = 110, Align = "Left", LongText = "Wrap" },
+                new RosterTableColumnDto { Key = "dadContact", WidthWeight = 110, Align = "Left", LongText = "Wrap" },
+            },
+        };
+        var result = await _rosterTableService.GenerateAsync(request, jobId ?? Guid.Empty, cancellationToken);
+        return File(result.FileBytes, result.ContentType, "camp_excelexport_summer.pdf");
+    }
 
     [HttpGet("camp_excelexport_veryshort")]
     [Authorize(Policy = "AdminOnly")]

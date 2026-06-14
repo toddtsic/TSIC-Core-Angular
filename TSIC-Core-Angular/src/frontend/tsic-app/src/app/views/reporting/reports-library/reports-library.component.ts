@@ -65,6 +65,12 @@ const MIGRATED_EF_ACTIONS = new Set<string>([
     'TSICFeesYTDByCustomerAndJob',
     'TSICFeesYTDByCustomer',
     'Schedule_ByAgegroup',
+    'TournamentRecruitingReportASL',
+    'TournamentRecruitingReportUSL',
+    'camp_excelexport_summer_pdf',
+    'FieldUtilizationWithNominations',
+    'ScheduleByClubAgTPerPage',
+    'Schedule_Gamecards',
 ]);
 
 function parseSpRunParams(parametersJson: string | null | undefined): SpRunParams {

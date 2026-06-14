@@ -58,10 +58,13 @@ public sealed class RosterTablePdfService : IRosterTablePdfService
         F("momName",      "Mom",          70, "Left",   true),
         F("momPhone",     "Mom Phone",    62, "Left",   false),
         F("momEmail",     "Mom Email",    120, "Left",  true),
+        F("momContact",   "Mom",          110, "Left",  true),
         F("dadName",      "Dad",          70, "Left",   true),
         F("dadPhone",     "Dad Phone",    62, "Left",   false),
         F("dadEmail",     "Dad Email",    120, "Left",  true),
+        F("dadContact",   "Dad",          110, "Left",  true),
         F("medical",      "Medical Note", 130, "Left",  true),
+        F("allergies",    "Allergies",    70, "Left",   true),
         F("paid",         "Paid",         42, "Right",  false),
         F("owed",         "Owed",         42, "Right",  false),
         F("jersey",       "Jersey",       34, "Center", false),
@@ -360,10 +363,14 @@ public sealed class RosterTablePdfService : IRosterTablePdfService
             "momName" => ComposeName2(r.MomFirstName, r.MomLastName),
             "momPhone" => FormatPhone(r.MomCellphone),
             "momEmail" => (r.MomEmail ?? "").Trim(),
+            "momContact" => ComposeContact(r.MomFirstName, r.MomLastName, r.MomCellphone),
             "dadName" => ComposeName2(r.DadFirstName, r.DadLastName),
             "dadPhone" => FormatPhone(r.DadCellphone),
             "dadEmail" => (r.DadEmail ?? "").Trim(),
-            "medical" => (r.MedicalNote ?? "").Trim(),
+            "dadContact" => ComposeContact(r.DadFirstName, r.DadLastName, r.DadCellphone),
+            // "allergies" is the medical_note field relabeled — the legacy camp roster's
+            // "Allergies" column is just MedicalNote (no dedicated allergies field exists).
+            "medical" or "allergies" => (r.MedicalNote ?? "").Trim(),
             "paid" => FormatMoney(r.PaidTotal),
             "owed" => FormatMoney(r.OwedTotal),
             "jersey" => (r.JerseySize ?? "").Trim(),
@@ -406,6 +413,14 @@ public sealed class RosterTablePdfService : IRosterTablePdfService
 
     private static string ComposeName2(string? first, string? last)
         => $"{(first ?? "").Trim()} {(last ?? "").Trim()}".Trim();
+
+    // Parent "Name  phone" in one cell — the legacy camp roster's single Mom/Dad column.
+    private static string ComposeContact(string? first, string? last, string? phone)
+    {
+        var name = ComposeName2(first, last);
+        var ph = FormatPhone(phone);
+        return string.Join("  ", new[] { name, ph }.Where(s => s.Length > 0));
+    }
 
     private static bool IsDummyRep(RosterTableRowDto r)
         => string.Equals(r.ClubRepFirstName?.Trim(), "Club", StringComparison.OrdinalIgnoreCase)
