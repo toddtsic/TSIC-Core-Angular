@@ -224,7 +224,10 @@ INSERT INTO @ExcludeActions VALUES
     -- NOTE: TournamentRosterPacked is intentionally NOT listed -- it is already
     -- remapped to the PackedRoster Designer via @ActionMap below; excluding it here
     -- would delete that Designer row instead of retiring the legacy Crystal.
-    (N'Job_Club_Rosters'),                                  -- -> Roster Table Designer (Club Roster preset)
+    -- NOTE: Job_Club_Rosters / Job_Rosters_NoMedical / clubrostersNoMedicalII are intentionally
+    -- NOT excluded -- they are in-place EF migrations (Coaches Eyes Only roster, ClubRosterPdfService;
+    -- see MIGRATED_EF_ACTIONS in reports-library.component.ts). They keep Kind='CrystalReport' so the
+    -- SuperUser DB-sourced view + the regular-role catalog both route them to the EF endpoint.
     (N'camp_daygroups'),                                    -- -> Roster Table Designer (Day Group / Camp preset)
     (N'Get_JobRosters_PackedByPositionAGNoClubPlayers'),    -- -> PackedRoster Designer (club-affiliation OFF)
     (N'Get_JobRosters_PackedByPosition_XPO'),               -- -> PackedRoster Designer (Packed XPO preset)
@@ -243,8 +246,7 @@ INSERT INTO @ExcludeActions VALUES
     (N'Get_JobPlayers_STEPS'),                              -- -> Roster Table Designer (Sizes preset, was STEPS)
     (N'Get_JobRosters_RecruitingReport'),                   -- -> Roster Table Designer (Recruiting tabular preset)
     (N'Get_JobRosters_RecruitingReport_XPO'),               -- -> Roster Table Designer (Recruiting tabular preset)
-    (N'Job_Rosters_NoMedical'),                             -- -> Roster Table Designer (No-Medical preset)
-    (N'clubrostersNoMedicalII'),                            -- -> Roster Table Designer (Coaches preset)
+    -- (Job_Rosters_NoMedical + clubrostersNoMedicalII moved to in-place EF — see note above.)
     -- Camp Tier-2 (2026-06-05): folded into Roster Table Designer "camp" mode
     -- (Day/Night/Roommate group-by + stacked/packed-XPO approx layouts). Night has
     -- no data in any camp job; Day/Roommate group-by verified. User: "assume all ok."

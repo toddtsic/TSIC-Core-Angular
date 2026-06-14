@@ -77,7 +77,7 @@ Found by crossing all 39 live `Kind='CrystalReport'` actions against `@ExcludeAc
 | `FieldUtilizationWithNominations` | ◐ BUILT — `ShowcaseScheduleReportService.GenerateFieldUtilizationNominationsAsync` one-off (date+field groups, boxed score + blank Player Nominations grid) |
 | `ScheduleByClubAgTPerPage` | ◐ BUILT — `ShowcaseScheduleReportService.GenerateScheduleByTeamAsync` one-off (one page per team; game prints on both teams' pages; bracket seed `(X4)`/`(Q5)` suffix) |
 | `Schedule_Gamecards` | ◐ BUILT — `ShowcaseScheduleReportService.GenerateGameCardsAsync` one-off (2-up blank score cards grouped by field; field/date/time + agegroup/div + both teams + blank Score boxes). Legacy verified on `compassnoreasterlax-ghostgames-2025` |
-| `Club_AllJobs_Rosters_NoMedical` | ⏸ PARKED — cross-job (a club's rosters across every job); Roster Table engine is job-scoped → needs new cross-job data plumbing. No legacy reference yet |
+| `Club_AllJobs_Rosters_NoMedical` | ◐ BUILT — `ClubRosterPdfService.GenerateAsync(allCustomerJobs:true, includeMedical:false)`; customer-scoped (resolves the job's CustomerId, all that customer's jobs) coaches-eyes-only team-grouped render. Scope verified vs live DB (76,898 rows across the Lax For The Cure customer) |
 
 All BUILT items: in-place EF (`MIGRATED_EF_ACTIONS` + controller rewired off Crystal), back+front build clean,
 **not yet runtime-verified in-app**. Title/layout fidelity points to verify on first live render:
@@ -165,9 +165,9 @@ needs only a quick confirming render at its retirement step.
 
 | Report (endpoint) | Preset | EF entities | Status |
 |---|---|---|---|
-| Job_Club_Rosters | Club Roster | present | ✔ runtime-verified 2026-06-05 (lftc-summer-2026); footer fixed; retire pending |
-| Job_Rosters_NoMedical | No-Medical | present | ◐ built; verify + retire pending |
-| clubrostersNoMedicalII | No-Medical | present | ◐ built; verify + retire pending |
+| Job_Club_Rosters | Coaches roster (w/ medical) | present | ◐ RE-POINTED 2026-06-14 off the generic Roster Table preset → dedicated `ClubRosterPdfService` red-banner coaches layout (per-job, includeMedical:true); catalog tile restored; un-retired in script 7; F5 pending |
+| Job_Rosters_NoMedical | Coaches roster (no medical) | present | ◐ RE-POINTED 2026-06-14 → `ClubRosterPdfService` (per-job, includeMedical:false); catalog tile restored; un-retired in script 7; F5 pending |
+| clubrostersNoMedicalII | Coaches roster (no medical) | present | ◐ RE-POINTED 2026-06-14 → `ClubRosterPdfService` (per-job, includeMedical:false); SU/DB route only (no regular-role tile, redundant); un-retired in script 7; F5 pending |
 | JobRosters_Get_Teamplayers_Withcoach | Coaches | present | ◐ built; verify + retire pending |
 | Get_Rosters_WithClubRep (`Rosters_WithClubRep_A` — not in catalog) | With Club Rep | present | ◐ built; verify pending |
 | Get_JobPlayers_STEPS | Sizes (was STEPS) | present | ◐ built; verify + retire pending |

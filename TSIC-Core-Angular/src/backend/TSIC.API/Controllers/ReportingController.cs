@@ -29,6 +29,7 @@ public class ReportingController : ControllerBase
     private readonly IGameBoardsPdfService _gameBoardsPdfService;
     private readonly IRosterTablePdfService _rosterTableService;
     private readonly IShowcaseScheduleReportService _showcaseScheduleService;
+    private readonly IClubRosterPdfService _clubRosterService;
 
     // JWT carries the role NAME ("Director"); reporting.JobReports.RoleId is the role-id GUID.
     // Mirrors the local map pattern used by NavController / WidgetDashboardService /
@@ -58,7 +59,8 @@ public class ReportingController : ControllerBase
         IPackedRosterPdfService packedRosterService,
         IGameBoardsPdfService gameBoardsPdfService,
         IRosterTablePdfService rosterTableService,
-        IShowcaseScheduleReportService showcaseScheduleService)
+        IShowcaseScheduleReportService showcaseScheduleService,
+        IClubRosterPdfService clubRosterService)
     {
         _reportingService = reportingService;
         _jobLookupService = jobLookupService;
@@ -71,6 +73,7 @@ public class ReportingController : ControllerBase
         _gameBoardsPdfService = gameBoardsPdfService;
         _rosterTableService = rosterTableService;
         _showcaseScheduleService = showcaseScheduleService;
+        _clubRosterService = clubRosterService;
     }
 
     /// <summary>
@@ -344,17 +347,38 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> ScoreInput()
         => CrystalReportAsync("Score_Input", 1);
 
+    // "Coaches Eyes Only" club roster family — EF + Syncfusion replacement (one shared render,
+    // ClubRosterPdfService): a red page banner, a boxed "TEAM ROSTER:" header per team, then
+    // numbered player rows (name/email, DOB/position, phone/school, sensitive Amt Due, both
+    // parents' contacts). Scope = single job vs every job of the job's customer; the medical note
+    // is shown for Job_Club_Rosters and withheld for the No-Medical variants.
+
     [HttpGet("Job_Rosters_NoMedical")]
-    public Task<ActionResult> JobRostersNoMedical([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("Job_Rosters_NoMedical", exportFormat);
+    public async Task<ActionResult> JobRostersNoMedical(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _clubRosterService.GenerateAsync(
+            jobId ?? Guid.Empty, allCustomerJobs: false, includeMedical: false, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("Club_AllJobs_Rosters_NoMedical")]
-    public Task<ActionResult> ClubAllJobsRostersNoMedical([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("Club_AllJobs_Rosters_NoMedical", exportFormat);
+    public async Task<ActionResult> ClubAllJobsRostersNoMedical(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _clubRosterService.GenerateAsync(
+            jobId ?? Guid.Empty, allCustomerJobs: true, includeMedical: false, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("Job_Club_Rosters")]
-    public Task<ActionResult> JobClubRosters([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("Job_Club_Rosters", exportFormat);
+    public async Task<ActionResult> JobClubRosters(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _clubRosterService.GenerateAsync(
+            jobId ?? Guid.Empty, allCustomerJobs: false, includeMedical: true, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("JobRosters_TryoutsCheckReport")]
     public Task<ActionResult> JobRostersTryoutsCheckReport([FromQuery] int exportFormat = 1)
@@ -654,10 +678,16 @@ public class ReportingController : ControllerBase
     public Task<ActionResult> GetTeamFieldDistribution([FromQuery] int exportFormat = 3)
         => CrystalReportAsync("teamfielddistribution", exportFormat);
 
+    // Legacy "No Medical (II)" coaches-roster variant → same EF render, per-job, no medical.
     [HttpGet("clubrostersNoMedicalII")]
     [Authorize(Policy = "AdminOnly")]
-    public Task<ActionResult> ClubrostersNoMedicalII([FromQuery] int exportFormat = 1)
-        => CrystalReportAsync("clubrostersNoMedicalII", exportFormat);
+    public async Task<ActionResult> ClubrostersNoMedicalII(CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        var result = await _clubRosterService.GenerateAsync(
+            jobId ?? Guid.Empty, allCustomerJobs: false, includeMedical: false, cancellationToken);
+        return File(result.FileBytes, result.ContentType, result.FileName);
+    }
 
     [HttpGet("LeagueForfeitReport")]
     [Authorize(Policy = "AdminOnly")]

@@ -71,6 +71,10 @@ const MIGRATED_EF_ACTIONS = new Set<string>([
     'FieldUtilizationWithNominations',
     'ScheduleByClubAgTPerPage',
     'Schedule_Gamecards',
+    'Job_Club_Rosters',
+    'Job_Rosters_NoMedical',
+    'clubrostersNoMedicalII',
+    'Club_AllJobs_Rosters_NoMedical',
 ]);
 
 function parseSpRunParams(parametersJson: string | null | undefined): SpRunParams {

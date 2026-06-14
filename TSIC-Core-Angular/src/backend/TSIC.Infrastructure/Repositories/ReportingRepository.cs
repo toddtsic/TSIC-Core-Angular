@@ -621,6 +621,79 @@ public class ReportingRepository : IReportingRepository
         return await query.ToListAsync(cancellationToken);
     }
 
+    public async Task<List<ClubRosterRowDto>> GetClubRosterRowsAsync(
+        Guid jobId,
+        bool allCustomerJobs,
+        CancellationToken cancellationToken = default)
+    {
+        // EF replacement for the "Coaches Eyes Only" club roster Crystal family. Active Player rows
+        // on active teams, grouped one boxed block per assigned team. Two scopes share this one query:
+        //   * per-job  (allCustomerJobs=false): just this job.
+        //   * all-jobs (allCustomerJobs=true):  every job of this job's customer — mirrors
+        //     reporting.Job_Club_Rosters_AllClubJobs, which derives @customerID from the job, then
+        //     filters j.customerID = @customerID. We resolve the customer up front and widen the WHERE.
+        // Roles/user are inner joins; the assigned team rides a correlated Where (Guid? FK → INNER);
+        // family (Mom/Dad) is an optional nav EF emits as a LEFT JOIN.
+        Guid? customerId = allCustomerJobs
+            ? await _context.Jobs.AsNoTracking()
+                .Where(j => j.JobId == jobId)
+                .Select(j => (Guid?)j.CustomerId)
+                .FirstOrDefaultAsync(cancellationToken)
+            : null;
+
+        var query =
+            from r in _context.Registrations.AsNoTracking()
+            join roles in _context.AspNetRoles.AsNoTracking() on r.RoleId equals roles.Id
+            join u in _context.AspNetUsers.AsNoTracking() on r.UserId equals u.Id
+            from t in _context.Teams.AsNoTracking().Where(x => x.TeamId == r.AssignedTeamId)
+            where (allCustomerJobs ? r.Job.CustomerId == customerId : r.JobId == jobId)
+                && r.BActive == true
+                && t.Active == true
+                && roles.Name == "Player"
+            orderby r.Job.JobName, t.League.LeagueName, t.Agegroup.AgegroupName,
+                    t.Div!.DivName, t.TeamName, u.LastName, u.FirstName
+            select new ClubRosterRowDto
+            {
+                RegistrationId = r.RegistrationId,
+                TeamId = t.TeamId,
+
+                CustomerName = r.Job.Customer.CustomerName,
+                JobName = r.Job.JobName,
+                LeagueName = t.League.LeagueName,
+                AgegroupName = t.Agegroup.AgegroupName,
+                DivName = t.Div != null ? t.Div.DivName : null,
+                TeamName = t.TeamName,
+                ClubName = r.ClubName,
+
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+
+                Dob = u.Dob,
+                Position = r.Position,
+
+                Cellphone = u.Cellphone,
+                SchoolName = r.SchoolName,
+
+                OwedTotal = r.OwedTotal,
+                PaidTotal = r.PaidTotal,
+
+                // Optional FamilyUser nav → LEFT JOIN, null when the registrant has no family record.
+                MomFirstName = r.FamilyUser!.MomFirstName,
+                MomLastName = r.FamilyUser!.MomLastName,
+                MomCellphone = r.FamilyUser!.MomCellphone,
+                MomEmail = r.FamilyUser!.MomEmail,
+                DadFirstName = r.FamilyUser!.DadFirstName,
+                DadLastName = r.FamilyUser!.DadLastName,
+                DadCellphone = r.FamilyUser!.DadCellphone,
+                DadEmail = r.FamilyUser!.DadEmail,
+
+                MedicalNote = r.MedicalNote,
+            };
+
+        return await query.ToListAsync(cancellationToken);
+    }
+
     public async Task<List<DailyRegCountRowDto>> GetDailyRegCountsAsync(
         DateTime asOfLocal,
         CancellationToken cancellationToken = default)

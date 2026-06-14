@@ -192,6 +192,20 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Active Player rows for the "Coaches Eyes Only" club roster — the EF replacement for the legacy
+    /// Crystal family (<c>Job_Club_Rosters</c>, <c>Job_Rosters_NoMedical</c>, <c>clubrostersNoMedicalII</c>,
+    /// <c>Club_AllJobs_Rosters_NoMedical</c>). bActive=1 players on active teams, grouped one boxed block
+    /// per team. When <paramref name="allCustomerJobs"/> is true the scope widens from the single
+    /// <paramref name="jobId"/> to every job of that job's customer (mirrors
+    /// <c>reporting.Job_Club_Rosters_AllClubJobs</c>, which derives the customer from the job); otherwise
+    /// only the one job. Carries the sensitive pay status (owed) plus both parents' contact rows.
+    /// </summary>
+    Task<List<ClubRosterRowDto>> GetClubRosterRowsAsync(
+        Guid jobId,
+        bool allCustomerJobs,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Per-(customer, job, role) registration counts for every job that took at least one active
     /// registration on <paramref name="asOfLocal"/>'s date — the EF replacement for
     /// <c>reporting.Get_Registrations_TSIC_Today</c> (legacy Crystal "JobPlayers_TSICDaily").

@@ -57,6 +57,12 @@ export const TYPE1_REPORT_CATALOG: readonly Type1ReportEntry[] = [
     { id: 't1-american-select-main-event',      title: 'American Select Main Event Rosters (pdf)',   description: 'Main event roster sheets for American Select',              iconName: 'trophy',                    endpointPath: 'AmericanSelectMainEventRosters',                   visibilityRules: PRE_SHOWCASE_ONLY, category: 'Rosters',           sortOrder: 190 },
     { id: 't1-playerstats-e120',                title: 'Player Stats E120 Entry Form (pdf)',         description: 'E120 stats entry form',                                     iconName: 'pencil-square',             endpointPath: 'PlayerStats_E120',                                 visibilityRules: PRE_CLUB_SHOWCASE, category: 'Rosters',           sortOrder: 240 },
 
+    // ── Coaches-eyes-only club rosters (EF render; one team-grouped layout, medical on/off) ──
+    // The red-banner "FOR COACHES EYES ONLY" roster, boxed per team with the sensitive Amt Due
+    // and both parents' contacts. Two variants differ only by the optional medical note line.
+    { id: 't1-club-rosters',                    title: 'Club Rosters — Coaches, w/ Medical (pdf)',   description: 'Coaches-eyes-only team roster pack, with the medical note',  iconName: 'clipboard-heart',           endpointPath: 'Job_Club_Rosters',                                 visibilityRules: { jobTypes: [JT.Camp, JT.ClubSport, JT.Tournament] }, category: 'Rosters',    sortOrder: 270 },
+    { id: 't1-club-rosters-nomedical',          title: 'Club Rosters — Coaches, No Medical (pdf)',   description: 'Coaches-eyes-only team roster pack, without the medical note', iconName: 'shield',                  endpointPath: 'Job_Rosters_NoMedical',                            visibilityRules: { jobTypes: [JT.Camp, JT.ClubSport, JT.Tournament] }, category: 'Rosters',    sortOrder: 280 },
+
     // ── SuperUser cross-customer reports (TSIC home / monthly close) ──────
     // Run from TSIC home job; intentionally not job-type-gated since they cover ALL jobs.
     // Daily Reg Counts is BE-anonymous but legacy menu placed it under SuperUser — gate
