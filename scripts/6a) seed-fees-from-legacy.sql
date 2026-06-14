@@ -67,6 +67,12 @@ PRINT '2  Player-only team override rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
 -- 3. Team fees — ClubRep (types 2, 3)
+--    Director-managed leagues (type 3 with no club-rep flow) do NOT charge or even
+--    present club-rep registration, so they must NOT get ClubRep-role rows. Mirror
+--    §5B's director-managed test: a job is director-managed when no two of its teams
+--    carry distinct clubrep_registrationid values (all NULL or all the same). Tournaments
+--    (type 2) always get ClubRep rows. Without this guard, a League Scheduling job's
+--    agegroup RosterFee/TeamFee leaked into a phantom ClubRep fee card.
 INSERT INTO fees.JobFees (JobFeeId, JobId, RoleId, AgegroupId, TeamId, Deposit, BalanceDue, Modified)
 SELECT
     NEWID(), j.JobId, '6A26171F-4D94-4928-94FA-2FEFD42C3C3E',
@@ -80,7 +86,19 @@ JOIN Jobs.Jobs j ON jl.JobId = j.JobId
 WHERE j.JobTypeId IN (2, 3)
   AND j.Year IN ('2025', '2026', '2027')
   AND ((ag.RosterFee IS NOT NULL AND ag.RosterFee > 0)
-    OR (ag.TeamFee IS NOT NULL AND ag.TeamFee > 0));
+    OR (ag.TeamFee IS NOT NULL AND ag.TeamFee > 0))
+  -- Skip director-managed type-3 leagues (no club-rep flow); type-2 always seeds
+  AND NOT (
+      j.JobTypeId = 3
+      AND NOT EXISTS (
+          SELECT 1 FROM Leagues.teams t1
+          JOIN Leagues.teams t2 ON t1.jobID = t2.jobID
+              AND t1.TeamId != t2.TeamId
+          WHERE t1.jobID = j.JobId
+            AND ISNULL(t1.clubrep_registrationid, '00000000-0000-0000-0000-000000000000')
+             != ISNULL(t2.clubrep_registrationid, '00000000-0000-0000-0000-000000000000')
+      )
+  );
 PRINT '3  Team-only agegroup rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
