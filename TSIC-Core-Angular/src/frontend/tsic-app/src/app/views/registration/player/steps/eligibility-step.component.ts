@@ -34,13 +34,13 @@ import { TeamService } from '../services/team.service';
                 <label class="player-name" [for]="'elig-' + pid">
                   {{ getPlayerName(pid) }}
                 </label>
-                @if (isClubMode()) {
+                @if (usesRichDropdown()) {
                   <ejs-dropdownlist
                     [id]="'elig-' + pid"
                     [dataSource]="eligibilityOptions()"
                     [value]="state.eligibility.getEligibilityForPlayer(pid) || null"
                     [allowFiltering]="true"
-                    [filterBarPlaceholder]="'Type to search clubs...'"
+                    [filterBarPlaceholder]="'Type to search ' + constraintLabel() + '...'"
                     filterType="Contains"
                     placeholder="— Select —"
                     [popupHeight]="'300px'"
@@ -175,6 +175,19 @@ export class EligibilityStepComponent {
     readonly isClubMode = computed(() =>
         (this.state.eligibility.teamConstraintType() || '').toUpperCase() === 'BYCLUBNAME',
     );
+
+    /**
+     * Constraints whose option list is sourced from the async teams fetch (BYCLUBNAME, BYAGEGROUP)
+     * must use the Syncfusion dropdown, NOT a native <select>. A native select bound with [value]
+     * before its <option>s exist (options arrive after the teams fetch) never re-applies the value
+     * when they appear, so a preselected agegroup/club shows blank. Syncfusion re-checks its value
+     * against the dataSource when the data lands. BYGRADYEAR/BYAGERANGE keep the native select —
+     * their options come from the schema synchronously, so there's no late-arrival race.
+     */
+    readonly usesRichDropdown = computed(() => {
+        const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
+        return ct === 'BYCLUBNAME' || ct === 'BYAGEGROUP';
+    });
 
     readonly cardTitle = computed(() => {
         const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();

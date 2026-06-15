@@ -48,10 +48,6 @@ public record FamilyPlayerRegistrationDto
     public required RegistrationFinancialsDto Financials { get; init; }
     public Guid? AssignedTeamId { get; init; }
     public string? AssignedTeamName { get; init; }
-    // Agegroup resolved THROUGH the assigned team (Teams.AgegroupId → Agegroups.AgegroupName).
-    // The agegroup value is never stored on the registration, so BYAGEGROUP eligibility has no
-    // form-value to rehydrate from on resume — the assigned team's agegroup name is the only source.
-    public string? AssignedAgegroupName { get; init; }
     public string? AdnSubscriptionId { get; init; }
     public string? AdnSubscriptionStatus { get; init; }
     public decimal? AdnSubscriptionAmountPerOccurence { get; init; }

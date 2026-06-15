@@ -10,7 +10,6 @@ export type FamilyPlayerRegistrationDto = {
     financials: RegistrationFinancialsDto;
     assignedTeamId?: string | null;
     assignedTeamName?: string | null;
-    assignedAgegroupName?: string | null;
     adnSubscriptionId?: string | null;
     adnSubscriptionStatus?: string | null;
     adnSubscriptionAmountPerOccurence?: number | null;

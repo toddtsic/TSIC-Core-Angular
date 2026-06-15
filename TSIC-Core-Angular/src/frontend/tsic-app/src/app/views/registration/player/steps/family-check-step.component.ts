@@ -229,7 +229,7 @@ export class FamilyCheckStepComponent implements OnInit {
                 next: () => {
                     this.loading.set(false);
                     this.state.initialize(jobPath);
-                    this.teamService.loadForJob(jobPath);
+                    this.teamService.loadForJob(jobPath, () => this.state.backfillAgegroupEligibilityFromTeams());
                     this.advance.emit();
                 },
                 error: (err: unknown) => {

@@ -123,6 +123,11 @@ export class PlayerWizardStateService {
             map => this.eligibility.setSelectedTeams(map),
         );
 
+        // BYAGEGROUP resume: derive eligibility from the prefilled team's agegroup. Teams may not
+        // be loaded yet here (separate async fetch) — this is a no-op then, and the teams-loaded
+        // callback (TeamService.loadForJob) runs it again. Whichever finishes last does the work.
+        this.backfillAgegroupEligibilityFromTeams();
+
         // Payment flags from response
         this.jobCtx.setPaymentFlags(!!resp.jobHasActiveDiscountCodes, !!resp.jobUsesAmex);
 
@@ -166,6 +171,36 @@ export class PlayerWizardStateService {
             schemas, players, selectedIds,
             (pid, field) => this.playerForms.getPlayerFieldValue(pid, field),
         );
+    }
+
+    /**
+     * Sets BYAGEGROUP eligibility from the assigned team's CURRENT agegroup name, read from the
+     * loaded teams list — the exact same source the dropdown options come from, so the seeded
+     * value is guaranteed to match an option (the agegroup NAME is mutable; the team id is the
+     * stable fact, which is why we resolve through the team rather than store a name). The assigned
+     * team is prefilled into selectedTeams from the active/pending prior reg.
+     *
+     * Called (NOT via effect) from BOTH the family-load completion and the teams-load completion,
+     * which race; whichever finishes last does the work, the other is a guarded no-op. Fill-empty:
+     * never overrides an existing value or a user selection.
+     */
+    backfillAgegroupEligibilityFromTeams(): void {
+        if ((this.eligibility.teamConstraintType() || '').toUpperCase() !== 'BYAGEGROUP') return;
+        const teams = this.teamService.allTeams();
+        if (!teams || teams.length === 0) return;
+        const selTeams = this.eligibility.selectedTeams();
+        const pids = Object.keys(selTeams);
+        if (pids.length === 0) return;
+        let changed = false;
+        for (const pid of pids) {
+            if (this.eligibility.getEligibilityForPlayer(pid)) continue; // never override
+            const sel = selTeams[pid];
+            const teamId = Array.isArray(sel) ? sel[0] : sel;
+            if (!teamId) continue;
+            const agName = this.teamService.getTeamById(teamId)?.agegroupName?.trim();
+            if (agName) { this.eligibility.setEligibilityForPlayer(pid, agName); changed = true; }
+        }
+        if (changed) this.eligibility.updateUnifiedConstraintValue(this.familyPlayers.selectedPlayerIds());
     }
 
     // ── Player toggle ─────────────────────────────────────────────────

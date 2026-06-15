@@ -45,32 +45,20 @@ export class EligibilityService {
         getFormValue: (playerId: string, fieldName: string) => unknown,
     ): void {
         try {
+            // BYAGEGROUP is handled separately (backfillAgegroupEligibilityFromTeams) because its
+            // value comes from the assigned team's agegroup in the async teams list, not a saved
+            // form field. This seed covers the constraints whose value IS a saved form field
+            // (BYGRADYEAR → grad_year, BYCLUBNAME → clubName).
             const eligField = this.determineEligibilityField(schemas);
             if (!eligField) return;
-            const tctype = (this._teamConstraintType() || '').toUpperCase();
             const map = { ...this.playerState.eligibilityByPlayer() } as Record<string, string>;
             for (const p of players) {
                 if (!p.registered && !p.selected) continue;
-                let resolved: string | null = null;
                 const v = getFormValue(p.playerId, eligField);
                 if (v != null && String(v).trim() !== '') {
-                    resolved = String(v).trim();
-                } else if (tctype === 'BYAGEGROUP') {
-                    // Agegroup is never stored as a registration form value — it lives on the
-                    // assigned team (Teams.AgegroupId). The backend surfaces it as
-                    // assignedAgegroupName on the prior reg, so on resume we rehydrate BYAGEGROUP
-                    // eligibility from it synchronously — no dependency on the async teams list.
-                    // Mirror prefillTeamsFromPriorRegistrations: use the active/pending prior reg.
-                    const prior = p.priorRegistrations.find(
-                        r => (r.active || r.isPending) && !!r.assignedAgegroupName,
-                    );
-                    const agn = prior?.assignedAgegroupName?.trim();
-                    if (agn) resolved = agn;
-                }
-                if (resolved) {
                     const existing = map[p.playerId];
                     if (!existing || String(existing).trim() === '') {
-                        map[p.playerId] = resolved;
+                        map[p.playerId] = String(v).trim();
                     }
                 }
             }

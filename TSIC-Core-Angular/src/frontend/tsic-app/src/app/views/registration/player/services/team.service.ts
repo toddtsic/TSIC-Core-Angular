@@ -179,10 +179,14 @@ export class TeamService {
             : team.teamName;
     }
 
-    /** Call explicitly when the job context is ready (replaces constructor effect). */
-    loadForJob(jobPath: string): void {
+    /**
+     * Call explicitly when the job context is ready (replaces constructor effect).
+     * onLoaded fires once the teams signal is populated (cache hit, fetch success, or fetch
+     * error) — lets callers run logic that needs the teams list without a reactive effect.
+     */
+    loadForJob(jobPath: string, onLoaded?: () => void): void {
         if (jobPath) {
-            this.ensureLoaded(jobPath);
+            this.ensureLoaded(jobPath, onLoaded);
         } else {
             this._teams.set(null);
         }
@@ -193,17 +197,18 @@ export class TeamService {
         if (jobPath) this.fetch(jobPath, true);
     }
 
-    private ensureLoaded(jobPath: string): void {
+    private ensureLoaded(jobPath: string, onLoaded?: () => void): void {
         const cached = this.cache.get(jobPath);
         const now = Date.now();
         if (cached && (now - cached.ts) < this.cacheTtlMs) {
             this._teams.set(cached.data);
+            onLoaded?.();
             return;
         }
-        this.fetch(jobPath, false);
+        this.fetch(jobPath, false, onLoaded);
     }
 
-    private fetch(jobPath: string, force: boolean): void {
+    private fetch(jobPath: string, force: boolean, onLoaded?: () => void): void {
         if (!jobPath) return;
         this._loading.set(true);
         this._error.set(null);
@@ -214,6 +219,7 @@ export class TeamService {
                     this._loading.set(false);
                     this._teams.set(data || []);
                     this.cache.set(jobPath, { data: data || [], ts: Date.now() });
+                    onLoaded?.();
                 },
                 error: err => {
                     console.error('[TeamService] failed to load teams', err);
@@ -222,6 +228,7 @@ export class TeamService {
                     if (!force) {
                         this._teams.set([]);
                     }
+                    onLoaded?.();
                 }
             });
     }

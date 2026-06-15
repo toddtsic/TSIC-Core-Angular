@@ -249,7 +249,7 @@ export class PlayerWizardV2Component implements OnInit {
             // Only pre-load if already authenticated as Family/Player for this job
             if (validRole && sameJob) {
                 this.state.initialize(jobPath);
-                this.teamService.loadForJob(jobPath);
+                this.teamService.loadForJob(jobPath, () => this.state.backfillAgegroupEligibilityFromTeams());
                 // Skip family-check — already authenticated for this job
                 const playersIdx = this.activeSteps().findIndex(s => s.id === 'players');
                 if (playersIdx >= 0) this._currentIndex.set(playersIdx);

@@ -123,14 +123,6 @@ public interface ITeamRepository
     Task<Dictionary<Guid, string?>> GetTeamDivisionNamesAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Map assigned team IDs to their agegroup name (Teams.AgegroupId → Agegroups.AgegroupName).
-    /// Agegroup is modeled THROUGH the team (Registrations.AssignedAgegroupId is obsolete), so this
-    /// is the canonical way to surface a registration's agegroup on resume. Value is null when the
-    /// team has no agegroup.
-    /// </summary>
-    Task<Dictionary<Guid, string?>> GetTeamAgegroupNamesAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Find teams in a job by a set of team names (case-insensitive). Used for waitlist mirror lookups.
     /// </summary>
     Task<List<Teams>> GetTeamsForJobByNamesAsync(Guid jobId, IReadOnlyCollection<string> teamNames, CancellationToken cancellationToken = default);
