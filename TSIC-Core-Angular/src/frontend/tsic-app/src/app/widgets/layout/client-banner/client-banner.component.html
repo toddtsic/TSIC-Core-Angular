@@ -27,17 +27,11 @@
         <img [src]="bannerImageUrl()" [alt]="jobName() + ' Banner'" class="banner-image" />
     </div>
     } @else {
-    <!-- Text-only banner when no images -->
+    <!-- Text-only banner when no images: show the jobName, not leftover banner-overlay text -->
     <div class="banner-text">
-        @if (jobBannerText1Decoded()) {
-        <h1 class="banner-title" [innerHTML]="jobBannerText1Decoded()"></h1>
-        } @else {
         <h1 class="banner-title">{{ jobName() }}</h1>
-        }
         @if (jobBannerText2Decoded()) {
         <p class="banner-subtitle" [innerHTML]="jobBannerText2Decoded()"></p>
-        } @else if (jobPath()) {
-        <p class="banner-subtitle">{{ jobPath().toUpperCase().replaceAll('-', ' ') }}</p>
         }
     </div>
     }
