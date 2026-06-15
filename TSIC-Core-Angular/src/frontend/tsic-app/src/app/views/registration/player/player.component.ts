@@ -328,7 +328,15 @@ export class PlayerWizardV2Component implements OnInit {
         if (this.currentStepId() === 'review') {
             const newRegs = this.hasNewRegistrations();
             try {
-                await this.state.preSubmitRegistration();
+                const resp = await this.state.preSubmitRegistration();
+                // A 200 response can still carry validation errors (the server applies form
+                // values but does NOT save when validation fails). Treat that as a hard stop:
+                // advancing here would charge the card against a registration whose profile was
+                // never persisted. Stay on Review and surface the captured errors instead.
+                if (resp?.validationErrors?.length) {
+                    this.toast.show('Some required information is missing or invalid. Please correct the highlighted fields before continuing.', 'warning', 7000);
+                    return; // stay on review step — do NOT advance to Payment
+                }
             } catch (err: unknown) {
                 console.error('[PlayerWizard] preSubmit failed', err);
                 this.toast.show('Registration submission failed. Please review and try again.', 'danger', 5000);

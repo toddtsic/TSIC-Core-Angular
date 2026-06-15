@@ -361,7 +361,12 @@ export class PlayerFormsService {
         if (tctype === 'BYAGERANGE' && (hasAllParts(lname, ['age', 'range']) || hasAllParts(llabel, ['age', 'range']))) return false;
         if (tctype === 'BYCLUBNAME' && (hasAllParts(lname, ['club']) || hasAllParts(llabel, ['club']))) return false;
         if (RECRUITING_FIELD_NAMES.has(lname)) {
-            if (recruitingGradYears.length === 0) return false;
+            // No recruiting grad years configured ⇒ no restriction ⇒ always show. Only when a
+            // List_RecruitingGradYears IS configured do we gate to the matching team grad year.
+            // (Legacy AdjustRecruittingInfoVisibility hid these on an empty list, which silently
+            // dropped required-but-hidden fields like heightInches on showcase forms such as PP35;
+            // empty = "no restriction" is the intended behavior.)
+            if (recruitingGradYears.length === 0) return true;
             if (!teamGradYear) return false;
             return recruitingGradYears.includes(teamGradYear);
         }
