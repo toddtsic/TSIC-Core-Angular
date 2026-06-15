@@ -51,6 +51,16 @@ public class TeamRepository : ITeamRepository
             .ToDictionaryAsync(x => x.TeamId, x => x.DivName, cancellationToken);
     }
 
+    public async Task<Dictionary<Guid, string?>> GetTeamAgegroupNamesAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        // Agegroup is a nullable nav → EF emits a LEFT JOIN; AgegroupName is null when the team has no agegroup.
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+            .Select(t => new { t.TeamId, AgegroupName = t.Agegroup != null ? t.Agegroup.AgegroupName : null })
+            .ToDictionaryAsync(x => x.TeamId, x => x.AgegroupName, cancellationToken);
+    }
+
     public async Task<List<Teams>> GetTeamsForJobByNamesAsync(Guid jobId, IReadOnlyCollection<string> teamNames, CancellationToken cancellationToken = default)
     {
         return await _context.Teams

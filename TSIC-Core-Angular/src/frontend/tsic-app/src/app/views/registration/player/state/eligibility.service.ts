@@ -47,14 +47,30 @@ export class EligibilityService {
         try {
             const eligField = this.determineEligibilityField(schemas);
             if (!eligField) return;
+            const tctype = (this._teamConstraintType() || '').toUpperCase();
             const map = { ...this.playerState.eligibilityByPlayer() } as Record<string, string>;
             for (const p of players) {
                 if (!p.registered && !p.selected) continue;
+                let resolved: string | null = null;
                 const v = getFormValue(p.playerId, eligField);
                 if (v != null && String(v).trim() !== '') {
+                    resolved = String(v).trim();
+                } else if (tctype === 'BYAGEGROUP') {
+                    // Agegroup is never stored as a registration form value — it lives on the
+                    // assigned team (Teams.AgegroupId). The backend surfaces it as
+                    // assignedAgegroupName on the prior reg, so on resume we rehydrate BYAGEGROUP
+                    // eligibility from it synchronously — no dependency on the async teams list.
+                    // Mirror prefillTeamsFromPriorRegistrations: use the active/pending prior reg.
+                    const prior = p.priorRegistrations.find(
+                        r => (r.active || r.isPending) && !!r.assignedAgegroupName,
+                    );
+                    const agn = prior?.assignedAgegroupName?.trim();
+                    if (agn) resolved = agn;
+                }
+                if (resolved) {
                     const existing = map[p.playerId];
                     if (!existing || String(existing).trim() === '') {
-                        map[p.playerId] = String(v).trim();
+                        map[p.playerId] = resolved;
                     }
                 }
             }

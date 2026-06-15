@@ -113,6 +113,10 @@ public sealed class FamilyService : IFamilyService
         // priors (parked in "Dropped *"/"WAITLIST - *" divisions) from the genuinely-pending set.
         var teamDivNameMap = await BuildTeamDivNameMapAsync(jobId, regsRaw);
 
+        // Agegroup name per assigned team → lets BuildRegistrationDto surface AssignedAgegroupName so
+        // the wizard can rehydrate BYAGEGROUP eligibility on resume (agegroup isn't stored on the reg).
+        var teamAgegroupNameMap = await BuildTeamAgegroupNameMapAsync(jobId, regsRaw);
+
         // Job-level payment state (rates only) → lets BuildRegistrationDto surface each
         // registration's eCheck-method owed via the canonical PaymentState.ResolveOwed, so the
         // wizard's eCheck total equals exactly what the eCheck charge engine debits.
@@ -123,7 +127,7 @@ public sealed class FamilyService : IFamilyService
             .GroupBy(r => r.UserId!)
             .ToDictionary(
                 g => g.Key,
-                g => g.Select(r => BuildRegistrationDto(r, mappedFields, visibleFieldNames, teamNameMap, teamDivNameMap, echeckState)).ToList(),
+                g => g.Select(r => BuildRegistrationDto(r, mappedFields, visibleFieldNames, teamNameMap, teamDivNameMap, teamAgegroupNameMap, echeckState)).ToList(),
                 StringComparer.Ordinal);
 
         // For players not yet registered in this job, compute latest defaults across ALL jobs.
@@ -766,6 +770,7 @@ public sealed class FamilyService : IFamilyService
         HashSet<string> visibleFieldNames,
         Dictionary<Guid, string> teamNameMap,
         Dictionary<Guid, string?> teamDivNameMap,
+        Dictionary<Guid, string?> teamAgegroupNameMap,
         TSIC.Contracts.Payments.PaymentState? echeckState)
     {
         var fv = FormValueMapper.BuildFormValuesDictionary(r, mappedFields);
@@ -823,6 +828,10 @@ public sealed class FamilyService : IFamilyService
             AssignedTeamId = r.AssignedTeamId,
             AssignedTeamName = r.AssignedTeamId.HasValue && teamNameMap.ContainsKey(r.AssignedTeamId.Value)
                 ? teamNameMap[r.AssignedTeamId.Value]
+                : null,
+            AssignedAgegroupName = r.AssignedTeamId.HasValue
+                && teamAgegroupNameMap.TryGetValue(r.AssignedTeamId.Value, out var agn)
+                ? agn?.Trim()
                 : null,
             AdnSubscriptionId = r.AdnSubscriptionId,
             AdnSubscriptionStatus = r.AdnSubscriptionStatus,
@@ -886,6 +895,22 @@ public sealed class FamilyService : IFamilyService
             if (teamIds.Count > 0)
             {
                 map = await _teamRepo.GetTeamDivisionNamesAsync(jobId.Value, teamIds);
+            }
+        }
+        return map;
+    }
+
+    private async Task<Dictionary<Guid, string?>> BuildTeamAgegroupNameMapAsync(
+        Guid? jobId,
+        List<TSIC.Domain.Entities.Registrations> regsRaw)
+    {
+        var map = new Dictionary<Guid, string?>();
+        if (jobId != null)
+        {
+            var teamIds = regsRaw.Where(x => x.AssignedTeamId.HasValue).Select(x => x.AssignedTeamId!.Value).Distinct().ToList();
+            if (teamIds.Count > 0)
+            {
+                map = await _teamRepo.GetTeamAgegroupNamesAsync(jobId.Value, teamIds);
             }
         }
         return map;
