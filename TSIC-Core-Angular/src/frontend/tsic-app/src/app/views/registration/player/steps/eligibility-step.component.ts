@@ -172,10 +172,6 @@ export class EligibilityStepComponent {
     private readonly teamService = inject(TeamService);
     readonly advance = output<void>();
 
-    readonly isClubMode = computed(() =>
-        (this.state.eligibility.teamConstraintType() || '').toUpperCase() === 'BYCLUBNAME',
-    );
-
     /**
      * Constraints whose option list is sourced from the async teams fetch (BYCLUBNAME, BYAGEGROUP)
      * must use the Syncfusion dropdown, NOT a native <select>. A native select bound with [value]
