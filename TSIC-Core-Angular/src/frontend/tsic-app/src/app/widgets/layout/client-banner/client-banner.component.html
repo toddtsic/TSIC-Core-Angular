@@ -11,11 +11,10 @@
         </div>
         }
         <!-- Text overlay on left side -->
+        <!-- Banner image is indicated here: only paint explicit banner text, never the jobName fallback -->
         <div class="banner-text-overlay">
             @if (jobBannerText1Decoded()) {
             <h1 class="banner-title" [innerHTML]="jobBannerText1Decoded()"></h1>
-            } @else {
-            <h1 class="banner-title">{{ jobName() }}</h1>
             }
             @if (jobBannerText2Decoded()) {
             <p class="banner-subtitle" [innerHTML]="jobBannerText2Decoded()"></p>
