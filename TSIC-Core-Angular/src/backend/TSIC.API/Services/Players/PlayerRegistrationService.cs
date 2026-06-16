@@ -270,31 +270,15 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
         var alreadyOnThisTeam = ctx.ExistingByPlayerTeam.ContainsKey((playerId, team.TeamId));
         var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount && !alreadyOnThisTeam;
-        var isWaitlisted = false;
-        string? waitlistTeamName = null;
-        if (isFull)
-        {
-            try
-            {
-                var rosterPlacement = await _placement.ResolveRosterPlacementAsync(
-                    ctx.JobId, team.TeamId, ctx.FamilyUserId);
-                if (rosterPlacement.IsWaitlisted)
-                {
-                    isWaitlisted = true;
-                    waitlistTeamName = rosterPlacement.WaitlistTeamName;
-                    // Swap to the waitlist team — continue registration on that team
-                    team = ctx.Teams.Find(t => t.TeamId == rosterPlacement.TeamId)
-                        ?? await _teams.GetTeamFromTeamId(rosterPlacement.TeamId)
-                        ?? team;
-                    teamId = rosterPlacement.TeamId;
-                }
-            }
-            catch (InvalidOperationException)
-            {
-                AddResult(teamResults, playerId, team.TeamId, true, team.TeamName ?? string.Empty, "Team roster is full.", false);
-                return;
-            }
-        }
+        // A full team is FLAGGED for the UI ("you'll be waitlisted") but the player is registered on
+        // the REAL team as a pending hold — NEVER swapped onto the $0 waitlist twin here. The single
+        // place a seat-gone player actually lands on the twin is the payment cart-split
+        // (PaymentService.WaitlistFullTeamPlayersAsync), which runs only after money is on the line and
+        // leaves the reg inactive. Placing on the twin at selection/forms used to let ActivateIfFree
+        // flip the $0 twin reg active, registering an unpaid player onto the waitlist just for reaching
+        // the forms step (abandon → phantom "registered" twin row).
+        var isWaitlisted = isFull;
+        string? waitlistTeamName = isFull ? $"WAITLIST - {team.TeamName}" : null;
 
         // Fail loud, never fabricate: a team with no fee configured at any cascade level
         // must not silently register at $0. Block just this line; other teams still proceed.
@@ -371,30 +355,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             var alreadyOnThisTeam = ctx.ExistingByPlayerTeam.ContainsKey((playerId, team.TeamId));
             var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount && !alreadyOnThisTeam;
             var effectiveTeamId = team.TeamId;
-            var isWaitlisted = false;
-            string? waitlistTeamName = null;
-            if (isFull)
-            {
-                try
-                {
-                    var rosterPlacement = await _placement.ResolveRosterPlacementAsync(
-                        ctx.JobId, team.TeamId, ctx.FamilyUserId);
-                    if (rosterPlacement.IsWaitlisted)
-                    {
-                        isWaitlisted = true;
-                        waitlistTeamName = rosterPlacement.WaitlistTeamName;
-                        team = ctx.Teams.Find(t => t.TeamId == rosterPlacement.TeamId)
-                            ?? await _teams.GetTeamFromTeamId(rosterPlacement.TeamId)
-                            ?? team;
-                        effectiveTeamId = rosterPlacement.TeamId;
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    AddResult(teamResults, playerId, team.TeamId, true, team.TeamName ?? string.Empty, "Team roster is full.", false);
-                    continue;
-                }
-            }
+            // Full team → flag for the UI only; register on the REAL team. The payment cart-split is the
+            // single place a seat-gone player is moved to the $0 waitlist twin (and it never activates).
+            // See ProcessSingleTeamSelectionAsync for the full rationale.
+            var isWaitlisted = isFull;
+            string? waitlistTeamName = isFull ? $"WAITLIST - {team.TeamName}" : null;
 
             // Fail loud, never fabricate: skip teams with no configured fee (see ProcessSingleTeamSelectionAsync).
             var feeCheck = await _feeService.ResolveFeeAsync(team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);

@@ -177,68 +177,38 @@ public class PlayerRosterCapacityTests
             Times.Once, "should create a pending registration on the selected team");
     }
 
-    [Fact(DisplayName = "Reserve: team full (10/10), no waitlist → IsFull = true, no registration")]
-    public async Task Reserve_TeamFull_NoWaitlist_ReturnsIsFull()
+    [Fact(DisplayName = "Reserve: team full → held on the REAL team, flagged waitlist (placement deferred to payment)")]
+    public async Task Reserve_TeamFull_HoldsOnRealTeamAndFlagsWaitlist()
     {
-        // Arrange — team is at capacity, placement throws (no waitlist)
-        var (svc, regRepo, teamRepo, placement, _) = CreateService();
+        // Arrange — team is at capacity. Waitlists are mandatory, so a full team is no longer a hard
+        // stop; but the selection step must NOT shove the player onto the $0 waitlist twin (doing so
+        // used to let ActivateIfFree mark an unpaid reg active just for reaching forms). The pending
+        // hold lands on the REAL team; the payment cart-split is the sole place a seat-gone player is
+        // moved to the twin.
+        var (svc, regRepo, teamRepo, placement, feeService) = CreateService();
         var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 10);
+        SetupFee(feeService, balanceDue: 100m);
 
-        placement
-            .Setup(p => p.ResolveRosterPlacementAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Team roster is full"));
+        Registrations? captured = null;
+        regRepo.Setup(r => r.Add(It.IsAny<Registrations>())).Callback<Registrations>(reg => captured = reg);
 
         // Act
         var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
 
-        // Assert — user is told the team is full
+        // Assert — registered on the REAL team, flagged for the UI as waitlist-bound
         result.TeamResults.Should().HaveCount(1);
-        result.TeamResults[0].IsFull.Should().BeTrue("roster is at capacity");
-        result.TeamResults[0].Message.Should().Contain("full");
-        result.HasFullTeams.Should().BeTrue();
+        result.TeamResults[0].IsFull.Should().BeFalse("full no longer hard-stops; the player proceeds");
+        result.TeamResults[0].IsWaitlisted.Should().BeTrue("the UI must warn the player they will be waitlisted at payment");
+        result.TeamResults[0].WaitlistTeamName.Should().Be($"WAITLIST - {team.TeamName}");
 
-        // Verify NO registration was created
-        regRepo.Verify(r => r.Add(It.IsAny<Registrations>()), Times.Never,
-            "should not create a registration when the team is full");
-    }
+        captured.Should().NotBeNull("a pending hold is created on the REAL team");
+        captured!.AssignedTeamId.Should().Be(team.TeamId, "the hold stays on the real team — never the twin — until payment");
+        captured.BActive.Should().BeFalse("reserve never activates");
 
-    [Fact(DisplayName = "Reserve: team full (10/10), waitlist enabled → redirected to waitlist team")]
-    public async Task Reserve_TeamFull_WithWaitlist_RedirectsToWaitlistTeam()
-    {
-        // Arrange — team is full, but waitlist exists
-        var (svc, regRepo, teamRepo, placement, _) = CreateService();
-        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 10);
-        var waitlistTeam = RegistrationDataBuilder.BuildTeam(TestJobId, team.AgegroupId, maxCount: 10000);
-
-        // Placement service redirects to the waitlist team
-        placement
-            .Setup(p => p.ResolveRosterPlacementAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new RosterPlacementResult
-            {
-                TeamId = waitlistTeam.TeamId,
-                IsWaitlisted = true,
-                WaitlistTeamName = "WAITLIST - Test Team"
-            });
-
-        // The service will look up the waitlist team by ID
-        teamRepo
-            .Setup(t => t.GetTeamFromTeamId(waitlistTeam.TeamId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(waitlistTeam);
-
-        // Act
-        var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
-
-        // Assert — registration was created on the WAITLIST team, not the original
-        result.TeamResults.Should().HaveCount(1);
-        result.TeamResults[0].IsFull.Should().BeFalse("waitlist absorbed the registration");
-        result.TeamResults[0].IsWaitlisted.Should().BeTrue("registrant must be told they are on a waitlist");
-        result.TeamResults[0].WaitlistTeamName.Should().Be("WAITLIST - Test Team");
-
-        regRepo.Verify(r => r.Add(It.Is<Registrations>(reg =>
-            reg.AssignedTeamId == waitlistTeam.TeamId)),
-            Times.Once, "registration should be on the waitlist team");
+        // The selection step must NOT resolve/redirect placement — that is the payment cart-split's job.
+        placement.Verify(p => p.ResolveRosterPlacementAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never, "team placement is deferred to payment");
     }
 
     [Fact(DisplayName = "Reserve: MaxCount = 0 (unlimited) → never full, placement never called")]
@@ -289,23 +259,18 @@ public class PlayerRosterCapacityTests
             "no payment method is chosen until the parent reaches the payment step");
     }
 
-    [Fact(DisplayName = "Reserve: family submits 3 to team with 1 spot left → 1 placed, 2 marked full (no over-roster)")]
-    public async Task Reserve_FamilyOverflow_DoesNotOverRoster()
+    [Fact(DisplayName = "Reserve: family submits 3 to a team with 1 spot → all 3 held on real team, 2 flagged waitlist (payment enforces max)")]
+    public async Task Reserve_FamilyOverflow_FlagsExcessForWaitlist()
     {
-        // Arrange — team has 1 spot left (MaxCount=10, currentRosterCount=9).
-        // A single family submits three players to that same team in one call.
-        // Expected: first player gets the spot; players 2 and 3 are told the team is full
-        // (no waitlist available — placement throws InvalidOperationException).
-        // Bug-before-fix: the in-memory roster snapshot in PreSubmitContext.TeamRosterCounts
-        // is read but never incremented after a successful create, so all three players
-        // see "1 spot left" and all three succeed → team ends with 12 (over-roster by 2).
-        var (svc, regRepo, teamRepo, placement, _) = CreateService();
+        // Arrange — team has 1 spot left (MaxCount=10, currentRosterCount=9). A single family submits
+        // three players to that same team. Reserve no longer GATES capacity — it holds every sibling
+        // on the REAL team and FLAGS the ones past the open spot as waitlist-bound. The in-memory
+        // roster snapshot still increments per create so siblings later in the same submission see the
+        // spot consumed (→ flagged). The actual roster-max guarantee is enforced at PAYMENT by the
+        // cart-split, not here.
+        var (svc, regRepo, teamRepo, placement, feeService) = CreateService();
         var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 9);
-
-        placement
-            .Setup(p => p.ResolveRosterPlacementAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Team roster is full"));
+        SetupFee(feeService, balanceDue: 100m);
 
         var request = new ReserveTeamsRequestDto
         {
@@ -321,27 +286,29 @@ public class PlayerRosterCapacityTests
         // Act
         var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, request, TestFamilyUserId);
 
-        // Assert — exactly one succeeds, two are blocked
+        // Assert — all three held on the real team; exactly one had the real spot, two flagged.
         result.TeamResults.Should().HaveCount(3);
-        result.TeamResults.Count(r => !r.IsFull).Should().Be(1, "only one spot is available");
-        result.TeamResults.Count(r => r.IsFull).Should().Be(2, "two players must be told the team is full");
-        result.HasFullTeams.Should().BeTrue();
+        result.TeamResults.Count(r => !r.IsWaitlisted).Should().Be(1, "only one real spot was open");
+        result.TeamResults.Count(r => r.IsWaitlisted).Should().Be(2, "the two past the spot are flagged waitlist-bound");
+        result.TeamResults.Should().OnlyContain(r => !r.IsFull, "full no longer hard-stops at reserve");
 
-        regRepo.Verify(r => r.Add(It.IsAny<Registrations>()), Times.Once,
-            "exactly one registration should be added across the three siblings");
+        regRepo.Verify(r => r.Add(It.IsAny<Registrations>()), Times.Exactly(3),
+            "every sibling is held on the real team; payment — not reserve — enforces the roster max");
+
+        placement.Verify(p => p.ResolveRosterPlacementAsync(
+            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never, "placement is deferred to payment");
     }
 
-    [Fact(DisplayName = "PreSubmit: team full → NextTab = 'Team' (sends user back to team selection)")]
-    public async Task PreSubmit_TeamFull_NextTabIsTeam()
+    [Fact(DisplayName = "PreSubmit: team full → NextTab = 'Payment' (proceed; payment does the waitlisting)")]
+    public async Task PreSubmit_TeamFull_NextTabIsPayment()
     {
-        // Arrange — full team, no waitlist
-        var (svc, regRepo, teamRepo, placement, _) = CreateService();
+        // A full team no longer bounces the user back to team selection. They proceed to Payment,
+        // where the cart-split moves a seat-gone player to the $0 waitlist twin (not charged). The
+        // forms result is flagged IsWaitlisted so the UI can warn them on the way.
+        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
         var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 10);
-
-        placement
-            .Setup(p => p.ResolveRosterPlacementAsync(
-                It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("Team roster is full"));
+        SetupFee(feeService, balanceDue: 100m);
 
         var request = new PreSubmitPlayerRegistrationRequestDto
         {
@@ -355,10 +322,11 @@ public class PlayerRosterCapacityTests
         // Act
         var result = await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, request, TestFamilyUserId);
 
-        // Assert — NextTab directs user back to team selection
-        result.NextTab.Should().Be("Team",
-            "when a team is full, the wizard should send the user back to choose a different team");
-        result.HasFullTeams.Should().BeTrue();
+        // Assert — proceed to payment, which performs the waitlisting
+        result.NextTab.Should().Be("Payment",
+            "a full team now proceeds to payment, which performs the waitlisting");
+        result.TeamResults[0].IsWaitlisted.Should().BeTrue("the player is warned they'll be waitlisted");
+        result.HasFullTeams.Should().BeFalse("full no longer hard-stops the wizard");
     }
 
     // ── Free-event activation (zero-balance) ─────────────────────────────
