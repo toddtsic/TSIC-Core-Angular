@@ -82,12 +82,6 @@
         </label>
         <label class="field-check">
           <input type="checkbox"
-            [ngModel]="bUseWaitlists()"
-            (ngModelChange)="bUseWaitlists.set($event); onFieldChange()" />
-          <span class="field-label">Use Waitlists</span>
-        </label>
-        <label class="field-check">
-          <input type="checkbox"
             [ngModel]="bShowTeamNameOnlyInSchedules()"
             (ngModelChange)="bShowTeamNameOnlyInSchedules.set($event); onFieldChange()" />
           <span class="field-label">Show Team Name Only in Schedules</span>

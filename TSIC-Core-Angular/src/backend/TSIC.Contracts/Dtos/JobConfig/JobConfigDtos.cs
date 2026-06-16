@@ -269,7 +269,6 @@ public record JobConfigTeamsDto
     public required bool? BClubRepAllowAdd { get; init; }
     public required bool? BRestrictPlayerTeamsToAgerange { get; init; }
     public required bool? BTeamPushDirectors { get; init; }
-    public required bool BUseWaitlists { get; init; }
     public required bool BShowTeamNameOnlyInSchedules { get; init; }
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAllowRosterViewPlayer { get; init; }
@@ -289,7 +288,6 @@ public record UpdateJobConfigTeamsRequest
     public required bool? BClubRepAllowAdd { get; init; }
     public required bool? BRestrictPlayerTeamsToAgerange { get; init; }
     public required bool? BTeamPushDirectors { get; init; }
-    public required bool BUseWaitlists { get; init; }
     public required bool BShowTeamNameOnlyInSchedules { get; init; }
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAllowRosterViewPlayer { get; init; }

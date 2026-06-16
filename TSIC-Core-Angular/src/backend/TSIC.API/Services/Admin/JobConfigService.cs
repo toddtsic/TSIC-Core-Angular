@@ -283,7 +283,7 @@ public class JobConfigService : IJobConfigService
         job.BClubRepAllowAdd = req.BClubRepAllowAdd;
         job.BRestrictPlayerTeamsToAgerange = req.BRestrictPlayerTeamsToAgerange;
         job.BTeamPushDirectors = req.BTeamPushDirectors;
-        job.BUseWaitlists = req.BUseWaitlists;
+        // BUseWaitlists is retired — waitlists are mandatory and the column is vestigial.
         job.BShowTeamNameOnlyInSchedules = req.BShowTeamNameOnlyInSchedules;
         job.BAllowRosterViewAdult = req.BAllowRosterViewAdult;
         job.BAllowRosterViewPlayer = req.BAllowRosterViewPlayer;
@@ -703,7 +703,6 @@ public class JobConfigService : IJobConfigService
         BClubRepAllowAdd = job.BClubRepAllowAdd,
         BRestrictPlayerTeamsToAgerange = job.BRestrictPlayerTeamsToAgerange,
         BTeamPushDirectors = job.BTeamPushDirectors,
-        BUseWaitlists = job.BUseWaitlists,
         BShowTeamNameOnlyInSchedules = job.BShowTeamNameOnlyInSchedules,
         BAllowRosterViewAdult = job.BAllowRosterViewAdult,
         BAllowRosterViewPlayer = job.BAllowRosterViewPlayer,
