@@ -14,11 +14,12 @@ export class MenuStateService {
 
     /**
      * Desktop admin sidebar collapsed (icon-rail) vs expanded (labels) state.
-     * Persisted to localStorage; default = expanded (labels visible) for first-time admins.
-     * Write-through in toggleSidebar() — no effect() (Todd's preference).
+     * Persisted to localStorage; default = collapsed (icon rail) for first-time
+     * admins — maximises content width, labels are one click away. Only an explicit
+     * stored 'false' expands it. Write-through in toggleSidebar() — no effect().
      */
     sidebarCollapsed = signal<boolean>(
-        localStorage.getItem(LocalStorageKey.AdminNavCollapsed) === 'true'
+        localStorage.getItem(LocalStorageKey.AdminNavCollapsed) !== 'false'
     );
 
     /** Toggle the desktop admin sidebar collapse state and persist the choice */
