@@ -138,8 +138,9 @@ public class TeamRepository : ITeamRepository
             .Where(t => (t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
             .Where(t => (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
                         && (t.Expireondate == null || t.Expireondate >= now))
-            .Where(t => !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
-                        && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist"))
+            // Waitlist mirror agegroups (WAITLIST - ...) ARE surfaced: a pending player placed on a
+            // full team's $0 twin must see + resume into that agegroup. Only Dropped stays hidden.
+            .Where(t => !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped"))
             .Select(t => new AvailableTeamQueryResult
             {
                 TeamId = t.TeamId,
