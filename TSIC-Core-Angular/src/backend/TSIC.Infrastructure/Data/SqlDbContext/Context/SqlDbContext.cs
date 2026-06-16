@@ -4575,6 +4575,9 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.BRegistrationAllowPlayer)
                 .HasDefaultValue(false)
                 .HasColumnName("bRegistrationAllowPlayer");
+            entity.Property(e => e.BRegistrationAllowRecruiter).HasColumnName("bRegistrationAllowRecruiter");
+            entity.Property(e => e.BRegistrationAllowReferee).HasColumnName("bRegistrationAllowReferee");
+            entity.Property(e => e.BRegistrationAllowStaff).HasColumnName("bRegistrationAllowStaff");
             entity.Property(e => e.BRegistrationAllowTeam)
                 .HasDefaultValue(false)
                 .HasColumnName("bRegistrationAllowTeam");

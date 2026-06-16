@@ -312,6 +312,9 @@ public class JobConfigService : IJobConfigService
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
+        job.BRegistrationAllowStaff = req.BRegistrationAllowStaff;
+        job.BRegistrationAllowReferee = req.BRegistrationAllowReferee;
+        job.BRegistrationAllowRecruiter = req.BRegistrationAllowRecruiter;
         job.RegformNameCoach = req.RegformNameCoach;
         job.AdultRegConfirmationEmail = req.AdultRegConfirmationEmail;
         job.AdultRegConfirmationOnScreen = req.AdultRegConfirmationOnScreen;
@@ -710,6 +713,9 @@ public class JobConfigService : IJobConfigService
 
     private static JobConfigCoachesDto MapCoaches(Jobs job) => new()
     {
+        BRegistrationAllowStaff = job.BRegistrationAllowStaff,
+        BRegistrationAllowReferee = job.BRegistrationAllowReferee,
+        BRegistrationAllowRecruiter = job.BRegistrationAllowRecruiter,
         RegformNameCoach = job.RegformNameCoach,
         AdultRegConfirmationEmail = job.AdultRegConfirmationEmail,
         AdultRegConfirmationOnScreen = job.AdultRegConfirmationOnScreen,

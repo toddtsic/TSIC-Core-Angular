@@ -1,6 +1,58 @@
 @if (svc.coaches()) {
   <div class="tab-panel">
     <div class="form-section">
+      <h6 class="section-title"><i class="bi bi-toggles me-2"></i>Registration Availability</h6>
+
+      <div class="toggle-row" [class.is-on]="bRegistrationAllowStaff()" [class.is-off]="!bRegistrationAllowStaff()">
+        <label class="toggle-control">
+          <input type="checkbox"
+            [ngModel]="bRegistrationAllowStaff()"
+            (ngModelChange)="bRegistrationAllowStaff.set($event); onFieldChange()" />
+          <span class="field-label">Allow Staff/Coach Registration</span>
+        </label>
+        <span class="toggle-tip">
+          @if (bRegistrationAllowStaff()) {
+            Staff/coach registration is enabled — coaches and staff can register.
+          } @else {
+            Staff/coach registration is disabled — coaches and staff cannot register.
+          }
+        </span>
+      </div>
+
+      <div class="toggle-row" [class.is-on]="bRegistrationAllowReferee()" [class.is-off]="!bRegistrationAllowReferee()">
+        <label class="toggle-control">
+          <input type="checkbox"
+            [ngModel]="bRegistrationAllowReferee()"
+            (ngModelChange)="bRegistrationAllowReferee.set($event); onFieldChange()" />
+          <span class="field-label">Allow Referee Registration</span>
+        </label>
+        <span class="toggle-tip">
+          @if (bRegistrationAllowReferee()) {
+            Referee registration is enabled — referees can register.
+          } @else {
+            Referee registration is disabled — referees cannot register.
+          }
+        </span>
+      </div>
+
+      <div class="toggle-row" [class.is-on]="bRegistrationAllowRecruiter()" [class.is-off]="!bRegistrationAllowRecruiter()">
+        <label class="toggle-control">
+          <input type="checkbox"
+            [ngModel]="bRegistrationAllowRecruiter()"
+            (ngModelChange)="bRegistrationAllowRecruiter.set($event); onFieldChange()" />
+          <span class="field-label">Allow College Recruiter Registration</span>
+        </label>
+        <span class="toggle-tip">
+          @if (bRegistrationAllowRecruiter()) {
+            College recruiter registration is enabled — recruiters can register.
+          } @else {
+            College recruiter registration is disabled — recruiters cannot register.
+          }
+        </span>
+      </div>
+    </div>
+
+    <div class="form-section">
       <h6 class="section-title"><i class="bi bi-clipboard-check me-2"></i>Coach Settings</h6>
       <div class="row g-2">
         <div class="col-md-6">

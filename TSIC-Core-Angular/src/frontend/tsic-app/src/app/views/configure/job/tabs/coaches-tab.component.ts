@@ -19,6 +19,9 @@ export class CoachesTabComponent implements OnInit {
   readonly rteTools = JOB_CONFIG_RTE_TOOLS;
   readonly rteHeight = JOB_CONFIG_RTE_HEIGHT;
 
+  bRegistrationAllowStaff = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowStaff ?? null);
+  bRegistrationAllowReferee = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowReferee ?? null);
+  bRegistrationAllowRecruiter = linkedSignal(() => this.svc.coaches()?.bRegistrationAllowRecruiter ?? null);
   regformNameCoach = linkedSignal(() => this.svc.coaches()?.regformNameCoach ?? '');
   adultRegConfirmationEmail = linkedSignal(() => this.svc.coaches()?.adultRegConfirmationEmail ?? null);
   adultRegConfirmationOnScreen = linkedSignal(() => this.svc.coaches()?.adultRegConfirmationOnScreen ?? null);
@@ -34,6 +37,9 @@ export class CoachesTabComponent implements OnInit {
     const c = this.svc.coaches();
     if (!c) return '';
     return JSON.stringify({
+      bRegistrationAllowStaff: c.bRegistrationAllowStaff,
+      bRegistrationAllowReferee: c.bRegistrationAllowReferee,
+      bRegistrationAllowRecruiter: c.bRegistrationAllowRecruiter,
       regformNameCoach: c.regformNameCoach,
       adultRegConfirmationEmail: c.adultRegConfirmationEmail,
       adultRegConfirmationOnScreen: c.adultRegConfirmationOnScreen,
@@ -71,6 +77,9 @@ export class CoachesTabComponent implements OnInit {
 
   private buildPayload(): UpdateJobConfigCoachesRequest {
     return {
+      bRegistrationAllowStaff: this.bRegistrationAllowStaff(),
+      bRegistrationAllowReferee: this.bRegistrationAllowReferee(),
+      bRegistrationAllowRecruiter: this.bRegistrationAllowRecruiter(),
       regformNameCoach: this.regformNameCoach(),
       adultRegConfirmationEmail: this.adultRegConfirmationEmail(),
       adultRegConfirmationOnScreen: this.adultRegConfirmationOnScreen(),

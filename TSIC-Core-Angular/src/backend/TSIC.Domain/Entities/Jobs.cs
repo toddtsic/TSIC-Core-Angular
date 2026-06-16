@@ -249,6 +249,12 @@ public partial class Jobs
 
     public bool BIncludeTeamDonation { get; set; }
 
+    public bool? BRegistrationAllowStaff { get; set; }
+
+    public bool? BRegistrationAllowReferee { get; set; }
+
+    public bool? BRegistrationAllowRecruiter { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();

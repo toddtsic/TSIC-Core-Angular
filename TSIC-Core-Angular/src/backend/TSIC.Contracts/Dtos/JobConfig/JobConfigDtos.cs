@@ -304,6 +304,9 @@ public record UpdateJobConfigTeamsRequest
 
 public record JobConfigCoachesDto
 {
+    public required bool? BRegistrationAllowStaff { get; init; }
+    public required bool? BRegistrationAllowReferee { get; init; }
+    public required bool? BRegistrationAllowRecruiter { get; init; }
     public required string RegformNameCoach { get; init; }
     public required string? AdultRegConfirmationEmail { get; init; }
     public required string? AdultRegConfirmationOnScreen { get; init; }
@@ -318,6 +321,9 @@ public record JobConfigCoachesDto
 
 public record UpdateJobConfigCoachesRequest
 {
+    public required bool? BRegistrationAllowStaff { get; init; }
+    public required bool? BRegistrationAllowReferee { get; init; }
+    public required bool? BRegistrationAllowRecruiter { get; init; }
     public required string RegformNameCoach { get; init; }
     public required string? AdultRegConfirmationEmail { get; init; }
     public required string? AdultRegConfirmationOnScreen { get; init; }

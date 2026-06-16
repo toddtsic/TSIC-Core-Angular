@@ -3,6 +3,9 @@
 /* tslint:disable */
 /* eslint-disable */
 export type JobConfigCoachesDto = {
+    bRegistrationAllowStaff: boolean | null;
+    bRegistrationAllowReferee: boolean | null;
+    bRegistrationAllowRecruiter: boolean | null;
     regformNameCoach: string;
     adultRegConfirmationEmail: string | null;
     adultRegConfirmationOnScreen: string | null;
