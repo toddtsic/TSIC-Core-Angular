@@ -62,7 +62,7 @@ public class EcheckTeamPaymentServiceTests
         return new PaymentService(
             _jobs.Object, _regRepo.Object, _teams.Object, _families.Object, _acct.Object,
             _adn.Object, _feeService.Object, _teamLookup.Object, _feeAdj.Object, _settleRepo.Object,
-            _logger.Object, _paymentState.Object);
+            _logger.Object, _paymentState.Object, new Mock<ITeamPlacementService>().Object);
     }
 
     private void StubJobAndCreds(Guid regId, Guid jobId, bool enableEcheck = true)

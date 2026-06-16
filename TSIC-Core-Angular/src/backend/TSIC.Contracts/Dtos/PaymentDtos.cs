@@ -90,6 +90,18 @@ public record PaymentResponseDto
     public List<Guid>? FailedSubscriptionIds { get; init; }
     // Indicates that at least one subscription succeeded while others failed.
     public bool PartialSuccess => SubscriptionIds != null && SubscriptionIds.Count > 0 && FailedSubscriptionIds != null && FailedSubscriptionIds.Count > 0;
+
+    // Players whose team filled up before this payment landed: they were moved to the WAITLIST
+    // twin at $0 and NOT charged, while the seatable players in the same cart were charged. The
+    // confirmation screen surfaces these so the family is told plainly which kids were waitlisted.
+    public List<PaymentWaitlistedDto>? NeedsWaitlist { get; init; }
+}
+
+// One waitlisted player in a partially-charged cart: moved to the waitlist twin at $0, not charged.
+public sealed record PaymentWaitlistedDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required string TeamName { get; init; }
 }
 
 // One row in the canonical-CC-charge input: which registration to charge, how much.

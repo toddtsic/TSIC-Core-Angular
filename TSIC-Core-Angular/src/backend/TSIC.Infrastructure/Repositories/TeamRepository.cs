@@ -502,16 +502,20 @@ public class TeamRepository : ITeamRepository
 
     public async Task<int> GetAssignedPlayerCountAsync(Guid teamId, CancellationToken cancellationToken = default)
     {
-        // Capacity count: active + inactive (pending) PLAYERS assigned to the team.
-        // Distinct from GetPlayerCountAsync (active-only — feeds LADT delete-eligibility
-        // and display). No BActive filter so a pending registrant consumes a spot (Todd:
-        // "max must include pending"); role-filtered so staff dropped on a team via the
-        // swapper never inflate roster capacity. Mirrors GetRosterCountsByTeamAsync so the
-        // picker gate, the PreSubmit seed, and the overflow decision all agree.
+        // Capacity count: confirmed members + in-flight reservations (PLAYERS) on the team.
+        // A seat counts when BActive=1 (paid/check/free — forever) OR it is a provisional
+        // reservation still inside the hold window (RegistrationTs > cutoff); an abandoned
+        // cart past the window stops counting so its seat frees itself. Distinct from
+        // GetPlayerCountAsync (active-only — feeds LADT delete-eligibility and display).
+        // Role-filtered so staff dropped on a team via the swapper never inflate roster
+        // capacity. Mirrors GetRosterCountsByTeamAsync so the picker gate, the PreSubmit
+        // seed, and the overflow decision all agree.
+        var cutoff = SeatHoldPolicy.Cutoff();
         return await _context.Registrations
             .AsNoTracking()
             .CountAsync(
-                r => r.AssignedTeamId == teamId && r.RoleId == RoleConstants.Player,
+                r => r.AssignedTeamId == teamId && r.RoleId == RoleConstants.Player
+                  && (r.BActive == true || r.RegistrationTs > cutoff),
                 cancellationToken);
     }
 

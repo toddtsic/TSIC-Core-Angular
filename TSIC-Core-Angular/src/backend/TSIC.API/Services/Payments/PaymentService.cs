@@ -30,6 +30,7 @@ public class PaymentService : IPaymentService
     private readonly IRegistrationFeeAdjustmentService _feeAdj;
     private readonly IEcheckSettlementRepository _settleRepo;
     private readonly IPaymentStateService _paymentState;
+    private readonly ITeamPlacementService _placement;
 
     // Well-known E-Check Payment method GUID (matches production seed data).
     private static readonly Guid EcheckPaymentMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
@@ -38,7 +39,7 @@ public class PaymentService : IPaymentService
 
     private sealed record JobInfo(bool? AdnArb, int? AdnArbbillingOccurences, int? AdnArbintervalLength, DateTime? AdnArbstartDate, bool AllowPif, bool BPlayersFullPaymentRequired, bool BEnableEcheck);
 
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPaymentStateService paymentState)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPaymentStateService paymentState, ITeamPlacementService placement)
     {
         _jobs = jobs;
         _registrations = registrations;
@@ -52,11 +53,12 @@ public class PaymentService : IPaymentService
         _settleRepo = settleRepo;
         _logger = logger;
         _paymentState = paymentState;
+        _placement = placement;
     }
 
     // Extended constructor adding confirmation + email services; preserves backward compatibility with tests using the original signature.
-    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPaymentStateService paymentState, IPlayerRegConfirmationService confirmation, IEmailService email)
-        : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, feeAdj, settleRepo, logger, paymentState)
+    public PaymentService(IJobRepository jobs, IRegistrationRepository registrations, ITeamRepository teams, IFamiliesRepository families, IRegistrationAccountingRepository acct, IAdnApiService adnApiService, IFeeResolutionService feeService, ITeamLookupService teamLookup, IRegistrationFeeAdjustmentService feeAdj, IEcheckSettlementRepository settleRepo, ILogger<PaymentService> logger, IPaymentStateService paymentState, ITeamPlacementService placement, IPlayerRegConfirmationService confirmation, IEmailService email)
+        : this(jobs, registrations, teams, families, acct, adnApiService, feeService, teamLookup, feeAdj, settleRepo, logger, paymentState, placement)
     {
         _confirmation = confirmation;
         _email = email;
@@ -996,6 +998,56 @@ public class PaymentService : IPaymentService
         };
 
     /// <summary>
+    /// Split the cart BEFORE charging: keep the players who still have a seat, and move the players
+    /// whose team filled up while the family was checking out to the WAITLIST twin at $0 — those are
+    /// NOT charged. Only NEW player seats are gated: an already-confirmed reg (balance payer) owns
+    /// its seat, and non-players / team-less regs are untouched. A bounced player is re-priced onto
+    /// the twin's $0 fee through the existing swap engine (<see cref="IFeeResolutionService.ApplySwapFeesAsync"/>,
+    /// the same path the roster swapper uses), dropped from <paramref name="registrations"/> so the
+    /// charge never sees it, and returned for the response's NeedsWaitlist bucket. Mutates
+    /// <paramref name="registrations"/> in place. Seat availability is the read-only
+    /// <see cref="IRegistrationRepository.IsSeatAvailableAsync"/> (confirmed members vs MaxCount).
+    /// </summary>
+    private async Task<List<PaymentWaitlistedDto>> WaitlistFullTeamPlayersAsync(
+        Guid jobId, string familyUserId, List<Registrations> registrations, CancellationToken ct = default)
+    {
+        var bounced = new List<PaymentWaitlistedDto>();
+        var drop = new List<Registrations>();
+        foreach (var reg in registrations)
+        {
+            if (reg.BActive == true || reg.RoleId != RoleConstants.Player || reg.AssignedTeamId is not { } teamId)
+                continue;
+            if (await _registrations.IsSeatAvailableAsync(reg, ct))
+                continue; // seat still there — stays in the charge set
+
+            var placement = await _placement.ResolveRosterPlacementAsync(jobId, teamId, familyUserId, ct);
+            if (placement is { IsWaitlisted: true })
+            {
+                var twin = await _teams.GetTeamFromTeamId(placement.TeamId, ct);
+                reg.AssignedTeamId = placement.TeamId;
+                reg.Assignment = $"Player: {placement.WaitlistTeamName}";
+                if (twin != null)
+                {
+                    await _feeService.ApplySwapFeesAsync(
+                        reg, jobId, twin.AgegroupId, placement.TeamId,
+                        new FeeApplicationContext { IsFullPaymentRequired = false }, ct);
+                }
+                reg.Modified = DateTime.Now;
+                await _registrations.SaveChangesAsync(ct);
+                bounced.Add(new PaymentWaitlistedDto
+                {
+                    RegistrationId = reg.RegistrationId,
+                    TeamName = placement.WaitlistTeamName ?? string.Empty
+                });
+                drop.Add(reg); // never charge a player we just moved to the waitlist
+            }
+            // else: placement found a seat after all — leave the reg in the charge set.
+        }
+        foreach (var d in drop) registrations.Remove(d);
+        return bounced;
+    }
+
+    /// <summary>
     /// Overload that accepts jobId and familyUserId extracted from JWT claims.
     /// Creates a temporary request with these values to delegate to existing validation logic.
     /// </summary>
@@ -1027,6 +1079,18 @@ public class PaymentService : IPaymentService
         await NormalizeFeesAsync(registrations, jobId);
         if (effective == PaymentOption.ARB)
             return await ProcessArbAsync(jobId, familyUserId, internalRequest, userId, registrations, job, cc);
+
+        // Split the cart: players whose team filled up while the family checked out are moved to the
+        // waitlist twin at $0 (not charged); the seatable players continue to the charge below.
+        var needsWaitlist = await WaitlistFullTeamPlayersAsync(jobId, familyUserId, registrations);
+        if (registrations.Count == 0)
+            return new PaymentResponseDto
+            {
+                Success = true,
+                Message = "Those teams just filled up — the players were placed on the waitlist. No payment was taken.",
+                NeedsWaitlist = needsWaitlist
+            };
+
         // Optional donation: the gift lands on ONE primary registration (the first in the
         // charge set) and is charged in full — principal + processing — WITH this payment.
         var donation = internalRequest.Donation ?? 0m;
@@ -1075,7 +1139,8 @@ public class PaymentService : IPaymentService
             charges[primary!.RegistrationId] = charges.GetValueOrDefault(primary.RegistrationId) + donationGross;
         var total = charges.Values.Sum();
         if (total <= 0m) return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
-        return await ExecutePrimaryChargeAsync(jobId, familyUserId, internalRequest, userId, registrations, cc, charges, total, effective, pifSnapshot, internalRequest.ExpectedTotal);
+        var resp = await ExecutePrimaryChargeAsync(jobId, familyUserId, internalRequest, userId, registrations, cc, charges, total, effective, pifSnapshot, internalRequest.ExpectedTotal);
+        return needsWaitlist.Count > 0 ? resp with { NeedsWaitlist = needsWaitlist } : resp;
     }
 
     /// <summary>
@@ -1096,6 +1161,17 @@ public class PaymentService : IPaymentService
         var bank = v.Bank!;
         var effective = v.Effective;
         await NormalizeFeesAsync(registrations, jobId);
+
+        // Split the cart: players whose team filled up are moved to the waitlist twin at $0 (not
+        // charged); the seatable players continue to the eCheck debit below.
+        var needsWaitlist = await WaitlistFullTeamPlayersAsync(jobId, familyUserId, registrations);
+        if (registrations.Count == 0)
+            return new PaymentResponseDto
+            {
+                Success = true,
+                Message = "Those teams just filled up — the players were placed on the waitlist. No payment was taken.",
+                NeedsWaitlist = needsWaitlist
+            };
 
         // Optional donation: same model as the CC path — the gift lands on ONE primary
         // registration and is charged in full (principal + proc) with this eCheck.
@@ -1138,7 +1214,8 @@ public class PaymentService : IPaymentService
         var total = charges.Values.Sum();
         if (total <= 0m)
             return Fail("Nothing due for selected registrations.", "NOTHING_DUE");
-        return await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges, pifSnapshot, request.ExpectedTotal);
+        var resp = await ExecuteEcheckChargeAsync(jobId, familyUserId, request, userId, registrations, bank, charges, pifSnapshot, request.ExpectedTotal);
+        return needsWaitlist.Count > 0 ? resp with { NeedsWaitlist = needsWaitlist } : resp;
     }
 
     private async Task<(PaymentResponseDto? Response, JobInfo? Job, List<Registrations>? Registrations, BankAccountInfo? Bank, PaymentOption Effective)> ValidateEcheckPaymentRequestAsync(Guid jobId, string familyUserId, PaymentRequestDto request)

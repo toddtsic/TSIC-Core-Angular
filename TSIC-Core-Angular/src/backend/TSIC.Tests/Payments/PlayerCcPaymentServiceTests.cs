@@ -9,6 +9,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Tests.Payments;
@@ -43,6 +44,7 @@ public class PlayerCcPaymentServiceTests
     private readonly Mock<IRegistrationFeeAdjustmentService> _feeAdj = new();
     private readonly Mock<IEcheckSettlementRepository> _settleRepo = new();
     private readonly Mock<IPaymentStateService> _paymentState = new();
+    private readonly Mock<ITeamPlacementService> _placement = new();
     private readonly Mock<ILogger<PaymentService>> _logger = new();
 
     private PaymentService BuildSut()
@@ -61,7 +63,7 @@ public class PlayerCcPaymentServiceTests
         return new PaymentService(
             _jobs.Object, _regRepo.Object, _teams.Object, _families.Object, _acct.Object,
             _adn.Object, _feeService.Object, _teamLookup.Object, _feeAdj.Object, _settleRepo.Object,
-            _logger.Object, _paymentState.Object);
+            _logger.Object, _paymentState.Object, _placement.Object);
     }
 
     private void StubJobAndCreds(Guid jobId, bool allowPif = true)
@@ -477,5 +479,89 @@ public class PlayerCcPaymentServiceTests
                 It.IsAny<Registrations>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
                 It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    // ── Roster-max guarantee: split the cart before charging ────────────────────
+    // A player whose team fills up while the family is checking out must NOT be charged.
+    // The seatable players in the same cart ARE charged; the seat-gone player is moved to
+    // the WAITLIST twin at $0 (existing swap engine) and surfaced in NeedsWaitlist.
+
+    [Fact(DisplayName = "Mixed cart: seated player charged, seat-gone player NOT charged → waitlisted at $0 + surfaced")]
+    public async Task MixedCart_SeatGonePlayer_NotCharged_Waitlisted()
+    {
+        var jobId = Guid.NewGuid();
+        var regSeated = Reg(jobId, owed: 250m); regSeated.RoleId = RoleConstants.Player;
+        var regGone = Reg(jobId, owed: 250m); regGone.RoleId = RoleConstants.Player;
+        var goneTeamId = regGone.AssignedTeamId!.Value;
+        var waitlistTeamId = Guid.NewGuid();
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, regSeated, regGone);
+        StubAdnSuccess();
+
+        // The seated player still has a seat; the other's team filled up first.
+        _regRepo.Setup(r => r.IsSeatAvailableAsync(regSeated, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _regRepo.Setup(r => r.IsSeatAvailableAsync(regGone, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        // The placement service finds-or-creates the waitlist twin for the full team.
+        _placement.Setup(p => p.ResolveRosterPlacementAsync(jobId, goneTeamId, FamilyUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RosterPlacementResult { TeamId = waitlistTeamId, IsWaitlisted = true, WaitlistTeamName = "WAITLIST U12" });
+        _teams.Setup(t => t.GetTeamFromTeamId(waitlistTeamId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Teams { TeamId = waitlistTeamId, AgegroupId = Guid.NewGuid() });
+        // The swap engine re-prices the moved player to $0 (the twin's $0 fee).
+        _feeService.Setup(f => f.ApplySwapFeesAsync(
+                regGone, jobId, It.IsAny<Guid>(), waitlistTeamId, It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()))
+            .Callback<Registrations, Guid, Guid, Guid, FeeApplicationContext, CancellationToken>((reg, _, _, _, _, _) =>
+            {
+                reg.FeeBase = 0m; reg.FeeTotal = 0m; reg.OwedTotal = 0m;
+            })
+            .Returns(Task.CompletedTask);
+        var sut = BuildSut();
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, PifReq(), ActingUserId);
+
+        result.Success.Should().BeTrue();
+        // Seated player is charged and confirmed.
+        regSeated.PaidTotal.Should().Be(250m);
+        regSeated.OwedTotal.Should().Be(0m);
+        regSeated.BActive.Should().BeTrue();
+        // Seat-gone player is moved to the waitlist twin at $0 and never charged.
+        regGone.PaidTotal.Should().Be(0m, "a player with no seat must NOT be charged");
+        regGone.AssignedTeamId.Should().Be(waitlistTeamId);
+        regGone.OwedTotal.Should().Be(0m, "waitlist twin re-prices the moved player to $0");
+        // Exactly ONE gateway hit — only the seated player.
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Once);
+        // The bounced player is surfaced so the family is told plainly.
+        result.NeedsWaitlist.Should().NotBeNull();
+        result.NeedsWaitlist!.Should().ContainSingle()
+            .Which.Should().Match<PaymentWaitlistedDto>(w => w.RegistrationId == regGone.RegistrationId && w.TeamName == "WAITLIST U12");
+    }
+
+    [Fact(DisplayName = "Whole cart's teams full: nothing charged, all waitlisted, success with no gateway hit")]
+    public async Task WholeCartFull_NothingCharged_AllWaitlisted()
+    {
+        var jobId = Guid.NewGuid();
+        var regGone = Reg(jobId, owed: 250m); regGone.RoleId = RoleConstants.Player;
+        var goneTeamId = regGone.AssignedTeamId!.Value;
+        var waitlistTeamId = Guid.NewGuid();
+        StubJobAndCreds(jobId);
+        StubRegs(jobId, regGone);
+        StubAdnSuccess(); // stubbed but must never be reached
+
+        _regRepo.Setup(r => r.IsSeatAvailableAsync(regGone, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _placement.Setup(p => p.ResolveRosterPlacementAsync(jobId, goneTeamId, FamilyUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new RosterPlacementResult { TeamId = waitlistTeamId, IsWaitlisted = true, WaitlistTeamName = "WAITLIST U10" });
+        _teams.Setup(t => t.GetTeamFromTeamId(waitlistTeamId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Teams { TeamId = waitlistTeamId, AgegroupId = Guid.NewGuid() });
+        _feeService.Setup(f => f.ApplySwapFeesAsync(
+                regGone, jobId, It.IsAny<Guid>(), waitlistTeamId, It.IsAny<FeeApplicationContext>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var sut = BuildSut();
+
+        var result = await sut.ProcessPaymentAsync(jobId, FamilyUserId, PifReq(), ActingUserId);
+
+        result.Success.Should().BeTrue("no charge was taken, but the players were placed on the waitlist");
+        result.NeedsWaitlist.Should().ContainSingle().Which.RegistrationId.Should().Be(regGone.RegistrationId);
+        regGone.PaidTotal.Should().Be(0m);
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never,
+            "no card may be charged when the whole cart's teams have filled up");
     }
 }

@@ -28,8 +28,8 @@ public interface ITeamPlacementService
 
     /// <summary>
     /// Resolve where a player should be rostered when a team is full.
-    /// If BUseWaitlists=true, finds-or-creates WAITLIST agegroup + division + team mirror.
-    /// Uses the same WAITLIST agegroup/division as ResolvePlacementAsync (idempotent).
+    /// Waitlists are mandatory, so a full team always finds-or-creates the WAITLIST
+    /// agegroup + division + team mirror. Idempotent (same mirror as ResolvePlacementAsync).
     /// </summary>
     Task<RosterPlacementResult> ResolveRosterPlacementAsync(
         Guid jobId,
@@ -40,7 +40,7 @@ public interface ITeamPlacementService
     /// <summary>
     /// Proactively ensure the WAITLIST team mirror exists for a real team that has just
     /// reached its roster max — minted at fill time so the picker can offer the twin the
-    /// instant the real team fills. Gated on the job's BUseWaitlists flag (no-op otherwise),
+    /// instant the real team fills. Waitlists are mandatory, so this always mints;
     /// performs no capacity check, and is idempotent: find-or-creates the WAITLIST agegroup +
     /// division + mirror team and its $0 fee stamp. Safe to call from any post-commit fill
     /// path (registration submit, roster swapper).

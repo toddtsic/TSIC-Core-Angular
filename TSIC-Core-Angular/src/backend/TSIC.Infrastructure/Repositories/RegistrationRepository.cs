@@ -580,17 +580,126 @@ public class RegistrationRepository : IRegistrationRepository
         IReadOnlyCollection<Guid> teamIds,
         CancellationToken cancellationToken = default)
     {
-        // Capacity count per team: active + inactive (pending) PLAYERS. Role-filtered so
-        // staff dropped on a team via the swapper don't inflate player capacity; no BActive
-        // filter so pending counts (Todd: "max must include pending"). Canonical source for
-        // the picker's rosterFull AND the PreSubmit capacity seed, so both agree with the
-        // overflow decision (GetAssignedPlayerCountAsync).
+        // Capacity count per team: confirmed members + in-flight reservations (PLAYERS).
+        // A seat counts when BActive=1 (paid/check/free — forever) OR it is a provisional
+        // reservation still inside the hold window (RegistrationTs > cutoff). An abandoned
+        // cart past the window stops counting so its seat frees itself. Role-filtered so
+        // staff dropped on a team via the swapper don't inflate player capacity. Canonical
+        // source for the picker's rosterFull AND the PreSubmit capacity seed, so both agree
+        // with the overflow decision (GetAssignedPlayerCountAsync). Cutoff is a captured
+        // value → sent to SQL as a parameter, so every row measures against the same instant.
+        var cutoff = SeatHoldPolicy.Cutoff();
         return await _context.Registrations
             .Where(r => r.AssignedTeamId != null && teamIds.Contains(r.AssignedTeamId.Value)
-                     && r.RoleId == RoleConstants.Player)
+                     && r.RoleId == RoleConstants.Player
+                     && (r.BActive == true || r.RegistrationTs > cutoff))
             .GroupBy(r => r.AssignedTeamId!.Value)
             .Select(g => new { TeamId = g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.TeamId, x => x.Count, cancellationToken);
+    }
+
+    public async Task<bool> TryCommitSeatAsync(
+        Registrations reg, CancellationToken cancellationToken = default)
+    {
+        // Atomically commit a player registration to a confirmed roster seat (BActive=true) —
+        // but ONLY if the team has room: "hold a roster spot only if one is available." This is
+        // THE guarded bActive→1 transition (pay-by-check, free $0, and the claim-then-charge step
+        // of card/eCheck payment). Returns true when committed (or already active — idempotent),
+        // false when the team is full so the caller routes the registrant to the waitlist.
+        //
+        // The gate counts CONFIRMED MEMBERS only (BActive=1), EXCLUDING this registration; an
+        // unlimited team (MaxCount <= 0) always has room. Confirmed-only is the correct guarantee:
+        // it makes "confirmed members never exceed MaxCount" an invariant, and — unlike counting
+        // live holds here — it does not let two families' in-flight holds on the last seat block
+        // each other (which would reject BOTH). Within-window holds still drive the picker/PreSubmit
+        // capacity (display + early routing); they just don't gate the final commit. So the first
+        // of two racers to reach commit wins the seat; the second gets false → waitlist.
+        //
+        // Serializable isolation makes the count-then-commit indivisible, so two simultaneous
+        // commits on the last seat cannot both pass — the loser waits, re-counts, and gets false
+        // (mirrors ScheduleRepository.ExecuteWeatherAdjustmentAsync). A lock-conversion deadlock
+        // (SQL 1205) on a contended seat is retried once; Serializable is the primary guarantee,
+        // the retry is the backstop. Pending field changes on the tracked reg are persisted in
+        // the same transaction, so callers must leave only this reg dirty when calling.
+        if (reg.AssignedTeamId is not { } teamId)
+        {
+            // No team to gate against — nothing to oversubscribe. Commit straight through.
+            reg.BActive = true;
+            await _context.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
+        var maxCount = await _context.Teams
+            .Where(t => t.TeamId == teamId)
+            .Select(t => t.MaxCount)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        for (var attempt = 0; ; attempt++)
+        {
+            try
+            {
+                await using var tx = await _context.Database.BeginTransactionAsync(
+                    System.Data.IsolationLevel.Serializable, cancellationToken);
+
+                // Gate only a genuinely new commit on a capacity-limited team. An already-active
+                // reg (idempotent re-submit) and an unlimited team (MaxCount <= 0, e.g. the
+                // WAITLIST twin) skip the count and commit straight through.
+                if (reg.BActive != true && maxCount > 0)
+                {
+                    var confirmedMembers = await _context.Registrations.CountAsync(
+                        r => r.AssignedTeamId == teamId
+                          && r.RegistrationId != reg.RegistrationId
+                          && r.RoleId == RoleConstants.Player
+                          && r.BActive == true,
+                        cancellationToken);
+
+                    if (confirmedMembers >= maxCount)
+                    {
+                        await tx.RollbackAsync(cancellationToken);
+                        return false;
+                    }
+                }
+
+                reg.BActive = true;
+                await _context.SaveChangesAsync(cancellationToken);
+                await tx.CommitAsync(cancellationToken);
+                return true;
+            }
+            catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 1205 && attempt == 0)
+            {
+                // Deadlock victim on a contended seat — retry once; the re-count resolves it.
+            }
+        }
+    }
+
+    public async Task<bool> IsSeatAvailableAsync(
+        Registrations reg, CancellationToken cancellationToken = default)
+    {
+        // Read-only sibling of TryCommitSeatAsync answering "will the finalize guard seat this
+        // reg?" Used to PARTITION a payment cart BEFORE charging: a player whose seat is gone is
+        // dropped from the charge set (never charged) and surfaced as needs-waitlist, while the
+        // seatable players are charged. Mirrors the guard's decision EXACTLY — confirmed members
+        // only (BActive=1), excluding self; an unlimited team (MaxCount <= 0, incl. the waitlist
+        // twin) always has room; an already-active reg owns its seat — so the pre-charge prediction
+        // agrees with the post-charge commit. No write, no transaction: a point-in-time read. The
+        // authoritative overfill guard remains TryCommitSeatAsync at finalize; in the rare instant
+        // where two carts both pass this read for the last seat, that guard still lets only one in.
+        if (reg.BActive == true) return true;
+        if (reg.AssignedTeamId is not { } teamId) return true;
+
+        var maxCount = await _context.Teams
+            .Where(t => t.TeamId == teamId)
+            .Select(t => t.MaxCount)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (maxCount <= 0) return true;
+
+        var confirmedMembers = await _context.Registrations.CountAsync(
+            r => r.AssignedTeamId == teamId
+              && r.RegistrationId != reg.RegistrationId
+              && r.RoleId == RoleConstants.Player
+              && r.BActive == true,
+            cancellationToken);
+        return confirmedMembers < maxCount;
     }
 
     public async Task<List<EligibleInsuranceRegistration>> GetEligibleInsuranceRegistrationsAsync(

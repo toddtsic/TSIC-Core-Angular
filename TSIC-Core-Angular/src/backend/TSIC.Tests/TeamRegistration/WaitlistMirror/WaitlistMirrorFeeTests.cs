@@ -28,11 +28,12 @@ namespace TSIC.Tests.TeamRegistration.WaitlistMirror;
 ///   - GetAssignedPlayerCountAsync = active + pending PLAYERS, excluding staff.
 ///   - Mint is idempotent — a second overflow reuses the twin and its single $0 row.
 ///   - EnsureWaitlistMirrorAsync mints proactively with NO capacity check (mint-on-fill).
-///   - A job that does not use waitlists hard-stops at "Team roster is full".
+///
+/// Waitlists are now MANDATORY for every job, so there is no "does not use waitlists"
+/// hard-stop path to test — a full team always routes to its twin.
 ///
 /// Hybrid: real AgeGroup/Division/Team/Fee repositories (in-memory DB, so the
-/// minted mirror + its $0 row persist and re-resolve) + mocked IJobRepository
-/// (controls the BUseWaitlists flag).
+/// minted mirror + its $0 row persist and re-resolve) + mocked IJobRepository.
 /// </summary>
 public class WaitlistMirrorFeeTests
 {
@@ -44,7 +45,6 @@ public class WaitlistMirrorFeeTests
         Agegroups agegroup)>
         CreateAsync(
             int maxCount = 1,
-            bool usesWaitlists = true,
             int activePlayers = 0,
             int pendingPlayers = 0,
             int staff = 0)
@@ -52,7 +52,7 @@ public class WaitlistMirrorFeeTests
         var ctx = DbContextFactory.Create();
         var builder = new RegistrationDataBuilder(ctx);
 
-        var job = builder.AddJob(bUseWaitlists: usesWaitlists);
+        var job = builder.AddJob();
         var league = builder.AddLeague(job.JobId);
         var ag = builder.AddAgegroup(league.LeagueId, maxTeams: 100, name: "Boys U14");
         var div = builder.AddDivision(ag.AgegroupId, "Division A");
@@ -71,7 +71,7 @@ public class WaitlistMirrorFeeTests
         var jobRepo = new Mock<IJobRepository>();
         jobRepo
             .Setup(j => j.GetUsesWaitlistsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(usesWaitlists);
+            .ReturnsAsync(true); // waitlists are mandatory
 
         var svc = new TeamPlacementService(
             jobRepo.Object,
@@ -92,6 +92,11 @@ public class WaitlistMirrorFeeTests
         FamilyUserId = "fam-test",
         RoleId = roleId,
         BActive = bActive,
+        // Fresh in-flight reservation: a pending reg counts toward capacity only while its
+        // RegistrationTs is inside the hold window (SeatHoldPolicy). Stamp "now" so these
+        // pending-consumes-a-spot cases exercise the within-window path; a LAPSED pending
+        // reg (old timestamp) no longer counts — covered by its own test.
+        RegistrationTs = DateTime.Now,
         Modified = DateTime.UtcNow,
     };
 
@@ -197,29 +202,5 @@ public class WaitlistMirrorFeeTests
             .GetResolvedFeeAsync(jobId, RoleConstants.Player, twin.AgegroupId, twin.TeamId);
         resolved!.FeeConfigured.Should().BeTrue();
         resolved.EffectiveBalanceDue.Should().Be(0m);
-    }
-
-    [Fact(DisplayName = "EnsureWaitlistMirrorAsync on a non-waitlist job is a no-op (mints nothing)")]
-    public async Task EnsureWaitlistMirror_NonWaitlistJob_NoOp()
-    {
-        var (svc, ctx, jobId, realTeam, _) = await CreateAsync(maxCount: 10, usesWaitlists: false);
-
-        await svc.EnsureWaitlistMirrorAsync(jobId, realTeam.TeamId);
-
-        (await ctx.Teams.AnyAsync(t => t.TeamName == "WAITLIST - Hawks"))
-            .Should().BeFalse("BUseWaitlists is OFF — no mirror should exist");
-    }
-
-    // ── Gate: no waitlists → hard stop ─────────────────────────────────
-
-    [Fact(DisplayName = "Full team on a non-waitlist job → throws 'Team roster is full' (legacy hard-stop)")]
-    public async Task FullTeam_NoWaitlists_Throws()
-    {
-        var (svc, _, jobId, realTeam, _) = await CreateAsync(maxCount: 1, usesWaitlists: false, activePlayers: 1);
-
-        var act = async () => await svc.ResolveRosterPlacementAsync(jobId, realTeam.TeamId);
-
-        await act.Should().ThrowAsync<InvalidOperationException>()
-            .WithMessage("Team roster is full");
     }
 }

@@ -45,7 +45,7 @@ public class ArbPlayerPaymentServiceTests
     private PaymentService BuildSut() => new(
         _jobs.Object, _regRepo.Object, _teams.Object, _families.Object, _acct.Object,
         _adn.Object, _feeService.Object, _teamLookup.Object, _feeAdj.Object, _settleRepo.Object,
-        _logger.Object, _paymentState.Object);
+        _logger.Object, _paymentState.Object, new Mock<ITeamPlacementService>().Object);
 
     private void StubJobAndCreds(Guid jobId, bool adnArb = true, int occurrences = 10)
     {

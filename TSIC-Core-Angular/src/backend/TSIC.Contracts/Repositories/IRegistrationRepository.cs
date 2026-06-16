@@ -276,6 +276,31 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Atomically commit a player registration to a confirmed roster seat (BActive=true) IF the
+    /// team has room — "hold a roster spot only if one is available." The gate counts CONFIRMED
+    /// members only (BActive=1), excluding this registration; an unlimited team (MaxCount &lt;= 0)
+    /// always has room. Guarantees confirmed members never exceed MaxCount; two in-flight holds on
+    /// the last seat do not block each other (first to commit wins, second gets false → waitlist).
+    /// Returns true when committed (or already active), false when full. Serializable + one
+    /// deadlock retry; the tracked reg should be the only dirty entity when called.
+    /// </summary>
+    Task<bool> TryCommitSeatAsync(
+        Registrations reg,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Read-only sibling of <see cref="TryCommitSeatAsync"/> answering "is there a confirmed seat
+    /// for this registration?" — used to PARTITION a payment cart BEFORE charging so seatable
+    /// players are charged and seat-gone players are routed to the waitlist (never charged). Mirrors
+    /// the guard's decision exactly: counts CONFIRMED members only (BActive=1), excluding self; an
+    /// unlimited team (MaxCount &lt;= 0) and an already-active reg always return true. No write, no
+    /// transaction — a point-in-time read; the authoritative overfill check stays in the commit path.
+    /// </summary>
+    Task<bool> IsSeatAvailableAsync(
+        Registrations reg,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get eligible registrations for insurance (positive fee, no existing policy, active team).
     /// </summary>
     Task<List<EligibleInsuranceRegistration>> GetEligibleInsuranceRegistrationsAsync(

@@ -83,7 +83,7 @@ public class TeamPlacementService : ITeamPlacementService
 
         // Agegroup is full — auto-create waitlist mirror.
         // Team registration always supports waitlists (driven by MaxTeams per agegroup).
-        // BUseWaitlists is a player-registration-only flag and is NOT checked here.
+        // Waitlists are mandatory job-wide, so there is no opt-in to check here.
 
         // Find-or-create WAITLIST mirror agegroup
         var waitlistAgName = $"WAITLIST - {agegroup.AgegroupName}";
@@ -193,8 +193,9 @@ public class TeamPlacementService : ITeamPlacementService
 
     /// <summary>
     /// Find-or-create the full WAITLIST mirror (agegroup + division + team + its $0 fee
-    /// stamp) for a real team. Gated on the job's BUseWaitlists flag — returns null when
-    /// the job does not use waitlists. Performs no capacity check; idempotent. Shared by
+    /// stamp) for a real team. Waitlists are mandatory job-wide, so this always mints
+    /// (the GetUsesWaitlistsAsync gate is retained but now constant-true). Performs no
+    /// capacity check; idempotent. Shared by
     /// the live overflow path (<see cref="ResolveRosterPlacementAsync"/>) and the proactive
     /// mint-on-fill hook (<see cref="EnsureWaitlistMirrorAsync"/>).
     /// </summary>

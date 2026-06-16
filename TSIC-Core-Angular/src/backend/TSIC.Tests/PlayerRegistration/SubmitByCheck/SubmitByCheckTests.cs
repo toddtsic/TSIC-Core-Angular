@@ -103,6 +103,12 @@ public class SubmitByCheckTests
         regRepo
             .Setup(r => r.GetByIdsAsync(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Registrations> { reg });
+        // The guarded BActive→1 commit lives in the repository now. Simulate "seat available" by
+        // flipping BActive (as the real Serializable txn does) and returning true.
+        regRepo
+            .Setup(r => r.TryCommitSeatAsync(It.IsAny<Registrations>(), It.IsAny<CancellationToken>()))
+            .Callback<Registrations, CancellationToken>((r, _) => r.BActive = true)
+            .ReturnsAsync(true);
 
         // Modified is stamped with DateTime.Now (local AZ) per the local-AZ datetime convention,
         // so bracket with DateTime.Now too — UtcNow would be 7h ahead and fail the assertion.
@@ -120,7 +126,11 @@ public class SubmitByCheckTests
         reg.LebUserId.Should().Be(TestFamilyUserId, "audit trail stamps caller");
         reg.Modified.Should().BeOnOrAfter(before).And.BeOnOrBefore(after);
 
-        regRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+        // The single DB save now happens inside TryCommitSeatAsync (one commit per seat), so assert
+        // the guarded commit chokepoint was hit once rather than a trailing batch SaveChangesAsync.
+        regRepo.Verify(
+            r => r.TryCommitSeatAsync(It.IsAny<Registrations>(), It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact(DisplayName = "Submit: idempotent — re-submit on already-stamped row is no-op success")]
@@ -241,6 +251,12 @@ public class SubmitByCheckTests
         regRepo
             .Setup(r => r.GetByIdsAsync(It.IsAny<List<Guid>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Registrations> { ownedReg, foreignReg });
+        // Seat available: flip BActive + return true (the foreign row is rejected on ownership
+        // before it ever reaches this guard, so only the owned row hits it).
+        regRepo
+            .Setup(r => r.TryCommitSeatAsync(It.IsAny<Registrations>(), It.IsAny<CancellationToken>()))
+            .Callback<Registrations, CancellationToken>((r, _) => r.BActive = true)
+            .ReturnsAsync(true);
 
         var result = await svc.SubmitByCheckAsync(
             TestJobId, TestFamilyUserId,
@@ -253,7 +269,10 @@ public class SubmitByCheckTests
 
         ownedReg.BActive.Should().BeTrue();
         foreignReg.BActive.Should().Be(false);
-        regRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once,
-            "save runs once for the owned row");
+        // Only the owned row reaches the guarded seat commit; the foreign row is rejected first.
+        regRepo.Verify(
+            r => r.TryCommitSeatAsync(It.IsAny<Registrations>(), It.IsAny<CancellationToken>()),
+            Times.Once,
+            "the owned row commits once through the seat guard; the foreign row never reaches it");
     }
 }

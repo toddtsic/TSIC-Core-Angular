@@ -23,7 +23,8 @@ namespace TSIC.Tests.TeamRegistration.WaitlistMirror;
 ///   - Real team NOT full → entry stays the real id at full price (twin omitted / swap-out case).
 ///   - Real team FULL but twin not minted yet → entry left as the real team (registration-time
 ///     overflow swap is the safety net).
-///   - Job does NOT use waitlists → no twin lookup; the full team shows its real price.
+///
+/// Waitlists are now MANDATORY, so every full team takes the twin-swap path.
 /// </summary>
 public class WaitlistTwinDisplayTests
 {
@@ -36,7 +37,7 @@ public class WaitlistTwinDisplayTests
     private static (
         TeamLookupService svc,
         Mock<ITeamRepository> teamRepo)
-        CreateService(bool usesWaitlists, bool twinMinted)
+        CreateService(bool twinMinted)
     {
         var teamRepo = new Mock<ITeamRepository>();
         var registrationRepo = new Mock<IRegistrationRepository>();
@@ -46,7 +47,7 @@ public class WaitlistTwinDisplayTests
 
         jobRepo
             .Setup(j => j.GetUsesWaitlistsAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(usesWaitlists);
+            .ReturnsAsync(true); // waitlists are mandatory
 
         // The base query NEVER returns WAITLIST agegroups — twins are not in this list
         // (matches production; the twin is reattached by name below).
@@ -107,7 +108,7 @@ public class WaitlistTwinDisplayTests
     [Fact(DisplayName = "Full team + twin exists → entry carries the twin id at $0")]
     public async Task FullTeam_TwinExists_RoutesToTwinAtZero()
     {
-        var (svc, _) = CreateService(usesWaitlists: true, twinMinted: true);
+        var (svc, _) = CreateService(twinMinted: true);
 
         var teams = await svc.GetAvailableTeamsForJobAsync(JobId);
 
@@ -122,7 +123,7 @@ public class WaitlistTwinDisplayTests
     [Fact(DisplayName = "Not-full team → stays the real id at full price (twin omitted)")]
     public async Task OpenTeam_StaysRealAtFullPrice()
     {
-        var (svc, _) = CreateService(usesWaitlists: true, twinMinted: true);
+        var (svc, _) = CreateService(twinMinted: true);
 
         var teams = await svc.GetAvailableTeamsForJobAsync(JobId);
 
@@ -135,28 +136,12 @@ public class WaitlistTwinDisplayTests
     [Fact(DisplayName = "Full team but twin not minted yet → entry left as the real team (registration-time swap is the safety net)")]
     public async Task FullTeam_NoTwinYet_LeavesRealEntry()
     {
-        var (svc, _) = CreateService(usesWaitlists: true, twinMinted: false);
+        var (svc, _) = CreateService(twinMinted: false);
 
         var teams = await svc.GetAvailableTeamsForJobAsync(JobId);
 
         var hawks = teams.Single(t => t.TeamName == "Hawks");
         hawks.TeamId.Should().Be(FullTeamId, "no twin to route to yet — overflow swap handles it at registration time");
         hawks.Fee.Should().Be(150m);
-    }
-
-    [Fact(DisplayName = "Non-waitlist job → full team shows its real price, no twin lookup")]
-    public async Task NonWaitlistJob_FullTeamShowsRealPrice()
-    {
-        var (svc, teamRepo) = CreateService(usesWaitlists: false, twinMinted: true);
-
-        var teams = await svc.GetAvailableTeamsForJobAsync(JobId);
-
-        var hawks = teams.Single(t => t.TeamName == "Hawks");
-        hawks.TeamId.Should().Be(FullTeamId);
-        hawks.Fee.Should().Be(150m);
-        teamRepo.Verify(
-            t => t.GetTeamsForJobByNamesAsync(It.IsAny<Guid>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()),
-            Times.Never,
-            "a non-waitlist job must not perform the twin lookup");
     }
 }

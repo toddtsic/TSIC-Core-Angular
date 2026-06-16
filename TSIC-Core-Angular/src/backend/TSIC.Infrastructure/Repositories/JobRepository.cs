@@ -349,13 +349,15 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<bool> GetUsesWaitlistsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    public Task<bool> GetUsesWaitlistsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
-        return await _context.Jobs
-            .AsNoTracking()
-            .Where(j => j.JobId == jobId)
-            .Select(j => j.BUseWaitlists)
-            .FirstOrDefaultAsync(cancellationToken);
+        // Waitlists are now MANDATORY for every job (player + team registration alike), so a
+        // full team always routes to its WAITLIST twin rather than hard-stopping. The old
+        // per-job opt-in (Jobs.bUseWaitlists) is retired; the column is left in place as a
+        // vestigial always-true and is no longer read. Returns a constant so both consumers —
+        // TeamPlacementService.MintWaitlistMirrorAsync and TeamLookupService's full-team→twin
+        // swap — are unconditionally on.
+        return Task.FromResult(true);
     }
 
     public async Task<bool> IsPublicAccessEnabledAsync(Guid jobId, CancellationToken cancellationToken = default)

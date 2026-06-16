@@ -22,7 +22,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
 import { scrollWizardToTop } from '@views/registration/shared/services/vi-scroll.util';
-import type { BankAccountInfo, PaymentResponseDto, PaymentRequestDto } from '@core/api';
+import type { BankAccountInfo, PaymentResponseDto, PaymentRequestDto, PaymentWaitlistedDto } from '@core/api';
 import type { VIOfferData, CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import type { LineItem } from '../state/payment-v2.service';
 
@@ -1358,6 +1358,19 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             this.lastError.set(null);
             this.clearStoredIdem();
             this.lastIdemKey = null;
+            // Some players' teams filled up before this payment landed: the server did NOT charge
+            // them, moved them to the waitlist twin at $0, and listed them here. The seatable players
+            // in the same cart WERE charged and advance to confirmation (which — server-rendered —
+            // already shows the waitlisted players as waitlist entries). Surface them plainly now so
+            // the family knows which kids weren't charged and need to finish waitlist signup.
+            const waitlisted = (response.needsWaitlist ?? []) as PaymentWaitlistedDto[];
+            if (waitlisted.length > 0) {
+                const teams = [...new Set(waitlisted.map(w => w.teamName).filter(Boolean))].join(', ');
+                this.toast.show(
+                    `${waitlisted.length} player(s) couldn't be seated — their team(s) filled up first (${teams}). ` +
+                    `They were NOT charged and were moved to the waitlist. The others were charged successfully.`,
+                    'warning', 12000);
+            }
             // Receipt reflects the method actually charged: eCheck pays echeckTotal (lower proc,
             // incl. any donation at the ACH rate); CC pays currentTotal. Both include the donation.
             const chargedAmount = this.paySvc.isEcheckPayment() ? this.echeckTotal() : this.currentTotal();

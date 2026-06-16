@@ -11,5 +11,6 @@ export type PaymentResponseDto = {
     subscriptionIds?: any | null;
     failedSubscriptionIds?: any[] | null;
     partialSuccess?: boolean;
+    needsWaitlist?: any[] | null;
 };
 

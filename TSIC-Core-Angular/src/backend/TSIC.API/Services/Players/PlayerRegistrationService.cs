@@ -763,13 +763,15 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 Success = false,
                 Message = "No registrations supplied.",
                 UpdatedRegistrationIds = new List<Guid>(),
-                Rejections = new List<SubmitByCheckRejectionDto>()
+                Rejections = new List<SubmitByCheckRejectionDto>(),
+                Waitlisted = new List<SubmitByCheckWaitlistDto>()
             };
         }
 
         var rows = await _registrations.GetByIdsAsync(request.RegistrationIds, ct);
         var updated = new List<Guid>();
         var rejections = new List<SubmitByCheckRejectionDto>();
+        var waitlisted = new List<SubmitByCheckWaitlistDto>();
         var changedCount = 0;
         const int CheckMethodCode = 3;
 
@@ -804,12 +806,58 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 continue;
             }
 
+            // Pay-by-check holds the roster spot — but ONLY if one is available. Stamp the check
+            // method + audit on the tracked reg, then atomically claim the seat: on success the
+            // guard commits it (BActive=true) in the same transaction; if the held seat had lapsed
+            // and the team is now full, the guard returns false and we route the registrant to the
+            // WAITLIST mirror (no money taken) rather than overfilling the roster.
             reg.PaymentMethodChosen = CheckMethodCode;
-            reg.BActive = true;
             reg.Modified = DateTime.Now;
             reg.LebUserId = callerUserId;
-            updated.Add(reg.RegistrationId);
-            changedCount++;
+
+            if (await _registrations.TryCommitSeatAsync(reg, ct))
+            {
+                updated.Add(reg.RegistrationId);
+                changedCount++;
+                continue;
+            }
+
+            // Team full → place on the WAITLIST twin and commit there (the twin is unlimited).
+            var placement = reg.AssignedTeamId.HasValue
+                ? await _placement.ResolveRosterPlacementAsync(jobId, reg.AssignedTeamId.Value, familyUserId)
+                : null;
+            if (placement is { IsWaitlisted: true })
+            {
+                var twin = await _teams.GetTeamFromTeamId(placement.TeamId, ct);
+                reg.AssignedTeamId = placement.TeamId;
+                reg.Assignment = $"Player: {placement.WaitlistTeamName}";
+                // Re-price onto the twin's $0 fee — a waitlisted player owes nothing. Same swap
+                // engine the roster swapper uses; without this the reg keeps its real-team fee.
+                if (twin != null)
+                {
+                    await _feeService.ApplySwapFeesAsync(
+                        reg, jobId, twin.AgegroupId, placement.TeamId,
+                        new FeeApplicationContext { IsFullPaymentRequired = false }, ct);
+                }
+                reg.BActive = true;
+                reg.Modified = DateTime.Now;
+                await _registrations.SaveChangesAsync(ct);
+                changedCount++;
+                waitlisted.Add(new SubmitByCheckWaitlistDto
+                {
+                    RegistrationId = reg.RegistrationId,
+                    WaitlistTeamName = placement.WaitlistTeamName ?? string.Empty
+                });
+                continue;
+            }
+
+            // No waitlist mirror resolved (should not happen — waitlists are mandatory). Fail safe:
+            // do not commit, report it rather than silently overfill.
+            rejections.Add(new SubmitByCheckRejectionDto
+            {
+                RegistrationId = reg.RegistrationId,
+                Reason = "Team roster is full."
+            });
         }
 
         // Detect rows missing entirely from the DB (caller passed an unknown id).
@@ -823,22 +871,25 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             });
         }
 
+        // Each committed reg was already persisted atomically by TryCommitSeatAsync (or the
+        // waitlist-twin save above); no trailing batch save needed.
         if (changedCount > 0)
         {
-            await _registrations.SaveChangesAsync(ct);
             _logger.LogInformation(
-                "SubmitByCheck stamped {Count} registration(s) Active for family {FamilyUserId} on job {JobId}.",
-                changedCount, familyUserId, jobId);
+                "SubmitByCheck committed {Committed} on-roster + {Waitlisted} waitlisted for family {FamilyUserId} on job {JobId}.",
+                updated.Count, waitlisted.Count, familyUserId, jobId);
         }
 
         return new SubmitByCheckResponseDto
         {
             Success = rejections.Count == 0,
             Message = rejections.Count == 0
-                ? $"Stamped {updated.Count} registration(s) as Pay-by-Check pending."
-                : $"Stamped {updated.Count}; {rejections.Count} rejected.",
+                ? $"Committed {updated.Count} by check"
+                    + (waitlisted.Count > 0 ? $"; {waitlisted.Count} placed on waitlist (team full)." : ".")
+                : $"Committed {updated.Count}; {waitlisted.Count} waitlisted; {rejections.Count} rejected.",
             UpdatedRegistrationIds = updated,
-            Rejections = rejections
+            Rejections = rejections,
+            Waitlisted = waitlisted
         };
     }
 
