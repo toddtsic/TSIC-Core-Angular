@@ -16,10 +16,26 @@
     width: 100%;
 }
 
+// Body row — admin sidebar (desktop) + scrolling content side by side.
+// flex:1 claims the space between header and footer; min-height:0 lets the
+// inner <main> own the scroll instead of the row growing past the viewport.
+.layout-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+// Horizontal nav layout: stack the top pill bar above the scrolling content.
+// (Sidebar layout keeps the default row, rail beside main.)
+.layout-body--horizontal {
+    flex-direction: column;
+}
+
 // Main content area — scroll container for SPA content
 main {
     margin-top: 0;
-    flex: 1; // Take remaining space, pushing footer down
+    flex: 1; // Take remaining space beside the sidebar; footer is pushed down by .layout-body
+    min-width: 0; // Allow content to shrink instead of overflowing the flex row
     overflow-y: auto; // Main is the scroll container (header stays above as a flex sibling)
     overflow-x: hidden; // Prevent horizontal overflow
     position: relative;

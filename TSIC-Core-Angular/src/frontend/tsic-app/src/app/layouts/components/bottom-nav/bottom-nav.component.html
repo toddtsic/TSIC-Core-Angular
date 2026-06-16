@@ -1,5 +1,6 @@
 @if (navVisible()) {
-<nav class="bottom-nav d-lg-none" aria-label="Mobile navigation">
+<div class="bottom-nav d-lg-none" appScrollFade>
+<nav class="bottom-nav__scroller" aria-label="Mobile navigation">
 
     @for (item of tabItems(); track item.navItemId) {
         @if (isExternalLink(item)) {
@@ -18,23 +19,18 @@
             <span class="bottom-nav__label">{{ item.text }}</span>
         </a>
         } @else {
-        <span class="bottom-nav__tab bottom-nav__tab--disabled" aria-disabled="true">
+        <!-- Category header (no direct route) — opens a focused sheet of its children -->
+        <button type="button" class="bottom-nav__tab"
+            [class.bottom-nav__tab--active]="isCategoryOpen(item)"
+            (click)="openCategory(item)"
+            aria-haspopup="true" [attr.aria-expanded]="isCategoryOpen(item)"
+            [attr.aria-label]="item.text + ' menu'">
             <i class="bi bi-{{ getIcon(item) }} bottom-nav__icon" aria-hidden="true"></i>
             <span class="bottom-nav__label">{{ item.text }}</span>
-        </span>
+        </button>
         }
     }
 
-    @if (hasMoreItems()) {
-    <button type="button"
-        class="bottom-nav__tab"
-        [class.bottom-nav__tab--active]="menuState.offcanvasOpen()"
-        (click)="openMore()"
-        aria-label="More navigation options">
-        <i class="bi bi-three-dots bottom-nav__icon" aria-hidden="true"></i>
-        <span class="bottom-nav__label">More</span>
-    </button>
-    }
-
 </nav>
+</div>
 }

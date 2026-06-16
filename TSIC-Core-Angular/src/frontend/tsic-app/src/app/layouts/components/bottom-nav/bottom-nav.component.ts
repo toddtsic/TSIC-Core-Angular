@@ -2,14 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/c
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import type { NavItemDto } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
+import { ScrollFadeDirective } from '@shared-ui/directives/scroll-fade.directive';
 import { MenuStateService } from '../../services/menu-state.service';
-
-const MAX_TABS = 4;
 
 @Component({
     selector: 'app-bottom-nav',
     standalone: true,
-    imports: [RouterLink, RouterLinkActive],
+    imports: [RouterLink, RouterLinkActive, ScrollFadeDirective],
     templateUrl: './bottom-nav.component.html',
     styleUrl: './bottom-nav.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -18,14 +17,9 @@ export class BottomNavComponent {
     private readonly jobService = inject(JobService);
     readonly menuState = inject(MenuStateService);
 
-    /** First N top-level items become bottom tabs */
+    /** All top-level items become tabs — the bar scrolls horizontally when they overflow. */
     readonly tabItems = computed<NavItemDto[]>(() =>
-        this.jobService.navItems().slice(0, MAX_TABS)
-    );
-
-    /** True when there are more items than fit in the tab bar */
-    readonly hasMoreItems = computed(() =>
-        this.jobService.navItems().length > MAX_TABS
+        this.jobService.navItems()
     );
 
     /** Only render the bar when nav is loaded */
@@ -48,7 +42,17 @@ export class BottomNavComponent {
         return !!item.navigateUrl;
     }
 
-    openMore(): void {
-        this.menuState.toggleOffcanvas();
+    /**
+     * A top-level item with no direct route is a category header — tapping it
+     * opens a focused sheet showing only that category's children (re-tapping
+     * closes it), instead of being a dead tab.
+     */
+    openCategory(item: NavItemDto): void {
+        this.menuState.toggleMobileSheet(item.navItemId);
+    }
+
+    /** True when this category's focused sheet is currently open (highlights the tab). */
+    isCategoryOpen(item: NavItemDto): boolean {
+        return this.menuState.mobileSheetCategoryId() === String(item.navItemId);
     }
 }

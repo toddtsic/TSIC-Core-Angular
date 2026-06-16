@@ -1,5 +1,115 @@
-<!-- Desktop Pill Nav (visible on large screens) -->
-@if (menus() && menus().length > 0) {
+<!-- Desktop admin nav (visible on large screens, admins only). Two layouts the
+     admin can switch between: a vertical sidebar rail or the horizontal top bar. -->
+@if (isAdmin() && menus() && menus().length > 0) {
+
+<!-- ── Sidebar layout ───────────────────────────────────────────────────── -->
+@if (navLayout() === 'sidebar') {
+<nav class="admin-rail d-none d-lg-flex" [class.admin-rail--collapsed]="collapsed()"
+    aria-label="Admin navigation">
+
+    <!-- Collapse / expand + layout switch -->
+    <div class="admin-rail__header">
+        <button type="button" class="admin-rail__toggle" (click)="toggleSidebar()"
+            [attr.aria-expanded]="!collapsed()"
+            [attr.aria-label]="collapsed() ? 'Expand navigation' : 'Collapse navigation'"
+            [title]="collapsed() ? 'Expand' : 'Collapse'">
+            <i class="bi" [class.bi-chevron-double-right]="collapsed()"
+                [class.bi-chevron-double-left]="!collapsed()" aria-hidden="true"></i>
+            @if (!collapsed()) { <span class="admin-rail__toggle-label">Collapse</span> }
+        </button>
+        <button type="button" class="admin-rail__toggle admin-rail__layout-toggle"
+            (click)="toggleNavLayout()" aria-label="Switch to top menu" title="Switch to top menu">
+            <i class="bi bi-menu-button-wide" aria-hidden="true"></i>
+        </button>
+    </div>
+
+    @if (menusLoading()) {
+    <span class="admin-rail__status">Loading…</span>
+    } @else if (menusError()) {
+    <span class="admin-rail__status admin-rail__status--error">{{ menusError() }}</span>
+    } @else {
+    <ul class="admin-rail__list">
+        @for (item of menus(); track item.navItemId) {
+        <li class="admin-rail__group"
+            (mouseenter)="onRailItemEnter($event, item)"
+            (mouseleave)="onRailItemLeave(item)">
+
+            @if (hasChildren(item)) {
+            <!-- Parent — accordion toggle (expanded) / flyout trigger (collapsed) -->
+            <button type="button" class="admin-rail__item"
+                [class.admin-rail__item--open]="isExpanded(item.navItemId)"
+                [class.admin-rail__item--active]="isParentActive(item)"
+                [attr.aria-expanded]="isExpanded(item.navItemId)"
+                [attr.aria-haspopup]="true"
+                [title]="collapsed() ? item.text : null"
+                (click)="onRailParentClick($event, item)">
+                <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                <span class="admin-rail__label">{{ item.text }}</span>
+                <i class="bi bi-chevron-down admin-rail__chevron"
+                    [class.admin-rail__chevron--open]="isExpanded(item.navItemId)"
+                    aria-hidden="true"></i>
+            </button>
+
+            @if (isExpanded(item.navItemId)) {
+                @if (collapsed()) {
+                <!-- Collapsed: fixed flyout to the right (escapes stacking context) -->
+                <div class="dropdown-panel" [style.top.px]="dropdownPanelTop()"
+                    [style.left.px]="dropdownPanelLeft()" role="menu">
+                    <div class="dropdown-panel__title">{{ item.text }}</div>
+                    <div class="dropdown-panel__items">
+                        <ng-container *ngTemplateOutlet="childList; context: { $implicit: item }"></ng-container>
+                    </div>
+                </div>
+                } @else {
+                <!-- Expanded: inline accordion -->
+                <div class="admin-rail__children dropdown-panel__items">
+                    <ng-container *ngTemplateOutlet="childList; context: { $implicit: item }"></ng-container>
+                </div>
+                }
+            }
+
+            } @else {
+            <!-- Standalone leaf -->
+            @if (!isRouteImplemented(item)) {
+            <span class="admin-rail__item admin-rail__item--disabled" aria-disabled="true"
+                [title]="collapsed() ? item.text : null">
+                <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                <span class="admin-rail__label">{{ item.text }}</span>
+                <span class="admin-rail__badge">Soon</span>
+            </span>
+            } @else if (isExternalLink(item)) {
+            <a class="admin-rail__item" [href]="getLink(item)" [target]="item.target || '_self'"
+                [title]="collapsed() ? item.text : null" (click)="collapseAll()">
+                <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                <span class="admin-rail__label">{{ item.text }}</span>
+            </a>
+            } @else if (getLink(item)) {
+            <a class="admin-rail__item"
+                [routerLink]="isReportDownload(item) ? null : getLink(item)"
+                [queryParams]="isReportDownload(item) ? null : getQueryParams(item)"
+                routerLinkActive="admin-rail__item--active"
+                [title]="collapsed() ? item.text : null"
+                (click)="onLinkClick($event, item); collapseAll()">
+                <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                <span class="admin-rail__label">{{ item.text }}</span>
+            </a>
+            } @else {
+            <span class="admin-rail__item admin-rail__item--disabled"
+                [title]="collapsed() ? item.text : null">
+                <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                <span class="admin-rail__label">{{ item.text }}</span>
+            </span>
+            }
+            }
+        </li>
+        }
+    </ul>
+    }
+</nav>
+}
+
+<!-- ── Horizontal layout (familiar top pill bar) ────────────────────────── -->
+@if (navLayout() === 'horizontal') {
 <nav class="pill-nav d-none d-lg-flex" aria-label="Main navigation">
     @if (menusLoading()) {
     <span class="pill-nav__loading">Loading...</span>
@@ -27,46 +137,13 @@
                        aria-hidden="true"></i>
                 </button>
 
-                <!-- Fixed-position rich dropdown panel -->
                 @if (isExpanded(item.navItemId)) {
                 <div class="dropdown-panel"
                     [style.top.px]="dropdownPanelTop()"
                     [style.left.px]="dropdownPanelLeft()"
                     role="menu">
                     <div class="dropdown-panel__items">
-                        @for (child of item.children; track child.navItemId) {
-                            @if (!isRouteImplemented(child)) {
-                            <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem" aria-disabled="true">
-                                <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
-                                <span class="dropdown-panel__item-text">{{ child.text }}</span>
-                                <span class="dropdown-panel__badge">Soon</span>
-                            </span>
-                            } @else if (isExternalLink(child)) {
-                            <a class="dropdown-panel__item" role="menuitem"
-                                [href]="getLink(child)" [target]="child.target || '_self'"
-                                (click)="collapseAll()">
-                                <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
-                                <span class="dropdown-panel__item-text">{{ child.text }}</span>
-                            </a>
-                            } @else if (getLink(child)) {
-                            <a class="dropdown-panel__item" role="menuitem"
-                                [routerLink]="isReportDownload(child) ? null : getLink(child)"
-                                [queryParams]="isReportDownload(child) ? null : getQueryParams(child)"
-                                routerLinkActive="dropdown-panel__item--active"
-                                (click)="onLinkClick($event, child); collapseAll()">
-                                <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
-                                <span class="dropdown-panel__item-text">{{ child.text }}</span>
-                                @if (child.badgeText) {
-                                <span class="dropdown-panel__badge dropdown-panel__badge--{{ child.badgeText.toLowerCase() }}">{{ child.badgeText }}</span>
-                                }
-                            </a>
-                            } @else {
-                            <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem">
-                                <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
-                                <span class="dropdown-panel__item-text">{{ child.text }}</span>
-                            </span>
-                            }
-                        }
+                        <ng-container *ngTemplateOutlet="childList; context: { $implicit: item }"></ng-container>
                     </div>
                 </div>
                 }
@@ -104,9 +181,55 @@
             }
 
         }
+
+        <!-- Layout switch — back to the vertical sidebar -->
+        <button type="button" class="pill-nav__item pill-nav__layout-toggle"
+            (click)="toggleNavLayout()" aria-label="Switch to side menu" title="Switch to side menu">
+            <i class="bi bi-layout-sidebar" aria-hidden="true"></i>
+        </button>
     }
 </nav>
 }
+}
+
+<!-- Shared child-row renderer — root-level so the desktop nav (rail flyout +
+     accordion + pill dropdown), the offcanvas, and the mobile focused sheet can
+     all reference it. -->
+<ng-template #childList let-parent>
+    @for (child of parent.children; track child.navItemId) {
+        @if (!isRouteImplemented(child)) {
+        <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem" aria-disabled="true">
+            <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
+            <span class="dropdown-panel__item-text">{{ child.text }}</span>
+            <span class="dropdown-panel__badge">Soon</span>
+        </span>
+        } @else if (isExternalLink(child)) {
+        <a class="dropdown-panel__item" role="menuitem"
+            [href]="getLink(child)" [target]="child.target || '_self'"
+            (click)="collapseAll(); closeMobileSheet()">
+            <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
+            <span class="dropdown-panel__item-text">{{ child.text }}</span>
+        </a>
+        } @else if (getLink(child)) {
+        <a class="dropdown-panel__item" role="menuitem"
+            [routerLink]="isReportDownload(child) ? null : getLink(child)"
+            [queryParams]="isReportDownload(child) ? null : getQueryParams(child)"
+            routerLinkActive="dropdown-panel__item--active"
+            (click)="onLinkClick($event, child); collapseAll(); closeMobileSheet()">
+            <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
+            <span class="dropdown-panel__item-text">{{ child.text }}</span>
+            @if (child.badgeText) {
+            <span class="dropdown-panel__badge dropdown-panel__badge--{{ child.badgeText.toLowerCase() }}">{{ child.badgeText }}</span>
+            }
+        </a>
+        } @else {
+        <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem">
+            <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
+            <span class="dropdown-panel__item-text">{{ child.text }}</span>
+        </span>
+        }
+    }
+</ng-template>
 
 <!-- Mobile Toggle Button and Offcanvas (visible on small/medium screens) -->
 @if (menus() && menus().length > 0) {
@@ -131,16 +254,16 @@
                     <!-- Parent with collapsible children -->
                     <a class="nav-link d-flex justify-content-between align-items-center" href="#"
                         [class.active]="isParentActive(item)"
-                        (click)="$event.preventDefault(); toggleExpanded(item.navItemId)">
+                        (click)="$event.preventDefault(); toggleOffcanvasExpanded(item)">
                         <span>
                             <i class="bi bi-{{ getMenuIcon(item) }} me-2"></i>
                             {{ item.text }}
                         </span>
-                        <i class="bi" [class.bi-chevron-down]="!isExpanded(item.navItemId)"
-                            [class.bi-chevron-up]="isExpanded(item.navItemId)"></i>
+                        <i class="bi" [class.bi-chevron-down]="!isOffcanvasExpanded(item)"
+                            [class.bi-chevron-up]="isOffcanvasExpanded(item)"></i>
                     </a>
                     <!-- Collapsible children -->
-                    <div class="collapse" [class.show]="isExpanded(item.navItemId)">
+                    <div class="collapse" [class.show]="isOffcanvasExpanded(item)">
                         <ul class="nav flex-column ms-3">
                             @for (child of item.children; track child.navItemId) {
                             <li class="nav-item">
@@ -225,5 +348,24 @@
     @if (offcanvasOpen()) {
     <div class="offcanvas-backdrop fade show" (click)="closeOffcanvas()"></div>
     }
+</div>
+}
+
+<!-- Mobile focused sheet — shows ONLY the tapped category's children, rising
+     above the still-visible bottom tab bar. Reuses #childList for the rows. -->
+@if (mobileSheetCategory(); as cat) {
+<div class="d-lg-none">
+    <div class="sheet-backdrop" (click)="closeMobileSheet()"></div>
+    <div class="mobile-sheet" role="dialog" [attr.aria-label]="cat.text">
+        <div class="mobile-sheet__header">
+            <span class="mobile-sheet__title">{{ cat.text }}</span>
+            <button type="button" class="mobile-sheet__close" (click)="closeMobileSheet()" aria-label="Close">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+        </div>
+        <div class="mobile-sheet__items dropdown-panel__items">
+            <ng-container *ngTemplateOutlet="childList; context: { $implicit: cat }"></ng-container>
+        </div>
+    </div>
 </div>
 }

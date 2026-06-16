@@ -1,4 +1,5 @@
 import { Injectable, signal } from '@angular/core';
+import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
 /**
  * Shared state service for layout coordination
@@ -11,6 +12,37 @@ export class MenuStateService {
     /** Mobile offcanvas open/closed state */
     offcanvasOpen = signal(false);
 
+    /**
+     * Desktop admin sidebar collapsed (icon-rail) vs expanded (labels) state.
+     * Persisted to localStorage; default = expanded (labels visible) for first-time admins.
+     * Write-through in toggleSidebar() — no effect() (Todd's preference).
+     */
+    sidebarCollapsed = signal<boolean>(
+        localStorage.getItem(LocalStorageKey.AdminNavCollapsed) === 'true'
+    );
+
+    /** Toggle the desktop admin sidebar collapse state and persist the choice */
+    toggleSidebar(): void {
+        const collapsed = !this.sidebarCollapsed();
+        this.sidebarCollapsed.set(collapsed);
+        localStorage.setItem(LocalStorageKey.AdminNavCollapsed, String(collapsed));
+    }
+
+    /**
+     * Desktop admin nav layout: 'sidebar' (vertical left rail) vs 'horizontal'
+     * (the familiar top pill bar). Persisted; default = sidebar. Write-through (no effect()).
+     */
+    navLayout = signal<'horizontal' | 'sidebar'>(
+        localStorage.getItem(LocalStorageKey.AdminNavLayout) === 'horizontal' ? 'horizontal' : 'sidebar'
+    );
+
+    /** Flip between sidebar and horizontal admin nav and persist the choice */
+    toggleNavLayout(): void {
+        const layout = this.navLayout() === 'sidebar' ? 'horizontal' : 'sidebar';
+        this.navLayout.set(layout);
+        localStorage.setItem(LocalStorageKey.AdminNavLayout, layout);
+    }
+
     /** Fires when user requests dashboard customization (from header dropdown) */
     customizeDashboardRequested = signal(false);
 
@@ -19,9 +51,40 @@ export class MenuStateService {
         this.offcanvasOpen.update(open => !open);
     }
 
+    /**
+     * Which top-level category is expanded inside the full-menu offcanvas accordion
+     * (the header hamburger). Single-open. Toggled by tapping a parent in the offcanvas.
+     */
+    offcanvasExpandedId = signal<string | null>(null);
+
+    /** Toggle a category open/closed inside the offcanvas (single-open accordion) */
+    toggleOffcanvasCategory(navItemId: string | number): void {
+        const id = String(navItemId);
+        this.offcanvasExpandedId.update(cur => (cur === id ? null : id));
+    }
+
     /** Close offcanvas */
     closeOffcanvas(): void {
         this.offcanvasOpen.set(false);
+    }
+
+    /**
+     * Mobile focused-sheet: tapping a category tab in the bottom nav opens a
+     * full-width sheet showing ONLY that category's children (rises above the
+     * still-visible tab bar). Holds the open category's nav-item id, or null.
+     */
+    mobileSheetCategoryId = signal<string | null>(null);
+
+    /** Toggle the focused sheet for a category (re-tapping the same tab closes it). */
+    toggleMobileSheet(navItemId: string | number): void {
+        const id = String(navItemId);
+        this.offcanvasOpen.set(false); // never overlap with the full-menu offcanvas
+        this.mobileSheetCategoryId.update(cur => (cur === id ? null : id));
+    }
+
+    /** Close the focused sheet. */
+    closeMobileSheet(): void {
+        this.mobileSheetCategoryId.set(null);
     }
 
     /** Pulse: requests all open menus/dropdowns to close (header dropdown, mobile menu, offcanvas) */

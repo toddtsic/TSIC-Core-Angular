@@ -1,6 +1,221 @@
-// ─── Pill Navigation Bar ────────────────────────────────────────────────────
-// Replaces the legacy Bootstrap navbar. Uses position:fixed panels to escape
-// stacking contexts (same pattern as .user-menu-dropdown in header bar).
+// ─── Admin Sidebar Rail ─────────────────────────────────────────────────────
+// Desktop admin nav: a vertical column that collapses from labelled (260px) to
+// an icon rail (64px). Parents expand inline as an accordion when labelled, and
+// open a fixed flyout to the right when collapsed (.dropdown-panel, below — same
+// position:fixed pattern that escapes stacking contexts).
+
+.admin-rail {
+    flex: 0 0 auto;
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    background: var(--brand-surface);
+    border-right: 1px solid var(--brand-border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &--collapsed {
+        width: 64px;
+
+        // Icon-only: hide labels, chevrons and the toggle caption
+        .admin-rail__label,
+        .admin-rail__chevron,
+        .admin-rail__toggle-label,
+        .admin-rail__badge {
+            display: none;
+        }
+
+        .admin-rail__item,
+        .admin-rail__toggle {
+            justify-content: center;
+            padding-inline: 0;
+        }
+
+        // Stack the two header buttons vertically — they won't fit side by side at 64px
+        .admin-rail__header {
+            flex-direction: column;
+        }
+    }
+}
+
+// Header row holding the collapse + layout-switch buttons
+.admin-rail__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-2);
+}
+
+.admin-rail__status {
+    font-size: var(--font-size-sm);
+    color: var(--neutral-400);
+    padding: var(--space-2) var(--space-4);
+
+    &--error { color: var(--bs-danger); }
+}
+
+// ── Collapse / expand + layout-switch toggles ───────────────────────────────
+.admin-rail__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    i { font-size: var(--font-size-base); }
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.07);
+        color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4);
+    }
+}
+
+// Layout-switch button is just an icon — never grows to fill the header row
+.admin-rail__layout-toggle {
+    flex: 0 0 auto;
+}
+
+.admin-rail__list {
+    list-style: none;
+    margin: 0;
+    padding: 0 var(--space-2) var(--space-3);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.admin-rail__group {
+    position: relative;
+}
+
+// ── Rail item (parent button or leaf link) ─────────────────────────────────
+.admin-rail__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--brand-text-muted);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+        background 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+        border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+        color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.07);
+        border-color: rgba(var(--bs-primary-rgb), 0.15);
+        color: var(--bs-primary);
+
+        .admin-rail__icon { opacity: 1; }
+    }
+
+    // Active route — filled primary
+    &--active {
+        background: var(--bs-primary);
+        border-color: var(--bs-primary);
+        color: var(--neutral-0);
+        font-weight: var(--font-weight-semibold);
+        box-shadow: 0 2px 8px rgba(var(--bs-primary-rgb), 0.3);
+
+        .admin-rail__icon { opacity: 1; }
+    }
+
+    // Open (accordion/flyout) state
+    &--open {
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        border-color: rgba(var(--bs-primary-rgb), 0.2);
+        color: var(--bs-primary);
+
+        .admin-rail__icon { opacity: 1; }
+    }
+
+    &--disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4);
+    }
+}
+
+.admin-rail__icon {
+    font-size: var(--font-size-base);
+    opacity: 0.65;
+    width: 1.25rem;
+    text-align: center;
+    flex-shrink: 0;
+}
+
+.admin-rail__label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-rail__chevron {
+    font-size: 0.6rem;
+    opacity: 0.5;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+
+    &--open {
+        transform: rotate(180deg);
+        opacity: 0.9;
+    }
+}
+
+.admin-rail__badge {
+    font-size: 0.65rem;
+    font-weight: var(--font-weight-semibold);
+    padding: 1px var(--space-2);
+    background: var(--neutral-200);
+    color: var(--neutral-500);
+    border-radius: var(--radius-full);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+// ── Inline accordion children (expanded mode) ───────────────────────────────
+// Reuses .dropdown-panel__item rows; indented with a left rule like the offcanvas.
+.admin-rail__children {
+    margin: var(--space-1) 0 var(--space-1) var(--space-5);
+    padding-left: var(--space-2);
+    border-left: 2px solid rgba(var(--bs-primary-rgb), 0.12);
+}
+
+
+// ─── Horizontal Pill Navigation Bar ─────────────────────────────────────────
+// The alternate (familiar) top layout. Uses position:fixed dropdown panels to
+// escape stacking contexts (same .dropdown-panel as the collapsed-rail flyout).
 
 .pill-nav {
     display: flex;
@@ -23,12 +238,10 @@
 
 .pill-nav__error { color: var(--bs-danger); }
 
-// ── Group wrapper for parent pill + dropdown panel ──────────────────────────
-// Keeps hover state continuous when mouse moves from pill across gap into panel.
+// Group wrapper keeps hover continuous across the pill→panel gap.
 .pill-nav__group {
     position: relative;
 
-    // Invisible bridge extends hover zone downward to cover the 4px gap
     &::after {
         content: '';
         position: absolute;
@@ -39,13 +252,11 @@
         pointer-events: none;
     }
 
-    // Activate bridge only when panel is open (group is hovered)
     &:hover::after {
         pointer-events: auto;
     }
 }
 
-// ── Individual pill (button or <a>) ─────────────────────────────────────────
 .pill-nav__item {
     display: inline-flex;
     align-items: center;
@@ -81,7 +292,6 @@
         i:first-child { opacity: 1; }
     }
 
-    // Active route — filled primary pill
     &--active {
         background: var(--bs-primary);
         border-color: var(--bs-primary);
@@ -92,7 +302,6 @@
         i:first-child { opacity: 1; }
     }
 
-    // Open dropdown state
     &--open {
         background: rgba(var(--bs-primary-rgb), 0.1);
         border-color: rgba(var(--bs-primary-rgb), 0.2);
@@ -114,7 +323,6 @@
     }
 }
 
-// Chevron rotates when panel is open
 .pill-nav__chevron {
     font-size: 0.6rem;
     opacity: 0.5;
@@ -128,7 +336,6 @@
     }
 }
 
-// Coming-soon badge on disabled pills
 .pill-nav__badge {
     font-size: 0.65rem;
     font-weight: var(--font-weight-semibold);
@@ -138,6 +345,11 @@
     border-radius: var(--radius-full);
     letter-spacing: 0.03em;
     text-transform: uppercase;
+}
+
+// Layout-switch sits at the far right of the pill bar.
+.pill-nav__layout-toggle {
+    margin-left: auto;
 }
 
 
@@ -166,6 +378,18 @@
         opacity: 1;
         transform: translateY(0) scale(1);
     }
+}
+
+// Flyout header — names the collapsed-rail group whose icon was hovered.
+.dropdown-panel__title {
+    padding: var(--space-2) var(--space-3);
+    margin: var(--space-1) var(--space-1) 0;
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--brand-text-muted);
+    border-bottom: 1px solid var(--brand-border);
 }
 
 // Items container
@@ -393,4 +617,108 @@
 .offcanvas-backdrop {
     background-color: rgba(0, 0, 0, 0.4);
     // backdrop-filter banned — creates containing blocks that trap positioned descendants
+}
+
+// ── Mobile focused sheet ────────────────────────────────────────────────────
+// Rises above the bottom tab bar (56px + safe area) showing only one category's
+// children. Backdrop stops above the bar so the tabs stay visible + tappable
+// (tap another tab to switch categories). z-index sits below the bar (9990).
+$bottom-bar-h: calc(56px + env(safe-area-inset-bottom, 0));
+
+.sheet-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: $bottom-bar-h;
+    z-index: 9985;
+    background: rgba(0, 0, 0, 0.4);
+    // backdrop-filter banned — traps positioned descendants
+}
+
+.mobile-sheet {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: $bottom-bar-h;
+    z-index: 9986;
+    max-height: 60vh;
+    overflow-y: auto;
+    background: var(--brand-surface);
+    border-top: 1px solid var(--brand-border);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.18);
+    animation: sheetUp 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobile-sheet__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5) var(--space-3);
+    border-bottom: 1px solid var(--brand-border);
+}
+
+.mobile-sheet__title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-bold);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--brand-text-muted);
+}
+
+.mobile-sheet__close {
+    display: grid;
+    place-items: center;
+    width: var(--space-8);
+    height: var(--space-8);
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--brand-text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    &:hover {
+        background: rgba(var(--bs-danger-rgb), 0.1);
+        color: var(--bs-danger);
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4);
+    }
+}
+
+.mobile-sheet__items {
+    padding: var(--space-3);
+
+    // Roomier touch targets than the desktop dropdown rows.
+    .dropdown-panel__item {
+        padding: var(--space-3) var(--space-4);
+        font-size: var(--font-size-base);
+    }
+}
+
+@keyframes sheetUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+}
+
+// ── Reduced motion ──────────────────────────────────────────────────────────
+@media (prefers-reduced-motion: reduce) {
+    .admin-rail,
+    .admin-rail__item,
+    .admin-rail__toggle,
+    .admin-rail__chevron,
+    .pill-nav__item,
+    .pill-nav__chevron,
+    .dropdown-panel,
+    .dropdown-panel__item,
+    .mobile-sheet,
+    .mobile-sheet__close {
+        transition: none !important;
+        animation: none !important;
+    }
 }

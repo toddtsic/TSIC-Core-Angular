@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 
 import { NavigationEnd, Route, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { NgTemplateOutlet } from '@angular/common';
 import type { NavItemDto } from '@core/api';
 import { JobService } from '@infrastructure/services/job.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { ReportingService } from '@infrastructure/services/reporting.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -12,17 +14,27 @@ import { MenuStateService } from '../../services/menu-state.service';
 @Component({
     selector: 'app-client-menu',
     standalone: true,
-    imports: [RouterLink, RouterLinkActive],
+    imports: [RouterLink, RouterLinkActive, NgTemplateOutlet],
     templateUrl: './client-menu.component.html',
     styleUrl: './client-menu.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ClientMenuComponent {
     private readonly jobService = inject(JobService);
+    private readonly auth = inject(AuthService);
     private readonly menuState = inject(MenuStateService);
     private readonly router = inject(Router);
     private readonly reporting = inject(ReportingService);
     private readonly toast = inject(ToastService);
+
+    // The desktop vertical rail is admin-only chrome; non-admins get no inline nav.
+    readonly isAdmin = this.auth.isAdmin;
+
+    // Collapsed (icon rail) vs expanded (labels) — shared, persisted in MenuStateService.
+    readonly collapsed = this.menuState.sidebarCollapsed;
+
+    // Desktop nav layout: 'sidebar' (vertical rail) vs 'horizontal' (top pill bar).
+    readonly navLayout = this.menuState.navLayout;
 
     // Known child routes under :jobPath — includes both literal paths and wildcard prefixes
     // (e.g., 'reporting' from 'reporting/:action' so that 'reporting/get_netusers' matches)
@@ -60,6 +72,13 @@ export class ClientMenuComponent {
     // Offcanvas state from shared service
     offcanvasOpen = this.menuState.offcanvasOpen;
 
+    // Mobile focused sheet: the top-level category whose children are shown (or null).
+    readonly mobileSheetCategory = computed<NavItemDto | null>(() => {
+        const id = this.menuState.mobileSheetCategoryId();
+        if (!id) return null;
+        return this.menus().find(i => String(i.navItemId) === id) ?? null;
+    });
+
     // Track which item's dropdown panel is open
     expandedItems = signal<Set<string>>(new Set());
 
@@ -81,13 +100,34 @@ export class ClientMenuComponent {
         this.menuState.closeOffcanvas();
     }
 
-    /** Desktop hover: open dropdown when mouse enters a parent group */
+    /** Close the mobile focused sheet (backdrop tap, or after navigating a child). */
+    closeMobileSheet(): void {
+        this.menuState.closeMobileSheet();
+    }
+
+    /** Toggle the desktop rail between icon-rail and labelled; close any open accordion/flyout. */
+    toggleSidebar(): void {
+        this.clearHoverTimer();
+        this.collapseAll();
+        this.menuState.toggleSidebar();
+    }
+
+    /** Flip between the vertical sidebar and the horizontal top bar. */
+    toggleNavLayout(): void {
+        this.clearHoverTimer();
+        this.collapseAll();
+        this.menuState.toggleNavLayout();
+    }
+
+    /**
+     * Horizontal pill nav hover: open the child dropdown panel below the pill.
+     * (The collapsed-rail flyout opens to the right via openRailFlyout instead.)
+     */
     onGroupMouseEnter(event: MouseEvent, menuItemId: string | number): void {
         this.clearHoverTimer();
         const normalizedId = String(menuItemId);
         if (this.isExpanded(normalizedId)) return;
 
-        // Position panel below the <button> child inside the group wrapper
         const group = event.currentTarget as HTMLElement;
         const btn = group.querySelector('button') as HTMLElement;
         const rect = btn.getBoundingClientRect();
@@ -98,9 +138,56 @@ export class ClientMenuComponent {
         this.expandedItems.set(new Set([normalizedId]));
     }
 
-    /** Desktop hover: delayed close when mouse leaves the group (pill + panel) */
+    /** Horizontal pill nav: delayed close when the mouse leaves the group (pill + panel). */
     onGroupMouseLeave(): void {
         this.startHoverCloseTimer();
+    }
+
+    /**
+     * Rail parent click. Expanded: inline accordion toggle. Collapsed: toggle the
+     * right-side flyout (so keyboard/click users reach children without hovering).
+     */
+    onRailParentClick(event: MouseEvent, item: NavItemDto): void {
+        if (!this.collapsed()) {
+            this.toggleExpanded(item.navItemId);
+            return;
+        }
+        if (this.isExpanded(item.navItemId)) {
+            this.collapseAll();
+            return;
+        }
+        this.openRailFlyout(event.currentTarget as HTMLElement, item.navItemId);
+    }
+
+    /** Collapsed-rail hover: open the flyout to the right of the icon. */
+    onRailItemEnter(event: MouseEvent, item: NavItemDto): void {
+        if (!this.collapsed() || !this.hasChildren(item)) return;
+        this.clearHoverTimer();
+        const btn = (event.currentTarget as HTMLElement).querySelector('button');
+        if (btn) this.openRailFlyout(btn, item.navItemId);
+    }
+
+    /** Collapsed-rail mouse-leave: delayed close (same anti-flicker delay as before). */
+    onRailItemLeave(item: NavItemDto): void {
+        if (!this.collapsed() || !this.hasChildren(item)) return;
+        this.startHoverCloseTimer();
+    }
+
+    /**
+     * Position the fixed flyout panel flush against the right edge of the rail item
+     * (flush so there's no dead zone for the pointer to cross). Flips to the left if
+     * the panel would overflow the viewport; clamps vertically within the window.
+     */
+    private openRailFlyout(anchor: HTMLElement, menuItemId: string | number): void {
+        const rect = anchor.getBoundingClientRect();
+        const PANEL_WIDTH = 260;
+        let left = rect.right;
+        if (left + PANEL_WIDTH > window.innerWidth - 8) {
+            left = Math.max(8, rect.left - PANEL_WIDTH);
+        }
+        this.dropdownPanelLeft.set(left);
+        this.dropdownPanelTop.set(Math.max(8, Math.min(rect.top, window.innerHeight - 120)));
+        this.expandedItems.set(new Set([String(menuItemId)]));
     }
 
     private startHoverCloseTimer(): void {
@@ -131,6 +218,19 @@ export class ClientMenuComponent {
 
     isExpanded(menuItemId: string | number): boolean {
         return this.expandedItems().has(String(menuItemId));
+    }
+
+    /**
+     * Mobile offcanvas accordion expansion — backed by MenuStateService so the
+     * bottom-nav can pre-expand a category. Kept separate from the desktop rail's
+     * expandedItems (they never render at the same time, but the source differs).
+     */
+    isOffcanvasExpanded(item: NavItemDto): boolean {
+        return this.menuState.offcanvasExpandedId() === String(item.navItemId);
+    }
+
+    toggleOffcanvasExpanded(item: NavItemDto): void {
+        this.menuState.toggleOffcanvasCategory(item.navItemId);
     }
 
     /**

@@ -15,6 +15,8 @@ export enum LocalStorageKey {
     // ── Theme / UI ──
     AppTheme = 'app-theme',
     SelectedPalette = 'tsic-selected-palette',
+    AdminNavCollapsed = 'tsic.adminNavCollapsed',
+    AdminNavLayout = 'tsic.adminNavLayout',
 
     // ── Scheduling ──
     SchedulePlacementMode = 'tsic.scheduleDivision.placementMode',
@@ -42,6 +44,8 @@ export interface LocalStorageSchema {
     [LocalStorageKey.LastJobPath]: string;
     [LocalStorageKey.AppTheme]: 'light' | 'dark';
     [LocalStorageKey.SelectedPalette]: number;
+    [LocalStorageKey.AdminNavCollapsed]: 'true' | 'false';
+    [LocalStorageKey.AdminNavLayout]: 'horizontal' | 'sidebar';
     [LocalStorageKey.SchedulePlacementMode]: 'mouse' | 'keyboard';
     [LocalStorageKey.AutoScheduleConfig]: string; // JSON-serialized AutoScheduleConfig
     [LocalStorageKey.ScheduleFilters]: string; // JSON-serialized ScheduleFiltersStoreV1

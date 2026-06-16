@@ -1,29 +1,69 @@
-// Bottom navigation bar — mobile only (d-lg-none applied in template)
+// Bottom navigation bar — mobile only (d-lg-none applied in template).
+// Wrapper holds the surface + the edge fades; the inner scroller is what scrolls.
 .bottom-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
     z-index: 9990; // above main content, below header dropdowns (10001) and command palette (20000)
-    display: flex;
-    align-items: stretch;
     background: var(--brand-surface);
     border-top: 1px solid var(--brand-border);
     box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08), 0 -1px 0 var(--brand-border);
     // iOS safe area — respects home indicator
     padding-bottom: env(safe-area-inset-bottom, 0);
+
+    // Edge fades — pinned to the visible edges, toggled by ScrollFadeDirective.
+    // Left appears once scrolled off the start; right hides at the end.
+    &::before,
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 1.75rem;
+        z-index: 1;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+    }
+
+    &::before {
+        left: 0;
+        background: linear-gradient(to right, var(--brand-surface), transparent);
+    }
+
+    &::after {
+        right: 0;
+        background: linear-gradient(to left, var(--brand-surface), transparent);
+    }
+
+    &.scroll-fade--left::before { opacity: 1; }
+    &.scroll-fade--right::after { opacity: 1; }
+}
+
+// Inner horizontal scroller — scrolls when tabs overflow; no "More" button.
+.bottom-nav__scroller {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; // Firefox — hide the scrollbar (swipe to scroll)
+    &::-webkit-scrollbar { display: none; } // WebKit
 }
 
 .bottom-nav__tab {
-    flex: 1;
+    // Grow to fill the bar when few tabs; hold a tappable min width and overflow
+    // (scroll) instead of squishing when there are many.
+    flex: 1 0 auto;
+    min-width: 4.5rem;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    padding: var(--space-2) var(--space-1);
+    padding: var(--space-2) var(--space-2);
     min-height: 56px;
-    min-width: 0; // prevent overflow in flex
     text-decoration: none;
     color: var(--brand-text-muted);
     background: transparent;
@@ -80,7 +120,9 @@
 // Reduced motion
 @media (prefers-reduced-motion: reduce) {
     .bottom-nav__tab,
-    .bottom-nav__icon {
+    .bottom-nav__icon,
+    .bottom-nav::before,
+    .bottom-nav::after {
         transition: none;
     }
 }

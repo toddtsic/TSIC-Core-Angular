@@ -1,19 +1,26 @@
 <div class="layout-wrapper">
-  <!-- Header + Menu (single sticky chrome block) -->
+  <!-- Top bar — full width across the shell -->
   <header class="tsic-header">
     <app-client-header-bar></app-client-header-bar>
-    <app-client-menu></app-client-menu>
   </header>
 
-  <!-- Main Content -->
-  <main class="container-fluid pb-2 pb-md-4">
-    <div class="row">
-      <!-- Content Area -->
-      <div class="col-12">
-        <router-outlet></router-outlet>
+  <!-- Body row: admin sidebar (desktop) sits left of the scrolling content.
+       client-menu renders the vertical rail on lg+ for admins, and the
+       position:fixed mobile offcanvas regardless. On mobile the rail is
+       d-none, so this row is just <main> full width. -->
+  <div class="layout-body" [class.layout-body--horizontal]="navLayout() === 'horizontal'">
+    <app-client-menu></app-client-menu>
+
+    <!-- Main Content (scroll container) -->
+    <main class="container-fluid pb-2 pb-md-4">
+      <div class="row">
+        <!-- Content Area -->
+        <div class="col-12">
+          <router-outlet></router-outlet>
+        </div>
       </div>
-    </div>
-  </main>
+    </main>
+  </div>
 
   <!-- Footer -->
   <app-client-footer-bar></app-client-footer-bar>
