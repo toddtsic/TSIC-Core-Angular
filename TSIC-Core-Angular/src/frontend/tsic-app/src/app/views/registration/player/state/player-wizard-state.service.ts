@@ -95,15 +95,32 @@ export class PlayerWizardStateService {
 
     // ── Initialize ────────────────────────────────────────────────────
     /**
-     * Main entry point. Called when the wizard mounts or the jobPath changes.
-     * Loads family players, then chains job metadata + form initialization.
+     * Main entry point. Called when the wizard mounts or the jobPath changes. Owns the two
+     * independent async loads the wizard needs — family players (→ prefilled selectedTeams) and
+     * available teams (→ agegroup names) — so it can coordinate them in one place.
      */
     initialize(jobPath: string): void {
         const apiBase = this.jobCtx.resolveApiBase();
         this.jobCtx.setJobPath(jobPath);
 
+        // The BYAGEGROUP resume backfill needs BOTH loads complete. Gate it behind a two-signal
+        // barrier and fire it exactly once, when the second of the two finishes — deterministic,
+        // single trigger, no Angular effect. Flags are closure-scoped so each initialize() call
+        // (e.g. on jobPath change) starts fresh.
+        let familyLoaded = false;
+        let teamsLoaded = false;
+        const backfillAgegroupWhenReady = () => {
+            if (familyLoaded && teamsLoaded) this.backfillAgegroupEligibilityFromTeams();
+        };
+
         this.familyPlayers.loadFamilyPlayers(jobPath, apiBase, (resp, players) => {
             this.onFamilyPlayersLoaded(resp, players, jobPath);
+            familyLoaded = true;
+            backfillAgegroupWhenReady();
+        });
+        this.teamService.loadForJob(jobPath, () => {
+            teamsLoaded = true;
+            backfillAgegroupWhenReady();
         });
     }
 
@@ -122,11 +139,6 @@ export class PlayerWizardStateService {
             this.eligibility.selectedTeams(),
             map => this.eligibility.setSelectedTeams(map),
         );
-
-        // BYAGEGROUP resume: derive eligibility from the prefilled team's agegroup. Teams may not
-        // be loaded yet here (separate async fetch) — this is a no-op then, and the teams-loaded
-        // callback (TeamService.loadForJob) runs it again. Whichever finishes last does the work.
-        this.backfillAgegroupEligibilityFromTeams();
 
         // Payment flags from response
         this.jobCtx.setPaymentFlags(!!resp.jobHasActiveDiscountCodes, !!resp.jobUsesAmex);
@@ -180,9 +192,8 @@ export class PlayerWizardStateService {
      * stable fact, which is why we resolve through the team rather than store a name). The assigned
      * team is prefilled into selectedTeams from the active/pending prior reg.
      *
-     * Called (NOT via effect) from BOTH the family-load completion and the teams-load completion,
-     * which race; whichever finishes last does the work, the other is a guarded no-op. Fill-empty:
-     * never overrides an existing value or a user selection.
+     * Invoked once by initialize()'s barrier, after BOTH the family and teams loads complete (no
+     * Angular effect, no race). Fill-empty: never overrides an existing value or a user selection.
      */
     backfillAgegroupEligibilityFromTeams(): void {
         if ((this.eligibility.teamConstraintType() || '').toUpperCase() !== 'BYAGEGROUP') return;

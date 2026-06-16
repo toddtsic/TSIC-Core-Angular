@@ -5,7 +5,6 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
-import { TeamService } from '../services/team.service';
 import { LoginComponent } from '../../../auth/login/login.component';
 
 /**
@@ -163,7 +162,6 @@ export class FamilyCheckStepComponent implements OnInit {
     private readonly toast = inject(ToastService);
     private readonly destroyRef = inject(DestroyRef);
     private readonly state = inject(PlayerWizardStateService);
-    private readonly teamService = inject(TeamService);
 
     readonly loading = signal(false);
     readonly loadError = signal<string | null>(null);
@@ -229,7 +227,6 @@ export class FamilyCheckStepComponent implements OnInit {
                 next: () => {
                     this.loading.set(false);
                     this.state.initialize(jobPath);
-                    this.teamService.loadForJob(jobPath, () => this.state.backfillAgegroupEligibilityFromTeams());
                     this.advance.emit();
                 },
                 error: (err: unknown) => {

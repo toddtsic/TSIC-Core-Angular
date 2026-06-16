@@ -6,7 +6,6 @@ import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { PlayerWizardStateService } from './state/player-wizard-state.service';
 import { PaymentV2Service } from './state/payment-v2.service';
-import { TeamService } from './services/team.service';
 import { WizardShellComponent } from '../shared/wizard-shell/wizard-shell.component';
 import { FamilyCheckStepComponent } from './steps/family-check-step.component';
 import { PlayerSelectionStepComponent } from './steps/player-selection-step.component';
@@ -86,7 +85,6 @@ export class PlayerWizardV2Component implements OnInit {
     private readonly router = inject(Router);
     private readonly destroyRef = inject(DestroyRef);
     private readonly toast = inject(ToastService);
-    private readonly teamService = inject(TeamService);
     private readonly paySvc = inject(PaymentV2Service);
     private readonly jobPulseService = inject(JobPulseService);
     readonly state = inject(PlayerWizardStateService);
@@ -249,7 +247,6 @@ export class PlayerWizardV2Component implements OnInit {
             // Only pre-load if already authenticated as Family/Player for this job
             if (validRole && sameJob) {
                 this.state.initialize(jobPath);
-                this.teamService.loadForJob(jobPath, () => this.state.backfillAgegroupEligibilityFromTeams());
                 // Skip family-check — already authenticated for this job
                 const playersIdx = this.activeSteps().findIndex(s => s.id === 'players');
                 if (playersIdx >= 0) this._currentIndex.set(playersIdx);
