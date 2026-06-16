@@ -1,0 +1,411 @@
+:host {
+	display: block;
+	--ah-bar-h: 64px;
+}
+
+.ah {
+	position: relative;
+}
+
+/* ═══════════════ Top bar ═══════════════ */
+.ah-bar {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	height: var(--ah-bar-h);
+	padding: 0 var(--space-5);
+	background: var(--brand-surface);
+	border-bottom: 1px solid var(--brand-border);
+	box-shadow: var(--shadow-sm);
+}
+
+.ah-bar__brand {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	min-width: 0;
+}
+
+.ah-bar__logo {
+	display: grid;
+	place-items: center;
+	width: 38px;
+	height: 38px;
+	border-radius: var(--radius-md);
+	color: var(--neutral-0);
+	font-size: var(--font-size-lg);
+	background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
+	box-shadow: var(--shadow-sm);
+}
+
+.ah-bar__job {
+	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-size-lg);
+	color: var(--brand-text);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ah-bar__spacer {
+	flex: 1 1 auto;
+}
+
+.ah-bar__actions {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+}
+
+/* ═══════════════ Triggers ═══════════════ */
+.ah-trigger {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-full);
+	background: var(--brand-surface);
+	color: var(--brand-text);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	cursor: pointer;
+	transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+
+	&:hover {
+		background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface));
+		border-color: color-mix(in srgb, var(--bs-primary) 35%, var(--brand-border));
+	}
+
+	&.is-open {
+		background: color-mix(in srgb, var(--bs-primary) 12%, var(--brand-surface));
+		border-color: var(--bs-primary);
+		color: var(--brand-primary-dark);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.ah-trigger--account {
+	padding: var(--space-2);
+	font-size: var(--font-size-xl);
+	line-height: 1;
+}
+
+/* ═══════════════ Account popover ═══════════════ */
+.ah-popover {
+	position: absolute;
+	top: calc(100% + var(--space-2));
+	right: 0;
+	z-index: 60;
+	min-width: 200px;
+	padding: var(--space-2);
+	background: var(--brand-surface);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-xl);
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.ah-popover__item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	border: none;
+	border-radius: var(--radius-sm);
+	background: transparent;
+	color: var(--brand-text);
+	font-size: var(--font-size-sm);
+	text-align: left;
+	cursor: pointer;
+	transition: background-color 0.12s ease;
+
+	i { color: var(--brand-text-muted); width: 1.1em; }
+
+	&:hover {
+		background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
+		i { color: var(--brand-primary); }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+/* ═══════════════ Scrim ═══════════════ */
+.ah-scrim {
+	position: fixed;
+	inset: 0;
+	z-index: 40;
+	background: rgba(0, 0, 0, 0.4);
+}
+
+/* ═══════════════ Mega-panel (desktop) ═══════════════ */
+.ah-panel {
+	position: absolute;
+	inset-inline: 0;
+	top: var(--ah-bar-h);
+	z-index: 45;
+	background: var(--brand-surface);
+	border-bottom: 1px solid var(--brand-border);
+	box-shadow: var(--shadow-2xl);
+	animation: ah-drop 0.18s ease;
+}
+
+.ah-panel__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+	gap: var(--space-6);
+	max-width: 1200px;
+	margin: 0 auto;
+	padding: var(--space-8) var(--space-6);
+}
+
+.ah-panel__group-title {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	margin: 0 0 var(--space-3);
+	padding-bottom: var(--space-2);
+	border-bottom: 1px solid var(--brand-border);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-bold);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--brand-text-muted);
+
+	i { color: var(--brand-primary); }
+}
+
+.ah-panel__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.ah-panel__item {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid transparent;
+	border-radius: var(--radius-md);
+	background: transparent;
+	color: var(--brand-text);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	text-align: left;
+	cursor: pointer;
+	transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
+
+	&:hover {
+		background: color-mix(in srgb, var(--bs-primary) 9%, transparent);
+		border-color: color-mix(in srgb, var(--bs-primary) 25%, transparent);
+		transform: translateX(2px);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.ah-panel__item-icon {
+	display: grid;
+	place-items: center;
+	width: 30px;
+	height: 30px;
+	border-radius: var(--radius-sm);
+	background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+	color: var(--brand-primary);
+	font-size: var(--font-size-base);
+}
+
+/* ═══════════════ Hero action badges ═══════════════ */
+/* Content-width pills that wrap. The primary action is a filled gradient pill;
+   the rest are clean outlined chips sized to their label. Sizing to the text
+   keeps the row compact and lets 2–6 actions flow + wrap on any width. */
+.ah-hero {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-3);
+	max-width: 1100px;
+	margin: 0 auto;
+	/* Top 0: the gap above comes from the banner's bottom margin (tuned on the
+	   landing). Bottom: the badge row owns the gap to whatever follows. */
+	padding: 0 var(--space-5) var(--space-3);
+}
+
+/* Uniform pale-blue badge — matches the app's subtle-primary chips. No
+   per-action color emphasis; the primary action leads by position only. */
+.ah-hero__card {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-4);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 22%, transparent);
+	border-radius: var(--radius-full);
+	background: color-mix(in srgb, var(--bs-primary) 11%, var(--brand-surface));
+	color: var(--brand-primary-dark);
+	font-weight: var(--font-weight-semibold);
+	cursor: pointer;
+	text-decoration: none;
+	white-space: nowrap;
+	transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+
+	&:hover {
+		transform: translateY(-1px);
+		background: color-mix(in srgb, var(--bs-primary) 18%, var(--brand-surface));
+		border-color: color-mix(in srgb, var(--bs-primary) 38%, transparent);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+/* Inline icon glyph — no boxed tile; reads cleaner inside a badge. */
+.ah-hero__icon {
+	display: inline-flex;
+	color: var(--brand-primary);
+	font-size: var(--font-size-lg);
+	line-height: 1;
+}
+
+.ah-hero__label {
+	font-size: var(--font-size-base);
+}
+
+/* Badges stay clean — no trailing arrows. */
+.ah-hero__go { display: none; }
+
+/* ═══════════════ Phone bottom bar ═══════════════ */
+.ah-tabbar {
+	display: none;
+	position: fixed;
+	inset-inline: 0;
+	bottom: 0;
+	z-index: 50;
+	background: var(--brand-surface);
+	border-top: 1px solid var(--brand-border);
+	box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.ah-tabbar__tab {
+	flex: 1 1 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	padding: var(--space-2) var(--space-1);
+	border: none;
+	background: transparent;
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-2xs);
+	font-weight: var(--font-weight-medium);
+	cursor: pointer;
+
+	i { font-size: var(--font-size-xl); }
+
+	&:active,
+	&.is-open {
+		color: var(--brand-primary);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+/* ═══════════════ Responsive — phone ═══════════════ */
+@media (max-width: 767.98px) {
+	.ah-trigger--menu { display: none; }
+
+	.ah-tabbar { display: flex; }
+
+	/* Phone: small 2-up badges that fill the column — balanced side by side and
+	   scaling to rows of two as more arrive. Significantly more compact than the
+	   desktop pills so they read as chips, not chunky buttons. */
+	.ah-hero {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--space-2);
+		padding: 0 var(--space-3) var(--space-3);
+	}
+
+	.ah-hero__card {
+		justify-content: center;
+		gap: var(--space-1);
+		padding: var(--space-1) var(--space-2);
+		white-space: normal;
+		text-align: center;
+	}
+
+	.ah-hero__icon { font-size: var(--font-size-sm); }
+	.ah-hero__label { font-size: var(--font-size-xs); }
+
+	/* A lone trailing odd card spans the full width instead of sitting half-empty. */
+	.ah-hero__card:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+	/* Mega-panel becomes a bottom sheet */
+	.ah-panel {
+		position: fixed;
+		inset-inline: 0;
+		top: auto;
+		bottom: 0;
+		z-index: 55;
+		max-height: 72vh;
+		overflow-y: auto;
+		border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+		box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.18);
+		animation: ah-sheet-up 0.22s ease;
+	}
+
+	.ah-panel__grid {
+		grid-template-columns: 1fr;
+		gap: var(--space-5);
+		padding: var(--space-6) var(--space-5) calc(var(--space-8) + 56px);
+	}
+}
+
+/* ═══════════════ Motion ═══════════════ */
+@keyframes ah-drop {
+	from { opacity: 0; transform: translateY(-8px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes ah-sheet-up {
+	from { transform: translateY(100%); }
+	to   { transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ah-panel,
+	.ah-trigger,
+	.ah-hero__card,
+	.ah-hero__go,
+	.ah-panel__item {
+		animation: none !important;
+		transition: none !important;
+	}
+}

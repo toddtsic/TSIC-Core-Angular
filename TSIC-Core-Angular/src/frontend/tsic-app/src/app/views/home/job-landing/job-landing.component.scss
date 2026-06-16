@@ -28,6 +28,18 @@
 		var(--brand-surface, var(--neutral-50));
 }
 
+// Mobile: reclaim the layout shell's 16px row top-padding (and the host's own
+// 4px) so the banner sits just under the header — mobile space is precious and
+// the banner is the first thing on the page, it needs no gap above it.
+@media (max-width: 767.98px) {
+	:host {
+		padding-top: 0;
+		// Reclaim most of the layout row's 16px top padding (leaving ~8px above
+		// the banner) so it sits snug under the header without touching it.
+		margin-top: calc(-1 * var(--space-3));
+	}
+}
+
 .jl-container {
 	max-width: 1200px;
 	margin: 0 auto;
@@ -43,6 +55,24 @@ app-client-banner {
 	display: block;
 	max-width: 1280px;
 	margin: 0 auto;
+}
+
+// The banner widget's 20px bottom margin lives on an element *inside* the
+// banner component, so it can't be trimmed from out here. Instead pull the
+// badge row up on the landing so its gap above (banner) matches its bottom
+// padding below: 20px banner margin − 8px pull = 12px.
+.jl app-action-hub {
+	display: block;
+	margin-top: calc(-1 * var(--space-2));
+}
+
+// When the action-hub badges are present, they own a clean gap below; the
+// bulletins section drops its own top spacing so the gap isn't doubled.
+app-action-hub + .jl-bulletins {
+	margin-top: 0;
+	// The badge row owns the gap above; drop the paper's hefty 32px top inset to
+	// a small one so "News & Updates" isn't stranded below a dead band.
+	padding-top: var(--space-2);
 }
 
 // ============================================================
@@ -88,6 +118,11 @@ app-client-banner {
 .jl-toolbar__inner app-inline-game-clock {
 	flex: 0 0 auto;
 	justify-content: flex-start;
+}
+
+// Lone next-game clock with no sibling heading — center it in the strip.
+.jl-toolbar__inner--solo {
+	justify-content: center;
 }
 
 // Heading in the middle — auto margins push it to center between
@@ -308,6 +343,33 @@ app-client-banner {
 	@media (max-width: 575px) {
 		padding: 0 var(--space-3);
 	}
+}
+
+// Section header for the news — title on the left, next-game countdown flush
+// right. Wraps on narrow screens so the clock drops below the title.
+.jl-bulletins__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: var(--space-2) var(--space-4);
+	margin-bottom: var(--space-5);
+	padding-bottom: var(--space-3);
+	border-bottom: 1px solid var(--brand-border);
+}
+
+.jl-bulletins__title {
+	margin: 0;
+	font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: -0.01em;
+	line-height: 1.2;
+}
+
+// The clock host defaults to flex:1 (it stretches to center inside the
+// view-schedule heading); here it should hug its content at the right.
+.jl-bulletins__header app-inline-game-clock {
+	flex: 0 0 auto;
 }
 
 .jl-gradient-text {

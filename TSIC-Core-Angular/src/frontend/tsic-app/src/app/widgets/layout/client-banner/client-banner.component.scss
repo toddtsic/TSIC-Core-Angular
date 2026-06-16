@@ -6,8 +6,11 @@
     margin-top: var(--space-4);
     margin-bottom: var(--space-5);
 
+    // Mobile: reclaim the wasted gutter — minimal side padding + a tight top
+    // margin. (Bottom margin stays; the landing's badge-pull nets it to 4px.)
     @media (max-width: 768px) {
-        padding: 0 var(--space-4);
+        padding: 0 var(--space-2);
+        margin-top: var(--space-1);
     }
 
     // Banner background uses standardized aspect ratio (TSIC-prepared 2000×440 source = 50:11).

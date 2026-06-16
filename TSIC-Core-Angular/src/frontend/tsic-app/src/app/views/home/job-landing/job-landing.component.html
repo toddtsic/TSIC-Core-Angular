@@ -26,40 +26,31 @@
 
 
 		<!-- ══════════════════════════════════════════════════
-		     TOOLBAR — sticky on scroll. Hidden during pre-reg /
-		     unknown phases. Inline game clock occupies the left
-		     slot only when in-season AND games remain.
+		     ACTION HUB (hero strip) — grounded landing CTAs from
+		     the live pulse. The unified menu's LandingCta placement;
+		     rendered bare (hero only) so the global header chrome is
+		     untouched for now.
 		     ══════════════════════════════════════════════════ -->
-		@if (showToolbar()) {
-			<section class="jl-toolbar">
-				<div class="jl-container jl-toolbar__inner">
-					@if (showInlineClock()) {
-						<app-inline-game-clock [jobId]="jobId()" />
-					}
-
-					<h2 class="jl-toolbar__heading">
-						<span class="jl-gradient-text">News &amp; Updates</span>
-					</h2>
-
-					<span class="jl-toolbar__cta-group" [class.jl-toolbar__cta-group--multi]="ctas().length > 1">
-						@for (cta of ctas(); track cta.label) {
-							<a [routerLink]="cta.path" [queryParams]="cta.queryParams" class="jl-toolbar__cta">
-								<span>{{ cta.label }}</span>
-								<i class="bi bi-arrow-right" aria-hidden="true"></i>
-							</a>
-						}
-					</span>
-				</div>
-			</section>
+		@if (heroActions().length) {
+			<app-action-hub [bare]="true" [heroActions]="heroActions()" />
 		}
-
 
 		<!-- ══════════════════════════════════════════════════
 		     BULLETINS — full-viewport-width publication paper
-		     floating on the atmospheric page background.
+		     floating on the atmospheric page background. The section
+		     header carries the title plus, when in-season, the
+		     next-game countdown flush right.
 		     ══════════════════════════════════════════════════ -->
 		<section class="jl-bulletins">
 			<div class="jl-bulletins__inner">
+				<header class="jl-bulletins__header">
+					<h2 class="jl-bulletins__title">
+						<span class="jl-gradient-text">News &amp; Updates</span>
+					</h2>
+					@if (showInlineClock()) {
+						<app-inline-game-clock [jobId]="jobId()" />
+					}
+				</header>
 				<div class="reveal reveal-delay-1">
 					<app-bulletins></app-bulletins>
 				</div>

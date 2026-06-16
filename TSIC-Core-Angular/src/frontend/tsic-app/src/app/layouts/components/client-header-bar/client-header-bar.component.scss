@@ -581,6 +581,53 @@
             background: rgba(var(--bs-danger-rgb), 0.08);
         }
     }
+
+    // The one urgent next-action (a balance due) — emphasized at the top of the
+    // list so the eye lands on it the instant the menu opens.
+    &--primary {
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-primary);
+        background: rgba(var(--bs-primary-rgb), 0.07);
+        box-shadow: inset 3px 0 0 var(--bs-primary);
+
+        .bi {
+            color: var(--bs-primary);
+        }
+
+        &:hover {
+            background: rgba(var(--bs-primary-rgb), 0.14);
+        }
+    }
+}
+
+// Nudge dot on the avatar trigger — signals "there's something to act on"
+// (a balance due) without crowding the header or popping anything open.
+// Anchored to the relative .user-menu-wrapper so it sits at the pill's corner.
+.user-menu-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 11px;
+    height: 11px;
+    border-radius: var(--radius-full);
+    background: var(--bs-danger);
+    border: 2px solid var(--bs-body-bg);
+    pointer-events: none;
+    z-index: 1;
+    animation: userMenuBadgePulse 2s ease-in-out infinite;
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+@keyframes userMenuBadgePulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(var(--bs-danger-rgb), 0.5);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(var(--bs-danger-rgb), 0);
+    }
 }
 
 @keyframes userMenuFadeIn {

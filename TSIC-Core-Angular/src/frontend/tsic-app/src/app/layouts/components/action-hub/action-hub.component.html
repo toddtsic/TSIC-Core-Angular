@@ -1,0 +1,114 @@
+<div class="ah" (keydown.escape)="closeAll()">
+
+	@if (!bare()) {
+		<!-- ═══════════════ Top bar (all viewports) ═══════════════ -->
+		<header class="ah-bar">
+			<div class="ah-bar__brand">
+				<span class="ah-bar__logo" aria-hidden="true"><i class="bi bi-trophy"></i></span>
+				<span class="ah-bar__job">{{ jobName() }}</span>
+			</div>
+
+			<div class="ah-bar__spacer"></div>
+
+			<div class="ah-bar__actions">
+				<!-- Desktop menu trigger (hidden on phone; phone uses the bottom bar) -->
+				<button type="button" class="ah-trigger ah-trigger--menu" [class.is-open]="menuOpen()"
+					(click)="toggleMenu()" aria-haspopup="true" [attr.aria-expanded]="menuOpen()">
+					<i class="bi" [class.bi-grid-3x3-gap]="!menuOpen()" [class.bi-x-lg]="menuOpen()" aria-hidden="true"></i>
+					<span>Menu</span>
+				</button>
+
+				<button type="button" class="ah-trigger ah-trigger--account" [class.is-open]="accountOpen()"
+					(click)="toggleAccount()" aria-haspopup="true" [attr.aria-expanded]="accountOpen()" aria-label="Account">
+					<i class="bi bi-person-circle" aria-hidden="true"></i>
+				</button>
+
+				<!-- Account popover -->
+				@if (accountOpen()) {
+					<div class="ah-popover" role="menu">
+						@for (item of accountItems(); track item.key) {
+							<button type="button" class="ah-popover__item" role="menuitem" (click)="closeAll()">
+								<i class="bi {{ item.icon }}" aria-hidden="true"></i>
+								<span>{{ item.label }}</span>
+							</button>
+						}
+					</div>
+				}
+			</div>
+		</header>
+
+		<!-- ═══════════════ Mega-panel (desktop) / bottom sheet (phone) ═══════════════ -->
+		@if (menuOpen()) {
+			<div class="ah-scrim" (click)="closeMenu()"></div>
+			<nav class="ah-panel" aria-label="Main menu">
+				<div class="ah-panel__grid">
+					@for (group of navGroups(); track group.key) {
+						<div class="ah-panel__group">
+							<h3 class="ah-panel__group-title">
+								@if (group.icon) { <i class="bi {{ group.icon }}" aria-hidden="true"></i> }
+								<span>{{ group.label }}</span>
+							</h3>
+							<ul class="ah-panel__list">
+								@for (item of group.items; track item.key) {
+									<li>
+										@if (item.routerLink) {
+											<a class="ah-panel__item" [routerLink]="item.routerLink" (click)="closeMenu()">
+												<i class="bi {{ item.icon }} ah-panel__item-icon" aria-hidden="true"></i>
+												<span>{{ item.label }}</span>
+											</a>
+										} @else {
+											<button type="button" class="ah-panel__item" (click)="closeMenu()">
+												<i class="bi {{ item.icon }} ah-panel__item-icon" aria-hidden="true"></i>
+												<span>{{ item.label }}</span>
+											</button>
+										}
+									</li>
+								}
+							</ul>
+						</div>
+					}
+				</div>
+			</nav>
+		}
+	}
+
+	<!-- ═══════════════ Hero action strip (LandingCta placement) ═══════════════ -->
+	@if (showHero() && heroActions().length) {
+		<section class="ah-hero" aria-label="Quick actions">
+			@for (action of heroActions(); track action.key) {
+				@if (action.routerLink) {
+					<a class="ah-hero__card" [class.ah-hero__card--primary]="action.emphasis === 'primary'"
+						[routerLink]="action.routerLink">
+						<span class="ah-hero__icon"><i class="bi {{ action.icon }}" aria-hidden="true"></i></span>
+						<span class="ah-hero__label">{{ action.label }}</span>
+						<i class="bi bi-arrow-right ah-hero__go" aria-hidden="true"></i>
+					</a>
+				} @else {
+					<button type="button" class="ah-hero__card"
+						[class.ah-hero__card--primary]="action.emphasis === 'primary'">
+						<span class="ah-hero__icon"><i class="bi {{ action.icon }}" aria-hidden="true"></i></span>
+						<span class="ah-hero__label">{{ action.label }}</span>
+						<i class="bi bi-arrow-right ah-hero__go" aria-hidden="true"></i>
+					</button>
+				}
+			}
+		</section>
+	}
+
+	@if (!bare()) {
+		<!-- ═══════════════ Phone bottom bar (hidden on desktop) ═══════════════ -->
+		<nav class="ah-tabbar" aria-label="Primary">
+			@for (tab of quickTabs(); track tab.key) {
+				<button type="button" class="ah-tabbar__tab">
+					<i class="bi {{ tab.icon }}" aria-hidden="true"></i>
+					<span>{{ tab.label }}</span>
+				</button>
+			}
+			<button type="button" class="ah-tabbar__tab ah-tabbar__more" [class.is-open]="menuOpen()" (click)="toggleMenu()">
+				<i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
+				<span>More</span>
+			</button>
+		</nav>
+	}
+
+</div>

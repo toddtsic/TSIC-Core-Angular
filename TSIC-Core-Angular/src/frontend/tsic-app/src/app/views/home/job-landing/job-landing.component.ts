@@ -9,7 +9,7 @@ import {
 	OnDestroy,
 	signal
 } from '@angular/core';
-import { ActivatedRoute, ActivatedRouteSnapshot, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -18,13 +18,12 @@ import { ClientBannerComponent } from '@widgets/layout/client-banner/client-bann
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
 import { ViewScheduleService } from '@views/scheduling/view-schedule/services/view-schedule.service';
 import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
-
-type JobPhase = 'pre-registration' | 'registration' | 'in-season' | 'unknown';
+import { ActionHubComponent, HubItem } from '@layouts/components/action-hub/action-hub.component';
 
 @Component({
 	selector: 'app-job-landing',
 	standalone: true,
-	imports: [RouterLink, ClientBannerComponent, BulletinsComponent, InlineGameClockComponent],
+	imports: [ClientBannerComponent, BulletinsComponent, InlineGameClockComponent, ActionHubComponent],
 	templateUrl: './job-landing.component.html',
 	styleUrl: './job-landing.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -63,13 +62,85 @@ export class JobLandingComponent implements OnDestroy {
 		return '';
 	});
 
-	readonly phase = computed<JobPhase>(() => {
+	// Grounded landing CTAs (LandingCta placement), derived from the live pulse —
+	// the canonical "what's open" snapshot. INTERIM: this thin pulse→action mapping
+	// runs client-side so the hero works in-context now; the full server nav-merge
+	// (role-gating + personalization + account menu) supersedes it. Absolute,
+	// jobPath-prefixed routerLinks (the jobPath is in the path, so it's preserved).
+	readonly heroActions = computed<HubItem[]>(() => {
+		// Admins navigate via the dense nav chrome — the public CTA hero is for
+		// anonymous + non-admin viewers only. A Superuser has no use for a
+		// "Register Player" card, so the hero stays empty for them.
+		if (this.auth.isAdmin()) return [];
 		const p = this.pulse();
-		if (!p) return 'unknown';
-		if (p.playerRegistrationOpen || p.teamRegistrationOpen) return 'registration';
-		if (p.schedulePublished) return 'in-season';
-		if (p.playerRegistrationPlanned || p.adultRegistrationPlanned) return 'pre-registration';
-		return 'unknown';
+		const jp = this.activeJobPath();
+		if (!p || !jp) return [];
+		const base = `/${jp}`;
+		// A viewer who already holds a registration in this job (has a regId) is
+		// past the "register" stage: a Player/Family sees "My Registration" in
+		// place of "Register Player" (same target as the top-right menu), and the
+		// public register CTAs are suppressed. Anonymous viewers still register.
+		const user = this.auth.currentUser();
+		const registered = !!user?.regId;
+		const isPlayerOrFamily = user?.role === Roles.Player || user?.role === Roles.Family;
+		const items: HubItem[] = [];
+		if (p.playerRegistrationOpen) {
+			if (registered && isPlayerOrFamily) {
+				items.push({ key: 'my-registration', label: 'My Registration', icon: 'bi-person-badge', routerLink: `${base}/registration/player?step=players` });
+			} else if (!registered) {
+				items.push({ key: 'register-player', label: 'Register Player', icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
+			}
+		}
+		// Pay Balance Due — a registered Player/Family that still owes. Available
+		// regardless of the registration window (you can always settle a balance).
+		if (registered && isPlayerOrFamily && (p.myRegistrationOwedTotal ?? 0) > 0) {
+			items.push({ key: 'pay-balance', label: 'Pay Balance Due', icon: 'bi-cash-stack', routerLink: `${base}/registration/player?step=payment` });
+		}
+
+		// Once schedules publish, team rosters lock — suppress Register Team.
+		if (p.teamRegistrationOpen && !p.schedulePublished && !registered) {
+			items.push({ key: 'register-team', label: 'Register Team', icon: 'bi-people', routerLink: `${base}/registration/team` });
+		}
+		if (p.schedulePublished) {
+			items.push({ key: 'view-schedule', label: 'View Schedule', icon: 'bi-calendar-event', routerLink: `${base}/schedule` });
+		}
+		if (p.storeHasActiveItems) {
+			items.push({ key: 'store', label: 'Store', icon: 'bi-bag', routerLink: `${base}/store` });
+		}
+		if (p.allowRosterViewPlayer) {
+			items.push({ key: 'rosters', label: 'Rosters', icon: 'bi-card-checklist', routerLink: `${base}/rosters/public` });
+		}
+		if (p.offerPlayerRegsaverInsurance) {
+			items.push({ key: 'player-insurance', label: 'Insurance Update', icon: 'bi-shield-check', routerLink: `${base}/PlayerVIUpdate` });
+		}
+
+		// The single emphasized (primary) action is chosen from the event's
+		// lifecycle stage, not a fixed action: once schedules publish the event
+		// is in-season and the schedule dominates visitor intent; before that,
+		// registration leads. The primary is floated to the front of the row.
+		// A balance due is the urgent action — it leads ahead of the lifecycle
+		// pick. Otherwise the schedule (in-season) or registration (pre-season).
+		const primaryKey = items.some(i => i.key === 'pay-balance')
+			? 'pay-balance'
+			: p.schedulePublished
+				? 'view-schedule'
+				: p.playerRegistrationOpen
+					? (registered ? 'my-registration' : 'register-player')
+					: p.teamRegistrationOpen
+						? 'register-team'
+						: items[0]?.key;
+
+		// Fall back to the first available action when the lifecycle-preferred
+		// primary isn't present (e.g. a registered viewer with register suppressed).
+		let primaryIdx = items.findIndex(i => i.key === primaryKey);
+		if (primaryIdx < 0 && items.length) primaryIdx = 0;
+		if (primaryIdx > 0) {
+			const [primary] = items.splice(primaryIdx, 1);
+			items.unshift({ ...primary, emphasis: 'primary' });
+		} else if (primaryIdx === 0) {
+			items[0] = { ...items[0], emphasis: 'primary' };
+		}
+		return items;
 	});
 
 	// Stale event with a live later-year sibling — collapses the entire page
@@ -77,69 +148,12 @@ export class JobLandingComponent implements OnDestroy {
 	readonly isSuperseded = computed(() => !!this.pulse()?.supersededByLaterEvent);
 	readonly supersedingName = computed(() => this.pulse()?.supersededByLaterEvent?.jobName ?? '');
 
-	// Toolbar only renders during active phases (registration or in-season).
-	// Pre-registration, unknown, and the no-jobPath case render banner + bulletins
-	// without a toolbar; superseded replaces the entire page (handled separately).
-	readonly showToolbar = computed(() => {
-		if (!this.activeJobPath() || !this.pulse() || this.isSuperseded()) return false;
-		const ph = this.phase();
-		return ph === 'registration' || ph === 'in-season';
-	});
-
 	// Probed once on mount; true when this job has at least one upcoming or
 	// in-progress RR/PO game. Drives the inline game clock in the toolbar.
 	private readonly hasGameClockGames = signal(false);
 	readonly showInlineClock = computed(() =>
 		!!this.pulse()?.schedulePublished && !!this.jobId() && this.hasGameClockGames()
 	);
-
-	readonly ctas = computed<readonly { readonly label: string; readonly path: readonly string[]; readonly queryParams?: Record<string, string> }[]>(() => {
-		const jp = this.activeJobPath();
-		if (!jp) return [];
-
-		const p = this.pulse();
-		const schedulePublished = p?.schedulePublished === true;
-		const playerOpen = p?.playerRegistrationOpen === true;
-		// Once schedules are published, teams are locked into divisions/brackets —
-		// adding new teams would disrupt the schedule. Suppress Register Team
-		// regardless of the underlying flag, and replace it with a View Schedule
-		// link in the same slot. (Player reg can still run; rostering players
-		// onto already-scheduled teams is normal in-season.)
-		const teamWouldOpen = p?.teamRegistrationOpen === true;
-		const teamSuppressedBySchedule = teamWouldOpen && schedulePublished;
-		const teamOpen = teamWouldOpen && !schedulePublished;
-
-		const out: { readonly label: string; readonly path: readonly string[]; readonly queryParams?: Record<string, string> }[] = [];
-		// myAssignedTeamId is populated for ANY registration with an assigned team —
-		// not just players. A tournament coach is the Staff role WITH an AssignedTeamId,
-		// so we must discriminate by role: a player's "My Registration" is the player
-		// wizard, a coach's is the adult wizard (roleKey 'coach'). Without this guard a
-		// coach's CTA mis-routed into the player wizard.
-		const role = this.auth.currentUser()?.role;
-		if (p?.myAssignedTeamId != null && (role === Roles.Family || role === Roles.Player)) {
-			out.push({ label: 'My Registration', path: ['/', jp, 'registration', 'player'], queryParams: { step: 'players' } });
-		} else if (p?.myAssignedTeamId != null && role === Roles.Staff) {
-			out.push({ label: 'My Registration', path: ['/', jp, 'registration', 'adult'], queryParams: { role: 'coach', step: 'profile' } });
-		} else if (playerOpen) {
-			out.push({ label: 'Register Player', path: ['/', jp, 'registration', 'player'] });
-		}
-		// A club rep with at least one registered team sees their existing registration
-		// rather than a Register Team CTA — deep-links to the teams step. (myClubRepTeamCount
-		// is only populated for a Club Rep scoped to this job, so > 0 encodes both role + has-reg.)
-		if ((p?.myClubRepTeamCount ?? 0) > 0) {
-			out.push({ label: 'My Teams', path: ['/', jp, 'registration', 'team'], queryParams: { step: 'teams' } });
-		} else if (teamOpen) {
-			out.push({ label: 'Register Team', path: ['/', jp, 'registration', 'team'] });
-		}
-
-		// View Schedule fills the slot a suppressed Register Team would have
-		// occupied; also shown standalone when nothing else qualifies but
-		// schedules are out (in-season post-registration).
-		if (teamSuppressedBySchedule || (out.length === 0 && schedulePublished)) {
-			out.push({ label: 'View Schedule', path: ['/', jp, 'schedule'] });
-		}
-		return out;
-	});
 
 	/**
 	 * Cross-event redirect for the superseded callout. Clears local auth so

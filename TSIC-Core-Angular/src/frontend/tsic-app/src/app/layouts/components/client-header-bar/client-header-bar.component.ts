@@ -16,6 +16,7 @@ interface TaskItem {
     readonly icon: string;
     readonly label: string;
     readonly route: string;  // relative under :jobPath (may include ?query)
+    readonly primary?: boolean;  // the one urgent next-action — emphasized + drives the avatar badge
 }
 
 @Component({
@@ -165,8 +166,23 @@ export class ClientHeaderBarComponent {
             }
         }
 
+        // Rank the single most-important "next action". A balance due is the
+        // urgent one; we tag it + float it to the top so the menu emphasizes it
+        // and the avatar shows a nudge badge. When nothing's urgent, the list is
+        // unchanged — no manufactured emphasis, no nagging badge.
+        const urgentIdx = items.findIndex(i => i.label === 'Pay Balance Due');
+        if (urgentIdx > 0) {
+            const [urgent] = items.splice(urgentIdx, 1);
+            items.unshift({ ...urgent, primary: true });
+        } else if (urgentIdx === 0) {
+            items[0] = { ...items[0], primary: true };
+        }
+
         return items;
     });
+
+    /** True when there's an urgent next-action (a balance due) worth a nudge badge. */
+    readonly hasUrgentAction = computed(() => this.taskItems().some(i => i.primary));
 
     // Desktop dropdown state
     userMenuOpen = signal(false);
