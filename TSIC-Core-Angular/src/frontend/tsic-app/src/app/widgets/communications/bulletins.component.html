@@ -2,14 +2,6 @@
 <div class="bulletins">
     @for (bulletin of bulletins(); track bulletin.bulletinId; let first = $first) {
     <article class="bulletin" [class.bulletin--featured]="first">
-        @if (bulletin.createDate) {
-        <aside class="bulletin-datestamp" aria-hidden="true">
-            <span class="bulletin-datestamp__month">{{ bulletin.createDate | date:'MMM' | uppercase }}</span>
-            <span class="bulletin-datestamp__day">{{ bulletin.createDate | date:'d' }}</span>
-            <span class="bulletin-datestamp__year">{{ bulletin.createDate | date:'y' }}</span>
-        </aside>
-        }
-
         <div class="bulletin-content">
             @if (first) {
             <div class="bulletin-meta">
