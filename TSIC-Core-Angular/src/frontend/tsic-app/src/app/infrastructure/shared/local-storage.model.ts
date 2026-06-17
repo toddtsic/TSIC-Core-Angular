@@ -17,6 +17,8 @@ export enum LocalStorageKey {
     SelectedPalette = 'tsic-selected-palette',
     AdminNavCollapsed = 'tsic.adminNavCollapsed',
     AdminNavLayout = 'tsic.adminNavLayout',
+    /** Set once the user opens a search filters fly-in for the first time; retires the "Set Filters" discovery arrow. Shared across Search Registrations + Teams (identical pattern). */
+    SearchFiltersDiscovered = 'tsic.searchFiltersDiscovered',
 
     // ── Scheduling ──
     SchedulePlacementMode = 'tsic.scheduleDivision.placementMode',
@@ -46,6 +48,7 @@ export interface LocalStorageSchema {
     [LocalStorageKey.SelectedPalette]: number;
     [LocalStorageKey.AdminNavCollapsed]: 'true' | 'false';
     [LocalStorageKey.AdminNavLayout]: 'horizontal' | 'sidebar';
+    [LocalStorageKey.SearchFiltersDiscovered]: 'true';
     [LocalStorageKey.SchedulePlacementMode]: 'mouse' | 'keyboard';
     [LocalStorageKey.AutoScheduleConfig]: string; // JSON-serialized AutoScheduleConfig
     [LocalStorageKey.ScheduleFilters]: string; // JSON-serialized ScheduleFiltersStoreV1

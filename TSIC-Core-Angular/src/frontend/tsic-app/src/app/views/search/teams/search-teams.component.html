@@ -7,15 +7,44 @@
 </ng-template>
 
 <div class="team-search-container">
-  <!-- Page Title -->
-  <h1 class="page-title">
-    <svg class="page-title-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="11" cy="11" r="8"></circle>
-      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      <path d="M8 11a3 3 0 0 1 3-3" opacity="0.5"></path>
-    </svg>
-    Search Teams
-  </h1>
+  <!-- Page Title + filter launcher (hint + Set Filters moved here to spare the
+       variable-height chip strip below) -->
+  <div class="page-header search-page-header">
+    <h1 class="page-title">
+      <svg class="page-title-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        <path d="M8 11a3 3 0 0 1 3-3" opacity="0.5"></path>
+      </svg>
+      Search Teams
+    </h1>
+    <div class="page-header-actions">
+      @if (showFilterHint()) {
+        <span class="filter-hint-arrow" aria-hidden="true">
+          <span class="filter-hint-text">Start here</span>
+          <svg class="filter-hint-icon" xmlns="http://www.w3.org/2000/svg" width="34" height="22" viewBox="0 0 34 22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="2" y1="11" x2="31" y2="11"></line>
+            <polyline points="23 3 31 11 23 19"></polyline>
+          </svg>
+        </span>
+      }
+      <button type="button"
+        class="chip-strip-toggle"
+        [class.has-active]="activeFilterChips().length > 0"
+        (click)="toggleFiltersPanel()"
+        [attr.aria-label]="'Set filters (' + activeFilterChips().length + ' active)'"
+        [attr.aria-expanded]="isFiltersPanelOpen()">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span class="chip-strip-toggle-text">Set Filters</span>
+        @if (activeFilterChips().length > 0) {
+          <span class="chip-strip-toggle-badge">{{ activeFilterChips().length }}</span>
+        }
+      </button>
+    </div>
+  </div>
 
   <!-- Filters Fly-In Drawer (same pattern as search-registrations) -->
   @if (isFiltersPanelOpen()) {
@@ -222,25 +251,11 @@
     </div>
   </aside>
 
-  <!-- Filter Chips Strip (always visible; filter toggle lives here) -->
+  <!-- Filter Chips Strip (always visible; the Set Filters toggle now lives in the page header) -->
   <div class="filter-chips-strip">
-    <button type="button"
-      class="chip-strip-toggle"
-      [class.has-active]="activeFilterChips().length > 0"
-      (click)="isFiltersPanelOpen.set(!isFiltersPanelOpen())"
-      [attr.aria-label]="'Open filters (' + activeFilterChips().length + ' active)'"
-      [attr.aria-expanded]="isFiltersPanelOpen()">
-      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
-      @if (activeFilterChips().length > 0) {
-        <span class="chip-strip-toggle-badge">{{ activeFilterChips().length }}</span>
-      }
-    </button>
     <span class="chip-strip-label">Selected Filters</span>
     @if (activeFilterChips().length === 0) {
-      <span class="chip-strip-empty">None &mdash; click the search icon to add filters</span>
+      <span class="chip-strip-empty">None &mdash; use <strong>Set Filters</strong> to choose</span>
     }
     @for (chip of activeFilterChips(); track chip.filterKey + chip.value) {
       <span class="filter-chip">
@@ -392,7 +407,7 @@
               }
             </ng-template>
           </e-column>
-          <e-column field="regDate" headerText="RegDate" width="145" type="date" format="M/d/yyyy h:mm a" textAlign="Center"></e-column>
+          <e-column field="regDate" headerText="RegDate" width="175" type="date" format="M/d/yyyy h:mm a" textAlign="Center"></e-column>
           <e-column field="clubRepName" headerText="Club Rep" width="140">
             <ng-template #template let-data>
               <span [class.inactive-name]="!data.active">{{ data.clubRepName }}</span>

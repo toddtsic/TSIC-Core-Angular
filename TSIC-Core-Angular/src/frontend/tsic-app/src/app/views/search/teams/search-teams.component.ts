@@ -9,6 +9,7 @@ import { TeamDetailPanelComponent } from './components/team-detail-panel.compone
 import { LadtTreeFilterComponent } from '../registrations/components/ladt-tree-filter.component';
 import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 
 import type {
 	TeamSearchRequest,
@@ -88,6 +89,21 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 
 	// Filters fly-in panel state
 	isFiltersPanelOpen = signal(false);
+
+	// "Set Filters" discovery hint — a one-time directional arrow at the chip-strip
+	// toggle so a first-time user can't miss where filters live. Retires permanently
+	// the moment the panel is opened even once (persisted); by then they know the door.
+	// Shared key with Search Registrations — the two screens use the identical pattern.
+	showFilterHint = signal(localStorage.getItem(LocalStorageKey.SearchFiltersDiscovered) !== 'true');
+
+	/** Toggle the filters fly-in; the first open retires the discovery hint for good. */
+	toggleFiltersPanel(): void {
+		this.isFiltersPanelOpen.set(!this.isFiltersPanelOpen());
+		if (this.showFilterHint()) {
+			this.showFilterHint.set(false);
+			localStorage.setItem(LocalStorageKey.SearchFiltersDiscovered, 'true');
+		}
+	}
 
 	// "Forgot to click Search" guard — set true when the user tries to close the
 	// drawer (X / backdrop / Esc) with filter edits that were never run. Mirrors the
@@ -277,9 +293,9 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		});
 	}
 
-	executeSearch(): void {
+	executeSearch(keepPanelOpen = false): void {
 		if (this.isSearching()) return; // guard against double-fire
-		this.isFiltersPanelOpen.set(false);
+		if (!keepPanelOpen) this.isFiltersPanelOpen.set(false);
 		this.isSearching.set(true);
 		this.lastExecutedRequest.set(JSON.stringify(this.searchRequest()));
 		const req = this.sanitizeRequest(this.searchRequest());
@@ -344,7 +360,10 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 		});
 		this.ladtCheckedIds.set(new Set());
 		this.cadtCheckedIds.set(new Set());
-		this.executeSearch();
+		// Reset re-runs the search but leaves the panel as-is, so the drawer stays open
+		// after Reset instead of snapping shut. From the chip-strip the panel is already
+		// closed, so this preserves that too. (Mirrors search-registrations.)
+		this.executeSearch(true);
 	}
 
 	removeFilterChip(chip: FilterChip): void {
