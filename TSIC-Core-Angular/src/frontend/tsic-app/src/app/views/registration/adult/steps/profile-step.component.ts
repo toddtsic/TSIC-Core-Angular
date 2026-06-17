@@ -34,15 +34,26 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
 
         <div class="card shadow border-0 card-rounded">
           <div class="card-body">
-            @if (state.needsTeamSelection()) {
+            @if (state.showTeamPicker()) {
                 <section class="profile-section"
-                    [class.is-required-section]="state.teamIdsCoaching().length === 0">
-                    <label class="field-label">
-                        Teams Coaching <span class="req">*</span>
-                    </label>
-                    <small class="wizard-tip mb-2 d-block">
-                        Check every team you're coaching. Type a club or team name to filter. First selection is your primary team assignment.
-                    </small>
+                    [class.is-required-section]="state.needsTeamSelection() && state.teamIdsCoaching().length === 0">
+                    @if (state.needsTeamSelection()) {
+                        <label class="field-label">
+                            Teams Coaching <span class="req">*</span>
+                        </label>
+                        <small class="wizard-tip mb-2 d-block">
+                            Check every team you're coaching. Type a club or team name to filter. First selection is your primary team assignment.
+                        </small>
+                    } @else {
+                        <label class="field-label">
+                            Teams you'd like to coach
+                        </label>
+                        <small class="wizard-tip mb-2 d-block">
+                            Optional — select any teams you're interested in. The director reviews every
+                            request and assigns you. Choosing teams here does <strong>not</strong> add you
+                            to a roster or grant access to any roster.
+                        </small>
+                    }
 
                     @if (state.teamsLoading()) {
                         <div class="text-center py-3">
@@ -53,7 +64,12 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                         <div class="alert alert-danger" role="alert">{{ state.teamsError() }}</div>
                     } @else if (state.availableTeams().length === 0) {
                         <div class="alert alert-warning" role="note">
-                            No teams are registered yet for this event. Contact the tournament director.
+                            @if (state.needsTeamSelection()) {
+                                No teams are registered yet for this event. Contact the tournament director.
+                            } @else {
+                                No teams are registered yet for this event. You can still complete your
+                                registration — the director will review and assign you.
+                            }
                         </div>
                     } @else {
                         <ejs-multiselect
@@ -68,7 +84,7 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                             [closePopupOnSelect]="false"
                             [changeOnBlur]="false"
                             [showDropDownIcon]="true"
-                            placeholder="Select teams you're coaching"
+                            [placeholder]="state.needsTeamSelection() ? 'Select teams you\\'re coaching' : 'Select teams you\\'d like to coach'"
                             [popupHeight]="'320px'">
                         </ejs-multiselect>
 

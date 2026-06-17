@@ -166,6 +166,10 @@ export class AdultWizardStateService {
     readonly profileFields = computed<AdultRegField[]>(() => this._roleConfig()?.profileFields ?? []);
     readonly waivers = computed<AdultWaiverDto[]>(() => this._roleConfig()?.waivers ?? []);
     readonly needsTeamSelection = computed(() => this._roleConfig()?.needsTeamSelection ?? false);
+    /** Club/League coach: team picker shown as a non-binding REQUEST (no assignment, no PII). */
+    readonly allowTeamRequests = computed(() => this._roleConfig()?.allowTeamRequests ?? false);
+    /** Whether the team multi-select renders at all — either Staff assignment or UA request. */
+    readonly showTeamPicker = computed(() => this.needsTeamSelection() || this.allowTeamRequests());
     readonly roleDisplayName = computed(() => this._roleConfig()?.displayName ?? '');
 
     // ── Validation computed signals ───────────────────────────────
@@ -358,8 +362,9 @@ export class AdultWizardStateService {
             this._roleConfigLoading.set(false);
             this._roleConfig.set(config);
 
-            // If coach-in-tournament, prefetch available teams
-            if (config.needsTeamSelection) {
+            // Prefetch teams whenever the picker will render — Staff assignment
+            // (needsTeamSelection) or Club/League coach request (allowTeamRequests).
+            if (config.needsTeamSelection || config.allowTeamRequests) {
                 this.loadAvailableTeams(jobPath);
             }
             return true;

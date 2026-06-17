@@ -421,6 +421,7 @@ public class AdultRegistrationService : IAdultRegistrationService
             Description = resolution.Description,
             Icon = resolution.Icon,
             NeedsTeamSelection = resolution.NeedsTeamSelection,
+            AllowTeamRequests = resolution.AllowTeamRequests,
             ProfileFields = fields,
             Waivers = BuildWaivers(jobData),
         };
@@ -874,6 +875,17 @@ public class AdultRegistrationService : IAdultRegistrationService
                 formValues, waiverAcceptance,
                 assignedTeamId: null,
                 auditUserId);
+
+            // UnassignedAdult (Club/League coach) may submit team REQUESTS via the
+            // multi-select. These are NOT assignments — we leave AssignedTeamId null and
+            // compose the picked team labels into SpecialRequests so the director sees
+            // them in the Roster Swapper's "Requests" column (Unassigned Adults pool).
+            if (roleType == AdultRoleType.UnassignedAdult && teamIdsCoaching is { Count: > 0 })
+            {
+                await ComposeTeamRequestsIntoSpecialRequestsAsync(
+                    reg, jobData.JobId, teamIdsCoaching, cancellationToken);
+            }
+
             _repo.Add(reg);
             registrations.Add(reg);
         }
@@ -927,6 +939,39 @@ public class AdultRegistrationService : IAdultRegistrationService
         }
 
         return registration;
+    }
+
+    /// <summary>
+    /// Prepend a human-readable "Requested teams: …" line to the UnassignedAdult's
+    /// <see cref="Registrations.SpecialRequests"/>, preserving any free-text note the
+    /// form already wrote (ApplyFormValues runs first, in BuildRegistrationEntity).
+    /// These are non-binding requests — AssignedTeamId stays null. Reuses the
+    /// available-teams query so labels match exactly what the coach saw in the picker.
+    /// Unknown/invalid ids are silently dropped (a request is advisory, not a gate).
+    /// </summary>
+    private async Task ComposeTeamRequestsIntoSpecialRequestsAsync(
+        Registrations registration,
+        Guid jobId,
+        List<Guid> teamIdsCoaching,
+        CancellationToken cancellationToken)
+    {
+        var available = await _repo.GetAvailableTeamsAsync(jobId, cancellationToken);
+        var labelById = available.ToDictionary(t => t.TeamId, t => t.DisplayText);
+
+        var labels = teamIdsCoaching
+            .Distinct()
+            .Where(labelById.ContainsKey)
+            .Select(id => labelById[id])
+            .ToList();
+
+        if (labels.Count == 0) return;
+
+        var requestLine = $"Requested teams: {string.Join("; ", labels)}";
+
+        var existingNote = registration.SpecialRequests?.Trim();
+        registration.SpecialRequests = string.IsNullOrEmpty(existingNote)
+            ? requestLine
+            : $"{requestLine}\n\n{existingNote}";
     }
 
     /// <summary>
@@ -1005,7 +1050,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         bool NeedsTeamSelection,
         string DisplayName,
         string Description,
-        string Icon);
+        string Icon,
+        bool AllowTeamRequests = false);
 
     /// <summary>
     /// Resolve the role key + job type into the concrete role the server will assign
@@ -1087,15 +1133,22 @@ public class AdultRegistrationService : IAdultRegistrationService
             case JobConstants.JobTypeClub:
             case JobConstants.JobTypeLeague:
                 // Player-site context: self-registration ALWAYS creates UnassignedAdult.
-                // No team selection (director assigns after approval, which also
+                // No team ASSIGNMENT (director assigns after approval, which also
                 // promotes the role to Staff). This is the minor-PII firewall.
+                //
+                // AllowTeamRequests lets the coach multi-select teams they'd LIKE to
+                // coach — captured as a non-binding REQUEST (composed into
+                // SpecialRequests for the director's Roster Swapper view), NOT an
+                // AssignedTeamId. No team link, no Staff role, no roster/PII access
+                // is granted here — only the director grants it, post-vetting, via swap.
                 return new AdultRoleResolution(
                     RoleId: RoleConstants.UnassignedAdult,
                     NeedsTeamSelection: false,
                     DisplayName: "Coach / Volunteer",
                     Description: "Register as an unassigned adult. A director will review " +
                                  "your request and assign you to a team.",
-                    Icon: "bi-person-badge");
+                    Icon: "bi-person-badge",
+                    AllowTeamRequests: true);
 
             case JobConstants.JobTypeTournament:
                 // Tournament context: self-rostering coach — directly becomes Staff with
@@ -1209,10 +1262,11 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// <summary>
     /// Fallback profile fields when <c>AdultProfileMetadataJson</c> is not configured.
     /// <para>
-    /// The "Coaching Requests" free-text is ONLY shown to UnassignedAdult (Club/League
-    /// coaches who have no team picker and need to express their team preference in
-    /// words). Staff (Tournament coaches) have already selected specific teams via the
-    /// multi-select, so asking again in free text is redundant — return empty.
+    /// UnassignedAdult (Club/League coaches) now express their team preference via the
+    /// team-request multi-select, so the free-text becomes an OPTIONAL general note
+    /// (composed alongside the requested-team labels into SpecialRequests). Staff
+    /// (Tournament coaches) have already selected specific teams via the multi-select,
+    /// so asking again in free text is redundant — return empty.
     /// </para>
     /// </summary>
     private static List<JobRegFieldDto> BuildFallbackFields(AdultRoleType roleType)
@@ -1220,11 +1274,14 @@ public class AdultRegistrationService : IAdultRegistrationService
         // Staff: teams-coaching multi-select already captures intent. No free-text needed.
         if (roleType == AdultRoleType.Staff) return [];
 
+        // UnassignedAdult: team picker is the primary mechanism → note is optional.
+        var required = roleType != AdultRoleType.UnassignedAdult;
+
         var (label, placeholder) = roleType switch
         {
             AdultRoleType.UnassignedAdult => (
-                "Coaching Requests",
-                "Indicate the age group or team you wish to coach"),
+                "Anything else the director should know?",
+                "Optional — e.g. age groups you prefer, scheduling notes, prior coaching"),
             AdultRoleType.Referee => (
                 "Special Requests",
                 "Enter special requests, or 'none' if you don't have any"),
@@ -1244,7 +1301,7 @@ public class AdultRegistrationService : IAdultRegistrationService
                 InputType = roleType == AdultRoleType.Recruiter ? "TEXT" : "TEXTAREA",
                 Order = 1,
                 Visibility = "public",
-                Validation = new FieldValidation { Required = true, Message = placeholder }
+                Validation = new FieldValidation { Required = required, Message = placeholder }
             }
         ];
     }

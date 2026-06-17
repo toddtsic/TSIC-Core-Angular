@@ -107,6 +107,8 @@ export interface AdultRoleConfig {
     description: string;
     icon: string;
     needsTeamSelection: boolean;
+    /** Club/League coach: show the team picker as a non-binding REQUEST (no assignment). */
+    allowTeamRequests: boolean;
     profileFields: AdultRegField[];
     waivers: AdultWaiverDto[];
 }

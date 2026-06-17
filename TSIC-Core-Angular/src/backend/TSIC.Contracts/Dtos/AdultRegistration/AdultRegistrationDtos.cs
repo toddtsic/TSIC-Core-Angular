@@ -303,6 +303,15 @@ public record AdultRoleConfigDto
     /// </summary>
     public required bool NeedsTeamSelection { get; init; }
 
+    /// <summary>
+    /// True when the Profile step should present the team multi-select as a NON-BINDING
+    /// REQUEST (not an assignment). True for coach + Club/League job: the coach registers
+    /// as UnassignedAdult and their picks are composed into SpecialRequests for the
+    /// director's Roster Swapper view — no AssignedTeamId, no Staff role, no PII granted.
+    /// Mutually exclusive with <see cref="NeedsTeamSelection"/>.
+    /// </summary>
+    public required bool AllowTeamRequests { get; init; }
+
     /// <summary>Dynamic form fields for the Profile step (from job metadata + fallback).</summary>
     public required List<JobRegFieldDto> ProfileFields { get; init; }
 
