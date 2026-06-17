@@ -162,21 +162,21 @@ export class TeamService {
     }
 
     /**
-     * Display name for a *selected* team. A full team under a waitlist job is surfaced
-     * in the picker as its $0 WAITLIST twin, but the entry keeps the real team's name
-     * there for findability/sorting (parents scan for "Hawks", not "WAITLIST - Hawks").
-     * Once selected, every downstream surface — the forms badge, review, payment — must
-     * name it as the waitlist placement it is: "WAITLIST - {name}", matching the twin
-     * team's actual name everywhere post-registration (confirmation, director rosters,
-     * LADT). The waitlist signal lives in the entry's flags, not the name string, so we
-     * reconstruct the canonical name here rather than baking it into the picker list.
+     * Display name for a *selected* team — always the team's real name.
+     *
+     * We do NOT synthesize a "WAITLIST - " prefix from rosterIsFull: a team being full
+     * does not make the player viewing it waitlisted. An already-rostered, confirmed
+     * member is one of the seats that filled the team — renaming her own team "WAITLIST"
+     * is wrong (this was Brynn's bug). A player who is actually waitlisted sits on the
+     * twin team, whose stored name already IS "WAITLIST - {name}", so it surfaces here
+     * correctly without any reconstruction. A new selector picking a full team is warned
+     * by the dropdown's "⚠ WAITLIST ·" option label and the waitlist-alert banner —
+     * the team keeps its real name. Waitlisting is a payment-time outcome, not a rename.
      */
     getTeamDisplayName(teamId: string): string {
         const team = this.getTeamById(teamId);
         if (!team) return teamId;
-        return team.rosterIsFull && team.jobUsesWaitlists
-            ? `WAITLIST - ${team.teamName}`
-            : team.teamName;
+        return team.teamName;
     }
 
     /**

@@ -668,7 +668,8 @@ export class PlayerFormsStepComponent implements OnDestroy {
     }
 
     getTeamName(teamId: string): string {
-        // Waitlist-aware: a full team's $0 twin renders as "WAITLIST - {name}".
+        // Real team name; a player waitlisted at payment lands on the twin (already named
+        // "WAITLIST - {name}"), so no synthetic prefix is needed here.
         return this.teamService.getTeamDisplayName(teamId);
     }
 

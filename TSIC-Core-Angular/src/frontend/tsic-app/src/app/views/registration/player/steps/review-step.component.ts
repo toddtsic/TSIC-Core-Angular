@@ -431,7 +431,8 @@ export class ReviewStepComponent {
     getTeamsForPlayer(playerId: string): string[] {
         const teams = this.state.eligibility.selectedTeams()[playerId];
         if (!teams) return [];
-        // Waitlist-aware: a full team's $0 twin renders as "WAITLIST - {name}".
+        // Shows the team's real name; a player actually waitlisted at payment lands on the
+        // twin team (whose stored name already is "WAITLIST - {name}").
         if (Array.isArray(teams)) {
             return teams.map((tid: string) => this.teamService.getTeamDisplayName(tid));
         }
