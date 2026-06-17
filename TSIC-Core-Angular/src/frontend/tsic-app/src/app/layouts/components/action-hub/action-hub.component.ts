@@ -13,7 +13,8 @@ export interface HubItem {
     label: string;
     icon: string;                 // full bootstrap class, e.g. 'bi-person-plus'
     emphasis?: 'primary' | 'secondary';
-    routerLink?: string;          // reserved for live wiring
+    routerLink?: string;          // path only — query string must NOT be embedded here
+    queryParams?: Record<string, string>; // bound to [queryParams] (routerLink won't parse a '?' out of a string)
     href?: string;                // reserved for live wiring
 }
 

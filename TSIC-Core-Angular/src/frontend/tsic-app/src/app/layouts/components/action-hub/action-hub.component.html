@@ -52,7 +52,7 @@
 								@for (item of group.items; track item.key) {
 									<li>
 										@if (item.routerLink) {
-											<a class="ah-panel__item" [routerLink]="item.routerLink" (click)="closeMenu()">
+											<a class="ah-panel__item" [routerLink]="item.routerLink" [queryParams]="item.queryParams ?? null" (click)="closeMenu()">
 												<i class="bi {{ item.icon }} ah-panel__item-icon" aria-hidden="true"></i>
 												<span>{{ item.label }}</span>
 											</a>
@@ -78,7 +78,7 @@
 			@for (action of heroActions(); track action.key) {
 				@if (action.routerLink) {
 					<a class="ah-hero__card" [class.ah-hero__card--primary]="action.emphasis === 'primary'"
-						[routerLink]="action.routerLink">
+						[routerLink]="action.routerLink" [queryParams]="action.queryParams ?? null">
 						<span class="ah-hero__icon"><i class="bi {{ action.icon }}" aria-hidden="true"></i></span>
 						<span class="ah-hero__label">{{ action.label }}</span>
 						<i class="bi bi-arrow-right ah-hero__go" aria-hidden="true"></i>

@@ -92,7 +92,7 @@ export class JobLandingComponent implements OnDestroy {
 		const items: HubItem[] = [];
 		if (p.playerRegistrationOpen) {
 			if (registered && isPlayerOrFamily) {
-				items.push({ key: 'my-registration', label: 'My Registration', icon: 'bi-person-badge', routerLink: `${base}/registration/player?step=players` });
+				items.push({ key: 'my-registration', label: 'My Registration', icon: 'bi-person-badge', routerLink: `${base}/registration/player`, queryParams: { step: 'players' } });
 			} else if (!registered) {
 				items.push({ key: 'register-player', label: 'Register Player', icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
 			}
@@ -100,7 +100,7 @@ export class JobLandingComponent implements OnDestroy {
 		// Pay Balance Due — a registered Player/Family that still owes. Available
 		// regardless of the registration window (you can always settle a balance).
 		if (registered && isPlayerOrFamily && (p.myRegistrationOwedTotal ?? 0) > 0) {
-			items.push({ key: 'pay-balance', label: 'Pay Balance Due', icon: 'bi-cash-stack', routerLink: `${base}/registration/player?step=payment` });
+			items.push({ key: 'pay-balance', label: 'Pay Balance Due', icon: 'bi-cash-stack', routerLink: `${base}/registration/player`, queryParams: { step: 'payment' } });
 		}
 
 		// Once schedules publish, team rosters lock — suppress Register Team.
