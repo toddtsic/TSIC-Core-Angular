@@ -51,6 +51,7 @@ function makeFinancials(overrides: Partial<RegistrationFinancialsDto> = {}): Reg
         owedTotal: 0,
         paidTotal: 0,
         echeckOwedTotal: 0,
+        checkOwedTotal: 0,
         feeAdj: 0,
         tenderPaid: 0,
         ...overrides,
@@ -65,6 +66,7 @@ function createJobContextStub() {
         adnArbBillingOccurences: signal<number | null>(null),
         adnArbIntervalLength: signal<number | null>(null),
         adnArbStartDate: signal<string | null>(null),
+        bAddProcessingFees: signal(true),
         paymentOption: signal<'PIF' | 'Deposit' | 'ARB'>('PIF'),
         jobHasActiveDiscountCodes: signal(false),
         jobPath: signal('test-job'),
@@ -368,6 +370,61 @@ describe('PaymentV2Service', () => {
             expect(service.totalAmount()).toBe(0);
             expect(service.depositTotal()).toBe(0);
             expect(service.currentTotal()).toBe(0);
+        });
+    });
+
+    // ─── Check payment total ─────────────────────────────────────────
+
+    describe('checkTotal (Check Payment Instructions amount)', () => {
+        it('drops the full CC proc for a single unpaid existing reg', () => {
+            // owed 519 (= base 500 + proc 19); check owes the proc-free 500.
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 500 }));
+            fp._set([
+                makePlayer({
+                    playerId: 'p1', registered: true, selected: false,
+                    priorRegistrations: [{
+                        registrationId: 'r1', active: true, isPending: false,
+                        assignedTeamId: 't1',
+                        financials: makeFinancials({ owedTotal: 519, feeBase: 500, feeProcessing: 19, checkOwedTotal: 500 }),
+                        formFieldValues: {},
+                    }],
+                }),
+            ]);
+            playerState.setSelectedTeams({ p1: 't1' });
+
+            expect(service.checkTotal()).toBe(500);
+        });
+
+        it('does NOT subtract a paid sibling\'s stamped proc from a new player (Ann regression)', () => {
+            // p1 is fully PAID (owed 0) but still carries a stamped proc of 19. p2 is brand new
+            // ($200, no proc). The check amount must be p2's $200 — the old baseTotal − Σ(stamped
+            // proc) derivation gave 200 − 19 = 181, charging the new player the paid sibling's proc.
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 500 }));
+            teamSvc._addTeam(makeTeam({ teamId: 't2', fee: 200 }));
+            fp._set([
+                makePlayer({
+                    playerId: 'p1', registered: true, selected: false,
+                    priorRegistrations: [{
+                        registrationId: 'r1', active: true, isPending: false,
+                        assignedTeamId: 't1',
+                        financials: makeFinancials({ owedTotal: 0, feeBase: 500, feeProcessing: 19, paidTotal: 519, checkOwedTotal: 0 }),
+                        formFieldValues: {},
+                    }],
+                }),
+                makePlayer({ playerId: 'p2' }),
+            ]);
+            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+
+            expect(service.checkTotal()).toBe(200);
+        });
+
+        it('equals the base total when the job adds no processing fees', () => {
+            (jobCtx.bAddProcessingFees as WritableSignal<boolean>).set(false);
+            teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 300 }));
+            fp._set([makePlayer({ playerId: 'p1' })]);
+            playerState.setSelectedTeams({ p1: 't1' });
+
+            expect(service.checkTotal()).toBe(300);
         });
     });
 

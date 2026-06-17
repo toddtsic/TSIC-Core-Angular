@@ -301,6 +301,7 @@ export class FamilyPlayersService {
                         owedTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'owedTotal') ?? 0),
                         paidTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'paidTotal') ?? 0),
                         echeckOwedTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'echeckOwedTotal') ?? 0),
+                        checkOwedTotal: +(getPropertyCI<number>(fin as Record<string, unknown>, 'checkOwedTotal') ?? 0),
                         feeAdj: +(getPropertyCI<number>(fin as Record<string, unknown>, 'feeAdj') ?? 0),
                         tenderPaid: +(getPropertyCI<number>(fin as Record<string, unknown>, 'tenderPaid') ?? (getPropertyCI<number>(fin as Record<string, unknown>, 'paidTotal') ?? 0)),
                     },

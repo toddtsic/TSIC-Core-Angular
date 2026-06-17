@@ -24,6 +24,12 @@ public record RegistrationFinancialsDto
     // credit (== OwedTotal when proc fees are off). Computed by the canonical PaymentState
     // .ResolveOwed so the displayed eCheck total equals what the eCheck charge engine debits.
     public required decimal EcheckOwedTotal { get; init; }
+    // Check-method owed for this registration: OwedTotal minus the FULL CC proc (== OwedTotal
+    // when proc fees are off). Same canonical PaymentState.ResolveOwed resolver as EcheckOwedTotal
+    // (Check rate 0). The check Payment Instructions amount must read THIS, not a client-side
+    // baseTotal − Σ(stamped proc) derivation — a paid sibling's stamped proc would otherwise be
+    // wrongly subtracted from a new player's check amount (Ann's "base less proc" bug).
+    public required decimal CheckOwedTotal { get; init; }
     // Canonical display decomposition (PaymentState): FeeAdj = lateFee − discount − correction
     // (the unified signed "Fee-Adj" column, folding in the old Discount column); TenderPaid =
     // real money received, excluding Correction-method rows. OwedTotal is unchanged.

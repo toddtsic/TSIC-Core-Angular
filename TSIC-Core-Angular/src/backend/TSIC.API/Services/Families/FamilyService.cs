@@ -790,11 +790,12 @@ public sealed class FamilyService : IFamilyService
             && r.PaidTotal <= 0m
             && !isParkedDivision;
 
-        // eCheck-method owed from the single canonical resolver (== OwedTotal when proc fees
-        // are off or no job state is available).
-        var echeckOwedTotal = echeckState != null
-            ? echeckState.ResolveOwed(r.OwedTotal, r.FeeBase, r.FeeDiscount, r.FeeLatefee, r.FeeDonation, r.FeeProcessing).Echeck
-            : r.OwedTotal;
+        // Per-method owed from the single canonical resolver (== OwedTotal when proc fees
+        // are off or no job state is available). Resolve once, read both methods.
+        var owedByMethod = echeckState?.ResolveOwed(
+            r.OwedTotal, r.FeeBase, r.FeeDiscount, r.FeeLatefee, r.FeeDonation, r.FeeProcessing);
+        var echeckOwedTotal = owedByMethod?.Echeck ?? r.OwedTotal;
+        var checkOwedTotal = owedByMethod?.Check ?? r.OwedTotal;
 
         return new FamilyPlayerRegistrationDto
         {
@@ -812,6 +813,7 @@ public sealed class FamilyService : IFamilyService
                 OwedTotal = r.OwedTotal,
                 PaidTotal = r.PaidTotal,
                 EcheckOwedTotal = echeckOwedTotal,
+                CheckOwedTotal = checkOwedTotal,
                 // Canonical Fee-Adj / TenderPaid. The wizard's job-level state carries no
                 // per-registration corrections (admin-only, post-registration), so these reduce
                 // to lateFee − discount and the full PaidTotal — correct for the wizard context.

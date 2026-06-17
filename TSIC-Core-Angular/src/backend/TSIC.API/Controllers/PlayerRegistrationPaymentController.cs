@@ -306,6 +306,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 OwedTotal = reg.OwedTotal,
                 PaidTotal = reg.PaidTotal,
                 EcheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing).Echeck,
+                CheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing).Check,
                 // Canonical Fee-Adj / TenderPaid (job-level state → no corrections in this path).
                 FeeAdj = echeckState.FeeAdjustment(reg.FeeDiscount, reg.FeeLatefee),
                 TenderPaid = reg.PaidTotal - echeckState.CorrectionApplied

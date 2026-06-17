@@ -46,6 +46,11 @@ export interface LineItem {
      *  Equals `amount` when there's no credit (proc off, deposit phase, or a client PIF upgrade
      *  the server's per-reg figure doesn't model). Display only — the backend recomputes. */
     echeckAmount: number;
+    /** This line's charge if paid by mailed check (CC charge minus the FULL CC proc). Equals
+     *  `amount` when there's no proc (proc off, or a new line that carries no proc yet). The
+     *  server-computed per-reg CheckOwedTotal — NOT a client baseTotal − Σ(stamped proc), which
+     *  wrongly subtracts a paid sibling's stamped proc from a new player's amount. Display only. */
+    checkAmount: number;
     /** False when this line's team has no fee configured at any cascade level — the wizard
      *  blocks completion instead of charging/fabricating. Always true for existing
      *  registrations (already stamped with a real fee). */
@@ -255,26 +260,25 @@ export class PaymentV2Service {
     mailTo = computed(() => this.jobCtx.mailTo());
     mailinPaymentWarning = computed(() => this.jobCtx.mailinPaymentWarning());
 
-    /** Total processing fees across all line items (from existing registrations). */
-    totalProcessingFees = computed(() => {
-        let sum = 0;
-        for (const li of this.lineItems()) {
-            const reg = this.getExistingRegistrationForTeam(li.playerId, li.teamId);
-            if (reg?.financials) {
-                sum += li.feeProcessing;
-            }
-        }
-        return sum;
+    /**
+     * Amount saved by paying with check instead of CC — the FULL CC proc dropped, summed per
+     * registration from the server-computed check owed (CheckOwedTotal). Mirrors echeckSavings
+     * exactly, one rate apart.
+     *
+     * Per line: li.checkAmount is the server's per-reg check owed (== amount when proc is off or
+     * the line carries no proc), so (amount − checkAmount) is THIS line's proc credit and nothing
+     * more. A paid sibling contributes amount 0 / checkAmount 0 → 0 savings, so its stamped proc
+     * is NOT subtracted from a new player's check amount (the old baseTotal − Σ(stamped proc)
+     * derivation did exactly that — Ann's "base less proc" bug when adding to an existing reg).
+     */
+    checkSavings = computed(() => {
+        if (!this.jobCtx.bAddProcessingFees()) return 0;
+        return this.lineItems().reduce((sum, li) => sum + Math.max(0, li.amount - li.checkAmount), 0);
     });
 
-    /** Amount saved by paying with check instead of CC. */
-    processingFeeSavings = computed(() =>
-        this.jobCtx.bAddProcessingFees() ? this.totalProcessingFees() : 0
-    );
-
-    /** Check payment amount (base minus processing fees). Donation is excluded — a mailed check
-     *  is not an online charge the system can levy a gift on, so it is never offered with check. */
-    checkTotal = computed(() => Math.max(0, this.baseTotal() - this.processingFeeSavings()));
+    /** Check payment amount (base minus the full CC proc credit). Donation is excluded — a mailed
+     *  check is not an online charge the system can levy a gift on, so it is never offered with check. */
+    checkTotal = computed(() => Math.max(0, this.baseTotal() - this.checkSavings()));
 
     /**
      * Amount saved by paying with eCheck instead of CC — the (CC − eCheck) proc-rate credit,
@@ -452,6 +456,10 @@ export class PaymentV2Service {
         // client-side PIF upgrade re-derives fees the server figure predates, so fall back to
         // `amount` (no extra savings shown); new regs have no financials → also `amount`.
         const echeckAmount = upgrade || !financials ? amount : toNumber(financials.echeckOwedTotal);
+        // Check charge: the server's per-reg check owed for an existing registration. A new line
+        // (no financials) and a client PIF upgrade fall back to `amount` — a new line carries no
+        // proc to drop, and an upgrade re-derives fees the server figure predates.
+        const checkAmount = upgrade || !financials ? amount : toNumber(financials.checkOwedTotal);
         return {
             playerId,
             playerName,
@@ -470,6 +478,7 @@ export class PaymentV2Service {
             tenderPaid,
             amount,
             echeckAmount,
+            checkAmount,
             // The team's current cascade signal. New orphan lines (and a pre-existing orphan
             // registration whose team is still fee-less) flag false; a missing/unknown team
             // defaults to true so only an explicit false blocks completion. A legitimately-free
