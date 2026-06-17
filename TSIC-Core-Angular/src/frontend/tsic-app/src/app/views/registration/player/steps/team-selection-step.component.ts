@@ -232,6 +232,16 @@ const JOB_TYPE_TOURNAMENT = 2;
                         </div>
                       </div>
                     } @else {
+                      @if (showRosterLimitNotice(pid)) {
+                        <div class="list-updated-notice" role="status">
+                          <i class="bi bi-info-circle-fill"></i>
+                          <div>
+                            <strong>Team list updated</strong> —
+                            Due to roster limits and recent registrations, the available teams
+                            below have changed. Teams that are now full appear as waitlist options.
+                          </div>
+                        </div>
+                      }
                       <ejs-dropdownlist
                         [dataSource]="getTeamDropdownItems(pid)"
                         [fields]="teamDdlFields"
@@ -691,6 +701,27 @@ const JOB_TYPE_TOURNAMENT = 2;
         }
       }
 
+      .list-updated-notice {
+        display: flex;
+        align-items: flex-start;
+        gap: var(--space-2);
+        padding: var(--space-3);
+        margin-bottom: var(--space-2);
+        border-radius: var(--radius-sm);
+        background: rgba(var(--bs-info-rgb), 0.10);
+        border: 1px solid rgba(var(--bs-info-rgb), 0.35);
+        color: var(--bs-info-emphasis);
+        font-size: var(--font-size-sm);
+        line-height: var(--line-height-normal);
+
+        i {
+          font-size: var(--font-size-lg);
+          flex-shrink: 0;
+          margin-top: 1px;
+          color: var(--bs-info);
+        }
+      }
+
       .no-teams-alert {
         display: flex;
         align-items: flex-start;
@@ -901,6 +932,22 @@ export class TeamSelectionStepComponent {
             const team = this.teamService.getTeamById(tid);
             return team?.rosterIsFull && team?.jobUsesWaitlists;
         });
+    }
+
+    hasWaitlistTeamInList(playerId: string): boolean {
+        return this.getAvailableTeams(playerId).some(t => !!t.rosterIsFull && !!t.jobUsesWaitlists);
+    }
+
+    /**
+     * Calm, inline heads-up shown right above the dropdown when a team in this player's list has
+     * hit its roster max (now waitlist-only) AND they have no current pick — e.g. the list just
+     * refreshed and the team they were eyeing filled, silently clearing their selection. Replaces
+     * the old reserve-step amber toast with a non-blocking explanation at the point of confusion.
+     * Suppressed once a team is chosen: pick the waitlist team and the stronger "Waitlist Only"
+     * banner takes over; pick an open team and the notice is moot.
+     */
+    showRosterLimitNotice(playerId: string): boolean {
+        return !this.getSelectedTeamId(playerId) && this.hasWaitlistTeamInList(playerId);
     }
 
     isTeamFull(team: AvailableTeam): boolean {
