@@ -44,7 +44,12 @@ public static class SeatReconciliation
         // free (neither is active yet) and both would stay → overfill. This running tally makes the
         // 2nd sibling's check see the seat the 1st just took, routing the overflow to the twin.
         var claimedThisBatch = new Dictionary<Guid, int>();
-        foreach (var reg in registrations)
+        // Hand out the scarce seat in CREATION order: the earliest-registered sibling keeps the
+        // real seat and any later sibling on the same full team is the one bounced to the twin.
+        // GetByJobAndFamilyWithUsersAsync returns no explicit order, so without this the seat went
+        // to whichever reg SQL happened to surface first (e.g. the 2nd-created child), which read
+        // as "the wrong kid got waitlisted". RegistrationTs is stamped at create (DateTime.Now).
+        foreach (var reg in registrations.OrderBy(r => r.RegistrationTs))
         {
             if (reg.BActive == true || reg.RoleId != RoleConstants.Player || reg.AssignedTeamId is not { } teamId)
                 continue;

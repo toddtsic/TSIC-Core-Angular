@@ -272,6 +272,26 @@ export class PlayerWizardStateService {
         this.backfillAgegroupEligibilityFromTeams();
     }
 
+    /**
+     * Re-point each player's team selection at the team their CURRENT (reloaded) registration is
+     * on — the same prior-reg prefill the initial family load runs (onFamilyPlayersLoaded), re-run
+     * against the freshly reloaded players. Call this AFTER the post-PreSubmit family reload.
+     *
+     * PreSubmit's seat reconcile moves a player whose team filled up to the $0 WAITLIST twin
+     * (active reg on the twin), but selectedTeams still names the now-full real team. The payment
+     * table keys each line off selectedTeams, so without this it finds no reg on the real team and
+     * re-bills the full real-team fee (the "both on the regular team, owing the sum" symptom).
+     * prefill is merge + fill-from-usable-priors, so it re-points the moved player to the twin and
+     * leaves the seated sibling on the real team. (Plan item #5: reconcile, don't reset.)
+     */
+    reconcileSelectionsFromCurrentRegistrations(): void {
+        this.familyPlayers.prefillTeamsFromPriorRegistrations(
+            this.familyPlayers.familyPlayers(),
+            this.eligibility.selectedTeams(),
+            map => this.eligibility.setSelectedTeams(map),
+        );
+    }
+
     private buildPreSubmitPayload(jobPath: string): PreSubmitPlayerRegistrationRequestDto {
         const schemas = this.jobCtx.profileFieldSchemas();
         const waiverFieldNames = this.jobCtx.waiverFieldNames();

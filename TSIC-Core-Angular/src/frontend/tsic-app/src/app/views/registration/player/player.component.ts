@@ -339,6 +339,11 @@ export class PlayerWizardV2Component implements OnInit {
                 const jobPath = this.state.jobCtx.jobPath();
                 const apiBase = this.state.jobCtx.resolveApiBase();
                 await this.state.familyPlayers.loadFamilyPlayersOnce(jobPath, apiBase);
+                // Re-point selections at each player's actual (reloaded) reg team. A player the
+                // seat reconcile bounced to the $0 WAITLIST twin now has an active reg there, but
+                // selectedTeams still names the full real team — without this the payment table
+                // re-bills the real-team fee instead of showing the $0 waitlist line.
+                this.state.reconcileSelectionsFromCurrentRegistrations();
             } catch (err: unknown) {
                 console.warn('[PlayerWizard] post-preSubmit reload failed', err);
             }
