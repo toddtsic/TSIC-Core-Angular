@@ -29,7 +29,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         public Guid JobId { get; init; }
         public string FamilyUserId { get; init; } = string.Empty;
         public List<TSIC.Domain.Entities.Teams> Teams { get; init; } = new();
-        public Dictionary<Guid, int> TeamRosterCounts { get; init; } = new();
         public string RegistrationMode { get; init; } = "PP";
         public string? MetadataJson { get; init; }
         public bool BPlayersFullPaymentRequired { get; init; }
@@ -159,11 +158,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     {
         var teamIds = request.TeamSelections.Select(ts => ts.TeamId).Distinct().ToList();
         var teams = await _teams.GetTeamsForJobAsync(jobId, teamIds);
-        // Capacity seed = active + inactive (pending) players, matching the picker's
-        // GetRosterCountsByTeamAsync so the isFull gate agrees with the picker's rosterFull
-        // and with the overflow recount (GetAssignedPlayerCountAsync). Pending must count
-        // (Todd: "max must include pending").
-        var teamRosterCounts = await _registrations.GetRosterCountsByTeamAsync(teamIds);
 
         var jobEntity = await _jobs.GetPreSubmitMetadataAsync(jobId);
 
@@ -187,7 +181,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             JobId = jobId,
             FamilyUserId = familyUserId,
             Teams = teams,
-            TeamRosterCounts = teamRosterCounts,
             RegistrationMode = registrationMode,
             MetadataJson = metadataJson,
             BPlayersFullPaymentRequired = jobEntity?.BPlayersFullPaymentRequired ?? false,
@@ -238,7 +231,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
     }
 
-    private void AddResult(List<PreSubmitTeamResultDto> results, string playerId, Guid teamId, bool isFull, string teamName, string message, bool created, bool isWaitlisted = false, string? waitlistTeamName = null)
+    private void AddResult(List<PreSubmitTeamResultDto> results, string playerId, Guid teamId, bool isFull, string teamName, string message, bool created)
     {
         results.Add(new PreSubmitTeamResultDto
         {
@@ -247,9 +240,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             IsFull = isFull,
             TeamName = teamName,
             Message = message,
-            RegistrationCreated = created,
-            IsWaitlisted = isWaitlisted,
-            WaitlistTeamName = waitlistTeamName
+            RegistrationCreated = created
         });
     }
 
@@ -262,23 +253,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             AddResult(teamResults, playerId, teamId, true, "Unknown", "Team not found.", false);
             return;
         }
-        // Check roster capacity — may redirect to waitlist team mirror.
-        // A player who already holds a registration on THIS exact team (e.g. an admin
-        // roster-swapped them onto a now-full team) is counted in rosterCount against
-        // their own spot. Re-pricing that existing reg must never bounce them to the
-        // waitlist — they already own the seat. Only a genuinely NEW placement overflows.
-        var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
-        var alreadyOnThisTeam = ctx.ExistingByPlayerTeam.ContainsKey((playerId, team.TeamId));
-        var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount && !alreadyOnThisTeam;
-        // A full team is FLAGGED for the UI ("you'll be waitlisted") but the player is registered on
-        // the REAL team as a pending hold — NEVER swapped onto the $0 waitlist twin here. The single
-        // place a seat-gone player actually lands on the twin is the payment cart-split
-        // (PaymentService.WaitlistFullTeamPlayersAsync), which runs only after money is on the line and
-        // leaves the reg inactive. Placing on the twin at selection/forms used to let ActivateIfFree
-        // flip the $0 twin reg active, registering an unpaid player onto the waitlist just for reaching
-        // the forms step (abandon → phantom "registered" twin row).
-        var isWaitlisted = isFull;
-        string? waitlistTeamName = isFull ? $"WAITLIST - {team.TeamName}" : null;
+        // No roster-capacity gate here: reserve/PreSubmit only write a pending hold on the REAL
+        // team. The roster-max guarantee is enforced at PAYMENT — PaymentService's cart-split moves
+        // a seat-gone player to the $0 waitlist twin (and never activates an unpaid reg). The picker
+        // already badges a full team "⚠ WAITLIST · $0" off the available-teams DTO, so no
+        // per-selection capacity signal is computed on this path.
 
         // Fail loud, never fabricate: a team with no fee configured at any cascade level
         // must not silently register at $0. Block just this line; other teams still proceed.
@@ -304,7 +283,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
 
         var sel = selections[^1];
-        var countBefore = teamResults.Count;
         if (regToUpdate != null)
         {
             await UpdateExistingRegistrationAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
@@ -312,19 +290,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         else
         {
             await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
-            // Increment the in-memory snapshot so siblings later in the same family
-            // submission see the spot consumed (DB count is BActive=true only and won't
-            // reflect a brand-new BActive=false row, but capacity must include it).
-            ctx.TeamRosterCounts[team.TeamId] = (ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var prev) ? prev : 0) + 1;
-        }
-
-        // Stamp waitlist state on any results added by the downstream methods
-        if (isWaitlisted)
-        {
-            for (var i = countBefore; i < teamResults.Count; i++)
-            {
-                teamResults[i] = teamResults[i] with { IsWaitlisted = true, WaitlistTeamName = waitlistTeamName };
-            }
         }
     }
 
@@ -348,18 +313,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 AddResult(teamResults, playerId, tId, true, "Unknown", "Team not found.", false);
                 continue;
             }
-            // Check roster capacity — may redirect to waitlist team mirror.
-            // Same guard as ProcessSingleTeamSelectionAsync: a player already rostered on
-            // this exact team keeps their seat and is never bounced to the waitlist.
-            var rosterCount = ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var cnt) ? cnt : 0;
-            var alreadyOnThisTeam = ctx.ExistingByPlayerTeam.ContainsKey((playerId, team.TeamId));
-            var isFull = team.MaxCount > 0 && rosterCount >= team.MaxCount && !alreadyOnThisTeam;
-            var effectiveTeamId = team.TeamId;
-            // Full team → flag for the UI only; register on the REAL team. The payment cart-split is the
-            // single place a seat-gone player is moved to the $0 waitlist twin (and it never activates).
-            // See ProcessSingleTeamSelectionAsync for the full rationale.
-            var isWaitlisted = isFull;
-            string? waitlistTeamName = isFull ? $"WAITLIST - {team.TeamName}" : null;
+            // No roster-capacity gate (see ProcessSingleTeamSelectionAsync): the hold lands on the
+            // REAL team; payment enforces the roster max.
 
             // Fail loud, never fabricate: skip teams with no configured fee (see ProcessSingleTeamSelectionAsync).
             var feeCheck = await _feeService.ResolveFeeAsync(team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
@@ -370,8 +325,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 continue;
             }
 
-            var countBefore = teamResults.Count;
-            if (ctx.ExistingByPlayerTeam.TryGetValue((playerId, effectiveTeamId), out var existing))
+            if (ctx.ExistingByPlayerTeam.TryGetValue((playerId, team.TeamId), out var existing))
             {
                 existing.Modified = DateTime.Now;
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
@@ -386,18 +340,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
                 await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
-                // See ProcessSingleTeamSelectionAsync — bump the snapshot so siblings
-                // later in the same family submission see the spot consumed.
-                ctx.TeamRosterCounts[team.TeamId] = (ctx.TeamRosterCounts.TryGetValue(team.TeamId, out var prev) ? prev : 0) + 1;
-            }
-
-            // Stamp waitlist state on any results added above
-            if (isWaitlisted)
-            {
-                for (var i = countBefore; i < teamResults.Count; i++)
-                {
-                    teamResults[i] = teamResults[i] with { IsWaitlisted = true, WaitlistTeamName = waitlistTeamName };
-                }
             }
         }
     }

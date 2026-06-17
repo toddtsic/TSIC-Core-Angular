@@ -123,7 +123,7 @@ describe('PlayerWizardV2Component — next() navigation', () => {
         const before = component.currentIndex();
 
         reserveTeamsFn.mockResolvedValue({
-            teamResults: [{ playerId: 'p1', teamId: 't1', isFull: false, teamName: 'Storm U12', message: 'ok', registrationCreated: true, isWaitlisted: false }],
+            teamResults: [{ playerId: 'p1', teamId: 't1', isFull: false, teamName: 'Storm U12', message: 'ok', registrationCreated: true }],
             hasFullTeams: false,
         } satisfies ReserveTeamsResponseDto);
 
@@ -160,7 +160,6 @@ describe('PlayerWizardV2Component — next() navigation', () => {
             teamResults: [{
                 playerId: 'p1', teamId: 'wt1', isFull: false,
                 teamName: 'WAITLIST - Storm U12', message: 'ok', registrationCreated: true,
-                isWaitlisted: true, waitlistTeamName: 'WAITLIST - Storm U12',
             }],
             hasFullTeams: false,
         } satisfies ReserveTeamsResponseDto);

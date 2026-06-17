@@ -17,16 +17,17 @@ namespace TSIC.Tests.PlayerRegistration.RosterCapacity;
 /// <summary>
 /// PLAYER ROSTER CAPACITY TESTS
 ///
-/// Validates that the player registration wizard correctly enforces
-/// team roster limits (MaxCount) at the "reserve teams" step.
+/// The reserve/PreSubmit step does NOT gate roster capacity — it writes a pending hold on the
+/// REAL team and proceeds. The roster-max guarantee is enforced at PAYMENT (the cart-split moves
+/// a seat-gone player to the $0 waitlist twin, never charged/activated).
 ///
 /// What these tests prove:
-///   - A team with room accepts the registration (count goes up)
-///   - A full team blocks the registration with IsFull = true
-///   - A full team with waitlists redirects to the waitlist team
-///   - MaxCount = 0 means unlimited (never full)
+///   - A team with room accepts the registration
+///   - A full team does NOT hard-stop — the player is held on the real team and proceeds
+///   - An already-rostered player keeps their seat (no waitlist redirect)
+///   - New reserve/PreSubmit regs stay BActive=false until payment (free events activate at submit)
 ///
-/// Service under test: PlayerRegistrationService.ReserveTeamsAsync()
+/// Service under test: PlayerRegistrationService.ReserveTeamsAsync() / PreSubmitAsync()
 /// All 9 dependencies are mocked. No database involved.
 /// </summary>
 public class PlayerRosterCapacityTests
@@ -167,7 +168,6 @@ public class PlayerRosterCapacityTests
         // Assert — registration was created, team is not full
         result.TeamResults.Should().HaveCount(1);
         result.TeamResults[0].IsFull.Should().BeFalse("team has room for 1 more player");
-        result.TeamResults[0].IsWaitlisted.Should().BeFalse("direct placement, not waitlisted");
         result.HasFullTeams.Should().BeFalse();
 
         // Verify a registration entity was added
@@ -177,8 +177,8 @@ public class PlayerRosterCapacityTests
             Times.Once, "should create a pending registration on the selected team");
     }
 
-    [Fact(DisplayName = "Reserve: team full → held on the REAL team, flagged waitlist (placement deferred to payment)")]
-    public async Task Reserve_TeamFull_HoldsOnRealTeamAndFlagsWaitlist()
+    [Fact(DisplayName = "Reserve: team full → held on the REAL team (placement deferred to payment)")]
+    public async Task Reserve_TeamFull_HoldsOnRealTeam()
     {
         // Arrange — team is at capacity. Waitlists are mandatory, so a full team is no longer a hard
         // stop; but the selection step must NOT shove the player onto the $0 waitlist twin (doing so
@@ -195,11 +195,9 @@ public class PlayerRosterCapacityTests
         // Act
         var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
 
-        // Assert — registered on the REAL team, flagged for the UI as waitlist-bound
+        // Assert — registered on the REAL team; a full team no longer hard-stops the wizard
         result.TeamResults.Should().HaveCount(1);
         result.TeamResults[0].IsFull.Should().BeFalse("full no longer hard-stops; the player proceeds");
-        result.TeamResults[0].IsWaitlisted.Should().BeTrue("the UI must warn the player they will be waitlisted at payment");
-        result.TeamResults[0].WaitlistTeamName.Should().Be($"WAITLIST - {team.TeamName}");
 
         captured.Should().NotBeNull("a pending hold is created on the REAL team");
         captured!.AssignedTeamId.Should().Be(team.TeamId, "the hold stays on the real team — never the twin — until payment");
@@ -259,15 +257,12 @@ public class PlayerRosterCapacityTests
             "no payment method is chosen until the parent reaches the payment step");
     }
 
-    [Fact(DisplayName = "Reserve: family submits 3 to a team with 1 spot → all 3 held on real team, 2 flagged waitlist (payment enforces max)")]
-    public async Task Reserve_FamilyOverflow_FlagsExcessForWaitlist()
+    [Fact(DisplayName = "Reserve: family submits 3 to a team with 1 spot → all 3 held on real team (payment enforces max)")]
+    public async Task Reserve_FamilyOverflow_AllHeldOnRealTeam()
     {
         // Arrange — team has 1 spot left (MaxCount=10, currentRosterCount=9). A single family submits
-        // three players to that same team. Reserve no longer GATES capacity — it holds every sibling
-        // on the REAL team and FLAGS the ones past the open spot as waitlist-bound. The in-memory
-        // roster snapshot still increments per create so siblings later in the same submission see the
-        // spot consumed (→ flagged). The actual roster-max guarantee is enforced at PAYMENT by the
-        // cart-split, not here.
+        // three players to that same team. Reserve does NOT gate capacity — it holds every sibling on
+        // the REAL team. The roster-max guarantee is enforced at PAYMENT by the cart-split, not here.
         var (svc, regRepo, teamRepo, placement, feeService) = CreateService();
         var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 9);
         SetupFee(feeService, balanceDue: 100m);
@@ -286,10 +281,8 @@ public class PlayerRosterCapacityTests
         // Act
         var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, request, TestFamilyUserId);
 
-        // Assert — all three held on the real team; exactly one had the real spot, two flagged.
+        // Assert — all three held on the real team; full no longer hard-stops at reserve.
         result.TeamResults.Should().HaveCount(3);
-        result.TeamResults.Count(r => !r.IsWaitlisted).Should().Be(1, "only one real spot was open");
-        result.TeamResults.Count(r => r.IsWaitlisted).Should().Be(2, "the two past the spot are flagged waitlist-bound");
         result.TeamResults.Should().OnlyContain(r => !r.IsFull, "full no longer hard-stops at reserve");
 
         regRepo.Verify(r => r.Add(It.IsAny<Registrations>()), Times.Exactly(3),
@@ -304,8 +297,7 @@ public class PlayerRosterCapacityTests
     public async Task PreSubmit_TeamFull_NextTabIsPayment()
     {
         // A full team no longer bounces the user back to team selection. They proceed to Payment,
-        // where the cart-split moves a seat-gone player to the $0 waitlist twin (not charged). The
-        // forms result is flagged IsWaitlisted so the UI can warn them on the way.
+        // where the cart-split moves a seat-gone player to the $0 waitlist twin (not charged).
         var (svc, regRepo, teamRepo, _, feeService) = CreateService();
         var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 10);
         SetupFee(feeService, balanceDue: 100m);
@@ -325,7 +317,6 @@ public class PlayerRosterCapacityTests
         // Assert — proceed to payment, which performs the waitlisting
         result.NextTab.Should().Be("Payment",
             "a full team now proceeds to payment, which performs the waitlisting");
-        result.TeamResults[0].IsWaitlisted.Should().BeTrue("the player is warned they'll be waitlisted");
         result.HasFullTeams.Should().BeFalse("full no longer hard-stops the wizard");
     }
 
@@ -521,9 +512,8 @@ public class PlayerRosterCapacityTests
         // Act
         var result = await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(team.TeamId), TestFamilyUserId);
 
-        // Assert — the reg stays on the real team, not waitlisted, and no waitlist redirect happened.
+        // Assert — the reg stays on the real team and no waitlist redirect happened.
         result.TeamResults.Should().HaveCount(1);
-        result.TeamResults[0].IsWaitlisted.Should().BeFalse("the player already owns a seat on this team");
         result.TeamResults[0].IsFull.Should().BeFalse();
         result.TeamResults[0].TeamId.Should().Be(team.TeamId, "the player must remain on their assigned team");
         existing.AssignedTeamId.Should().Be(team.TeamId, "the existing reg must not be moved to the waitlist mirror");
