@@ -117,18 +117,7 @@ public class TeamLookupService : ITeamLookupService
 
     public async Task<(decimal Fee, decimal Deposit)> ResolvePerRegistrantAsync(Guid teamId)
     {
-        // Get team's job and agegroup context
-        var teamContext = await _teamRepo.GetTeamWithFeeContextAsync(teamId);
-        if (teamContext == null)
-        {
-            _logger.LogInformation("ResolvePerRegistrantAsync: team {TeamId} not found; returning zeros.", teamId);
-            return (0m, 0m);
-        }
-
-        var (team, _) = teamContext.Value;
-        var resolved = await _feeService.ResolveFeeAsync(
-            team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
-
+        var resolved = await ResolveTeamFeeAsync(teamId, RoleConstants.Player);
         if (resolved is not { FeeConfigured: true }) return (0m, 0m);
 
         var fee = resolved.EffectiveBalanceDue;
@@ -136,5 +125,28 @@ public class TeamLookupService : ITeamLookupService
         if (deposit == fee) deposit = 0m;
 
         return (fee, deposit);
+    }
+
+    public async Task<decimal> ResolveFullPriceAsync(Guid teamId, string roleId)
+    {
+        var resolved = await ResolveTeamFeeAsync(teamId, roleId);
+        return resolved is { FeeConfigured: true } ? resolved.FullPrice : 0m;
+    }
+
+    /// <summary>
+    /// Shared cascade resolve for a team: loads the team's job + agegroup context and
+    /// resolves the fee for the given role. Returns null when the team is missing.
+    /// </summary>
+    private async Task<ResolvedFee?> ResolveTeamFeeAsync(Guid teamId, string roleId)
+    {
+        var teamContext = await _teamRepo.GetTeamWithFeeContextAsync(teamId);
+        if (teamContext == null)
+        {
+            _logger.LogInformation("ResolveTeamFeeAsync: team {TeamId} not found; returning null.", teamId);
+            return null;
+        }
+
+        var (team, _) = teamContext.Value;
+        return await _feeService.ResolveFeeAsync(team.JobId, roleId, team.AgegroupId, team.TeamId);
     }
 }

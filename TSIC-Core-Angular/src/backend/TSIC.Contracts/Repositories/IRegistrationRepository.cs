@@ -619,6 +619,10 @@ public record EligibleInsuranceRegistration
     public string? LastName { get; init; }
     public decimal? PerRegistrantFee { get; init; }
     public required decimal FeeTotal { get; init; }
+    // Stamped per-registration fee modifiers, so the insurable amount can reflect them
+    // (early bird + discount codes → FeeDiscount; late fees → FeeLatefee).
+    public decimal FeeDiscount { get; init; }
+    public decimal FeeLatefee { get; init; }
 }
 
 public record RegSaverPolicyInfo

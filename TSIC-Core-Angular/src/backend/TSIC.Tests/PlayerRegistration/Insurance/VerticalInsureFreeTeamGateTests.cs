@@ -15,7 +15,7 @@ namespace TSIC.Tests.PlayerRegistration.Insurance;
 /// A free team has nothing to insure, so RegSaver must never be offered for a player on
 /// one (e.g. a full team registered onto its $0 WAITLIST twin, or a genuinely free event).
 /// The gate lives in <see cref="VerticalInsureService"/>'s product build and keys on the
-/// team's CONFIGURED fee — the cascade resolver (<see cref="ITeamLookupService.ResolvePerRegistrantAsync"/>)
+/// team's CONFIGURED fee — the cascade full price (<see cref="ITeamLookupService.ResolveFullPriceAsync"/>)
 /// OR the team's per-registrant fee — NOT the stamped FeeTotal (which a free team can still
 /// carry from a donation).
 ///
@@ -58,10 +58,12 @@ public class VerticalInsureFreeTeamGateTests
             .ReturnsAsync(new FamilyContactInfo { FirstName = "Pat", LastName = "Parent", Email = "pat@example.com" });
 
         var teamLookup = new Mock<ITeamLookupService>();
+        // The offer build keys the gate + insurable base on the cascade FULL price (not the
+        // phase-dependent base), so the dictionary now stands in for ResolveFullPriceAsync.
         teamLookup
-            .Setup(t => t.ResolvePerRegistrantAsync(It.IsAny<Guid>()))
-            .ReturnsAsync((Guid teamId) =>
-                (resolvedTeamFees.TryGetValue(teamId, out var f) ? f : 0m, 0m));
+            .Setup(t => t.ResolveFullPriceAsync(It.IsAny<Guid>(), It.IsAny<string>()))
+            .ReturnsAsync((Guid teamId, string _) =>
+                resolvedTeamFees.TryGetValue(teamId, out var f) ? f : 0m);
 
         var env = new Mock<IHostEnvironment>();
         env.SetupGet(e => e.EnvironmentName).Returns("Development");

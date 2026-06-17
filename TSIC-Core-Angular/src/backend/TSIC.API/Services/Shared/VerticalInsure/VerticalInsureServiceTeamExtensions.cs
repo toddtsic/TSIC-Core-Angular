@@ -8,6 +8,8 @@ using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.VerticalInsure;
 using TSIC.Domain.Entities;
+using TSIC.Domain.Constants;
+using TSIC.Application.Services.Shared.Insurance;
 using TSIC.Contracts.Repositories;
 using TeamEntity = TSIC.Domain.Entities.Teams;
 
@@ -69,7 +71,7 @@ public partial class VerticalInsureService
             }
 
             var director = await _registrationRepo.GetDirectorContactForJobAsync(jobId);
-            var products = BuildTeamProducts(teams, clubRepUser, director, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
+            var products = await BuildTeamProductsAsync(teams, clubRepUser, director, jobOffer.JobName, jobOffer.EventStartDate.Value, jobOffer.EventEndDate);
             var teamObj = BuildTeamObject(products);
 
             return new PreSubmitTeamInsuranceDto
@@ -275,7 +277,7 @@ public partial class VerticalInsureService
         };
     }
 
-    private List<VITeamProductDto> BuildTeamProducts(
+    private async Task<List<VITeamProductDto>> BuildTeamProductsAsync(
         List<RegisteredTeamInfo> teams,
         AspNetUsers clubRepUser,
         DirectorContactInfo? director,
@@ -288,6 +290,13 @@ public partial class VerticalInsureService
 
         foreach (var team in teams)
         {
+            // Full configured price (deposit + balance), phase-independent — insure the whole
+            // forfeitable team-registration cost, not just the current-phase (deposit) base.
+            // Fall back to the stamped phase base only when the cascade is unconfigured (an
+            // anomaly: the repo pre-filter already requires FeeTotal > 0).
+            var fullPrice = await _teamLookupService.ResolveFullPriceAsync(team.TeamId, RoleConstants.ClubRep);
+            var baseFee = fullPrice > 0m ? fullPrice : team.FeeBase;
+
             var product = new VITeamProductDto
             {
                 customer = new VICustomerDto
@@ -319,7 +328,10 @@ public partial class VerticalInsureService
                         new VITeamDto
                         {
                             team_name = team.TeamName,
-                            insurable_amount = (int)(team.FeeTotal * 100)
+                            // Reflect the per-team modifiers: minus early-bird/discount-code
+                            // discounts, plus late fees (processing surcharge and donation excluded).
+                            insurable_amount = InsurableAmountCalculator.ComputeNetInsurableAmount(
+                                baseFee, team.FeeDiscount, team.FeeLatefee)
                         }
                     },
                     job_event = new VIEventDto

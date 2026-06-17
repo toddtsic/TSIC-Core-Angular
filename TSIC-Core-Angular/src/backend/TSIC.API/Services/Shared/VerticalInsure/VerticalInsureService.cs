@@ -8,6 +8,7 @@ using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.VerticalInsure;
 using TSIC.Domain.Entities;
+using TSIC.Domain.Constants;
 using TSIC.Contracts.Repositories;
 using TSIC.Application.Services.Shared.Insurance;
 using TSIC.API.Services.Teams;
@@ -292,17 +293,19 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         var contextName = (jobName ?? string.Empty).Split(':')[0];
         foreach (var r in regs)
         {
-            // Centralized fee resolution for insurable amount: prefer per-registrant fee from resolver; fallback to fee total.
-            var (fee, _) = await _teamLookupService.ResolvePerRegistrantAsync(r.AssignedTeamId);
+            // Full configured price (deposit + balance), phase-independent — we must insure the
+            // whole forfeitable registration cost, not just the current-phase (deposit) base.
+            var fullPrice = await _teamLookupService.ResolveFullPriceAsync(r.AssignedTeamId, RoleConstants.Player);
 
             // Gate: a free team has nothing to insure — never offer RegSaver on it. "Free" is
-            // the team's CONFIGURED fee: neither the cascade resolver nor the team's
+            // the team's CONFIGURED fee: neither the cascade full price nor the team's
             // per-registrant fee is positive (e.g. a full team registered onto its $0 WAITLIST
             // twin, or a genuinely free event). We deliberately do NOT consult the stamped
             // FeeTotal for this decision — a free team can still carry a non-zero FeeTotal from
             // a donation, and we must not insure a free registration. VerticalInsure also
-            // rejects a $0 policy, so this avoids a guaranteed failure.
-            var configuredTeamFee = fee > 0m ? fee : (r.PerRegistrantFee ?? 0m);
+            // rejects a $0 policy, so this avoids a guaranteed failure. This same base feeds the
+            // insurable amount below.
+            var configuredTeamFee = fullPrice > 0m ? fullPrice : (r.PerRegistrantFee ?? 0m);
             if (configuredTeamFee <= 0m)
             {
                 _logger.LogInformation(
@@ -311,7 +314,9 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
                 continue;
             }
 
-            var insurable = InsurableAmountCalculator.ComputeInsurableAmountFromCentralized(fee, r.PerRegistrantFee, r.FeeTotal);
+            // Reflect the per-registration modifiers: minus early-bird/discount-code discounts,
+            // plus late fees (processing surcharge and donation excluded).
+            var insurable = InsurableAmountCalculator.ComputeNetInsurableAmount(configuredTeamFee, r.FeeDiscount, r.FeeLatefee);
             var product = new VIPlayerProductDto
             {
                 Customer = new VICustomerDto

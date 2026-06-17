@@ -724,7 +724,9 @@ public class RegistrationRepository : IRegistrationRepository
                 FirstName = r.User != null ? r.User.FirstName : null,
                 LastName = r.User != null ? r.User.LastName : null,
                 PerRegistrantFee = r.AssignedTeam != null ? r.AssignedTeam.PerRegistrantFee : null,
-                FeeTotal = r.FeeTotal
+                FeeTotal = r.FeeTotal,
+                FeeDiscount = r.FeeDiscount,
+                FeeLatefee = r.FeeLatefee
             })
             .ToListAsync(cancellationToken);
     }

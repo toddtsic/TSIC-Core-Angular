@@ -15,16 +15,16 @@ public static class InsurableAmountCalculator
         => (int)(amount * 100);
 
     /// <summary>
-    /// Calculates insurable amount with fee precedence logic:
-    /// 1. Centralized fee (if > 0)
-    /// 2. Per-registrant fee (if set and > 0)
-    /// 3. Total fee (fallback)
+    /// Net insurable amount in cents: the full configured registration price adjusted by
+    /// the per-registration fee MODIFIERS — minus early-bird/discount-code discounts, plus
+    /// late fees — floored at $0. Processing surcharge and donation are deliberately
+    /// excluded: neither is part of the forfeitable registration cost. Shared by the player
+    /// and team offer builds so both reflect modifiers identically.
     /// </summary>
-    public static int ComputeInsurableAmountFromCentralized(decimal centralizedFee, decimal? perRegistrantFee, decimal feeTotal)
-    {
-        if (centralizedFee > 0m) return ComputeInsurableAmount(centralizedFee);
-        if (perRegistrantFee.HasValue && perRegistrantFee.Value > 0) return ComputeInsurableAmount(perRegistrantFee.Value);
-        return ComputeInsurableAmount(feeTotal);
-    }
+    /// <param name="baseFullPrice">Full configured price (deposit + balance), phase-independent.</param>
+    /// <param name="feeDiscount">Stamped discount total (early bird + discount codes).</param>
+    /// <param name="feeLatefee">Stamped late-fee total.</param>
+    public static int ComputeNetInsurableAmount(decimal baseFullPrice, decimal feeDiscount, decimal feeLatefee)
+        => ComputeInsurableAmount(Math.Max(0m, baseFullPrice - feeDiscount + feeLatefee));
 }
 
