@@ -736,8 +736,12 @@ export class TeamSelectionStepComponent {
             // Two-phase jobs: lead with all-in total, hint at deposit so parent knows
             // a payment plan exists. Single-phase: lone price. Backend collapses
             // deposit==fee → deposit=0 so checking deposit > 0 is sufficient.
-            const deposit = Number(team.deposit ?? 0) || 0;
-            const fee = Number(team.effectiveFee ?? 0) || 0;
+            // A full team under waitlists is billed $0 (the payment cart-split moves the player
+            // to the $0 twin, never charged), so show $0 here even though the entry carries the
+            // real team's id + fee — the backend no longer swaps the entry to the twin.
+            const isWaitlistFull = !!team.rosterIsFull && !!team.jobUsesWaitlists;
+            const deposit = isWaitlistFull ? 0 : (Number(team.deposit ?? 0) || 0);
+            const fee = isWaitlistFull ? 0 : (Number(team.effectiveFee ?? 0) || 0);
             if (fee > 0 && deposit > 0 && deposit !== fee) {
                 label += ` (${this.formatCurrency(deposit + fee)}, ${this.formatCurrency(deposit)} deposit)`;
             } else if (fee > 0) {
@@ -832,9 +836,10 @@ export class TeamSelectionStepComponent {
         const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
         const teams = this.teamService.filterByEligibility(eligValue, player?.gender);
 
-        // The backend emits exactly one entry per team: a full team is surfaced as its $0
-        // WAITLIST twin (twin teamId, real name, "Waitlist · $0"), a not-full team as
-        // itself. No client-side waitlist substitution needed.
+        // The backend emits exactly one entry per team, always with the REAL teamId. A full team
+        // carries rosterIsFull=true (badged "WAITLIST · $0" in the dropdown); the player still
+        // selects the real team and is moved to the $0 twin only at payment. No client-side
+        // waitlist substitution needed.
         let filtered = [...teams];
 
         // CAC: sort by start date (earliest first), then by name

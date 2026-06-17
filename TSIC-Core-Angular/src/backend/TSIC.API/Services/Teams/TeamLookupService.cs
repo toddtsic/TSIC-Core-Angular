@@ -103,44 +103,15 @@ public class TeamLookupService : ITeamLookupService
             };
         }).ToList();
 
-        // When a real team is full, surface its WAITLIST twin in its place: the entry keeps
-        // the real team's name + agegroup for display, but routes registration to the twin's
-        // teamId at $0 (the twin's team-level fee stamp). So the parent sees the team they
-        // wanted, flagged "Waitlist · Free", and the twin's id — NOT the real id — flows
-        // through registration; ActivateIfFree then activates the $0 reg (legacy: waitlist
-        // players ARE active). A not-full team is emitted unchanged (real id, full price);
-        // its twin, if any, is never shown — this is the swap-out case, where a team that
-        // dropped back below max correctly reappears as the bookable real team.
-        if (jobUsesWaitlists)
-        {
-            var fullTeamNames = dtos
-                .Where(d => d.RosterIsFull)
-                .Select(d => $"WAITLIST - {d.TeamName}")
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-            if (fullTeamNames.Count > 0)
-            {
-                // Find the existing waitlist team mirrors by name (minted on fill, change 3).
-                var allTeams = await _teamRepo.GetTeamsForJobByNamesAsync(jobId, fullTeamNames);
-                var waitlistLookup = allTeams.ToDictionary(
-                    t => t.TeamName ?? string.Empty,
-                    t => t.TeamId,
-                    StringComparer.OrdinalIgnoreCase);
-
-                dtos = dtos.Select(dto =>
-                {
-                    if (!dto.RosterIsFull)
-                        return dto;
-                    // Route to the twin at $0 when it exists. If mint-on-fill has not run yet
-                    // (no twin), leave the real entry — the registration-time overflow swap
-                    // still places the player on the then-minted mirror at $0.
-                    return waitlistLookup.TryGetValue($"WAITLIST - {dto.TeamName}", out var wlTeamId)
-                        ? dto with { TeamId = wlTeamId, Fee = 0m, Deposit = 0m, EffectiveFee = 0m, FullPaymentRequired = false }
-                        : dto;
-                }).ToList();
-            }
-        }
-
+        // A full team is emitted with its REAL TeamId and RosterIsFull=true (the UI badges it
+        // "WAITLIST" off that flag). We intentionally do NOT swap the entry to the WAITLIST
+        // twin's id: waitlisting now happens ENTIRELY at payment (PaymentService cart-split
+        // registers on the real team through reserve/PreSubmit, then moves only seat-gone players
+        // to the $0 twin when they pay). Swapping the id here broke two things — a resuming
+        // player already rostered on a full team could not match their own team in this list
+        // (their real id was gone), and a new full-team pick would carry the twin id straight
+        // into registration, re-placing them on the twin at selection (the bug the payment-time
+        // split was built to avoid). The real id flows through; the twin is a payment-time concern.
         return dtos;
     }
 

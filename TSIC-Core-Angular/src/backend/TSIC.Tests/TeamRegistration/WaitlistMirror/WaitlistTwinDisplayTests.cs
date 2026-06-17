@@ -105,19 +105,21 @@ public class WaitlistTwinDisplayTests
         return (svc, teamRepo);
     }
 
-    [Fact(DisplayName = "Full team + twin exists → entry carries the twin id at $0")]
-    public async Task FullTeam_TwinExists_RoutesToTwinAtZero()
+    [Fact(DisplayName = "Full team (twin exists) → entry keeps the REAL id at full price; waitlisting deferred to payment")]
+    public async Task FullTeam_TwinExists_KeepsRealIdNoSwap()
     {
         var (svc, _) = CreateService(twinMinted: true);
 
         var teams = await svc.GetAvailableTeamsForJobAsync(JobId);
 
         var hawks = teams.Single(t => t.TeamName == "Hawks");
-        hawks.RosterIsFull.Should().BeTrue();
-        hawks.TeamId.Should().Be(TwinTeamId, "the twin id — not the real id — flows through registration");
-        hawks.Fee.Should().Be(0m);
-        hawks.Deposit.Should().Be(0m);
-        hawks.EffectiveFee.Should().Be(0m);
+        hawks.RosterIsFull.Should().BeTrue("the UI badges it WAITLIST off this flag");
+        hawks.TeamId.Should().Be(FullTeamId,
+            "the real id flows through — the entry is NOT swapped to the twin even when the twin exists; "
+            + "the payment cart-split moves the player to the $0 twin only when they pay (a resuming "
+            + "already-rostered player must be able to match their own real team id in this list)");
+        hawks.EffectiveFee.Should().Be(150m,
+            "the backend carries the real fee; the $0 'waitlist' display is a frontend-only concern");
     }
 
     [Fact(DisplayName = "Not-full team → stays the real id at full price (twin omitted)")]
