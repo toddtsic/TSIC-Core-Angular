@@ -39,12 +39,21 @@ public static class SeatReconciliation
     {
         var bounced = new List<PaymentWaitlistedDto>();
         var drop = new List<Registrations>();
+        // Seats this pass has already handed out, per real team. IsSeatAvailableAsync counts only
+        // confirmed (BActive=1) members, so two siblings in ONE submission both see the last seat as
+        // free (neither is active yet) and both would stay → overfill. This running tally makes the
+        // 2nd sibling's check see the seat the 1st just took, routing the overflow to the twin.
+        var claimedThisBatch = new Dictionary<Guid, int>();
         foreach (var reg in registrations)
         {
             if (reg.BActive == true || reg.RoleId != RoleConstants.Player || reg.AssignedTeamId is not { } teamId)
                 continue;
-            if (await registrationsRepo.IsSeatAvailableAsync(reg, ct))
+            var reserved = claimedThisBatch.TryGetValue(teamId, out var already) ? already : 0;
+            if (await registrationsRepo.IsSeatAvailableAsync(reg, reserved, ct))
+            {
+                claimedThisBatch[teamId] = reserved + 1; // this reg takes the seat; later siblings see it gone
                 continue; // seat still there — stays in the charge set
+            }
 
             var result = await placement.ResolveRosterPlacementAsync(jobId, teamId, familyUserId, ct);
             if (result is { IsWaitlisted: true })

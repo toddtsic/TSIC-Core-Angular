@@ -295,9 +295,13 @@ public interface IRegistrationRepository
     /// the guard's decision exactly: counts CONFIRMED members only (BActive=1), excluding self; an
     /// unlimited team (MaxCount &lt;= 0) and an already-active reg always return true. No write, no
     /// transaction — a point-in-time read; the authoritative overfill check stays in the commit path.
+    /// <paramref name="reservedInBatch"/> = seats already handed out to EARLIER registrations in the
+    /// same reconcile pass; added to the confirmed count so two siblings competing for the last seat
+    /// in one submission don't both pass (neither is BActive=1 yet).
     /// </summary>
     Task<bool> IsSeatAvailableAsync(
         Registrations reg,
+        int reservedInBatch = 0,
         CancellationToken cancellationToken = default);
 
     /// <summary>

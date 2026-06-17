@@ -673,7 +673,7 @@ public class RegistrationRepository : IRegistrationRepository
     }
 
     public async Task<bool> IsSeatAvailableAsync(
-        Registrations reg, CancellationToken cancellationToken = default)
+        Registrations reg, int reservedInBatch = 0, CancellationToken cancellationToken = default)
     {
         // Read-only sibling of TryCommitSeatAsync answering "will the finalize guard seat this
         // reg?" Used to PARTITION a payment cart BEFORE charging: a player whose seat is gone is
@@ -684,6 +684,11 @@ public class RegistrationRepository : IRegistrationRepository
         // agrees with the post-charge commit. No write, no transaction: a point-in-time read. The
         // authoritative overfill guard remains TryCommitSeatAsync at finalize; in the rare instant
         // where two carts both pass this read for the last seat, that guard still lets only one in.
+        //
+        // reservedInBatch: seats already claimed by EARLIER registrations in the SAME reconcile pass.
+        // Confirmed-member counting alone can't see two siblings competing for the last seat in one
+        // submission (neither is BActive=1 yet), so they would both pass. The caller tallies seats it
+        // has handed out this batch and passes the running count here so the 2nd sibling sees it taken.
         if (reg.BActive == true) return true;
         if (reg.AssignedTeamId is not { } teamId) return true;
 
@@ -699,7 +704,7 @@ public class RegistrationRepository : IRegistrationRepository
               && r.RoleId == RoleConstants.Player
               && r.BActive == true,
             cancellationToken);
-        return confirmedMembers < maxCount;
+        return confirmedMembers + reservedInBatch < maxCount;
     }
 
     public async Task<List<EligibleInsuranceRegistration>> GetEligibleInsuranceRegistrationsAsync(

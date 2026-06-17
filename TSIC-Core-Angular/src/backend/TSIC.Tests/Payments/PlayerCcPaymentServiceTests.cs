@@ -499,8 +499,8 @@ public class PlayerCcPaymentServiceTests
         StubAdnSuccess();
 
         // The seated player still has a seat; the other's team filled up first.
-        _regRepo.Setup(r => r.IsSeatAvailableAsync(regSeated, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        _regRepo.Setup(r => r.IsSeatAvailableAsync(regGone, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _regRepo.Setup(r => r.IsSeatAvailableAsync(regSeated, It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        _regRepo.Setup(r => r.IsSeatAvailableAsync(regGone, It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         // The placement service finds-or-creates the waitlist twin for the full team.
         _placement.Setup(p => p.ResolveRosterPlacementAsync(jobId, goneTeamId, FamilyUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RosterPlacementResult { TeamId = waitlistTeamId, IsWaitlisted = true, WaitlistTeamName = "WAITLIST U12" });
@@ -546,7 +546,7 @@ public class PlayerCcPaymentServiceTests
         StubRegs(jobId, regGone);
         StubAdnSuccess(); // stubbed but must never be reached
 
-        _regRepo.Setup(r => r.IsSeatAvailableAsync(regGone, It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _regRepo.Setup(r => r.IsSeatAvailableAsync(regGone, It.IsAny<int>(), It.IsAny<CancellationToken>())).ReturnsAsync(false);
         _placement.Setup(p => p.ResolveRosterPlacementAsync(jobId, goneTeamId, FamilyUserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RosterPlacementResult { TeamId = waitlistTeamId, IsWaitlisted = true, WaitlistTeamName = "WAITLIST U10" });
         _teams.Setup(t => t.GetTeamFromTeamId(waitlistTeamId, It.IsAny<CancellationToken>()))
