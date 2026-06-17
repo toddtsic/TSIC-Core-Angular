@@ -28,13 +28,23 @@ import { TeamService } from '../services/team.service';
       <div class="card-body pt-3">
         <div class="player-list">
           @for (pid of selectedPlayerIds(); track pid) {
-            <div class="player-row" [class.is-set]="!!state.eligibility.getEligibilityForPlayer(pid)">
-              <i class="bi bi-person-fill player-icon"></i>
+            <div class="player-row" [class.is-set]="!!state.eligibility.getEligibilityForPlayer(pid)"
+                 [class.is-locked]="isPlayerLocked(pid)">
+              <i class="bi player-icon"
+                 [class.bi-person-fill]="!isPlayerLocked(pid)"
+                 [class.bi-person-check-fill]="isPlayerLocked(pid)"></i>
               <div class="player-info">
                 <label class="player-name" [for]="'elig-' + pid">
                   {{ getPlayerName(pid) }}
+                  @if (isPlayerLocked(pid)) {
+                    <span class="locked-badge"><i class="bi bi-lock-fill me-1"></i>Registered</span>
+                  }
                 </label>
-                @if (usesRichDropdown()) {
+                @if (isPlayerLocked(pid)) {
+                  <!-- Active registration: constraint is fixed by the assigned team — show as a
+                       label, never a dropdown (the backend also rejects a forced flip). -->
+                  <span class="elig-locked">{{ state.eligibility.getEligibilityForPlayer(pid) || '—' }}</span>
+                } @else if (usesRichDropdown()) {
                   <ejs-dropdownlist
                     [id]="'elig-' + pid"
                     [dataSource]="eligibilityOptions()"
@@ -90,6 +100,12 @@ import { TeamService } from '../services/team.service';
           border-color: rgba(var(--bs-primary-rgb), 0.3);
           background: rgba(var(--bs-primary-rgb), 0.03);
         }
+
+        &.is-locked {
+          border-color: rgba(var(--bs-success-rgb), 0.25);
+          background: rgba(var(--bs-success-rgb), 0.05);
+          opacity: 0.75;
+        }
       }
 
       .player-icon {
@@ -97,6 +113,21 @@ import { TeamService } from '../services/team.service';
         color: var(--neutral-400);
 
         .is-set & { color: var(--bs-primary); }
+        .is-locked & { color: var(--bs-success); }
+      }
+
+      .locked-badge {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-success);
+        white-space: nowrap;
+      }
+
+      .elig-locked {
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--brand-text);
+        padding: var(--space-1) 0;
       }
 
       .player-info {
@@ -113,6 +144,9 @@ import { TeamService } from '../services/team.service';
         color: var(--brand-text);
         cursor: pointer;
         margin-bottom: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-2);
       }
 
       .elig-select {
@@ -201,6 +235,13 @@ export class EligibilityStepComponent {
     getPlayerName(playerId: string): string {
         const player = this.state.familyPlayers.familyPlayers().find(p => p.playerId === playerId);
         return player ? `${player.firstName} ${player.lastName}`.trim() : playerId;
+    }
+
+    isPlayerLocked(playerId: string): boolean {
+        // CAC: players are never fully locked — they can always add more camps.
+        // Mirrors team-selection-step so the eligibility field and team lock together.
+        if (this.state.jobCtx.isCacMode()) return false;
+        return this.state.familyPlayers.isPlayerLocked(playerId);
     }
 
     constraintLabel(): string {

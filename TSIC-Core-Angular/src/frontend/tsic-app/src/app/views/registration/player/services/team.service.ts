@@ -162,6 +162,33 @@ export class TeamService {
     }
 
     /**
+     * Convenience: is this team pickable for a NEW selection? Derived from the granular raw
+     * flags — a full team stays "available" when the job uses waitlists (its $0 twin is offered),
+     * but a team with no configured fee is not. The raw flags (rosterIsFull, feeConfigured,
+     * teamAllowsSelfRostering) remain the source of truth; this is a one-call summary, not a
+     * replacement for them.
+     */
+    isAvailable(t: AvailableTeam): boolean {
+        if (t.feeConfigured === false) return false;
+        if (t.rosterIsFull && !t.jobUsesWaitlists) return false;
+        return true;
+    }
+
+    /**
+     * Replace the team dataset with a fresh server snapshot. The PreSubmit round-trip
+     * returns raw teams reflecting post-reconcile occupancy; pushing them here re-derives every
+     * dependent signal (filteredTeams, grouped) and resolver (getTeamById) in one shot, so the
+     * wizard reflects current truth instead of stale init-time data. Updates the cache so a later
+     * read agrees. No-op on null/undefined (the server signals "no change" that way).
+     */
+    applyRawTeams(teams: AvailableTeam[] | null | undefined): void {
+        if (!teams) return;
+        this._teams.set(teams);
+        const jobPath = this.jobCtx.jobPath();
+        if (jobPath) this.cache.set(jobPath, { data: teams, ts: Date.now() });
+    }
+
+    /**
      * Display name for a *selected* team — always the team's real name.
      *
      * We do NOT synthesize a "WAITLIST - " prefix from rosterIsFull: a team being full

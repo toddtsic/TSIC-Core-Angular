@@ -290,36 +290,12 @@ export class PlayerWizardV2Component implements OnInit {
         const idx = this._currentIndex();
         if (idx >= active.length - 1) return;
 
-        // Phase 1: reserve team spots at team selection → forms transition
-        if (this.currentStepId() === 'teams') {
-            try {
-                const resp = await this.state.reserveTeams();
-                if (resp.hasFullTeams) {
-                    const fullTeams = resp.teamResults
-                        .filter(r => r.isFull)
-                        .map(r => r.teamName)
-                        .join(', ');
-                    this.toast.show(
-                        `Team(s) full: ${fullTeams}. Please choose different teams.`,
-                        'warning', 5000,
-                    );
-                    return; // stay on teams step
-                }
-                // Deliberately NO waitlist toast here. Reserving a full team writes a pending
-                // hold on the REAL team — nobody is actually waitlisted yet (that's decided at
-                // payment by the cart-split). The parent already chose the team knowing it was
-                // full: the dropdown badges it "⚠ WAITLIST · $0" and the team step shows an
-                // inline waitlist-alert banner on selection. A toast on advance just repeats
-                // what they were told and reads as if something went wrong. The real, accurate
-                // waitlist notice fires at payment (NeedsWaitlist) when it genuinely happens.
-            } catch (err: unknown) {
-                console.error('[PlayerWizard] reserveTeams failed', err);
-                this.toast.show('Could not reserve team spots. Please try again.', 'danger', 5000);
-                return;
-            }
-        }
+        // Teams step: pure client-side selection — no backend round-trip. Registrations are
+        // created at PreSubmit (review → payment) and nowhere else; the roster-max reconcile
+        // and any waitlist move happen there (and again, as a backstop, at the charge).
 
-        // Phase 2: finalize at review -> payment (apply form values, validate, insurance)
+        // Finalize at review -> payment (create registrations, apply form values, validate,
+        // reconcile seats, insurance).
         if (this.currentStepId() === 'review') {
             const newRegs = this.hasNewRegistrations();
             try {
@@ -331,6 +307,19 @@ export class PlayerWizardV2Component implements OnInit {
                 if (resp?.validationErrors?.length) {
                     this.toast.show('Some required information is missing or invalid. Please correct the highlighted fields before continuing.', 'warning', 7000);
                     return; // stay on review step — do NOT advance to Payment
+                }
+                // PreSubmit reconciles seats: any player whose real team filled up was auto-moved
+                // to the $0 waitlist twin (not charged). Surface that plainly before payment so the
+                // family knows which kids weren't seated. The team list re-reflects via the
+                // response's rawTeams (applied in the state service).
+                if (resp?.movedToWaitlist?.length) {
+                    const teams = [...new Set(resp.movedToWaitlist.map(m => m.teamName).filter(Boolean))];
+                    this.toast.show(
+                        `${resp.movedToWaitlist.length} player(s) were moved to the waitlist because their team just filled up`
+                        + (teams.length ? ` (${teams.join(', ')})` : '')
+                        + '. They will not be charged.',
+                        'warning', 9000,
+                    );
                 }
             } catch (err: unknown) {
                 console.error('[PlayerWizard] preSubmit failed', err);

@@ -76,8 +76,17 @@ public class PlayerMedFormStampTests
             .Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
+        // The post-save reconcile fetch + raw-team snapshot default to no-ops.
+        regRepo
+            .Setup(r => r.GetByJobAndFamilyWithUsersAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Registrations>());
+        teamLookup
+            .Setup(t => t.GetAvailableTeamsForJobAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(new List<AvailableTeamDto>());
+
         // Default: the selected team has a configured fee. The fail-loud guard short-circuits
-        // the reserve with a "Fee not set" result before any med-form stamp when none is configured.
+        // PreSubmit with a "Fee not set" result before any med-form stamp when none is configured.
         feeService
             .Setup(f => f.ResolveFeeAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -117,17 +126,17 @@ public class PlayerMedFormStampTests
         return team;
     }
 
-    private static ReserveTeamsRequestDto MakeRequest(Guid teamId) => new()
+    private static PreSubmitPlayerRegistrationRequestDto MakeRequest(Guid teamId) => new()
     {
         JobPath = "test-job",
-        TeamSelections = new List<ReserveTeamSelectionDto>
+        TeamSelections = new List<PreSubmitTeamSelectionDto>
         {
             new() { PlayerId = TestPlayerId, TeamId = teamId }
         }
     };
 
-    [Fact(DisplayName = "Reserve: med-form file present → BUploadedMedForm stamped true on new row")]
-    public async Task Reserve_MedFormOnDisk_StampsTrue()
+    [Fact(DisplayName = "PreSubmit: med-form file present → BUploadedMedForm stamped true on new row")]
+    public async Task PreSubmit_MedFormOnDisk_StampsTrue()
     {
         var (svc, regRepo, teamRepo, medForms) = CreateService();
         var team = SetupTeamWithRoom(teamRepo, regRepo);
@@ -138,15 +147,15 @@ public class PlayerMedFormStampTests
         regRepo.Setup(r => r.Add(It.IsAny<Registrations>()))
             .Callback<Registrations>(reg => captured = reg);
 
-        await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeRequest(team.TeamId), TestFamilyUserId);
+        await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakeRequest(team.TeamId), TestFamilyUserId);
 
         captured.Should().NotBeNull();
         captured!.BUploadedMedForm.Should().BeTrue("server stamps from on-disk file existence");
         medForms.Verify(m => m.Exists(TestPlayerId), Times.AtLeastOnce);
     }
 
-    [Fact(DisplayName = "Reserve: no med-form file → BUploadedMedForm stamped false on new row")]
-    public async Task Reserve_NoMedFormOnDisk_StampsFalse()
+    [Fact(DisplayName = "PreSubmit: no med-form file → BUploadedMedForm stamped false on new row")]
+    public async Task PreSubmit_NoMedFormOnDisk_StampsFalse()
     {
         var (svc, regRepo, teamRepo, medForms) = CreateService();
         var team = SetupTeamWithRoom(teamRepo, regRepo);
@@ -157,7 +166,7 @@ public class PlayerMedFormStampTests
         regRepo.Setup(r => r.Add(It.IsAny<Registrations>()))
             .Callback<Registrations>(reg => captured = reg);
 
-        await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeRequest(team.TeamId), TestFamilyUserId);
+        await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakeRequest(team.TeamId), TestFamilyUserId);
 
         captured.Should().NotBeNull();
         captured!.BUploadedMedForm.Should().BeFalse("no file on disk → flag is false");

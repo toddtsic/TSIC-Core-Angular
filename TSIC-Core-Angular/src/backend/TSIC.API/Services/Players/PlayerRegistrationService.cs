@@ -4,6 +4,7 @@ using TSIC.Domain.Constants;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
+using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
@@ -62,41 +63,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         _medForms = medForms;
     }
 
-    public async Task<ReserveTeamsResponseDto> ReserveTeamsAsync(Guid jobId, string familyUserId, ReserveTeamsRequestDto request, string callerUserId)
-    {
-        if (request == null) throw new ArgumentNullException(nameof(request));
-
-        // Build lightweight selections (no form values)
-        var preSubmitSelections = request.TeamSelections
-            .Select(s => new PreSubmitTeamSelectionDto { PlayerId = s.PlayerId, TeamId = s.TeamId })
-            .ToList();
-
-        var fakeRequest = new PreSubmitPlayerRegistrationRequestDto
-        {
-            JobPath = request.JobPath,
-            TeamSelections = preSubmitSelections
-        };
-
-        var ctx = await BuildPreSubmitContextAsync(jobId, familyUserId, fakeRequest);
-
-        var selectionsByPlayer = preSubmitSelections
-            .GroupBy(s => s.PlayerId)
-            .ToDictionary(g => g.Key, g => g.ToList());
-
-        var teamResults = new List<PreSubmitTeamResultDto>();
-        foreach (var (playerId, selections) in selectionsByPlayer)
-        {
-            await ProcessPlayerSelectionsAsync(ctx, playerId, selections, teamResults, applyFormValues: false);
-        }
-
-        await _registrations.SaveChangesAsync();
-
-        // Mint-on-fill (same as PreSubmit): a reservation can also bring a team to max.
-        await EnsureWaitlistMirrorsForFilledTeamsAsync(ctx, fakeRequest);
-
-        return new ReserveTeamsResponseDto { TeamResults = teamResults };
-    }
-
     public async Task<PreSubmitPlayerRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request, string callerUserId)
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
@@ -124,9 +90,13 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 return new PreSubmitPlayerRegistrationResponseDto
                 {
                     TeamResults = teamResults,
-                    NextTab = teamResults.Exists(r => r.IsFull) ? "Forms" : "Forms",
+                    NextTab = "Forms",
                     ValidationErrors = validationErrors,
-                    Insurance = insurance
+                    Insurance = insurance,
+                    // Nothing persisted on a validation failure — no team state changed, so signal
+                    // "no update" (null) rather than push a fresh snapshot the wizard would reconcile.
+                    RawTeams = null,
+                    MovedToWaitlist = null
                 };
             }
         }
@@ -143,6 +113,28 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         // can offer the twin immediately rather than lazily on the next overflow.
         await EnsureWaitlistMirrorsForFilledTeamsAsync(ctx, request);
 
+        // Reconcile: a player whose REAL team is already full (confirmed members at max) is
+        // auto-moved to its $0 WAITLIST twin right now — the same operation the charge runs as
+        // its backstop — so the payment step shows the truth instead of a seat that's gone.
+        var familyRegs = await _registrations.GetByJobAndFamilyWithUsersAsync(
+            ctx.JobId, ctx.FamilyUserId, activePlayersOnly: true);
+        var movedToWaitlist = await SeatReconciliation.ReconcileSeatsAsync(
+            ctx.JobId, ctx.FamilyUserId, familyRegs, _registrations, _placement, _teams, _feeService);
+
+        // Activate-if-free runs HERE, after reconcile — never during create. A configured $0 event
+        // never reaches the charge, so reconcile above is the ONLY roster-max gate for free regs.
+        // If a free reg were activated during create, reconcile (which skips BActive=true) would
+        // leave a seat-gone free player active on the FULL real team (overfill). ReconcileSeatsAsync
+        // already dropped the twin-moved players from familyRegs, so only the players who kept a real
+        // seat activate; a free player bounced to the $0 waitlist twin stays inactive — waitlisted
+        // exactly like a paid one. Paid regs (OwedTotal > 0) are untouched and activate at the charge.
+        foreach (var reg in familyRegs) ActivateIfFree(reg);
+        await _registrations.SaveChangesAsync();
+
+        // Fresh team snapshot (post-reconcile occupancy) so the wizard re-reflects agegroup
+        // options, the team list, and defaults instead of running on stale init-time data.
+        var rawTeams = (await _teamLookupService.GetAvailableTeamsForJobAsync(ctx.JobId)).ToList();
+
         // Delegate insurance offer construction to VerticalInsure service.
         var finalInsurance = await _verticalInsure.BuildOfferAsync(ctx.JobId, ctx.FamilyUserId);
         return new PreSubmitPlayerRegistrationResponseDto
@@ -150,7 +142,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             TeamResults = teamResults,
             NextTab = teamResults.Exists(r => r.IsFull) ? "Team" : "Payment",
             ValidationErrors = null,
-            Insurance = finalInsurance
+            Insurance = finalInsurance,
+            RawTeams = rawTeams,
+            MovedToWaitlist = movedToWaitlist
         };
     }
 
@@ -216,18 +210,18 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
     }
 
-    private async Task ProcessPlayerSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
+    private async Task ProcessPlayerSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults)
     {
         var desiredTeamIds = selections.Select(s => s.TeamId).Distinct().ToList();
         if (desiredTeamIds.Count == 0) return;
 
         if (desiredTeamIds.Count == 1)
         {
-            await ProcessSingleTeamSelectionAsync(ctx, playerId, selections, teamResults, applyFormValues);
+            await ProcessSingleTeamSelectionAsync(ctx, playerId, selections, teamResults);
         }
         else
         {
-            await ProcessMultiTeamSelectionsAsync(ctx, playerId, selections, teamResults, applyFormValues);
+            await ProcessMultiTeamSelectionsAsync(ctx, playerId, selections, teamResults);
         }
     }
 
@@ -244,7 +238,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         });
     }
 
-    private async Task ProcessSingleTeamSelectionAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
+    private async Task ProcessSingleTeamSelectionAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults)
     {
         var teamId = selections.Select(s => s.TeamId).First();
         var team = ctx.Teams.Find(t => t.TeamId == teamId);
@@ -253,11 +247,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             AddResult(teamResults, playerId, teamId, true, "Unknown", "Team not found.", false);
             return;
         }
-        // No roster-capacity gate here: reserve/PreSubmit only write a pending hold on the REAL
-        // team. The roster-max guarantee is enforced at PAYMENT — PaymentService's cart-split moves
-        // a seat-gone player to the $0 waitlist twin (and never activates an unpaid reg). The picker
-        // already badges a full team "⚠ WAITLIST · $0" off the available-teams DTO, so no
-        // per-selection capacity signal is computed on this path.
+        // No roster-capacity gate here: PreSubmit writes a pending hold on the REAL team, then
+        // reconciles — a seat-gone player is moved to the $0 WAITLIST twin via SeatReconciliation
+        // (the same operation the charge runs as its backstop). The picker already badges a full team
+        // "⚠ WAITLIST · $0" off the available-teams DTO, so no per-selection capacity signal is
+        // computed on this path.
 
         // Fail loud, never fabricate: a team with no fee configured at any cascade level
         // must not silently register at $0. Block just this line; other teams still proceed.
@@ -285,15 +279,15 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var sel = selections[^1];
         if (regToUpdate != null)
         {
-            await UpdateExistingRegistrationAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
+            await UpdateExistingRegistrationAsync(ctx, regToUpdate, team, sel, playerId, teamResults);
         }
         else
         {
-            await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
+            await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults);
         }
     }
 
-    private async Task ProcessMultiTeamSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
+    private async Task ProcessMultiTeamSelectionsAsync(PreSubmitContext ctx, string playerId, List<PreSubmitTeamSelectionDto> selections, List<PreSubmitTeamResultDto> teamResults)
     {
         if (string.Equals(ctx.RegistrationMode, "PP", StringComparison.OrdinalIgnoreCase))
         {
@@ -314,7 +308,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 continue;
             }
             // No roster-capacity gate (see ProcessSingleTeamSelectionAsync): the hold lands on the
-            // REAL team; payment enforces the roster max.
+            // REAL team; reconciliation moves a seat-gone player to the $0 WAITLIST twin.
 
             // Fail loud, never fabricate: skip teams with no configured fee (see ProcessSingleTeamSelectionAsync).
             var feeCheck = await _feeService.ResolveFeeAsync(team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
@@ -329,44 +323,49 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 existing.Modified = DateTime.Now;
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
-                if (applyFormValues)
-                {
-                    FormValueMapper.ApplyFormValues(existing, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-                }
+                FormValueMapper.ApplyFormValues(existing, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
                 await ApplyInitialFeesAsync(existing, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
                 AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             }
             else
             {
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
-                await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults, applyFormValues);
+                await CreateNewRegistrationAsync(ctx, playerId, team, sel, teamResults);
             }
         }
     }
 
-    private async Task UpdateExistingRegistrationAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
+    private async Task UpdateExistingRegistrationAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults)
     {
         regToUpdate.Modified = DateTime.Now;
         if (string.Equals(ctx.RegistrationMode, "PP", StringComparison.OrdinalIgnoreCase))
         {
-            await UpdateExistingPPModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
+            await UpdateExistingPPModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults);
             return;
         }
-        await UpdateExistingCACModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults, applyFormValues);
+        await UpdateExistingCACModeAsync(ctx, regToUpdate, team, sel, playerId, teamResults);
     }
 
-    private async Task UpdateExistingPPModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
+    private async Task UpdateExistingPPModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults)
     {
+        // Active registrations are locked to their team — the wizard renders an active player's
+        // team as a label, not a dropdown. Defense-in-depth: if a flip reaches the server anyway,
+        // keep the player on their committed team. A same-team resubmit (form edits) still passes.
+        if (regToUpdate.BActive == true && regToUpdate.AssignedTeamId.HasValue && regToUpdate.AssignedTeamId.Value != team.TeamId)
+        {
+            var locked = ctx.Teams.Find(x => x.TeamId == regToUpdate.AssignedTeamId.Value);
+            AddResult(teamResults, playerId, regToUpdate.AssignedTeamId.Value, false,
+                locked?.TeamName ?? string.Empty, "Active registration can't change teams.", false);
+            return;
+        }
+
         var hasPayment = (regToUpdate.PaidTotal > 0) || (regToUpdate.OwedTotal > 0 && regToUpdate.PaidTotal > 0);
         if (!hasPayment)
         {
             var teamChanged = regToUpdate.AssignedTeamId != team.TeamId;
             regToUpdate.AssignedTeamId = team.TeamId;
             regToUpdate.Assignment = $"Player: {team.TeamName}";
-            if (applyFormValues)
-            {
-                FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-            }
+            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             if (teamChanged)
             {
                 // Team changed before any payment (e.g. parent went back from Payment, re-picked a
@@ -384,7 +383,6 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             {
                 await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
             }
-            ActivateIfFree(regToUpdate, applyFormValues);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
             return;
         }
@@ -400,10 +398,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             team.JobId, RoleConstants.Player, team.AgegroupId, team.TeamId);
         var newTeamBase = resolvedNew?.EffectiveBalanceDue ?? 0m;
         var sameBase = existingBase > 0 && newTeamBase > 0 && existingBase == newTeamBase;
-        if (applyFormValues)
-        {
-            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-        }
+        FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         if (sameBase)
         {
             regToUpdate.AssignedTeamId = team.TeamId;
@@ -423,17 +418,13 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         }
     }
 
-    private async Task UpdateExistingCACModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
+    private async Task UpdateExistingCACModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults)
     {
         if (regToUpdate.AssignedTeamId == team.TeamId)
         {
-            if (applyFormValues)
-            {
-                FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-            }
+            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             regToUpdate.Assignment = $"Player: {team.TeamName}";
             await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
-            ActivateIfFree(regToUpdate, applyFormValues);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             return;
         }
@@ -454,13 +445,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 RoleId = RoleConstants.Player,
                 Assignment = $"Player: {team.TeamName}"
             };
-            if (applyFormValues)
-            {
-                FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-            }
+            FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
             newReg.BUploadedMedForm = _medForms.Exists(playerId);
             await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
-            ActivateIfFree(newReg, applyFormValues);
             _registrations.Add(newReg);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "New registration created (existing paid kept).", true);
             return;
@@ -468,15 +455,12 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
         regToUpdate.AssignedTeamId = team.TeamId;
         regToUpdate.Assignment = $"Player: {team.TeamName}";
-        if (applyFormValues)
-        {
-            FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-        }
+        FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
     }
 
-    private async Task CreateNewRegistrationAsync(PreSubmitContext ctx, string playerId, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, List<PreSubmitTeamResultDto> teamResults, bool applyFormValues = true)
+    private async Task CreateNewRegistrationAsync(PreSubmitContext ctx, string playerId, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, List<PreSubmitTeamResultDto> teamResults)
     {
         var reg = new Registrations
         {
@@ -491,13 +475,9 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             RoleId = RoleConstants.Player,
             Assignment = $"Player: {team.TeamName}"
         };
-        if (applyFormValues)
-        {
-            FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
-        }
+        FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         reg.BUploadedMedForm = _medForms.Exists(playerId);
         await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
-        ActivateIfFree(reg, applyFormValues);
         _registrations.Add(reg);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration created.", true);
     }
@@ -515,21 +495,18 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     }
 
     /// <summary>
-    /// Activate a free registration at final submit. A configured $0-fee event leaves nothing owed,
-    /// and there is no payment to ride — so unless we flip BActive here it would stay inactive
-    /// forever (off rosters, missing from the confirmation), exactly the symptom a 100% discount
-    /// code hit. Mirrors legacy (PlayerBaseController: "free events start life active, otherwise
-    /// start inactive and convert upon payment").
-    ///
-    /// Gated on <paramref name="isFinalSubmit"/> (PreSubmit's applyFormValues=true): the reserve
-    /// step (applyFormValues=false) holds a roster spot BEFORE forms/waivers are complete, so a
-    /// free reg must stay inactive there — identical to how a paid reg only activates at the
-    /// post-forms payment step. Paid events (OwedTotal &gt; 0) are untouched and still activate via
-    /// ProcessPaymentAsync's charge path.
+    /// Activate a free registration at submit. A configured $0-fee event leaves nothing owed, and
+    /// there is no payment to ride — so unless we flip BActive here it would stay inactive forever
+    /// (off rosters, missing from the confirmation), exactly the symptom a 100% discount code hit.
+    /// Mirrors legacy (PlayerBaseController: "free events start life active, otherwise start
+    /// inactive and convert upon payment"). Called by PreSubmit AFTER seat reconciliation — never
+    /// during create — so a seat-gone free player is moved to the $0 waitlist twin (and left
+    /// inactive there) before this runs, instead of being activated on a full real team. Paid
+    /// events (OwedTotal &gt; 0) are untouched and still activate via ProcessPaymentAsync's charge.
     /// </summary>
-    private static void ActivateIfFree(Registrations reg, bool isFinalSubmit)
+    private static void ActivateIfFree(Registrations reg)
     {
-        if (isFinalSubmit && reg.OwedTotal <= 0m)
+        if (reg.OwedTotal <= 0m)
         {
             reg.BActive = true;
         }

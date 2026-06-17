@@ -10,8 +10,7 @@ import { EligibilityService } from './eligibility.service';
 import { PlayerFormsService } from './player-forms.service';
 import { InsuranceStateV2Service } from './insurance-state-v2.service';
 import { InsuranceV2Service } from './insurance-v2.service';
-import { TeamService } from '@views/registration/player/services/team.service';
-import type { ReserveTeamsResponseDto } from '@core/api';
+import { TeamService, AvailableTeam } from '@views/registration/player/services/team.service';
 import type {
     FamilyPlayersResponseDto,
     FamilyPlayerDto,
@@ -241,34 +240,7 @@ export class PlayerWizardStateService {
         this.eligibility.pruneDeselectedTeams(selectedIds);
     }
 
-    // ── Reserve Teams (Phase 1 — at team selection) ────────────────────
-    async reserveTeams(): Promise<ReserveTeamsResponseDto> {
-        const jobPath = this.jobCtx.jobPath();
-        if (!jobPath) throw new Error('Missing jobPath');
-
-        const teamSelections: { playerId: string; teamId: string }[] = [];
-        for (const pid of this.familyPlayers.selectedPlayerIds()) {
-            const teamId = this.eligibility.selectedTeams()[pid];
-            if (!teamId) continue;
-            if (Array.isArray(teamId)) {
-                for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid });
-            } else {
-                teamSelections.push({ playerId: pid, teamId });
-            }
-        }
-
-        const apiBase = this.jobCtx.resolveApiBase();
-        const resp = await firstValueFrom(
-            this.http.post<ReserveTeamsResponseDto>(
-                `${apiBase}/player-registration/reserveTeams`,
-                { jobPath, teamSelections },
-            ),
-        );
-        if (!resp) throw new Error('No response from reserveTeams API');
-        return resp;
-    }
-
-    // ── PreSubmit (Phase 2 — at review → payment) ────────────────────
+    // ── PreSubmit (review → payment): creates the registrations ──────────
     async preSubmitRegistration(): Promise<PreSubmitPlayerRegistrationResponseDto> {
         const jobPath = this.jobCtx.jobPath();
         const familyUserId = this.familyPlayers.familyUser()?.familyUserId;
@@ -283,7 +255,21 @@ export class PlayerWizardStateService {
         this.captureServerValidationErrors(resp);
         this.jobCtx.processInsuranceOffer(resp as Record<string, unknown>);
         if (!resp) throw new Error('No response from preSubmit API');
+        // Re-reflect the fresh post-reconcile team snapshot so agegroup options / team list / defaults
+        // track current occupancy instead of stale init-time data.
+        this.applyTeamsFromRoundTrip(resp.rawTeams);
         return resp;
+    }
+
+    /**
+     * Push a round-trip's raw team snapshot into the TeamService dataset and re-run the BYAGEGROUP
+     * backfill so every team-derived field reflects the new data. Reconcile, not reset: the
+     * backfill is fill-empty-only, so it never clobbers an in-progress eligibility selection.
+     */
+    private applyTeamsFromRoundTrip(rawTeams: unknown): void {
+        if (!rawTeams || !Array.isArray(rawTeams)) return;
+        this.teamService.applyRawTeams(rawTeams as AvailableTeam[]);
+        this.backfillAgegroupEligibilityFromTeams();
     }
 
     private buildPreSubmitPayload(jobPath: string): PreSubmitPlayerRegistrationRequestDto {

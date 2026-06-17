@@ -7,7 +7,7 @@ import { PaymentV2Service } from './state/payment-v2.service';
 import { TeamService } from './services/team.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
-import type { ReserveTeamsResponseDto, PreSubmitPlayerRegistrationResponseDto, FamilyPlayerDto } from '@core/api';
+import type { PreSubmitPlayerRegistrationResponseDto, FamilyPlayerDto } from '@core/api';
 
 /**
  * PLAYER WIZARD NAVIGATION TESTS
@@ -16,10 +16,7 @@ import type { ReserveTeamsResponseDto, PreSubmitPlayerRegistrationResponseDto, F
  * what the registrant sees when they click Continue at each wizard step.
  *
  * Key behaviors tested:
- *   - Teams step: full team → warning toast, stay on step
- *   - Teams step: waitlisted → advance silently (no toast; warned at selection, notified at payment)
- *   - Teams step: room available → advance silently
- *   - Teams step: HTTP error → danger toast, stay on step
+ *   - Teams step: pure client-side advance (no API call) — creation deferred to PreSubmit
  *   - Review step: success → advance to payment
  *   - Review step: failure → danger toast, stay on step
  *   - Non-gated step: advance without any API call
@@ -29,7 +26,6 @@ import type { ReserveTeamsResponseDto, PreSubmitPlayerRegistrationResponseDto, F
 describe('PlayerWizardV2Component — next() navigation', () => {
     let component: PlayerWizardV2Component;
     let toastShowFn: ReturnType<typeof vi.fn>;
-    let reserveTeamsFn: ReturnType<typeof vi.fn>;
     let preSubmitFn: ReturnType<typeof vi.fn>;
 
     // Stub sub-services that feed computed signals in the component
@@ -66,7 +62,6 @@ describe('PlayerWizardV2Component — next() navigation', () => {
     beforeEach(() => {
         // Create fresh spies each test
         toastShowFn = vi.fn();
-        reserveTeamsFn = vi.fn();
         preSubmitFn = vi.fn();
 
         const stateStub = {
@@ -78,7 +73,6 @@ describe('PlayerWizardV2Component — next() navigation', () => {
             confirmation: signal(null),
             reset: vi.fn(),
             initialize: vi.fn(),
-            reserveTeams: reserveTeamsFn,
             preSubmitRegistration: preSubmitFn,
         };
 
@@ -118,74 +112,16 @@ describe('PlayerWizardV2Component — next() navigation', () => {
 
     // ── Teams step tests ─────────────────────────────────────────────
 
-    it('teams step: room available → advances to next step', async () => {
+    it('teams step: pure client-side advance — no API call, no toast', async () => {
         goToStep('teams');
         const before = component.currentIndex();
 
-        reserveTeamsFn.mockResolvedValue({
-            teamResults: [{ playerId: 'p1', teamId: 't1', isFull: false, teamName: 'Storm U12', message: 'ok', registrationCreated: true }],
-            hasFullTeams: false,
-        } satisfies ReserveTeamsResponseDto);
-
+        // Selection is client-side only now; the teams step makes no backend round-trip.
+        // Creation + seat reconciliation happen later at PreSubmit (review→payment).
         await component.next();
 
         expect(component.currentIndex()).toBe(before + 1);
         expect(toastShowFn).not.toHaveBeenCalled();
-    });
-
-    it('teams step: team full → warning toast, stays on step', async () => {
-        goToStep('teams');
-        const before = component.currentIndex();
-
-        reserveTeamsFn.mockResolvedValue({
-            teamResults: [{ playerId: 'p1', teamId: 't1', isFull: true, teamName: 'Storm U12', message: 'full', registrationCreated: false }],
-            hasFullTeams: true,
-        } satisfies ReserveTeamsResponseDto);
-
-        await component.next();
-
-        expect(component.currentIndex()).toBe(before);
-        expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('Storm U12'),
-            'warning',
-            expect.any(Number),
-        );
-    });
-
-    it('teams step: waitlisted → advances silently (no toast — warned at selection, notified at payment)', async () => {
-        goToStep('teams');
-        const before = component.currentIndex();
-
-        reserveTeamsFn.mockResolvedValue({
-            teamResults: [{
-                playerId: 'p1', teamId: 'wt1', isFull: false,
-                teamName: 'WAITLIST - Storm U12', message: 'ok', registrationCreated: true,
-            }],
-            hasFullTeams: false,
-        } satisfies ReserveTeamsResponseDto);
-
-        await component.next();
-
-        // The parent chose the full team knowing it (dropdown "⚠ WAITLIST · $0" + inline
-        // banner); the real waitlist notice fires at payment. No redundant toast on advance.
-        expect(component.currentIndex()).toBe(before + 1);
-        expect(toastShowFn).not.toHaveBeenCalled();
-    });
-
-    it('teams step: HTTP error → danger toast, stays on step', async () => {
-        goToStep('teams');
-        const before = component.currentIndex();
-
-        reserveTeamsFn.mockRejectedValue(new Error('Network error'));
-
-        await component.next();
-
-        expect(component.currentIndex()).toBe(before);
-        expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('Could not reserve'),
-            'danger',
-            expect.any(Number),
-        );
     });
 
     // ── Review step tests ────────────────────────────────────────────
@@ -229,7 +165,6 @@ describe('PlayerWizardV2Component — next() navigation', () => {
         await component.next();
 
         expect(component.currentIndex()).toBe(before + 1);
-        expect(reserveTeamsFn).not.toHaveBeenCalled();
         expect(preSubmitFn).not.toHaveBeenCalled();
         expect(toastShowFn).not.toHaveBeenCalled();
     });

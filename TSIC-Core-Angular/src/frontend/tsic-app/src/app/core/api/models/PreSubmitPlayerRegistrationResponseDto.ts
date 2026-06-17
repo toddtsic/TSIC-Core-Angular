@@ -10,5 +10,7 @@ export type PreSubmitPlayerRegistrationResponseDto = {
     nextTab: string;
     insurance: (null | PreSubmitInsuranceDto);
     validationErrors: any[] | null;
+    rawTeams: any[] | null;
+    movedToWaitlist: any[] | null;
 };
 

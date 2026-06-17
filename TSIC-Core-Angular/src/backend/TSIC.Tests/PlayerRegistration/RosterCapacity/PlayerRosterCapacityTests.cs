@@ -17,18 +17,19 @@ namespace TSIC.Tests.PlayerRegistration.RosterCapacity;
 /// <summary>
 /// PLAYER ROSTER CAPACITY TESTS
 ///
-/// The reserve/PreSubmit step does NOT gate roster capacity — it writes a pending hold on the
-/// REAL team and proceeds. The roster-max guarantee is enforced at PAYMENT (the cart-split moves
-/// a seat-gone player to the $0 waitlist twin, never charged/activated).
+/// PreSubmit is the only place registrations are created — it writes a pending hold on the REAL
+/// team, then reconciles: a player whose team's CONFIRMED roster is already at max is auto-moved
+/// to the $0 WAITLIST twin via SeatReconciliation (the same operation the charge runs as its
+/// backstop). A full team never hard-stops the wizard.
 ///
 /// What these tests prove:
-///   - A team with room accepts the registration
-///   - A full team does NOT hard-stop — the player is held on the real team and proceeds
-///   - An already-rostered player keeps their seat (no waitlist redirect)
-///   - New reserve/PreSubmit regs stay BActive=false until payment (free events activate at submit)
+///   - A full team proceeds to Payment (no hard stop)
+///   - Free events ($0 owed) activate at submit; paid events stay BActive=false until payment
+///   - A team change before payment re-prices for the new team; a same-team resubmit does not
+///   - A player already rostered on a now-full team keeps their seat (reconcile skips active regs)
 ///
-/// Service under test: PlayerRegistrationService.ReserveTeamsAsync() / PreSubmitAsync()
-/// All 9 dependencies are mocked. No database involved.
+/// Service under test: PlayerRegistrationService.PreSubmitAsync().
+/// All dependencies are mocked. No database involved.
 /// </summary>
 public class PlayerRosterCapacityTests
 {
@@ -88,14 +89,24 @@ public class PlayerRosterCapacityTests
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Registrations>());
 
+        // Default: the post-save reconcile fetch returns no family regs (reconcile is a no-op
+        // unless a test sets this up), and the raw-team snapshot is empty.
+        regRepo
+            .Setup(r => r.GetByJobAndFamilyWithUsersAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Registrations>());
+        teamLookup
+            .Setup(t => t.GetAvailableTeamsForJobAsync(It.IsAny<Guid>()))
+            .ReturnsAsync(new List<AvailableTeamDto>());
+
         // Default: SaveChangesAsync succeeds
         regRepo
             .Setup(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
 
-        // Default: the selected team has a configured fee. This is the precondition for
-        // reaching the roster-capacity logic — the fail-loud guard short-circuits with a
-        // "Fee not set" failed result before any reserve when no fee is configured.
+        // Default: the selected team has a configured fee. This is the precondition for reaching
+        // the create/update logic — the fail-loud guard short-circuits with a "Fee not set" failed
+        // result when no fee is configured.
         feeService
             .Setup(f => f.ResolveFeeAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
@@ -139,194 +150,6 @@ public class PlayerRosterCapacityTests
         return team;
     }
 
-    // ── Helper: build a ReserveTeams request ─────────────────────────
-
-    private static ReserveTeamsRequestDto MakeReserveRequest(Guid teamId)
-    {
-        return new ReserveTeamsRequestDto
-        {
-            JobPath = "test-job",
-            TeamSelections = new List<ReserveTeamSelectionDto>
-            {
-                new() { PlayerId = TestPlayerId, TeamId = teamId }
-            }
-        };
-    }
-
-    // ── Tests ─────────────────────────────────────────────────────────
-
-    [Fact(DisplayName = "Reserve: team has room (9/10) → registration created, IsFull = false")]
-    public async Task Reserve_TeamHasRoom_CreatesRegistration()
-    {
-        // Arrange — team allows 10 players, currently has 9
-        var (svc, regRepo, teamRepo, _, _) = CreateService();
-        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 9);
-
-        // Act
-        var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
-
-        // Assert — registration was created, team is not full
-        result.TeamResults.Should().HaveCount(1);
-        result.TeamResults[0].IsFull.Should().BeFalse("team has room for 1 more player");
-        result.HasFullTeams.Should().BeFalse();
-
-        // Verify a registration entity was added
-        regRepo.Verify(r => r.Add(It.Is<Registrations>(reg =>
-            reg.AssignedTeamId == team.TeamId &&
-            reg.UserId == TestPlayerId)),
-            Times.Once, "should create a pending registration on the selected team");
-    }
-
-    [Fact(DisplayName = "Reserve: team full → held on the REAL team (placement deferred to payment)")]
-    public async Task Reserve_TeamFull_HoldsOnRealTeam()
-    {
-        // Arrange — team is at capacity. Waitlists are mandatory, so a full team is no longer a hard
-        // stop; but the selection step must NOT shove the player onto the $0 waitlist twin (doing so
-        // used to let ActivateIfFree mark an unpaid reg active just for reaching forms). The pending
-        // hold lands on the REAL team; the payment cart-split is the sole place a seat-gone player is
-        // moved to the twin.
-        var (svc, regRepo, teamRepo, placement, feeService) = CreateService();
-        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 10);
-        SetupFee(feeService, balanceDue: 100m);
-
-        Registrations? captured = null;
-        regRepo.Setup(r => r.Add(It.IsAny<Registrations>())).Callback<Registrations>(reg => captured = reg);
-
-        // Act
-        var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
-
-        // Assert — registered on the REAL team; a full team no longer hard-stops the wizard
-        result.TeamResults.Should().HaveCount(1);
-        result.TeamResults[0].IsFull.Should().BeFalse("full no longer hard-stops; the player proceeds");
-
-        captured.Should().NotBeNull("a pending hold is created on the REAL team");
-        captured!.AssignedTeamId.Should().Be(team.TeamId, "the hold stays on the real team — never the twin — until payment");
-        captured.BActive.Should().BeFalse("reserve never activates");
-
-        // The selection step must NOT resolve/redirect placement — that is the payment cart-split's job.
-        placement.Verify(p => p.ResolveRosterPlacementAsync(
-            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
-            Times.Never, "team placement is deferred to payment");
-    }
-
-    [Fact(DisplayName = "Reserve: MaxCount = 0 (unlimited) → never full, placement never called")]
-    public async Task Reserve_MaxCountZero_NeverFull()
-    {
-        // Arrange — team has MaxCount = 0 (unlimited), even with 999 players
-        var (svc, regRepo, teamRepo, placement, _) = CreateService();
-        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 0, currentRosterCount: 999);
-
-        // Act
-        var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
-
-        // Assert — unlimited teams are never full
-        result.TeamResults.Should().HaveCount(1);
-        result.TeamResults[0].IsFull.Should().BeFalse("MaxCount = 0 means unlimited");
-        result.HasFullTeams.Should().BeFalse();
-
-        // Placement service should never be called (capacity check is skipped entirely)
-        placement.Verify(p => p.ResolveRosterPlacementAsync(
-            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
-            Times.Never, "capacity check should be skipped for unlimited teams");
-    }
-
-    [Fact(DisplayName = "Reserve: new registrations land BActive=false (lock-to-check invariant)")]
-    public async Task Reserve_NewRegistrations_LandInactive()
-    {
-        // The pay-by-check submit endpoint is the ONLY surface that flips BActive=true
-        // at intake. All other create paths — including CC, ARB, and eCheck — must
-        // leave BActive=false until payment clears. This pins that invariant against
-        // future drift: if anyone ever sets BActive=true inside ReserveTeamsAsync /
-        // CreateNewRegistrationAsync, this test fails immediately.
-        var (svc, regRepo, teamRepo, _, _) = CreateService();
-        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 0);
-
-        Registrations? captured = null;
-        regRepo
-            .Setup(r => r.Add(It.IsAny<Registrations>()))
-            .Callback<Registrations>(reg => captured = reg);
-
-        var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
-
-        result.TeamResults[0].IsFull.Should().BeFalse();
-        captured.Should().NotBeNull("a registration should have been added");
-        captured!.BActive.Should().Be(false,
-            "new registrations created via ReserveTeams must remain Inactive until payment clears " +
-            "(only the pay-by-check submit endpoint may flip BActive=true at intake)");
-        captured.PaymentMethodChosen.Should().BeNull(
-            "no payment method is chosen until the parent reaches the payment step");
-    }
-
-    [Fact(DisplayName = "Reserve: family submits 3 to a team with 1 spot → all 3 held on real team (payment enforces max)")]
-    public async Task Reserve_FamilyOverflow_AllHeldOnRealTeam()
-    {
-        // Arrange — team has 1 spot left (MaxCount=10, currentRosterCount=9). A single family submits
-        // three players to that same team. Reserve does NOT gate capacity — it holds every sibling on
-        // the REAL team. The roster-max guarantee is enforced at PAYMENT by the cart-split, not here.
-        var (svc, regRepo, teamRepo, placement, feeService) = CreateService();
-        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 9);
-        SetupFee(feeService, balanceDue: 100m);
-
-        var request = new ReserveTeamsRequestDto
-        {
-            JobPath = "test-job",
-            TeamSelections = new List<ReserveTeamSelectionDto>
-            {
-                new() { PlayerId = "player-1", TeamId = team.TeamId },
-                new() { PlayerId = "player-2", TeamId = team.TeamId },
-                new() { PlayerId = "player-3", TeamId = team.TeamId },
-            }
-        };
-
-        // Act
-        var result = await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, request, TestFamilyUserId);
-
-        // Assert — all three held on the real team; full no longer hard-stops at reserve.
-        result.TeamResults.Should().HaveCount(3);
-        result.TeamResults.Should().OnlyContain(r => !r.IsFull, "full no longer hard-stops at reserve");
-
-        regRepo.Verify(r => r.Add(It.IsAny<Registrations>()), Times.Exactly(3),
-            "every sibling is held on the real team; payment — not reserve — enforces the roster max");
-
-        placement.Verify(p => p.ResolveRosterPlacementAsync(
-            It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
-            Times.Never, "placement is deferred to payment");
-    }
-
-    [Fact(DisplayName = "PreSubmit: team full → NextTab = 'Payment' (proceed; payment does the waitlisting)")]
-    public async Task PreSubmit_TeamFull_NextTabIsPayment()
-    {
-        // A full team no longer bounces the user back to team selection. They proceed to Payment,
-        // where the cart-split moves a seat-gone player to the $0 waitlist twin (not charged).
-        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
-        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 10);
-        SetupFee(feeService, balanceDue: 100m);
-
-        var request = new PreSubmitPlayerRegistrationRequestDto
-        {
-            JobPath = "test-job",
-            TeamSelections = new List<PreSubmitTeamSelectionDto>
-            {
-                new() { PlayerId = TestPlayerId, TeamId = team.TeamId }
-            }
-        };
-
-        // Act
-        var result = await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, request, TestFamilyUserId);
-
-        // Assert — proceed to payment, which performs the waitlisting
-        result.NextTab.Should().Be("Payment",
-            "a full team now proceeds to payment, which performs the waitlisting");
-        result.HasFullTeams.Should().BeFalse("full no longer hard-stops the wizard");
-    }
-
-    // ── Free-event activation (zero-balance) ─────────────────────────────
-    //
-    // A configured $0-fee event leaves nothing owed, so there is no payment to ride.
-    // Unless the final submit flips BActive, the reg stays inactive forever — off rosters,
-    // missing from the confirmation (the same symptom a 100% discount code produced).
-    // Legacy: "free events start life active, otherwise start inactive and convert upon payment."
-
     /// <summary>Configure the fee mock so applying fees stamps the given base and recomputes totals
     /// (OwedTotal), mirroring the real FeeResolutionService — the mock otherwise leaves fees at 0.</summary>
     private static void SetupFee(Mock<IFeeResolutionService> feeService, decimal balanceDue)
@@ -354,6 +177,33 @@ public class PlayerRosterCapacityTests
         }
     };
 
+    // ── Tests ─────────────────────────────────────────────────────────
+
+    [Fact(DisplayName = "PreSubmit: team full → NextTab = 'Payment' (proceed; payment does the waitlisting)")]
+    public async Task PreSubmit_TeamFull_NextTabIsPayment()
+    {
+        // A full team no longer bounces the user back to team selection. They proceed to Payment,
+        // where the cart-split moves a seat-gone player to the $0 waitlist twin (not charged).
+        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
+        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 10);
+        SetupFee(feeService, balanceDue: 100m);
+
+        // Act
+        var result = await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(team.TeamId), TestFamilyUserId);
+
+        // Assert — proceed to payment, which performs the waitlisting
+        result.NextTab.Should().Be("Payment",
+            "a full team now proceeds to payment, which performs the waitlisting");
+        result.HasFullTeams.Should().BeFalse("full no longer hard-stops the wizard");
+    }
+
+    // ── Free-event activation (zero-balance) ─────────────────────────────
+    //
+    // A configured $0-fee event leaves nothing owed, so there is no payment to ride.
+    // Unless the final submit flips BActive, the reg stays inactive forever — off rosters,
+    // missing from the confirmation (the same symptom a 100% discount code produced).
+    // Legacy: "free events start life active, otherwise start inactive and convert upon payment."
+
     [Fact(DisplayName = "PreSubmit: free event ($0 fee) → new reg lands BActive=true (owes nothing → active)")]
     public async Task PreSubmit_FreeEvent_ActivatesNewRegistration()
     {
@@ -363,6 +213,13 @@ public class PlayerRosterCapacityTests
 
         Registrations? captured = null;
         regRepo.Setup(r => r.Add(It.IsAny<Registrations>())).Callback<Registrations>(reg => captured = reg);
+        // Activation now runs AFTER reconcile, over the post-save family fetch — so that fetch must
+        // surface the just-created reg for ActivateIfFree to flip it. (Lazy: captured is set during
+        // PreSubmit's Add, before this fetch runs.)
+        regRepo
+            .Setup(r => r.GetByJobAndFamilyWithUsersAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => captured is null ? new List<Registrations>() : new List<Registrations> { captured });
 
         await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(team.TeamId), TestFamilyUserId);
 
@@ -386,24 +243,6 @@ public class PlayerRosterCapacityTests
         captured.Should().NotBeNull();
         captured!.OwedTotal.Should().Be(100m);
         captured.BActive.Should().BeFalse("a paid event still activates only when payment clears");
-    }
-
-    [Fact(DisplayName = "Reserve: free event → BActive=false (spot-hold before forms must stay inactive)")]
-    public async Task Reserve_FreeEvent_StaysInactiveUntilFinalSubmit()
-    {
-        var (svc, regRepo, teamRepo, _, feeService) = CreateService();
-        var team = SetupTeamWithRoster(teamRepo, regRepo, maxCount: 10, currentRosterCount: 0);
-        SetupFee(feeService, balanceDue: 0m);
-
-        Registrations? captured = null;
-        regRepo.Setup(r => r.Add(It.IsAny<Registrations>())).Callback<Registrations>(reg => captured = reg);
-
-        await svc.ReserveTeamsAsync(TestJobId, TestFamilyUserId, MakeReserveRequest(team.TeamId), TestFamilyUserId);
-
-        captured.Should().NotBeNull();
-        // Reserve holds the roster spot BEFORE forms/waivers — a free reg must not go active yet,
-        // exactly like a paid reg. Activation waits for the final (post-forms) submit.
-        captured!.BActive.Should().BeFalse("reserve never activates; only the final submit does");
     }
 
     // ── Team change before payment re-prices the registration ────────────
@@ -474,10 +313,8 @@ public class PlayerRosterCapacityTests
     // A player is waitlisted, then an admin roster-swaps them onto a real team that is
     // (or becomes) at capacity. The player's own active reg is counted in the roster
     // total, so the team reads "full". When the parent returns to review/edit, the
-    // capacity re-check must NOT bounce the player back to the waitlist mirror — they
-    // already hold a legitimate seat on that team. Only a genuinely NEW placement
-    // overflows. (Bug-before-fix: isFull ignored the player's existing reg and the
-    // PreSubmit silently swapped them onto the WAITLIST twin.)
+    // reconcile must NOT bounce the player back to the waitlist mirror — they already
+    // hold a legitimate seat on that team (SeatReconciliation skips BActive=true regs).
 
     [Fact(DisplayName = "PreSubmit: player already rostered on a now-full team is NOT bounced to waitlist")]
     public async Task PreSubmit_PlayerAlreadyOnFullTeam_KeepsTheirSeat()
@@ -508,6 +345,11 @@ public class PlayerRosterCapacityTests
             .Setup(r => r.GetFamilyRegistrationsForPlayersTrackedAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<IReadOnlyCollection<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Registrations> { existing });
+        // The reconcile fetch sees the same active reg — and must skip it (BActive=true owns its seat).
+        regRepo
+            .Setup(r => r.GetByJobAndFamilyWithUsersAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<Registrations> { existing });
 
         // Act
         var result = await svc.PreSubmitAsync(TestJobId, TestFamilyUserId, MakePreSubmitRequest(team.TeamId), TestFamilyUserId);
@@ -516,11 +358,11 @@ public class PlayerRosterCapacityTests
         result.TeamResults.Should().HaveCount(1);
         result.TeamResults[0].IsFull.Should().BeFalse();
         result.TeamResults[0].TeamId.Should().Be(team.TeamId, "the player must remain on their assigned team");
-        existing.AssignedTeamId.Should().Be(team.TeamId, "the existing reg must not be moved to the waitlist mirror");
+        existing.AssignedTeamId.Should().Be(team.TeamId, "the existing active reg must not be moved to the waitlist mirror");
 
         placement.Verify(p => p.ResolveRosterPlacementAsync(
             It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
-            Times.Never, "an already-rostered player must skip the full-team waitlist redirect entirely");
+            Times.Never, "an already-rostered active player must skip the full-team waitlist redirect entirely");
         regRepo.Verify(r => r.Add(It.IsAny<Registrations>()), Times.Never,
             "no new registration — the existing one is updated in place");
     }

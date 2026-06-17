@@ -6,6 +6,7 @@ using TSIC.Domain.Entities;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Services;
 using TSIC.API.Services.Fees;
+using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Players;
@@ -1008,44 +1009,10 @@ public class PaymentService : IPaymentService
     /// <paramref name="registrations"/> in place. Seat availability is the read-only
     /// <see cref="IRegistrationRepository.IsSeatAvailableAsync"/> (confirmed members vs MaxCount).
     /// </summary>
-    private async Task<List<PaymentWaitlistedDto>> WaitlistFullTeamPlayersAsync(
+    private Task<List<PaymentWaitlistedDto>> WaitlistFullTeamPlayersAsync(
         Guid jobId, string familyUserId, List<Registrations> registrations, CancellationToken ct = default)
-    {
-        var bounced = new List<PaymentWaitlistedDto>();
-        var drop = new List<Registrations>();
-        foreach (var reg in registrations)
-        {
-            if (reg.BActive == true || reg.RoleId != RoleConstants.Player || reg.AssignedTeamId is not { } teamId)
-                continue;
-            if (await _registrations.IsSeatAvailableAsync(reg, ct))
-                continue; // seat still there — stays in the charge set
-
-            var placement = await _placement.ResolveRosterPlacementAsync(jobId, teamId, familyUserId, ct);
-            if (placement is { IsWaitlisted: true })
-            {
-                var twin = await _teams.GetTeamFromTeamId(placement.TeamId, ct);
-                reg.AssignedTeamId = placement.TeamId;
-                reg.Assignment = $"Player: {placement.WaitlistTeamName}";
-                if (twin != null)
-                {
-                    await _feeService.ApplySwapFeesAsync(
-                        reg, jobId, twin.AgegroupId, placement.TeamId,
-                        new FeeApplicationContext { IsFullPaymentRequired = false }, ct);
-                }
-                reg.Modified = DateTime.Now;
-                await _registrations.SaveChangesAsync(ct);
-                bounced.Add(new PaymentWaitlistedDto
-                {
-                    RegistrationId = reg.RegistrationId,
-                    TeamName = placement.WaitlistTeamName ?? string.Empty
-                });
-                drop.Add(reg); // never charge a player we just moved to the waitlist
-            }
-            // else: placement found a seat after all — leave the reg in the charge set.
-        }
-        foreach (var d in drop) registrations.Remove(d);
-        return bounced;
-    }
+        => SeatReconciliation.ReconcileSeatsAsync(
+            jobId, familyUserId, registrations, _registrations, _placement, _teams, _feeService, ct);
 
     /// <summary>
     /// Overload that accepts jobId and familyUserId extracted from JWT claims.

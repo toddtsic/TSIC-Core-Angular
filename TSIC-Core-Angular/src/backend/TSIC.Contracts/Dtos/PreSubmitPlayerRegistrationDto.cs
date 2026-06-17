@@ -28,6 +28,12 @@ namespace TSIC.Contracts.Dtos
         // Optional: Client-side forms validation errors echoed / enforced server-side
         // Each entry: playerId, field, message. Presence indicates Forms step should not advance.
         public required List<PreSubmitValidationErrorDto>? ValidationErrors { get; init; }
+        // Raw team snapshot (post-reconcile, current occupancy) so the wizard re-reflects the
+        // agegroup options, team list, and defaults instead of running on stale init-time data.
+        public required List<AvailableTeamDto>? RawTeams { get; init; }
+        // Players auto-switched to a WAITLIST twin because their real team filled up. Surfaced
+        // as a notice; empty when nothing moved.
+        public required List<PaymentWaitlistedDto>? MovedToWaitlist { get; init; }
     }
 
     public record PreSubmitTeamResultDto
@@ -56,23 +62,4 @@ namespace TSIC.Contracts.Dtos
         public required string Message { get; init; } = string.Empty;
     }
 
-    // ── Reserve Teams (Phase 1 — capacity check + pending registration at team selection) ──
-
-    public record ReserveTeamsRequestDto
-    {
-        public required string JobPath { get; init; } = string.Empty;
-        public required List<ReserveTeamSelectionDto> TeamSelections { get; init; } = new();
-    }
-
-    public record ReserveTeamSelectionDto
-    {
-        public required string PlayerId { get; init; } = string.Empty;
-        public required Guid TeamId { get; init; }
-    }
-
-    public record ReserveTeamsResponseDto
-    {
-        public required List<PreSubmitTeamResultDto> TeamResults { get; init; } = new();
-        public bool HasFullTeams => TeamResults.Exists(r => r.IsFull);
-    }
 }
