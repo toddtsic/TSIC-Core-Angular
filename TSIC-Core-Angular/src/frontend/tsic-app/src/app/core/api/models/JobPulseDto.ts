@@ -25,6 +25,8 @@ export type JobPulseDto = {
     adultRegistrationPlanned: boolean;
     publicSuspended: boolean;
     registrationExpiry?: string | null;
+    playerRegClosesSoonest?: string | null;
+    playerRegOpensSoonest?: string | null;
     supersededByLaterEvent?: (null | SupersedingEventInfoDto);
     myAssignedTeamId?: string | null;
     myRegistrationOwedTotal?: number | null;

@@ -510,6 +510,28 @@ public class JobRepository : IJobRepository
                     AdultRegistrationPlanned = j.AdultProfileMetadataJson != null,
                     PublicSuspended = j.BSuspendPublic,
                     RegistrationExpiry = j.ExpiryUsers,
+                    // Soonest close among currently-open self-rosterable teams (same
+                    // filter as PlayerTeamsAvailableForRegistration). Null → no open
+                    // team with a close date; the hero shows no countdown.
+                    PlayerRegClosesSoonest = _context.Teams
+                        .Where(t => t.JobId == j.JobId
+                            && (t.Active ?? true)
+                            && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
+                            && (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
+                            && t.Expireondate != null && t.Expireondate >= now
+                            && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
+                            && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist"))
+                        .Min(t => (DateTime?)t.Expireondate),
+                    // Soonest upcoming open among teams not yet in their window.
+                    PlayerRegOpensSoonest = _context.Teams
+                        .Where(t => t.JobId == j.JobId
+                            && (t.Active ?? true)
+                            && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
+                            && t.Effectiveasofdate != null && t.Effectiveasofdate > now
+                            && (t.Expireondate == null || t.Expireondate >= now)
+                            && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
+                            && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist"))
+                        .Min(t => (DateTime?)t.Effectiveasofdate),
                     SupersededByLaterEvent = null
                 },
                 j.JobId,

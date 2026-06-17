@@ -26,6 +26,18 @@
 
 
 		<!-- ══════════════════════════════════════════════════
+		     REGISTRATION COUNTDOWN — public, viewer-aware deadline
+		     line (closes/opens), tone softens with distance.
+		     ══════════════════════════════════════════════════ -->
+		@if (registrationCountdown(); as cd) {
+			<div class="jl-countdown">
+				<i class="bi {{ cd.icon }}" aria-hidden="true"></i>
+				<span>{{ cd.text }}</span>
+			</div>
+		}
+
+
+		<!-- ══════════════════════════════════════════════════
 		     ACTION HUB (hero strip) — grounded landing CTAs from
 		     the live pulse. The unified menu's LandingCta placement;
 		     rendered bare (hero only) so the global header chrome is

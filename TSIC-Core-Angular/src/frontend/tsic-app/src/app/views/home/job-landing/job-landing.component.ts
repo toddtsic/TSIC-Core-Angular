@@ -143,6 +143,50 @@ export class JobLandingComponent implements OnDestroy {
 		return items;
 	});
 
+	// Registration deadline countdown for the public hero. INTERIM (anonymous
+	// only): a logged-in registrant gets a personalized "next deadline" in a
+	// later slice; for now we suppress it for anyone holding a regId. Tied to the
+	// same gate as the Register Player CTA (playerRegistrationOpen), driven by the
+	// pulse's aggregated team-window dates. Tone softens with distance.
+	readonly registrationCountdown = computed<{ text: string; icon: string } | null>(() => {
+		if (this.auth.isAdmin()) return null;
+		const p = this.pulse();
+		if (!p || !p.playerRegistrationOpen) return null;
+		if (this.auth.currentUser()?.regId) return null;
+		if (p.playerRegClosesSoonest) {
+			const text = this.formatDeadline(p.playerRegClosesSoonest, 'closes');
+			return text ? { text, icon: 'bi-clock-history' } : null;
+		}
+		if (p.playerRegOpensSoonest) {
+			const text = this.formatDeadline(p.playerRegOpensSoonest, 'opens');
+			return text ? { text, icon: 'bi-calendar-event' } : null;
+		}
+		return null;
+	});
+
+	// Day-granularity phrasing that softens as the deadline recedes (~14-day
+	// urgency threshold — easy to tune). Calendar-day diff, not raw 24h spans.
+	private formatDeadline(iso: string, mode: 'closes' | 'opens'): string | null {
+		const target = new Date(iso);
+		if (Number.isNaN(target.getTime())) return null;
+		const startOfToday = new Date();
+		startOfToday.setHours(0, 0, 0, 0);
+		const startOfTarget = new Date(target);
+		startOfTarget.setHours(0, 0, 0, 0);
+		const days = Math.round((startOfTarget.getTime() - startOfToday.getTime()) / 86_400_000);
+		const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(target);
+		if (mode === 'closes') {
+			if (days <= 0) return 'Registration closes today';
+			if (days === 1) return 'Registration closes tomorrow';
+			if (days <= 14) return `Registration closes in ${days} days`;
+			return `Registration open through ${dateLabel}`;
+		}
+		if (days <= 0) return 'Registration opens today';
+		if (days === 1) return 'Registration opens tomorrow';
+		if (days <= 14) return `Registration opens in ${days} days`;
+		return `Registration opens ${dateLabel}`;
+	}
+
 	// Stale event with a live later-year sibling — collapses the entire page
 	// to a single callout that redirects to the live event.
 	readonly isSuperseded = computed(() => !!this.pulse()?.supersededByLaterEvent);

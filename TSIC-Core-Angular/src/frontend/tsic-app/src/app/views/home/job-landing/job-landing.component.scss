@@ -66,6 +66,34 @@ app-client-banner {
 	margin-top: calc(-1 * var(--space-2));
 }
 
+// Public registration deadline line — a subtle pale pill between the banner and
+// the badge row, matching the badge aesthetic. Pulled up under the banner.
+.jl-countdown {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	width: fit-content;
+	margin: calc(-1 * var(--space-2)) auto 0;
+	padding: var(--space-1) var(--space-3);
+	border-radius: var(--radius-full);
+	background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface));
+	color: var(--brand-primary-dark);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+
+	i {
+		color: var(--brand-primary);
+		font-size: var(--font-size-base);
+	}
+}
+
+// When the countdown is present it precedes the badges, so the hub drops its
+// banner-hugging negative pull and takes a normal small gap below the pill.
+.jl-countdown + app-action-hub {
+	margin-top: var(--space-2);
+}
+
 // When the action-hub badges are present, they own a clean gap below; the
 // bulletins section drops its own top spacing so the gap isn't doubled.
 app-action-hub + .jl-bulletins {

@@ -40,6 +40,22 @@ public record JobPulseDto
     public DateTime? RegistrationExpiry { get; init; }
 
     /// <summary>
+    /// Soonest close date (Teams.Expireondate) among player self-rosterable teams
+    /// that are currently within their registration window. Drives the anonymous
+    /// landing countdown ("Registration closes in X"). Null when no such team is
+    /// open or none has a close date (open-ended). Mirrors the
+    /// PlayerTeamsAvailableForRegistration team filter.
+    /// </summary>
+    public DateTime? PlayerRegClosesSoonest { get; init; }
+
+    /// <summary>
+    /// Soonest open date (Teams.Effectiveasofdate) among player self-rosterable
+    /// teams whose window has not started yet. Drives "Registration opens in X"
+    /// when nothing is open. Null when no upcoming team exists.
+    /// </summary>
+    public DateTime? PlayerRegOpensSoonest { get; init; }
+
+    /// <summary>
     /// When set, a later-year sibling event (same customer, same name prefix
     /// with the year stripped) is currently accepting registration. Treat the
     /// current job as superseded — hide registration CTAs and surface a
