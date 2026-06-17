@@ -14,17 +14,18 @@ namespace TSIC.Tests.TeamRegistration.WaitlistMirror;
 /// WAITLIST TWIN — PICKER DISPLAY TESTS
 ///
 /// TeamLookupService assembles the self-rostering picker. When a real team is full
-/// under a waitlist job, the emitted entry must keep the real team's NAME but route
-/// registration to the twin's <c>teamId</c> at $0 — so the parent sees the team they
-/// wanted, flagged free, and the twin id (not the real id) flows through registration.
+/// under a waitlist job, the emitted entry keeps the REAL team's id + name + fee and
+/// flags <c>RosterIsFull=true</c>. It does NOT swap the entry to the WAITLIST twin's id:
+/// waitlisting is now entirely a payment-time concern (the PaymentService cart-split moves
+/// only seat-gone players to the $0 twin when they pay). Keeping the real id is what lets a
+/// resuming, already-rostered player match their own team in this list.
 ///
 /// What these prove (pure Moq — the assembly logic, not the DB):
-///   - Real team FULL + twin exists → entry carries the twin id at Fee/Deposit/EffectiveFee == 0.
-///   - Real team NOT full → entry stays the real id at full price (twin omitted / swap-out case).
-///   - Real team FULL but twin not minted yet → entry left as the real team (registration-time
-///     overflow swap is the safety net).
+///   - Real team FULL + twin exists → entry KEEPS the real id at the real fee (no swap).
+///   - Real team NOT full → entry stays the real id at full price.
+///   - Real team FULL but twin not minted yet → entry left as the real team.
 ///
-/// Waitlists are now MANDATORY, so every full team takes the twin-swap path.
+/// Waitlists are now MANDATORY, but the twin id never appears in this picker.
 /// </summary>
 public class WaitlistTwinDisplayTests
 {
