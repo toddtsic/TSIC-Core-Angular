@@ -17,7 +17,7 @@ import type { ReserveTeamsResponseDto, PreSubmitPlayerRegistrationResponseDto, F
  *
  * Key behaviors tested:
  *   - Teams step: full team → warning toast, stay on step
- *   - Teams step: waitlisted → warning toast with waitlist name, advance
+ *   - Teams step: waitlisted → advance silently (no toast; warned at selection, notified at payment)
  *   - Teams step: room available → advance silently
  *   - Teams step: HTTP error → danger toast, stay on step
  *   - Review step: success → advance to payment
@@ -152,7 +152,7 @@ describe('PlayerWizardV2Component — next() navigation', () => {
         );
     });
 
-    it('teams step: waitlisted → warning toast with waitlist name, advances', async () => {
+    it('teams step: waitlisted → advances silently (no toast — warned at selection, notified at payment)', async () => {
         goToStep('teams');
         const before = component.currentIndex();
 
@@ -167,17 +167,10 @@ describe('PlayerWizardV2Component — next() navigation', () => {
 
         await component.next();
 
+        // The parent chose the full team knowing it (dropdown "⚠ WAITLIST · $0" + inline
+        // banner); the real waitlist notice fires at payment. No redundant toast on advance.
         expect(component.currentIndex()).toBe(before + 1);
-        expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('waitlist'),
-            'warning',
-            expect.any(Number),
-        );
-        expect(toastShowFn).toHaveBeenCalledWith(
-            expect.stringContaining('WAITLIST - Storm U12'),
-            expect.anything(),
-            expect.anything(),
-        );
+        expect(toastShowFn).not.toHaveBeenCalled();
     });
 
     it('teams step: HTTP error → danger toast, stays on step', async () => {

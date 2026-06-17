@@ -305,15 +305,13 @@ export class PlayerWizardV2Component implements OnInit {
                     );
                     return; // stay on teams step
                 }
-                // Notify parent if any players were placed on a waitlist
-                const waitlisted = resp.teamResults.filter(r => r.isWaitlisted);
-                if (waitlisted.length > 0) {
-                    const names = waitlisted.map(r => r.waitlistTeamName ?? r.teamName).join(', ');
-                    this.toast.show(
-                        `Note: Your selected team is full. You have been placed on the waitlist: ${names}`,
-                        'warning', 8000,
-                    );
-                }
+                // Deliberately NO waitlist toast here. Reserving a full team writes a pending
+                // hold on the REAL team — nobody is actually waitlisted yet (that's decided at
+                // payment by the cart-split). The parent already chose the team knowing it was
+                // full: the dropdown badges it "⚠ WAITLIST · $0" and the team step shows an
+                // inline waitlist-alert banner on selection. A toast on advance just repeats
+                // what they were told and reads as if something went wrong. The real, accurate
+                // waitlist notice fires at payment (NeedsWaitlist) when it genuinely happens.
             } catch (err: unknown) {
                 console.error('[PlayerWizard] reserveTeams failed', err);
                 this.toast.show('Could not reserve team spots. Please try again.', 'danger', 5000);
