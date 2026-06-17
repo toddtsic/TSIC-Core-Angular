@@ -40,6 +40,67 @@
 	}
 }
 
+// Positioning context for the initial-load overlay.
+.jl {
+	position: relative;
+}
+
+// ============================================================
+//  INITIAL LOAD — opaque overlay + one big centered spinner.
+//  Masks the partial fill (banner first, bulletins seconds
+//  later) so the page reveals all at once. Solid page-tone
+//  background fully hides the content rendering underneath.
+// ============================================================
+.jl-loading {
+	position: absolute;
+	inset: 0;
+	z-index: 30;
+	display: flex;
+	justify-content: center;
+	background: var(--brand-surface, var(--neutral-50));
+}
+
+.jl-loading__inner {
+	// Sticky so the spinner stays in view even if the masked
+	// content underneath makes the page taller than the viewport.
+	position: sticky;
+	top: 0;
+	align-self: flex-start;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-4);
+	min-height: 70vh;
+}
+
+.jl-loading__spinner {
+	width: 3.5rem;
+	height: 3.5rem;
+	border-radius: var(--radius-full);
+	border: 4px solid rgba(var(--bs-primary-rgb), 0.18);
+	border-top-color: var(--bs-primary);
+	animation: jl-spin 0.7s linear infinite;
+}
+
+.jl-loading__label {
+	margin: 0;
+	font-size: var(--font-size-sm, 0.9rem);
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: var(--brand-text-muted, var(--neutral-500));
+}
+
+@keyframes jl-spin {
+	to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.jl-loading__spinner {
+		animation-duration: 1.6s;
+	}
+}
+
 .jl-container {
 	max-width: 1200px;
 	margin: 0 auto;

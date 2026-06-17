@@ -1,5 +1,22 @@
 <div class="jl">
 
+	<!-- ══════════════════════════════════════════════════
+	     INITIAL LOAD — one big centered spinner masks the
+	     page while job metadata + bulletins settle, so the
+	     landing reveals all at once instead of painting the
+	     banner first and dribbling bulletins in seconds later.
+	     Opaque overlay (content renders underneath so the
+	     reveal-cascade observer still attaches on mount).
+	     ══════════════════════════════════════════════════ -->
+	@if (loading()) {
+		<div class="jl-loading" role="status" aria-live="polite">
+			<div class="jl-loading__inner">
+				<div class="jl-loading__spinner" aria-hidden="true"></div>
+				<p class="jl-loading__label">Loading…</p>
+			</div>
+		</div>
+	}
+
 	@if (isSuperseded()) {
 
 		<!-- ══════════════════════════════════════════════════

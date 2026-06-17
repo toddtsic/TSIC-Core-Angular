@@ -43,6 +43,12 @@ export class JobLandingComponent implements OnDestroy {
 	readonly job = computed(() => this.jobService.currentJob());
 	readonly jobId = computed(() => this.jobService.currentJob()?.jobId ?? '');
 
+	// True from mount until the initial fill (job metadata + bulletins) settles.
+	// Drives one big centered spinner so the page reveals all at once instead of
+	// painting the banner first and dribbling bulletins in seconds later.
+	private readonly bootstrapping = signal(true);
+	readonly loading = computed(() => this.bootstrapping() || this.jobService.bulletinsLoading());
+
 	// Pulse is the canonical source of "is X currently available" state. Both
 	// PlayerRegistrationOpen and TeamRegistrationOpen are pure job-level flags
 	// (no role gating); per-user state lives in the My* fields.
@@ -221,8 +227,12 @@ export class JobLandingComponent implements OnDestroy {
 						this.jobService.setJob(job);
 						this.jobService.loadBulletins(jp);
 						this.probeGameClock(job.jobId);
-					}
+						this.bootstrapping.set(false);
+					},
+					error: () => this.bootstrapping.set(false)
 				});
+			} else {
+				this.bootstrapping.set(false);
 			}
 			this.initRevealAnimations();
 		});
