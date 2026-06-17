@@ -102,6 +102,9 @@ public sealed record PaymentWaitlistedDto
 {
     public required Guid RegistrationId { get; init; }
     public required string TeamName { get; init; }
+    // Player display name so the family is told WHICH child was waitlisted (a multi-kid family
+    // can't infer it from the team alone). Best-effort from the reg's user; "" if unavailable.
+    public required string PlayerName { get; init; }
 }
 
 // One row in the canonical-CC-charge input: which registration to charge, how much.

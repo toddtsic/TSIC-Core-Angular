@@ -5,5 +5,6 @@
 export type PaymentWaitlistedDto = {
     registrationId: string;
     teamName: string;
+    playerName: string;
 };
 

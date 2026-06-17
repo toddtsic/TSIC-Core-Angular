@@ -67,12 +67,22 @@ public static class SeatReconciliation
                         reg, jobId, twin.AgegroupId, result.TeamId,
                         new FeeApplicationContext { IsFullPaymentRequired = false }, ct);
                 }
+                // A waitlist placement is a COMPLETED registration, not a pending-payment hold: the
+                // player is confirmed on the $0 WAITLIST twin (nothing to pay). Activate it here —
+                // this reg is dropped from the charge set / familyRegs below, so the post-reconcile
+                // ActivateIfFree pass never sees it; without this it would sit BActive=false (pending),
+                // inconsistent with a twin reg the registrant picked directly (which ActivateIfFree
+                // does activate at $0). The twin is unlimited (MaxCount huge), so this never overfills.
+                reg.BActive = true;
                 reg.Modified = DateTime.Now;
                 await registrationsRepo.SaveChangesAsync(ct);
                 bounced.Add(new PaymentWaitlistedDto
                 {
                     RegistrationId = reg.RegistrationId,
-                    TeamName = result.WaitlistTeamName ?? string.Empty
+                    TeamName = result.WaitlistTeamName ?? string.Empty,
+                    // Both callers load the reg with its User (GetByJobAndFamilyWithUsersAsync), so
+                    // the player's name is available for the "X is on the waitlist" notice.
+                    PlayerName = $"{reg.User?.FirstName} {reg.User?.LastName}".Trim()
                 });
                 drop.Add(reg); // never charge a player we just moved to the waitlist
             }

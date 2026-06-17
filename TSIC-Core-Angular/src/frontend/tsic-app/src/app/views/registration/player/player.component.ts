@@ -313,12 +313,19 @@ export class PlayerWizardV2Component implements OnInit {
                 // family knows which kids weren't seated. The team list re-reflects via the
                 // response's rawTeams (applied in the state service).
                 if (resp?.movedToWaitlist?.length) {
-                    const teams = [...new Set(resp.movedToWaitlist.map(m => m.teamName).filter(Boolean))];
+                    // Name each child + the team they wanted (strip the "WAITLIST - " prefix off the
+                    // twin's name). A waitlist placement is a COMPLETED $0 registration, not a pending
+                    // hold, so say that plainly rather than "won't be charged".
+                    const parts = resp.movedToWaitlist.map(m => {
+                        const name = m.playerName?.trim() || 'A player';
+                        const team = (m.teamName || '').replace(/^WAITLIST - /i, '').trim();
+                        return team ? `${name} (${team})` : name;
+                    });
+                    const verb = resp.movedToWaitlist.length === 1 ? 'is' : 'are';
                     this.toast.show(
-                        `${resp.movedToWaitlist.length} player(s) were moved to the waitlist because their team just filled up`
-                        + (teams.length ? ` (${teams.join(', ')})` : '')
-                        + '. They will not be charged.',
-                        'warning', 9000,
+                        `${parts.join(', ')} ${verb} now on the waitlist — that team just filled up. `
+                        + `Registration is complete at no charge; we'll notify you if a spot opens.`,
+                        'warning', 10000,
                     );
                 }
             } catch (err: unknown) {
