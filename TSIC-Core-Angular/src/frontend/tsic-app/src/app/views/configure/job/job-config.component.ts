@@ -52,7 +52,7 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
     { key: 'communications', label: 'Comms', icon: '' },
     { key: 'player', label: 'Players', icon: '' },
     { key: 'teams', label: 'Teams', icon: '' },
-    { key: 'coaches', label: 'Coaches', icon: '' },
+    { key: 'coaches', label: 'Adult', icon: '' },
     { key: 'scheduling', label: 'Scheduling', icon: '' },
     { key: 'mobileStore', label: 'Mobile/Store', icon: '' },
     { key: 'ddlOptions', label: 'Dropdowns', icon: '' },
