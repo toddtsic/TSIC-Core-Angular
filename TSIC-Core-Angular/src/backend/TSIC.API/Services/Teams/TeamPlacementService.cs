@@ -309,6 +309,12 @@ public class TeamPlacementService : ITeamPlacementService
             Year = sourceTeam.Year,
             Startdate = sourceTeam.Startdate,
             Enddate = sourceTeam.Enddate,
+            // Copy the source team's availability window too. The available-teams query filters on
+            // Effectiveasofdate/Expireondate (NOT Start/Enddate); if these are left to a DB default
+            // (mint-instant), the twin is "expired the moment it's created" and never surfaces. The
+            // mirror must live in the same window as the team it shadows.
+            Effectiveasofdate = sourceTeam.Effectiveasofdate,
+            Expireondate = sourceTeam.Expireondate,
             LebUserId = userId,
             Createdate = DateTime.Now,
             Modified = DateTime.Now

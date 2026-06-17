@@ -132,8 +132,14 @@ export class TeamService {
                     return n.includes(needle) || n.endsWith(needle) || ag.includes(needle);
                 });
             }
-            case 'BYAGEGROUP':
-                return teams.filter(t => (t.agegroupName || '').toLowerCase() === v.toLowerCase());
+            case 'BYAGEGROUP': {
+                // Exact agegroup match. A "WAITLIST - X" pick (a full agegroup) points straight at
+                // the real twin agegroup, whose teams now exist in the dataset (minted with the
+                // source team's availability window). No prefix stripping — the value resolves to
+                // the twin directly, so a full agegroup shows ONLY its $0 waitlist team.
+                const needle = v.toLowerCase();
+                return teams.filter(t => (t.agegroupName || '').toLowerCase() === needle);
+            }
             case 'BYAGERANGE': {
                 const rangeName = v.toLowerCase();
                 const genderWord = (gender === 'M') ? 'boys' : 'girls';
@@ -172,6 +178,43 @@ export class TeamService {
         if (t.feeConfigured === false) return false;
         if (t.rosterIsFull && !t.jobUsesWaitlists) return false;
         return true;
+    }
+
+    /**
+     * Agegroup-level availability for the eligibility picker — the same "all dataset vs available
+     * view" split we use at the team level, applied to age groups. The FULL agegroup set still
+     * resolves/labels a prior registration's agegroup (a locked active player keeps showing their
+     * real agegroup even when its only team is full); this builds the *pickable* view for a NEW
+     * selection:
+     *   - a real agegroup with ≥1 open seat  → offered under its real name
+     *   - a real agegroup whose teams are ALL full → offered as its `WAITLIST - {name}` twin.
+     *
+     * The twin agegroup/team is only minted at PreSubmit (EnsureWaitlistMirrorsForFilledTeams), so
+     * at selection time it is NOT in the dataset yet — we SYNTHESIZE the name using the exact same
+     * `WAITLIST - {name}` format the mint uses. Picking it resolves (via filterByEligibility) back
+     * to this agegroup's full teams, surfaced as $0 waitlist; PreSubmit then mints the real twin
+     * and reconciles the seat. "Open seat" here is genuine (a team with rosterIsFull=false) —
+     * distinct from team-level isAvailable(), which treats a full team as still-pickable as $0.
+     */
+    availableAgegroupOptions(): string[] {
+        const teams = this._teams();
+        if (!teams) return [];
+        const self = teams.filter(t => t.agegroupAllowsSelfRostering === true && !!t.agegroupName);
+        const isWl = (n: string) => n.toUpperCase().startsWith('WAITLIST -');
+        const hasOpenSeat = (t: AvailableTeam) => !t.rosterIsFull && t.feeConfigured !== false;
+
+        // Real (non-twin) agegroup names; a twin already in the data (post-PreSubmit) collapses
+        // onto the synthesized name below via the Set, so it never double-lists.
+        const realNames = [...new Set(
+            self.filter(t => !isWl(t.agegroupName!.trim())).map(t => t.agegroupName!.trim())
+        )];
+
+        const out = new Set<string>();
+        for (const name of realNames) {
+            const anyOpen = self.some(t => t.agegroupName!.trim() === name && hasOpenSeat(t));
+            out.add(anyOpen ? name : `WAITLIST - ${name}`);
+        }
+        return [...out];
     }
 
     /**

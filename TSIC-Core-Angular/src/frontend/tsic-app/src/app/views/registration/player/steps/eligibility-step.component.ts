@@ -47,7 +47,7 @@ import { TeamService } from '../services/team.service';
                 } @else if (usesRichDropdown()) {
                   <ejs-dropdownlist
                     [id]="'elig-' + pid"
-                    [dataSource]="eligibilityOptions()"
+                    [dataSource]="eligibilityOptions(pid)"
                     [value]="state.eligibility.getEligibilityForPlayer(pid) || null"
                     [allowFiltering]="true"
                     [filterBarPlaceholder]="'Type to search ' + constraintLabel() + '...'"
@@ -64,7 +64,7 @@ import { TeamService } from '../services/team.service';
                     [ngModel]="state.eligibility.getEligibilityForPlayer(pid) || ''"
                     (ngModelChange)="onEligibilityChange(pid, $event)">
                     <option value="">— Select —</option>
-                    @for (opt of eligibilityOptions(); track opt) {
+                    @for (opt of eligibilityOptions(pid); track opt) {
                       <option [value]="opt">{{ opt }}</option>
                     }
                   </select>
@@ -253,7 +253,7 @@ export class EligibilityStepComponent {
         return 'eligibility';
     }
 
-    eligibilityOptions(): string[] {
+    eligibilityOptions(playerId: string): string[] {
         const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
         if (ct === 'BYCLUBNAME') {
             const teams = this.teamService.allTeams();
@@ -264,13 +264,15 @@ export class EligibilityStepComponent {
             return clubs;
         }
         if (ct === 'BYAGEGROUP') {
-            const teams = this.teamService.allTeams();
-            if (!teams) return [];
-            return [...new Set(
-                teams
-                    .filter(t => t.agegroupAllowsSelfRostering === true && !!t.agegroupName)
-                    .map(t => t.agegroupName!.trim())
-            )].sort();
+            // Pickable view: a full agegroup is offered as its WAITLIST twin (see TeamService).
+            const options = new Set(this.teamService.availableAgegroupOptions());
+            // ...but never blank a value THIS player already chose. Per-player (not a shared list):
+            // one player's now-full agegroup must not leak into another player's dropdown — only
+            // their own saved value is re-admitted (the "all" view for resolution beside the
+            // available view for picking).
+            const cur = this.state.eligibility.getEligibilityForPlayer(playerId);
+            if (cur) options.add(cur);
+            return [...options].sort();
         }
         const schemas = this.state.jobCtx.profileFieldSchemas();
         const eligField = this.state.eligibility.determineEligibilityField(schemas);
