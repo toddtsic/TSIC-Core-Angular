@@ -98,6 +98,7 @@ $rulesCampSales          = '{"jobTypes":["Camp Registration","Sales Venue"]}'
 $sectionRules = @{
     'Scheduling' = $rulesTournamentLeague
     'ARB'        = $rulesAdnArb
+    'Store'      = $rulesStoreEnabled
 }
 
 # Route-strict admin manifest. Source of truth: app.routes.ts under :jobPath.
@@ -207,7 +208,7 @@ $adminManifest = @(
     (New-AdminItem 'Tools' 'tools' 9 'Profile Migration'    'arrow-right'   'tools/profile-migration'    5 0 0 1)
     (New-AdminItem 'Tools' 'tools' 9 'Profile Editor'       'pencil-square' 'tools/profile-editor'       6 0 0 1)
     (New-AdminItem 'Tools' 'tools' 9 'Change Password'      'key'           'tools/change-password'      7 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 8 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 8 0 1 1)
     (New-AdminItem 'Tools' 'tools' 9 'Camp Day/Night Groups' 'sun'          'tools/camp-groups'          9 1 1 1 $rulesCampSales)
     (New-AdminItem 'Tools' 'tools' 9 'Check-In'              'clipboard-check' 'tools/checkin'           10 1 1 1 '{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}' 'NEW')
 )

@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-05-30 12:14:06 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-06-18 07:26:05 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -183,7 +183,7 @@ INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Uniform Upload', N'u
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 6, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Change Password', N'key', N'tools/change-password', 7, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 8, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 8, 0, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Camp Day/Night Groups', N'sun', N'tools/camp-groups', 9, 1, 1, 1, N'{"jobTypes":["Camp Registration","Sales Venue"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Check-In', N'clipboard-check', N'tools/checkin', 10, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}', N'NEW');
 
@@ -193,8 +193,9 @@ CREATE TABLE #SectionRules (
     Controller      NVARCHAR(50)  NOT NULL PRIMARY KEY,
     VisibilityRules NVARCHAR(MAX) NOT NULL
 );
-INSERT INTO #SectionRules VALUES (N'Scheduling', N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}');
+INSERT INTO #SectionRules VALUES (N'Store', N'{"requiresFlags":["storeEnabled"]}');
 INSERT INTO #SectionRules VALUES (N'ARB', N'{"requiresFlags":["adnArb"]}');
+INSERT INTO #SectionRules VALUES (N'Scheduling', N'{"jobTypes":["Tournament Scheduling","League Scheduling"]}');
 
 -- Fan out admin manifest per admin role
 DECLARE @navId INT, @parentId INT, @roleId NVARCHAR(450);

@@ -310,7 +310,7 @@ export const routes: Routes = [
 					{
 						path: 'customer-job-revenue',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser] },
+						data: { roles: [Roles.Superuser, Roles.SuperDirector] },
 						loadComponent: () => import('./views/tools/customer-job-revenue/customer-job-revenue.component').then(m => m.CustomerJobRevenueComponent)
 					},
 					{
