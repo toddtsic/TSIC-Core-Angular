@@ -38,6 +38,12 @@ export abstract class BaseInsuranceService {
     private readonly _hasUserResponse = signal(false);
     private readonly _widgetInitialized = signal(false);
     private readonly _widgetError = signal<string | null>(null);
+    /** Live SDK instance, retained so a remount can tear down the prior widget
+     *  before constructing the next one. The SDK injects its DOM INTO the host
+     *  element rather than replacing it, so without an explicit teardown a
+     *  remount (discount re-quote, payment toggle without an `@if` host swap)
+     *  stacks a second widget beside the stale one. */
+    private _instance: VIWidgetInstance | null = null;
     /** Concurrency flag for the per-flow purchase HTTP call. Subclasses set
      *  it true at the start of their purchase method and false in finally. */
     protected readonly purchasing = signal(false);
@@ -62,6 +68,11 @@ export abstract class BaseInsuranceService {
             return;
         }
         try {
+            // Tear down any widget from a prior mount before re-mounting. The SDK appends its
+            // DOM into the host, so on a remount (discount re-quote) we must destroy the old
+            // instance AND empty the host — otherwise the stale widget stays stacked above the new one.
+            this.teardownWidget(hostSelector);
+
             this.viDarkMode.injectDarkModeColors(offerData);
 
             // Forward-declare so the callbacks can reference the instance once
@@ -90,6 +101,7 @@ export abstract class BaseInsuranceService {
             };
 
             instance = new viWindow.VerticalInsure!(hostSelector, offerData, callbacks);
+            this._instance = instance;
         } catch (e: unknown) {
             console.error('[VerticalInsure] init threw', e);
             this.markWidgetUnavailable(this.formatWidgetError(e));
@@ -114,6 +126,19 @@ export abstract class BaseInsuranceService {
         this._widgetError.set(null);
         this.purchasing.set(false);
         this.viDarkMode.disconnect();
+    }
+
+    /** Destroy the prior SDK instance and empty the host element. Safe to call when no widget
+     *  is mounted. Called at the top of `initWidget` so every remount starts from a clean host. */
+    private teardownWidget(hostSelector: string): void {
+        try {
+            this._instance?.destroy?.();
+        } catch (e: unknown) {
+            console.warn('[VerticalInsure] destroy() threw during teardown', e);
+        }
+        this._instance = null;
+        const host = document.querySelector(hostSelector);
+        if (host) host.replaceChildren();
     }
 
     /** Mark the widget as unavailable: stop the spinner, unlock the submit gate
