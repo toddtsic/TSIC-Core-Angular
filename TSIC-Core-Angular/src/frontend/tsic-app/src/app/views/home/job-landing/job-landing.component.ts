@@ -103,8 +103,14 @@ export class JobLandingComponent implements OnDestroy {
 			items.push({ key: 'pay-balance', label: 'Pay Balance Due', icon: 'bi-cash-stack', routerLink: `${base}/registration/player`, queryParams: { step: 'payment' } });
 		}
 
-		// Once schedules publish, team rosters lock — suppress Register Team.
-		if (p.teamRegistrationOpen && !p.schedulePublished && !registered) {
+		// A registered Club Rep with >=1 team manages them via "My Teams" (deep-link
+		// to the teams step) in place of the public Register Team CTA. myClubRepTeamCount
+		// is only populated for a Club Rep scoped to this job, so > 0 encodes both role
+		// and has-registration. Otherwise, once schedules publish team rosters lock —
+		// suppress Register Team.
+		if ((p.myClubRepTeamCount ?? 0) > 0) {
+			items.push({ key: 'my-teams', label: 'My Teams', icon: 'bi-people', routerLink: `${base}/registration/team`, queryParams: { step: 'teams' } });
+		} else if (p.teamRegistrationOpen && !p.schedulePublished && !registered) {
 			items.push({ key: 'register-team', label: 'Register Team', icon: 'bi-people', routerLink: `${base}/registration/team` });
 		}
 		if (p.schedulePublished) {
@@ -132,9 +138,11 @@ export class JobLandingComponent implements OnDestroy {
 				? 'view-schedule'
 				: p.playerRegistrationOpen
 					? (registered ? 'my-registration' : 'register-player')
-					: p.teamRegistrationOpen
-						? 'register-team'
-						: items[0]?.key;
+					: (p.myClubRepTeamCount ?? 0) > 0
+						? 'my-teams'
+						: p.teamRegistrationOpen
+							? 'register-team'
+							: items[0]?.key;
 
 		// Fall back to the first available action when the lifecycle-preferred
 		// primary isn't present (e.g. a registered viewer with register suppressed).
@@ -154,18 +162,18 @@ export class JobLandingComponent implements OnDestroy {
 	// later slice; for now we suppress it for anyone holding a regId. Tied to the
 	// same gate as the Register Player CTA (playerRegistrationOpen), driven by the
 	// pulse's aggregated team-window dates. Tone softens with distance.
-	readonly registrationCountdown = computed<{ text: string; icon: string } | null>(() => {
+	readonly registrationCountdown = computed<{ text: string; tone: 'open' | 'upcoming' } | null>(() => {
 		if (this.auth.isAdmin()) return null;
 		const p = this.pulse();
 		if (!p || !p.playerRegistrationOpen) return null;
 		if (this.auth.currentUser()?.regId) return null;
 		if (p.playerRegClosesSoonest) {
 			const text = this.formatDeadline(p.playerRegClosesSoonest, 'closes');
-			return text ? { text, icon: 'bi-clock-history' } : null;
+			return text ? { text, tone: 'open' } : null;
 		}
 		if (p.playerRegOpensSoonest) {
 			const text = this.formatDeadline(p.playerRegOpensSoonest, 'opens');
-			return text ? { text, icon: 'bi-calendar-event' } : null;
+			return text ? { text, tone: 'upcoming' } : null;
 		}
 		return null;
 	});
@@ -180,7 +188,7 @@ export class JobLandingComponent implements OnDestroy {
 		const startOfTarget = new Date(target);
 		startOfTarget.setHours(0, 0, 0, 0);
 		const days = Math.round((startOfTarget.getTime() - startOfToday.getTime()) / 86_400_000);
-		const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(target);
+		const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(target);
 		if (mode === 'closes') {
 			if (days <= 0) return 'Registration closes today';
 			if (days === 1) return 'Registration closes tomorrow';

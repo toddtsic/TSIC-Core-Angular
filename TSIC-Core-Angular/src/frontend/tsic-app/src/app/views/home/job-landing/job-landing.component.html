@@ -47,9 +47,9 @@
 		     line (closes/opens), tone softens with distance.
 		     ══════════════════════════════════════════════════ -->
 		@if (registrationCountdown(); as cd) {
-			<div class="jl-countdown">
-				<i class="bi {{ cd.icon }}" aria-hidden="true"></i>
-				<span>{{ cd.text }}</span>
+			<div class="jl-countdown" [class.jl-countdown--upcoming]="cd.tone === 'upcoming'" role="status">
+				<span class="jl-countdown__dot" aria-hidden="true"></span>
+				<span class="jl-countdown__text">{{ cd.text }}</span>
 			</div>
 		}
 

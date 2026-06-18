@@ -127,25 +127,96 @@ app-client-banner {
 	margin-top: calc(-1 * var(--space-2));
 }
 
-// Public registration deadline line — a subtle pale pill between the banner and
-// the badge row, matching the badge aesthetic. Pulled up under the banner.
+// Public registration deadline line — purely INFORMATIONAL, deliberately NOT a
+// pill/button. A centered uppercase caption framed by hairline rules that fade
+// outward, led by a soft live-status dot. Reads unmistakably as event metadata
+// (no background fill, no rounded shape, no primary chrome) yet feels finished.
 .jl-countdown {
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: var(--space-2);
 	width: fit-content;
-	margin: calc(-1 * var(--space-2)) auto 0;
-	padding: var(--space-1) var(--space-3);
-	border-radius: var(--radius-full);
-	background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface));
-	color: var(--brand-primary-dark);
-	font-size: var(--font-size-sm);
+	max-width: 92%;
+	margin: calc(-1 * var(--space-1)) auto var(--space-2);
+	padding: 0;
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-xs);
 	font-weight: var(--font-weight-medium);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	animation: jl-countdown-in 0.45s var(--ease-out, ease) both;
+}
 
-	i {
-		color: var(--brand-primary);
-		font-size: var(--font-size-base);
+// Hairline rules flanking the caption — fade toward the outer edges so the line
+// dissolves into the surface instead of reading as a bordered control.
+.jl-countdown::before,
+.jl-countdown::after {
+	content: '';
+	flex: 0 0 var(--space-10);
+	height: 1px;
+}
+
+.jl-countdown::before {
+	background: linear-gradient(to right, transparent, color-mix(in srgb, var(--brand-text-muted) 38%, transparent));
+}
+
+.jl-countdown::after {
+	background: linear-gradient(to left, transparent, color-mix(in srgb, var(--brand-text-muted) 38%, transparent));
+}
+
+.jl-countdown__text {
+	white-space: nowrap;
+}
+
+// Live-status dot — a calm green "registration is open" beacon with a soft
+// expanding halo; amber + static when registration is merely upcoming.
+.jl-countdown__dot {
+	flex: 0 0 auto;
+	width: 7px;
+	height: 7px;
+	border-radius: var(--radius-full);
+	background: var(--bs-success);
+	box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb), 0.5);
+	animation: jl-countdown-pulse 2.4s ease-out infinite;
+}
+
+.jl-countdown--upcoming .jl-countdown__dot {
+	background: var(--bs-warning);
+	box-shadow: none;
+	animation: none;
+}
+
+@keyframes jl-countdown-in {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+@keyframes jl-countdown-pulse {
+	0% {
+		box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb), 0.45);
+	}
+	70% {
+		box-shadow: 0 0 0 7px rgba(var(--bs-success-rgb), 0);
+	}
+	100% {
+		box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb), 0);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.jl-countdown {
+		animation: none;
+	}
+
+	.jl-countdown__dot {
+		animation: none !important;
 	}
 }
 
