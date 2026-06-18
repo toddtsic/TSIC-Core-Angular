@@ -42,8 +42,6 @@ import { ToastService } from '@shared-ui/toast.service';
           }
 
           <div class="confirmation-content" [innerHTML]="confirmationHtml()"></div>
-
-          <button type="button" class="btn btn-primary mt-3" (click)="finished.emit()">Finish</button>
         }
       </div>
     </div>

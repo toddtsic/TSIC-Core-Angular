@@ -47,6 +47,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [config]="shellConfig()"
       [canContinue]="canContinue()"
       [showContinue]="showContinue()"
+      [showBack]="showBack()"
       [showActionBarOnFirstStep]="hasWizardSession()"
       [continueLabel]="continueLabel()"
       [detailsBadgeLabel]="detailsBadge()"
@@ -242,12 +243,17 @@ export class TeamWizardV2Component implements OnInit {
         return true;
     });
 
+    // Review is the terminal step — there is nothing to go "Back" to once a registration
+    // is complete. Hide Back here so the action bar shows only the single "Finish" button,
+    // mirroring the player confirmation step.
+    readonly showBack = computed(() => this.currentStepId() !== 'review');
+
     readonly continueLabel = computed(() => {
         switch (this.currentStepId()) {
             case 'teams': return 'Proceed to Payment';
             case 'waivers': return 'Continue';
             case 'payment': return 'Proceed to Review';
-            case 'review': return 'Return Home';
+            case 'review': return 'Finish';
             default: return 'Continue';
         }
     });
@@ -336,14 +342,16 @@ export class TeamWizardV2Component implements OnInit {
     }
 
     next(): void {
-        const active = this.activeSteps();
-        const idx = this.currentIndex();
-        if (idx >= active.length - 1) return;
-
+        // Terminal step first — review is the LAST step, so a bounds check ahead of this
+        // would early-return and Finish would do nothing (mirrors player's confirmation check).
         if (this.currentStepId() === 'review') {
             this.finish();
             return;
         }
+
+        const active = this.activeSteps();
+        const idx = this.currentIndex();
+        if (idx >= active.length - 1) return;
 
         this._currentStepId.set(active[idx + 1].id);
     }
@@ -374,7 +382,9 @@ export class TeamWizardV2Component implements OnInit {
     }
 
     finish(): void {
-        this.auth.logoutLocal();
+        // Navigate to job home WITHOUT logging out — the club rep stays authenticated so
+        // they can register more teams or view their dashboard. Logout is an explicit
+        // header action, not a side effect of finishing a registration. Mirrors player.
         const jobPath = this.state.jobPath();
         if (jobPath) {
             this.router.navigate(['/', jobPath]);

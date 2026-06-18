@@ -368,7 +368,9 @@ export class PlayerWizardV2Component implements OnInit {
     }
 
     finish(): void {
-        this.authService.logoutLocal();
+        // Navigate to job home WITHOUT logging out — the family stays authenticated so
+        // they can register again, view their dashboard, or browse the store. Logout is
+        // an explicit header action, not a side effect of finishing a registration.
         this.router.navigate([`/${this.resolveJobPath()}`]);
     }
 
