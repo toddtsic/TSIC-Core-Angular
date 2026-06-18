@@ -110,6 +110,15 @@
 }
 
 // Transaction cell content
+.txn-owner {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--brand-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .txn-primary {
   white-space: nowrap;
   overflow: hidden;

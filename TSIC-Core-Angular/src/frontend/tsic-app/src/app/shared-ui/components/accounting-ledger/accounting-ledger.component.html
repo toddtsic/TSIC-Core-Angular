@@ -61,6 +61,7 @@
   <ng-template #txnRow let-record>
     <tr class="txn-row">
       <td>
+        @if (teamNameFor(record); as owner) { <div class="txn-owner">{{ owner }}</div> }
         <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
         @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
       </td>
