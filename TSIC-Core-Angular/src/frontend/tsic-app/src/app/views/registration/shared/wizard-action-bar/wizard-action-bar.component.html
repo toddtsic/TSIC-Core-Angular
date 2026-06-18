@@ -17,13 +17,18 @@
 
         <!-- Forward Button (right) -->
         @if (showContinue()) {
-        <button type="button" class="btn btn-forward" (click)="continue.emit()" [disabled]="!canContinue()"
+        <button type="button" class="btn btn-forward" (click)="continue.emit()" [disabled]="!canContinue() || busy()"
             [attr.aria-label]="'Proceed: ' + continueLabel()">
+            @if (busy()) {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            }
             <!-- Desktop label -->
             <span class="continue-label-full d-none d-sm-inline">{{ continueLabel() }}</span>
             <!-- Mobile label (short version without "Proceed to ") -->
             <span class="continue-label-short d-sm-none">{{ continueLabelShort() }}</span>
+            @if (!busy()) {
             <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            }
         </button>
         }
     </div>

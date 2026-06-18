@@ -34,6 +34,8 @@ export class WizardActionBarComponent {
     // Signal inputs
     readonly canBack = input(false);
     readonly canContinue = input(false);
+    /** When true, Continue is disabled and shows a spinner — an async step transition is in flight. */
+    readonly busy = input(false);
     readonly continueLabel = input('Continue');
     readonly showContinue = input(true);
     readonly detailsBadgeLabel = input<string | null>(null);

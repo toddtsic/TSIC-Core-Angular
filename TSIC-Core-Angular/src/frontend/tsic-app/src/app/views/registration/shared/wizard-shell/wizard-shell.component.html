@@ -31,10 +31,13 @@
 
       @if (showActionBar() && showContinue()) {
       <button type="button" class="wz-nav-btn wz-continue"
-        [disabled]="!canContinue()"
+        [disabled]="!canContinue() || busy()"
         (click)="continue.emit()"
         [attr.aria-label]="'Proceed: ' + continueLabel()">
-        {{ continueLabel() }} <i class="bi bi-chevron-right"></i>
+        @if (busy()) {
+        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+        }
+        {{ continueLabel() }} @if (!busy()) { <i class="bi bi-chevron-right"></i> }
       </button>
       } @else {
       <span class="wz-nav-spacer"></span>
@@ -58,6 +61,7 @@
       <app-wizard-action-bar
         [canBack]="showBack() && currentIndex() > 0"
         [canContinue]="canContinue()"
+        [busy]="busy()"
         [showContinue]="showContinue()"
         [continueLabel]="continueLabel()"
         [detailsBadgeLabel]="detailsBadgeLabel()"

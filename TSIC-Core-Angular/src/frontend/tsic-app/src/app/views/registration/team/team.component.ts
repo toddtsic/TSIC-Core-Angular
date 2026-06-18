@@ -1,6 +1,6 @@
 import {
     ChangeDetectionStrategy, Component, DestroyRef, OnInit, ViewChild,
-    computed, inject, signal,
+    computed, inject, signal, viewChild,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -46,6 +46,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [currentIndex]="currentIndex()"
       [config]="shellConfig()"
       [canContinue]="canContinue()"
+      [busy]="transitioning()"
       [showContinue]="showContinue()"
       [showBack]="showBack()"
       [showActionBarOnFirstStep]="hasWizardSession()"
@@ -152,6 +153,16 @@ export class TeamWizardV2Component implements OnInit {
     readonly currentStepId = this._currentStepId.asReadonly();
 
     // ── Step definitions ──────────────────────────────────────────────
+    /**
+     * Reference to the teams step while it's rendered (it lives inside an @switch).
+     * Its `actionInProgress` signal is true while a team registration (the age-group
+     * team-max / waitlist check) is in flight — we surface that to the shell so the
+     * wizard's Continue/nav is disabled and spinners while the capacity check resolves,
+     * matching the player wizard's Review→Payment transition lock.
+     */
+    private readonly teamsStep = viewChild(TeamTeamsStepComponent);
+    readonly transitioning = computed(() => this.teamsStep()?.actionInProgress() ?? false);
+
     readonly steps = computed<WizardStepDef[]>(() => [
         { id: 'login', label: 'Login', enabled: true },
         { id: 'waivers', label: 'Waivers', enabled: this.state.hasRefundPolicy() },

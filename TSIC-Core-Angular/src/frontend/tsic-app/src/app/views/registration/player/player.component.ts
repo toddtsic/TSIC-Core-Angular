@@ -57,6 +57,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
         [currentIndex]="currentIndex()"
         [config]="shellConfig()"
         [canContinue]="canContinue()"
+        [busy]="transitioning()"
         [showBack]="showBack()"
         [showContinue]="showContinue()"
         [continueLabel]="continueLabel()"
@@ -108,6 +109,14 @@ export class PlayerWizardV2Component implements OnInit {
 
     private readonly _currentIndex = signal(0);
     readonly currentIndex = this._currentIndex.asReadonly();
+
+    /**
+     * True while an async step transition is in flight (the Review→Payment PreSubmit).
+     * Drives the shared action-bar spinner and disables Continue so a slow round-trip
+     * can't be double-clicked into a second preSubmit.
+     */
+    private readonly _transitioning = signal(false);
+    readonly transitioning = this._transitioning.asReadonly();
 
     // ── Step definitions ──────────────────────────────────────────────
     readonly steps = computed<WizardStepDef[]>(() => [
@@ -286,6 +295,10 @@ export class PlayerWizardV2Component implements OnInit {
             return;
         }
 
+        // Guard against double-clicks while an async transition (PreSubmit) is in flight —
+        // a second click here would fire a second preSubmit against the same registration.
+        if (this._transitioning()) return;
+
         const active = this.activeSteps();
         const idx = this._currentIndex();
         if (idx >= active.length - 1) return;
@@ -297,6 +310,8 @@ export class PlayerWizardV2Component implements OnInit {
         // Finalize at review -> payment (create registrations, apply form values, validate,
         // reconcile seats, insurance).
         if (this.currentStepId() === 'review') {
+            this._transitioning.set(true);
+            try {
             const newRegs = this.hasNewRegistrations();
             try {
                 const resp = await this.state.preSubmitRegistration();
@@ -361,6 +376,9 @@ export class PlayerWizardV2Component implements OnInit {
                     + 'and they are available to be placed on rosters.',
                     'success', 10000,
                 );
+            }
+            } finally {
+                this._transitioning.set(false);
             }
         }
 
