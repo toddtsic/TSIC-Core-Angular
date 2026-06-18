@@ -1,5 +1,6 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
+import { LocalStorageService } from '@infrastructure/services/local-storage.service';
 
 /**
  * Shared state service for layout coordination
@@ -9,6 +10,8 @@ import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
     providedIn: 'root'
 })
 export class MenuStateService {
+    private readonly localStorage = inject(LocalStorageService);
+
     /** Mobile offcanvas open/closed state */
     offcanvasOpen = signal(false);
 
@@ -19,14 +22,14 @@ export class MenuStateService {
      * stored 'false' expands it. Write-through in toggleSidebar() — no effect().
      */
     sidebarCollapsed = signal<boolean>(
-        localStorage.getItem(LocalStorageKey.AdminNavCollapsed) !== 'false'
+        this.localStorage.get(LocalStorageKey.AdminNavCollapsed, true) ?? true
     );
 
     /** Toggle the desktop admin sidebar collapse state and persist the choice */
     toggleSidebar(): void {
         const collapsed = !this.sidebarCollapsed();
         this.sidebarCollapsed.set(collapsed);
-        localStorage.setItem(LocalStorageKey.AdminNavCollapsed, String(collapsed));
+        this.localStorage.set(LocalStorageKey.AdminNavCollapsed, collapsed);
     }
 
     /**
@@ -34,14 +37,14 @@ export class MenuStateService {
      * (the familiar top pill bar). Persisted; default = sidebar. Write-through (no effect()).
      */
     navLayout = signal<'horizontal' | 'sidebar'>(
-        localStorage.getItem(LocalStorageKey.AdminNavLayout) === 'horizontal' ? 'horizontal' : 'sidebar'
+        this.localStorage.get(LocalStorageKey.AdminNavLayout) === 'horizontal' ? 'horizontal' : 'sidebar'
     );
 
     /** Flip between sidebar and horizontal admin nav and persist the choice */
     toggleNavLayout(): void {
         const layout = this.navLayout() === 'sidebar' ? 'horizontal' : 'sidebar';
         this.navLayout.set(layout);
-        localStorage.setItem(LocalStorageKey.AdminNavLayout, layout);
+        this.localStorage.set(LocalStorageKey.AdminNavLayout, layout);
     }
 
     /** Fires when user requests dashboard customization (from header dropdown) */

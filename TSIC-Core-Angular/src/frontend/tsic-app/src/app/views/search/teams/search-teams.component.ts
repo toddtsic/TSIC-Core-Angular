@@ -10,6 +10,7 @@ import { LadtTreeFilterComponent } from '../registrations/components/ladt-tree-f
 import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
+import { LocalStorageService } from '@infrastructure/services/local-storage.service';
 
 import type {
 	TeamSearchRequest,
@@ -51,6 +52,7 @@ interface FilterChip {
 export class TeamSearchComponent implements OnInit, OnDestroy {
 	private readonly searchService = inject(TeamSearchService);
 	private readonly toast = inject(ToastService);
+	private readonly localStorage = inject(LocalStorageService);
 
 	readonly grid = viewChild.required<GridComponent>('grid');
 	readonly ladtTreeRef = viewChild<LadtTreeFilterComponent>('ladtTreeRef');
@@ -94,14 +96,14 @@ export class TeamSearchComponent implements OnInit, OnDestroy {
 	// toggle so a first-time user can't miss where filters live. Retires permanently
 	// the moment the panel is opened even once (persisted); by then they know the door.
 	// Shared key with Search Registrations — the two screens use the identical pattern.
-	showFilterHint = signal(localStorage.getItem(LocalStorageKey.SearchFiltersDiscovered) !== 'true');
+	showFilterHint = signal(!this.localStorage.get(LocalStorageKey.SearchFiltersDiscovered, false));
 
 	/** Toggle the filters fly-in; the first open retires the discovery hint for good. */
 	toggleFiltersPanel(): void {
 		this.isFiltersPanelOpen.set(!this.isFiltersPanelOpen());
 		if (this.showFilterHint()) {
 			this.showFilterHint.set(false);
-			localStorage.setItem(LocalStorageKey.SearchFiltersDiscovered, 'true');
+			this.localStorage.set(LocalStorageKey.SearchFiltersDiscovered, true);
 		}
 	}
 

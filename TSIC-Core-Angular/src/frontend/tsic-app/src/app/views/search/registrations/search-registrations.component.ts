@@ -19,6 +19,7 @@ import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cad
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
+import { LocalStorageService } from '@infrastructure/services/local-storage.service';
 
 import type {
   RegistrationSearchRequest,
@@ -67,6 +68,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   private readonly toast = inject(ToastService);
   private readonly jobService = inject(JobService);
   private readonly jobPulseService = inject(JobPulseService);
+  private readonly localStorage = inject(LocalStorageService);
 
   /** True when the current job is a tournament — hides self-reported club filter */
   isTournament = computed(() =>
@@ -169,14 +171,14 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   // the moment the panel is opened even once (persisted); by then they know the door.
   // Shared key with Search Teams — the two screens use the identical pattern, so
   // learning one teaches both.
-  showFilterHint = signal(localStorage.getItem(LocalStorageKey.SearchFiltersDiscovered) !== 'true');
+  showFilterHint = signal(!this.localStorage.get(LocalStorageKey.SearchFiltersDiscovered, false));
 
   /** Toggle the filters fly-in; the first open retires the discovery hint for good. */
   toggleFiltersPanel(): void {
     this.isFiltersPanelOpen.set(!this.isFiltersPanelOpen());
     if (this.showFilterHint()) {
       this.showFilterHint.set(false);
-      localStorage.setItem(LocalStorageKey.SearchFiltersDiscovered, 'true');
+      this.localStorage.set(LocalStorageKey.SearchFiltersDiscovered, true);
     }
   }
 

@@ -46,9 +46,9 @@ export interface LocalStorageSchema {
     [LocalStorageKey.LastJobPath]: string;
     [LocalStorageKey.AppTheme]: 'light' | 'dark';
     [LocalStorageKey.SelectedPalette]: number;
-    [LocalStorageKey.AdminNavCollapsed]: 'true' | 'false';
+    [LocalStorageKey.AdminNavCollapsed]: boolean;
     [LocalStorageKey.AdminNavLayout]: 'horizontal' | 'sidebar';
-    [LocalStorageKey.SearchFiltersDiscovered]: 'true';
+    [LocalStorageKey.SearchFiltersDiscovered]: boolean;
     [LocalStorageKey.SchedulePlacementMode]: 'mouse' | 'keyboard';
     [LocalStorageKey.AutoScheduleConfig]: string; // JSON-serialized AutoScheduleConfig
     [LocalStorageKey.ScheduleFilters]: string; // JSON-serialized ScheduleFiltersStoreV1
