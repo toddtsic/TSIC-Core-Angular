@@ -2,6 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
+import { skipErrorToast } from '@infrastructure/interceptors/http-error-context';
 import type {
 	AiComposeResponse,
 	RegistrationSearchRequest,
@@ -180,7 +181,12 @@ export class RegistrationSearchService {
 	}
 
 	getSubscription(registrationId: string): Observable<SubscriptionDetailDto> {
-		return this.http.get<SubscriptionDetailDto>(`${this.apiUrl}/${registrationId}/subscription`);
+		// Skip the generic 4xx toast — loadSubscription() shows a context-aware message
+		// (off Production the ADN sandbox can't resolve a production subscription id).
+		return this.http.get<SubscriptionDetailDto>(
+			`${this.apiUrl}/${registrationId}/subscription`,
+			{ context: skipErrorToast() }
+		);
 	}
 
 	cancelSubscription(registrationId: string): Observable<void> {

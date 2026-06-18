@@ -10,6 +10,7 @@ import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, Refun
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 import { FamilyPaymentComponent } from '@shared-ui/components/family-payment/family-payment.component';
+import { environment } from '@environments/environment';
 
 type TabType = 'details' | 'accounting' | 'email';
 
@@ -714,6 +715,13 @@ export class RegistrationDetailPanelComponent {
       error: () => {
         this.subscription.set(null);
         this.isLoadingSubscription.set(false);
+        // Subscriptions are created against the production Authorize.Net account. Off
+        // Production the gateway points at the sandbox, which can't resolve a production
+        // subscription id — explain that rather than implying the record is missing.
+        const msg = environment.envName === 'production'
+          ? 'Subscription not found.'
+          : `Can't confirm a production subscription id in the ${environment.envName} environment.`;
+        this.toast.show(msg, 'warning', 5000);
       }
     });
   }
