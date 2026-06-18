@@ -220,9 +220,40 @@ app-client-banner {
 	}
 }
 
+// Concluded notice — a calm, centered pill stating the event is over. Inline and
+// non-collapsing (the page keeps its schedule/rosters below); no .reveal class, so
+// it paints immediately and is unaffected by reduced-motion.
+.jl-concluded {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--space-2);
+	width: fit-content;
+	max-width: 92%;
+	margin: calc(-1 * var(--space-1)) auto var(--space-3);
+	padding: var(--space-2) var(--space-4);
+	border-radius: var(--radius-full);
+	background: var(--bg-surface, color-mix(in srgb, var(--brand-text-muted) 8%, transparent));
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-text-muted) 22%, transparent);
+	color: var(--brand-text-muted);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+
+	.bi {
+		font-size: 0.85em;
+	}
+}
+
+.jl-concluded__text {
+	white-space: nowrap;
+}
+
 // When the countdown is present it precedes the badges, so the hub drops its
 // banner-hugging negative pull and takes a normal small gap below the pill.
-.jl-countdown + app-action-hub {
+.jl-countdown + app-action-hub,
+.jl-concluded + app-action-hub {
 	margin-top: var(--space-2);
 }
 

@@ -56,6 +56,23 @@ public record JobPulseDto
     public DateTime? PlayerRegOpensSoonest { get; init; }
 
     /// <summary>
+    /// Earliest scheduled game date (Schedule.GDate) for this job, or null when no
+    /// games are scheduled. Day-granular. Combined with SchedulePublished, lets the
+    /// landing hero tell "schedule published but season not started yet" (preEvent,
+    /// FirstGameDate in the future) from "in season" (FirstGameDate today or past).
+    /// </summary>
+    public DateTime? FirstGameDate { get; init; }
+
+    /// <summary>
+    /// Latest scheduled game date (Schedule.GDate) for this job, or null when no
+    /// games are scheduled. Day-granular. Once SchedulePublished and this has fully
+    /// passed, the event is concluded — the landing hero suppresses registration
+    /// CTAs and the countdown regardless of any director toggle left on. This is the
+    /// factual "event is over" signal, independent of the registration flags.
+    /// </summary>
+    public DateTime? LastGameDate { get; init; }
+
+    /// <summary>
     /// When set, a later-year sibling event (same customer, same name prefix
     /// with the year stripped) is currently accepting registration. Treat the
     /// current job as superseded — hide registration CTAs and surface a

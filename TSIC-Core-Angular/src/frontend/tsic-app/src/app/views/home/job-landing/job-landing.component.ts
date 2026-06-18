@@ -20,6 +20,51 @@ import { ViewScheduleService } from '@views/scheduling/view-schedule/services/vi
 import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
 import { ActionHubComponent, HubItem } from '@layouts/components/action-hub/action-hub.component';
 
+/**
+ * The event's lifecycle position, derived from facts (schedule released + the
+ * first/last game dates vs now), NOT from the director's registration toggles —
+ * which are routinely left on after an event ends. Precedence is first-match in
+ * the `phase` computed below.
+ */
+type EventPhase =
+	| 'suspended'        // public access suspended
+	| 'superseded'       // a live later-year sibling exists — page redirects to it
+	| 'concluded'        // schedule published AND the last game day has fully passed
+	| 'inSeason'         // schedule published AND the first game day has arrived
+	| 'preEvent'         // schedule published, first game still in the future
+	| 'registrationOpen' // registration (player/team) accepting, or a club rep with teams
+	| 'planned'          // registration announced/planned but not yet open
+	| 'preview';         // nothing actionable yet
+
+/**
+ * Which CTA keys are *eligible* in each phase. A candidate is built only when its
+ * own data flag is set (store has items, schedule published, …); this set then
+ * removes the ones that don't belong in the lifecycle stage. That filter is what
+ * lets a finished event ignore a Register toggle a director left on.
+ */
+const CTAS_BY_PHASE: Record<EventPhase, ReadonlySet<string>> = {
+	suspended: new Set(),
+	superseded: new Set(),
+	preview: new Set(),
+	planned: new Set(['store']),
+	concluded: new Set(['pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters']),
+	inSeason: new Set(['my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance']),
+	preEvent: new Set(['my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance']),
+	registrationOpen: new Set(['register-player', 'my-registration', 'pay-balance', 'register-team', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance'])
+};
+
+/** Per-phase emphasis order: the first key present in the resolved items leads. */
+const PRIMARY_BY_PHASE: Record<EventPhase, readonly string[]> = {
+	suspended: [],
+	superseded: [],
+	preview: [],
+	concluded: ['pay-balance', 'view-schedule', 'rosters'],
+	inSeason: ['pay-balance', 'view-schedule'],
+	preEvent: ['pay-balance', 'view-schedule'],
+	registrationOpen: ['pay-balance', 'my-registration', 'register-player', 'my-teams', 'register-team'],
+	planned: ['store']
+};
+
 @Component({
 	selector: 'app-job-landing',
 	standalone: true,
@@ -68,6 +113,33 @@ export class JobLandingComponent implements OnDestroy {
 		return '';
 	});
 
+	// The event's lifecycle phase, derived from FACTS (schedule released + first/
+	// last game dates vs today), not from the director's registration toggles.
+	// First match wins. This is the core of the "smart" hero: a finished event
+	// (concluded) or an in-progress one (inSeason) outranks the registration
+	// flags, so a Register toggle left on after the last game can't resurrect a
+	// "Register Player" card. Local start-of-day comparisons (wall-clock convention).
+	readonly phase = computed<EventPhase>(() => {
+		const p = this.pulse();
+		if (!p) return 'preview';
+		if (p.publicSuspended) return 'suspended';
+		if (p.supersededByLaterEvent) return 'superseded';
+		const today = this.startOfDay(new Date()).getTime();
+		const lastGame = p.lastGameDate ? this.startOfDay(new Date(p.lastGameDate)).getTime() : null;
+		// Concluded = released AND the last game day has fully passed (strict <,
+		// so the last game day itself still reads in-season).
+		if (p.schedulePublished && lastGame !== null && lastGame < today) return 'concluded';
+		const firstGame = p.firstGameDate ? this.startOfDay(new Date(p.firstGameDate)).getTime() : null;
+		if (p.schedulePublished && firstGame !== null && firstGame <= today) return 'inSeason';
+		if (p.schedulePublished) return 'preEvent';
+		if (p.playerRegistrationOpen || p.teamRegistrationOpen || (p.myClubRepTeamCount ?? 0) > 0) return 'registrationOpen';
+		if (p.playerRegistrationPlanned || p.adultRegistrationPlanned || p.playerRegOpensSoonest != null) return 'planned';
+		return 'preview';
+	});
+
+	/** Drives the inline "this event has concluded" notice (decoupled from supersession). */
+	readonly isConcluded = computed(() => this.phase() === 'concluded');
+
 	// Grounded landing CTAs (LandingCta placement), derived from the live pulse —
 	// the canonical "what's open" snapshot. INTERIM: this thin pulse→action mapping
 	// runs client-side so the hero works in-context now; the full server nav-merge
@@ -81,124 +153,150 @@ export class JobLandingComponent implements OnDestroy {
 		const p = this.pulse();
 		const jp = this.activeJobPath();
 		if (!p || !jp) return [];
+		const phase = this.phase();
+		const allowed = CTAS_BY_PHASE[phase];
+		if (!allowed.size) return [];
 		const base = `/${jp}`;
 		// A viewer who already holds a registration in this job (has a regId) is
 		// past the "register" stage: a Player/Family sees "My Registration" in
-		// place of "Register Player" (same target as the top-right menu), and the
-		// public register CTAs are suppressed. Anonymous viewers still register.
+		// place of "Register Player". Anonymous viewers still register.
 		const user = this.auth.currentUser();
 		const registered = !!user?.regId;
 		const isPlayerOrFamily = user?.role === Roles.Player || user?.role === Roles.Family;
-		const items: HubItem[] = [];
-		if (p.playerRegistrationOpen) {
-			if (registered && isPlayerOrFamily) {
-				items.push({ key: 'my-registration', label: 'My Registration', icon: 'bi-person-badge', routerLink: `${base}/registration/player`, queryParams: { step: 'players' } });
-			} else if (!registered) {
-				items.push({ key: 'register-player', label: 'Register Player', icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
-			}
-		}
-		// Pay Balance Due — a registered Player/Family that still owes. Available
-		// regardless of the registration window (you can always settle a balance).
-		if (registered && isPlayerOrFamily && (p.myRegistrationOwedTotal ?? 0) > 0) {
-			items.push({ key: 'pay-balance', label: 'Pay Balance Due', icon: 'bi-cash-stack', routerLink: `${base}/registration/player`, queryParams: { step: 'payment' } });
-		}
 
-		// A registered Club Rep with >=1 team manages them via "My Teams" (deep-link
-		// to the teams step) in place of the public Register Team CTA. myClubRepTeamCount
-		// is only populated for a Club Rep scoped to this job, so > 0 encodes both role
-		// and has-registration. Otherwise, once schedules publish team rosters lock —
-		// suppress Register Team.
+		// Candidate destinations, gated ONLY by data availability — never by the
+		// lifecycle. The phase's allowed-set (above) then drops the ones that don't
+		// belong in this stage; that filter is what sees through a stale toggle.
+		const candidates: HubItem[] = [];
+		if (p.playerRegistrationOpen && !registered) {
+			candidates.push({ key: 'register-player', label: 'Register Player', icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
+		}
+		if (registered && isPlayerOrFamily) {
+			candidates.push({ key: 'my-registration', label: 'My Registration', icon: 'bi-person-badge', routerLink: `${base}/registration/player`, queryParams: { step: 'players' } });
+		}
+		// Pay Balance Due — a registered Player/Family that still owes. Survives into
+		// concluded (you can always settle a balance after the event).
+		if (registered && isPlayerOrFamily && (p.myRegistrationOwedTotal ?? 0) > 0) {
+			candidates.push({ key: 'pay-balance', label: 'Pay Balance Due', icon: 'bi-cash-stack', routerLink: `${base}/registration/player`, queryParams: { step: 'payment' } });
+		}
+		if (p.teamRegistrationOpen && !registered) {
+			candidates.push({ key: 'register-team', label: 'Register Team', icon: 'bi-people', routerLink: `${base}/registration/team` });
+		}
+		// A Club Rep with >=1 team manages/reviews them via "My Teams" (deep-link to
+		// the teams step). myClubRepTeamCount is only populated for a Club Rep scoped
+		// to this job, so > 0 encodes both role and has-teams.
 		if ((p.myClubRepTeamCount ?? 0) > 0) {
-			items.push({ key: 'my-teams', label: 'My Teams', icon: 'bi-people', routerLink: `${base}/registration/team`, queryParams: { step: 'teams' } });
-		} else if (p.teamRegistrationOpen && !p.schedulePublished && !registered) {
-			items.push({ key: 'register-team', label: 'Register Team', icon: 'bi-people', routerLink: `${base}/registration/team` });
+			candidates.push({ key: 'my-teams', label: 'My Teams', icon: 'bi-people', routerLink: `${base}/registration/team`, queryParams: { step: 'teams' } });
 		}
 		if (p.schedulePublished) {
-			items.push({ key: 'view-schedule', label: 'View Schedule', icon: 'bi-calendar-event', routerLink: `${base}/schedule` });
+			candidates.push({ key: 'view-schedule', label: phase === 'concluded' ? 'Final Schedule' : 'View Schedule', icon: 'bi-calendar-event', routerLink: `${base}/schedule` });
 		}
 		if (p.storeHasActiveItems) {
-			items.push({ key: 'store', label: 'Store', icon: 'bi-bag', routerLink: `${base}/store` });
+			candidates.push({ key: 'store', label: 'Store', icon: 'bi-bag', routerLink: `${base}/store` });
 		}
 		if (p.allowRosterViewPlayer) {
-			items.push({ key: 'rosters', label: 'Rosters', icon: 'bi-card-checklist', routerLink: `${base}/rosters/public` });
+			candidates.push({ key: 'rosters', label: 'Rosters', icon: 'bi-card-checklist', routerLink: `${base}/rosters/public` });
 		}
 		if (p.offerPlayerRegsaverInsurance) {
-			items.push({ key: 'player-insurance', label: 'Insurance Update', icon: 'bi-shield-check', routerLink: `${base}/PlayerVIUpdate` });
+			candidates.push({ key: 'player-insurance', label: 'Insurance Update', icon: 'bi-shield-check', routerLink: `${base}/PlayerVIUpdate` });
 		}
 
-		// The single emphasized (primary) action is chosen from the event's
-		// lifecycle stage, not a fixed action: once schedules publish the event
-		// is in-season and the schedule dominates visitor intent; before that,
-		// registration leads. The primary is floated to the front of the row.
-		// A balance due is the urgent action — it leads ahead of the lifecycle
-		// pick. Otherwise the schedule (in-season) or registration (pre-season).
-		const primaryKey = items.some(i => i.key === 'pay-balance')
-			? 'pay-balance'
-			: p.schedulePublished
-				? 'view-schedule'
-				: p.playerRegistrationOpen
-					? (registered ? 'my-registration' : 'register-player')
-					: (p.myClubRepTeamCount ?? 0) > 0
-						? 'my-teams'
-						: p.teamRegistrationOpen
-							? 'register-team'
-							: items[0]?.key;
+		const items = candidates.filter(i => allowed.has(i.key));
+		if (!items.length) return items;
 
-		// Fall back to the first available action when the lifecycle-preferred
-		// primary isn't present (e.g. a registered viewer with register suppressed).
-		let primaryIdx = items.findIndex(i => i.key === primaryKey);
-		if (primaryIdx < 0 && items.length) primaryIdx = 0;
+		// Primary = the first phase-preferred key present; else the first item.
+		// Floated to the front with emphasis (immutable copy — feeds an OnPush input).
+		const prefs = PRIMARY_BY_PHASE[phase];
+		let primaryIdx = -1;
+		for (const key of prefs) {
+			primaryIdx = items.findIndex(i => i.key === key);
+			if (primaryIdx >= 0) break;
+		}
+		if (primaryIdx < 0) primaryIdx = 0;
 		if (primaryIdx > 0) {
 			const [primary] = items.splice(primaryIdx, 1);
 			items.unshift({ ...primary, emphasis: 'primary' });
-		} else if (primaryIdx === 0) {
+		} else {
 			items[0] = { ...items[0], emphasis: 'primary' };
 		}
 		return items;
 	});
 
-	// Registration deadline countdown for the public hero. INTERIM (anonymous
-	// only): a logged-in registrant gets a personalized "next deadline" in a
-	// later slice; for now we suppress it for anyone holding a regId. Tied to the
-	// same gate as the Register Player CTA (playerRegistrationOpen), driven by the
-	// pulse's aggregated team-window dates. Tone softens with distance.
-	readonly registrationCountdown = computed<{ text: string; tone: 'open' | 'upcoming' } | null>(() => {
+	// Phase-aware status line for the public hero (anonymous-leaning; a logged-in
+	// registrant's personalized deadline is a later slice). Pre-event shows when
+	// the games begin; registration-open shows the closing/opening countdown;
+	// planned announces upcoming registration. Concluded/in-season show no line
+	// (the concluded notice and the inline game clock carry those). Tone softens
+	// with distance. The open-ended far-future deadline is intentionally suppressed.
+	readonly heroStatus = computed<{ text: string; tone: 'open' | 'upcoming' } | null>(() => {
 		if (this.auth.isAdmin()) return null;
 		const p = this.pulse();
-		if (!p || !p.playerRegistrationOpen) return null;
-		if (this.auth.currentUser()?.regId) return null;
-		if (p.playerRegClosesSoonest) {
-			const text = this.formatDeadline(p.playerRegClosesSoonest, 'closes');
-			return text ? { text, tone: 'open' } : null;
+		if (!p) return null;
+		switch (this.phase()) {
+			case 'preEvent': {
+				const text = p.firstGameDate ? this.formatEventStart(p.firstGameDate) : null;
+				return text ? { text, tone: 'upcoming' } : null;
+			}
+			case 'planned': {
+				const dated = p.playerRegOpensSoonest ? this.formatDeadline(p.playerRegOpensSoonest, 'opens') : null;
+				return { text: dated ?? 'Registration opening soon', tone: 'upcoming' };
+			}
+			case 'registrationOpen': {
+				// Suppressed for anyone holding a regId (they've registered).
+				if (this.auth.currentUser()?.regId) return null;
+				if (p.playerRegClosesSoonest) {
+					const text = this.formatDeadline(p.playerRegClosesSoonest, 'closes');
+					return text ? { text, tone: 'open' } : null;
+				}
+				if (p.playerRegOpensSoonest) {
+					const text = this.formatDeadline(p.playerRegOpensSoonest, 'opens');
+					return text ? { text, tone: 'upcoming' } : null;
+				}
+				return null;
+			}
+			default:
+				return null;
 		}
-		if (p.playerRegOpensSoonest) {
-			const text = this.formatDeadline(p.playerRegOpensSoonest, 'opens');
-			return text ? { text, tone: 'upcoming' } : null;
-		}
-		return null;
 	});
 
+	/** Local start-of-day (calendar-day comparisons, not raw 24h spans). */
+	private startOfDay(d: Date): Date {
+		const x = new Date(d);
+		x.setHours(0, 0, 0, 0);
+		return x;
+	}
+
 	// Day-granularity phrasing that softens as the deadline recedes (~14-day
-	// urgency threshold — easy to tune). Calendar-day diff, not raw 24h spans.
+	// urgency threshold). Returns null past the threshold: a far-off date isn't
+	// urgent, so no line shows — the Register CTA itself signals availability.
 	private formatDeadline(iso: string, mode: 'closes' | 'opens'): string | null {
 		const target = new Date(iso);
 		if (Number.isNaN(target.getTime())) return null;
-		const startOfToday = new Date();
-		startOfToday.setHours(0, 0, 0, 0);
-		const startOfTarget = new Date(target);
-		startOfTarget.setHours(0, 0, 0, 0);
-		const days = Math.round((startOfTarget.getTime() - startOfToday.getTime()) / 86_400_000);
-		const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(target);
+		const days = Math.round((this.startOfDay(target).getTime() - this.startOfDay(new Date()).getTime()) / 86_400_000);
 		if (mode === 'closes') {
 			if (days <= 0) return 'Registration closes today';
 			if (days === 1) return 'Registration closes tomorrow';
 			if (days <= 14) return `Registration closes in ${days} days`;
-			return `Registration open through ${dateLabel}`;
+			return null;
 		}
 		if (days <= 0) return 'Registration opens today';
 		if (days === 1) return 'Registration opens tomorrow';
 		if (days <= 14) return `Registration opens in ${days} days`;
-		return `Registration opens ${dateLabel}`;
+		return null;
+	}
+
+	// "Event begins …" for the pre-event phase. Unlike registration, a far-future
+	// game date is still worth showing (it's the event itself), so it keeps the
+	// dated form past the urgency window.
+	private formatEventStart(iso: string): string | null {
+		const target = new Date(iso);
+		if (Number.isNaN(target.getTime())) return null;
+		const days = Math.round((this.startOfDay(target).getTime() - this.startOfDay(new Date()).getTime()) / 86_400_000);
+		if (days <= 0) return 'Event begins today';
+		if (days === 1) return 'Event begins tomorrow';
+		if (days <= 14) return `Event begins in ${days} days`;
+		const dateLabel = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' }).format(target);
+		return `Event begins ${dateLabel}`;
 	}
 
 	// Stale event with a live later-year sibling — collapses the entire page

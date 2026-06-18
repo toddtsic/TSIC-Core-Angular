@@ -532,6 +532,16 @@ public class JobRepository : IJobRepository
                             && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
                             && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist"))
                         .Min(t => (DateTime?)t.Effectiveasofdate),
+                    // Factual event bounds from the published schedule (day-granular).
+                    // The hero derives "in season" / "concluded" from these vs now,
+                    // so a director toggle left on after the last game can't keep the
+                    // event looking live. Null when no games are scheduled.
+                    FirstGameDate = _context.Schedule
+                        .Where(s => s.JobId == j.JobId && s.GDate != null)
+                        .Min(s => (DateTime?)s.GDate),
+                    LastGameDate = _context.Schedule
+                        .Where(s => s.JobId == j.JobId && s.GDate != null)
+                        .Max(s => (DateTime?)s.GDate),
                     SupersededByLaterEvent = null
                 },
                 j.JobId,
