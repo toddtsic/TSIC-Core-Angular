@@ -35,6 +35,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
     private readonly IRegistrationRepository _registrations;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentStateService _paymentState;
+    private readonly IVerticalInsureService _verticalInsure;
 
     public PlayerRegistrationPaymentController(
         IJobLookupService jobLookupService,
@@ -43,6 +44,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         IRegistrationRepository registrations,
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentStateService paymentState,
+        IVerticalInsureService verticalInsure,
         ILogger<PlayerRegistrationPaymentController> logger)
     {
         _jobLookupService = jobLookupService;
@@ -51,6 +53,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         _registrations = registrations;
         _feeAdjustment = feeAdjustment;
         _paymentState = paymentState;
+        _verticalInsure = verticalInsure;
         _logger = logger;
     }
 
@@ -329,6 +332,16 @@ public class PlayerRegistrationPaymentController : ControllerBase
         var successCount = results.Count(r => r.Success);
         var failureCount = results.Count(r => !r.Success);
 
+        // Rebuild the VerticalInsure offer off the now-persisted discount so the embedded widget
+        // can remount with the corrected insurable amount. Same builder PreSubmit uses, run against
+        // the just-saved regs — not a competing source of truth. Only when something actually
+        // changed; BuildOfferAsync self-gates to Available=false when VI isn't offered for the job.
+        PreSubmitInsuranceDto? insuranceOffer = null;
+        if (successCount > 0)
+        {
+            insuranceOffer = await _verticalInsure.BuildOfferAsync(jobId.Value, familyUserId);
+        }
+
         var response = new ApplyDiscountResponseDto
         {
             Success = successCount > 0,
@@ -338,7 +351,8 @@ public class PlayerRegistrationPaymentController : ControllerBase
             SuccessCount = successCount,
             FailureCount = failureCount,
             Results = results,
-            UpdatedFinancials = updatedFinancials
+            UpdatedFinancials = updatedFinancials,
+            InsuranceOffer = insuranceOffer
         };
 
         _logger.LogInformation("ApplyDiscount completed: success={Success} totalDiscount={TotalDiscount} processed={Processed} succeeded={Succeeded} failed={Failed}",

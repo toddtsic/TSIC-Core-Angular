@@ -43,6 +43,12 @@ public sealed record ApplyDiscountResponseDto
     public required List<PlayerDiscountResult> Results { get; init; }
     // Updated financials for successfully discounted players (key = playerId)
     public required Dictionary<string, RegistrationFinancialsDto> UpdatedFinancials { get; init; } = new();
+    // Refreshed VerticalInsure offer, rebuilt off the now-stamped discount, so the embedded widget
+    // can remount with the corrected insurable amount (FullPrice − FeeDiscount + FeeLatefee). Null
+    // when no discount was applied or VI is not offered for this job. Optional by design — the
+    // early-return failure responses leave it null. Rebuilt by the SAME BuildOfferAsync PreSubmit
+    // uses (against the already-persisted regs), so it never becomes a competing source of truth.
+    public PreSubmitInsuranceDto? InsuranceOffer { get; init; }
 }
 
 public sealed record PlayerDiscountResult

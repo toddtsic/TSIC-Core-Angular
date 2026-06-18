@@ -1150,11 +1150,35 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                         this.teamReg.getTeamsMetadata()
                             .pipe(takeUntilDestroyed(this.destroyRef))
                             .subscribe({
-                                next: meta => this.state.applyTeamsMetadata(meta),
+                                next: meta => {
+                                    this.state.applyTeamsMetadata(meta);
+                                    this.refreshViAfterDiscount();
+                                },
                             });
                     }
                 },
             });
+    }
+
+    /** Re-fetch the VI offer (rebuilt server-side off the now-stamped discount) and remount the
+     *  widget so it re-quotes at the corrected insurable amount. Conditional: only when VI is
+     *  offered and not declined — a declined offer needs no fresh premium. When the rep HAD an
+     *  active selection, the remount clears it, so warn them to re-confirm at the new price. */
+    private refreshViAfterDiscount(): void {
+        if (!this.insuranceState.offerTeamRegSaver()) return;
+        if (!this.insuranceState.verticalInsureOffer().data) return;
+        // Live widget state, captured BEFORE reset() wipes it: "declined" = responded with no quotes.
+        const declined = this.insuranceSvc.hasUserResponse() && this.insuranceSvc.quotes().length === 0;
+        if (declined) return;
+        const hadSelection = this.insuranceSvc.quotes().length > 0;
+        this.insuranceSvc.reset();
+        this.insuranceOfferLoaded.set(false);
+        this.viInitRetries = 0;
+        clearTimeout(this.viInitTimeout);
+        this.viInitTimeout = setTimeout(() => this.loadAndInitVi(), 0);
+        if (hadSelection) {
+            this.toast.show('Your discount changed the insurance price — please re-confirm your insurance selection below.', 'info', 6000);
+        }
     }
 
     submit(): void {

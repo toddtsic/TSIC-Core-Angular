@@ -1,5 +1,5 @@
 import { Injectable, inject, computed, signal } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, firstValueFrom } from 'rxjs';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import { formatHttpError } from '@views/registration/shared/utils/error-utils';
@@ -324,8 +324,11 @@ export class PaymentV2Service {
         this._discountAppliedOk.set(false);
     }
 
-    applyDiscount(code: string): void {
-        if (!code || this._discountApplying()) return;
+    /** Apply a discount code to the current line items. Resolves with the server response on a
+     *  successful apply (after the financials reload completes), or null on a no-op/failure — the
+     *  caller awaits this to remount the VerticalInsure widget against the refreshed offer. */
+    applyDiscount(code: string): Promise<ApplyDiscountResponseDto | null> {
+        if (!code || this._discountApplying()) return Promise.resolve(null);
         // Each item's amount must equal what that line actually contributes to currentTotal,
         // otherwise the gate (currentTotal > 0) can show the input while every item is 0 and the
         // backend rejects with "No valid players for discount". lineItems() already resolves each
@@ -337,39 +340,54 @@ export class PaymentV2Service {
             ({ playerId: li.playerId, teamId: li.teamId, amount: li.amount }));
         if (items.length === 0) {
             this._discountMessage.set('No payable items eligible for discount');
-            return;
+            return Promise.resolve(null);
         }
         this._discountApplying.set(true);
         this._discountMessage.set(null);
         this._discountAppliedOk.set(false);
         const req: ApplyDiscountRequestDto = { jobPath: this.jobCtx.jobPath(), code, items };
-        this.http.post<ApplyDiscountResponseDto>(`${environment.apiUrl}/player-registration/apply-discount`, req)
-            .subscribe({
-                next: (resp: ApplyDiscountResponseDto) => {
-                    const total = resp?.totalDiscount ?? 0;
-                    if (resp?.success && toNumber(total) > 0) {
-                        this._discountAppliedOk.set(true);
-                        this._discountMessage.set(resp?.message || 'Discount applied');
-                        // Reload family players — the server has already persisted the
-                        // discount, so the reload brings back correct financials.
-                        // Spinner stays on until the reload completes so the UI
-                        // doesn't flash stale amounts between POST and reload.
-                        const jobPath = this.jobCtx.jobPath();
-                        const apiBase = this.jobCtx.resolveApiBase();
-                        this.fp.loadFamilyPlayersOnce(jobPath, apiBase)
-                            .catch(err => console.warn('[PaymentV2] refresh after discount failed', err))
-                            .finally(() => this._discountApplying.set(false));
-                    } else {
-                        this._discountApplying.set(false);
-                        this._discountAppliedOk.set(false);
-                        this._discountMessage.set(resp?.message || 'Invalid or ineligible discount code');
+        return firstValueFrom(
+            this.http.post<ApplyDiscountResponseDto>(`${environment.apiUrl}/player-registration/apply-discount`, req),
+        )
+            .then(async (resp: ApplyDiscountResponseDto) => {
+                const total = resp?.totalDiscount ?? 0;
+                if (resp?.success && toNumber(total) > 0) {
+                    this._discountAppliedOk.set(true);
+                    this._discountMessage.set(resp?.message || 'Discount applied');
+                    // Push the rebuilt VI offer (server recomputed the insurable amount off the
+                    // now-stamped discount) so the payment step can remount the widget with the
+                    // corrected premium. A full waiver yields available=false → data:null → the
+                    // offer region hides itself.
+                    const offer = resp?.insuranceOffer;
+                    if (offer) {
+                        this.jobCtx.setVerticalInsureOffer({
+                            loading: false,
+                            data: offer.available ? (offer.playerObject ?? null) : null,
+                            error: offer.error ?? null,
+                        });
                     }
-                },
-                error: (err: HttpErrorResponse) => {
-                    this._discountApplying.set(false);
-                    this._discountAppliedOk.set(false);
-                    this._discountMessage.set(formatHttpError(err));
-                },
+                    // Reload family players — the server has already persisted the discount, so the
+                    // reload brings back correct financials. Spinner stays on until the reload
+                    // completes so the UI doesn't flash stale amounts between POST and reload.
+                    try {
+                        await this.fp.loadFamilyPlayersOnce(this.jobCtx.jobPath(), this.jobCtx.resolveApiBase());
+                    } catch (err) {
+                        console.warn('[PaymentV2] refresh after discount failed', err);
+                    } finally {
+                        this._discountApplying.set(false);
+                    }
+                    return resp;
+                }
+                this._discountApplying.set(false);
+                this._discountAppliedOk.set(false);
+                this._discountMessage.set(resp?.message || 'Invalid or ineligible discount code');
+                return resp ?? null;
+            })
+            .catch((err: HttpErrorResponse) => {
+                this._discountApplying.set(false);
+                this._discountAppliedOk.set(false);
+                this._discountMessage.set(formatHttpError(err));
+                return null;
             });
     }
 

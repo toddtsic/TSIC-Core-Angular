@@ -8,6 +8,7 @@ using System.Security.Claims;
 using TSIC.API.Controllers;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -99,6 +100,10 @@ public class DiscountCodeTests
             .ReturnsAsync(TSIC.Contracts.Payments.PaymentState.Empty(bAddProcessingFees, processingFeePercent / 100m, 0.015m));
         var logger = new Mock<ILogger<PlayerRegistrationPaymentController>>();
 
+        var verticalInsure = new Mock<IVerticalInsureService>();
+        verticalInsure.Setup(v => v.BuildOfferAsync(It.IsAny<Guid>(), It.IsAny<string>()))
+            .ReturnsAsync(new PreSubmitInsuranceDto { Available = false });
+
         var controller = new PlayerRegistrationPaymentController(
             jobLookup.Object,
             paymentService.Object,
@@ -106,6 +111,7 @@ public class DiscountCodeTests
             registrationRepo,
             feeAdjustment,
             paymentState.Object,
+            verticalInsure.Object,
             logger.Object);
 
         var claims = new[] { new Claim(ClaimTypes.NameIdentifier, FamilyUserId) };

@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { PlayerDiscountResult } from './PlayerDiscountResult';
+import type { PreSubmitInsuranceDto } from './PreSubmitInsuranceDto';
 import type { RegistrationFinancialsDto } from './RegistrationFinancialsDto';
 export type ApplyDiscountResponseDto = {
     success: boolean;
@@ -13,5 +14,6 @@ export type ApplyDiscountResponseDto = {
     failureCount: number;
     results: Array<PlayerDiscountResult>;
     updatedFinancials: Record<string, RegistrationFinancialsDto>;
+    insuranceOffer?: (null | PreSubmitInsuranceDto);
 };
 

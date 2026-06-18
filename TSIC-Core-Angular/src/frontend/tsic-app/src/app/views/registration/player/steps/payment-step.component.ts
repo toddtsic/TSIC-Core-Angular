@@ -1103,9 +1103,31 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         this.paySvc.resetDiscount();
     }
 
-    applyDiscount(): void {
+    async applyDiscount(): Promise<void> {
         const code = this.discountCode().trim();
-        if (code) this.paySvc.applyDiscount(code);
+        if (!code) return;
+        const resp = await this.paySvc.applyDiscount(code);
+        if (resp?.success) this.refreshViAfterDiscount();
+    }
+
+    /** Remount the VI widget so it re-quotes off the discounted insurable amount (the server
+     *  rebuilt the offer in the apply-discount response). Conditional: only when VI is offered and
+     *  not declined — a declined offer needs no fresh premium. When the user HAD an active
+     *  selection, the remount clears it, so warn them to re-confirm at the new price. */
+    private refreshViAfterDiscount(): void {
+        if (!this.insuranceState.offerPlayerRegSaver()) return;
+        if (!this.insuranceState.verticalInsureOffer().data) return;
+        // Live widget state, captured BEFORE reset() wipes it: "declined" = responded with no quotes.
+        const declined = this.insuranceSvc.hasUserResponse() && this.insuranceSvc.quotes().length === 0;
+        if (declined) return;
+        const hadSelection = this.insuranceSvc.quotes().length > 0;
+        this.insuranceSvc.reset();
+        this.viInitRetries = 0;
+        clearTimeout(this.viInitTimeout);
+        this.viInitTimeout = setTimeout(() => this.tryInitVerticalInsure(), 0);
+        if (hadSelection) {
+            this.toast.show('Your discount changed the insurance price — please re-confirm your insurance selection below.', 'info', 6000);
+        }
     }
 
     // ── VerticalInsure widget ───────────────────────────────────────────
