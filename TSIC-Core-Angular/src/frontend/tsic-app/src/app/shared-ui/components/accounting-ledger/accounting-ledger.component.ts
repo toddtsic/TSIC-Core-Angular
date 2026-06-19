@@ -174,10 +174,30 @@ export class AccountingLedgerComponent {
 		return ageGroup ? `${ageGroup} · ${team}` : team;
 	}
 
+	/** True when the comment is the system-generated charge description
+	 *  (JobName:Player:AgeGroup:TeamName). Fully redundant in the family ledger now that the
+	 *  row shows the owning player and the assigned team — and the leading job name is noise
+	 *  in this job-scoped panel — so it's suppressed. Genuine manual comments don't match the
+	 *  owner/agegroup/team suffix and still show. */
+	isAutoChargeDescription(record: AccountingRecordDto): boolean {
+		const comment = record.comment?.trim();
+		const owner = record.ownerName?.trim();
+		const team = record.ownerTeamName?.trim();
+		if (!comment || !owner || !team) return false;
+		const ageGroup = record.ownerAgeGroupName?.trim();
+		const suffix = ageGroup ? `${owner}:${ageGroup}:${team}` : `${owner}:${team}`;
+		return comment.endsWith(suffix) && comment.length > suffix.length;
+	}
+
+	/** Comment to display — null when it's the redundant auto charge description. */
+	displayComment(record: AccountingRecordDto): string | null {
+		return this.isAutoChargeDescription(record) ? null : (record.comment ?? null);
+	}
+
 	/** True if this record has any detail worth showing in the popover. */
 	hasDetails(record: AccountingRecordDto): boolean {
 		return !!(record.adnTransactionId || record.adnInvoiceNo || record.checkNo
-			|| record.adnCcExpDate || record.promoCode || record.comment);
+			|| record.adnCcExpDate || record.promoCode || this.displayComment(record));
 	}
 
 	/** True if the payment method is a credit card type. */

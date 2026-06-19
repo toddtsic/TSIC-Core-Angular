@@ -62,9 +62,9 @@
     <tr class="txn-row">
       <td>
         @if (teamNameFor(record); as owner) { <div class="txn-owner">{{ owner }}</div> }
-        @if (ownerTeamLabel(record); as team) { <div class="txn-team"><i class="bi bi-people me-1"></i>{{ team }}</div> }
+        @if (ownerTeamLabel(record); as team) { <div class="txn-team"><i class="bi bi-person me-1"></i>{{ team }}</div> }
         <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
-        @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
+        @if (displayComment(record); as cmt) { <div class="txn-comment">{{ cmt }}</div> }
       </td>
       <td class="text-end amount">{{ record.dueAmount | currency }}</td>
       <td class="text-end amount paid-amount">{{ record.paidAmount | currency }}</td>
@@ -117,10 +117,10 @@
                       <span class="txn-popover-value">{{ record.promoCode }}</span>
                     </div>
                   }
-                  @if (record.comment) {
+                  @if (displayComment(record); as cmt) {
                     <div class="txn-popover-field">
                       <span class="txn-popover-label">Comment</span>
-                      <span class="txn-popover-value">{{ record.comment }}</span>
+                      <span class="txn-popover-value">{{ cmt }}</span>
                     </div>
                   }
                 </div>
