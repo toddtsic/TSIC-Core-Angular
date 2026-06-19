@@ -1116,11 +1116,22 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
      *  selection, the remount clears it, so warn them to re-confirm at the new price. */
     private refreshViAfterDiscount(): void {
         if (!this.insuranceState.offerPlayerRegSaver()) return;
-        if (!this.insuranceState.verticalInsureOffer().data) return;
+        const hadSelection = this.insuranceSvc.quotes().length > 0;
+        // A discount that zeroes the registration rebuilds the offer as unavailable (data=null):
+        // there is nothing left to insure. Clear any prior selection so a stale pre-discount
+        // premium is never charged for a now-free registration — clearing _quotes flips
+        // isViCcOnlyFlow / showCcSection off, so the insurance-charge path is unreachable.
+        // Nothing to remount.
+        if (!this.insuranceState.verticalInsureOffer().data) {
+            this.insuranceSvc.reset();
+            if (hadSelection) {
+                this.toast.show('Your discount made this registration free — the insurance you selected no longer applies and will not be charged.', 'info', 7000);
+            }
+            return;
+        }
         // Live widget state, captured BEFORE reset() wipes it: "declined" = responded with no quotes.
         const declined = this.insuranceSvc.hasUserResponse() && this.insuranceSvc.quotes().length === 0;
         if (declined) return;
-        const hadSelection = this.insuranceSvc.quotes().length > 0;
         this.insuranceSvc.reset();
         this.viInitRetries = 0;
         clearTimeout(this.viInitTimeout);
