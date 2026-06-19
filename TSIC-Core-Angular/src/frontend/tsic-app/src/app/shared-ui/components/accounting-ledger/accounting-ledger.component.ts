@@ -208,13 +208,14 @@ export class AccountingLedgerComponent {
 		this.paymentType() === 'check' && this.amount() > this.checkBalanceDue()
 	);
 
-	/** Correction bounds — invariant: paid balance stays in [0, FeeTotal].
-	 *  Upper = OwedTotal ("can't charge more than they owe"),
-	 *  lower = -PaidTotal ("can't credit more than they paid"). */
+	/** Correction bounds — functionally a two-way check: a positive correction can't
+	 *  "pay" more than the balance due (same cap as a check — CkOwedTotal, processing
+	 *  fees removed), and a negative correction can't "refund" more than they've paid.
+	 *  Upper = checkBalanceDue, lower = -PaidTotal. */
 	correctionExceedsBounds = computed(() => {
 		if (this.paymentType() !== 'correction') return false;
 		const amt = this.amount();
-		return amt > this.owedTotal() || amt < -this.paidTotal();
+		return amt > this.checkBalanceDue() || amt < -this.paidTotal();
 	});
 
 	openPaymentModal(): void {
@@ -302,7 +303,7 @@ export class AccountingLedgerComponent {
 			return amt > 0 && amt <= maxRefund;
 		}
 		if (type === 'correction') {
-			return amt !== 0 && amt <= this.owedTotal() && amt >= -this.paidTotal();
+			return amt !== 0 && amt <= this.checkBalanceDue() && amt >= -this.paidTotal();
 		}
 		return amt !== 0;
 	}

@@ -343,22 +343,14 @@
                 <input type="number" id="ledger-amount" class="form-control form-control-sm"
                   [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="1"
                   [min]="paymentType() === 'correction' ? -paidTotal() : 0"
-                  [max]="paymentType() === 'check' ? checkBalanceDue() : (paymentType() === 'correction' ? owedTotal() : null)" />
+                  [max]="paymentType() === 'cc' ? null : checkBalanceDue()" />
               </div>
-              @if (paymentType() !== 'correction') {
-                <div class="owed-badge" [class.text-danger]="owedTotal() > 0" [class.text-success]="owedTotal() <= 0">
-                  Balance Due: <strong>{{ paymentType() === 'cc' ? (owedTotal() | currency) : (checkBalanceDue() | currency) }}</strong>
-                  @if (paymentType() !== 'cc' && totalFeeReduction() > 0) {
-                    <div class="fee-note text-success"><small>{{ totalFeeReduction() | currency }} processing fees removed</small></div>
-                  }
-                </div>
-              } @else {
-                <small class="form-text text-muted">
-                  (+) payment up to {{ owedTotal() | currency }} owed
-                  &nbsp;·&nbsp;
-                  (&ndash;) refund up to {{ paidTotal() | currency }} paid
-                </small>
-              }
+              <div class="owed-badge" [class.text-danger]="checkBalanceDue() > 0" [class.text-success]="checkBalanceDue() <= 0">
+                Balance Due: <strong>{{ paymentType() === 'cc' ? (owedTotal() | currency) : (checkBalanceDue() | currency) }}</strong>
+                @if (paymentType() !== 'cc' && totalFeeReduction() > 0) {
+                  <div class="fee-note text-success"><small>{{ totalFeeReduction() | currency }} processing fees removed</small></div>
+                }
+              </div>
               @if (checkExceedsBalance()) {
                 <div class="form-text text-danger">
                   <small>Cannot exceed Balance Due of {{ checkBalanceDue() | currency }}.</small>
@@ -367,8 +359,8 @@
               @if (correctionExceedsBounds()) {
                 <div class="form-text text-danger">
                   <small>
-                    @if (amount() > owedTotal()) {
-                      Correction cannot exceed amount owed ({{ owedTotal() | currency }}).
+                    @if (amount() > checkBalanceDue()) {
+                      Correction cannot exceed Balance Due of {{ checkBalanceDue() | currency }}.
                     } @else {
                       Correction cannot exceed amount paid ({{ paidTotal() | currency }} refundable).
                     }
@@ -381,6 +373,25 @@
               <input type="text" id="ledger-comment" class="form-control form-control-sm"
                 [ngModel]="comment()" (ngModelChange)="comment.set($event)"
                 placeholder="Optional" />
+              @if (paymentType() === 'check') {
+                <div class="correction-note">
+                  <i class="bi bi-info-circle me-1"></i>
+                  <span>After recording a check payment, the registration automatically becomes <strong>Active</strong>.</span>
+                </div>
+              }
+              @if (paymentType() === 'correction') {
+                <div class="correction-note">
+                  <i class="bi bi-info-circle me-1"></i>
+                  <ul class="correction-hints">
+                    <li>A positive (+) amount <strong>decreases</strong> the amount owed.</li>
+                    <li>A negative (&ndash;) amount <strong>increases</strong> the amount owed.</li>
+                  </ul>
+                </div>
+                <div class="correction-note">
+                  <i class="bi bi-info-circle me-1"></i>
+                  <span>After recording a correction record for an Inactive registration, you may want to toggle them <strong>Active</strong> above.</span>
+                </div>
+              }
             </div>
           </div>
         </div>
