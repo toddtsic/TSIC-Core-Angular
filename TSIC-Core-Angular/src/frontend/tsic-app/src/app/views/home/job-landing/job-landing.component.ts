@@ -27,7 +27,6 @@ import { ActionHubComponent, HubItem } from '@layouts/components/action-hub/acti
  * the `phase` computed below.
  */
 type EventPhase =
-	| 'suspended'        // public access suspended
 	| 'superseded'       // a live later-year sibling exists — page redirects to it
 	| 'concluded'        // schedule published AND the last game day has fully passed
 	| 'inSeason'         // schedule published AND the first game day has arrived
@@ -43,7 +42,6 @@ type EventPhase =
  * lets a finished event ignore a Register toggle a director left on.
  */
 const CTAS_BY_PHASE: Record<EventPhase, ReadonlySet<string>> = {
-	suspended: new Set(),
 	superseded: new Set(),
 	preview: new Set(),
 	planned: new Set(['store']),
@@ -55,7 +53,6 @@ const CTAS_BY_PHASE: Record<EventPhase, ReadonlySet<string>> = {
 
 /** Per-phase emphasis order: the first key present in the resolved items leads. */
 const PRIMARY_BY_PHASE: Record<EventPhase, readonly string[]> = {
-	suspended: [],
 	superseded: [],
 	preview: [],
 	concluded: ['pay-balance', 'view-schedule', 'rosters'],
@@ -122,7 +119,6 @@ export class JobLandingComponent implements OnDestroy {
 	readonly phase = computed<EventPhase>(() => {
 		const p = this.pulse();
 		if (!p) return 'preview';
-		if (p.publicSuspended) return 'suspended';
 		if (p.supersededByLaterEvent) return 'superseded';
 		const today = this.startOfDay(new Date()).getTime();
 		const lastGame = p.lastGameDate ? this.startOfDay(new Date(p.lastGameDate)).getTime() : null;
