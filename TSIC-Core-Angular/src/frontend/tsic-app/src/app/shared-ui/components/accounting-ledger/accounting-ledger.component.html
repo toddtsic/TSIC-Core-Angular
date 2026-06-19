@@ -62,6 +62,7 @@
     <tr class="txn-row">
       <td>
         @if (teamNameFor(record); as owner) { <div class="txn-owner">{{ owner }}</div> }
+        @if (ownerTeamLabel(record); as team) { <div class="txn-team"><i class="bi bi-people me-1"></i>{{ team }}</div> }
         <div class="txn-primary">{{ record.date | date:'M/d/yy' }} · {{ record.paymentMethod }}@if (record.adnCc4) { <span class="cc4">****{{ record.adnCc4 }}</span>}</div>
         @if (record.comment) { <div class="txn-comment">{{ record.comment }}</div> }
       </td>
@@ -78,6 +79,12 @@
                   <span class="txn-popover-title">Transaction Details@if (teamNameFor(record); as tn) { · {{ tn }}}</span>
                 </div>
                 <div class="txn-popover-body">
+                  @if (ownerTeamLabel(record); as team) {
+                    <div class="txn-popover-field">
+                      <span class="txn-popover-label">Team</span>
+                      <span class="txn-popover-value">{{ team }}</span>
+                    </div>
+                  }
                   @if (isCcRecord(record)) {
                     @if (record.adnTransactionId) {
                       <div class="txn-popover-field">

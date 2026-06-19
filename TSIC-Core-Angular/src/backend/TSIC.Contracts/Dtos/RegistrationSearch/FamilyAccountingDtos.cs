@@ -47,6 +47,11 @@ public record RegisteredPlayerInfo
     // fee cascade (null when the player isn't on a team, so no deposit can be resolved).
     public Guid? AssignedTeamId { get; init; }
     public Guid? AgeGroupId { get; init; }
+    // Assigned team's display names — surfaced per-row in the family ledger so a director
+    // can tell which team (agegroup + name) each transaction belongs to when a parent has
+    // several players. Null when the player isn't yet on a team.
+    public string? AssignedTeamName { get; init; }
+    public string? AssignedAgeGroupName { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeDiscount { get; init; }

@@ -119,6 +119,19 @@
   text-overflow: ellipsis;
 }
 
+// Assigned-team line (family ledger) — which team the transaction belongs to.
+.txn-team {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  i {
+    color: var(--bs-primary);
+  }
+}
+
 .txn-primary {
   white-space: nowrap;
   overflow: hidden;

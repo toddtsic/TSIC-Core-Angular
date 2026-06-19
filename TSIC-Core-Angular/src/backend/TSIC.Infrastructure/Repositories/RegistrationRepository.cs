@@ -503,6 +503,8 @@ public class RegistrationRepository : IRegistrationRepository
                 RegistrationTs = r.RegistrationTs,
                 AssignedTeamId = r.AssignedTeamId,
                 AgeGroupId = r.AssignedTeam != null ? r.AssignedTeam.AgegroupId : (Guid?)null,
+                AssignedTeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
+                AssignedAgeGroupName = r.AssignedTeam != null ? r.AssignedTeam.Agegroup!.AgegroupName : null,
                 FeeBase = r.FeeBase,
                 FeeProcessing = r.FeeProcessing,
                 FeeDiscount = r.FeeDiscount,

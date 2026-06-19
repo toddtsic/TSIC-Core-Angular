@@ -21,6 +21,14 @@ public record AccountingRecordDto
     /// <summary>Display name of the owning child (family path only); null otherwise.</summary>
     public string? OwnerName { get; init; }
 
+    /// <summary>
+    /// Assigned team of the owning child (family path only) — lets the shared ledger show
+    /// which team each transaction belongs to when a parent has several players. Null when
+    /// the player isn't on a team, or on the single-player / club-rep paths.
+    /// </summary>
+    public string? OwnerTeamName { get; init; }
+    public string? OwnerAgeGroupName { get; init; }
+
     public required DateTime? Date { get; init; }
     public required string PaymentMethod { get; init; }
     public required decimal? DueAmount { get; init; }

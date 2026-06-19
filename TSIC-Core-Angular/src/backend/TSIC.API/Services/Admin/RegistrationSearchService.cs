@@ -176,7 +176,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             records.AddRange(recs.Select(r => r with
             {
                 OwnerRegistrationId = p.RegistrationId,
-                OwnerName = p.PlayerName
+                OwnerName = p.PlayerName,
+                OwnerTeamName = p.AssignedTeamName,
+                OwnerAgeGroupName = p.AssignedAgeGroupName
             }));
         }
 

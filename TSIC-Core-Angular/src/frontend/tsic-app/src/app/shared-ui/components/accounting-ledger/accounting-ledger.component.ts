@@ -163,6 +163,17 @@ export class AccountingLedgerComponent {
 		return this.effectiveGroups().find(g => g.key === k)?.label ?? null;
 	}
 
+	/** The owning player's assigned team for a record (family path) — "AgeGroup · TeamName".
+	 *  Lets a director tell which team a transaction belongs to when a parent registered
+	 *  several players. Null when the record carries no assigned-team stamp (single-player /
+	 *  club-rep paths, or a player not yet on a team). */
+	ownerTeamLabel(record: AccountingRecordDto): string | null {
+		const team = record.ownerTeamName?.trim();
+		if (!team) return null;
+		const ageGroup = record.ownerAgeGroupName?.trim();
+		return ageGroup ? `${ageGroup} · ${team}` : team;
+	}
+
 	/** True if this record has any detail worth showing in the popover. */
 	hasDetails(record: AccountingRecordDto): boolean {
 		return !!(record.adnTransactionId || record.adnInvoiceNo || record.checkNo
