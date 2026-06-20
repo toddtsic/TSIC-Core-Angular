@@ -109,10 +109,19 @@ export class AdultWizardV2Component implements OnInit {
     ngOnInit(): void {
         this.state.reset();
 
-        // Always start with a clean session. The user re-authenticates (via embedded
-        // login) or creates a new account for this specific adult role — we don't
-        // inherit whoever happened to be logged in previously.
-        this.auth.logoutLocal();
+        // Start with a clean session UNLESS the user is mid-login, returning from the
+        // ToS page. That bounce-back leaves a Phase-1 token (no regId): the embedded
+        // login authenticated, redirected to ToS before the account step could resume
+        // via onLoginContinue(), and navigated straight back here. Preserving that
+        // token lets the account step pick the login back up (see
+        // AccountStepComponent.ngOnInit) instead of forcing a second sign-in. A *full*
+        // session (regId present) is some previously-logged-in user we don't want to
+        // inherit for this role-specific wizard, so that we still clear.
+        // (Mirrors the team login-step ToS bounce-back fix cd0ee1dd.)
+        const existing = this.auth.currentUser();
+        if (existing?.regId) {
+            this.auth.logoutLocal();
+        }
 
         // Walk up the route tree to find the jobPath param (lives on a grandparent
         // route — same pattern as the player wizard's resolveJobPath).

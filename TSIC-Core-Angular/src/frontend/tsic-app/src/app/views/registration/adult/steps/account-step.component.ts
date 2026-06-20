@@ -562,12 +562,25 @@ export class AccountStepComponent implements OnInit {
     readonly showConfirm = signal(false);
 
     ngOnInit(): void {
-        // Wizard called auth.logoutLocal() on init; we always start fresh.
-        // Clear any stale credentials (e.g. browser autofill tried to fill them).
+        // Clear any stale create-form credentials (e.g. browser autofill, or values
+        // left over from prior navigation within the wizard).
         this.state.setUsername('');
         this.state.setPassword('');
         this.state.setConfirmPassword('');
         this.state.setAcceptedTos(false);
+
+        // ToS bounce-back resume: the embedded login authenticated, then redirected to
+        // the ToS page before onLoginContinue() could run, and navigated back here on a
+        // Phase-1 token (no regId — the wizard preserved it; see adult.component.ts).
+        // Pick the login back up so the returning user lands on the account summary
+        // instead of being asked to sign in a second time. onLoginContinue() already
+        // runs on a Phase-1 token in the normal login-success flow, so resuming it here
+        // is identical. A full session (regId present) means the user stepped back
+        // within the wizard — the summary is already hydrated, so leave it alone.
+        const user = this.auth.currentUser();
+        if (user && !user.regId) {
+            void this.onLoginContinue();
+        }
     }
 
     returnUrl(): string {
