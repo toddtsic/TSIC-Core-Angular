@@ -92,6 +92,12 @@ export class AccountingLedgerComponent {
 	 *  whose family-wide charge is a fast-follow; per-row refunds remain available. */
 	allowAdd = input<boolean>(true);
 
+	/** Shows the active/inactive activation hints in the check & correction forms ("…becomes
+	 *  Active", "…you may want to toggle them Active"). On for player/registration scopes, whose
+	 *  registrations start Inactive until paid. Off for the team scope — teams are created Active
+	 *  at registration, so the hints are irrelevant and misleading. */
+	showActivationNotes = input<boolean>(true);
+
 	/** Registrations a new record can attach to. Empty / single → no picker (the modal opens
 	 *  straight to the form, using the input balances). More than one → the modal first asks
 	 *  which registration, then bounds its amounts to that target. The family ledger supplies one

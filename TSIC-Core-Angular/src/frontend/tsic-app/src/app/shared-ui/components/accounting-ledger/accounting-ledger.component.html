@@ -406,7 +406,7 @@
               <input type="text" id="ledger-comment" class="form-control form-control-sm"
                 [ngModel]="comment()" (ngModelChange)="comment.set($event)"
                 placeholder="Optional" />
-              @if (paymentType() === 'check') {
+              @if (paymentType() === 'check' && showActivationNotes()) {
                 <div class="correction-note">
                   <i class="bi bi-info-circle me-1"></i>
                   <span>After recording a check payment, the registration automatically becomes <strong>Active</strong>.</span>
@@ -420,10 +420,12 @@
                     <li>A negative (&ndash;) amount <strong>increases</strong> the amount owed.</li>
                   </ul>
                 </div>
-                <div class="correction-note">
-                  <i class="bi bi-info-circle me-1"></i>
-                  <span>After recording a correction record for an Inactive registration, you may want to toggle them <strong>Active</strong> above.</span>
-                </div>
+                @if (showActivationNotes()) {
+                  <div class="correction-note">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <span>After recording a correction record for an Inactive registration, you may want to toggle them <strong>Active</strong> above.</span>
+                  </div>
+                }
               }
             </div>
           </div>
