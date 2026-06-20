@@ -710,8 +710,12 @@ export class TeamTeamsStepComponent implements OnInit {
     onSelectAgeGroup(team: ClubTeamDto, ageGroupId: string): void {
         const existing = this.getEnteredInfo(team.clubTeamId);
 
-        // If already registered with same age group, no-op
-        if (existing && existing.ageGroupId === ageGroupId) {
+        // If already registered with the SAME age group AND the same LOP, no-op.
+        // (Compare LOP too — an edit that changes only the Level of Play keeps the
+        // age group, and must still go through the unregister/re-register path.)
+        if (existing
+            && existing.ageGroupId === ageGroupId
+            && (existing.levelOfPlay ?? '') === (team.clubTeamLevelOfPlay ?? '')) {
             return;
         }
 

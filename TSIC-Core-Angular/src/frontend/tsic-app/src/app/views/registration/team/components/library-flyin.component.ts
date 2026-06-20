@@ -163,18 +163,26 @@ export interface RegisterRequest {
                             <span class="reg-value">{{ formatLop(registered.levelOfPlay) }}</span>
                           }
                         </span>
+                        @if (canRegister() && expandedTeamId() !== team.clubTeamId) {
+                          <button type="button" class="btn-register-cell btn-edit-cell"
+                                  [disabled]="actionInProgress()"
+                                  (click)="toggleRegister(team)">
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                            <span>Edit</span>
+                          </button>
+                        }
                       </div>
                     } @else if (canRegister()) {
                       <div class="status-block status-block-no">
                         <span class="status-line">Not Registered</span>
-                        <button type="button" class="btn-register-cell"
-                                [class.is-active]="expandedTeamId() === team.clubTeamId"
-                                [disabled]="actionInProgress()"
-                                [attr.aria-expanded]="expandedTeamId() === team.clubTeamId"
-                                (click)="toggleRegister(team)">
-                          <i class="bi bi-trophy-fill" aria-hidden="true"></i>
-                          <span>{{ expandedTeamId() === team.clubTeamId ? 'Cancel' : 'Register' }}</span>
-                        </button>
+                        @if (expandedTeamId() !== team.clubTeamId) {
+                          <button type="button" class="btn-register-cell"
+                                  [disabled]="actionInProgress()"
+                                  (click)="toggleRegister(team)">
+                            <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                            <span>Register</span>
+                          </button>
+                        }
                       </div>
                     } @else {
                       <div class="status-block status-block-closed">
@@ -238,44 +246,9 @@ export interface RegisterRequest {
                   <tr class="lib-tr-expand">
                     <td colspan="4" class="lib-td-expand">
                       <div class="register-inline">
-                        <div class="register-prompt">
-                          <span>Pick an age group for <strong>{{ team.clubTeamName }}</strong>:</span>
-                          @if (lopRequired()) {
-                            <span class="lop-block-hint">
-                              <i class="bi bi-exclamation-circle me-1"></i>Pick a Level of Play below first
-                            </span>
-                          }
-                        </div>
-
-                        <div class="ag-chip-row">
-                          @for (ag of expandedAgChips(); track ag.ageGroupId) {
-                            <button type="button" class="ag-chip"
-                                    [class.is-recommended]="ag.isRecommended"
-                                    [class.is-full]="ag.isFull"
-                                    [class.is-almost-full]="ag.isAlmostFull"
-                                    [disabled]="actionInProgress() || lopRequired()"
-                                    [title]="ag.isFull ? 'Age group is full — registering will waitlist this team' : null"
-                                    (click)="commitRegister(team, ag.ageGroupId)">
-                              <span class="ag-chip-name">{{ ag.ageGroupName }}@if (ag.matchesGradYear) {<span class="ag-chip-gradyear-match" title="Matches this team's grad year" aria-label="Matches this team's grad year">*</span>}</span>
-                              <span class="ag-chip-meta">
-                                @if (ag.isFull) { Waitlist }
-                                @else if (ag.isAlmostFull) { {{ ag.spotsLeft }} left }
-                              </span>
-                            </button>
-                          }
-                        </div>
-
                         @if (lopOptions().length > 0) {
-                          <div class="lop-disclosure-row">
-                            <button type="button" class="lop-disclosure"
-                                    (click)="toggleLopAdjust()">
-                              <i class="bi" [class.bi-chevron-right]="!showLopAdjust()" [class.bi-chevron-down]="showLopAdjust()"></i>
-                              <span class="lop-disclosure-label">Level of Play:</span>
-                              <strong class="lop-disclosure-value">{{ selectedLop() || 'pick one' }}</strong>
-                              <span class="lop-disclosure-hint">{{ showLopAdjust() ? 'collapse' : 'adjust' }}</span>
-                            </button>
-                          </div>
-                          @if (showLopAdjust()) {
+                          <div class="register-step">
+                            <span class="register-step-label">First, pick a Level of Play:</span>
                             <div class="lop-pills" role="radiogroup" aria-label="Level of play">
                               @for (opt of lopOptions(); track opt) {
                                 <button type="button" class="lop-pill"
@@ -285,8 +258,46 @@ export interface RegisterRequest {
                                 </button>
                               }
                             </div>
-                          }
+                          </div>
                         }
+
+                        <div class="register-step">
+                          <span class="register-step-label">
+                            @if (lopOptions().length > 0) {
+                              Then pick an event age group:
+                            } @else {
+                              Pick an event age group:
+                            }
+                          </span>
+                          <div class="ag-chip-row">
+                          @for (ag of expandedAgChips(); track ag.ageGroupId) {
+                            <button type="button" class="ag-chip"
+                                    [class.is-recommended]="ag.isRecommended"
+                                    [class.is-selected]="selectedAgeGroupId() === ag.ageGroupId"
+                                    [class.is-full]="ag.isFull"
+                                    [class.is-almost-full]="ag.isAlmostFull"
+                                    [disabled]="actionInProgress() || lopRequired()"
+                                    [title]="ag.isFull ? 'Age group is full — registering will waitlist this team' : null"
+                                    (click)="selectedAgeGroupId.set(ag.ageGroupId)">
+                              <span class="ag-chip-name">{{ ag.ageGroupName }}@if (ag.matchesGradYear) {<span class="ag-chip-gradyear-match" title="Matches this team's grad year" aria-label="Matches this team's grad year">*</span>}</span>
+                              <span class="ag-chip-meta">
+                                @if (ag.isFull) { Waitlist }
+                                @else if (ag.isAlmostFull) { {{ ag.spotsLeft }} left }
+                              </span>
+                            </button>
+                          }
+                          </div>
+                        </div>
+
+                        <div class="register-actions">
+                          <button type="button" class="btn-register-cancel" (click)="cancelRegister()">Cancel</button>
+                          <button type="button" class="btn-register-submit"
+                                  [disabled]="!canSubmit()"
+                                  (click)="commitRegister(team)">
+                            <i class="bi bi-check-lg" aria-hidden="true"></i>
+                            {{ editingExisting() ? 'Save Changes' : 'Submit' }}
+                          </button>
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -884,21 +895,27 @@ export interface RegisterRequest {
         gap: var(--space-2);
       }
 
-      .register-prompt {
+      /* A numbered step inside the register expand: a "First,/Then" label line
+         stacked tightly above its chip row. The register-inline gap (space-2)
+         separates the two steps; the within-step gap (space-1) keeps each label
+         glued to its own chips. */
+      .register-step {
         display: flex;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: var(--space-2);
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
+        flex-direction: column;
+        gap: var(--space-1);
       }
 
-      .lop-block-hint {
-        display: inline-flex;
-        align-items: center;
-        font-size: var(--font-size-xs);
+      /* Highlighted step header — a primary-tinted pill that hugs its text so
+         "First, pick…" / "Then pick…" read as distinct, scannable instructions
+         above their chip rows rather than blending into the body copy. */
+      .register-step-label {
+        align-self: flex-start;
+        padding: 2px var(--space-2);
+        border-radius: var(--radius-sm);
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        color: var(--bs-primary);
+        font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
-        color: var(--bs-warning);
       }
 
       .ag-chip-row {
@@ -960,6 +977,17 @@ export interface RegisterRequest {
         letter-spacing: 0.04em;
       }
 
+      /* Selected = the chip the rep has chosen (commits on Submit, not on click).
+         Filled primary so it wins over the recommended/almost-full/full accents.
+         Placed last so its rules take precedence over the states above. */
+      .ag-chip.is-selected,
+      .ag-chip.is-selected:hover:not(:disabled) {
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        border-color: var(--bs-primary);
+        border-style: solid;
+      }
+
       .ag-chip-name { font-size: var(--font-size-xs); }
       /* Asterisk flag — age group name literally matches the team's library grad
          year. Red + bold so it reads as the "this is the matching one" cue. */
@@ -970,38 +998,8 @@ export interface RegisterRequest {
       }
       .ag-chip-meta { font-size: 10px; font-weight: var(--font-weight-medium); opacity: 0.85; }
 
-      .lop-disclosure-row {
-        display: flex;
-        align-items: center;
-        margin-top: 2px;
-      }
-
-      .lop-disclosure {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        padding: 4px var(--space-2);
-        border: none;
-        background: transparent;
-        color: var(--brand-text-muted);
-        font-size: var(--font-size-xs);
-        cursor: pointer;
-        border-radius: var(--radius-sm);
-      }
-
-      .lop-disclosure:hover { background: rgba(var(--bs-primary-rgb), 0.06); color: var(--bs-primary); }
-      .lop-disclosure:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-
-      .lop-disclosure-label { color: var(--brand-text-muted); }
-      .lop-disclosure-value { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
-      .lop-disclosure-hint {
-        margin-left: 6px;
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: var(--brand-text-muted);
-      }
-
+      /* LOP selection — always-visible chip row (step 1), sits above the age
+         groups. Stored/previous LOP renders as the .active chip on open. */
       .register-inline .lop-pills {
         display: flex;
         flex-wrap: wrap;
@@ -1030,6 +1028,48 @@ export interface RegisterRequest {
         font-weight: var(--font-weight-semibold);
       }
       .register-inline .lop-pill:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+      /* Submit/Cancel row — bottom-right terminal action for the picker. Submit
+         commits the selected LOP + age group (a new reg, or a change when
+         editing); it stays disabled until the required picks are made. */
+      .register-actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: var(--space-2);
+        margin-top: var(--space-1);
+      }
+
+      .btn-register-cancel {
+        padding: 4px var(--space-2);
+        border: none;
+        background: none;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+      }
+      .btn-register-cancel:hover { color: var(--brand-text); text-decoration: underline; }
+      .btn-register-cancel:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+      .btn-register-submit {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: 6px var(--space-4);
+        border: none;
+        border-radius: var(--radius-sm);
+        background: var(--bs-primary);
+        color: var(--neutral-0);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        cursor: pointer;
+        transition: filter 0.12s ease, opacity 0.12s ease;
+      }
+      .btn-register-submit:hover:not(:disabled) { filter: brightness(0.94); }
+      .btn-register-submit:disabled { opacity: 0.45; cursor: default; }
+      .btn-register-submit:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
       /* When a row is the active expand source, highlight its trigger. */
       .btn-register-cell.is-active {
@@ -1412,17 +1452,30 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     }
 
     // ── Inline registration expand ─────────────────────────────────────
-    // Click "Register" on a row → that row expands beneath itself with
-    // an AG chip strip + a collapsed LOP disclosure. Picking a chip
-    // commits and clears the expand. Replaces the modal-based picker.
+    // Click "Register" (unregistered row) or "Edit" (registered row) → that row
+    // expands beneath itself with a two-step picker: LOP chips, then age-group
+    // chips. Both are SELECT-ONLY (highlight); a bottom-right Submit commits.
+    // Editing pre-fills both from the current registration. Replaces the old
+    // click-an-age-group-to-commit model so fresh + edit flows are consistent.
 
     readonly expandedTeamId = signal<number | null>(null);
     readonly selectedLop = signal('');
-    readonly showLopAdjust = signal(false);
+    readonly selectedAgeGroupId = signal('');
 
     /** True when the event uses LOP options but the rep hasn't picked one. */
     readonly lopRequired = computed(() =>
         this.lopOptions().length > 0 && !this.selectedLop(),
+    );
+
+    /** Expanded row is an already-registered team → Submit is a change, not a new reg. */
+    readonly editingExisting = computed(() => {
+        const id = this.expandedTeamId();
+        return id !== null && this.enteredTeams().has(id);
+    });
+
+    /** Submit is enabled once an age group is picked and any required LOP is set. */
+    readonly canSubmit = computed(() =>
+        !this.actionInProgress() && !!this.selectedAgeGroupId() && !this.lopRequired(),
     );
 
     /** Best-match age group by team grad year — exact match first, then substring. */
@@ -1466,29 +1519,37 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
             this.cancelRegister();
             return;
         }
-        // Default LOP from the library team's stored value if it matches the
-        // event's options; otherwise blank (rep must pick).
-        const stored = team.clubTeamLevelOfPlay;
+        // Pre-fill the picker. When editing a registered team, seed both chips
+        // from the current registration; otherwise seed LOP from the library
+        // team's stored value (if it's a valid option) and pre-select the
+        // grad-year best-match age group (the recommended/asterisked chip) so the
+        // common case is Submit-ready. Falls back to unselected when there's no
+        // match, leaving Submit disabled until the rep chooses.
+        const existing = this.registeredInfo(team.clubTeamId);
         const opts = this.lopOptions();
-        const defaulted = stored && opts.includes(stored) ? stored : '';
-        this.selectedLop.set(defaulted);
-        // Open the LOP picker by default only when the rep MUST pick one.
-        this.showLopAdjust.set(opts.length > 0 && !defaulted);
+        const lopCandidate = existing?.levelOfPlay || team.clubTeamLevelOfPlay || '';
+        this.selectedLop.set(lopCandidate && opts.includes(lopCandidate) ? lopCandidate : '');
+        this.selectedAgeGroupId.set(
+            existing ? this.ageGroupIdByName(existing.ageGroupName) : this.bestMatchAgeGroupId(team),
+        );
         this.closeMenu();
         this.expandedTeamId.set(team.clubTeamId);
     }
 
     cancelRegister(): void {
         this.expandedTeamId.set(null);
-        this.showLopAdjust.set(false);
+        this.selectedAgeGroupId.set('');
     }
 
-    toggleLopAdjust(): void {
-        this.showLopAdjust.set(!this.showLopAdjust());
+    /** Resolve an age group's id from its name (RegisteredInfo carries name only). */
+    private ageGroupIdByName(name: string): string {
+        if (!name) return '';
+        return this.ageGroups().find(a => a.ageGroupName === name)?.ageGroupId ?? '';
     }
 
-    commitRegister(team: ClubTeamDto, ageGroupId: string): void {
-        if (this.lopRequired()) return;
+    commitRegister(team: ClubTeamDto): void {
+        const ageGroupId = this.selectedAgeGroupId();
+        if (!ageGroupId || this.lopRequired() || this.actionInProgress()) return;
         this.register.emit({ team, ageGroupId, levelOfPlay: this.selectedLop() });
         this.cancelRegister();
     }
