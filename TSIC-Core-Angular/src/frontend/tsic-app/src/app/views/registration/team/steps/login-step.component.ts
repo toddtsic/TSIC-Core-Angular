@@ -293,14 +293,28 @@ export class TeamLoginStepComponent implements OnInit {
 
     ngOnInit(): void {
         if (this.auth.isAuthenticated()) {
-            const role = this.auth.currentUser()?.role;
+            const user = this.auth.currentUser();
+            const role = user?.role;
             if (role && !TeamLoginStepComponent.ALLOWED_ROLES.has(role)) {
                 this.auth.logoutLocal();
                 return;
             }
-            // Authenticated club rep landed back on this tab — show summary view.
-            this.view.set('account-summary');
-            this.loadProfile();
+            // Two ways an authenticated club rep arrives on this tab:
+            //   • Full wizard session (Phase-2 token: regId + matching jobPath) — they
+            //     deliberately stepped back to Login; show the account summary.
+            //   • Phase-1 token only — returning from the ToS page mid-login, before a
+            //     Phase-2 token was minted. The login redirected to ToS BEFORE
+            //     continueWithLogin() ran, so nothing advanced the wizard. Showing the
+            //     summary here is a dead end (no path to Teams), so resume the login.
+            //     The summary view is only reachable with a full session anyway, so a
+            //     Phase-1 arrival is always this ToS bounce-back.
+            const hasFullSession = !!user?.regId && user.jobPath === this.state.jobPath();
+            if (hasFullSession) {
+                this.view.set('account-summary');
+                this.loadProfile();
+            } else {
+                this.continueWithLogin();
+            }
         }
     }
 
