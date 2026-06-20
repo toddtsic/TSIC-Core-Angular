@@ -75,12 +75,12 @@ export interface RegisterRequest {
               <span class="header-tag-value">{{ registeredCount() }}</span>
             </span>
           </div>
+          <p class="library-carryover-tip">Library teams carry across every TSIC event — enter a team once, never retype.</p>
           <div class="wizard-tip">
             <ul class="mb-0">
-              <li>Library teams carry across every TSIC event — enter a team once, never retype.</li>
-              <li>The library tracks each team's performance over time. If a team's composition has significantly changed for an event, add a <em>new</em> library team and use that one.</li>
-              <li>To register a team that isn't in your library yet, add it first, then click <strong>Register</strong> on its row.</li>
-              <li>If a team has aged out, click <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row and choose <strong>Archive</strong>.</li>
+              <li>To register a team that isn't in your library, <strong>Add Library Team</strong>, then click <strong>Register</strong> on its row.</li>
+              <li>If a team's name has changed, <strong>Add Library Team</strong> and use this one.</li>
+              <li>If a team is no longer used, click <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row and choose <strong>Archive</strong>.</li>
             </ul>
           </div>
         </div>
@@ -256,7 +256,7 @@ export interface RegisterRequest {
                                     [disabled]="actionInProgress() || lopRequired()"
                                     [title]="ag.isFull ? 'Age group is full — registering will waitlist this team' : null"
                                     (click)="commitRegister(team, ag.ageGroupId)">
-                              <span class="ag-chip-name">{{ ag.ageGroupName }}</span>
+                              <span class="ag-chip-name">{{ ag.ageGroupName }}@if (ag.matchesGradYear) {<span class="ag-chip-gradyear-match" title="Matches this team's grad year" aria-label="Matches this team's grad year">*</span>}</span>
                               <span class="ag-chip-meta">
                                 @if (ag.isFull) { Waitlist }
                                 @else if (ag.isAlmostFull) { {{ ag.spotsLeft }} left }
@@ -588,6 +588,17 @@ export interface RegisterRequest {
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+      }
+
+      /* Carry-over headline tip — sits above the bullet list, left-justified,
+         in palette danger so it reads as the standout "this library is permanent"
+         message rather than just another bullet. */
+      .library-carryover-tip {
+        margin: 0;
+        text-align: left;
+        color: var(--bs-danger);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
       }
 
       /* Header tag pairs — single horizontal line in this flyin so the
@@ -950,6 +961,13 @@ export interface RegisterRequest {
       }
 
       .ag-chip-name { font-size: var(--font-size-xs); }
+      /* Asterisk flag — age group name literally matches the team's library grad
+         year. Red + bold so it reads as the "this is the matching one" cue. */
+      .ag-chip-gradyear-match {
+        color: var(--bs-danger);
+        font-weight: var(--font-weight-bold);
+        margin-left: 1px;
+      }
       .ag-chip-meta { font-size: 10px; font-weight: var(--font-weight-medium); opacity: 0.85; }
 
       .lop-disclosure-row {
@@ -1425,6 +1443,7 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
         const team = this.clubTeams().find(t => t.clubTeamId === teamId);
         if (!team) return [];
         const recommendedId = this.bestMatchAgeGroupId(team);
+        const gy = team.clubTeamGradYear;
         return this.ageGroups().map(ag => {
             const spotsLeft = Math.max(0, ag.maxTeams - ag.registeredCount);
             return {
@@ -1434,6 +1453,10 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
                 isFull: spotsLeft === 0,
                 isAlmostFull: spotsLeft > 0 && spotsLeft <= 2,
                 isRecommended: ag.ageGroupId === recommendedId,
+                // Flag an exact name↔grad-year match so the template can mark it.
+                // Not all events name age groups by grad year (e.g. tournaments),
+                // so this only fires on a literal match.
+                matchesGradYear: !!gy && ag.ageGroupName === gy,
             };
         });
     });
