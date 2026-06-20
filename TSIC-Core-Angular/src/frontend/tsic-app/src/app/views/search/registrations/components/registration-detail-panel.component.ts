@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, effect, computed, untracked, HostListener, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal, effect, computed, untracked, HostListener, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -97,8 +97,8 @@ export class RegistrationDetailPanelComponent {
   private auth = inject(AuthService);
 
 
-  // Tab state
-  activeTab = signal<TabType>('details');
+  // Tab state — Accounting is the default/first tab; resets to it each time a new registrant opens.
+  activeTab = linkedSignal({ source: () => this.detail(), computation: () => 'accounting' as TabType });
 
   // Profile values (for read-only display + always-include editable fields)
   profileValues = signal<Record<string, any>>({});
@@ -256,6 +256,11 @@ export class RegistrationDetailPanelComponent {
 
         this.emailSubject.set('');
         this.emailBody.set('');
+
+        // Accounting is the default tab now, so the subscription must load up front
+        // rather than lazily on tab-switch. Clear the prior registrant's value first.
+        this.subscription.set(null);
+        if (d.hasSubscription) this.loadSubscription();
 
         // Baseline for dirty tracking. untracked() so reading the editable signals here
         // doesn't make this effect a dependency of them (which would re-snapshot — and wipe

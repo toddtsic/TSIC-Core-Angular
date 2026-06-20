@@ -35,7 +35,8 @@ export class TeamDetailPanelComponent {
 	private readonly searchService = inject(TeamSearchService);
 	private readonly toast = inject(ToastService);
 
-	activeTab = linkedSignal({ source: () => this.detail(), computation: () => 'info' as TabType });
+	// Accounting is the default/first tab; resets to it each time a new team opens.
+	activeTab = linkedSignal({ source: () => this.detail(), computation: () => 'accounting' as TabType });
 
 	// Edit state — reset from detail when it changes
 	editTeamName = linkedSignal(() => this.detail()?.teamName ?? '');
