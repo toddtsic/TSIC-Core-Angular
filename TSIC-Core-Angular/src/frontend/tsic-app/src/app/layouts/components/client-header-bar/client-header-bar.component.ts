@@ -316,6 +316,14 @@ export class ClientHeaderBarComponent {
     }
 
     logout() {
+        // Close the menus explicitly. Logout redirects to the current job's landing
+        // (`/${jobPath}`), which is frequently the page we're already on — and the
+        // router is configured with onSameUrlNavigation:'ignore', so that navigation
+        // is dropped and the NavigationStart-based menu-close never fires. Leaving the
+        // full-page .user-menu-backdrop mounted would then swallow the user's first
+        // click anywhere on the page (needing a dead first click to dismiss it).
+        this.closeUserMenu();
+        this.closeMobileMenu();
         const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
         const redirectTo = `/${jobPath}`;
         this.auth.logout({ redirectTo });
