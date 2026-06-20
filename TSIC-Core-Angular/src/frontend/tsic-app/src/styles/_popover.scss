@@ -1,0 +1,110 @@
+// ── Hover Popover ──
+// Pure-CSS hover/focus popover primitive. No JavaScript: the panel toggles via
+// :hover and :focus-within, so it works even in contexts that strip Angular
+// event listeners — e.g. Syncfusion grid header templates, which render as
+// static HTML and never wire up (mouseenter)/(click) bindings.
+//
+// Usage:
+//   <span class="hover-popover">
+//     <button …><i class="bi bi-info-circle"></i></button>
+//     <span class="hover-popover-panel">
+//       <span class="hover-popover-header"><span class="hover-popover-title">Title</span></span>
+//       <span class="hover-popover-body"> …fields or text… </span>
+//     </span>
+//   </span>
+
+.hover-popover {
+  position: relative;
+  display: inline-block;
+
+  .hover-popover-panel { display: none; }
+
+  &:hover .hover-popover-panel,
+  &:focus-within .hover-popover-panel { display: block; }
+}
+
+.hover-popover-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 10;
+  min-width: 240px;
+  background: var(--bs-card-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  animation: popoverIn 0.15s ease;
+  // Reset inherited header chrome (uppercase, centering, letter-spacing) so the
+  // panel reads as body content wherever it is anchored.
+  text-align: left;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  font-weight: var(--font-weight-normal);
+}
+
+@keyframes popoverIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hover-popover-panel { animation: none; }
+}
+
+.hover-popover-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--bs-border-color);
+}
+
+.hover-popover-title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bs-primary);
+}
+
+.hover-popover-body {
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+// Plain paragraph text inside a panel body (vs the label/value field rows).
+.hover-popover-text {
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
+  line-height: 1.4;
+}
+
+.hover-popover-field {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.hover-popover-label {
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.hover-popover-value {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--bs-body-color);
+  word-break: break-all;
+
+  &.mono {
+    font-family: var(--font-family-mono, monospace);
+    letter-spacing: 0.02em;
+  }
+}

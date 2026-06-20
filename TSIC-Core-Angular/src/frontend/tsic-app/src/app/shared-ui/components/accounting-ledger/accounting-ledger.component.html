@@ -70,57 +70,57 @@
       <td class="text-end amount paid-amount">{{ record.paidAmount | currency }}</td>
       <td class="actions">
         @if (hasDetails(record)) {
-          <span class="popover-anchor popover-hover">
+          <span class="hover-popover">
             <button type="button" class="icon-btn text-muted" title="Details">
               <i class="bi bi-info-circle"></i>
             </button>
-              <div class="txn-popover">
-                <div class="txn-popover-header">
-                  <span class="txn-popover-title">Transaction Details@if (teamNameFor(record); as tn) { · {{ tn }}}</span>
+              <div class="hover-popover-panel">
+                <div class="hover-popover-header">
+                  <span class="hover-popover-title">Transaction Details@if (teamNameFor(record); as tn) { · {{ tn }}}</span>
                 </div>
-                <div class="txn-popover-body">
+                <div class="hover-popover-body">
                   @if (ownerTeamLabel(record); as team) {
-                    <div class="txn-popover-field">
-                      <span class="txn-popover-label">Team</span>
-                      <span class="txn-popover-value">{{ team }}</span>
+                    <div class="hover-popover-field">
+                      <span class="hover-popover-label">Team</span>
+                      <span class="hover-popover-value">{{ team }}</span>
                     </div>
                   }
                   @if (isCcRecord(record)) {
                     @if (record.adnTransactionId) {
-                      <div class="txn-popover-field">
-                        <span class="txn-popover-label">Transaction ID</span>
-                        <span class="txn-popover-value mono">{{ record.adnTransactionId }}</span>
+                      <div class="hover-popover-field">
+                        <span class="hover-popover-label">Transaction ID</span>
+                        <span class="hover-popover-value mono">{{ record.adnTransactionId }}</span>
                       </div>
                     }
                     @if (record.adnInvoiceNo) {
-                      <div class="txn-popover-field">
-                        <span class="txn-popover-label">Invoice #</span>
-                        <span class="txn-popover-value mono">{{ record.adnInvoiceNo }}</span>
+                      <div class="hover-popover-field">
+                        <span class="hover-popover-label">Invoice #</span>
+                        <span class="hover-popover-value mono">{{ record.adnInvoiceNo }}</span>
                       </div>
                     }
                     @if (record.adnCc4) {
-                      <div class="txn-popover-field">
-                        <span class="txn-popover-label">Card</span>
-                        <span class="txn-popover-value">****{{ record.adnCc4 }}@if (record.adnCcExpDate) { <span class="cc-exp">exp {{ record.adnCcExpDate }}</span>}</span>
+                      <div class="hover-popover-field">
+                        <span class="hover-popover-label">Card</span>
+                        <span class="hover-popover-value">****{{ record.adnCc4 }}@if (record.adnCcExpDate) { <span class="cc-exp">exp {{ record.adnCcExpDate }}</span>}</span>
                       </div>
                     }
                   }
                   @if (isCheckRecord(record) && record.checkNo) {
-                    <div class="txn-popover-field">
-                      <span class="txn-popover-label">Check #</span>
-                      <span class="txn-popover-value mono">{{ record.checkNo }}</span>
+                    <div class="hover-popover-field">
+                      <span class="hover-popover-label">Check #</span>
+                      <span class="hover-popover-value mono">{{ record.checkNo }}</span>
                     </div>
                   }
                   @if (record.promoCode) {
-                    <div class="txn-popover-field">
-                      <span class="txn-popover-label">Promo Code</span>
-                      <span class="txn-popover-value">{{ record.promoCode }}</span>
+                    <div class="hover-popover-field">
+                      <span class="hover-popover-label">Promo Code</span>
+                      <span class="hover-popover-value">{{ record.promoCode }}</span>
                     </div>
                   }
                   @if (displayComment(record); as cmt) {
-                    <div class="txn-popover-field">
-                      <span class="txn-popover-label">Comment</span>
-                      <span class="txn-popover-value">{{ cmt }}</span>
+                    <div class="hover-popover-field">
+                      <span class="hover-popover-label">Comment</span>
+                      <span class="hover-popover-value">{{ cmt }}</span>
                     </div>
                   }
                 </div>

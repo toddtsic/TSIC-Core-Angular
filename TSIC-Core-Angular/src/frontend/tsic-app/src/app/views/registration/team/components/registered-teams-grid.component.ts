@@ -1,8 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, input, output } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { RegisteredTeamDto } from '@core/api';
-import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tooltip.component';
 
 /**
  * Reusable registered-teams summary grid.
@@ -14,7 +13,7 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
 @Component({
     selector: 'app-registered-teams-grid',
     standalone: true,
-    imports: [CurrencyPipe, DatePipe, GridAllModule, InfoTooltipComponent],
+    imports: [CurrencyPipe, DatePipe, GridAllModule],
     template: `
       <ejs-grid #grid [dataSource]="teams()" [allowSorting]="true"
                 [allowTextWrap]="true"
@@ -100,8 +99,13 @@ import { InfoTooltipComponent } from '../../../../shared-ui/components/info-tool
                     [visible]="showProcessing()"></e-column>
           <e-column field="feeAdj" headerText="Fee-Adj" width="90" textAlign="Right" format="C2"
                     [visible]="showFeeAdj()">
+            <!-- The grid renders header templates as static HTML (Angular events never
+                 fire here) and clips with overflow:hidden, so the styled popover is driven
+                 imperatively from onDataBound (wireFeeAdjInfo) against a body-mounted
+                 position:fixed panel that escapes the clip. Text lives here via data-help. -->
             <ng-template #headerTemplate>
-              <span>Fee-Adj<app-info-tooltip message="Net fee adjustment: discounts and correction credits show negative; late fees and correction charges show positive."></app-info-tooltip></span>
+              <span>Fee-Adj<i class="bi bi-info-circle text-info ms-1 fee-adj-info" tabindex="0"
+                              data-help="Correction Record, Early Bird Discount, Late Fee or Discount Code amount applied"></i></span>
             </ng-template>
             <ng-template #template let-data>
               <span [class.text-success]="data.feeAdj < 0">{{ data.feeAdj | currency }}</span>
@@ -285,6 +289,94 @@ export class RegisteredTeamsGridComponent {
     // initial all-hidden render so the first dataBound is a no-op.
     private lastColVis = { feeAdj: false };
 
+    // Body-mounted styled popover for the Fee-Adj header "i". See wireFeeAdjInfo.
+    private feeAdjPopover: HTMLElement | null = null;
+    private feeAdjReposition: (() => void) | null = null;
+
+    constructor() {
+        inject(DestroyRef).onDestroy(() => this.teardownFeeAdjInfo());
+    }
+
+    /**
+     * Imperatively wire the Fee-Adj header "i" to a styled hover popover.
+     *
+     * Why not a template-driven tooltip: Syncfusion renders header templates as
+     * static HTML, so Angular (mouseenter)/(click) bindings never fire there, and
+     * the header clips with overflow:hidden while scrolling horizontally — so an
+     * in-header position:absolute panel is invisible. We instead attach native
+     * listeners (which DO fire from component code) to the rendered icon and show a
+     * position:fixed panel mounted on <body> that escapes the clip. The panel reuses
+     * the global .hover-popover-panel styles so it matches the ledger card exactly.
+     *
+     * Idempotent: the icon element is recreated whenever the header rebuilds
+     * (refreshColumns), so we re-bind each dataBound and guard with a dataset flag.
+     */
+    private wireFeeAdjInfo(grid: GridComponent): void {
+        const icon = grid.element?.querySelector<HTMLElement>('.fee-adj-info');
+        if (!icon || icon.dataset['popoverWired'] === '1') return;
+        icon.dataset['popoverWired'] = '1';
+
+        const place = () => {
+            const panel = this.feeAdjPopover;
+            if (!panel) return;
+            const r = icon.getBoundingClientRect();
+            panel.style.top = `${r.bottom + 6}px`;
+            const left = Math.min(r.left, window.innerWidth - panel.offsetWidth - 8);
+            panel.style.left = `${Math.max(8, left)}px`;
+        };
+
+        const show = () => {
+            const panel = this.ensureFeeAdjPopover();
+            const text = panel.querySelector('.hover-popover-text');
+            if (text) text.textContent = icon.dataset['help'] ?? '';
+            panel.style.display = 'block';
+            place();
+            this.feeAdjReposition = place;
+            window.addEventListener('scroll', place, true);
+            window.addEventListener('resize', place);
+        };
+
+        const hide = () => {
+            if (this.feeAdjPopover) this.feeAdjPopover.style.display = 'none';
+            if (this.feeAdjReposition) {
+                window.removeEventListener('scroll', this.feeAdjReposition, true);
+                window.removeEventListener('resize', this.feeAdjReposition);
+                this.feeAdjReposition = null;
+            }
+        };
+
+        icon.addEventListener('mouseenter', show);
+        icon.addEventListener('mouseleave', hide);
+        icon.addEventListener('focus', show);
+        icon.addEventListener('blur', hide);
+    }
+
+    private ensureFeeAdjPopover(): HTMLElement {
+        if (this.feeAdjPopover) return this.feeAdjPopover;
+        const el = document.createElement('div');
+        el.className = 'hover-popover-panel';
+        el.style.position = 'fixed';
+        el.style.right = 'auto';
+        el.style.zIndex = '2000';
+        el.style.display = 'none';
+        el.innerHTML =
+            '<div class="hover-popover-header"><span class="hover-popover-title">Fee-Adj</span></div>' +
+            '<div class="hover-popover-body"><span class="hover-popover-text"></span></div>';
+        document.body.appendChild(el);
+        this.feeAdjPopover = el;
+        return el;
+    }
+
+    private teardownFeeAdjInfo(): void {
+        if (this.feeAdjReposition) {
+            window.removeEventListener('scroll', this.feeAdjReposition, true);
+            window.removeEventListener('resize', this.feeAdjReposition);
+            this.feeAdjReposition = null;
+        }
+        this.feeAdjPopover?.remove();
+        this.feeAdjPopover = null;
+    }
+
     /**
      * Runs after every dataBound — i.e. after the grid has finished rendering the
      * current data. Stamps row numbers, then resyncs the header if a conditional
@@ -301,6 +393,7 @@ export class RegisteredTeamsGridComponent {
      */
     onDataBound(grid: GridComponent): void {
         this.refreshRowNumbers(grid);
+        this.wireFeeAdjInfo(grid);
 
         const feeAdj = this.showFeeAdj();
         if (feeAdj === this.lastColVis.feeAdj) return;

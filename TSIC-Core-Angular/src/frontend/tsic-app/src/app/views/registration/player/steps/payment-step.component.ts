@@ -78,7 +78,7 @@ import type { LineItem } from '../state/payment-v2.service';
                       <th>Team</th>
                       <th class="text-end">Fee-Base</th>
                       <th class="text-end">
-                        Fee-Adj<app-info-tooltip message="Net fee adjustment: discounts and correction credits show negative; late fees and correction charges show positive."></app-info-tooltip>
+                        Fee-Adj<app-info-tooltip trigger="hover" message="Correction Record, Early Bird Discount, Late Fee or Discount Code amount applied"></app-info-tooltip>
                       </th>
                       <th class="text-end">Fee-Total</th>
                       <th>
@@ -139,7 +139,7 @@ import type { LineItem } from '../state/payment-v2.service';
                       <th class="text-end">Fee-Base</th>
                       <th class="text-end">Fee-Proc</th>
                       <th class="text-end">
-                        Fee-Adj<app-info-tooltip message="Net fee adjustment: discounts and correction credits show negative; late fees and correction charges show positive."></app-info-tooltip>
+                        Fee-Adj<app-info-tooltip trigger="hover" message="Correction Record, Early Bird Discount, Late Fee or Discount Code amount applied"></app-info-tooltip>
                       </th>
                       <th class="text-end">Fee-Total</th>
                       <th class="text-end">Paid</th>
