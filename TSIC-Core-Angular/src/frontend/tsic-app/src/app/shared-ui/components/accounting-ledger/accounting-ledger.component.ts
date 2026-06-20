@@ -36,6 +36,22 @@ export interface LedgerGroup {
 	active: boolean;
 }
 
+/**
+ * One choosable registration for a new accounting record. When a caller supplies more than one
+ * (a player signed up for several events), the "Add Accounting Record" modal opens on a
+ * "which registration?" step before the payment form. Each target carries its OWN balance
+ * figures so the modal's amount caps (check/correction/CC) bound to the picked registration —
+ * not the player's combined total. A record-less registration is still a valid target (this is
+ * exactly the gap the old in-ledger row-click couldn't reach).
+ */
+export interface LedgerAddTarget {
+	key: string;        // the owning registrationId
+	label: string;      // "AgeGroup · Team", or a date fallback when no records carry a label
+	owed: number;       // CC-side owed (gross)
+	checkOwed: number;  // check/correction owed (processing fees removed)
+	paid: number;       // amount already paid (bounds a negative correction)
+}
+
 
 @Component({
 	selector: 'app-accounting-ledger',
@@ -75,6 +91,12 @@ export class AccountingLedgerComponent {
 	/** Shows the "+ Add Accounting Record" button. Off for the aggregated family scope,
 	 *  whose family-wide charge is a fast-follow; per-row refunds remain available. */
 	allowAdd = input<boolean>(true);
+
+	/** Registrations a new record can attach to. Empty / single → no picker (the modal opens
+	 *  straight to the form, using the input balances). More than one → the modal first asks
+	 *  which registration, then bounds its amounts to that target. The family ledger supplies one
+	 *  per event so a multi-event player can record against any event, including a record-less one. */
+	addTargets = input<LedgerAddTarget[]>([]);
 
 	/** Unified grouping source: explicit groups, else derived from the team breakdown,
 	 *  else none. Keeps the club-rep caller unchanged (it still passes clubBreakdown only). */
@@ -121,10 +143,26 @@ export class AccountingLedgerComponent {
 	ccChargeSubmitted = output<CcChargeEvent>();
 	checkSubmitted = output<CheckOrCorrectionEvent>();
 	refundSubmitted = output<RefundEvent>();
+	/** The registration a new record is being recorded against (the picked add-target's key).
+	 *  Parent points its payment/charge call at this registration. */
+	addTargetSelected = output<string>();
 
 	// ── Payment modal state ──
 	showPaymentModal = signal(false);
 	paymentType = signal<PaymentType>('check');
+
+	// ── Add-target picker state ──
+	// When the modal opens with >1 addTargets, it first shows a "which registration?" step
+	// (pickingTarget). Once chosen, the picked target drives the modal's balance figures so the
+	// amount caps bound to that one registration. Null target = no per-registration override
+	// (single/no addTargets — the modal uses the input balances, as the single-team ledger does).
+	pickingTarget = signal(false);
+	selectedAddTarget = signal<LedgerAddTarget | null>(null);
+
+	/** Owed used by the modal — the picked add-target's, else the scope input. */
+	modalOwed = computed(() => this.selectedAddTarget()?.owed ?? this.owedTotal());
+	/** Paid used by the modal — the picked add-target's, else the scope input. */
+	modalPaid = computed(() => this.selectedAddTarget()?.paid ?? this.paidTotal());
 
 	// ── Refund mode state ──
 	refundRecord = signal<AccountingRecordDto | null>(null);
@@ -174,19 +212,19 @@ export class AccountingLedgerComponent {
 		return ageGroup ? `${ageGroup} · ${team}` : team;
 	}
 
-	/** True when the comment is the system-generated charge description
-	 *  (JobName:Player:AgeGroup:TeamName). Fully redundant in the family ledger now that the
-	 *  row shows the owning player and the assigned team — and the leading job name is noise
-	 *  in this job-scoped panel — so it's suppressed. Genuine manual comments don't match the
-	 *  owner/agegroup/team suffix and still show. */
+	/** True when the comment is the system-generated charge description, which embeds the
+	 *  player name as a colon-delimited segment ("{Job}:{Player}:{AgeGroup}:{Team}" with a
+	 *  team, or "{Role}:{Player}" without). Fully redundant in the family ledger now that the
+	 *  row shows the owning player and assigned team — and the leading job name is noise in
+	 *  this job-scoped panel — so it's suppressed. Keyed off the player name (not the team /
+	 *  agegroup) because those can be renamed after payment: the stored description keeps the
+	 *  old name, so a team/agegroup match is brittle. Genuine manual comments don't carry the
+	 *  ":Player" segment and still show. */
 	isAutoChargeDescription(record: AccountingRecordDto): boolean {
 		const comment = record.comment?.trim();
 		const owner = record.ownerName?.trim();
-		const team = record.ownerTeamName?.trim();
-		if (!comment || !owner || !team) return false;
-		const ageGroup = record.ownerAgeGroupName?.trim();
-		const suffix = ageGroup ? `${owner}:${ageGroup}:${team}` : `${owner}:${team}`;
-		return comment.endsWith(suffix) && comment.length > suffix.length;
+		if (!comment || !owner) return false;
+		return comment.includes(`:${owner}`);
 	}
 
 	/** Comment to display — null when it's the redundant auto charge description. */
@@ -224,13 +262,13 @@ export class AccountingLedgerComponent {
 
 	// ── Payment modal ──
 
-	/** Balance due for check/correction — the scope's canonical check owed (CkOwedTotal,
-	 *  summed by the parent via PaymentState.ResolveOwed). Falls back to full owed when
-	 *  no checkOwed is supplied. */
-	checkBalanceDue = computed(() => this.checkOwed() ?? this.owedTotal());
+	/** Balance due for check/correction — the picked add-target's check owed, else the scope's
+	 *  canonical check owed (CkOwedTotal, summed by the parent via PaymentState.ResolveOwed).
+	 *  Falls back to full owed when no checkOwed is supplied. */
+	checkBalanceDue = computed(() => this.selectedAddTarget()?.checkOwed ?? this.checkOwed() ?? this.modalOwed());
 
 	/** Processing fees removed by paying via check/correction = CC owed − check owed. */
-	totalFeeReduction = computed(() => Math.max(0, this.owedTotal() - this.checkBalanceDue()));
+	totalFeeReduction = computed(() => Math.max(0, this.modalOwed() - this.checkBalanceDue()));
 
 	/** True when typed check amount exceeds the canonical balance due — drives the
 	 *  inline error and disables Submit. Corrections are intentional ± adjustments
@@ -246,12 +284,51 @@ export class AccountingLedgerComponent {
 	correctionExceedsBounds = computed(() => {
 		if (this.paymentType() !== 'correction') return false;
 		const amt = this.amount();
-		return amt > this.checkBalanceDue() || amt < -this.paidTotal();
+		return amt > this.checkBalanceDue() || amt < -this.modalPaid();
 	});
 
+	/** Add-record entry point. With more than one target, ask which registration first; otherwise
+	 *  go straight to the form (auto-selecting the sole target so its balances bound the amounts).
+	 *  Zero targets = no per-registration override (single-team / single-registration callers). */
 	openPaymentModal(): void {
+		const targets = this.addTargets();
+		this.clearPaymentForm();
+		if (targets.length > 1) {
+			this.selectedAddTarget.set(null);
+			this.pickingTarget.set(true);
+			this.showPaymentModal.set(true);
+			return;
+		}
+		const single = targets.length === 1 ? targets[0] : null;
+		this.selectedAddTarget.set(single);
+		if (single) this.addTargetSelected.emit(single.key);
+		this.pickingTarget.set(false);
+		this.beginNormalEntry();
+		this.showPaymentModal.set(true);
+	}
+
+	/** Pick which registration a new record applies to, then advance to the form. The target's
+	 *  balances now bound the amount caps (checkBalanceDue / modalOwed / modalPaid). */
+	chooseAddTarget(target: LedgerAddTarget): void {
+		this.selectedAddTarget.set(target);
+		this.addTargetSelected.emit(target.key);
+		this.pickingTarget.set(false);
+		this.beginNormalEntry();
+	}
+
+	/** Re-open the "which registration?" step from the form (the "Change" affordance). */
+	changeAddTarget(): void {
+		this.pickingTarget.set(true);
+	}
+
+	/** Seed the form defaults once a target is settled (or none is needed). */
+	private beginNormalEntry(): void {
 		this.paymentType.set('check');
 		this.amount.set(this.checkBalanceDue());
+	}
+
+	/** Clear all entry fields (called before either the picker or the form is shown). */
+	private clearPaymentForm(): void {
 		this.comment.set('');
 		this.checkNo.set('');
 		this.showCcConfirm.set(false);
@@ -264,13 +341,14 @@ export class AccountingLedgerComponent {
 		this.ccZip.set('');
 		this.ccEmail.set('');
 		this.ccPhone.set('');
-		this.showPaymentModal.set(true);
 	}
 
 	closePaymentModal(): void {
 		this.showPaymentModal.set(false);
 		this.refundRecord.set(null);
 		this.showRefundConfirm.set(false);
+		this.pickingTarget.set(false);
+		this.selectedAddTarget.set(null);
 	}
 
 	/** Restrict amount to 2 decimal places */
@@ -281,7 +359,7 @@ export class AccountingLedgerComponent {
 	selectPaymentType(type: PaymentType): void {
 		this.paymentType.set(type);
 		// CC charges full owed; check/correction uses adjusted balance (minus processing fees)
-		this.amount.set(type === 'cc' ? this.owedTotal() : this.checkBalanceDue());
+		this.amount.set(type === 'cc' ? this.modalOwed() : this.checkBalanceDue());
 	}
 
 	submitPayment(): void {
@@ -322,7 +400,7 @@ export class AccountingLedgerComponent {
 		const amt = this.amount();
 
 		if (type === 'cc') {
-			return amt > 0 && amt <= this.owedTotal()
+			return amt > 0 && amt <= this.modalOwed()
 				&& !!this.ccNumber() && !!this.ccExpiry() && !!this.ccCvv()
 				&& !!this.ccFirstName() && !!this.ccLastName();
 		}
@@ -334,7 +412,7 @@ export class AccountingLedgerComponent {
 			return amt > 0 && amt <= maxRefund;
 		}
 		if (type === 'correction') {
-			return amt !== 0 && amt <= this.checkBalanceDue() && amt >= -this.paidTotal();
+			return amt !== 0 && amt <= this.checkBalanceDue() && amt >= -this.modalPaid();
 		}
 		return amt !== 0;
 	}

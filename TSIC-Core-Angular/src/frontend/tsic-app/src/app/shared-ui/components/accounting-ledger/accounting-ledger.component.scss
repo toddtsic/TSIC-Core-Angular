@@ -688,3 +688,96 @@
   color: var(--brand-text-muted);
   margin-bottom: var(--space-2);
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// Add-record registration picker (multi-event players)
+// ═══════════════════════════════════════════════════════════════════
+
+.target-picker-prompt {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--bs-body-color);
+  margin-bottom: var(--space-3);
+
+  .bi { color: var(--bs-primary); }
+}
+
+.target-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.target-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-3);
+  border: 2px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  background: var(--bs-body-bg);
+  color: var(--bs-body-color);
+  font-size: var(--font-size-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+
+  &:hover { border-color: var(--bs-primary); background: var(--bs-tertiary-bg); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+}
+
+.target-option-label {
+  font-weight: var(--font-weight-medium);
+}
+
+.target-option-owed {
+  flex-shrink: 0;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+
+  &.is-owed { color: var(--bs-danger); }
+}
+
+// "Recording for <event> · Change" banner above the payment form once a target is settled.
+.target-chosen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  background: var(--bs-primary-bg-subtle);
+  border: 1px solid var(--bs-primary);
+  border-radius: var(--radius-md);
+}
+
+.target-chosen-text {
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
+
+  .bi { color: var(--bs-primary); }
+}
+
+.target-change {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--bs-primary);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--bs-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: background-color 0.1s ease, color 0.1s ease;
+
+  &:hover { background: var(--bs-primary); color: var(--bs-white); }
+  &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target-option, .target-change { transition: none; }
+}

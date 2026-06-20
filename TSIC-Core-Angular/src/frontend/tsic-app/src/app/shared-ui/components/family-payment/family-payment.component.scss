@@ -94,6 +94,27 @@
   }
 }
 
+// Event-count badge on a player chip (multi-registration players).
+.chip-events {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 var(--space-1);
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--bs-tertiary-bg);
+  color: var(--bs-primary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+
+  .bi { font-size: 0.9em; }
+
+  // On the selected (primary-fill) chip, lift to a readable inverse.
+  .scope-btn.active & {
+    background: rgba(255, 255, 255, 0.25);
+    color: var(--bs-white);
+  }
+}
+
 // ═══════════════════════════════════════════
 // FAMILY SUMMARY
 // ═══════════════════════════════════════════

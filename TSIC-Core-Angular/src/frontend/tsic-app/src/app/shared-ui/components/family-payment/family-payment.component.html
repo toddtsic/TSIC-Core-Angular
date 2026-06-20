@@ -7,24 +7,26 @@
   <div class="alert alert-danger">{{ loadError() }}</div>
 } @else if (data(); as d) {
 
-  <!-- Scope Selector (shown when the family has multiple players). Picking a chip re-points the
-       per-player payment actions at that player (money is always entered per-player). The director's
-       ledger lists EVERY player (active-first) and counts them all; inactive players keep an
-       "Inactive" tag for status but are still selectable and still summed into the family balance. -->
-  @if (playerCount() > 1) {
+  <!-- Scope Selector — ONE tile per player (grouped by name), summed across all their
+       registrations, so a player who signed up for many events doesn't explode into many tiles.
+       The amber "All Family" overview is always the first, full-width chip. Selecting a player
+       reveals their combined ledger (all events). Money is entered per event (see below). -->
+  @if (personCount() > 1) {
     <div class="scope-selector">
-      <!-- Family overview banner — always the first, full-width chip so it can't get lost among
-           the per-player chips. Selecting it shows the whole-family (read-mostly) view. -->
       <button type="button" class="scope-btn scope-btn-family" [class.active]="scope() === 'family'" (click)="setScope('family')">
-        <i class="bi bi-people-fill me-1"></i>All Family: {{ familyName() }} ({{ playerCount() }} players, {{ familyOwedTotal() | currency }} owed)
+        <i class="bi bi-people-fill me-1"></i>All Family: {{ familyName() }} ({{ personCount() }} players, {{ familyOwedTotal() | currency }} owed)
       </button>
 
-      @for (p of chipPlayers(); track p.teamId) {
-        <button type="button" class="scope-btn" [class.inactive]="!p.active"
-                [class.active]="scope() === 'player' && activePlayerId() === p.teamId"
-                (click)="selectPlayer(p.teamId)">
-          {{ p.teamName }} · {{ p.owedTotal | currency }} owed
-          @if (!p.active) {
+      @for (person of persons(); track person.name) {
+        <button type="button" class="scope-btn" [class.inactive]="!person.active"
+                [class.active]="scope() === 'person' && activePersonName() === person.name"
+                (click)="selectPerson(person.name)">
+          {{ person.name }}
+          @if (person.events.length > 1) {
+            <span class="chip-events"><i class="bi bi-ticket-perforated me-1"></i>{{ person.events.length }} events</span>
+          }
+          · {{ person.owedTotal | currency }} owed
+          @if (!person.active) {
             <span class="chip-tag chip-tag-inactive"><i class="bi bi-pause-circle me-1"></i>Inactive</span>
           }
         </button>
@@ -32,17 +34,17 @@
     </div>
   }
 
-  <!-- Per-Player Breakdown — the SAME rich registered-teams-grid the club rep view uses
-       (DRY: app-registered-teams-grid). Family scope renders two summed sections, Active then
-       Inactive (each grid's aggregate footer is that section's summation); player scope renders
-       the single selected child. Age-group / deposit / balance columns are hidden (not meaningful
-       per player); Discount / Fee-Adj auto-appear when any row is non-zero. -->
+  <!-- Per-Player / Event Breakdown — the SAME registered-teams-grid the club rep view uses, with
+       clickable rows. Family scope renders summed Active/Inactive sections (Player column; the
+       event label is appended when a player's name repeats). Player scope renders that player's
+       events, one row per event (Event column). Clicking ANY row targets that registration for a
+       payment (see the banner below). Each grid's footer is its own section summation. -->
   @for (sec of breakdownSections(); track sec.title) {
     <div class="family-summary-card">
       <h5 class="section-title">{{ sec.title }}</h5>
       <app-registered-teams-grid
         [teams]="sec.teams"
-        [teamColHeader]="'Player'"
+        [teamColHeader]="sec.teamColHeader"
         [procFeeField]="'feeProcessing'"
         [showAgeGroup]="false"
         [showRegDate]="false"
@@ -56,12 +58,15 @@
         [showCkOwed]="true"
         [alwaysShowFeeAdj]="true"
         [frozenTeamCol]="true"
-        [teamColWidth]="120"
+        [teamColWidth]="160"
         [gridHeight]="'auto'" />
     </div>
   }
 
-  <!-- Payment Ledger -->
+  <!-- Payment Ledger — the viewed player's combined ledger (all events). "Add Accounting Record"
+       is always available in person scope; when the player has more than one event, the modal
+       first asks which registration the record is for (so it also reaches an event with no
+       records yet). -->
   <app-accounting-ledger
     [records]="accountingRecords()"
     [feeTotal]="feeTotal()"
@@ -71,16 +76,24 @@
     [groups]="ledgerGroups()"
     [groupHeading]="'Player'"
     [otherBucketLabel]="'Inactive'"
-    [allowAdd]="scope() === 'player'"
+    [allowAdd]="canAddRecord()"
+    [addTargets]="addTargets()"
+    (addTargetSelected)="onAddTargetSelected($event)"
     (refundSubmitted)="onRefundSubmitted($event)"
     (ccChargeSubmitted)="onCcCharge($event)"
     (checkSubmitted)="onCheckSubmitted($event)">
   </app-accounting-ledger>
 
+  <!-- Contextual hint -->
   @if (scope() === 'family') {
     <p class="family-scope-hint">
       <i class="bi bi-info-circle me-1"></i>
-      Showing the whole family. Switch to a single player to add a payment or charge a card.
+      Showing the whole family. Pick a player to see their combined ledger and record payments.
+    </p>
+  } @else if ((activePerson()?.events?.length ?? 0) > 1) {
+    <p class="family-scope-hint">
+      <i class="bi bi-info-circle me-1"></i>
+      Showing all of {{ activePersonName() }}'s events. "Add Accounting Record" will ask which event the payment is for.
     </p>
   }
 }

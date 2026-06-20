@@ -167,7 +167,20 @@
       </div>
 
       <div class="modal-body">
-        @if (paymentType() === 'refund') {
+        @if (pickingTarget()) {
+          <!-- ══ Which registration? — money attaches to ONE registration; pick it first ══ -->
+          <p class="target-picker-prompt">
+            <i class="bi bi-question-circle me-1"></i>Which registration is this record for?
+          </p>
+          <div class="target-picker">
+            @for (t of addTargets(); track t.key) {
+              <button type="button" class="target-option" (click)="chooseAddTarget(t)">
+                <span class="target-option-label">{{ t.label }}</span>
+                <span class="target-option-owed" [class.is-owed]="t.owed > 0">{{ t.owed | currency }} owed</span>
+              </button>
+            }
+          </div>
+        } @else if (paymentType() === 'refund') {
           <!-- ══ Refund Mode ══ -->
           @if (refundRecord(); as rec) {
             <div class="refund-details">
@@ -233,6 +246,19 @@
           }
         } @else {
         <!-- ══ Normal Mode (CC / Check / Correction) ══ -->
+
+        <!-- Which registration this record applies to (multi-event players) — with a Change
+             affordance back to the picker. Amount caps below are bound to this registration. -->
+        @if (addTargets().length > 1 && selectedAddTarget(); as t) {
+          <div class="target-chosen">
+            <span class="target-chosen-text">
+              <i class="bi bi-cursor-fill me-1"></i>Recording for <strong>{{ t.label }}</strong>
+            </span>
+            <button type="button" class="target-change" (click)="changeAddTarget()">
+              <i class="bi bi-arrow-left-right me-1"></i>Change
+            </button>
+          </div>
+        }
 
         <!-- Payment Type Selector -->
         <div class="type-selector">
@@ -349,11 +375,11 @@
                 <span class="input-group-text">$</span>
                 <input type="number" id="ledger-amount" class="form-control form-control-sm"
                   [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="1"
-                  [min]="paymentType() === 'correction' ? -paidTotal() : 0"
+                  [min]="paymentType() === 'correction' ? -modalPaid() : 0"
                   [max]="paymentType() === 'cc' ? null : checkBalanceDue()" />
               </div>
               <div class="owed-badge" [class.text-danger]="checkBalanceDue() > 0" [class.text-success]="checkBalanceDue() <= 0">
-                Balance Due: <strong>{{ paymentType() === 'cc' ? (owedTotal() | currency) : (checkBalanceDue() | currency) }}</strong>
+                Balance Due: <strong>{{ paymentType() === 'cc' ? (modalOwed() | currency) : (checkBalanceDue() | currency) }}</strong>
                 @if (paymentType() !== 'cc' && totalFeeReduction() > 0) {
                   <div class="fee-note text-success"><small>{{ totalFeeReduction() | currency }} processing fees removed</small></div>
                 }
@@ -369,7 +395,7 @@
                     @if (amount() > checkBalanceDue()) {
                       Correction cannot exceed Balance Due of {{ checkBalanceDue() | currency }}.
                     } @else {
-                      Correction cannot exceed amount paid ({{ paidTotal() | currency }} refundable).
+                      Correction cannot exceed amount paid ({{ modalPaid() | currency }} refundable).
                     }
                   </small>
                 </div>
@@ -456,7 +482,7 @@
         } <!-- end @else (normal mode) -->
       </div>
 
-      @if (!showCcConfirm() && !showRefundConfirm()) {
+      @if (!pickingTarget() && !showCcConfirm() && !showRefundConfirm()) {
         <div class="modal-footer">
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="closePaymentModal()">Cancel</button>
           @if (paymentType() === 'refund') {
