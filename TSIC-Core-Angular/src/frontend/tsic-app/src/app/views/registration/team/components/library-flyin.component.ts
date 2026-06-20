@@ -248,7 +248,7 @@ export interface RegisterRequest {
                       <div class="register-inline">
                         @if (lopOptions().length > 0) {
                           <div class="register-step">
-                            <span class="register-step-label">First, pick a Level of Play:</span>
+                            <label class="field-label">Event Level of Play</label>
                             <div class="lop-pills" role="radiogroup" aria-label="Level of play">
                               @for (opt of lopOptions(); track opt) {
                                 <button type="button" class="lop-pill"
@@ -262,13 +262,7 @@ export interface RegisterRequest {
                         }
 
                         <div class="register-step">
-                          <span class="register-step-label">
-                            @if (lopOptions().length > 0) {
-                              Then pick an event age group:
-                            } @else {
-                              Pick an event age group:
-                            }
-                          </span>
+                          <label class="field-label">Event Age Group</label>
                           <div class="ag-chip-row">
                           @for (ag of expandedAgChips(); track ag.ageGroupId) {
                             <button type="button" class="ag-chip"
@@ -895,27 +889,14 @@ export interface RegisterRequest {
         gap: var(--space-2);
       }
 
-      /* A numbered step inside the register expand: a "First,/Then" label line
-         stacked tightly above its chip row. The register-inline gap (space-2)
-         separates the two steps; the within-step gap (space-1) keeps each label
-         glued to its own chips. */
+      /* A step inside the register expand: a field-label line stacked tightly
+         above its chip row. The register-inline gap (space-2) separates the two
+         steps; the within-step gap (space-1) keeps each label glued to its own
+         chips. */
       .register-step {
         display: flex;
         flex-direction: column;
         gap: var(--space-1);
-      }
-
-      /* Highlighted step header — a primary-tinted pill that hugs its text so
-         "First, pick…" / "Then pick…" read as distinct, scannable instructions
-         above their chip rows rather than blending into the body copy. */
-      .register-step-label {
-        align-self: flex-start;
-        padding: 2px var(--space-2);
-        border-radius: var(--radius-sm);
-        background: rgba(var(--bs-primary-rgb), 0.1);
-        color: var(--bs-primary);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
       }
 
       .ag-chip-row {
@@ -1539,9 +1520,8 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
         // common case is Submit-ready. Falls back to unselected when there's no
         // match, leaving Submit disabled until the rep chooses.
         const existing = this.registeredInfo(team.clubTeamId);
-        const opts = this.lopOptions();
         const lopCandidate = existing?.levelOfPlay || team.clubTeamLevelOfPlay || '';
-        this.selectedLop.set(lopCandidate && opts.includes(lopCandidate) ? lopCandidate : '');
+        this.selectedLop.set(this.matchLopOption(lopCandidate));
         this.selectedAgeGroupId.set(
             existing ? this.ageGroupIdByName(existing.ageGroupName) : this.bestMatchAgeGroupId(team),
         );
@@ -1698,6 +1678,21 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
         if (!lop) return '';
         const match = lop.match(/^\s*(\d+)/);
         return match ? match[1] : lop;
+    }
+
+    /**
+     * Resolve a stored LOP value to the matching configured option, tolerant of
+     * format drift. The create-modals store a bare digit ('5'); the job's
+     * List_Lops stores friendly labels ('5 (strongest)'). Exact match first,
+     * then leading-token (formatLop) match. Returns '' when nothing matches.
+     */
+    private matchLopOption(candidate: string): string {
+        if (!candidate) return '';
+        const opts = this.lopOptions();
+        const exact = opts.find(o => o === candidate);
+        if (exact) return exact;
+        const key = this.formatLop(candidate);
+        return opts.find(o => this.formatLop(o) === key) ?? '';
     }
 
     onClose(): void {
