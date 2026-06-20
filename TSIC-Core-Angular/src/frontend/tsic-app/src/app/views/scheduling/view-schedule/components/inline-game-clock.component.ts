@@ -269,12 +269,23 @@ export class InlineGameClockComponent implements OnInit, OnDestroy {
     }
 
     stateLabel(label: string): string {
-        const key = this.stateKey(label);
-        switch (key) {
-            case 'upcoming':   return 'UPCOMING';
-            case 'live':       return 'LIVE';
-            case 'halftime':   return 'HALFTIME';
-            case 'transition': return 'BREAK';
+        // Show the actual interval being counted down (e.g. "2ND HALF"), not a
+        // generic "LIVE" — the chip is the only place the inline clock can tell
+        // the viewer which phase the timer belongs to.
+        switch (label) {
+            case 'START':               return 'UPCOMING';
+            case 'FIRST HALF':          return '1ST HALF';
+            case 'SECOND HALF':         return '2ND HALF';
+            case 'ONLY HALF':           return 'HALF';
+            case 'HALF TIME':           return 'HALFTIME';
+            case 'FIRST QUARTER':       return '1ST QTR';
+            case 'SECOND QUARTER':      return '2ND QTR';
+            case 'THIRD QUARTER':       return '3RD QTR';
+            case 'FOURTH QUARTER':      return '4TH QTR';
+            case 'FIRST QUARTER TIME':  return 'Q1 TIME';
+            case 'THIRD QUARTER TIME':  return 'Q3 TIME';
+            case 'TRANSITION':          return 'TRANSITION';
+            default:                    return label;
         }
     }
 
