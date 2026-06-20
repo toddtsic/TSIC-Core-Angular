@@ -210,6 +210,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<JobPushNotificationsToAll> JobPushNotificationsToAll { get; set; }
 
+    public virtual DbSet<JobQuickLink> JobQuickLink { get; set; }
+
     public virtual DbSet<JobReportExportHistory> JobReportExportHistory { get; set; }
 
     public virtual DbSet<JobReports> JobReports { get; set; }
@@ -229,6 +231,8 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<LeagueAgeGroupGameDayInfo> LeagueAgeGroupGameDayInfo { get; set; }
 
     public virtual DbSet<Leagues> Leagues { get; set; }
+
+    public virtual DbSet<LinkType> LinkType { get; set; }
 
     public virtual DbSet<Masterpairingtable> Masterpairingtable { get; set; }
 
@@ -4359,6 +4363,52 @@ public partial class SqlDbContext : DbContext
                 .HasConstraintName("FK_PushNotifications_TeamId");
         });
 
+        modelBuilder.Entity<JobQuickLink>(entity =>
+        {
+            entity.HasKey(e => e.JobQuickLinkId).HasName("PK_quicklinks.JobQuickLink");
+
+            entity.ToTable("JobQuickLink", "quicklinks");
+
+            entity.HasIndex(e => e.JobId, "IX_quicklinks.JobQuickLink_jobID");
+
+            entity.HasIndex(e => new { e.JobId, e.LinkKey }, "UQ_quicklinks.JobQuickLink_jobID_linkKey").IsUnique();
+
+            entity.Property(e => e.JobQuickLinkId)
+                .HasDefaultValueSql("(newsequentialid())", "DF_quicklinks.JobQuickLink_id")
+                .HasColumnName("jobQuickLinkID");
+            entity.Property(e => e.Enabled).HasColumnName("enabled");
+            entity.Property(e => e.JobId).HasColumnName("jobID");
+            entity.Property(e => e.Label)
+                .HasMaxLength(100)
+                .HasColumnName("label");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.LinkKey)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("linkKey");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())", "DF_quicklinks.JobQuickLink_modified")
+                .HasColumnName("modified");
+            entity.Property(e => e.SortOrder).HasColumnName("sortOrder");
+
+            entity.HasOne(d => d.Job).WithMany(p => p.JobQuickLink)
+                .HasForeignKey(d => d.JobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_quicklinks.JobQuickLink_Jobs.Jobs_jobID");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.JobQuickLink)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_quicklinks.JobQuickLink_AspNetUsers_lebUserID");
+
+            entity.HasOne(d => d.LinkKeyNavigation).WithMany(p => p.JobQuickLink)
+                .HasPrincipalKey(p => p.LinkKey)
+                .HasForeignKey(d => d.LinkKey)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_quicklinks.JobQuickLink_LinkType_linkKey");
+        });
+
         modelBuilder.Entity<JobReportExportHistory>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__JobRepor__3214EC079EDEF083");
@@ -4856,6 +4906,59 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.StandingsSortProfile).WithMany(p => p.Leagues)
                 .HasForeignKey(d => d.StandingsSortProfileId)
                 .HasConstraintName("FK__leagues__Standin__7CFBE3FF");
+        });
+
+        modelBuilder.Entity<LinkType>(entity =>
+        {
+            entity.HasKey(e => e.LinkTypeId).HasName("PK_quicklinks.LinkType");
+
+            entity.ToTable("LinkType", "quicklinks");
+
+            entity.HasIndex(e => e.LinkKey, "UQ_quicklinks.LinkType_linkKey").IsUnique();
+
+            entity.Property(e => e.LinkTypeId)
+                .HasDefaultValueSql("(newsequentialid())", "DF_quicklinks.LinkType_id")
+                .HasColumnName("linkTypeID");
+            entity.Property(e => e.Active)
+                .HasDefaultValue(true, "DF_quicklinks.LinkType_active")
+                .HasColumnName("active");
+            entity.Property(e => e.DefaultIcon)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("defaultIcon");
+            entity.Property(e => e.DefaultLabel)
+                .HasMaxLength(100)
+                .HasColumnName("defaultLabel");
+            entity.Property(e => e.DefaultSortOrder).HasColumnName("defaultSortOrder");
+            entity.Property(e => e.GroundingInverted).HasColumnName("groundingInverted");
+            entity.Property(e => e.GroundingSetting)
+                .HasMaxLength(60)
+                .IsUnicode(false)
+                .HasColumnName("groundingSetting");
+            entity.Property(e => e.LebUserId)
+                .HasMaxLength(450)
+                .HasColumnName("lebUserID");
+            entity.Property(e => e.LinkKey)
+                .HasMaxLength(50)
+                .IsUnicode(false)
+                .HasColumnName("linkKey");
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())", "DF_quicklinks.LinkType_modified")
+                .HasColumnName("modified");
+            entity.Property(e => e.NavigateUrl)
+                .HasMaxLength(400)
+                .HasColumnName("navigateUrl");
+            entity.Property(e => e.RouteTemplate)
+                .HasMaxLength(400)
+                .HasColumnName("routeTemplate");
+            entity.Property(e => e.Target)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("target");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.LinkType)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_quicklinks.LinkType_AspNetUsers_lebUserID");
         });
 
         modelBuilder.Entity<Masterpairingtable>(entity =>
