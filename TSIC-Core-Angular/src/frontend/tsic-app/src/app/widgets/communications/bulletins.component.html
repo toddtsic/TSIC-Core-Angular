@@ -1,28 +1,10 @@
 @if (bulletins() && bulletins().length > 0) {
 <div class="bulletins">
-    @for (bulletin of bulletins(); track bulletin.bulletinId; let first = $first) {
-    <article class="bulletin" [class.bulletin--featured]="first">
+    @for (bulletin of bulletins(); track bulletin.bulletinId) {
+    <article class="bulletin">
         <div class="bulletin-content">
-            @if (first) {
-            <div class="bulletin-meta">
-                <span class="bulletin-tag">Latest</span>
-            </div>
-            }
-
             @if (bulletin.title) {
             <h2 class="bulletin-title">{{ bulletin.title }}</h2>
-            }
-
-            @if (bulletin.startDate || bulletin.endDate) {
-            <p class="bulletin-effective">
-                @if (bulletin.startDate && bulletin.endDate) {
-                Effective {{ bulletin.startDate | date:'MMM d, y' }} – {{ bulletin.endDate | date:'MMM d, y' }}
-                } @else if (bulletin.startDate) {
-                Effective {{ bulletin.startDate | date:'MMM d, y' }}
-                } @else if (bulletin.endDate) {
-                Active through {{ bulletin.endDate | date:'MMM d, y' }}
-                }
-            </p>
             }
 
             <div class="bulletin-body" appInternalLink [jobPath]="jobPath()">

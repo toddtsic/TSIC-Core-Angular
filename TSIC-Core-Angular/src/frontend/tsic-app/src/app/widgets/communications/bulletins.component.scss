@@ -35,30 +35,13 @@
         rgba(var(--bs-primary-rgb), 0.015) 70%,
         transparent 100%
     );
-    border: 1px solid color-mix(in srgb, var(--bs-primary) 12%, var(--brand-border));
+    border: 1px solid color-mix(in srgb, var(--bs-primary) 18%, var(--brand-border));
     border-radius: var(--radius-lg, 12px);
-    box-shadow: var(--shadow-sm);
-}
+    // Lifted elevation so each card "pops" off the page background.
+    box-shadow: var(--shadow-lg);
 
-.bulletin-content {
-    min-width: 0;   // prevent blowout from long body content
-}
-
-// ── Featured (latest) bulletin — emphasized as the lead story ──
-
-.bulletin--featured {
-    // Lead story — stronger tint, larger inner padding, lifted elevation.
-    padding: var(--space-8) var(--space-10);
-    background-image: linear-gradient(
-        180deg,
-        rgba(var(--bs-primary-rgb), 0.10) 0%,
-        rgba(var(--bs-primary-rgb), 0.04) 60%,
-        rgba(var(--bs-primary-rgb), 0.015) 100%
-    );
-    border-color: color-mix(in srgb, var(--bs-primary) 22%, var(--brand-border));
-    box-shadow: var(--shadow-md);
-
-    // Left accent bar marks the lead story without adding chrome elsewhere.
+    // Left accent bar on every bulletin (clipped to the rounded corners by the
+    // overflow:hidden above).
     &::before {
         content: "";
         position: absolute;
@@ -70,20 +53,10 @@
             color-mix(in srgb, var(--bs-primary) 55%, transparent) 100%
         );
     }
+}
 
-    .bulletin-tag {
-        background: var(--bs-primary);
-        font-size: 0.7rem;
-        padding: 4px 11px;
-        box-shadow:
-            0 2px 6px rgba(var(--bs-primary-rgb), 0.4),
-            0 0 0 1px rgba(var(--bs-primary-rgb), 0.15);
-    }
-
-    .bulletin-title {
-        font-size: clamp(1.75em, 3.5vw, 2.75em);
-        letter-spacing: -0.015em;
-    }
+.bulletin-content {
+    min-width: 0;   // prevent blowout from long body content
 }
 
 // ── Phones — reclaim the heavy desktop inset ──
@@ -94,8 +67,7 @@
 // indent on phones so a typical row stays together.
 
 @media (max-width: 575px) {
-    .bulletin,
-    .bulletin--featured {
+    .bulletin {
         padding-left: var(--space-4);
         padding-right: var(--space-4);
     }
@@ -108,49 +80,19 @@
     }
 }
 
-// ── Byline metadata row ──
-
-.bulletin-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-    margin-bottom: var(--space-2);
-    flex-wrap: wrap;
-}
-
-.bulletin-tag {
-    display: inline-flex;
-    align-items: center;
-    font-size: 0.65rem;
-    font-weight: 800;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 3px 9px;
-    border-radius: var(--radius-sm, 4px);
-    background: var(--bs-primary);
-    color: var(--neutral-0);
-    box-shadow: 0 1px 2px rgba(var(--bs-primary-rgb), 0.35);
-}
-
-// ── Title + effective subtitle ──
+// ── Title ──
 
 .bulletin-title {
     // em-based bounds so the master scale on .bulletin affects the title;
-    // vw stays for fluid mid-viewport sizing.
-    font-size: clamp(1.5em, 3vw, 2.25em);
+    // vw stays for fluid mid-viewport sizing. Toned down from the old
+    // 1.5–2.25em range so titles read as headlines, not shouts — but kept
+    // bold + clearly larger than body so it reads as a distinct heading.
+    font-size: clamp(1.3em, 2.2vw, 1.8em);
     font-weight: var(--font-weight-bold);
-    line-height: 1.15;
+    line-height: 1.2;
     letter-spacing: -0.01em;
     color: var(--brand-text);
-    margin: 0 0 var(--space-2);
-}
-
-.bulletin-effective {
-    font-size: var(--font-size-sm);
-    color: var(--brand-text-muted);
-    font-style: italic;
-    margin: 0 0 var(--space-5);
-    letter-spacing: 0.01em;
+    margin: 0 0 var(--space-3);
 }
 
 // ── Body — author-controlled HTML ──
