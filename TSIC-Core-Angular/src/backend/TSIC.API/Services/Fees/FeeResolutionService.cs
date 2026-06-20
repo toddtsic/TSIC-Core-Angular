@@ -301,14 +301,31 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var deposit = resolved?.EffectiveDeposit ?? 0m;
         var balanceDue = resolved?.EffectiveBalanceDue ?? 0m;
 
-        // Phase follows the TARGET scope override ?? job baseline (ctx).
-        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired);
+        // Phase is decided from BOTH the config cascade AND the team's own payments — identical to
+        // ApplySwapFeesAsync (the player swap applier):
+        //   (1) Config: per-scope override (team → ag → league) ?? job baseline (ctx).
+        //   (2) Promotion: having paid PAST the deposit tier IS entering full payment. This makes
+        //       the reprice engine's old OwedTotal<=0 skip unnecessary — a paid-ahead (or
+        //       owed-zeroed) team is re-stamped to FullPrice, NEVER down to the deposit, so a
+        //       PIF→deposit downgrade can't net a bogus credit, AND a deposit→PIF upgrade reaches
+        //       a team whose deposit-phase owed was already zeroed (e.g. by a correction).
+        // Threshold is principal-based (proc backed out per method via PaymentState), compared
+        // against the discount/late/donation-adjusted deposit with a small tolerance so a team
+        // that paid EXACTLY its deposit is not spuriously promoted. The same PaymentState is
+        // reused for the totals recompute below (one ledger read, not two).
+        const decimal depositPaidTolerance = 0.01m;
+        var state = await _paymentState.ForTeamAsync(team.TeamId, jobId, ct);
+        var effectiveDeposit = Math.Max(
+            0m, deposit - (team.FeeDiscount ?? 0m) + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
+        var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
+
+        var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
         var feeBase = fullPayment ? (resolved?.FullPrice ?? 0m) : deposit;
 
         // Only FeeBase changes — modifiers FROZEN
         team.FeeBase = feeBase;
 
-        await ApplyTeamProcessingAndTotalsAsync(team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: false, ct);
+        await ApplyTeamProcessingAndTotalsAsync(team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: false, ct, state);
     }
 
     // ── Private: Processing + Totals (canonical) ────────────────
@@ -346,7 +363,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
     private async Task ApplyTeamProcessingAndTotalsAsync(
         TeamsEntity team, Guid jobId, decimal deposit, decimal balanceDue,
-        TeamFeeApplicationContext ctx, bool fullPayment, bool isNew, CancellationToken ct)
+        TeamFeeApplicationContext ctx, bool fullPayment, bool isNew, CancellationToken ct,
+        PaymentState? state = null)
     {
         var feeBase = team.FeeBase ?? 0m;
         var discount = team.FeeDiscount ?? 0m;
@@ -370,15 +388,19 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
             if (billableBase > 0m)
             {
-                var state = isNew
+                // Callers that already resolved the team's PaymentState (the swap/reprice path,
+                // which needs it for the paid-past-deposit promotion) pass it through to avoid a
+                // second ledger read. Otherwise resolve it here: Empty for a brand-new team, else
+                // from the ledger.
+                var procState = isNew
                     ? PaymentState.Empty(
                         bAddProcessingFees: true,
                         ccRate: ctx.ProcessingFeePercent,
                         echeckRate: await GetEffectiveEcheckProcessingRateAsync(jobId, ct))
-                    : await _paymentState.ForTeamAsync(team.TeamId, jobId, ct);
+                    : state ?? await _paymentState.ForTeamAsync(team.TeamId, jobId, ct);
 
                 feeProcessing = Math.Round(
-                    state.FeeProcessingTarget(billableBase, discount, lateFee, donation),
+                    procState.FeeProcessingTarget(billableBase, discount, lateFee, donation),
                     2, MidpointRounding.AwayFromZero);
             }
         }

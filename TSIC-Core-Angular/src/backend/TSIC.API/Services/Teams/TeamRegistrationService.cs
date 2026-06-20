@@ -1279,26 +1279,16 @@ public class TeamRegistrationService : ITeamRegistrationService
                 continue;
             }
 
-            // Skip teams already paid-in-full. On a true→false unflip of
-            // BTeamsFullPaymentRequired, re-stamping FeeBase to deposit-only would
-            // shrink FeeTotal below PaidTotal — and FeeResolutionService computes
-            // OwedTotal = FeeTotal - PaidTotal with no clamp, producing a negative
-            // (bogus credit) that flows straight into the rep's pulse total.
-            // Symmetric to PlayerRegistrationService.RecalculatePlayerFeesAsync.
-            //
-            // Test on the team's OWN settled obligation: OwedTotal already nets
-            // FeeProcessing and FeeDiscount. Comparing PaidTotal against the bare resolved
-            // deposit+balanceDue (no proc, no discount) misclassified any team carrying a
-            // FeeDiscount.
-            if ((team.OwedTotal ?? 0m) <= 0m)
-            {
-                _logger.LogInformation(
-                    "Skipping team {TeamId} ({TeamName}): OwedTotal {Owed} <= 0 (PIF or balance-due paid).",
-                    team.TeamId, team.TeamName, team.OwedTotal);
-                skippedReasons.Add($"Team '{team.TeamName}' (paid-in-full: {team.PaidTotal:C})");
-                continue;
-            }
-
+            // No paid-in-full skip here — every eligible team is repriced. The applier
+            // (ApplyTeamSwapFeesAsync) decides phase per-team from the cascade AND the team's
+            // own payments: paying PAST the deposit promotes the team to full payment, so a
+            // paid-ahead team is re-stamped to FullPrice (never DOWN to the deposit) and can
+            // never net a bogus credit on a PIF→deposit downgrade. Removing the old
+            // OwedTotal<=0 gate is what lets a deposit→PIF upgrade reach a team whose
+            // deposit-phase owed was already zeroed (e.g. by a recorded deposit or a client
+            // correction) — it correctly owes the new balance, and a genuine over-payment
+            // surfaces as a (correct) negative OwedTotal. Mirrors the player path
+            // (PlayerRegistrationService.RecalculatePlayerFeesAsync), which removed the same gate.
             var oldFeeBase = team.FeeBase ?? 0;
             var oldFeeProcessing = team.FeeProcessing ?? 0;
 

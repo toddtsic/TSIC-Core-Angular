@@ -264,9 +264,9 @@ public class PaymentFeeRecalcTests
         feeService.Setup(f => f.GetEffectiveProcessingRateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ProcessingRate);
 
-        // PIF-skip guard in RecalculateTeamFeesAsync calls ResolveFeeAsync to compute
-        // the full owed amount per team. Return the same fixed Deposit/BalanceDue used
-        // by the AccountingDataBuilder so paid-in-full detection lines up with reality.
+        // The reprice engine prices each team through the applier (mocked below). Return the
+        // same fixed Deposit/BalanceDue the AccountingDataBuilder uses so the mocked applier
+        // prices teams exactly as production would.
         feeService.Setup(f => f.ResolveFeeAsync(
                 It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<Guid>(),
                 It.IsAny<CancellationToken>()))
@@ -285,13 +285,20 @@ public class PaymentFeeRecalcTests
                 var deposit = agegroup.RosterFee ?? 0;
                 var balance = agegroup.TeamFee ?? 0;
 
-                t.FeeBase = feeCtx.IsFullPaymentRequired ? deposit + balance : deposit;
+                // Mirror the real ApplyTeamSwapFeesAsync promotion: a team that has paid PAST
+                // the deposit is in full-payment phase regardless of the config flag, so a
+                // downgrade never re-stamps it DOWN to the deposit (no bogus credit). Processing
+                // is OFF in the downgrade scenario, so PaidTotal stands in for PrincipalPaid.
+                var paidPastDeposit = (t.PaidTotal ?? 0m) > deposit + 0.01m;
+                var fullPayment = feeCtx.IsFullPaymentRequired || paidPastDeposit;
+
+                t.FeeBase = fullPayment ? deposit + balance : deposit;
 
                 if (feeCtx.AddProcessingFees)
                 {
                     t.FeeProcessing = feeCtx.ApplyProcessingFeesToDeposit
                         ? t.FeeBase * feeCtx.ProcessingFeePercent
-                        : (feeCtx.IsFullPaymentRequired ? balance * feeCtx.ProcessingFeePercent : 0);
+                        : (fullPayment ? balance * feeCtx.ProcessingFeePercent : 0);
                 }
                 else
                 {
@@ -808,19 +815,21 @@ public class PaymentFeeRecalcTests
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TEST 10: Paid-in-full team skipped on Full Pay ON → OFF unflip
+    // TEST 10: Paid-in-full team preserved on Full Pay ON → OFF unflip
     //   PIF team must NOT be re-stamped to deposit-only — that would
     //   shrink FeeTotal below PaidTotal and produce a negative OwedTotal
     //   (bogus credit) that propagates into the rep's pulse balance.
-    //   Symmetric to PlayersFullPayRequired_TurnedOff_TriggersPlayerRecalc.
+    //   This is now guaranteed by the applier's paid-past-deposit promotion
+    //   (ApplyTeamSwapFeesAsync), not an engine-level skip — a paid-ahead team
+    //   stays at full price on the downgrade. Mirrors the player path.
     // ═══════════════════════════════════════════════════════════════
 
     [Fact]
-    public async Task PaidInFullTeam_Skipped_OnFullPayUnflip()
+    public async Task PaidInFullTeam_PreservedViaPromotion_OnFullPayUnflip()
     {
         var fullAmount = Deposit + BalanceDue; // 2000
 
-        PrintScenario("Paid-In-Full Team Skipped: Full Pay ON → OFF",
+        PrintScenario("Paid-In-Full Team Preserved: Full Pay ON → OFF",
             "1 PIF team (paid $2,000 of $2,000) + 1 unpaid team. Director disables full pay. " +
             "PIF team must be left untouched; unpaid team reverts to deposit-only. " +
             "Rep registration row must re-aggregate to match the new team sums.");
@@ -872,7 +881,7 @@ public class PaymentFeeRecalcTests
         // Live SUM of team OwedTotal — must equal $500, not -$1500.
         var teamSumOwed = after.Sum(t => t.OwedTotal ?? 0m);
         teamSumOwed.Should().Be(Deposit,
-            "team-row aggregate must be positive after PIF guard");
+            "team-row aggregate must be positive — the paid-ahead team stays at full price via promotion");
 
         // Rep registration row MUST be re-synced to match the new team aggregates.
         // SynchronizeClubRepFinancialsAsync call inside RecalculateTeamFeesAsync is
@@ -900,6 +909,44 @@ public class PaymentFeeRecalcTests
         _out.WriteLine($"    OwedTotal:  ${repBefore.OwedTotal} → ${repAfter.OwedTotal} (expected ${expectedOwedTotal})");
 
         PrintResult($"PIF team preserved. Unpaid team reverted. Rep registration re-synced. PASS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // TEST 10b: Owed-zeroed deposit team reprices on Deposit → Full Pay flip
+    //   The production bug. A deposit-phase team whose owed was driven to $0
+    //   (a recorded deposit, or a client correction) must NOT be treated as
+    //   paid-in-full and skipped — the engine no longer carries an
+    //   OwedTotal<=0 gate, so the PIF flip re-stamps it to full price and it
+    //   correctly owes the balance.
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task OwedZeroedDepositTeam_RepricedToFullPrice_OnPifFlip()
+    {
+        PrintScenario("Owed-Zeroed Deposit Team Reprices on PIF Flip",
+            "Deposit-phase team paid its $500 deposit (owed $0). Director enables full pay. " +
+            "Team must re-stamp to $2,000 and owe $1,500 — NOT be skipped as paid-in-full.");
+
+        var (svc, ctx, jobId, _) = await CreateServiceAsync(
+            bTeamsFullPaymentRequired: false,
+            teamCount: 1, teamFeeBase: Deposit, teamPaidTotal: Deposit); // owed = $0 in deposit phase
+
+        var before = await ctx.Teams.AsNoTracking().Where(t => t.JobId == jobId).ToListAsync();
+        before[0].OwedTotal.Should().Be(0m, "precondition: deposit fully paid → owed $0");
+        PrintTeamTable("BEFORE (deposit paid, owed $0)", before);
+
+        var req = BuildRequest(ctx, jobId, bTeamsFullPaymentRequired: true);
+        await svc.UpdatePaymentAsync(jobId, req, isSuperUser: false);
+
+        var after = await ctx.Teams.Where(t => t.JobId == jobId).ToListAsync();
+        PrintTeamTable("AFTER (full pay enabled)", after);
+
+        var updated = after[0];
+        updated.FeeBase.Should().Be(Deposit + BalanceDue, "owed-zeroed team must still re-stamp to full price");
+        updated.PaidTotal.Should().Be(Deposit, "the $500 already paid is preserved");
+        updated.OwedTotal.Should().Be(BalanceDue, "2000 full − 500 paid = 1500 now owed");
+
+        PrintResult($"FeeBase: $500 → $2,000. Owed: $0 → $1,500 (no longer skipped). PASS");
     }
 
     // ═══════════════════════════════════════════════════════════════
