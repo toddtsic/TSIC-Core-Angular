@@ -694,15 +694,27 @@ export class AddAndRegisterTeamModalComponent {
             });
     }
 
-    /** Pick the age group whose name matches the team's grad year (best discoverability hint). */
+    /**
+     * Pick the age group whose name matches the team's grad year (best discoverability hint).
+     * When that match is full (oversubscribed), default to its WAITLIST twin instead so the rep
+     * lands on the waitlist rather than a full age group — the server auto-mints the twin the
+     * instant an age group fills (parity with the player roster hook), so it is normally present;
+     * if it isn't yet, we fall back to the full parent and the server waitlists on submit.
+     */
     private bestMatch(): string {
         const yr = this.gradYear();
         const ageGroups = this.ageGroups();
         if (!yr || !ageGroups.length) return '';
-        const exact = ageGroups.find(ag => ag.ageGroupName === yr);
-        if (exact) return exact.ageGroupId;
-        const contains = ageGroups.find(ag => ag.ageGroupName.includes(yr));
-        if (contains) return contains.ageGroupId;
-        return '';
+        const isWaitlist = (name: string) => name.toUpperCase().startsWith('WAITLIST');
+        const matched =
+            ageGroups.find(ag => ag.ageGroupName === yr) ??
+            ageGroups.find(ag => ag.ageGroupName.includes(yr) && !isWaitlist(ag.ageGroupName));
+        if (!matched) return '';
+        if (matched.registeredCount >= matched.maxTeams) {
+            const twinName = `WAITLIST - ${matched.ageGroupName}`.toUpperCase();
+            const twin = ageGroups.find(ag => ag.ageGroupName.toUpperCase() === twinName);
+            if (twin) return twin.ageGroupId;
+        }
+        return matched.ageGroupId;
     }
 }

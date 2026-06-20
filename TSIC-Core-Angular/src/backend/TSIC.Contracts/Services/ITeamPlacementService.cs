@@ -50,4 +50,18 @@ public interface ITeamPlacementService
         Guid realTeamId,
         string? userId = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Proactively ensure the WAITLIST mirror AGEGROUP (and its holding division) exists for an
+    /// agegroup that has just reached its team-max — the agegroup-level parity of
+    /// <see cref="EnsureWaitlistMirrorAsync"/>. Minted at fill time so the team-registration picker
+    /// can default to the twin the instant the agegroup fills, instead of waiting for the next rep
+    /// to overflow it. Waitlists are mandatory, so this always mints; performs no capacity check,
+    /// creates no team and charges nothing, and is idempotent (find-or-creates the same twin as the
+    /// overflow path in <see cref="ResolvePlacementAsync"/>).
+    /// </summary>
+    Task EnsureWaitlistAgegroupMirrorAsync(
+        Guid targetAgegroupId,
+        string? userId = null,
+        CancellationToken cancellationToken = default);
 }

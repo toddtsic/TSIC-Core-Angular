@@ -191,6 +191,26 @@ public class TeamPlacementService : ITeamPlacementService
         await MintWaitlistMirrorAsync(jobId, realTeamId, userId, cancellationToken);
     }
 
+    /// <inheritdoc />
+    public async Task EnsureWaitlistAgegroupMirrorAsync(
+        Guid targetAgegroupId,
+        string? userId = null,
+        CancellationToken cancellationToken = default)
+    {
+        var agegroup = await _agegroupRepo.GetByIdAsync(targetAgegroupId, cancellationToken)
+            ?? throw new KeyNotFoundException($"Agegroup {targetAgegroupId} not found.");
+
+        // Reuse the exact same find-or-create the overflow path uses, so a later overflow
+        // is a no-op find rather than a second mint. Agegroup twin + its holding division.
+        var waitlistAgName = $"WAITLIST - {agegroup.AgegroupName}";
+        var waitlistAg = await FindOrCreateWaitlistAgegroupAsync(
+            agegroup, waitlistAgName, userId, cancellationToken);
+
+        var waitlistDivName = $"WAITLIST - {agegroup.AgegroupName}";
+        await FindOrCreateDivisionAsync(
+            waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
+    }
+
     /// <summary>
     /// Find-or-create the full WAITLIST mirror (agegroup + division + team + its $0 fee
     /// stamp) for a real team. Waitlists are mandatory job-wide, so this always mints

@@ -729,6 +729,18 @@ public class TeamRegistrationService : ITeamRegistrationService
         await _registrations.SynchronizeClubRepFinancialsAsync(
             clubRepRegistration.RegistrationId, userId);
 
+        // Proactive mint-on-fill (agegroup-level parity with the player roster hook): if this
+        // non-waitlisted registration brought the agegroup to (or past) its team-max, ensure the
+        // WAITLIST twin exists so the next rep's picker can default straight to it instead of
+        // having to overflow the full agegroup first. Idempotent; a waitlisted placement already
+        // created the twin, so skip that branch. MaxTeams<=0 means uncapped → never fills.
+        if (!placement.IsWaitlisted && ageGroup.MaxTeams > 0)
+        {
+            var agegroupCount = await _teams.GetRegisteredCountForAgegroupAsync(jobId, placement.AgegroupId);
+            if (agegroupCount >= ageGroup.MaxTeams)
+                await _placement.EnsureWaitlistAgegroupMirrorAsync(placement.AgegroupId, userId);
+        }
+
         _logger.LogInformation("Team registered successfully. TeamId: {TeamId}, TeamName: {TeamName}, ClubTeamId: {ClubTeamId}, FeeBase: {FeeBase}, FeeProcessing: {FeeProcessing}",
             team.TeamId, teamName, clubTeamId, team.FeeBase, team.FeeProcessing);
 

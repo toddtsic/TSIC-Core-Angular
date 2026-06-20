@@ -1478,15 +1478,28 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
         !this.actionInProgress() && !!this.selectedAgeGroupId() && !this.lopRequired(),
     );
 
-    /** Best-match age group by team grad year — exact match first, then substring. */
+    /**
+     * Best-match age group by team grad year — exact match first, then substring. When the match
+     * is full (oversubscribed), default to its WAITLIST twin so the rep lands on the waitlist
+     * rather than a full age group. The server auto-mints the twin the instant an age group fills
+     * (parity with the player roster hook), so it is normally present; if it isn't yet, fall back
+     * to the full parent and the server waitlists on submit.
+     */
     private bestMatchAgeGroupId(team: ClubTeamDto): string {
         const gy = team.clubTeamGradYear;
         if (!gy) return '';
         const ags = this.ageGroups();
-        const exact = ags.find(a => a.ageGroupName === gy);
-        if (exact) return exact.ageGroupId;
-        const contains = ags.find(a => a.ageGroupName.includes(gy));
-        return contains?.ageGroupId ?? '';
+        const isWaitlist = (name: string) => name.toUpperCase().startsWith('WAITLIST');
+        const matched =
+            ags.find(a => a.ageGroupName === gy) ??
+            ags.find(a => a.ageGroupName.includes(gy) && !isWaitlist(a.ageGroupName));
+        if (!matched) return '';
+        if (matched.registeredCount >= matched.maxTeams) {
+            const twinName = `WAITLIST - ${matched.ageGroupName}`.toUpperCase();
+            const twin = ags.find(a => a.ageGroupName.toUpperCase() === twinName);
+            if (twin) return twin.ageGroupId;
+        }
+        return matched.ageGroupId;
     }
 
     /** AG chip data for the currently expanded row. */
