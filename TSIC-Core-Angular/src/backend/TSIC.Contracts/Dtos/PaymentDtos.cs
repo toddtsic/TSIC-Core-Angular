@@ -95,6 +95,25 @@ public record PaymentResponseDto
     // twin at $0 and NOT charged, while the seatable players in the same cart were charged. The
     // confirmation screen surfaces these so the family is told plainly which kids were waitlisted.
     public List<PaymentWaitlistedDto>? NeedsWaitlist { get; init; }
+
+    // Per-registration charge outcome for the cart (charged AND declined). Populated on a
+    // non-full-success response so the frontend can show an itemized result panel telling the
+    // family exactly which player(s) charged and which declined (and why), then refresh to the
+    // real remaining balance instead of re-submitting against a stale total. Null on full success.
+    public List<RegistrationChargeOutcomeDto>? Outcomes { get; init; }
+}
+
+// One row of the surfaced per-registration charge outcome. Best-effort PlayerName/TeamName
+// (mirrors PaymentWaitlistedDto) so the frontend renders names without a second lookup.
+public sealed record RegistrationChargeOutcomeDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required string PlayerName { get; init; }
+    public required string TeamName { get; init; }
+    public required bool Charged { get; init; }
+    public decimal? ChargedAmount { get; init; }
+    /// <summary>Populated only on a declined registration — the gateway's user-facing decline reason.</summary>
+    public string? FailureReason { get; init; }
 }
 
 // One waitlisted player in a partially-charged cart: moved to the waitlist twin at $0, not charged.

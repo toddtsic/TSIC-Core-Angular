@@ -22,7 +22,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { sanitizeExpiry, sanitizePhone } from '@views/registration/shared/services/credit-card-utils';
 import { sanitizeRouting, sanitizeAccount, sanitizeNameOnAccount } from '@views/registration/shared/services/bank-account-utils';
 import { scrollWizardToTop } from '@views/registration/shared/services/vi-scroll.util';
-import type { BankAccountInfo, PaymentResponseDto, PaymentRequestDto, PaymentWaitlistedDto } from '@core/api';
+import type { BankAccountInfo, PaymentResponseDto, PaymentRequestDto, PaymentWaitlistedDto, RegistrationChargeOutcomeDto } from '@core/api';
 import type { VIOfferData, CreditCardFormValue } from '@views/registration/shared/types/wizard.types';
 import type { LineItem } from '../state/payment-v2.service';
 
@@ -60,6 +60,48 @@ import type { LineItem } from '../state/payment-v2.service';
               <span class="badge bg-danger-subtle text-danger-emphasis border">{{ lastError()!.errorCode }}</span>
             }
           </div>
+        }
+
+        <!-- Per-player results panel — shown after a partial-success or all-failed charge. The
+             summary table + Pay button below have already refreshed to the real remaining balance;
+             this tells the family exactly which player(s) charged and which declined (and why), so
+             they retry only the declined one(s). -->
+        @if (chargeOutcomes(); as outcomes) {
+          <section class="charge-results alert alert-warning border-0 mb-3" role="status">
+            <div class="fw-semibold mb-2">Results by player</div>
+            <table class="table table-sm mb-0 bg-transparent">
+              <thead>
+                <tr><th>Player</th><th>Status</th><th>Detail</th></tr>
+              </thead>
+              <tbody>
+                @for (o of outcomes; track o.registrationId) {
+                  <tr [class.table-success]="o.charged" [class.table-danger]="!o.charged">
+                    <td>
+                      {{ o.playerName || 'Player' }}
+                      @if (o.teamName) { <span class="text-muted small">({{ o.teamName }})</span> }
+                    </td>
+                    <td>
+                      @if (o.charged) {
+                        <span class="badge bg-success">Charged</span>
+                      } @else {
+                        <span class="badge bg-danger">Declined</span>
+                      }
+                    </td>
+                    <td class="small">
+                      @if (o.charged) {
+                        {{ o.chargedAmount | currency }}
+                      } @else {
+                        {{ o.failureReason }}
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            <div class="small text-muted mt-2">
+              <i class="bi bi-info-circle me-1"></i>The player(s) that charged are now registered. Retry the declined one(s) — the amount due below reflects the remaining balance.
+            </div>
+          </section>
         }
 
         <!-- Balance due + summary -->
@@ -861,6 +903,9 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly bankAccountValid = signal(false);
     readonly submitting = signal(false);
     readonly lastError = signal<{ message: string | null; errorCode: string | null } | null>(null);
+    // Per-player charge outcomes — set on a partial-success or all-failed submit so the family
+    // sees which player(s) charged and which declined (and why). Null until then.
+    readonly chargeOutcomes = signal<RegistrationChargeOutcomeDto[] | null>(null);
     readonly showViChargeConfirm = signal(false);
     readonly discountCode = signal('');
 
@@ -1284,6 +1329,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         }
         this.submitting.set(true);
         this.lastError.set(null);
+        this.chargeOutcomes.set(null);
 
         if (!this.lastIdemKey) {
             const newKey = crypto?.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
@@ -1333,6 +1379,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     // ── Internal submit ─────────────────────────────────────────────────
     private continueSubmit(): void {
         this.submitting.set(true);
+        this.chargeOutcomes.set(null);
 
         if (!this.lastIdemKey) {
             const newKey = crypto?.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
@@ -1424,9 +1471,19 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
                 this.insuranceSvc.purchaseInsurance(this._creditCard());
             }
         } else {
+            // Partial-success or all-failed: the backend already persisted the player(s) that
+            // charged. Surface the per-player results and refresh family players so the summary
+            // table + "Pay $X Now" button reflect the real remaining balance. Stay on the payment
+            // step (do NOT advance) so the family retries ONLY the declined player(s).
             this.submitting.set(false);
             this.lastError.set({ message: response.message || null, errorCode: response.errorCode || null });
             this.toast.show(`[${response.errorCode || 'ERROR'}] ${response.message || 'Payment failed.'}`, 'danger', 6000);
+            this.chargeOutcomes.set(response.outcomes && response.outcomes.length > 0
+                ? (response.outcomes as RegistrationChargeOutcomeDto[])
+                : null);
+            const jobPath = this.state.jobCtx.jobPath();
+            const apiBase = this.state.jobCtx.resolveApiBase();
+            if (jobPath) this.state.familyPlayers.loadFamilyPlayers(jobPath, apiBase);
         }
     }
 

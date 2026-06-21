@@ -214,6 +214,7 @@ public class PaymentService : IPaymentService
 
         string? firstTransactionId = null;
         var failedCount = 0;
+        var teamResults = new List<TeamPaymentResultDto>(plans.Count);
         var pendingSettlements = new List<(RegistrationAccounting Ra, string TxId)>();
         var nameOnAcct = bankAccount?.NameOnAccount?.Trim();
         var acctLast4 = bankAccount?.AccountNumber is { Length: >= 4 } acct ? acct[^4..] : bankAccount?.AccountNumber;
@@ -307,11 +308,27 @@ public class PaymentService : IPaymentService
 
                 _logger.LogInformation("Team {Kind} processed: Team={TeamId} Charge={Charge} Credit={Credit} TransId={TransId}",
                     kind, team.TeamId, charge, credit, transId);
+
+                teamResults.Add(new TeamPaymentResultDto
+                {
+                    TeamId = team.TeamId,
+                    TeamName = team.TeamName ?? string.Empty,
+                    Charged = true,
+                    ChargedAmount = charge
+                });
             }
             else
             {
                 failedCount++;
                 _logger.LogWarning("Team {Kind} failed: Team={TeamId} Error={Error}", kind, team.TeamId, chargeResult.MessageForUser);
+
+                teamResults.Add(new TeamPaymentResultDto
+                {
+                    TeamId = team.TeamId,
+                    TeamName = team.TeamName ?? string.Empty,
+                    Charged = false,
+                    FailureReason = chargeResult.MessageForUser
+                });
             }
         }
 
@@ -358,7 +375,8 @@ public class PaymentService : IPaymentService
                 Message = kind == TeamChargeKind.Cc
                     ? $"All {attempted} team payment(s) processed successfully"
                     : $"{attempted} team eCheck submission(s) accepted; settlement pending (typically 3–5 business days).",
-                TransactionId = firstTransactionId
+                TransactionId = firstTransactionId,
+                Teams = teamResults
             };
         if (failedCount < attempted)
             return new TeamPaymentResponseDto
@@ -368,13 +386,15 @@ public class PaymentService : IPaymentService
                 Message = kind == TeamChargeKind.Cc
                     ? $"{attempted - failedCount} of {attempted} team payment(s) succeeded"
                     : $"{attempted - failedCount} of {attempted} team eCheck submission(s) accepted; rest failed.",
-                TransactionId = firstTransactionId
+                TransactionId = firstTransactionId,
+                Teams = teamResults
             };
         return new TeamPaymentResponseDto
         {
             Success = false,
             Error = "ALL_FAILED",
-            Message = kind == TeamChargeKind.Cc ? "All team payments failed" : "All team eCheck submissions failed"
+            Message = kind == TeamChargeKind.Cc ? "All team payments failed" : "All team eCheck submissions failed",
+            Teams = teamResults
         };
     }
 
@@ -1270,7 +1290,12 @@ public class PaymentService : IPaymentService
             {
                 Success = false,
                 Message = result.Message ?? "eCheck submission failed",
-                ErrorCode = result.ErrorCode ?? "CHARGE_GATEWAY_ERROR"
+                ErrorCode = result.ErrorCode ?? "CHARGE_GATEWAY_ERROR",
+                // Per-player outcomes only for true gateway declines (partial/total) — not for
+                // pre-charge validation failures (AMOUNT_CHANGED etc.), which the error banner covers.
+                Outcomes = result.ErrorCode == "CHARGE_GATEWAY_ERROR"
+                    ? await BuildChargeOutcomeDtosAsync(jobId, result.Outcomes, registrations)
+                    : null
             };
         }
 
@@ -1281,6 +1306,44 @@ public class PaymentService : IPaymentService
             Message = "eCheck submitted; settlement pending (typically 3–5 business days).",
             TransactionId = result.TransactionId
         };
+    }
+
+    /// <summary>
+    /// Project the canonical engine's per-registration outcomes into the client-facing
+    /// <see cref="RegistrationChargeOutcomeDto"/> list, resolving best-effort player + team
+    /// names (one batched team lookup) so the frontend can show an itemized "who charged /
+    /// who declined" panel without a second round-trip. Used on every non-full-success return.
+    /// </summary>
+    private async Task<List<RegistrationChargeOutcomeDto>> BuildChargeOutcomeDtosAsync(
+        Guid jobId,
+        IReadOnlyList<RegistrationCcChargeOutcome> outcomes,
+        IReadOnlyCollection<Registrations> registrations)
+    {
+        var regById = registrations.ToDictionary(r => r.RegistrationId);
+        var teamIds = registrations
+            .Where(r => r.AssignedTeamId.HasValue)
+            .Select(r => r.AssignedTeamId!.Value)
+            .Distinct()
+            .ToList();
+        var teamList = teamIds.Count > 0 ? await _teams.GetTeamsForJobAsync(jobId, teamIds) : null;
+        var teamNames = teamList?.ToDictionary(t => t.TeamId, t => t.TeamName ?? string.Empty)
+            ?? new Dictionary<Guid, string>();
+
+        return outcomes.Select(o =>
+        {
+            regById.TryGetValue(o.RegistrationId, out var reg);
+            var teamName = reg?.AssignedTeamId is { } tid && teamNames.TryGetValue(tid, out var tn)
+                ? tn : string.Empty;
+            return new RegistrationChargeOutcomeDto
+            {
+                RegistrationId = o.RegistrationId,
+                PlayerName = reg?.InsuredName ?? string.Empty,
+                TeamName = teamName,
+                Charged = o.Success,
+                ChargedAmount = o.ChargedAmount,
+                FailureReason = o.Success ? null : o.Error
+            };
+        }).ToList();
     }
 
     /// <summary>
@@ -1799,7 +1862,12 @@ public class PaymentService : IPaymentService
             {
                 Success = false,
                 Message = result.Message ?? "Payment failed",
-                ErrorCode = result.ErrorCode ?? "CHARGE_GATEWAY_ERROR"
+                ErrorCode = result.ErrorCode ?? "CHARGE_GATEWAY_ERROR",
+                // Per-player outcomes only for true gateway declines (partial/total) — not for
+                // pre-charge validation failures (AMOUNT_CHANGED etc.), which the error banner covers.
+                Outcomes = result.ErrorCode == "CHARGE_GATEWAY_ERROR"
+                    ? await BuildChargeOutcomeDtosAsync(jobId, result.Outcomes, registrations)
+                    : null
             };
         }
 

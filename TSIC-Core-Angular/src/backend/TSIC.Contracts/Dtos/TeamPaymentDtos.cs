@@ -66,7 +66,26 @@ public class TeamEcheckPaymentRequestDtoValidator : AbstractValidator<TeamEcheck
 }
 
 /// <summary>
-/// Response from team payment processing.
+/// Per-team result of a CC/eCheck team payment. The charge loop is capture-what-you-can:
+/// each team is charged independently, so a batch can be mixed — a charged team is
+/// Charged=true with its amount; a declined team is Charged=false with the gateway reason.
+/// The frontend renders this so the rep sees exactly which teams paid and which declined
+/// (and why), instead of a single "payment failed" with a stale total.
+/// </summary>
+public sealed record TeamPaymentResultDto
+{
+    public required Guid TeamId { get; init; }
+    public required string TeamName { get; init; }
+    public required bool Charged { get; init; }
+    public decimal? ChargedAmount { get; init; }
+    /// <summary>Populated only on a declined team — the gateway's user-facing decline reason.</summary>
+    public string? FailureReason { get; init; }
+}
+
+/// <summary>
+/// Response from team payment processing. <see cref="Teams"/> carries the per-team
+/// outcome for every team in the batch (charged and declined) so the frontend can show
+/// an itemized result panel and refresh to the real remaining balance.
 /// </summary>
 public sealed record TeamPaymentResponseDto
 {
@@ -74,6 +93,9 @@ public sealed record TeamPaymentResponseDto
     public string? TransactionId { get; init; }
     public string? Error { get; init; }
     public string? Message { get; init; }
+    /// <summary>Per-team results in charge order. Empty for pre-charge validation failures
+    /// (TEAM_NOT_FOUND, NOTHING_DUE, AMOUNT_MISMATCH) where no team was attempted.</summary>
+    public List<TeamPaymentResultDto> Teams { get; init; } = new();
 }
 
 /// <summary>

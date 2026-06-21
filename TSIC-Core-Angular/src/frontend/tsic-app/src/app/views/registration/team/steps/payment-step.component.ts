@@ -24,6 +24,7 @@ import type {
     BankAccountInfo, CreditCardInfo,
     TeamEcheckPaymentRequestDto,
     TeamArbTrialPaymentRequestDto, TeamArbTrialPaymentResponseDto,
+    TeamPaymentResponseDto,
 } from '@core/api';
 import type { CreditCardFormValue, VIOfferData } from '@views/registration/shared/types/wizard.types';
 import { RegisteredTeamsGridComponent } from '../components/registered-teams-grid.component';
@@ -59,6 +60,45 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               <div class="small">{{ lastError() }}</div>
             </div>
           </div>
+        }
+
+        <!-- Per-team results panel — shown after a CC/eCheck partial-success or all-failed
+             submit. The summary table + Pay button above have already been refreshed to the
+             real remaining balance; this tells the rep exactly which teams charged and which
+             declined (and why), so they retry only the declined teams. -->
+        @if (chargeResult(); as cr) {
+          <section class="charge-results alert alert-warning border-0 mb-3" role="status">
+            <div class="fw-semibold mb-2">Results by team</div>
+            <table class="table table-sm mb-0 bg-transparent">
+              <thead>
+                <tr><th>Team</th><th>Status</th><th>Detail</th></tr>
+              </thead>
+              <tbody>
+                @for (t of cr.teams ?? []; track t.teamId) {
+                  <tr [class.table-success]="t.charged" [class.table-danger]="!t.charged">
+                    <td>{{ t.teamName || teamName(t.teamId) }}</td>
+                    <td>
+                      @if (t.charged) {
+                        <span class="badge bg-success">Charged</span>
+                      } @else {
+                        <span class="badge bg-danger">Declined</span>
+                      }
+                    </td>
+                    <td class="small">
+                      @if (t.charged) {
+                        {{ t.chargedAmount | currency }}
+                      } @else {
+                        {{ t.failureReason }}
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+            <div class="small text-muted mt-2">
+              <i class="bi bi-info-circle me-1"></i>The teams that charged are now paid. Retry the declined team(s) — the amount due above reflects the remaining balance.
+            </div>
+          </section>
         }
 
         @if (!hasBalance()) {
@@ -793,6 +833,9 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly lastError = signal<string | null>(null);
     readonly discountCode = signal('');
     readonly arbTrialResult = signal<TeamArbTrialPaymentResponseDto | null>(null);
+    // Per-team CC/eCheck charge outcomes — set on a partial-success or all-failed submit so
+    // the rep sees which teams charged and which declined (and why). Null until then.
+    readonly chargeResult = signal<TeamPaymentResponseDto | null>(null);
     private lastIdemKey: string | null = null;
 
     // ── VI state ─────────────────────────────────────────────────────────
@@ -1209,6 +1252,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     private continueCcSubmit(): void {
         this.submitting.set(true);
         this.lastError.set(null);
+        this.chargeResult.set(null);
 
         if (!this.lastIdemKey) {
             this.lastIdemKey = crypto?.randomUUID
@@ -1243,9 +1287,8 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                             message: resp.message || 'Payment successful',
                         });
                     } else {
-                        this.submitting.set(false);
-                        this.lastError.set(resp?.message || 'Payment failed.');
-                        this.toast.show(resp?.message || 'Payment failed.', 'danger', 6000);
+                        // Partial-success or all-failed: surface per-team results + refresh totals.
+                        this.handlePartialOrFailedTeamCharge(resp, 'Payment failed.');
                     }
                 },
                 error: (err: HttpErrorResponse) => {
@@ -1256,6 +1299,28 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                     this.lastError.set(msg);
                     this.toast.show(msg, 'danger', 6000);
                 },
+            });
+    }
+
+    /**
+     * CC/eCheck submit that did NOT fully succeed (partial-success or all-failed). The backend
+     * has already persisted the teams that charged; surface the per-team results and refresh the
+     * ledger so the summary table + "Pay $X Now" button reflect the real remaining balance. Stays
+     * on the payment step so the rep retries ONLY the declined team(s) against the correct total.
+     */
+    private handlePartialOrFailedTeamCharge(resp: TeamPaymentResponseDto | null, fallbackMsg: string): void {
+        const msg = resp?.message || fallbackMsg;
+        this.lastError.set(msg);
+        this.toast.show(msg, 'danger', 6000);
+        // Only surface the per-team panel when there are real charge outcomes — pre-charge
+        // validation failures (AMOUNT_MISMATCH, NOTHING_DUE) carry an empty Teams list and are
+        // already covered by the error banner above.
+        this.chargeResult.set(resp && resp.teams && resp.teams.length > 0 ? resp : null);
+        this.teamReg.getTeamsMetadata()
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: meta => { this.state.applyTeamsMetadata(meta); this.submitting.set(false); },
+                error: () => this.submitting.set(false),
             });
     }
 
@@ -1309,6 +1374,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         }
         this.submitting.set(true);
         this.lastError.set(null);
+        this.chargeResult.set(null);
 
         if (!this.lastIdemKey) {
             this.lastIdemKey = crypto?.randomUUID
@@ -1364,9 +1430,8 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                                 },
                             });
                     } else {
-                        this.submitting.set(false);
-                        this.lastError.set(resp?.message || 'eCheck submission failed.');
-                        this.toast.show(resp?.message || 'eCheck submission failed.', 'danger', 6000);
+                        // Partial-success or all-failed: surface per-team results + refresh totals.
+                        this.handlePartialOrFailedTeamCharge(resp, 'eCheck submission failed.');
                     }
                 },
                 error: (err: HttpErrorResponse) => {
