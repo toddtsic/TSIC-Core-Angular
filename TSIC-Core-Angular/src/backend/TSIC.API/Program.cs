@@ -178,7 +178,6 @@ builder.Services.AddScoped<IArbSubscriptionRepository, ArbSubscriptionRepository
 builder.Services.AddScoped<IVisibilityRulesEvaluator, VisibilityRulesEvaluator>();
 builder.Services.AddScoped<INavRepository, NavRepository>();
 builder.Services.AddScoped<INavEditorRepository, NavEditorRepository>();
-builder.Services.AddScoped<IQuickLinksRepository, QuickLinksRepository>();
 builder.Services.AddScoped<IJobConfigRepository, JobConfigRepository>();
 // Referee Assignment
 builder.Services.AddScoped<IRefAssignmentRepository, RefAssignmentRepository>();
@@ -214,7 +213,6 @@ builder.Services.AddHttpClient<IAiComposeService, AiComposeService>();
 // Application & Infrastructure Services
 builder.Services.AddScoped<IMenuRepository, MenuRepository>();
 builder.Services.AddScoped<INavEditorService, NavEditorService>();
-builder.Services.AddScoped<IQuickLinksService, QuickLinksService>();
 builder.Services.AddScoped<TSIC.Application.Services.MenuAdmin.IMenuAdminService, TSIC.Application.Services.MenuAdmin.MenuAdminService>();
 builder.Services.AddScoped<IRoleLookupService, RoleLookupService>();
 builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();

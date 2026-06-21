@@ -171,8 +171,6 @@ public partial class AspNetUsers
 
     public virtual ICollection<JobPushNotificationsToAll> JobPushNotificationsToAll { get; set; } = new List<JobPushNotificationsToAll>();
 
-    public virtual ICollection<JobQuickLink> JobQuickLink { get; set; } = new List<JobQuickLink>();
-
     public virtual ICollection<JobReports> JobReports { get; set; } = new List<JobReports>();
 
     public virtual ICollection<JobSmsbroadcasts> JobSmsbroadcasts { get; set; } = new List<JobSmsbroadcasts>();
@@ -180,8 +178,6 @@ public partial class AspNetUsers
     public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();
 
     public virtual ICollection<Leagues> Leagues { get; set; } = new List<Leagues>();
-
-    public virtual ICollection<LinkType> LinkType { get; set; } = new List<LinkType>();
 
     public virtual ICollection<MenuTypes> MenuTypes { get; set; } = new List<MenuTypes>();
 
