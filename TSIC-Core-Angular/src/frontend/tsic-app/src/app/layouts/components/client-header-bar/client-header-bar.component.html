@@ -239,8 +239,9 @@
                     }
                 </button>
 
-                <!-- User dropdown menu -->
+                <!-- User dropdown menu (signed in) / direct Login button (signed out) -->
                 <div class="user-menu-wrapper">
+                    @if (user()) {
                     <button type="button" class="user-menu-trigger" (click)="toggleUserMenu($event)"
                         [attr.aria-expanded]="userMenuOpen()" [title]="avatarTitle()">
                         @if (firstName()) {
@@ -347,20 +348,20 @@
 
                         <div class="user-menu-divider"></div>
 
-                        @if (user()) {
                         <button type="button" class="user-menu-item user-menu-item--danger" role="menuitem"
                             (click)="logout()">
                             <i class="bi bi-box-arrow-right"></i>
                             <span>Logout</span>
                         </button>
-                        } @else {
-                        <button type="button" class="user-menu-item" role="menuitem"
-                            (click)="login()">
-                            <i class="bi bi-box-arrow-in-right"></i>
-                            <span>Login</span>
-                        </button>
-                        }
                     </div>
+                    }
+                    } @else {
+                    <!-- Signed out: the icon IS the Login action — no redundant dropdown
+                         (Home + Theme are already top-level buttons on desktop). -->
+                    <button type="button" class="user-menu-trigger" (click)="login()" title="Login">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <span class="user-menu-name">Login</span>
+                    </button>
                     }
                 </div>
             </div>
