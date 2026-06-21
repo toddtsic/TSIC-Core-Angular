@@ -186,8 +186,8 @@ interface LibraryGroup {
                             </span>
                             @if (canRegister() && expandedTeamId() !== team.clubTeamId) {
                               <button type="button" class="lib-icon-btn lib-edit-btn"
-                                      title="Edit registration (age group / level of play)"
-                                      aria-label="Edit registration"
+                                      title="Edit level of play (age group is locked once registered)"
+                                      aria-label="Edit level of play"
                                       [disabled]="actionInProgress()"
                                       (click)="toggleRegister(team)">
                                 <i class="bi bi-pencil" aria-hidden="true"></i>
@@ -274,11 +274,17 @@ interface LibraryGroup {
 
                             <div class="register-step">
                               <label class="field-label fw-bold">Event Age Group</label>
+                              @if (editingExisting()) {
+                                <p class="ag-locked-note">
+                                  <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                                  Age group is fixed once a team is registered — it drives team caps, waitlists, and fees. To move age groups, remove this team and register it again.
+                                </p>
+                              }
                               <app-event-age-group-picker
                                 variant="chip"
                                 [ageGroups]="ageGroups()"
                                 [gradYear]="team.clubTeamGradYear"
-                                [disabled]="actionInProgress() || lopRequired()"
+                                [disabled]="actionInProgress() || lopRequired() || editingExisting()"
                                 [selected]="selectedAgeGroupId()"
                                 (selectedChange)="selectedAgeGroupId.set($event)" />
                             </div>
@@ -947,6 +953,21 @@ interface LibraryGroup {
         display: flex;
         flex-direction: column;
         gap: var(--space-1);
+      }
+
+      /* Locked-age-group note — shown only in edit mode (registered team). The
+         picker beneath it is disabled; this explains why and points to the
+         remove-and-re-register escape hatch. Quiet muted info line, not an alarm. */
+      .ag-locked-note {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
+        margin: 0;
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-normal);
+
+        .bi { color: var(--brand-text-muted); opacity: 0.8; font-size: 0.9em; }
       }
 
       /* The register expand's two pickers render as shared inline controls:
