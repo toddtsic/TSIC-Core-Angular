@@ -707,7 +707,7 @@ interface LibraryGroup {
         background: transparent;
         border: none;
         color: var(--brand-text-muted);
-        font-size: var(--font-size-xs);
+        font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
         cursor: pointer;
         transition: color 0.1s ease;

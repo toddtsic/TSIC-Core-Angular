@@ -325,7 +325,7 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
                       </button>
                     } @else {
                       <span class="club-locked-hint">
-                        <i class="bi bi-lock-fill me-1"></i>Locked — teams registered
+                        <i class="bi bi-lock-fill me-1"></i>Locked — club teams registered in this or other events
                       </span>
                     }
                   </div>
