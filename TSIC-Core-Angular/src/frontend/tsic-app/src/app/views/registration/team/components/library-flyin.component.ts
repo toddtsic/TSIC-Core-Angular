@@ -209,6 +209,7 @@ interface LibraryGroup {
                             </span>
                           }
 
+                          @if (!registered) {
                           <div class="lib-menu-anchor">
                             <button type="button" class="lib-kebab"
                                     [class.is-open]="openMenuTeamId() === team.clubTeamId"
@@ -254,6 +255,7 @@ interface LibraryGroup {
                               </div>
                             }
                           </div>
+                          }
                         </div>
                       </div>
 

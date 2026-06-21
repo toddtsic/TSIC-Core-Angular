@@ -16,8 +16,6 @@ export interface AgeGroupSlot {
     isAlmostFull: boolean;
     /** Grad-year best match (after WAITLIST-twin redirect) — the highlighted/pre-selected slot. */
     isRecommended: boolean;
-    /** Age-group name literally equals the team's grad year (asterisk cue). */
-    matchesGradYear: boolean;
 }
 
 const isWaitlist = (name: string): boolean => name.toUpperCase().startsWith('WAITLIST');
@@ -63,7 +61,6 @@ export function buildAgeGroupSlots(
     gradYear: string | null | undefined,
 ): AgeGroupSlot[] {
     const recommendedId = resolveRecommendedAgeGroupId(ageGroups, gradYear);
-    const gy = gradYear ?? '';
     return ageGroups.map(ag => {
         const spotsLeft = Math.max(0, ag.maxTeams - ag.registeredCount);
         return {
@@ -74,7 +71,6 @@ export function buildAgeGroupSlots(
             isFull: spotsLeft === 0,
             isAlmostFull: spotsLeft > 0 && spotsLeft <= 2,
             isRecommended: ag.ageGroupId === recommendedId,
-            matchesGradYear: !!gy && ag.ageGroupName === gy,
         };
     });
 }

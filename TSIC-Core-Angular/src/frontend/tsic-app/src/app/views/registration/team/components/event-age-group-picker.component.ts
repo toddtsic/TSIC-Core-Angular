@@ -10,8 +10,7 @@ import { buildAgeGroupSlots } from './event-age-group.util';
  *   - `variant="pill"` — fee-bearing card grid used by the add-and-register
  *     first-team form: star on the recommended match, fee, spots.
  *   - `variant="chip"` — compact inline chip row used by the library fly-in's
- *     expand-in-place register row: asterisk on a literal grad-year match,
- *     "Waitlist" / "N left" meta.
+ *     expand-in-place register row: "Waitlist" / "N left" meta.
  *
  * Both variants share ONE source of slot/recommendation logic
  * ([event-age-group.util.ts](./event-age-group.util.ts)) so the WAITLIST-twin
@@ -67,7 +66,7 @@ import { buildAgeGroupSlots } from './event-age-group.util';
                   [attr.aria-checked]="selected() === slot.ageGroupId"
                   [title]="slot.isFull ? 'Age group is full — registering will waitlist this team' : null"
                   (click)="selected.set(slot.ageGroupId)">
-            <span class="ag-chip-name">{{ slot.ageGroupName }}@if (slot.matchesGradYear) {<span class="ag-chip-gradyear-match" title="Matches this team's grad year" aria-label="Matches this team's grad year">*</span>}</span>
+            <span class="ag-chip-name">{{ slot.ageGroupName }}</span>
             <span class="ag-chip-meta">
               @if (slot.isFull) { Waitlist }
               @else if (slot.isAlmostFull) { {{ slot.spotsLeft }} left }
@@ -243,13 +242,6 @@ import { buildAgeGroupSlots } from './event-age-group.util';
       }
 
       .ag-chip-name { font-size: var(--font-size-xs); }
-      /* Asterisk flag — age group name literally matches the team's library grad
-         year. Red + bold so it reads as the "this is the matching one" cue. */
-      .ag-chip-gradyear-match {
-        color: var(--bs-danger);
-        font-weight: var(--font-weight-bold);
-        margin-left: 1px;
-      }
       .ag-chip-meta { font-size: 10px; font-weight: var(--font-weight-medium); opacity: 0.85; }
 
       @media (prefers-reduced-motion: reduce) {
