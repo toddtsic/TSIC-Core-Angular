@@ -19,6 +19,7 @@ import { BulletinsComponent } from '@widgets/communications/bulletins.component'
 import { ViewScheduleService } from '@views/scheduling/view-schedule/services/view-schedule.service';
 import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
 import { ActionHubComponent, HubItem } from '@layouts/components/action-hub/action-hub.component';
+import type { QuickLinkResolvedDto } from '@core/api';
 
 /**
  * The event's lifecycle position, derived from facts (schedule released + the
@@ -61,6 +62,16 @@ const PRIMARY_BY_PHASE: Record<EventPhase, readonly string[]> = {
 	registrationOpen: ['pay-balance', 'my-registration', 'register-player', 'my-teams', 'register-team'],
 	planned: ['store']
 };
+
+/**
+ * QuickLinks config (SuperUser-curated, embedded on the pulse) governs the hero
+ * only when present. The catalog linkKeys mostly match the hero candidate keys;
+ * this maps the one that differs. Keys with no matching candidate are ignored.
+ */
+const QUICKLINK_KEY_ALIASES: Record<string, string> = { 'public-rosters': 'rosters' };
+
+/** Hero cards driven purely by per-user state — never governed by quicklinks config. */
+const QUICKLINK_USER_STATE_KEYS = new Set(['my-registration', 'pay-balance', 'my-teams']);
 
 @Component({
 	selector: 'app-job-landing',
@@ -197,7 +208,38 @@ export class JobLandingComponent implements OnDestroy {
 			candidates.push({ key: 'player-insurance', label: 'Insurance Update', icon: 'bi-shield-check', routerLink: `${base}/PlayerVIUpdate` });
 		}
 
-		const items = candidates.filter(i => allowed.has(i.key));
+		// QuickLinks config (SuperUser-curated, embedded on the pulse) governs the hero
+		// only when this job has been configured. An unconfigured job sends an empty
+		// list, so we keep the pulse-derived membership/order above verbatim — zero
+		// regression. When configured, the curated list drives membership/order/label,
+		// while user-state cards (My Registration / Pay Balance / My Teams) stay outside
+		// config governance. Either way the CTAS_BY_PHASE filter below is unchanged.
+		const config = (p.quicklinks ?? []) as QuickLinkResolvedDto[];
+		let items: HubItem[];
+		if (config.length) {
+			const byKey = new Map(candidates.map(c => [c.key, c]));
+			const used = new Set<string>();
+			const picked: HubItem[] = [];
+			for (const row of config) {
+				const key = QUICKLINK_KEY_ALIASES[row.linkKey] ?? row.linkKey;
+				// Grounded (has a pulse flag) shows unless force-hidden; ungrounded shows only when enabled.
+				const visible = row.groundingPulseFlag ? row.enabled !== false : row.enabled === true;
+				if (!visible || used.has(key)) continue;
+				const cand = byKey.get(key);
+				if (!cand) continue;                       // no candidate (data unavailable / unknown key) → skip
+				used.add(key);
+				picked.push(row.label ? { ...cand, label: row.label } : cand);
+			}
+			for (const c of candidates) {
+				if (QUICKLINK_USER_STATE_KEYS.has(c.key) && !used.has(c.key)) {
+					picked.push(c);
+					used.add(c.key);
+				}
+			}
+			items = picked.filter(i => allowed.has(i.key));
+		} else {
+			items = candidates.filter(i => allowed.has(i.key));
+		}
 		if (!items.length) return items;
 
 		// Primary = the first phase-preferred key present; else the first item.

@@ -37,6 +37,7 @@ public class JobsController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IPlayerRegistrationMetadataService _metadataService;
     private readonly IFeeResolutionService _feeService;
+    private readonly IQuickLinksService _quickLinksService;
 
     public JobsController(
         ILogger<JobsController> logger,
@@ -47,7 +48,8 @@ public class JobsController : ControllerBase
         IJobRepository jobRepository,
         IUserRepository userRepository,
         IPlayerRegistrationMetadataService metadataService,
-        IFeeResolutionService feeService)
+        IFeeResolutionService feeService,
+        IQuickLinksService quickLinksService)
     {
         _logger = logger;
         _jobLookupService = jobLookupService;
@@ -58,6 +60,7 @@ public class JobsController : ControllerBase
         _userRepository = userRepository;
         _metadataService = metadataService;
         _feeService = feeService;
+        _quickLinksService = quickLinksService;
     }
 
     [AllowAnonymous]
@@ -276,6 +279,12 @@ public class JobsController : ControllerBase
         var pulse = await _jobRepository.GetJobPulseAsync(jobPath, ct);
         if (pulse == null)
             return NotFound(new { message = $"Job not found: {jobPath}" });
+
+        // Overlay SuperUser-curated quicklinks (config only; the client applies
+        // grounding). The job exists (pulse != null), so resolve its id by path.
+        var quickLinksJobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
+        if (quickLinksJobId != null)
+            pulse = pulse with { Quicklinks = await _quickLinksService.ResolveForJobAsync(quickLinksJobId.Value, ct) };
 
         // Overlay per-user context when authenticated. Name always resolves from the
         // JWT sub (account holder) so header initials work even pre-role-selection;

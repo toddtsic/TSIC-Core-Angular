@@ -82,6 +82,14 @@ public record JobPulseDto
     /// </summary>
     public SupersedingEventInfoDto? SupersededByLaterEvent { get; init; }
 
+    /// <summary>
+    /// SuperUser-curated quicklinks for this job (the full active catalog with
+    /// per-job label/order/enabled overrides). Drives the landing hero when present;
+    /// null/empty → the hero falls back to its pulse-derived defaults. The client
+    /// applies grounding from the flags above, so this carries config only.
+    /// </summary>
+    public List<QuickLinkResolvedDto>? Quicklinks { get; init; }
+
     // --- Authenticated user context (null when anonymous or JWT job mismatch) ---
 
     // Registrant context (Player / Family / Staff). Null when user is not a registrant in this job.

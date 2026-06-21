@@ -1,0 +1,112 @@
+:host {
+	display: block;
+}
+
+.ql-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.ql-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-2) var(--space-3);
+	background: var(--bs-body-bg);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--space-2);
+	box-shadow: var(--shadow-sm);
+
+	&--hidden {
+		opacity: 0.55;
+
+		.ql-label {
+			text-decoration: line-through;
+			text-decoration-color: var(--bs-secondary-color);
+		}
+	}
+}
+
+.ql-handle {
+	cursor: grab;
+	color: var(--bs-secondary-color);
+	display: inline-flex;
+	align-items: center;
+
+	&:active {
+		cursor: grabbing;
+	}
+}
+
+.ql-icon {
+	font-size: 1.15rem;
+	color: var(--bs-primary);
+	width: 1.5rem;
+	text-align: center;
+}
+
+.ql-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+}
+
+.ql-label {
+	max-width: 22rem;
+}
+
+.ql-meta {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	flex-wrap: wrap;
+	font-size: 0.75rem;
+}
+
+.ql-key {
+	color: var(--bs-secondary-color);
+}
+
+.ql-follows {
+	color: var(--bs-secondary-color);
+
+	code {
+		color: var(--bs-secondary-color);
+	}
+}
+
+.ql-visibility {
+	flex: 0 0 auto;
+}
+
+// Focus state (WCAG AA)
+.form-check-input:focus-visible,
+.ql-handle:focus-visible {
+	outline: none;
+	box-shadow: var(--shadow-focus);
+}
+
+// CDK drag affordances
+.cdk-drag-preview {
+	border-radius: var(--space-2);
+	box-shadow: var(--shadow-lg);
+}
+
+.cdk-drag-placeholder {
+	opacity: 0.4;
+}
+
+.cdk-drag-animating,
+.ql-list.cdk-drop-list-dragging .ql-row:not(.cdk-drag-placeholder) {
+	transition: transform 180ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.cdk-drag-animating,
+	.ql-list.cdk-drop-list-dragging .ql-row:not(.cdk-drag-placeholder) {
+		transition: none !important;
+	}
+}

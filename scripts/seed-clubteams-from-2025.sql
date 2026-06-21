@@ -20,6 +20,9 @@
  *   EXEC Clubs.SeedClubTeamsFrom2025 @StartYear = 2024, @EndYear = 2027;
  * 
  * Scope:   Only Teams with clubrep_registrationId NOT NULL from specified year range
+ *          AND whose level_of_play is in the allowed set (see #AllowedLop in STEP 1.5).
+ *          Teams with NULL or any other level_of_play are excluded from seeding,
+ *          linking, and every verification/diagnostic count.
  * 
  * Strategy:
  *   1. Optional: Clean out existing Club data
@@ -282,6 +285,32 @@ PRINT '  ✓ Schema validation passed';
 PRINT '';
 
 -- ============================================================================
+-- STEP 1.5: Allowed level_of_play values (eligibility allowlist)
+-- Only teams whose level_of_play matches one of these canonical values are
+-- seeded into the library AND counted by the verification/BURN diagnostics.
+-- Teams with NULL or any other value (e.g. 'A', 'B', '15 players') are excluded
+-- everywhere. Edit this single list to change which competitive tiers qualify.
+-- Match is trim-insensitive and (per DB collation) case-insensitive.
+-- ============================================================================
+IF OBJECT_ID('tempdb..#AllowedLop') IS NOT NULL DROP TABLE #AllowedLop;
+CREATE TABLE #AllowedLop (
+    Lop NVARCHAR(50) COLLATE DATABASE_DEFAULT NOT NULL PRIMARY KEY
+);
+INSERT INTO #AllowedLop (Lop) VALUES
+    (N'1'),
+    (N'2'),
+    (N'3'),
+    (N'4'),
+    (N'5'),              -- defensive: bare '5' (none in data today; future-proof)
+    (N'5 (strongest)'),
+    (N'competitive'),
+    (N'intermediate'),
+    (N'most competitive'),
+    (N'very competitive');
+PRINT '  ✓ Allowed level_of_play set loaded: ' + CAST(@@ROWCOUNT AS VARCHAR) + ' values (NULL/others excluded)';
+PRINT '';
+
+-- ============================================================================
 -- STEP 2: Analysis - Count eligible Teams records
 -- ============================================================================
 PRINT 'STEP 2: Analyzing eligible Teams records...';
@@ -295,13 +324,15 @@ INNER JOIN Leagues.Agegroups ag ON t.AgegroupId = ag.AgegroupId
 WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
-  AND t.clubrep_registrationId IS NOT NULL;
+  AND t.clubrep_registrationId IS NOT NULL
+  AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)));
 
-PRINT '  Found ' + CAST(@EligibleTeamsCount AS VARCHAR) + ' Teams records from ' + CAST(@StartYear AS VARCHAR) + '-' + CAST(@EndYear AS VARCHAR) + ' with clubrep_registrationId';
+PRINT '  Found ' + CAST(@EligibleTeamsCount AS VARCHAR) + ' Teams records from ' + CAST(@StartYear AS VARCHAR) + '-' + CAST(@EndYear AS VARCHAR) + ' with clubrep_registrationId and allowed level_of_play';
 
 IF @EligibleTeamsCount = 0
 BEGIN
     PRINT '  WARNING: No eligible Teams found. Nothing to seed.';
+    DROP TABLE #AllowedLop;
     RETURN;
 END
 
@@ -342,7 +373,8 @@ BEGIN TRY
     WHERE ISNUMERIC(j.Year) = 1
       AND CAST(j.Year AS INT) >= @StartYear
       AND CAST(j.Year AS INT) <= @EndYear
-      AND t.clubrep_registrationId IS NOT NULL;
+      AND t.clubrep_registrationId IS NOT NULL
+      AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)));
 
     DECLARE @UniqueClubRepsCount INT = @@ROWCOUNT;
     PRINT '  Found ' + CAST(@UniqueClubRepsCount AS VARCHAR) + ' unique (UserId, ClubName) pairs';
@@ -428,7 +460,8 @@ WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
   AND t.clubrep_registrationId IS NOT NULL
-  AND cr.ClubId IS NOT NULL;
+  AND cr.ClubId IS NOT NULL
+  AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)));
 
 DECLARE @Phase1Count INT = @@ROWCOUNT;
 
@@ -444,6 +477,7 @@ WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
   AND t.clubrep_registrationId IS NOT NULL
+  AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)))
   AND (c.ClubId IS NULL OR cr.ClubId IS NULL);
 
 IF @ExcludedTeamsCount > 0
@@ -950,6 +984,7 @@ WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
   AND t.clubrep_registrationId IS NOT NULL
+  AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)))
   AND t.ClubTeamId IS NULL;
 
 IF @OrphanedTeams > 0
@@ -1072,7 +1107,8 @@ INNER JOIN Leagues.Agegroups ag ON t.AgegroupId = ag.AgegroupId
 WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
-  AND t.clubrep_registrationId IS NOT NULL;
+  AND t.clubrep_registrationId IS NOT NULL
+  AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)));
 
 PRINT '';
 PRINT '========================================';
@@ -1126,6 +1162,7 @@ INNER JOIN dbo.AspNetUsers u ON r.UserId = u.Id
 WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) BETWEEN @StartYear AND @EndYear
   AND t.clubrep_registrationId IS NOT NULL
+  AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)))
   AND t.ClubTeamId IS NULL
 ORDER BY r.club_name, ag.AgegroupName, t.TeamName;
 
@@ -1277,6 +1314,7 @@ PRINT '';
     DROP TABLE #TeamIdentities;
     DROP TABLE #UniqueIdentities;
     DROP TABLE #NewClubTeams;
+    DROP TABLE #AllowedLop;
 
 END
 GO

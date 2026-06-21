@@ -125,8 +125,9 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customers', N'bui
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 8, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Nav Editor', N'list', N'configure/nav-editor', 9, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Widget Editor', N'grid', N'configure/widget-editor', 10, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 11, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 12, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Quicklinks Editor', N'link-45deg', N'configure/quicklinks-editor', 11, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 12, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 13, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Push Notification', N'bell', N'communications/push-notification', 3, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}', NULL);
