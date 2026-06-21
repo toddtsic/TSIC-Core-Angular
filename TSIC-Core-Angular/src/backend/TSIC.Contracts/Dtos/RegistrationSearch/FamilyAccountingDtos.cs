@@ -52,6 +52,10 @@ public record RegisteredPlayerInfo
     // several players. Null when the player isn't yet on a team.
     public string? AssignedTeamName { get; init; }
     public string? AssignedAgeGroupName { get; init; }
+    // Owning club of the assigned team — ClubName off the team's club-rep registration
+    // (Teams.ClubrepRegistrationid → Registrations.ClubName). Lets the family ledger prefix a
+    // club-rostered team as "{ClubName}: {TeamName}". Null when no club rep is assigned.
+    public string? AssignedClubName { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeDiscount { get; init; }

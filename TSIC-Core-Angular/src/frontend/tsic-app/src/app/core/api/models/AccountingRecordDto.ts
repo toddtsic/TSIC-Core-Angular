@@ -9,6 +9,7 @@ export type AccountingRecordDto = {
     ownerName?: string | null;
     ownerTeamName?: string | null;
     ownerAgeGroupName?: string | null;
+    ownerClubName?: string | null;
     date: string | null;
     paymentMethod: string;
     dueAmount: number | null;

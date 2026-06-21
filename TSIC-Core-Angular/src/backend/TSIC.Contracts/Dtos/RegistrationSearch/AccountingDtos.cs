@@ -29,6 +29,14 @@ public record AccountingRecordDto
     public string? OwnerTeamName { get; init; }
     public string? OwnerAgeGroupName { get; init; }
 
+    /// <summary>
+    /// Owning club of the assigned team (family path only) — the <c>ClubName</c> off the team's
+    /// club-rep registration (<c>Teams.ClubrepRegistrationid → Registrations.ClubName</c>). Lets the
+    /// ledger prefix a club-rostered team as "{ClubName}: {TeamName}". Null when the team has no
+    /// club rep assigned, or on the single-player / club-rep paths.
+    /// </summary>
+    public string? OwnerClubName { get; init; }
+
     public required DateTime? Date { get; init; }
     public required string PaymentMethod { get; init; }
     public required decimal? DueAmount { get; init; }

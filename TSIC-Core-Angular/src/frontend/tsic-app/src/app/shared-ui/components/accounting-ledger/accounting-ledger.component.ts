@@ -208,14 +208,18 @@ export class AccountingLedgerComponent {
 	}
 
 	/** The owning player's assigned team for a record (family path) — "AgeGroup · TeamName".
-	 *  Lets a director tell which team a transaction belongs to when a parent registered
-	 *  several players. Null when the record carries no assigned-team stamp (single-player /
-	 *  club-rep paths, or a player not yet on a team). */
+	 *  When the team is rostered by a club rep, the team name is prefixed with the owning club
+	 *  ("AgeGroup · ClubName: TeamName") so a director can tell which club a registered team
+	 *  belongs to. Lets a director tell which team a transaction belongs to when a parent
+	 *  registered several players. Null when the record carries no assigned-team stamp
+	 *  (single-player / club-rep paths, or a player not yet on a team). */
 	ownerTeamLabel(record: AccountingRecordDto): string | null {
 		const team = record.ownerTeamName?.trim();
 		if (!team) return null;
+		const club = record.ownerClubName?.trim();
+		const teamLabel = club ? `${club}: ${team}` : team;
 		const ageGroup = record.ownerAgeGroupName?.trim();
-		return ageGroup ? `${ageGroup} · ${team}` : team;
+		return ageGroup ? `${ageGroup} · ${teamLabel}` : teamLabel;
 	}
 
 	/** True when the comment is the system-generated charge description, which embeds the

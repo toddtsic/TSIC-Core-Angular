@@ -505,6 +505,9 @@ public class RegistrationRepository : IRegistrationRepository
                 AgeGroupId = r.AssignedTeam != null ? r.AssignedTeam.AgegroupId : (Guid?)null,
                 AssignedTeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
                 AssignedAgeGroupName = r.AssignedTeam != null ? r.AssignedTeam.Agegroup!.AgegroupName : null,
+                AssignedClubName = r.AssignedTeam != null && r.AssignedTeam.ClubrepRegistration != null
+                    ? r.AssignedTeam.ClubrepRegistration.ClubName
+                    : null,
                 FeeBase = r.FeeBase,
                 FeeProcessing = r.FeeProcessing,
                 FeeDiscount = r.FeeDiscount,

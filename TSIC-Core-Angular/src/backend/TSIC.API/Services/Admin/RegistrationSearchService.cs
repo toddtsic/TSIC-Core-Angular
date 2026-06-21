@@ -178,7 +178,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 OwnerRegistrationId = p.RegistrationId,
                 OwnerName = p.PlayerName,
                 OwnerTeamName = p.AssignedTeamName,
-                OwnerAgeGroupName = p.AssignedAgeGroupName
+                OwnerAgeGroupName = p.AssignedAgeGroupName,
+                OwnerClubName = p.AssignedClubName
             }));
         }
 
