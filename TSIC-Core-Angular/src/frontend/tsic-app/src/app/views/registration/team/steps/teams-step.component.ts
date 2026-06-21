@@ -9,7 +9,6 @@ import { TeamFormModalComponent } from './team-form-modal.component';
 import { AddAndRegisterTeamModalComponent } from './add-and-register-team-modal.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { LibraryFlyinComponent, type RegisterRequest } from '../components/library-flyin.component';
-import { ClubRepProfileModalComponent } from './club-rep-profile-modal.component';
 import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto } from '@core/api';
 
 /**
@@ -19,7 +18,7 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
 @Component({
     selector: 'app-trw-teams-step',
     standalone: true,
-    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent, ClubRepProfileModalComponent],
+    imports: [RegisteredTeamsGridComponent, TeamFormModalComponent, AddAndRegisterTeamModalComponent, ConfirmDialogComponent, LibraryFlyinComponent],
     template: `
     @if (loading()) {
       <div class="text-center py-4">
@@ -37,10 +36,6 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
           <div class="section-header section-registered">
             <i class="bi bi-check-circle-fill me-1"></i>
             Registered Teams
-            <button type="button" class="btn btn-outline-primary section-action"
-                    (click)="openEditProfile()">
-              <i class="bi bi-person-gear me-1"></i>Edit Profile
-            </button>
           </div>
         } @else {
           <div class="section-titlebar section-titlebar-registered">
@@ -48,10 +43,6 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
             <h3 class="section-titlebar-title">
               <span class="section-titlebar-tail">Registered Teams</span>
             </h3>
-            <button type="button" class="btn btn-outline-primary section-action"
-                    (click)="openEditProfile()">
-              <i class="bi bi-person-gear me-1"></i>Edit Profile
-            </button>
             <span class="phase-badge">
               <span class="phase-badge__label">Payment Phase</span>
               <span class="phase-badge__value">{{ phaseBadgeLabel() }}</span>
@@ -187,12 +178,6 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
     }
 
     <!-- ═══ MODALS ═══ -->
-    @if (showEditProfile()) {
-      <app-club-rep-profile-modal
-        (saved)="onProfileSaved()"
-        (closed)="showEditProfile.set(false)" />
-    }
-
     @if (showAddModal()) {
       <app-team-form-modal
         [clubName]="clubName()"
@@ -661,9 +646,6 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly pendingRestore = signal<ClubTeamDto | null>(null);
     /** Library fly-in open state. Opens only on explicit user action — never auto-opened. */
     readonly showLibraryFlyin = signal(false);
-    /** Inline "Edit Profile" modal open state — the rep's profile-edit home now that
-     *  the wizard auto-advances past the Login tab (see ClubRepProfileModalComponent). */
-    readonly showEditProfile = signal(false);
 
     private readonly _registeredTeams = signal<RegisteredTeamDto[]>([]);
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
@@ -711,14 +693,6 @@ export class TeamTeamsStepComponent implements OnInit {
     /** Library fly-in open/close. */
     openLibraryFlyin(): void { this.showLibraryFlyin.set(true); }
     closeLibraryFlyin(): void { this.showLibraryFlyin.set(false); }
-
-    /** Inline profile editing — the modal owns load + save; we just toggle + toast.
-     *  No metadata reload: editing the rep's profile doesn't touch team data. */
-    openEditProfile(): void { this.showEditProfile.set(true); }
-    onProfileSaved(): void {
-        this.showEditProfile.set(false);
-        this.toast.show('Profile updated', 'success', 3000);
-    }
 
     /** Flyin emits {team, ageGroupId, levelOfPlay} from its inline-expand picker. */
     onFlyinRegister(req: RegisterRequest): void {
