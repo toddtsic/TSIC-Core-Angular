@@ -19,6 +19,17 @@ export interface RegisterRequest {
 }
 
 /**
+ * A collapsible section of the active library. `title` is count-free — the count
+ * renders as a separate pill in the group-header band. Keys: 'registered' /
+ * 'unregistered' when canRegister(), else a single 'all' group.
+ */
+interface LibraryGroup {
+    key: string;
+    title: string;
+    teams: ClubTeamDto[];
+}
+
+/**
  * Library fly-in drawer — picker UI for adding library teams to the current
  * event AND for managing the library (edit / archive / delete / restore).
  *
@@ -67,28 +78,28 @@ export interface RegisterRequest {
         </div>
 
         <div class="header-info">
-          <div class="header-tags">
-            <span class="header-tag">
-              <span class="header-tag-label">Active:</span>
-              <span class="header-tag-value">{{ activeTeams().length }}</span>
-            </span>
-            <span class="header-tag">
-              <span class="header-tag-label">Archived:</span>
-              <span class="header-tag-value">{{ archivedTeams().length }}</span>
-            </span>
-            <span class="header-tag">
-              <span class="header-tag-label">Registered:</span>
-              <span class="header-tag-value">{{ registeredCount() }}</span>
-            </span>
-          </div>
-          <p class="library-carryover-tip">Library teams carry across every TSIC event — enter a team once, never retype.</p>
-          <div class="wizard-tip">
-            <ul class="mb-0">
-              <li>To register a team that isn't in your library, <strong>Add Library Team</strong>, then click <strong>Register</strong> on its row.</li>
-              <li>If a team's name has changed, <strong>Add Library Team</strong> and use this one.</li>
-              <li>If a team is no longer used, click <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row and choose <strong>Archive</strong>.</li>
+          <!-- Per-group count pills below now carry Active/Registered/Archived
+               counts, so the old header-tags row was redundant and removed.
+               Carryover note demoted from danger-red to a quiet muted line, and
+               the three how-to tips tucked into a collapsed disclosure so the
+               eye lands on the list, not the preamble. -->
+          <p class="library-carryover-tip">
+            <i class="bi bi-info-circle" aria-hidden="true"></i>
+            Library teams carry across every TSIC event — enter a team once, never retype.
+          </p>
+          <button type="button" class="lib-howto-toggle"
+                  [attr.aria-expanded]="showHowTo()"
+                  (click)="toggleHowTo()">
+            <i class="bi" [class.bi-chevron-right]="!showHowTo()" [class.bi-chevron-down]="showHowTo()" aria-hidden="true"></i>
+            How this works
+          </button>
+          @if (showHowTo()) {
+            <ul class="lib-howto-list">
+              <li>Team not in your library? <strong>Add Library Team</strong>, then <strong>Register</strong> it.</li>
+              <li>Name changed? <strong>Add Library Team</strong> with the new name.</li>
+              <li>No longer used? Open <i class="bi bi-three-dots-vertical" aria-hidden="true"></i> on its row → <strong>Archive</strong>.</li>
             </ul>
-          </div>
+          }
         </div>
       </div>
 
@@ -120,215 +131,213 @@ export interface RegisterRequest {
             </button>
           </div>
         } @else {
-          <!-- State C — populated active list rendered as audit table inside a section card -->
-          <section class="lib-section-card">
-            <header class="lib-section-card-header">
-              <span class="lib-section-card-eyebrow">Active Library</span>
-              <button type="button" class="btn-add-team header-add-team"
-                      [disabled]="actionInProgress()"
-                      (click)="addNew.emit()">
-                <i class="bi bi-plus-circle me-1"></i>Add Library Team
+          <!-- State C — populated active library. Add Library Team moved to a
+               top action row now that the single "Active Library" card was split
+               into one collapsible section card per group. -->
+          <div class="lib-body-actions">
+            <button type="button" class="btn-add-team"
+                    [disabled]="actionInProgress()"
+                    (click)="addNew.emit()">
+              <i class="bi bi-plus-circle me-1"></i>Add Library Team
+            </button>
+          </div>
+
+          <!-- One section card per group (Registered / Not Registered, or a
+               single 'all' card when registration is closed). The header band
+               adopts the sibling .section-title scale so it outranks the rows. -->
+          @for (group of activeGroups(); track group.key) {
+            <section class="lib-group-card"
+                     [class.lib-group-card--registered]="group.key === 'registered'"
+                     [class.lib-group-card--unregistered]="group.key === 'unregistered'">
+              <button type="button" class="lib-group-header"
+                      [attr.aria-expanded]="!isGroupCollapsed(group.key)"
+                      (click)="toggleGroup(group.key)">
+                <i class="bi lib-group-chevron"
+                   [class.bi-chevron-down]="!isGroupCollapsed(group.key)"
+                   [class.bi-chevron-right]="isGroupCollapsed(group.key)"
+                   aria-hidden="true"></i>
+                @if (group.key === 'registered') {
+                  <i class="bi bi-check-circle-fill lib-group-icon" aria-hidden="true"></i>
+                }
+                <span class="lib-group-title">{{ group.title }}</span>
+                <span class="lib-group-count">{{ group.teams.length }}</span>
               </button>
-            </header>
-            <table class="lib-table">
-              <thead>
-                <tr>
-                  <th class="lib-th-team">Library Team</th>
-                  <th class="lib-th-age">Library Grad Year</th>
-                  <th class="lib-th-status">Status</th>
-                  <th class="lib-th-actions">
-                    <span class="visually-hidden">Manage</span>
-                  </th>
-                </tr>
-              </thead>
-            <tbody>
-              @for (team of sortedActiveTeams(); track team.clubTeamId) {
-                @let registered = registeredInfo(team.clubTeamId);
-                <tr class="lib-tr" [class.is-registered]="!!registered">
-                  <td class="lib-td-team">
-                    <span class="team-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
-                  </td>
-                  <td class="lib-td-age">{{ team.clubTeamGradYear || '—' }}</td>
-                  <td class="lib-td-status">
-                    @if (registered) {
-                      <div class="status-block status-block-yes">
-                        <span class="status-line">
-                          <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
-                          Registered
-                        </span>
-                        <span class="status-detail">
-                          @if (registered.ageGroupName) {
-                            <span class="reg-label">AG</span>
-                            <span class="reg-value">{{ registered.ageGroupName }}</span>
-                          }
-                          @if (registered.ageGroupName && registered.levelOfPlay) {
-                            <span class="reg-sep"> · </span>
-                          }
-                          @if (registered.levelOfPlay) {
-                            <span class="reg-label">LOP</span>
-                            <span class="reg-value">{{ formatLop(registered.levelOfPlay) }}</span>
-                          }
-                        </span>
-                        @if (canRegister() && expandedTeamId() !== team.clubTeamId) {
-                          <button type="button" class="btn-register-cell btn-edit-cell"
-                                  [disabled]="actionInProgress()"
-                                  (click)="toggleRegister(team)">
-                            <i class="bi bi-pencil" aria-hidden="true"></i>
-                            <span>Edit</span>
-                          </button>
-                        }
-                      </div>
-                    } @else if (canRegister()) {
-                      <div class="status-block status-block-no">
-                        <span class="status-line">Not Registered</span>
-                        @if (expandedTeamId() !== team.clubTeamId) {
-                          <button type="button" class="btn-register-cell"
-                                  [disabled]="actionInProgress()"
-                                  (click)="toggleRegister(team)">
-                            <i class="bi bi-trophy-fill" aria-hidden="true"></i>
-                            <span>Register</span>
-                          </button>
-                        }
-                      </div>
-                    } @else {
-                      <div class="status-block status-block-closed">
-                        <span class="status-line">
-                          <i class="bi bi-lock-fill" aria-hidden="true"></i>
-                          Closed
-                        </span>
-                      </div>
-                    }
-                  </td>
-                  <td class="lib-td-actions">
-                    <div class="lib-menu-anchor">
-                      <button type="button" class="lib-kebab"
-                              [class.is-open]="openMenuTeamId() === team.clubTeamId"
-                              [disabled]="actionInProgress() || expandedTeamId() === team.clubTeamId"
-                              aria-label="Manage team"
-                              aria-haspopup="menu"
-                              [attr.aria-expanded]="openMenuTeamId() === team.clubTeamId"
-                              (click)="toggleMenu($event, team.clubTeamId)">
-                        <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
-                      </button>
-                      @if (openMenuTeamId() === team.clubTeamId) {
-                        @let editLock = editLockReason(team);
-                        @let archiveLock = archiveLockReason(team, !!registered);
-                        @let deleteLock = deleteLockReason(team, !!registered);
-                        <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
-                          <button type="button" class="lib-menu-item" role="menuitem"
-                                  [disabled]="!!editLock"
-                                  (click)="handleMenuEdit(team)">
-                            <i class="bi bi-pencil lib-menu-icon" aria-hidden="true"></i>
-                            <span class="lib-menu-label">Edit team</span>
-                            @if (editLock) {
-                              <span class="lib-menu-reason">{{ editLock }}</span>
+
+              @if (!isGroupCollapsed(group.key)) {
+                <ul class="lib-list">
+                  @for (team of group.teams; track team.clubTeamId) {
+                    @let registered = registeredInfo(team.clubTeamId);
+                    <li class="lib-item" [class.is-expanded]="expandedTeamId() === team.clubTeamId">
+                      <div class="lib-item-main">
+                        <div class="lib-item-id">
+                          <span class="lib-item-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
+                          <span class="lib-item-sub"><span class="lib-sub-label">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
+                        </div>
+
+                        <div class="lib-item-trailing">
+                          @if (registered) {
+                            <span class="lib-identity">
+                              @if (registered.ageGroupName) {
+                                <span class="lib-id-pair"><span class="lib-id-label">AG</span><span class="lib-id-value">{{ registered.ageGroupName }}</span></span>
+                              }
+                              @if (registered.levelOfPlay) {
+                                <span class="lib-id-pair"><span class="lib-id-label">LOP</span><span class="lib-id-value">{{ formatLop(registered.levelOfPlay) }}</span></span>
+                              }
+                            </span>
+                            @if (canRegister() && expandedTeamId() !== team.clubTeamId) {
+                              <button type="button" class="lib-icon-btn lib-edit-btn"
+                                      title="Edit registration (age group / level of play)"
+                                      aria-label="Edit registration"
+                                      [disabled]="actionInProgress()"
+                                      (click)="toggleRegister(team)">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                              </button>
                             }
-                          </button>
-                          <button type="button" class="lib-menu-item" role="menuitem"
-                                  [disabled]="!!archiveLock"
-                                  (click)="handleMenuArchive(team, !!registered)">
-                            <i class="bi bi-box-arrow-in-down lib-menu-icon" aria-hidden="true"></i>
-                            <span class="lib-menu-label">Archive team</span>
-                            @if (archiveLock) {
-                              <span class="lib-menu-reason">{{ archiveLock }}</span>
+                          } @else if (canRegister()) {
+                            @if (expandedTeamId() !== team.clubTeamId) {
+                              <button type="button" class="btn-register-cell"
+                                      [disabled]="actionInProgress()"
+                                      (click)="toggleRegister(team)">
+                                <i class="bi bi-trophy-fill" aria-hidden="true"></i>
+                                <span>Register</span>
+                              </button>
                             }
-                          </button>
-                          <button type="button" class="lib-menu-item lib-menu-item-danger" role="menuitem"
-                                  [disabled]="!!deleteLock"
-                                  (click)="handleMenuDelete(team, !!registered)">
-                            <i class="bi bi-trash lib-menu-icon" aria-hidden="true"></i>
-                            <span class="lib-menu-label">Delete team</span>
-                            @if (deleteLock) {
-                              <span class="lib-menu-reason">{{ deleteLock }}</span>
+                          } @else {
+                            <span class="lib-closed-pill">
+                              <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                              Closed
+                            </span>
+                          }
+
+                          <div class="lib-menu-anchor">
+                            <button type="button" class="lib-kebab"
+                                    [class.is-open]="openMenuTeamId() === team.clubTeamId"
+                                    [disabled]="actionInProgress() || expandedTeamId() === team.clubTeamId"
+                                    aria-label="Manage team"
+                                    aria-haspopup="menu"
+                                    [attr.aria-expanded]="openMenuTeamId() === team.clubTeamId"
+                                    (click)="toggleMenu($event, team.clubTeamId)">
+                              <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                            </button>
+                            @if (openMenuTeamId() === team.clubTeamId) {
+                              @let editLock = editLockReason(team);
+                              @let archiveLock = archiveLockReason(team, !!registered);
+                              @let deleteLock = deleteLockReason(team, !!registered);
+                              <div class="lib-menu" role="menu" (click)="$event.stopPropagation()">
+                                <button type="button" class="lib-menu-item" role="menuitem"
+                                        [disabled]="!!editLock"
+                                        (click)="handleMenuEdit(team)">
+                                  <i class="bi bi-pencil lib-menu-icon" aria-hidden="true"></i>
+                                  <span class="lib-menu-label">Edit team</span>
+                                  @if (editLock) {
+                                    <span class="lib-menu-reason">{{ editLock }}</span>
+                                  }
+                                </button>
+                                <button type="button" class="lib-menu-item" role="menuitem"
+                                        [disabled]="!!archiveLock"
+                                        (click)="handleMenuArchive(team, !!registered)">
+                                  <i class="bi bi-box-arrow-in-down lib-menu-icon" aria-hidden="true"></i>
+                                  <span class="lib-menu-label">Archive team</span>
+                                  @if (archiveLock) {
+                                    <span class="lib-menu-reason">{{ archiveLock }}</span>
+                                  }
+                                </button>
+                                <button type="button" class="lib-menu-item lib-menu-item-danger" role="menuitem"
+                                        [disabled]="!!deleteLock"
+                                        (click)="handleMenuDelete(team, !!registered)">
+                                  <i class="bi bi-trash lib-menu-icon" aria-hidden="true"></i>
+                                  <span class="lib-menu-label">Delete team</span>
+                                  @if (deleteLock) {
+                                    <span class="lib-menu-reason">{{ deleteLock }}</span>
+                                  }
+                                </button>
+                              </div>
                             }
-                          </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      @if (expandedTeamId() === team.clubTeamId) {
+                        <div class="lib-item-expand">
+                          <div class="register-inline">
+                            @if (showDevIds) {
+                              <div class="dev-id-title">Club Team <span class="dev-id">(<span class="dev-id-guid">{{ team.clubTeamId }}</span>)</span></div>
+                            }
+                            <div class="register-step">
+                              <label class="field-label fw-bold">Event Level of Play</label>
+                              <app-level-of-play-picker
+                                [selected]="selectedLop()"
+                                (selectedChange)="selectedLop.set($event)" />
+                            </div>
+
+                            <div class="register-step">
+                              <label class="field-label fw-bold">Event Age Group</label>
+                              <app-event-age-group-picker
+                                variant="chip"
+                                [ageGroups]="ageGroups()"
+                                [gradYear]="team.clubTeamGradYear"
+                                [disabled]="actionInProgress() || lopRequired()"
+                                [selected]="selectedAgeGroupId()"
+                                (selectedChange)="selectedAgeGroupId.set($event)" />
+                            </div>
+
+                            <div class="register-actions">
+                              <button type="button" class="btn-register-cancel" (click)="cancelRegister()">Cancel</button>
+                              <button type="button" class="btn-register-submit"
+                                      [disabled]="!canSubmit()"
+                                      (click)="commitRegister(team)">
+                                <i class="bi bi-check-lg" aria-hidden="true"></i>
+                                {{ editingExisting() ? 'Save Changes' : 'Submit' }}
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       }
-                    </div>
-                  </td>
-                </tr>
+                    </li>
+                  }
+                </ul>
+              }
+            </section>
+          }
 
-                @if (expandedTeamId() === team.clubTeamId) {
-                  <tr class="lib-tr-expand">
-                    <td colspan="4" class="lib-td-expand">
-                      <div class="register-inline">
-                        @if (showDevIds) {
-                          <div class="dev-id-title">Club Team <span class="dev-id">(<span class="dev-id-guid">{{ team.clubTeamId }}</span>)</span></div>
-                        }
-                        <div class="register-step">
-                          <label class="field-label fw-bold">Event Level of Play</label>
-                          <app-level-of-play-picker
-                            [selected]="selectedLop()"
-                            (selectedChange)="selectedLop.set($event)" />
+          <!-- Archived group — same section-card chrome, muted tone. -->
+          @if (archivedTeams().length > 0) {
+            <section class="lib-group-card lib-group-card--archived">
+              <button type="button" class="lib-group-header" (click)="toggleArchived()"
+                      [attr.aria-expanded]="showArchived()">
+                <i class="bi lib-group-chevron"
+                   [class.bi-chevron-down]="showArchived()"
+                   [class.bi-chevron-right]="!showArchived()"
+                   aria-hidden="true"></i>
+                <i class="bi bi-archive-fill lib-group-icon" aria-hidden="true"></i>
+                <span class="lib-group-title">Archived</span>
+                <span class="lib-group-count">{{ archivedTeams().length }}</span>
+                <span class="lib-group-hint">hidden from registration</span>
+              </button>
+              @if (showArchived()) {
+                <ul class="lib-list">
+                  @for (team of archivedTeams(); track team.clubTeamId) {
+                    <li class="lib-item is-archived">
+                      <div class="lib-item-main">
+                        <div class="lib-item-id">
+                          <span class="lib-item-name">{{ team.clubTeamName }}</span>
+                          <span class="lib-item-sub"><span class="lib-sub-label">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
                         </div>
-
-                        <div class="register-step">
-                          <label class="field-label fw-bold">Event Age Group</label>
-                          <app-event-age-group-picker
-                            variant="chip"
-                            [ageGroups]="ageGroups()"
-                            [gradYear]="team.clubTeamGradYear"
-                            [disabled]="actionInProgress() || lopRequired()"
-                            [selected]="selectedAgeGroupId()"
-                            (selectedChange)="selectedAgeGroupId.set($event)" />
-                        </div>
-
-                        <div class="register-actions">
-                          <button type="button" class="btn-register-cancel" (click)="cancelRegister()">Cancel</button>
-                          <button type="button" class="btn-register-submit"
-                                  [disabled]="!canSubmit()"
-                                  (click)="commitRegister(team)">
-                            <i class="bi bi-check-lg" aria-hidden="true"></i>
-                            {{ editingExisting() ? 'Save Changes' : 'Submit' }}
+                        <div class="lib-item-trailing">
+                          <button type="button" class="lib-icon-btn"
+                                  title="Restore to active library"
+                                  aria-label="Restore to active library"
+                                  [disabled]="actionInProgress()"
+                                  (click)="restore.emit(team)">
+                            <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i>
                           </button>
                         </div>
                       </div>
-                    </td>
-                  </tr>
-                }
+                    </li>
+                  }
+                </ul>
               }
-            </tbody>
-            </table>
-          </section>
-
-          <!-- Archived sub-section (collapsible) -->
-          @if (archivedTeams().length > 0) {
-            <button type="button" class="lib-section-toggle" (click)="toggleArchived()">
-              <i class="bi lib-section-toggle-chevron" [class.bi-chevron-right]="!showArchived()" [class.bi-chevron-down]="showArchived()"></i>
-              <i class="bi bi-archive-fill"></i>
-              <span class="lib-section-toggle-label">Archived ({{ archivedTeams().length }})</span>
-              <span class="lib-section-toggle-hint">teams hidden from registration</span>
-            </button>
-            @if (showArchived()) {
-              <section class="lib-section-card lib-section-card--archived">
-                <table class="lib-table lib-table-archived">
-                  <tbody>
-                    @for (team of archivedTeams(); track team.clubTeamId) {
-                      <tr class="lib-tr is-archived">
-                        <td class="lib-td-team">
-                          <span class="team-name">{{ team.clubTeamName }}</span>
-                        </td>
-                        <td class="lib-td-age">{{ team.clubTeamGradYear || '—' }}</td>
-                        <td class="lib-td-status">
-                          <span class="status-archived">
-                            <i class="bi bi-archive-fill" aria-hidden="true"></i>
-                            Archived
-                          </span>
-                        </td>
-                        <td class="lib-td-actions">
-                          <button type="button" class="lib-icon-btn"
-                                  title="Restore to active library"
-                                  [disabled]="actionInProgress()"
-                                  (click)="restore.emit(team)">
-                            <i class="bi bi-arrow-counterclockwise"></i>
-                          </button>
-                        </td>
-                      </tr>
-                    }
-                  </tbody>
-                </table>
-              </section>
-            }
+            </section>
           }
         }
       </div>
@@ -534,48 +543,135 @@ export interface RegisterRequest {
         }
       }
 
-      /* ── Section frame ─────────────────────────────────────────────
-         Mirrors search/registrations .contact-zone: solid primary border,
-         soft tint background, and an in-card header row (eyebrow on the
-         left, metadata pair on the right) followed by a divider. The whole
-         card reads as one bordered grouping — eyebrow lives inside, not
-         floating above. */
-      .lib-section-card {
-        margin: 0 0 var(--space-5);
-        border: 1px solid var(--bs-primary);
+      /* ── Top action row ────────────────────────────────────────────
+         Add Library Team now sits above the group cards (the single
+         "Active Library" card header that used to hold it is gone). */
+      .lib-body-actions {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: var(--space-4);
+      }
+
+      /* ── Group section card ────────────────────────────────────────
+         One bordered, collapsible card per group (Registered / Not
+         Registered / Archived). Mirrors search/registrations .contact-zone.
+         NO overflow:hidden — the kebab menu must escape the card. */
+      .lib-group-card {
+        margin: 0 0 var(--space-4);
+        border: 1px solid var(--bs-border-color);
         border-radius: var(--radius-lg);
         background: var(--surface-elevated-bg);
-        /* No overflow:hidden — the kebab dropdown menu must escape the card.
-           Tradeoff: the table inside has square corners while the card has
-           rounded corners. Mismatch is visually minor (subtle bg tints, small
-           radius). Clipping the menu would be a real functional bug. */
       }
 
-      .lib-section-card--archived {
-        border-color: var(--border-color);
-        background: var(--surface-elevated-bg);
+      /* Registered = "done": success header band + a thin success rule down
+         the left edge so the whole card reads confirmed — no per-row green. */
+      .lib-group-card--registered {
+        border-color: color-mix(in srgb, var(--bs-success) 35%, var(--bs-border-color));
+        box-shadow: inset 3px 0 0 0 var(--bs-success);
       }
 
-      /* In-card header row: eyebrow that names the table within the card.
-         Matches search/registrations .section-title token-for-token. */
-      .lib-section-card-header {
+      /* Not Registered = "action": primary accent carries the Register CTA. */
+      .lib-group-card--unregistered {
+        border-color: color-mix(in srgb, var(--bs-primary) 35%, var(--bs-border-color));
+        box-shadow: inset 3px 0 0 0 var(--bs-primary);
+      }
+
+      .lib-group-card--archived {
+        border-color: var(--bs-border-color);
+        background: color-mix(in srgb, var(--bs-body-color) 2%, var(--surface-elevated-bg));
+      }
+
+      /* Group header band — full-width accordion toggle. Adopts the sibling
+         .section-title scale (sm / semibold / uppercase) so it clearly
+         outranks the row content beneath it (the old 10px header was the bug).
+         Default state expanded. */
+      .lib-group-header {
         display: flex;
         align-items: center;
         gap: var(--space-2);
+        width: 100%;
         padding: var(--space-3) var(--space-4);
+        background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
+        border: none;
         border-bottom: 1px solid var(--bs-border-color);
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        cursor: pointer;
+        text-align: left;
+        transition: background-color 0.1s ease;
+
+        &:hover { background: color-mix(in srgb, var(--bs-body-color) 6%, transparent); }
+
+        &:focus-visible {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
       }
 
-      /* Add Library Team button — flushed right inside the Active Library
-         section header (replaces the top-of-flyin position). */
-      .lib-section-card-header .header-add-team { margin-left: auto; }
+      .lib-group-card--registered .lib-group-header {
+        background: color-mix(in srgb, var(--bs-success) 8%, transparent);
+        &:hover { background: color-mix(in srgb, var(--bs-success) 12%, transparent); }
+      }
 
-      .lib-section-card-eyebrow {
+      .lib-group-card--unregistered .lib-group-header {
+        background: color-mix(in srgb, var(--bs-primary) 7%, transparent);
+        &:hover { background: color-mix(in srgb, var(--bs-primary) 11%, transparent); }
+      }
+
+      .lib-group-chevron {
+        font-size: 0.85em;
+        color: var(--brand-text-muted);
+        flex-shrink: 0;
+      }
+
+      .lib-group-icon {
+        font-size: var(--font-size-sm);
+        flex-shrink: 0;
+        color: var(--brand-text-muted);
+      }
+      .lib-group-card--registered .lib-group-icon { color: var(--bs-success); }
+
+      .lib-group-title {
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
-        letter-spacing: 0.05em;
         text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--brand-text);
+      }
+      .lib-group-card--registered .lib-group-title { color: var(--bs-success); }
+      .lib-group-card--unregistered .lib-group-title { color: var(--bs-primary); }
+      .lib-group-card--archived .lib-group-title { color: var(--brand-text-muted); }
+
+      /* Count pill — rounded-full badge beside the title (replaces the "(18)"
+         that used to be baked into the label string). */
+      .lib-group-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 22px;
+        padding: 1px var(--space-2);
+        border-radius: var(--radius-full);
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-bold);
+        font-variant-numeric: tabular-nums;
+        background: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+        color: var(--brand-text-muted);
+      }
+      .lib-group-card--registered .lib-group-count {
+        background: color-mix(in srgb, var(--bs-success) 16%, transparent);
+        color: var(--bs-success);
+      }
+      .lib-group-card--unregistered .lib-group-count {
+        background: color-mix(in srgb, var(--bs-primary) 16%, transparent);
         color: var(--bs-primary);
+      }
+
+      .lib-group-hint {
+        margin-left: auto;
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-normal);
+        font-style: italic;
+        color: var(--brand-text-muted);
+        opacity: 0.85;
       }
 
       /* Stacked block under the title row: stats line, then tips line. */
@@ -585,234 +681,161 @@ export interface RegisterRequest {
         gap: var(--space-2);
       }
 
-      /* Carry-over headline tip — sits above the bullet list, left-justified,
-         in palette danger so it reads as the standout "this library is permanent"
-         message rather than just another bullet. */
+      /* Carry-over note — demoted from danger-red to a quiet muted info line;
+         it's helpful context, not an alarm. */
       .library-carryover-tip {
+        display: flex;
+        align-items: baseline;
+        gap: var(--space-2);
         margin: 0;
         text-align: left;
-        color: var(--bs-danger);
+        color: var(--brand-text-muted);
         font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
+        font-weight: var(--font-weight-normal);
+
+        .bi { color: var(--bs-primary); opacity: 0.8; }
       }
 
-      /* Header tag pairs — single horizontal line in this flyin so the
-         tips column gets more horizontal real estate. Search/teams stays
-         stacked. */
-      .header-tags {
-        display: flex;
-        flex-direction: row;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: var(--space-1) var(--space-3);
-      }
-
-
-      .header-tag {
+      /* "How this works" disclosure — quiet toggle revealing a condensed tip
+         list (collapsed by default so it never crowds the list). */
+      .lib-howto-toggle {
         display: inline-flex;
-        align-items: baseline;
-        gap: var(--space-2);
-
-        .header-tag-label {
-          font-size: var(--font-size-2xs);
-          font-weight: var(--font-weight-medium);
-          color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.04em;
-          opacity: 0.7;
-        }
-
-        .header-tag-value {
-          font-size: var(--font-size-sm);
-          font-weight: var(--font-weight-semibold);
-          color: var(--bs-primary);
-        }
-      }
-
-      /* Section toggle (replaces the standalone archived-header) — same
-         eyebrow weight as .lib-section-title but interactive. */
-      .lib-section-toggle {
-        display: flex;
         align-items: center;
         gap: var(--space-2);
-        width: calc(100% - var(--space-3) * 2);
-        margin: 0 var(--space-3) var(--space-2);
-        padding: var(--space-1) 0;
+        align-self: flex-start;
+        padding: 0;
         background: transparent;
         border: none;
         color: var(--brand-text-muted);
         font-size: var(--font-size-xs);
         font-weight: var(--font-weight-semibold);
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
         cursor: pointer;
-        text-align: left;
         transition: color 0.1s ease;
 
         &:hover { color: var(--brand-text); }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
 
-        &:focus-visible {
-          outline: none;
-          box-shadow: var(--shadow-focus);
-          border-radius: var(--radius-sm);
-        }
+        .bi { font-size: 0.8em; }
       }
 
-      .lib-section-toggle-chevron { font-size: 0.85em; }
-      .lib-section-toggle-label { flex-shrink: 0; }
-      .lib-section-toggle-hint {
-        margin-left: auto;
-        text-transform: none;
-        letter-spacing: 0;
-        font-weight: var(--font-weight-normal);
-        font-size: 11px;
-        opacity: 0.75;
-      }
-
-      /* ── Library audit table ───────────────────────────────────────
-         Hand-rolled compact table for the team list. Status column does
-         double duty: shows ✓ + age group when registered, Register button
-         when not. Actions column carries library-lifecycle (edit / archive
-         / delete) — separated from the event-axis Status column. */
-      .lib-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: var(--font-size-sm);
-        table-layout: fixed;
-      }
-
-      .lib-table thead th {
-        padding: var(--space-2);
-        text-align: left;
-        vertical-align: bottom;
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        line-height: 1.2;
+      .lib-howto-list {
+        margin: 0;
+        padding-left: var(--space-5);
         color: var(--brand-text-muted);
-        background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
-        border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 25%, transparent);
+        font-size: var(--font-size-xs);
+        line-height: var(--line-height-normal);
+
+        li { margin-bottom: 2px; }
+        strong { color: var(--brand-text); font-weight: var(--font-weight-semibold); }
+        .bi { font-size: 0.9em; }
       }
 
-      /* Column widths sized for the 520px panel. */
-      .lib-th-team    { width: auto; }
-      .lib-th-age     { width: 80px; }
-      .lib-th-status  { width: 130px; }
-      .lib-table thead th.lib-th-age,
-      .lib-table thead th.lib-th-status { text-align: center; }
-      /* 76px = MANAGE label (~50px) + 8px left pad + 12px right pad + slack. */
-      .lib-th-actions { width: 76px; }
-
-      /* Inset rightmost column from the card border so MANAGE / kebab don't
-         crowd the edge after the border was strengthened to solid primary. */
-      .lib-table thead th:last-child,
-      .lib-table tbody td:last-child {
-        padding-right: var(--space-3);
+      /* ── Group list ────────────────────────────────────────────────
+         Rows render as a flex list (ledger .txn-row model) inside each group
+         card — primary label + muted subtitle on the left, trailing identity +
+         actions on the right. Replaces the old fixed-layout <table>. */
+      .lib-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
       }
 
-      .lib-tr {
+      .lib-item {
         border-bottom: 1px solid color-mix(in srgb, var(--bs-body-color) 6%, transparent);
-        transition: background-color 0.1s ease;
 
         &:last-child { border-bottom: none; }
-        &:hover:not(.is-archived) {
-          background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
-        }
       }
 
-      /* Subtle green wash on registered rows — the Status column carries
-         most of the signal, but a faint row tint confirms it row-wide. */
-      .lib-tr.is-registered {
-        background: color-mix(in srgb, var(--bs-success) 5%, transparent);
-
-        &:hover { background: color-mix(in srgb, var(--bs-success) 9%, transparent); }
+      .lib-item-main {
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: var(--space-2) var(--space-4);
+        transition: background-color 0.1s ease;
       }
 
-      .lib-table td {
-        padding: var(--space-2);
-        vertical-align: middle;
+      .lib-item:not(.is-archived):hover > .lib-item-main {
+        background: color-mix(in srgb, var(--bs-body-color) 3%, transparent);
       }
 
-      .lib-td-age,
-      .lib-td-status {
-        text-align: center;
-        color: var(--brand-text-muted);
-        font-variant-numeric: tabular-nums;
+      /* Active expand source — tie the row to its open editor below. */
+      .lib-item.is-expanded > .lib-item-main {
+        background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
       }
 
-      .lib-td-team {
+      /* Left: team name + muted Grad subtitle (the grad-year column retired). */
+      .lib-item-id {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
         min-width: 0;
+        flex: 1;
       }
 
-      .team-name {
-        display: block;
+      .lib-item-name {
+        font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
         color: var(--brand-text);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
-        min-width: 0;
       }
 
-      /* ── Registration Status column — three states ──────────────────
-         Each cell stacks an explicit status label (line 1) above either a
-         detail string (registered) or a CTA button (not yet registered).
-         Center-aligned so the column reads as a status badge column rather
-         than a mixed action/info hybrid. */
-      .status-block {
-        display: inline-flex;
-        flex-direction: column;
+      .lib-item-sub {
+        font-size: var(--font-size-2xs);
+        color: var(--brand-text-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .lib-sub-label {
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        font-weight: var(--font-weight-semibold);
+        opacity: 0.7;
+        margin-right: var(--space-1);
+      }
+
+      /* Right: event identity + actions cluster. */
+      .lib-item-trailing {
+        display: flex;
         align-items: center;
-        gap: 2px;
+        gap: var(--space-2);
+        flex-shrink: 0;
+      }
+
+      /* Event registration identity (AG · LOP) — the row's payload. Labeled
+         2xs eyebrow + sm value pairs (replaces the old 9px / 11px detail). */
+      .lib-identity {
+        display: inline-flex;
+        align-items: baseline;
+        gap: var(--space-3);
         white-space: nowrap;
       }
 
-      .status-block .status-line {
+      .lib-id-pair {
         display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-bold);
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+        align-items: baseline;
+        gap: var(--space-1);
       }
 
-      .status-block .status-detail {
-        font-size: 11px;
-        color: var(--brand-text-muted);
-      }
-
-      /* Labeled axis values inside the registered status detail.
-         "AG"/"LOP" eyebrow distinguishes the registered age group from the
-         library team's grad year (which can share the same numeric value
-         when tournaments name age groups by grad year). */
-      .status-block .status-detail .reg-label {
-        font-size: 9px;
+      .lib-id-label {
+        font-size: var(--font-size-2xs);
         font-weight: var(--font-weight-semibold);
         text-transform: uppercase;
         letter-spacing: 0.06em;
+        color: var(--brand-text-muted);
         opacity: 0.75;
-        margin-right: 4px;
       }
 
-      .status-block .status-detail .reg-value {
+      .lib-id-value {
+        font-size: var(--font-size-sm);
         font-weight: var(--font-weight-bold);
         color: var(--brand-text);
+        font-variant-numeric: tabular-nums;
       }
 
-      .status-block .status-detail .reg-sep {
-        opacity: 0.5;
-      }
-
-      .status-block-yes .status-line { color: var(--bs-success); }
-
-      .status-block-no .status-line { color: var(--brand-text-muted); }
-
-      .status-block-closed .status-line {
-        color: var(--brand-text-muted);
-        font-style: italic;
-      }
-
-      .status-archived {
+      /* Closed-event trailing pill (registration disabled). */
+      .lib-closed-pill {
         display: inline-flex;
         align-items: center;
         gap: 4px;
@@ -820,17 +843,15 @@ export interface RegisterRequest {
         font-size: var(--font-size-xs);
         font-style: italic;
         font-weight: var(--font-weight-medium);
+        white-space: nowrap;
       }
 
-      /* Register button — primary-blue CTA. Distinct from the green "done"
-         pill so a row scan reads cleanly: green ✓ = registered, blue button
-         = action needed. Reusing green for the CTA (earlier draft) made every
-         unregistered row look "done." */
+      /* Register button — primary-blue CTA, the focus of a Not-Registered row. */
       .btn-register-cell {
         display: inline-flex;
         align-items: center;
         gap: 4px;
-        padding: 4px var(--space-2);
+        padding: 4px var(--space-3);
         background: color-mix(in srgb, var(--bs-primary) 10%, transparent);
         border: 1px solid color-mix(in srgb, var(--bs-primary) 45%, transparent);
         border-radius: var(--radius-sm);
@@ -856,20 +877,26 @@ export interface RegisterRequest {
         &:disabled { opacity: 0.4; cursor: default; }
       }
 
-      .lib-td-actions {
-        text-align: right;
-        white-space: nowrap;
+      /* Quiet pencil = edit registration (opens the inline expand). Reuses
+         .lib-icon-btn; this only tints it primary alongside the kebab. */
+      .lib-edit-btn { color: var(--bs-primary); }
+
+      /* Archived rows — de-emphasized, italic name. */
+      .lib-item.is-archived .lib-item-main { opacity: 0.8; }
+      .lib-item.is-archived .lib-item-name {
+        color: var(--brand-text-muted);
+        font-style: italic;
+        font-weight: var(--font-weight-medium);
       }
 
-      /* ── Inline registration expand row ──────────────────────────
-         The Register button on a row "opens" beneath itself with an
-         AG chip strip + collapsed LOP disclosure. Picking a chip
-         commits and clears the expand. Replaces a modal that used to
-         own this flow. */
-      .lib-tr-expand > .lib-td-expand {
+      /* ── Inline registration expand ──────────────────────────────
+         The Register/Edit control "opens" beneath its row with the LOP +
+         Age Group pickers. Re-homed from the old colspan table row into the
+         list item; .register-inline (below) keeps its own padding. */
+      .lib-item-expand {
         padding: 0;
         background: color-mix(in srgb, var(--bs-primary) 4%, transparent);
-        border-bottom: 1px solid color-mix(in srgb, var(--bs-primary) 18%, transparent);
+        border-top: 1px solid color-mix(in srgb, var(--bs-primary) 18%, transparent);
       }
 
       .register-inline {
@@ -965,24 +992,6 @@ export interface RegisterRequest {
       .btn-register-submit:hover:not(:disabled) { filter: brightness(0.94); }
       .btn-register-submit:disabled { opacity: 0.45; cursor: default; }
       .btn-register-submit:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-
-      /* When a row is the active expand source, highlight its trigger. */
-      .btn-register-cell.is-active {
-        background: var(--bs-primary);
-        color: var(--neutral-0);
-        border-color: var(--bs-primary);
-      }
-
-      /* Archived table — no thead, italicized rows */
-      .lib-table-archived {
-        background: color-mix(in srgb, var(--bs-body-color) 2%, transparent);
-      }
-
-      .lib-tr.is-archived {
-        opacity: 0.78;
-
-        .team-name { color: var(--brand-text-muted); font-style: italic; }
-      }
 
       .lib-icon-btn {
         display: inline-flex;
@@ -1134,78 +1143,6 @@ export interface RegisterRequest {
         }
       }
 
-      .lib-lock {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 30px;
-        height: 30px;
-        color: var(--brand-text-muted);
-        font-size: var(--font-size-sm);
-        opacity: 0.55;
-      }
-
-      /* ── Status badges ─────────────────────────────────────────────── */
-      .lib-badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
-        font-weight: var(--font-weight-semibold);
-        padding: 4px var(--space-2);
-        border-radius: var(--radius-full);
-        white-space: nowrap;
-        flex-shrink: 0;
-        max-width: 180px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .lib-badge-success {
-        background: rgba(var(--bs-success-rgb), 0.12);
-        color: var(--bs-success);
-      }
-
-      .lib-badge-muted {
-        background: rgba(var(--bs-secondary-rgb), 0.1);
-        color: var(--brand-text-muted);
-      }
-
-      /* ── Register button — success-green to match wizard color story ── */
-      .btn-register {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-width: 110px;
-        padding: var(--space-1) var(--space-3);
-        border: 1.5px solid rgba(var(--bs-success-rgb), 0.4);
-        border-radius: var(--radius-sm);
-        background: rgba(var(--bs-success-rgb), 0.08);
-        color: var(--bs-success);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        cursor: pointer;
-        flex-shrink: 0;
-        white-space: nowrap;
-        transition: background-color 0.12s ease, border-color 0.12s ease,
-                    transform 0.12s ease, box-shadow 0.12s ease;
-
-        &:hover:not(:disabled) {
-          background: var(--bs-success);
-          color: var(--neutral-0);
-          border-color: var(--bs-success);
-          transform: translateY(-1px);
-          box-shadow: var(--shadow-sm);
-        }
-
-        &:focus-visible {
-          outline: none;
-          box-shadow: var(--shadow-focus);
-        }
-
-        &:disabled { opacity: 0.4; cursor: default; }
-      }
-
       /* ── State B (all-archived / library-empty) — hero treatment ─── */
       .lib-empty-hero {
         display: flex;
@@ -1277,9 +1214,10 @@ export interface RegisterRequest {
 
       @media (prefers-reduced-motion: reduce) {
         .library-panel { transition: none; }
-        .lib-icon-btn, .btn-register, .btn-add-team, .btn-flyin-done,
-        .lib-section-toggle, .lib-row { transition: none; }
-        .btn-register:hover:not(:disabled) { transform: none; }
+        .lib-icon-btn, .btn-register-cell, .btn-add-team, .btn-flyin-done,
+        .lib-group-header, .lib-group-card, .lib-howto-toggle,
+        .lib-item-main { transition: none; }
+        .btn-register-cell:hover:not(:disabled) { transform: none; }
       }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1336,6 +1274,22 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
      *  so the restore action is reachable without an extra click. */
     readonly showArchived = signal(true);
     toggleArchived(): void { this.showArchived.set(!this.showArchived()); }
+
+    /** Header "How this works" disclosure — collapsed by default so the tips
+     *  don't crowd the list; a returning rep already knows the flow. */
+    readonly showHowTo = signal(false);
+    toggleHowTo(): void { this.showHowTo.set(!this.showHowTo()); }
+
+    /** Collapsed active groups (keyed by group key — 'registered' / 'unregistered').
+     *  Empty = all expanded, the default. Mirrors the Archived collapse affordance
+     *  so a rep can fold away whichever group they're done reviewing. */
+    readonly collapsedGroups = signal<ReadonlySet<string>>(new Set());
+    isGroupCollapsed(key: string): boolean { return this.collapsedGroups().has(key); }
+    toggleGroup(key: string): void {
+        const next = new Set(this.collapsedGroups());
+        if (next.has(key)) next.delete(key); else next.add(key);
+        this.collapsedGroups.set(next);
+    }
 
     /** Active row whose kebab menu is open (null = none). */
     readonly openMenuTeamId = signal<number | null>(null);
@@ -1468,13 +1422,39 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     );
 
     /**
-     * Active teams in alphabetical order. Stable position is the goal —
-     * registering a team should NOT move it (status-priority sort would shift
-     * rows mid-session and break the rep's spatial memory of their library).
-     * Visual cues (green ✓ vs blue Register button) already surface action
-     * state without re-ordering.
+     * Active teams split into Registered (top) then Not Registered, each
+     * alphabetical within itself. Registered surfaces first because the common
+     * return visit is to confirm/edit the roster already entered for this event;
+     * the unregistered group below (plus the header count + none-registered
+     * warning) still carries the "what's left" signal. When registration is
+     * closed there's nothing to register, so it collapses to one flat group.
+     *
+     * Alphabetical-within-group keeps spatial memory stable — only the natural
+     * group change on register/unregister moves a row (a row jumping to the
+     * Registered group reads as "moved to done", which is the intended cue).
      */
-    readonly sortedActiveTeams = this.activeTeams;
+    readonly activeGroups = computed<LibraryGroup[]>(() => {
+        const all = this.activeTeams();
+        if (!this.canRegister()) {
+            // Registration closed → grouping by registration is meaningless; show
+            // one neutral card with every team in its "Closed" trailing state.
+            return [{ key: 'all', title: 'Active Library', teams: all }];
+        }
+        const entered = this.enteredTeams();
+        const registered: ClubTeamDto[] = [];
+        const unregistered: ClubTeamDto[] = [];
+        for (const t of all) {
+            (entered.has(t.clubTeamId) ? registered : unregistered).push(t);
+        }
+        const groups: LibraryGroup[] = [];
+        if (registered.length) {
+            groups.push({ key: 'registered', title: 'Registered', teams: registered });
+        }
+        if (unregistered.length) {
+            groups.push({ key: 'unregistered', title: 'Not Registered', teams: unregistered });
+        }
+        return groups;
+    });
 
     readonly registeredCount = computed(() => {
         const entered = this.enteredTeams();
@@ -1496,39 +1476,6 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     );
 
     readonly doneLabel = computed(() => this.showNoneRegisteredWarning() ? 'Close' : 'Done');
-
-    /**
-     * Header status state. Drives chip color, icon, and message — the rep's
-     * registration-coverage check at a glance.
-     *   - 'empty'           → library is empty (or all-archived); chip hidden, body shows hero
-     *   - 'none-registered' → library has teams, none entered for this event (urgent — likely no-show trap)
-     *   - 'partial'         → some entered, some not (action needed — see which are unregistered below)
-     *   - 'all-registered'  → every active team is entered (reassuring — green ✓)
-     */
-    readonly statusState = computed<'empty' | 'none-registered' | 'partial' | 'all-registered'>(() => {
-        const active = this.activeTeams().length;
-        if (active === 0) return 'empty';
-        const registered = this.registeredCount();
-        if (registered === 0) return 'none-registered';
-        if (registered < active) return 'partial';
-        return 'all-registered';
-    });
-
-    readonly statusIcon = computed(() => {
-        switch (this.statusState()) {
-            case 'all-registered':  return 'bi-check-circle-fill';
-            case 'partial':         return 'bi-exclamation-triangle-fill';
-            case 'none-registered': return 'bi-exclamation-octagon-fill';
-            default:                return '';
-        }
-    });
-
-    readonly statusText = computed(() => {
-        const total = this.activeTeams().length;
-        const reg = this.registeredCount();
-        if (this.statusState() === 'empty') return '';
-        return `${reg} of ${total} registered`;
-    });
 
     isEntered(clubTeamId: number): boolean {
         return this.enteredTeams().has(clubTeamId);
