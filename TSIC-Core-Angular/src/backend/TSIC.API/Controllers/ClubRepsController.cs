@@ -138,4 +138,26 @@ public class ClubRepsController : ControllerBase
 
         return NoContent();
     }
+
+    [Authorize]
+    [HttpPut("rename-club")]
+    [ProducesResponseType(typeof(ClubRenameResponse), 200)]
+    [ProducesResponseType(typeof(ClubRenameResponse), 400)]
+    [ProducesResponseType(401)]
+    public async Task<IActionResult> RenameClub([FromBody] ClubRenameRequest request)
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized(new { Message = "User not authenticated" });
+        }
+
+        var result = await _clubService.RenameClubAsync(userId, request);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+
+        return Ok(result);
+    }
 }

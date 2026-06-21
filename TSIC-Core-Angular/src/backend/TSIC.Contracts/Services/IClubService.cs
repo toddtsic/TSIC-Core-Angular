@@ -22,6 +22,13 @@ public interface IClubService
     Task<bool> UpdateSelfProfileAsync(string userId, ClubRepProfileUpdateRequest request);
 
     /// <summary>
+    /// Rename a club the authenticated user reps. Allowed only while the club has
+    /// no registered teams (IsInUse=false) and the new name doesn't collide with an
+    /// existing club. Returns Success=false with a Message on any guard failure.
+    /// </summary>
+    Task<ClubRenameResponse> RenameClubAsync(string userId, ClubRenameRequest request);
+
+    /// <summary>
     /// Invalidate cached club search candidates (call after creating a club).
     /// </summary>
     void InvalidateSearchCache();

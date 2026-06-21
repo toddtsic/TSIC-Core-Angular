@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult, AddClubRequest, AddClubResponse, ClubRepProfileDto, ClubRepProfileUpdateRequest } from '@core/api';
+import type { ClubRepRegistrationRequest, ClubRepRegistrationResponse, ClubSearchResult, AddClubRequest, AddClubResponse, ClubRepProfileDto, ClubRepProfileUpdateRequest, ClubRenameRequest, ClubRenameResponse } from '@core/api';
 
 @Injectable({
     providedIn: 'root'
@@ -52,5 +52,13 @@ export class ClubService {
      */
     updateSelfProfile(request: ClubRepProfileUpdateRequest): Observable<void> {
         return this.http.put<void>(`${this.clubRepsApiUrl}/me`, request);
+    }
+
+    /**
+     * Rename a club the authenticated user reps. Backend honors this only while the
+     * club has no registered teams; otherwise responds with success=false + a message.
+     */
+    renameClub(request: ClubRenameRequest): Observable<ClubRenameResponse> {
+        return this.http.put<ClubRenameResponse>(`${this.clubRepsApiUrl}/rename-club`, request);
     }
 }

@@ -164,7 +164,7 @@ export class TeamWizardV2Component implements OnInit {
     readonly transitioning = computed(() => this.teamsStep()?.actionInProgress() ?? false);
 
     readonly steps = computed<WizardStepDef[]>(() => [
-        { id: 'login', label: 'Login', enabled: true },
+        { id: 'login', label: 'Club & Rep Info', enabled: true },
         { id: 'waivers', label: 'Waivers', enabled: this.state.hasRefundPolicy() },
         { id: 'teams', label: 'Teams', enabled: true },
         { id: 'payment', label: 'Payment', enabled: true },
@@ -360,6 +360,13 @@ export class TeamWizardV2Component implements OnInit {
             return;
         }
 
+        // From the "Club & Rep Info" step, advance conditionally — skip any already-completed
+        // step (e.g. waivers already signed → straight to Teams) rather than stepping one index.
+        if (this.currentStepId() === 'login') {
+            this.advancePastLogin();
+            return;
+        }
+
         const active = this.activeSteps();
         const idx = this.currentIndex();
         if (idx >= active.length - 1) return;
@@ -377,10 +384,11 @@ export class TeamWizardV2Component implements OnInit {
     }
 
     /**
-     * Advance to the first step after login — skipping any already-completed step.
-     * A returning club rep with BWaiverSigned3=true skips straight past waivers to teams;
-     * the step itself stays visible in the indicator and can be revisited via Back or
-     * the step indicator (it renders read-only in that state).
+     * Advance off the "Club & Rep Info" step to the first incomplete step — skipping any
+     * already-completed one. Invoked when the rep clicks Continue on the review screen
+     * (see next()). A returning club rep with BWaiverSigned3=true skips straight past
+     * waivers to teams; the step itself stays visible in the indicator and can be revisited
+     * via Back or the step indicator (it renders read-only in that state).
      */
     private advancePastLogin(): void {
         const active = this.activeSteps();
@@ -417,14 +425,13 @@ export class TeamWizardV2Component implements OnInit {
         const clubName = result.clubName;
         const jobPath = this.state.jobPath();
         if (clubName && jobPath) {
-            this.initAndAdvance(clubName, jobPath);
+            this.initializeSession(clubName, jobPath);
         } else {
-            // Multi-club rep — need club picker before advancing
-            // For now, use first club
+            // Multi-club rep — picker deferred; default to first club for now.
             const firstClub = (result.availableClubs as import('@core/api').ClubRepClubDto[])[0]?.clubName;
             if (firstClub && jobPath) {
                 this.state.clubRep.setSelectedClub(firstClub);
-                this.initAndAdvance(firstClub, jobPath);
+                this.initializeSession(firstClub, jobPath);
             }
         }
     }
@@ -442,32 +449,34 @@ export class TeamWizardV2Component implements OnInit {
         const jobPath = this.state.jobPath();
         if (clubName && jobPath) {
             this.state.clubRep.setSelectedClub(clubName);
-            this.initAndAdvance(clubName, jobPath);
+            this.initializeSession(clubName, jobPath);
         }
     }
 
-    /** Call initialize-registration to get a job-scoped Phase 2 token, then advance. */
-    private initAndAdvance(clubName: string, jobPath: string): void {
+    /**
+     * Mint a job-scoped Phase 2 token and seed metadata, then STAY on the "Club & Rep Info"
+     * step. We deliberately do NOT auto-advance: every authenticated arrival (fresh sign-in,
+     * ToS-return, create-account) lands on the review screen so the rep can confirm their
+     * identity + club before proceeding. Once the token is minted, hasWizardSession() flips
+     * true and the wizard's Continue button appears; advancing past this step is then an
+     * explicit user action (see next() → advancePastLogin).
+     */
+    private initializeSession(clubName: string, jobPath: string): void {
         this.teamReg.initializeRegistration(clubName, jobPath)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {
-                    // Pre-fetch metadata to seed waiver state before step navigation.
-                    // If the club rep already signed, waivers step will be skipped.
+                    // Pre-fetch metadata to seed waiver state so the Continue from the review
+                    // screen can skip already-signed waivers without a round-trip.
                     this.teamReg.getTeamsMetadata().pipe(takeUntilDestroyed(this.destroyRef))
                         .subscribe({
-                            next: (meta) => {
-                                this.state.applyTeamsMetadata(meta);
-                                this.advancePastLogin();
-                            },
-                            error: () => {
-                                this.advancePastLogin();
-                            },
+                            next: (meta) => this.state.applyTeamsMetadata(meta),
+                            error: () => { /* each step falls back to its own load */ },
                         });
                 },
                 error: () => {
                     // Interceptor safety net handles the toast.
-                    // Return to login — don't advance with broken token.
+                    // Return to login — don't proceed with a broken token.
                     this.auth.logoutLocal();
                     this._currentStepId.set('login');
                 },

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, output, signal, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, output, signal, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -9,6 +9,7 @@ import { TeamWizardStateService } from '../state/team-wizard-state.service';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { LoginComponent } from '@views/auth/login/login.component';
 import { ClubRepRegisterFormComponent } from './club-rep-register-form.component';
+import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
 import type { ClubRepClubDto, ClubRepProfileDto } from '@core/api';
 
 export interface LoginStepResult {
@@ -16,19 +17,19 @@ export interface LoginStepResult {
     clubName: string | null;
 }
 
-type LoginView = 'sign-in' | 'create' | 'account-summary' | 'edit-profile';
+type LoginView = 'sign-in' | 'create' | 'account-summary';
 
 /**
- * Team wizard's "Login" tab — single home for everything club-rep account related:
- *   sign-in, create-account (inline), and edit-account (inline).
- * Wizard auto-advances past this step on successful sign-in or create
- * (see team.component.ts advancePastLogin); the summary + edit views are seen
- * only when an authenticated user navigates back via the step indicator.
+ * Team wizard's "Club & Rep Info" step — single home for everything club-rep
+ * account related: sign-in, create-account (inline), and the authenticated
+ * review (read-first display of club + rep, each editable inline in place).
+ * Every authenticated arrival lands on the review; advancing to the next step
+ * is an explicit Continue (see team.component.ts next/advancePastLogin).
  */
 @Component({
     selector: 'app-trw-login-step',
     standalone: true,
-    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent],
+    imports: [FormsModule, LoginComponent, ClubRepRegisterFormComponent, PhonePipe],
     styles: [`
       :host { display: block; }
 
@@ -107,35 +108,106 @@ type LoginView = 'sign-in' | 'create' | 'account-summary' | 'edit-profile';
         letter-spacing: 0.04em;
       }
 
-      /* Account summary view */
-      .summary-identity {
+      /* ── Read-first display rows ────────────────────────── */
+      .readout-row {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
+        justify-content: space-between;
         gap: var(--space-3);
-        margin-bottom: var(--space-4);
       }
-      .summary-identity i {
-        color: var(--bs-success);
-        font-size: 1.5rem;
-        flex-shrink: 0;
-      }
-      .summary-identity .name {
+      .readout-value {
         font-size: var(--font-size-base);
         font-weight: var(--font-weight-semibold);
         color: var(--brand-text);
-        line-height: 1.2;
+        min-width: 0;
+        overflow-wrap: anywhere;
       }
-      .summary-identity .email {
-        display: block;
-        font-size: var(--font-size-sm);
-        color: var(--brand-text-muted);
-        margin-top: 2px;
-      }
-      .summary-actions {
-        display: flex;
+
+      /* Definition-list readout for the rep profile (label / value pairs) */
+      .profile-readout {
+        margin: 0;
+        display: grid;
         gap: var(--space-2);
       }
-      .summary-actions .btn { flex: 0 0 auto; }
+      .profile-readout > div {
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        gap: var(--space-3);
+        align-items: baseline;
+      }
+      .profile-readout dt {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--brand-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .profile-readout dd {
+        margin: 0;
+        font-size: var(--font-size-sm);
+        color: var(--brand-text);
+        overflow-wrap: anywhere;
+      }
+
+      .readout-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-2);
+        margin-top: var(--space-3);
+        padding-top: var(--space-3);
+        border-top: 1px solid var(--border-color);
+      }
+
+      /* "Edit" affordance — quiet, text-button style */
+      .inline-edit-btn {
+        background: none;
+        border: none;
+        padding: var(--space-1) var(--space-2);
+        color: var(--bs-primary);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-medium);
+        cursor: pointer;
+        border-radius: var(--radius-sm);
+      }
+      .inline-edit-btn:hover { text-decoration: underline; }
+      .inline-edit-btn:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+      .btn-cancel-inline {
+        color: var(--brand-text-muted);
+        text-decoration: none;
+        font-size: var(--font-size-sm);
+        padding-left: 0;
+        margin-top: var(--space-2);
+      }
+
+      /* ── Club info card ─────────────────────────────────── */
+      .club-edit-row {
+        display: flex;
+        gap: var(--space-2);
+        align-items: stretch;
+      }
+      .club-edit-row .field-input { flex: 1; }
+      .btn-save-club {
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 44px;
+      }
+      .club-locked-hint {
+        font-size: var(--font-size-xs);
+        color: var(--brand-text-muted);
+        white-space: nowrap;
+      }
+      .club-locked-hint i { color: var(--brand-text-muted); }
+
+      .btn-signout {
+        color: var(--brand-text-muted);
+        text-decoration: none;
+        font-size: var(--font-size-sm);
+      }
+      .btn-signout:hover { color: var(--bs-danger); }
 
       .summary-loading {
         text-align: center;
@@ -148,8 +220,6 @@ type LoginView = 'sign-in' | 'create' | 'account-summary' | 'edit-profile';
         .account-step { padding-top: var(--space-4); }
         .or-divider { margin: var(--space-2) 0; font-size: var(--font-size-xs); }
         .create-cta p { font-size: var(--font-size-xs); margin-bottom: var(--space-2); }
-        .summary-actions { flex-direction: column; }
-        .summary-actions .btn { flex: 1; }
       }
     `],
     template: `
@@ -181,7 +251,7 @@ type LoginView = 'sign-in' | 'create' | 'account-summary' | 'edit-profile';
               <p>Don't have a club rep account yet?</p>
               <button type="button"
                       class="btn btn-outline-primary fw-semibold w-100"
-                      (click)="view.set('create')">
+                      (click)="showCreateAccount()">
                 <i class="bi bi-shield-plus me-2"></i>Create NEW Club Rep Account
               </button>
             </div>
@@ -217,51 +287,87 @@ type LoginView = 'sign-in' | 'create' | 'account-summary' | 'edit-profile';
           <button type="button" class="back-link" (click)="goHome()">
             <i class="bi bi-arrow-left"></i> Back to home
           </button>
+
+          <!-- ═══ CLUB INFO (read-first) ═══ -->
+          @if (registeringClub(); as club) {
+            <div class="card shadow border-0 card-rounded mb-3">
+              <div class="card-header card-header-subtle border-0 py-3 edit-header">
+                <h5 class="mb-0"><i class="bi bi-people-fill"></i> Club</h5>
+              </div>
+              <div class="card-body">
+                @if (editingClub()) {
+                  <label class="field-label">Club Name <span class="text-muted small">— editable until your first team is registered</span></label>
+                  <div class="club-edit-row">
+                    <input class="field-input" [value]="clubNameDraft()"
+                           (input)="clubNameDraft.set($any($event.target).value)"
+                           [disabled]="savingClub()"
+                           placeholder="Club name" />
+                    <button type="button" class="btn btn-primary btn-save-club"
+                            [disabled]="savingClub() || !clubNameDirty()"
+                            (click)="saveClubName()">
+                      @if (savingClub()) {
+                        <span class="spinner-border spinner-border-sm"></span>
+                      } @else {
+                        <i class="bi bi-check-lg"></i>
+                      }
+                    </button>
+                  </div>
+                  @if (clubError()) {
+                    <div class="field-error mt-1">{{ clubError() }}</div>
+                  }
+                  <button type="button" class="btn btn-link btn-cancel-inline" (click)="cancelEditClub()">Cancel</button>
+                } @else {
+                  <div class="readout-row">
+                    <span class="readout-value">{{ club }}</span>
+                    @if (clubEditable()) {
+                      <button type="button" class="inline-edit-btn" (click)="startEditClub()">
+                        <i class="bi bi-pencil me-1"></i>Edit
+                      </button>
+                    } @else {
+                      <span class="club-locked-hint">
+                        <i class="bi bi-lock-fill me-1"></i>Locked — teams registered
+                      </span>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- ═══ CLUB REP PROFILE (read-first, inline edit) ═══ -->
           <div class="card shadow border-0 card-rounded">
-            <div class="card-body">
+            <div class="card-header card-header-subtle border-0 py-3 edit-header">
+              <h5 class="mb-0"><i class="bi bi-person-vcard"></i> Club Rep</h5>
+            </div>
+            <div class="card-body bg-neutral-0">
               @if (loadingProfile()) {
                 <div class="summary-loading">
                   <span class="spinner-border spinner-border-sm me-2"></span>Loading your profile...
                 </div>
+              } @else if (editingProfile()) {
+                <app-club-rep-register-form
+                  mode="edit"
+                  [existing]="profileForEdit()"
+                  (saved)="onProfileSaved()" />
+                <button type="button" class="btn btn-link btn-cancel-inline" (click)="cancelEditProfile()">Cancel</button>
               } @else {
-                <div class="summary-identity">
-                  <i class="bi bi-check-circle-fill"></i>
-                  <div>
-                    <div class="name">{{ displayName() }}</div>
-                    <span class="email">{{ profileForEdit()?.email ?? auth.getCurrentUser()?.username }}</span>
-                  </div>
-                </div>
-                <div class="summary-actions">
-                  <button type="button" class="btn btn-outline-primary" (click)="onEditClick()">
+                @if (profileForEdit(); as p) {
+                  <dl class="profile-readout">
+                    <div><dt>Name</dt><dd>{{ p.firstName }} {{ p.lastName }}</dd></div>
+                    <div><dt>Email</dt><dd>{{ p.email || '—' }}</dd></div>
+                    <div><dt>Phone</dt><dd>{{ p.cellphone | phone }}</dd></div>
+                    <div><dt>Address</dt><dd>{{ p.streetAddress }}, {{ p.city }} {{ p.state }} {{ p.postalCode }}</dd></div>
+                  </dl>
+                }
+                <div class="readout-actions">
+                  <button type="button" class="inline-edit-btn" (click)="startEditProfile()">
                     <i class="bi bi-pencil me-1"></i>Edit Profile
                   </button>
-                  <button type="button" class="btn btn-outline-secondary" (click)="goHome()">
+                  <button type="button" class="btn btn-link btn-signout" (click)="goHome()">
                     <i class="bi bi-box-arrow-right me-1"></i>Sign Out
                   </button>
                 </div>
               }
-            </div>
-          </div>
-        </div>
-      }
-
-      @case ('edit-profile') {
-        <div class="account-step account-step--wide">
-          <button type="button" class="back-link" (click)="view.set('account-summary')">
-            <i class="bi bi-arrow-left"></i> Back
-          </button>
-          <div class="card shadow border-0 card-rounded">
-            <div class="card-header card-header-subtle border-0 py-3 edit-header">
-              <h5 class="mb-0">
-                <i class="bi bi-person-gear"></i>
-                Edit Profile
-              </h5>
-            </div>
-            <div class="card-body bg-neutral-0">
-              <app-club-rep-register-form
-                mode="edit"
-                [existing]="profileForEdit()"
-                (saved)="onProfileSaved()" />
             </div>
           </div>
         </div>
@@ -287,9 +393,102 @@ export class TeamLoginStepComponent implements OnInit {
     private readonly destroyRef = inject(DestroyRef);
 
     readonly error = signal<string | null>(null);
-    readonly view = signal<LoginView>('sign-in');
     readonly profileForEdit = signal<ClubRepProfileDto | null>(null);
     readonly loadingProfile = signal(false);
+
+    /**
+     * The visible view is DERIVED from auth state, not set imperatively, so it
+     * self-corrects: an authenticated rep sees the "Club & Rep Info" review
+     * (account-summary, which now hosts the inline edit form); a logged-out one
+     * (incl. a failed token mint that logs us back out) falls back to the sign-in
+     * gate automatically. `viewOverride` only carries the create sub-view.
+     */
+    private readonly viewOverride = signal<'create' | null>(null);
+    readonly view = computed<LoginView>(() => {
+        if (this.viewOverride() === 'create') return 'create';
+        return this.auth.currentUser() ? 'account-summary' : 'sign-in';
+    });
+
+    /** Club this rep is registering — shown on the review screen for confirmation. */
+    readonly registeringClub = this.state.clubRep.selectedClub;
+
+    // Review is read-first: these flip an individual card into its inline edit form,
+    // in place, without ever leaving the "Club & Rep Info" screen. A returning rep
+    // rarely edits, so the default is a calm read-only display + a one-click Edit.
+    readonly editingProfile = signal(false);
+    readonly editingClub = signal(false);
+
+    // ── Club name inline edit (allowed only before the club's first team) ──────
+    readonly clubNameDraft = signal('');
+    readonly savingClub = signal(false);
+    readonly clubError = signal<string | null>(null);
+
+    /**
+     * Club name is editable only while the selected club has no registered teams
+     * (IsInUse=false). That is exactly the data-safe window: with no teams, no
+     * Registrations.club_name copies exist to diverge from the renamed Clubs row.
+     * Once a team is registered the name locks (rename becomes an admin concern).
+     */
+    readonly clubEditable = computed(() => {
+        const name = this.state.clubRep.selectedClub();
+        if (!name) return false;
+        const club = this.state.clubRep.availableClubs().find(c => c.clubName === name);
+        return !!club && !club.isInUse;
+    });
+
+    /** Save is enabled only for a non-empty, actually-changed name. */
+    readonly clubNameDirty = computed(() => {
+        const draft = this.clubNameDraft().trim();
+        return draft.length > 0 && draft !== (this.registeringClub() ?? '');
+    });
+
+    /** Open the inline create-account sub-view (from the sign-in gate). */
+    showCreateAccount(): void { this.viewOverride.set('create'); }
+
+    // ── Inline edit toggles (in-place; no view change) ────────────────────────
+    startEditProfile(): void { this.editingProfile.set(true); }
+    cancelEditProfile(): void { this.editingProfile.set(false); }
+    startEditClub(): void { this.seedClubDraft(); this.editingClub.set(true); }
+    cancelEditClub(): void { this.editingClub.set(false); this.clubError.set(null); }
+
+    /** Seed the club-name draft from the selected club when landing on the review. */
+    private seedClubDraft(): void {
+        this.clubNameDraft.set(this.state.clubRep.selectedClub() ?? '');
+        this.clubError.set(null);
+    }
+
+    /** Persist a club rename; updates wizard state so the new name flows everywhere. */
+    saveClubName(): void {
+        const current = this.registeringClub();
+        const next = this.clubNameDraft().trim();
+        if (!current || !next || next === current) return;
+
+        this.savingClub.set(true);
+        this.clubError.set(null);
+        this.clubService.renameClub({ currentClubName: current, newClubName: next })
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+                next: (resp) => {
+                    this.savingClub.set(false);
+                    if (resp.success && resp.newClubName) {
+                        const renamed = resp.newClubName;
+                        this.state.clubRep.setSelectedClub(renamed);
+                        this.state.clubRep.setAvailableClubs(
+                            this.state.clubRep.availableClubs().map(c =>
+                                c.clubName === current ? { ...c, clubName: renamed } : c));
+                        this.clubNameDraft.set(renamed);
+                        this.editingClub.set(false);
+                    } else {
+                        this.clubError.set(resp.message ?? 'Could not rename club.');
+                    }
+                },
+                error: (err: unknown) => {
+                    this.savingClub.set(false);
+                    const e = err as { error?: { message?: string } };
+                    this.clubError.set(e?.error?.message ?? 'Could not rename club.');
+                },
+            });
+    }
 
     ngOnInit(): void {
         if (this.auth.isAuthenticated()) {
@@ -299,18 +498,18 @@ export class TeamLoginStepComponent implements OnInit {
                 this.auth.logoutLocal();
                 return;
             }
-            // Two ways an authenticated club rep arrives on this tab:
+            // Two ways an authenticated club rep arrives on this tab — both land on the
+            // "Club & Rep Info" review screen (account-summary):
             //   • Full wizard session (Phase-2 token: regId + matching jobPath) — they
-            //     deliberately stepped back to Login; show the account summary.
+            //     stepped back here, or deep-linked in; show the review directly.
             //   • Phase-1 token only — returning from the ToS page mid-login, before a
-            //     Phase-2 token was minted. The login redirected to ToS BEFORE
-            //     continueWithLogin() ran, so nothing advanced the wizard. Showing the
-            //     summary here is a dead end (no path to Teams), so resume the login.
-            //     The summary view is only reachable with a full session anyway, so a
-            //     Phase-1 arrival is always this ToS bounce-back.
+            //     Phase-2 token was minted (the login redirected to ToS BEFORE
+            //     continueWithLogin() ran). Resume the login to mint the Phase-2 token;
+            //     continueWithLogin() then flips to the same review screen on success.
             const hasFullSession = !!user?.regId && user.jobPath === this.state.jobPath();
             if (hasFullSession) {
-                this.view.set('account-summary');
+                // view computes to account-summary (authenticated); just load the profile.
+                this.seedClubDraft();
                 this.loadProfile();
             } else {
                 this.continueWithLogin();
@@ -329,28 +528,15 @@ export class TeamLoginStepComponent implements OnInit {
         return invite ? `${base}?invite=${encodeURIComponent(invite)}` : base;
     }
 
-    /** Display name from loaded profile, with username fallback. */
-    displayName(): string {
-        const p = this.profileForEdit();
-        if (p && (p.firstName || p.lastName)) {
-            return `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim();
-        }
-        return this.auth.getCurrentUser()?.username ?? '';
-    }
-
     /** Called by inline create form after ToS accepted — user is already authenticated. */
     onRegistered(): void {
         this.continueWithLogin();
     }
 
-    onEditClick(): void {
-        // Refetch on each edit click so the form is bound to fresh server state.
-        this.loadProfile(() => this.view.set('edit-profile'));
-    }
-
     onProfileSaved(): void {
-        // Refetch so the summary reflects what was just persisted.
-        this.loadProfile(() => this.view.set('account-summary'));
+        // Collapse back to the read-only display and refetch so it shows fresh values.
+        this.editingProfile.set(false);
+        this.loadProfile();
     }
 
     /**
@@ -361,6 +547,7 @@ export class TeamLoginStepComponent implements OnInit {
      */
     goHome(): void {
         this.auth.logoutLocal();
+        this.viewOverride.set(null);
         this.profileForEdit.set(null);
         this.error.set(null);
         const jobPath = this.state.jobPath();
@@ -407,6 +594,16 @@ export class TeamLoginStepComponent implements OnInit {
                     }
                     const clubName = clubs.length === 1 ? clubs[0].clubName : null;
                     this.loginSuccess.emit({ availableClubs: clubs, clubName });
+                    // Land on the "Club & Rep Info" review screen for every authenticated
+                    // arrival (fresh sign-in, ToS-return, create-account). `view` already
+                    // computes to account-summary now that currentUser() is set; clear any
+                    // create-sub-view override and load the rep's profile. The parent mints
+                    // the Phase-2 token in the background; getSelfProfile() works on the
+                    // Phase-1 token, so the identity renders immediately and the wizard
+                    // Continue lights up once hasWizardSession() flips true.
+                    this.viewOverride.set(null);
+                    this.seedClubDraft();
+                    this.loadProfile();
                 },
                 error: (err: unknown) => {
                     const httpErr = err as { status?: number };

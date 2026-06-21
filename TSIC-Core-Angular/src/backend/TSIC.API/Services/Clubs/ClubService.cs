@@ -391,6 +391,78 @@ public sealed class ClubService : IClubService
         });
     }
 
+    /// <summary>
+    /// Rename a club the caller reps, guarded to the data-safe window. Because
+    /// IsInUse is computed by matching the club's name against Registrations.club_name,
+    /// IsInUse=false guarantees no team/registration copies reference the old name —
+    /// so renaming the single Clubs row can't orphan anything. Once a team exists the
+    /// name is locked here (a true rename then becomes a deliberate admin operation).
+    /// </summary>
+    public async Task<ClubRenameResponse> RenameClubAsync(string userId, ClubRenameRequest request)
+    {
+        var current = (request.CurrentClubName ?? string.Empty).Trim();
+        var next = (request.NewClubName ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(next))
+        {
+            return new ClubRenameResponse { Success = false, Message = "Club name is required." };
+        }
+
+        // Resolve which of the caller's clubs to rename (also confirms membership).
+        var myClubs = await _clubRepRepo.GetClubsForUserAsync(userId);
+        var target = myClubs.FirstOrDefault(c =>
+            string.Equals(c.ClubName, current, StringComparison.OrdinalIgnoreCase));
+
+        if (target == null)
+        {
+            return new ClubRenameResponse { Success = false, Message = "Club not found for your account." };
+        }
+
+        // No-op (identical name) — accept without a write.
+        if (string.Equals(target.ClubName, next, StringComparison.Ordinal))
+        {
+            return new ClubRenameResponse { Success = true, NewClubName = target.ClubName };
+        }
+
+        // Guard: a club with registered teams is locked — renaming would strand the
+        // Registrations.club_name copies that drive usage/library matching.
+        if (target.IsInUse)
+        {
+            return new ClubRenameResponse
+            {
+                Success = false,
+                Message = "This club already has registered teams, so its name is locked."
+            };
+        }
+
+        // Collision: don't rename into an existing club (exact-normalized match),
+        // mirroring the create flow's hard block.
+        var matches = await SearchClubsAsync(next, null);
+        var collision = matches.FirstOrDefault(m => m.IsExactMatch && m.ClubId != target.ClubId);
+        if (collision != null)
+        {
+            return new ClubRenameResponse
+            {
+                Success = false,
+                Message = $"A club named \"{collision.ClubName}\" already exists."
+            };
+        }
+
+        var club = await _clubRepo.GetByIdAsync(target.ClubId);
+        if (club == null)
+        {
+            return new ClubRenameResponse { Success = false, Message = "Club not found." };
+        }
+
+        club.ClubName = next;
+        club.LebUserId = userId;
+        club.Modified = DateTime.Now;
+        await _clubRepo.SaveChangesAsync();
+        InvalidateSearchCache();
+
+        return new ClubRenameResponse { Success = true, NewClubName = next };
+    }
+
     public void InvalidateSearchCache()
     {
         _cache.Remove(ClubCacheKey);
