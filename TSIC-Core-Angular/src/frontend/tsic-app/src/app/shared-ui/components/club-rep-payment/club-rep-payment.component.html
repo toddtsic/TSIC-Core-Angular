@@ -21,6 +21,45 @@
     </div>
   }
 
+  <!-- Per-team CC charge results — shown after a partial-success or all-failed charge. The
+       breakdown grid + totals below have already refreshed to the real remaining balance; this
+       tells the admin exactly which teams charged and which declined (and why), so they retry
+       only the declined team(s). -->
+  @if (chargeResult(); as cr) {
+    <div class="alert alert-warning border-0 my-3" role="status">
+      <div class="fw-semibold mb-2">Charge results by team</div>
+      <table class="table table-sm mb-0 bg-transparent">
+        <thead>
+          <tr><th>Team</th><th>Status</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+          @for (t of cr; track t.teamId) {
+            <tr [class.table-success]="t.charged" [class.table-danger]="!t.charged">
+              <td>{{ t.teamName }}</td>
+              <td>
+                @if (t.charged) {
+                  <span class="badge bg-success">Charged</span>
+                } @else {
+                  <span class="badge bg-danger">Declined</span>
+                }
+              </td>
+              <td class="small">
+                @if (t.charged) {
+                  {{ t.chargedAmount | currency }}
+                } @else {
+                  {{ t.failureReason }}
+                }
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+      <div class="small text-muted mt-2">
+        <i class="bi bi-info-circle me-1"></i>The teams that charged are now paid. Retry the declined team(s) — the balances below reflect the remaining amounts.
+      </div>
+    </div>
+  }
+
   <!-- Team Breakdown — the SAME rich grid the club rep sees on their own payment
        page (DRY: app-registered-teams-grid). Active scheduled teams in club scope,
        the single selected team in team scope. Totals come from the grid's own

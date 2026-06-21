@@ -5,7 +5,7 @@ import { RegisteredTeamsGridComponent } from '../../../views/registration/team/c
 import { ToastService } from '@shared-ui/toast.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
 import { RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
-import type { ClubRepAccountingDto, RegisteredTeamDto, RefundResponse } from '@core/api';
+import type { ClubRepAccountingDto, RegisteredTeamDto, RefundResponse, TeamPaymentResultDto } from '@core/api';
 
 type Scope = 'team' | 'club';
 
@@ -34,6 +34,10 @@ export class ClubRepPaymentComponent {
   data = signal<ClubRepAccountingDto | null>(null);
   isLoading = signal(false);
   loadError = signal<string | null>(null);
+
+  // Per-team CC charge outcomes — set on a partial-success or all-failed club/team charge so the
+  // admin sees which teams charged and which declined (and why). Null until then.
+  chargeResult = signal<TeamPaymentResultDto[] | null>(null);
 
   // Scope
   scope = signal<Scope>('club');
@@ -143,6 +147,7 @@ export class ClubRepPaymentComponent {
     const regId = this.clubRepRegistrationId();
     const tid = this.teamId();
     const request = { clubRepRegistrationId: regId, creditCard: event.creditCard };
+    this.chargeResult.set(null);
 
     const call = (this.scope() === 'team' && tid)
       ? this.searchService.chargeCcForTeam(tid, request)
@@ -155,7 +160,13 @@ export class ClubRepPaymentComponent {
           this.loadData();
           this.paymentComplete.emit();
         } else {
+          // Partial-success or all-failed: the engine already persisted the teams that cleared.
+          // Surface the per-team outcomes AND refresh the grid/totals so they reflect the real
+          // remaining balance, then let the admin retry only the declined team(s).
           this.toast.show(result.error || 'Unknown error', 'danger', 0, 'CC Charge Failed');
+          const teams = (result.teams ?? []) as TeamPaymentResultDto[];
+          this.chargeResult.set(teams.length > 0 ? teams : null);
+          this.loadData();
         }
       },
       error: (err) => {

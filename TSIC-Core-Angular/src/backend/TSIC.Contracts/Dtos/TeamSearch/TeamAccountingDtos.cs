@@ -161,6 +161,10 @@ public record TeamCcChargeResponse
     public required bool Success { get; init; }
     public string? Error { get; init; }
     public List<TeamPaymentAllocation>? PerTeamResults { get; init; }
+    // Per-team charge outcome from the canonical engine (charged AND declined). Surfaced so the
+    // admin club-charge UI can show which teams cleared vs declined (and why) and refresh totals,
+    // instead of a flat "charge failed" with a stale grid. Populated for club/team CC charges.
+    public List<TeamPaymentResultDto>? Teams { get; init; }
 }
 
 /// <summary>

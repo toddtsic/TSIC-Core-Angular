@@ -6,5 +6,6 @@ export type TeamCcChargeResponse = {
     success: boolean;
     error?: string | null;
     perTeamResults?: any[] | null;
+    teams?: any[] | null;
 };
 

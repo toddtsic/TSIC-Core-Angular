@@ -448,7 +448,10 @@ public sealed class TeamSearchService : ITeamSearchService
         return new TeamCcChargeResponse
         {
             Success = result.Success,
-            Error = result.Success ? null : (result.Message ?? result.Error ?? "CC charge failed.")
+            Error = result.Success ? null : (result.Message ?? result.Error ?? "CC charge failed."),
+            // Pass the engine's per-team outcomes through so a partial club charge surfaces which
+            // teams cleared vs declined (and why) — not collapsed to a flat Success/Error.
+            Teams = result.Teams
         };
     }
 
