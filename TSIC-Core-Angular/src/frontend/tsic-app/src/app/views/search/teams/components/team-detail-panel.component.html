@@ -62,18 +62,13 @@
               </div>
               <div class="form-group">
                 <label for="editLop">Level of Play</label>
-                @if (detail()?.lopOptions?.length) {
-                  <select id="editLop" class="form-select"
-                    [ngModel]="editLevelOfPlay()" (ngModelChange)="editLevelOfPlay.set($event)" name="editLop">
-                    <option value="">— Select —</option>
-                    @for (opt of detail()!.lopOptions!; track opt) {
-                      <option [value]="opt">{{ opt }}</option>
-                    }
-                  </select>
-                } @else {
-                  <input type="text" id="editLop" class="form-control"
-                    [ngModel]="editLevelOfPlay()" (ngModelChange)="editLevelOfPlay.set($event)" name="editLop" />
-                }
+                <select id="editLop" class="form-select"
+                  [ngModel]="editLevelOfPlay()" (ngModelChange)="editLevelOfPlay.set($event)" name="editLop">
+                  <option value="">— Select —</option>
+                  @for (c of lopChoices; track c.value) {
+                    <option [value]="c.value">{{ c.label }}</option>
+                  }
+                </select>
               </div>
               <div class="form-group">
                 <label for="editComments">Comments</label>

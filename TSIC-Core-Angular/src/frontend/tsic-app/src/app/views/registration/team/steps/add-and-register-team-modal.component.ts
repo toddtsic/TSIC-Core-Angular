@@ -1,11 +1,13 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, output, signal, input } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type { AgeGroupDto } from '@core/api';
+import { LevelOfPlayPickerComponent } from '@views/registration/team/components/level-of-play-picker.component';
+import { EventAgeGroupPickerComponent } from '@views/registration/team/components/event-age-group-picker.component';
+import { resolveRecommendedAgeGroupId } from '@views/registration/team/components/event-age-group.util';
 
 /**
  * Combined add-team + event-registration modal — used for the empty-empty
@@ -21,7 +23,7 @@ import type { AgeGroupDto } from '@core/api';
 @Component({
     selector: 'app-add-and-register-team-modal',
     standalone: true,
-    imports: [CurrencyPipe, FormsModule, TsicDialogComponent],
+    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent, EventAgeGroupPickerComponent],
     template: `
     <tsic-dialog [open]="true" size="md" (requestClose)="closed.emit()">
       <div class="modal-content register-modal">
@@ -117,19 +119,12 @@ import type { AgeGroupDto } from '@core/api';
 
               <div>
                 <label class="field-label">Level of Play</label>
-                <div class="lop-pills" role="radiogroup" aria-label="Level of play">
-                  @for (lop of lopChoices; track lop.value) {
-                    <button type="button" class="lop-pill" role="radio"
-                            [class.active]="levelOfPlay() === lop.value"
-                            [class.is-invalid]="submitted() && !levelOfPlay()"
-                            [disabled]="!step1Done()"
-                            [attr.aria-checked]="levelOfPlay() === lop.value"
-                            [attr.title]="lop.label"
-                            (click)="levelOfPlay.set(lop.value)">
-                      {{ lop.short }}
-                    </button>
-                  }
-                </div>
+                <app-level-of-play-picker
+                  [fill]="true"
+                  [disabled]="!step1Done()"
+                  [invalid]="submitted() && !levelOfPlay()"
+                  [selected]="levelOfPlay()"
+                  (selectedChange)="levelOfPlay.set($event)" />
                 @if (submitted() && !levelOfPlay()) {
                   <div class="field-error">Required</div>
                 }
@@ -168,35 +163,13 @@ import type { AgeGroupDto } from '@core/api';
               </p>
             }
 
-            <div class="age-pill-grid" role="radiogroup">
-              @for (ag of pills(); track ag.ageGroupId; let i = $index) {
-                <button type="button" class="age-pill" role="radio"
-                        [class.is-recommended]="ag.isRecommended"
-                        [class.is-selected]="selectedAgeGroup() === ag.ageGroupId"
-                        [class.is-full]="ag.isFull"
-                        [class.is-almost-full]="ag.isAlmostFull && !ag.isFull"
-                        [disabled]="!stage4Ready()"
-                        [attr.aria-checked]="selectedAgeGroup() === ag.ageGroupId"
-                        [style.animation-delay]="stage4Ready() ? (60 + (i * 40)) + 'ms' : '0ms'"
-                        (click)="selectedAgeGroup.set(ag.ageGroupId)">
-                  <span class="age-pill-name">
-                    {{ ag.ageGroupName }}
-                    @if (ag.isRecommended) { <i class="bi bi-star-fill age-pill-star"></i> }
-                    @if (selectedAgeGroup() === ag.ageGroupId) { <i class="bi bi-check-circle-fill age-pill-check"></i> }
-                  </span>
-                  <span class="age-pill-fee">
-                    @if (ag.isFull) { Free }
-                    @else { {{ ag.fee | currency }} }
-                  </span>
-                  <span class="age-pill-spots"
-                        [class.text-warning]="ag.isAlmostFull && !ag.isFull"
-                        [class.text-danger]="ag.isFull">
-                    @if (ag.isFull) { <i class="bi bi-exclamation-circle me-1"></i>Waitlist }
-                    @else { {{ ag.spotsLeft }} {{ ag.spotsLeft === 1 ? 'spot' : 'spots' }} }
-                  </span>
-                </button>
-              }
-            </div>
+            <app-event-age-group-picker
+              variant="pill"
+              [ageGroups]="ageGroups()"
+              [gradYear]="gradYear()"
+              [disabled]="!stage4Ready()"
+              [selected]="selectedAgeGroup()"
+              (selectedChange)="selectedAgeGroup.set($event)" />
             @if (submitted() && stage4Ready() && !selectedAgeGroup()) {
               <div class="field-error" style="text-align: center; margin-top: var(--space-2)">
                 Pick an age group to register your team.
@@ -327,40 +300,8 @@ import type { AgeGroupDto } from '@core/api';
       .grad-year-tip strong { color: var(--brand-text); }
       .grad-year-tip em { color: var(--bs-danger); font-style: normal; font-weight: var(--font-weight-semibold); }
 
-      /* ── LOP pills (compact for the split row) ──────────────────────── */
-      .lop-pills {
-        display: flex;
-        gap: var(--space-1);
-      }
-
-      .lop-pill {
-        flex: 1 1 0;
-        min-width: 36px;
-        padding: var(--space-1) var(--space-1);
-        border: 1.5px solid var(--border-color);
-        border-radius: var(--radius-full);
-        background: var(--brand-surface);
-        font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
-        color: var(--brand-text);
-        cursor: pointer;
-        transition: all 0.12s ease;
-        text-align: center;
-
-        &:hover { border-color: var(--bs-primary); }
-
-        &.active {
-          border-color: var(--bs-primary);
-          background: rgba(var(--bs-primary-rgb), 0.12);
-          color: var(--bs-primary);
-        }
-
-        &.is-invalid:not(.active) {
-          border-color: rgba(var(--bs-danger-rgb), 0.5);
-        }
-
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-      }
+      /* LOP pills render via <app-level-of-play-picker [fill]="true">, which
+         owns its own .lop-pill styles (fill variant = split-row stretch). */
 
       /* ── Age section inner ─────────────────────────────────────────── */
       .age-locked-tip {
@@ -392,92 +333,8 @@ import type { AgeGroupDto } from '@core/api';
         i { font-size: 8px; color: var(--bs-danger); }
       }
 
-      .age-pill-grid {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: var(--space-2);
-      }
-
-      .age-pill {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        gap: 2px;
-        min-width: 108px;
-        min-height: 60px;
-        padding: var(--space-2) var(--space-3);
-        border: 2px solid var(--border-color);
-        border-radius: var(--radius-md);
-        background: var(--brand-surface);
-        cursor: pointer;
-        box-shadow: var(--shadow-xs);
-        transition: border-color 0.15s ease, background 0.15s ease,
-                    box-shadow 0.15s ease, transform 0.15s ease;
-        animation: agePillFadeIn 0.3s ease-out backwards;
-
-        &:hover:not(:disabled) {
-          border-color: var(--bs-success);
-          background: rgba(var(--bs-success-rgb), 0.06);
-          transform: translateY(-2px);
-          box-shadow: var(--shadow-sm);
-        }
-
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-        &:active:not(:disabled) { transform: scale(0.97); }
-
-        &.is-selected {
-          border-color: var(--bs-success);
-          background: rgba(var(--bs-success-rgb), 0.1);
-          box-shadow: 0 0 0 2px rgba(var(--bs-success-rgb), 0.2), var(--shadow-xs);
-        }
-
-        &.is-full {
-          border-color: rgba(var(--bs-warning-rgb), 0.4);
-          background: rgba(var(--bs-warning-rgb), 0.04);
-        }
-
-        &:hover:not(:disabled).is-full {
-          border-color: var(--bs-warning);
-          background: rgba(var(--bs-warning-rgb), 0.1);
-        }
-
-        &.is-almost-full .age-pill-spots {
-          font-weight: var(--font-weight-semibold);
-        }
-
-        &:disabled {
-          opacity: 0.42;
-          cursor: not-allowed;
-          animation: none;
-        }
-      }
-
-      .age-pill-name {
-        font-weight: var(--font-weight-bold);
-        font-size: var(--font-size-sm);
-        color: var(--brand-text);
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-      }
-
-      .age-pill-star { font-size: 9px; color: var(--bs-danger); }
-      .age-pill-check { font-size: 11px; color: var(--bs-success); }
-
-      .age-pill-fee {
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        color: var(--bs-success);
-      }
-
-      .age-pill-spots {
-        font-size: 10px;
-        color: var(--brand-text-muted);
-        white-space: nowrap;
-      }
+      /* The age-group cards render via <app-event-age-group-picker
+         variant="pill">, which owns its own .age-pill styles + fade-in. */
 
       /* ── Library aside ─────────────────────────────────────────────── */
       .library-aside {
@@ -516,17 +373,6 @@ import type { AgeGroupDto } from '@core/api';
         padding: var(--space-2) var(--space-4);
         font-size: var(--font-size-base);
       }
-
-      /* ── Animations ────────────────────────────────────────────────── */
-      @keyframes agePillFadeIn {
-        from { opacity: 0; transform: translateY(6px); }
-        to   { opacity: 1; transform: translateY(0); }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        .age-pill { animation: none !important; transition: none; }
-        .age-pill:hover:not(:disabled) { transform: none; }
-      }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -550,18 +396,6 @@ export class AddAndRegisterTeamModalComponent {
         years.push('Adult');
         return years;
     })();
-
-    /**
-     * LOP choices — short label for the compact pill, full label for the title attr.
-     * Matches the team-form-modal palette so reps see the same taxonomy.
-     */
-    readonly lopChoices: ReadonlyArray<{ value: string; short: string; label: string }> = [
-        { value: '1', short: '1', label: '1 (weakest)' },
-        { value: '2', short: '2', label: '2' },
-        { value: '3', short: '3', label: '3' },
-        { value: '4', short: '4', label: '4' },
-        { value: '5', short: '5', label: '5 (strongest)' },
-    ];
 
     readonly teamName = signal('');
     readonly gradYear = signal('');
@@ -609,24 +443,10 @@ export class AddAndRegisterTeamModalComponent {
         return '';
     });
 
-    /** Age-group cards with derived presentation flags (mirrors age-group-picker-modal). */
-    readonly pills = computed(() => {
-        const recommended = this.bestMatch();
-        return this.ageGroups().map(ag => {
-            const spotsLeft = Math.max(0, ag.maxTeams - ag.registeredCount);
-            return {
-                ageGroupId: ag.ageGroupId,
-                ageGroupName: ag.ageGroupName,
-                fee: (ag.deposit || 0) + (ag.balanceDue || 0),
-                spotsLeft,
-                isFull: spotsLeft === 0,
-                isAlmostFull: spotsLeft > 0 && spotsLeft <= 2,
-                isRecommended: ag.ageGroupId === recommended,
-            };
-        });
-    });
-
-    readonly hasRecommended = computed(() => this.pills().some(p => p.isRecommended));
+    /** True when the grad year resolves to a recommended (starred) age group. */
+    readonly hasRecommended = computed(() =>
+        resolveRecommendedAgeGroupId(this.ageGroups(), this.gradYear()) !== '',
+    );
 
     save(): void {
         this.submitted.set(true);
@@ -694,27 +514,4 @@ export class AddAndRegisterTeamModalComponent {
             });
     }
 
-    /**
-     * Pick the age group whose name matches the team's grad year (best discoverability hint).
-     * When that match is full (oversubscribed), default to its WAITLIST twin instead so the rep
-     * lands on the waitlist rather than a full age group — the server auto-mints the twin the
-     * instant an age group fills (parity with the player roster hook), so it is normally present;
-     * if it isn't yet, we fall back to the full parent and the server waitlists on submit.
-     */
-    private bestMatch(): string {
-        const yr = this.gradYear();
-        const ageGroups = this.ageGroups();
-        if (!yr || !ageGroups.length) return '';
-        const isWaitlist = (name: string) => name.toUpperCase().startsWith('WAITLIST');
-        const matched =
-            ageGroups.find(ag => ag.ageGroupName === yr) ??
-            ageGroups.find(ag => ag.ageGroupName.includes(yr) && !isWaitlist(ag.ageGroupName));
-        if (!matched) return '';
-        if (matched.registeredCount >= matched.maxTeams) {
-            const twinName = `WAITLIST - ${matched.ageGroupName}`.toUpperCase();
-            const twin = ageGroups.find(ag => ag.ageGroupName.toUpperCase() === twinName);
-            if (twin) return twin.ageGroupId;
-        }
-        return matched.ageGroupId;
-    }
 }

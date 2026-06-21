@@ -6,6 +6,7 @@ import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dial
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubTeamDto } from '@core/api';
+import { LevelOfPlayPickerComponent } from '@views/registration/team/components/level-of-play-picker.component';
 
 /**
  * Modal for adding a new ClubTeam to the club library, or editing an existing one
@@ -15,7 +16,7 @@ import type { ClubTeamDto } from '@core/api';
 @Component({
     selector: 'app-team-form-modal',
     standalone: true,
-    imports: [FormsModule, TsicDialogComponent, DragDropModule],
+    imports: [FormsModule, TsicDialogComponent, DragDropModule, LevelOfPlayPickerComponent],
     template: `
     <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
       <div class="modal-content form-modal"
@@ -123,18 +124,13 @@ import type { ClubTeamDto } from '@core/api';
 
             <div class="form-row">
               <label class="field-label">Level of Play</label>
-              <div class="lop-pills" role="radiogroup" aria-label="Level of play">
-                @for (lop of lopChoices; track lop.value) {
-                  <button type="button" class="lop-pill" role="radio"
-                          [class.active]="levelOfPlay() === lop.value"
-                          [class.is-invalid]="submitted() && !levelOfPlay()"
-                          [disabled]="!step1Done()"
-                          [attr.aria-checked]="levelOfPlay() === lop.value"
-                          (click)="levelOfPlay.set(lop.value)">
-                    {{ lop.label }}
-                  </button>
-                }
-              </div>
+              <app-level-of-play-picker
+                [fill]="true"
+                labels="full"
+                [disabled]="!step1Done()"
+                [invalid]="submitted() && !levelOfPlay()"
+                [selected]="levelOfPlay()"
+                (selectedChange)="levelOfPlay.set($event)" />
               <div class="wizard-tip">Overall team assessment — rep can adjust per tournament by editing the team.</div>
               @if (submitted() && !levelOfPlay()) {
                 <div class="field-error">Required</div>
@@ -224,45 +220,8 @@ import type { ClubTeamDto } from '@core/api';
       .grad-year-tip strong { color: var(--brand-text); }
       .grad-year-tip em { color: var(--bs-danger); font-style: normal; font-weight: var(--font-weight-semibold); }
 
-      /* ── LOP Pills (copy of picker's .lop-pill) ── */
-      .lop-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-1);
-      }
-
-      .lop-pill {
-        flex: 1 1 0;
-        min-width: 44px;
-        padding: var(--space-1) var(--space-2);
-        border: 1.5px solid var(--border-color);
-        border-radius: var(--radius-full);
-        background: var(--brand-surface);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-medium);
-        color: var(--brand-text);
-        cursor: pointer;
-        transition: all 0.12s ease;
-        text-align: center;
-
-        &:hover { border-color: var(--bs-primary); }
-
-        &.active {
-          border-color: var(--bs-primary);
-          background: rgba(var(--bs-primary-rgb), 0.1);
-          color: var(--bs-primary);
-          font-weight: var(--font-weight-semibold);
-        }
-
-        &.is-invalid:not(.active) {
-          border-color: rgba(var(--bs-danger-rgb), 0.5);
-        }
-
-        &:focus-visible {
-          outline: none;
-          box-shadow: var(--shadow-focus);
-        }
-      }
+      /* LOP pills render via <app-level-of-play-picker [fill]="true" labels="full">,
+         which owns its own styles. */
 
       /* ── Footer ── */
       .form-footer {
@@ -299,15 +258,6 @@ export class TeamFormModalComponent implements OnInit {
         years.push('Adult');
         return years;
     })();
-
-    /** Level-of-play pill choices. Endpoints get friendly labels; middle values are terse. */
-    readonly lopChoices: ReadonlyArray<{ value: string; label: string }> = [
-        { value: '1', label: '1 (weakest)' },
-        { value: '2', label: '2' },
-        { value: '3', label: '3' },
-        { value: '4', label: '4' },
-        { value: '5', label: '5 (strongest)' },
-    ];
 
     readonly teamName = signal('');
     readonly gradYear = signal('');

@@ -166,7 +166,6 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         [canRegister]="canRegisterTeam()"
         [actionInProgress]="actionInProgress()"
         [ageGroups]="ageGroups()"
-        [lopOptions]="lopOptions()"
         [enteredTeams]="enteredTeamsMap()"
         (closed)="closeLibraryFlyin()"
         (register)="onFlyinRegister($event)"
@@ -631,7 +630,6 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly error = signal<string | null>(null);
     readonly clubName = signal('your club');
     readonly ageGroups = signal<AgeGroupDto[]>([]);
-    readonly lopOptions = signal<string[]>([]);
     readonly actionInProgress = signal(false);
     readonly showAddModal = signal(false);
     /** Combined add+register modal — only used for the empty-empty first-team flow. */
@@ -935,7 +933,6 @@ export class TeamTeamsStepComponent implements OnInit {
                     this._registeredTeams.set(meta.registeredTeams || []);
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
-                    this.lopOptions.set(meta.lopOptions || []);
                     this.state.applyTeamsMetadata(meta);
                 },
                 error: () => {

@@ -1,5 +1,10 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnDestroy, computed, input, output, signal, viewChild } from '@angular/core';
 import type { AgeGroupDto, ClubTeamDto } from '@core/api';
+import { environment } from '@environments/environment';
+import { normalizeLop } from '@shared/teams/lop-choices';
+import { LevelOfPlayPickerComponent } from './level-of-play-picker.component';
+import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
+import { resolveRecommendedAgeGroupId } from './event-age-group.util';
 
 export interface RegisteredInfo {
     ageGroupName: string;
@@ -31,6 +36,7 @@ export interface RegisterRequest {
 @Component({
     selector: 'app-library-flyin',
     standalone: true,
+    imports: [LevelOfPlayPickerComponent, EventAgeGroupPickerComponent],
     template: `
     <!-- Portaled to document.body in ngAfterViewInit so the panel + backdrop
          escape <main>'s z-index:0 stacking context (which would otherwise
@@ -246,41 +252,25 @@ export interface RegisterRequest {
                   <tr class="lib-tr-expand">
                     <td colspan="4" class="lib-td-expand">
                       <div class="register-inline">
-                        @if (lopOptions().length > 0) {
-                          <div class="register-step">
-                            <label class="field-label">Event Level of Play</label>
-                            <div class="lop-pills" role="radiogroup" aria-label="Level of play">
-                              @for (opt of lopOptions(); track opt) {
-                                <button type="button" class="lop-pill"
-                                        [class.active]="selectedLop() === opt"
-                                        (click)="selectedLop.set(opt)">
-                                  {{ opt }}
-                                </button>
-                              }
-                            </div>
-                          </div>
+                        @if (showDevIds) {
+                          <div class="dev-id-title">Club Team <span class="dev-id">(<span class="dev-id-guid">{{ team.clubTeamId }}</span>)</span></div>
                         }
+                        <div class="register-step">
+                          <label class="field-label fw-bold">Event Level of Play</label>
+                          <app-level-of-play-picker
+                            [selected]="selectedLop()"
+                            (selectedChange)="selectedLop.set($event)" />
+                        </div>
 
                         <div class="register-step">
-                          <label class="field-label">Event Age Group</label>
-                          <div class="ag-chip-row">
-                          @for (ag of expandedAgChips(); track ag.ageGroupId) {
-                            <button type="button" class="ag-chip"
-                                    [class.is-recommended]="ag.isRecommended"
-                                    [class.is-selected]="selectedAgeGroupId() === ag.ageGroupId"
-                                    [class.is-full]="ag.isFull"
-                                    [class.is-almost-full]="ag.isAlmostFull"
-                                    [disabled]="actionInProgress() || lopRequired()"
-                                    [title]="ag.isFull ? 'Age group is full — registering will waitlist this team' : null"
-                                    (click)="selectedAgeGroupId.set(ag.ageGroupId)">
-                              <span class="ag-chip-name">{{ ag.ageGroupName }}@if (ag.matchesGradYear) {<span class="ag-chip-gradyear-match" title="Matches this team's grad year" aria-label="Matches this team's grad year">*</span>}</span>
-                              <span class="ag-chip-meta">
-                                @if (ag.isFull) { Waitlist }
-                                @else if (ag.isAlmostFull) { {{ ag.spotsLeft }} left }
-                              </span>
-                            </button>
-                          }
-                          </div>
+                          <label class="field-label fw-bold">Event Age Group</label>
+                          <app-event-age-group-picker
+                            variant="chip"
+                            [ageGroups]="ageGroups()"
+                            [gradYear]="team.clubTeamGradYear"
+                            [disabled]="actionInProgress() || lopRequired()"
+                            [selected]="selectedAgeGroupId()"
+                            (selectedChange)="selectedAgeGroupId.set($event)" />
                         </div>
 
                         <div class="register-actions">
@@ -883,10 +873,41 @@ export interface RegisterRequest {
       }
 
       .register-inline {
+        position: relative;
         padding: var(--space-2) var(--space-3);
         display: flex;
         flex-direction: column;
         gap: var(--space-2);
+      }
+
+      /* Dev-only ClubTeamId readout, pinned top-right of the register expand.
+         Mirrors search/registrations .info-section-title + .reg-id formatting.
+         Gated to envName === 'development' — never shows in staging/prod. */
+      .dev-id-title {
+        position: absolute;
+        top: var(--space-2);
+        right: var(--space-3);
+        margin: 0;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        pointer-events: none;
+      }
+
+      .dev-id-title .dev-id {
+        font-size: var(--font-size-2xs);
+        font-family: var(--font-family-mono);
+        font-weight: var(--font-weight-medium);
+        text-transform: none;
+        letter-spacing: normal;
+        opacity: 0.7;
+      }
+
+      .dev-id-title .dev-id-guid {
+        user-select: all;
+        pointer-events: auto;
       }
 
       /* A step inside the register expand: a field-label line stacked tightly
@@ -899,116 +920,9 @@ export interface RegisterRequest {
         gap: var(--space-1);
       }
 
-      .ag-chip-row {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-1);
-      }
-
-      .ag-chip {
-        display: inline-flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2px;
-        min-width: 64px;
-        padding: 6px var(--space-2);
-        border: 1.5px solid color-mix(in srgb, var(--bs-primary) 35%, transparent);
-        border-radius: var(--radius-sm);
-        background: var(--brand-surface);
-        color: var(--bs-primary);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-semibold);
-        cursor: pointer;
-        transition: background-color 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
-      }
-
-      .ag-chip:hover:not(:disabled) {
-        background: var(--bs-primary);
-        color: var(--neutral-0);
-        border-color: var(--bs-primary);
-        transform: translateY(-1px);
-      }
-
-      .ag-chip:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
-      .ag-chip:disabled { opacity: 0.4; cursor: default; transform: none; }
-
-      .ag-chip.is-recommended {
-        border-color: var(--bs-success);
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--bs-success) 20%, transparent);
-      }
-
-      .ag-chip.is-almost-full { border-color: var(--bs-warning); color: var(--bs-warning); }
-
-      /* Full = waitlist path. Keep clickable; visually distinct from open AGs
-         via dashed border + amber accent + uppercase meta label. */
-      .ag-chip.is-full {
-        border-style: dashed;
-        border-color: var(--bs-warning);
-        color: var(--bs-warning);
-        background: color-mix(in srgb, var(--bs-warning) 6%, transparent);
-      }
-      .ag-chip.is-full:hover:not(:disabled) {
-        background: var(--bs-warning);
-        color: var(--neutral-0);
-        border-color: var(--bs-warning);
-        border-style: solid;
-      }
-      .ag-chip.is-full .ag-chip-meta {
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-      }
-
-      /* Selected = the chip the rep has chosen (commits on Submit, not on click).
-         Filled primary so it wins over the recommended/almost-full/full accents.
-         Placed last so its rules take precedence over the states above. */
-      .ag-chip.is-selected,
-      .ag-chip.is-selected:hover:not(:disabled) {
-        background: var(--bs-primary);
-        color: var(--neutral-0);
-        border-color: var(--bs-primary);
-        border-style: solid;
-      }
-
-      .ag-chip-name { font-size: var(--font-size-xs); }
-      /* Asterisk flag — age group name literally matches the team's library grad
-         year. Red + bold so it reads as the "this is the matching one" cue. */
-      .ag-chip-gradyear-match {
-        color: var(--bs-danger);
-        font-weight: var(--font-weight-bold);
-        margin-left: 1px;
-      }
-      .ag-chip-meta { font-size: 10px; font-weight: var(--font-weight-medium); opacity: 0.85; }
-
-      /* LOP selection — always-visible chip row (step 1), sits above the age
-         groups. Stored/previous LOP renders as the .active chip on open. */
-      .register-inline .lop-pills {
-        display: flex;
-        flex-wrap: wrap;
-        gap: var(--space-1);
-      }
-
-      .register-inline .lop-pill {
-        flex: 0 1 auto;
-        min-width: 44px;
-        padding: 4px var(--space-2);
-        border: 1.5px solid var(--border-color);
-        border-radius: var(--radius-full);
-        background: var(--brand-surface);
-        font-size: var(--font-size-xs);
-        font-weight: var(--font-weight-medium);
-        color: var(--brand-text);
-        cursor: pointer;
-        transition: all 0.12s ease;
-      }
-
-      .register-inline .lop-pill:hover { border-color: var(--bs-primary); }
-      .register-inline .lop-pill.active {
-        border-color: var(--bs-primary);
-        background: rgba(var(--bs-primary-rgb), 0.1);
-        color: var(--bs-primary);
-        font-weight: var(--font-weight-semibold);
-      }
-      .register-inline .lop-pill:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+      /* The register expand's two pickers render as shared inline controls:
+         <app-level-of-play-picker> (LOP pills) and <app-event-age-group-picker
+         variant="chip"> (age-group chips) — each owns its own styles. */
 
       /* Submit/Cancel row — bottom-right terminal action for the picker. Submit
          commits the selected LOP + age group (a new reg, or a change when
@@ -1403,7 +1317,10 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     readonly canRegister = input(false);
     readonly actionInProgress = input(false);
     readonly ageGroups = input<readonly AgeGroupDto[]>([]);
-    readonly lopOptions = input<readonly string[]>([]);
+    /** Dev-only diagnostics toggle — surfaces ClubTeamId in the register expand.
+     *  True only under the `development` env overlay (local ng serve); never in
+     *  staging or production. */
+    readonly showDevIds = environment.envName === 'development';
     /** Map of clubTeamId → registration info. Drives the Registered badge content. */
     readonly enteredTeams = input<ReadonlyMap<number, RegisteredInfo>>(new Map());
 
@@ -1443,10 +1360,8 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     readonly selectedLop = signal('');
     readonly selectedAgeGroupId = signal('');
 
-    /** True when the event uses LOP options but the rep hasn't picked one. */
-    readonly lopRequired = computed(() =>
-        this.lopOptions().length > 0 && !this.selectedLop(),
-    );
+    /** True until the rep picks a 1–5 level of play (always required now). */
+    readonly lopRequired = computed(() => !this.selectedLop());
 
     /** Expanded row is an already-registered team → Submit is a change, not a new reg. */
     readonly editingExisting = computed(() => {
@@ -1458,55 +1373,6 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     readonly canSubmit = computed(() =>
         !this.actionInProgress() && !!this.selectedAgeGroupId() && !this.lopRequired(),
     );
-
-    /**
-     * Best-match age group by team grad year — exact match first, then substring. When the match
-     * is full (oversubscribed), default to its WAITLIST twin so the rep lands on the waitlist
-     * rather than a full age group. The server auto-mints the twin the instant an age group fills
-     * (parity with the player roster hook), so it is normally present; if it isn't yet, fall back
-     * to the full parent and the server waitlists on submit.
-     */
-    private bestMatchAgeGroupId(team: ClubTeamDto): string {
-        const gy = team.clubTeamGradYear;
-        if (!gy) return '';
-        const ags = this.ageGroups();
-        const isWaitlist = (name: string) => name.toUpperCase().startsWith('WAITLIST');
-        const matched =
-            ags.find(a => a.ageGroupName === gy) ??
-            ags.find(a => a.ageGroupName.includes(gy) && !isWaitlist(a.ageGroupName));
-        if (!matched) return '';
-        if (matched.registeredCount >= matched.maxTeams) {
-            const twinName = `WAITLIST - ${matched.ageGroupName}`.toUpperCase();
-            const twin = ags.find(a => a.ageGroupName.toUpperCase() === twinName);
-            if (twin) return twin.ageGroupId;
-        }
-        return matched.ageGroupId;
-    }
-
-    /** AG chip data for the currently expanded row. */
-    readonly expandedAgChips = computed(() => {
-        const teamId = this.expandedTeamId();
-        if (teamId === null) return [];
-        const team = this.clubTeams().find(t => t.clubTeamId === teamId);
-        if (!team) return [];
-        const recommendedId = this.bestMatchAgeGroupId(team);
-        const gy = team.clubTeamGradYear;
-        return this.ageGroups().map(ag => {
-            const spotsLeft = Math.max(0, ag.maxTeams - ag.registeredCount);
-            return {
-                ageGroupId: ag.ageGroupId,
-                ageGroupName: ag.ageGroupName,
-                spotsLeft,
-                isFull: spotsLeft === 0,
-                isAlmostFull: spotsLeft > 0 && spotsLeft <= 2,
-                isRecommended: ag.ageGroupId === recommendedId,
-                // Flag an exact name↔grad-year match so the template can mark it.
-                // Not all events name age groups by grad year (e.g. tournaments),
-                // so this only fires on a literal match.
-                matchesGradYear: !!gy && ag.ageGroupName === gy,
-            };
-        });
-    });
 
     toggleRegister(team: ClubTeamDto): void {
         if (this.expandedTeamId() === team.clubTeamId) {
@@ -1521,9 +1387,11 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
         // match, leaving Submit disabled until the rep chooses.
         const existing = this.registeredInfo(team.clubTeamId);
         const lopCandidate = existing?.levelOfPlay || team.clubTeamLevelOfPlay || '';
-        this.selectedLop.set(this.matchLopOption(lopCandidate));
+        this.selectedLop.set(normalizeLop(lopCandidate));
         this.selectedAgeGroupId.set(
-            existing ? this.ageGroupIdByName(existing.ageGroupName) : this.bestMatchAgeGroupId(team),
+            existing
+                ? this.ageGroupIdByName(existing.ageGroupName)
+                : resolveRecommendedAgeGroupId(this.ageGroups(), team.clubTeamGradYear),
         );
         this.closeMenu();
         this.expandedTeamId.set(team.clubTeamId);
@@ -1678,21 +1546,6 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
         if (!lop) return '';
         const match = lop.match(/^\s*(\d+)/);
         return match ? match[1] : lop;
-    }
-
-    /**
-     * Resolve a stored LOP value to the matching configured option, tolerant of
-     * format drift. The create-modals store a bare digit ('5'); the job's
-     * List_Lops stores friendly labels ('5 (strongest)'). Exact match first,
-     * then leading-token (formatLop) match. Returns '' when nothing matches.
-     */
-    private matchLopOption(candidate: string): string {
-        if (!candidate) return '';
-        const opts = this.lopOptions();
-        const exact = opts.find(o => o === candidate);
-        if (exact) return exact;
-        const key = this.formatLop(candidate);
-        return opts.find(o => this.formatLop(o) === key) ?? '';
     }
 
     onClose(): void {

@@ -6,6 +6,7 @@ import { TeamSearchService } from '../services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
+import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
 
 type TabType = 'info' | 'accounting';
 
@@ -41,9 +42,18 @@ export class TeamDetailPanelComponent {
 	// Edit state — reset from detail when it changes
 	editTeamName = linkedSignal(() => this.detail()?.teamName ?? '');
 	editActive = linkedSignal(() => this.detail()?.active ?? true);
-	editLevelOfPlay = linkedSignal(() => this.detail()?.levelOfPlay ?? '');
+	// Normalized to the fixed 1–5 scale so a legacy label ('5 (strongest)') shows as
+	// its canonical pill ('5'); unmappable junk ('competitive') falls to '' (— Select —).
+	editLevelOfPlay = linkedSignal(() => normalizeLop(this.detail()?.levelOfPlay));
 	editComments = linkedSignal(() => this.detail()?.teamComments ?? '');
 	isSaving = signal(false);
+
+	/** Fixed 1–5 Level-of-Play choices (shared). The edit form's LOP select binds to this,
+	 *  not the former per-job jsonOptions `List_Lops`. The stored value is normalized for
+	 *  display (`normalizeLop`): a mappable legacy label ('5 (strongest)') shows as its pill
+	 *  ('5'); unmappable junk ('competitive') shows unselected. Either way the raw stored
+	 *  value is preserved unless the admin actually picks a new one. */
+	readonly lopChoices = LOP_CHOICES;
 
 	/** Unsaved edits in the Team Details form — compared signal-to-source so it survives the
 	 *  Details/Accounting tab switch (the form unmounts, but these signals persist). Drives the
@@ -53,7 +63,9 @@ export class TeamDetailPanelComponent {
 		const d = this.detail();
 		if (!d) return false;
 		return (this.editTeamName() ?? '') !== (d.teamName ?? '')
-			|| (this.editLevelOfPlay() ?? '') !== (d.levelOfPlay ?? '')
+			// Compare against the NORMALIZED original so an unchanged legacy LOP
+			// ('5 (strongest)' → '5') doesn't read as dirty the instant the form opens.
+			|| this.editLevelOfPlay() !== normalizeLop(d.levelOfPlay)
 			|| (this.editComments() ?? '') !== (d.teamComments ?? '');
 	});
 
@@ -115,11 +127,16 @@ export class TeamDetailPanelComponent {
 		const d = this.detail();
 		if (!d) return;
 
+		// Only persist LOP when the admin actually changed it (vs the normalized
+		// original) — otherwise omit it so saving an unrelated field can't silently
+		// rewrite a legacy stored value ('5 (strongest)' → '5'); the backend skips null.
+		const lopChanged = this.editLevelOfPlay() !== normalizeLop(d.levelOfPlay);
+
 		this.isSaving.set(true);
 		const req: EditTeamRequest = {
 			teamName: this.editTeamName() || undefined,
 			active: this.editActive(),
-			levelOfPlay: this.editLevelOfPlay() || undefined,
+			levelOfPlay: lopChanged ? (this.editLevelOfPlay() || undefined) : undefined,
 			teamComments: this.editComments() || undefined
 		};
 
