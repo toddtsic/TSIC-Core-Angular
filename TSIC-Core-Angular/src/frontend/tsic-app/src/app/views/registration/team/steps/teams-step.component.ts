@@ -128,8 +128,8 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
               [showLop]="true"
               [showRemove]="canRemoveTeam()"
               [actionInProgress]="actionInProgress()"
-              [frozenTeamCol]="true"
-              [teamColWidth]="140"
+              [frozenTeamCol]="false"
+              [teamColWidth]="120"
               [gridHeight]="'auto'"
               (removeTeam)="onRemoveTeam($event)" />
           </div>

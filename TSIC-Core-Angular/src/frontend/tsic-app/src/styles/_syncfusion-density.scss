@@ -333,7 +333,11 @@
     font-weight: var(--font-weight-bold);
     padding: var(--space-1) var(--space-2);
     text-transform: none;
-    color: var(--bs-primary);
+    /* Match the theme's headercelldiv color so non-sortable columns (which
+       render their label outside .e-headercelldiv) don't fall through to a
+       different color than their sortable siblings — e.g. the Total Fee header
+       was rendering --bs-primary blue while every other header was body-color. */
+    color: var(--bs-body-color);
     background-color: var(--brand-surface);
     border-right: none;
   }
