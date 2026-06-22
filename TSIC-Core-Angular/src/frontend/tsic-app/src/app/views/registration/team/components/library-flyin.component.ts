@@ -88,10 +88,12 @@ interface LibraryGroup {
             Library teams carry across every TSIC event — enter a team once, never retype.
           </p>
           <button type="button" class="lib-howto-toggle"
+                  [class.is-open]="showHowTo()"
                   [attr.aria-expanded]="showHowTo()"
                   (click)="toggleHowTo()">
-            <i class="bi" [class.bi-chevron-right]="!showHowTo()" [class.bi-chevron-down]="showHowTo()" aria-hidden="true"></i>
+            <i class="bi bi-lightbulb howto-lead" aria-hidden="true"></i>
             How this works
+            <i class="bi howto-chevron" [class.bi-chevron-right]="!showHowTo()" [class.bi-chevron-down]="showHowTo()" aria-hidden="true"></i>
           </button>
           @if (showHowTo()) {
             <ul class="lib-howto-list">
@@ -704,26 +706,40 @@ interface LibraryGroup {
         .bi { color: var(--bs-primary); opacity: 0.8; }
       }
 
-      /* "How this works" disclosure — quiet toggle revealing a condensed tip
-         list (collapsed by default so it never crowds the list). */
+      /* "How this works" disclosure — a primary-tinted pill so it reads as a
+         clickable help affordance, not body text (Ann: the old quiet toggle was
+         too subtle to notice). Collapsed by default so it never crowds the list. */
       .lib-howto-toggle {
         display: inline-flex;
         align-items: center;
         gap: var(--space-2);
         align-self: flex-start;
-        padding: 0;
-        background: transparent;
-        border: none;
-        color: var(--brand-text-muted);
+        padding: var(--space-1) var(--space-3);
+        background: rgba(var(--bs-primary-rgb), 0.1);
+        border: 1px solid rgba(var(--bs-primary-rgb), 0.35);
+        border-radius: var(--radius-full);
+        color: var(--bs-primary);
         font-size: var(--font-size-sm);
         font-weight: var(--font-weight-semibold);
         cursor: pointer;
-        transition: color 0.1s ease;
+        transition: background-color 0.1s ease, border-color 0.1s ease;
 
-        &:hover { color: var(--brand-text); }
-        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm); }
+        &:hover {
+          background: rgba(var(--bs-primary-rgb), 0.18);
+          border-color: rgba(var(--bs-primary-rgb), 0.55);
+        }
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+        &.is-open {
+          background: rgba(var(--bs-primary-rgb), 0.18);
+          border-color: rgba(var(--bs-primary-rgb), 0.55);
+        }
 
-        .bi { font-size: 0.8em; }
+        .howto-lead { font-size: 0.95em; }
+        .howto-chevron { font-size: 0.75em; opacity: 0.8; }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .lib-howto-toggle { transition: none; }
       }
 
       .lib-howto-list {
