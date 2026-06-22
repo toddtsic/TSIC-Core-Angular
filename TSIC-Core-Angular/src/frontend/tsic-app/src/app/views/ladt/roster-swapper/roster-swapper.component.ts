@@ -1,6 +1,7 @@
 import { Component, inject, signal, computed, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ToastService } from '@shared-ui/toast.service';
 import {
     RosterSwapperService,
@@ -19,7 +20,7 @@ type SortColumn = keyof SwapperPlayerDto | null;
 @Component({
     selector: 'app-roster-swapper',
     standalone: true,
-    imports: [CommonModule, FormsModule],
+    imports: [CommonModule, FormsModule, RouterLink],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './roster-swapper.component.html',
     styleUrl: './roster-swapper.component.scss'

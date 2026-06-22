@@ -99,3 +99,58 @@ public record UpdatePlayerActiveRequest
 {
     public required bool BActive { get; init; }
 }
+
+/// <summary>
+/// One pending team request on a coach's queue row. A request is "pending" only when
+/// no Staff row yet exists for (coach, team) — approved teams are filtered out upstream.
+/// </summary>
+public record UnassignedAdultRequestDto
+{
+    public required Guid TeamId { get; init; }
+    public required string DisplayText { get; init; }
+    /// <summary>True when the coach has their own player rostered on this exact team — a
+    /// strong "approve" signal (e.g. a parent coaching their kid's team).</summary>
+    public required bool HasOwnPlayerOnTeam { get; init; }
+}
+
+/// <summary>
+/// A prior Staff assignment for the coach (across any job/season) — the lead recognition
+/// signal on the director card ("was Staff on {team} in {job}").
+/// </summary>
+public record PriorStaffAssignmentDto
+{
+    public required string TeamName { get; init; }
+    public required string JobName { get; init; }
+}
+
+/// <summary>
+/// A director-queue row: one UnassignedAdult coach with their recognition context and
+/// pending (not-yet-approved) team requests.
+/// </summary>
+public record UnassignedAdultQueueRowDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required string PlayerName { get; init; }
+    public string? ClubName { get; init; }
+    public string? Email { get; init; }
+    public string? Cellphone { get; init; }
+    public string? City { get; init; }
+    public string? State { get; init; }
+    public required DateTime RegistrationTs { get; init; }
+    public string? Note { get; init; }
+    /// <summary>Prior Staff assignments across any job — the lead recognition signal.</summary>
+    public required List<PriorStaffAssignmentDto> PriorStaff { get; init; }
+    /// <summary>Names of the coach's own players registered in THIS job (minor secondary signal).</summary>
+    public required List<string> LinkedPlayerNames { get; init; }
+    /// <summary>Pending team requests, one actionable Approve/Deny line each.</summary>
+    public required List<UnassignedAdultRequestDto> PendingTeams { get; init; }
+}
+
+/// <summary>
+/// Approve or deny a single (coach, requested-team) line from the director queue.
+/// </summary>
+public record ApproveTeamRequestDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required Guid TeamId { get; init; }
+}

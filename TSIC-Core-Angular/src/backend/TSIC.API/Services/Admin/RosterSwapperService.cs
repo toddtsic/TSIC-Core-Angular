@@ -428,6 +428,27 @@ public sealed class RosterSwapperService : IRosterSwapperService
         await _registrationRepo.SaveChangesAsync(ct);
     }
 
+    public Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default)
+        => _registrationRepo.GetUnassignedAdultQueueAsync(jobId, ct);
+
+    public Task<RosterTransferResultDto> ApproveTeamRequestAsync(
+        Guid jobId, string adminUserId, Guid registrationId, Guid teamId, CancellationToken ct = default)
+        => ExecuteTransferAsync(jobId, adminUserId, new RosterTransferRequest
+        {
+            RegistrationIds = new List<Guid> { registrationId },
+            SourcePoolId = Guid.Empty,   // Unassigned Adults pool ⇒ FLOW 2 mints the Staff row
+            TargetPoolId = teamId
+        }, ct);
+
+    public async Task<bool> DenyTeamRequestAsync(
+        Guid jobId, string adminUserId, Guid registrationId, Guid teamId, CancellationToken ct = default)
+    {
+        var removed = await _registrationRepo.RemoveRequestedTeamAsync(registrationId, jobId, teamId, adminUserId, ct);
+        if (!removed)
+            throw new ArgumentException("That team request was not found for this coach.");
+        return true;
+    }
+
     private static string GetPlayerName(Registrations reg)
     {
         if (reg.User != null)

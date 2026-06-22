@@ -11,6 +11,7 @@ using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Adults;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.Identity;
@@ -942,12 +943,15 @@ public class AdultRegistrationService : IAdultRegistrationService
     }
 
     /// <summary>
-    /// Prepend a human-readable "Requested teams: …" line to the UnassignedAdult's
-    /// <see cref="Registrations.SpecialRequests"/>, preserving any free-text note the
-    /// form already wrote (ApplyFormValues runs first, in BuildRegistrationEntity).
-    /// These are non-binding requests — AssignedTeamId stays null. Reuses the
-    /// available-teams query so labels match exactly what the coach saw in the picker.
-    /// Unknown/invalid ids are silently dropped (a request is advisory, not a gate).
+    /// Codify the UnassignedAdult's non-binding team REQUESTS into
+    /// <see cref="Registrations.SpecialRequests"/> as a structured JSON block
+    /// (<see cref="AdultTeamRequestData"/>: <c>requestedTeamIds</c> + the coach's free-text
+    /// <c>note</c>). The director's approval queue resolves the ids to current team labels
+    /// live (rename-proof) and renders the note. AssignedTeamId stays null — these are
+    /// requests, not assignments; only a director grants placement, post-vetting.
+    /// Requested ids are validated against the available-teams list (unknown ids dropped —
+    /// a request is advisory, not a gate). Any free-text the form already wrote
+    /// (ApplyFormValues runs first, in BuildRegistrationEntity) becomes the note.
     /// </summary>
     private async Task ComposeTeamRequestsIntoSpecialRequestsAsync(
         Registrations registration,
@@ -956,22 +960,24 @@ public class AdultRegistrationService : IAdultRegistrationService
         CancellationToken cancellationToken)
     {
         var available = await _repo.GetAvailableTeamsAsync(jobId, cancellationToken);
-        var labelById = available.ToDictionary(t => t.TeamId, t => t.DisplayText);
+        var validIds = available.Select(t => t.TeamId).ToHashSet();
 
-        var labels = teamIdsCoaching
+        var requestedTeamIds = teamIdsCoaching
             .Distinct()
-            .Where(labelById.ContainsKey)
-            .Select(id => labelById[id])
+            .Where(validIds.Contains)
             .ToList();
 
-        if (labels.Count == 0) return;
+        var note = registration.SpecialRequests?.Trim();
 
-        var requestLine = $"Requested teams: {string.Join("; ", labels)}";
+        // Nothing to codify (no valid requests, no note) → leave SpecialRequests as-is.
+        if (requestedTeamIds.Count == 0 && string.IsNullOrEmpty(note)) return;
 
-        var existingNote = registration.SpecialRequests?.Trim();
-        registration.SpecialRequests = string.IsNullOrEmpty(existingNote)
-            ? requestLine
-            : $"{requestLine}\n\n{existingNote}";
+        registration.SpecialRequests = AdultTeamRequestData.Serialize(
+            new AdultTeamRequestData
+            {
+                RequestedTeamIds = requestedTeamIds,
+                Note = string.IsNullOrEmpty(note) ? null : note,
+            });
     }
 
     /// <summary>
@@ -1058,8 +1064,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// and the wizard behavior the frontend should render. Enforces the minor-PII
     /// security model:
     /// <list type="bullet">
-    /// <item>coach + Tournament  → Staff  (requires BAllowRosterViewAdult=false)</item>
-    /// <item>coach + Club/League → UnassignedAdult (director promotes later)</item>
+    /// <item>coach + any team job type → UnassignedAdult (director approves/places later)</item>
     /// <item>coach + other types → reject</item>
     /// <item>referee / recruiter → identical across supported job types</item>
     /// </list>
@@ -1123,8 +1128,12 @@ public class AdultRegistrationService : IAdultRegistrationService
     }
 
     /// <summary>
-    /// Coach role resolution — three-way discrimination by job type with a hard
-    /// security invariant for the Tournament branch.
+    /// Coach role resolution — UNIVERSAL minor-PII firewall across ALL team job types.
+    /// Every coach self-registers as <see cref="RoleConstants.UnassignedAdult"/> with
+    /// non-binding team REQUESTS; no AssignedTeamId, no Staff role, no roster/PII access
+    /// is granted here. A director vets and approves each requested team via the Roster
+    /// Swapper, which mints the per-team Staff row. There is NO job-type branch in the
+    /// security model — the only job-type knob is request requiredness (below).
     /// </summary>
     private static AdultRoleResolution ResolveCoach(AdultRegJobData job)
     {
@@ -1132,40 +1141,21 @@ public class AdultRegistrationService : IAdultRegistrationService
         {
             case JobConstants.JobTypeClub:
             case JobConstants.JobTypeLeague:
-                // Player-site context: self-registration ALWAYS creates UnassignedAdult.
-                // No team ASSIGNMENT (director assigns after approval, which also
-                // promotes the role to Staff). This is the minor-PII firewall.
-                //
-                // AllowTeamRequests lets the coach multi-select teams they'd LIKE to
-                // coach — captured as a non-binding REQUEST (composed into
-                // SpecialRequests for the director's Roster Swapper view), NOT an
-                // AssignedTeamId. No team link, no Staff role, no roster/PII access
-                // is granted here — only the director grants it, post-vetting, via swap.
+            case JobConstants.JobTypeTournament:
+                // UnassignedAdult firewall for every team job type. AllowTeamRequests lets
+                // the coach multi-select teams they'd LIKE to coach — captured as a
+                // non-binding REQUEST (codified into SpecialRequests as structured JSON),
+                // NOT an AssignedTeamId. NeedsTeamSelection is repurposed to mean "must
+                // request ≥1 team to submit": required on Tournament, optional on
+                // Club/League (where a willing-anywhere volunteer can register with none).
                 return new AdultRoleResolution(
                     RoleId: RoleConstants.UnassignedAdult,
-                    NeedsTeamSelection: false,
+                    NeedsTeamSelection: job.JobTypeId == JobConstants.JobTypeTournament,
                     DisplayName: "Coach / Volunteer",
                     Description: "Register as an unassigned adult. A director will review " +
                                  "your request and assign you to a team.",
                     Icon: "bi-person-badge",
                     AllowTeamRequests: true);
-
-            case JobConstants.JobTypeTournament:
-                // Tournament context: self-rostering coach — directly becomes Staff with
-                // AssignedTeamId. BUT only if roster visibility is locked (minor-PII guard).
-                if (job.BAllowRosterViewAdult)
-                {
-                    throw new InvalidOperationException(
-                        "Adult self-registration is disabled for this event. " +
-                        "Contact the tournament director. " +
-                        "(To enable: set 'Allow Adult Roster View' to OFF in job configuration.)");
-                }
-                return new AdultRoleResolution(
-                    RoleId: RoleConstants.Staff,
-                    NeedsTeamSelection: true,
-                    DisplayName: "Coach / Volunteer",
-                    Description: "Register to coach one or more teams at this tournament.",
-                    Icon: "bi-person-badge");
 
             default:
                 // Root, Camp, Sales, or anything else — adult coach self-reg not supported.

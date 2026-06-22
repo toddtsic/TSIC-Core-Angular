@@ -147,12 +147,12 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
                 </div>
             </div>
 
-            <!-- Teams: assignment (coach in tournament) or non-binding request (Club/League coach) -->
+            <!-- Teams: non-binding request for every coach (director reviews + approves) -->
             @if (state.needsTeamSelection() || (state.allowTeamRequests() && state.teamIdsCoaching().length > 0)) {
                 <div class="review-section">
                     <div class="review-section-header">
                         <i class="bi bi-people-fill"></i>
-                        <span>{{ state.needsTeamSelection() ? 'Teams Coaching' : 'Teams Requested' }}</span>
+                        <span>Teams Requested</span>
                     </div>
                     <div class="review-section-body">
                         @if (state.teamIdsCoaching().length > 0) {
@@ -161,12 +161,10 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
                                     <span class="review-team-pill">{{ teamLabel(id) }}</span>
                                 }
                             </div>
-                            @if (state.allowTeamRequests()) {
-                                <div class="empty-note">
-                                    <i class="bi bi-info-circle me-1"></i>
-                                    A request only — the director reviews and assigns you. You are not added to any roster.
-                                </div>
-                            }
+                            <div class="empty-note">
+                                <i class="bi bi-info-circle me-1"></i>
+                                A request only — the director reviews and assigns you. You are not added to any roster.
+                            </div>
                         } @else {
                             <div class="empty-note">
                                 <i class="bi bi-info-circle me-1"></i>

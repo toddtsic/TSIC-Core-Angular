@@ -249,6 +249,12 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/ladt/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
 					},
 					{
+						path: 'coach-approvals',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						loadComponent: () => import('./views/ladt/roster-swapper/coach-approval-queue/coach-approval-queue.component').then(m => m.CoachApprovalQueueComponent)
+					},
+					{
 						path: 'pool-assignment',
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },

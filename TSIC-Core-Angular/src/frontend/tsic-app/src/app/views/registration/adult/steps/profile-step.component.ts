@@ -8,9 +8,11 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
  * Profile step — role-config-driven.
  *
  * Reads fields from <c>state.roleConfig().profileFields</c>. Shows the teams
- * multi-select only when <c>roleConfig.needsTeamSelection</c> is true — which
- * the backend resolver sets only for coach in Tournament job. Club/League
- * coaches get UnassignedAdult status and no team selection (director assigns).
+ * multi-select whenever the coach may make team REQUESTS — i.e. when
+ * <c>needsTeamSelection</c> (Tournament: request required) OR
+ * <c>allowTeamRequests</c> (Club/League: request optional). Every coach is an
+ * UnassignedAdult; selections are non-binding requests the director approves —
+ * never an assignment or roster/PII access.
  */
 @Component({
     selector: 'app-adult-profile-step',
@@ -39,10 +41,12 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                     [class.is-required-section]="state.needsTeamSelection() && state.teamIdsCoaching().length === 0">
                     @if (state.needsTeamSelection()) {
                         <label class="field-label">
-                            Teams Coaching <span class="req">*</span>
+                            Teams you'd like to coach <span class="req">*</span>
                         </label>
                         <small class="wizard-tip mb-2 d-block">
-                            Check every team you're coaching. Type a club or team name to filter. First selection is your primary team assignment.
+                            Required — select every team you'd like to coach. Type a club or team name to
+                            filter. The director reviews your request and assigns you; choosing teams here
+                            does <strong>not</strong> add you to a roster or grant access to any roster.
                         </small>
                     } @else {
                         <label class="field-label">
@@ -84,7 +88,7 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                             [closePopupOnSelect]="false"
                             [changeOnBlur]="false"
                             [showDropDownIcon]="true"
-                            [placeholder]="state.needsTeamSelection() ? 'Select teams you\\'re coaching' : 'Select teams you\\'d like to coach'"
+                            [placeholder]="'Select teams you\\'d like to coach'"
                             [popupHeight]="'320px'">
                         </ejs-multiselect>
 

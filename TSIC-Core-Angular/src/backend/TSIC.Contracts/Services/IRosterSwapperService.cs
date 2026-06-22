@@ -19,4 +19,18 @@ public interface IRosterSwapperService
         Guid jobId, string adminUserId, RosterTransferRequest request, CancellationToken ct = default);
 
     Task TogglePlayerActiveAsync(Guid registrationId, Guid jobId, bool active, string adminUserId, CancellationToken ct = default);
+
+    /// <summary>Director approval queue: unassigned coaches with pending team requests + recognition context.</summary>
+    Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Approve one requested team: mints the per-team Staff row via the FLOW-2 transfer
+    /// path. The UnassignedAdult row remains as the source of further acceptances.
+    /// </summary>
+    Task<RosterTransferResultDto> ApproveTeamRequestAsync(
+        Guid jobId, string adminUserId, Guid registrationId, Guid teamId, CancellationToken ct = default);
+
+    /// <summary>Deny one requested team: drop it from the coach's codified requests (no Staff row).</summary>
+    Task<bool> DenyTeamRequestAsync(
+        Guid jobId, string adminUserId, Guid registrationId, Guid teamId, CancellationToken ct = default);
 }

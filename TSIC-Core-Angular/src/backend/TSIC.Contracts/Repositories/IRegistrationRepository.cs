@@ -510,6 +510,22 @@ public interface IRegistrationRepository
     Task<List<SwapperPlayerDto>> GetUnassignedAdultsAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Director approval queue: each UnassignedAdult coach with their recognition context
+    /// (prior Staff history, family linkage) and PENDING team requests (requested teams
+    /// not yet approved — i.e. no Staff row exists for that (coach, team) yet). Coaches
+    /// with no pending requests are omitted. AsNoTracking.
+    /// </summary>
+    Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deny one requested team: removes it from the coach's codified RequestedTeamIds and
+    /// rewrites SpecialRequests. No Staff row is touched. Returns false if the registration
+    /// is not a valid UnassignedAdult for the job, or the team wasn't requested.
+    /// </summary>
+    Task<bool> RemoveRequestedTeamAsync(
+        Guid registrationId, Guid jobId, Guid teamId, string adminUserId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get tracked registrations for bulk transfer operations.
     /// Validates each belongs to sourcePoolId (team) or has Unassigned Adult role (if sourcePoolId = Guid.Empty).
     /// </summary>

@@ -58,6 +58,7 @@ export type { ApplyLeaguePhaseRequest } from './models/ApplyLeaguePhaseRequest';
 export type { ApplyLeaguePhaseResponse } from './models/ApplyLeaguePhaseResponse';
 export type { ApplyTeamDiscountRequestDto } from './models/ApplyTeamDiscountRequestDto';
 export type { ApplyTeamDiscountResponseDto } from './models/ApplyTeamDiscountResponseDto';
+export type { ApproveTeamRequestDto } from './models/ApproveTeamRequestDto';
 export type { ArbEmailResultDto } from './models/ArbEmailResultDto';
 export type { ArbFlaggedRegistrantDto } from './models/ArbFlaggedRegistrantDto';
 export type { ArbFlagType } from './models/ArbFlagType';
@@ -442,6 +443,7 @@ export type { PreSubmitTeamInsuranceDto } from './models/PreSubmitTeamInsuranceD
 export type { PreSubmitTeamResultDto } from './models/PreSubmitTeamResultDto';
 export type { PreSubmitTeamSelectionDto } from './models/PreSubmitTeamSelectionDto';
 export type { PreSubmitValidationErrorDto } from './models/PreSubmitValidationErrorDto';
+export type { PriorStaffAssignmentDto } from './models/PriorStaffAssignmentDto';
 export type { PriorYearFieldDefaults } from './models/PriorYearFieldDefaults';
 export type { ProblemDetails } from './models/ProblemDetails';
 export type { ProcessingOrderEntryDto } from './models/ProcessingOrderEntryDto';
@@ -675,6 +677,8 @@ export type { ToggleTeamSubscriptionResponse } from './models/ToggleTeamSubscrip
 export type { TournamentParkingRequest } from './models/TournamentParkingRequest';
 export type { TournamentParkingResponse } from './models/TournamentParkingResponse';
 export type { TransferAllTeamsRequest } from './models/TransferAllTeamsRequest';
+export type { UnassignedAdultQueueRowDto } from './models/UnassignedAdultQueueRowDto';
+export type { UnassignedAdultRequestDto } from './models/UnassignedAdultRequestDto';
 export type { UndoGamesRequest } from './models/UndoGamesRequest';
 export type { UniformUploadResultDto } from './models/UniformUploadResultDto';
 export type { UniformUploadRowError } from './models/UniformUploadRowError';

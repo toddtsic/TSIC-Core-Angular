@@ -8,11 +8,12 @@ import type {
     RosterTransferPreviewRequest,
     RosterTransferRequest,
     RosterTransferFeePreviewDto,
-    RosterTransferResultDto
+    RosterTransferResultDto,
+    UnassignedAdultQueueRowDto
 } from '@core/api';
 
 // Re-export for consumers
-export type { SwapperPoolOptionDto, SwapperPlayerDto, RosterTransferFeePreviewDto, RosterTransferResultDto };
+export type { SwapperPoolOptionDto, SwapperPlayerDto, RosterTransferFeePreviewDto, RosterTransferResultDto, UnassignedAdultQueueRowDto };
 
 @Injectable({ providedIn: 'root' })
 export class RosterSwapperService {
@@ -37,5 +38,20 @@ export class RosterSwapperService {
 
     togglePlayerActive(registrationId: string, active: boolean): Observable<void> {
         return this.http.put<void>(`${this.apiUrl}/players/${registrationId}/active`, { bActive: active });
+    }
+
+    /** Director approval queue: unassigned coaches with pending team requests + recognition context. */
+    getUnassignedQueue(): Observable<UnassignedAdultQueueRowDto[]> {
+        return this.http.get<UnassignedAdultQueueRowDto[]>(`${this.apiUrl}/unassigned-queue`);
+    }
+
+    /** Approve one (coach, team) request — mints the per-team Staff row via FLOW 2. */
+    approveRequest(registrationId: string, teamId: string): Observable<RosterTransferResultDto> {
+        return this.http.post<RosterTransferResultDto>(`${this.apiUrl}/approve-request`, { registrationId, teamId });
+    }
+
+    /** Deny one (coach, team) request — drops it from the coach's codified requests. */
+    denyRequest(registrationId: string, teamId: string): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/deny-request`, { registrationId, teamId });
     }
 }

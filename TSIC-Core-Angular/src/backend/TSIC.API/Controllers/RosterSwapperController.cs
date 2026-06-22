@@ -99,6 +99,69 @@ public class RosterSwapperController : ControllerBase
         }
     }
 
+    [HttpGet("unassigned-queue")]
+    public async Task<ActionResult<List<UnassignedAdultQueueRowDto>>> GetUnassignedQueue(CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var queue = await _swapperService.GetUnassignedAdultQueueAsync(jobId.Value, ct);
+        return Ok(queue);
+    }
+
+    [HttpPost("approve-request")]
+    public async Task<ActionResult<RosterTransferResultDto>> ApproveRequest(
+        [FromBody] ApproveTeamRequestDto request, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        try
+        {
+            var result = await _swapperService.ApproveTeamRequestAsync(
+                jobId.Value, userId, request.RegistrationId, request.TeamId, ct);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("deny-request")]
+    public async Task<ActionResult> DenyRequest(
+        [FromBody] ApproveTeamRequestDto request, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        try
+        {
+            await _swapperService.DenyTeamRequestAsync(
+                jobId.Value, userId, request.RegistrationId, request.TeamId, ct);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPut("players/{registrationId:guid}/active")]
     public async Task<ActionResult> TogglePlayerActive(
         Guid registrationId, [FromBody] UpdatePlayerActiveRequest request, CancellationToken ct)

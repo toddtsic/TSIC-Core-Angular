@@ -8,6 +8,7 @@ using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Adults;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -2463,7 +2464,7 @@ public class RegistrationRepository : IRegistrationRepository
 
     public async Task<List<SwapperPlayerDto>> GetUnassignedAdultsAsync(Guid jobId, CancellationToken ct = default)
     {
-        return await _context.Registrations
+        var rows = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.JobId == jobId && r.Role!.Name == RoleConstants.Names.UnassignedAdultName)
             .Select(r => new SwapperPlayerDto
@@ -2480,6 +2481,7 @@ public class RegistrationRepository : IRegistrationRepository
                 Gender = r.User != null ? r.User.Gender : null,
                 SkillLevel = null,
                 YrsExp = null,
+                // SpecialRequests now holds codified JSON; surface a human summary instead of raw JSON.
                 Requests = r.SpecialRequests,
                 PrevCoach = null,
                 FeeBase = r.FeeBase,
@@ -2489,6 +2491,217 @@ public class RegistrationRepository : IRegistrationRepository
             })
             .OrderBy(p => p.PlayerName)
             .ToListAsync(ct);
+
+        // Render the codified request blob → a readable "Requested N team(s)" + note line.
+        // (The dedicated coach-approval queue resolves team labels; this is the legacy
+        // Roster Swapper "Requests" column, which only needs to avoid showing raw JSON.)
+        return rows
+            .Select(p =>
+            {
+                var req = AdultTeamRequestData.Parse(p.Requests);
+                var parts = new List<string>();
+                if (req.RequestedTeamIds.Count > 0)
+                    parts.Add($"Requested {req.RequestedTeamIds.Count} team(s)");
+                if (!string.IsNullOrWhiteSpace(req.Note))
+                    parts.Add(req.Note!.Trim());
+                return p with { Requests = parts.Count > 0 ? string.Join(" — ", parts) : null };
+            })
+            .ToList();
+    }
+
+    public async Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // 1. Unassigned adults for this job: identity + raw codified SpecialRequests.
+        var coaches = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId && r.Role!.Name == RoleConstants.Names.UnassignedAdultName)
+            .Select(r => new
+            {
+                r.RegistrationId,
+                r.UserId,
+                FirstName = r.User != null ? r.User.FirstName : null,
+                LastName = r.User != null ? r.User.LastName : null,
+                Email = r.User != null ? r.User.Email : null,
+                Cellphone = r.User != null ? r.User.Cellphone : null,
+                City = r.User != null ? r.User.City : null,
+                State = r.User != null ? r.User.State : null,
+                r.ClubName,
+                r.SpecialRequests,
+                r.RegistrationTs
+            })
+            .ToListAsync(ct);
+
+        if (coaches.Count == 0) return new List<UnassignedAdultQueueRowDto>();
+
+        // 2. Parse codified requests in memory (EF can't translate the JSON parse).
+        var parsed = coaches
+            .Select(c => new { Coach = c, Req = AdultTeamRequestData.Parse(c.SpecialRequests) })
+            .ToList();
+
+        var allRequestedTeamIds = parsed
+            .SelectMany(p => p.Req.RequestedTeamIds)
+            .Distinct()
+            .ToList();
+
+        var coachUserIds = coaches
+            .Where(c => c.UserId != null)
+            .Select(c => c.UserId!)
+            .Distinct()
+            .ToList();
+
+        // 3. Resolve requested team ids → display labels (same shape as the reg-form picker).
+        var teamLabels = new Dictionary<Guid, string>();
+        if (allRequestedTeamIds.Count > 0)
+        {
+            var teamRows = await _context.Teams
+                .AsNoTracking()
+                .Where(t => t.JobId == jobId && allRequestedTeamIds.Contains(t.TeamId))
+                .Select(t => new
+                {
+                    t.TeamId,
+                    DisplayText =
+                        (t.ClubrepRegistration!.ClubName ?? "") + ":" +
+                        (t.Agegroup.AgegroupName ?? "") + ":" +
+                        (t.Div == null ? "" : (t.Div.DivName ?? "")) + ":" +
+                        (t.TeamName ?? "")
+                })
+                .ToListAsync(ct);
+            teamLabels = teamRows.ToDictionary(t => t.TeamId, t => t.DisplayText);
+        }
+
+        // 4. Already-approved set: a Staff row for (coach, team) in this job means that
+        //    requested team is no longer pending.
+        var approved = (await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                && r.Role!.Name == RoleConstants.Names.StaffName
+                && r.UserId != null && r.AssignedTeamId != null
+                && coachUserIds.Contains(r.UserId))
+            .Select(r => new { r.UserId, r.AssignedTeamId })
+            .ToListAsync(ct))
+            .Select(r => (r.UserId!, r.AssignedTeamId!.Value))
+            .ToHashSet();
+
+        // 5. Prior Staff history (any job/season) — the lead recognition signal.
+        var priorStaff = (await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.Role!.Name == RoleConstants.Names.StaffName
+                && r.AssignedTeamId != null
+                && r.UserId != null
+                && coachUserIds.Contains(r.UserId))
+            .Select(r => new
+            {
+                r.UserId,
+                TeamName = r.AssignedTeam != null ? r.AssignedTeam.TeamName : null,
+                JobName = r.Job.JobName
+            })
+            .ToListAsync(ct))
+            .GroupBy(r => r.UserId!)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(x => new PriorStaffAssignmentDto
+                {
+                    TeamName = x.TeamName ?? "",
+                    JobName = x.JobName ?? ""
+                }).ToList());
+
+        // 6. Family linkage (minor signal): players in THIS job under the coach's account.
+        var familyPlayers = (await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                && r.Role!.Name == RoleConstants.Names.PlayerName
+                && r.FamilyUserId != null
+                && coachUserIds.Contains(r.FamilyUserId))
+            .Select(r => new
+            {
+                r.FamilyUserId,
+                PlayerName = r.User != null
+                    ? ((r.User.FirstName ?? "") + " " + (r.User.LastName ?? "")).Trim()
+                    : "",
+                r.AssignedTeamId
+            })
+            .ToListAsync(ct))
+            .GroupBy(p => p.FamilyUserId!)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 7. Assemble — pending = requested ∧ resolvable ∧ not-yet-approved.
+        var result = new List<UnassignedAdultQueueRowDto>();
+        foreach (var p in parsed)
+        {
+            var c = p.Coach;
+            var userId = c.UserId;
+
+            var pending = p.Req.RequestedTeamIds
+                .Where(tid => teamLabels.ContainsKey(tid))
+                .Where(tid => userId == null || !approved.Contains((userId, tid)))
+                .Distinct()
+                .Select(tid => new UnassignedAdultRequestDto
+                {
+                    TeamId = tid,
+                    DisplayText = teamLabels[tid],
+                    HasOwnPlayerOnTeam = userId != null
+                        && familyPlayers.TryGetValue(userId, out var fps)
+                        && fps.Any(fp => fp.AssignedTeamId == tid)
+                })
+                .ToList();
+
+            // Queue is request-driven: a coach with no pending requests (none made, or all
+            // already approved/denied) is handled in the Roster Swapper's unassigned pool.
+            if (pending.Count == 0) continue;
+
+            var playerName = ($"{c.LastName ?? ""}, {c.FirstName ?? ""}").Trim().TrimEnd(',').Trim();
+            if (string.IsNullOrEmpty(playerName)) playerName = "Unknown";
+
+            var prior = userId != null && priorStaff.TryGetValue(userId, out var ps)
+                ? ps : new List<PriorStaffAssignmentDto>();
+            var linked = userId != null && familyPlayers.TryGetValue(userId, out var fl)
+                ? fl.Select(x => x.PlayerName).Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList()
+                : new List<string>();
+
+            result.Add(new UnassignedAdultQueueRowDto
+            {
+                RegistrationId = c.RegistrationId,
+                PlayerName = playerName,
+                ClubName = c.ClubName,
+                Email = c.Email,
+                Cellphone = c.Cellphone,
+                City = c.City,
+                State = c.State,
+                RegistrationTs = c.RegistrationTs,
+                Note = p.Req.Note,
+                PriorStaff = prior,
+                LinkedPlayerNames = linked,
+                PendingTeams = pending
+            });
+        }
+
+        return result.OrderBy(r => r.PlayerName).ToList();
+    }
+
+    /// <summary>
+    /// Deny a single requested team: remove it from the coach's codified
+    /// <c>RequestedTeamIds</c> and rewrite SpecialRequests. No Staff row is touched.
+    /// Returns false if the registration isn't a valid UnassignedAdult for the job.
+    /// </summary>
+    public async Task<bool> RemoveRequestedTeamAsync(
+        Guid registrationId, Guid jobId, Guid teamId, string adminUserId, CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .Include(r => r.Role)
+            .FirstOrDefaultAsync(r => r.RegistrationId == registrationId && r.JobId == jobId, ct);
+
+        if (reg == null || reg.Role?.Name != RoleConstants.Names.UnassignedAdultName)
+            return false;
+
+        var data = AdultTeamRequestData.Parse(reg.SpecialRequests);
+        if (!data.RequestedTeamIds.Remove(teamId))
+            return false; // nothing to deny
+
+        reg.SpecialRequests = AdultTeamRequestData.Serialize(data);
+        reg.Modified = DateTime.Now;
+        reg.LebUserId = adminUserId;
+        await _context.SaveChangesAsync(ct);
+        return true;
     }
 
     public async Task<List<Registrations>> GetRegistrationsForTransferAsync(
