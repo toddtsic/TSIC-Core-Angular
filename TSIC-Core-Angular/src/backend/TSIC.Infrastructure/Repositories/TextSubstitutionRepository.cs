@@ -332,6 +332,7 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       where t.ClubrepRegistrationid == clubRepRegistrationId
                             && ag.AgegroupName != "Dropped Teams"
                             && t.TeamName != "Club Teams"
+                      orderby ag.AgegroupName, t.TeamName
                       select new TeamSummaryRow
                       {
                           TeamId = t.TeamId,
@@ -352,6 +353,7 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
                       join r in _context.Registrations on t.ClubrepRegistrationid equals r.RegistrationId
                       where t.ClubrepRegistrationid == clubRepRegistrationId
+                      orderby ag.AgegroupName, t.TeamName
                       select new SimpleTeamRow
                       {
                           TeamName = ag.AgegroupName + " " + t.TeamName,
