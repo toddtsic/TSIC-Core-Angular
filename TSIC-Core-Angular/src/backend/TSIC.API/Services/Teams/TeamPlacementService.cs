@@ -90,10 +90,12 @@ public class TeamPlacementService : ITeamPlacementService
         var waitlistAg = await FindOrCreateWaitlistAgegroupAsync(
             agegroup, waitlistAgName, userId, cancellationToken);
 
-        // Find-or-create WAITLIST mirror division
-        var waitlistDivName = $"WAITLIST - {divisionName ?? agegroup.AgegroupName}";
+        // Teams overflowing onto the waitlist land in the waitlist agegroup's
+        // "Unassigned" holding division — same convention as a normal (non-full)
+        // agegroup (see the in-capacity branch above). A single holding division per
+        // waitlist agegroup keeps find-or-create idempotent across all mint paths.
         var waitlistDiv = await FindOrCreateDivisionAsync(
-            waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
+            waitlistAg.AgegroupId, DivisionConstants.Unassigned, userId, cancellationToken);
 
         return new TeamPlacementResult
         {
@@ -206,9 +208,11 @@ public class TeamPlacementService : ITeamPlacementService
         var waitlistAg = await FindOrCreateWaitlistAgegroupAsync(
             agegroup, waitlistAgName, userId, cancellationToken);
 
-        var waitlistDivName = $"WAITLIST - {agegroup.AgegroupName}";
+        // Holding division for the waitlist agegroup — always "Unassigned" (same
+        // convention as a normal agegroup), so a later overflow find-or-creates this
+        // exact division rather than minting a second one.
         await FindOrCreateDivisionAsync(
-            waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
+            waitlistAg.AgegroupId, DivisionConstants.Unassigned, userId, cancellationToken);
     }
 
     /// <summary>
@@ -234,21 +238,15 @@ public class TeamPlacementService : ITeamPlacementService
         var agegroup = await _agegroupRepo.GetByIdAsync(team.AgegroupId, cancellationToken)
             ?? throw new KeyNotFoundException($"Agegroup {team.AgegroupId} not found.");
 
-        string? divName = null;
-        if (team.DivId.HasValue)
-        {
-            var div = await _divisionRepo.GetByIdReadOnlyAsync(team.DivId.Value, cancellationToken);
-            divName = div?.DivName;
-        }
-
         // Reuse same find-or-create for agegroup + division (idempotent with team placement path)
         var waitlistAgName = $"WAITLIST - {agegroup.AgegroupName}";
         var waitlistAg = await FindOrCreateWaitlistAgegroupAsync(
             agegroup, waitlistAgName, userId, cancellationToken);
 
-        var waitlistDivName = $"WAITLIST - {divName ?? agegroup.AgegroupName}";
+        // Holding division is always "Unassigned" (same convention as a normal agegroup),
+        // shared by every waitlist mint path so find-or-create stays idempotent.
         var waitlistDiv = await FindOrCreateDivisionAsync(
-            waitlistAg.AgegroupId, waitlistDivName, userId, cancellationToken);
+            waitlistAg.AgegroupId, DivisionConstants.Unassigned, userId, cancellationToken);
 
         // Find-or-create WAITLIST team mirror (also stamps its $0 fee row)
         var waitlistTeamName = $"WAITLIST - {team.TeamName}";

@@ -109,8 +109,8 @@ public sealed class FamilyService : IFamilyService
         // Build team name lookup
         var teamNameMap = await BuildTeamNameMapAsync(jobId, regsRaw);
 
-        // Division name per assigned team → lets BuildRegistrationDto exclude dropped/waitlist
-        // priors (parked in "Dropped *"/"WAITLIST - *" divisions) from the genuinely-pending set.
+        // Division name per assigned team → lets BuildRegistrationDto exclude dropped priors
+        // (parked in "Dropped *" divisions) from the genuinely-pending set.
         var teamDivNameMap = await BuildTeamDivNameMapAsync(jobId, regsRaw);
 
         // Job-level payment state (rates only) → lets BuildRegistrationDto surface each
@@ -776,8 +776,9 @@ public sealed class FamilyService : IFamilyService
         // Genuinely-pending regs are created at PreSubmit with paid_total = 0; if the player
         // completes payment (even on a free event via ActivateIfFree), bActive is set to 1 — so
         // bActive=0 + paid_total=0 is the abandoned fingerprint regardless of division.
-        // Waitlist teams live in "WAITLIST - *" divisions; a player who abandoned registering
-        // to a WL team has bActive=0 + paid_total=0 and must be shown as pending. A confirmed
+        // Waitlist teams live in a "WAITLIST - *" agegroup (their holding division is just
+        // "Unassigned"); a player who abandoned registering to a WL team has bActive=0 +
+        // paid_total=0 and must be shown as pending regardless of division. A confirmed
         // WL player has bActive=1 and is already excluded. Only Dropped divisions are parked.
         // NOTE: do NOT gate on owed_total > 0 — $0/free events leave owed_total = 0 yet are
         // still genuinely pending.

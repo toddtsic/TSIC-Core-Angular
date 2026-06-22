@@ -627,12 +627,6 @@ public sealed class LadtService : ILadtService
             && !string.Equals(request.DivName, UnassignedDivisionName, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Cannot rename the 'Unassigned' division.");
 
-        // Detect name change for waitlist cascade
-        var oldDivName = div.DivName;
-        var divNameChanged = oldDivName != null && request.DivName != null
-            && !string.Equals(oldDivName, request.DivName, StringComparison.Ordinal)
-            && !oldDivName.Contains("WAITLIST", StringComparison.OrdinalIgnoreCase);
-
         // Check for duplicate division name within the same age group
         if (!string.Equals(div.DivName, request.DivName, StringComparison.OrdinalIgnoreCase))
         {
@@ -648,33 +642,9 @@ public sealed class LadtService : ILadtService
         div.LebUserId = userId;
         div.Modified = DateTime.Now;
 
-        // Cascade rename to WAITLIST division mirror if it exists
-        if (divNameChanged)
-        {
-            var ag = await _agegroupRepo.GetByIdAsync(div.AgegroupId, cancellationToken);
-            if (ag != null)
-            {
-                var agSiblings = await _agegroupRepo.GetByLeagueIdAsync(ag.LeagueId, cancellationToken);
-                var waitlistAg = agSiblings.Find(s =>
-                    string.Equals(s.AgegroupName, $"WAITLIST - {ag.AgegroupName}", StringComparison.OrdinalIgnoreCase));
-                if (waitlistAg != null)
-                {
-                    var waitlistDivs = await _divisionRepo.GetByAgegroupIdAsync(waitlistAg.AgegroupId, cancellationToken);
-                    var waitlistDiv = waitlistDivs.Find(d =>
-                        string.Equals(d.DivName, $"WAITLIST - {oldDivName}", StringComparison.OrdinalIgnoreCase));
-                    if (waitlistDiv != null)
-                    {
-                        var trackedDiv = await _divisionRepo.GetByIdAsync(waitlistDiv.DivId, cancellationToken);
-                        if (trackedDiv != null)
-                        {
-                            trackedDiv.DivName = $"WAITLIST - {request.DivName}";
-                            trackedDiv.LebUserId = userId;
-                            trackedDiv.Modified = DateTime.Now;
-                        }
-                    }
-                }
-            }
-        }
+        // No waitlist-division cascade: the waitlist agegroup's holding division is always
+        // "Unassigned" (it does not embed the source division name), so renaming a real
+        // division never needs to rename anything on the waitlist side.
 
         await _divisionRepo.SaveChangesAsync(cancellationToken);
 
