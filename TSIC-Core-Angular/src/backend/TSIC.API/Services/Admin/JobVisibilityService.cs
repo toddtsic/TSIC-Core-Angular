@@ -1,6 +1,7 @@
 using TSIC.Contracts.Dtos.JobConfig;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Services.Admin;
 
@@ -22,6 +23,12 @@ public class JobVisibilityService : IJobVisibilityService
         var job = await _repo.GetJobByIdAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
+        // Registration relevance is fee-driven: a reg type is only meaningful when its
+        // role's fees exist (Player → player fees, ClubRep → team fees). Sequential
+        // awaits — the repo shares one scoped DbContext (no Task.WhenAll).
+        var playerFeesConfigured = await _repo.JobHasFeesForRoleAsync(jobId, RoleConstants.Player, ct);
+        var teamFeesConfigured = await _repo.JobHasFeesForRoleAsync(jobId, RoleConstants.ClubRep, ct);
+
         return new JobVisibilityDto
         {
             AllowPlayerRegistration = job.BRegistrationAllowPlayer ?? false,
@@ -30,6 +37,8 @@ public class JobVisibilityService : IJobVisibilityService
             ShowPublicRosters = job.BAllowRosterViewPlayer,
             EnableStore = job.BEnableStore ?? false,
             OfferPlayerInsurance = job.BOfferPlayerRegsaverInsurance ?? false,
+            PlayerFeesConfigured = playerFeesConfigured,
+            TeamFeesConfigured = teamFeesConfigured,
         };
     }
 

@@ -17,7 +17,7 @@
 		</div>
 	} @else if (ready()) {
 		<div class="ql-list">
-			@for (t of toggles; track t.key) {
+			@for (t of toggles(); track t.key) {
 				<div class="toggle-row" [class.is-on]="isOn(t.key)" [class.is-off]="!isOn(t.key)">
 					<label class="toggle-control">
 						<input type="checkbox"

@@ -14,6 +14,7 @@ import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
+import { isTournament } from '@infrastructure/constants/job-type.constants';
 import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
 import { ViewScheduleService } from '@views/scheduling/view-schedule/services/view-schedule.service';
@@ -165,7 +166,9 @@ export class JobLandingComponent implements OnDestroy {
 		// belong in this stage; that filter is what sees through a stale toggle.
 		const candidates: HubItem[] = [];
 		if (p.playerRegistrationOpen && !registered) {
-			candidates.push({ key: 'register-player', label: 'Register Player', icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
+			// Tournament: the team registers; a player self-rosters onto one.
+			const playerLabel = isTournament(this.job()?.jobTypeId) ? 'Self-Roster Player' : 'Register Player';
+			candidates.push({ key: 'register-player', label: playerLabel, icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
 		}
 		if (registered && isPlayerOrFamily) {
 			candidates.push({ key: 'my-registration', label: 'My Registration', icon: 'bi-person-badge', routerLink: `${base}/registration/player`, queryParams: { step: 'players' } });

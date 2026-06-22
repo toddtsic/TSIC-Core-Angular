@@ -10,6 +10,9 @@ public interface IJobConfigRepository
 {
     // ── Read ─────────────────────────────────────────────
     Task<Jobs?> GetJobByIdAsync(Guid jobId, CancellationToken ct = default);
+    /// <summary>True if the job has at least one JobFees row for the given role
+    /// (e.g. Player → player fees, ClubRep → team fees). Drives registration relevance.</summary>
+    Task<bool> JobHasFeesForRoleAsync(Guid jobId, string roleId, CancellationToken ct = default);
     Task<GameClockParams?> GetGameClockParamsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<JobAdminCharges>> GetAdminChargesAsync(Guid jobId, CancellationToken ct = default);
 

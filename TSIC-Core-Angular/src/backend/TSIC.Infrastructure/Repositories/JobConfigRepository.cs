@@ -27,6 +27,13 @@ public class JobConfigRepository : IJobConfigRepository
             .FirstOrDefaultAsync(j => j.JobId == jobId, ct);
     }
 
+    public async Task<bool> JobHasFeesForRoleAsync(Guid jobId, string roleId, CancellationToken ct = default)
+    {
+        return await _context.JobFees
+            .AsNoTracking()
+            .AnyAsync(f => f.JobId == jobId && f.RoleId == roleId, ct);
+    }
+
     public async Task<GameClockParams?> GetGameClockParamsAsync(Guid jobId, CancellationToken ct = default)
     {
         return await _context.GameClockParams

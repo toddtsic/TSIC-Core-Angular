@@ -26,6 +26,16 @@ public record JobVisibilityDto
 
     /// <summary>BOfferPlayerRegsaverInsurance — "Insurance Update" card.</summary>
     public required bool OfferPlayerInsurance { get; init; }
+
+    /// <summary>True when the job has Player-role fees configured. The player
+    /// registration toggle is only relevant — and only shown in the editor —
+    /// when player registration can actually be priced.</summary>
+    public required bool PlayerFeesConfigured { get; init; }
+
+    /// <summary>True when the job has ClubRep-role (team) fees configured. The
+    /// team registration toggle is only relevant — and the public "Register Team"
+    /// card only grounds open — when team registration can actually be priced.</summary>
+    public required bool TeamFeesConfigured { get; init; }
 }
 
 /// <summary>

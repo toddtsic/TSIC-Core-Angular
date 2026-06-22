@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { QuickLinksService } from './services/quick-links.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { JobService } from '@infrastructure/services/job.service';
+import { isTournament } from '@infrastructure/constants/job-type.constants';
 import type { JobVisibilityDto, UpdateJobVisibilityRequest } from '@core/api';
 
 /** The flag keys shared by JobVisibilityDto (read) and UpdateJobVisibilityRequest (write). */
@@ -14,6 +16,8 @@ interface ToggleDef {
 	icon: string;
 	onTip: string;
 	offTip: string;
+	/** When false the toggle is irrelevant to this job and is omitted entirely. */
+	relevant: boolean;
 }
 
 /**
@@ -33,6 +37,7 @@ interface ToggleDef {
 export class QuickLinksComponent {
 	private readonly svc = inject(QuickLinksService);
 	private readonly toast = inject(ToastService);
+	private readonly jobService = inject(JobService);
 
 	readonly flags = signal<JobVisibilityDto | null>(null);
 	readonly isLoading = signal(true);
@@ -42,26 +47,50 @@ export class QuickLinksComponent {
 
 	readonly ready = computed(() => !this.isLoading() && !this.loadError() && this.flags() !== null);
 
-	readonly toggles: readonly ToggleDef[] = [
-		{ key: 'allowPlayerRegistration', label: 'Register Player', icon: 'bi-person-plus',
-			onTip: 'Players can register — the "Register Player" card shows on the landing page.',
-			offTip: 'Player registration is closed — the card is hidden.' },
+	// Tournament jobs reframe player registration as "self-rostering" (the team is
+	// the registering entity; a player joins one). Centralized via isTournament so
+	// this never drifts from the public hero card.
+	//
+	// Registration toggles are fee-relevance-gated: player ↔ Player fees,
+	// team ↔ ClubRep fees. A reg type with no fees configured can't be priced, so
+	// it's irrelevant to this job and omitted — mirrors the public hero's gating.
+	readonly toggles = computed<ToggleDef[]>(() => {
+		const f = this.flags();
+		if (!f) return [];
+		const tournament = isTournament(this.jobService.currentJob()?.jobTypeId);
+		return ([
+		{ key: 'allowPlayerRegistration',
+			label: tournament ? 'Allow Player Self-Rostering' : 'Allow Player Registration',
+			icon: 'bi-person-plus',
+			relevant: f.playerFeesConfigured,
+			onTip: tournament
+				? 'Players can self-roster onto a team — the "Self-Roster Player" card shows on the landing page.'
+				: 'Players can register — the "Register Player" card shows on the landing page.',
+			offTip: tournament
+				? 'Self-rostering is closed — the card is hidden.'
+				: 'Player registration is closed — the card is hidden.' },
 		{ key: 'allowTeamRegistration', label: 'Register Team', icon: 'bi-people',
-			onTip: 'Teams can register — the "Register Team" card shows (Tournament/League jobs only).',
+			relevant: f.teamFeesConfigured,
+			onTip: 'Teams can register — the "Register Team" card shows on the landing page.',
 			offTip: 'Team registration is closed — the card is hidden.' },
 		{ key: 'publishSchedule', label: 'View Schedule', icon: 'bi-calendar-event',
+			relevant: true,
 			onTip: 'The public schedule is visible — the "View Schedule" card shows.',
 			offTip: 'The schedule is not public — the card is hidden.' },
 		{ key: 'showPublicRosters', label: 'Rosters', icon: 'bi-list-ul',
+			relevant: true,
 			onTip: 'Public player rosters are visible — the "Rosters" card shows.',
 			offTip: 'Public rosters are hidden — the card is hidden.' },
 		{ key: 'enableStore', label: 'Store', icon: 'bi-bag',
+			relevant: true,
 			onTip: 'The store is enabled — the "Store" card shows once it has active items.',
 			offTip: 'The store is disabled — the card is hidden.' },
 		{ key: 'offerPlayerInsurance', label: 'Player Insurance', icon: 'bi-shield-check',
+			relevant: true,
 			onTip: 'RegSaver insurance is offered — the "Insurance Update" card shows.',
 			offTip: 'Insurance is not offered — the card is hidden.' },
-	];
+		] as ToggleDef[]).filter(t => t.relevant);
+	});
 
 	constructor() {
 		this.svc.get().subscribe({

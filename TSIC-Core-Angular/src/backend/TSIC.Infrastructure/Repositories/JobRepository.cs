@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
@@ -467,6 +468,8 @@ public class JobRepository : IJobRepository
     public async Task<Contracts.Dtos.JobPulseDto?> GetJobPulseAsync(string jobPath, CancellationToken cancellationToken = default)
     {
         var now = DateTime.Now;
+        var playerRoleId = RoleConstants.Player;      // player fees live under the Player role
+        var clubRepRoleId = RoleConstants.ClubRep;   // team fees live under the ClubRep role
 
         // Step 1: pulse fields + identity (CustomerId, JobName, JobId) for the supersession check.
         var row = await _context.Jobs
@@ -476,7 +479,12 @@ public class JobRepository : IJobRepository
             {
                 Pulse = new Contracts.Dtos.JobPulseDto
                 {
-                    PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true,
+                    // Fee-driven, symmetric with the team gate below: player reg is only
+                    // open when Player fees are configured so the registration can be priced
+                    // (a $0 row counts — "configured" means a JobFees row exists, not amount > 0;
+                    // no row at all → FeeResolutionService throws, so the card would dead-end).
+                    PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true
+                        && _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == playerRoleId),
                     // Mirrors TeamRepository.GetAvailableTeamsQueryResultsAsync filters exactly.
                     PlayerTeamsAvailableForRegistration = _context.Teams.Any(t =>
                         t.JobId == j.JobId
@@ -487,9 +495,11 @@ public class JobRepository : IJobRepository
                         && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
                         && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist")),
                     PlayerRegRequiresToken = j.BplayerRegRequiresToken == true,
-                    // Team reg only meaningful for Tournament (2) and League (3) job types
+                    // Team reg relevance is fee-driven, not job-type-driven: it's only
+                    // meaningful when ClubRep (team) fees are configured so the registration
+                    // can be priced. Mirrors the Quick Links editor's TeamFeesConfigured gate.
                     TeamRegistrationOpen = j.BRegistrationAllowTeam == true
-                        && (j.JobTypeId == 2 || j.JobTypeId == 3),
+                        && _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == clubRepRoleId),
                     TeamRegRequiresToken = j.BteamRegRequiresToken,
                     ClubRepAllowAdd = j.BClubRepAllowAdd == true,
                     ClubRepAllowEdit = j.BClubRepAllowEdit == true,
