@@ -137,7 +137,8 @@ $adminManifest = @(
     # -- LADT --------------------------------------------------------------
     (New-AdminItem 'LADT' 'diagram-3' 4 'Editor'          'pencil-square'    'ladt/editor'          1 1 1 1)
     (New-AdminItem 'LADT' 'diagram-3' 4 'Roster Swapper'  'arrow-left-right' 'ladt/roster-swapper'  2 1 1 1)
-    (New-AdminItem 'LADT' 'diagram-3' 4 'Pool Assignment' 'people'           'ladt/pool-assignment' 3 1 1 1)
+    (New-AdminItem 'LADT' 'diagram-3' 4 'Coach Approvals' 'person-check'     'ladt/coach-approvals' 3 1 1 1)
+    (New-AdminItem 'LADT' 'diagram-3' 4 'Pool Assignment' 'people'           'ladt/pool-assignment' 4 1 1 1)
 
     # -- Scheduling (section-gated to Tournament/League via $sectionRules) -
     # Schedule Hub leads the section as the entry-point dashboard with a NEW chip.

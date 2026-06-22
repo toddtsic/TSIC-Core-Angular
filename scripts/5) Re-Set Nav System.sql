@@ -134,7 +134,8 @@ INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Push No
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Team Links', N'link-45deg', N'communications/team-links', 4, 1, 1, 1, N'{"requiresFlags":["playerSiteOnly"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Coach Approvals', N'person-check', N'ladt/coach-approvals', 3, 1, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Pool Assignment', N'people', N'ladt/pool-assignment', 4, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Schedule Hub', N'house-door', N'scheduling/schedule-hub', 1, 1, 1, 1, NULL, N'NEW');
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'View Schedule', N'eye', N'scheduling/view-schedule', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Scheduling', N'calendar', 5, N'Bracket Seeds', N'trophy', N'scheduling/bracket-seeds', 3, 1, 1, 1, NULL, NULL);
