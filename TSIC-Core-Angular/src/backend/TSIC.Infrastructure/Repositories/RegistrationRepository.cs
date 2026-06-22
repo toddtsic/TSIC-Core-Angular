@@ -558,16 +558,28 @@ public class RegistrationRepository : IRegistrationRepository
                 Last = r.User.LastName,
                 RoleName = r.Role!.Name,
                 AgegroupName = r.AssignedTeam!.Agegroup!.AgegroupName,
-                TeamName = r.AssignedTeam.TeamName
+                TeamName = r.AssignedTeam.TeamName,
+                // Owning club, when the assigned team is rostered by a club rep.
+                // Route: Teams.ClubrepRegistrationid -> Registrations.ClubName
+                // (same source the family accounting ledger uses).
+                ClubName = r.AssignedTeam.ClubrepRegistration != null
+                    ? r.AssignedTeam.ClubrepRegistration.ClubName
+                    : null
             })
             .SingleOrDefaultAsync(cancellationToken);
 
         if (data == null)
             return null;
 
-        return data.AssignedTeamId != null
-            ? $"{data.JobName}:{data.First} {data.Last}:{data.AgegroupName}:{data.TeamName}"
-            : $"{data.RoleName}:{data.First} {data.Last}";
+        if (data.AssignedTeamId == null)
+            return $"{data.RoleName}:{data.First} {data.Last}";
+
+        // Prefix the owning club name onto the team segment when present:
+        // "{Club}: {Team}" mirrors the ledger label.
+        var teamSegment = string.IsNullOrWhiteSpace(data.ClubName)
+            ? data.TeamName
+            : $"{data.ClubName}: {data.TeamName}";
+        return $"{data.JobName}:{data.First} {data.Last}:{data.AgegroupName}:{teamSegment}";
     }
 
     public async Task<Guid?> GetRegistrationJobIdAsync(

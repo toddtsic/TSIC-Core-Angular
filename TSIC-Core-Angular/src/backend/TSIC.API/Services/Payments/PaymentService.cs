@@ -778,7 +778,11 @@ public class PaymentService : IPaymentService
             }
 
             var invoiceNumber = BuildTeamInvoiceNumber(team);
-            var description = $"Team Registration (ARB-Trial fallback): {team.TeamName ?? team.DisplayName}";
+            var fallbackTeamLabel = team.TeamName ?? team.DisplayName;
+            var fallbackClubName = team.ClubrepRegistration?.ClubName?.Trim();
+            if (!string.IsNullOrWhiteSpace(fallbackClubName))
+                fallbackTeamLabel = $"{fallbackClubName}: {fallbackTeamLabel}";
+            var description = $"Team Registration (ARB-Trial fallback): {fallbackTeamLabel}";
 
             AdnTxnResult chargeResult;
             if (creditCard != null)
@@ -974,6 +978,10 @@ public class PaymentService : IPaymentService
         var eventLabel = team.Job.JobName?.Trim();
         var teamLabel = (team.TeamName ?? team.DisplayName)?.Trim();
         if (string.IsNullOrWhiteSpace(teamLabel)) teamLabel = $"Team {team.TeamAi}";
+        // Prefix the owning club name when the team is rostered by a club rep:
+        // "{Club}: {Team}" mirrors the family accounting ledger label.
+        var clubName = team.ClubrepRegistration?.ClubName?.Trim();
+        if (!string.IsNullOrWhiteSpace(clubName)) teamLabel = $"{clubName}: {teamLabel}";
         var description = string.IsNullOrWhiteSpace(eventLabel)
             ? $"Team Registration: {teamLabel}"
             : $"{eventLabel} - Team Registration: {teamLabel}";
@@ -2264,6 +2272,7 @@ public class PaymentService : IPaymentService
 
             string? teamName = null;
             string? agegroupName = null;
+            string? clubName = null;
             if (reg.AssignedTeamId.HasValue)
             {
                 var team = await _teams.GetTeamFromTeamId(reg.AssignedTeamId.Value);
@@ -2272,13 +2281,20 @@ public class PaymentService : IPaymentService
                     teamName = team.TeamName ?? team.DisplayName;
                     agegroupName = team.Agegroup?.AgegroupName;
                 }
+                // Owning club name (when club-rostered) via a reliable projection — the
+                // FindAsync above does not eager-load the ClubrepRegistration nav.
+                clubName = (await _teams.GetOwnerClubNameAsync(reg.AssignedTeamId.Value))?.Trim();
             }
 
             var parts = new List<string>();
             parts.Add($"ARB subscription for {playerFirst} {playerLast}: {jobName}");
             if (!string.IsNullOrWhiteSpace(agegroupName) || !string.IsNullOrWhiteSpace(teamName))
             {
-                var suffix = $" - {agegroupName ?? "Agegroup"}:{teamName ?? "Team"}";
+                // Prefix the owning club: "{Club}: {Team}" mirrors the ledger/charge labels.
+                var teamSegment = string.IsNullOrWhiteSpace(clubName)
+                    ? (teamName ?? "Team")
+                    : $"{clubName}: {teamName ?? "Team"}";
+                var suffix = $" - {agegroupName ?? "Agegroup"}:{teamSegment}";
                 parts.Add(suffix);
             }
             var raw = string.Concat(parts);

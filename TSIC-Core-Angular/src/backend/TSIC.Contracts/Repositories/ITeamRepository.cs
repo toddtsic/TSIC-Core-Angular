@@ -207,6 +207,14 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Owning club name when the team is rostered by a club rep, else null.
+    /// Route: Teams.ClubrepRegistrationid -> Registrations.ClubName.
+    /// </summary>
+    Task<string?> GetOwnerClubNameAsync(
+        Guid teamId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get registered teams for a club rep with payment-related details for insurance offer.
     /// Returns teams eligible for insurance purchase (active, has fees, not already insured).
     /// </summary>

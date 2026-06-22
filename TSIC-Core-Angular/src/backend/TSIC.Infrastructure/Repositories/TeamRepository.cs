@@ -185,8 +185,25 @@ public class TeamRepository : ITeamRepository
         return await _context.Teams
             .Include(t => t.Job)
                 .ThenInclude(j => j.Customer)
+            // Owning club (when rostered by a club rep) so the ADN charge description can
+            // prefix the club name. Route: Teams.ClubrepRegistrationid -> Registrations.ClubName.
+            .Include(t => t.ClubrepRegistration)
             .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<string?> GetOwnerClubNameAsync(
+        Guid teamId,
+        CancellationToken cancellationToken = default)
+    {
+        // Owning club name when the team is rostered by a club rep, else null.
+        // Route: Teams.ClubrepRegistrationid -> Registrations.ClubName (same source the
+        // family accounting ledger and player charge description use).
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.TeamId == teamId && t.ClubrepRegistration != null)
+            .Select(t => t.ClubrepRegistration!.ClubName)
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForPaymentAsync(
