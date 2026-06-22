@@ -131,18 +131,34 @@ export class AccountingLedgerComponent {
 	private otherGroupKeys = computed(() =>
 		new Set(this.effectiveGroups().filter(g => !g.active).map(g => g.key)));
 
-	/** Active records */
+	/** Sort key that groups ledger rows by the team a transaction involves. Prefers the
+	 *  record's own assigned-team stamp (family / single-registration paths), falling back to
+	 *  its group label (the club-rep path keys rows by team). Unattributed rows sort first. */
+	private teamSortKey(r: AccountingRecordDto): string {
+		return (this.ownerTeamLabel(r) ?? this.teamNameFor(r) ?? '').toLowerCase();
+	}
+
+	/** Order rows by involved team. Stable + numeric-aware (so "U9" precedes "U10"); equal
+	 *  team keys keep their incoming order (chronological / by AId). */
+	private byTeam(records: AccountingRecordDto[]): AccountingRecordDto[] {
+		return [...records].sort((a, b) =>
+			this.teamSortKey(a).localeCompare(this.teamSortKey(b), undefined, { numeric: true }));
+	}
+
+	/** Active records, grouped by involved team */
 	activeRecords = computed(() => {
 		const other = this.otherGroupKeys();
-		if (other.size === 0) return this.records();
-		return this.records().filter(r => { const k = this.recordKey(r); return !k || !other.has(k); });
+		const base = other.size === 0
+			? this.records()
+			: this.records().filter(r => { const k = this.recordKey(r); return !k || !other.has(k); });
+		return this.byTeam(base);
 	});
 
-	/** Records belonging to excluded groups */
+	/** Records belonging to excluded groups, grouped by involved team */
 	otherRecords = computed(() => {
 		const other = this.otherGroupKeys();
 		if (other.size === 0) return [];
-		return this.records().filter(r => { const k = this.recordKey(r); return k != null && other.has(k); });
+		return this.byTeam(this.records().filter(r => { const k = this.recordKey(r); return k != null && other.has(k); }));
 	});
 
 	// ── Outputs (callback pattern — parent handles API calls) ──
