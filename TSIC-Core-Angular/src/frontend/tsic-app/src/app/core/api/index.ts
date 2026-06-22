@@ -350,6 +350,7 @@ export type { JobReportEntryDto } from './models/JobReportEntryDto';
 export type { JobRevenueDataDto } from './models/JobRevenueDataDto';
 export type { JobRevenueRecordDto } from './models/JobRevenueRecordDto';
 export type { JobTypeRefDto } from './models/JobTypeRefDto';
+export type { JobVisibilityDto } from './models/JobVisibilityDto';
 export type { JobWidgetEntryDto } from './models/JobWidgetEntryDto';
 export type { LadtAgegroupNode } from './models/LadtAgegroupNode';
 export type { LadtDivisionNode } from './models/LadtDivisionNode';
@@ -707,6 +708,7 @@ export type { UpdateJobConfigPaymentRequest } from './models/UpdateJobConfigPaym
 export type { UpdateJobConfigPlayerRequest } from './models/UpdateJobConfigPlayerRequest';
 export type { UpdateJobConfigSchedulingRequest } from './models/UpdateJobConfigSchedulingRequest';
 export type { UpdateJobConfigTeamsRequest } from './models/UpdateJobConfigTeamsRequest';
+export type { UpdateJobVisibilityRequest } from './models/UpdateJobVisibilityRequest';
 export type { UpdateLastMonthsJobStatRequest } from './models/UpdateLastMonthsJobStatRequest';
 export type { UpdateLeagueRequest } from './models/UpdateLeagueRequest';
 export type { UpdateMenuActiveRequest } from './models/UpdateMenuActiveRequest';

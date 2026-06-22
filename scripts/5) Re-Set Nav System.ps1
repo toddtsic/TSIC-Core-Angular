@@ -123,9 +123,10 @@ $adminManifest = @(
     (New-AdminItem 'Configure' 'gear' 2 'Customers'         'building'     'configure/customers'        7  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Theme'             'palette'      'configure/theme'            8  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Nav Editor'        'list'         'configure/nav-editor'       9  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Widget Editor'     'grid'         'configure/widget-editor'    10 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Job Clone'         'copy'         'configure/job-clone'        11 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'  'collection'   'reporting/report-catalogue-editor' 12 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Widget Editor'     'grid'             'configure/widget-editor'    10 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Quick Links'       'lightning-charge' 'configure/quick-links'      11 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Job Clone'         'copy'             'configure/job-clone'        12 0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'  'collection'       'reporting/report-catalogue-editor' 13 0 0 1)
 
     # -- Communications ----------------------------------------------------
     (New-AdminItem 'Communications' 'megaphone' 3 'Bulletins'         'megaphone'     'communications/bulletins'         1 1 1 1)

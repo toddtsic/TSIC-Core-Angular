@@ -300,6 +300,7 @@ builder.Services.AddScoped<IWidgetEditorService, WidgetEditorService>();
 builder.Services.AddScoped<IJobCloneService, JobCloneService>();
 builder.Services.AddScoped<IDdlOptionsService, DdlOptionsService>();
 builder.Services.AddScoped<IJobConfigService, JobConfigService>();
+builder.Services.AddScoped<IJobVisibilityService, JobVisibilityService>();
 // ARB Defensive
 builder.Services.AddScoped<IArbDefensiveService, ArbDefensiveService>();
 // Customer Configure

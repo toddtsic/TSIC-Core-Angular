@@ -171,6 +171,12 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/configure/widget-editor/widget-editor.component').then(m => m.WidgetEditorComponent)
 					},
 					{
+						path: 'quick-links',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/configure/quick-links/quick-links.component').then(m => m.QuickLinksComponent)
+					},
+					{
 						path: 'job-clone',
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser] },

@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-06-18 07:26:05 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-06-22 13:09:00 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -125,6 +125,7 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Customers', N'bui
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 8, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Nav Editor', N'list', N'configure/nav-editor', 9, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Widget Editor', N'grid', N'configure/widget-editor', 10, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Quick Links', N'lightning-charge', N'configure/quick-links', 11, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'copy', N'configure/job-clone', 12, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 13, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL, NULL);
