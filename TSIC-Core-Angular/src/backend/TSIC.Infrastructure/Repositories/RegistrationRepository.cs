@@ -2702,25 +2702,26 @@ public class RegistrationRepository : IRegistrationRepository
     }
 
     /// <summary>
-    /// Build Rule (one-time seed), driven from ASSIGNMENTS, not anchors: legacy coaches were
-    /// directly rostered as Staff (<c>AssignedTeamId</c> set) and may have NO UnassignedAdult
-    /// anchor at all — anchor-driven seeding would never surface them. So we start from every
-    /// current Staff grant in the job, grouped by adult, and snapshot those grants into a tagged
-    /// record as <see cref="AdultTeamRequestSource.Admin"/>:
+    /// Build Rule seed, driven from the UNION of anchors and assignments so all three legacy
+    /// populations are captured accurately. For each adult that has EITHER an UnassignedAdult
+    /// anchor OR a current Staff grant (<c>AssignedTeamId</c> set) in the job:
     /// <list type="bullet">
-    /// <item>an ACTIVE anchor already exists and is not yet codified → snapshot grants into it
-    ///   (preserving any free-text as the note);</item>
-    /// <item>NO anchor exists → MINT an active UnassignedAdult anchor and seed its record, so the
-    ///   directly-rostered legacy coach appears in the queue;</item>
-    /// <item>only an INACTIVE anchor exists → leave it (a director already denied them; we don't
-    ///   resurrect a denied coach).</item>
+    /// <item><b>Anchor only</b> (no grants) — nothing to codify; left as-is (an empty/free-text
+    ///   record is preserved and the queue read surfaces them on their own).</item>
+    /// <item><b>Staff only</b> (no anchor) — the directly-rostered legacy coach: MINT an active
+    ///   anchor (carrying the Staff club label + earliest roster date) and seed its record with
+    ///   the grants as <see cref="AdultTeamRequestSource.Admin"/>, so they appear in the queue.</item>
+    /// <item><b>Both</b> (anchor + grants) — merge the current grants into the existing active
+    ///   anchor's record as <see cref="AdultTeamRequestSource.Admin"/>; <see cref="AdultTeamRequestData.AddTeam"/>
+    ///   dedups and never downgrades a prior <c>self</c> request, so this only ADDS grants not yet
+    ///   recorded. An INACTIVE anchor is left untouched (a director already denied them).</item>
     /// </list>
-    /// Runs before the queue read. Idempotent — an already-codified anchor is skipped and a minted
-    /// anchor exists on the next run, so it never rebuilds after subsequent changes.
+    /// Runs before the queue read. Idempotent: when the record already matches the live grants the
+    /// merge adds nothing and no write happens, and a minted anchor exists on the next run.
     /// </summary>
     public async Task SeedAdultRequestRecordsAsync(Guid jobId, string adminUserId, CancellationToken ct = default)
     {
-        // 1. Current Staff grants in the job = the assignment source of truth, grouped by adult.
+        // Current Staff grants in the job = the assignment source of truth, grouped by adult.
         var staffRows = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.JobId == jobId
@@ -2728,15 +2729,12 @@ public class RegistrationRepository : IRegistrationRepository
                 && r.UserId != null && r.AssignedTeamId != null)
             .Select(r => new { r.UserId, TeamId = r.AssignedTeamId!.Value, r.ClubName, r.RegistrationTs })
             .ToListAsync(ct);
-        if (staffRows.Count == 0) return;
-
         var grantsByUser = staffRows
             .GroupBy(r => r.UserId!)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // 2. Existing UnassignedAdult anchors for the job (active OR inactive), tracked so we can
-        //    snapshot into them. Any anchor (any status) suppresses minting; we prefer the active
-        //    one when both somehow exist.
+        // Existing UnassignedAdult anchors for the job (active OR inactive), tracked so we can
+        // merge into them. Any anchor (any status) suppresses minting; prefer the active one.
         var anchors = await _context.Registrations
             .Where(r => r.JobId == jobId && r.Role!.Name == RoleConstants.Names.UnassignedAdultName)
             .ToListAsync(ct);
@@ -2745,32 +2743,40 @@ public class RegistrationRepository : IRegistrationRepository
             .GroupBy(a => a.UserId!)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.BActive == true).First());
 
+        if (grantsByUser.Count == 0 && anchorByUser.Count == 0) return;
+
         var now = DateTime.Now;
         var changed = false;
 
-        foreach (var (userId, grants) in grantsByUser)
+        // Iterate the UNION of adults: those with an anchor and those with a grant.
+        foreach (var userId in anchorByUser.Keys.Union(grantsByUser.Keys))
         {
-            var teamIds = grants.Select(g => g.TeamId).Distinct().ToList();
-            if (teamIds.Count == 0) continue;
+            var grants = grantsByUser.TryGetValue(userId, out var g) ? g : new();
+            var teamIds = grants.Select(x => x.TeamId).Distinct().ToList();
 
             if (anchorByUser.TryGetValue(userId, out var anchor))
             {
-                // Existing anchor. Respect a director's deny — never touch an inactive anchor.
+                // Anchor exists (with or without grants). Respect a director's deny.
                 if (anchor.BActive != true) continue;
 
+                // Anchor-only (no grants) → no team to record; AddTeam loop is a no-op and the
+                // free-text note is preserved. Both → merge the live grants in as Admin.
                 var data = AdultTeamRequestData.Parse(anchor.SpecialRequests); // free-text → note
-                if (data.IsStructured) continue; // already codified — never rebuild
-
+                var added = false;
                 foreach (var tid in teamIds)
-                    data.AddTeam(tid, AdultTeamRequestSource.Admin);
-                anchor.SpecialRequests = AdultTeamRequestData.Serialize(data);
-                anchor.Modified = now;
-                anchor.LebUserId = adminUserId;
-                changed = true;
+                    added |= data.AddTeam(tid, AdultTeamRequestSource.Admin);
+
+                if (added)
+                {
+                    anchor.SpecialRequests = AdultTeamRequestData.Serialize(data);
+                    anchor.Modified = now;
+                    anchor.LebUserId = adminUserId;
+                    changed = true;
+                }
             }
             else
             {
-                // Legacy directly-rostered coach with NO anchor → mint one and seed its record.
+                // Staff-only: directly-rostered legacy coach with NO anchor → mint + seed.
                 var data = new AdultTeamRequestData();
                 foreach (var tid in teamIds)
                     data.AddTeam(tid, AdultTeamRequestSource.Admin);
@@ -2778,7 +2784,7 @@ public class RegistrationRepository : IRegistrationRepository
                 // Carry the club label and earliest roster date from the Staff rows so the queue
                 // row reads truthfully (club + how long they've been on the roster).
                 var clubName = grants
-                    .Select(g => g.ClubName)
+                    .Select(x => x.ClubName)
                     .FirstOrDefault(c => !string.IsNullOrWhiteSpace(c));
 
                 _context.Registrations.Add(new Registrations
@@ -2792,7 +2798,7 @@ public class RegistrationRepository : IRegistrationRepository
                     FamilyUserId = null,
                     ClubName = clubName,
                     SpecialRequests = AdultTeamRequestData.Serialize(data),
-                    RegistrationTs = grants.Min(g => g.RegistrationTs),
+                    RegistrationTs = grants.Min(x => x.RegistrationTs),
                     LebUserId = adminUserId,
                     Modified = now
                 });
