@@ -3,12 +3,10 @@
         <div>
             <h4 class="queue-title">
                 <i class="bi bi-person-check-fill me-2"></i>Coach Approval Queue
+                <app-info-tooltip
+                    trigger="hover"
+                    message="Each coach can be placed on any number of teams — check a team to grant it (gives roster access), un-check to remove them. ★ marks teams the coach asked for; Deny removes a coach from all teams and takes them off this list." />
             </h4>
-            <p class="queue-sub">
-                Each coach can be placed on any number of teams — check a team to grant it
-                (gives roster access), un-check to remove them. ★ marks teams the coach asked for;
-                Deny removes a coach from all teams and takes them off this list.
-            </p>
         </div>
         <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh

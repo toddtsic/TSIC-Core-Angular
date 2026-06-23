@@ -12,16 +12,15 @@
 }
 
 .queue-title {
+    display: flex;
+    align-items: center;
     margin: 0;
     color: var(--brand-text);
     font-weight: 700;
-}
 
-.queue-sub {
-    margin: var(--space-1) 0 0;
-    color: var(--bs-secondary-color);
-    font-size: 0.875rem;
-    max-width: 60ch;
+    app-info-tooltip {
+        font-size: 1rem;
+    }
 }
 
 .empty-state {

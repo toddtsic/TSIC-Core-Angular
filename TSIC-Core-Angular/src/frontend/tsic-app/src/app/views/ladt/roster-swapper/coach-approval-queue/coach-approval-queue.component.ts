@@ -4,6 +4,7 @@ import { forkJoin } from 'rxjs';
 import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 import type { MultiSelectChangeEventArgs } from '@syncfusion/ej2-angular-dropdowns';
 import { ToastService } from '@shared-ui/toast.service';
+import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import {
     RosterSwapperService,
     SwapperPoolOptionDto,
@@ -30,7 +31,7 @@ import {
 @Component({
     selector: 'app-coach-approval-queue',
     standalone: true,
-    imports: [CommonModule, MultiSelectModule],
+    imports: [CommonModule, MultiSelectModule, InfoTooltipComponent],
     providers: [CheckBoxSelectionService],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './coach-approval-queue.component.html',
