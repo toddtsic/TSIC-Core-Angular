@@ -107,22 +107,24 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             // PaymentState.ResolveOwed the charge engine (PaymentService) uses, so the
             // totals the rep is shown for CC / check / eCheck equal exactly what each
             // method charges or records (keeps the AMOUNT_MISMATCH tripwire quiet).
-            // Deposit-phase owed goes through the parallel DepositPrincipalRemaining
-            // helper so the display row factors discount/late-fee the same way owed math does.
+            // Deposit-phase owed goes through the PROPORTIONAL deposit helper so the displayed
+            // "Deposit Due" equals what ArbTrialFeeSplitter actually charges: a discount reduces the
+            // deposit by its pro-rata SHARE (FeeBase = Deposit + BalanceDue here), not front-loaded
+            // onto it. Shown-deposit and charged-deposit derive from the same proportional rule.
             var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
             // donation: 0m — a donation is always charged in full with its payment, so it sits in
             // BOTH the principal base and PrincipalPaid and nets out of these post-payment display
             // columns. RegisteredTeamInfo doesn't carry FeeDonation; threading it would change
             // nothing here. (The charge/stamp paths pass the real FeeDonation.)
-            var depositDue = state.DepositPrincipalRemaining(deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m);
+            var depositDue = state.DepositPrincipalRemainingProportional(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m);
             // Full-payment phase: the balance is active (FeeBase = Deposit + BalanceDue),
             // so "Balance Due" must net out every payment — including a director-recorded
             // check/correction applied while the rep was away. Derive it from the canonical
-            // PaymentState (BalancePrincipalRemaining) so it can never disagree with the
-            // CC/Check Owed columns. Deposit phase: balance not yet active — show the
-            // configured structural balance as a forward-looking "still to come" value.
+            // PaymentState (BalancePrincipalRemainingProportional, the proportional pair of the
+            // deposit above) so it can never disagree with the CC/Check Owed columns. Deposit phase:
+            // balance not yet active — show the configured structural balance as a forward-looking value.
             var additionalDue = teamFullPayment
-                ? state.BalancePrincipalRemaining(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m)
+                ? state.BalancePrincipalRemainingProportional(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m)
                 : balanceDue;
             var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
             var ccOwedTotal = owed.Cc;

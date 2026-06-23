@@ -42,23 +42,4 @@ public static class FeeMath
     /// <summary>OwedTotal = FeeTotal − PaidTotal. Signed: a negative result means overpayment.</summary>
     public static decimal ComputeOwed(decimal feeTotal, decimal paidTotal)
         => feeTotal - paidTotal;
-
-    /// <summary>
-    /// The deposit-phase principal obligation, BEFORE any payment:
-    /// <c>max(0, deposit − discount + lateFee + donation)</c>.
-    ///
-    /// <para>
-    /// <b>The discount front-loads onto the deposit</b> — what is owed first — rather than being
-    /// amortized proportionally across deposit + balance. This is THE single definition of how a
-    /// discount lands across the two phases, shared by the display column
-    /// (<see cref="PaymentState.DepositPrincipalRemaining"/>) and the charge engine
-    /// (ArbTrialFeeSplitter), so the deposit a club rep is SHOWN can never disagree with the deposit
-    /// the gateway actually CHARGES. The balance obligation is the remainder
-    /// (<c>totalNetPrincipal − depositObligation</c>); a discount larger than the deposit spills the
-    /// excess onto the balance, and a discount ≥ the whole bill zeroes both.
-    /// </para>
-    /// Pure, no I/O, decimal-only.
-    /// </summary>
-    public static decimal DepositObligation(decimal deposit, decimal discount, decimal lateFee, decimal donation)
-        => System.Math.Max(0m, deposit - discount + lateFee + donation);
 }

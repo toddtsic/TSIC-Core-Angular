@@ -117,11 +117,28 @@ public record PaymentState
     /// </summary>
     public decimal DepositPrincipalRemaining(decimal deposit, decimal discount, decimal lateFee, decimal donation)
     {
-        // FeeMath.DepositObligation owns the front-load rule (discount off the deposit first); the
-        // charge engine (ArbTrialFeeSplitter) derives the deposit charge from the SAME helper, so
-        // shown-deposit and charged-deposit cannot drift.
-        var effective = FeeMath.DepositObligation(deposit, discount, lateFee, donation);
+        var effective = System.Math.Max(0m, deposit - discount + lateFee + donation);
         return System.Math.Max(0m, effective - PrincipalPaid);
+    }
+
+    /// <summary>
+    /// Proportional deposit-phase principal still owed — the deposit's pro-rata share of the net
+    /// bill (<c>FeeBase − discount + lateFee + donation</c>), matching how <c>ArbTrialFeeSplitter</c>
+    /// allocates the team installment deposit (<c>round(netBase × deposit / feeBase)</c>). Powers the
+    /// TEAM "Deposit Due" column so the shown deposit equals the charged deposit: a discount reduces
+    /// the deposit by its SHARE, not front-loaded onto it.
+    ///
+    /// <para>This is the team analog of <see cref="DepositPrincipalRemaining"/>, which front-loads.
+    /// They coincide for players (a deposit-phase player reg stamps <c>FeeBase = deposit</c>, so the
+    /// ratio is 1); teams stamp <c>FeeBase = deposit + balance</c>, so the ratio actually splits.</para>
+    /// </summary>
+    public decimal DepositPrincipalRemainingProportional(
+        decimal feeBase, decimal deposit, decimal discount, decimal lateFee, decimal donation)
+    {
+        if (feeBase <= 0m) return 0m;
+        var net = System.Math.Max(0m, feeBase - discount + lateFee + donation);
+        var share = System.Math.Round(net * deposit / feeBase, 2, System.MidpointRounding.AwayFromZero);
+        return System.Math.Max(0m, share - PrincipalPaid);
     }
 
     /// <summary>
@@ -146,6 +163,18 @@ public record PaymentState
             0m,
             PrincipalRemaining(feeBase, discount, lateFee, donation)
                 - DepositPrincipalRemaining(deposit, discount, lateFee, donation));
+
+    /// <summary>
+    /// Proportional balance-phase principal still owed — the remainder after the PROPORTIONAL deposit
+    /// share (<see cref="DepositPrincipalRemainingProportional"/>), so the TEAM "Balance Due" column
+    /// stays consistent with the proportional deposit and with <c>ArbTrialFeeSplitter</c>'s balance leg.
+    /// Team analog of <see cref="BalancePrincipalRemaining"/> (which pairs with the front-load deposit).
+    /// </summary>
+    public decimal BalancePrincipalRemainingProportional(decimal feeBase, decimal deposit, decimal discount, decimal lateFee, decimal donation) =>
+        System.Math.Max(
+            0m,
+            PrincipalRemaining(feeBase, discount, lateFee, donation)
+                - DepositPrincipalRemainingProportional(feeBase, deposit, discount, lateFee, donation));
 
     /// <summary>
     /// Proc-fee component currently owed (display "ProcFee Due") — what would

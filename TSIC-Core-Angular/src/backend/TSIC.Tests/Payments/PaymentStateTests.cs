@@ -258,6 +258,68 @@ public class PaymentStateTests
         s.DepositPrincipalRemaining(deposit: 600m, discount: 0m, lateFee: 0m, donation: 0m).Should().Be(0m);
     }
 
+    // ── DepositPrincipalRemainingProportional: TEAM "Deposit Due" (matches ArbTrialFeeSplitter) ──
+    //
+    // The team installment splits a discount PROPORTIONALLY across deposit + balance, so the
+    // deposit-due display must show the deposit's pro-rata share of the net bill — not the
+    // front-loaded value. FeeBase = Deposit + BalanceDue for a team.
+
+    [Fact(DisplayName = "DepositProportional: no discount — owes the full structural deposit")]
+    public void DepositProportional_NoDiscount_FullDeposit()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        // round(1000 × 200/1000) = 200
+        s.DepositPrincipalRemainingProportional(feeBase: 1000m, deposit: 200m, discount: 0m, lateFee: 0m, donation: 0m)
+            .Should().Be(200m);
+    }
+
+    [Fact(DisplayName = "DepositProportional: 10% discount — deposit drops by its SHARE, not front-loaded")]
+    public void DepositProportional_Discount_SharedNotFrontLoaded()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        // net = 1000 − 100 = 900; round(900 × 200/1000) = 180 (NOT the front-load value of 100).
+        s.DepositPrincipalRemainingProportional(feeBase: 1000m, deposit: 200m, discount: 100m, lateFee: 0m, donation: 0m)
+            .Should().Be(180m);
+    }
+
+    [Fact(DisplayName = "DepositProportional: discount exceeds deposit — both legs stay > 0 (no ARB break)")]
+    public void DepositProportional_DiscountExceedsDeposit_DepositStaysPositive()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        // net = 1000 − 300 = 700; round(700 × 200/1000) = 140. Front-load would zero the deposit and
+        // break the ARB-Trial; proportional keeps it positive.
+        s.DepositPrincipalRemainingProportional(feeBase: 1000m, deposit: 200m, discount: 300m, lateFee: 0m, donation: 0m)
+            .Should().Be(140m);
+    }
+
+    [Fact(DisplayName = "DepositProportional: late fee shares pro-rata onto the deposit")]
+    public void DepositProportional_LateFee_Shared()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        // net = 1000 + 50 = 1050; round(1050 × 200/1000) = 210.
+        s.DepositPrincipalRemainingProportional(feeBase: 1000m, deposit: 200m, discount: 0m, lateFee: 50m, donation: 0m)
+            .Should().Be(210m);
+    }
+
+    [Fact(DisplayName = "DepositProportional: player phase (FeeBase == deposit) equals the front-load helper")]
+    public void DepositProportional_PlayerFeeBaseEqualsDeposit_MatchesFrontLoad()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        // A deposit-phase player stamps FeeBase = deposit, so the ratio is 1 and proportional ≡ front-load.
+        var proportional = s.DepositPrincipalRemainingProportional(feeBase: 500m, deposit: 500m, discount: 100m, lateFee: 0m, donation: 0m);
+        var frontLoad = s.DepositPrincipalRemaining(deposit: 500m, discount: 100m, lateFee: 0m, donation: 0m);
+        proportional.Should().Be(frontLoad);
+        proportional.Should().Be(400m);
+    }
+
+    [Fact(DisplayName = "DepositProportional: zero FeeBase — returns 0 (no divide-by-zero)")]
+    public void DepositProportional_ZeroFeeBase_Zero()
+    {
+        var s = PaymentState.Empty(true, 0.038m, 0.01m);
+        s.DepositPrincipalRemainingProportional(feeBase: 0m, deposit: 0m, discount: 0m, lateFee: 0m, donation: 0m)
+            .Should().Be(0m);
+    }
+
     // ── BalancePrincipalRemaining: full-payment-phase "Balance Due" display column ──
     //
     // Balance-phase analog of DepositPrincipalRemaining (total principal remaining
