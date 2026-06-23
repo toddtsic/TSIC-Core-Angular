@@ -799,31 +799,29 @@ public class TeamRegistrationController : ControllerBase
             });
         }
 
-        // Check club rep one-DC-per-registrant rule: resolve club rep from first team
-        var firstTeam = await _teamRepository.GetTeamFromTeamId(request.TeamIds[0]);
-        if (firstTeam?.ClubrepRegistrationid != null)
+        // Discount-code use is gated PER TEAM only (team.DiscountCodeId, in ProcessSingleTeamDiscountAsync),
+        // not once-per-club-rep: a rep may apply a code to each of their teams — even across separate
+        // sessions — while each individual team is still discounted at most once. Per-team soft rejections
+        // (already coded / not found / $0 discount) are non-fatal: they ride back as Success=false rows in
+        // Results[] while the other teams still apply and commit.
+        try
         {
-            var clubRep = await _registrationRepository.GetByIdAsync(firstTeam.ClubrepRegistrationid.Value);
-            if (clubRep?.DiscountCodeId != null)
-            {
-                return Ok(new ApplyTeamDiscountResponseDto
-                {
-                    Success = false,
-                    Message = "A discount code has already been used for this club rep. Only one discount code is allowed per registrant.",
-                    TotalTeamsProcessed = 0,
-                    SuccessCount = 0,
-                    FailureCount = 0,
-                    Results = new List<TeamDiscountResult>()
-                });
-            }
+            var response = await ProcessTeamDiscountsAsync(request.TeamIds, bAsPercent ?? false, amount, discountCodeAi, jobId.Value, userId);
+
+            _logger.LogInformation("ApplyTeamDiscount completed: success={Success} processed={Processed} succeeded={Succeeded} failed={Failed}",
+                response.Success, response.TotalTeamsProcessed, response.SuccessCount, response.FailureCount);
+
+            return Ok(response);
         }
-
-        var response = await ProcessTeamDiscountsAsync(request.TeamIds, bAsPercent ?? false, amount, discountCodeAi, jobId.Value, userId);
-
-        _logger.LogInformation("ApplyTeamDiscount completed: success={Success} processed={Processed} succeeded={Succeeded} failed={Failed}",
-            response.Success, response.TotalTeamsProcessed, response.SuccessCount, response.FailureCount);
-
-        return Ok(response);
+        catch (Exception ex)
+        {
+            // A hard failure mid-batch (e.g. proc-fee adjust, SaveChanges, or club-rep sync throws) escapes
+            // the TransactionScope without Complete(), so the whole batch rolls back — NO team is left
+            // half-discounted. Surface that as a clean, logged 500 instead of a bare framework error.
+            _logger.LogError(ex, "ApplyTeamDiscount failed for code={Code} teams={TeamCount}; transaction rolled back, no discounts applied",
+                request.Code, request.TeamIds.Count);
+            return StatusCode(500, new { message = "An error occurred applying the discount. No changes were made." });
+        }
     }
 
     private async Task<ApplyTeamDiscountResponseDto> ProcessTeamDiscountsAsync(
@@ -860,20 +858,11 @@ public class TeamRegistrationController : ControllerBase
 
             if (clubRepRegistrationId.HasValue)
             {
+                // Roll the per-team discounts up into the club-rep registration financials. The redeemed
+                // code is recorded PER TEAM (team.DiscountCodeId, set in ProcessSingleTeamDiscountAsync);
+                // it is deliberately NOT stamped on the club-rep reg — that stamp used to enforce the
+                // retired one-code-per-club-rep rule, and gating is now purely per team.
                 await _registrationRepository.SynchronizeClubRepFinancialsAsync(clubRepRegistrationId.Value, userId);
-
-                // Set club rep DiscountCodeId to enforce one-DC-per-registrant rule
-                if (discountCodeId > 0 && results.Any(r => r.Success))
-                {
-                    var clubRep = await _registrationRepository.GetByIdAsync(clubRepRegistrationId.Value);
-                    if (clubRep != null)
-                    {
-                        clubRep.DiscountCodeId = discountCodeId;
-                        clubRep.Modified = DateTime.Now;
-                        clubRep.LebUserId = userId;
-                        await _registrationRepository.SaveChangesAsync();
-                    }
-                }
             }
 
             scope.Complete();
