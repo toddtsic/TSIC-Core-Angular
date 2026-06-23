@@ -38,15 +38,25 @@ import type { RegisteredTeamDto } from '@core/api';
                   <button type="button" class="btn-inline-remove"
                           [disabled]="actionInProgress()"
                           (click)="removeTeam.emit(data)"
-                          title="Remove {{ data.teamName }} from event">
+                          title="Remove {{ stripWaitlist(data.teamName) }} from event">
                     <i class="bi bi-trash3"></i>
                   </button>
                 }
-                <span class="fw-semibold">{{ data.teamName }}</span>
+                <span class="fw-semibold">{{ stripWaitlist(data.teamName) }}</span>
               </span>
             </ng-template>
           </e-column>
-          <e-column field="ageGroupName" headerText="Age Group" width="75" [visible]="showAgeGroup()"></e-column>
+          <e-column field="ageGroupName" headerText="Age Group" width="75" [visible]="showAgeGroup()">
+            <ng-template #template let-data>
+              <span class="agegroup-cell">
+                {{ stripWaitlist(data.ageGroupName) }}
+                @if (isWaitlisted(data.ageGroupName)) {
+                  <span class="wl-badge" tabindex="0"
+                        title="Waitlisted under {{ stripWaitlist(data.ageGroupName) }} — placed when a roster spot opens">WL</span>
+                }
+              </span>
+            </ng-template>
+          </e-column>
           <e-column field="levelOfPlay" headerText="LOP" width="55" textAlign="Center" [visible]="showLop()">
             <ng-template #template let-data>
               <span [attr.title]="data.levelOfPlay">{{ formatLop(data.levelOfPlay) }}</span>
@@ -212,6 +222,31 @@ import type { RegisteredTeamDto } from '@core/api';
         display: flex;
         align-items: center;
         gap: var(--space-1);
+      }
+
+      .agegroup-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+      }
+
+      /* Waitlist marker — a twin team lives in a "WAITLIST - {agegroup}" mirror age group.
+         We show the real age group it's waitlisted under and badge it, rather than the
+         mangled prefixed name, so the column reads honestly and fits its width. */
+      .wl-badge {
+        flex-shrink: 0;
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        line-height: 1;
+        letter-spacing: 0.02em;
+        padding: 2px var(--space-1);
+        border-radius: var(--radius-sm);
+        color: var(--bs-warning-text-emphasis);
+        background: rgba(var(--bs-warning-rgb), 0.15);
+        border: 1px solid rgba(var(--bs-warning-rgb), 0.4);
+        cursor: default;
+
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
       }
 
       /* Allow Team-column cells to wrap to two lines when the column is narrow.
@@ -415,6 +450,22 @@ export class RegisteredTeamsGridComponent {
         if (args.requestType === 'sorting' || args.requestType === 'paging' || args.requestType === 'refresh') {
             this.refreshRowNumbers(grid);
         }
+    }
+
+    // Waitlist twins have no flag on the DTO — their status lives only in the name,
+    // minted "WAITLIST - {name}" by the backend (TeamPlacementService). This is the
+    // one place the frontend knows that convention; keep it here, not inline in the
+    // template. If reused elsewhere, promote to a backend `isWaitlist` flag instead.
+    private readonly WAITLIST_PREFIX = 'WAITLIST - ';
+
+    isWaitlisted(name: string | null | undefined): boolean {
+        return !!name && name.startsWith(this.WAITLIST_PREFIX);
+    }
+
+    /** Drop the "WAITLIST - " prefix for display — the WL badge carries the status.
+     *  Applies to both the team name and the (identically-prefixed) age-group name. */
+    stripWaitlist(name: string | null | undefined): string {
+        return this.isWaitlisted(name) ? name!.slice(this.WAITLIST_PREFIX.length) : (name ?? '');
     }
 
     /**
