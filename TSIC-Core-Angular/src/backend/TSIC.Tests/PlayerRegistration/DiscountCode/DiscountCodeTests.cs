@@ -98,6 +98,14 @@ public class DiscountCodeTests
         var paymentState = new Mock<IPaymentStateService>();
         paymentState.Setup(p => p.ForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(TSIC.Contracts.Payments.PaymentState.Empty(bAddProcessingFees, processingFeePercent / 100m, 0.015m));
+        // Per-registration payment state: the real service returns new() (empty) when there are no
+        // payments; ApplyDiscount reads this to rate a code against principal still owed. These tests
+        // apply codes to freshly-seeded regs (no prior deposit → PrincipalPaid 0), so an empty dict
+        // makes the per-reg lookup fall back to the job-level empty state and the discount rates
+        // against the full net bill — exactly as before the checkout-owed basis was introduced.
+        paymentState.Setup(p => p.ForRegistrationsAsync(
+                It.IsAny<IReadOnlyCollection<Guid>>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Dictionary<Guid, TSIC.Contracts.Payments.PaymentState>());
         var logger = new Mock<ILogger<PlayerRegistrationPaymentController>>();
 
         var verticalInsure = new Mock<IVerticalInsureService>();
