@@ -54,6 +54,10 @@ export class PoolAssignmentComponent {
     readonly sourceDropdownOpen = signal(false);
     readonly targetDropdownOpen = signal(false);
 
+    // Dropdown max-height, computed on open to nearly fill the panel's visible area
+    readonly sourceDropdownMaxHeight = signal<number | null>(null);
+    readonly targetDropdownMaxHeight = signal<number | null>(null);
+
     // Source panel
     readonly sourceDivId = signal<string | null>(null);
     readonly sourceDiv = computed(() => this.divisionOptions().find(d => d.divId === this.sourceDivId()) ?? null);
@@ -111,6 +115,32 @@ export class PoolAssignmentComponent {
     }
 
     // ── Custom dropdown helpers ──
+
+    toggleSourceDropdown(event: MouseEvent): void {
+        const opening = !this.sourceDropdownOpen();
+        if (opening) {
+            this.sourceDropdownMaxHeight.set(this.computeDropdownMaxHeight(event.currentTarget as HTMLElement));
+        }
+        this.sourceDropdownOpen.set(opening);
+    }
+
+    toggleTargetDropdown(event: MouseEvent): void {
+        const opening = !this.targetDropdownOpen();
+        if (opening) {
+            this.targetDropdownMaxHeight.set(this.computeDropdownMaxHeight(event.currentTarget as HTMLElement));
+        }
+        this.targetDropdownOpen.set(opening);
+    }
+
+    /** Space from just below the trigger to the bottom of the panel container, minus breathing room. */
+    private computeDropdownMaxHeight(trigger: HTMLElement): number {
+        const triggerBottom = trigger.getBoundingClientRect().bottom;
+        const container = trigger.closest('.pool-assignment-container');
+        const containerBottom = container
+            ? container.getBoundingClientRect().bottom
+            : window.innerHeight;
+        return Math.max(160, Math.floor(containerBottom - triggerBottom - 12));
+    }
 
     selectSourceDiv(divId: string): void {
         this.sourceDropdownOpen.set(false);

@@ -29,17 +29,25 @@
       <!-- ─── SOURCE PANEL ─── -->
       <div class="pool-panel">
         <div class="panel-header">
-          <label class="form-label fw-semibold text-uppercase small mb-1">Source Agegroup:Division</label>
+          <label class="form-label fw-semibold text-uppercase small mb-1 d-flex align-items-center justify-content-between gap-2">
+            <span>Source Agegroup:Division</span>
+            <span class="badge-legend text-body-secondary">
+              <span class="fw-semibold">Key:</span>
+              <span class="badge-legend-chip">n/n</span> teams/max
+              <span class="badge-legend-chip badge-legend-chip--muted">n</span> players
+            </span>
+          </label>
           <div class="pool-dropdown-wrapper">
             <button class="pool-dropdown-trigger form-select form-select-sm text-start"
-                    (click)="sourceDropdownOpen.set(!sourceDropdownOpen())">
+                    (click)="toggleSourceDropdown($event)">
               @if (sourceDiv(); as div) {
                 <span class="color-dot" [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                       [class.color-dot--empty]="!div.agegroupColor"></span>
                 <span class="pool-trigger-agegroup">{{ div.agegroupName }}:</span>{{ div.divName }}
                 <span class="badge rounded-pill ms-1"
                       [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
-                      [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
+                      [style.color]="contrastText(div.agegroupColor)"
+                      title="Teams / Max teams">{{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }}</span>
                 <span class="badge rounded-pill"
                       [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                       [style.color]="contrastText(div.agegroupColor)"
@@ -50,7 +58,7 @@
             </button>
             @if (sourceDropdownOpen()) {
               <div class="pool-dropdown-backdrop" (click)="closeDropdowns()"></div>
-              <div class="pool-dropdown-panel">
+              <div class="pool-dropdown-panel" [style.max-height.px]="sourceDropdownMaxHeight()">
                 @for (group of groupedDivisionOptions(); track group.label) {
                   <div class="pool-dropdown-group-label">{{ group.label }}</div>
                   @for (div of group.divisions; track div.divId) {
@@ -64,7 +72,8 @@
                       <span class="pool-dropdown-name">{{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}</span>
                       <span class="badge rounded-pill"
                             [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
-                            [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
+                            [style.color]="contrastText(div.agegroupColor)"
+                            title="Teams / Max teams">{{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }}</span>
                       <span class="badge rounded-pill"
                             [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                             [style.color]="contrastText(div.agegroupColor)"
@@ -84,9 +93,6 @@
                    [style.background]="capacityColor(sourceDiv())">
               </div>
             </div>
-            <small class="text-body-secondary">
-              {{ sourceDiv()!.teamCount }}/{{ sourceDiv()!.maxTeams }} teams
-            </small>
           }
 
           <!-- Filter -->
@@ -221,17 +227,25 @@
       <!-- ─── TARGET PANEL ─── -->
       <div class="pool-panel">
         <div class="panel-header">
-          <label class="form-label fw-semibold text-uppercase small mb-1">Target Agegroup:Division</label>
+          <label class="form-label fw-semibold text-uppercase small mb-1 d-flex align-items-center justify-content-between gap-2">
+            <span>Target Agegroup:Division</span>
+            <span class="badge-legend text-body-secondary">
+              <span class="fw-semibold">Key:</span>
+              <span class="badge-legend-chip">n/n</span> teams/max
+              <span class="badge-legend-chip badge-legend-chip--muted">n</span> players
+            </span>
+          </label>
           <div class="pool-dropdown-wrapper">
             <button class="pool-dropdown-trigger form-select form-select-sm text-start"
-                    (click)="targetDropdownOpen.set(!targetDropdownOpen())">
+                    (click)="toggleTargetDropdown($event)">
               @if (targetDiv(); as div) {
                 <span class="color-dot" [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                       [class.color-dot--empty]="!div.agegroupColor"></span>
                 <span class="pool-trigger-agegroup">{{ div.agegroupName }}:</span>{{ div.divName }}
                 <span class="badge rounded-pill ms-1"
                       [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
-                      [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
+                      [style.color]="contrastText(div.agegroupColor)"
+                      title="Teams / Max teams">{{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }}</span>
                 <span class="badge rounded-pill"
                       [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                       [style.color]="contrastText(div.agegroupColor)"
@@ -242,7 +256,7 @@
             </button>
             @if (targetDropdownOpen()) {
               <div class="pool-dropdown-backdrop" (click)="closeDropdowns()"></div>
-              <div class="pool-dropdown-panel">
+              <div class="pool-dropdown-panel" [style.max-height.px]="targetDropdownMaxHeight()">
                 @for (group of groupedDivisionOptions(); track group.label) {
                   <div class="pool-dropdown-group-label">{{ group.label }}</div>
                   @for (div of group.divisions; track div.divId) {
@@ -256,7 +270,8 @@
                       <span class="pool-dropdown-name">{{ div.divName }}{{ div.isDroppedTeams ? ' [Dropped]' : '' }}</span>
                       <span class="badge rounded-pill"
                             [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
-                            [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
+                            [style.color]="contrastText(div.agegroupColor)"
+                            title="Teams / Max teams">{{ div.teamCount }}{{ div.maxTeams > 0 ? '/' + div.maxTeams : '' }}</span>
                       <span class="badge rounded-pill"
                             [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                             [style.color]="contrastText(div.agegroupColor)"
@@ -276,9 +291,6 @@
                    [style.background]="capacityColor(targetDiv())">
               </div>
             </div>
-            <small class="text-body-secondary">
-              {{ targetDiv()!.teamCount }}/{{ targetDiv()!.maxTeams }} teams
-            </small>
           }
 
           <!-- Filter -->
