@@ -7,6 +7,7 @@ export type SwapperPoolOptionDto = {
     poolName: string;
     isUnassignedAdultsPool: boolean;
     agegroupName?: string | null;
+    agegroupColor?: string | null;
     divName?: string | null;
     agegroupId?: string | null;
     divId?: string | null;

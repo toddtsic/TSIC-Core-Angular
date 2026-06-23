@@ -8,6 +8,7 @@ import {
     SwapperPoolOptionDto,
     SwapperPlayerDto
 } from './services/roster-swapper.service';
+import { contrastText } from '../../scheduling/shared/utils/scheduling-helpers';
 
 interface PoolGroup {
     label: string;
@@ -32,6 +33,14 @@ export class RosterSwapperComponent {
     // Pool options
     readonly poolOptions = signal<SwapperPoolOptionDto[]>([]);
     readonly groupedPoolOptions = computed<PoolGroup[]>(() => this.groupByCategory(this.poolOptions()));
+
+    // Custom dropdown open state
+    readonly sourceDropdownOpen = signal(false);
+    readonly targetDropdownOpen = signal(false);
+
+    // Dropdown max-height, computed on open to nearly fill the panel's visible area
+    readonly sourceDropdownMaxHeight = signal<number | null>(null);
+    readonly targetDropdownMaxHeight = signal<number | null>(null);
 
     // Source panel
     readonly sourcePoolId = signal<string | null>(null);
@@ -74,12 +83,68 @@ export class RosterSwapperComponent {
             next: pools => {
                 this.poolOptions.set(pools);
                 this.isLoading.set(false);
+                // Auto-select the first team as the source on initial load
+                if (!this.sourcePoolId()) {
+                    const first = this.groupedPoolOptions()[0]?.pools[0];
+                    if (first) this.onSourcePoolChange(first.poolId);
+                }
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to load pool options.', 'danger', 4000);
                 this.isLoading.set(false);
             }
         });
+    }
+
+    // ── Custom dropdown helpers ──
+
+    toggleSourceDropdown(event: MouseEvent): void {
+        const opening = !this.sourceDropdownOpen();
+        if (opening) {
+            this.sourceDropdownMaxHeight.set(this.computeDropdownMaxHeight(event.currentTarget as HTMLElement));
+        }
+        this.sourceDropdownOpen.set(opening);
+    }
+
+    toggleTargetDropdown(event: MouseEvent): void {
+        const opening = !this.targetDropdownOpen();
+        if (opening) {
+            this.targetDropdownMaxHeight.set(this.computeDropdownMaxHeight(event.currentTarget as HTMLElement));
+        }
+        this.targetDropdownOpen.set(opening);
+    }
+
+    selectSourcePool(poolId: string): void {
+        this.sourceDropdownOpen.set(false);
+        this.onSourcePoolChange(poolId);
+    }
+
+    selectTargetPool(poolId: string): void {
+        this.targetDropdownOpen.set(false);
+        this.onTargetPoolChange(poolId);
+    }
+
+    closeDropdowns(): void {
+        this.sourceDropdownOpen.set(false);
+        this.targetDropdownOpen.set(false);
+    }
+
+    readonly contrastText = contrastText;
+
+    /** Space from just below the trigger to the bottom of the panel container, minus breathing room. */
+    private computeDropdownMaxHeight(trigger: HTMLElement): number {
+        const triggerBottom = trigger.getBoundingClientRect().bottom;
+        const container = trigger.closest('.roster-swapper-container');
+        const containerBottom = container
+            ? container.getBoundingClientRect().bottom
+            : window.innerHeight;
+        return Math.max(160, Math.floor(containerBottom - triggerBottom - 12));
+    }
+
+    /** Agegroup/division context for a pool, shown as a prefix on the selected-team trigger. */
+    poolGroupLabel(pool: SwapperPoolOptionDto): string {
+        if (!pool.agegroupName) return '';
+        return pool.divName ? `${pool.agegroupName} / ${pool.divName}` : pool.agegroupName;
     }
 
     onSourcePoolChange(poolId: string) {
@@ -320,11 +385,9 @@ export class RosterSwapperComponent {
 
     private groupByCategory(pools: SwapperPoolOptionDto[]): PoolGroup[] {
         const groups: PoolGroup[] = [];
-        const unassigned = pools.filter(p => p.isUnassignedAdultsPool);
-        if (unassigned.length > 0) {
-            groups.push({ label: 'Unassigned Adults', pools: unassigned });
-        }
 
+        // Unassigned Adults is intentionally excluded — that flow now lives in
+        // LADT Coach Approvals (coach-approval-queue), not the Roster Swapper.
         const teamsByGroup = new Map<string, SwapperPoolOptionDto[]>();
         for (const pool of pools) {
             if (pool.isUnassignedAdultsPool) continue;

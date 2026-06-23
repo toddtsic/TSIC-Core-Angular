@@ -28,23 +28,55 @@
       <!-- ─── SOURCE PANEL ─── -->
       <div class="swapper-panel">
         <div class="panel-header">
-          <label class="form-label fw-semibold text-uppercase small mb-1">Source Team</label>
-          <select class="form-select form-select-sm"
-                  [ngModel]="sourcePoolId()"
-                  (ngModelChange)="onSourcePoolChange($event)">
-            <option [ngValue]="null" disabled>Select a team...</option>
-            @for (group of groupedPoolOptions(); track group.label) {
-              <optgroup [label]="group.label">
-                @for (pool of group.pools; track pool.poolId) {
-                  <option [value]="pool.poolId"
-                          [disabled]="pool.poolId === targetPoolId()">
-                    {{ pool.poolName }}
-                    ({{ pool.rosterCount }}{{ pool.maxCount > 0 ? '/' + pool.maxCount : '' }})
-                  </option>
+          <label class="form-label fw-semibold text-uppercase small mb-1 d-flex align-items-center justify-content-between gap-2">
+            <span>Source Team</span>
+            <span class="badge-legend text-body-secondary">
+              <span class="fw-semibold">Key:</span>
+              <span class="badge-legend-chip">n/n</span> roster/max
+            </span>
+          </label>
+          <div class="pool-dropdown-wrapper">
+            <button class="pool-dropdown-trigger form-select form-select-sm text-start"
+                    (click)="toggleSourceDropdown($event)">
+              @if (sourcePool(); as pool) {
+                <span class="color-dot" [style.background]="pool.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [class.color-dot--empty]="!pool.agegroupColor"></span>
+                @if (poolGroupLabel(pool); as gl) {
+                  <span class="pool-trigger-agegroup">{{ gl }}:</span>
                 }
-              </optgroup>
+                {{ pool.poolName }}
+                <span class="badge rounded-pill ms-1"
+                      [style.background]="pool.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [style.color]="contrastText(pool.agegroupColor)"
+                      title="Roster / Roster Max">{{ pool.rosterCount }}{{ pool.maxCount > 0 ? '/' + pool.maxCount : '' }}</span>
+              } @else {
+                Select a team...
+              }
+            </button>
+            @if (sourceDropdownOpen()) {
+              <div class="pool-dropdown-backdrop" (click)="closeDropdowns()"></div>
+              <div class="pool-dropdown-panel" [style.max-height.px]="sourceDropdownMaxHeight()">
+                @for (group of groupedPoolOptions(); track group.label) {
+                  <div class="pool-dropdown-group-label">{{ group.label }}</div>
+                  @for (pool of group.pools; track pool.poolId) {
+                    <button class="pool-dropdown-item"
+                            [class.active]="pool.poolId === sourcePoolId()"
+                            [class.disabled]="pool.poolId === targetPoolId()"
+                            [disabled]="pool.poolId === targetPoolId()"
+                            (click)="selectSourcePool(pool.poolId)">
+                      <span class="color-dot" [style.background]="pool.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [class.color-dot--empty]="!pool.agegroupColor"></span>
+                      <span class="pool-dropdown-name">{{ pool.poolName }}</span>
+                      <span class="badge rounded-pill"
+                            [style.background]="pool.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [style.color]="contrastText(pool.agegroupColor)"
+                            title="Roster / Roster Max">{{ pool.rosterCount }}{{ pool.maxCount > 0 ? '/' + pool.maxCount : '' }}</span>
+                    </button>
+                  }
+                }
+              </div>
             }
-          </select>
+          </div>
 
           <!-- Capacity bar -->
           @if (sourcePool() && !isSourceUnassigned() && sourcePool()!.maxCount > 0) {
@@ -54,9 +86,6 @@
                    [style.background]="capacityColor(sourcePool())">
               </div>
             </div>
-            <small class="text-body-secondary">
-              {{ sourcePool()!.rosterCount }}/{{ sourcePool()!.maxCount }} players
-            </small>
           }
 
           <!-- Filter -->
@@ -194,23 +223,55 @@
       <!-- ─── TARGET PANEL ─── -->
       <div class="swapper-panel">
         <div class="panel-header">
-          <label class="form-label fw-semibold text-uppercase small mb-1">Target Team</label>
-          <select class="form-select form-select-sm"
-                  [ngModel]="targetPoolId()"
-                  (ngModelChange)="onTargetPoolChange($event)">
-            <option [ngValue]="null" disabled>Select a team...</option>
-            @for (group of groupedPoolOptions(); track group.label) {
-              <optgroup [label]="group.label">
-                @for (pool of group.pools; track pool.poolId) {
-                  <option [value]="pool.poolId"
-                          [disabled]="pool.poolId === sourcePoolId()">
-                    {{ pool.poolName }}
-                    ({{ pool.rosterCount }}{{ pool.maxCount > 0 ? '/' + pool.maxCount : '' }})
-                  </option>
+          <label class="form-label fw-semibold text-uppercase small mb-1 d-flex align-items-center justify-content-between gap-2">
+            <span>Target Team</span>
+            <span class="badge-legend text-body-secondary">
+              <span class="fw-semibold">Key:</span>
+              <span class="badge-legend-chip">n/n</span> roster/max
+            </span>
+          </label>
+          <div class="pool-dropdown-wrapper">
+            <button class="pool-dropdown-trigger form-select form-select-sm text-start"
+                    (click)="toggleTargetDropdown($event)">
+              @if (targetPool(); as pool) {
+                <span class="color-dot" [style.background]="pool.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [class.color-dot--empty]="!pool.agegroupColor"></span>
+                @if (poolGroupLabel(pool); as gl) {
+                  <span class="pool-trigger-agegroup">{{ gl }}:</span>
                 }
-              </optgroup>
+                {{ pool.poolName }}
+                <span class="badge rounded-pill ms-1"
+                      [style.background]="pool.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                      [style.color]="contrastText(pool.agegroupColor)"
+                      title="Roster / Roster Max">{{ pool.rosterCount }}{{ pool.maxCount > 0 ? '/' + pool.maxCount : '' }}</span>
+              } @else {
+                Select a team...
+              }
+            </button>
+            @if (targetDropdownOpen()) {
+              <div class="pool-dropdown-backdrop" (click)="closeDropdowns()"></div>
+              <div class="pool-dropdown-panel" [style.max-height.px]="targetDropdownMaxHeight()">
+                @for (group of groupedPoolOptions(); track group.label) {
+                  <div class="pool-dropdown-group-label">{{ group.label }}</div>
+                  @for (pool of group.pools; track pool.poolId) {
+                    <button class="pool-dropdown-item"
+                            [class.active]="pool.poolId === targetPoolId()"
+                            [class.disabled]="pool.poolId === sourcePoolId()"
+                            [disabled]="pool.poolId === sourcePoolId()"
+                            (click)="selectTargetPool(pool.poolId)">
+                      <span class="color-dot" [style.background]="pool.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [class.color-dot--empty]="!pool.agegroupColor"></span>
+                      <span class="pool-dropdown-name">{{ pool.poolName }}</span>
+                      <span class="badge rounded-pill"
+                            [style.background]="pool.agegroupColor ?? 'var(--bs-secondary-bg)'"
+                            [style.color]="contrastText(pool.agegroupColor)"
+                            title="Roster / Roster Max">{{ pool.rosterCount }}{{ pool.maxCount > 0 ? '/' + pool.maxCount : '' }}</span>
+                    </button>
+                  }
+                }
+              </div>
             }
-          </select>
+          </div>
 
           <!-- Capacity bar -->
           @if (targetPool() && !isTargetUnassigned() && targetPool()!.maxCount > 0) {
@@ -220,9 +281,6 @@
                    [style.background]="capacityColor(targetPool())">
               </div>
             </div>
-            <small class="text-body-secondary">
-              {{ targetPool()!.rosterCount }}/{{ targetPool()!.maxCount }} players
-            </small>
           }
 
           <!-- Filter -->

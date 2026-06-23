@@ -9,6 +9,7 @@ public record SwapperPoolOptionDto
     public required string PoolName { get; init; }
     public required bool IsUnassignedAdultsPool { get; init; }
     public string? AgegroupName { get; init; }
+    public string? AgegroupColor { get; init; }
     public string? DivName { get; init; }
     public Guid? AgegroupId { get; init; }
     public Guid? DivId { get; init; }
