@@ -18,7 +18,8 @@ public record JobVisibilityDto
     /// <summary>BScheduleAllowPublicAccess — "View Schedule" card.</summary>
     public required bool PublishSchedule { get; init; }
 
-    /// <summary>BAllowRosterViewPlayer — "Rosters" card.</summary>
+    /// <summary>Inverse of bRestrictPublicRosters — the public "Rosters" card. (NOT
+    /// BAllowRosterViewPlayer, which gates a logged-in player's own roster.)</summary>
     public required bool ShowPublicRosters { get; init; }
 
     /// <summary>BEnableStore — "Store" card (the hero additionally requires the store to have active items).</summary>

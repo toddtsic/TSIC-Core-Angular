@@ -193,7 +193,9 @@ export class JobLandingComponent implements OnDestroy {
 		if (p.storeHasActiveItems) {
 			candidates.push({ key: 'store', label: 'Store', icon: 'bi-bag', routerLink: `${base}/store` });
 		}
-		if (p.allowRosterViewPlayer) {
+		// Public "Rosters" card gates on public-roster availability (bRestrictPublicRosters),
+		// NOT allowRosterViewPlayer (that's a logged-in user's OWN-roster gate).
+		if (p.publicRostersAvailable) {
 			candidates.push({ key: 'rosters', label: 'Rosters', icon: 'bi-card-checklist', routerLink: `${base}/rosters/public` });
 		}
 		if (p.offerPlayerRegsaverInsurance) {

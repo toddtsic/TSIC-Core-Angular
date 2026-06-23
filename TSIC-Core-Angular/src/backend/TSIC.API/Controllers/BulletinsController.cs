@@ -127,6 +127,7 @@ public class BulletinsController : ControllerBase
                 ClubRepAllowDelete = true,
                 AllowRosterViewPlayer = true,
                 AllowRosterViewAdult = true,
+                PublicRostersAvailable = true,
                 OfferPlayerRegsaverInsurance = true,
                 OfferTeamRegsaverInsurance = true,
                 StoreEnabled = true,

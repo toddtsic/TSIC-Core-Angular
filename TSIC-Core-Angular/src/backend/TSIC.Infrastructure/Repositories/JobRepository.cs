@@ -506,6 +506,10 @@ public class JobRepository : IJobRepository
                     ClubRepAllowDelete = j.BClubRepAllowDelete == true,
                     AllowRosterViewPlayer = j.BAllowRosterViewPlayer == true,
                     AllowRosterViewAdult = j.BAllowRosterViewAdult == true,
+                    // Public rosters gate ONLY on bRestrictPublicRosters (the AllowRosterView*
+                    // flags above are the logged-in user's OWN-roster gates). Drives the
+                    // public hero "Rosters" card.
+                    PublicRostersAvailable = j.BRestrictPublicRosters != true,
                     OfferPlayerRegsaverInsurance = j.BOfferPlayerRegsaverInsurance == true,
                     OfferTeamRegsaverInsurance = j.BOfferTeamRegsaverInsurance == true,
                     StoreEnabled = j.BEnableStore == true,

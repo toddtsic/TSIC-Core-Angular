@@ -27,6 +27,9 @@ public record JobPulseDto
     public required bool ClubRepAllowDelete { get; init; }
     public required bool AllowRosterViewPlayer { get; init; }
     public required bool AllowRosterViewAdult { get; init; }
+    /// <summary>Inverse of bRestrictPublicRosters — drives the public "Rosters" card.
+    /// Distinct from AllowRosterView* (those gate a logged-in user's OWN roster).</summary>
+    public required bool PublicRostersAvailable { get; init; }
     public required bool OfferPlayerRegsaverInsurance { get; init; }
     public required bool OfferTeamRegsaverInsurance { get; init; }
     public required bool StoreEnabled { get; init; }

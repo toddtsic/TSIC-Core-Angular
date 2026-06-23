@@ -14,6 +14,7 @@ export type JobPulseDto = {
     clubRepAllowDelete: boolean;
     allowRosterViewPlayer: boolean;
     allowRosterViewAdult: boolean;
+    publicRostersAvailable: boolean;
     offerPlayerRegsaverInsurance: boolean;
     offerTeamRegsaverInsurance: boolean;
     storeEnabled: boolean;

@@ -658,6 +658,7 @@ export class BulletinFormModalComponent implements OnInit {
             clubRepAllowDelete: partial.clubRepAllowDelete ?? true,
             allowRosterViewPlayer: partial.allowRosterViewPlayer ?? true,
             allowRosterViewAdult: partial.allowRosterViewAdult ?? true,
+            publicRostersAvailable: partial.publicRostersAvailable ?? true,
             offerPlayerRegsaverInsurance: partial.offerPlayerRegsaverInsurance ?? true,
             offerTeamRegsaverInsurance: partial.offerTeamRegsaverInsurance ?? true,
             storeEnabled: partial.storeEnabled ?? true,
