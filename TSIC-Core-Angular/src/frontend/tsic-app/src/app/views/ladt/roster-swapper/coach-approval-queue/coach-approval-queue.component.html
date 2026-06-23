@@ -6,7 +6,8 @@
             </h4>
             <p class="queue-sub">
                 Review each coach's requested teams. Approving places them on the team and grants
-                roster access; denying removes the request. No coach is on a team until you approve.
+                roster access; denying removes the request. Coaches who didn't request a specific
+                team can be placed on one directly. No coach is on a team until you approve.
             </p>
         </div>
         <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
@@ -74,46 +75,76 @@
                     </div>
 
                     <div class="coach-requests">
-                        <div class="requests-head">
-                            <span class="requests-label">Requested teams ({{ row.pendingTeams.length }})</span>
-                            @if (row.pendingTeams.length > 1) {
+                        @if (row.pendingTeams.length > 0) {
+                            <div class="requests-head">
+                                <span class="requests-label">Requested teams ({{ row.pendingTeams.length }})</span>
+                                @if (row.pendingTeams.length > 1) {
+                                    <button type="button" class="btn btn-success btn-sm"
+                                        (click)="approveAll(row)" [disabled]="busyCoach() === row.registrationId">
+                                        @if (busyCoach() === row.registrationId) {
+                                            <span class="spinner-border spinner-border-sm me-1"></span>
+                                        } @else {
+                                            <i class="bi bi-check-all me-1"></i>
+                                        }
+                                        Approve all
+                                    </button>
+                                }
+                            </div>
+
+                            @for (team of row.pendingTeams; track team.teamId) {
+                                <div class="request-line">
+                                    <div class="request-team">
+                                        <span class="team-text">{{ team.displayText }}</span>
+                                        @if (team.hasOwnPlayerOnTeam) {
+                                            <span class="own-player-flag">
+                                                <i class="bi bi-star-fill me-1"></i>your player is on this team
+                                            </span>
+                                        }
+                                    </div>
+                                    <div class="request-actions">
+                                        <button type="button" class="btn btn-success btn-sm"
+                                            (click)="approve(row, team)" [disabled]="isLineBusy(row, team)">
+                                            @if (busyLine() === lineKey(row, team)) {
+                                                <span class="spinner-border spinner-border-sm"></span>
+                                            } @else {
+                                                <i class="bi bi-check-lg"></i>
+                                            }
+                                            <span class="ms-1">Approve</span>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                            (click)="deny(row, team)" [disabled]="isLineBusy(row, team)">
+                                            <i class="bi bi-x-lg"></i><span class="ms-1">Deny</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            }
+                        } @else {
+                            <!-- No structured team requested (legacy free-text). Director places manually. -->
+                            <div class="requests-head">
+                                <span class="requests-label">No team requested — place manually</span>
+                            </div>
+                            <div class="manual-place">
+                                <select class="form-select form-select-sm"
+                                    [value]="placementChoice()[row.registrationId] || ''"
+                                    (change)="chooseTeam(row.registrationId, $any($event.target).value)"
+                                    [disabled]="busyCoach() === row.registrationId">
+                                    <option value="" disabled>Select a team…</option>
+                                    @for (pool of teamPools(); track pool.poolId) {
+                                        <option [value]="pool.poolId">
+                                            {{ pool.poolName }}@if (pool.agegroupName) { · {{ pool.agegroupName }}}
+                                        </option>
+                                    }
+                                </select>
                                 <button type="button" class="btn btn-success btn-sm"
-                                    (click)="approveAll(row)" [disabled]="busyCoach() === row.registrationId">
+                                    (click)="placeOnTeam(row)"
+                                    [disabled]="!placementChoice()[row.registrationId] || busyCoach() === row.registrationId">
                                     @if (busyCoach() === row.registrationId) {
                                         <span class="spinner-border spinner-border-sm me-1"></span>
                                     } @else {
-                                        <i class="bi bi-check-all me-1"></i>
+                                        <i class="bi bi-check-lg me-1"></i>
                                     }
-                                    Approve all
+                                    Place on team
                                 </button>
-                            }
-                        </div>
-
-                        @for (team of row.pendingTeams; track team.teamId) {
-                            <div class="request-line">
-                                <div class="request-team">
-                                    <span class="team-text">{{ team.displayText }}</span>
-                                    @if (team.hasOwnPlayerOnTeam) {
-                                        <span class="own-player-flag">
-                                            <i class="bi bi-star-fill me-1"></i>your player is on this team
-                                        </span>
-                                    }
-                                </div>
-                                <div class="request-actions">
-                                    <button type="button" class="btn btn-success btn-sm"
-                                        (click)="approve(row, team)" [disabled]="isLineBusy(row, team)">
-                                        @if (busyLine() === lineKey(row, team)) {
-                                            <span class="spinner-border spinner-border-sm"></span>
-                                        } @else {
-                                            <i class="bi bi-check-lg"></i>
-                                        }
-                                        <span class="ms-1">Approve</span>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-danger btn-sm"
-                                        (click)="deny(row, team)" [disabled]="isLineBusy(row, team)">
-                                        <i class="bi bi-x-lg"></i><span class="ms-1">Deny</span>
-                                    </button>
-                                </div>
                             </div>
                         }
                     </div>

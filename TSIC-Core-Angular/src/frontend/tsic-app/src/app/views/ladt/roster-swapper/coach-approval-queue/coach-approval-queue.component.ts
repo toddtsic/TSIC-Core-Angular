@@ -4,6 +4,7 @@ import { forkJoin } from 'rxjs';
 import { ToastService } from '@shared-ui/toast.service';
 import {
     RosterSwapperService,
+    SwapperPoolOptionDto,
     UnassignedAdultQueueRowDto
 } from '../services/roster-swapper.service';
 import type { UnassignedAdultRequestDto } from '@core/api';
@@ -18,6 +19,11 @@ import type { UnassignedAdultRequestDto } from '@core/api';
  * UnassignedAdult row remains as the source of further acceptances. Deny just drops the
  * team from the coach's request list. A coach disappears from the queue once they have
  * no pending requests left.
+ *
+ * Coaches who registered with only a LEGACY FREE-TEXT request (no structured team
+ * selection) arrive with no pending teams — their row instead offers a team picker so the
+ * director can MANUALLY place them on a team (same FLOW-2 approve path). They retire from
+ * the queue once placed.
  */
 @Component({
     selector: 'app-coach-approval-queue',
@@ -35,13 +41,26 @@ export class CoachApprovalQueueComponent implements OnInit {
     readonly isLoading = signal(false);
     /** `${registrationId}:${teamId}` of a line being approved/denied. */
     readonly busyLine = signal<string | null>(null);
-    /** registrationId of a coach being bulk-approved. */
+    /** registrationId of a coach being bulk-approved or manually placed. */
     readonly busyCoach = signal<string | null>(null);
+    /** Team pool options for the manual-placement picker (Unassigned Adults pool excluded). */
+    readonly teamPools = signal<SwapperPoolOptionDto[]>([]);
+    /** registrationId → chosen teamId for placing a free-text coach on a team. */
+    readonly placementChoice = signal<Record<string, string>>({});
 
     readonly hasRows = computed(() => this.queue().length > 0);
 
     ngOnInit(): void {
+        this.loadPools();
         this.load();
+    }
+
+    private loadPools(): void {
+        this.swapperService.getPoolOptions().subscribe({
+            next: pools => this.teamPools.set(pools.filter(p => !p.isUnassignedAdultsPool)),
+            // Non-fatal: the queue still loads; manual-placement rows just won't have options.
+            error: () => { /* ignore */ }
+        });
     }
 
     load(): void {
@@ -121,14 +140,42 @@ export class CoachApprovalQueueComponent implements OnInit {
         });
     }
 
-    /** Drop one pending team from a coach immutably; remove the coach when none remain. */
+    /** Record the director's team choice for a free-text coach awaiting manual placement. */
+    chooseTeam(registrationId: string, teamId: string): void {
+        this.placementChoice.set({ ...this.placementChoice(), [registrationId]: teamId });
+    }
+
+    /** Place a free-text coach (no requested team) on the chosen team — mints Staff via FLOW 2. */
+    placeOnTeam(row: UnassignedAdultQueueRowDto): void {
+        const teamId = this.placementChoice()[row.registrationId];
+        if (!teamId || this.busyCoach() === row.registrationId) return;
+        this.busyCoach.set(row.registrationId);
+        this.swapperService.approveRequest(row.registrationId, teamId).subscribe({
+            next: result => {
+                this.removeRow(row.registrationId);
+                const label = this.teamPools().find(p => p.poolId === teamId)?.poolName ?? 'the team';
+                this.toast.show(`${row.playerName} placed on ${label}. ${result.message}`, 'success', 3000);
+                this.busyCoach.set(null);
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Could not place this coach.', 'danger', 4000);
+                this.busyCoach.set(null);
+            }
+        });
+    }
+
+    /**
+     * Drop one pending team from the acted-on coach immutably; remove that coach when none
+     * remain. Only the matched coach is touched — free-text rows (empty pendingTeams) for
+     * OTHER coaches are left in place.
+     */
     private removeLine(registrationId: string, teamId: string): void {
         this.queue.set(
-            this.queue()
-                .map(r => r.registrationId === registrationId
-                    ? { ...r, pendingTeams: r.pendingTeams.filter(t => t.teamId !== teamId) }
-                    : r)
-                .filter(r => r.pendingTeams.length > 0)
+            this.queue().flatMap(r => {
+                if (r.registrationId !== registrationId) return [r];
+                const pendingTeams = r.pendingTeams.filter(t => t.teamId !== teamId);
+                return pendingTeams.length > 0 ? [{ ...r, pendingTeams }] : [];
+            })
         );
     }
 

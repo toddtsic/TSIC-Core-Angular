@@ -19,6 +19,15 @@ public sealed class AdultTeamRequestData
     [JsonPropertyName("note")]
     public string? Note { get; set; }
 
+    /// <summary>
+    /// True when this was parsed from our JSON shape (i.e. the coach registered through the
+    /// new flow). False for legacy free-text or empty <c>SpecialRequests</c>. Not serialized.
+    /// The approval queue uses this to tell a coach who made structured requests (deny-driven,
+    /// never re-surfaced once handled) from one who needs MANUAL placement on a team.
+    /// </summary>
+    [JsonIgnore]
+    public bool IsStructured { get; set; }
+
     private static readonly JsonSerializerOptions _opts = new()
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -49,6 +58,7 @@ public sealed class AdultTeamRequestData
                 if (parsed != null)
                 {
                     parsed.RequestedTeamIds ??= new();
+                    parsed.IsStructured = true;
                     return parsed;
                 }
             }

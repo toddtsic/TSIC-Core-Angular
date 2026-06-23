@@ -2582,6 +2582,10 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(r => (r.UserId!, r.AssignedTeamId!.Value))
             .ToHashSet();
 
+        // Coaches who already hold ANY Staff row in this job are "placed" — used below to
+        // retire a manually-placeable (free-text) coach from the queue once acted on.
+        var placedUserIds = approved.Select(a => a.Item1).ToHashSet();
+
         // 5. Prior Staff history (any job/season) — the lead recognition signal.
         var priorStaff = (await _context.Registrations
             .AsNoTracking()
@@ -2645,9 +2649,14 @@ public class RegistrationRepository : IRegistrationRepository
                 })
                 .ToList();
 
-            // Queue is request-driven: a coach with no pending requests (none made, or all
-            // already approved/denied) is handled in the Roster Swapper's unassigned pool.
-            if (pending.Count == 0) continue;
+            // Show a coach who still has a resolvable, unapproved structured request (the
+            // normal approve/deny case). A coach who made only a LEGACY FREE-TEXT request
+            // (or none) has no team to auto-approve — surface them with empty PendingTeams
+            // for MANUAL placement, until the director has placed them on any team. A coach
+            // who made structured requests that were all approved/denied is NOT re-surfaced.
+            var placed = userId != null && placedUserIds.Contains(userId);
+            var needsManualPlacement = !p.Req.IsStructured && !placed;
+            if (pending.Count == 0 && !needsManualPlacement) continue;
 
             var playerName = ($"{c.LastName ?? ""}, {c.FirstName ?? ""}").Trim().TrimEnd(',').Trim();
             if (string.IsNullOrEmpty(playerName)) playerName = "Unknown";
