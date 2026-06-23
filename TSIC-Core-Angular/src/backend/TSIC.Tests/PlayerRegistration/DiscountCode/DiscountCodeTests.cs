@@ -523,13 +523,18 @@ public class DiscountCodeTests
     // 8. Rejected — already discounted
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Rejected: player already has discount → Success=false per player, reg unchanged")]
+    [Fact(DisplayName = "Rejected: player already redeemed a code → Success=false per player, reg unchanged")]
     public async Task Rejected_AlreadyDiscounted()
     {
         var (controller, ctx, _) = await CreateControllerAsync(bAddProcessingFees: false);
         var playerId = Guid.NewGuid().ToString();
         AddDiscountCode(ctx, codeAmount: 50m, codeName: "DUP");
+        // One-use guard keys on the redeemed DiscountCodeId, NOT FeeDiscount > 0 (which would also
+        // catch an early-bird discount). Simulate a reg that ALREADY redeemed a code by stamping a
+        // prior code id; the FeeDiscount it left behind is incidental.
+        var priorCodeId = AddDiscountCode(ctx, codeAmount: 25m, codeName: "PRIOR");
         var reg = AddRegistration(ctx, userId: playerId, feeBase: 200m, feeDiscount: 25m);
+        reg.DiscountCodeId = priorCodeId;
         await ctx.SaveChangesAsync();
 
         var originalFeeTotal = reg.FeeTotal;
@@ -550,8 +555,35 @@ public class DiscountCodeTests
         dbReg.FeeDiscount.Should().Be(25m);
         dbReg.FeeTotal.Should().Be(originalFeeTotal);
         dbReg.OwedTotal.Should().Be(originalOwed);
-        // Rejected (already discounted) → the code is NOT stamped, so usage isn't over-counted.
-        dbReg.DiscountCodeId.Should().BeNull();
+        // Rejected (already redeemed) → the new code is NOT stamped; the prior code id is untouched.
+        dbReg.DiscountCodeId.Should().Be(priorCodeId);
+    }
+
+    [Fact(DisplayName = "Allowed: early-bird discount (FeeDiscount>0, no code) does NOT block a first redemption")]
+    public async Task Allowed_EarlyBirdDoesNotBlockFirstRedemption()
+    {
+        var (controller, ctx, _) = await CreateControllerAsync(bAddProcessingFees: false);
+        var playerId = Guid.NewGuid().ToString();
+        var ai = AddDiscountCode(ctx, codeAmount: 50m, codeName: "EB");
+        // Reg carries an early-bird discount (FeeDiscount > 0) but has NEVER redeemed a code
+        // (DiscountCodeId == null). The old guard wrongly rejected it; the corrected guard allows it.
+        var reg = AddRegistration(ctx, userId: playerId, feeBase: 200m, feeDiscount: 30m);
+        await ctx.SaveChangesAsync();
+
+        var request = MakeRequest("EB", (playerId, 170m));
+        var result = await controller.ApplyDiscount(request);
+
+        var ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        var dto = ok.Value.Should().BeOfType<ApplyDiscountResponseDto>().Subject;
+        dto.Success.Should().BeTrue();
+        dto.SuccessCount.Should().Be(1);
+        // Code rates against the post-early-bird bill: 200 − 30 = 170 net; fixed $50 ≤ 170 → $50.
+        dto.Results[0].DiscountAmount.Should().Be(50m);
+
+        var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
+        // Stacks on top of the early-bird discount: 30 + 50 = 80, and the code id is now stamped.
+        dbReg.FeeDiscount.Should().Be(80m);
+        dbReg.DiscountCodeId.Should().Be(ai);
     }
 
     // ────────────────────────────────────────────────────────────────────────
