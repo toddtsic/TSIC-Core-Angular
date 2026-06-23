@@ -325,6 +325,7 @@ WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
   AND t.clubrep_registrationId IS NOT NULL
+  AND t.TeamName NOT LIKE N'%dropped%'   -- exclude director-renamed dropped teams (floating + CI; trailing-space tolerant, e.g. '(DROPPED 6/29/25) ')
   AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)));
 
 PRINT '  Found ' + CAST(@EligibleTeamsCount AS VARCHAR) + ' Teams records from ' + CAST(@StartYear AS VARCHAR) + '-' + CAST(@EndYear AS VARCHAR) + ' with clubrep_registrationId and allowed level_of_play';
@@ -374,6 +375,7 @@ BEGIN TRY
       AND CAST(j.Year AS INT) >= @StartYear
       AND CAST(j.Year AS INT) <= @EndYear
       AND t.clubrep_registrationId IS NOT NULL
+      AND t.TeamName NOT LIKE N'%dropped%'   -- exclude director-renamed dropped teams (floating + CI; trailing-space tolerant)
       AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)));
 
     DECLARE @UniqueClubRepsCount INT = @@ROWCOUNT;
@@ -461,6 +463,7 @@ WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) <= @EndYear
   AND t.clubrep_registrationId IS NOT NULL
   AND cr.ClubId IS NOT NULL
+  AND t.TeamName NOT LIKE N'%dropped%'   -- exclude director-renamed dropped teams: the source of the library junk (floating + CI; trailing-space tolerant)
   AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)));
 
 DECLARE @Phase1Count INT = @@ROWCOUNT;
@@ -477,6 +480,7 @@ WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
   AND t.clubrep_registrationId IS NOT NULL
+  AND t.TeamName NOT LIKE N'%dropped%'   -- exclude dropped teams to match the creation predicate (floating + CI)
   AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)))
   AND (c.ClubId IS NULL OR cr.ClubId IS NULL);
 
@@ -984,6 +988,7 @@ WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
   AND t.clubrep_registrationId IS NOT NULL
+  AND t.TeamName NOT LIKE N'%dropped%'   -- exclude dropped teams: intentionally unlinked, so they must not count as orphans (floating + CI)
   AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)))
   AND t.ClubTeamId IS NULL;
 
@@ -1108,6 +1113,7 @@ WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) >= @StartYear
   AND CAST(j.Year AS INT) <= @EndYear
   AND t.clubrep_registrationId IS NOT NULL
+  AND t.TeamName NOT LIKE N'%dropped%'   -- exclude director-renamed dropped teams (floating + CI; trailing-space tolerant, e.g. '(DROPPED 6/29/25) ')
   AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)));
 
 PRINT '';
@@ -1162,6 +1168,7 @@ INNER JOIN dbo.AspNetUsers u ON r.UserId = u.Id
 WHERE ISNUMERIC(j.Year) = 1
   AND CAST(j.Year AS INT) BETWEEN @StartYear AND @EndYear
   AND t.clubrep_registrationId IS NOT NULL
+  AND t.TeamName NOT LIKE N'%dropped%'   -- exclude dropped teams: intentionally unlinked, keeps BURN #1 at 0 rows (floating + CI)
   AND EXISTS (SELECT 1 FROM #AllowedLop a WHERE a.Lop = LTRIM(RTRIM(t.level_of_play)))
   AND t.ClubTeamId IS NULL
 ORDER BY r.club_name, ag.AgegroupName, t.TeamName;

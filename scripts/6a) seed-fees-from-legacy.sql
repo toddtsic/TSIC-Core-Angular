@@ -62,7 +62,8 @@ JOIN Jobs.Jobs j ON t.JobId = j.JobId
 WHERE j.JobTypeId IN (1, 4, 6)
   AND j.Year IN ('2025', '2026', '2027')
   AND t.PerRegistrantFee IS NOT NULL AND t.PerRegistrantFee > 0
-  AND t.PerRegistrantFee != ISNULL(ag.RosterFee, 0);
+  AND t.PerRegistrantFee != ISNULL(ag.RosterFee, 0)
+  AND t.teamName NOT LIKE '%dropped%';   -- skip admin-dead teams (floating + CI; catches mid/trailing-space '(DROPPED 6/29/25) ')
 PRINT '2  Player-only team override rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
@@ -114,7 +115,8 @@ FROM Leagues.teams t
 JOIN Jobs.Jobs j ON t.JobId = j.JobId
 WHERE j.JobTypeId = 2
   AND j.Year IN ('2025', '2026', '2027')
-  AND t.PerRegistrantFee IS NOT NULL AND t.PerRegistrantFee > 0;
+  AND t.PerRegistrantFee IS NOT NULL AND t.PerRegistrantFee > 0
+  AND t.teamName NOT LIKE '%dropped%';   -- skip admin-dead teams (floating + CI; catches mid/trailing-space '(DROPPED 6/29/25) ')
 PRINT '4  Tournament player fee team rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
@@ -130,7 +132,8 @@ FROM Leagues.teams t
 JOIN Jobs.Jobs j ON t.JobId = j.JobId
 WHERE j.JobTypeId = 3
   AND j.Year IN ('2025', '2026', '2027')
-  AND t.PerRegistrantFee IS NOT NULL AND t.PerRegistrantFee > 0;
+  AND t.PerRegistrantFee IS NOT NULL AND t.PerRegistrantFee > 0
+  AND t.teamName NOT LIKE '%dropped%';   -- skip admin-dead teams (floating + CI; catches mid/trailing-space '(DROPPED 6/29/25) ')
 PRINT '5  League player fee team rows: ' + CAST(@@ROWCOUNT AS VARCHAR);
 GO
 
@@ -249,7 +252,8 @@ WHERE j.JobTypeId IN (1, 2, 3, 4, 6)
         OR EXISTS ( SELECT 1 FROM Leagues.teams t
                     WHERE t.AgegroupId = ag.AgegroupId
                       AND ISNULL(t.bAllowSelfRostering, 0) = 1
-                      AND ISNULL(t.Active, 1) = 1 )
+                      AND ISNULL(t.Active, 1) = 1
+                      AND t.teamName NOT LIKE '%dropped%' )   -- a dead team alone doesn't make an agegroup registerable
         OR ag.AgegroupName LIKE 'WAITLIST - %' )
   -- (a) type-correct legacy-free test
   AND ( (j.JobTypeId IN (1, 4, 6) AND ISNULL(ag.RosterFee, 0) = 0)
