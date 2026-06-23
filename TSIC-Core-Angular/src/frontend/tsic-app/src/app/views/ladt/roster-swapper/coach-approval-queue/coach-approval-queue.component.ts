@@ -1,34 +1,37 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { forkJoin } from 'rxjs';
+import { MultiSelectModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
+import type { MultiSelectChangeEventArgs } from '@syncfusion/ej2-angular-dropdowns';
 import { ToastService } from '@shared-ui/toast.service';
 import {
     RosterSwapperService,
     SwapperPoolOptionDto,
     UnassignedAdultQueueRowDto
 } from '../services/roster-swapper.service';
-import type { UnassignedAdultRequestDto } from '@core/api';
 
 /**
- * Director approval queue for coach (UnassignedAdult) team requests.
+ * Director approval queue / team editor for coach (UnassignedAdult) registrations.
  *
- * Each coach is a single UnassignedAdult registration carrying 1-to-many non-binding
- * team REQUESTS. The director reviews recognition context (prior Staff history is the
- * lead signal; family linkage is secondary) and Approves/Denies each requested team.
- * Approve mints the per-team Staff row via the Roster Swapper FLOW-2 path; the
- * UnassignedAdult row remains as the source of further acceptances. Deny just drops the
- * team from the coach's request list. A coach disappears from the queue once they have
- * no pending requests left.
+ * Each coach is a single UnassignedAdult registration that can be placed on MANY teams — each
+ * placement is a distinct Staff registration (Roster Swapper FLOW 2); the UnassignedAdult row
+ * remains. The screen shows INTENT vs REALITY side by side:
  *
- * Coaches who registered with only a LEGACY FREE-TEXT request (no structured team
- * selection) arrive with no pending teams — their row instead offers a team picker so the
- * director can MANUALLY place them on a team (same FLOW-2 approve path). They retire from
- * the queue once placed.
+ * - Recorded teams = the coach's append-only JSON record (their own asks ★self ∪ director
+ *   grants), immutable history.
+ * - Assigned teams = live Staff rows = what's granted RIGHT NOW = the checked boxes.
+ *
+ * Every coach gets ONE checkbox dropdown of all teams, pre-checked with current assignments.
+ * Checking a team grants it (mints Staff + appends to the record as admin); un-checking deletes
+ * just that Staff row (the record entry stays). Deny removes ALL the coach's assignments and
+ * deactivates them (bActive=0) — the only way a coach leaves the queue; nothing auto-retires.
+ * After each change the queue is silently re-fetched so state stays truthful.
  */
 @Component({
     selector: 'app-coach-approval-queue',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, MultiSelectModule],
+    providers: [CheckBoxSelectionService],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './coach-approval-queue.component.html',
     styleUrl: './coach-approval-queue.component.scss'
@@ -39,16 +42,31 @@ export class CoachApprovalQueueComponent implements OnInit {
 
     readonly queue = signal<UnassignedAdultQueueRowDto[]>([]);
     readonly isLoading = signal(false);
-    /** `${registrationId}:${teamId}` of a line being approved/denied. */
-    readonly busyLine = signal<string | null>(null);
-    /** registrationId of a coach being bulk-approved or manually placed. */
-    readonly busyCoach = signal<string | null>(null);
-    /** Team pool options for the manual-placement picker (Unassigned Adults pool excluded). */
+    /** Team pool options for the dropdown (Unassigned Adults pool excluded). */
     readonly teamPools = signal<SwapperPoolOptionDto[]>([]);
-    /** registrationId → chosen teamId for placing a free-text coach on a team. */
-    readonly placementChoice = signal<Record<string, string>>({});
+    /** registrationId of a coach whose assignments are being mutated. */
+    readonly busyCoach = signal<string | null>(null);
+    /** registrationIds whose "Coached before" accordion is expanded (collapsed by default). */
+    readonly expandedPrior = signal<ReadonlySet<string>>(new Set());
+    /** registrationId awaiting a second click to confirm Deny (guards the destructive action). */
+    readonly confirmingDeny = signal<string | null>(null);
 
     readonly hasRows = computed(() => this.queue().length > 0);
+
+    /** Syncfusion MultiSelect config — groupBy renders agegroup headers. */
+    readonly teamFields = { text: 'label', value: 'teamId', groupBy: 'agegroup' };
+
+    /** Flat team list shaped for the checkbox dropdown; label carries club + agegroup so the
+     *  default filter matches club, agegroup, and team-name typeahead. */
+    readonly teamsDataSource = computed(() =>
+        this.teamPools()
+            .map(p => ({
+                teamId: p.poolId,
+                agegroup: p.agegroupName ?? 'Other',
+                label: p.agegroupName ? `${p.poolName} · ${p.agegroupName}` : p.poolName,
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label)),
+    );
 
     ngOnInit(): void {
         this.loadPools();
@@ -58,13 +76,13 @@ export class CoachApprovalQueueComponent implements OnInit {
     private loadPools(): void {
         this.swapperService.getPoolOptions().subscribe({
             next: pools => this.teamPools.set(pools.filter(p => !p.isUnassignedAdultsPool)),
-            // Non-fatal: the queue still loads; manual-placement rows just won't have options.
+            // Non-fatal: the queue still loads; the dropdown just won't have options.
             error: () => { /* ignore */ }
         });
     }
 
-    load(): void {
-        this.isLoading.set(true);
+    load(silent = false): void {
+        if (!silent) this.isLoading.set(true);
         this.swapperService.getUnassignedQueue().subscribe({
             next: rows => {
                 this.queue.set(rows);
@@ -77,109 +95,102 @@ export class CoachApprovalQueueComponent implements OnInit {
         });
     }
 
-    lineKey(row: UnassignedAdultQueueRowDto, team: UnassignedAdultRequestDto): string {
-        return `${row.registrationId}:${team.teamId}`;
-    }
-
-    isLineBusy(row: UnassignedAdultQueueRowDto, team: UnassignedAdultRequestDto): boolean {
-        return this.busyLine() === this.lineKey(row, team) || this.busyCoach() === row.registrationId;
-    }
-
     contactLine(row: UnassignedAdultQueueRowDto): string {
         const cityState = [row.city, row.state].filter(Boolean).join(', ');
         return [row.email, row.cellphone, cityState].filter(Boolean).join(' · ');
     }
 
-    approve(row: UnassignedAdultQueueRowDto, team: UnassignedAdultRequestDto): void {
-        if (this.isLineBusy(row, team)) return;
-        this.busyLine.set(this.lineKey(row, team));
-        this.swapperService.approveRequest(row.registrationId, team.teamId).subscribe({
-            next: result => {
-                this.removeLine(row.registrationId, team.teamId);
-                this.toast.show(`${row.playerName} approved for ${team.displayText}. ${result.message}`, 'success', 3000);
-                this.busyLine.set(null);
-            },
-            error: err => {
-                this.toast.show(err?.error?.message || 'Approval failed.', 'danger', 4000);
-                this.busyLine.set(null);
-            }
-        });
+    /** Team ids the coach is currently assigned to — pre-checks the dropdown. */
+    assignedTeamIds(row: UnassignedAdultQueueRowDto): string[] {
+        return row.assignedTeams.map(t => t.teamId);
     }
 
-    deny(row: UnassignedAdultQueueRowDto, team: UnassignedAdultRequestDto): void {
-        if (this.isLineBusy(row, team)) return;
-        this.busyLine.set(this.lineKey(row, team));
-        this.swapperService.denyRequest(row.registrationId, team.teamId).subscribe({
-            next: () => {
-                this.removeLine(row.registrationId, team.teamId);
-                this.toast.show(`Denied ${row.playerName}'s request for ${team.displayText}.`, 'info', 3000);
-                this.busyLine.set(null);
-            },
-            error: err => {
-                this.toast.show(err?.error?.message || 'Could not deny the request.', 'danger', 4000);
-                this.busyLine.set(null);
-            }
-        });
+    /** True when a recorded team is currently granted (a live Staff row exists for it). */
+    isGranted(row: UnassignedAdultQueueRowDto, teamId: string): boolean {
+        return row.assignedTeams.some(t => t.teamId === teamId);
     }
 
-    approveAll(row: UnassignedAdultQueueRowDto): void {
-        if (this.busyCoach() === row.registrationId || row.pendingTeams.length === 0) return;
-        this.busyCoach.set(row.registrationId);
-        forkJoin(row.pendingTeams.map(t => this.swapperService.approveRequest(row.registrationId, t.teamId))).subscribe({
-            next: () => {
-                this.removeRow(row.registrationId);
-                this.toast.show(`${row.playerName} approved for ${row.pendingTeams.length} team(s).`, 'success', 3000);
-                this.busyCoach.set(null);
-            },
-            error: err => {
-                // Partial success possible — reload to reflect the true state.
-                this.toast.show(err?.error?.message || 'Some approvals failed — refreshing.', 'danger', 4000);
-                this.busyCoach.set(null);
-                this.load();
-            }
-        });
+    togglePrior(registrationId: string): void {
+        const next = new Set(this.expandedPrior());
+        if (next.has(registrationId)) {
+            next.delete(registrationId);
+        } else {
+            next.add(registrationId);
+        }
+        this.expandedPrior.set(next);
     }
 
-    /** Record the director's team choice for a free-text coach awaiting manual placement. */
-    chooseTeam(registrationId: string, teamId: string): void {
-        this.placementChoice.set({ ...this.placementChoice(), [registrationId]: teamId });
-    }
-
-    /** Place a free-text coach (no requested team) on the chosen team — mints Staff via FLOW 2. */
-    placeOnTeam(row: UnassignedAdultQueueRowDto): void {
-        const teamId = this.placementChoice()[row.registrationId];
-        if (!teamId || this.busyCoach() === row.registrationId) return;
-        this.busyCoach.set(row.registrationId);
-        this.swapperService.approveRequest(row.registrationId, teamId).subscribe({
-            next: result => {
-                this.removeRow(row.registrationId);
-                const label = this.teamPools().find(p => p.poolId === teamId)?.poolName ?? 'the team';
-                this.toast.show(`${row.playerName} placed on ${label}. ${result.message}`, 'success', 3000);
-                this.busyCoach.set(null);
-            },
-            error: err => {
-                this.toast.show(err?.error?.message || 'Could not place this coach.', 'danger', 4000);
-                this.busyCoach.set(null);
-            }
-        });
+    isPriorExpanded(registrationId: string): boolean {
+        return this.expandedPrior().has(registrationId);
     }
 
     /**
-     * Drop one pending team from the acted-on coach immutably; remove that coach when none
-     * remain. Only the matched coach is touched — free-text rows (empty pendingTeams) for
-     * OTHER coaches are left in place.
+     * Fires once when the dropdown closes (changeOnBlur), carrying the final checked set — the
+     * coach's desired team assignments. Diff it against the current assignments and commit in
+     * one batch: newly-checked teams are placed (FLOW 2), newly-unchecked teams are removed
+     * (FLOW 3). Ignores non-interactive value resets (e.g. our own silent re-fetch).
      */
-    private removeLine(registrationId: string, teamId: string): void {
-        this.queue.set(
-            this.queue().flatMap(r => {
-                if (r.registrationId !== registrationId) return [r];
-                const pendingTeams = r.pendingTeams.filter(t => t.teamId !== teamId);
-                return pendingTeams.length > 0 ? [{ ...r, pendingTeams }] : [];
-            })
-        );
+    onTeamsChange(row: UnassignedAdultQueueRowDto, e: MultiSelectChangeEventArgs): void {
+        if (!e.isInteracted) return;
+        const newIds = Array.isArray(e.value) ? (e.value as string[]) : [];
+        const current = this.assignedTeamIds(row);
+
+        const added = newIds.filter(id => !current.includes(id));
+        const removed = current.filter(id => !newIds.includes(id));
+        if (added.length === 0 && removed.length === 0) return;
+
+        const ops = [
+            ...added.map(id => this.swapperService.approveRequest(row.registrationId, id)),
+            ...removed.map(id => {
+                const staffRegId = row.assignedTeams.find(t => t.teamId === id)?.staffRegistrationId;
+                return this.swapperService.removeStaffFromTeam(staffRegId!, id);
+            }),
+        ];
+
+        this.busyCoach.set(row.registrationId);
+        forkJoin(ops).subscribe({
+            next: () => {
+                const parts = [
+                    added.length ? `placed on ${added.length} team(s)` : '',
+                    removed.length ? `removed from ${removed.length} team(s)` : '',
+                ].filter(Boolean).join(', ');
+                this.toast.show(`${row.playerName} ${parts}.`, 'success', 3000);
+                // Re-fetch silently so assignments + Staff ids stay truthful (e.g. dup-skips).
+                this.busyCoach.set(null);
+                this.load(true);
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Could not update this coach — refreshing.', 'danger', 4000);
+                this.busyCoach.set(null);
+                this.load(true);
+            }
+        });
     }
 
-    private removeRow(registrationId: string): void {
-        this.queue.set(this.queue().filter(r => r.registrationId !== registrationId));
+    /** First Deny click arms the confirm; a second confirms. Cancel disarms. */
+    requestDeny(row: UnassignedAdultQueueRowDto): void {
+        this.confirmingDeny.set(row.registrationId);
+    }
+
+    cancelDeny(): void {
+        this.confirmingDeny.set(null);
+    }
+
+    /** Deny the coach: deletes ALL their Staff rows + deactivates them (bActive=0). Destructive. */
+    confirmDeny(row: UnassignedAdultQueueRowDto): void {
+        if (this.busyCoach() === row.registrationId) return;
+        this.confirmingDeny.set(null);
+        this.busyCoach.set(row.registrationId);
+        this.swapperService.denyCoach(row.registrationId).subscribe({
+            next: () => {
+                this.queue.set(this.queue().filter(r => r.registrationId !== row.registrationId));
+                this.toast.show(`${row.playerName} denied — removed from all teams and deactivated.`, 'info', 3500);
+                this.busyCoach.set(null);
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Could not deny this coach.', 'danger', 4000);
+                this.busyCoach.set(null);
+            }
+        });
     }
 }

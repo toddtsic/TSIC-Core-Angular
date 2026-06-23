@@ -93,14 +93,27 @@
 .signal-new { color: var(--bs-secondary-color); }
 .signal-family { color: var(--bs-primary); }
 
-.prior-pill {
-    display: inline-block;
-    margin: 0 0 0 var(--space-1);
-    padding: 0 var(--space-2);
-    border-radius: 999px;
-    background: var(--bs-success-bg-subtle);
-    color: var(--bs-success-text-emphasis);
+.prior-toggle {
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+}
+
+.prior-list {
+    margin: var(--space-1) 0 0;
+    padding-left: var(--space-5);
     font-weight: 500;
+
+    li {
+        font-size: 0.825rem;
+    }
 }
 
 .coach-contact {
@@ -128,14 +141,61 @@
     gap: var(--space-2);
 }
 
-.requests-head {
+.record-block {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius, 0.375rem);
+    background: var(--bs-tertiary-bg);
 }
 
-.requests-label {
+.record-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--bs-secondary-color);
+}
+
+.record-chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1) var(--space-2);
+
+    li {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        padding: 1px var(--space-2);
+        border-radius: 999px;
+        background: var(--bs-body-bg);
+        border: 1px solid var(--bs-border-color);
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--brand-text);
+
+        &.is-granted {
+            border-color: var(--bs-success);
+            background: var(--bs-success-bg-subtle);
+        }
+    }
+
+    .src-self { color: var(--bs-warning); }
+    .src-admin { color: var(--bs-secondary-color); }
+    .granted-flag { color: var(--bs-success); }
+    .ungranted-flag {
+        font-size: 0.7rem;
+        font-style: italic;
+        color: var(--bs-secondary-color);
+    }
+}
+
+.picker-label {
     font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -143,58 +203,25 @@
     color: var(--bs-secondary-color);
 }
 
-.request-line {
+.coach-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid var(--bs-border-color);
-    border-radius: var(--bs-border-radius, 0.375rem);
-    background: var(--bs-body-bg);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-top: var(--space-1);
 }
 
-.request-team {
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.team-text {
-    font-weight: 500;
-    color: var(--brand-text);
-    word-break: break-word;
-}
-
-.own-player-flag {
-    font-size: 0.75rem;
+.deny-confirm {
+    font-size: 0.8rem;
     font-weight: 600;
-    color: var(--bs-warning-text-emphasis);
+    color: var(--bs-danger-text-emphasis, var(--bs-danger));
 }
 
-.request-actions {
-    display: flex;
-    gap: var(--space-2);
-    flex-shrink: 0;
-}
-
-.manual-place {
+.picker-busy {
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
     display: flex;
     align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-3);
-    border: 1px dashed var(--bs-border-color);
-    border-radius: var(--bs-border-radius, 0.375rem);
-    background: var(--bs-body-bg);
-
-    .form-select {
-        min-width: 0;
-        flex: 1 1 auto;
-    }
-    .btn {
-        flex-shrink: 0;
-    }
 }
 
 button:focus-visible {

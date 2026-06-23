@@ -2201,13 +2201,22 @@ public class RegistrationRepository : IRegistrationRepository
         Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default)
     {
         var reg = await _context.Registrations
+            .Include(r => r.Role)
             .Where(r => r.RegistrationId == request.RegistrationId && r.JobId == jobId)
             .FirstOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException("Registration not found or does not belong to this job.");
 
+        var isUnassignedAdult = reg.Role?.Name == RoleConstants.Names.UnassignedAdultName;
+
         var regType = typeof(Registrations);
         foreach (var (key, value) in request.ProfileValues)
         {
+            // Immutability: a coach's SpecialRequests is an append-only codified record managed by
+            // the approval queue — the generic profile editor must never overwrite it.
+            if (isUnassignedAdult
+                && string.Equals(key, nameof(Registrations.SpecialRequests), StringComparison.OrdinalIgnoreCase))
+                continue;
+
             var prop = regType.GetProperty(key, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
             if (prop == null || !prop.CanWrite) continue;
 
@@ -2511,10 +2520,12 @@ public class RegistrationRepository : IRegistrationRepository
 
     public async Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default)
     {
-        // 1. Unassigned adults for this job: identity + raw codified SpecialRequests.
+        // 1. ACTIVE unassigned adults for this job: identity + raw codified SpecialRequests.
+        //    Every active coach is listed — nothing auto-retires; Deny (bActive=0) is the only exit.
         var coaches = await _context.Registrations
             .AsNoTracking()
-            .Where(r => r.JobId == jobId && r.Role!.Name == RoleConstants.Names.UnassignedAdultName)
+            .Where(r => r.JobId == jobId && r.BActive == true
+                && r.Role!.Name == RoleConstants.Names.UnassignedAdultName)
             .Select(r => new
             {
                 r.RegistrationId,
@@ -2538,8 +2549,9 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(c => new { Coach = c, Req = AdultTeamRequestData.Parse(c.SpecialRequests) })
             .ToList();
 
-        var allRequestedTeamIds = parsed
-            .SelectMany(p => p.Req.RequestedTeamIds)
+        // Every team in any coach's record (asks ∪ grants), for label resolution.
+        var allRecordedTeamIds = parsed
+            .SelectMany(p => p.Req.AllTeamIds)
             .Distinct()
             .ToList();
 
@@ -2549,13 +2561,30 @@ public class RegistrationRepository : IRegistrationRepository
             .Distinct()
             .ToList();
 
-        // 3. Resolve requested team ids → display labels (same shape as the reg-form picker).
+        // 3. Current-job Staff rows for these coaches = their LIVE team assignments (current
+        //    grants). These pre-check the dropdown; each carries its Staff registration id so an
+        //    un-check can delete exactly that row (FLOW 3).
+        var staffRows = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                && r.Role!.Name == RoleConstants.Names.StaffName
+                && r.UserId != null && r.AssignedTeamId != null
+                && coachUserIds.Contains(r.UserId))
+            .Select(r => new { r.RegistrationId, r.UserId, TeamId = r.AssignedTeamId!.Value })
+            .ToListAsync(ct);
+
+        var assignedByUser = staffRows
+            .GroupBy(r => r.UserId!)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        // 4. Resolve display labels for every team we show — recorded (codified) ∪ assigned.
+        var labelIds = allRecordedTeamIds.Concat(staffRows.Select(r => r.TeamId)).Distinct().ToList();
         var teamLabels = new Dictionary<Guid, string>();
-        if (allRequestedTeamIds.Count > 0)
+        if (labelIds.Count > 0)
         {
             var teamRows = await _context.Teams
                 .AsNoTracking()
-                .Where(t => t.JobId == jobId && allRequestedTeamIds.Contains(t.TeamId))
+                .Where(t => t.JobId == jobId && labelIds.Contains(t.TeamId))
                 .Select(t => new
                 {
                     t.TeamId,
@@ -2569,27 +2598,13 @@ public class RegistrationRepository : IRegistrationRepository
             teamLabels = teamRows.ToDictionary(t => t.TeamId, t => t.DisplayText);
         }
 
-        // 4. Already-approved set: a Staff row for (coach, team) in this job means that
-        //    requested team is no longer pending.
-        var approved = (await _context.Registrations
-            .AsNoTracking()
-            .Where(r => r.JobId == jobId
-                && r.Role!.Name == RoleConstants.Names.StaffName
-                && r.UserId != null && r.AssignedTeamId != null
-                && coachUserIds.Contains(r.UserId))
-            .Select(r => new { r.UserId, r.AssignedTeamId })
-            .ToListAsync(ct))
-            .Select(r => (r.UserId!, r.AssignedTeamId!.Value))
-            .ToHashSet();
-
-        // Coaches who already hold ANY Staff row in this job are "placed" — used below to
-        // retire a manually-placeable (free-text) coach from the queue once acted on.
-        var placedUserIds = approved.Select(a => a.Item1).ToHashSet();
-
-        // 5. Prior Staff history (any job/season) — the lead recognition signal.
+        // 5. Prior Staff history in OTHER jobs/seasons — the lead recognition signal. Excludes
+        //    THIS job: a placement here is the coach's current assignment (shown in the
+        //    dropdown), not "coached before".
         var priorStaff = (await _context.Registrations
             .AsNoTracking()
             .Where(r => r.Role!.Name == RoleConstants.Names.StaffName
+                && r.JobId != jobId
                 && r.AssignedTeamId != null
                 && r.UserId != null
                 && coachUserIds.Contains(r.UserId))
@@ -2628,35 +2643,33 @@ public class RegistrationRepository : IRegistrationRepository
             .GroupBy(p => p.FamilyUserId!)
             .ToDictionary(g => g.Key, g => g.ToList());
 
-        // 7. Assemble — pending = requested ∧ resolvable ∧ not-yet-approved.
+        // 7. Assemble. RecordedTeams = the immutable JSON record (asks ∪ grants), tagged.
+        //    AssignedTeams = live Staff rows (current grants). Every active coach is included.
         var result = new List<UnassignedAdultQueueRowDto>();
         foreach (var p in parsed)
         {
             var c = p.Coach;
             var userId = c.UserId;
 
-            var pending = p.Req.RequestedTeamIds
-                .Where(tid => teamLabels.ContainsKey(tid))
-                .Where(tid => userId == null || !approved.Contains((userId, tid)))
-                .Distinct()
-                .Select(tid => new UnassignedAdultRequestDto
+            var recorded = p.Req.Teams
+                .Select(t => new UnassignedAdultRecordedTeamDto
                 {
-                    TeamId = tid,
-                    DisplayText = teamLabels[tid],
-                    HasOwnPlayerOnTeam = userId != null
-                        && familyPlayers.TryGetValue(userId, out var fps)
-                        && fps.Any(fp => fp.AssignedTeamId == tid)
+                    TeamId = t.TeamId,
+                    DisplayText = teamLabels.TryGetValue(t.TeamId, out var lbl) && lbl.Length > 0
+                        ? lbl : "(team)",
+                    Source = t.Src == AdultTeamRequestSource.Self ? "self" : "admin"
                 })
                 .ToList();
 
-            // Show a coach who still has a resolvable, unapproved structured request (the
-            // normal approve/deny case). A coach who made only a LEGACY FREE-TEXT request
-            // (or none) has no team to auto-approve — surface them with empty PendingTeams
-            // for MANUAL placement, until the director has placed them on any team. A coach
-            // who made structured requests that were all approved/denied is NOT re-surfaced.
-            var placed = userId != null && placedUserIds.Contains(userId);
-            var needsManualPlacement = !p.Req.IsStructured && !placed;
-            if (pending.Count == 0 && !needsManualPlacement) continue;
+            var assigned = userId != null && assignedByUser.TryGetValue(userId, out var ar)
+                ? ar.Select(a => new UnassignedAdultAssignedTeamDto
+                {
+                    TeamId = a.TeamId,
+                    DisplayText = teamLabels.TryGetValue(a.TeamId, out var lbl) && lbl.Length > 0
+                        ? lbl : "(team)",
+                    StaffRegistrationId = a.RegistrationId
+                }).ToList()
+                : new List<UnassignedAdultAssignedTeamDto>();
 
             var playerName = ($"{c.LastName ?? ""}, {c.FirstName ?? ""}").Trim().TrimEnd(',').Trim();
             if (string.IsNullOrEmpty(playerName)) playerName = "Unknown";
@@ -2680,7 +2693,8 @@ public class RegistrationRepository : IRegistrationRepository
                 Note = p.Req.Note,
                 PriorStaff = prior,
                 LinkedPlayerNames = linked,
-                PendingTeams = pending
+                RecordedTeams = recorded,
+                AssignedTeams = assigned
             });
         }
 
@@ -2688,11 +2702,65 @@ public class RegistrationRepository : IRegistrationRepository
     }
 
     /// <summary>
-    /// Deny a single requested team: remove it from the coach's codified
-    /// <c>RequestedTeamIds</c> and rewrite SpecialRequests. No Staff row is touched.
-    /// Returns false if the registration isn't a valid UnassignedAdult for the job.
+    /// Build Rule (one-time seed): for ACTIVE UnassignedAdult coaches in the job that have ≥1
+    /// Staff assignment but NO codified JSON yet, snapshot those existing grants into the record
+    /// as <see cref="AdultTeamRequestSource.Admin"/> (preserving any free-text as the note). Runs
+    /// before the queue read so legacy/pre-existing grants show as a tagged record. Idempotent —
+    /// a coach already structured is skipped, so it never rebuilds after subsequent changes.
     /// </summary>
-    public async Task<bool> RemoveRequestedTeamAsync(
+    public async Task SeedAdultRequestRecordsAsync(Guid jobId, string adminUserId, CancellationToken ct = default)
+    {
+        var coaches = await _context.Registrations
+            .Where(r => r.JobId == jobId && r.BActive == true
+                && r.Role!.Name == RoleConstants.Names.UnassignedAdultName)
+            .Select(r => new { Reg = r, r.UserId })
+            .ToListAsync(ct);
+
+        // Only those not yet codified.
+        var unseeded = coaches
+            .Where(c => !AdultTeamRequestData.Parse(c.Reg.SpecialRequests).IsStructured)
+            .ToList();
+        if (unseeded.Count == 0) return;
+
+        var userIds = unseeded.Where(c => c.UserId != null).Select(c => c.UserId!).Distinct().ToList();
+        var staffByUser = (await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.JobId == jobId
+                && r.Role!.Name == RoleConstants.Names.StaffName
+                && r.UserId != null && r.AssignedTeamId != null
+                && userIds.Contains(r.UserId))
+            .Select(r => new { r.UserId, TeamId = r.AssignedTeamId!.Value })
+            .ToListAsync(ct))
+            .GroupBy(r => r.UserId!)
+            .ToDictionary(g => g.Key, g => g.Select(x => x.TeamId).Distinct().ToList());
+
+        var now = DateTime.Now;
+        var changed = false;
+        foreach (var c in unseeded)
+        {
+            if (c.UserId == null || !staffByUser.TryGetValue(c.UserId, out var teamIds) || teamIds.Count == 0)
+                continue; // no grants to snapshot — leave free-text/empty as-is
+
+            var data = AdultTeamRequestData.Parse(c.Reg.SpecialRequests); // free-text → preserved as note
+            foreach (var tid in teamIds)
+                data.AddTeam(tid, AdultTeamRequestSource.Admin);
+
+            c.Reg.SpecialRequests = AdultTeamRequestData.Serialize(data);
+            c.Reg.Modified = now;
+            c.Reg.LebUserId = adminUserId;
+            changed = true;
+        }
+
+        if (changed) await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Append-on-grant: record that a director granted <paramref name="teamId"/> by adding it to
+    /// the coach's append-only record as <see cref="AdultTeamRequestSource.Admin"/> (no-op if the
+    /// team is already recorded — a prior <c>self</c> request is never downgraded). The JSON is
+    /// never otherwise modified. Returns false if the registration isn't a valid UnassignedAdult.
+    /// </summary>
+    public async Task<bool> AppendGrantedTeamToRecordAsync(
         Guid registrationId, Guid jobId, Guid teamId, string adminUserId, CancellationToken ct = default)
     {
         var reg = await _context.Registrations
@@ -2703,12 +2771,65 @@ public class RegistrationRepository : IRegistrationRepository
             return false;
 
         var data = AdultTeamRequestData.Parse(reg.SpecialRequests);
-        if (!data.RequestedTeamIds.Remove(teamId))
-            return false; // nothing to deny
+        if (!data.AddTeam(teamId, AdultTeamRequestSource.Admin))
+            return false; // already in the record — nothing to append
 
         reg.SpecialRequests = AdultTeamRequestData.Serialize(data);
         reg.Modified = DateTime.Now;
         reg.LebUserId = adminUserId;
+        await _context.SaveChangesAsync(ct);
+        return true;
+    }
+
+    /// <summary>
+    /// Deny a coach outright: delete ALL their Staff rows in the job (and the device links those
+    /// rows carried) and deactivate the UnassignedAdult anchor (<c>bActive=0</c>) so they drop
+    /// from the queue. The immutable team record (SpecialRequests JSON) is left untouched — the
+    /// history of what was requested/granted survives. Returns false if the anchor isn't found.
+    /// </summary>
+    public async Task<bool> DenyCoachAsync(
+        Guid registrationId, Guid jobId, string adminUserId, CancellationToken ct = default)
+    {
+        var anchor = await _context.Registrations
+            .Include(r => r.Role)
+            .FirstOrDefaultAsync(r => r.RegistrationId == registrationId && r.JobId == jobId, ct);
+
+        if (anchor == null || anchor.Role?.Name != RoleConstants.Names.UnassignedAdultName)
+            return false;
+
+        var now = DateTime.Now;
+
+        if (anchor.UserId != null)
+        {
+            var staffRegs = await _context.Registrations
+                .Where(r => r.JobId == jobId
+                    && r.Role!.Name == RoleConstants.Names.StaffName
+                    && r.UserId == anchor.UserId)
+                .Select(r => r.RegistrationId)
+                .ToListAsync(ct);
+
+            if (staffRegs.Count > 0)
+            {
+                var deviceTeams = await _context.DeviceTeams
+                    .Where(dt => dt.RegistrationId != null && staffRegs.Contains(dt.RegistrationId.Value))
+                    .ToListAsync(ct);
+                _context.DeviceTeams.RemoveRange(deviceTeams);
+
+                var deviceRegIds = await _context.DeviceRegistrationIds
+                    .Where(dr => staffRegs.Contains(dr.RegistrationId))
+                    .ToListAsync(ct);
+                _context.DeviceRegistrationIds.RemoveRange(deviceRegIds);
+
+                var toDelete = await _context.Registrations
+                    .Where(r => staffRegs.Contains(r.RegistrationId))
+                    .ToListAsync(ct);
+                _context.Registrations.RemoveRange(toDelete);
+            }
+        }
+
+        anchor.BActive = false;
+        anchor.Modified = now;
+        anchor.LebUserId = adminUserId;
         await _context.SaveChangesAsync(ct);
         return true;
     }

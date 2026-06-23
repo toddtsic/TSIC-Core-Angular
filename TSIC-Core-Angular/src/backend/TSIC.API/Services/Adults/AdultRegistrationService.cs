@@ -972,10 +972,13 @@ public class AdultRegistrationService : IAdultRegistrationService
         // Nothing to codify (no valid requests, no note) → leave SpecialRequests as-is.
         if (requestedTeamIds.Count == 0 && string.IsNullOrEmpty(note)) return;
 
+        // The coach's own picks are tagged Self — the intent half of the append-only record.
         registration.SpecialRequests = AdultTeamRequestData.Serialize(
             new AdultTeamRequestData
             {
-                RequestedTeamIds = requestedTeamIds,
+                Teams = requestedTeamIds
+                    .Select(id => new AdultTeamRequest { TeamId = id, Src = AdultTeamRequestSource.Self })
+                    .ToList(),
                 Note = string.IsNullOrEmpty(note) ? null : note,
             });
     }

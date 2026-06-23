@@ -106,7 +106,11 @@ public class RosterSwapperController : ControllerBase
         if (jobId == null)
             return BadRequest(new { message = "Registration context required" });
 
-        var queue = await _swapperService.GetUnassignedAdultQueueAsync(jobId.Value, ct);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+            return Unauthorized();
+
+        var queue = await _swapperService.GetUnassignedAdultQueueAsync(jobId.Value, userId, ct);
         return Ok(queue);
     }
 
@@ -138,9 +142,9 @@ public class RosterSwapperController : ControllerBase
         }
     }
 
-    [HttpPost("deny-request")]
-    public async Task<ActionResult> DenyRequest(
-        [FromBody] ApproveTeamRequestDto request, CancellationToken ct)
+    [HttpPost("deny-coach")]
+    public async Task<ActionResult> DenyCoach(
+        [FromBody] DenyCoachDto request, CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
         if (jobId == null)
@@ -152,8 +156,7 @@ public class RosterSwapperController : ControllerBase
 
         try
         {
-            await _swapperService.DenyTeamRequestAsync(
-                jobId.Value, userId, request.RegistrationId, request.TeamId, ct);
+            await _swapperService.DenyCoachAsync(jobId.Value, userId, request.RegistrationId, ct);
             return NoContent();
         }
         catch (ArgumentException ex)

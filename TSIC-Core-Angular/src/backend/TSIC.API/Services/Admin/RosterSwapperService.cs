@@ -441,24 +441,36 @@ public sealed class RosterSwapperService : IRosterSwapperService
         await _registrationRepo.SaveChangesAsync(ct);
     }
 
-    public Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default)
-        => _registrationRepo.GetUnassignedAdultQueueAsync(jobId, ct);
+    public async Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(
+        Guid jobId, string adminUserId, CancellationToken ct = default)
+    {
+        // Build Rule: codify any pre-existing grants into a tagged record before reading, so
+        // legacy coaches show with a record. Idempotent — only fires for not-yet-codified coaches.
+        await _registrationRepo.SeedAdultRequestRecordsAsync(jobId, adminUserId, ct);
+        return await _registrationRepo.GetUnassignedAdultQueueAsync(jobId, ct);
+    }
 
-    public Task<RosterTransferResultDto> ApproveTeamRequestAsync(
+    public async Task<RosterTransferResultDto> ApproveTeamRequestAsync(
         Guid jobId, string adminUserId, Guid registrationId, Guid teamId, CancellationToken ct = default)
-        => ExecuteTransferAsync(jobId, adminUserId, new RosterTransferRequest
+    {
+        var result = await ExecuteTransferAsync(jobId, adminUserId, new RosterTransferRequest
         {
             RegistrationIds = new List<Guid> { registrationId },
             SourcePoolId = Guid.Empty,   // Unassigned Adults pool ⇒ FLOW 2 mints the Staff row
             TargetPoolId = teamId
         }, ct);
 
-    public async Task<bool> DenyTeamRequestAsync(
-        Guid jobId, string adminUserId, Guid registrationId, Guid teamId, CancellationToken ct = default)
+        // Append-on-grant: record the granted team as admin in the coach's append-only record.
+        await _registrationRepo.AppendGrantedTeamToRecordAsync(registrationId, jobId, teamId, adminUserId, ct);
+        return result;
+    }
+
+    public async Task<bool> DenyCoachAsync(
+        Guid jobId, string adminUserId, Guid registrationId, CancellationToken ct = default)
     {
-        var removed = await _registrationRepo.RemoveRequestedTeamAsync(registrationId, jobId, teamId, adminUserId, ct);
-        if (!removed)
-            throw new ArgumentException("That team request was not found for this coach.");
+        var denied = await _registrationRepo.DenyCoachAsync(registrationId, jobId, adminUserId, ct);
+        if (!denied)
+            throw new ArgumentException("Coach registration not found for this job.");
         return true;
     }
 

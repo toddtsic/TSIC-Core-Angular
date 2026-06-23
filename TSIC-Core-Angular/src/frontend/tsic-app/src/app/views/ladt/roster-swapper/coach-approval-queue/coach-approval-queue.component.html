@@ -5,9 +5,9 @@
                 <i class="bi bi-person-check-fill me-2"></i>Coach Approval Queue
             </h4>
             <p class="queue-sub">
-                Review each coach's requested teams. Approving places them on the team and grants
-                roster access; denying removes the request. Coaches who didn't request a specific
-                team can be placed on one directly. No coach is on a team until you approve.
+                Each coach can be placed on any number of teams — check a team to grant it
+                (gives roster access), un-check to remove them. ★ marks teams the coach asked for;
+                Deny removes a coach from all teams and takes them off this list.
             </p>
         </div>
         <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
@@ -23,9 +23,8 @@
     } @else if (!hasRows()) {
         <div class="empty-state">
             <i class="bi bi-check2-circle empty-icon"></i>
-            <div class="empty-title">No pending coach requests</div>
-            <div class="empty-sub">Coaches with no outstanding team requests appear in the Roster Swapper's
-                Unassigned Adults pool.</div>
+            <div class="empty-title">No active coaches</div>
+            <div class="empty-sub">No coach registrations are awaiting placement for this event.</div>
         </div>
     } @else {
         <div class="coach-list">
@@ -37,16 +36,23 @@
                             @if (row.clubName) { <span class="coach-club">— {{ row.clubName }}</span> }
                         </div>
 
-                        <!-- Lead recognition signal: prior Staff history -->
+                        <!-- Lead recognition signal: prior Staff history (other jobs) -->
                         @if (row.priorStaff.length > 0) {
                             <div class="signal signal-known">
-                                <i class="bi bi-patch-check-fill me-1"></i>
-                                <span>
-                                    Coached before:
-                                    @for (ps of row.priorStaff; track $index) {
-                                        <span class="prior-pill">{{ ps.teamName }} · {{ ps.jobName }}</span>
-                                    }
-                                </span>
+                                <button type="button" class="prior-toggle" (click)="togglePrior(row.registrationId)"
+                                    [attr.aria-expanded]="isPriorExpanded(row.registrationId)">
+                                    <i class="bi" [class.bi-chevron-right]="!isPriorExpanded(row.registrationId)"
+                                        [class.bi-chevron-down]="isPriorExpanded(row.registrationId)"></i>
+                                    <i class="bi bi-patch-check-fill mx-1"></i>
+                                    Coached before ({{ row.priorStaff.length }})
+                                </button>
+                                @if (isPriorExpanded(row.registrationId)) {
+                                    <ul class="prior-list">
+                                        @for (ps of row.priorStaff; track $index) {
+                                            <li>{{ ps.teamName }} · {{ ps.jobName }}</li>
+                                        }
+                                    </ul>
+                                }
                             </div>
                         } @else {
                             <div class="signal signal-new">
@@ -75,78 +81,68 @@
                     </div>
 
                     <div class="coach-requests">
-                        @if (row.pendingTeams.length > 0) {
-                            <div class="requests-head">
-                                <span class="requests-label">Requested teams ({{ row.pendingTeams.length }})</span>
-                                @if (row.pendingTeams.length > 1) {
-                                    <button type="button" class="btn btn-success btn-sm"
-                                        (click)="approveAll(row)" [disabled]="busyCoach() === row.registrationId">
-                                        @if (busyCoach() === row.registrationId) {
-                                            <span class="spinner-border spinner-border-sm me-1"></span>
-                                        } @else {
-                                            <i class="bi bi-check-all me-1"></i>
-                                        }
-                                        Approve all
-                                    </button>
-                                }
-                            </div>
-
-                            @for (team of row.pendingTeams; track team.teamId) {
-                                <div class="request-line">
-                                    <div class="request-team">
-                                        <span class="team-text">{{ team.displayText }}</span>
-                                        @if (team.hasOwnPlayerOnTeam) {
-                                            <span class="own-player-flag">
-                                                <i class="bi bi-star-fill me-1"></i>your player is on this team
-                                            </span>
-                                        }
-                                    </div>
-                                    <div class="request-actions">
-                                        <button type="button" class="btn btn-success btn-sm"
-                                            (click)="approve(row, team)" [disabled]="isLineBusy(row, team)">
-                                            @if (busyLine() === lineKey(row, team)) {
-                                                <span class="spinner-border spinner-border-sm"></span>
+                        <!-- Immutable record: asks (★self) ∪ grants (admin); ✓ = granted now -->
+                        @if (row.recordedTeams.length > 0) {
+                            <div class="record-block">
+                                <span class="record-label">Team record</span>
+                                <ul class="record-chips">
+                                    @for (team of row.recordedTeams; track team.teamId) {
+                                        <li [class.is-granted]="isGranted(row, team.teamId)"
+                                            [class.is-self]="team.source === 'self'">
+                                            @if (team.source === 'self') {
+                                                <i class="bi bi-star-fill src-self" title="The coach requested this"></i>
                                             } @else {
-                                                <i class="bi bi-check-lg"></i>
+                                                <i class="bi bi-shield-fill-check src-admin" title="Director added"></i>
                                             }
-                                            <span class="ms-1">Approve</span>
-                                        </button>
-                                        <button type="button" class="btn btn-outline-danger btn-sm"
-                                            (click)="deny(row, team)" [disabled]="isLineBusy(row, team)">
-                                            <i class="bi bi-x-lg"></i><span class="ms-1">Deny</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            }
-                        } @else {
-                            <!-- No structured team requested (legacy free-text). Director places manually. -->
-                            <div class="requests-head">
-                                <span class="requests-label">No team requested — place manually</span>
-                            </div>
-                            <div class="manual-place">
-                                <select class="form-select form-select-sm"
-                                    [value]="placementChoice()[row.registrationId] || ''"
-                                    (change)="chooseTeam(row.registrationId, $any($event.target).value)"
-                                    [disabled]="busyCoach() === row.registrationId">
-                                    <option value="" disabled>Select a team…</option>
-                                    @for (pool of teamPools(); track pool.poolId) {
-                                        <option [value]="pool.poolId">
-                                            {{ pool.poolName }}@if (pool.agegroupName) { · {{ pool.agegroupName }}}
-                                        </option>
+                                            <span class="record-text">{{ team.displayText }}</span>
+                                            @if (isGranted(row, team.teamId)) {
+                                                <i class="bi bi-check-circle-fill granted-flag" title="Granted now"></i>
+                                            } @else {
+                                                <span class="ungranted-flag">not granted</span>
+                                            }
+                                        </li>
                                     }
-                                </select>
-                                <button type="button" class="btn btn-success btn-sm"
-                                    (click)="placeOnTeam(row)"
-                                    [disabled]="!placementChoice()[row.registrationId] || busyCoach() === row.registrationId">
-                                    @if (busyCoach() === row.registrationId) {
-                                        <span class="spinner-border spinner-border-sm me-1"></span>
-                                    } @else {
-                                        <i class="bi bi-check-lg me-1"></i>
-                                    }
-                                    Place on team
-                                </button>
+                                </ul>
                             </div>
                         }
+
+                        <label class="picker-label">Teams ({{ row.assignedTeams.length }} granted)</label>
+                        <ejs-multiselect
+                            [dataSource]="teamsDataSource()"
+                            [fields]="teamFields"
+                            [value]="assignedTeamIds(row)"
+                            (change)="onTeamsChange(row, $event)"
+                            [mode]="'CheckBox'"
+                            [allowFiltering]="true"
+                            [filterBarPlaceholder]="'Search by team, club or age group…'"
+                            [showSelectAll]="false"
+                            [closePopupOnSelect]="false"
+                            [changeOnBlur]="true"
+                            [showDropDownIcon]="true"
+                            [enabled]="busyCoach() !== row.registrationId"
+                            [placeholder]="'Check teams to grant this coach'"
+                            [popupHeight]="'320px'">
+                        </ejs-multiselect>
+
+                        <div class="coach-actions">
+                            @if (busyCoach() === row.registrationId) {
+                                <span class="picker-busy">
+                                    <span class="spinner-border spinner-border-sm me-1"></span>Updating…
+                                </span>
+                            } @else if (confirmingDeny() === row.registrationId) {
+                                <span class="deny-confirm">Remove from all teams &amp; deactivate?</span>
+                                <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeny(row)">
+                                    <i class="bi bi-x-octagon me-1"></i>Confirm deny
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeny()">
+                                    Cancel
+                                </button>
+                            } @else {
+                                <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDeny(row)">
+                                    <i class="bi bi-x-octagon me-1"></i>Deny coach
+                                </button>
+                            }
+                        </div>
                     </div>
                 </article>
             }

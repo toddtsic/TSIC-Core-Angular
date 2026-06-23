@@ -102,16 +102,29 @@ public record UpdatePlayerActiveRequest
 }
 
 /// <summary>
-/// One pending team request on a coach's queue row. A request is "pending" only when
-/// no Staff row yet exists for (coach, team) — approved teams are filtered out upstream.
+/// One team in the coach's append-only association record (their <c>SpecialRequests</c> JSON),
+/// tagged with its origin. Shown as a chip on the card so the director sees what the coach
+/// asked for (<c>self</c>) versus what a director added (<c>admin</c>); whether it's granted
+/// right now is told separately by <see cref="UnassignedAdultQueueRowDto.AssignedTeams"/>.
 /// </summary>
-public record UnassignedAdultRequestDto
+public record UnassignedAdultRecordedTeamDto
 {
     public required Guid TeamId { get; init; }
     public required string DisplayText { get; init; }
-    /// <summary>True when the coach has their own player rostered on this exact team — a
-    /// strong "approve" signal (e.g. a parent coaching their kid's team).</summary>
-    public required bool HasOwnPlayerOnTeam { get; init; }
+    /// <summary><c>"self"</c> = the coach requested it; <c>"admin"</c> = a director added/granted it.</summary>
+    public required string Source { get; init; }
+}
+
+/// <summary>
+/// A team the coach is CURRENTLY assigned to in this job (a live Staff row). Pre-checks the
+/// approval-queue dropdown; carries the Staff registration id so an un-check deletes exactly
+/// that row (FLOW 3) without a lookup.
+/// </summary>
+public record UnassignedAdultAssignedTeamDto
+{
+    public required Guid TeamId { get; init; }
+    public required string DisplayText { get; init; }
+    public required Guid StaffRegistrationId { get; init; }
 }
 
 /// <summary>
@@ -125,8 +138,9 @@ public record PriorStaffAssignmentDto
 }
 
 /// <summary>
-/// A director-queue row: one UnassignedAdult coach with their recognition context and
-/// pending (not-yet-approved) team requests.
+/// A director-queue row: one UnassignedAdult coach with recognition context, their immutable
+/// team record (requested ∪ granted, tagged) and their live grants. The queue lists every
+/// active coach — nothing auto-retires; a coach leaves only when a director denies them.
 /// </summary>
 public record UnassignedAdultQueueRowDto
 {
@@ -139,19 +153,33 @@ public record UnassignedAdultQueueRowDto
     public string? State { get; init; }
     public required DateTime RegistrationTs { get; init; }
     public string? Note { get; init; }
-    /// <summary>Prior Staff assignments across any job — the lead recognition signal.</summary>
+    /// <summary>Prior Staff assignments in OTHER jobs — the lead recognition signal.</summary>
     public required List<PriorStaffAssignmentDto> PriorStaff { get; init; }
     /// <summary>Names of the coach's own players registered in THIS job (minor secondary signal).</summary>
     public required List<string> LinkedPlayerNames { get; init; }
-    /// <summary>Pending team requests, one actionable Approve/Deny line each.</summary>
-    public required List<UnassignedAdultRequestDto> PendingTeams { get; init; }
+    /// <summary>The append-only team record (coach asks ∪ director grants), each tagged self/admin.
+    /// Immutable history; cross-reference with <see cref="AssignedTeams"/> for current grant state.</summary>
+    public required List<UnassignedAdultRecordedTeamDto> RecordedTeams { get; init; }
+    /// <summary>Teams the coach is CURRENTLY assigned to (live Staff rows) — pre-checks the
+    /// dropdown. Checking a new team places (FLOW 2); un-checking one of these removes it (FLOW 3).</summary>
+    public required List<UnassignedAdultAssignedTeamDto> AssignedTeams { get; init; }
 }
 
 /// <summary>
-/// Approve or deny a single (coach, requested-team) line from the director queue.
+/// Approve (grant) a single (coach, team) from the director queue — mints the Staff row and
+/// appends the team to the coach's record as <c>admin</c>.
 /// </summary>
 public record ApproveTeamRequestDto
 {
     public required Guid RegistrationId { get; init; }
     public required Guid TeamId { get; init; }
+}
+
+/// <summary>
+/// Deny a coach outright from the director queue — deletes ALL their Staff rows and deactivates
+/// the UnassignedAdult anchor (<c>bActive=0</c>). The immutable team record is left untouched.
+/// </summary>
+public record DenyCoachDto
+{
+    public required Guid RegistrationId { get; init; }
 }

@@ -510,20 +510,33 @@ public interface IRegistrationRepository
     Task<List<SwapperPlayerDto>> GetUnassignedAdultsAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Director approval queue: each UnassignedAdult coach with their recognition context
-    /// (prior Staff history, family linkage) and PENDING team requests (requested teams
-    /// not yet approved — i.e. no Staff row exists for that (coach, team) yet). Coaches
-    /// with no pending requests are omitted. AsNoTracking.
+    /// Director approval queue: every ACTIVE UnassignedAdult coach with their recognition
+    /// context (prior Staff in other jobs, family linkage), their append-only team record
+    /// (asks ∪ grants, tagged self/admin) and their live grants. Nothing auto-retires; a
+    /// coach leaves only via Deny. AsNoTracking.
     /// </summary>
     Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Deny one requested team: removes it from the coach's codified RequestedTeamIds and
-    /// rewrites SpecialRequests. No Staff row is touched. Returns false if the registration
-    /// is not a valid UnassignedAdult for the job, or the team wasn't requested.
+    /// Build Rule (one-time seed): for active UnassignedAdult coaches with ≥1 Staff assignment
+    /// but no codified JSON yet, snapshot those grants into the record as <c>admin</c>. Idempotent.
     /// </summary>
-    Task<bool> RemoveRequestedTeamAsync(
+    Task SeedAdultRequestRecordsAsync(Guid jobId, string adminUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Append-on-grant: add <paramref name="teamId"/> to the coach's append-only record as
+    /// <c>admin</c> (no-op if already recorded). Returns false if the registration isn't a valid
+    /// UnassignedAdult for the job.
+    /// </summary>
+    Task<bool> AppendGrantedTeamToRecordAsync(
         Guid registrationId, Guid jobId, Guid teamId, string adminUserId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Deny a coach outright: delete ALL their Staff rows (and device links) and deactivate the
+    /// UnassignedAdult anchor (<c>bActive=0</c>). The immutable team record is left untouched.
+    /// Returns false if the anchor isn't a valid UnassignedAdult for the job.
+    /// </summary>
+    Task<bool> DenyCoachAsync(Guid registrationId, Guid jobId, string adminUserId, CancellationToken ct = default);
 
     /// <summary>
     /// Get tracked registrations for bulk transfer operations.

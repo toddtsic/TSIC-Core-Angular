@@ -20,17 +20,20 @@ public interface IRosterSwapperService
 
     Task TogglePlayerActiveAsync(Guid registrationId, Guid jobId, bool active, string adminUserId, CancellationToken ct = default);
 
-    /// <summary>Director approval queue: unassigned coaches with pending team requests + recognition context.</summary>
-    Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default);
+    /// <summary>Director approval queue: every active coach with their tagged team record +
+    /// live grants + recognition context. Seeds pre-existing grants into the record first.</summary>
+    Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(
+        Guid jobId, string adminUserId, CancellationToken ct = default);
 
     /// <summary>
-    /// Approve one requested team: mints the per-team Staff row via the FLOW-2 transfer
-    /// path. The UnassignedAdult row remains as the source of further acceptances.
+    /// Approve (grant) one team: mints the per-team Staff row via the FLOW-2 transfer path and
+    /// appends the team to the coach's record as admin. The UnassignedAdult row remains.
     /// </summary>
     Task<RosterTransferResultDto> ApproveTeamRequestAsync(
         Guid jobId, string adminUserId, Guid registrationId, Guid teamId, CancellationToken ct = default);
 
-    /// <summary>Deny one requested team: drop it from the coach's codified requests (no Staff row).</summary>
-    Task<bool> DenyTeamRequestAsync(
-        Guid jobId, string adminUserId, Guid registrationId, Guid teamId, CancellationToken ct = default);
+    /// <summary>Deny a coach outright: delete ALL their Staff rows + deactivate the anchor
+    /// (bActive=0). The immutable team record is left untouched.</summary>
+    Task<bool> DenyCoachAsync(
+        Guid jobId, string adminUserId, Guid registrationId, CancellationToken ct = default);
 }

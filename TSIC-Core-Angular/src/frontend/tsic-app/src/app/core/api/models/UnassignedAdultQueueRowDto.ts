@@ -3,7 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { PriorStaffAssignmentDto } from './PriorStaffAssignmentDto';
-import type { UnassignedAdultRequestDto } from './UnassignedAdultRequestDto';
+import type { UnassignedAdultAssignedTeamDto } from './UnassignedAdultAssignedTeamDto';
+import type { UnassignedAdultRecordedTeamDto } from './UnassignedAdultRecordedTeamDto';
 export type UnassignedAdultQueueRowDto = {
     registrationId: string;
     playerName: string;
@@ -16,6 +17,7 @@ export type UnassignedAdultQueueRowDto = {
     note?: string | null;
     priorStaff: Array<PriorStaffAssignmentDto>;
     linkedPlayerNames: Array<string>;
-    pendingTeams: Array<UnassignedAdultRequestDto>;
+    recordedTeams: Array<UnassignedAdultRecordedTeamDto>;
+    assignedTeams: Array<UnassignedAdultAssignedTeamDto>;
 };
 

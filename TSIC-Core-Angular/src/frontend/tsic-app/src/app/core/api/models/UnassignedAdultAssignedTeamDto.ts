@@ -2,9 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UnassignedAdultRequestDto = {
+export type UnassignedAdultAssignedTeamDto = {
     teamId: string;
     displayText: string;
-    hasOwnPlayerOnTeam: boolean;
+    staffRegistrationId: string;
 };
 
