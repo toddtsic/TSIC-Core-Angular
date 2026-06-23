@@ -349,6 +349,12 @@ thead .frozen {
     text-overflow: ellipsis;
 }
 
+// Agegroup prefix on the selected-division trigger — lighter than the bold division name
+.pool-trigger-agegroup {
+    color: var(--bs-secondary-color);
+    font-weight: var(--font-weight-normal);
+}
+
 .color-dot {
     width: 14px;
     height: 14px;

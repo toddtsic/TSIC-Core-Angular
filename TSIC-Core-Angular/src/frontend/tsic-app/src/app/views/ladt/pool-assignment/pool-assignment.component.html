@@ -36,7 +36,7 @@
               @if (sourceDiv(); as div) {
                 <span class="color-dot" [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                       [class.color-dot--empty]="!div.agegroupColor"></span>
-                {{ div.divName }}
+                <span class="pool-trigger-agegroup">{{ div.agegroupName }}:</span>{{ div.divName }}
                 <span class="badge rounded-pill ms-1"
                       [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                       [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>
@@ -228,7 +228,7 @@
               @if (targetDiv(); as div) {
                 <span class="color-dot" [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                       [class.color-dot--empty]="!div.agegroupColor"></span>
-                {{ div.divName }}
+                <span class="pool-trigger-agegroup">{{ div.agegroupName }}:</span>{{ div.divName }}
                 <span class="badge rounded-pill ms-1"
                       [style.background]="div.agegroupColor ?? 'var(--bs-secondary-bg)'"
                       [style.color]="contrastText(div.agegroupColor)">{{ div.teamCount }}</span>

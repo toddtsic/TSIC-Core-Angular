@@ -137,6 +137,10 @@ export class PoolAssignmentComponent {
             next: divisions => {
                 this.divisionOptions.set(divisions);
                 this.isLoading.set(false);
+                // Auto-select the first division as the source on initial load
+                if (!this.sourceDivId() && divisions.length > 0) {
+                    this.onSourceDivChange(divisions[0].divId);
+                }
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Failed to load division options.', 'danger', 4000);
