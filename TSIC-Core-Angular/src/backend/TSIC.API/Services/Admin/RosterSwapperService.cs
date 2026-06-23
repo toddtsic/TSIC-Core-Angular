@@ -218,6 +218,13 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 ?? throw new ArgumentException("Target team not found.");
             var (targetTeam, _) = targetContext;
 
+            // Defense-in-depth: the target team GUID is client-supplied; confirm it belongs to
+            // the caller's job before minting a Staff row (which grants roster/PII access).
+            // The endpoint is already AdminOnly + job-scoped, so this guards against an
+            // accidental cross-job approval rather than an anonymous attacker.
+            if (targetTeam.JobId != jobId)
+                throw new ArgumentException("Target team does not belong to this job.");
+
             // No capacity check: roster MaxCount gates self-rostering registrants, NOT admins.
             // The Roster Swapper is an admin-discretion tool and may overfill a team intentionally.
 
@@ -331,6 +338,12 @@ public sealed class RosterSwapperService : IRosterSwapperService
             var targetContext = await _teamRepo.GetTeamWithFeeContextAsync(request.TargetPoolId, ct)
                 ?? throw new ArgumentException("Target team not found.");
             var (targetTeam, _) = targetContext;
+
+            // Defense-in-depth: the target team GUID is client-supplied; confirm it belongs to
+            // the caller's job before reassigning a registration onto it. The endpoint is already
+            // AdminOnly + job-scoped, so this guards against an accidental cross-job move.
+            if (targetTeam.JobId != jobId)
+                throw new ArgumentException("Target team does not belong to this job.");
 
             // No capacity check: roster MaxCount gates self-rostering registrants, NOT admins.
             // The Roster Swapper is an admin-discretion tool (e.g. moving a waitlisted player
