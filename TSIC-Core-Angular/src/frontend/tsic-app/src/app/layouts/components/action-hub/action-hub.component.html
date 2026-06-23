@@ -80,14 +80,20 @@
 					<a class="ah-hero__card" [class.ah-hero__card--primary]="action.emphasis === 'primary'"
 						[routerLink]="action.routerLink" [queryParams]="action.queryParams ?? null">
 						<span class="ah-hero__icon"><i class="bi {{ action.icon }}" aria-hidden="true"></i></span>
-						<span class="ah-hero__label">{{ action.label }}</span>
+						<span class="ah-hero__text">
+							<span class="ah-hero__label">{{ action.label }}</span>
+							@if (action.hint) { <span class="ah-hero__hint">{{ action.hint }}</span> }
+						</span>
 						<i class="bi bi-arrow-right ah-hero__go" aria-hidden="true"></i>
 					</a>
 				} @else {
 					<button type="button" class="ah-hero__card"
 						[class.ah-hero__card--primary]="action.emphasis === 'primary'">
 						<span class="ah-hero__icon"><i class="bi {{ action.icon }}" aria-hidden="true"></i></span>
-						<span class="ah-hero__label">{{ action.label }}</span>
+						<span class="ah-hero__text">
+							<span class="ah-hero__label">{{ action.label }}</span>
+							@if (action.hint) { <span class="ah-hero__hint">{{ action.hint }}</span> }
+						</span>
 						<i class="bi bi-arrow-right ah-hero__go" aria-hidden="true"></i>
 					</button>
 				}

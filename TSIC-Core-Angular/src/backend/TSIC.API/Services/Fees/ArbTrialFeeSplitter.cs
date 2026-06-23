@@ -1,3 +1,5 @@
+using TSIC.Contracts.Payments;
+
 namespace TSIC.API.Services.Fees;
 
 /// <summary>
@@ -12,10 +14,12 @@ namespace TSIC.API.Services.Fees;
 /// Round-once-remainder: total processing is rounded once; deposit's share is rounded;
 /// balance's share is the subtraction remainder so the two always sum exactly.
 ///
-/// Discount, late fee, and donation fold into netBase universally and allocate
-/// proportionally regardless of the bApplyProcessingFeesToTeamDeposit flag — the flag
-/// governs only where the PROCESSING fee lands. Donation increases netBase like a late
-/// fee, so processing is levied on it and the donation principal is charged.
+/// The discount and late fee FRONT-LOAD onto the deposit (what is owed first) rather than
+/// allocating proportionally, so the deposit charged equals the deposit the rep was shown
+/// (the display column derives from the same FeeMath.DepositObligation). The donation does NOT
+/// front-load — it is not discounted and is excluded from the displayed deposit-due, so it rides
+/// the two charges on the raw deposit/balance ratio (preserving its processing treatment).
+/// The bApplyProcessingFeesToTeamDeposit flag governs only where the PROCESSING fee lands.
 ///
 /// This helper has no I/O — pure math, easy to test.
 /// </summary>
@@ -61,21 +65,45 @@ public static class ArbTrialFeeSplitter
         bool bApplyProcessingFeesToTeamDeposit)
     {
         var rawTotal = rawDeposit + rawBalance;
-        var netBase = System.Math.Max(rawTotal - discount + lateFee + donation, 0m);
 
-        // Allocate netBase proportionally to the raw deposit/balance ratio. Defensive:
-        // when rawTotal == 0, send everything to the balance side.
-        decimal depositBase, balanceBase;
+        // ── Principal split (discount + late fee front-load onto the deposit) ──
+        // The discount and late fee land on the deposit — what is owed FIRST — not amortized
+        // proportionally across deposit + balance, so the deposit charged here equals the deposit
+        // the rep was SHOWN (RegisteredTeamShaper → PaymentState.DepositPrincipalRemaining, which
+        // passes donation:0). Both derive the deposit obligation from the one shared formula
+        // FeeMath.DepositObligation, so shown-deposit and charged-deposit cannot drift. The balance
+        // is the remainder; a discount larger than the deposit spills onto the balance, and a
+        // discount ≥ the whole principal zeroes both. Inputs are 2-dp so these are exact.
+        var netPrincipal = System.Math.Max(rawTotal - discount + lateFee, 0m);
+        var depositPrincipal = System.Math.Min(
+            FeeMath.DepositObligation(rawDeposit, discount, lateFee, donation: 0m),
+            netPrincipal);
+        var balancePrincipal = netPrincipal - depositPrincipal;
+
+        // ── Donation ride (unchanged) ──
+        // A donation is not discounted and is not part of the owed obligation, so it does NOT
+        // front-load. It rides the two charges on the raw deposit/balance ratio exactly as before,
+        // preserving its processing treatment. (It is excluded from the displayed deposit-due, which
+        // is why it is excluded from the front-load above — keeping charge and display aligned.)
+        decimal depositDonation, balanceDonation;
         if (rawTotal == 0m)
         {
-            depositBase = 0m;
-            balanceBase = netBase;
+            depositDonation = 0m;
+            balanceDonation = donation;
         }
         else
         {
-            depositBase = System.Math.Round(netBase * rawDeposit / rawTotal, 2, System.MidpointRounding.AwayFromZero);
-            balanceBase = netBase - depositBase;
+            depositDonation = System.Math.Round(donation * rawDeposit / rawTotal, 2, System.MidpointRounding.AwayFromZero);
+            balanceDonation = donation - depositDonation;
         }
+
+        var depositBase = depositPrincipal + depositDonation;
+        var balanceBase = balancePrincipal + balanceDonation;
+        // Processing is levied on the actual principal + donation charged (== depositBase + balanceBase).
+        // A discount never eats into the donation, so this can exceed the old
+        // max(rawTotal − discount + lateFee + donation, 0) only in the degenerate case where the
+        // discount alone exceeds the principal — there the donation is correctly preserved.
+        var netBase = depositBase + balanceBase;
 
         decimal totalProcessing = 0m;
         decimal depositProcessing = 0m;

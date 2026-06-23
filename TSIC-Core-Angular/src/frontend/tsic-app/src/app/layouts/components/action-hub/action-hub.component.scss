@@ -291,8 +291,27 @@
 	line-height: 1;
 }
 
+/* Label column — lets an optional tiny hint stack under the label without
+   widening the card (min-width:0 enables the hint's ellipsis). */
+.ah-hero__text {
+	display: inline-flex;
+	flex-direction: column;
+	min-width: 0;
+	line-height: 1.15;
+}
+
 .ah-hero__label {
 	font-size: var(--font-size-base);
+}
+
+/* Tiny, muted second line (e.g. audience cue). Never wraps — truncates so the
+   two-line card stays compact. */
+.ah-hero__hint {
+	font-size: var(--font-size-xs);
+	color: var(--bs-secondary-color);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 /* Badges stay clean — no trailing arrows. */
@@ -363,6 +382,10 @@
 
 	.ah-hero__icon { font-size: var(--font-size-sm); }
 	.ah-hero__label { font-size: var(--font-size-xs); }
+	/* Center the label column to match the centered mobile pill; keep the hint
+	   readable but visually subordinate. */
+	.ah-hero__text { align-items: center; }
+	.ah-hero__hint { font-size: 0.625rem; }
 
 	/* A lone trailing odd card spans the full width instead of sitting half-empty. */
 	.ah-hero__card:last-child:nth-child(odd) { grid-column: 1 / -1; }

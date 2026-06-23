@@ -12,6 +12,7 @@ export interface HubItem {
     key: string;
     label: string;
     icon: string;                 // full bootstrap class, e.g. 'bi-person-plus'
+    hint?: string;                // optional tiny second line on hero cards (e.g. audience: "For registered players")
     emphasis?: 'primary' | 'secondary';
     routerLink?: string;          // path only — query string must NOT be embedded here
     queryParams?: Record<string, string>; // bound to [queryParams] (routerLink won't parse a '?' out of a string)

@@ -234,8 +234,11 @@ public class PlayerRegistrationPaymentController : ControllerBase
             // different row — even on the TeamId-absent fallback path.
             processedRegIds.Add(reg.RegistrationId);
 
-            // Check if already discounted
-            if (reg.FeeDiscount > 0m)
+            // One-use anti-abuse: a code can be redeemed against a registration only once. Key the
+            // guard on the actual redeemed code (DiscountCodeId), NOT FeeDiscount > 0 — early-bird is
+            // stamped into FeeDiscount too, so the old signal wrongly blocked an early-bird reg from
+            // ever using a code. Mirrors the team path's per-team guard (team.DiscountCodeId != null).
+            if (reg.DiscountCodeId != null)
             {
                 results.Add(new PlayerDiscountResult
                 {
@@ -248,9 +251,16 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 continue;
             }
 
-            // Discount base is the server-side FeeBase, never the client-submitted (proc-inclusive)
-            // amount. Computed via the single canonical calculator shared with the team path.
-            var d = DiscountCalculator.Calculate(reg.FeeBase, amount, bAsPercent ?? false);
+            // Discount base is the server-side bill, never the client-submitted (proc-inclusive)
+            // amount. The code is the LAST modifier: rate it against the already-adjusted bill — base
+            // net of any early-bird discount in FeeDiscount, plus any late fee — not raw FeeBase
+            // (which would discount the full pre-adjustment price, the way VI rates against the total
+            // potential bill). Voluntary donations are excluded. Mirrors the team path: the discount
+            // stacks onto any existing FeeDiscount (early-bird) below, and the net bill here is
+            // already net of that early-bird (FeeBase − FeeDiscount), so the code rates against the
+            // post-early-bird price.
+            var netBill = reg.FeeBase - reg.FeeDiscount + reg.FeeLatefee;
+            var d = DiscountCalculator.Calculate(netBill, amount, bAsPercent ?? false);
             if (d <= 0m)
             {
                 results.Add(new PlayerDiscountResult

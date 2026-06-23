@@ -926,7 +926,15 @@ public class TeamRegistrationController : ControllerBase
             };
         }
 
-        var discountAmount = DiscountCalculator.Calculate(team.FeeBase ?? 0m, amount, bAsPercent);
+        // The discount code is the LAST modifier: rate it against the already-adjusted bill, not
+        // raw FeeBase. "The bill" = base net of the early-bird discount already stamped in FeeDiscount,
+        // plus any late fee. Rating against raw FeeBase would discount the full pre-adjustment price
+        // (the way VerticalInsure rates against the total potential bill) — which over-discounts an
+        // early-bird-reduced reg and ignores a late fee. Voluntary donations (FeeDonation) are
+        // intentionally excluded: a code never discounts a charitable add-on. The DC then stacks onto
+        // the existing FeeDiscount below.
+        var netBill = (team.FeeBase ?? 0m) - (team.FeeDiscount ?? 0m) + (team.FeeLatefee ?? 0m);
+        var discountAmount = DiscountCalculator.Calculate(netBill, amount, bAsPercent);
 
         if (discountAmount <= 0m)
         {

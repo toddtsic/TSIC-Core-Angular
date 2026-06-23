@@ -117,7 +117,10 @@ public record PaymentState
     /// </summary>
     public decimal DepositPrincipalRemaining(decimal deposit, decimal discount, decimal lateFee, decimal donation)
     {
-        var effective = System.Math.Max(0m, deposit - discount + lateFee + donation);
+        // FeeMath.DepositObligation owns the front-load rule (discount off the deposit first); the
+        // charge engine (ArbTrialFeeSplitter) derives the deposit charge from the SAME helper, so
+        // shown-deposit and charged-deposit cannot drift.
+        var effective = FeeMath.DepositObligation(deposit, discount, lateFee, donation);
         return System.Math.Max(0m, effective - PrincipalPaid);
     }
 

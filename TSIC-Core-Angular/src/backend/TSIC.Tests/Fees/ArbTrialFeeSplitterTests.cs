@@ -1,5 +1,6 @@
 using FluentAssertions;
 using TSIC.API.Services.Fees;
+using TSIC.Contracts.Payments;
 
 namespace TSIC.Tests.Fees;
 
@@ -69,11 +70,10 @@ public class ArbTrialFeeSplitterTests
     }
 
     [Fact]
-    public void Discount_ReducesBothChargesProportionally_TrueTrue()
+    public void Discount_FrontLoadsOntoDeposit_TrueTrue()
     {
-        // From the worked example: $10 discount at 3% rate.
-        // netBase = 990, processing = 29.70, FeeTotal = 1019.70.
-        // Deposit ratio = 200/1000.
+        // $10 discount at 3% rate. The discount comes off the DEPOSIT first (what is owed now),
+        // NOT proportionally across deposit + balance. netBase = 990, FeeTotal = 1019.70.
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 200m, rawBalance: 800m,
             discount: 10m, lateFee: 0m, donation: 0m,
@@ -81,20 +81,41 @@ public class ArbTrialFeeSplitterTests
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
 
-        // depositBase = round(990 × 200/1000) = 198.00
-        // balanceBase = 990 − 198 = 792.00
+        // depositPrincipal = 200 − 10 = 190 (full discount on deposit)
+        // balancePrincipal = 990 − 190 = 800 (unchanged)
         // totalProcessing = round(990 × 0.03) = 29.70
         // depositProcessing = round(29.70 × 200/1000) = 5.94
         // balanceProcessing = 29.70 − 5.94 = 23.76
-        r.DepositCharge.Should().Be(203.94m);
-        r.BalanceCharge.Should().Be(815.76m);
+        r.DepositCharge.Should().Be(195.94m);
+        r.BalanceCharge.Should().Be(823.76m);
         (r.DepositCharge + r.BalanceCharge).Should().Be(1019.70m);
     }
 
     [Fact]
-    public void LateFee_IncreasesBothChargesProportionally_TrueTrue()
+    public void DiscountExceedsDeposit_SpillsOntoBalance_TrueTrue()
     {
-        // $10 late fee at 3%. netBase = 1010, processing = 30.30, FeeTotal = 1040.30.
+        // $300 discount, $200 deposit: the deposit zeroes out and the leftover $100 reduces the
+        // balance. netBase = 700, FeeTotal = 721.00.
+        var r = ArbTrialFeeSplitter.Split(
+            rawDeposit: 200m, rawBalance: 800m,
+            discount: 300m, lateFee: 0m, donation: 0m,
+            processingRate: 0.03m,
+            bAddProcessingFees: true,
+            bApplyProcessingFeesToTeamDeposit: true);
+
+        // depositPrincipal = max(0, 200 − 300) = 0
+        // balancePrincipal = 700 − 0 = 700
+        // totalProcessing = round(700 × 0.03) = 21.00; depositProcessing = round(21 × 0.2) = 4.20
+        r.DepositCharge.Should().Be(4.20m);
+        r.BalanceCharge.Should().Be(716.80m);
+        (r.DepositCharge + r.BalanceCharge).Should().Be(721.00m);
+    }
+
+    [Fact]
+    public void LateFee_FrontLoadsOntoDeposit_TrueTrue()
+    {
+        // $10 late fee at 3%. The late fee lands on the DEPOSIT (owed now), matching the
+        // display column. netBase = 1010, FeeTotal = 1040.30.
         var r = ArbTrialFeeSplitter.Split(
             rawDeposit: 200m, rawBalance: 800m,
             discount: 0m, lateFee: 10m, donation: 0m,
@@ -102,13 +123,11 @@ public class ArbTrialFeeSplitterTests
             bAddProcessingFees: true,
             bApplyProcessingFeesToTeamDeposit: true);
 
-        // depositBase = round(1010 × 0.2) = 202
-        // balanceBase = 1010 − 202 = 808
+        // depositPrincipal = 200 + 10 = 210, balancePrincipal = 1010 − 210 = 800
         // totalProcessing = round(1010 × 0.03) = 30.30
-        // depositProcessing = round(30.30 × 0.2) = 6.06
-        // balanceProcessing = 30.30 − 6.06 = 24.24
-        r.DepositCharge.Should().Be(208.06m);
-        r.BalanceCharge.Should().Be(832.24m);
+        // depositProcessing = round(30.30 × 0.2) = 6.06, balanceProcessing = 24.24
+        r.DepositCharge.Should().Be(216.06m);
+        r.BalanceCharge.Should().Be(824.24m);
         (r.DepositCharge + r.BalanceCharge).Should().Be(1040.30m);
     }
 
@@ -246,5 +265,27 @@ public class ArbTrialFeeSplitterTests
         }
 
         totalCharge.Should().Be(expectedFeeTotalPerTeam * teamCount);
+    }
+
+    [Fact]
+    public void DepositCharge_MatchesDisplayDepositDue_SharedFrontLoadFormula()
+    {
+        // The whole point of the front-load change: the deposit the charge engine bills must equal
+        // the deposit the rep is SHOWN. With processing off and no donation, DepositCharge is pure
+        // principal — compare it to the display helper (PaymentState.DepositPrincipalRemaining),
+        // both fed the same discount + late fee. Both route through FeeMath.DepositObligation.
+        const decimal deposit = 200m, balance = 800m, discount = 120m, lateFee = 15m;
+        var r = ArbTrialFeeSplitter.Split(
+            rawDeposit: deposit, rawBalance: balance,
+            discount: discount, lateFee: lateFee, donation: 0m,
+            processingRate: 0.035m,
+            bAddProcessingFees: false,
+            bApplyProcessingFeesToTeamDeposit: false);
+
+        var state = PaymentState.Empty(bAddProcessingFees: false, ccRate: 0m, echeckRate: 0m);
+        var displayDepositDue = state.DepositPrincipalRemaining(deposit, discount, lateFee, donation: 0m);
+
+        r.DepositCharge.Should().Be(displayDepositDue);
+        r.DepositCharge.Should().Be(95m); // 200 − 120 + 15
     }
 }

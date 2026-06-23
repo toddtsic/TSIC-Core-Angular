@@ -47,9 +47,9 @@ const CTAS_BY_PHASE: Record<EventPhase, ReadonlySet<string>> = {
 	preview: new Set(),
 	planned: new Set(['store']),
 	concluded: new Set(['pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters']),
-	inSeason: new Set(['my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance']),
-	preEvent: new Set(['my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance']),
-	registrationOpen: new Set(['register-player', 'my-registration', 'pay-balance', 'register-team', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance'])
+	inSeason: new Set(['my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance']),
+	preEvent: new Set(['my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance']),
+	registrationOpen: new Set(['register-player', 'my-registration', 'pay-balance', 'register-team', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance'])
 };
 
 /** Per-phase emphasis order: the first key present in the resolved items leads. */
@@ -198,8 +198,16 @@ export class JobLandingComponent implements OnDestroy {
 		if (p.publicRostersAvailable) {
 			candidates.push({ key: 'rosters', label: 'Rosters', icon: 'bi-card-checklist', routerLink: `${base}/rosters/public` });
 		}
-		if (p.offerPlayerRegsaverInsurance) {
-			candidates.push({ key: 'player-insurance', label: 'Insurance Update', icon: 'bi-shield-check', routerLink: `${base}/PlayerVIUpdate` });
+		// RegSaver is a registered-player/team benefit. Shown broadly as a discovery
+		// affordance (anonymous prospects included — the hint sets the expectation),
+		// but suppressed once it no longer applies. The My* signals are null for
+		// anonymous, so the `!==` checks keep the discovery card visible for them and
+		// only hide it for the registrant who's already covered.
+		if (p.offerPlayerRegsaverInsurance && p.myHasPurchasedPlayerRegsaver !== true) {
+			candidates.push({ key: 'player-insurance', label: 'Player RegSaver', hint: 'For registered players', icon: 'bi-shield-check', routerLink: `${base}/PlayerVIUpdate` });
+		}
+		if (p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver !== false) {
+			candidates.push({ key: 'team-insurance', label: 'Team RegSaver', hint: 'For registered teams', icon: 'bi-shield-check', routerLink: `${base}/ClubRepVIUpdate` });
 		}
 
 		// Membership and order come straight from the pulse-grounded candidates,
