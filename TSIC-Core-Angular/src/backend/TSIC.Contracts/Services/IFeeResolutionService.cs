@@ -201,6 +201,16 @@ public record FeeApplicationContext
 
     /// <summary>Whether to apply CC processing fees (from job BAddProcessingFees flag).</summary>
     public bool AddProcessingFees { get; init; } = true;
+
+    /// <summary>
+    /// Reprice-only: when true, the swap applier may RETROACTIVELY stamp a currently-active late
+    /// fee onto a registration that carries NONE yet AND still owes principal against the full
+    /// price. Lets a director who adds/raises a late fee reach registrants who signed up before
+    /// the late window. Discount/donation stay frozen — this only ever ADDS a late fee where none
+    /// exists, never doubles one or strips a discount. Default false: roster-swap/club-roster/seat
+    /// /waitlist callers keep all modifiers frozen.
+    /// </summary>
+    public bool AssessActiveLateFee { get; init; }
 }
 
 /// <summary>
@@ -224,6 +234,15 @@ public record TeamFeeApplicationContext
 
     /// <summary>Whether processing fees apply to the full amount or team fee only.</summary>
     public bool ApplyProcessingFeesToDeposit { get; init; }
+
+    /// <summary>
+    /// Reprice-only: when true, the team swap applier may RETROACTIVELY stamp a currently-active
+    /// late fee onto a team that carries NONE yet AND still owes principal against the full price.
+    /// Lets a director who adds/raises a late fee reach teams that registered before the late
+    /// window. Discount/donation stay frozen — this only ever ADDS a late fee where none exists,
+    /// never doubles one. Default false: division-swap/pool-assignment callers keep modifiers frozen.
+    /// </summary>
+    public bool AssessActiveLateFee { get; init; }
 
     /// <summary>
     /// Effective processing fee rate as a decimal multiplier (e.g. 0.035 for 3.5%).

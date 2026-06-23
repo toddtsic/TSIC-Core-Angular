@@ -257,6 +257,22 @@ public sealed class FeeResolutionService : IFeeResolutionService
             : (deposit > 0m ? deposit : balanceDue);
         // FeeDiscount / FeeLatefee / FeeDonation preserved
 
+        // Reprice-only retroactive late-fee assessment (ctx.AssessActiveLateFee). A director who
+        // adds/raises a late fee and reprices wants it to reach registrants who signed up BEFORE
+        // the late window — but ONLY those that (a) carry NO late fee yet and (b) still owe
+        // principal against the full price (not paid in full). A reg that already has a late fee is
+        // left alone (never doubled); a paid-in-full reg is left alone. Discount/donation stay
+        // frozen — we only ever ADD a late fee where none exists. Evaluated as-of-now so it picks
+        // up whatever late-fee modifier is currently active for this scope.
+        if (ctx.AssessActiveLateFee && reg.FeeLatefee == 0m
+            && state.PrincipalRemaining(resolved?.FullPrice ?? 0m, reg.FeeDiscount, 0m, reg.FeeDonation) > 0m)
+        {
+            var lateMods = await EvaluateModifiersAsync(
+                jobId, RoleConstants.Player, targetAgegroupId, targetTeamId, DateTime.Now, ct);
+            if (lateMods.TotalLateFee > 0m)
+                reg.FeeLatefee = lateMods.TotalLateFee;
+        }
+
         await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct, state);
     }
 
@@ -324,6 +340,22 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
         // Only FeeBase changes — modifiers FROZEN
         team.FeeBase = feeBase;
+
+        // Reprice-only retroactive late-fee assessment (ctx.AssessActiveLateFee) — the club-rep
+        // analog of the player path above. A director who adds/raises a late fee and reprices
+        // wants it to reach teams that registered BEFORE the late window, but ONLY those that
+        // (a) carry NO late fee yet and (b) still owe principal against the full price. A team that
+        // already has a late fee is left alone (never doubled); a paid-in-full team is left alone.
+        // Discount/donation stay frozen. Evaluated as-of-now for whatever modifier is active.
+        if (ctx.AssessActiveLateFee && (team.FeeLatefee ?? 0m) == 0m
+            && state.PrincipalRemaining(
+                resolved?.FullPrice ?? 0m, team.FeeDiscount ?? 0m, 0m, team.FeeDonation ?? 0m) > 0m)
+        {
+            var lateMods = await EvaluateModifiersAsync(
+                jobId, RoleConstants.ClubRep, targetAgegroupId, team.TeamId, DateTime.Now, ct);
+            if (lateMods.TotalLateFee > 0m)
+                team.FeeLatefee = lateMods.TotalLateFee;
+        }
 
         await ApplyTeamProcessingAndTotalsAsync(team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: false, ct, state);
     }

@@ -1291,6 +1291,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             // (PlayerRegistrationService.RecalculatePlayerFeesAsync), which removed the same gate.
             var oldFeeBase = team.FeeBase ?? 0;
             var oldFeeProcessing = team.FeeProcessing ?? 0;
+            var oldFeeLatefee = team.FeeLatefee ?? 0m;
 
             await _feeService.ApplyTeamSwapFeesAsync(
                 team, jobId, team.AgegroupId,
@@ -1302,12 +1303,18 @@ public class TeamRegistrationService : ITeamRegistrationService
                     IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
                     AddProcessingFees = job.BAddProcessingFees ?? false,
                     ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
-                    ProcessingFeePercent = processingRate
+                    ProcessingFeePercent = processingRate,
+                    // Reprice is the director's "update all prior" action — let a newly-active late
+                    // fee land on teams that have none yet and still owe (see ApplyTeamSwapFeesAsync).
+                    AssessActiveLateFee = true
                 });
             var newFeeBase = team.FeeBase ?? 0m;
             var newFeeProcessing = team.FeeProcessing ?? 0m;
+            var newFeeLatefee = team.FeeLatefee ?? 0m;
 
-            if (newFeeBase != oldFeeBase || newFeeProcessing != oldFeeProcessing)
+            // Late fee added on a no-proc job changes neither FeeBase nor FeeProcessing — detect it
+            // explicitly so the team is persisted and counted (OwedTotal already moved via RecalcTotals).
+            if (newFeeBase != oldFeeBase || newFeeProcessing != oldFeeProcessing || newFeeLatefee != oldFeeLatefee)
             {
                 team.LebUserId = userId;
                 team.Modified = DateTime.Now;

@@ -568,14 +568,19 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             // and a genuine over-payment surfaces as a (correct) negative OwedTotal.
             var oldFeeBase = reg.FeeBase;
             var oldFeeProcessing = reg.FeeProcessing;
+            var oldFeeLatefee = reg.FeeLatefee;
 
             // Job baseline only — ApplySwapFeesAsync resolves the per-scope override
             // (team → agegroup → league) over this via ResolvedFee.ResolveFullPaymentPhase.
+            // AssessActiveLateFee: reprice is the director's "update all prior" action — let a
+            // newly-active late fee land on regs that have none yet and still owe (see ApplySwapFeesAsync).
             await _feeService.ApplySwapFeesAsync(
                 reg, jobId, regAgegroupId.Value, reg.AssignedTeamId.Value,
-                new FeeApplicationContext { IsFullPaymentRequired = jobFullPaymentRequired }, ct);
+                new FeeApplicationContext { IsFullPaymentRequired = jobFullPaymentRequired, AssessActiveLateFee = true }, ct);
 
-            if (reg.FeeBase != oldFeeBase || reg.FeeProcessing != oldFeeProcessing)
+            // Late fee added on a no-proc job changes neither FeeBase nor FeeProcessing — detect it
+            // explicitly so the reg is saved/counted (OwedTotal already moved via RecalcTotals).
+            if (reg.FeeBase != oldFeeBase || reg.FeeProcessing != oldFeeProcessing || reg.FeeLatefee != oldFeeLatefee)
             {
                 reg.LebUserId = userId;
                 reg.Modified = DateTime.Now;
