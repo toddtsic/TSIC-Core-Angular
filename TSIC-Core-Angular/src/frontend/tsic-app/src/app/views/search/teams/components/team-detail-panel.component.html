@@ -53,7 +53,7 @@
       @if (activeTab() === 'info') {
         <div class="tab-content">
           <div class="contact-zone">
-            <h4 class="section-title">Team Details</h4>
+            <h4 class="section-title">Team Details <span class="team-id">Id: <span class="team-id-guid">{{ team.teamId }}</span></span></h4>
             <form class="edit-form" (ngSubmit)="saveTeamInfo()">
               <div class="form-group">
                 <label for="teamName">Team Name</label>
