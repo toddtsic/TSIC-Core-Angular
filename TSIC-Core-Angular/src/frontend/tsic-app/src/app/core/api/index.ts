@@ -214,6 +214,7 @@ export type { DeleteFileRequest } from './models/DeleteFileRequest';
 export type { DeletePlayersRequest } from './models/DeletePlayersRequest';
 export type { DeleteRegistrationResponse } from './models/DeleteRegistrationResponse';
 export type { DeleteTeamResultDto } from './models/DeleteTeamResultDto';
+export type { DenyCoachDto } from './models/DenyCoachDto';
 export type { DevResetRequest } from './models/DevResetRequest';
 export type { DevUndoCounts } from './models/DevUndoCounts';
 export type { DevUndoStatusResponse } from './models/DevUndoStatusResponse';
@@ -677,8 +678,9 @@ export type { ToggleTeamSubscriptionResponse } from './models/ToggleTeamSubscrip
 export type { TournamentParkingRequest } from './models/TournamentParkingRequest';
 export type { TournamentParkingResponse } from './models/TournamentParkingResponse';
 export type { TransferAllTeamsRequest } from './models/TransferAllTeamsRequest';
+export type { UnassignedAdultAssignedTeamDto } from './models/UnassignedAdultAssignedTeamDto';
 export type { UnassignedAdultQueueRowDto } from './models/UnassignedAdultQueueRowDto';
-export type { UnassignedAdultRequestDto } from './models/UnassignedAdultRequestDto';
+export type { UnassignedAdultRecordedTeamDto } from './models/UnassignedAdultRecordedTeamDto';
 export type { UndoGamesRequest } from './models/UndoGamesRequest';
 export type { UniformUploadResultDto } from './models/UniformUploadResultDto';
 export type { UniformUploadRowError } from './models/UniformUploadRowError';

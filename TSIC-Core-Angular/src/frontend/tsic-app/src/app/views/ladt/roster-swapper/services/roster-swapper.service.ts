@@ -9,11 +9,16 @@ import type {
     RosterTransferRequest,
     RosterTransferFeePreviewDto,
     RosterTransferResultDto,
-    UnassignedAdultQueueRowDto
+    UnassignedAdultQueueRowDto,
+    UnassignedAdultAssignedTeamDto,
+    UnassignedAdultRecordedTeamDto
 } from '@core/api';
 
 // Re-export for consumers
-export type { SwapperPoolOptionDto, SwapperPlayerDto, RosterTransferFeePreviewDto, RosterTransferResultDto, UnassignedAdultQueueRowDto };
+export type { SwapperPoolOptionDto, SwapperPlayerDto, RosterTransferFeePreviewDto, RosterTransferResultDto, UnassignedAdultQueueRowDto, UnassignedAdultAssignedTeamDto, UnassignedAdultRecordedTeamDto };
+
+/** All-zeros GUID = the Unassigned Adults pool (transfer source/target sentinel). */
+const UNASSIGNED_POOL_ID = '00000000-0000-0000-0000-000000000000';
 
 @Injectable({ providedIn: 'root' })
 export class RosterSwapperService {
@@ -50,8 +55,20 @@ export class RosterSwapperService {
         return this.http.post<RosterTransferResultDto>(`${this.apiUrl}/approve-request`, { registrationId, teamId });
     }
 
-    /** Deny one (coach, team) request — drops it from the coach's codified requests. */
-    denyRequest(registrationId: string, teamId: string): Observable<void> {
-        return this.http.post<void>(`${this.apiUrl}/deny-request`, { registrationId, teamId });
+    /** Deny a coach outright — deletes ALL their Staff rows + deactivates the anchor (bActive=0). */
+    denyCoach(registrationId: string): Observable<void> {
+        return this.http.post<void>(`${this.apiUrl}/deny-coach`, { registrationId });
+    }
+
+    /**
+     * Remove a coach from a team — deletes their Staff registration (Roster Swapper FLOW 3:
+     * Staff → Unassigned pool). `staffRegistrationId` is the Staff row on `teamId`.
+     */
+    removeStaffFromTeam(staffRegistrationId: string, teamId: string): Observable<RosterTransferResultDto> {
+        return this.executeTransfer({
+            registrationIds: [staffRegistrationId],
+            sourcePoolId: teamId,
+            targetPoolId: UNASSIGNED_POOL_ID
+        });
     }
 }
