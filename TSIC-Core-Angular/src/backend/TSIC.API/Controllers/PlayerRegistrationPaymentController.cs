@@ -204,6 +204,12 @@ public class PlayerRegistrationPaymentController : ControllerBase
         var updatedFinancials = new Dictionary<string, RegistrationFinancialsDto>();
         // Job rates (once) so each updated financial carries the canonical eCheck-method owed.
         var echeckState = await _paymentState.ForJobAsync(jobId.Value);
+        // Per-registration payment state: lets a code rate against principal STILL OWED at checkout
+        // (net bill − principal already paid), not the full reg burden — mirrors the team path. A
+        // player who settled a deposit in an earlier session and returns to apply a code gets it
+        // against the remaining balance, not against deposit+balance.
+        var regStates = await _paymentState.ForRegistrationsAsync(
+            targetRegs.Select(r => r.RegistrationId).ToList(), jobId.Value);
 
         // A player can register for multiple camps in one job — each is its own reg row (same
         // UserId, distinct AssignedTeamId). Match each item to its specific camp via TeamId, and
@@ -252,15 +258,17 @@ public class PlayerRegistrationPaymentController : ControllerBase
             }
 
             // Discount base is the server-side bill, never the client-submitted (proc-inclusive)
-            // amount. The code is the LAST modifier: rate it against the already-adjusted bill — base
-            // net of any early-bird discount in FeeDiscount, plus any late fee — not raw FeeBase
-            // (which would discount the full pre-adjustment price, the way VI rates against the total
-            // potential bill). Voluntary donations are excluded. Mirrors the team path: the discount
-            // stacks onto any existing FeeDiscount (early-bird) below, and the net bill here is
-            // already net of that early-bird (FeeBase − FeeDiscount), so the code rates against the
-            // post-early-bird price.
+            // amount. The code is the LAST modifier, rated against what is owed AT CHECKOUT: base net
+            // of any early-bird discount in FeeDiscount, plus any late fee, MINUS principal already
+            // paid — not raw FeeBase (which would discount the full pre-adjustment price, the way VI
+            // rates against the total potential bill, and over-discount the paid portion of a reg
+            // whose deposit was already settled). Voluntary donations are excluded. The discount
+            // stacks onto any existing FeeDiscount (early-bird) below. PrincipalPaid (not gross
+            // PaidTotal) so proc already collected on a deposit doesn't eat into discountable principal.
+            var regState = regStates.GetValueOrDefault(reg.RegistrationId, echeckState);
             var netBill = reg.FeeBase - reg.FeeDiscount + reg.FeeLatefee;
-            var d = DiscountCalculator.Calculate(netBill, amount, bAsPercent ?? false);
+            var owedBasis = Math.Max(0m, netBill - regState.PrincipalPaid);
+            var d = DiscountCalculator.Calculate(owedBasis, amount, bAsPercent ?? false);
             if (d <= 0m)
             {
                 results.Add(new PlayerDiscountResult

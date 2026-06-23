@@ -49,6 +49,7 @@ public class TeamRegistrationController : ControllerBase
     private readonly ITeamRepository _teamRepository;
     private readonly IRegistrationRepository _registrationRepository;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
+    private readonly IPaymentStateService _paymentState;
     private readonly ITokenService _tokenService;
     private readonly UserManager<ApplicationUser> _userManager;
 
@@ -60,6 +61,7 @@ public class TeamRegistrationController : ControllerBase
         ITeamRepository teamRepository,
         IRegistrationRepository registrationRepository,
         IRegistrationFeeAdjustmentService feeAdjustment,
+        IPaymentStateService paymentState,
         ITokenService tokenService,
         UserManager<ApplicationUser> userManager)
     {
@@ -70,6 +72,7 @@ public class TeamRegistrationController : ControllerBase
         _teamRepository = teamRepository;
         _registrationRepository = registrationRepository;
         _feeAdjustment = feeAdjustment;
+        _paymentState = paymentState;
         _tokenService = tokenService;
         _userManager = userManager;
     }
@@ -915,15 +918,20 @@ public class TeamRegistrationController : ControllerBase
             };
         }
 
-        // The discount code is the LAST modifier: rate it against the already-adjusted bill, not
-        // raw FeeBase. "The bill" = base net of the early-bird discount already stamped in FeeDiscount,
-        // plus any late fee. Rating against raw FeeBase would discount the full pre-adjustment price
-        // (the way VerticalInsure rates against the total potential bill) — which over-discounts an
-        // early-bird-reduced reg and ignores a late fee. Voluntary donations (FeeDonation) are
+        // The discount code is the LAST modifier, rated against what is owed AT CHECKOUT — not the
+        // full team burden. "The bill" = base net of the early-bird discount already stamped in
+        // FeeDiscount, plus any late fee, MINUS the principal already paid (e.g. a deposit settled in
+        // an earlier session). Rating against the full FeeBase would discount the whole pre-adjustment
+        // price (the way VerticalInsure rates against the total potential bill) — so a 50% code on a
+        // team that already paid its deposit would take 50% of deposit+balance instead of 50% of the
+        // balance still due, over-discounting the paid portion. Voluntary donations (FeeDonation) are
         // intentionally excluded: a code never discounts a charitable add-on. The DC then stacks onto
-        // the existing FeeDiscount below.
+        // the existing FeeDiscount below. PrincipalPaid (not gross PaidTotal) so proc already collected
+        // on the deposit does not eat into the discountable principal.
+        var state = await _paymentState.ForTeamAsync(teamId, jobId);
         var netBill = (team.FeeBase ?? 0m) - (team.FeeDiscount ?? 0m) + (team.FeeLatefee ?? 0m);
-        var discountAmount = DiscountCalculator.Calculate(netBill, amount, bAsPercent);
+        var owedBasis = Math.Max(0m, netBill - state.PrincipalPaid);
+        var discountAmount = DiscountCalculator.Calculate(owedBasis, amount, bAsPercent);
 
         if (discountAmount <= 0m)
         {

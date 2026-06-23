@@ -107,24 +107,33 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             // PaymentState.ResolveOwed the charge engine (PaymentService) uses, so the
             // totals the rep is shown for CC / check / eCheck equal exactly what each
             // method charges or records (keeps the AMOUNT_MISMATCH tripwire quiet).
-            // Deposit-phase owed goes through the PROPORTIONAL deposit helper so the displayed
-            // "Deposit Due" equals what ArbTrialFeeSplitter actually charges: a discount reduces the
-            // deposit by its pro-rata SHARE (FeeBase = Deposit + BalanceDue here), not front-loaded
-            // onto it. Shown-deposit and charged-deposit derive from the same proportional rule.
             var state = paymentStates.GetValueOrDefault(t.TeamId, emptyState);
             // donation: 0m — a donation is always charged in full with its payment, so it sits in
             // BOTH the principal base and PrincipalPaid and nets out of these post-payment display
             // columns. RegisteredTeamInfo doesn't carry FeeDonation; threading it would change
             // nothing here. (The charge/stamp paths pass the real FeeDonation.)
-            var depositDue = state.DepositPrincipalRemainingProportional(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m);
-            // Full-payment phase: the balance is active (FeeBase = Deposit + BalanceDue),
-            // so "Balance Due" must net out every payment — including a director-recorded
-            // check/correction applied while the rep was away. Derive it from the canonical
-            // PaymentState (BalancePrincipalRemainingProportional, the proportional pair of the
-            // deposit above) so it can never disagree with the CC/Check Owed columns. Deposit phase:
-            // balance not yet active — show the configured structural balance as a forward-looking value.
+            //
+            // The deposit/balance split follows ONE rule — the discount reduces the deposit FIRST
+            // (front-load), and a "deposit" only exists while the team is in the deposit-collection
+            // phase:
+            //   • Deposit phase  → Deposit Due = the discounted deposit still owed (deposit − discount,
+            //     net of any deposit payment); Balance Due = the configured structural balance, shown
+            //     forward-looking (not yet active).
+            //   • Full-payment phase → the deposit concept is retired: a converted team already paid its
+            //     deposit, and a PIF team pays the whole amount at once (the Pay button charges the full
+            //     remaining, so a non-zero Deposit Due would contradict it). Deposit Due collapses to 0
+            //     and the ENTIRE remaining principal shows as Balance Due — anchored on the canonical
+            //     PrincipalRemaining so it can never disagree with the CC/Check Owed columns, and a
+            //     deposit→full conversion shows Balance Due = full remaining once the discounted deposit
+            //     is paid (no phantom deposit-due from re-spreading an already-consumed discount).
+            // Proportional splitting is reserved for the team ARB-trial payment OPTION (ArbTrialFeeSplitter
+            // must split the discount pro-rata so a discount ≥ deposit can't zero the trial leg); that
+            // option computes its own breakdown when selected and does not drive this default grid.
+            var depositDue = teamFullPayment
+                ? 0m
+                : state.DepositPrincipalRemaining(deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m);
             var additionalDue = teamFullPayment
-                ? state.BalancePrincipalRemainingProportional(t.FeeBase, deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m)
+                ? state.PrincipalRemaining(t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m)
                 : balanceDue;
             var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
             var ccOwedTotal = owed.Cc;
