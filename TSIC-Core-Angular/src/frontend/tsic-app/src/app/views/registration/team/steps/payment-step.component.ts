@@ -924,8 +924,12 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly donation = computed(() => this.state.teamPayment.donation());
     readonly donationProcessing = computed(() => this.state.teamPayment.donationProcessing());
     setDonation(v: number | string): void { this.state.teamPayment.setDonation(v); }
-    /** CC charge total INCLUDING any donation — the CC button + submit + receipt use this. */
-    readonly ccPayTotal = computed(() => this.balanceDue() + this.state.teamPayment.donationCc());
+    /** CC charge total INCLUDING any donation — the CC button + submit + receipt use this.
+     *  Reads the server's CC-specific total (CcOwedTotal, processing baked in), NOT the
+     *  pre-processing-fee balanceDue/OwedTotal — otherwise the button understates the charge
+     *  by the CC processing fee and the submitted amount trips the server AMOUNT_MISMATCH guard.
+     *  Symmetric with echeckAmount (totalEkOwed + donationEcheck). */
+    readonly ccPayTotal = computed(() => this.state.teamPayment.totalCcOwed() + this.state.teamPayment.donationCc());
     /** Donation input shows only for the immediate-charge online methods (CC / eCheck). ARB-Trial
      *  (deposit/balance split) and mail-in check can't carry a charged-in-full gift in v1. */
     readonly showDonationInput = computed(() =>
