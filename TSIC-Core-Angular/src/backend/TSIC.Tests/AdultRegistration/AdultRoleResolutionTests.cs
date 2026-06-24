@@ -44,6 +44,9 @@ public class AdultRoleResolutionTests
     private static string RoleIdOf(object resolution) =>
         (string)resolution.GetType().GetProperty("RoleId")!.GetValue(resolution)!;
 
+    private static bool NeedsTeamOf(object resolution) =>
+        (bool)resolution.GetType().GetProperty("NeedsTeamSelection")!.GetValue(resolution)!;
+
     private static object Invoke(AdultRegJobData job, string roleKey)
     {
         try { return Resolve.Invoke(null, new object?[] { job, roleKey })!; }
@@ -71,6 +74,16 @@ public class AdultRoleResolutionTests
     {
         var r = Invoke(Job(), AdultRegRoleKeys.Coach);
         RoleIdOf(r).Should().Be(RoleConstants.UnassignedAdult);
+    }
+
+    [Theory(DisplayName = "Coach must request a team on EVERY team job type (no no-request rows)")]
+    [InlineData(JobConstants.JobTypeClub)]
+    [InlineData(JobConstants.JobTypeLeague)]
+    [InlineData(JobConstants.JobTypeTournament)]
+    public void Coach_RequiresTeamSelection_AllJobTypes(int jobTypeId)
+    {
+        var r = Invoke(Job(jobTypeId: jobTypeId), AdultRegRoleKeys.Coach);
+        NeedsTeamOf(r).Should().BeTrue();
     }
 
     [Fact(DisplayName = "Coach registration throws when the staff release gate is off")]

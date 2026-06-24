@@ -1174,12 +1174,16 @@ public class AdultRegistrationService : IAdultRegistrationService
                 // UnassignedAdult firewall for every team job type. AllowTeamRequests lets
                 // the coach multi-select teams they'd LIKE to coach — captured as a
                 // non-binding REQUEST (codified into SpecialRequests as structured JSON),
-                // NOT an AssignedTeamId. NeedsTeamSelection is repurposed to mean "must
-                // request ≥1 team to submit": required on Tournament, optional on
-                // Club/League (where a willing-anywhere volunteer can register with none).
+                // NOT an AssignedTeamId. NeedsTeamSelection ("must request ≥1 team to submit")
+                // is now REQUIRED on every team job type: a coach always arrives with a real
+                // team request, so the director's approval queue never holds a no-request row.
+                // Safe because coach registration is release-gated on teams-exist (Phase 1):
+                // the picker is never empty by the time a coach can reach this. The
+                // willing-anywhere "register with no team" path moved to the dedicated
+                // Unassigned self-roster key (which stays NeedsTeamSelection:false).
                 return new AdultRoleResolution(
                     RoleId: RoleConstants.UnassignedAdult,
-                    NeedsTeamSelection: job.JobTypeId == JobConstants.JobTypeTournament,
+                    NeedsTeamSelection: true,
                     DisplayName: "Coach / Volunteer",
                     Description: "Register as an unassigned adult. A director will review " +
                                  "your request and assign you to a team.",
