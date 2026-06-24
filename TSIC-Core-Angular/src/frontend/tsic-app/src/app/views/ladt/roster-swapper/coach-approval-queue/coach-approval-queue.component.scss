@@ -140,10 +140,26 @@
     color: var(--bs-secondary-color);
 }
 
+/* Manual sort indicator (SF's native sort is canceled, so we paint our own arrow). */
+.sort-head {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+
+    .sort-idle { opacity: 0.35; font-size: 0.85em; }
+    .sort-active { color: var(--bs-primary); font-size: 0.9em; }
+}
+
 :host ::ng-deep .coach-grid .e-rowcell {
     padding: var(--space-2) var(--space-3);
     vertical-align: top;
     border-color: var(--bs-border-color);
+}
+
+:host ::ng-deep .coach-grid .row-number-cell {
+    color: var(--bs-secondary-color);
+    font-size: var(--font-size-xs);
+    font-variant-numeric: tabular-nums;
 }
 
 /* Status-driven left border — recolors in place when status changes (rowDataBound). */

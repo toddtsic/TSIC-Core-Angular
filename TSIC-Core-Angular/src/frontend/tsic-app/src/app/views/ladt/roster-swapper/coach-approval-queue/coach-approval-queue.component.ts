@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { forkJoin } from 'rxjs';
-import { GridAllModule } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import { ToastService } from '@shared-ui/toast.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import {
@@ -36,9 +36,13 @@ interface QueueRow {
     priorStaffText: string;
     linkedPlayerNames: string[];
     status: CoachStatus;
+    /** Semantic sort rank for status: Unassigned(0) → Partial(1) → Assigned(2). */
+    statusOrder: number;
     teams: DisplayTeam[];
     grantedCount: number;
     totalCount: number;
+    /** First team's label (lowercased) — the sort key for the Teams column. */
+    teamSortKey: string;
     /** Requested (★self) teams not yet granted — what "Grant All" / "Grant Subset" act on. */
     ungrantedRequestIds: string[];
 }
@@ -77,6 +81,9 @@ export class CoachApprovalQueueComponent implements OnInit {
     /** Active status lens. */
     readonly activeFilter = signal<CoachStatus | 'all'>('all');
     readonly searchTerm = signal('');
+    /** Active sort column field, or null for the default stable alpha-by-name order. */
+    readonly sortField = signal<string | null>(null);
+    readonly sortDir = signal<'asc' | 'desc'>('asc');
     /**
      * Non-destructive filter: the set of rows currently shown. Snapshotted when a chip or
      * search is applied, NOT recomputed on every grant — so a coach you just acted on stays
@@ -114,10 +121,23 @@ export class CoachApprovalQueueComponent implements OnInit {
         return c;
     });
 
-    /** Rows shown in the grid = pinned set ∩ current rows (alpha order preserved). */
+    /**
+     * Rows shown in the grid = pinned set ∩ current rows, then sorted. Default (no active
+     * sort) keeps the stable alpha-by-name order from rows(); a clicked header sorts by that
+     * column (status semantically, teams by label). Sorting composes with the pin filter.
+     */
     readonly gridData = computed<QueueRow[]>(() => {
         const pin = this.pinnedIds();
-        return this.rows().filter(r => pin.has(r.registrationId));
+        const visible = this.rows().filter(r => pin.has(r.registrationId));
+        const field = this.sortField();
+        if (!field) return visible;
+        const dir = this.sortDir() === 'asc' ? 1 : -1;
+        return [...visible].sort((a, b) => {
+            if (field === 'status') return (a.statusOrder - b.statusOrder) * dir;
+            const va = field === 'teamSortKey' ? a.teamSortKey : a.playerName;
+            const vb = field === 'teamSortKey' ? b.teamSortKey : b.playerName;
+            return va.localeCompare(vb) * dir;
+        });
     });
 
     ngOnInit(): void {
@@ -209,9 +229,11 @@ export class CoachApprovalQueueComponent implements OnInit {
             priorStaffText: r.priorStaff.map(p => `${p.teamName} · ${p.jobName}`).join('\n'),
             linkedPlayerNames: r.linkedPlayerNames,
             status,
+            statusOrder: status === 'unassigned' ? 0 : status === 'partial' ? 1 : 2,
             teams,
             grantedCount: teams.filter(t => t.granted).length,
             totalCount: teams.length,
+            teamSortKey: (teams[0]?.displayText ?? '').toLowerCase(),
             ungrantedRequestIds: selfAsks.filter(t => !t.granted).map(t => t.teamId),
         };
     }
@@ -225,11 +247,47 @@ export class CoachApprovalQueueComponent implements OnInit {
         return s === 'unassigned' ? 'Unassigned' : s === 'partial' ? 'Partial' : 'Assigned';
     }
 
+    /**
+     * Sort-arrow glyph for a sortable header. We cancel SF's native sort (so it never paints
+     * its own indicator), so the header templates render this instead: a faint up/down idle
+     * hint on inactive columns, a solid caret showing the active direction on the sorted one.
+     */
+    sortIcon(field: string): string {
+        if (this.sortField() !== field) return 'bi-arrow-down-up sort-idle';
+        return this.sortDir() === 'asc' ? 'bi-caret-up-fill sort-active' : 'bi-caret-down-fill sort-active';
+    }
+
     /** Paint a status class on the row so the left-border color tracks status in place. */
     onRowDataBound(args: { data?: QueueRow; row?: HTMLElement }): void {
         const row = args.data;
         if (!row || !args.row) return;
         args.row.classList.add(`status-${row.status}`);
+    }
+
+    /** Intercept SF's sort: cancel its in-place sort and drive our own signal instead, so
+     *  sorting composes with the pin filter (which lives in the gridData computed). */
+    onActionBegin(args: { requestType?: string; columnName?: string; direction?: string; cancel?: boolean }): void {
+        if (args.requestType === 'sorting') {
+            args.cancel = true;
+            if (args.columnName) {
+                // We cancel SF's sort, so it never tracks direction — it reports "Ascending"
+                // on every click. Own the toggle: same column flips dir, a new column starts asc.
+                if (this.sortField() === args.columnName) {
+                    this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
+                } else {
+                    this.sortField.set(args.columnName);
+                    this.sortDir.set('asc');
+                }
+            }
+        }
+    }
+
+    /** Stamp 1-based row numbers in the unbound `#` column (re-runs on every rebind). */
+    refreshRowNumbers(grid: GridComponent): void {
+        grid.getRows().forEach((row, i) => {
+            const cell = row.querySelector('td.row-number-cell');
+            if (cell) cell.textContent = String(i + 1);
+        });
     }
 
     // ── Multi-team read-only popup ──

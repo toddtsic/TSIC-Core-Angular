@@ -49,16 +49,25 @@
             <div class="empty-sub">No coach registrations are awaiting placement for this event.</div>
         </div>
     } @else {
-        <ejs-grid
+        <ejs-grid #grid
             [dataSource]="gridData()"
-            [allowSorting]="false"
+            [allowSorting]="true"
             [allowTextWrap]="true"
             [enableStickyHeader]="true"
+            (actionBegin)="onActionBegin($event)"
             (rowDataBound)="onRowDataBound($event)"
+            (dataBound)="refreshRowNumbers(grid)"
             cssClass="coach-grid">
             <e-columns>
+                <!-- Row number (unbound — stamped via refreshRowNumbers, survives rebind) -->
+                <e-column headerText="#" [width]="44" textAlign="Center" [allowSorting]="false"
+                    [customAttributes]="{ class: 'row-number-cell' }"></e-column>
+
                 <!-- Coach identity -->
-                <e-column headerText="Coach" [width]="320">
+                <e-column field="playerName" headerText="Coach" [width]="320">
+                    <ng-template #headerTemplate>
+                        <span class="sort-head">Coach <i class="bi" [ngClass]="sortIcon('playerName')"></i></span>
+                    </ng-template>
                     <ng-template #template let-data>
                         <div class="coach-cell">
                             <div class="coach-name">
@@ -92,14 +101,20 @@
                 </e-column>
 
                 <!-- Status -->
-                <e-column headerText="Status" [width]="110" textAlign="Center">
+                <e-column field="status" headerText="Status" [width]="110" textAlign="Center">
+                    <ng-template #headerTemplate>
+                        <span class="sort-head">Status <i class="bi" [ngClass]="sortIcon('status')"></i></span>
+                    </ng-template>
                     <ng-template #template let-data>
                         <span class="status-badge status-{{ data.status }}">{{ statusLabel(data.status) }}</span>
                     </ng-template>
                 </e-column>
 
                 <!-- Assignment: single badge / multi dropdown -->
-                <e-column headerText="Teams" [width]="260">
+                <e-column field="teamSortKey" headerText="Teams" [width]="260">
+                    <ng-template #headerTemplate>
+                        <span class="sort-head">Teams <i class="bi" [ngClass]="sortIcon('teamSortKey')"></i></span>
+                    </ng-template>
                     <ng-template #template let-data>
                         @if (data.totalCount === 0) {
                             <span class="no-teams">—</span>
@@ -125,7 +140,7 @@
                 </e-column>
 
                 <!-- Actions -->
-                <e-column headerText="" [width]="280">
+                <e-column headerText="" [width]="280" [allowSorting]="false">
                     <ng-template #template let-data>
                         <div class="action-cell">
                             @if (busyCoach() === data.registrationId) {
