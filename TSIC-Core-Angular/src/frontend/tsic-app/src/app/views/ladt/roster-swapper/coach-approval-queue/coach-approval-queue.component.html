@@ -76,9 +76,13 @@
                             </div>
                             <div class="coach-signals">
                                 @if (data.priorStaffCount > 0) {
-                                    <span class="sig sig-known" [title]="data.priorStaffText">
+                                    <button type="button" class="sig sig-known sig-btn"
+                                        (mouseenter)="hoverPrior($event, data)"
+                                        (mouseleave)="leavePrior()"
+                                        (click)="pinPrior($event, data)">
                                         <i class="bi bi-patch-check-fill"></i> Coached before ({{ data.priorStaffCount }})
-                                    </span>
+                                        <i class="bi bi-chevron-down sig-caret"></i>
+                                    </button>
                                 } @else {
                                     <span class="sig sig-new"><i class="bi bi-question-circle"></i> No prior history</span>
                                 }
@@ -106,7 +110,7 @@
                         <span class="sort-head">Status <i class="bi" [ngClass]="sortIcon('status')"></i></span>
                     </ng-template>
                     <ng-template #template let-data>
-                        <span class="status-badge status-{{ data.status }}">{{ statusLabel(data.status) }}</span>
+                        <span class="badge bg-primary-subtle text-primary-emphasis">{{ statusLabel(data.status) }}</span>
                     </ng-template>
                 </e-column>
 
@@ -119,18 +123,12 @@
                         @if (data.totalCount === 0) {
                             <span class="no-teams">—</span>
                         } @else if (data.totalCount === 1) {
-                            <span class="team-badge" [class.is-granted]="data.teams[0].granted">
-                                @if (data.teams[0].granted) {
-                                    <i class="bi bi-check-circle-fill"></i>
-                                } @else {
-                                    <i class="bi bi-star-fill"></i>
-                                }
+                            <span class="badge team-chip bg-primary-subtle text-primary-emphasis">
+                                <i class="bi" [ngClass]="data.teams[0].granted ? 'bi-check-circle-fill' : 'bi-star-fill'"></i>
                                 {{ data.teams[0].displayText }}
                             </span>
                         } @else {
-                            <button type="button" class="team-dropdown"
-                                [class.is-partial]="data.grantedCount > 0 && data.grantedCount < data.totalCount"
-                                [class.is-granted]="data.grantedCount === data.totalCount"
+                            <button type="button" class="badge team-chip bg-primary-subtle text-primary-emphasis"
                                 (click)="openTeams($event, data)">
                                 {{ data.grantedCount }}/{{ data.totalCount }} teams
                                 <i class="bi bi-chevron-down"></i>
@@ -200,6 +198,25 @@
                     } @else {
                         <span class="ungranted-flag">not granted</span>
                     }
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+<!-- "Coached before" prior-assignments popup (hover preview / click-pinned) -->
+@if (priorRow(); as pr) {
+    @if (priorPinned()) {
+        <div class="popup-backdrop" (click)="closePrior()"></div>
+    }
+    <div class="teams-popup" [style.top.px]="priorTop()" [style.left.px]="priorLeft()">
+        <div class="popup-title">{{ pr.playerName }} — coached before</div>
+        <ul class="popup-list">
+            @for (a of pr.priorStaff; track $index) {
+                <li>
+                    <i class="bi bi-patch-check-fill src-admin"></i>
+                    <span class="popup-team-text">{{ a.jobName }}</span>
+                    <span class="prior-team">{{ a.teamName }}</span>
                 </li>
             }
         </ul>

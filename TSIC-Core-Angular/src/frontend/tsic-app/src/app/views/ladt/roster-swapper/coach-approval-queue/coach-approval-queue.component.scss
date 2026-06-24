@@ -201,7 +201,29 @@
     gap: 3px;
     font-size: 0.75rem;
 }
-.sig-known { color: var(--bs-success); }
+.sig-known { color: var(--bs-primary-text-emphasis); }
+
+/* "Coached before" trigger — styled as a hyperlink so it reads as clickable. */
+.sig-btn {
+    border: 0;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    color: var(--bs-link-color);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+
+    .sig-caret { font-size: 0.8em; opacity: 0.7; text-decoration: none; }
+    &:hover { color: var(--bs-link-hover-color); }
+    &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm, 0.25rem); }
+}
+
+.prior-team {
+    font-size: 0.7rem;
+    color: var(--bs-secondary-color);
+    font-style: italic;
+}
 .sig-new { color: var(--bs-secondary-color); }
 .sig-family { color: var(--bs-info-text-emphasis, var(--bs-info)); }
 .sig-note { color: var(--bs-secondary-color); }
@@ -215,71 +237,26 @@
     opacity: 0.85;
 }
 
-/* ── Status badge ── */
-
-.status-badge {
-    display: inline-block;
-    padding: 2px 8px;
-    border-radius: 999px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.02em;
-}
-.status-badge.status-unassigned {
-    background: var(--bs-danger-bg-subtle);
-    color: var(--bs-danger-text-emphasis, var(--bs-danger));
-}
-.status-badge.status-partial {
-    background: var(--bs-warning-bg-subtle);
-    color: var(--bs-warning-text-emphasis, var(--bs-warning));
-}
-.status-badge.status-assigned {
-    background: var(--bs-success-bg-subtle);
-    color: var(--bs-success-text-emphasis, var(--bs-success));
-}
-
 /* ── Teams cell: single badge / multi dropdown ── */
 
 .no-teams { color: var(--bs-secondary-color); }
 
-.team-badge {
+/* Team chips ride the global .badge color classes; this only adds icon layout + the
+   button affordance for the multi-team dropdown. Icons inherit the badge's emphasis color. */
+.team-chip {
     display: inline-flex;
     align-items: center;
     gap: 5px;
-    padding: 3px 9px;
-    border-radius: 999px;
-    border: 1px solid var(--bs-border-color);
-    background: var(--bs-body-bg);
-    font-size: 0.8rem;
 
     i { font-size: 0.85em; }
-    .bi-star-fill { color: var(--bs-warning); }
-    .bi-check-circle-fill { color: var(--bs-success); }
-
-    &.is-granted {
-        border-color: var(--bs-success);
-        background: var(--bs-success-bg-subtle);
-    }
 }
-
-.team-dropdown {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    border: 1px solid var(--bs-border-color);
-    background: var(--bs-body-bg);
-    font-size: 0.8rem;
-    font-weight: 600;
+button.team-chip {
+    border: 0;
     cursor: pointer;
-    color: var(--brand-text);
+    font-weight: 600;
 
-    &.is-partial { border-color: var(--bs-warning); background: var(--bs-warning-bg-subtle); }
-    &.is-granted { border-color: var(--bs-success); background: var(--bs-success-bg-subtle); }
     &:hover { filter: brightness(0.97); }
-    i { font-size: 0.8em; }
+    .bi-chevron-down { font-size: 0.8em; }
 }
 
 /* ── Actions cell ── */
@@ -304,7 +281,7 @@
 .all-granted {
     display: inline-flex;
     align-items: center;
-    color: var(--bs-success);
+    color: var(--bs-primary-text-emphasis);
     font-size: 0.8rem;
 }
 
@@ -352,12 +329,12 @@
     font-size: 0.8rem;
     border-radius: var(--radius-sm, 0.25rem);
 
-    &.is-granted { background: var(--bs-success-bg-subtle); }
+    &.is-granted { background: var(--bs-primary-bg-subtle); }
 }
 .popup-team-text { flex: 1; min-width: 0; }
 .src-self { color: var(--bs-warning); }
 .src-admin { color: var(--bs-primary); }
-.granted-flag { color: var(--bs-success); }
+.granted-flag { color: var(--bs-primary-text-emphasis); }
 .ungranted-flag {
     font-size: 0.7rem;
     color: var(--bs-secondary-color);

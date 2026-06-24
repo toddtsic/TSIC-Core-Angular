@@ -8,6 +8,7 @@ import {
     RosterSwapperService,
     UnassignedAdultQueueRowDto
 } from '../services/roster-swapper.service';
+import { PriorStaffAssignmentDto } from '@core/api';
 
 /** Coach worklist status — derived per coach from requests (★self) vs live grants. */
 type CoachStatus = 'unassigned' | 'partial' | 'assigned';
@@ -34,6 +35,8 @@ interface QueueRow {
     note: string | null;
     priorStaffCount: number;
     priorStaffText: string;
+    /** Prior staff assignments (team · job) — shown in the "Coached before" popover. */
+    priorStaff: PriorStaffAssignmentDto[];
     linkedPlayerNames: string[];
     status: CoachStatus;
     /** Semantic sort rank for status: Unassigned(0) → Partial(1) → Assigned(2). */
@@ -101,6 +104,13 @@ export class CoachApprovalQueueComponent implements OnInit {
     readonly teamsRow = signal<QueueRow | null>(null);
     readonly teamsTop = signal(0);
     readonly teamsLeft = signal(0);
+
+    // ── "Coached before" prior-assignments popup ──
+    readonly priorRow = signal<QueueRow | null>(null);
+    readonly priorTop = signal(0);
+    readonly priorLeft = signal(0);
+    /** Pinned = opened by click/tap: stays open (with backdrop) until dismissed; hover ignored. */
+    readonly priorPinned = signal(false);
 
     /** Derived view-model rows, alpha-sorted by coach name (the stable key). */
     readonly rows = computed<QueueRow[]>(() =>
@@ -227,6 +237,8 @@ export class CoachApprovalQueueComponent implements OnInit {
             note: r.note ?? null,
             priorStaffCount: r.priorStaff.length,
             priorStaffText: r.priorStaff.map(p => `${p.teamName} · ${p.jobName}`).join('\n'),
+            priorStaff: [...r.priorStaff].sort((a, b) =>
+                a.jobName.localeCompare(b.jobName) || a.teamName.localeCompare(b.teamName)),
             linkedPlayerNames: r.linkedPlayerNames,
             status,
             statusOrder: status === 'unassigned' ? 0 : status === 'partial' ? 1 : 2,
@@ -303,6 +315,43 @@ export class CoachApprovalQueueComponent implements OnInit {
 
     closeTeams(): void {
         this.teamsRow.set(null);
+    }
+
+    // ── "Coached before" prior-assignments popup (hover preview + click/tap pin) ──
+
+    /** Hover-open a preview (does nothing if a pinned popup is already showing). */
+    hoverPrior(event: MouseEvent, row: QueueRow): void {
+        if (this.priorPinned()) return;
+        this.positionPrior(event);
+        this.priorRow.set(row);
+    }
+
+    /** Mouse left the trigger — close the hover preview, but leave a pinned popup open. */
+    leavePrior(): void {
+        if (!this.priorPinned()) this.priorRow.set(null);
+    }
+
+    /** Click/tap pins the popup open (backdrop appears); a second click toggles it closed. */
+    pinPrior(event: MouseEvent, row: QueueRow): void {
+        event.stopPropagation();
+        if (this.priorPinned() && this.priorRow() === row) {
+            this.closePrior();
+            return;
+        }
+        this.positionPrior(event);
+        this.priorRow.set(row);
+        this.priorPinned.set(true);
+    }
+
+    closePrior(): void {
+        this.priorRow.set(null);
+        this.priorPinned.set(false);
+    }
+
+    private positionPrior(event: MouseEvent): void {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        this.priorTop.set(rect.bottom + 4);
+        this.priorLeft.set(Math.max(8, rect.left));
     }
 
     // ── Grant All ──
