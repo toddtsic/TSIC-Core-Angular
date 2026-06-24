@@ -18,13 +18,22 @@ public class RegistrationSearchController : ControllerBase
 
     private readonly IRegistrationSearchService _searchService;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IEmailBatchJobRegistry _batchJobs;
+    private readonly IEmailBatchService _emailBatch;
+    private readonly IHostEnvironment _env;
 
     public RegistrationSearchController(
         IRegistrationSearchService searchService,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IEmailBatchJobRegistry batchJobs,
+        IEmailBatchService emailBatch,
+        IHostEnvironment env)
     {
         _searchService = searchService;
         _jobLookupService = jobLookupService;
+        _batchJobs = batchJobs;
+        _emailBatch = emailBatch;
+        _env = env;
     }
 
     private async Task<(Guid? jobId, string? userId, ActionResult? error)> ResolveContext()
@@ -403,22 +412,55 @@ public class RegistrationSearchController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Starts a batch send as a background job and returns immediately with a job handle.
+    /// Poll <c>batch-email/{jobId}/status</c> for progress + final summary.
+    /// </summary>
     [HttpPost("batch-email")]
-    public async Task<ActionResult<BatchEmailResponse>> SendBatchEmail(
+    public async Task<ActionResult<EmailBatchHandle>> SendBatchEmail(
         [FromBody] BatchEmailRequest request, CancellationToken ct)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
+        // Defense-in-depth: the simulated-send knob is dev/sandbox only (engine also guards).
+        if (request.SimulatedPerUnitDelayMs.HasValue && _env.IsLiveProduction())
+            request = request with { SimulatedPerUnitDelayMs = null };
+
         try
         {
-            var result = await _searchService.SendBatchEmailAsync(jobId!.Value, userId!, request, ct);
-            return Ok(result);
+            var handle = await _searchService.StartBatchEmailAsync(jobId!.Value, userId!, request, ct);
+            return Ok(handle);
         }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    /// <summary>Progress / final summary for a background batch-email job (404 if unknown/expired).</summary>
+    [HttpGet("batch-email/{batchJobId:guid}/status")]
+    public ActionResult<EmailBatchJobStatus> GetBatchEmailStatus(Guid batchJobId)
+    {
+        var status = _batchJobs.Get(batchJobId);
+        return status is null ? NotFound() : Ok(status);
+    }
+
+    /// <summary>Opt-in: emails the completion summary for a batch to the requesting admin's account email.</summary>
+    [HttpPost("batch-email/{batchJobId:guid}/email-summary")]
+    public async Task<ActionResult> EmailBatchSummary(Guid batchJobId, CancellationToken ct)
+    {
+        var (_, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var result = await _emailBatch.EmailSummaryAsync(batchJobId, userId!, ct);
+        return result switch
+        {
+            EmailBatchSummaryResult.Sent => NoContent(),
+            EmailBatchSummaryResult.UnknownJob => NotFound(),
+            EmailBatchSummaryResult.NoRecipientEmail => BadRequest(new { message = "No email address on file for your account." }),
+            _ => StatusCode(500)
+        };
     }
 
     [HttpPost("email-preview")]

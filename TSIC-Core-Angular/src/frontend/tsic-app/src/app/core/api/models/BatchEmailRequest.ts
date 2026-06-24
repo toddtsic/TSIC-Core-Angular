@@ -7,5 +7,6 @@ export type BatchEmailRequest = {
     subject: string;
     bodyTemplate: string;
     inviteLinkTargetJobId?: string | null;
+    simulatedPerUnitDelayMs?: number | null;
 };
 

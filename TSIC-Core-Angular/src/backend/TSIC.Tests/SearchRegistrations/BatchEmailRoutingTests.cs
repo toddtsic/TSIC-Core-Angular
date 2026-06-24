@@ -67,9 +67,11 @@ public class BatchEmailRoutingTests
 
         var feeAdjustment = new Mock<IRegistrationFeeAdjustmentService>().Object;
 
+        var emailBatch = new Mock<IEmailBatchService>().Object;
+
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo, deviceRepo.Object,
-            teamRepo, adnApi.Object, arbRepo.Object, textSub.Object, emailService.Object, feeAdjustment,
+            teamRepo, adnApi.Object, arbRepo.Object, textSub.Object, emailService.Object, emailBatch, feeAdjustment,
             new Mock<IPaymentService>().Object, new Mock<IPaymentStateService>().Object,
             new Mock<IRegisteredPlayerShaper>().Object, logger.Object);
 

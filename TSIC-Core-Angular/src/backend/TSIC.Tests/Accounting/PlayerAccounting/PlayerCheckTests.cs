@@ -78,7 +78,7 @@ public class PlayerCheckTests
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo.Object, deviceRepo.Object,
             new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,
-            emailService.Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState,
+            emailService.Object, new Mock<IEmailBatchService>().Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState,
             new Mock<IRegisteredPlayerShaper>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId);

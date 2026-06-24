@@ -153,6 +153,12 @@ public record BatchEmailRequest
     /// When !INVITE_LINK is used in the template, this is the target job the invite links point to.
     /// </summary>
     public Guid? InviteLinkTargetJobId { get; init; }
+
+    /// <summary>
+    /// DEV/SANDBOX ONLY. When set, the engine simulates each send with this delay instead of
+    /// transmitting via SES — drives the "TEST BATCH PROCESSING" preview. Ignored outside sandbox.
+    /// </summary>
+    public int? SimulatedPerUnitDelayMs { get; init; }
 }
 
 /// <summary>

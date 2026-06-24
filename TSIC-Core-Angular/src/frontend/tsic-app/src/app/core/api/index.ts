@@ -244,6 +244,8 @@ export type { EditScoreRequest } from './models/EditScoreRequest';
 export type { EditTeamRequest } from './models/EditTeamRequest';
 export type { EditTimeslotDateRequest } from './models/EditTimeslotDateRequest';
 export type { EditTimeslotFieldRequest } from './models/EditTimeslotFieldRequest';
+export type { EmailBatchHandle } from './models/EmailBatchHandle';
+export type { EmailBatchJobStatus } from './models/EmailBatchJobStatus';
 export type { EmailHealthStatus } from './models/EmailHealthStatus';
 export type { EmailLogDetailDto } from './models/EmailLogDetailDto';
 export type { EmailLogSummaryDto } from './models/EmailLogSummaryDto';

@@ -153,11 +153,27 @@
           <small class="form-text text-muted">Click a token to insert it at the cursor position.</small>
         </div>
 
+        @if (isSending() && status(); as s) {
+          <div class="progress-section" aria-live="polite">
+            <div class="progress" style="height: 1.25rem;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated"
+                role="progressbar" [style.width.%]="progressPct()"
+                [attr.aria-valuenow]="progressPct()" aria-valuemin="0" aria-valuemax="100">
+                {{ progressPct() }}%
+              </div>
+            </div>
+            <p class="progress-detail">
+              <strong>{{ s.processed ?? (s.sent + s.failed) }}</strong> of <strong>{{ s.totalRecipients }}</strong> processed
+              — {{ s.sent }} sent, {{ s.failed }} failed@if (s.optedOut > 0) {, {{ s.optedOut }} opted out}
+            </p>
+          </div>
+        }
+
         @if (sendResult(); as result) {
           <div class="result-section">
             <div class="result-summary">
               <h4>Send Results</h4>
-              <p><strong>{{ result.sent }}</strong> of <strong>{{ result.totalRecipients }}</strong> emails sent successfully</p>
+              <p><strong>{{ result.sent }}</strong> of <strong>{{ result.totalRecipients }}</strong> emails sent successfully@if (result.optedOut > 0) { ({{ result.optedOut }} opted out)}</p>
             </div>
             @if (result.failedAddresses.length > 0) {
               <details class="failed-addresses">
@@ -165,6 +181,14 @@
                 <ul>@for (address of result.failedAddresses; track address) { <li>{{ address }}</li> }</ul>
               </details>
             }
+            <div class="result-actions">
+              <button type="button" class="btn btn-sm btn-outline-primary"
+                (click)="emailSummary()" [disabled]="isEmailingSummary() || summaryEmailed()">
+                @if (isEmailingSummary()) { <span class="spinner"></span> Sending... }
+                @else if (summaryEmailed()) { Summary emailed ✓ }
+                @else { Email me this summary }
+              </button>
+            </div>
           </div>
         }
       </div>
@@ -197,6 +221,12 @@
           @if (sendResult()) { Close } @else { Cancel }
         </button>
         @if (!sendResult() && !showConfirm()) {
+          @if (isDev) {
+            <button type="button" class="btn btn-outline-warning" (click)="testBatchProcessing()"
+              [disabled]="isSending() || !canSend()" title="Dev only: runs the real engine with simulated sends">
+              TEST BATCH PROCESSING
+            </button>
+          }
           <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="isSending() || !canSend()">
             @if (isSending()) { <span class="spinner"></span> Sending... } @else { Send to {{ recipientCount() }} recipient(s) }
           </button>

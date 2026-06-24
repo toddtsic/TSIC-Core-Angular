@@ -157,6 +157,73 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         return result;
     }
 
+    // Matches a token sigil: '!' immediately followed by a letter (e.g. !JOBNAME, !F-ACCOUNTING).
+    // A bare '!' (e.g. "Sale!") is NOT a token, so a token-less template skips all data loading.
+    private static readonly Regex TokenSigil = new(@"![A-Za-z]", RegexOptions.Compiled);
+
+    private static bool HasToken(string template) =>
+        !string.IsNullOrEmpty(template) && TokenSigil.IsMatch(template);
+
+    public async Task<(string Subject, string Body)> SubstituteSubjectAndBodyAsync(
+        string jobSegment,
+        Guid jobId,
+        Guid paymentMethodCreditCardId,
+        Guid? registrationId,
+        string familyUserId,
+        string subjectTemplate,
+        string bodyTemplate,
+        string? inviteTargetJobPath = null,
+        IReadOnlyDictionary<string, string>? extraTokens = null)
+    {
+        subjectTemplate ??= string.Empty;
+        bodyTemplate ??= string.Empty;
+
+        // Render-win #0: no token in either template (and no extras) -> no data load at all.
+        var hasExtras = extraTokens is { Count: > 0 };
+        if (!HasToken(subjectTemplate) && !HasToken(bodyTemplate) && !hasExtras)
+            return (subjectTemplate, bodyTemplate);
+
+        // !EMAILMODE is a rendering flag; detect across either template and strip from both.
+        var emailMode = subjectTemplate.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase)
+                     || bodyTemplate.Contains("!EMAILMODE", StringComparison.OrdinalIgnoreCase);
+        if (emailMode)
+        {
+            subjectTemplate = subjectTemplate.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
+            bodyTemplate = bodyTemplate.Replace("!EMAILMODE", string.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // Render-win #1: ONE fixed-fields load + ONE token build, guarded against BOTH templates.
+        var fixedFieldList = await LoadFixedFieldsAsync(jobId, registrationId, familyUserId);
+        var guard = subjectTemplate + "\n" + bodyTemplate;
+
+        var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (fixedFieldList.Count > 0)
+        {
+            var first = fixedFieldList[0];
+            AddSimpleTokens(tokens, first, jobSegment);
+            await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, guard, emailMode, inviteTargetJobPath);
+        }
+
+        if (extraTokens != null)
+        {
+            foreach (var kvp in extraTokens)
+            {
+                if (tokens.ContainsKey(kvp.Key))
+                {
+                    throw new InvalidOperationException(
+                        $"extraTokens collision: '{kvp.Key}' is already produced by TextSubstitutionService. " +
+                        $"Remove it from extras and rely on the engine, or rename if it is genuinely different data.");
+                }
+                tokens[kvp.Key] = kvp.Value;
+            }
+        }
+
+        if (tokens.Count == 0) return (subjectTemplate, bodyTemplate);
+
+        return (TokenReplacer.ReplaceTokens(subjectTemplate, tokens),
+                TokenReplacer.ReplaceTokens(bodyTemplate, tokens));
+    }
+
     // Maps FixedFields (EF entity projection) to PlayerRegistrationData (use case DTO)
     private static List<PlayerHtmlGenerator.PlayerRegistrationData> MapToRegistrationData(List<FixedFields> fixedFields)
     {

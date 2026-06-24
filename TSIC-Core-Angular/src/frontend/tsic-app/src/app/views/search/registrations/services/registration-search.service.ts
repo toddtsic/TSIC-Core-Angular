@@ -19,6 +19,8 @@ import type {
 	PaymentMethodOptionDto,
 	BatchEmailRequest,
 	BatchEmailResponse,
+	EmailBatchHandle,
+	EmailBatchJobStatus,
 	EmailPreviewRequest,
 	EmailPreviewResponse,
 	LadtTreeRootDto,
@@ -55,6 +57,8 @@ export type {
 	PaymentMethodOptionDto,
 	BatchEmailRequest,
 	BatchEmailResponse,
+	EmailBatchHandle,
+	EmailBatchJobStatus,
 	EmailPreviewRequest,
 	EmailPreviewResponse,
 	RenderedEmailPreview,
@@ -128,8 +132,20 @@ export class RegistrationSearchService {
 		return this.http.get<PaymentMethodOptionDto[]>(`${this.apiUrl}/payment-methods`);
 	}
 
-	sendBatchEmail(request: BatchEmailRequest): Observable<BatchEmailResponse> {
-		return this.http.post<BatchEmailResponse>(`${this.apiUrl}/batch-email`, request);
+	/** Starts a background batch send. Returns immediately with a job handle;
+	 *  poll {@link getBatchEmailStatus} for progress. */
+	sendBatchEmail(request: BatchEmailRequest): Observable<EmailBatchHandle> {
+		return this.http.post<EmailBatchHandle>(`${this.apiUrl}/batch-email`, request);
+	}
+
+	/** Progress/completion snapshot for a running batch (ephemeral; lost on recycle). */
+	getBatchEmailStatus(batchJobId: string): Observable<EmailBatchJobStatus> {
+		return this.http.get<EmailBatchJobStatus>(`${this.apiUrl}/batch-email/${batchJobId}/status`);
+	}
+
+	/** Opt-in: emails the completion summary for a finished batch to the requesting admin. */
+	emailBatchSummary(batchJobId: string): Observable<void> {
+		return this.http.post<void>(`${this.apiUrl}/batch-email/${batchJobId}/email-summary`, {});
 	}
 
 	previewEmail(request: EmailPreviewRequest): Observable<EmailPreviewResponse> {

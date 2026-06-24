@@ -40,6 +40,7 @@ public interface IRegistrationSearchService
     Task<SubscriptionDetailDto?> GetSubscriptionDetailAsync(Guid jobId, Guid registrationId, CancellationToken ct = default);
     Task CancelSubscriptionAsync(Guid jobId, string userId, Guid registrationId, CancellationToken ct = default);
     Task<BatchEmailResponse> SendBatchEmailAsync(Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default);
+    Task<EmailBatchHandle> StartBatchEmailAsync(Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default);
     Task<EmailPreviewResponse> PreviewEmailAsync(Guid jobId, EmailPreviewRequest request, CancellationToken ct = default);
     Task<List<JobOptionDto>> GetChangeJobOptionsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<JobOptionDto>> GetFutureJobOptionsAsync(Guid jobId, CancellationToken ct = default);

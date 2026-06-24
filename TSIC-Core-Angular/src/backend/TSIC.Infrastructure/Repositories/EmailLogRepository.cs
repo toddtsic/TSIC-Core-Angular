@@ -58,4 +58,19 @@ public class EmailLogRepository : IEmailLogRepository
         _context.EmailLogs.Add(entry);
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task UpdateProgressAsync(
+        int emailId,
+        int count,
+        string sendTo,
+        CancellationToken cancellationToken = default)
+    {
+        var row = await _context.EmailLogs
+            .FirstOrDefaultAsync(e => e.EmailId == emailId, cancellationToken);
+        if (row == null) return;
+
+        row.Count = count;
+        row.SendTo = sendTo;
+        await _context.SaveChangesAsync(cancellationToken);
+    }
 }

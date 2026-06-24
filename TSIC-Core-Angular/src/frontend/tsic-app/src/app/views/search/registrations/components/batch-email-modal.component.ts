@@ -1,7 +1,8 @@
-import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { BatchEmailResponse, JobOptionDto, FilterOption, RegistrationSearchRequest } from '@core/api';
+import type { BatchEmailResponse, EmailBatchJobStatus, JobOptionDto, FilterOption, RegistrationSearchRequest } from '@core/api';
+import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, type EmailTemplate, type JobFlagsForTemplates } from '../email-templates';
@@ -32,9 +33,12 @@ const USLAX_VALID_THROUGH_TOKEN = { token: '!USLAXVALIDTHROUGHDATE', description
   styleUrl: './batch-email-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class BatchEmailModalComponent implements OnInit {
+export class BatchEmailModalComponent implements OnInit, OnDestroy {
   private searchService = inject(RegistrationSearchService);
   private toast = inject(ToastService);
+
+  /** Dev-only "TEST BATCH PROCESSING" button gate — never rendered in production builds. */
+  readonly isDev = !environment.production;
 
   registrationIds = input<string[]>([]);
   recipientCount = input<number>(0);
@@ -66,6 +70,22 @@ export class BatchEmailModalComponent implements OnInit {
   isSending = signal<boolean>(false);
   sendResult = signal<BatchEmailResponse | null>(null);
   showConfirm = signal<boolean>(false);
+
+  /** Background-job tracking: handle id + latest polled progress snapshot. */
+  private batchJobId = signal<string | null>(null);
+  status = signal<EmailBatchJobStatus | null>(null);
+  isEmailingSummary = signal<boolean>(false);
+  summaryEmailed = signal<boolean>(false);
+  private pollTimer: ReturnType<typeof setTimeout> | null = null;
+  private pollErrors = 0;
+
+  /** 0–100 progress for the bar, derived from processed/total. */
+  readonly progressPct = computed(() => {
+    const s = this.status();
+    if (!s || s.totalRecipients === 0) return 0;
+    const processed = s.processed ?? (s.sent + s.failed);
+    return Math.min(100, Math.round((processed / s.totalRecipients) * 100));
+  });
 
   /** Snapshot of subject/body set by the most recent template apply. When the
    *  live values still match, the draft is "clean" and swapping templates
@@ -221,36 +241,116 @@ export class BatchEmailModalComponent implements OnInit {
 
   confirmSend(): void {
     this.showConfirm.set(false);
-    const ids = this.registrationIds();
+    this.startBatch(undefined);
+  }
 
+  /** Dev-only: runs the real engine end-to-end with a simulated per-unit delay (no real SES transmit). */
+  testBatchProcessing(): void {
+    if (!this.isDev) return;
+    if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
+    if (this.registrationIds().length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
+    this.startBatch(150);
+  }
+
+  /** Kicks off a background batch (real or simulated), then polls the status endpoint for progress. */
+  private startBatch(simulatedPerUnitDelayMs: number | undefined): void {
+    this.sendResult.set(null);
+    this.status.set(null);
+    this.summaryEmailed.set(false);
+    this.pollErrors = 0;
     this.isSending.set(true);
+
     this.searchService.sendBatchEmail({
-      registrationIds: ids,
+      registrationIds: this.registrationIds(),
       subject: this.subject(),
       bodyTemplate: this.bodyTemplate(),
-      inviteLinkTargetJobId: this.selectedInviteTargetJobId() ?? undefined
+      inviteLinkTargetJobId: this.selectedInviteTargetJobId() ?? undefined,
+      simulatedPerUnitDelayMs: simulatedPerUnitDelayMs ?? undefined
     }).subscribe({
-      next: (response) => {
-        this.isSending.set(false);
-        this.sendResult.set(response);
-        const optedOutNote = response.optedOut > 0 ? `, ${response.optedOut} opted out` : '';
-        const msg = `Emails sent: ${response.sent} of ${response.totalRecipients}${optedOutNote}`;
-        if (response.failedAddresses.length > 0) { this.toast.show(`${msg}. ${response.failedAddresses.length} failed.`, 'warning', 5000); }
-        else { this.toast.show(msg, 'success', 3000); }
-        this.sent.emit(response);
+      next: (handle) => {
+        this.batchJobId.set(handle.jobId);
+        // Prime the bar with totals before the first poll lands.
+        this.status.set({ jobId: handle.jobId, totalRecipients: handle.totalRecipients, sent: 0, failed: 0, optedOut: 0, done: false, failedAddresses: [], processed: 0 });
+        this.pollStatus(handle.jobId);
       },
       error: (err) => { this.isSending.set(false); this.toast.show(`Email send failed: ${err.error?.message || 'Unknown error'}`, 'danger', 4000); }
     });
   }
 
+  private pollStatus(jobId: string): void {
+    this.searchService.getBatchEmailStatus(jobId).subscribe({
+      next: (s) => {
+        this.pollErrors = 0;
+        if (this.batchJobId() !== jobId) return; // superseded (modal reset/closed)
+        this.status.set(s);
+        if (s.done) { this.onBatchComplete(s); }
+        else { this.pollTimer = setTimeout(() => this.pollStatus(jobId), 1000); }
+      },
+      error: () => {
+        if (this.batchJobId() !== jobId) return;
+        // Transient blips tolerated; a recycled server loses the ephemeral job permanently.
+        if (++this.pollErrors >= 5) {
+          this.isSending.set(false);
+          this.batchJobId.set(null);
+          this.toast.show('Lost track of the batch (server may have restarted). The send may still be running.', 'warning', 6000);
+          return;
+        }
+        this.pollTimer = setTimeout(() => this.pollStatus(jobId), 2000);
+      }
+    });
+  }
+
+  private onBatchComplete(s: EmailBatchJobStatus): void {
+    this.isSending.set(false);
+    this.batchJobId.set(null);
+    const response: BatchEmailResponse = {
+      totalRecipients: s.totalRecipients,
+      sent: s.sent,
+      failed: s.failed,
+      optedOut: s.optedOut,
+      failedAddresses: s.failedAddresses
+    };
+    this.sendResult.set(response);
+    const optedOutNote = s.optedOut > 0 ? `, ${s.optedOut} opted out` : '';
+    const msg = `Emails sent: ${s.sent} of ${s.totalRecipients}${optedOutNote}`;
+    if (s.failedAddresses.length > 0) { this.toast.show(`${msg}. ${s.failedAddresses.length} failed.`, 'warning', 5000); }
+    else { this.toast.show(msg, 'success', 3000); }
+    this.sent.emit(response);
+  }
+
+  /** Opt-in: ask the server to email the completion summary to the current admin. */
+  emailSummary(): void {
+    const result = this.sendResult();
+    if (!result) return;
+    // The summary is sourced from the ephemeral registry, keyed by the just-finished job id.
+    const jobId = this.status()?.jobId;
+    if (!jobId) return;
+    this.isEmailingSummary.set(true);
+    this.searchService.emailBatchSummary(jobId).subscribe({
+      next: () => { this.isEmailingSummary.set(false); this.summaryEmailed.set(true); this.toast.show('Summary emailed to you', 'success', 3000); },
+      error: (err) => { this.isEmailingSummary.set(false); this.toast.show(`Could not email summary: ${err.error?.message || 'Unknown error'}`, 'danger', 4000); }
+    });
+  }
+
   dismissConfirm(): void { this.showConfirm.set(false); }
 
+  private stopPolling(): void {
+    if (this.pollTimer) { clearTimeout(this.pollTimer); this.pollTimer = null; }
+    this.batchJobId.set(null);
+  }
+
+  ngOnDestroy(): void { this.stopPolling(); }
+
   private resetForm(): void {
+    this.stopPolling();
     this.subject.set('');
     this.bodyTemplate.set('');
     this.lastAppliedTemplate.set(null);
     this.isSending.set(false);
     this.sendResult.set(null);
+    this.status.set(null);
+    this.isEmailingSummary.set(false);
+    this.summaryEmailed.set(false);
     this.showConfirm.set(false);
     this.selectedInviteTargetJobId.set(null);
     this.aiPrompt.set('');

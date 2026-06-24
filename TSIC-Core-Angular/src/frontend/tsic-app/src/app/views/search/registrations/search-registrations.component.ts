@@ -775,8 +775,8 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   onBatchEmailComplete(): void {
-    this.showBatchEmailModal.set(false);
-    this.toast.show('Batch email sent successfully', 'success', 4000);
+    // Leave the modal open: it renders the completion summary + "Email me this summary"
+    // and shows its own result toast. The user closes it when done reviewing.
   }
 
   toggleEmailOptOut(data: RegistrationSearchResultDto): void {

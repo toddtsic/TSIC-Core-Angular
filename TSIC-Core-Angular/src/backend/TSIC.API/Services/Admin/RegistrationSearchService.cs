@@ -1,7 +1,9 @@
 using AuthorizeNet.Api.Contracts.V1;
+using Microsoft.Extensions.DependencyInjection;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
@@ -31,6 +33,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IArbSubscriptionRepository _arbRepo;
     private readonly ITextSubstitutionService _textSubstitution;
     private readonly IEmailService _emailService;
+    private readonly IEmailBatchService _emailBatch;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentService _paymentService;
     private readonly IPaymentStateService _paymentState;
@@ -56,6 +59,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IArbSubscriptionRepository arbRepo,
         ITextSubstitutionService textSubstitution,
         IEmailService emailService,
+        IEmailBatchService emailBatch,
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentService paymentService,
         IPaymentStateService paymentState,
@@ -72,6 +76,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _arbRepo = arbRepo;
         _textSubstitution = textSubstitution;
         _emailService = emailService;
+        _emailBatch = emailBatch;
         _feeAdjustment = feeAdjustment;
         _paymentService = paymentService;
         _paymentState = paymentState;
@@ -760,6 +765,125 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             FailedAddresses = failedAddresses
         };
     }
+
+    /// <summary>
+    /// Final-architecture batch send: validates + seeds synchronously, then hands the work to the
+    /// background <see cref="IEmailBatchService"/> engine and returns a job handle immediately.
+    /// Recipient resolution + render run per-recipient on the engine's render-worker scopes.
+    /// (Strangler: the legacy synchronous <see cref="SendBatchEmailAsync"/> above remains until proven.)
+    /// </summary>
+    public async Task<EmailBatchHandle> StartBatchEmailAsync(
+        Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default)
+    {
+        var registrations = await _registrationRepo.GetByIdsAsync(request.RegistrationIds, ct);
+
+        var invalidRegs = registrations.Where(r => r.JobId != jobId).ToList();
+        if (invalidRegs.Count > 0)
+            throw new InvalidOperationException("Some registrations do not belong to this job.");
+
+        var jobConfirmation = await _jobRepo.GetConfirmationEmailInfoAsync(jobId, ct);
+        var jobPath = jobConfirmation?.JobPath ?? "";
+
+        string? inviteTargetJobPath = null;
+        if (request.InviteLinkTargetJobId.HasValue)
+            inviteTargetJobPath = await _jobRepo.GetJobPathAsync(request.InviteLinkTargetJobId.Value, ct);
+
+        // Snapshot identities now (in-memory); SeedAsync filters opt-out without a second query.
+        var allItems = registrations
+            .Select(r => new BatchEmailItem(r.RegistrationId, r.FamilyUserId, r.RoleId, r.RegistrationAi, r.BemailOptOut))
+            .ToList();
+
+        var subject = request.Subject;
+        var body = request.BodyTemplate;
+        var fromName = jobConfirmation?.JobName;
+
+        var plan = new EmailBatchPlan<BatchEmailItem>
+        {
+            SeedAsync = (_, _) => Task.FromResult(new EmailBatchSeed<BatchEmailItem>
+            {
+                Items = allItems.Where(i => !i.OptedOut).ToList(),
+                OptedOutCount = allItems.Count(i => i.OptedOut)
+            }),
+            DescribeItem = i => $"(no email for RegistrationAi #{i.RegistrationAi})",
+            Audit = new EmailBatchAudit
+            {
+                JobId = jobId,
+                SenderUserId = userId,
+                Subject = subject,
+                BodyTemplate = body,
+                SendFrom = fromName
+            },
+            RenderAsync = async (item, sp, token) =>
+            {
+                var familiesRepo = sp.GetRequiredService<IFamiliesRepository>();
+                var regRepo = sp.GetRequiredService<IRegistrationRepository>();
+                var textSub = sp.GetRequiredService<ITextSubstitutionService>();
+
+                var toAddresses = await ResolveBatchRecipientsAsync(item, jobId, familiesRepo, regRepo, token);
+                if (toAddresses.Count == 0) return null;
+
+                // Single-pass render (one fixed-fields load for subject + body; skips load when token-less).
+                var (renderedSubject, renderedBody) = await textSub.SubstituteSubjectAndBodyAsync(
+                    jobPath, jobId, CcPaymentMethodId, item.RegistrationId, item.FamilyUserId ?? "", subject, body, inviteTargetJobPath);
+
+                var unsubscribeUrl = $"https://www.teamsportsinfo.com/api/email/unsubscribe?regId={item.RegistrationId:D}";
+                renderedBody += $"""
+                    <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e0e0e0; text-align:center; font-size:12px; color:#999;">
+                        <a href="{unsubscribeUrl}" style="color:#999; text-decoration:underline;">Unsubscribe</a>
+                        from emails for this event
+                    </div>
+                    """;
+
+                return new EmailBatchRendered
+                {
+                    Message = new EmailMessageDto
+                    {
+                        FromAddress = fromName,
+                        Subject = renderedSubject,
+                        HtmlBody = renderedBody,
+                        ToAddresses = toAddresses
+                    }
+                };
+            }
+        };
+
+        var options = new EmailBatchOptions
+        {
+            SimulatedPerUnitDelayMs = request.SimulatedPerUnitDelayMs,
+            SyntheticFailEveryN = request.SimulatedPerUnitDelayMs.HasValue ? 13 : null
+        };
+
+        return await _emailBatch.StartAsync(plan, options, ct);
+    }
+
+    /// <summary>
+    /// Resolve all sendable addresses for one registration. Player → mom + dad + player-if-present
+    /// (distinct, case-insensitive); other roles → the registrant's own User.Email. Strips blanks,
+    /// the <c>not@given.com</c> missing-email sentinel, and obviously-invalid addresses (shared rule).
+    /// </summary>
+    private static async Task<List<string>> ResolveBatchRecipientsAsync(
+        BatchEmailItem item, Guid jobId,
+        IFamiliesRepository familiesRepo, IRegistrationRepository regRepo,
+        CancellationToken ct)
+    {
+        if (item.RoleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(item.FamilyUserId))
+        {
+            var family = await familiesRepo.GetByFamilyUserIdAsync(item.FamilyUserId, ct);
+            var regWithUser = await regRepo.GetByJobAndFamilyWithUsersAsync(jobId, item.FamilyUserId, cancellationToken: ct);
+            var playerEmail = regWithUser.FirstOrDefault(r => r.RegistrationId == item.RegistrationId)?.User?.Email;
+            return BatchEmailRecipientFilter.BuildSendableSet(new[] { family?.MomEmail, family?.DadEmail, playerEmail });
+        }
+        else
+        {
+            var regWithUser = await regRepo.GetByJobAndFamilyWithUsersAsync(jobId, item.FamilyUserId ?? "", cancellationToken: ct);
+            var userEmail = regWithUser.FirstOrDefault(r => r.RegistrationId == item.RegistrationId)?.User?.Email;
+            return BatchEmailRecipientFilter.BuildSendableSet(new[] { userEmail });
+        }
+    }
+
+    /// <summary>Lightweight, context-free identity for a batch recipient (no EF entity captured).</summary>
+    private sealed record BatchEmailItem(
+        Guid RegistrationId, string? FamilyUserId, string? RoleId, int RegistrationAi, bool OptedOut);
 
     public async Task<EmailPreviewResponse> PreviewEmailAsync(
         Guid jobId, EmailPreviewRequest request, CancellationToken ct = default)

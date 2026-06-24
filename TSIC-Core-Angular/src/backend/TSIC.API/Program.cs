@@ -405,6 +405,10 @@ builder.Services.AddSingleton<IAmazonSimpleEmailService>(sp =>
 });
 builder.Services.AddSingleton<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailHealthService, EmailHealthService>();
+// Batch-email engine: background orchestration above the SES transport. Both singletons
+// (engine owns no scoped state; render workers create their own scopes per IEmailBatchService).
+builder.Services.AddSingleton<IEmailBatchJobRegistry, EmailBatchJobRegistry>();
+builder.Services.AddSingleton<IEmailBatchService, EmailBatchService>();
 
 // US LAX settings and HTTP client
 builder.Services.Configure<UsLaxSettings>(builder.Configuration.GetSection("UsLax"));
