@@ -423,9 +423,12 @@ public class RegistrationSearchController : ControllerBase
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        // Defense-in-depth: the simulated-send knob is dev/sandbox only (engine also guards).
+        // The simulated-send knob is a TEST signal. In Production we REJECT a flagged request
+        // outright rather than stripping the flag and proceeding — stripping would silently turn a
+        // "test" into a real blast. Rejecting keeps the invariant: a flagged request never reaches
+        // the engine in Production, so the simulate flag can never produce a real send anywhere.
         if (request.SimulatedPerUnitDelayMs.HasValue && _env.IsLiveProduction())
-            request = request with { SimulatedPerUnitDelayMs = null };
+            return BadRequest(new { message = "Simulated batch processing is not permitted in Production." });
 
         try
         {

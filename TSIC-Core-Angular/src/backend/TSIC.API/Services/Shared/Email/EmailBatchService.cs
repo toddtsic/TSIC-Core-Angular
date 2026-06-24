@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using Amazon.SimpleEmail;
 using Amazon.SimpleEmail.Model;
-using TSIC.API.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -22,7 +21,6 @@ public sealed class EmailBatchService : IEmailBatchService
     private readonly IEmailService _email;
     private readonly IEmailBatchJobRegistry _registry;
     private readonly IAmazonSimpleEmailService _ses;
-    private readonly IHostEnvironment _env;
     private readonly IHostApplicationLifetime _appLifetime;
     private readonly ILogger<EmailBatchService> _logger;
 
@@ -31,7 +29,6 @@ public sealed class EmailBatchService : IEmailBatchService
         IEmailService email,
         IEmailBatchJobRegistry registry,
         IAmazonSimpleEmailService ses,
-        IHostEnvironment env,
         IHostApplicationLifetime appLifetime,
         ILogger<EmailBatchService> logger)
     {
@@ -39,7 +36,6 @@ public sealed class EmailBatchService : IEmailBatchService
         _email = email;
         _registry = registry;
         _ses = ses;
-        _env = env;
         _appLifetime = appLifetime;
         _logger = logger;
     }
@@ -125,7 +121,12 @@ public sealed class EmailBatchService : IEmailBatchService
         EmailBatchOptions options,
         CancellationToken ct)
     {
-        var simulate = _env.IsSandbox() && options.SimulatedPerUnitDelayMs.HasValue;
+        // The simulate flag's PRESENCE alone forces the no-transmit path, independent of any
+        // environment detection: when set, the send step sleeps + records synthetic results and
+        // NEVER calls _email.SendAsync or the SES client. A flagged request can only reach here in
+        // a sandbox env (the controller rejects it in Production), so decoupling from IsSandbox()
+        // means a TEST request can never produce a real send even if the host env were misread.
+        var simulate = options.SimulatedPerUnitDelayMs.HasValue;
         var sentAddresses = new ConcurrentQueue<string>();
 
         try

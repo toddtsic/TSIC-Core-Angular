@@ -223,11 +223,11 @@
         @if (!sendResult() && !showConfirm()) {
           @if (isDev) {
             <button type="button" class="btn btn-outline-warning" (click)="testBatchProcessing()"
-              [disabled]="isSending() || !canSend()" title="Dev only: runs the real engine with simulated sends">
+              [disabled]="!canSubmit()" title="Dev only: runs the real engine with simulated sends">
               TEST BATCH PROCESSING
             </button>
           }
-          <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="isSending() || !canSend()">
+          <button type="button" class="btn btn-primary" (click)="sendEmail()" [disabled]="!canSubmit()">
             @if (isSending()) { <span class="spinner"></span> Sending... } @else { Send to {{ recipientCount() }} recipient(s) }
           </button>
         }

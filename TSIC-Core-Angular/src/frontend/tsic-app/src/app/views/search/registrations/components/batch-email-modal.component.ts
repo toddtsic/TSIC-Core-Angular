@@ -127,6 +127,9 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     !this.requiresInviteLink() || this.selectedInviteTargetJobId() !== null
   );
 
+  /** Single source of truth for both Send and the dev TEST button — they enable/disable together. */
+  readonly canSubmit = computed(() => !this.isSending() && this.canSend());
+
   /** Categories with at least one template whose availability rule passes. */
   readonly availableTemplateCategories = computed(() => {
     const req = this.searchRequest();
