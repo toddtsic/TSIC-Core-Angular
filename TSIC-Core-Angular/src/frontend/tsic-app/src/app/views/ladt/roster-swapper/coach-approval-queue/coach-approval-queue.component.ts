@@ -11,8 +11,8 @@ import {
 } from '../services/roster-swapper.service';
 import { PriorStaffAssignmentDto } from '@core/api';
 
-/** Coach worklist status — derived per coach from requests (★self) vs live grants. */
-type CoachStatus = 'unassigned' | 'partial' | 'assigned';
+/** Coach worklist status — purely teams-held: assigned = holds ≥1 team, else unassigned. */
+type CoachStatus = 'unassigned' | 'assigned';
 
 /** One team row in a coach's record: a request and/or grant, with its live grant state. */
 interface DisplayTeam {
@@ -40,8 +40,6 @@ interface QueueRow {
     priorStaff: PriorStaffAssignmentDto[];
     linkedPlayerNames: string[];
     status: CoachStatus;
-    /** Semantic sort rank for status: Unassigned(0) → Partial(1) → Assigned(2). */
-    statusOrder: number;
     teams: DisplayTeam[];
     /** Coach's asks (source ★self), sorted — each carries its live granted/pending state. */
     requestedTeams: DisplayTeam[];
@@ -61,13 +59,14 @@ interface QueueRow {
 /**
  * Director approval worklist for coach (UnassignedAdult) registrations.
  *
- * One alpha-sorted SF Grid row per coach. Status (Unassigned / Partial / Assigned) is a
- * VISUAL layer over a STABLE alpha sort, so acting on a coach recolors the row in place —
- * it never moves or vanishes under the cursor. Status filter chips carry live counts (the
- * progress meter) and are NON-DESTRUCTIVE: picking a chip pins the visible set; granting a
- * coach updates its status + the counts but leaves the row pinned until you re-pick a chip
- * or refresh. Per coach: "Grant All" honors every requested team in one click; "Grant
- * Subset" (multi-team only) opens a popup to grant a chosen subset. Deny removes the coach.
+ * One alpha-sorted SF Grid row per coach. Status (Unassigned / Assigned = holds ≥1 team) is
+ * a VISUAL layer (row border color) over a STABLE alpha sort, so acting on a coach recolors
+ * the row in place — it never moves or vanishes under the cursor. Status filter chips carry
+ * live counts (the progress meter) and are NON-DESTRUCTIVE: picking a chip pins the visible
+ * set; granting a coach updates its status + the counts but leaves the row pinned until you
+ * re-pick a chip or refresh. The Teams cell is the single grant control: check a requested
+ * team to grant it, check "Add team" to place on any team, uncheck to remove. Unchecking the
+ * Active column deactivates the coach (removes all teams + drops from the queue).
  */
 @Component({
     selector: 'app-coach-approval-queue',
@@ -178,7 +177,7 @@ export class CoachApprovalQueueComponent implements OnInit {
 
     /** Live per-status counts for the chips (the drain meter). */
     readonly counts = computed(() => {
-        const c = { all: 0, unassigned: 0, partial: 0, assigned: 0 };
+        const c = { all: 0, unassigned: 0, assigned: 0 };
         for (const r of this.rows()) {
             c.all++;
             c[r.status]++;
@@ -198,7 +197,6 @@ export class CoachApprovalQueueComponent implements OnInit {
         if (!field) return visible;
         const dir = this.sortDir() === 'asc' ? 1 : -1;
         return [...visible].sort((a, b) => {
-            if (field === 'status') return (a.statusOrder - b.statusOrder) * dir;
             const va = field === 'teamSortKey' ? a.teamSortKey : a.playerName;
             const vb = field === 'teamSortKey' ? b.teamSortKey : b.playerName;
             return va.localeCompare(vb) * dir;
@@ -292,15 +290,9 @@ export class CoachApprovalQueueComponent implements OnInit {
         //   removed/legacy admin grant). The last bucket is what kept legacy teams from vanishing.
         const recordedUngranted = teams.filter(t => !t.granted && t.source !== 'self').sort(byLabel);
         const checklist = [...assignedTeams, ...pendingRequested, ...recordedUngranted];
-        const grantedOfRequested = selfAsks.filter(t => t.granted).length;
-        let status: CoachStatus;
-        if (selfAsks.length > 0) {
-            status = grantedOfRequested === 0 ? 'unassigned'
-                : grantedOfRequested < selfAsks.length ? 'partial'
-                    : 'assigned';
-        } else {
-            status = r.assignedTeams.length > 0 ? 'assigned' : 'unassigned';
-        }
+        // Status is purely teams-held: a coach the director placed on ANY team (requested or
+        // not) reads "assigned"; only a coach holding nothing is "unassigned".
+        const status: CoachStatus = assignedTeams.length > 0 ? 'assigned' : 'unassigned';
 
         return {
             raw: r,
@@ -316,7 +308,6 @@ export class CoachApprovalQueueComponent implements OnInit {
                 a.jobName.localeCompare(b.jobName) || a.teamName.localeCompare(b.teamName)),
             linkedPlayerNames: r.linkedPlayerNames,
             status,
-            statusOrder: status === 'unassigned' ? 0 : status === 'partial' ? 1 : 2,
             teams,
             requestedTeams,
             assignedTeams,
@@ -332,10 +323,6 @@ export class CoachApprovalQueueComponent implements OnInit {
     private contactLine(row: UnassignedAdultQueueRowDto): string {
         const cityState = [row.city, row.state].filter(Boolean).join(', ');
         return [row.email, row.cellphone, cityState].filter(Boolean).join(' · ');
-    }
-
-    statusLabel(s: CoachStatus): string {
-        return s === 'unassigned' ? 'Unassigned' : s === 'partial' ? 'Partial' : 'Assigned';
     }
 
     /**

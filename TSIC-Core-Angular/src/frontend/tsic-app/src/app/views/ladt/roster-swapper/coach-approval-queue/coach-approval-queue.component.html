@@ -4,7 +4,7 @@
             <i class="bi bi-person-check-fill me-2"></i>Coach Approval Queue
             <app-info-tooltip
                 trigger="hover"
-                message="Each coach asked for one or more teams. Grant All places them on every team they requested; Grant Subset (multi-team only) lets you grant some now and hold the rest. Status: Unassigned = nothing granted yet; Partial = some requested teams granted; Assigned = all granted. Deny removes a coach from all teams and takes them off this list." />
+                message="The Teams column is the grant control: check a requested team to place the coach on it, use Add team to place them on any team, uncheck to remove. Unassigned = holds no team; Assigned = holds at least one. Unchecking Active deactivates the coach (removes every team and takes them off this list)." />
         </h4>
         <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh
@@ -20,10 +20,6 @@
             <button type="button" class="chip chip-unassigned" [class.active]="activeFilter() === 'unassigned'"
                 (click)="selectFilter('unassigned')">
                 <span class="chip-dot"></span>Unassigned <span class="chip-count">{{ counts().unassigned }}</span>
-            </button>
-            <button type="button" class="chip chip-partial" [class.active]="activeFilter() === 'partial'"
-                (click)="selectFilter('partial')">
-                <span class="chip-dot"></span>Partial <span class="chip-count">{{ counts().partial }}</span>
             </button>
             <button type="button" class="chip chip-assigned" [class.active]="activeFilter() === 'assigned'"
                 (click)="selectFilter('assigned')">
@@ -101,16 +97,6 @@
                             @if (data.contact) { <div class="coach-contact">{{ data.contact }}</div> }
                             <div class="coach-reg">Registered {{ data.registrationTs | date:'mediumDate' }}</div>
                         </div>
-                    </ng-template>
-                </e-column>
-
-                <!-- Status -->
-                <e-column field="status" headerText="Status" [width]="110" textAlign="Center">
-                    <ng-template #headerTemplate>
-                        <span class="sort-head">Status <i class="bi" [ngClass]="sortIcon('status')"></i></span>
-                    </ng-template>
-                    <ng-template #template let-data>
-                        <span class="badge bg-primary-subtle text-primary-emphasis">{{ statusLabel(data.status) }}</span>
                     </ng-template>
                 </e-column>
 

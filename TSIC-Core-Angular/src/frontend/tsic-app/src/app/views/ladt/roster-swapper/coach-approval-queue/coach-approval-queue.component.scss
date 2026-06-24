@@ -80,7 +80,6 @@
     background: var(--bs-secondary);
 }
 .chip-unassigned .chip-dot { background: var(--bs-danger); }
-.chip-partial .chip-dot { background: var(--bs-warning); }
 .chip-assigned .chip-dot { background: var(--bs-success); }
 
 .search {
@@ -165,9 +164,6 @@
 /* Status-driven left border — recolors in place when status changes (rowDataBound). */
 :host ::ng-deep .coach-grid .e-row.status-unassigned .e-rowcell:first-child {
     box-shadow: inset 3px 0 0 var(--bs-danger);
-}
-:host ::ng-deep .coach-grid .e-row.status-partial .e-rowcell:first-child {
-    box-shadow: inset 3px 0 0 var(--bs-warning);
 }
 :host ::ng-deep .coach-grid .e-row.status-assigned .e-rowcell:first-child {
     box-shadow: inset 3px 0 0 var(--bs-success);
