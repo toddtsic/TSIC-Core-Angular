@@ -522,6 +522,14 @@ public class JobRepository : IJobRepository
                     PlayerRegistrationPlanned = j.PlayerProfileMetadataJson != null
                         && j.BRegistrationAllowPlayer != true,
                     AdultRegistrationPlanned = j.AdultProfileMetadataJson != null,
+                    // Coach/staff release gate (BRegistrationAllowStaff) AND teams exist —
+                    // a coach can only request a team once teams are in. Mirrors the Quick
+                    // Links editor's TeamsConfigured relevance.
+                    StaffRegistrationOpen = j.BRegistrationAllowStaff == true
+                        && _context.Teams.Any(t => t.JobId == j.JobId),
+                    // Referee/recruiter need no teams — gate on their flag alone.
+                    RefereeRegistrationOpen = j.BRegistrationAllowReferee == true,
+                    RecruiterRegistrationOpen = j.BRegistrationAllowRecruiter == true,
                     PublicSuspended = j.BSuspendPublic,
                     RegistrationExpiry = j.ExpiryUsers,
                     // Soonest close among currently-open self-rosterable teams (same

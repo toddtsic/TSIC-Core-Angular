@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 import { authGuard, unselectedRoleMatch } from './infrastructure/guards/auth.guard';
 import { storeGuard } from './infrastructure/guards/store.guard';
 import { unsavedChangesGuard } from './infrastructure/guards/unsaved-changes.guard';
-import { playerInviteGuard, teamInviteGuard } from './infrastructure/guards/registration-invite.guard';
+import { playerInviteGuard, teamInviteGuard, adultRegistrationGuard } from './infrastructure/guards/registration-invite.guard';
 import { LayoutComponent } from './layouts/client-layout/layout.component';
 import { Roles } from './infrastructure/constants/roles.constants';
 
@@ -89,6 +89,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'adult',
+						canActivate: [adultRegistrationGuard],
 						loadComponent: () => import('./views/registration/adult/adult.component').then(m => m.AdultWizardV2Component)
 					},
 					{

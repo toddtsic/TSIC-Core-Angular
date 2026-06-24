@@ -162,6 +162,14 @@ public record AdultRegJobData
     public required int JobTypeId { get; init; }
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAddProcessingFees { get; init; }
+    /// <summary>Director "release" gate for coach/staff self-registration. Null/false =
+    /// NOT released (registration closed); only an explicit true opens it. The director
+    /// flips this on once teams exist so coaches have real teams to request.</summary>
+    public required bool BRegistrationAllowStaff { get; init; }
+    /// <summary>Director gate for referee self-registration. Null/false = closed.</summary>
+    public required bool BRegistrationAllowReferee { get; init; }
+    /// <summary>Director gate for college-recruiter self-registration. Null/false = closed.</summary>
+    public required bool BRegistrationAllowRecruiter { get; init; }
     public string? AdultProfileMetadataJson { get; init; }
     public string? JsonOptions { get; init; }
     public string? AdultRegConfirmationEmail { get; init; }

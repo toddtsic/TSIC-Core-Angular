@@ -49,7 +49,7 @@ const CTAS_BY_PHASE: Record<EventPhase, ReadonlySet<string>> = {
 	concluded: new Set(['pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters']),
 	inSeason: new Set(['my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance']),
 	preEvent: new Set(['my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance']),
-	registrationOpen: new Set(['register-player', 'my-registration', 'pay-balance', 'register-team', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance'])
+	registrationOpen: new Set(['register-player', 'my-registration', 'pay-balance', 'register-team', 'my-teams', 'register-coach', 'register-referee', 'register-recruiter', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance'])
 };
 
 /** Per-phase emphasis order: the first key present in the resolved items leads. */
@@ -180,6 +180,19 @@ export class JobLandingComponent implements OnDestroy {
 		}
 		if (p.teamRegistrationOpen && !registered) {
 			candidates.push({ key: 'register-team', label: 'Register Team', icon: 'bi-people', routerLink: `${base}/registration/team` });
+		}
+		// Adult self-registration CTAs — released by the director (BRegistrationAllow*).
+		// The adult wizard REQUIRES ?role=<key>. Coach is additionally teams-gated in the
+		// pulse (staffRegistrationOpen ⇒ teams exist), so the card never dead-ends with an
+		// empty team picker.
+		if (p.staffRegistrationOpen && !registered) {
+			candidates.push({ key: 'register-coach', label: 'Register Coach', icon: 'bi-person-badge', routerLink: `${base}/registration/adult`, queryParams: { role: 'coach' } });
+		}
+		if (p.refereeRegistrationOpen && !registered) {
+			candidates.push({ key: 'register-referee', label: 'Register Referee', icon: 'bi-whistle', routerLink: `${base}/registration/adult`, queryParams: { role: 'referee' } });
+		}
+		if (p.recruiterRegistrationOpen && !registered) {
+			candidates.push({ key: 'register-recruiter', label: 'Register College Recruiter', icon: 'bi-mortarboard', routerLink: `${base}/registration/adult`, queryParams: { role: 'recruiter' } });
 		}
 		// A Club Rep with >=1 team manages/reviews them via "My Teams" (deep-link to
 		// the teams step). myClubRepTeamCount is only populated for a Club Rep scoped

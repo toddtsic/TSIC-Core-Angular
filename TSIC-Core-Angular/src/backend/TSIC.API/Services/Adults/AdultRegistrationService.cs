@@ -1100,6 +1100,9 @@ public class AdultRegistrationService : IAdultRegistrationService
                     throw new InvalidOperationException(
                         "Unassigned-adult self-registration is only available on Club/League sites.");
                 }
+                // Same release gate as the Coach key — both produce a coach/volunteer
+                // UnassignedAdult, so both honor BRegistrationAllowStaff.
+                EnsureAdultRegOpen(job.BRegistrationAllowStaff, "Coach/staff");
                 return new AdultRoleResolution(
                     RoleId: RoleConstants.UnassignedAdult,
                     NeedsTeamSelection: false,
@@ -1109,6 +1112,7 @@ public class AdultRegistrationService : IAdultRegistrationService
                     Icon: "bi-person-badge");
 
             case AdultRegRoleKeys.Referee:
+                EnsureAdultRegOpen(job.BRegistrationAllowReferee, "Referee");
                 return new AdultRoleResolution(
                     RoleId: RoleConstants.Referee,
                     NeedsTeamSelection: false,
@@ -1117,6 +1121,7 @@ public class AdultRegistrationService : IAdultRegistrationService
                     Icon: "bi-whistle");
 
             case AdultRegRoleKeys.Recruiter:
+                EnsureAdultRegOpen(job.BRegistrationAllowRecruiter, "College recruiter");
                 return new AdultRoleResolution(
                     RoleId: RoleConstants.Recruiter,
                     NeedsTeamSelection: false,
@@ -1131,6 +1136,22 @@ public class AdultRegistrationService : IAdultRegistrationService
     }
 
     /// <summary>
+    /// Release-gate guard for adult self-registration. Each adult role has a director
+    /// toggle (BRegistrationAllow{Staff,Referee,Recruiter}); null/false = closed. Throws
+    /// a clear "not open" message when the gate is shut. This is the server-side backstop —
+    /// the public landing also hides the CTA via the job pulse, so a closed role is normally
+    /// never reachable; this catches a direct API hit.
+    /// </summary>
+    private static void EnsureAdultRegOpen(bool allowed, string roleLabel)
+    {
+        if (!allowed)
+        {
+            throw new InvalidOperationException(
+                $"{roleLabel} registration is not currently open for this event.");
+        }
+    }
+
+    /// <summary>
     /// Coach role resolution — UNIVERSAL minor-PII firewall across ALL team job types.
     /// Every coach self-registers as <see cref="RoleConstants.UnassignedAdult"/> with
     /// non-binding team REQUESTS; no AssignedTeamId, no Staff role, no roster/PII access
@@ -1140,6 +1161,11 @@ public class AdultRegistrationService : IAdultRegistrationService
     /// </summary>
     private static AdultRoleResolution ResolveCoach(AdultRegJobData job)
     {
+        // Release gate: a director opens coach/staff registration only after teams exist
+        // (so coaches have real teams to request). Null/false = closed. The role model is
+        // unchanged — this gates ACCESS, not the resulting role.
+        EnsureAdultRegOpen(job.BRegistrationAllowStaff, "Coach/staff");
+
         switch (job.JobTypeId)
         {
             case JobConstants.JobTypeClub:

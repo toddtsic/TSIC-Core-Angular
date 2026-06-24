@@ -28,6 +28,9 @@ public class JobVisibilityService : IJobVisibilityService
         // awaits — the repo shares one scoped DbContext (no Task.WhenAll).
         var playerFeesConfigured = await _repo.JobHasFeesForRoleAsync(jobId, RoleConstants.Player, ct);
         var teamFeesConfigured = await _repo.JobHasFeesForRoleAsync(jobId, RoleConstants.ClubRep, ct);
+        // Coach/staff registration relevance is team-driven (a coach requests a team),
+        // not fee-driven — coaches are unpaid (FeeBase=0, no JobFees role).
+        var teamsConfigured = await _repo.JobHasTeamsAsync(jobId, ct);
 
         return new JobVisibilityDto
         {
@@ -40,6 +43,10 @@ public class JobVisibilityService : IJobVisibilityService
             // governs a logged-in player's OWN roster, not the public page). Inverted:
             // "show public rosters" = NOT restricted.
             ShowPublicRosters = !job.BRestrictPublicRosters,
+            AllowStaffRegistration = job.BRegistrationAllowStaff ?? false,
+            AllowRefereeRegistration = job.BRegistrationAllowReferee ?? false,
+            AllowRecruiterRegistration = job.BRegistrationAllowRecruiter ?? false,
+            TeamsConfigured = teamsConfigured,
             PlayerFeesConfigured = playerFeesConfigured,
             TeamFeesConfigured = teamFeesConfigured,
         };
@@ -57,6 +64,9 @@ public class JobVisibilityService : IJobVisibilityService
         if (req.ShowPublicRosters.HasValue) job.BRestrictPublicRosters = !req.ShowPublicRosters.Value;
         if (req.EnableStore.HasValue) job.BEnableStore = req.EnableStore.Value;
         if (req.OfferPlayerInsurance.HasValue) job.BOfferPlayerRegsaverInsurance = req.OfferPlayerInsurance.Value;
+        if (req.AllowStaffRegistration.HasValue) job.BRegistrationAllowStaff = req.AllowStaffRegistration.Value;
+        if (req.AllowRefereeRegistration.HasValue) job.BRegistrationAllowReferee = req.AllowRefereeRegistration.Value;
+        if (req.AllowRecruiterRegistration.HasValue) job.BRegistrationAllowRecruiter = req.AllowRecruiterRegistration.Value;
 
         job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);

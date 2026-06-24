@@ -30,6 +30,11 @@
 						}
 					</label>
 					<span class="toggle-tip">{{ isOn(t.key) ? t.onTip : t.offTip }}</span>
+					@if (t.warn && isOn(t.key)) {
+						<span class="toggle-warn" role="alert">
+							<i class="bi bi-exclamation-triangle me-1"></i>{{ t.warn }}
+						</span>
+					}
 				</div>
 			}
 		</div>

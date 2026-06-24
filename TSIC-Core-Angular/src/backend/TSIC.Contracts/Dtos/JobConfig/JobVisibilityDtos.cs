@@ -28,6 +28,21 @@ public record JobVisibilityDto
     /// <summary>BOfferPlayerRegsaverInsurance — "Insurance Update" card.</summary>
     public required bool OfferPlayerInsurance { get; init; }
 
+    /// <summary>BRegistrationAllowStaff — "Register Coach/Staff" card. The director's
+    /// "release" gate for coach self-registration (open only after teams exist).</summary>
+    public required bool AllowStaffRegistration { get; init; }
+
+    /// <summary>BRegistrationAllowReferee — "Register Referee" card.</summary>
+    public required bool AllowRefereeRegistration { get; init; }
+
+    /// <summary>BRegistrationAllowRecruiter — "Register College Recruiter" card.</summary>
+    public required bool AllowRecruiterRegistration { get; init; }
+
+    /// <summary>True when the job has at least one team. Coach/staff registration is
+    /// only relevant once teams exist (a coach requests a team) — the editor uses this
+    /// to warn before releasing staff registration with no teams to request.</summary>
+    public required bool TeamsConfigured { get; init; }
+
     /// <summary>True when the job has Player-role fees configured. The player
     /// registration toggle is only relevant — and only shown in the editor —
     /// when player registration can actually be priced.</summary>
@@ -52,4 +67,7 @@ public record UpdateJobVisibilityRequest
     public bool? ShowPublicRosters { get; init; }
     public bool? EnableStore { get; init; }
     public bool? OfferPlayerInsurance { get; init; }
+    public bool? AllowStaffRegistration { get; init; }
+    public bool? AllowRefereeRegistration { get; init; }
+    public bool? AllowRecruiterRegistration { get; init; }
 }

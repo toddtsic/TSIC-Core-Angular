@@ -22,6 +22,20 @@ public record JobPulseDto
     public required bool PlayerRegRequiresToken { get; init; }
     public required bool TeamRegistrationOpen { get; init; }
     public required bool TeamRegRequiresToken { get; init; }
+
+    /// <summary>Coach/staff self-registration is released AND teams exist to request.
+    /// Grounds the public "Register Coach/Staff" hero card. BRegistrationAllowStaff is
+    /// the director's release gate (opened after teams are in); teams-exist is the
+    /// precondition so a coach has a real team to request.</summary>
+    public required bool StaffRegistrationOpen { get; init; }
+
+    /// <summary>Referee self-registration is released (BRegistrationAllowReferee).
+    /// Grounds the public "Register Referee" hero card.</summary>
+    public required bool RefereeRegistrationOpen { get; init; }
+
+    /// <summary>College-recruiter self-registration is released
+    /// (BRegistrationAllowRecruiter). Grounds the public "Register College Recruiter" card.</summary>
+    public required bool RecruiterRegistrationOpen { get; init; }
     public required bool ClubRepAllowAdd { get; init; }
     public required bool ClubRepAllowEdit { get; init; }
     public required bool ClubRepAllowDelete { get; init; }

@@ -18,6 +18,9 @@ interface ToggleDef {
 	offTip: string;
 	/** When false the toggle is irrelevant to this job and is omitted entirely. */
 	relevant: boolean;
+	/** Optional fact-derived caution (e.g. releasing coach reg with no teams). Shown
+	 *  when the toggle is ON. Non-forcing — the director can still leave it on. */
+	warn?: string | null;
 }
 
 /**
@@ -89,6 +92,26 @@ export class QuickLinksComponent {
 			relevant: true,
 			onTip: 'RegSaver insurance is offered — the "Insurance Update" card shows.',
 			offTip: 'Insurance is not offered — the card is hidden.' },
+		// Adult registration releases. Coach is team-relevant: a coach requests a team,
+		// so releasing it with no teams configured surfaces a non-forcing caution (the
+		// hero card also stays hidden until teams exist — pulse gates on teams-exist).
+		{ key: 'allowStaffRegistration',
+			label: tournament ? 'Allow Coach Registration' : 'Allow Coach/Staff Registration',
+			icon: 'bi-person-badge',
+			relevant: true,
+			warn: f.teamsConfigured
+				? null
+				: 'No teams exist yet — coaches will have nothing to request, and the "Register Coach" card stays hidden until teams are added.',
+			onTip: 'Coaches can register and request teams — the "Register Coach" card shows on the landing page.',
+			offTip: 'Coach registration is closed — the card is hidden.' },
+		{ key: 'allowRefereeRegistration', label: 'Allow Referee Registration', icon: 'bi-whistle',
+			relevant: true,
+			onTip: 'Referees can register — the "Register Referee" card shows on the landing page.',
+			offTip: 'Referee registration is closed — the card is hidden.' },
+		{ key: 'allowRecruiterRegistration', label: 'Allow College Recruiter Registration', icon: 'bi-mortarboard',
+			relevant: true,
+			onTip: 'College recruiters can register — the "Register College Recruiter" card shows.',
+			offTip: 'Recruiter registration is closed — the card is hidden.' },
 		] as ToggleDef[]).filter(t => t.relevant);
 	});
 

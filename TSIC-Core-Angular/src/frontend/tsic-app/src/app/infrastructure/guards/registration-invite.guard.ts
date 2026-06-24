@@ -129,3 +129,56 @@ export const teamInviteGuard = createRegistrationInviteGuard({
     validateEndpoint: 'team-invite',
     registrationType: 'Team',
 });
+
+/**
+ * Adult self-registration guard (coach / referee / college recruiter).
+ *
+ * Unlike player/team, the adult wizard is role-keyed via ?role=<key>, and each role
+ * has its own director release gate surfaced as a distinct pulse flag. There is no
+ * invite-token concept for adults — these are open self-registrations once released.
+ * A closed role redirects anonymous viewers to the landing with a clear message; the
+ * backend (ResolveAdultRole) enforces the same gate as a defense-in-depth backstop.
+ */
+const ADULT_ROLE_GATES: Record<string, { flag: string; label: string }> = {
+    coach: { flag: 'staffRegistrationOpen', label: 'Coach' },
+    referee: { flag: 'refereeRegistrationOpen', label: 'Referee' },
+    recruiter: { flag: 'recruiterRegistrationOpen', label: 'College recruiter' },
+};
+
+export const adultRegistrationGuard: CanActivateFn = async (route, state) => {
+    const http = inject(HttpClient);
+    const auth = inject(AuthService);
+    const router = inject(Router);
+    const toast = inject(ToastService);
+
+    const role = (route.queryParamMap.get('role') || '').toLowerCase();
+    const gate = ADULT_ROLE_GATES[role];
+    // Unknown/missing role — let the wizard surface its own "role required" error.
+    if (!gate) return true;
+
+    // Returning, authenticated adults keep access (manage their reg / pay balance),
+    // mirroring the player/team guard's authenticated passthrough.
+    if (auth.isAuthenticated()) return true;
+
+    let jobPath = route.paramMap.get('jobPath') || route.parent?.paramMap.get('jobPath');
+    if (!jobPath && state.url) {
+        const match = state.url.match(/^\/([a-z0-9-]{3,40})(\/|$|\?)/);
+        if (match) jobPath = match[1];
+    }
+    jobPath = jobPath || 'tsic';
+
+    let pulse: Record<string, unknown>;
+    try {
+        pulse = await firstValueFrom(
+            http.get<Record<string, unknown>>(`${environment.apiUrl}/jobs/${jobPath}/pulse`)
+        );
+    } catch {
+        return true; // Pulse unavailable — wizard will show its own error
+    }
+
+    if (!pulse[gate.flag]) {
+        toast.show(`${gate.label} registration is not currently open for this event.`, 'warning', 6000);
+        return router.createUrlTree([`/${jobPath}`]);
+    }
+    return true;
+};

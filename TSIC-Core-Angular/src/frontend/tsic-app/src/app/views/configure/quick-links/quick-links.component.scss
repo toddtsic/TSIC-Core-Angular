@@ -97,6 +97,20 @@
 	padding-left: calc(2.5rem + var(--space-3));
 }
 
+// Fact-derived caution (e.g. coach reg released with no teams). Informative, not blocking.
+.toggle-warn {
+	display: flex;
+	align-items: flex-start;
+	color: var(--bs-warning-text-emphasis, var(--bs-warning));
+	font-size: 0.825rem;
+	padding-left: calc(2.5rem + var(--space-3));
+
+	i {
+		flex: 0 0 auto;
+		margin-top: 0.1em;
+	}
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.toggle-row {
 		transition: none;

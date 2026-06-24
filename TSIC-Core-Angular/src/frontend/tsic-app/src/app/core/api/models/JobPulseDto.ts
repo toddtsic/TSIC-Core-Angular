@@ -9,6 +9,9 @@ export type JobPulseDto = {
     playerRegRequiresToken: boolean;
     teamRegistrationOpen: boolean;
     teamRegRequiresToken: boolean;
+    staffRegistrationOpen: boolean;
+    refereeRegistrationOpen: boolean;
+    recruiterRegistrationOpen: boolean;
     clubRepAllowAdd: boolean;
     clubRepAllowEdit: boolean;
     clubRepAllowDelete: boolean;
