@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -38,6 +39,24 @@ public class FamiliesRepository : IFamiliesRepository
             if (!string.IsNullOrWhiteSpace(norm)) recipients.Add(norm!);
         }
         return recipients.Select(x => x.Trim()).Where(x => x.Contains('@')).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+    }
+
+    public async Task<List<BatchFamilyEmailsDto>> GetByFamilyUserIdsAsync(
+        IEnumerable<string> familyUserIds, CancellationToken cancellationToken = default)
+    {
+        var ids = familyUserIds.Distinct().ToList();
+        if (ids.Count == 0) return new List<BatchFamilyEmailsDto>();
+
+        return await _context.Families
+            .AsNoTracking()
+            .Where(f => ids.Contains(f.FamilyUserId))
+            .Select(f => new BatchFamilyEmailsDto
+            {
+                FamilyUserId = f.FamilyUserId,
+                MomEmail = f.MomEmail,
+                DadEmail = f.DadEmail
+            })
+            .ToListAsync(cancellationToken);
     }
 
     public void Add(Families family)

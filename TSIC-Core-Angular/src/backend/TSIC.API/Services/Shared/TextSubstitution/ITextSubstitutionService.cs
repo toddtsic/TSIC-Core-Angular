@@ -1,3 +1,5 @@
+using TSIC.Contracts.Repositories;
+
 namespace TSIC.API.Services.Shared.TextSubstitution;
 
 public interface ITextSubstitutionService
@@ -26,6 +28,11 @@ public interface ITextSubstitutionService
     /// builds the token dictionary once (guarded against both templates), then applies it to each —
     /// halving the per-recipient DB work versus two <see cref="SubstituteAsync"/> calls (render-win #1).
     /// Returns the templates unchanged with NO data load when neither contains a token (render-win #0).
+    ///
+    /// Render-win #2: when <paramref name="jobFields"/> is supplied (loaded once per batch via
+    /// <see cref="LoadJobInvariantFieldsAsync"/>), the per-recipient query drops the four job joins
+    /// and reads only Registrations + Users + Roles, then merges the shared job slice — producing
+    /// identical output at a fraction of the per-recipient cost. Null = the original full load.
     /// </summary>
     Task<(string Subject, string Body)> SubstituteSubjectAndBodyAsync(
         string jobSegment,
@@ -36,7 +43,15 @@ public interface ITextSubstitutionService
         string subjectTemplate,
         string bodyTemplate,
         string? inviteTargetJobPath = null,
-        IReadOnlyDictionary<string, string>? extraTokens = null);
+        IReadOnlyDictionary<string, string>? extraTokens = null,
+        JobInvariantFieldsData? jobFields = null);
+
+    /// <summary>
+    /// Render-win #2: loads the job-invariant token fields ONCE for a batch. Pass the result to
+    /// <see cref="SubstituteSubjectAndBodyAsync"/> for every recipient to avoid re-joining the
+    /// Jobs/Customers/Sports/JobDisplayOptions tables per send. Null when the job is not found.
+    /// </summary>
+    Task<JobInvariantFieldsData?> LoadJobInvariantFieldsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Substitutes job-level tokens only (e.g., !JOBNAME, !USLAXVALIDTHROUGHDATE).

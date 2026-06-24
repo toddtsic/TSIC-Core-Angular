@@ -138,6 +138,112 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                       }).ToListAsync(cancellationToken);
     }
 
+    public async Task<JobInvariantFieldsData?> LoadJobInvariantFieldsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // Render-win #2: 4-table job slice loaded ONCE per batch (Jobs + JobDisplayOptions +
+        // Customers + Sports). Mirrors the job columns of LoadFixedFieldsBy* exactly.
+        return await (from j in _context.Jobs
+                      join jdo in _context.JobDisplayOptions on j.JobId equals jdo.JobId
+                      join c in _context.Customers on j.CustomerId equals c.CustomerId
+                      join s in _context.Sports on j.SportId equals s.SportId
+                      where j.JobId == jobId
+                      select new JobInvariantFieldsData
+                      {
+                          JobId = j.JobId,
+                          CustomerName = c.CustomerName,
+                          JobDescription = j.JobDescription,
+                          JobName = j.JobName ?? string.Empty,
+                          JobPath = j.JobPath,
+                          MailTo = j.MailTo,
+                          PayTo = j.PayTo,
+                          Season = j.Season,
+                          SportName = s.SportName,
+                          AdnArb = j.AdnArb ?? false,
+                          JobLogoHeader = jdo.LogoHeader,
+                          JobCode = j.JobCode ?? "?",
+                          UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate
+                      }).FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<List<RegistrantFixedFieldsData>> LoadRegistrantFieldsByRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        // Render-win #2: per-recipient slice — 3-table join (Registrations + Users + Roles),
+        // no Jobs/Customers/Sports/JobDisplayOptions. Job columns come from the once-loaded slice.
+        return await (from r in _context.Registrations
+                      join u in _context.AspNetUsers on r.UserId equals u.Id
+                      join roles in _context.AspNetRoles on r.RoleId equals roles.Id
+                      where r.RegistrationId == registrationId
+                      select new RegistrantFixedFieldsData
+                      {
+                          RegistrationId = r.RegistrationId,
+                          JobId = r.JobId,
+                          FamilyUserId = r.FamilyUserId,
+                          Person = u.FirstName + " " + u.LastName,
+                          Assignment = r.Assignment,
+                          UserName = u.UserName,
+                          FeeTotal = r.FeeTotal,
+                          PaidTotal = r.PaidTotal,
+                          OwedTotal = r.OwedTotal,
+                          RegistrationCategory = r.RegistrationCategory,
+                          ClubName = r.ClubName,
+                          Email = u.Email,
+                          RoleName = roles.Name,
+                          AssignedTeamId = r.AssignedTeamId,
+                          Active = r.BActive,
+                          Volposition = r.Volposition,
+                          UniformNo = r.UniformNo,
+                          DayGroup = r.DayGroup,
+                          JerseySize = r.JerseySize ?? "?",
+                          ShortsSize = r.ShortsSize ?? "?",
+                          TShirtSize = r.TShirt ?? "?",
+                          AdnSubscriptionId = r.AdnSubscriptionId,
+                          AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+                          AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
+                          AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+                          AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
+                          AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength
+                      }).ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<RegistrantFixedFieldsData>> LoadRegistrantFieldsByFamilyAsync(Guid jobId, string familyUserId, CancellationToken cancellationToken = default)
+    {
+        return await (from r in _context.Registrations
+                      join u in _context.AspNetUsers on r.UserId equals u.Id
+                      join roles in _context.AspNetRoles on r.RoleId equals roles.Id
+                      where r.JobId == jobId && r.FamilyUserId == familyUserId
+                      orderby r.RegistrationAi
+                      select new RegistrantFixedFieldsData
+                      {
+                          RegistrationId = r.RegistrationId,
+                          JobId = r.JobId,
+                          FamilyUserId = r.FamilyUserId,
+                          Person = u.FirstName + " " + u.LastName,
+                          Assignment = r.Assignment,
+                          UserName = u.UserName,
+                          FeeTotal = r.FeeTotal,
+                          PaidTotal = r.PaidTotal,
+                          OwedTotal = r.OwedTotal,
+                          RegistrationCategory = r.RegistrationCategory,
+                          ClubName = r.ClubName,
+                          Email = u.Email,
+                          RoleName = roles.Name,
+                          AssignedTeamId = r.AssignedTeamId,
+                          Active = r.BActive,
+                          Volposition = r.Volposition,
+                          UniformNo = r.UniformNo,
+                          DayGroup = r.DayGroup,
+                          JerseySize = r.JerseySize ?? "?",
+                          ShortsSize = r.ShortsSize ?? "?",
+                          TShirtSize = r.TShirt ?? "?",
+                          AdnSubscriptionId = r.AdnSubscriptionId,
+                          AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+                          AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
+                          AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+                          AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
+                          AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength
+                      }).ToListAsync(cancellationToken);
+    }
+
     public async Task<List<AccountingTransactionRow>> GetAccountingTransactionsAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await (from ra in _context.RegistrationAccounting

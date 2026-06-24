@@ -142,7 +142,7 @@ public sealed class EmailBatchService : IEmailBatchService
             foreach (var item in items) itemChannel.Writer.TryWrite(item);
             itemChannel.Writer.Complete();
 
-            // Render workers — each owns its scope/DbContext for its lifetime, used serially.
+            // Render workers — each takes a fresh scope/DbContext per item (no cross-item tracker bloat).
             var renderWorkers = Math.Max(1, options.RenderWorkers);
             var renderTasks = Enumerable.Range(0, renderWorkers)
                 .Select(_ => RenderWorkerAsync(batchJobId, plan, itemChannel.Reader, sendChannel.Writer, ct))
@@ -188,10 +188,16 @@ public sealed class EmailBatchService : IEmailBatchService
         ChannelWriter<(EmailMessageDto, TItem)> sink,
         CancellationToken ct)
     {
-        // One scope (one DbContext + repo graph) per worker, reused serially across its items.
-        using var scope = _scopeFactory.CreateScope();
+        // A FRESH scope (DbContext + repo graph) per ITEM, not per worker. Recipient resolution
+        // calls a deliberately-tracked query (GetByJobAndFamilyWithUsersAsync removes AsNoTracking
+        // so its entities stay editable); reusing one context across a worker's hundreds of items
+        // lets the change-tracker accumulate, and EF's fixup/DetectChanges degrade as the tracked
+        // graph grows — the long-lived-context-in-a-loop cliff that crawled a 10K test to ~1/sec.
+        // Per-item scope disposes the context each iteration, so the tracker never piles up; it is
+        // also strictly safe (each context is used by exactly one item, serially).
         await foreach (var item in items.ReadAllAsync(ct))
         {
+            using var scope = _scopeFactory.CreateScope();
             try
             {
                 var rendered = await plan.RenderAsync(item, scope.ServiceProvider, ct);
@@ -245,7 +251,10 @@ public sealed class EmailBatchService : IEmailBatchService
     {
         if (simulate)
         {
-            await Task.Delay(options.SimulatedPerUnitDelayMs!.Value, ct);
+            // 0 = no artificial delay (render-paced). On Windows Task.Delay quantizes to ~15ms,
+            // so skip it entirely at 0 rather than incur a phantom 15ms/send on a large test.
+            var delayMs = options.SimulatedPerUnitDelayMs!.Value;
+            if (delayMs > 0) await Task.Delay(delayMs, ct);
             // Deterministic synthetic failures so the failed-addresses panel can be exercised.
             if (options.SyntheticFailEveryN is int n && n > 0)
             {

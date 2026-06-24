@@ -117,6 +117,24 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<BatchRegistrantEmailDto>> GetRecipientEmailsByIdsAsync(
+        IEnumerable<Guid> registrationIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = registrationIds.Distinct().ToList();
+        if (ids.Count == 0) return new List<BatchRegistrantEmailDto>();
+
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => ids.Contains(r.RegistrationId))
+            .Select(r => new BatchRegistrantEmailDto
+            {
+                RegistrationId = r.RegistrationId,
+                Email = r.User!.Email
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<List<RegistrationDto>> GetSuperUserRegistrationsAsync(
         string userId,
         CancellationToken cancellationToken = default)

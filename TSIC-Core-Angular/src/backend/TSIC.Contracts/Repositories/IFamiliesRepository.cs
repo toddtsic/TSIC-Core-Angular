@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -17,6 +18,14 @@ public interface IFamiliesRepository
     /// Returns distinct normalized emails.
     /// </summary>
     Task<List<string>> GetEmailsForFamilyAndPlayersAsync(Guid jobId, string familyUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Bulk-load parent (mom/dad) contact emails for a set of FamilyUserIds in a single AsNoTracking
+    /// projection. Used by the batch-email engine to resolve player recipients from memory rather than
+    /// one Families query per recipient.
+    /// </summary>
+    Task<List<BatchFamilyEmailsDto>> GetByFamilyUserIdsAsync(
+        IEnumerable<string> familyUserIds, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Add a new Families record (does NOT call SaveChanges).

@@ -788,14 +788,44 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (request.InviteLinkTargetJobId.HasValue)
             inviteTargetJobPath = await _jobRepo.GetJobPathAsync(request.InviteLinkTargetJobId.Value, ct);
 
+        // Render-win #2: load the job-invariant token slice ONCE (Jobs/Customers/Sports/DisplayOptions)
+        // and let every recipient's render reuse it, so the per-recipient query drops those four joins.
+        // Captured by the render closure below; it's plain immutable data, safe across worker scopes.
+        var jobFields = await _textSubstitution.LoadJobInvariantFieldsAsync(jobId, ct);
+
         // Snapshot identities now (in-memory); SeedAsync filters opt-out without a second query.
         var allItems = registrations
             .Select(r => new BatchEmailItem(r.RegistrationId, r.FamilyUserId, r.RoleId, r.RegistrationAi, r.BemailOptOut))
             .ToList();
 
+        // Recipient resolution, batch-loaded ONCE. The per-recipient version ran 1-2 tracked Include
+        // queries each (Families + GetByJobAndFamilyWithUsers), saturating SQL and crawling a 10K test
+        // to ~1/sec. Two bulk AsNoTracking reads here turn the render loop's address lookup into pure
+        // in-memory dictionary hits. emailByRegId = each registrant's own email; familyEmailsById =
+        // parent emails for player recipients only.
+        var emailByRegId = (await _registrationRepo.GetRecipientEmailsByIdsAsync(request.RegistrationIds, ct))
+            .GroupBy(r => r.RegistrationId)
+            .ToDictionary(g => g.Key, g => g.First().Email);
+        var playerFamilyIds = allItems
+            .Where(i => i.RoleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(i.FamilyUserId))
+            .Select(i => i.FamilyUserId!)
+            .ToList();
+        var familyEmailsById = (await _familiesRepo.GetByFamilyUserIdsAsync(playerFamilyIds, ct))
+            .GroupBy(f => f.FamilyUserId)
+            .ToDictionary(g => g.Key, g => g.First());
+
         var subject = request.Subject;
         var body = request.BodyTemplate;
         var fromName = jobConfirmation?.JobName;
+
+        // Render-win #3: the per-recipient fixed-fields load takes the family path (a Registrations
+        // scan filtered by FamilyUserId — ~70ms each, the true batch bottleneck) ONLY to satisfy
+        // family-aggregation tokens (!F-PLAYERS, !F-ACCOUNTING, ...). When the template uses none of
+        // them, pass familyUserId="" so the load is a registrationId PK seek (~0ms) — same per-recipient
+        // tokens, no scan. Computed once for the whole batch (the template is job-invariant).
+        var templateNeedsFamily =
+            (subject ?? "").Contains("!F-", StringComparison.OrdinalIgnoreCase) ||
+            (body ?? "").Contains("!F-", StringComparison.OrdinalIgnoreCase);
 
         var plan = new EmailBatchPlan<BatchEmailItem>
         {
@@ -815,16 +845,19 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             },
             RenderAsync = async (item, sp, token) =>
             {
-                var familiesRepo = sp.GetRequiredService<IFamiliesRepository>();
-                var regRepo = sp.GetRequiredService<IRegistrationRepository>();
                 var textSub = sp.GetRequiredService<ITextSubstitutionService>();
 
-                var toAddresses = await ResolveBatchRecipientsAsync(item, jobId, familiesRepo, regRepo, token);
+                var toAddresses = ResolveBatchRecipients(item, emailByRegId, familyEmailsById);
                 if (toAddresses.Count == 0) return null;
 
                 // Single-pass render (one fixed-fields load for subject + body; skips load when token-less).
+                // Render-win #2: hand in the once-loaded job slice so this recipient's load is the light 3-join.
+                // Render-win #3: only feed familyUserId when the template needs family tokens; otherwise ""
+                // routes the load to the registrationId PK seek instead of the FamilyUserId scan.
+                var renderFamilyUserId = templateNeedsFamily ? (item.FamilyUserId ?? "") : "";
                 var (renderedSubject, renderedBody) = await textSub.SubstituteSubjectAndBodyAsync(
-                    jobPath, jobId, CcPaymentMethodId, item.RegistrationId, item.FamilyUserId ?? "", subject, body, inviteTargetJobPath);
+                    jobPath, jobId, CcPaymentMethodId, item.RegistrationId, renderFamilyUserId, subject, body,
+                    inviteTargetJobPath, jobFields: jobFields);
 
                 var unsubscribeUrl = $"https://www.teamsportsinfo.com/api/email/unsubscribe?regId={item.RegistrationId:D}";
                 renderedBody += $"""
@@ -852,11 +885,13 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         {
             SimulatedPerUnitDelayMs = request.SimulatedPerUnitDelayMs,
             SyntheticFailEveryN = simulating ? 13 : null,
-            // The dev TEST run renders the full real set (DB-bound). Parallelize render so a
-            // large simulated batch finishes in a UI-watchable time. Safe: each render worker
-            // owns its own DI scope/DbContext (no shared-context concurrency). Real sends keep
-            // the conservative serial default (RenderWorkers=1).
-            RenderWorkers = simulating ? 4 : 1
+            // Render parallelism. Each worker now owns a fresh DI scope/DbContext PER ITEM, so N>1 is
+            // safe (no shared-context concurrency) — the old "serial by construction" default for real
+            // sends was an unnecessary footgun, not a safety requirement. The TEST run renders the full
+            // real set with no send delay, so render is its whole cost: go wide (16). Real sends are
+            // governed downstream by the SES MaxSendRate cap on the send stage, so render only needs to
+            // stay ahead of that — a modest 4 (with PK-seek loads, ~thousands/sec) never bottlenecks.
+            RenderWorkers = simulating ? 16 : 4
         };
 
         return await _emailBatch.StartAsync(plan, options, ct);
@@ -867,24 +902,20 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     /// (distinct, case-insensitive); other roles → the registrant's own User.Email. Strips blanks,
     /// the <c>not@given.com</c> missing-email sentinel, and obviously-invalid addresses (shared rule).
     /// </summary>
-    private static async Task<List<string>> ResolveBatchRecipientsAsync(
-        BatchEmailItem item, Guid jobId,
-        IFamiliesRepository familiesRepo, IRegistrationRepository regRepo,
-        CancellationToken ct)
+    private static List<string> ResolveBatchRecipients(
+        BatchEmailItem item,
+        IReadOnlyDictionary<Guid, string?> emailByRegId,
+        IReadOnlyDictionary<string, BatchFamilyEmailsDto> familyEmailsById)
     {
-        if (item.RoleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(item.FamilyUserId))
+        emailByRegId.TryGetValue(item.RegistrationId, out var ownEmail);
+
+        if (item.RoleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(item.FamilyUserId)
+            && familyEmailsById.TryGetValue(item.FamilyUserId, out var family))
         {
-            var family = await familiesRepo.GetByFamilyUserIdAsync(item.FamilyUserId, ct);
-            var regWithUser = await regRepo.GetByJobAndFamilyWithUsersAsync(jobId, item.FamilyUserId, cancellationToken: ct);
-            var playerEmail = regWithUser.FirstOrDefault(r => r.RegistrationId == item.RegistrationId)?.User?.Email;
-            return BatchEmailRecipientFilter.BuildSendableSet(new[] { family?.MomEmail, family?.DadEmail, playerEmail });
+            return BatchEmailRecipientFilter.BuildSendableSet(new[] { family.MomEmail, family.DadEmail, ownEmail });
         }
-        else
-        {
-            var regWithUser = await regRepo.GetByJobAndFamilyWithUsersAsync(jobId, item.FamilyUserId ?? "", cancellationToken: ct);
-            var userEmail = regWithUser.FirstOrDefault(r => r.RegistrationId == item.RegistrationId)?.User?.Email;
-            return BatchEmailRecipientFilter.BuildSendableSet(new[] { userEmail });
-        }
+
+        return BatchEmailRecipientFilter.BuildSendableSet(new[] { ownEmail });
     }
 
     /// <summary>Lightweight, context-free identity for a batch recipient (no EF entity captured).</summary>

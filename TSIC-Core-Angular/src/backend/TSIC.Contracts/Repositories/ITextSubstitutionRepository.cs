@@ -22,6 +22,25 @@ public interface ITextSubstitutionRepository
     Task<List<FixedFieldsData>> LoadFixedFieldsByFamilyAsync(Guid jobId, string familyUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Render-win #2: the job-invariant slice of the fixed fields (Jobs + Customers + Sports +
+    /// JobDisplayOptions), loaded ONCE for a whole batch instead of re-joined per recipient.
+    /// </summary>
+    Task<JobInvariantFieldsData?> LoadJobInvariantFieldsAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Render-win #2: the per-recipient slice (Registrations + Users + Roles only — no job joins),
+    /// for a single registration. Combined with <see cref="LoadJobInvariantFieldsAsync"/> this
+    /// reproduces the full fixed-fields projection at a fraction of the per-recipient query cost.
+    /// </summary>
+    Task<List<RegistrantFixedFieldsData>> LoadRegistrantFieldsByRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Render-win #2: the per-recipient slice for all registrations in a family for a job
+    /// (Registrations + Users + Roles only — no job joins).
+    /// </summary>
+    Task<List<RegistrantFixedFieldsData>> LoadRegistrantFieldsByFamilyAsync(Guid jobId, string familyUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get accounting transaction rows for a registration.
     /// </summary>
     Task<List<AccountingTransactionRow>> GetAccountingTransactionsAsync(Guid registrationId, CancellationToken cancellationToken = default);
@@ -160,6 +179,63 @@ public record FixedFieldsData
     public string? JobLogoHeader { get; init; }
     public string? JobCode { get; init; }
     public DateTime? UslaxNumberValidThroughDate { get; init; }
+}
+
+/// <summary>
+/// Render-win #2: the job-invariant slice of <see cref="FixedFieldsData"/> — the columns that are
+/// identical for every recipient in a batch (sourced from Jobs / Customers / Sports /
+/// JobDisplayOptions). Loaded once per batch and merged onto each per-recipient row.
+/// </summary>
+public record JobInvariantFieldsData
+{
+    public required Guid JobId { get; init; }
+    public string? CustomerName { get; init; }
+    public string? JobDescription { get; init; }
+    public required string JobName { get; init; }
+    public required string JobPath { get; init; }
+    public string? MailTo { get; init; }
+    public string? PayTo { get; init; }
+    public string? Season { get; init; }
+    public string? SportName { get; init; }
+    public required bool AdnArb { get; init; }
+    public string? JobLogoHeader { get; init; }
+    public string? JobCode { get; init; }
+    public DateTime? UslaxNumberValidThroughDate { get; init; }
+}
+
+/// <summary>
+/// Render-win #2: the per-recipient slice of <see cref="FixedFieldsData"/> — the columns that vary
+/// by registration/user (sourced from Registrations / AspNetUsers / AspNetRoles, no job joins).
+/// </summary>
+public record RegistrantFixedFieldsData
+{
+    public required Guid RegistrationId { get; init; }
+    public required Guid JobId { get; init; }
+    public string? FamilyUserId { get; init; }
+    public string? Person { get; init; }
+    public string? Assignment { get; init; }
+    public string? UserName { get; init; }
+    public decimal? FeeTotal { get; init; }
+    public decimal? PaidTotal { get; init; }
+    public decimal? OwedTotal { get; init; }
+    public string? RegistrationCategory { get; init; }
+    public string? ClubName { get; init; }
+    public string? Email { get; init; }
+    public string? RoleName { get; init; }
+    public Guid? AssignedTeamId { get; init; }
+    public bool? Active { get; init; }
+    public string? Volposition { get; init; }
+    public string? UniformNo { get; init; }
+    public string? DayGroup { get; init; }
+    public string? JerseySize { get; init; }
+    public string? ShortsSize { get; init; }
+    public string? TShirtSize { get; init; }
+    public string? AdnSubscriptionId { get; init; }
+    public string? AdnSubscriptionStatus { get; init; }
+    public int? AdnSubscriptionBillingOccurences { get; init; }
+    public decimal? AdnSubscriptionAmountPerOccurence { get; init; }
+    public DateTime? AdnSubscriptionStartDate { get; init; }
+    public int? AdnSubscriptionIntervalLength { get; init; }
 }
 
 /// <summary>

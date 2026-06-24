@@ -255,7 +255,9 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     if (!this.isDev) return;
     if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
     if (this.registrationIds().length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
-    this.startBatch(15);
+    // 0 = no artificial per-send delay; the render stage paces the run. (On Windows Task.Delay is
+    // quantized to ~15ms, so any 1–14ms value would behave like 15ms — 0 is the only real speedup.)
+    this.startBatch(0);
   }
 
   /** Kicks off a background batch (real or simulated), then polls the status endpoint for progress. */

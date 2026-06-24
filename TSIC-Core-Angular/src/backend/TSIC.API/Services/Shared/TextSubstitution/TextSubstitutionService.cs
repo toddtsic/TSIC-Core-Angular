@@ -164,6 +164,9 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     private static bool HasToken(string template) =>
         !string.IsNullOrEmpty(template) && TokenSigil.IsMatch(template);
 
+    public Task<JobInvariantFieldsData?> LoadJobInvariantFieldsAsync(Guid jobId, CancellationToken cancellationToken = default)
+        => _repo.LoadJobInvariantFieldsAsync(jobId, cancellationToken);
+
     public async Task<(string Subject, string Body)> SubstituteSubjectAndBodyAsync(
         string jobSegment,
         Guid jobId,
@@ -173,7 +176,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         string subjectTemplate,
         string bodyTemplate,
         string? inviteTargetJobPath = null,
-        IReadOnlyDictionary<string, string>? extraTokens = null)
+        IReadOnlyDictionary<string, string>? extraTokens = null,
+        JobInvariantFieldsData? jobFields = null)
     {
         subjectTemplate ??= string.Empty;
         bodyTemplate ??= string.Empty;
@@ -193,7 +197,10 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         }
 
         // Render-win #1: ONE fixed-fields load + ONE token build, guarded against BOTH templates.
-        var fixedFieldList = await LoadFixedFieldsAsync(jobId, registrationId, familyUserId);
+        // Render-win #2: with a pre-loaded job slice, the per-recipient query skips the job joins.
+        var fixedFieldList = jobFields != null
+            ? await LoadFixedFieldsLightAsync(jobId, registrationId, familyUserId, jobFields)
+            : await LoadFixedFieldsAsync(jobId, registrationId, familyUserId);
         var guard = subjectTemplate + "\n" + bodyTemplate;
 
         var tokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -311,6 +318,82 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         }
 
         return dataList.Select(MapToFixedFields).ToList();
+    }
+
+    /// <summary>
+    /// Render-win #2: load only the per-recipient slice (Registrations + Users + Roles) and merge the
+    /// once-per-batch <paramref name="jobFields"/> onto each row. Produces the same FixedFields the
+    /// full 7-join load would, minus the redundant per-recipient job joins.
+    /// </summary>
+    private async Task<List<FixedFields>> LoadFixedFieldsLightAsync(
+        Guid jobId, Guid? registrationId, string familyUserId, JobInvariantFieldsData jobFields)
+    {
+        List<RegistrantFixedFieldsData> regs;
+
+        // Path A: single registration (team wizard - one rep, one registration)
+        if (string.IsNullOrEmpty(familyUserId) && registrationId.HasValue)
+        {
+            regs = await _repo.LoadRegistrantFieldsByRegistrationAsync(registrationId.Value);
+        }
+        // Path B: family with multiple registrations (player wizard - one parent, multiple kids)
+        else if (!string.IsNullOrEmpty(familyUserId))
+        {
+            regs = await _repo.LoadRegistrantFieldsByFamilyAsync(jobId, familyUserId);
+        }
+        else
+        {
+            return new List<FixedFields>();
+        }
+
+        return regs.Select(r => MergeFixedFields(r, jobFields)).ToList();
+    }
+
+    // Combines the per-recipient slice with the once-loaded job slice into the full FixedFields
+    // shape AddSimpleTokens/AddComplexTokens expect. Field-for-field parity with MapToFixedFields.
+    private static FixedFields MergeFixedFields(RegistrantFixedFieldsData r, JobInvariantFieldsData j)
+    {
+        return new FixedFields
+        {
+            RegistrationId = r.RegistrationId,
+            JobId = r.JobId,
+            FamilyUserId = r.FamilyUserId,
+            Person = r.Person,
+            Assignment = r.Assignment,
+            UserName = r.UserName,
+            FeeTotal = r.FeeTotal,
+            PaidTotal = r.PaidTotal,
+            OwedTotal = r.OwedTotal,
+            RegistrationCategory = r.RegistrationCategory,
+            ClubName = r.ClubName,
+            CustomerName = j.CustomerName,
+            Email = r.Email,
+            JobDescription = j.JobDescription,
+            JobName = j.JobName,
+            JobPath = j.JobPath,
+            MailTo = j.MailTo,
+            PayTo = j.PayTo,
+            RoleName = r.RoleName,
+            Season = j.Season,
+            SportName = j.SportName,
+            AssignedTeamId = r.AssignedTeamId,
+            Active = r.Active,
+            Volposition = r.Volposition,
+            UniformNo = r.UniformNo,
+            DayGroup = r.DayGroup,
+            JerseySize = r.JerseySize,
+            ShortsSize = r.ShortsSize,
+            TShirtSize = r.TShirtSize,
+            AdnArb = j.AdnArb,
+            AdnSubscriptionId = r.AdnSubscriptionId,
+            AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+            AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
+            AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+            AdnSubscriptionStartDate = r.AdnSubscriptionStartDate,
+            AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength,
+            JobLogoHeader = j.JobLogoHeader,
+            JobCode = j.JobCode,
+            UslaxNumberValidThroughDate = j.UslaxNumberValidThroughDate
+        };
     }
 
     private static void AddSimpleTokens(Dictionary<string, string> tokens, FixedFields f, string jobSegment)

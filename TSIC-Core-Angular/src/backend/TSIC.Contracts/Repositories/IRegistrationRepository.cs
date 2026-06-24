@@ -64,6 +64,15 @@ public interface IRegistrationRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Bulk-load each registration's own contact email (the registrant's User.Email) for a set of
+    /// registration IDs in a single AsNoTracking projection. Used by the batch-email engine to resolve
+    /// recipients from memory rather than one tracked Include query per recipient.
+    /// </summary>
+    Task<List<BatchRegistrantEmailDto>> GetRecipientEmailsByIdsAsync(
+        IEnumerable<Guid> registrationIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get Superuser role registrations for a user
     /// </summary>
     Task<List<RegistrationDto>> GetSuperUserRegistrationsAsync(string userId, CancellationToken cancellationToken = default);
