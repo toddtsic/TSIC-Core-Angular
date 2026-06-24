@@ -2518,6 +2518,42 @@ public class RegistrationRepository : IRegistrationRepository
             .ToList();
     }
 
+    /// <summary>Display parts for one team — the single source for coach/queue team labels.</summary>
+    private sealed record TeamLabelParts(string Club, string Age, string Div, string Team)
+    {
+        /// <summary>Approval-queue label: <c>club:age:div:team</c>.</summary>
+        public string QueueLabel() => $"{Club}:{Age}:{Div}:{Team}";
+
+        /// <summary>Minted-anchor Assignment label: <c>"{club}: {age}:{team}"</c> (club prefix when present).</summary>
+        public string AssignmentLabel() =>
+            (string.IsNullOrWhiteSpace(Club) ? "" : $"{Club}: ") + $"{Age}:{Team}";
+    }
+
+    /// <summary>
+    /// Shared team-label lookup: club / agegroup / div / team name parts for a set of teams in a
+    /// job. One join, reused by the approval queue (<see cref="GetUnassignedAdultQueueAsync"/>) and
+    /// the request-record seed (<see cref="SeedAdultRequestRecordsAsync"/>) so the team-label
+    /// projection lives in one place; each caller formats the parts to its own shape.
+    /// </summary>
+    private async Task<Dictionary<Guid, TeamLabelParts>> GetTeamLabelPartsAsync(
+        Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken ct)
+    {
+        if (teamIds.Count == 0) return new();
+        return (await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+            .Select(t => new
+            {
+                t.TeamId,
+                Club = t.ClubrepRegistration!.ClubName ?? "",
+                Age = t.Agegroup.AgegroupName ?? "",
+                Div = t.Div == null ? "" : (t.Div.DivName ?? ""),
+                Team = t.TeamName ?? ""
+            })
+            .ToListAsync(ct))
+            .ToDictionary(t => t.TeamId, t => new TeamLabelParts(t.Club, t.Age, t.Div, t.Team));
+    }
+
     public async Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default)
     {
         // 1. ACTIVE unassigned adults for this job: identity + raw codified SpecialRequests.
@@ -2579,24 +2615,8 @@ public class RegistrationRepository : IRegistrationRepository
 
         // 4. Resolve display labels for every team we show — recorded (codified) ∪ assigned.
         var labelIds = allRecordedTeamIds.Concat(staffRows.Select(r => r.TeamId)).Distinct().ToList();
-        var teamLabels = new Dictionary<Guid, string>();
-        if (labelIds.Count > 0)
-        {
-            var teamRows = await _context.Teams
-                .AsNoTracking()
-                .Where(t => t.JobId == jobId && labelIds.Contains(t.TeamId))
-                .Select(t => new
-                {
-                    t.TeamId,
-                    DisplayText =
-                        (t.ClubrepRegistration!.ClubName ?? "") + ":" +
-                        (t.Agegroup.AgegroupName ?? "") + ":" +
-                        (t.Div == null ? "" : (t.Div.DivName ?? "")) + ":" +
-                        (t.TeamName ?? "")
-                })
-                .ToListAsync(ct);
-            teamLabels = teamRows.ToDictionary(t => t.TeamId, t => t.DisplayText);
-        }
+        var teamLabels = (await GetTeamLabelPartsAsync(jobId, labelIds, ct))
+            .ToDictionary(kv => kv.Key, kv => kv.Value.QueueLabel());
 
         // 5. Prior Staff history in OTHER jobs/seasons — the lead recognition signal. Excludes
         //    THIS job: a placement here is the coach's current assignment (shown in the
@@ -2743,23 +2763,10 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(ct))
             .ToHashSet();
 
-        // Human-readable team label per assigned team — "{club}: {agegroup}:{team}" (club prefix
-        // only when present) — for the minted anchor's Assignment field.
+        // Team label parts (shared lookup) → the minted anchor's Assignment field.
         var teamIds = staffRows.Select(r => r.TeamId).Distinct().ToList();
-        var teamLabels = (await _context.Teams
-            .AsNoTracking()
-            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
-            .Select(t => new
-            {
-                t.TeamId,
-                Club = t.ClubrepRegistration != null ? t.ClubrepRegistration.ClubName : null,
-                Age = t.Agegroup.AgegroupName,
-                Team = t.TeamName
-            })
-            .ToListAsync(ct))
-            .ToDictionary(
-                t => t.TeamId,
-                t => (string.IsNullOrWhiteSpace(t.Club) ? "" : $"{t.Club}: ") + $"{t.Age}:{t.Team}");
+        var teamLabels = (await GetTeamLabelPartsAsync(jobId, teamIds, ct))
+            .ToDictionary(kv => kv.Key, kv => kv.Value.AssignmentLabel());
 
         var now = DateTime.Now;
         var minted = false;
