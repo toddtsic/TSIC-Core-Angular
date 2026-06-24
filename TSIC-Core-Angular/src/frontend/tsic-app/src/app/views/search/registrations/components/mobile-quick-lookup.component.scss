@@ -291,7 +291,7 @@
     transition: all 0.2s ease;
 
     &:hover:not(:disabled) {
-      background: var(--bs-primary-hover);
+      background: var(--brand-primary-hover);
     }
 
     &:disabled {

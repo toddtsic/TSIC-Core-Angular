@@ -266,7 +266,7 @@
     transition: background-color 0.15s ease, transform 0.15s ease;
 
     &:hover:not(:disabled) {
-      background: var(--bs-primary-hover);
+      background: var(--brand-primary-hover);
       transform: translateY(-1px);
     }
 
@@ -417,7 +417,7 @@
     color: var(--neutral-0);
 
     &:hover:not(:disabled) {
-      background: var(--bs-primary-hover);
+      background: var(--brand-primary-hover);
     }
   }
 

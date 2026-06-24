@@ -79,12 +79,15 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   private pollTimer: ReturnType<typeof setTimeout> | null = null;
   private pollErrors = 0;
 
-  /** 0–100 progress for the bar, derived from processed/total. */
+  /** 0–100 progress for the bar, derived from processed/total. Floors to 1% once any
+   *  record is processed so a huge batch (where the true % is sub-1) still shows movement. */
   readonly progressPct = computed(() => {
     const s = this.status();
     if (!s || s.totalRecipients === 0) return 0;
     const processed = s.processed ?? (s.sent + s.failed);
-    return Math.min(100, Math.round((processed / s.totalRecipients) * 100));
+    if (processed === 0) return 0;
+    if (processed >= s.totalRecipients) return 100;
+    return Math.max(1, Math.round((processed / s.totalRecipients) * 100));
   });
 
   /** Snapshot of subject/body set by the most recent template apply. When the
@@ -252,7 +255,7 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     if (!this.isDev) return;
     if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
     if (this.registrationIds().length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
-    this.startBatch(150);
+    this.startBatch(15);
   }
 
   /** Kicks off a background batch (real or simulated), then polls the status endpoint for progress. */

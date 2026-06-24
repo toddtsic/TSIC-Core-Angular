@@ -847,10 +847,16 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             }
         };
 
+        var simulating = request.SimulatedPerUnitDelayMs.HasValue;
         var options = new EmailBatchOptions
         {
             SimulatedPerUnitDelayMs = request.SimulatedPerUnitDelayMs,
-            SyntheticFailEveryN = request.SimulatedPerUnitDelayMs.HasValue ? 13 : null
+            SyntheticFailEveryN = simulating ? 13 : null,
+            // The dev TEST run renders the full real set (DB-bound). Parallelize render so a
+            // large simulated batch finishes in a UI-watchable time. Safe: each render worker
+            // owns its own DI scope/DbContext (no shared-context concurrency). Real sends keep
+            // the conservative serial default (RenderWorkers=1).
+            RenderWorkers = simulating ? 4 : 1
         };
 
         return await _emailBatch.StartAsync(plan, options, ct);

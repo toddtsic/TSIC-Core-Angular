@@ -735,7 +735,7 @@
     color: var(--bs-white);
 
     &:hover:not(:disabled) {
-      background: var(--bs-primary-hover);
+      background: var(--brand-primary-hover);
       transform: translateY(-1px);
       box-shadow: var(--shadow-sm);
     }
