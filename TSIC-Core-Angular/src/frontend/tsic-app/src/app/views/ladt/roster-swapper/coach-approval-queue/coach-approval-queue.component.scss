@@ -237,83 +237,146 @@
     opacity: 0.85;
 }
 
-/* ── Teams cell: Requested / Assigned summary links ── */
+/* ── Teams cell: the grant control (checkbox = grant state) ── */
 
-.no-teams { color: var(--bs-secondary-color); }
-
-.team-links {
+.team-ctl {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: var(--space-1);
 }
-.team-none {
+.team-empty {
     font-size: 0.75rem;
     color: var(--bs-secondary-color);
     font-style: italic;
 }
 
-/* Each group summary is a hyperlink trigger (label + first team + overflow count). */
-.team-link {
-    display: inline-flex;
-    align-items: baseline;
+.team-ckl {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 140px;
+    overflow-y: auto;
+}
+.team-ck {
+    border-radius: var(--radius-sm, 0.25rem);
+    /* Pending request = needs action → amber tint; granted = done → blue tint. */
+    &.pending { background: var(--bs-warning-bg-subtle); }
+    &.granted { background: var(--bs-primary-bg-subtle); }
+    /* Recorded but not granted (e.g. a removed/legacy admin grant) → quiet neutral tint. */
+    &.recorded { background: var(--bs-secondary-bg-subtle); }
+    /* Mid removal-confirm → danger tint to make the pending destructive action obvious. */
+    &.confirming { background: var(--bs-danger-bg-subtle); }
+}
+.team-ck-confirm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     gap: var(--space-1);
+    padding: 2px var(--space-2) 4px;
+    font-size: 0.7rem;
+    color: var(--bs-danger);
+}
+.team-ck-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    padding: 3px var(--space-2);
+    font-size: 0.8rem;
+    cursor: pointer;
+
+    input {
+        flex: none;
+        cursor: pointer;
+        accent-color: var(--bs-primary);
+        width: 1rem;
+        height: 1rem;
+    }
+    input:disabled { cursor: default; }
+}
+.team-ck-text {
+    flex: 1;
+    min-width: 0;
+    color: var(--brand-text);
+}
+.team-ck-tag {
+    flex: none;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 1px 6px;
+    border-radius: 999px;
+
+    &.pending { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
+    &.added { background: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-color); }
+    &.removed { background: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-color); }
+}
+
+.team-ctl-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+}
+.team-busy {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+}
+.team-foot-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
     border: 0;
     background: none;
     padding: 0;
     cursor: pointer;
     font-family: inherit;
-    font-size: 0.8rem;
-    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--bs-link-color);
 
-    .team-link-label {
-        flex: none;
-        min-width: 4.5rem;
-        font-size: 0.65rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.02em;
-        color: var(--bs-secondary-color);
-    }
-    .team-link-first {
-        color: var(--bs-link-color);
-        text-decoration: underline;
-        text-underline-offset: 2px;
-    }
-    .team-link-more {
-        flex: none;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: var(--bs-link-color);
-    }
-    &:hover .team-link-first,
-    &:hover .team-link-more { color: var(--bs-link-hover-color); }
+    &:hover { color: var(--bs-link-hover-color); text-decoration: underline; }
+    &.grant { color: var(--bs-success-text-emphasis); }
     &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm, 0.25rem); }
 }
 
-/* ── Actions cell ── */
+/* ── Active cell (uncheck = deactivate + remove all teams) ── */
 
-.action-cell {
+.active-cell {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
     align-items: center;
     gap: var(--space-1);
 }
-.picker-busy {
-    display: inline-flex;
-    align-items: center;
-    color: var(--bs-secondary-color);
-    font-size: 0.825rem;
+.active-box {
+    width: 1.1rem;
+    height: 1.1rem;
+    cursor: pointer;
+    accent-color: var(--bs-primary);
+
+    &:disabled { cursor: default; }
 }
-.deny-confirm {
-    font-size: 0.8rem;
-    color: var(--bs-danger);
+.active-confirm {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.active-confirm-q {
+    font-size: 0.7rem;
     font-weight: 500;
+    color: var(--bs-danger);
+    text-align: center;
 }
-.all-granted {
-    display: inline-flex;
-    align-items: center;
-    color: var(--bs-primary-text-emphasis);
-    font-size: 0.8rem;
+.active-confirm-btns {
+    display: flex;
+    gap: var(--space-1);
 }
 
 /* ── Popups (fixed, escape grid cell clipping) ── */
@@ -383,11 +446,6 @@
     color: var(--bs-secondary-color);
     font-style: italic;
 }
-.popup-state.granted {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: var(--bs-primary-text-emphasis);
-}
 
 .subset-item {
     display: flex;
@@ -450,6 +508,23 @@
     max-height: 300px;
     overflow-y: auto;
 }
+/* Club header (tournament club-rep grouping) — stronger than the agegroup subheader. */
+.assign-club {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--brand-text);
+    padding: var(--space-2) var(--space-1) 2px;
+    border-bottom: 1px solid var(--bs-border-color);
+    margin-top: var(--space-1);
+    position: sticky;
+    top: 0;
+    background: var(--bs-body-bg);
+    z-index: 1;
+}
+.assign-club:first-child { margin-top: 0; }
+/* When nested under a club, indent the agegroup subheader + its rows. */
+.popup-group.indented { padding-left: var(--space-3); }
+.subset-item.indented { padding-left: var(--space-3); }
 .assign-list {
     list-style: none;
     margin: 0;

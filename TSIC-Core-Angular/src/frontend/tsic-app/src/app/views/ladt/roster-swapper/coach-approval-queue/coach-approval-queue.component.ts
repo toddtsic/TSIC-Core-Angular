@@ -47,10 +47,14 @@ interface QueueRow {
     requestedTeams: DisplayTeam[];
     /** Teams the coach currently holds (granted, any source), sorted. */
     assignedTeams: DisplayTeam[];
+    /** The Teams-cell control list: granted (assigned) on top, then pending requests. */
+    checklist: DisplayTeam[];
+    /** Requested teams not yet granted — the count "Grant all" acts on. */
+    pendingCount: number;
     totalCount: number;
     /** First team's label (lowercased) — the sort key for the Teams column. */
     teamSortKey: string;
-    /** Requested (★self) teams not yet granted — what "Grant All" / "Grant Subset" act on. */
+    /** Requested (★self) teams not yet granted — what "Grant all" acts on. */
     ungrantedRequestIds: string[];
 }
 
@@ -84,6 +88,8 @@ export class CoachApprovalQueueComponent implements OnInit {
     readonly busyCoach = signal<string | null>(null);
     /** registrationId armed for a Deny confirm; null when idle. */
     readonly confirmingDeny = signal<string | null>(null);
+    /** `${registrationId}|${teamId}` armed for a team-removal confirm; null when idle. */
+    readonly confirmingRemove = signal<string | null>(null);
 
     /** Active status lens. */
     readonly activeFilter = signal<CoachStatus | 'all'>('all');
@@ -98,12 +104,6 @@ export class CoachApprovalQueueComponent implements OnInit {
      */
     private readonly pinnedIds = signal<ReadonlySet<string>>(new Set());
 
-    // ── Grant Subset popup ──
-    readonly subsetRow = signal<QueueRow | null>(null);
-    readonly subsetChecked = signal<ReadonlySet<string>>(new Set());
-    readonly subsetTop = signal(0);
-    readonly subsetLeft = signal(0);
-
     // ── Assign-team picker (for no-request coaches, or adding a team beyond requests) ──
     /** Job's teams (pool list, minus the Unassigned pool) — the picker source. */
     readonly pools = signal<SwapperPoolOptionDto[]>([]);
@@ -113,10 +113,13 @@ export class CoachApprovalQueueComponent implements OnInit {
     readonly assignTop = signal(0);
     readonly assignLeft = signal(0);
 
-    /** Pickable teams for the open assign popup: active teams the coach doesn't already hold,
-     *  filtered by the search box and grouped by agegroup. (Roster max is a player limit, not a
-     *  coach one, so capacity is intentionally not shown or enforced here.) */
-    readonly assignGroups = computed<{ name: string; teams: SwapperPoolOptionDto[] }[]>(() => {
+    /**
+     * Pickable teams for the open assign popup: active teams the coach doesn't already hold,
+     * filtered by the search box. Grouped CLUB → agegroup when any team has a club (tournament
+     * with club reps); otherwise a single agegroup-only grouping (league/club jobs). (Roster max
+     * is a player limit, not a coach one, so capacity is neither shown nor enforced here.)
+     */
+    readonly assignGroups = computed<{ club: string | null; ageGroups: { name: string; teams: SwapperPoolOptionDto[] }[] }[]>(() => {
         const row = this.assignRow();
         if (!row) return [];
         const held = new Set(row.teams.map(t => t.teamId));
@@ -124,22 +127,38 @@ export class CoachApprovalQueueComponent implements OnInit {
         const opts = this.pools().filter(p =>
             !p.isUnassignedAdultsPool && p.active && !held.has(p.poolId)
             && (!q || p.poolName.toLowerCase().includes(q)));
-        const groups = new Map<string, SwapperPoolOptionDto[]>();
-        for (const p of opts) {
-            const key = p.agegroupName ?? 'Other';
-            const list = groups.get(key);
-            if (list) list.push(p); else groups.set(key, [p]);
+        if (opts.length === 0) return [];
+
+        const byAgegroup = (list: SwapperPoolOptionDto[]) => {
+            const m = new Map<string, SwapperPoolOptionDto[]>();
+            for (const p of list) {
+                const key = p.agegroupName || 'Other';
+                const g = m.get(key); if (g) g.push(p); else m.set(key, [p]);
+            }
+            return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+                .map(([name, teams]) => ({ name, teams: teams.sort((x, y) => this.teamLabel(x).localeCompare(this.teamLabel(y))) }));
+        };
+
+        // Club grouping kicks in only when at least one team has a club (tournament club reps).
+        if (opts.some(o => o.clubName)) {
+            const m = new Map<string, SwapperPoolOptionDto[]>();
+            for (const p of opts) {
+                const key = p.clubName || 'No club';
+                const g = m.get(key); if (g) g.push(p); else m.set(key, [p]);
+            }
+            return [...m.entries()]
+                .sort((a, b) => a[0] === 'No club' ? 1 : b[0] === 'No club' ? -1 : a[0].localeCompare(b[0]))
+                .map(([club, teams]) => ({ club, ageGroups: byAgegroup(teams) }));
         }
-        return [...groups.entries()]
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([name, teams]) => ({ name, teams: teams.sort((x, y) => x.poolName.localeCompare(y.poolName)) }));
+        return [{ club: null, ageGroups: byAgegroup(opts) }];
     });
 
-    // ── Teams popover (grouped Requested / Assigned; hover preview + click/tap pin) ──
-    readonly teamsRow = signal<QueueRow | null>(null);
-    readonly teamsTop = signal(0);
-    readonly teamsLeft = signal(0);
-    readonly teamsPinned = signal(false);
+    /** Team name without the "{club}:" prefix (the prefix is shown as the group header instead). */
+    teamLabel(opt: SwapperPoolOptionDto): string {
+        return opt.clubName && opt.poolName.startsWith(opt.clubName + ':')
+            ? opt.poolName.slice(opt.clubName.length + 1)
+            : opt.poolName;
+    }
 
     // ── "Coached before" prior-assignments popup ──
     readonly priorRow = signal<QueueRow | null>(null);
@@ -267,6 +286,12 @@ export class CoachApprovalQueueComponent implements OnInit {
         const selfAsks = teams.filter(t => t.source === 'self');
         const requestedTeams = [...selfAsks].sort(byLabel);
         const assignedTeams = teams.filter(t => t.granted).sort(byLabel);
+        const pendingRequested = requestedTeams.filter(t => !t.granted);
+        // The FULL recorded list, never hiding any team (append-only record is the source of truth):
+        //   granted (checked) → pending self-requests (amber) → recorded-but-not-granted (e.g. a
+        //   removed/legacy admin grant). The last bucket is what kept legacy teams from vanishing.
+        const recordedUngranted = teams.filter(t => !t.granted && t.source !== 'self').sort(byLabel);
+        const checklist = [...assignedTeams, ...pendingRequested, ...recordedUngranted];
         const grantedOfRequested = selfAsks.filter(t => t.granted).length;
         let status: CoachStatus;
         if (selfAsks.length > 0) {
@@ -295,6 +320,8 @@ export class CoachApprovalQueueComponent implements OnInit {
             teams,
             requestedTeams,
             assignedTeams,
+            checklist,
+            pendingCount: pendingRequested.length,
             totalCount: teams.length,
             // Sort the Teams column by the first label the cell shows (assigned first, else requested).
             teamSortKey: (assignedTeams[0]?.displayText ?? requestedTeams[0]?.displayText ?? '').toLowerCase(),
@@ -368,51 +395,6 @@ export class CoachApprovalQueueComponent implements OnInit {
         this.hoverCloseTimer = setTimeout(() => { this.hoverCloseTimer = null; close(); }, 180);
     }
 
-    // ── Teams popover (grouped Requested / Assigned; hover preview + click/tap pin) ──
-
-    /** Hover-open a preview (does nothing if a pinned popup is already showing). */
-    hoverTeams(event: MouseEvent, row: QueueRow): void {
-        this.cancelHoverClose();
-        if (this.teamsPinned()) return;
-        this.positionTeams(event);
-        this.teamsRow.set(row);
-    }
-
-    /** Mouse left the trigger (or the panel) — close after a grace delay unless pinned. */
-    leaveTeams(): void {
-        if (!this.teamsPinned()) this.scheduleHoverClose(() => this.closeTeams());
-    }
-
-    /** Cursor entered the panel — keep it open so it can be scrolled/read. */
-    holdTeams(): void {
-        this.cancelHoverClose();
-    }
-
-    /** Click/tap pins the popup open (backdrop appears); a second click toggles it closed. */
-    pinTeams(event: MouseEvent, row: QueueRow): void {
-        event.stopPropagation();
-        this.cancelHoverClose();
-        if (this.teamsPinned() && this.teamsRow() === row) {
-            this.closeTeams();
-            return;
-        }
-        this.positionTeams(event);
-        this.teamsRow.set(row);
-        this.teamsPinned.set(true);
-    }
-
-    closeTeams(): void {
-        this.cancelHoverClose();
-        this.teamsRow.set(null);
-        this.teamsPinned.set(false);
-    }
-
-    private positionTeams(event: MouseEvent): void {
-        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        this.teamsTop.set(rect.bottom + 4);
-        this.teamsLeft.set(Math.max(8, rect.left));
-    }
-
     // ── "Coached before" prior-assignments popup (hover preview + click/tap pin) ──
 
     /** Hover-open a preview (does nothing if a pinned popup is already showing). */
@@ -458,9 +440,66 @@ export class CoachApprovalQueueComponent implements OnInit {
         this.priorLeft.set(Math.max(8, rect.left));
     }
 
-    // ── Grant All ──
+    // ── Team checklist (check a request to grant, uncheck an assignment to remove) ──
 
-    /** Grant every requested team the coach hasn't been granted yet. */
+    /** Stable confirm key for one (coach, team) — teams can recur across coaches. */
+    removeKey(row: QueueRow, team: DisplayTeam): string {
+        return `${row.registrationId}|${team.teamId}`;
+    }
+
+    /** A granted box should read checked unless it's mid removal-confirm (then it shows off). */
+    isTeamChecked(row: QueueRow, team: DisplayTeam): boolean {
+        return team.granted && this.confirmingRemove() !== this.removeKey(row, team);
+    }
+
+    /**
+     * Checkbox change. Granting (checking a request) is one-click — it's additive/safe.
+     * Removing (unchecking an assignment) is destructive, so it arms an inline confirm instead
+     * of firing immediately — guards against the accidental click you can't undo.
+     */
+    onTeamToggle(row: QueueRow, team: DisplayTeam, checked: boolean): void {
+        if (this.busyCoach()) return;
+        if (team.granted && !checked) {
+            this.confirmingRemove.set(this.removeKey(row, team));
+        } else if (!team.granted && checked) {
+            this.toggleTeam(row, team);
+        }
+    }
+
+    /** Confirmed removal of an assigned team. */
+    confirmRemove(row: QueueRow, team: DisplayTeam): void {
+        this.confirmingRemove.set(null);
+        this.toggleTeam(row, team);
+    }
+
+    /** Cancel removal — the box re-checks (bound to confirmingRemove). */
+    cancelRemove(): void {
+        this.confirmingRemove.set(null);
+    }
+
+    /** Toggle one team's grant: granted → remove the Staff row; pending → grant via FLOW 2. */
+    toggleTeam(row: QueueRow, team: DisplayTeam): void {
+        if (this.busyCoach()) return;
+        this.busyCoach.set(row.registrationId);
+        const op = team.granted
+            ? this.swapperService.removeStaffFromTeam(team.staffRegistrationId!, team.teamId)
+            : this.swapperService.approveRequest(row.registrationId, team.teamId);
+        const verb = team.granted ? 'removed from' : 'assigned to';
+        op.subscribe({
+            next: () => {
+                this.toast.show(`${row.playerName} ${verb} ${team.displayText}.`, 'success', 3000);
+                this.busyCoach.set(null);
+                this.load(true);
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Could not update — refreshing.', 'danger', 4000);
+                this.busyCoach.set(null);
+                this.load(true);
+            }
+        });
+    }
+
+    /** Grant every requested team the coach hasn't been granted yet (the "Grant all" link). */
     grantAll(row: QueueRow): void {
         const ids = row.ungrantedRequestIds;
         if (ids.length === 0 || this.busyCoach()) return;
@@ -473,82 +512,6 @@ export class CoachApprovalQueueComponent implements OnInit {
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Could not grant — refreshing.', 'danger', 4000);
-                this.busyCoach.set(null);
-                this.load(true);
-            }
-        });
-    }
-
-    /** True when the row has at least one ungranted request to act on. */
-    canGrantAll(row: QueueRow): boolean {
-        return row.ungrantedRequestIds.length > 0;
-    }
-
-    /** Grant Subset only makes sense for multi-team requesters (subset of 1 = all). */
-    canGrantSubset(row: QueueRow): boolean {
-        return row.teams.filter(t => t.source === 'self').length > 1;
-    }
-
-    // ── Grant Subset popup ──
-
-    openSubset(event: MouseEvent, row: QueueRow): void {
-        event.stopPropagation();
-        const btn = event.currentTarget as HTMLElement;
-        const rect = btn.getBoundingClientRect();
-        this.subsetTop.set(rect.bottom + 4);
-        this.subsetLeft.set(Math.max(8, rect.right - 300));
-        // Seed checks with the teams currently granted.
-        this.subsetChecked.set(new Set(row.teams.filter(t => t.granted).map(t => t.teamId)));
-        this.subsetRow.set(row);
-    }
-
-    closeSubset(): void {
-        this.subsetRow.set(null);
-    }
-
-    toggleSubset(teamId: string): void {
-        const next = new Set(this.subsetChecked());
-        next.has(teamId) ? next.delete(teamId) : next.add(teamId);
-        this.subsetChecked.set(next);
-    }
-
-    isSubsetChecked(teamId: string): boolean {
-        return this.subsetChecked().has(teamId);
-    }
-
-    /** Apply the subset: grant newly-checked teams, remove newly-unchecked ones. */
-    applySubset(): void {
-        const row = this.subsetRow();
-        if (!row) return;
-        const checked = this.subsetChecked();
-        const current = new Set(row.teams.filter(t => t.granted).map(t => t.teamId));
-
-        const added = [...checked].filter(id => !current.has(id));
-        const removed = [...current].filter(id => !checked.has(id));
-        this.closeSubset();
-        if (added.length === 0 && removed.length === 0) return;
-
-        const ops = [
-            ...added.map(id => this.swapperService.approveRequest(row.registrationId, id)),
-            ...removed.map(id => {
-                const staffRegId = row.teams.find(t => t.teamId === id)?.staffRegistrationId;
-                return this.swapperService.removeStaffFromTeam(staffRegId!, id);
-            }),
-        ];
-
-        this.busyCoach.set(row.registrationId);
-        forkJoin(ops).subscribe({
-            next: () => {
-                const parts = [
-                    added.length ? `granted ${added.length}` : '',
-                    removed.length ? `removed ${removed.length}` : '',
-                ].filter(Boolean).join(', ');
-                this.toast.show(`${row.playerName} — ${parts}.`, 'success', 3000);
-                this.busyCoach.set(null);
-                this.load(true);
-            },
-            error: err => {
-                this.toast.show(err?.error?.message || 'Could not update — refreshing.', 'danger', 4000);
                 this.busyCoach.set(null);
                 this.load(true);
             }
@@ -604,7 +567,12 @@ export class CoachApprovalQueueComponent implements OnInit {
         });
     }
 
-    // ── Deny ──
+    // ── Active toggle (deactivate = the old "deny": remove all teams + bActive=0) ──
+
+    /** Active checkbox change: only unchecking is actionable — it arms the deactivate confirm. */
+    onActiveToggle(row: QueueRow, checked: boolean): void {
+        if (!checked && this.busyCoach() !== row.registrationId) this.requestDeny(row);
+    }
 
     requestDeny(row: QueueRow): void {
         this.confirmingDeny.set(row.registrationId);
@@ -623,7 +591,7 @@ export class CoachApprovalQueueComponent implements OnInit {
                 // Denied coach drops out of queue() → naturally gone from gridData (it filters
                 // rows by pinnedIds); no re-pin needed, so other rows stay put.
                 this.queue.set(this.queue().filter(r => r.registrationId !== row.registrationId));
-                this.toast.show(`${row.playerName} denied — removed from all teams and deactivated.`, 'info', 3500);
+                this.toast.show(`${row.playerName} deactivated — removed from all teams.`, 'info', 3500);
                 this.busyCoach.set(null);
             },
             error: err => {

@@ -114,89 +114,82 @@
                     </ng-template>
                 </e-column>
 
-                <!-- Assignment: Requested / Assigned summary links → grouped popover -->
-                <e-column field="teamSortKey" headerText="Teams" [width]="260">
+                <!-- Teams: the grant control. Check a request to assign, uncheck to remove. -->
+                <e-column field="teamSortKey" headerText="Teams" [width]="330">
                     <ng-template #headerTemplate>
                         <span class="sort-head">Teams <i class="bi" [ngClass]="sortIcon('teamSortKey')"></i></span>
                     </ng-template>
                     <ng-template #template let-data>
-                        @if (data.totalCount === 0) {
-                            <span class="no-teams">—</span>
-                        } @else {
-                            <div class="team-links">
-                                @if (data.requestedTeams.length > 0) {
-                                    <button type="button" class="team-link"
-                                        (mouseenter)="hoverTeams($event, data)"
-                                        (mouseleave)="leaveTeams()"
-                                        (click)="pinTeams($event, data)">
-                                        <span class="team-link-label">Requested</span>
-                                        <span class="team-link-first">{{ data.requestedTeams[0].displayText }}</span>
-                                        @if (data.requestedTeams.length > 1) {
-                                            <span class="team-link-more">+{{ data.requestedTeams.length - 1 }}</span>
-                                        }
-                                    </button>
-                                }
-                                @if (data.assignedTeams.length > 0) {
-                                    <button type="button" class="team-link"
-                                        (mouseenter)="hoverTeams($event, data)"
-                                        (mouseleave)="leaveTeams()"
-                                        (click)="pinTeams($event, data)">
-                                        <span class="team-link-label">Assigned</span>
-                                        <span class="team-link-first">{{ data.assignedTeams[0].displayText }}</span>
-                                        @if (data.assignedTeams.length > 1) {
-                                            <span class="team-link-more">+{{ data.assignedTeams.length - 1 }}</span>
-                                        }
-                                    </button>
+                        <div class="team-ctl">
+                            @if (data.checklist.length > 0) {
+                                <ul class="team-ckl">
+                                    @for (t of data.checklist; track t.teamId) {
+                                        <li class="team-ck" [class.granted]="t.granted"
+                                            [class.pending]="!t.granted && t.source === 'self'"
+                                            [class.recorded]="!t.granted && t.source !== 'self'"
+                                            [class.confirming]="confirmingRemove() === removeKey(data, t)">
+                                            <label class="team-ck-item">
+                                                <input type="checkbox" [checked]="isTeamChecked(data, t)"
+                                                    [disabled]="busyCoach() === data.registrationId"
+                                                    (change)="onTeamToggle(data, t, $any($event.target).checked)" />
+                                                <span class="team-ck-text">{{ t.displayText }}</span>
+                                                @if (t.granted) {
+                                                    @if (t.source !== 'self') {
+                                                        <span class="team-ck-tag added">added</span>
+                                                    }
+                                                } @else if (t.source === 'self') {
+                                                    <span class="team-ck-tag pending">requested</span>
+                                                } @else {
+                                                    <span class="team-ck-tag removed">removed</span>
+                                                }
+                                            </label>
+                                            @if (confirmingRemove() === removeKey(data, t)) {
+                                                <div class="team-ck-confirm">
+                                                    <span>Remove from this team?</span>
+                                                    <button type="button" class="btn btn-danger btn-sm" (click)="confirmRemove(data, t)">Yes</button>
+                                                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelRemove()">No</button>
+                                                </div>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                            } @else {
+                                <div class="team-empty">No team requested</div>
+                            }
+                            <div class="team-ctl-foot">
+                                @if (busyCoach() === data.registrationId) {
+                                    <span class="team-busy"><span class="spinner-border spinner-border-sm me-1"></span>Saving…</span>
                                 } @else {
-                                    <span class="team-none">Not yet assigned</span>
+                                    @if (data.pendingCount > 1) {
+                                        <button type="button" class="team-foot-link grant" (click)="grantAll(data)">
+                                            <i class="bi bi-check2-all"></i> Grant all {{ data.pendingCount }}
+                                        </button>
+                                    }
+                                    <button type="button" class="team-foot-link add" (click)="openAssign($event, data)">
+                                        <i class="bi bi-plus-lg"></i> Add team
+                                    </button>
                                 }
                             </div>
-                        }
+                        </div>
                     </ng-template>
                 </e-column>
 
-                <!-- Actions -->
-                <e-column headerText="" [width]="340" [allowSorting]="false">
+                <!-- Active: unchecking deactivates the coach (removes ALL teams + drops from queue) -->
+                <e-column headerText="Active" [width]="160" textAlign="Center" [allowSorting]="false">
                     <ng-template #template let-data>
-                        <div class="action-cell">
-                            @if (busyCoach() === data.registrationId) {
-                                <span class="picker-busy">
-                                    <span class="spinner-border spinner-border-sm me-1"></span>Updating…
-                                </span>
-                            } @else if (confirmingDeny() === data.registrationId) {
-                                <span class="deny-confirm">Remove &amp; deactivate?</span>
-                                <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeny(data)">
-                                    <i class="bi bi-x-octagon me-1"></i>Confirm
-                                </button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeny()">
-                                    Cancel
-                                </button>
-                            } @else {
-                                @if (canGrantAll(data)) {
-                                    <button type="button" class="btn btn-success btn-sm" (click)="grantAll(data)">
-                                        <i class="bi bi-check2-all me-1"></i>Grant All
-                                    </button>
-                                }
-                                @if (canGrantSubset(data)) {
-                                    <button type="button" class="btn btn-outline-primary btn-sm" (click)="openSubset($event, data)">
-                                        Grant Subset
-                                    </button>
-                                }
-                                @if (!canGrantAll(data) && data.status === 'assigned') {
-                                    <span class="all-granted"><i class="bi bi-check-circle me-1"></i>All granted</span>
-                                }
-                                @if (data.totalCount === 0) {
-                                    <button type="button" class="btn btn-primary btn-sm" (click)="openAssign($event, data)">
-                                        <i class="bi bi-plus-lg me-1"></i>Assign team
-                                    </button>
-                                } @else {
-                                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="openAssign($event, data)">
-                                        <i class="bi bi-plus-lg me-1"></i>Add team
-                                    </button>
-                                }
-                                <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDeny(data)">
-                                    <i class="bi bi-x-octagon me-1"></i>Deny
-                                </button>
+                        <div class="active-cell">
+                            <input type="checkbox" class="active-box"
+                                [checked]="confirmingDeny() !== data.registrationId"
+                                [disabled]="busyCoach() === data.registrationId"
+                                (change)="onActiveToggle(data, $any($event.target).checked)" />
+                            @if (confirmingDeny() === data.registrationId) {
+                                <div class="active-confirm">
+                                    <span class="active-confirm-q">Deactivate &amp; remove all teams?</span>
+                                    <div class="active-confirm-btns">
+                                        <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeny(data)">Yes</button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeny()">No</button>
+                                    </div>
+                                </div>
                             }
                         </div>
                     </ng-template>
@@ -205,51 +198,6 @@
         </ejs-grid>
     }
 </div>
-
-<!-- Teams popup — grouped Requested / Assigned (hover preview / click-pinned) -->
-@if (teamsRow(); as tr) {
-    @if (teamsPinned()) {
-        <div class="popup-backdrop" (click)="closeTeams()"></div>
-    }
-    <div class="teams-popup" [style.top.px]="teamsTop()" [style.left.px]="teamsLeft()"
-        (mouseenter)="holdTeams()" (mouseleave)="leaveTeams()">
-        <div class="popup-title">{{ tr.playerName }} — teams</div>
-        @if (tr.requestedTeams.length > 0) {
-            <div class="popup-group">Requested</div>
-            <ul class="popup-list">
-                @for (team of tr.requestedTeams; track team.teamId) {
-                    <li [class.is-granted]="team.granted">
-                        @if (team.granted) {
-                            <i class="bi bi-check-circle-fill granted-flag" title="Granted"></i>
-                        } @else {
-                            <i class="bi bi-star-fill src-self" title="Requested"></i>
-                        }
-                        <span class="popup-team-text">{{ team.displayText }}</span>
-                        @if (team.granted) {
-                            <span class="popup-state granted">granted</span>
-                        } @else {
-                            <span class="ungranted-flag">pending</span>
-                        }
-                    </li>
-                }
-            </ul>
-        }
-        @if (tr.assignedTeams.length > 0) {
-            <div class="popup-group">Assigned</div>
-            <ul class="popup-list">
-                @for (team of tr.assignedTeams; track team.teamId) {
-                    <li class="is-granted">
-                        <i class="bi bi-check-circle-fill granted-flag" title="Granted"></i>
-                        <span class="popup-team-text">{{ team.displayText }}</span>
-                        @if (team.source !== 'self') {
-                            <span class="ungranted-flag">director-added</span>
-                        }
-                    </li>
-                }
-            </ul>
-        }
-    </div>
-}
 
 <!-- "Coached before" prior-assignments popup (hover preview / click-pinned) -->
 @if (priorRow(); as pr) {
@@ -271,34 +219,6 @@
     </div>
 }
 
-<!-- Grant Subset popup -->
-@if (subsetRow(); as sr) {
-    <div class="popup-backdrop" (click)="closeSubset()"></div>
-    <div class="subset-popup" [style.top.px]="subsetTop()" [style.left.px]="subsetLeft()">
-        <div class="popup-title">Grant teams to {{ sr.playerName }}</div>
-        <ul class="subset-list">
-            @for (team of sr.teams; track team.teamId) {
-                <li>
-                    <label class="subset-item">
-                        <input type="checkbox" [checked]="isSubsetChecked(team.teamId)"
-                            (change)="toggleSubset(team.teamId)" />
-                        @if (team.source === 'self') {
-                            <i class="bi bi-star-fill src-self" title="Coach requested"></i>
-                        } @else {
-                            <i class="bi bi-shield-fill-check src-admin" title="Director added"></i>
-                        }
-                        <span class="popup-team-text">{{ team.displayText }}</span>
-                    </label>
-                </li>
-            }
-        </ul>
-        <div class="subset-actions">
-            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeSubset()">Cancel</button>
-            <button type="button" class="btn btn-primary btn-sm" (click)="applySubset()">Apply</button>
-        </div>
-    </div>
-}
-
 <!-- Assign-team picker -->
 @if (assignRow(); as ar) {
     <div class="popup-backdrop" (click)="closeAssign()"></div>
@@ -313,19 +233,22 @@
             <div class="assign-empty">No matching teams.</div>
         } @else {
             <div class="assign-scroll">
-                @for (g of assignGroups(); track g.name) {
-                    <div class="popup-group">{{ g.name }}</div>
-                    <ul class="assign-list">
-                        @for (t of g.teams; track t.poolId) {
-                            <li>
-                                <label class="subset-item">
-                                    <input type="checkbox" [checked]="isAssignChecked(t.poolId)"
-                                        (change)="toggleAssign(t.poolId)" />
-                                    <span class="popup-team-text">{{ t.poolName }}</span>
-                                </label>
-                            </li>
-                        }
-                    </ul>
+                @for (cg of assignGroups(); track cg.club) {
+                    @if (cg.club) { <div class="assign-club">{{ cg.club }}</div> }
+                    @for (ag of cg.ageGroups; track ag.name) {
+                        <div class="popup-group" [class.indented]="cg.club">{{ ag.name }}</div>
+                        <ul class="assign-list">
+                            @for (t of ag.teams; track t.poolId) {
+                                <li>
+                                    <label class="subset-item" [class.indented]="cg.club">
+                                        <input type="checkbox" [checked]="isAssignChecked(t.poolId)"
+                                            (change)="toggleAssign(t.poolId)" />
+                                        <span class="popup-team-text">{{ teamLabel(t) }}</span>
+                                    </label>
+                                </li>
+                            }
+                        </ul>
+                    }
                 }
             </div>
         }

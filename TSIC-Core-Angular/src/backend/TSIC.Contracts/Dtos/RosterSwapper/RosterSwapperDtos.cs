@@ -8,6 +8,8 @@ public record SwapperPoolOptionDto
     public required Guid PoolId { get; init; }
     public required string PoolName { get; init; }
     public required bool IsUnassignedAdultsPool { get; init; }
+    /// <summary>Owning club (via the clubrep route), when the team has one — for club→agegroup grouping.</summary>
+    public string? ClubName { get; init; }
     public string? AgegroupName { get; init; }
     public string? AgegroupColor { get; init; }
     public string? DivName { get; init; }

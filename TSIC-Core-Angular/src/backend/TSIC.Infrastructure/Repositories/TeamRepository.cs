@@ -804,6 +804,7 @@ public class TeamRepository : ITeamRepository
                 PoolId = t.TeamId,
                 PoolName = !string.IsNullOrEmpty(clubName) ? $"{clubName}:{t.TeamName}" : t.TeamName,
                 IsUnassignedAdultsPool = false,
+                ClubName = !string.IsNullOrEmpty(clubName) ? clubName : null,
                 AgegroupName = t.AgegroupName,
                 AgegroupColor = t.AgegroupColor,
                 DivName = t.DivName,
