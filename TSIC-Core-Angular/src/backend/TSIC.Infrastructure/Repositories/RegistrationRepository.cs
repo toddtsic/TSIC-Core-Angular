@@ -2521,8 +2521,16 @@ public class RegistrationRepository : IRegistrationRepository
     /// <summary>Display parts for one team — the single source for coach/queue team labels.</summary>
     private sealed record TeamLabelParts(string Club, string Age, string Div, string Team)
     {
-        /// <summary>Approval-queue label: <c>club:age:div:team</c>.</summary>
-        public string QueueLabel() => $"{Club}:{Age}:{Div}:{Team}";
+        /// <summary>Approval-queue label — a clean human string, empty parts dropped:
+        /// <c>"{Club}: {Team} · {Age}"</c> (e.g. "ASL: Long Island Red 2028 · 2028", or
+        /// "Long Island Red 2028 · 2028" with no club). Replaces the old colon-soup
+        /// <c>club:age:div:team</c> that rendered leading/empty colons in the queue UI.</summary>
+        public string QueueLabel()
+        {
+            var prefix = string.IsNullOrWhiteSpace(Club) ? "" : $"{Club}: ";
+            var ageCtx = string.IsNullOrWhiteSpace(Age) ? "" : $" · {Age}";
+            return $"{prefix}{Team}{ageCtx}";
+        }
 
         /// <summary>Minted-anchor Assignment label: <c>"{club}: {age}:{team}"</c> (club prefix when present).</summary>
         public string AssignmentLabel() =>

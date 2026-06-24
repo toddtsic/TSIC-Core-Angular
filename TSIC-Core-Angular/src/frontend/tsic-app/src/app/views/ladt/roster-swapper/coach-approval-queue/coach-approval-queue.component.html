@@ -1,17 +1,41 @@
 <div class="queue-wrap">
     <header class="queue-header">
-        <div>
-            <h4 class="queue-title">
-                <i class="bi bi-person-check-fill me-2"></i>Coach Approval Queue
-                <app-info-tooltip
-                    trigger="hover"
-                    message="Each coach can be placed on any number of teams — check a team to grant it (gives roster access), un-check to remove them. ★ marks teams the coach asked for; Deny removes a coach from all teams and takes them off this list." />
-            </h4>
-        </div>
+        <h4 class="queue-title">
+            <i class="bi bi-person-check-fill me-2"></i>Coach Approval Queue
+            <app-info-tooltip
+                trigger="hover"
+                message="Each coach asked for one or more teams. Grant All places them on every team they requested; Grant Subset (multi-team only) lets you grant some now and hold the rest. Status: Unassigned = nothing granted yet; Partial = some requested teams granted; Assigned = all granted. Deny removes a coach from all teams and takes them off this list." />
+        </h4>
         <button type="button" class="btn btn-outline-secondary btn-sm" (click)="load()" [disabled]="isLoading()">
             <i class="bi bi-arrow-clockwise me-1"></i>Refresh
         </button>
     </header>
+
+    <div class="queue-toolbar">
+        <div class="chips" role="tablist" aria-label="Filter by status">
+            <button type="button" class="chip" [class.active]="activeFilter() === 'all'"
+                (click)="selectFilter('all')">
+                All <span class="chip-count">{{ counts().all }}</span>
+            </button>
+            <button type="button" class="chip chip-unassigned" [class.active]="activeFilter() === 'unassigned'"
+                (click)="selectFilter('unassigned')">
+                <span class="chip-dot"></span>Unassigned <span class="chip-count">{{ counts().unassigned }}</span>
+            </button>
+            <button type="button" class="chip chip-partial" [class.active]="activeFilter() === 'partial'"
+                (click)="selectFilter('partial')">
+                <span class="chip-dot"></span>Partial <span class="chip-count">{{ counts().partial }}</span>
+            </button>
+            <button type="button" class="chip chip-assigned" [class.active]="activeFilter() === 'assigned'"
+                (click)="selectFilter('assigned')">
+                <span class="chip-dot"></span>Assigned <span class="chip-count">{{ counts().assigned }}</span>
+            </button>
+        </div>
+        <div class="search">
+            <i class="bi bi-search search-icon"></i>
+            <input type="search" class="search-input" placeholder="Search name, club, contact…"
+                [value]="searchTerm()" (input)="onSearch($any($event.target).value)" />
+        </div>
+    </div>
 
     @if (isLoading()) {
         <div class="text-center py-5">
@@ -25,125 +49,172 @@
             <div class="empty-sub">No coach registrations are awaiting placement for this event.</div>
         </div>
     } @else {
-        <div class="coach-list">
-            @for (row of queue(); track row.registrationId) {
-                <article class="coach-card">
-                    <div class="coach-id">
-                        <div class="coach-name">
-                            {{ row.playerName }}
-                            @if (row.clubName) { <span class="coach-club">— {{ row.clubName }}</span> }
-                        </div>
-
-                        <!-- Lead recognition signal: prior Staff history (other jobs) -->
-                        @if (row.priorStaff.length > 0) {
-                            <div class="signal signal-known">
-                                <button type="button" class="prior-toggle" (click)="togglePrior(row.registrationId)"
-                                    [attr.aria-expanded]="isPriorExpanded(row.registrationId)">
-                                    <i class="bi" [class.bi-chevron-right]="!isPriorExpanded(row.registrationId)"
-                                        [class.bi-chevron-down]="isPriorExpanded(row.registrationId)"></i>
-                                    <i class="bi bi-patch-check-fill mx-1"></i>
-                                    Coached before ({{ row.priorStaff.length }})
-                                </button>
-                                @if (isPriorExpanded(row.registrationId)) {
-                                    <ul class="prior-list">
-                                        @for (ps of row.priorStaff; track $index) {
-                                            <li>{{ ps.teamName }} · {{ ps.jobName }}</li>
-                                        }
-                                    </ul>
+        <ejs-grid
+            [dataSource]="gridData()"
+            [allowSorting]="false"
+            [allowTextWrap]="true"
+            [enableStickyHeader]="true"
+            (rowDataBound)="onRowDataBound($event)"
+            cssClass="coach-grid">
+            <e-columns>
+                <!-- Coach identity -->
+                <e-column headerText="Coach" [width]="320">
+                    <ng-template #template let-data>
+                        <div class="coach-cell">
+                            <div class="coach-name">
+                                {{ data.playerName }}
+                                @if (data.clubName) { <span class="coach-club">— {{ data.clubName }}</span> }
+                            </div>
+                            <div class="coach-signals">
+                                @if (data.priorStaffCount > 0) {
+                                    <span class="sig sig-known" [title]="data.priorStaffText">
+                                        <i class="bi bi-patch-check-fill"></i> Coached before ({{ data.priorStaffCount }})
+                                    </span>
+                                } @else {
+                                    <span class="sig sig-new"><i class="bi bi-question-circle"></i> No prior history</span>
+                                }
+                                @if (data.linkedPlayerNames.length > 0) {
+                                    <span class="sig sig-family" [title]="'Parent of ' + data.linkedPlayerNames.join(', ')">
+                                        <i class="bi bi-people"></i> Parent in event
+                                    </span>
+                                }
+                                @if (data.note) {
+                                    <span class="sig sig-note">
+                                        <i class="bi bi-chat-left-quote"></i> Note
+                                        <app-info-tooltip trigger="hover" [message]="data.note" />
+                                    </span>
                                 }
                             </div>
-                        } @else {
-                            <div class="signal signal-new">
-                                <i class="bi bi-question-circle me-1"></i>No prior staff history in the system
-                            </div>
-                        }
-
-                        <!-- Family linkage (minor signal) -->
-                        @if (row.linkedPlayerNames.length > 0) {
-                            <div class="signal signal-family">
-                                <i class="bi bi-people me-1"></i>
-                                Parent of {{ row.linkedPlayerNames.join(', ') }} in this event
-                            </div>
-                        }
-
-                        <div class="coach-contact">
-                            @if (contactLine(row)) { <span>{{ contactLine(row) }}</span> }
-                            <span class="coach-reg">Registered {{ row.registrationTs | date:'mediumDate' }}</span>
+                            @if (data.contact) { <div class="coach-contact">{{ data.contact }}</div> }
+                            <div class="coach-reg">Registered {{ data.registrationTs | date:'mediumDate' }}</div>
                         </div>
+                    </ng-template>
+                </e-column>
 
-                        @if (row.note) {
-                            <blockquote class="coach-note">
-                                <i class="bi bi-chat-left-quote me-1"></i>{{ row.note }}
-                            </blockquote>
+                <!-- Status -->
+                <e-column headerText="Status" [width]="110" textAlign="Center">
+                    <ng-template #template let-data>
+                        <span class="status-badge status-{{ data.status }}">{{ statusLabel(data.status) }}</span>
+                    </ng-template>
+                </e-column>
+
+                <!-- Assignment: single badge / multi dropdown -->
+                <e-column headerText="Teams" [width]="260">
+                    <ng-template #template let-data>
+                        @if (data.totalCount === 0) {
+                            <span class="no-teams">—</span>
+                        } @else if (data.totalCount === 1) {
+                            <span class="team-badge" [class.is-granted]="data.teams[0].granted">
+                                @if (data.teams[0].granted) {
+                                    <i class="bi bi-check-circle-fill"></i>
+                                } @else {
+                                    <i class="bi bi-star-fill"></i>
+                                }
+                                {{ data.teams[0].displayText }}
+                            </span>
+                        } @else {
+                            <button type="button" class="team-dropdown"
+                                [class.is-partial]="data.grantedCount > 0 && data.grantedCount < data.totalCount"
+                                [class.is-granted]="data.grantedCount === data.totalCount"
+                                (click)="openTeams($event, data)">
+                                {{ data.grantedCount }}/{{ data.totalCount }} teams
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
                         }
-                    </div>
+                    </ng-template>
+                </e-column>
 
-                    <div class="coach-requests">
-                        <!-- Immutable record: asks (★self) ∪ grants (admin); ✓ = granted now -->
-                        @if (row.recordedTeams.length > 0) {
-                            <div class="record-block">
-                                <span class="record-label">Team record</span>
-                                <ul class="record-chips">
-                                    @for (team of row.recordedTeams; track team.teamId) {
-                                        <li [class.is-granted]="isGranted(row, team.teamId)"
-                                            [class.is-self]="team.source === 'self'">
-                                            @if (team.source === 'self') {
-                                                <i class="bi bi-star-fill src-self" title="The coach requested this"></i>
-                                            } @else {
-                                                <i class="bi bi-shield-fill-check src-admin" title="Director added"></i>
-                                            }
-                                            <span class="record-text">{{ team.displayText }}</span>
-                                            @if (isGranted(row, team.teamId)) {
-                                                <i class="bi bi-check-circle-fill granted-flag" title="Granted now"></i>
-                                            } @else {
-                                                <span class="ungranted-flag">not granted</span>
-                                            }
-                                        </li>
-                                    }
-                                </ul>
-                            </div>
-                        }
-
-                        <label class="picker-label">Teams ({{ row.assignedTeams.length }} granted)</label>
-                        <ejs-multiselect
-                            [dataSource]="teamsDataSource()"
-                            [fields]="teamFields"
-                            [value]="assignedTeamIds(row)"
-                            (change)="onTeamsChange(row, $event)"
-                            [mode]="'CheckBox'"
-                            [allowFiltering]="true"
-                            [filterBarPlaceholder]="'Search by team, club or age group…'"
-                            [showSelectAll]="false"
-                            [closePopupOnSelect]="false"
-                            [changeOnBlur]="true"
-                            [showDropDownIcon]="true"
-                            [enabled]="busyCoach() !== row.registrationId"
-                            [placeholder]="'Check teams to grant this coach'"
-                            [popupHeight]="'320px'">
-                        </ejs-multiselect>
-
-                        <div class="coach-actions">
-                            @if (busyCoach() === row.registrationId) {
+                <!-- Actions -->
+                <e-column headerText="" [width]="280">
+                    <ng-template #template let-data>
+                        <div class="action-cell">
+                            @if (busyCoach() === data.registrationId) {
                                 <span class="picker-busy">
                                     <span class="spinner-border spinner-border-sm me-1"></span>Updating…
                                 </span>
-                            } @else if (confirmingDeny() === row.registrationId) {
-                                <span class="deny-confirm">Remove from all teams &amp; deactivate?</span>
-                                <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeny(row)">
-                                    <i class="bi bi-x-octagon me-1"></i>Confirm deny
+                            } @else if (confirmingDeny() === data.registrationId) {
+                                <span class="deny-confirm">Remove &amp; deactivate?</span>
+                                <button type="button" class="btn btn-danger btn-sm" (click)="confirmDeny(data)">
+                                    <i class="bi bi-x-octagon me-1"></i>Confirm
                                 </button>
                                 <button type="button" class="btn btn-outline-secondary btn-sm" (click)="cancelDeny()">
                                     Cancel
                                 </button>
                             } @else {
-                                <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDeny(row)">
-                                    <i class="bi bi-x-octagon me-1"></i>Deny coach
+                                @if (canGrantAll(data)) {
+                                    <button type="button" class="btn btn-success btn-sm" (click)="grantAll(data)">
+                                        <i class="bi bi-check2-all me-1"></i>Grant All
+                                    </button>
+                                }
+                                @if (canGrantSubset(data)) {
+                                    <button type="button" class="btn btn-outline-primary btn-sm" (click)="openSubset($event, data)">
+                                        Grant Subset
+                                    </button>
+                                }
+                                @if (!canGrantAll(data) && data.status === 'assigned') {
+                                    <span class="all-granted"><i class="bi bi-check-circle me-1"></i>All granted</span>
+                                }
+                                <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDeny(data)">
+                                    <i class="bi bi-x-octagon me-1"></i>Deny
                                 </button>
                             }
                         </div>
-                    </div>
-                </article>
-            }
-        </div>
+                    </ng-template>
+                </e-column>
+            </e-columns>
+        </ejs-grid>
     }
 </div>
+
+<!-- Multi-team read-only popup -->
+@if (teamsRow(); as tr) {
+    <div class="popup-backdrop" (click)="closeTeams()"></div>
+    <div class="teams-popup" [style.top.px]="teamsTop()" [style.left.px]="teamsLeft()">
+        <div class="popup-title">{{ tr.playerName }} — teams</div>
+        <ul class="popup-list">
+            @for (team of tr.teams; track team.teamId) {
+                <li [class.is-granted]="team.granted">
+                    @if (team.source === 'self') {
+                        <i class="bi bi-star-fill src-self" title="Coach requested"></i>
+                    } @else {
+                        <i class="bi bi-shield-fill-check src-admin" title="Director added"></i>
+                    }
+                    <span class="popup-team-text">{{ team.displayText }}</span>
+                    @if (team.granted) {
+                        <i class="bi bi-check-circle-fill granted-flag" title="Granted"></i>
+                    } @else {
+                        <span class="ungranted-flag">not granted</span>
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+<!-- Grant Subset popup -->
+@if (subsetRow(); as sr) {
+    <div class="popup-backdrop" (click)="closeSubset()"></div>
+    <div class="subset-popup" [style.top.px]="subsetTop()" [style.left.px]="subsetLeft()">
+        <div class="popup-title">Grant teams to {{ sr.playerName }}</div>
+        <ul class="subset-list">
+            @for (team of sr.teams; track team.teamId) {
+                <li>
+                    <label class="subset-item">
+                        <input type="checkbox" [checked]="isSubsetChecked(team.teamId)"
+                            (change)="toggleSubset(team.teamId)" />
+                        @if (team.source === 'self') {
+                            <i class="bi bi-star-fill src-self" title="Coach requested"></i>
+                        } @else {
+                            <i class="bi bi-shield-fill-check src-admin" title="Director added"></i>
+                        }
+                        <span class="popup-team-text">{{ team.displayText }}</span>
+                    </label>
+                </li>
+            }
+        </ul>
+        <div class="subset-actions">
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeSubset()">Cancel</button>
+            <button type="button" class="btn btn-primary btn-sm" (click)="applySubset()">Apply</button>
+        </div>
+    </div>
+}
