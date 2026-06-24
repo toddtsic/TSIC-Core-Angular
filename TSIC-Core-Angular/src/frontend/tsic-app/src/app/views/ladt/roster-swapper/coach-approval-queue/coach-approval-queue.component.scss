@@ -237,26 +237,57 @@
     opacity: 0.85;
 }
 
-/* ── Teams cell: single badge / multi dropdown ── */
+/* ── Teams cell: Requested / Assigned summary links ── */
 
 .no-teams { color: var(--bs-secondary-color); }
 
-/* Team chips ride the global .badge color classes; this only adds icon layout + the
-   button affordance for the multi-team dropdown. Icons inherit the badge's emphasis color. */
-.team-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-
-    i { font-size: 0.85em; }
+.team-links {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
-button.team-chip {
-    border: 0;
-    cursor: pointer;
-    font-weight: 600;
+.team-none {
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
+    font-style: italic;
+}
 
-    &:hover { filter: brightness(0.97); }
-    .bi-chevron-down { font-size: 0.8em; }
+/* Each group summary is a hyperlink trigger (label + first team + overflow count). */
+.team-link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-1);
+    border: 0;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    text-align: left;
+
+    .team-link-label {
+        flex: none;
+        min-width: 4.5rem;
+        font-size: 0.65rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: var(--bs-secondary-color);
+    }
+    .team-link-first {
+        color: var(--bs-link-color);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
+    .team-link-more {
+        flex: none;
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: var(--bs-link-color);
+    }
+    &:hover .team-link-first,
+    &:hover .team-link-more { color: var(--bs-link-hover-color); }
+    &:focus-visible { outline: none; box-shadow: var(--shadow-focus); border-radius: var(--radius-sm, 0.25rem); }
 }
 
 /* ── Actions cell ── */
@@ -313,6 +344,18 @@ button.team-chip {
     border-bottom: 1px solid var(--bs-border-color);
     margin-bottom: var(--space-1);
 }
+/* Group header inside the teams popover (Requested / Assigned). */
+.popup-group {
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+    padding: var(--space-1) var(--space-1) 2px;
+    margin-top: var(--space-1);
+}
+.popup-group:first-of-type { margin-top: 0; }
+
 .popup-list,
 .subset-list {
     list-style: none;
@@ -340,6 +383,11 @@ button.team-chip {
     color: var(--bs-secondary-color);
     font-style: italic;
 }
+.popup-state.granted {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--bs-primary-text-emphasis);
+}
 
 .subset-item {
     display: flex;
@@ -356,11 +404,67 @@ button.team-chip {
 }
 .subset-actions {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: var(--space-2);
     padding-top: var(--space-2);
     margin-top: var(--space-1);
     border-top: 1px solid var(--bs-border-color);
+}
+
+/* ── Assign-team picker ── */
+
+.assign-popup { min-width: 300px; }
+
+.assign-search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--space-1);
+
+    .bi-search {
+        position: absolute;
+        left: var(--space-2);
+        color: var(--bs-secondary-color);
+        font-size: 0.8rem;
+        pointer-events: none;
+    }
+    input {
+        width: 100%;
+        padding: var(--space-1) var(--space-2) var(--space-1) calc(var(--space-2) + 1.1rem);
+        border: 1px solid var(--bs-border-color);
+        border-radius: var(--bs-border-radius);
+        background: var(--bs-body-bg);
+        color: var(--brand-text);
+        font-size: 0.8rem;
+
+        &:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+            border-color: var(--bs-primary);
+        }
+    }
+}
+
+.assign-scroll {
+    max-height: 300px;
+    overflow-y: auto;
+}
+.assign-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.assign-empty {
+    padding: var(--space-3) var(--space-2);
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+    text-align: center;
+}
+.assign-count {
+    margin-right: auto;
+    font-size: 0.75rem;
+    color: var(--bs-secondary-color);
 }
 
 @media (prefers-reduced-motion: reduce) {

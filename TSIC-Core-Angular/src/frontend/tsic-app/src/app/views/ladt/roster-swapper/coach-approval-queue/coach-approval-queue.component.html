@@ -114,7 +114,7 @@
                     </ng-template>
                 </e-column>
 
-                <!-- Assignment: single badge / multi dropdown -->
+                <!-- Assignment: Requested / Assigned summary links → grouped popover -->
                 <e-column field="teamSortKey" headerText="Teams" [width]="260">
                     <ng-template #headerTemplate>
                         <span class="sort-head">Teams <i class="bi" [ngClass]="sortIcon('teamSortKey')"></i></span>
@@ -122,23 +122,41 @@
                     <ng-template #template let-data>
                         @if (data.totalCount === 0) {
                             <span class="no-teams">—</span>
-                        } @else if (data.totalCount === 1) {
-                            <span class="badge team-chip bg-primary-subtle text-primary-emphasis">
-                                <i class="bi" [ngClass]="data.teams[0].granted ? 'bi-check-circle-fill' : 'bi-star-fill'"></i>
-                                {{ data.teams[0].displayText }}
-                            </span>
                         } @else {
-                            <button type="button" class="badge team-chip bg-primary-subtle text-primary-emphasis"
-                                (click)="openTeams($event, data)">
-                                {{ data.grantedCount }}/{{ data.totalCount }} teams
-                                <i class="bi bi-chevron-down"></i>
-                            </button>
+                            <div class="team-links">
+                                @if (data.requestedTeams.length > 0) {
+                                    <button type="button" class="team-link"
+                                        (mouseenter)="hoverTeams($event, data)"
+                                        (mouseleave)="leaveTeams()"
+                                        (click)="pinTeams($event, data)">
+                                        <span class="team-link-label">Requested</span>
+                                        <span class="team-link-first">{{ data.requestedTeams[0].displayText }}</span>
+                                        @if (data.requestedTeams.length > 1) {
+                                            <span class="team-link-more">+{{ data.requestedTeams.length - 1 }}</span>
+                                        }
+                                    </button>
+                                }
+                                @if (data.assignedTeams.length > 0) {
+                                    <button type="button" class="team-link"
+                                        (mouseenter)="hoverTeams($event, data)"
+                                        (mouseleave)="leaveTeams()"
+                                        (click)="pinTeams($event, data)">
+                                        <span class="team-link-label">Assigned</span>
+                                        <span class="team-link-first">{{ data.assignedTeams[0].displayText }}</span>
+                                        @if (data.assignedTeams.length > 1) {
+                                            <span class="team-link-more">+{{ data.assignedTeams.length - 1 }}</span>
+                                        }
+                                    </button>
+                                } @else {
+                                    <span class="team-none">Not yet assigned</span>
+                                }
+                            </div>
                         }
                     </ng-template>
                 </e-column>
 
                 <!-- Actions -->
-                <e-column headerText="" [width]="280" [allowSorting]="false">
+                <e-column headerText="" [width]="340" [allowSorting]="false">
                     <ng-template #template let-data>
                         <div class="action-cell">
                             @if (busyCoach() === data.registrationId) {
@@ -167,6 +185,15 @@
                                 @if (!canGrantAll(data) && data.status === 'assigned') {
                                     <span class="all-granted"><i class="bi bi-check-circle me-1"></i>All granted</span>
                                 }
+                                @if (data.totalCount === 0) {
+                                    <button type="button" class="btn btn-primary btn-sm" (click)="openAssign($event, data)">
+                                        <i class="bi bi-plus-lg me-1"></i>Assign team
+                                    </button>
+                                } @else {
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" (click)="openAssign($event, data)">
+                                        <i class="bi bi-plus-lg me-1"></i>Add team
+                                    </button>
+                                }
                                 <button type="button" class="btn btn-outline-danger btn-sm" (click)="requestDeny(data)">
                                     <i class="bi bi-x-octagon me-1"></i>Deny
                                 </button>
@@ -179,28 +206,48 @@
     }
 </div>
 
-<!-- Multi-team read-only popup -->
+<!-- Teams popup — grouped Requested / Assigned (hover preview / click-pinned) -->
 @if (teamsRow(); as tr) {
-    <div class="popup-backdrop" (click)="closeTeams()"></div>
-    <div class="teams-popup" [style.top.px]="teamsTop()" [style.left.px]="teamsLeft()">
+    @if (teamsPinned()) {
+        <div class="popup-backdrop" (click)="closeTeams()"></div>
+    }
+    <div class="teams-popup" [style.top.px]="teamsTop()" [style.left.px]="teamsLeft()"
+        (mouseenter)="holdTeams()" (mouseleave)="leaveTeams()">
         <div class="popup-title">{{ tr.playerName }} — teams</div>
-        <ul class="popup-list">
-            @for (team of tr.teams; track team.teamId) {
-                <li [class.is-granted]="team.granted">
-                    @if (team.source === 'self') {
-                        <i class="bi bi-star-fill src-self" title="Coach requested"></i>
-                    } @else {
-                        <i class="bi bi-shield-fill-check src-admin" title="Director added"></i>
-                    }
-                    <span class="popup-team-text">{{ team.displayText }}</span>
-                    @if (team.granted) {
+        @if (tr.requestedTeams.length > 0) {
+            <div class="popup-group">Requested</div>
+            <ul class="popup-list">
+                @for (team of tr.requestedTeams; track team.teamId) {
+                    <li [class.is-granted]="team.granted">
+                        @if (team.granted) {
+                            <i class="bi bi-check-circle-fill granted-flag" title="Granted"></i>
+                        } @else {
+                            <i class="bi bi-star-fill src-self" title="Requested"></i>
+                        }
+                        <span class="popup-team-text">{{ team.displayText }}</span>
+                        @if (team.granted) {
+                            <span class="popup-state granted">granted</span>
+                        } @else {
+                            <span class="ungranted-flag">pending</span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        @if (tr.assignedTeams.length > 0) {
+            <div class="popup-group">Assigned</div>
+            <ul class="popup-list">
+                @for (team of tr.assignedTeams; track team.teamId) {
+                    <li class="is-granted">
                         <i class="bi bi-check-circle-fill granted-flag" title="Granted"></i>
-                    } @else {
-                        <span class="ungranted-flag">not granted</span>
-                    }
-                </li>
-            }
-        </ul>
+                        <span class="popup-team-text">{{ team.displayText }}</span>
+                        @if (team.source !== 'self') {
+                            <span class="ungranted-flag">director-added</span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
     </div>
 }
 
@@ -209,7 +256,8 @@
     @if (priorPinned()) {
         <div class="popup-backdrop" (click)="closePrior()"></div>
     }
-    <div class="teams-popup" [style.top.px]="priorTop()" [style.left.px]="priorLeft()">
+    <div class="teams-popup" [style.top.px]="priorTop()" [style.left.px]="priorLeft()"
+        (mouseenter)="holdPrior()" (mouseleave)="leavePrior()">
         <div class="popup-title">{{ pr.playerName }} — coached before</div>
         <ul class="popup-list">
             @for (a of pr.priorStaff; track $index) {
@@ -247,6 +295,45 @@
         <div class="subset-actions">
             <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeSubset()">Cancel</button>
             <button type="button" class="btn btn-primary btn-sm" (click)="applySubset()">Apply</button>
+        </div>
+    </div>
+}
+
+<!-- Assign-team picker -->
+@if (assignRow(); as ar) {
+    <div class="popup-backdrop" (click)="closeAssign()"></div>
+    <div class="subset-popup assign-popup" [style.top.px]="assignTop()" [style.left.px]="assignLeft()">
+        <div class="popup-title">Assign {{ ar.playerName }} to teams</div>
+        <div class="assign-search">
+            <i class="bi bi-search"></i>
+            <input type="search" placeholder="Search teams…"
+                [value]="assignSearch()" (input)="assignSearch.set($any($event.target).value)" />
+        </div>
+        @if (assignGroups().length === 0) {
+            <div class="assign-empty">No matching teams.</div>
+        } @else {
+            <div class="assign-scroll">
+                @for (g of assignGroups(); track g.name) {
+                    <div class="popup-group">{{ g.name }}</div>
+                    <ul class="assign-list">
+                        @for (t of g.teams; track t.poolId) {
+                            <li>
+                                <label class="subset-item">
+                                    <input type="checkbox" [checked]="isAssignChecked(t.poolId)"
+                                        (change)="toggleAssign(t.poolId)" />
+                                    <span class="popup-team-text">{{ t.poolName }}</span>
+                                </label>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+        <div class="subset-actions">
+            <span class="assign-count">{{ assignChecked().size }} selected</span>
+            <button type="button" class="btn btn-outline-secondary btn-sm" (click)="closeAssign()">Cancel</button>
+            <button type="button" class="btn btn-primary btn-sm"
+                [disabled]="assignChecked().size === 0" (click)="applyAssign()">Assign</button>
         </div>
     </div>
 }

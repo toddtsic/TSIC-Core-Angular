@@ -6,7 +6,8 @@ import { ToastService } from '@shared-ui/toast.service';
 import { InfoTooltipComponent } from '@shared-ui/components/info-tooltip.component';
 import {
     RosterSwapperService,
-    UnassignedAdultQueueRowDto
+    UnassignedAdultQueueRowDto,
+    SwapperPoolOptionDto
 } from '../services/roster-swapper.service';
 import { PriorStaffAssignmentDto } from '@core/api';
 
@@ -42,7 +43,10 @@ interface QueueRow {
     /** Semantic sort rank for status: Unassigned(0) → Partial(1) → Assigned(2). */
     statusOrder: number;
     teams: DisplayTeam[];
-    grantedCount: number;
+    /** Coach's asks (source ★self), sorted — each carries its live granted/pending state. */
+    requestedTeams: DisplayTeam[];
+    /** Teams the coach currently holds (granted, any source), sorted. */
+    assignedTeams: DisplayTeam[];
     totalCount: number;
     /** First team's label (lowercased) — the sort key for the Teams column. */
     teamSortKey: string;
@@ -100,10 +104,42 @@ export class CoachApprovalQueueComponent implements OnInit {
     readonly subsetTop = signal(0);
     readonly subsetLeft = signal(0);
 
-    // ── Multi-team read-only popup (the "N teams ▾" dropdown) ──
+    // ── Assign-team picker (for no-request coaches, or adding a team beyond requests) ──
+    /** Job's teams (pool list, minus the Unassigned pool) — the picker source. */
+    readonly pools = signal<SwapperPoolOptionDto[]>([]);
+    readonly assignRow = signal<QueueRow | null>(null);
+    readonly assignChecked = signal<ReadonlySet<string>>(new Set());
+    readonly assignSearch = signal('');
+    readonly assignTop = signal(0);
+    readonly assignLeft = signal(0);
+
+    /** Pickable teams for the open assign popup: active teams the coach doesn't already hold,
+     *  filtered by the search box and grouped by agegroup. (Roster max is a player limit, not a
+     *  coach one, so capacity is intentionally not shown or enforced here.) */
+    readonly assignGroups = computed<{ name: string; teams: SwapperPoolOptionDto[] }[]>(() => {
+        const row = this.assignRow();
+        if (!row) return [];
+        const held = new Set(row.teams.map(t => t.teamId));
+        const q = this.assignSearch().trim().toLowerCase();
+        const opts = this.pools().filter(p =>
+            !p.isUnassignedAdultsPool && p.active && !held.has(p.poolId)
+            && (!q || p.poolName.toLowerCase().includes(q)));
+        const groups = new Map<string, SwapperPoolOptionDto[]>();
+        for (const p of opts) {
+            const key = p.agegroupName ?? 'Other';
+            const list = groups.get(key);
+            if (list) list.push(p); else groups.set(key, [p]);
+        }
+        return [...groups.entries()]
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([name, teams]) => ({ name, teams: teams.sort((x, y) => x.poolName.localeCompare(y.poolName)) }));
+    });
+
+    // ── Teams popover (grouped Requested / Assigned; hover preview + click/tap pin) ──
     readonly teamsRow = signal<QueueRow | null>(null);
     readonly teamsTop = signal(0);
     readonly teamsLeft = signal(0);
+    readonly teamsPinned = signal(false);
 
     // ── "Coached before" prior-assignments popup ──
     readonly priorRow = signal<QueueRow | null>(null);
@@ -154,8 +190,19 @@ export class CoachApprovalQueueComponent implements OnInit {
         this.load();
     }
 
+    /** Load the job's teams once for the Assign picker (refreshed on explicit Refresh too). */
+    private loadPools(): void {
+        this.swapperService.getPoolOptions().subscribe({
+            next: pools => this.pools.set(pools),
+            error: () => { /* picker simply shows no teams; non-fatal */ }
+        });
+    }
+
     load(silent = false): void {
-        if (!silent) this.isLoading.set(true);
+        if (!silent) {
+            this.isLoading.set(true);
+            this.loadPools();
+        }
         this.swapperService.getUnassignedQueue().subscribe({
             next: rows => {
                 this.queue.set(rows);
@@ -216,7 +263,10 @@ export class CoachApprovalQueueComponent implements OnInit {
             staffRegistrationId: staffByTeam.get(t.teamId),
         }));
 
+        const byLabel = (a: DisplayTeam, b: DisplayTeam) => a.displayText.localeCompare(b.displayText);
         const selfAsks = teams.filter(t => t.source === 'self');
+        const requestedTeams = [...selfAsks].sort(byLabel);
+        const assignedTeams = teams.filter(t => t.granted).sort(byLabel);
         const grantedOfRequested = selfAsks.filter(t => t.granted).length;
         let status: CoachStatus;
         if (selfAsks.length > 0) {
@@ -243,9 +293,11 @@ export class CoachApprovalQueueComponent implements OnInit {
             status,
             statusOrder: status === 'unassigned' ? 0 : status === 'partial' ? 1 : 2,
             teams,
-            grantedCount: teams.filter(t => t.granted).length,
+            requestedTeams,
+            assignedTeams,
             totalCount: teams.length,
-            teamSortKey: (teams[0]?.displayText ?? '').toLowerCase(),
+            // Sort the Teams column by the first label the cell shows (assigned first, else requested).
+            teamSortKey: (assignedTeams[0]?.displayText ?? requestedTeams[0]?.displayText ?? '').toLowerCase(),
             ungrantedRequestIds: selfAsks.filter(t => !t.granted).map(t => t.teamId),
         };
     }
@@ -302,38 +354,89 @@ export class CoachApprovalQueueComponent implements OnInit {
         });
     }
 
-    // ── Multi-team read-only popup ──
+    /**
+     * Grace timer for hover popovers: leaving the trigger schedules a close, but moving the
+     * cursor INTO the popover (to scroll/read it) cancels that close — so the popover doesn't
+     * vanish across the gap between trigger and panel.
+     */
+    private hoverCloseTimer: ReturnType<typeof setTimeout> | null = null;
+    private cancelHoverClose(): void {
+        if (this.hoverCloseTimer !== null) { clearTimeout(this.hoverCloseTimer); this.hoverCloseTimer = null; }
+    }
+    private scheduleHoverClose(close: () => void): void {
+        this.cancelHoverClose();
+        this.hoverCloseTimer = setTimeout(() => { this.hoverCloseTimer = null; close(); }, 180);
+    }
 
-    openTeams(event: MouseEvent, row: QueueRow): void {
-        event.stopPropagation();
-        const btn = event.currentTarget as HTMLElement;
-        const rect = btn.getBoundingClientRect();
-        this.teamsTop.set(rect.bottom + 4);
-        this.teamsLeft.set(Math.max(8, rect.left));
+    // ── Teams popover (grouped Requested / Assigned; hover preview + click/tap pin) ──
+
+    /** Hover-open a preview (does nothing if a pinned popup is already showing). */
+    hoverTeams(event: MouseEvent, row: QueueRow): void {
+        this.cancelHoverClose();
+        if (this.teamsPinned()) return;
+        this.positionTeams(event);
         this.teamsRow.set(row);
     }
 
+    /** Mouse left the trigger (or the panel) — close after a grace delay unless pinned. */
+    leaveTeams(): void {
+        if (!this.teamsPinned()) this.scheduleHoverClose(() => this.closeTeams());
+    }
+
+    /** Cursor entered the panel — keep it open so it can be scrolled/read. */
+    holdTeams(): void {
+        this.cancelHoverClose();
+    }
+
+    /** Click/tap pins the popup open (backdrop appears); a second click toggles it closed. */
+    pinTeams(event: MouseEvent, row: QueueRow): void {
+        event.stopPropagation();
+        this.cancelHoverClose();
+        if (this.teamsPinned() && this.teamsRow() === row) {
+            this.closeTeams();
+            return;
+        }
+        this.positionTeams(event);
+        this.teamsRow.set(row);
+        this.teamsPinned.set(true);
+    }
+
     closeTeams(): void {
+        this.cancelHoverClose();
         this.teamsRow.set(null);
+        this.teamsPinned.set(false);
+    }
+
+    private positionTeams(event: MouseEvent): void {
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        this.teamsTop.set(rect.bottom + 4);
+        this.teamsLeft.set(Math.max(8, rect.left));
     }
 
     // ── "Coached before" prior-assignments popup (hover preview + click/tap pin) ──
 
     /** Hover-open a preview (does nothing if a pinned popup is already showing). */
     hoverPrior(event: MouseEvent, row: QueueRow): void {
+        this.cancelHoverClose();
         if (this.priorPinned()) return;
         this.positionPrior(event);
         this.priorRow.set(row);
     }
 
-    /** Mouse left the trigger — close the hover preview, but leave a pinned popup open. */
+    /** Mouse left the trigger (or the panel) — close after a grace delay unless pinned. */
     leavePrior(): void {
-        if (!this.priorPinned()) this.priorRow.set(null);
+        if (!this.priorPinned()) this.scheduleHoverClose(() => this.closePrior());
+    }
+
+    /** Cursor entered the panel — keep it open so it can be scrolled/read. */
+    holdPrior(): void {
+        this.cancelHoverClose();
     }
 
     /** Click/tap pins the popup open (backdrop appears); a second click toggles it closed. */
     pinPrior(event: MouseEvent, row: QueueRow): void {
         event.stopPropagation();
+        this.cancelHoverClose();
         if (this.priorPinned() && this.priorRow() === row) {
             this.closePrior();
             return;
@@ -344,6 +447,7 @@ export class CoachApprovalQueueComponent implements OnInit {
     }
 
     closePrior(): void {
+        this.cancelHoverClose();
         this.priorRow.set(null);
         this.priorPinned.set(false);
     }
@@ -445,6 +549,55 @@ export class CoachApprovalQueueComponent implements OnInit {
             },
             error: err => {
                 this.toast.show(err?.error?.message || 'Could not update — refreshing.', 'danger', 4000);
+                this.busyCoach.set(null);
+                this.load(true);
+            }
+        });
+    }
+
+    // ── Assign-team picker ──
+
+    openAssign(event: MouseEvent, row: QueueRow): void {
+        event.stopPropagation();
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        this.assignTop.set(rect.bottom + 4);
+        this.assignLeft.set(Math.max(8, rect.right - 320));
+        this.assignChecked.set(new Set());
+        this.assignSearch.set('');
+        this.assignRow.set(row);
+    }
+
+    closeAssign(): void {
+        this.assignRow.set(null);
+    }
+
+    toggleAssign(teamId: string): void {
+        const next = new Set(this.assignChecked());
+        next.has(teamId) ? next.delete(teamId) : next.add(teamId);
+        this.assignChecked.set(next);
+    }
+
+    isAssignChecked(teamId: string): boolean {
+        return this.assignChecked().has(teamId);
+    }
+
+    /** Grant the coach each checked team (director-added, source=admin via the same FLOW 2). */
+    applyAssign(): void {
+        const row = this.assignRow();
+        if (!row) return;
+        const ids = [...this.assignChecked()];
+        this.closeAssign();
+        if (ids.length === 0) return;
+
+        this.busyCoach.set(row.registrationId);
+        forkJoin(ids.map(id => this.swapperService.approveRequest(row.registrationId, id))).subscribe({
+            next: () => {
+                this.toast.show(`${row.playerName} assigned to ${ids.length} team(s).`, 'success', 3000);
+                this.busyCoach.set(null);
+                this.load(true);
+            },
+            error: err => {
+                this.toast.show(err?.error?.message || 'Could not assign — refreshing.', 'danger', 4000);
                 this.busyCoach.set(null);
                 this.load(true);
             }
