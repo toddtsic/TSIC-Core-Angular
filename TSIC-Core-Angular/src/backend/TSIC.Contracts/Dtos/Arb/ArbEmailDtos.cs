@@ -11,13 +11,6 @@ public record ArbSendEmailsRequest
     public bool NotifyDirectors { get; init; }
 }
 
-public record ArbEmailResultDto
-{
-    public required int EmailsSent { get; init; }
-    public required int EmailsFailed { get; init; }
-    public List<string> FailedAddresses { get; init; } = [];
-}
-
 public record ArbSubstitutionVariableDto
 {
     public required string Token { get; init; }

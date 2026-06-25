@@ -29,6 +29,9 @@ public record ArbRegistrationProjection
     public required string JobName { get; init; }
     public required string JobPath { get; init; }
     public Guid JobId { get; init; }
+
+    /// <summary>Unsubscribe flag — the engine suppresses opted-out registrants uniformly.</summary>
+    public bool BemailOptOut { get; init; }
 }
 
 /// <summary>

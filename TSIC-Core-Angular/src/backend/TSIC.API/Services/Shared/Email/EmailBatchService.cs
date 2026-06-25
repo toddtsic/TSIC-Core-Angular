@@ -54,15 +54,20 @@ public sealed class EmailBatchService : IEmailBatchService
             seed = await plan.SeedAsync(seedScope.ServiceProvider, cancellationToken);
         }
 
-        _registry.Create(batchJobId, seed.Items.Count, seed.OptedOutCount);
+        // Opt-out is enforced HERE, uniformly for every path (no plan can skip it): partition the
+        // candidate set into sendable vs opted-out and tally the latter for the summary.
+        var sendable = seed.Items.Where(i => !plan.IsOptedOut(i)).ToList();
+        var optedOutCount = seed.Items.Count - sendable.Count;
+
+        _registry.Create(batchJobId, sendable.Count, optedOutCount);
 
         // Create the incremental audit row (Count starts at 0).
         var emailId = await CreateAuditRowAsync(plan.Audit, cancellationToken);
 
         // Run the pipeline in the background under the APP token (never the request token).
-        _ = Task.Run(() => RunPipelineAsync(batchJobId, emailId, plan, seed.Items, options, _appLifetime.ApplicationStopping));
+        _ = Task.Run(() => RunPipelineAsync(batchJobId, emailId, plan, sendable, options, _appLifetime.ApplicationStopping));
 
-        return new EmailBatchHandle { JobId = batchJobId, TotalRecipients = seed.Items.Count };
+        return new EmailBatchHandle { JobId = batchJobId, TotalRecipients = sendable.Count };
     }
 
     public async Task<EmailBatchSummaryResult> EmailSummaryAsync(
@@ -178,6 +183,27 @@ public sealed class EmailBatchService : IEmailBatchService
         {
             _registry.Complete(batchJobId);
             await FlushAuditAsync(emailId, batchJobId, sentAddresses, CancellationToken.None);
+            await RunCompletionHookAsync(plan, batchJobId, CancellationToken.None);
+        }
+    }
+
+    /// <summary>
+    /// Runs the plan's optional post-batch hook once, on a fresh scope, with the final status.
+    /// Isolated + swallowing: a hook failure (e.g. a director-notify send) must never fault the batch.
+    /// </summary>
+    private async Task RunCompletionHookAsync<TItem>(EmailBatchPlan<TItem> plan, Guid batchJobId, CancellationToken ct)
+    {
+        if (plan.OnCompleteAsync is null) return;
+        var status = _registry.Get(batchJobId);
+        if (status is null) return;
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            await plan.OnCompleteAsync(status, scope.ServiceProvider, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Completion hook failed for job {BatchJobId}", batchJobId);
         }
     }
 
@@ -207,6 +233,7 @@ public sealed class EmailBatchService : IEmailBatchService
                 }
                 else
                 {
+                    AppendUnsubscribeFooter(rendered); // engine owns the universal footer — every path inherits it
                     await sink.WriteAsync((rendered.Message, item), ct);
                 }
             }
@@ -216,6 +243,25 @@ public sealed class EmailBatchService : IEmailBatchService
                 _registry.RecordResult(batchJobId, false, new[] { plan.DescribeItem(item) });
             }
         }
+    }
+
+    private const string UnsubscribeUrlBase = "https://www.teamsportsinfo.com/api/email/unsubscribe?regId=";
+
+    /// <summary>
+    /// Appends the canonical unsubscribe footer to the rendered body when the plan supplied a regId.
+    /// Single source of the footer markup, so EVERY batch path is suppressible identically (per the
+    /// "uniform, all suppressible" rule) — no path hand-rolls or omits it.
+    /// </summary>
+    private static void AppendUnsubscribeFooter(EmailBatchRendered rendered)
+    {
+        if (rendered.UnsubscribeRegId is not Guid regId) return;
+        var url = $"{UnsubscribeUrlBase}{regId:D}";
+        rendered.Message.HtmlBody += $"""
+            <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e0e0e0; text-align:center; font-size:12px; color:#999;">
+                <a href="{url}" style="color:#999; text-decoration:underline;">Unsubscribe</a>
+                from emails for this event
+            </div>
+            """;
     }
 
     private async Task SendWorkerAsync<TItem>(

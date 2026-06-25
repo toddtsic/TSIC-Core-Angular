@@ -59,15 +59,23 @@ public sealed record EmailBatchHandle
 public sealed class EmailBatchPlan<TItem>
 {
     /// <summary>
-    /// Resolves the batch up front on the runner's scope: the full item list to process plus the
-    /// count of recipients excluded by opt-out (for the summary). Runs once, before fan-out.
+    /// Resolves the batch up front on the runner's scope: ALL candidate items (the engine applies
+    /// <see cref="IsOptedOut"/> itself, so the seed does NOT pre-filter opt-out). Runs once, before fan-out.
     /// </summary>
     public required Func<IServiceProvider, CancellationToken, Task<EmailBatchSeed<TItem>>> SeedAsync { get; init; }
+
+    /// <summary>
+    /// Per-item opt-out test, applied by the ENGINE at seed time — uniform across every batch path.
+    /// Items for which this returns true are skipped (never rendered/sent) and tallied as opted-out.
+    /// Centralizing it here means no path can forget to honor unsubscribe (<c>BemailOptOut</c>).
+    /// </summary>
+    public required Func<TItem, bool> IsOptedOut { get; init; }
 
     /// <summary>
     /// Per-item, executed on a RENDER WORKER'S OWN DI SCOPE (its own DbContext + repo graph):
     /// resolve all recipient addresses, strip invalid/sentinel, and render subject+body.
     /// Return null when the item has no usable address (engine tallies it as failed-no-email).
+    /// The engine appends the unsubscribe footer afterward from <see cref="EmailBatchRendered.UnsubscribeRegId"/>.
     /// </summary>
     public required Func<TItem, IServiceProvider, CancellationToken, Task<EmailBatchRendered?>> RenderAsync { get; init; }
 
@@ -76,19 +84,33 @@ public sealed class EmailBatchPlan<TItem>
 
     /// <summary>Audit + summary metadata for the one <c>EmailLogs</c> row this batch writes.</summary>
     public required EmailBatchAudit Audit { get; init; }
+
+    /// <summary>
+    /// OPTIONAL post-batch hook the engine invokes ONCE after the pipeline drains, on a FRESH DI scope,
+    /// with the final <see cref="EmailBatchJobStatus"/>. For path-specific completion side-effects
+    /// (e.g. a sender summary, director notifications). Capture only plain data in the closure — resolve
+    /// services from the supplied provider, never from the (by-then disposed) request scope. Null = none.
+    /// Failures are logged, never thrown (they must not fault the batch).
+    /// </summary>
+    public Func<EmailBatchJobStatus, IServiceProvider, CancellationToken, Task>? OnCompleteAsync { get; init; }
 }
 
-/// <summary>Result of <see cref="EmailBatchPlan{TItem}.SeedAsync"/>.</summary>
+/// <summary>Result of <see cref="EmailBatchPlan{TItem}.SeedAsync"/>: ALL candidate items (engine applies opt-out).</summary>
 public sealed record EmailBatchSeed<TItem>
 {
     public required IReadOnlyList<TItem> Items { get; init; }
-    public required int OptedOutCount { get; init; }
 }
 
 /// <summary>A fully-rendered, ready-to-send message — plain strings, no DbContext dependency.</summary>
 public sealed record EmailBatchRendered
 {
     public required EmailMessageDto Message { get; init; }
+
+    /// <summary>
+    /// Registration whose public unsubscribe link the engine appends as the standard footer, so
+    /// every batch email is suppressible identically. Null = no footer (path has no per-recipient regId).
+    /// </summary>
+    public Guid? UnsubscribeRegId { get; init; }
 }
 
 /// <summary>Metadata for the incremental <c>EmailLogs</c> audit row.</summary>

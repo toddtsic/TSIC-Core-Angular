@@ -27,5 +27,6 @@ export type ArbFlaggedRegistrantDto = {
     paymentProgress?: string | null;
     jobName: string;
     jobPath: string;
+    bemailOptOut?: boolean;
 };
 

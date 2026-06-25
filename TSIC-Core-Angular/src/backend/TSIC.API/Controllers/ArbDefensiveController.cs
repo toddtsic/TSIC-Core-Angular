@@ -14,11 +14,16 @@ public class ArbDefensiveController : ControllerBase
 {
     private readonly IArbDefensiveService _service;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IEmailBatchJobRegistry _batchJobs;
 
-    public ArbDefensiveController(IArbDefensiveService service, IJobLookupService jobLookupService)
+    public ArbDefensiveController(
+        IArbDefensiveService service,
+        IJobLookupService jobLookupService,
+        IEmailBatchJobRegistry batchJobs)
     {
         _service = service;
         _jobLookupService = jobLookupService;
+        _batchJobs = batchJobs;
     }
 
     /// <summary>
@@ -61,11 +66,12 @@ public class ArbDefensiveController : ControllerBase
     }
 
     /// <summary>
-    /// Sends batch defensive emails to selected registrants.
+    /// Starts a background batch of defensive emails to selected registrants and returns a job handle.
+    /// Poll <c>send-emails/{batchJobId}/status</c> for progress + final summary.
     /// </summary>
     [HttpPost("send-emails")]
     [Authorize(Policy = "AdminOnly")]
-    public async Task<ActionResult<ArbEmailResultDto>> SendEmails(
+    public async Task<ActionResult<EmailBatchHandle>> SendEmails(
         [FromBody] ArbSendEmailsRequest request,
         CancellationToken ct)
     {
@@ -77,8 +83,17 @@ public class ArbDefensiveController : ControllerBase
 
         // Override from JWT claims — frontend doesn't need to supply these
         var enriched = request with { JobId = jobId.Value, SenderUserId = userId };
-        var result = await _service.SendDefensiveEmailsAsync(enriched, ct);
-        return Ok(result);
+        var handle = await _service.StartDefensiveEmailsAsync(enriched, ct);
+        return Ok(handle);
+    }
+
+    /// <summary>Progress / final summary for a background ARB defensive batch (404 if unknown/expired).</summary>
+    [HttpGet("send-emails/{batchJobId:guid}/status")]
+    [Authorize(Policy = "AdminOnly")]
+    public ActionResult<EmailBatchJobStatus> GetSendStatus(Guid batchJobId)
+    {
+        var status = _batchJobs.Get(batchJobId);
+        return status is null ? NotFound() : Ok(status);
     }
 
     /// <summary>

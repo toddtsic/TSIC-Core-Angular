@@ -59,7 +59,6 @@ export type { ApplyLeaguePhaseResponse } from './models/ApplyLeaguePhaseResponse
 export type { ApplyTeamDiscountRequestDto } from './models/ApplyTeamDiscountRequestDto';
 export type { ApplyTeamDiscountResponseDto } from './models/ApplyTeamDiscountResponseDto';
 export type { ApproveTeamRequestDto } from './models/ApproveTeamRequestDto';
-export type { ArbEmailResultDto } from './models/ArbEmailResultDto';
 export type { ArbFlaggedRegistrantDto } from './models/ArbFlaggedRegistrantDto';
 export type { ArbFlagType } from './models/ArbFlagType';
 export type { ArbSendEmailsRequest } from './models/ArbSendEmailsRequest';

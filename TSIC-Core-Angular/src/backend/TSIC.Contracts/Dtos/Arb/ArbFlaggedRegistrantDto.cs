@@ -37,4 +37,7 @@ public record ArbFlaggedRegistrantDto
     // Job context
     public required string JobName { get; init; }
     public required string JobPath { get; init; }
+
+    /// <summary>Unsubscribe flag — opted-out registrants are suppressed by the batch engine.</summary>
+    public bool BemailOptOut { get; init; }
 }

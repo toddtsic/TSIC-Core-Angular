@@ -227,12 +227,12 @@ export class ArbHealthComponent {
             notifyDirectors: this.notifyDirectors()
         };
 
-        this.arbService.sendEmails(request).subscribe({
-            next: result => {
+        this.arbService.sendEmailsAndAwait(request).subscribe({
+            next: status => {
                 this.sendResult.set({
-                    sent: result.emailsSent ?? 0,
-                    failed: result.emailsFailed ?? 0,
-                    failedAddresses: result.failedAddresses ?? []
+                    sent: status.sent ?? 0,
+                    failed: status.failed ?? 0,
+                    failedAddresses: status.failedAddresses ?? []
                 });
                 this.isSending.set(false);
             },
@@ -263,12 +263,12 @@ export class ArbHealthComponent {
             notifyDirectors: true
         };
 
-        this.arbService.sendEmails(request).subscribe({
-            next: result => {
+        this.arbService.sendEmailsAndAwait(request).subscribe({
+            next: status => {
                 this.sendResult.set({
-                    sent: result.emailsSent ?? 0,
-                    failed: result.emailsFailed ?? 0,
-                    failedAddresses: result.failedAddresses ?? []
+                    sent: status.sent ?? 0,
+                    failed: status.failed ?? 0,
+                    failedAddresses: status.failedAddresses ?? []
                 });
                 this.isSending.set(false);
             },

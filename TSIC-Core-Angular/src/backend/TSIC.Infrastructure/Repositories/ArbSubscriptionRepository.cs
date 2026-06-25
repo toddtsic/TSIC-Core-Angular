@@ -55,7 +55,8 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 OwedTotal = r.OwedTotal,
                 JobName = r.Job!.DisplayName ?? r.Job.JobName ?? "",
                 JobPath = r.Job.JobPath ?? "",
-                JobId = r.JobId
+                JobId = r.JobId,
+                BemailOptOut = r.BemailOptOut
             })
             .ToListAsync(ct);
     }
@@ -107,7 +108,8 @@ public class ArbSubscriptionRepository : IArbSubscriptionRepository
                 OwedTotal = r.OwedTotal,
                 JobName = r.Job!.DisplayName ?? r.Job.JobName ?? "",
                 JobPath = r.Job.JobPath ?? "",
-                JobId = r.JobId
+                JobId = r.JobId,
+                BemailOptOut = r.BemailOptOut
             })
             .ToListAsync(ct);
     }

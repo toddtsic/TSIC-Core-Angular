@@ -831,9 +831,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         {
             SeedAsync = (_, _) => Task.FromResult(new EmailBatchSeed<BatchEmailItem>
             {
-                Items = allItems.Where(i => !i.OptedOut).ToList(),
-                OptedOutCount = allItems.Count(i => i.OptedOut)
+                Items = allItems // engine applies opt-out via IsOptedOut below
             }),
+            IsOptedOut = i => i.OptedOut,
             DescribeItem = i => $"(no email for RegistrationAi #{i.RegistrationAi})",
             Audit = new EmailBatchAudit
             {
@@ -859,14 +859,6 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                     jobPath, jobId, CcPaymentMethodId, item.RegistrationId, renderFamilyUserId, subject, body,
                     inviteTargetJobPath, jobFields: jobFields);
 
-                var unsubscribeUrl = $"https://www.teamsportsinfo.com/api/email/unsubscribe?regId={item.RegistrationId:D}";
-                renderedBody += $"""
-                    <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e0e0e0; text-align:center; font-size:12px; color:#999;">
-                        <a href="{unsubscribeUrl}" style="color:#999; text-decoration:underline;">Unsubscribe</a>
-                        from emails for this event
-                    </div>
-                    """;
-
                 return new EmailBatchRendered
                 {
                     Message = new EmailMessageDto
@@ -875,7 +867,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                         Subject = renderedSubject,
                         HtmlBody = renderedBody,
                         ToAddresses = toAddresses
-                    }
+                    },
+                    UnsubscribeRegId = item.RegistrationId // engine appends the standard footer
                 };
             }
         };

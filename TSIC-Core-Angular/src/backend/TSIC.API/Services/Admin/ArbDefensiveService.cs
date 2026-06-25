@@ -1,5 +1,7 @@
 using AuthorizeNet.Api.Contracts.V1;
+using Microsoft.Extensions.DependencyInjection;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Services.Shared.Email;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Arb;
 using TSIC.Contracts.Repositories;
@@ -14,24 +16,21 @@ public class ArbDefensiveService : IArbDefensiveService
 
     private readonly IArbSubscriptionRepository _arbRepo;
     private readonly IRegistrationAccountingRepository _accountingRepo;
-    private readonly IEmailLogRepository _emailLogRepo;
     private readonly IAdnApiService _adnApi;
-    private readonly IEmailService _emailService;
+    private readonly IEmailBatchService _emailBatch;
     private readonly ILogger<ArbDefensiveService> _logger;
 
     public ArbDefensiveService(
         IArbSubscriptionRepository arbRepo,
         IRegistrationAccountingRepository accountingRepo,
-        IEmailLogRepository emailLogRepo,
         IAdnApiService adnApi,
-        IEmailService emailService,
+        IEmailBatchService emailBatch,
         ILogger<ArbDefensiveService> logger)
     {
         _arbRepo = arbRepo;
         _accountingRepo = accountingRepo;
-        _emailLogRepo = emailLogRepo;
         _adnApi = adnApi;
-        _emailService = emailService;
+        _emailBatch = emailBatch;
         _logger = logger;
     }
 
@@ -172,108 +171,122 @@ public class ArbDefensiveService : IArbDefensiveService
 
     // ── SendDefensiveEmailsAsync ────────────────────────────────────────
 
-    public async Task<ArbEmailResultDto> SendDefensiveEmailsAsync(
+    public async Task<EmailBatchHandle> StartDefensiveEmailsAsync(
         ArbSendEmailsRequest request, CancellationToken ct = default)
     {
         var senderInfo = await _arbRepo.GetSenderInfoAsync(request.SenderUserId, ct);
-        if (senderInfo == null)
-            return new ArbEmailResultDto { EmailsSent = 0, EmailsFailed = 0 };
 
-        // Load the flagged registrations to get contact info for token replacement
-        var allFlagged = await GetFlaggedSubscriptionsAsync(
-            request.JobId, request.FlagType, ct);
-
+        // Load flagged registrations + narrow to the selected subset. The ADN calls happen HERE,
+        // before fan-out — same up-front cost the synchronous version paid, then sends go background.
+        var allFlagged = await GetFlaggedSubscriptionsAsync(request.JobId, request.FlagType, ct);
         var selectedIds = request.RegistrationIds.ToHashSet();
         var selected = allFlagged.Where(r => selectedIds.Contains(r.RegistrationId)).ToList();
 
-        if (selected.Count == 0)
-            return new ArbEmailResultDto { EmailsSent = 0, EmailsFailed = 0 };
+        // Capture ONLY plain data for the engine closures — this request scope (and its DbContext /
+        // _arbRepo) is disposed the instant we return the handle. The completion hook resolves every
+        // service it needs from the fresh scope the engine hands it.
+        var senderName = senderInfo?.DisplayName ?? "TEAMSPORTSINFO.COM";
+        var senderEmail = senderInfo?.Email;
+        var subject = request.EmailSubject;
+        var bodyTemplate = request.EmailBody;
+        var flagType = request.FlagType;
+        var jobId = request.JobId;
+        var notifyDirectors = request.NotifyDirectors;
+        // Names of those actually emailable (post opt-out) for the director-notify list.
+        var notifiedNames = selected.Where(r => !r.BemailOptOut).Select(r => r.RegistrantName).ToList();
 
-        // Build one EmailMessageDto per registrant
-        var messages = selected
-            .Select(reg =>
+        var plan = new EmailBatchPlan<ArbFlaggedRegistrantDto>
+        {
+            SeedAsync = (_, _) => Task.FromResult(new EmailBatchSeed<ArbFlaggedRegistrantDto> { Items = selected }),
+            IsOptedOut = r => r.BemailOptOut,
+            DescribeItem = r => $"(no email for {r.RegistrantName})",
+            RenderAsync = (reg, _, _) =>
             {
-                var toAddresses = CollectValidEmails(reg.MomEmail, reg.DadEmail, reg.RegistrantEmail);
-                if (toAddresses.Count == 0) return null;
+                // Shared recipient rule (drops blanks, the not@given.com sentinel, dupes) — same as
+                // every other batch path now, replacing ARB's bespoke validator.
+                var toAddresses = BatchEmailRecipientFilter.BuildSendableSet(
+                    new[] { reg.MomEmail, reg.DadEmail, reg.RegistrantEmail });
+                if (toAddresses.Count == 0) return Task.FromResult<EmailBatchRendered?>(null);
 
-                return new EmailMessageDto
+                return Task.FromResult<EmailBatchRendered?>(new EmailBatchRendered
                 {
-                    FromName = senderInfo.Value.DisplayName,
-                    FromAddress = senderInfo.Value.Email,
-                    ToAddresses = toAddresses,
-                    Subject = request.EmailSubject,
-                    HtmlBody = ReplaceArbTokens(request.EmailBody, reg)
-                };
-            })
-            .Where(m => m != null)
-            .Cast<EmailMessageDto>()
-            .ToList();
-
-        var batchResult = await _emailService.SendBatchAsync(messages, ct);
-
-        // Log the batch
-        var distinctSent = batchResult.AllAddresses.Except(batchResult.FailedAddresses).Distinct().ToList();
-        await _emailLogRepo.LogAsync(new EmailLogs
-        {
-            JobId = request.JobId,
-            Count = distinctSent.Count,
-            Msg = request.EmailBody,
-            SendFrom = senderInfo.Value.Email,
-            SendTo = string.Join(";", batchResult.AllAddresses.Distinct()),
-            Subject = request.EmailSubject,
-            SenderUserId = request.SenderUserId,
-            SendTs = DateTime.Now
-        }, ct);
-
-        // Confirmation email to sender
-        var confirmBody = $@"Batch Email Successful
-            <br /><strong>Type:</strong> ARB Defensive ({request.FlagType})
-            <br /><strong>#Emails Attempted:</strong> {batchResult.AllAddresses.Distinct().Count()}
-            <br /><strong>#Emails Sent:</strong> {distinctSent.Count}
-            <br /><strong>Failed:</strong> {string.Join(";", batchResult.FailedAddresses.Distinct())}
-            <hr />{request.EmailSubject}";
-
-        await _emailService.SendAsync(new EmailMessageDto
-        {
-            FromName = "TEAMSPORTSINFO.COM",
-            FromAddress = senderInfo.Value.Email,
-            ToAddresses = [senderInfo.Value.Email],
-            Subject = $"ARB Defensive Email Batch Complete — {distinctSent.Count} sent",
-            HtmlBody = confirmBody
-        }, cancellationToken: ct);
-
-        // Director notification
-        if (request.NotifyDirectors)
-        {
-            var directors = await _arbRepo.GetDirectorsForJobsAsync([request.JobId], ct);
-
-            foreach (var director in directors)
+                    Message = new EmailMessageDto
+                    {
+                        FromName = senderName,
+                        FromAddress = senderEmail,
+                        ToAddresses = toAddresses,
+                        Subject = subject,
+                        HtmlBody = ReplaceArbTokens(bodyTemplate, reg)
+                    },
+                    UnsubscribeRegId = reg.RegistrationId // engine appends the unsubscribe footer
+                });
+            },
+            Audit = new EmailBatchAudit
             {
-                if (string.IsNullOrEmpty(director.Email)) continue;
+                JobId = jobId,
+                SenderUserId = request.SenderUserId,
+                Subject = subject,
+                BodyTemplate = bodyTemplate,
+                SendFrom = senderEmail
+            },
+            // Path-specific completion side-effects (sender summary + optional director-notify), now
+            // fired by the engine when the background batch drains. Resolves services from the scope.
+            OnCompleteAsync = async (status, sp, token) =>
+            {
+                var email = sp.GetRequiredService<IEmailService>();
 
-                var names = selected.Select(r => $"<li>{r.RegistrantName}</li>");
-                var dirBody = $@"<h2>ARB Defensive Emails Sent ({request.FlagType})</h2>
-                    <p>{selected.Count} registrant(s) were notified.</p>
-                    <h3>Registrants:</h3><ul>{string.Join("", names)}</ul>
-                    <p>No action required from you at this time.</p>";
-
-                await _emailService.SendAsync(new EmailMessageDto
+                // Sender completion summary (automatic for ARB — unlike Search Reg's opt-in summary).
+                if (!string.IsNullOrWhiteSpace(senderEmail))
                 {
-                    FromName = senderInfo.Value.DisplayName,
-                    FromAddress = senderInfo.Value.Email,
-                    ToAddresses = [director.Email],
-                    Subject = $"ARB {request.FlagType} Notifications Sent",
-                    HtmlBody = dirBody
-                }, cancellationToken: ct);
+                    var confirmBody = $@"Batch Email Complete
+                        <br /><strong>Type:</strong> ARB Defensive ({flagType})
+                        <br /><strong>#Sent:</strong> {status.Sent}
+                        <br /><strong>#Failed:</strong> {status.Failed}
+                        <br /><strong>#Opted out:</strong> {status.OptedOut}"
+                        + (status.FailedAddresses.Count > 0
+                            ? $"<br /><strong>Failed:</strong> {string.Join(";", status.FailedAddresses)}"
+                            : "")
+                        + $"<hr />{subject}";
+
+                    await email.SendAsync(new EmailMessageDto
+                    {
+                        FromName = "TEAMSPORTSINFO.COM",
+                        FromAddress = senderEmail,
+                        ToAddresses = new List<string> { senderEmail },
+                        Subject = $"ARB Defensive Email Batch Complete — {status.Sent} sent",
+                        HtmlBody = confirmBody
+                    }, cancellationToken: token);
+                }
+
+                // Director notification.
+                if (notifyDirectors)
+                {
+                    var arbRepo = sp.GetRequiredService<IArbSubscriptionRepository>();
+                    var directors = await arbRepo.GetDirectorsForJobsAsync(new List<Guid> { jobId }, token);
+                    foreach (var director in directors)
+                    {
+                        if (string.IsNullOrEmpty(director.Email)) continue;
+
+                        var names = notifiedNames.Select(n => $"<li>{System.Net.WebUtility.HtmlEncode(n)}</li>");
+                        var dirBody = $@"<h2>ARB Defensive Emails Sent ({flagType})</h2>
+                            <p>{status.Sent} registrant(s) were notified.</p>
+                            <h3>Registrants:</h3><ul>{string.Join("", names)}</ul>
+                            <p>No action required from you at this time.</p>";
+
+                        await email.SendAsync(new EmailMessageDto
+                        {
+                            FromName = senderName,
+                            FromAddress = senderEmail,
+                            ToAddresses = new List<string> { director.Email },
+                            Subject = $"ARB {flagType} Notifications Sent",
+                            HtmlBody = dirBody
+                        }, cancellationToken: token);
+                    }
+                }
             }
-        }
-
-        return new ArbEmailResultDto
-        {
-            EmailsSent = distinctSent.Count,
-            EmailsFailed = batchResult.FailedAddresses.Distinct().Count(),
-            FailedAddresses = batchResult.FailedAddresses.Distinct().ToList()
         };
+
+        return await _emailBatch.StartAsync(plan, new EmailBatchOptions(), ct);
     }
 
     // ── GetSubscriptionInfoAsync ────────────────────────────────────────
@@ -547,7 +560,8 @@ public class ArbDefensiveService : IArbDefensiveService
             NextPaymentDate = nextPayment,
             PaymentProgress = progress,
             JobName = reg.JobName,
-            JobPath = reg.JobPath
+            JobPath = reg.JobPath,
+            BemailOptOut = reg.BemailOptOut
         };
     }
 
@@ -564,14 +578,5 @@ public class ArbDefensiveService : IArbDefensiveService
             .Replace("!FAMILYUSERNAME", $"<strong>{reg.FamilyUsername}</strong>")
             .Replace("!JOBLINK", $"<a href='https://www.teamsportsinfo.com/{reg.JobPath}' target='_blank'>{System.Net.WebUtility.HtmlEncode(reg.JobName ?? string.Empty)}</a>")
             .Replace("!JOBNAME", $"<strong>{reg.JobName}</strong>");
-    }
-
-    private static List<string> CollectValidEmails(params string?[] emails)
-    {
-        var validator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
-        return emails
-            .Where(e => !string.IsNullOrWhiteSpace(e) && validator.IsValid(e))
-            .Distinct()
-            .ToList()!;
     }
 }
