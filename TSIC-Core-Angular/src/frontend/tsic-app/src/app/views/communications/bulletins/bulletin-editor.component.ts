@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal, viewChild } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { GridAllModule, GridComponent, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { BulletinAdminService } from './services/bulletin-admin.service';
 import { ToastService } from '../../../shared-ui/toast.service';
@@ -17,8 +18,14 @@ import type { BulletinAdminDto } from '../../../core/api';
 export class BulletinEditorComponent implements OnInit {
   private readonly bulletinService = inject(BulletinAdminService);
   private readonly toastService = inject(ToastService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly grid = viewChild.required<GridComponent>('grid');
+
+  // Deep-link target: ?edit={bulletinId} (e.g. the pencil on the public job-home
+  // bulletins). Consumed once after the first load, then cleared from the URL.
+  private pendingEditId: string | null = null;
 
   // State signals
   bulletins = signal<BulletinAdminDto[]>([]);
@@ -36,6 +43,7 @@ export class BulletinEditorComponent implements OnInit {
   sortSettings: SortSettingsModel = { columns: [{ field: 'modified', direction: 'Descending' }] };
 
   ngOnInit(): void {
+    this.pendingEditId = this.route.snapshot.queryParamMap.get('edit');
     this.loadBulletins();
   }
 
@@ -47,6 +55,7 @@ export class BulletinEditorComponent implements OnInit {
       next: (bulletins) => {
         this.bulletins.set(bulletins);
         this.isLoading.set(false);
+        this.openPendingEditIfRequested(bulletins);
       },
       error: (error) => {
         this.errorMessage.set(error.error?.message || 'Failed to load bulletins');
@@ -90,6 +99,19 @@ export class BulletinEditorComponent implements OnInit {
   openEdit(bulletin: BulletinAdminDto): void {
     this.editTarget.set(bulletin);
     this.showEditModal.set(true);
+  }
+
+  /** Honor a ?edit={id} deep-link once: open that bulletin's modal, then clear the param. */
+  private openPendingEditIfRequested(bulletins: BulletinAdminDto[]): void {
+    const editId = this.pendingEditId;
+    if (!editId) return;
+    this.pendingEditId = null;
+    // Drop the query param so a later reload/save doesn't reopen the modal.
+    this.router.navigate([], { relativeTo: this.route, queryParams: {}, replaceUrl: true });
+    const target = bulletins.find(b => b.bulletinId === editId);
+    if (target) {
+      this.openEdit(target);
+    }
   }
 
   confirmDelete(bulletin: BulletinAdminDto): void {

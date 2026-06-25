@@ -1,5 +1,5 @@
 import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
-import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
+import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { TranslateLegacyUrlsPipe } from '@infrastructure/pipes/translate-legacy-urls.pipe';
 import { InternalLinkDirective } from '@infrastructure/directives/internal-link.directive';
@@ -31,6 +31,7 @@ export class BulletinsComponent {
     private readonly jobService = inject(JobService);
     private readonly auth = inject(AuthService);
     private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
     private readonly toast = inject(ToastService);
     private readonly bulletinAdmin = inject(BulletinAdminService);
 
@@ -55,6 +56,16 @@ export class BulletinsComponent {
         }
         return '';
     });
+
+    /** Deep-link to the bulletin editor with this bulletin's edit modal open. */
+    edit(bulletin: BulletinDto, event: Event): void {
+        event.stopPropagation();
+        const jp = this.jobPath();
+        if (!jp) return;
+        this.router.navigate(['/', jp, 'communications', 'bulletins'], {
+            queryParams: { edit: bulletin.bulletinId }
+        });
+    }
 
     /** Quick-inactivate: persist Active=false, then drop it from the view. */
     deactivate(bulletin: BulletinDto, event: Event): void {

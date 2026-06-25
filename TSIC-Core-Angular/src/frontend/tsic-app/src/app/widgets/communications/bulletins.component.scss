@@ -59,15 +59,20 @@
     min-width: 0;   // prevent blowout from long body content
 }
 
-// ── Admin "quick inactivate" control ──
-// Top-right ghost button, admin-only. Hides (Active=false) a stale/redundant
-// bulletin in one click from the public view. Sits above the body via z-index;
-// .bulletin is already position:relative.
-.bulletin-hide {
+// ── Admin per-bulletin controls (edit + quick-inactivate) ──
+// Top-right ghost buttons, admin-only. Pencil deep-links to the editor for this
+// bulletin; eye-slash hides it (Active=false) in one click. Sit above the body
+// via z-index; .bulletin is already position:relative.
+.bulletin-admin-actions {
     position: absolute;
     top: var(--space-3);
     right: var(--space-3);
     z-index: 1;
+    display: inline-flex;
+    gap: var(--space-1);
+}
+
+.bulletin-admin-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -84,6 +89,13 @@
 
     &:hover {
         opacity: 1;
+        color: var(--bs-primary);
+        border-color: color-mix(in srgb, var(--bs-primary) 45%, var(--brand-border));
+        background: color-mix(in srgb, var(--bs-primary) 8%, var(--brand-surface));
+    }
+
+    // Hide action reads as destructive-ish — danger tint on hover.
+    &--hide:hover {
         color: var(--bs-danger);
         border-color: color-mix(in srgb, var(--bs-danger) 45%, var(--brand-border));
         background: color-mix(in srgb, var(--bs-danger) 8%, var(--brand-surface));
@@ -107,7 +119,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .bulletin-hide {
+    .bulletin-admin-btn {
         transition: none;
     }
 }
