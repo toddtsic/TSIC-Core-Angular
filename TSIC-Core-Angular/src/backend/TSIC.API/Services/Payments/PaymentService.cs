@@ -469,6 +469,22 @@ public class PaymentService : IPaymentService
         if (donation > 0m)
             teams.First(t => t.TeamId == teamIds.First()).FeeDonation = donation;
 
+        // ── Charge-entry realize: mint the late fee at subscription setup ──
+        // Setting up an ADN subscription IS the qualifying payment commitment (the deposit bills
+        // tomorrow, the balance on the config date — "cc payment is next day"), so it is the moment
+        // to mint an auto-activated late fee, exactly like the immediate CC/eCheck charge engine does
+        // in ChargeTeamsAsync. Re-derive each team's effective late fee from the LIVE cascade now —
+        // BEFORE the branch — so BOTH the subscription loop and the fallback path read the minted
+        // FeeLatefee into the ArbTrialFeeSplitter (it is billed) and into RecalcTotals (it lands on
+        // the row). Same idempotent applier the reprice/charge paths run; the teams are tracked, so
+        // the late fee persists with the schedule via each branch's success-gated SaveChanges — no
+        // successful setup, no mint. RealizeLateFeeAtChargeAsync also re-derives FeeBase/FeeProcessing,
+        // but both branches overwrite those with the ARB schedule values, so ONLY FeeLatefee carries
+        // through. (A manual pay-by-check, which has no ADN event, intentionally never mints — there
+        // is no commitment to hang the late fee on.)
+        foreach (var team in teams)
+            await _feeService.RealizeLateFeeAtChargeAsync(team, jobIdValue);
+
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobIdValue);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
             return FailTrial("MISSING_GATEWAY_CREDS", "Payment gateway credentials not configured");
