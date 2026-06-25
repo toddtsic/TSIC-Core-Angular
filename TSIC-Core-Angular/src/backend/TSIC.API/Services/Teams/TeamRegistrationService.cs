@@ -375,6 +375,28 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Distinct();
         var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(allCandidateIds);
 
+        // ── Realize any now-active late fee on the rep's still-owing teams before shaping ──
+        // A late-fee window can open — or a director can create the modifier — AFTER the deposit
+        // was paid, with no reprice and no further charge to realize it (the deposit was correctly
+        // late-fee-free: no fee was in effect then). Left alone, the rep's payment page reads the
+        // stale FeeLatefee stamp (0) and shows no late-fee burden until the next charge re-stamps it.
+        // Re-derive from the LIVE cascade here so the page the rep is about to pay from already
+        // reflects exactly what the charge will collect — every owed column and the eventual charge
+        // agree, no AMOUNT_MISMATCH. Same idempotent swap applier the charge path runs
+        // (PaymentService.ChargeTeamsAsync): inert (no SQL) when no window is active or the team is
+        // paid in full, and it re-derives on every load — a window that later closes self-heals back
+        // to 0. Registered teams only (dropped = read-only history, never payable).
+        var registeredTeamIds = rawRegistered.Select(t => t.TeamId).ToList();
+        if (registeredTeamIds.Count > 0)
+        {
+            var trackedTeams = await _teams.GetTeamsWithJobAndCustomerAsync(jobId, registeredTeamIds);
+            foreach (var team in trackedTeams)
+                await _feeService.RealizeLateFeeAtChargeAsync(team, jobId);
+            await _teams.SaveChangesAsync();
+            // Re-read so the shaper sees the freshly-stamped late fee / proc / totals.
+            rawRegistered = await _teams.GetRegisteredTeamsForUserAndJobAsync(jobId, userId);
+        }
+
         // Shape the rich per-team financial DTOs via the shared shaper — the SAME code
         // path the director's club-rep accounting view uses, so the two grids can never
         // disagree. scheduledIds (already computed above for library + registered teams)
