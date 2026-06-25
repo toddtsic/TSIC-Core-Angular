@@ -106,38 +106,52 @@ public record PaymentState
     /// <summary>
     /// The late fee that currently applies, under the derived "pay late ⇒ owe more" model. A late
     /// fee is NOT a stamp frozen at signup — it's a consequence of still owing while a late window is
-    /// open, locked only once paid. This is the single place that decision lives. Returns the greater of:
+    /// open, minted ONCE at the payment that qualifies, then locked. This is the single place that
+    /// decision lives. Rule: <b>once a late fee has been COLLECTED, the record is closed to any
+    /// further late fee.</b> So this returns the COLLECTED late fee if one was paid, otherwise the
+    /// active GATE:
     ///
-    ///   • GATE  — the active late-fee modifier (<paramref name="windowedLateFee"/>: the date-windowed
-    ///             cascade amount the caller resolved as-of-now, 0 when out of window) WHILE the BASE
-    ///             principal (full price, EXCLUDING the late fee itself) is still owed. A record that
-    ///             has paid the full base is exempt — a late fee is never billed to a paid-in-full
-    ///             record. Out of window ⇒ 0. (Consequence: paying exactly the base while in window
-    ///             also exempts — the lenient side of "PIF is exempt"; the modifier end date and the
-    ///             paid floor bound the exposure.)
     ///   • FLOOR — the late fee already PAID (locked): principal paid beyond the late-free base
     ///             (<c>fullPrice − discount + donation</c>), capped at <paramref name="configuredLateFee"/>
     ///             (the modifier amount IGNORING its window, so a window that has since closed does not
     ///             erase a late fee the registrant already paid). Base-first allocation: a payment
     ///             retires base principal before the penalty, so the floor only engages once the base
-    ///             is covered.
+    ///             is covered. When this is &gt; 0 it wins outright — a later or larger window can
+    ///             NEVER add more late fee to a record that has already paid one.
+    ///   • GATE  — only for a record that has paid NO late fee yet: the active late-fee modifier
+    ///             (<paramref name="windowedLateFee"/>: the date-windowed cascade amount the caller
+    ///             resolved as-of-now, 0 when out of window) WHILE the BASE principal (full price,
+    ///             EXCLUDING the late fee itself) is still owed. A record that has paid the full base
+    ///             is exempt — a late fee is never billed to a paid-in-full record. Out of window ⇒ 0.
+    ///             (Consequence: paying exactly the base while in window also exempts — the lenient
+    ///             side of "PIF is exempt"; the modifier end date bounds the exposure.)
     ///
-    /// Locking semantics: only collected dollars stick. Editing the modifier down (or deleting it,
-    /// <paramref name="configuredLateFee"/> ⇒ 0) drops the live charge to the floor; any surplus the
-    /// registrant already paid surfaces as negative owed → existing refund/credit path. A short window
+    /// Locking semantics: only collected dollars stick, and they stick at the collected amount.
+    /// Editing the modifier down (or deleting it, <paramref name="configuredLateFee"/> ⇒ 0) drops a
+    /// not-yet-collected charge; for an already-collected fee the cap drops it to the lower configured
+    /// amount and any surplus surfaces as negative owed → existing refund/credit path. A short window
     /// the registrant straddles (paid base before it closed, never paid the late fee) lets the unpaid
     /// remainder fall off — by design; the modifier's end date is the persistence control.
     /// </summary>
     public decimal EffectiveLateFee(
         decimal windowedLateFee, decimal configuredLateFee, decimal fullPrice, decimal discount, decimal donation)
     {
-        // Gate on the BASE principal only (lateFee = 0): a record that has paid the full base is
-        // exempt — a late fee is never billed to a paid-in-full record. Including the late fee here
-        // would make a base-paid record look still-owing on the strength of the very fee being gated.
-        var gate = PrincipalRemaining(fullPrice, discount, 0m, donation) > 0m ? windowedLateFee : 0m;
+        // FLOOR = late fee already collected (principal paid beyond the late-free base), capped at the
+        // window-independent configured amount. Base-first allocation means this only engages once the
+        // base is covered.
         var baseSansLate = fullPrice - discount + donation;
         var paidFloor = System.Math.Min(configuredLateFee, System.Math.Max(0m, PrincipalPaid - baseSansLate));
-        return System.Math.Max(gate, paidFloor);
+
+        // Rule: once a late fee has been COLLECTED, the record is closed to any further late fee — hold
+        // at the collected amount, never let a later/larger window climb it. NOT max(): a paid fee must
+        // not grow when the modifier is later raised.
+        if (paidFloor > 0m)
+            return paidFloor;
+
+        // GATE = mint the windowed fee, but ONLY while the BASE principal (lateFee = 0) is still owed.
+        // A paid-in-full record is exempt — including the late fee here would make a base-paid record
+        // look still-owing on the strength of the very fee being gated.
+        return PrincipalRemaining(fullPrice, discount, 0m, donation) > 0m ? windowedLateFee : 0m;
     }
 
     /// <summary>

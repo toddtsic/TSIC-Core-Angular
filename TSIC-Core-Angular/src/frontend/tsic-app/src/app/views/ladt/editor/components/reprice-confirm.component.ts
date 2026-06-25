@@ -49,10 +49,12 @@ export interface RepriceDialog {
       }
       <div class="reprice-confirm-actions">
         @if (dialog().isPhase) {
-          <button type="button" class="btn btn-sm btn-warning" (click)="onConvert()">Convert</button>
+          <button type="button" class="btn btn-sm btn-warning" autofocus (click)="onConvert()">Convert</button>
           <button type="button" class="btn btn-sm btn-outline-secondary" (click)="secondary.emit()">Cancel</button>
         } @else {
-          <button type="button" class="btn btn-sm btn-warning" (click)="updateAll.emit()">Update all</button>
+          <!-- "Update all" is the default: a fee change is normally meant to reach existing
+               registrants. It leads and takes initial focus so Enter applies to all priors. -->
+          <button type="button" class="btn btn-sm btn-warning" autofocus (click)="updateAll.emit()">Update all</button>
           <button type="button" class="btn btn-sm btn-outline-primary" (click)="secondary.emit()">Future only</button>
           <button type="button" class="btn btn-sm btn-link reprice-keep" (click)="keepEditing.emit()">
             <i class="bi bi-arrow-left me-1"></i>Keep editing

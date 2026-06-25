@@ -6,11 +6,14 @@ namespace TSIC.Tests.Payments;
 
 /// <summary>
 /// The derived "pay late ⇒ owe more" late-fee model lives in PaymentState.EffectiveLateFee.
-/// A late fee is no longer a stamp frozen at signup; it is the greater of (a) the active
-/// windowed modifier while principal is still owed, and (b) the late fee already PAID (locked,
-/// capped at the configured amount so a closed window or a deleted/reduced modifier behaves
-/// correctly). These tests pin every branch — the wiring that feeds this into recompute, the
-/// payment charge, and the owed displays must not change these answers.
+/// A late fee is no longer a stamp frozen at signup; it is minted ONCE at the qualifying payment
+/// then locked. Rule: once a late fee has been COLLECTED, the record is closed to further late fee —
+/// so the result is the late fee already PAID (capped at the configured amount) if any was collected,
+/// otherwise the active windowed modifier while base principal is still owed. (The collected fee and
+/// the gate are mutually exclusive — base-first allocation means a fee can only be collected once the
+/// base is paid, at which point the PIF-exempt gate is already 0 — so this never climbs a paid fee.)
+/// These tests pin every branch — the wiring that feeds this into recompute, the payment charge, and
+/// the owed displays must not change these answers.
 /// </summary>
 public class EffectiveLateFeeTests
 {
@@ -76,10 +79,20 @@ public class EffectiveLateFeeTests
     [Fact(DisplayName = "Paid base + partial late in-window → floor holds the 10 paid (base is PIF, gate 0)")]
     public void PartialLatePaid_InWindow_FloorWins()
     {
-        // Base is fully paid → gate 0 (PIF-exempt). The 10 of late fee already collected locks via
-        // the floor: max(gate 0, paidFloor min(30, 510−500)=10) = 10. Only collected dollars stick.
+        // Base is fully paid → gate 0 (PIF-exempt). The 10 of late fee already collected locks via the
+        // floor: collected paidFloor min(30, 510−500)=10 wins (gate is 0). Only collected dollars stick.
         Paid(check: Full + 10m).EffectiveLateFee(windowedLateFee: Late, configuredLateFee: Late, Full, 0m, 0m)
             .Should().Be(10m);
+    }
+
+    [Fact(DisplayName = "Raise late fee after it was paid → stays at the collected amount (no climb)")]
+    public void RaiseAfterPaid_DoesNotClimb()
+    {
+        // Paid base + 30. Director later raises the modifier to 50 with the window open. The rule
+        // "once collected, the record is closed to further late fee" holds it at the collected 30 —
+        // a paid late fee must never grow. (Mechanically the gate is already 0 here: the base is paid.)
+        Paid(check: Full + Late).EffectiveLateFee(windowedLateFee: 50m, configuredLateFee: 50m, Full, 0m, 0m)
+            .Should().Be(Late);
     }
 
     [Fact(DisplayName = "No late fee configured → always 0, regardless of payments")]

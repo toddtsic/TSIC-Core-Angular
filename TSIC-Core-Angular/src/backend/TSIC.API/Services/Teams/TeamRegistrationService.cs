@@ -1350,10 +1350,12 @@ public class TeamRegistrationService : ITeamRegistrationService
                     IsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,
                     AddProcessingFees = job.BAddProcessingFees ?? false,
                     ApplyProcessingFeesToDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
-                    ProcessingFeePercent = processingRate,
-                    // Reprice is the director's "update all prior" action — let a newly-active late
-                    // fee land on teams that have none yet and still owe (see ApplyTeamSwapFeesAsync).
-                    AssessActiveLateFee = true
+                    ProcessingFeePercent = processingRate
+                    // Late fee is NOT assessed on a reprice: it recomputes base/phase/processing only. A
+                    // late fee is purely a consequence of payment — it mints once at charge entry
+                    // (FeeResolutionService.RealizeLateFeeAtChargeAsync), only for a team that owes inside
+                    // an open window and has paid none yet. A reprice that pushed it onto every owing team
+                    // before payment is exactly the stamp-at-signup model the derived design replaced.
                 });
             var newFeeBase = team.FeeBase ?? 0m;
             var newFeeProcessing = team.FeeProcessing ?? 0m;

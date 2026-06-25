@@ -572,11 +572,14 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
             // Job baseline only — ApplySwapFeesAsync resolves the per-scope override
             // (team → agegroup → league) over this via ResolvedFee.ResolveFullPaymentPhase.
-            // AssessActiveLateFee: reprice is the director's "update all prior" action — let a
-            // newly-active late fee land on regs that have none yet and still owe (see ApplySwapFeesAsync).
+            // Late fee is NOT assessed on a reprice: it recomputes base/phase/processing only. A late
+            // fee is purely a consequence of payment — it mints once at charge entry
+            // (FeeResolutionService.RealizeLateFeeAtChargeAsync), only for a reg that owes inside an
+            // open window and has paid none yet. A reprice that pushed it onto every owing reg before
+            // payment is exactly the stamp-at-signup model the derived design replaced.
             await _feeService.ApplySwapFeesAsync(
                 reg, jobId, regAgegroupId.Value, reg.AssignedTeamId.Value,
-                new FeeApplicationContext { IsFullPaymentRequired = jobFullPaymentRequired, AssessActiveLateFee = true }, ct);
+                new FeeApplicationContext { IsFullPaymentRequired = jobFullPaymentRequired }, ct);
 
             // Late fee added on a no-proc job changes neither FeeBase nor FeeProcessing — detect it
             // explicitly so the reg is saved/counted (OwedTotal already moved via RecalcTotals).

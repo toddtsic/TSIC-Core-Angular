@@ -342,9 +342,14 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
     }
     this.editMode.set('fee-amount');
     this.markFeeDirty();
+    // The reprice prompt is only honest for a deposit/balance change. A modifier-only edit
+    // (late fee / discount) saves silently — it never reprices priors.
+    const playerAmt = this.amountChanged('player');
+    const clubRepAmt = this.amountChanged('clubRep');
+    if (!playerAmt && !clubRepAmt) return;
     this.feeReprice.getBlastArea(
       { agegroupId: this.agegroupId() },
-      { player: playerChanged, clubRep: clubRepChanged }
+      { player: playerAmt, clubRep: clubRepAmt }
     ).subscribe({
       next: (blast) => {
         if (blast.playerCount + blast.teamCount === 0) return;
@@ -387,6 +392,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
 
   // Snapshots taken at load + after each successful save, to detect what changed.
   private originalSnapshot = { player: '', clubRep: '' };
+  private originalAmount = { player: '', clubRep: '' };
   private originalPhase = { player: null as boolean | null, clubRep: null as boolean | null };
   private playerFeeId: string | null = null;
   private clubRepFeeId: string | null = null;
@@ -505,12 +511,20 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
       return;
     }
 
-    // Amount/modifier change only → the save-time "update existing, or future only?" prompt.
+    // Amount change only → the save-time "update existing, or future only?" prompt. A modifier-only
+    // edit (late fee / discount) reprices nothing — late fees mint at payment, discounts at signup —
+    // so it saves straight through with no prompt.
+    const playerAmt = this.amountChanged('player');
+    const clubRepAmt = this.amountChanged('clubRep');
+    if (!playerAmt && !clubRepAmt) {
+      this.performSave(false);
+      return;
+    }
     this.isSaving.set(true);
     this.saveMessage.set(null);
     this.feeReprice.getBlastArea(
       { agegroupId: this.agegroupId() },
-      { player: playerChanged, clubRep: clubRepChanged }
+      { player: playerAmt, clubRep: clubRepAmt }
     ).subscribe({
       next: (blast) => {
         // No existing registrations in scope → just save the config (nothing to reprice).
@@ -820,11 +834,28 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
 
   private captureOriginals(): void {
     this.originalSnapshot = { player: this.feeSnapshot('player'), clubRep: this.feeSnapshot('clubRep') };
+    this.originalAmount = { player: this.amountSnapshot('player'), clubRep: this.amountSnapshot('clubRep') };
     this.originalPhase = { player: this.feeForm.playerPhase, clubRep: this.feeForm.clubRepPhase };
   }
 
   private roleChanged(role: 'player' | 'clubRep'): boolean {
     return this.feeSnapshot(role) !== this.originalSnapshot[role];
+  }
+
+  /**
+   * A reprice-relevant amount changed (deposit/balance only) — this gates the "apply to priors vs
+   * future only" prompt, NOT roleChanged. A modifier edit (late fee / discount) never reprices priors
+   * (a late fee mints at payment, a discount freezes at signup), so it saves silently. Phase is gated
+   * separately at the toggle (openPhaseScopePrompt) and is always retroactive.
+   */
+  private amountChanged(role: 'player' | 'clubRep'): boolean {
+    return this.amountSnapshot(role) !== this.originalAmount[role];
+  }
+
+  private amountSnapshot(role: 'player' | 'clubRep'): string {
+    const dep = role === 'player' ? this.feeForm.playerDeposit : this.feeForm.clubRepDeposit;
+    const bal = role === 'player' ? this.feeForm.playerBalanceDue : this.feeForm.clubRepBalanceDue;
+    return `${dep}|${bal}`;
   }
 
   /** Comparable string of a role's money state (deposit, balance, phase, modifiers). */
