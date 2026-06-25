@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { MyRosterService } from './my-roster.service';
-import type { BatchEmailResponse } from '@core/api/models/BatchEmailResponse';
+import type { EmailBatchJobStatus } from '@core/api/models/EmailBatchJobStatus';
 
 @Component({
     selector: 'app-my-roster-email-dialog',
@@ -107,7 +107,7 @@ export class MyRosterEmailDialogComponent {
     readonly registrationIds = input.required<string[]>();
 
     readonly closed = output<void>();
-    readonly sent = output<BatchEmailResponse>();
+    readonly sent = output<EmailBatchJobStatus>();
 
     readonly subject = signal('');
     readonly body = signal('');
@@ -129,22 +129,22 @@ export class MyRosterEmailDialogComponent {
 
         const ids = this.mode() === 'all' ? null : this.registrationIds();
 
-        this.rosterService.sendEmail({
+        this.rosterService.sendEmailAndAwait({
             registrationIds: ids,
             subject: this.subject().trim(),
             bodyTemplate: this.body().trim(),
         }).subscribe({
-            next: (response) => {
+            next: (status) => {
                 this.isSending.set(false);
-                const failedCount = response.failedAddresses?.length ?? 0;
-                const note = response.optedOut > 0 ? `, ${response.optedOut} opted out` : '';
-                const msg = `Emails sent: ${response.sent} of ${response.totalRecipients}${note}`;
+                const failedCount = status.failedAddresses?.length ?? 0;
+                const note = status.optedOut > 0 ? `, ${status.optedOut} opted out` : '';
+                const msg = `Emails sent: ${status.sent} of ${status.totalRecipients}${note}`;
                 if (failedCount > 0) {
                     this.toast.show(`${msg}. ${failedCount} failed.`, 'warning', 5000);
                 } else {
                     this.toast.show(msg, 'success', 3000);
                 }
-                this.sent.emit(response);
+                this.sent.emit(status);
             },
             error: (err) => {
                 this.isSending.set(false);

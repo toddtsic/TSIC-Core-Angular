@@ -53,7 +53,6 @@ public class PlayerCheckTests
         var jobRepo = new Mock<IJobRepository>();
         var adnApi = new Mock<IAdnApiService>();
         var textSub = new Mock<ITextSubstitutionService>();
-        var emailService = new Mock<IEmailService>();
         var deviceRepo = new Mock<IDeviceRepository>();
         var logger = new Mock<ILogger<RegistrationSearchService>>();
 
@@ -78,7 +77,7 @@ public class PlayerCheckTests
         var svc = new RegistrationSearchService(
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo.Object, deviceRepo.Object,
             new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,
-            emailService.Object, new Mock<IEmailBatchService>().Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState,
+            new Mock<IEmailBatchService>().Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState,
             new Mock<IRegisteredPlayerShaper>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId);

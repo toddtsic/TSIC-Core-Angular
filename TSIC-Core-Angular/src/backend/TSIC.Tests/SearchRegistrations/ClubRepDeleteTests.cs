@@ -46,7 +46,7 @@ public class ClubRepDeleteTests
             registrationRepo, accountingRepo,
             new Mock<IJobRepository>().Object, familiesRepo, deviceRepo.Object,
             teamRepo, new Mock<IAdnApiService>().Object, new Mock<IArbSubscriptionRepository>().Object,
-            new Mock<ITextSubstitutionService>().Object, new Mock<IEmailService>().Object,
+            new Mock<ITextSubstitutionService>().Object,
             new Mock<IEmailBatchService>().Object,
             new Mock<IRegistrationFeeAdjustmentService>().Object,
             new Mock<IPaymentService>().Object,

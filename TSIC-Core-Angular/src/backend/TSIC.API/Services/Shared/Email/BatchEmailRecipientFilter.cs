@@ -1,3 +1,6 @@
+using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Domain.Constants;
+
 namespace TSIC.API.Services.Shared.Email;
 
 /// <summary>
@@ -8,6 +11,31 @@ namespace TSIC.API.Services.Shared.Email;
 public static class BatchEmailRecipientFilter
 {
     public const string MissingEmailSentinel = "not@given.com";
+
+    /// <summary>
+    /// Resolves all sendable addresses for one batch recipient from the bulk-loaded address maps.
+    /// Player → mom + dad + the player's own email (distinct, case-insensitive); every other role →
+    /// the registrant's own User.Email. The player's own email is OPTIONAL (child accounts often have
+    /// none). Applies the same blank/sentinel/invalid stripping as <see cref="BuildSendableSet"/>.
+    /// Pure (no I/O) so it is directly unit-testable; the caller bulk-loads the maps once per batch.
+    /// </summary>
+    public static List<string> ResolveRecipients(
+        string? roleId,
+        string? familyUserId,
+        Guid registrationId,
+        IReadOnlyDictionary<Guid, string?> emailByRegId,
+        IReadOnlyDictionary<string, BatchFamilyEmailsDto> familyEmailsById)
+    {
+        emailByRegId.TryGetValue(registrationId, out var ownEmail);
+
+        if (roleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(familyUserId)
+            && familyEmailsById.TryGetValue(familyUserId, out var family))
+        {
+            return BuildSendableSet(new[] { family.MomEmail, family.DadEmail, ownEmail });
+        }
+
+        return BuildSendableSet(new[] { ownEmail });
+    }
 
     /// <summary>Returns the distinct, sendable subset of the candidate addresses (order preserved).</summary>
     public static List<string> BuildSendableSet(IEnumerable<string?> candidates)

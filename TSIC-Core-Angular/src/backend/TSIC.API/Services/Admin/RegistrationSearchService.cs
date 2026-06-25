@@ -32,7 +32,6 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IAdnApiService _adnApi;
     private readonly IArbSubscriptionRepository _arbRepo;
     private readonly ITextSubstitutionService _textSubstitution;
-    private readonly IEmailService _emailService;
     private readonly IEmailBatchService _emailBatch;
     private readonly IRegistrationFeeAdjustmentService _feeAdjustment;
     private readonly IPaymentService _paymentService;
@@ -58,7 +57,6 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IAdnApiService adnApi,
         IArbSubscriptionRepository arbRepo,
         ITextSubstitutionService textSubstitution,
-        IEmailService emailService,
         IEmailBatchService emailBatch,
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentService paymentService,
@@ -75,7 +73,6 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _adnApi = adnApi;
         _arbRepo = arbRepo;
         _textSubstitution = textSubstitution;
-        _emailService = emailService;
         _emailBatch = emailBatch;
         _feeAdjustment = feeAdjustment;
         _paymentService = paymentService;
@@ -652,125 +649,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _logger.LogInformation("Subscription canceled: RegId={RegId}, SubId={SubId}", registrationId, reg.AdnSubscriptionId);
     }
 
-    public async Task<BatchEmailResponse> SendBatchEmailAsync(
-        Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default)
-    {
-        // Load registrations with User nav property to get email addresses
-        var registrations = await _registrationRepo.GetByIdsAsync(request.RegistrationIds, ct);
-
-        // Validate all belong to this job
-        var invalidRegs = registrations.Where(r => r.JobId != jobId).ToList();
-        if (invalidRegs.Count > 0)
-            throw new InvalidOperationException("Some registrations do not belong to this job.");
-
-        // Load job info for text substitution
-        var jobConfirmation = await _jobRepo.GetConfirmationEmailInfoAsync(jobId, ct);
-        var jobPath = jobConfirmation?.JobPath ?? "";
-
-        // Resolve invite link target job path once (if !INVITE_LINK is in use)
-        string? inviteTargetJobPath = null;
-        if (request.InviteLinkTargetJobId.HasValue)
-            inviteTargetJobPath = await _jobRepo.GetJobPathAsync(request.InviteLinkTargetJobId.Value, ct);
-
-        var sent = 0;
-        var failed = 0;
-        var optedOut = 0;
-        var failedAddresses = new List<string>();
-
-        foreach (var reg in registrations)
-        {
-            if (reg.BemailOptOut)
-            {
-                optedOut++;
-                continue;
-            }
-
-            try
-            {
-                // Resolve recipients. Player's own User.Email is OPTIONAL (child accounts often
-                // have none), so Player rows route to mom+dad from the Families row AND the
-                // player's own email when valued — distinct, case-insensitive. Other roles
-                // (ClubRep, Staff, Ref, ...) have mandatory adult emails — use User.Email only.
-                List<string> toAddresses;
-                if (reg.RoleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(reg.FamilyUserId))
-                {
-                    var family = await _familiesRepo.GetByFamilyUserIdAsync(reg.FamilyUserId, ct);
-                    var regWithUser = await _registrationRepo.GetByJobAndFamilyWithUsersAsync(
-                        jobId, reg.FamilyUserId, cancellationToken: ct);
-                    var playerEmail = regWithUser.FirstOrDefault(r => r.RegistrationId == reg.RegistrationId)?.User?.Email;
-
-                    var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                    if (!string.IsNullOrWhiteSpace(family?.MomEmail)) set.Add(family!.MomEmail!.Trim());
-                    if (!string.IsNullOrWhiteSpace(family?.DadEmail)) set.Add(family!.DadEmail!.Trim());
-                    if (!string.IsNullOrWhiteSpace(playerEmail)) set.Add(playerEmail.Trim());
-                    toAddresses = set.ToList();
-                }
-                else
-                {
-                    var regWithUser = await _registrationRepo.GetByJobAndFamilyWithUsersAsync(
-                        jobId, reg.FamilyUserId ?? "", cancellationToken: ct);
-                    var thisReg = regWithUser.FirstOrDefault(r => r.RegistrationId == reg.RegistrationId);
-                    var userEmail = thisReg?.User?.Email;
-                    toAddresses = string.IsNullOrWhiteSpace(userEmail) ? new List<string>() : new List<string> { userEmail };
-                }
-
-                if (toAddresses.Count == 0)
-                {
-                    failed++;
-                    failedAddresses.Add($"(no email for RegistrationAi #{reg.RegistrationAi})");
-                    continue;
-                }
-
-                // Substitute tokens
-                var renderedSubject = await _textSubstitution.SubstituteAsync(
-                    jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.Subject, inviteTargetJobPath);
-                var renderedBody = await _textSubstitution.SubstituteAsync(
-                    jobPath, jobId, CcPaymentMethodId, reg.RegistrationId, reg.FamilyUserId ?? "", request.BodyTemplate, inviteTargetJobPath);
-
-                // Auto-append unsubscribe footer to every batch email
-                var unsubscribeUrl = $"https://www.teamsportsinfo.com/api/email/unsubscribe?regId={reg.RegistrationId:D}";
-                renderedBody += $"""
-                    <div style="margin-top:32px; padding-top:16px; border-top:1px solid #e0e0e0; text-align:center; font-size:12px; color:#999;">
-                        <a href="{unsubscribeUrl}" style="color:#999; text-decoration:underline;">Unsubscribe</a>
-                        from emails for this event
-                    </div>
-                    """;
-
-                var emailMsg = new EmailMessageDto
-                {
-                    FromAddress = jobConfirmation?.JobName,
-                    Subject = renderedSubject,
-                    HtmlBody = renderedBody,
-                    ToAddresses = toAddresses
-                };
-
-                var success = await _emailService.SendAsync(emailMsg, cancellationToken: ct);
-                if (success) sent++;
-                else { failed++; failedAddresses.AddRange(toAddresses); }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Batch email failed for reg {RegId}", reg.RegistrationId);
-                failed++;
-                failedAddresses.Add($"(error for RegistrationAi #{reg.RegistrationAi})");
-            }
-        }
-
-        return new BatchEmailResponse
-        {
-            TotalRecipients = registrations.Count,
-            Sent = sent,
-            Failed = failed,
-            OptedOut = optedOut,
-            FailedAddresses = failedAddresses
-        };
-    }
-
     /// <summary>
-    /// Final-architecture batch send: validates + seeds synchronously, then hands the work to the
-    /// background <see cref="IEmailBatchService"/> engine and returns a job handle immediately.
-    /// Recipient resolution + render run per-recipient on the engine's render-worker scopes.
-    /// (Strangler: the legacy synchronous <see cref="SendBatchEmailAsync"/> above remains until proven.)
+    /// Batch send: validates + seeds synchronously, then hands the work to the background
+    /// <see cref="IEmailBatchService"/> engine and returns a job handle immediately. Recipient
+    /// resolution + render run per-recipient on the engine's render-worker scopes; the engine owns
+    /// opt-out suppression, the unsubscribe footer, retry, rate-limiting, and the audit row.
     /// </summary>
     public async Task<EmailBatchHandle> StartBatchEmailAsync(
         Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default)
@@ -847,7 +730,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             {
                 var textSub = sp.GetRequiredService<ITextSubstitutionService>();
 
-                var toAddresses = ResolveBatchRecipients(item, emailByRegId, familyEmailsById);
+                var toAddresses = BatchEmailRecipientFilter.ResolveRecipients(
+                    item.RoleId, item.FamilyUserId, item.RegistrationId, emailByRegId, familyEmailsById);
                 if (toAddresses.Count == 0) return null;
 
                 // Single-pass render (one fixed-fields load for subject + body; skips load when token-less).
@@ -888,27 +772,6 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         };
 
         return await _emailBatch.StartAsync(plan, options, ct);
-    }
-
-    /// <summary>
-    /// Resolve all sendable addresses for one registration. Player → mom + dad + player-if-present
-    /// (distinct, case-insensitive); other roles → the registrant's own User.Email. Strips blanks,
-    /// the <c>not@given.com</c> missing-email sentinel, and obviously-invalid addresses (shared rule).
-    /// </summary>
-    private static List<string> ResolveBatchRecipients(
-        BatchEmailItem item,
-        IReadOnlyDictionary<Guid, string?> emailByRegId,
-        IReadOnlyDictionary<string, BatchFamilyEmailsDto> familyEmailsById)
-    {
-        emailByRegId.TryGetValue(item.RegistrationId, out var ownEmail);
-
-        if (item.RoleId == RoleConstants.Player && !string.IsNullOrWhiteSpace(item.FamilyUserId)
-            && familyEmailsById.TryGetValue(item.FamilyUserId, out var family))
-        {
-            return BatchEmailRecipientFilter.BuildSendableSet(new[] { family.MomEmail, family.DadEmail, ownEmail });
-        }
-
-        return BatchEmailRecipientFilter.BuildSendableSet(new[] { ownEmail });
     }
 
     /// <summary>Lightweight, context-free identity for a batch recipient (no EF entity captured).</summary>

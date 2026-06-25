@@ -85,7 +85,6 @@ export type { AvailableTeamDto } from './models/AvailableTeamDto';
 export type { AvailableWidgetDto } from './models/AvailableWidgetDto';
 export type { BankAccountInfo } from './models/BankAccountInfo';
 export type { BatchEmailRequest } from './models/BatchEmailRequest';
-export type { BatchEmailResponse } from './models/BatchEmailResponse';
 export type { BatchParkRequest } from './models/BatchParkRequest';
 export type { BatchParkResult } from './models/BatchParkResult';
 export type { BatchShiftPreview } from './models/BatchShiftPreview';

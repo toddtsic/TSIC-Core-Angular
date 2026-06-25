@@ -58,7 +58,7 @@ public sealed class MyRosterService : IMyRosterService
         };
     }
 
-    public async Task<BatchEmailResponse> SendBatchEmailAsync(
+    public async Task<EmailBatchHandle> StartBatchEmailAsync(
         Guid callerRegistrationId,
         string callerUserId,
         MyRosterBatchEmailRequest request,
@@ -92,7 +92,7 @@ public sealed class MyRosterService : IMyRosterService
             BodyTemplate = StripDisallowedTokens(request.BodyTemplate),
         };
 
-        return await _searchService.SendBatchEmailAsync(caller.JobId, callerUserId, batch, ct);
+        return await _searchService.StartBatchEmailAsync(caller.JobId, callerUserId, batch, ct);
     }
 
     private static readonly Regex TokenPattern = new(

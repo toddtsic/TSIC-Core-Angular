@@ -1,7 +1,7 @@
 import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { BatchEmailResponse, EmailBatchJobStatus, JobOptionDto, FilterOption, RegistrationSearchRequest } from '@core/api';
+import type { EmailBatchJobStatus, JobOptionDto, FilterOption, RegistrationSearchRequest } from '@core/api';
 import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -63,12 +63,12 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   initialTemplateLabel = input<string | null>(null);
 
   closed = output<void>();
-  sent = output<BatchEmailResponse>();
+  sent = output<EmailBatchJobStatus>();
 
   subject = signal<string>('');
   bodyTemplate = signal<string>('');
   isSending = signal<boolean>(false);
-  sendResult = signal<BatchEmailResponse | null>(null);
+  sendResult = signal<EmailBatchJobStatus | null>(null);
   showConfirm = signal<boolean>(false);
 
   /** Background-job tracking: handle id + latest polled progress snapshot. */
@@ -311,19 +311,12 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   private onBatchComplete(s: EmailBatchJobStatus): void {
     this.isSending.set(false);
     this.batchJobId.set(null);
-    const response: BatchEmailResponse = {
-      totalRecipients: s.totalRecipients,
-      sent: s.sent,
-      failed: s.failed,
-      optedOut: s.optedOut,
-      failedAddresses: s.failedAddresses
-    };
-    this.sendResult.set(response);
+    this.sendResult.set(s);
     const optedOutNote = s.optedOut > 0 ? `, ${s.optedOut} opted out` : '';
     const msg = `Emails sent: ${s.sent} of ${s.totalRecipients}${optedOutNote}`;
     if (s.failedAddresses.length > 0) { this.toast.show(`${msg}. ${s.failedAddresses.length} failed.`, 'warning', 5000); }
     else { this.toast.show(msg, 'success', 3000); }
-    this.sent.emit(response);
+    this.sent.emit(s);
   }
 
   /** Opt-in: ask the server to email the completion summary to the current admin. */

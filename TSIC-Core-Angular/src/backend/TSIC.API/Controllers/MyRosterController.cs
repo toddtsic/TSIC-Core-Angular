@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos.MyRoster;
-using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Controllers;
@@ -14,10 +13,12 @@ namespace TSIC.API.Controllers;
 public class MyRosterController : ControllerBase
 {
     private readonly IMyRosterService _myRosterService;
+    private readonly IEmailBatchJobRegistry _batchJobs;
 
-    public MyRosterController(IMyRosterService myRosterService)
+    public MyRosterController(IMyRosterService myRosterService, IEmailBatchJobRegistry batchJobs)
     {
         _myRosterService = myRosterService;
+        _batchJobs = batchJobs;
     }
 
     [HttpGet]
@@ -32,7 +33,7 @@ public class MyRosterController : ControllerBase
     }
 
     [HttpPost("email")]
-    public async Task<ActionResult<BatchEmailResponse>> SendEmail(
+    public async Task<ActionResult<EmailBatchHandle>> SendEmail(
         [FromBody] MyRosterBatchEmailRequest request, CancellationToken ct)
     {
         var regId = User.GetRegistrationId();
@@ -42,12 +43,20 @@ public class MyRosterController : ControllerBase
 
         try
         {
-            var result = await _myRosterService.SendBatchEmailAsync(regId.Value, userId, request, ct);
-            return Ok(result);
+            var handle = await _myRosterService.StartBatchEmailAsync(regId.Value, userId, request, ct);
+            return Ok(handle);
         }
         catch (UnauthorizedAccessException ex)
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    /// <summary>Progress / final summary for a background roster email batch (404 if unknown/expired).</summary>
+    [HttpGet("email/{batchJobId:guid}/status")]
+    public ActionResult<EmailBatchJobStatus> GetEmailStatus(Guid batchJobId)
+    {
+        var status = _batchJobs.Get(batchJobId);
+        return status is null ? NotFound() : Ok(status);
     }
 }
