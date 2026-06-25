@@ -48,7 +48,10 @@ public class BulletinService : IBulletinService
             return new List<BulletinDto>();
         }
 
-        var bulletins = await _bulletinRepository.GetActiveBulletinsForJobAsync(jobMetadata.JobId, cancellationToken);
+        // Tracked entities — a bulletin made redundant by a live quicklink is
+        // retired (Active=false) right here at assembly, so the public page never
+        // shows a hand-written link the hero already surfaces.
+        var bulletins = await _bulletinRepository.GetActiveBulletinEntitiesForJobAsync(jobMetadata.JobId, cancellationToken);
 
         var jobName = jobMetadata.JobName;
         var uslaxDate = jobMetadata.USLaxNumberValidThroughDate?.ToString("M/d/yy") ?? string.Empty;
@@ -71,7 +74,15 @@ public class BulletinService : IBulletinService
             };
         }
 
+        // CTAs the landing hero currently shows an anonymous viewer (mirrors the
+        // frontend). Empty (or null pulse) ⇒ nothing is auto-retired this pass.
+        var activeCtaIds = pulse != null
+            ? BulletinCtaSuppression.ActiveAnonymousCtaIds(pulse)
+            : new HashSet<string>();
+
+        var now = DateTime.Now;
         var processedBulletins = new List<BulletinDto>();
+        var retiredIds = new List<Guid>();
         foreach (var bulletin in bulletins)
         {
             var title = ReplaceTextTokens(bulletin.Title ?? string.Empty, jobName, uslaxDate);
@@ -83,6 +94,20 @@ public class BulletinService : IBulletinService
                 text = _tokenRegistry.ResolveTokens(text, tokenCtx);
             }
 
+            // Classify the RESOLVED html (token-injected content counts as editorial
+            // substance, so a bulletin that resolves to more than its CTA link is kept).
+            if (activeCtaIds.Count > 0)
+            {
+                var classification = BulletinCtaSuppression.Classify(title, text);
+                if (BulletinCtaSuppression.IsCoveredByActiveCtas(classification, activeCtaIds))
+                {
+                    bulletin.Active = false;
+                    bulletin.Modified = now;
+                    retiredIds.Add(bulletin.BulletinId);
+                    continue;
+                }
+            }
+
             processedBulletins.Add(new BulletinDto
             {
                 BulletinId = bulletin.BulletinId,
@@ -92,6 +117,14 @@ public class BulletinService : IBulletinService
                 EndDate = bulletin.EndDate,
                 CreateDate = bulletin.CreateDate
             });
+        }
+
+        if (retiredIds.Count > 0)
+        {
+            await _bulletinRepository.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation(
+                "Auto-retired {Count} quicklink-redundant bulletin(s) for job {JobPath}: {BulletinIds}",
+                retiredIds.Count, jobPath, string.Join(", ", retiredIds));
         }
 
         return processedBulletins;

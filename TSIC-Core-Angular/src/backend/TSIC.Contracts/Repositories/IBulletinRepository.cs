@@ -10,10 +10,11 @@ namespace TSIC.Contracts.Repositories;
 public interface IBulletinRepository
 {
     /// <summary>
-    /// Get active bulletins for a job, filtered by date range and sorted by start date descending.
-    /// Used by public-facing widget.
+    /// Get active, in-window bulletins for a job as TRACKED entities (active, started,
+    /// not ended; newest first). The public assembly path uses this so it can
+    /// auto-retire (set Active=false) bulletins made redundant by a live quicklink.
     /// </summary>
-    Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(
+    Task<List<Bulletins>> GetActiveBulletinEntitiesForJobAsync(
         Guid jobId,
         CancellationToken cancellationToken = default);
 
