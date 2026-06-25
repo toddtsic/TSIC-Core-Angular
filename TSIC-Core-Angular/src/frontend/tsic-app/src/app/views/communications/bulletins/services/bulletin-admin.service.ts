@@ -46,6 +46,11 @@ export class BulletinAdminService {
     return this.http.patch<void>(`${this.apiUrl}/${bulletinId}/deactivate`, {});
   }
 
+  /** Admin inline toggle of a single bulletin's active status from the editor grid. */
+  setBulletinActive(bulletinId: string, active: boolean): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${bulletinId}/active/${active}`, {});
+  }
+
   aiComposeBulletin(prompt: string): Observable<{ subject: string; body: string }> {
     return this.http.post<{ subject: string; body: string }>(`${environment.apiUrl}/ai-compose/bulletin`, { prompt });
   }

@@ -200,7 +200,10 @@ public class BulletinService : IBulletinService
         return true;
     }
 
-    public async Task<bool> DeactivateBulletinAsync(Guid bulletinId, Guid jobId, CancellationToken cancellationToken = default)
+    public Task<bool> DeactivateBulletinAsync(Guid bulletinId, Guid jobId, CancellationToken cancellationToken = default)
+        => SetBulletinActiveAsync(bulletinId, jobId, false, cancellationToken);
+
+    public async Task<bool> SetBulletinActiveAsync(Guid bulletinId, Guid jobId, bool active, CancellationToken cancellationToken = default)
     {
         var bulletin = await _bulletinRepository.GetByIdAsync(bulletinId, cancellationToken);
         if (bulletin == null)
@@ -213,9 +216,9 @@ public class BulletinService : IBulletinService
             throw new InvalidOperationException("Bulletin does not belong to the current job.");
         }
 
-        if (bulletin.Active)
+        if (bulletin.Active != active)
         {
-            bulletin.Active = false;
+            bulletin.Active = active;
             bulletin.Modified = DateTime.Now;
             await _bulletinRepository.SaveChangesAsync(cancellationToken);
         }

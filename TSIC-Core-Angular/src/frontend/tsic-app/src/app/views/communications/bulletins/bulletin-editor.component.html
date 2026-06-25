@@ -97,9 +97,18 @@
                     }
                 </ng-template>
             </e-column>
-            <e-column headerText="" width="80" [allowSorting]="false" textAlign="Center">
+            <e-column headerText="" width="120" [allowSorting]="false" textAlign="Center">
                 <ng-template #template let-data>
                     <div class="row-actions">
+                        <button class="action-btn action-btn-toggle"
+                                [class.is-active]="data.active"
+                                [disabled]="togglingId() === data.bulletinId"
+                                (click)="toggleActive(data); $event.stopPropagation()"
+                                [title]="data.active ? 'Click to deactivate' : 'Click to activate'"
+                                [attr.aria-label]="data.active ? 'Deactivate bulletin' : 'Activate bulletin'"
+                                [attr.aria-pressed]="data.active">
+                            <i class="bi" [class.bi-toggle-on]="data.active" [class.bi-toggle-off]="!data.active"></i>
+                        </button>
                         <button class="action-btn" (click)="openEdit(data); $event.stopPropagation()"
                                 title="Edit" aria-label="Edit bulletin">
                             <i class="bi bi-pencil"></i>
@@ -128,7 +137,7 @@
     <bulletin-form-modal
         mode="edit"
         [bulletin]="editTarget()"
-        (close)="showEditModal.set(false); editTarget.set(null)"
+        (close)="onEditClosed()"
         (saved)="onFormSaved()">
     </bulletin-form-modal>
 }

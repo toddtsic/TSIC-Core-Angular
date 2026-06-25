@@ -42,6 +42,14 @@ public interface IBulletinService
     Task<bool> DeactivateBulletinAsync(Guid bulletinId, Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Set a single bulletin's active status. Verifies bulletin belongs to job.
+    /// Idempotent (a no-op when already in the requested state). Backs the admin
+    /// inline active toggle on the bulletin editor grid.
+    /// Returns false when the bulletin is not found.
+    /// </summary>
+    Task<bool> SetBulletinActiveAsync(Guid bulletinId, Guid jobId, bool active, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Batch update active status for all bulletins in a job.
     /// </summary>
     Task<int> BatchUpdateStatusAsync(Guid jobId, bool active, CancellationToken cancellationToken = default);

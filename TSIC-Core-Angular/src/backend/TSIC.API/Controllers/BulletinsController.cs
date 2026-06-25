@@ -320,6 +320,42 @@ public class BulletinsController : ControllerBase
     }
 
     /// <summary>
+    /// Set a single bulletin's active status. Admin-only; verifies the bulletin
+    /// belongs to the caller's job. Backs the inline active toggle on the editor grid.
+    /// </summary>
+    [Authorize(Policy = "AdminOnly")]
+    [HttpPatch("{bulletinId:guid}/active/{active:bool}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> SetBulletinActive(
+        Guid bulletinId,
+        bool active,
+        CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        try
+        {
+            var updated = await _bulletinService.SetBulletinActiveAsync(bulletinId, jobId.Value, active, cancellationToken);
+            if (!updated)
+            {
+                return NotFound(new { message = $"Bulletin with ID {bulletinId} not found" });
+            }
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Batch activate/deactivate all bulletins for the job.
     /// </summary>
     [Authorize(Policy = "AdminOnly")]

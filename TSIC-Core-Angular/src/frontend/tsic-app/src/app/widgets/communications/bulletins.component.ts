@@ -63,7 +63,8 @@ export class BulletinsComponent {
         const jp = this.jobPath();
         if (!jp) return;
         this.router.navigate(['/', jp, 'communications', 'bulletins'], {
-            queryParams: { edit: bulletin.bulletinId }
+            // from=home so the editor returns here (not to the admin grid) once done.
+            queryParams: { edit: bulletin.bulletinId, from: 'home' }
         });
     }
 

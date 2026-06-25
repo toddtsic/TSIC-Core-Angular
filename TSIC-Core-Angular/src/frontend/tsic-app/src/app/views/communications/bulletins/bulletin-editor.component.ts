@@ -27,10 +27,18 @@ export class BulletinEditorComponent implements OnInit {
   // bulletins). Consumed once after the first load, then cleared from the URL.
   private pendingEditId: string | null = null;
 
+  // When the deep-link arrived with ?from=home, the edit originated from the
+  // public job-home bulletin (not the admin grid). Once that edit is finished —
+  // saved or closed — route back to job-home rather than landing on the grid.
+  private returnToHome = false;
+
   // State signals
   bulletins = signal<BulletinAdminDto[]>([]);
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
+
+  // Bulletin id whose active toggle is mid-flight (disables that row's toggle).
+  togglingId = signal<string | null>(null);
 
   // Modal state
   showAddModal = signal(false);
@@ -44,6 +52,7 @@ export class BulletinEditorComponent implements OnInit {
 
   ngOnInit(): void {
     this.pendingEditId = this.route.snapshot.queryParamMap.get('edit');
+    this.returnToHome = this.route.snapshot.queryParamMap.get('from') === 'home';
     this.loadBulletins();
   }
 
@@ -114,6 +123,32 @@ export class BulletinEditorComponent implements OnInit {
     }
   }
 
+  /** Inline active toggle: flip status immediately, persist, revert on failure. */
+  toggleActive(bulletin: BulletinAdminDto): void {
+    if (this.togglingId()) return;
+    const next = !bulletin.active;
+    this.togglingId.set(bulletin.bulletinId);
+    // Optimistic: swap the row to its new state up front (new array, new object).
+    this.applyActive(bulletin.bulletinId, next);
+    this.bulletinService.setBulletinActive(bulletin.bulletinId, next).subscribe({
+      next: () => {
+        this.togglingId.set(null);
+        this.toastService.show(`Bulletin ${next ? 'activated' : 'deactivated'}`, 'success');
+      },
+      error: (error) => {
+        this.applyActive(bulletin.bulletinId, !next); // revert
+        this.togglingId.set(null);
+        this.toastService.show(error.error?.message || 'Could not update status', 'danger');
+      }
+    });
+  }
+
+  private applyActive(bulletinId: string, active: boolean): void {
+    this.bulletins.set(
+      this.bulletins().map(b => b.bulletinId === bulletinId ? { ...b, active } : b)
+    );
+  }
+
   confirmDelete(bulletin: BulletinAdminDto): void {
     this.deleteTarget.set(bulletin);
     this.showDeleteConfirm.set(true);
@@ -140,7 +175,34 @@ export class BulletinEditorComponent implements OnInit {
     this.showAddModal.set(false);
     this.showEditModal.set(false);
     this.editTarget.set(null);
+    if (this.returnToHome) {
+      this.goHome();
+      return;
+    }
     this.loadBulletins();
+  }
+
+  /** Edit modal dismissed without saving. */
+  onEditClosed(): void {
+    this.showEditModal.set(false);
+    this.editTarget.set(null);
+    if (this.returnToHome) {
+      this.goHome();
+    }
+  }
+
+  /** Return to the public job-home that launched this edit. */
+  private goHome(): void {
+    this.returnToHome = false;
+    let r: ActivatedRoute | null = this.route;
+    let jobPath: string | null = null;
+    while (r && !jobPath) {
+      jobPath = r.snapshot.paramMap.get('jobPath');
+      r = r.parent;
+    }
+    if (jobPath) {
+      this.router.navigate(['/', jobPath]);
+    }
   }
 
   // Bulk activate / deactivate all

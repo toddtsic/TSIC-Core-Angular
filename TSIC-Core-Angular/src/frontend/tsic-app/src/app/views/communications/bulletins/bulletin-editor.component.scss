@@ -63,3 +63,37 @@
     opacity: 0.4;
     transition: opacity 0.15s ease;
 }
+
+// The active toggle doubles as a status indicator, so it stays fully legible
+// even while the rest of the row actions are faded pre-hover.
+.action-btn-toggle {
+    opacity: 1;
+    color: var(--bs-secondary);
+    transition: color 0.15s ease;
+
+    .bi {
+        font-size: 1.15rem;
+        line-height: 1;
+    }
+
+    &.is-active {
+        color: var(--bs-success);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: progress;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .row-actions,
+    .action-btn-toggle {
+        transition: none;
+    }
+}
