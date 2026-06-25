@@ -209,7 +209,7 @@ export class JobLandingComponent implements OnDestroy {
 		// Public "Rosters" card gates on public-roster availability (bRestrictPublicRosters),
 		// NOT allowRosterViewPlayer (that's a logged-in user's OWN-roster gate).
 		if (p.publicRostersAvailable) {
-			candidates.push({ key: 'rosters', label: 'Rosters', icon: 'bi-card-checklist', routerLink: `${base}/rosters/public` });
+			candidates.push({ key: 'rosters', label: 'Public Rosters', icon: 'bi-card-checklist', routerLink: `${base}/rosters/public` });
 		}
 		// RegSaver is a registered-player/team benefit. Shown broadly as a discovery
 		// affordance (anonymous prospects included — the hint sets the expectation),
