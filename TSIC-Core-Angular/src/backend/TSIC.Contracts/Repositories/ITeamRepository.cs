@@ -234,6 +234,19 @@ public interface ITeamRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Get the rep's DROPPED teams for a user and job — teams a director moved into a
+    /// "DROPPED" age group. The exact complement of the active/DROPPED exclusion in
+    /// <see cref="GetRegisteredTeamsForUserAndJobAsync"/>, so a team is in one list or
+    /// the other, never both. Surfaced as a read-only bucket in the registration wizard.
+    /// Waitlisted teams (inactive but not in a DROPPED age group) are intentionally NOT
+    /// included here.
+    /// </summary>
+    Task<List<RegisteredTeamInfo>> GetDroppedTeamsForUserAndJobAsync(
+        Guid jobId,
+        string userId,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get ALL registered teams for a club rep (by registration id) in a job with full
     /// financial details — including waitlisted/dropped/inactive teams. Unlike the
     /// user-keyed variant, applies no active/DROPPED filter; the director's club-rep

@@ -40,6 +40,16 @@ public interface IClubTeamRepository
     void Remove(ClubTeams clubTeam);
 
     /// <summary>
+    /// Maps each supplied ClubTeamId to its owning ClubId in one batched query.
+    /// Used to resolve a registration's library club structurally from the teams it
+    /// already has registered (ClubTeamId → ClubId), instead of re-matching free-text
+    /// club_name. Returns only the ids that exist; missing/duplicate ids are dropped.
+    /// </summary>
+    Task<Dictionary<int, int>> GetClubIdsForClubTeamIdsAsync(
+        IEnumerable<int> clubTeamIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Returns the subset of the supplied ClubTeamIds that have EVER appeared on the schedule
     /// (any job, lifetime). Used to lock edit/delete on library teams with historical performance.
     /// One batched query via ClubTeams → Teams → Schedule (T1Id / T2Id).

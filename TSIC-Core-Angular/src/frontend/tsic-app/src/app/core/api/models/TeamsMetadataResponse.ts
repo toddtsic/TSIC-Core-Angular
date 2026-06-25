@@ -13,6 +13,7 @@ export type TeamsMetadataResponse = {
     clubTeams: Array<ClubTeamDto>;
     suggestedTeamNames: Array<SuggestedTeamNameDto>;
     registeredTeams: Array<RegisteredTeamDto>;
+    droppedTeams: Array<RegisteredTeamDto>;
     ageGroups: Array<AgeGroupDto>;
     bPayBalanceDue: boolean;
     bTeamsFullPaymentRequired: boolean;

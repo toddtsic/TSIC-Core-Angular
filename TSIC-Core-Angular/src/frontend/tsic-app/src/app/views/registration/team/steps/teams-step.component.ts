@@ -167,6 +167,7 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         [actionInProgress]="actionInProgress()"
         [ageGroups]="ageGroups()"
         [enteredTeams]="enteredTeamsMap()"
+        [droppedTeams]="droppedTeams()"
         (closed)="closeLibraryFlyin()"
         (register)="onFlyinRegister($event)"
         (addNew)="showAddModal.set(true)"
@@ -646,7 +647,12 @@ export class TeamTeamsStepComponent implements OnInit {
     readonly showLibraryFlyin = signal(false);
 
     private readonly _registeredTeams = signal<RegisteredTeamDto[]>([]);
+    /** Teams a director moved into a "DROPPED" age group — read-only history fed
+     *  straight to the library fly-in's muted Dropped section. */
+    private readonly _droppedTeams = signal<RegisteredTeamDto[]>([]);
     private readonly _clubTeams = signal<ClubTeamDto[]>([]);
+
+    readonly droppedTeams = computed(() => this._droppedTeams());
 
     /** All library teams. Backend now returns the full library in `clubTeams`
      *  (previously filtered to "not yet registered"); the registration map for
@@ -931,6 +937,7 @@ export class TeamTeamsStepComponent implements OnInit {
                     this.loading.set(false);
                     this.clubName.set(meta.clubName || 'your club');
                     this._registeredTeams.set(meta.registeredTeams || []);
+                    this._droppedTeams.set(meta.droppedTeams || []);
                     this._clubTeams.set(meta.clubTeams || []);
                     this.ageGroups.set(meta.ageGroups || []);
                     this.state.applyTeamsMetadata(meta);

@@ -304,20 +304,13 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         int currentYear = DateTime.Now.Year;
 
-        // Resolve club to get ClubId
-        var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
-        var effectiveClubId = club?.ClubId ?? 0;
-
-        // Load the raw registered-teams data first so we can include its ClubTeamIds in
-        // the single batched scheduled-lookup below. Shaped into DTOs after the flag is known.
+        // Load the rep's registered teams FIRST — they are the ground truth for "which
+        // club is this". Each row carries ClubTeamId → ClubTeams.ClubId, the same data
+        // the teams-list panel renders.
         var rawRegistered = await _teams.GetRegisteredTeamsForUserAndJobAsync(jobId, userId);
-        var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName ?? string.Empty, currentYear);
-        var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
-
-        // Fetch available ClubTeams for this club, excluding those already registered for this event
-        var allClubTeams = effectiveClubId > 0
-            ? await _clubTeams.GetByClubIdAsync(effectiveClubId)
-            : new List<Domain.Entities.ClubTeams>();
+        // Dropped teams (director-moved into a "DROPPED" age group) — read-only history
+        // shown in its own muted library section, never offered for re-registration.
+        var rawDropped = await _teams.GetDroppedTeamsForUserAndJobAsync(jobId, userId);
 
         var registeredClubTeamIds = rawRegistered
             .Select(t => t.ClubTeamId)
@@ -325,9 +318,61 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Select(id => id!.Value)
             .ToHashSet();
 
+        // Resolve the library's club STRUCTURALLY from those teams rather than by
+        // re-matching the free-text club_name. This guarantees the library and the
+        // teams list can never disagree about the club — the library IS the club of the
+        // teams shown. The free-text name is consulted ONLY when the registration has no
+        // teams yet (fresh reg / first team-add), where there's nothing structural to
+        // key off. This is the fix for club-name fragmentation (e.g. one org split
+        // across "Ultimate" and "Ultimate Lacrosse"): a typo in club_name no longer
+        // strands a rep's teams out of their own library.
+        int effectiveClubId;
+        if (registeredClubTeamIds.Count > 0)
+        {
+            var clubIdByClubTeam = await _clubTeams.GetClubIdsForClubTeamIdsAsync(registeredClubTeamIds);
+            var clubIdGroups = clubIdByClubTeam.Values
+                .GroupBy(cid => cid)
+                .OrderByDescending(g => g.Count())
+                .ToList();
+
+            effectiveClubId = clubIdGroups.Count > 0 ? clubIdGroups[0].Key : 0;
+
+            if (clubIdGroups.Count > 1)
+            {
+                // Data fault: a single registration's teams point at more than one club.
+                // Flag it loudly rather than silently bury it; the dominant club still
+                // reconciles the majority so the wizard stays usable while it's chased down.
+                _logger.LogWarning(
+                    "Registration {RegId} has teams spanning {ClubCount} clubs ({Breakdown}); using dominant club {ClubId}. Investigate club linkage.",
+                    regId, clubIdGroups.Count,
+                    string.Join(", ", clubIdGroups.Select(g => $"{g.Key}:{g.Count()}")),
+                    effectiveClubId);
+            }
+        }
+        else
+        {
+            var club = await _clubs.GetByNameAsync(clubName ?? string.Empty);
+            effectiveClubId = club?.ClubId ?? 0;
+        }
+
+        var suggestions = await GetHistoricalTeamSuggestionsAsync(userId, clubName ?? string.Empty, currentYear);
+        var ageGroups = await GetAgeGroupsWithCountsAsync(jobId, job.Season ?? string.Empty);
+
+        // Fetch available ClubTeams for the resolved club.
+        var allClubTeams = effectiveClubId > 0
+            ? await _clubTeams.GetByClubIdAsync(effectiveClubId)
+            : new List<Domain.Entities.ClubTeams>();
+
         // One batched schedule lookup covering BOTH library and currently-registered teams.
         // The flag is needed on both DTO types so the UI can gate edit/delete consistently.
-        var allCandidateIds = allClubTeams.Select(ct => ct.ClubTeamId).Concat(registeredClubTeamIds).Distinct();
+        var droppedClubTeamIds = rawDropped
+            .Select(t => t.ClubTeamId)
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value);
+        var allCandidateIds = allClubTeams.Select(ct => ct.ClubTeamId)
+            .Concat(registeredClubTeamIds)
+            .Concat(droppedClubTeamIds)
+            .Distinct();
         var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(allCandidateIds);
 
         // Shape the rich per-team financial DTOs via the shared shaper — the SAME code
@@ -335,6 +380,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         // disagree. scheduledIds (already computed above for library + registered teams)
         // is passed through to avoid a second "has been scheduled" lookup.
         var registeredTeams = await _shaper.ShapeAsync(jobId, rawRegistered, scheduledIds);
+        var droppedTeams = await _shaper.ShapeAsync(jobId, rawDropped, scheduledIds);
 
         // Return ALL library teams — previously filtered out teams already registered
         // for this event, which forced the frontend to reconstruct library rows from the
@@ -354,8 +400,8 @@ public class TeamRegistrationService : ITeamRegistrationService
             .OrderBy(ct => ct.ClubTeamName)
             .ToList();
 
-        _logger.LogInformation("Found {RegisteredCount} registered teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups, {LibraryTeamCount} library teams",
-            registeredTeams.Count, suggestions.Count, ageGroups.Count, libraryTeams.Count);
+        _logger.LogInformation("Found {RegisteredCount} registered teams, {DroppedCount} dropped teams, {SuggestionCount} suggestions, {AgeGroupCount} age groups, {LibraryTeamCount} library teams",
+            registeredTeams.Count, droppedTeams.Count, suggestions.Count, ageGroups.Count, libraryTeams.Count);
 
         // Fetch club rep contact info for payment form prefill
         var contactInfo = await _users.GetUserContactInfoAsync(userId);
@@ -412,6 +458,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             ClubTeams = libraryTeams,
             SuggestedTeamNames = suggestions,
             RegisteredTeams = registeredTeams,
+            DroppedTeams = droppedTeams,
             AgeGroups = ageGroups,
             BPayBalanceDue = bPayBalanceDue,
             BTeamsFullPaymentRequired = job.BTeamsFullPaymentRequired ?? false,

@@ -263,6 +263,23 @@ public class TeamRepository : ITeamRepository
         return ProjectRegisteredTeamsAsync(query, cancellationToken);
     }
 
+    public Task<List<RegisteredTeamInfo>> GetDroppedTeamsForUserAndJobAsync(
+        Guid jobId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        // Exact complement of the active view: teams in a "DROPPED" age group belonging to
+        // the rep's registration. A director rename into "Dropped Teams" is the drop signal;
+        // Active is not tested, so a dropped-but-still-active row is still caught, and an
+        // inactive waitlist row (not in a DROPPED group) is correctly excluded.
+        var query = _context.Teams.Where(t =>
+            t.JobId == jobId
+            && t.Agegroup != null && t.Agegroup!.AgegroupName!.Contains("DROPPED")
+            && _context.Registrations.Any(reg =>
+                reg.RegistrationId == t.ClubrepRegistrationid && reg.UserId == userId));
+        return ProjectRegisteredTeamsAsync(query, cancellationToken);
+    }
+
     public Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForClubRepAndJobAsync(
         Guid jobId,
         Guid clubRepRegistrationId,

@@ -82,6 +82,10 @@ public sealed record TeamsMetadataResponse
     public required List<ClubTeamDto> ClubTeams { get; init; }
     public required List<SuggestedTeamNameDto> SuggestedTeamNames { get; init; }
     public required List<RegisteredTeamDto> RegisteredTeams { get; init; }
+    // Teams the rep entered for this event that a director later moved into a "DROPPED"
+    // age group. Read-only history surfaced as a separate muted bucket in the wizard's
+    // club library — never offered for re-registration. Same shape as RegisteredTeams.
+    public required List<RegisteredTeamDto> DroppedTeams { get; init; }
     public required List<AgeGroupDto> AgeGroups { get; init; }
     public required bool BPayBalanceDue { get; init; }
     public required bool BTeamsFullPaymentRequired { get; init; }

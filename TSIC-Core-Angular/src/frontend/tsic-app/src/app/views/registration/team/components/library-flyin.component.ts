@@ -1,5 +1,5 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, ElementRef, HostListener, OnDestroy, computed, input, output, signal, viewChild } from '@angular/core';
-import type { AgeGroupDto, ClubTeamDto } from '@core/api';
+import type { AgeGroupDto, ClubTeamDto, RegisteredTeamDto } from '@core/api';
 import { environment } from '@environments/environment';
 import { normalizeLop } from '@shared/teams/lop-choices';
 import { LevelOfPlayPickerComponent } from './level-of-play-picker.component';
@@ -167,10 +167,13 @@ interface LibraryGroup {
 
               @if (!isGroupCollapsed(group.key)) {
                 <ul class="lib-list">
-                  @for (team of group.teams; track team.clubTeamId) {
+                  @for (team of group.teams; track team.clubTeamId; let idx = $index) {
                     @let registered = registeredInfo(team.clubTeamId);
                     <li class="lib-item" [class.is-expanded]="expandedTeamId() === team.clubTeamId">
                       <div class="lib-item-main">
+                        @if (group.key === 'registered') {
+                          <span class="lib-item-seq" aria-hidden="true">{{ idx + 1 }}</span>
+                        }
                         <div class="lib-item-id">
                           <span class="lib-item-name" [attr.title]="team.clubTeamName">{{ team.clubTeamName }}</span>
                           <span class="lib-item-sub"><span class="lib-sub-label">Grad</span>{{ team.clubTeamGradYear || '—' }}</span>
@@ -349,6 +352,52 @@ interface LibraryGroup {
               }
             </section>
           }
+        }
+
+        <!-- Dropped group — teams the rep entered for THIS event that a director
+             later moved into a "DROPPED" age group. Read-only history (no register /
+             edit / kebab), numbered, muted. Rendered outside the active/empty gate so
+             it shows even when the active library is empty. -->
+        @if (droppedTeams().length > 0) {
+          <section class="lib-group-card lib-group-card--dropped">
+            <button type="button" class="lib-group-header" (click)="toggleDropped()"
+                    [attr.aria-expanded]="showDropped()">
+              <i class="bi lib-group-chevron"
+                 [class.bi-chevron-down]="showDropped()"
+                 [class.bi-chevron-right]="!showDropped()"
+                 aria-hidden="true"></i>
+              <i class="bi bi-x-circle-fill lib-group-icon" aria-hidden="true"></i>
+              <span class="lib-group-title">Dropped</span>
+              <span class="lib-group-count">{{ droppedTeams().length }}</span>
+              <span class="lib-group-hint">moved out by the event director</span>
+            </button>
+            @if (showDropped()) {
+              <ul class="lib-list">
+                @for (team of droppedTeams(); track team.teamId; let idx = $index) {
+                  <li class="lib-item is-dropped">
+                    <div class="lib-item-main">
+                      <span class="lib-item-seq" aria-hidden="true">{{ idx + 1 }}</span>
+                      <div class="lib-item-id">
+                        <span class="lib-item-name" [attr.title]="team.teamName">{{ team.teamName }}</span>
+                        <span class="lib-item-sub"><span class="lib-sub-label">AG</span>{{ team.ageGroupName || '—' }}</span>
+                      </div>
+                      <div class="lib-item-trailing">
+                        @if (team.levelOfPlay) {
+                          <span class="lib-identity">
+                            <span class="lib-id-pair"><span class="lib-id-label">LOP</span><span class="lib-id-value">{{ formatLop(team.levelOfPlay) }}</span></span>
+                          </span>
+                        }
+                        <span class="lib-dropped-pill">
+                          <i class="bi bi-x-circle" aria-hidden="true"></i>
+                          Dropped
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </section>
         }
       </div>
 
@@ -591,6 +640,16 @@ interface LibraryGroup {
         background: color-mix(in srgb, var(--bs-body-color) 2%, var(--surface-elevated-bg));
       }
 
+      /* Dropped = read-only history: muted like archived, with a danger-tinted
+         left rail to distinguish "removed by director" from "self-archived". */
+      .lib-group-card--dropped {
+        border-color: color-mix(in srgb, var(--bs-danger) 30%, var(--bs-border-color));
+        background: color-mix(in srgb, var(--bs-body-color) 2%, var(--surface-elevated-bg));
+        box-shadow: inset 3px 0 0 0 color-mix(in srgb, var(--bs-danger) 45%, transparent);
+      }
+      .lib-group-card--dropped .lib-group-title { color: var(--brand-text-muted); }
+      .lib-group-card--dropped .lib-group-icon { color: color-mix(in srgb, var(--bs-danger) 70%, var(--brand-text-muted)); }
+
       /* Group header band — full-width accordion toggle. Adopts the sibling
          .section-title scale (sm / semibold / uppercase) so it clearly
          outranks the row content beneath it (the old 10px header was the bug).
@@ -787,6 +846,18 @@ interface LibraryGroup {
         background: color-mix(in srgb, var(--bs-primary) 5%, transparent);
       }
 
+      /* Leading sequence number — Registered section only. Fixed-width tabular
+         column so multi-digit counts stay vertically aligned with the names. */
+      .lib-item-seq {
+        flex-shrink: 0;
+        min-width: 1.5rem;
+        text-align: right;
+        font-size: var(--font-size-2xs);
+        font-weight: var(--font-weight-semibold);
+        font-variant-numeric: tabular-nums;
+        color: var(--brand-text-muted);
+      }
+
       /* Left: team name + muted Grad subtitle (the grad-year column retired). */
       .lib-item-id {
         display: flex;
@@ -904,6 +975,25 @@ interface LibraryGroup {
       /* Quiet pencil = edit registration (opens the inline expand). Reuses
          .lib-icon-btn; this only tints it primary alongside the kebab. */
       .lib-edit-btn { color: var(--bs-primary); }
+
+      /* Dropped rows — de-emphasized, read-only. Status pill mirrors .lib-closed-pill
+         but danger-tinted to read as "removed", not merely "closed". */
+      .lib-item.is-dropped .lib-item-main { opacity: 0.85; }
+      .lib-item.is-dropped .lib-item-name {
+        color: var(--brand-text-muted);
+        text-decoration: line-through;
+        text-decoration-color: color-mix(in srgb, var(--bs-danger) 50%, transparent);
+      }
+      .lib-dropped-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: color-mix(in srgb, var(--bs-danger) 80%, var(--brand-text-muted));
+        font-size: var(--font-size-xs);
+        font-style: italic;
+        font-weight: var(--font-weight-medium);
+        white-space: nowrap;
+      }
 
       /* Archived rows — de-emphasized, italic name. */
       .lib-item.is-archived .lib-item-main { opacity: 0.8; }
@@ -1290,6 +1380,9 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
 
     readonly isOpen = input.required<boolean>();
     readonly clubTeams = input.required<ClubTeamDto[]>();
+    /** Teams a director moved into a "DROPPED" age group — read-only history shown
+     *  in its own muted section. Never offered for registration. */
+    readonly droppedTeams = input<readonly RegisteredTeamDto[]>([]);
     readonly clubName = input<string>('');
     readonly canRegister = input(false);
     readonly actionInProgress = input(false);
@@ -1313,6 +1406,9 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
      *  so the restore action is reachable without an extra click. */
     readonly showArchived = signal(true);
     toggleArchived(): void { this.showArchived.set(!this.showArchived()); }
+
+    readonly showDropped = signal(true);
+    toggleDropped(): void { this.showDropped.set(!this.showDropped()); }
 
     /** Header "How this works" disclosure — collapsed by default so the tips
      *  don't crowd the list; a returning rep already knows the flow. */
