@@ -119,14 +119,12 @@
                                                     [disabled]="busyCoach() === data.registrationId"
                                                     (change)="onTeamToggle(data, t, $any($event.target).checked)" />
                                                 <span class="team-ck-text">{{ t.displayText }}</span>
-                                                @if (t.granted) {
-                                                    @if (t.source !== 'self') {
-                                                        <span class="team-ck-tag added">added</span>
+                                                @if (!t.granted) {
+                                                    @if (t.source === 'self') {
+                                                        <span class="team-ck-tag pending">requested</span>
+                                                    } @else {
+                                                        <span class="team-ck-tag removed">removed</span>
                                                     }
-                                                } @else if (t.source === 'self') {
-                                                    <span class="team-ck-tag pending">requested</span>
-                                                } @else {
-                                                    <span class="team-ck-tag removed">removed</span>
                                                 }
                                             </label>
                                             @if (confirmingRemove() === removeKey(data, t)) {

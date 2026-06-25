@@ -308,7 +308,6 @@
     border-radius: 999px;
 
     &.pending { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); }
-    &.added { background: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-color); }
     &.removed { background: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-color); }
 }
 
