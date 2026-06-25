@@ -29,6 +29,7 @@ public sealed class FamilyService : IFamilyService
     private readonly IJobDiscountCodeRepository _jobDiscountRepo;
     private readonly IFamilyMemberRepository _familyMemberRepo;
     private readonly TSIC.Contracts.Services.IPaymentStateService _paymentState;
+    private readonly TSIC.Contracts.Services.IFeeResolutionService _feeService;
     private const string DateFormat = "yyyy-MM-dd";
 
     public FamilyService(
@@ -43,7 +44,8 @@ public sealed class FamilyService : IFamilyService
         IUserRepository userRepo,
         IJobDiscountCodeRepository jobDiscountRepo,
         IFamilyMemberRepository familyMemberRepo,
-        TSIC.Contracts.Services.IPaymentStateService paymentState)
+        TSIC.Contracts.Services.IPaymentStateService paymentState,
+        TSIC.Contracts.Services.IFeeResolutionService feeService)
     {
         _userManager = userManager;
         _profileMeta = profileMeta;
@@ -57,6 +59,7 @@ public sealed class FamilyService : IFamilyService
         _jobDiscountRepo = jobDiscountRepo;
         _familyMemberRepo = familyMemberRepo;
         _paymentState = paymentState;
+        _feeService = feeService;
     }
 
     public async Task<FamilyPlayersResponseDto> GetFamilyPlayersAsync(string familyUserId, string jobPath)
@@ -117,6 +120,37 @@ public sealed class FamilyService : IFamilyService
         // registration's eCheck-method owed via the canonical PaymentState.ResolveOwed, so the
         // wizard's eCheck total equals exactly what the eCheck charge engine debits.
         var echeckState = jobId != null ? await _paymentState.ForJobAsync(jobId.Value) : null;
+
+        // ── Ephemeral late-fee derive for the player's payment preview (DISPLAY ONLY — never persists) ──
+        // The wizard payment tab is the ONE place the registrant sees the late fee *in effect today*.
+        // Re-derive each owing reg's effective late fee live from the cascade so the preview equals
+        // exactly what the charge will collect — without persisting. Minting happens ONLY at the
+        // collecting payment (PaymentService) and a minted late fee is locked forever; a page view must
+        // never re-stamp the record. regsRaw is loaded AsNoTracking, so the in-memory mutations the
+        // applier makes can never be written back. The fee cascade is keyed off the assigned TEAM's
+        // agegroup (same source the charge path uses), so resolve team → agegroup first. Same idempotent
+        // swap applier the charge path runs (PaymentService): inert when no window is active or the reg
+        // is paid in full. Everywhere else — the admin search / family accounting view — keeps reading
+        // the stamped FeeLatefee.
+        if (jobId != null)
+        {
+            var assignedTeamIds = regsRaw
+                .Where(r => r.AssignedTeamId.HasValue)
+                .Select(r => r.AssignedTeamId!.Value)
+                .Distinct()
+                .ToList();
+            if (assignedTeamIds.Count > 0)
+            {
+                var teams = await _teamRepo.GetTeamsWithJobAndCustomerAsync(
+                    jobId.Value, assignedTeamIds, asNoTracking: true);
+                var teamAgegroups = teams.ToDictionary(t => t.TeamId, t => t.AgegroupId);
+                foreach (var r in regsRaw)
+                {
+                    if (r.AssignedTeamId is Guid tId && teamAgegroups.TryGetValue(tId, out var agId))
+                        await _feeService.RealizeLateFeeAtChargeAsync(r, jobId.Value, agId, tId);
+                }
+            }
+        }
 
         // Build registration DTOs by user
         var regsByUser = regsRaw

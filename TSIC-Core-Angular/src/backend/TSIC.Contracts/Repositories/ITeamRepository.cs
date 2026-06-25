@@ -200,10 +200,14 @@ public interface ITeamRepository
 
     /// <summary>
     /// Get teams for a job with Job and Customer navigation data (for payments/invoice numbers).
+    /// Pass <paramref name="asNoTracking"/> = true for read-only / ephemeral-derive callers (e.g.
+    /// the wizard payment-tab late-fee preview) that mutate the returned entities in memory but must
+    /// never persist — untracked entities can't be written back by an accidental SaveChanges.
     /// </summary>
     Task<List<Teams>> GetTeamsWithJobAndCustomerAsync(
         Guid jobId,
         IReadOnlyCollection<Guid> teamIds,
+        bool asNoTracking = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>

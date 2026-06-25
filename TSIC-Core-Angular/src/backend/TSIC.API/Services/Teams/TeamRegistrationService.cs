@@ -375,26 +375,39 @@ public class TeamRegistrationService : ITeamRegistrationService
             .Distinct();
         var scheduledIds = await _clubTeams.GetScheduledClubTeamIdsAsync(allCandidateIds);
 
-        // ── Realize any now-active late fee on the rep's still-owing teams before shaping ──
-        // A late-fee window can open — or a director can create the modifier — AFTER the deposit
-        // was paid, with no reprice and no further charge to realize it (the deposit was correctly
-        // late-fee-free: no fee was in effect then). Left alone, the rep's payment page reads the
-        // stale FeeLatefee stamp (0) and shows no late-fee burden until the next charge re-stamps it.
-        // Re-derive from the LIVE cascade here so the page the rep is about to pay from already
-        // reflects exactly what the charge will collect — every owed column and the eventual charge
-        // agree, no AMOUNT_MISMATCH. Same idempotent swap applier the charge path runs
-        // (PaymentService.ChargeTeamsAsync): inert (no SQL) when no window is active or the team is
-        // paid in full, and it re-derives on every load — a window that later closes self-heals back
-        // to 0. Registered teams only (dropped = read-only history, never payable).
+        // ── Ephemeral late-fee derive for the rep's payment preview (DISPLAY ONLY — never persists) ──
+        // The wizard payment tab is the ONE place the registrant sees the late fee *in effect today*:
+        // a window can open — or a director create the modifier — AFTER the deposit was paid, with no
+        // reprice and no charge to realize it. Re-derive each team's effective late fee from the LIVE
+        // cascade and OVERLAY it onto the display projection so every owed column and the eventual
+        // charge agree (no AMOUNT_MISMATCH). We do NOT stamp it: minting happens ONLY at the
+        // collecting payment (PaymentService) and a minted late fee is locked forever — a page view
+        // must never re-assess the record. The teams are loaded AsNoTracking precisely so the in-memory
+        // mutations the applier makes can never be written back. Same idempotent swap applier the charge
+        // path runs: inert when no window is active or the team is paid in full, and it re-derives on
+        // every load (a window that later closes drops back to the stamped value). Registered teams only
+        // (dropped = read-only history, never payable). Everywhere else — search, admin, director
+        // accounting grids — keeps reading the stamped FeeLatefee.
         var registeredTeamIds = rawRegistered.Select(t => t.TeamId).ToList();
         if (registeredTeamIds.Count > 0)
         {
-            var trackedTeams = await _teams.GetTeamsWithJobAndCustomerAsync(jobId, registeredTeamIds);
-            foreach (var team in trackedTeams)
+            var ephemeralTeams = await _teams.GetTeamsWithJobAndCustomerAsync(
+                jobId, registeredTeamIds, asNoTracking: true);
+            foreach (var team in ephemeralTeams)
                 await _feeService.RealizeLateFeeAtChargeAsync(team, jobId);
-            await _teams.SaveChangesAsync();
-            // Re-read so the shaper sees the freshly-stamped late fee / proc / totals.
-            rawRegistered = await _teams.GetRegisteredTeamsForUserAndJobAsync(jobId, userId);
+            var derived = ephemeralTeams.ToDictionary(t => t.TeamId);
+            rawRegistered = rawRegistered
+                .Select(r => derived.TryGetValue(r.TeamId, out var t)
+                    ? r with
+                    {
+                        FeeBase = t.FeeBase ?? 0m,
+                        FeeProcessing = t.FeeProcessing ?? 0m,
+                        FeeLatefee = t.FeeLatefee ?? 0m,
+                        FeeTotal = t.FeeTotal ?? 0m,
+                        OwedTotal = t.OwedTotal ?? 0m,
+                    }
+                    : r)
+                .ToList();
         }
 
         // Shape the rich per-team financial DTOs via the shared shaper — the SAME code

@@ -81,6 +81,7 @@ public class EcheckTeamPaymentServiceTests
         _teams.Setup(t => t.GetTeamsWithJobAndCustomerAsync(
                 jobId,
                 It.Is<IReadOnlyCollection<Guid>>(ids => ids.OrderBy(x => x).SequenceEqual(teamIds.OrderBy(x => x))),
+                It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(teams.ToList());
     }

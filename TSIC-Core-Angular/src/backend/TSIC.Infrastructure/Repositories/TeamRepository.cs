@@ -175,6 +175,7 @@ public class TeamRepository : ITeamRepository
     public async Task<List<Teams>> GetTeamsWithJobAndCustomerAsync(
         Guid jobId,
         IReadOnlyCollection<Guid> teamIds,
+        bool asNoTracking = false,
         CancellationToken cancellationToken = default)
     {
         if (teamIds.Count == 0)
@@ -182,14 +183,20 @@ public class TeamRepository : ITeamRepository
             return new List<Teams>();
         }
 
-        return await _context.Teams
+        var query = _context.Teams
             .Include(t => t.Job)
                 .ThenInclude(j => j.Customer)
             // Owning club (when rostered by a club rep) so the ADN charge description can
             // prefix the club name. Route: Teams.ClubrepRegistrationid -> Registrations.ClubName.
             .Include(t => t.ClubrepRegistration)
-            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
-            .ToListAsync(cancellationToken);
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId));
+
+        // Ephemeral-derive callers ask for no tracking: they mutate the returned entities in memory
+        // (late-fee preview) and must never have those writes persist.
+        if (asNoTracking)
+            query = query.AsNoTracking();
+
+        return await query.ToListAsync(cancellationToken);
     }
 
     public async Task<string?> GetOwnerClubNameAsync(
