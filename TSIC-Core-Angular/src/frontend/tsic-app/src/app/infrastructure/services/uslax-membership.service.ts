@@ -1,14 +1,16 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import type { Observable } from 'rxjs';
+import { Observable, timer } from 'rxjs';
+import { switchMap, takeWhile, last, map } from 'rxjs/operators';
 import { environment } from '@environments/environment';
 import type {
 	UsLaxEmailRequest,
-	UsLaxEmailResponse,
+	UsLaxEmailStartResponse,
 	UsLaxMembershipRole,
 	UsLaxReconciliationCandidateDto,
 	UsLaxReconciliationRequest,
-	UsLaxReconciliationResponse
+	UsLaxReconciliationResponse,
+	EmailBatchJobStatus
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -25,7 +27,31 @@ export class UsLaxMembershipService {
 		return this.http.post<UsLaxReconciliationResponse>(`${this.apiUrl}/uslax-membership/reconcile`, request);
 	}
 
-	sendEmail(request: UsLaxEmailRequest): Observable<UsLaxEmailResponse> {
-		return this.http.post<UsLaxEmailResponse>(`${this.apiUrl}/uslax-membership/email`, request);
+	/** Starts the background USLax email batch; returns the up-front skip rollup + a handle to poll. */
+	startEmail(request: UsLaxEmailRequest): Observable<UsLaxEmailStartResponse> {
+		return this.http.post<UsLaxEmailStartResponse>(`${this.apiUrl}/uslax-membership/email`, request);
+	}
+
+	getEmailStatus(batchJobId: string): Observable<EmailBatchJobStatus> {
+		return this.http.get<EmailBatchJobStatus>(`${this.apiUrl}/uslax-membership/email/${batchJobId}/status`);
+	}
+
+	/**
+	 * Starts the batch then polls every second, emitting the start rollup + FINAL status together
+	 * once the engine reports done. Same background+poll contract as the other batch paths.
+	 */
+	sendEmailAndAwait(
+		request: UsLaxEmailRequest
+	): Observable<{ start: UsLaxEmailStartResponse; status: EmailBatchJobStatus }> {
+		return this.startEmail(request).pipe(
+			switchMap(start =>
+				timer(0, 1000).pipe(
+					switchMap(() => this.getEmailStatus(start.batchJobId)),
+					takeWhile(s => !s.done, true),
+					last(),
+					map(status => ({ start, status }))
+				)
+			)
+		);
 	}
 }

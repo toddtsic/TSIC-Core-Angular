@@ -747,7 +747,7 @@ export type { UserSearchResultDto } from './models/UserSearchResultDto';
 export type { UserWidgetEntryDto } from './models/UserWidgetEntryDto';
 export type { UsLaxEmailRecipientDto } from './models/UsLaxEmailRecipientDto';
 export type { UsLaxEmailRequest } from './models/UsLaxEmailRequest';
-export type { UsLaxEmailResponse } from './models/UsLaxEmailResponse';
+export type { UsLaxEmailStartResponse } from './models/UsLaxEmailStartResponse';
 export type { UsLaxMembershipRole } from './models/UsLaxMembershipRole';
 export type { UsLaxReconciliationCandidateDto } from './models/UsLaxReconciliationCandidateDto';
 export type { UsLaxReconciliationRequest } from './models/UsLaxReconciliationRequest';

@@ -22,11 +22,16 @@ public class UsLaxMembershipController : ControllerBase
 {
     private readonly IUsLaxMembershipService _service;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IEmailBatchJobRegistry _batchJobs;
 
-    public UsLaxMembershipController(IUsLaxMembershipService service, IJobLookupService jobLookupService)
+    public UsLaxMembershipController(
+        IUsLaxMembershipService service,
+        IJobLookupService jobLookupService,
+        IEmailBatchJobRegistry batchJobs)
     {
         _service = service;
         _jobLookupService = jobLookupService;
+        _batchJobs = batchJobs;
     }
 
     [HttpGet("candidates")]
@@ -54,7 +59,7 @@ public class UsLaxMembershipController : ControllerBase
     }
 
     [HttpPost("email")]
-    public async Task<ActionResult<UsLaxEmailResponse>> SendEmail(
+    public async Task<ActionResult<UsLaxEmailStartResponse>> SendEmail(
         [FromBody] UsLaxEmailRequest request,
         CancellationToken ct)
     {
@@ -69,7 +74,15 @@ public class UsLaxMembershipController : ControllerBase
         if (jobId == null) return BadRequest(new { message = "Registration context required" });
 
         var senderUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        var response = await _service.SendEmailAsync(jobId.Value, senderUserId, request, ct);
-        return Ok(response);
+        var start = await _service.StartEmailAsync(jobId.Value, senderUserId, request, ct);
+        return Ok(start);
+    }
+
+    /// <summary>Progress / final summary for a background USLax email batch (404 if unknown/expired).</summary>
+    [HttpGet("email/{batchJobId:guid}/status")]
+    public ActionResult<EmailBatchJobStatus> GetEmailStatus(Guid batchJobId)
+    {
+        var status = _batchJobs.Get(batchJobId);
+        return status is null ? NotFound() : Ok(status);
     }
 }

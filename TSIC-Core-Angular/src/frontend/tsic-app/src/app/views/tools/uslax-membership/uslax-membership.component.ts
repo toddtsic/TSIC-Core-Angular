@@ -292,22 +292,23 @@ export class UsLaxMembershipComponent implements OnInit {
 		if (!confirm(confirmMsg)) return;
 
 		this.isSending.set(true);
-		this.service.sendEmail({
+		this.service.sendEmailAndAwait({
 			subject: this.subject(),
 			body: this.body(),
 			recipients
 		}).subscribe({
-			next: response => {
+			next: ({ start, status }) => {
 				this.isSending.set(false);
-				const parts: string[] = [`Sent ${response.sent} of ${recipients.length}`];
-				if (response.failed > 0) parts.push(`${response.failed} failed`);
-				if (response.missingEmail > 0) parts.push(`${response.missingEmail} had no email`);
-				if (response.skippedHealthy > 0) {
-					parts.push(`${response.skippedHealthy} skipped (already in good standing)`);
+				const parts: string[] = [`Sent ${status.sent} of ${start.totalRecipients}`];
+				if (status.failed > 0) parts.push(`${status.failed} failed`);
+				if (status.optedOut > 0) parts.push(`${status.optedOut} unsubscribed`);
+				if (start.missingEmail > 0) parts.push(`${start.missingEmail} had no email`);
+				if (start.skippedHealthy > 0) {
+					parts.push(`${start.skippedHealthy} skipped (already in good standing)`);
 				}
 				const msg = parts.join(', ') + '.';
 				const level: 'success' | 'warning' =
-					response.failed > 0 || response.skippedHealthy > 0 ? 'warning' : 'success';
+					status.failed > 0 || start.skippedHealthy > 0 ? 'warning' : 'success';
 				this.toast.show(msg, level, 6000);
 				this.showCompose.set(false);
 				this.gridRef?.clearSelection();

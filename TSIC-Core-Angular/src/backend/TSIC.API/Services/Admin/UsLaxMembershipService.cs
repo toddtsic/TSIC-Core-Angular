@@ -1,11 +1,12 @@
 using System.Globalization;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.UsLax;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
-using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Admin;
 
@@ -18,26 +19,20 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
     private readonly IRegistrationRepository _registrations;
     private readonly IUsLaxService _usLax;
     private readonly IJobRepository _jobs;
-    private readonly IEmailService _emailService;
-    private readonly IEmailLogRepository _emailLogs;
-    private readonly ITextSubstitutionService _textSubstitution;
+    private readonly IEmailBatchService _emailBatch;
     private readonly ILogger<UsLaxMembershipService> _logger;
 
     public UsLaxMembershipService(
         IRegistrationRepository registrations,
         IUsLaxService usLax,
         IJobRepository jobs,
-        IEmailService emailService,
-        IEmailLogRepository emailLogs,
-        ITextSubstitutionService textSubstitution,
+        IEmailBatchService emailBatch,
         ILogger<UsLaxMembershipService> logger)
     {
         _registrations = registrations;
         _usLax = usLax;
         _jobs = jobs;
-        _emailService = emailService;
-        _emailLogs = emailLogs;
-        _textSubstitution = textSubstitution;
+        _emailBatch = emailBatch;
         _logger = logger;
     }
 
@@ -161,111 +156,95 @@ public sealed class UsLaxMembershipService : IUsLaxMembershipService
         return BuildRow(c, statusCode: 200, errorMessage: null, newExpiry: newExpiry, updated: updated, output: output);
     }
 
-    public async Task<UsLaxEmailResponse> SendEmailAsync(Guid jobId, string? senderUserId, UsLaxEmailRequest request, CancellationToken ct = default)
+    public async Task<UsLaxEmailStartResponse> StartEmailAsync(Guid jobId, string? senderUserId, UsLaxEmailRequest request, CancellationToken ct = default)
     {
         var jobInfo = await _jobs.GetConfirmationEmailInfoAsync(jobId, ct);
         var jobName = jobInfo?.JobName ?? string.Empty;
         var jobPath = jobInfo?.JobPath ?? string.Empty;
         var jobValidThrough = jobInfo?.UsLaxNumberValidThroughDate;
 
-        var sent = 0;
-        var failed = 0;
-        var missingEmail = 0;
-        var skippedHealthy = 0;
-        var failedAddresses = new List<string>();
+        // Up-front partition — pure checks on the request snapshot (no I/O), so the skip rollup is
+        // known immediately and returned in the start response:
+        //   healthy   → NeedsAction == false (never false-alarm a valid member, even if force-selected)
+        //   no-email  → blank Email
+        //   actionable→ everything else, becomes the background batch
         var skippedNames = new List<string>();
-        var sentAddresses = new List<string>();
-
+        var missingEmail = 0;
+        var actionable = new List<UsLaxEmailRecipientDto>();
         foreach (var r in request.Recipients)
         {
-            ct.ThrowIfCancellationRequested();
-
-            // Guard: never send the "action required" style email to someone whose
-            // membership already meets the job's requirements. Client UI should keep
-            // these unselected, but this is the authoritative check — an admin could
-            // still force-select them in the grid.
             if (!NeedsAction(r, jobValidThrough))
             {
-                skippedHealthy++;
                 skippedNames.Add($"{r.FirstName} {r.LastName}".Trim());
                 continue;
             }
-
             if (string.IsNullOrWhiteSpace(r.Email))
             {
                 missingEmail++;
                 continue;
             }
-
-            var extras = BuildUsLaxExtras(r);
-            var subject = await _textSubstitution.SubstituteAsync(
-                jobSegment: jobPath,
-                jobId: jobId,
-                paymentMethodCreditCardId: CcPaymentMethodId,
-                registrationId: r.RegistrationId,
-                familyUserId: string.Empty,
-                template: request.Subject,
-                inviteTargetJobPath: null,
-                extraTokens: extras);
-            var body = await _textSubstitution.SubstituteAsync(
-                jobSegment: jobPath,
-                jobId: jobId,
-                paymentMethodCreditCardId: CcPaymentMethodId,
-                registrationId: r.RegistrationId,
-                familyUserId: string.Empty,
-                template: request.Body,
-                inviteTargetJobPath: null,
-                extraTokens: extras);
-
-            var message = new EmailMessageDto
-            {
-                FromName = jobName,
-                Subject = subject,
-                HtmlBody = body,
-                ToAddresses = new List<string> { r.Email }
-            };
-
-            try
-            {
-                var ok = await _emailService.SendAsync(message, cancellationToken: ct);
-                if (ok) { sent++; sentAddresses.Add(r.Email); }
-                else { failed++; failedAddresses.Add(r.Email); }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "USLax email send failed for registration {RegistrationId}", r.RegistrationId);
-                failed++;
-                failedAddresses.Add(r.Email);
-            }
+            actionable.Add(r);
         }
 
-        // Audit: one EmailLogs row for the batch (matches legacy USLaxMembershipController pattern).
-        try
+        // Opt-out is resolved SERVER-SIDE by registrationId — the FE recipient snapshot can't be
+        // trusted for it. One batch load builds the opted-out set the engine's IsOptedOut closes over.
+        var optedOut = (await _registrations.GetByIdsAsync(actionable.Select(a => a.RegistrationId).ToList(), ct))
+            .Where(reg => reg.BemailOptOut)
+            .Select(reg => reg.RegistrationId)
+            .ToHashSet();
+
+        var subjectTemplate = request.Subject;
+        var bodyTemplate = request.Body;
+
+        var plan = new EmailBatchPlan<UsLaxEmailRecipientDto>
         {
-            await _emailLogs.LogAsync(new EmailLogs
+            SeedAsync = (_, _) => Task.FromResult(new EmailBatchSeed<UsLaxEmailRecipientDto> { Items = actionable }),
+            IsOptedOut = r => optedOut.Contains(r.RegistrationId),
+            DescribeItem = r => $"{r.FirstName} {r.LastName}".Trim(),
+            RenderAsync = async (r, sp, _) =>
+            {
+                var toAddresses = BatchEmailRecipientFilter.BuildSendableSet(new[] { r.Email });
+                if (toAddresses.Count == 0) return null;
+
+                // Same TextSubstitution engine as every other email — resolved from the render scope.
+                var textSub = sp.GetRequiredService<ITextSubstitutionService>();
+                var extras = BuildUsLaxExtras(r);
+                var (subject, body) = await textSub.SubstituteSubjectAndBodyAsync(
+                    jobPath, jobId, CcPaymentMethodId, r.RegistrationId, string.Empty,
+                    subjectTemplate, bodyTemplate, inviteTargetJobPath: null, extraTokens: extras);
+
+                return new EmailBatchRendered
+                {
+                    Message = new EmailMessageDto
+                    {
+                        FromName = jobName,
+                        Subject = subject,
+                        HtmlBody = body,
+                        ToAddresses = toAddresses
+                    },
+                    UnsubscribeRegId = r.RegistrationId // engine appends the unsubscribe footer
+                };
+            },
+            // Engine writes the EmailLogs audit row from this (replaces USLax's manual log). No
+            // sender-summary / director-notify for USLax, so no completion hook.
+            Audit = new EmailBatchAudit
             {
                 JobId = jobId,
-                Count = sent,
-                Subject = request.Subject,
-                Msg = request.Body,
-                SendTo = string.Join(";", sentAddresses),
-                SendFrom = null,
                 SenderUserId = senderUserId,
-                SendTs = DateTime.Now
-            }, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "USLax email log write failed for job {JobId}", jobId);
-        }
+                Subject = subjectTemplate,
+                BodyTemplate = bodyTemplate,
+                SendFrom = null
+            }
+        };
 
-        return new UsLaxEmailResponse
+        var handle = await _emailBatch.StartAsync(plan, new EmailBatchOptions(), ct);
+
+        return new UsLaxEmailStartResponse
         {
-            Sent = sent,
-            Failed = failed,
+            BatchJobId = handle.JobId,
+            TotalRecipients = handle.TotalRecipients,
             MissingEmail = missingEmail,
-            SkippedHealthy = skippedHealthy,
-            FailedAddresses = failedAddresses,
+            SkippedHealthy = skippedNames.Count,
             SkippedNames = skippedNames
         };
     }

@@ -96,18 +96,28 @@ public record UsLaxEmailRequest
     public required List<UsLaxEmailRecipientDto> Recipients { get; init; }
 }
 
-/// <summary>Inline email send response — sent/skipped/failed rollup.</summary>
-public record UsLaxEmailResponse
+/// <summary>
+/// Inline email send START response. The send now runs as a background batch on the shared engine
+/// (opt-out suppression, footer, retry, rate-limit); the caller polls
+/// <c>uslax-membership/email/{batchJobId}/status</c> for sent/failed. The skip rollup below is all
+/// known up front (pure checks on the recipient snapshot) and returned immediately.
+/// </summary>
+public record UsLaxEmailStartResponse
 {
-    public required int Sent { get; init; }
-    public required int Failed { get; init; }
+    /// <summary>Background batch id to poll for progress + final sent/failed.</summary>
+    public required Guid BatchJobId { get; init; }
+
+    /// <summary>Count actually queued for sending (action-needed, has email, not opted out applied downstream).</summary>
+    public required int TotalRecipients { get; init; }
+
+    /// <summary>Selected recipients dropped for having no email on file.</summary>
     public required int MissingEmail { get; init; }
+
     /// <summary>
-    /// Recipients whose membership was evaluated as already in good standing for the job
-    /// (Active + expiry past the job's valid-through date) and were therefore not emailed.
-    /// Prevents false-alarm messages to valid members even if an admin selected them.
+    /// Recipients evaluated as already in good standing for the job (Active + expiry past the job's
+    /// valid-through date) and therefore not emailed — prevents false-alarm messages to valid members.
     /// </summary>
     public required int SkippedHealthy { get; init; }
-    public required IReadOnlyList<string> FailedAddresses { get; init; }
+
     public required IReadOnlyList<string> SkippedNames { get; init; }
 }

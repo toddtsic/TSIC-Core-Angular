@@ -2,12 +2,11 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type UsLaxEmailResponse = {
-    sent: number;
-    failed: number;
+export type UsLaxEmailStartResponse = {
+    batchJobId: string;
+    totalRecipients: number;
     missingEmail: number;
     skippedHealthy: number;
-    failedAddresses: Array<string>;
     skippedNames: Array<string>;
 };
 
