@@ -17,6 +17,11 @@ public interface IJobConfigRepository
     /// relevance — a coach can only request a team once teams exist (the "release after
     /// teams are in" precondition).</summary>
     Task<bool> JobHasTeamsAsync(Guid jobId, CancellationToken ct = default);
+    /// <summary>True if the job has at least one dated schedule (game) row. Drives the
+    /// "View Schedule" toggle's relevance — publishing the schedule is only meaningful
+    /// once games actually exist (same Schedule.GDate-not-null basis the pulse's
+    /// FirstGameDate uses).</summary>
+    Task<bool> JobHasScheduleAsync(Guid jobId, CancellationToken ct = default);
     Task<GameClockParams?> GetGameClockParamsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<JobAdminCharges>> GetAdminChargesAsync(Guid jobId, CancellationToken ct = default);
 

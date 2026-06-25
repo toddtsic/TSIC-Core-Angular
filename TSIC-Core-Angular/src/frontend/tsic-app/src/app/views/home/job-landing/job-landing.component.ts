@@ -205,7 +205,11 @@ export class JobLandingComponent implements OnDestroy {
 		if ((p.myClubRepTeamCount ?? 0) > 0) {
 			candidates.push({ key: 'my-teams', label: 'My Teams', icon: 'bi-people', routerLink: `${base}/registration/team`, queryParams: { step: 'teams' } });
 		}
-		if (p.schedulePublished) {
+		// Gated on BOTH the public-access toggle AND a schedule actually existing:
+		// firstGameDate is the min Schedule.GDate, non-null only when games are
+		// entered. Publishing access with zero games must NOT surface a card that
+		// dead-ends on an empty schedule.
+		if (p.schedulePublished && p.firstGameDate) {
 			candidates.push({ key: 'view-schedule', label: phase === 'concluded' ? 'Final Schedule' : 'View Schedule', icon: 'bi-calendar-event', routerLink: `${base}/schedule` });
 		}
 		if (p.storeHasActiveItems) {

@@ -76,8 +76,15 @@ export class QuickLinksComponent {
 			relevant: f.teamFeesConfigured,
 			onTip: 'Teams can register — the "Register Team" card shows on the landing page.',
 			offTip: 'Team registration is closed — the card is hidden.' },
+		// Schedule-relevant: publishing access is a legitimate pre-arm action, so the
+		// toggle stays usable, but with no games entered the public "View Schedule"
+		// card stays hidden (pulse gates on FirstGameDate) — surface that as a
+		// non-forcing caution, mirroring the coach/no-teams pattern below.
 		{ key: 'publishSchedule', label: 'View Schedule', icon: 'bi-calendar-event',
 			relevant: true,
+			warn: f.scheduleConfigured
+				? null
+				: 'No games are scheduled yet — the "View Schedule" card stays hidden until a schedule is added.',
 			onTip: 'The public schedule is visible — the "View Schedule" card shows.',
 			offTip: 'The schedule is not public — the card is hidden.' },
 		{ key: 'showPublicRosters', label: 'Rosters', icon: 'bi-list-ul',

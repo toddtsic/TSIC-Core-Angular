@@ -16,5 +16,6 @@ export type JobVisibilityDto = {
     teamsConfigured: boolean;
     playerFeesConfigured: boolean;
     teamFeesConfigured: boolean;
+    scheduleConfigured: boolean;
 };
 

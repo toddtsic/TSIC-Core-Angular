@@ -41,6 +41,15 @@ public class JobConfigRepository : IJobConfigRepository
             .AnyAsync(t => t.JobId == jobId, ct);
     }
 
+    public async Task<bool> JobHasScheduleAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Dated rows only — same GDate-not-null basis as the pulse's FirstGameDate, so
+        // editor relevance and the public "View Schedule" card agree on "has a schedule".
+        return await _context.Schedule
+            .AsNoTracking()
+            .AnyAsync(s => s.JobId == jobId && s.GDate != null, ct);
+    }
+
     public async Task<GameClockParams?> GetGameClockParamsAsync(Guid jobId, CancellationToken ct = default)
     {
         return await _context.GameClockParams

@@ -55,6 +55,12 @@ public record JobVisibilityDto
     /// team registration toggle is only relevant — and the public "Register Team"
     /// card only grounds open — when team registration can actually be priced.</summary>
     public required bool TeamFeesConfigured { get; init; }
+
+    /// <summary>True when the job has at least one dated schedule (game) row. The
+    /// "View Schedule" toggle is only relevant — and the public "View Schedule" card
+    /// only grounds — once games actually exist; publishing access with zero games
+    /// would dead-end on an empty schedule.</summary>
+    public required bool ScheduleConfigured { get; init; }
 }
 
 /// <summary>

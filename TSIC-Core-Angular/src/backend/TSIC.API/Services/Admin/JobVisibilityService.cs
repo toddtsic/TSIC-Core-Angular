@@ -31,6 +31,8 @@ public class JobVisibilityService : IJobVisibilityService
         // Coach/staff registration relevance is team-driven (a coach requests a team),
         // not fee-driven — coaches are unpaid (FeeBase=0, no JobFees role).
         var teamsConfigured = await _repo.JobHasTeamsAsync(jobId, ct);
+        // "View Schedule" relevance is schedule-driven: only meaningful once games exist.
+        var scheduleConfigured = await _repo.JobHasScheduleAsync(jobId, ct);
 
         return new JobVisibilityDto
         {
@@ -50,6 +52,7 @@ public class JobVisibilityService : IJobVisibilityService
             TeamsConfigured = teamsConfigured,
             PlayerFeesConfigured = playerFeesConfigured,
             TeamFeesConfigured = teamFeesConfigured,
+            ScheduleConfigured = scheduleConfigured,
         };
     }
 
