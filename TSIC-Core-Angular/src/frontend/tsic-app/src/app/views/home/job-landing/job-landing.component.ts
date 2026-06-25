@@ -18,8 +18,9 @@ import { isTournament } from '@infrastructure/constants/job-type.constants';
 import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
 import { BulletinsComponent } from '@widgets/communications/bulletins.component';
 import { ViewScheduleService } from '@views/scheduling/view-schedule/services/view-schedule.service';
-import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
 import { ActionHubComponent, HubItem } from '@layouts/components/action-hub/action-hub.component';
+import { GameDayPanelComponent } from './game-day-panel/game-day-panel.component';
+import { RegistrationPanelComponent } from './registration-panel/registration-panel.component';
 
 /**
  * The event's lifecycle position, derived from facts (schedule released + the
@@ -71,7 +72,7 @@ const PRIMARY_BY_PHASE: Record<EventPhase, readonly string[]> = {
 @Component({
 	selector: 'app-job-landing',
 	standalone: true,
-	imports: [ClientBannerComponent, BulletinsComponent, InlineGameClockComponent, ActionHubComponent],
+	imports: [ClientBannerComponent, BulletinsComponent, ActionHubComponent, GameDayPanelComponent, RegistrationPanelComponent],
 	templateUrl: './job-landing.component.html',
 	styleUrl: './job-landing.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -141,6 +142,59 @@ export class JobLandingComponent implements OnDestroy {
 
 	/** Drives the inline "this event has concluded" notice (decoupled from supersession). */
 	readonly isConcluded = computed(() => this.phase() === 'concluded');
+
+	// THE isolated "schedule is live" signal — schedule published AND games actually
+	// exist (firstGameDate non-null), in a lifecycle phase where View Schedule belongs.
+	// This is the exact gate behind the "View Schedule" card; here it instead lights up
+	// the rich Game-Day panel (web schedule + game-day app promo). Admins excluded —
+	// the public hero is for anonymous/non-admin viewers.
+	readonly showGameDayPanel = computed(() => {
+		if (this.auth.isAdmin()) return false;
+		const p = this.pulse();
+		if (!p || !this.activeJobPath()) return false;
+		if (!(p.schedulePublished && p.firstGameDate)) return false;
+		return CTAS_BY_PHASE[this.phase()].has('view-schedule');
+	});
+
+	// Hero cards the Registration compound viewer absorbs (it renders them as
+	// sections instead). When the panel is active these are dropped from the strip
+	// to avoid duplication — same "panel supersedes the plain cards" move as the
+	// Game-Day panel does to view-schedule.
+	private static readonly REG_PANEL_KEYS: ReadonlySet<string> = new Set([
+		'register-player', 'register-coach', 'register-referee', 'register-recruiter',
+		'my-registration', 'pay-balance', 'rosters',
+	]);
+
+	/** The CTA keys this lifecycle phase allows — passed to the panels so they gate
+	 *  their sections on phase as well as pulse (a stale toggle can't resurrect a CTA). */
+	readonly allowedCtaKeys = computed<ReadonlySet<string>>(() => CTAS_BY_PHASE[this.phase()]);
+
+	// Mount the Registration panel only on SUBSTANTIVE registration content — an open
+	// self-roster role (phase-allowed) or a manageable registration / the self-service
+	// change link. Rosters alone does NOT trigger it (that stays a compact strip card
+	// until the panel is already up for another reason). Mirrors the panel's own
+	// section logic so suppression and rendering stay in lockstep. Admins excluded.
+	readonly showRegistrationPanel = computed(() => {
+		if (this.auth.isAdmin()) return false;
+		const p = this.pulse();
+		if (!p || !this.activeJobPath()) return false;
+		const allowed = CTAS_BY_PHASE[this.phase()];
+		const user = this.auth.currentUser();
+		const registered = !!user?.regId;
+		const isPlayerOrFamily = user?.role === Roles.Player || user?.role === Roles.Family;
+
+		const hasSelfRoster = !registered && (
+			(allowed.has('register-player') && p.playerRegistrationOpen) ||
+			(allowed.has('register-coach') && p.staffRegistrationOpen) ||
+			(allowed.has('register-referee') && p.refereeRegistrationOpen) ||
+			(allowed.has('register-recruiter') && p.recruiterRegistrationOpen));
+		const hasManage =
+			(allowed.has('register-player') && p.playerRegistrationOpen) ||  // self-roster-update
+			(registered && isPlayerOrFamily && (
+				allowed.has('my-registration') ||
+				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0)));
+		return hasSelfRoster || hasManage;
+	});
 
 	// Grounded landing CTAs (LandingCta placement), derived from the live pulse —
 	// the canonical "what's open" snapshot. INTERIM: this thin pulse→action mapping
@@ -233,8 +287,16 @@ export class JobLandingComponent implements OnDestroy {
 		}
 
 		// Membership and order come straight from the pulse-grounded candidates,
-		// filtered to what this lifecycle phase allows.
-		const items = candidates.filter(i => allowed.has(i.key));
+		// filtered to what this lifecycle phase allows. The rich panels OWN their
+		// CTAs while shown, so drop the plain cards they absorb to avoid duplicates:
+		// the Game-Day panel takes view-schedule; the Registration panel takes the
+		// self-roster / manage / rosters set.
+		const suppressViewSchedule = this.showGameDayPanel();
+		const suppressRegKeys = this.showRegistrationPanel();
+		const items = candidates.filter(i =>
+			allowed.has(i.key)
+			&& !(suppressViewSchedule && i.key === 'view-schedule')
+			&& !(suppressRegKeys && JobLandingComponent.REG_PANEL_KEYS.has(i.key)));
 		if (!items.length) return items;
 
 		// Primary = the first phase-preferred key present; else the first item.

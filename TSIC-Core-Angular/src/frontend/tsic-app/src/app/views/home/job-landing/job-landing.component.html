@@ -80,6 +80,31 @@
 		}
 
 		<!-- ══════════════════════════════════════════════════
+		     REGISTRATION PANEL — compound viewer capturing the
+		     "Player & Coach Registration and Waiver Wizard"
+		     bulletin. Conditionally assembles self-roster links,
+		     the featured self-roster-update (change team/uniform/
+		     cancel), and public rosters. Supersedes the absorbed
+		     strip cards while shown; self-hides when empty.
+		     ══════════════════════════════════════════════════ -->
+		@if (showRegistrationPanel()) {
+			<app-registration-panel [jobPath]="activeJobPath()" [allowedKeys]="allowedCtaKeys()" />
+		}
+
+		<!-- ══════════════════════════════════════════════════
+		     GAME-DAY PANEL — rich, self-assembling capture of the
+		     "Schedules Now Available!" bulletin. Lights up on the
+		     SAME isolated signal as the View Schedule card (schedule
+		     published AND games exist); promotes the web schedule +
+		     the free TSIC-Events app (device-aware). Supersedes the
+		     plain View Schedule card while shown.
+		     ══════════════════════════════════════════════════ -->
+		@if (showGameDayPanel()) {
+			<app-game-day-panel [jobPath]="activeJobPath()" [live]="!isConcluded()"
+				[jobId]="jobId()" [showClock]="showInlineClock()" />
+		}
+
+		<!-- ══════════════════════════════════════════════════
 		     BULLETINS — full-viewport-width publication paper
 		     floating on the atmospheric page background. The section
 		     header carries the title plus, when in-season, the
@@ -91,9 +116,6 @@
 					<h2 class="jl-bulletins__title">
 						<span class="jl-gradient-text">News &amp; Updates</span>
 					</h2>
-					@if (showInlineClock()) {
-						<app-inline-game-clock [jobId]="jobId()" />
-					}
 				</header>
 				<div class="reveal reveal-delay-1">
 					<app-bulletins></app-bulletins>

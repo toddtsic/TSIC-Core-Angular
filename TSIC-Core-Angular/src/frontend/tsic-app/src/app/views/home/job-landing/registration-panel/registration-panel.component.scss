@@ -1,0 +1,156 @@
+// ============================================================
+//  Registration compound viewer — elevated palette-driven surface
+//  (gradient + shadow + border for depth; NEVER backdrop-filter).
+//  Sections are conditionally assembled from the live pulse.
+// ============================================================
+:host {
+	display: block;
+}
+
+.rp {
+	max-width: 960px;
+	margin: var(--space-4) auto 0;
+	padding: 0 var(--space-3);
+}
+
+.rp__inner {
+	padding: var(--space-5) var(--space-6);
+	border: 1px solid var(--brand-border);
+	border-left: 4px solid var(--bs-primary);
+	border-radius: var(--radius-lg);
+	background:
+		linear-gradient(135deg,
+			rgba(var(--bs-primary-rgb), 0.10) 0%,
+			rgba(var(--bs-primary-rgb), 0.02) 55%,
+			transparent 100%),
+		var(--brand-surface, var(--neutral-0));
+	box-shadow: var(--shadow-md);
+}
+
+// ── Header ──────────────────────────────────────────────────
+.rp__head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	margin-bottom: var(--space-4);
+}
+
+.rp__icon {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
+	color: var(--bs-primary);
+	font-size: 1.25rem;
+}
+
+.rp__title {
+	margin: 0;
+	font-size: var(--font-size-lg, 1.125rem);
+	font-weight: var(--font-weight-bold);
+	color: var(--brand-text);
+	line-height: 1.2;
+}
+
+.rp__sub {
+	margin: var(--space-1) 0 0;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+}
+
+// ── Sections ────────────────────────────────────────────────
+.rp__sections {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	gap: var(--space-5);
+}
+
+.rp__section-title {
+	margin: 0 0 var(--space-2);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--brand-text-muted);
+}
+
+.rp__links {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+// ── Link rows (anchors and the modal-action button share this) ──
+.rp__link {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	width: 100%;
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-md);
+	background: var(--brand-surface, var(--neutral-0));
+	color: var(--brand-text);
+	font: inherit;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	text-align: left;
+	text-decoration: none;
+	cursor: pointer;
+	transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+
+	.rp__link-go { margin-left: auto; transition: transform 0.15s ease; opacity: 0.6; }
+
+	&:hover {
+		border-color: var(--bs-primary);
+		box-shadow: var(--shadow-md);
+		.rp__link-go { transform: translateX(3px); opacity: 1; }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.rp__link-icon {
+	flex: 0 0 auto;
+	font-size: 1.05rem;
+	color: var(--bs-primary);
+}
+
+.rp__link-label { line-height: 1.2; }
+
+// Featured self-roster-update — the standout (filled primary, two-line).
+.rp__link--feature {
+	background: var(--bs-primary);
+	border-color: var(--bs-primary);
+	color: #fff; // on-primary convention
+
+	.rp__link-icon { color: #fff; }
+
+	.rp__link-text {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.2;
+
+		strong { font-weight: var(--font-weight-semibold); }
+		small { font-size: var(--font-size-xs); opacity: 0.9; }
+	}
+
+	&:hover {
+		border-color: var(--bs-primary);
+		filter: brightness(1.05);
+	}
+}
+
+// ── Reduced motion (required for any animation/transition) ───
+@media (prefers-reduced-motion: reduce) {
+	.rp__link,
+	.rp__link-go { transition: none !important; }
+	.rp__link--feature:hover { filter: none !important; }
+}

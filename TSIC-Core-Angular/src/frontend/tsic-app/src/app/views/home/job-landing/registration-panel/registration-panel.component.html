@@ -1,0 +1,74 @@
+@if (hasContent()) {
+	<section class="rp" aria-label="Registration">
+		<div class="rp__inner">
+
+			<header class="rp__head">
+				<span class="rp__icon" aria-hidden="true"><i class="bi bi-person-vcard"></i></span>
+				<div class="rp__headtext">
+					<h3 class="rp__title">{{ title() }}</h3>
+					<p class="rp__sub">Self-roster to participate, manage an existing registration, or view who's rostered.</p>
+				</div>
+			</header>
+
+			<div class="rp__sections">
+
+				<!-- Self-Rostering — one link per open self-registration role -->
+				@if (selfRosterLinks().length) {
+					<div class="rp__section">
+						<h4 class="rp__section-title">Self-Rostering</h4>
+						<div class="rp__links">
+							@for (l of selfRosterLinks(); track l.key) {
+								<a class="rp__link" [routerLink]="l.routerLink" [queryParams]="l.queryParams ?? null">
+									<i class="bi {{ l.icon }} rp__link-icon" aria-hidden="true"></i>
+									<span class="rp__link-label">{{ l.label }}</span>
+									<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+								</a>
+							}
+						</div>
+					</div>
+				}
+
+				<!-- Manage — featured self-roster-update (the support-call killer) -->
+				@if (showManage()) {
+					<div class="rp__section">
+						<h4 class="rp__section-title">Manage your registration</h4>
+						<div class="rp__links">
+							@if (showChange()) {
+								<button type="button" class="rp__link rp__link--feature" (click)="openSelfRosterUpdate()">
+									<i class="bi bi-pencil-square rp__link-icon" aria-hidden="true"></i>
+									<span class="rp__link-text">
+										<strong>Change Team or Uniform #</strong>
+										<small>…or cancel a player registration — no call needed</small>
+									</span>
+									<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+								</button>
+							}
+							@for (l of manageLinks(); track l.key) {
+								<a class="rp__link" [routerLink]="l.routerLink" [queryParams]="l.queryParams ?? null">
+									<i class="bi {{ l.icon }} rp__link-icon" aria-hidden="true"></i>
+									<span class="rp__link-label">{{ l.label }}</span>
+									<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+								</a>
+							}
+						</div>
+					</div>
+				}
+
+				<!-- Rosters -->
+				@if (rostersLink(); as r) {
+					<div class="rp__section">
+						<h4 class="rp__section-title">Rosters</h4>
+						<div class="rp__links">
+							<a class="rp__link" [routerLink]="r.routerLink">
+								<i class="bi {{ r.icon }} rp__link-icon" aria-hidden="true"></i>
+								<span class="rp__link-label">{{ r.label }}</span>
+								<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+							</a>
+						</div>
+					</div>
+				}
+
+			</div>
+		</div>
+	</section>
+}

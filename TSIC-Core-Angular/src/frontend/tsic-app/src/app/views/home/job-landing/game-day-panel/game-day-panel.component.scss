@@ -1,0 +1,261 @@
+// ============================================================
+//  Game-Day panel — elevated palette-driven surface (gradient +
+//  shadow + border for depth; NEVER backdrop-filter). Lights up
+//  in lockstep with the "View Schedule" signal.
+// ============================================================
+:host {
+	display: block;
+}
+
+.gd {
+	max-width: 960px;
+	margin: var(--space-4) auto 0;
+	padding: 0 var(--space-3);
+}
+
+.gd__inner {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: stretch;
+	justify-content: space-between;
+	gap: var(--space-5);
+	padding: var(--space-5) var(--space-6);
+	border: 1px solid var(--brand-border);
+	border-left: 4px solid var(--bs-primary);
+	border-radius: var(--radius-lg);
+	// Elevated surface: a soft primary-tinted gradient (palette-responsive) over
+	// the brand surface, lifted with a shadow. No backdrop-filter (banned).
+	background:
+		linear-gradient(135deg,
+			rgba(var(--bs-primary-rgb), 0.10) 0%,
+			rgba(var(--bs-primary-rgb), 0.02) 55%,
+			transparent 100%),
+		var(--brand-surface, var(--neutral-0));
+	box-shadow: var(--shadow-md);
+}
+
+// ── Schedule section (left): headline + its link buttons, continuous ──
+.gd__main {
+	flex: 1 1 320px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-4);
+	min-width: 0;
+}
+
+// ── Aside (right): QR codes top, game clock pinned bottom-right ──
+.gd__aside {
+	flex: 0 0 auto;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: var(--space-3);
+}
+
+// Push the clock to the bottom of the aside so it sits bottom-right, aligned with
+// the link buttons across the panel (no top divider — it's out of the schedule flow).
+.gd__clock {
+	margin-top: auto;
+}
+
+// ── Headline ────────────────────────────────────────────────
+.gd__head {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.gd__pulse {
+	flex: 0 0 auto;
+	width: 12px;
+	height: 12px;
+	border-radius: var(--radius-full);
+	background: var(--bs-success, var(--bs-primary));
+	box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb, var(--bs-primary-rgb)), 0.6);
+	animation: gd-pulse 2s ease-out infinite;
+}
+
+@keyframes gd-pulse {
+	0% { box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb, var(--bs-primary-rgb)), 0.55); }
+	70% { box-shadow: 0 0 0 10px rgba(var(--bs-success-rgb, var(--bs-primary-rgb)), 0); }
+	100% { box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb, var(--bs-primary-rgb)), 0); }
+}
+
+.gd__flag {
+	flex: 0 0 auto;
+	font-size: 1rem;
+	color: var(--bs-primary);
+}
+
+.gd__title {
+	margin: 0;
+	font-size: var(--font-size-lg, 1.125rem);
+	font-weight: var(--font-weight-bold);
+	color: var(--brand-text);
+	line-height: 1.2;
+}
+
+.gd__sub {
+	margin: var(--space-1) 0 0;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+}
+
+// ── Scan-to-install QRs (desktop) — one per store ───────────
+.gd__qr {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-2);
+	flex: 0 0 auto;
+}
+
+.gd__qr-heading {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-semibold);
+	color: var(--brand-text-muted);
+}
+
+.gd__qr-codes {
+	display: flex;
+	gap: var(--space-3);
+}
+
+.gd__qr-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--space-1);
+	margin: 0;
+}
+
+.gd__qr-tile {
+	// White tile so the dark-on-white code stays scannable under any palette/theme.
+	background: #fff;
+	padding: var(--space-1);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--brand-border);
+	box-shadow: var(--shadow-md);
+	line-height: 0;
+}
+
+.gd__qr-img {
+	display: block;
+	width: 84px;
+	height: 84px;
+	image-rendering: pixelated; // keep QR edges crisp when scaled
+}
+
+.gd__qr-cap {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--font-size-xs);
+	color: var(--brand-text-muted);
+}
+
+// ── Actions ─────────────────────────────────────────────────
+.gd__actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--space-3);
+}
+
+.gd__web {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-5);
+	border-radius: var(--radius-md);
+	background: var(--bs-primary);
+	color: #fff; // on-primary convention across the app (solid primary fill)
+	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-size-sm);
+	text-decoration: none;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+	.gd__web-go { transition: transform 0.15s ease; }
+
+	&:hover {
+		box-shadow: var(--shadow-md);
+		.gd__web-go { transform: translateX(3px); }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.gd__apps {
+	display: flex;
+	gap: var(--space-2);
+}
+
+// Badge-style store buttons (dark pill, "secondary line / name") — generic,
+// on-brand chrome, not the trademarked store artwork.
+.gd__store {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-4);
+	border-radius: var(--radius-md);
+	border: 1px solid var(--brand-border);
+	// Theme-adaptive inverse pill: high contrast in BOTH light and dark themes
+	// (dark badge on light theme, light badge on dark) — the neutral scale flips
+	// with the theme, so brand-text/brand-surface guarantees legibility.
+	background: var(--brand-text);
+	color: var(--brand-surface);
+	text-decoration: none;
+	transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+	opacity: 0.78;
+
+	&:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); opacity: 1; }
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		opacity: 1;
+	}
+
+	// The viewer's detected platform leads — full opacity + primary ring.
+	&--primary {
+		opacity: 1;
+		border-color: var(--bs-primary);
+		box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.35);
+	}
+}
+
+.gd__store-glyph {
+	font-size: 1.4rem;
+	line-height: 1;
+}
+
+.gd__store-text {
+	display: flex;
+	flex-direction: column;
+	line-height: 1.1;
+
+	small { font-size: 0.62rem; opacity: 0.85; }
+	strong { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+}
+
+// ── Responsive: stack on phones, full-width web CTA ──────────
+@media (max-width: 575.98px) {
+	.gd__actions { flex-direction: column; align-items: stretch; }
+	.gd__web { justify-content: center; }
+	.gd__apps { justify-content: center; }
+	.gd__web-go { margin-left: auto; }
+}
+
+// ── Reduced motion (required for any animation/transition) ───
+@media (prefers-reduced-motion: reduce) {
+	.gd__pulse { animation: none !important; }
+	.gd__web,
+	.gd__web-go,
+	.gd__store { transition: none !important; }
+}
