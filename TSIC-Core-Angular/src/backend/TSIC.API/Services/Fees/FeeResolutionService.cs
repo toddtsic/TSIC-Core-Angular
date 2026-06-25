@@ -104,13 +104,16 @@ public sealed class FeeResolutionService : IFeeResolutionService
     /// </summary>
     private async Task<decimal> ResolveEffectiveLateFeeAsync(
         Guid jobId, string roleId, Guid agegroupId, Guid teamId,
-        PaymentState state, decimal fullPrice, decimal discount, decimal donation,
+        PaymentState state, decimal fullPrice, decimal depositBase, decimal discount, decimal donation,
         CancellationToken ct)
     {
         // Sequential awaits (shared scoped DbContext) — never Task.WhenAll.
         var windowed = (await EvaluateModifiersAsync(jobId, roleId, agegroupId, teamId, DateTime.Now, ct)).TotalLateFee;
         var configured = (await EvaluateModifiersAsync(jobId, roleId, agegroupId, teamId, null, ct)).TotalLateFee;
-        return state.EffectiveLateFee(windowed, configured, fullPrice, discount, donation);
+        // depositBase = the deposit tier the late fee was billed on (resolved EffectiveDeposit) — the
+        // paid-lock FLOOR allocates against it so a late fee collected with the deposit survives a later
+        // deposit→full-payment flip. fullPrice still drives the in-window GATE.
+        return state.EffectiveLateFee(windowed, configured, fullPrice, depositBase, discount, donation);
     }
 
     // ── Resolution (Job-level) ────────────────────────────────
@@ -290,7 +293,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         {
             reg.FeeLatefee = await ResolveEffectiveLateFeeAsync(
                 jobId, RoleConstants.Player, targetAgegroupId, targetTeamId,
-                state, resolved?.FullPrice ?? 0m, reg.FeeDiscount, reg.FeeDonation, ct);
+                state, resolved?.FullPrice ?? 0m, resolved?.EffectiveDeposit ?? 0m,
+                reg.FeeDiscount, reg.FeeDonation, ct);
         }
 
         await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct, state);
@@ -371,7 +375,8 @@ public sealed class FeeResolutionService : IFeeResolutionService
         {
             team.FeeLatefee = await ResolveEffectiveLateFeeAsync(
                 jobId, RoleConstants.ClubRep, targetAgegroupId, team.TeamId,
-                state, resolved?.FullPrice ?? 0m, team.FeeDiscount ?? 0m, team.FeeDonation ?? 0m, ct);
+                state, resolved?.FullPrice ?? 0m, resolved?.EffectiveDeposit ?? 0m,
+                team.FeeDiscount ?? 0m, team.FeeDonation ?? 0m, ct);
         }
 
         await ApplyTeamProcessingAndTotalsAsync(team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: false, ct, state);

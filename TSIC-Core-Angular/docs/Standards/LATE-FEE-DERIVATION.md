@@ -39,15 +39,32 @@ adds correct edit/delete/lock behavior.
   out of window) **while the BASE principal** (full price, *excluding* the late fee itself) is still
   owed. A record that has paid the full base is **exempt** — a late fee is never billed to a
   paid-in-full record. Out of window ⇒ `0`.
-- **FLOOR** — the late fee already **paid** (locked): `PrincipalPaid` beyond the late-free base
-  (`fullPrice − discount + donation`), **capped at `configuredLateFee`** (the modifier amount
-  *ignoring its window*).
+- **FLOOR** — the late fee already **paid** (locked): `PrincipalPaid` beyond the late-free base,
+  **capped at `configuredLateFee`** (the modifier amount *ignoring its window*). Allocation is
+  base-first **deposit → balance → late**, so the base tier the floor measures against depends on
+  whether the full base is covered yet: once `fullPrice` is paid only the excess is collected late
+  fee; while the full base is still owed the registrant sits in the **deposit tier** (the late fee
+  rides on the deposit — `FeeBase = deposit`, balance not yet billed), so principal paid beyond
+  `depositBase` (the resolved `EffectiveDeposit`) is collected late fee. For a no-deposit fee
+  `depositBase == fullPrice` and the two tiers coincide.
 
 ```
 gate  = PrincipalRemaining(fullPrice, discount, 0, donation) > 0 ? windowedLateFee : 0   // base-only: PIF-exempt
-floor = min(configuredLateFee, max(0, PrincipalPaid − (fullPrice − discount + donation)))
+floor = min(configuredLateFee, PrincipalPaid >= (fullPrice − discount + donation)
+                                 ? PrincipalPaid − (fullPrice − discount + donation)        // full base paid: excess is late
+                                 : max(0, PrincipalPaid − (depositBase − discount + donation)))  // deposit tier: beyond deposit is late
 result = max(gate, floor)
 ```
+
+Why the deposit tier matters: a **deposit-phase reg bundles the late fee into its deposit charge**
+(it pays `deposit + lateFee`, far below `fullPrice`). If the floor only measured against `fullPrice`,
+that deposit payment reads as all-base → 0 late collected; then when the job is flipped to
+full-payment phase and the late fee is re-derived (e.g. the wizard payment tab's realize-on-load)
+with the window since **closed** (gate `0`), the already-paid late fee silently vanishes —
+`FeeTotal`/`OwedTotal` drop by it, refunding a penalty the registrant paid. Measuring the floor
+against the deposit tier locks it correctly. (Accepted side effect: a full-payment-phase reg that
+makes a *partial* payment past the deposit tier in a now-closed window locks the late fee rather than
+letting it fall off — the safe direction, consistent with "the end date is the persistence control.")
 
 ### Why two late-fee inputs
 

@@ -111,13 +111,19 @@ public record PaymentState
     /// further late fee.</b> So this returns the COLLECTED late fee if one was paid, otherwise the
     /// active GATE:
     ///
-    ///   • FLOOR — the late fee already PAID (locked): principal paid beyond the late-free base
-    ///             (<c>fullPrice − discount + donation</c>), capped at <paramref name="configuredLateFee"/>
-    ///             (the modifier amount IGNORING its window, so a window that has since closed does not
-    ///             erase a late fee the registrant already paid). Base-first allocation: a payment
-    ///             retires base principal before the penalty, so the floor only engages once the base
-    ///             is covered. When this is &gt; 0 it wins outright — a later or larger window can
-    ///             NEVER add more late fee to a record that has already paid one.
+    ///   • FLOOR — the late fee already PAID (locked): principal paid beyond the late-free base,
+    ///             capped at <paramref name="configuredLateFee"/> (the modifier amount IGNORING its
+    ///             window, so a window that has since closed does not erase a late fee the registrant
+    ///             already paid). Base-first allocation, deposit → balance → late: once the FULL base
+    ///             (<paramref name="fullPrice"/>) is paid, only the excess is collected late fee; while
+    ///             the full base is still owed the registrant is in the deposit tier (where the late fee
+    ///             rides on the deposit, balance not yet billed), so principal paid beyond
+    ///             <paramref name="depositBase"/> is collected late fee. The deposit tier is what
+    ///             rescues a deposit-collected late fee when the reg is later flipped to full payment —
+    ///             measuring only against fullPrice would drop it. For a no-deposit fee depositBase ==
+    ///             fullPrice, so this is identical to the old single-tier behavior. When this is &gt; 0
+    ///             it wins outright — a later or larger window can NEVER add more late fee to a record
+    ///             that has already paid one.
     ///   • GATE  — only for a record that has paid NO late fee yet: the active late-fee modifier
     ///             (<paramref name="windowedLateFee"/>: the date-windowed cascade amount the caller
     ///             resolved as-of-now, 0 when out of window) WHILE the BASE principal (full price,
@@ -134,13 +140,34 @@ public record PaymentState
     /// remainder fall off — by design; the modifier's end date is the persistence control.
     /// </summary>
     public decimal EffectiveLateFee(
-        decimal windowedLateFee, decimal configuredLateFee, decimal fullPrice, decimal discount, decimal donation)
+        decimal windowedLateFee, decimal configuredLateFee, decimal fullPrice, decimal depositBase,
+        decimal discount, decimal donation)
     {
         // FLOOR = late fee already collected (principal paid beyond the late-free base), capped at the
         // window-independent configured amount. Base-first allocation means this only engages once the
         // base is covered.
-        var baseSansLate = fullPrice - discount + donation;
-        var paidFloor = System.Math.Min(configuredLateFee, System.Math.Max(0m, PrincipalPaid - baseSansLate));
+        //
+        // Base-first allocation, but the base TIER the late fee rides on depends on whether the full
+        // (deposit + balance) base has been covered yet:
+        //   • Full base paid  → strict base-first: the late fee is the LAST tier (deposit → balance →
+        //     late), so only principal paid BEYOND the full base is collected late fee. (PIF / paid-in-
+        //     full: paying exactly the base collects no late fee.)
+        //   • Full base NOT yet paid → the registrant is still in the deposit tier, where the late fee
+        //     is billed ON TOP of the deposit and the balance isn't collected yet (FeeBase = deposit,
+        //     FeeLatefee = lf, so the deposit charge collects deposit + lf). So anything paid beyond the
+        //     DEPOSIT base is collected late fee. This is what rescues a deposit-collected late fee when
+        //     the reg is later flipped to full-payment phase and re-derived: measuring against the full
+        //     base would read the deposit payment as all-base, report 0 collected, and — with the window
+        //     since closed (GATE 0) — silently drop a penalty the registrant already paid (FeeTotal /
+        //     OwedTotal fall by it, refunding it against the balance).
+        // For a no-deposit / single-phase fee depositBase == fullPrice, so both branches coincide and
+        // behavior is unchanged; a 0 deposit (free / unconfigured tier) falls back to fullPrice.
+        var nonLateBase = fullPrice - discount + donation;
+        var depositNonLateBase = (depositBase > 0m ? depositBase : fullPrice) - discount + donation;
+        var paidOverBase = PrincipalPaid >= nonLateBase
+            ? PrincipalPaid - nonLateBase
+            : System.Math.Max(0m, PrincipalPaid - depositNonLateBase);
+        var paidFloor = System.Math.Min(configuredLateFee, System.Math.Max(0m, paidOverBase));
 
         // Rule: once a late fee has been COLLECTED, the record is closed to any further late fee — hold
         // at the collected amount, never let a later/larger window climb it. NOT max(): a paid fee must
