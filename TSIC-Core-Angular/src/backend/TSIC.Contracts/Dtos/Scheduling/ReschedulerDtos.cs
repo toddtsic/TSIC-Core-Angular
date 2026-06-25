@@ -81,9 +81,15 @@ public record EmailRecipientCountResponse
 /// <summary>
 /// One resolved reschedule-email recipient. Carries the registration the address belongs to so the
 /// shared batch engine can append the per-reg unsubscribe footer and honor <c>BemailOptOut</c>:
-/// roster players + club reps carry their <see cref="RegistrationId"/>; league reschedule-addon
-/// contacts have no registration (<see cref="RegistrationId"/> = null → no footer, not suppressible —
-/// they're operational league notices, nothing to unsubscribe).
+/// roster players + club reps carry their <see cref="RegistrationId"/>.
+///
+/// League reschedule-addon contacts (<c>Leagues.RescheduleEmailsToAddon</c>) carry
+/// <see cref="RegistrationId"/> = null BY DESIGN — they get no footer and are never suppressed.
+/// This is a deliberate product decision (Todd, 2026-06-25), not a fallback: addons are a
+/// director-configured operational distribution list (commissioner / field-coordinator inboxes)
+/// that must always receive reschedule notices; they have no registration to unsubscribe, and an
+/// inert <c>?regId=</c> link would be a worse (CAN-SPAM) outcome than no link. "Unsubscribing" an
+/// addon means the director removes it from the league config.
 /// </summary>
 public record ScheduleEmailRecipient
 {
