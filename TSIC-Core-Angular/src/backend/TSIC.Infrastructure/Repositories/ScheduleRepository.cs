@@ -969,7 +969,7 @@ public sealed class ScheduleRepository : IScheduleRepository
         return await query.CountAsync(ct);
     }
 
-    public async Task<List<string>> GetEmailRecipientsAsync(
+    public async Task<List<ScheduleEmailRecipient>> GetEmailRecipientsAsync(
         Guid jobId, DateTime firstGame, DateTime lastGame, List<Guid> fieldIds, CancellationToken ct = default)
     {
         // 1. Find games in date/field range
@@ -987,43 +987,65 @@ public sealed class ScheduleRepository : IScheduleRepository
         var emailT2 = gameQuery.Where(s => s.T2Id.HasValue).Select(s => s.T2Id!.Value);
         var teamIds = await emailT1.Union(emailT2).Distinct().ToListAsync(ct);
 
-        if (teamIds.Count == 0) return new List<string>();
+        if (teamIds.Count == 0) return new List<ScheduleEmailRecipient>();
 
-        // 3. Get player + parent emails from registrations
+        // De-dup by address (first occurrence wins). Each address carries the registration it
+        // belongs to + that reg's opt-out flag, so the batch engine can append the per-reg
+        // unsubscribe footer and suppress unsubscribers. League addon contacts have no
+        // registration (regId = null → no footer, not suppressible — operational notice).
+        var validator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+        var byEmail = new Dictionary<string, ScheduleEmailRecipient>(StringComparer.OrdinalIgnoreCase);
+        void Add(Guid? regId, string? email, bool optedOut)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return;
+            var trimmed = email.Trim();
+            if (string.Equals(trimmed, "not@given.com", StringComparison.OrdinalIgnoreCase)) return;
+            if (!validator.IsValid(trimmed)) return;
+            if (!byEmail.ContainsKey(trimmed))
+                byEmail[trimmed] = new ScheduleEmailRecipient { RegistrationId = regId, Email = trimmed, OptedOut = optedOut };
+        }
+
+        // 3. Player + parent emails — carry the player's registration + opt-out
         var rosterEmails = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.AssignedTeamId.HasValue && teamIds.Contains(r.AssignedTeamId.Value))
             .Select(r => new
             {
+                r.RegistrationId,
+                r.BemailOptOut,
                 PlayerEmail = r.User != null ? r.User.Email : null,
                 MomEmail = r.FamilyUser != null ? r.FamilyUser.MomEmail : null,
                 DadEmail = r.FamilyUser != null ? r.FamilyUser.DadEmail : null
             })
             .ToListAsync(ct);
 
-        var allEmails = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var e in rosterEmails)
         {
-            if (!string.IsNullOrWhiteSpace(e.PlayerEmail)) allEmails.Add(e.PlayerEmail);
-            if (!string.IsNullOrWhiteSpace(e.MomEmail)) allEmails.Add(e.MomEmail);
-            if (!string.IsNullOrWhiteSpace(e.DadEmail)) allEmails.Add(e.DadEmail);
+            Add(e.RegistrationId, e.PlayerEmail, e.BemailOptOut);
+            Add(e.RegistrationId, e.MomEmail, e.BemailOptOut);
+            Add(e.RegistrationId, e.DadEmail, e.BemailOptOut);
         }
 
-        // 4. Get club rep emails
-        var clubRepEmails = await _context.Teams
+        // 4. Club rep emails — carry the club-rep's registration + opt-out
+        var clubReps = await _context.Teams
             .AsNoTracking()
             .Where(t => teamIds.Contains(t.TeamId)
                 && t.ClubrepRegistration != null
                 && t.ClubrepRegistration.User != null
                 && !string.IsNullOrEmpty(t.ClubrepRegistration.User.Email))
-            .Select(t => t.ClubrepRegistration!.User!.Email!)
+            .Select(t => new
+            {
+                t.ClubrepRegistration!.RegistrationId,
+                t.ClubrepRegistration.BemailOptOut,
+                Email = t.ClubrepRegistration.User!.Email!
+            })
             .Distinct()
             .ToListAsync(ct);
 
-        foreach (var email in clubRepEmails)
-            allEmails.Add(email);
+        foreach (var rep in clubReps)
+            Add(rep.RegistrationId, rep.Email, rep.BemailOptOut);
 
-        // 5. Get league-wide reschedule addon emails
+        // 5. League-wide reschedule addon emails — operational contacts, no registration
         var leagueId = await _context.Schedule
             .AsNoTracking()
             .Where(s => s.JobId == jobId)
@@ -1041,16 +1063,11 @@ public sealed class ScheduleRepository : IScheduleRepository
             if (!string.IsNullOrEmpty(addonStr))
             {
                 foreach (var email in addonStr.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    allEmails.Add(email);
+                    Add(null, email, false);
             }
         }
 
-        // 6. Filter invalid emails
-        var validator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
-        return allEmails
-            .Where(e => !string.Equals(e, "not@given.com", StringComparison.OrdinalIgnoreCase)
-                && validator.IsValid(e))
-            .ToList();
+        return byEmail.Values.ToList();
     }
 
     // Result codes mirror legacy [utility].[ScheduleAlterGSIPerGameDate]:

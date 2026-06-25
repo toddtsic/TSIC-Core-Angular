@@ -295,6 +295,9 @@
                         @if (emailFailedCount() > 0) {
                             <span class="text-danger ms-2">{{ emailFailedCount() }} failed.</span>
                         }
+                        @if (emailOptedOut() > 0) {
+                            <span class="text-muted ms-2">{{ emailOptedOut() }} unsubscribed (skipped).</span>
+                        }
                     </div>
                 } @else {
                     <!-- Date Range -->

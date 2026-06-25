@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, timer } from 'rxjs';
+import { switchMap, takeWhile, last } from 'rxjs/operators';
 import { environment } from '@environments/environment';
 import type {
     ScheduleFilterOptionsDto,
@@ -12,7 +13,8 @@ import type {
     AdjustWeatherResponse,
     EmailRecipientCountResponse,
     EmailParticipantsRequest,
-    EmailParticipantsResponse
+    EmailBatchHandle,
+    EmailBatchJobStatus
 } from '@core/api';
 
 // Re-export for consumers
@@ -29,7 +31,8 @@ export type {
     AdjustWeatherResponse,
     EmailRecipientCountResponse,
     EmailParticipantsRequest,
-    EmailParticipantsResponse,
+    EmailBatchHandle,
+    EmailBatchJobStatus,
     CadtClubNode,
     CadtAgegroupNode,
     CadtDivisionNode,
@@ -86,7 +89,28 @@ export class ReschedulerService {
         return this.http.get<EmailRecipientCountResponse>(`${this.apiUrl}/recipient-count`, { params });
     }
 
-    emailParticipants(request: EmailParticipantsRequest): Observable<EmailParticipantsResponse> {
-        return this.http.post<EmailParticipantsResponse>(`${this.apiUrl}/email-participants`, request);
+    /** Starts the background reschedule-email batch; returns a handle to poll. */
+    startEmailParticipants(request: EmailParticipantsRequest): Observable<EmailBatchHandle> {
+        return this.http.post<EmailBatchHandle>(`${this.apiUrl}/email-participants`, request);
+    }
+
+    getEmailStatus(batchJobId: string): Observable<EmailBatchJobStatus> {
+        return this.http.get<EmailBatchJobStatus>(`${this.apiUrl}/email-participants/${batchJobId}/status`);
+    }
+
+    /**
+     * Starts the batch then polls every second, emitting the FINAL status once the engine
+     * reports done. Same background+poll contract as the other batch email paths.
+     */
+    emailParticipantsAndAwait(request: EmailParticipantsRequest): Observable<EmailBatchJobStatus> {
+        return this.startEmailParticipants(request).pipe(
+            switchMap(handle =>
+                timer(0, 1000).pipe(
+                    switchMap(() => this.getEmailStatus(handle.jobId)),
+                    takeWhile(s => !s.done, true),
+                    last()
+                )
+            )
+        );
     }
 }

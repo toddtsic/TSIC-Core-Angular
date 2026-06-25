@@ -1,3 +1,4 @@
+using TSIC.API.Services.Shared.Email;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -12,7 +13,7 @@ public sealed class ReschedulerService : IReschedulerService
 {
     private readonly IScheduleRepository _scheduleRepo;
     private readonly IFieldRepository _fieldRepo;
-    private readonly IEmailService _emailService;
+    private readonly IEmailBatchService _emailBatch;
     private readonly IJobRepository _jobRepo;
     private readonly IUserRepository _userRepo;
     private readonly ILogger<ReschedulerService> _logger;
@@ -20,14 +21,14 @@ public sealed class ReschedulerService : IReschedulerService
     public ReschedulerService(
         IScheduleRepository scheduleRepo,
         IFieldRepository fieldRepo,
-        IEmailService emailService,
+        IEmailBatchService emailBatch,
         IJobRepository jobRepo,
         IUserRepository userRepo,
         ILogger<ReschedulerService> logger)
     {
         _scheduleRepo = scheduleRepo;
         _fieldRepo = fieldRepo;
-        _emailService = emailService;
+        _emailBatch = emailBatch;
         _jobRepo = jobRepo;
         _userRepo = userRepo;
         _logger = logger;
@@ -103,60 +104,68 @@ public sealed class ReschedulerService : IReschedulerService
         return new EmailRecipientCountResponse { EstimatedCount = recipients.Count };
     }
 
-    public async Task<EmailParticipantsResponse> EmailParticipantsAsync(
+    public async Task<EmailBatchHandle> StartParticipantsEmailAsync(
         Guid jobId, string userId, EmailParticipantsRequest request, CancellationToken ct = default)
     {
-        // 1. Get sender info
+        // Sender identity → From address (preserves the legacy "send as the admin" behavior).
         var sender = await _userRepo.GetByIdAsync(userId, ct);
         var senderEmail = sender?.Email;
-
         if (string.IsNullOrWhiteSpace(senderEmail))
             throw new InvalidOperationException("Cannot identify the sender's email address.");
 
-        // 2. Get job display name for From header
         var displayName = await _jobRepo.GetJobNameAsync(jobId, ct) ?? "TEAMSPORTSINFO.COM";
 
-        // 3. Collect recipients
+        // Each recipient already carries the registration it belongs to + that reg's opt-out flag
+        // (league addon contacts carry null regId). The engine partitions opt-out, strips invalid
+        // addresses, appends the per-reg unsubscribe footer, retries, rate-limits, and audits —
+        // identical mechanics to every other batch path.
         var recipients = await _scheduleRepo.GetEmailRecipientsAsync(
             jobId, request.FirstGame, request.LastGame, request.FieldIds, ct);
 
-        if (recipients.Count == 0)
+        var subject = request.EmailSubject;
+        var body = request.EmailBody;
+
+        var plan = new EmailBatchPlan<ScheduleEmailRecipient>
         {
-            return new EmailParticipantsResponse
+            SeedAsync = (_, _) => Task.FromResult(new EmailBatchSeed<ScheduleEmailRecipient> { Items = recipients }),
+            IsOptedOut = r => r.OptedOut,
+            DescribeItem = r => r.Email,
+            RenderAsync = (r, _, _) =>
             {
-                RecipientCount = 0,
-                FailedCount = 0,
-                SentAt = DateTime.UtcNow
-            };
-        }
+                var toAddresses = BatchEmailRecipientFilter.BuildSendableSet(new[] { r.Email });
+                if (toAddresses.Count == 0) return Task.FromResult<EmailBatchRendered?>(null);
 
-        // 4. Build and send emails via batch
-        var messages = recipients.Select(recipientEmail => new EmailMessageDto
-        {
-            FromName = displayName,
-            FromAddress = senderEmail,
-            ToAddresses = new List<string> { recipientEmail },
-            Subject = request.EmailSubject,
-            HtmlBody = request.EmailBody
-        });
+                // Reschedule notices are admin-authored raw HTML — no token substitution.
+                return Task.FromResult<EmailBatchRendered?>(new EmailBatchRendered
+                {
+                    Message = new EmailMessageDto
+                    {
+                        FromName = displayName,
+                        FromAddress = senderEmail,
+                        Subject = subject,
+                        HtmlBody = body,
+                        ToAddresses = toAddresses
+                    },
+                    UnsubscribeRegId = r.RegistrationId // null for league addon contacts → no footer
+                });
+            },
+            // Engine writes the single EmailLogs audit row. No completion side-effects for this path.
+            Audit = new EmailBatchAudit
+            {
+                JobId = jobId,
+                SenderUserId = userId,
+                Subject = subject,
+                BodyTemplate = body,
+                SendFrom = senderEmail
+            }
+        };
 
-        var batchResult = await _emailService.SendBatchAsync(messages, ct);
-
-        // 5. Log results
-        var sentAt = DateTime.UtcNow;
-        var successfulAddresses = batchResult.AllAddresses
-            .Except(batchResult.FailedAddresses)
-            .ToList();
+        var handle = await _emailBatch.StartAsync(plan, new EmailBatchOptions(), ct);
 
         _logger.LogInformation(
-            "Rescheduler EmailParticipants: jobId={JobId} sent={Sent} failed={Failed}",
-            jobId, successfulAddresses.Count, batchResult.FailedAddresses.Count);
+            "Rescheduler EmailParticipants: jobId={JobId} batchJobId={BatchJobId} recipients={Recipients}",
+            jobId, handle.JobId, handle.TotalRecipients);
 
-        return new EmailParticipantsResponse
-        {
-            RecipientCount = successfulAddresses.Count,
-            FailedCount = batchResult.FailedAddresses.Count,
-            SentAt = sentAt
-        };
+        return handle;
     }
 }

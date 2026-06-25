@@ -102,6 +102,7 @@ export class ReschedulerComponent implements OnInit {
     readonly emailSent = signal(false);
     readonly emailSentCount = signal(0);
     readonly emailFailedCount = signal(0);
+    readonly emailOptedOut = signal(0);
 
     // ── Computed helpers ──
     readonly gridColumns = computed(() => this.gridResponse()?.columns ?? []);
@@ -562,6 +563,7 @@ export class ReschedulerComponent implements OnInit {
 
     openEmailModal(): void {
         this.emailSent.set(false);
+        this.emailOptedOut.set(0);
         this.emailRecipientCount.set(null);
         this.emailFieldIds.set([...this.selectedFieldIds()]);
         this.showEmailModal.set(true);
@@ -601,17 +603,19 @@ export class ReschedulerComponent implements OnInit {
     sendEmail(): void {
         if (!this.emailSubject() || !this.emailBody()) return;
         this.isEmailLoading.set(true);
-        this.svc.emailParticipants({
+        // Background batch on the shared engine: starts, then polls until the engine reports done.
+        this.svc.emailParticipantsAndAwait({
             firstGame: this.emailFirstGame(),
             lastGame: this.emailLastGame(),
             emailSubject: this.emailSubject(),
             emailBody: this.emailBody(),
             fieldIds: this.emailFieldIds()
         }).subscribe({
-            next: (result) => {
+            next: (status) => {
                 this.emailSent.set(true);
-                this.emailSentCount.set(result.recipientCount);
-                this.emailFailedCount.set(result.failedCount);
+                this.emailSentCount.set(status.sent);
+                this.emailFailedCount.set(status.failed);
+                this.emailOptedOut.set(status.optedOut);
                 this.isEmailLoading.set(false);
             },
             error: () => this.isEmailLoading.set(false)

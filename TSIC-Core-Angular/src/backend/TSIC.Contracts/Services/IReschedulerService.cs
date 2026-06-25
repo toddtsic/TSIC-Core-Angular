@@ -53,9 +53,11 @@ public interface IReschedulerService
     Task<EmailRecipientCountResponse> GetEmailRecipientCountAsync(Guid jobId, DateTime firstGame, DateTime lastGame, List<Guid> fieldIds, CancellationToken ct = default);
 
     /// <summary>
-    /// Send bulk email to all participants of games in a date/field range.
-    /// Collects player + parent + club rep + league addon emails, deduplicates, sends via IEmailService.
-    /// Logs batch to EmailLogs table.
+    /// Start a background batch email to all participants of games in a date/field range.
+    /// Collects player + parent + club rep + league addon emails (each carrying its registration +
+    /// opt-out flag), deduplicates, and hands them to the shared <see cref="IEmailBatchService"/> —
+    /// which suppresses unsubscribers, appends the per-reg unsubscribe footer, retries, rate-limits,
+    /// and writes the EmailLogs audit row. Returns immediately with a handle to poll for progress.
     /// </summary>
-    Task<EmailParticipantsResponse> EmailParticipantsAsync(Guid jobId, string userId, EmailParticipantsRequest request, CancellationToken ct = default);
+    Task<EmailBatchHandle> StartParticipantsEmailAsync(Guid jobId, string userId, EmailParticipantsRequest request, CancellationToken ct = default);
 }

@@ -70,19 +70,26 @@ public record EmailParticipantsRequest
     public required List<Guid> FieldIds { get; init; }
 }
 
-public record EmailParticipantsResponse
-{
-    public required int RecipientCount { get; init; }
-    public required int FailedCount { get; init; }
-    public required DateTime SentAt { get; init; }
-}
-
 /// <summary>
 /// Preview: estimated recipient count before actually sending.
 /// </summary>
 public record EmailRecipientCountResponse
 {
     public required int EstimatedCount { get; init; }
+}
+
+/// <summary>
+/// One resolved reschedule-email recipient. Carries the registration the address belongs to so the
+/// shared batch engine can append the per-reg unsubscribe footer and honor <c>BemailOptOut</c>:
+/// roster players + club reps carry their <see cref="RegistrationId"/>; league reschedule-addon
+/// contacts have no registration (<see cref="RegistrationId"/> = null → no footer, not suppressible —
+/// they're operational league notices, nothing to unsubscribe).
+/// </summary>
+public record ScheduleEmailRecipient
+{
+    public Guid? RegistrationId { get; init; }
+    public required string Email { get; init; }
+    public bool OptedOut { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════════════════

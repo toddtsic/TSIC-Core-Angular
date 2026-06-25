@@ -249,7 +249,6 @@ export type { EmailHealthStatus } from './models/EmailHealthStatus';
 export type { EmailLogDetailDto } from './models/EmailLogDetailDto';
 export type { EmailLogSummaryDto } from './models/EmailLogSummaryDto';
 export type { EmailParticipantsRequest } from './models/EmailParticipantsRequest';
-export type { EmailParticipantsResponse } from './models/EmailParticipantsResponse';
 export type { EmailPreviewRequest } from './models/EmailPreviewRequest';
 export type { EmailPreviewResponse } from './models/EmailPreviewResponse';
 export type { EmailRecipientCountResponse } from './models/EmailRecipientCountResponse';

@@ -15,13 +15,16 @@ public class ReschedulerController : ControllerBase
 {
     private readonly IReschedulerService _service;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IEmailBatchJobRegistry _batchJobs;
 
     public ReschedulerController(
         IReschedulerService service,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IEmailBatchJobRegistry batchJobs)
     {
         _service = service;
         _jobLookupService = jobLookupService;
+        _batchJobs = batchJobs;
     }
 
     private async Task<(Guid? jobId, string? userId, ActionResult? error)> ResolveContext()
@@ -112,15 +115,23 @@ public class ReschedulerController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>POST /api/rescheduler/email-participants — Send bulk email to game participants.</summary>
+    /// <summary>POST /api/rescheduler/email-participants — Start a background batch email to game participants.</summary>
     [HttpPost("email-participants")]
-    public async Task<ActionResult<EmailParticipantsResponse>> EmailParticipants(
+    public async Task<ActionResult<EmailBatchHandle>> EmailParticipants(
         [FromBody] EmailParticipantsRequest request, CancellationToken ct)
     {
         var (jobId, userId, error) = await ResolveContext();
         if (error != null) return error;
 
-        var result = await _service.EmailParticipantsAsync(jobId!.Value, userId!, request, ct);
-        return Ok(result);
+        var handle = await _service.StartParticipantsEmailAsync(jobId!.Value, userId!, request, ct);
+        return Ok(handle);
+    }
+
+    /// <summary>Progress / final summary for a background reschedule email batch (404 if unknown/expired).</summary>
+    [HttpGet("email-participants/{batchJobId:guid}/status")]
+    public ActionResult<EmailBatchJobStatus> GetEmailStatus(Guid batchJobId)
+    {
+        var status = _batchJobs.Get(batchJobId);
+        return status is null ? NotFound() : Ok(status);
     }
 }

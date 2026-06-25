@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
@@ -254,11 +255,14 @@ public interface IScheduleRepository
         Guid jobId, DateTime preFirstGame, List<Guid> fieldIds, CancellationToken ct = default);
 
     /// <summary>
-    /// Collect and deduplicate email addresses for games in a date/field range.
-    /// Sources: player, mom, dad, club rep, league reschedule addon.
-    /// Filters: removes nulls, empty, "not@given.com", invalid emails.
+    /// Collect and deduplicate reschedule-email recipients for games in a date/field range.
+    /// Sources: player, mom, dad, club rep, league reschedule addon. Each address carries the
+    /// registration it belongs to (player reg for roster, club-rep reg for reps; null for league
+    /// addon contacts) plus that registration's opt-out flag, so the shared batch engine can append
+    /// the per-reg unsubscribe footer and suppress unsubscribers.
+    /// Filters: removes nulls, empty, "not@given.com", invalid emails; de-dups by address.
     /// </summary>
-    Task<List<string>> GetEmailRecipientsAsync(
+    Task<List<ScheduleEmailRecipient>> GetEmailRecipientsAsync(
         Guid jobId, DateTime firstGame, DateTime lastGame, List<Guid> fieldIds, CancellationToken ct = default);
 
     /// <summary>
