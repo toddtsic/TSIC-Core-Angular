@@ -900,6 +900,31 @@ BEGIN TRY
         DECLARE @NADuplicatesRemoved INT = @@ROWCOUNT;
         PRINT '  ✓ Removed ' + CAST(@NADuplicatesRemoved AS VARCHAR) + ' "N.A." duplicate ClubTeams from staging table';
 
+        -- Re-point any Teams already linked to an "N.A." duplicate onto its canonical
+        -- (real grad-year) ClubTeam BEFORE deleting the duplicate. A prior run — or a
+        -- team registered through the app, which stamps ClubTeamId directly — may already
+        -- reference the N.A. row, so the delete below would otherwise hit the
+        -- FK__teams__ClubTeamId constraint and roll back the entire STEP 6/7 transaction
+        -- (no teams ever link). The earlier comment "they won't be referenced anymore"
+        -- only held on a virgin DB; this makes it true.
+        UPDATE t
+        SET
+            t.ClubTeamId = can.CanonicalClubTeamId,
+            t.Modified = @Now,
+            t.LebUserId = @LebUserId
+        FROM Leagues.Teams t
+        INNER JOIN Clubs.ClubTeams ct ON t.ClubTeamId = ct.ClubTeamId
+        INNER JOIN #CanonicalTeams can
+            ON ct.ClubId = can.ClubId
+            AND ct.ClubTeamName = can.ClubTeamName
+            AND (ISNULL(ct.ClubTeamLevelOfPlay, '') = can.ClubTeamLevelOfPlay
+                 OR (ct.ClubTeamLevelOfPlay IS NULL AND can.ClubTeamLevelOfPlay = ''))
+        WHERE ct.ClubTeamGradYear = 'N.A.'
+          AND ct.ClubTeamId NOT IN (SELECT ClubTeamId FROM #NewClubTeams); -- not the canonical row
+
+        DECLARE @NADuplicatesRepointed INT = @@ROWCOUNT;
+        PRINT '  ✓ Re-pointed ' + CAST(@NADuplicatesRepointed AS VARCHAR) + ' Teams from "N.A." duplicates to canonical ClubTeams';
+
         -- Delete "N.A." duplicates from actual ClubTeams table (if they were inserted)
         DELETE ct
         FROM Clubs.ClubTeams ct
