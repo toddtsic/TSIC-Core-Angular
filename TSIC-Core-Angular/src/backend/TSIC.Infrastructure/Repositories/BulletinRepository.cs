@@ -20,21 +20,29 @@ public class BulletinRepository : IBulletinRepository
         _context = context;
     }
 
-    public async Task<List<Bulletins>> GetActiveBulletinEntitiesForJobAsync(
+    public async Task<List<BulletinDto>> GetActiveBulletinsForJobAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        // Tracked (no AsNoTracking) — the assembly path may flip Active=false on
-        // quicklink-redundant bulletins and SaveChanges. Same filter/order as the
-        // DTO read above. Bulletin start/end dates are stored in local AZ time.
+        // Bulletin start/end dates are stored in local AZ time, not UTC.
         var now = DateTime.Now;
 
         return await _context.Bulletins
+            .AsNoTracking()
             .Where(b => b.JobId == jobId)
             .Where(b => b.Active == true)
             .Where(b => b.StartDate != null && b.StartDate <= now)
             .Where(b => b.EndDate == null || b.EndDate >= now)
             .OrderByDescending(b => b.StartDate)
+            .Select(b => new BulletinDto
+            {
+                BulletinId = b.BulletinId,
+                Title = b.Title,
+                Text = b.Text,
+                StartDate = b.StartDate,
+                EndDate = b.EndDate,
+                CreateDate = b.CreateDate
+            })
             .ToListAsync(cancellationToken);
     }
 
