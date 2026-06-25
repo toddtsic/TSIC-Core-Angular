@@ -41,6 +41,11 @@ export class BulletinAdminService {
     return this.http.post<{ updatedCount: number }>(`${this.apiUrl}/batch-status`, request);
   }
 
+  /** Admin quick-inactivate a single bulletin (Active=false) from the public view. */
+  deactivateBulletin(bulletinId: string): Observable<void> {
+    return this.http.patch<void>(`${this.apiUrl}/${bulletinId}/deactivate`, {});
+  }
+
   aiComposeBulletin(prompt: string): Observable<{ subject: string; body: string }> {
     return this.http.post<{ subject: string; body: string }>(`${environment.apiUrl}/ai-compose/bulletin`, { prompt });
   }

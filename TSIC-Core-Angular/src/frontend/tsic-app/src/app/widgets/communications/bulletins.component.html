@@ -2,6 +2,15 @@
 <div class="bulletins">
     @for (bulletin of bulletins(); track bulletin.bulletinId) {
     <article class="bulletin">
+        @if (isAdmin()) {
+        <button type="button" class="bulletin-hide"
+                (click)="deactivate(bulletin, $event)"
+                [disabled]="deactivatingId() === bulletin.bulletinId"
+                title="Hide this bulletin (set inactive)"
+                aria-label="Hide this bulletin">
+            <i class="bi bi-eye-slash" aria-hidden="true"></i>
+        </button>
+        }
         <div class="bulletin-content">
             @if (bulletin.title) {
             <h2 class="bulletin-title">{{ bulletin.title }}</h2>

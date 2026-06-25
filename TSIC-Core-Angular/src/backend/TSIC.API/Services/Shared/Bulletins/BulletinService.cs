@@ -200,6 +200,29 @@ public class BulletinService : IBulletinService
         return true;
     }
 
+    public async Task<bool> DeactivateBulletinAsync(Guid bulletinId, Guid jobId, CancellationToken cancellationToken = default)
+    {
+        var bulletin = await _bulletinRepository.GetByIdAsync(bulletinId, cancellationToken);
+        if (bulletin == null)
+        {
+            return false;
+        }
+
+        if (bulletin.JobId != jobId)
+        {
+            throw new InvalidOperationException("Bulletin does not belong to the current job.");
+        }
+
+        if (bulletin.Active)
+        {
+            bulletin.Active = false;
+            bulletin.Modified = DateTime.Now;
+            await _bulletinRepository.SaveChangesAsync(cancellationToken);
+        }
+
+        return true;
+    }
+
     public async Task<int> BatchUpdateStatusAsync(Guid jobId, bool active, CancellationToken cancellationToken = default)
     {
         return await _bulletinRepository.BatchUpdateActiveStatusAsync(jobId, active, cancellationToken);

@@ -285,6 +285,41 @@ public class BulletinsController : ControllerBase
     }
 
     /// <summary>
+    /// Quick-inactivate a single bulletin (Active=false) from the public bulletins view.
+    /// Admin-only; verifies the bulletin belongs to the caller's job.
+    /// </summary>
+    [Authorize(Policy = "AdminOnly")]
+    [HttpPatch("{bulletinId:guid}/deactivate")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult> DeactivateBulletin(
+        Guid bulletinId,
+        CancellationToken cancellationToken)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        try
+        {
+            var deactivated = await _bulletinService.DeactivateBulletinAsync(bulletinId, jobId.Value, cancellationToken);
+            if (!deactivated)
+            {
+                return NotFound(new { message = $"Bulletin with ID {bulletinId} not found" });
+            }
+
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Batch activate/deactivate all bulletins for the job.
     /// </summary>
     [Authorize(Policy = "AdminOnly")]
