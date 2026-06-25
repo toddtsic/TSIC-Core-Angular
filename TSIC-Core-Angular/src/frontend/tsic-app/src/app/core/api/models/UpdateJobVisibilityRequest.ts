@@ -9,6 +9,7 @@ export type UpdateJobVisibilityRequest = {
     showPublicRosters?: boolean | null;
     enableStore?: boolean | null;
     offerPlayerInsurance?: boolean | null;
+    offerTeamInsurance?: boolean | null;
     allowStaffRegistration?: boolean | null;
     allowRefereeRegistration?: boolean | null;
     allowRecruiterRegistration?: boolean | null;

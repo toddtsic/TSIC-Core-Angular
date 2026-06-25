@@ -9,6 +9,7 @@ export type JobVisibilityDto = {
     showPublicRosters: boolean;
     enableStore: boolean;
     offerPlayerInsurance: boolean;
+    offerTeamInsurance: boolean;
     allowStaffRegistration: boolean;
     allowRefereeRegistration: boolean;
     allowRecruiterRegistration: boolean;

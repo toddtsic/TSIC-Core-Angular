@@ -39,6 +39,7 @@ public class JobVisibilityService : IJobVisibilityService
             PublishSchedule = job.BScheduleAllowPublicAccess ?? false,
             EnableStore = job.BEnableStore ?? false,
             OfferPlayerInsurance = job.BOfferPlayerRegsaverInsurance ?? false,
+            OfferTeamInsurance = job.BOfferTeamRegsaverInsurance ?? false,
             // Public rosters gate ONLY on bRestrictPublicRosters (BAllowRosterViewPlayer
             // governs a logged-in player's OWN roster, not the public page). Inverted:
             // "show public rosters" = NOT restricted.
@@ -64,6 +65,7 @@ public class JobVisibilityService : IJobVisibilityService
         if (req.ShowPublicRosters.HasValue) job.BRestrictPublicRosters = !req.ShowPublicRosters.Value;
         if (req.EnableStore.HasValue) job.BEnableStore = req.EnableStore.Value;
         if (req.OfferPlayerInsurance.HasValue) job.BOfferPlayerRegsaverInsurance = req.OfferPlayerInsurance.Value;
+        if (req.OfferTeamInsurance.HasValue) job.BOfferTeamRegsaverInsurance = req.OfferTeamInsurance.Value;
         if (req.AllowStaffRegistration.HasValue) job.BRegistrationAllowStaff = req.AllowStaffRegistration.Value;
         if (req.AllowRefereeRegistration.HasValue) job.BRegistrationAllowReferee = req.AllowRefereeRegistration.Value;
         if (req.AllowRecruiterRegistration.HasValue) job.BRegistrationAllowRecruiter = req.AllowRecruiterRegistration.Value;

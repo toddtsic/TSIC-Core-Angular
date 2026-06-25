@@ -88,10 +88,16 @@ export class QuickLinksComponent {
 			relevant: true,
 			onTip: 'The store is enabled — the "Store" card shows once it has active items.',
 			offTip: 'The store is disabled — the card is hidden.' },
-		{ key: 'offerPlayerInsurance', label: 'Player Insurance', icon: 'bi-shield-check',
+		{ key: 'offerPlayerInsurance', label: 'Player RegSaver', icon: 'bi-shield-check',
 			relevant: true,
-			onTip: 'RegSaver insurance is offered — the "Insurance Update" card shows.',
-			offTip: 'Insurance is not offered — the card is hidden.' },
+			onTip: 'RegSaver insurance is offered to players — the "Player RegSaver" card shows.',
+			offTip: 'Player RegSaver is not offered — the card is hidden.' },
+		// Club-rep pathway, mirrors the player toggle above (always relevant — the
+		// card itself suppresses once every team is already covered).
+		{ key: 'offerTeamInsurance', label: 'Team RegSaver', icon: 'bi-shield-check',
+			relevant: true,
+			onTip: 'RegSaver insurance is offered to club reps — the "Team RegSaver" card shows.',
+			offTip: 'Team RegSaver is not offered — the card is hidden.' },
 		// Adult registration releases. Coach is team-relevant: a coach requests a team,
 		// so releasing it with no teams configured surfaces a non-forcing caution (the
 		// hero card also stays hidden until teams exist — pulse gates on teams-exist).

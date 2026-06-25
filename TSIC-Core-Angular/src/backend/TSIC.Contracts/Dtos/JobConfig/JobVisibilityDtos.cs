@@ -25,8 +25,11 @@ public record JobVisibilityDto
     /// <summary>BEnableStore — "Store" card (the hero additionally requires the store to have active items).</summary>
     public required bool EnableStore { get; init; }
 
-    /// <summary>BOfferPlayerRegsaverInsurance — "Insurance Update" card.</summary>
+    /// <summary>BOfferPlayerRegsaverInsurance — "Player RegSaver" card.</summary>
     public required bool OfferPlayerInsurance { get; init; }
+
+    /// <summary>BOfferTeamRegsaverInsurance — "Team RegSaver" card (club-rep pathway).</summary>
+    public required bool OfferTeamInsurance { get; init; }
 
     /// <summary>BRegistrationAllowStaff — "Register Coach/Staff" card. The director's
     /// "release" gate for coach self-registration (open only after teams exist).</summary>
@@ -67,6 +70,7 @@ public record UpdateJobVisibilityRequest
     public bool? ShowPublicRosters { get; init; }
     public bool? EnableStore { get; init; }
     public bool? OfferPlayerInsurance { get; init; }
+    public bool? OfferTeamInsurance { get; init; }
     public bool? AllowStaffRegistration { get; init; }
     public bool? AllowRefereeRegistration { get; init; }
     public bool? AllowRecruiterRegistration { get; init; }
