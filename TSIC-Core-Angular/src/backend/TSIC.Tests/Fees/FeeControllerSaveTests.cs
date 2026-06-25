@@ -153,6 +153,32 @@ public class FeeControllerSaveTests
             Times.Never);
     }
 
+    [Fact(DisplayName = "Late fee with no start/end date is rejected (400) and never reprices")]
+    public async Task ModifierWithoutDates_IsRejected()
+    {
+        var h = Build(ExistingRow(RoleConstants.Player, phase: null));
+        var request = new SaveJobFeeRequest
+        {
+            RoleId = RoleConstants.Player,
+            AgegroupId = AgId,
+            TeamId = TeamId,
+            BalanceDue = 200m,
+            RepriceExisting = true,
+            Modifiers = new List<FeeModifierDto>
+            {
+                // Dateless late fee — open-ended, silently a permanent surcharge. Must be rejected.
+                new() { ModifierType = FeeConstants.ModifierLateFee, Amount = 30m, StartDate = null, EndDate = null }
+            }
+        };
+
+        var result = await h.Controller.SaveFee(request, CancellationToken.None);
+
+        result.Result.Should().BeOfType<BadRequestObjectResult>();
+        h.PlayerSvc.Verify(p => p.RecalculatePlayerFeesAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<Guid?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     [Fact(DisplayName = "ClubRep 'update all prior' routes to the team engine, scoped to the team")]
     public async Task ClubRep_UpdateAllPrior_RoutesToTeamEngine()
     {

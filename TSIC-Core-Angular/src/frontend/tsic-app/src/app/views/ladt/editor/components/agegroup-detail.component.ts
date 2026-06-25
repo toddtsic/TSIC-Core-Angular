@@ -6,7 +6,7 @@ import { LadtService } from '../services/ladt.service';
 import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { FeeCardComponent, type ModifierForm } from './fee-card.component';
+import { FeeCardComponent, modifierDateError, type ModifierForm } from './fee-card.component';
 import { RepriceConfirmComponent, type RepriceDialog } from './reprice-confirm.component';
 import { CloneAgegroupDialogComponent } from './clone-agegroup-dialog.component';
 import type { AgegroupDetailDto, UpdateAgegroupRequest, JobFeeDto, FeeModifierDto } from '../../../../core/api';
@@ -474,7 +474,9 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   save(): void {
-    const feeError = this.depositBalanceError();
+    const feeError = this.depositBalanceError()
+      ?? modifierDateError(this.playerModifiers)
+      ?? modifierDateError(this.clubRepModifiers);
     if (feeError) {
       this.isError.set(true);
       this.saveMessage.set(feeError);

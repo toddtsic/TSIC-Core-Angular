@@ -6,7 +6,7 @@ import { LadtService } from '../services/ladt.service';
 import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { FeeCardComponent, type ModifierForm } from './fee-card.component';
+import { FeeCardComponent, modifierDateError, type ModifierForm } from './fee-card.component';
 import { ConfirmDialogComponent } from '../../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { CloneTeamDialogComponent } from './clone-team-dialog.component';
@@ -527,7 +527,9 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   save(): void {
-    const depErr = this.depositBalanceError();
+    const depErr = this.depositBalanceError()
+      ?? modifierDateError(this.playerModifiers)
+      ?? modifierDateError(this.clubRepModifiers);
     if (depErr) {
       this.isError.set(true);
       this.saveMessage.set(depErr);

@@ -6,7 +6,7 @@ import { LadtService } from '../services/ladt.service';
 import { LadtEditGuardService } from '../services/ladt-edit-guard.service';
 import { FeeRepriceService } from '../services/fee-reprice.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import { FeeCardComponent, type ModifierForm } from './fee-card.component';
+import { FeeCardComponent, modifierDateError, type ModifierForm } from './fee-card.component';
 import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto, JobFeeDto, FeeModifierDto } from '../../../../core/api';
@@ -303,7 +303,9 @@ export class LeagueDetailComponent implements OnChanges, OnInit, OnDestroy {
   }
 
   save(): void {
-    const feeError = this.depositBalanceError();
+    const feeError = this.depositBalanceError()
+      ?? modifierDateError(this.playerModifiers)
+      ?? modifierDateError(this.clubRepModifiers);
     if (feeError) {
       this.isError.set(true);
       this.saveMessage.set(feeError);

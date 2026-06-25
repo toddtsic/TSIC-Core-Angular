@@ -104,6 +104,43 @@ public record PaymentState
         System.Math.Max(0m, (feeBase - discount + lateFee + donation) - PrincipalPaid);
 
     /// <summary>
+    /// The late fee that currently applies, under the derived "pay late ⇒ owe more" model. A late
+    /// fee is NOT a stamp frozen at signup — it's a consequence of still owing while a late window is
+    /// open, locked only once paid. This is the single place that decision lives. Returns the greater of:
+    ///
+    ///   • GATE  — the active late-fee modifier (<paramref name="windowedLateFee"/>: the date-windowed
+    ///             cascade amount the caller resolved as-of-now, 0 when out of window) WHILE the BASE
+    ///             principal (full price, EXCLUDING the late fee itself) is still owed. A record that
+    ///             has paid the full base is exempt — a late fee is never billed to a paid-in-full
+    ///             record. Out of window ⇒ 0. (Consequence: paying exactly the base while in window
+    ///             also exempts — the lenient side of "PIF is exempt"; the modifier end date and the
+    ///             paid floor bound the exposure.)
+    ///   • FLOOR — the late fee already PAID (locked): principal paid beyond the late-free base
+    ///             (<c>fullPrice − discount + donation</c>), capped at <paramref name="configuredLateFee"/>
+    ///             (the modifier amount IGNORING its window, so a window that has since closed does not
+    ///             erase a late fee the registrant already paid). Base-first allocation: a payment
+    ///             retires base principal before the penalty, so the floor only engages once the base
+    ///             is covered.
+    ///
+    /// Locking semantics: only collected dollars stick. Editing the modifier down (or deleting it,
+    /// <paramref name="configuredLateFee"/> ⇒ 0) drops the live charge to the floor; any surplus the
+    /// registrant already paid surfaces as negative owed → existing refund/credit path. A short window
+    /// the registrant straddles (paid base before it closed, never paid the late fee) lets the unpaid
+    /// remainder fall off — by design; the modifier's end date is the persistence control.
+    /// </summary>
+    public decimal EffectiveLateFee(
+        decimal windowedLateFee, decimal configuredLateFee, decimal fullPrice, decimal discount, decimal donation)
+    {
+        // Gate on the BASE principal only (lateFee = 0): a record that has paid the full base is
+        // exempt — a late fee is never billed to a paid-in-full record. Including the late fee here
+        // would make a base-paid record look still-owing on the strength of the very fee being gated.
+        var gate = PrincipalRemaining(fullPrice, discount, 0m, donation) > 0m ? windowedLateFee : 0m;
+        var baseSansLate = fullPrice - discount + donation;
+        var paidFloor = System.Math.Min(configuredLateFee, System.Math.Max(0m, PrincipalPaid - baseSansLate));
+        return System.Math.Max(gate, paidFloor);
+    }
+
+    /// <summary>
     /// Deposit-phase principal still owed. Mirrors <see cref="PrincipalRemaining"/>
     /// scoped to the deposit obligation: discount reduces it, late fee adds to it,
     /// over-payment clamps at 0 so a deposit covered by mixed payments (or by a

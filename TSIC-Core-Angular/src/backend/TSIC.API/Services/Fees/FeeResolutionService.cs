@@ -78,7 +78,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
 
     public async Task<ResolvedModifiers> EvaluateModifiersAsync(
         Guid jobId, string roleId, Guid agegroupId, Guid teamId,
-        DateTime asOfDate,
+        DateTime? asOfDate,
         CancellationToken ct = default)
     {
         var modifiers = await _feeRepo.GetActiveModifiersForCascadeAsync(
@@ -93,6 +93,24 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 .Where(m => m.ModifierType == FeeConstants.ModifierLateFee)
                 .Sum(m => m.Amount)
         };
+    }
+
+    /// <summary>
+    /// The late fee that currently applies to an entity under the derived "pay late ⇒ owe more"
+    /// model. Resolves the active (windowed, as-of-now) late fee for the GATE and the configured
+    /// (window-independent) late fee for the paid-lock FLOOR, then defers to
+    /// <see cref="PaymentState.EffectiveLateFee"/>. Every recompute/payment path calls this so the
+    /// late fee is re-derived live and locked only once its dollars are collected.
+    /// </summary>
+    private async Task<decimal> ResolveEffectiveLateFeeAsync(
+        Guid jobId, string roleId, Guid agegroupId, Guid teamId,
+        PaymentState state, decimal fullPrice, decimal discount, decimal donation,
+        CancellationToken ct)
+    {
+        // Sequential awaits (shared scoped DbContext) — never Task.WhenAll.
+        var windowed = (await EvaluateModifiersAsync(jobId, roleId, agegroupId, teamId, DateTime.Now, ct)).TotalLateFee;
+        var configured = (await EvaluateModifiersAsync(jobId, roleId, agegroupId, teamId, null, ct)).TotalLateFee;
+        return state.EffectiveLateFee(windowed, configured, fullPrice, discount, donation);
     }
 
     // ── Resolution (Job-level) ────────────────────────────────
@@ -213,7 +231,12 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // (NULL deposit → balance only, never double-counted), identical to the reserve-time
         // stamp above — so the checkout recompute can never diverge from the screen total.
         reg.FeeBase = resolved?.FullPrice ?? 0m;
-        // FeeDiscount / FeeLatefee / FeeDonation preserved from initial stamp
+        // FeeDiscount / FeeLatefee / FeeDonation preserved from initial stamp. The late fee is NOT
+        // re-derived at the charge here: the player/team payment paths run an AMOUNT_MISMATCH
+        // tripwire (PaymentService) that rejects a charge differing from what the client was shown,
+        // so introducing a late fee the display didn't preview would fail the payment. The late fee
+        // reaches owing registrants via the director's fee-save reprice (which re-derives + stamps);
+        // live preview-at-charge is the Phase 2 read-path change that keeps display and charge in sync.
 
         await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct);
     }
@@ -257,20 +280,17 @@ public sealed class FeeResolutionService : IFeeResolutionService
             : (deposit > 0m ? deposit : balanceDue);
         // FeeDiscount / FeeLatefee / FeeDonation preserved
 
-        // Reprice-only retroactive late-fee assessment (ctx.AssessActiveLateFee). A director who
-        // adds/raises a late fee and reprices wants it to reach registrants who signed up BEFORE
-        // the late window — but ONLY those that (a) carry NO late fee yet and (b) still owe
-        // principal against the full price (not paid in full). A reg that already has a late fee is
-        // left alone (never doubled); a paid-in-full reg is left alone. Discount/donation stay
-        // frozen — we only ever ADD a late fee where none exists. Evaluated as-of-now so it picks
-        // up whatever late-fee modifier is currently active for this scope.
-        if (ctx.AssessActiveLateFee && reg.FeeLatefee == 0m
-            && state.PrincipalRemaining(resolved?.FullPrice ?? 0m, reg.FeeDiscount, 0m, reg.FeeDonation) > 0m)
+        // Late fee: re-derive live (derived "pay late ⇒ owe more" model). A recompute that means to
+        // (re)assess the late fee opts in via ctx.AssessActiveLateFee — the director's "update all
+        // prior" reprice and the payment recompute. EffectiveLateFee both ADDS an in-window fee to a
+        // reg that owes AND holds the floor for one already paid (so it survives the window closing),
+        // and drops/reduces it when the modifier is deleted/edited (overpay → negative owed → refund).
+        // Pure roster swaps (flag false) leave the existing fee frozen — a move never conjures a penalty.
+        if (ctx.AssessActiveLateFee)
         {
-            var lateMods = await EvaluateModifiersAsync(
-                jobId, RoleConstants.Player, targetAgegroupId, targetTeamId, DateTime.Now, ct);
-            if (lateMods.TotalLateFee > 0m)
-                reg.FeeLatefee = lateMods.TotalLateFee;
+            reg.FeeLatefee = await ResolveEffectiveLateFeeAsync(
+                jobId, RoleConstants.Player, targetAgegroupId, targetTeamId,
+                state, resolved?.FullPrice ?? 0m, reg.FeeDiscount, reg.FeeDonation, ct);
         }
 
         await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct, state);
@@ -338,26 +358,65 @@ public sealed class FeeResolutionService : IFeeResolutionService
         var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
         var feeBase = fullPayment ? (resolved?.FullPrice ?? 0m) : deposit;
 
-        // Only FeeBase changes — modifiers FROZEN
+        // FeeBase changes for the phase; the late fee re-derives below (the club-rep analog of the
+        // player swap path) — discount/donation stay frozen.
         team.FeeBase = feeBase;
 
-        // Reprice-only retroactive late-fee assessment (ctx.AssessActiveLateFee) — the club-rep
-        // analog of the player path above. A director who adds/raises a late fee and reprices
-        // wants it to reach teams that registered BEFORE the late window, but ONLY those that
-        // (a) carry NO late fee yet and (b) still owe principal against the full price. A team that
-        // already has a late fee is left alone (never doubled); a paid-in-full team is left alone.
-        // Discount/donation stay frozen. Evaluated as-of-now for whatever modifier is active.
-        if (ctx.AssessActiveLateFee && (team.FeeLatefee ?? 0m) == 0m
-            && state.PrincipalRemaining(
-                resolved?.FullPrice ?? 0m, team.FeeDiscount ?? 0m, 0m, team.FeeDonation ?? 0m) > 0m)
+        // Late fee: re-derive live (derived "pay late ⇒ owe more" model) when this recompute opts in
+        // via ctx.AssessActiveLateFee (the director's "update all prior" reprice, and the team
+        // payment recompute). EffectiveLateFee adds an in-window fee to a team that owes, holds the
+        // floor for one already paid (survives the window closing), and drops/reduces it on
+        // delete/edit (overpay → negative owed → refund). Pure roster moves (flag false) freeze it.
+        if (ctx.AssessActiveLateFee)
         {
-            var lateMods = await EvaluateModifiersAsync(
-                jobId, RoleConstants.ClubRep, targetAgegroupId, team.TeamId, DateTime.Now, ct);
-            if (lateMods.TotalLateFee > 0m)
-                team.FeeLatefee = lateMods.TotalLateFee;
+            team.FeeLatefee = await ResolveEffectiveLateFeeAsync(
+                jobId, RoleConstants.ClubRep, targetAgegroupId, team.TeamId,
+                state, resolved?.FullPrice ?? 0m, team.FeeDiscount ?? 0m, team.FeeDonation ?? 0m, ct);
         }
 
         await ApplyTeamProcessingAndTotalsAsync(team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: false, ct, state);
+    }
+
+    // ── Charge-entry realize (auto-activated late fee) ──────────
+    //
+    // These are the read/charge-side twin of the reprice engines: they run the SAME swap applier
+    // with AssessActiveLateFee=true so an auto-activated late-fee window lands at payment without a
+    // director reprice. They build the per-role context from the canonical job-settings accessors
+    // (identical values to RecalculatePlayer/TeamFeesAsync) and do NOT persist — the charge caller
+    // owns SaveChanges. Inert when no window is active or the record is fully paid.
+
+    public async Task RealizeLateFeeAtChargeAsync(
+        Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
+        CancellationToken ct = default)
+    {
+        var baseline = await _jobRepo.GetFullPaymentBaselineAsync(jobId, ct);
+        await ApplySwapFeesAsync(
+            reg, jobId, agegroupId, teamId,
+            new FeeApplicationContext
+            {
+                IsFullPaymentRequired = baseline?.BPlayersFullPaymentRequired ?? false,
+                AssessActiveLateFee = true
+            },
+            ct);
+    }
+
+    public async Task RealizeLateFeeAtChargeAsync(
+        TeamsEntity team, Guid jobId,
+        CancellationToken ct = default)
+    {
+        var settings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
+        var processingRate = await GetEffectiveProcessingRateAsync(jobId, ct);
+        await ApplyTeamSwapFeesAsync(
+            team, jobId, team.AgegroupId,
+            new TeamFeeApplicationContext
+            {
+                IsFullPaymentRequired = settings?.BTeamsFullPaymentRequired ?? false,
+                AddProcessingFees = settings?.BAddProcessingFees ?? false,
+                ApplyProcessingFeesToDeposit = settings?.BApplyProcessingFeesToTeamDeposit ?? false,
+                ProcessingFeePercent = processingRate,
+                AssessActiveLateFee = true
+            },
+            ct);
     }
 
     // ── Private: Processing + Totals (canonical) ────────────────

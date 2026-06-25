@@ -155,6 +155,20 @@ public class PaymentService : IPaymentService
             ?? await _paymentState.ForTeamAsync(teams[0].TeamId, jobIdValue);
         var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);
 
+        // ── Charge-entry realize: auto-activated late fee (Phase 2) ──
+        // Re-derive each team's effective late fee from the LIVE cascade before sizing the charge,
+        // so a late-fee window that opened without a director reprice still lands at payment. DRY:
+        // the same swap applier the reprice engine runs — idempotent for a paying team (positive
+        // owed ⇒ its stamped phase already matches; the applier never downgrades), so the ONLY field
+        // that moves is FeeLatefee (+ proc/totals riding on it). Persist now (BEFORE the donation
+        // block) so that if the client's total is stale the amount-mismatch tripwire below fires and
+        // the rep's refresh shows the realized total — and a failed-charge return never persists an
+        // unpaid donation, only the realized late fee (correct to carry). Inert (no SQL) when no
+        // window is active or the team is paid in full.
+        foreach (var team in teams)
+            await _feeService.RealizeLateFeeAtChargeAsync(team, jobIdValue);
+        await _teams.SaveChangesAsync();
+
         // Optional donation: the gift lands in full on ONE team (the client's first) and rides
         // this payment — ChargeTeamsAsync bills each team's full OwedTotal, which now carries it.
         // Proc is levied at the CC rate exactly as the splitter folds donation into netBase; the
@@ -1553,6 +1567,30 @@ public class PaymentService : IPaymentService
             ?? await _paymentState.ForRegistrationAsync(regIds[0], jobId, ct);
         var emptyState = PaymentState.Empty(rateRef.BAddProcessingFees, rateRef.CcRate, rateRef.EcheckRate);
         var regsById = registrations.ToDictionary(r => r.RegistrationId);
+
+        // ── Charge-entry realize: auto-activated late fee (Phase 2) ──
+        // Player twin of the team path: re-derive each reg's effective late fee from the LIVE
+        // cascade before sizing the charge, so a late-fee window that opened without a director
+        // reprice lands at payment. The fee cascade is keyed off the TEAM's agegroup (same source
+        // the reprice engine uses), so resolve team → agegroup for the regs being charged. DRY: the
+        // same swap applier, idempotent for a paying reg (only FeeLatefee + proc/totals move).
+        // Persist now so a stale client total trips the mismatch below and the family's refresh
+        // shows the realized owed. Inert (no SQL) when no window is active or the reg is paid up.
+        var chargeTeamIds = registrations
+            .Where(r => r.AssignedTeamId.HasValue).Select(r => r.AssignedTeamId!.Value).Distinct().ToList();
+        if (chargeTeamIds.Count > 0)
+        {
+            var chargeTeams = await _teams.GetTeamsWithJobAndCustomerAsync(jobId, chargeTeamIds);
+            var teamAgegroups = (chargeTeams ?? [])
+                .ToDictionary(t => t.TeamId, t => t.AgegroupId);
+            foreach (var reg in registrations)
+            {
+                if (reg.AssignedTeamId is Guid tId && teamAgegroups.TryGetValue(tId, out var agId))
+                    await _feeService.RealizeLateFeeAtChargeAsync(reg, jobId, agId, tId, ct);
+            }
+            await _registrations.SaveChangesAsync();
+        }
+
         // Per-item plan: the method-correct gateway charge + the proc credit to back out.
         // CC → credit 0, charge == item.Amount. eCheck → credit = ProcCreditForCharge (the
         // CC-rate proc embedded in this charge converted to the eCheck rate), so the gateway

@@ -145,6 +145,13 @@ public class FeeController : ControllerBase
         if (windowError != null)
             return BadRequest(new { message = windowError });
 
+        // Guard: an Early Bird Discount / Late Fee must carry BOTH a start and end date. A
+        // dateless modifier resolves as "always active" (open past / open future), which makes
+        // a "late" fee a silent permanent surcharge — the window is what gives it meaning.
+        var datesError = ValidateModifierDates(request.Modifiers);
+        if (datesError != null)
+            return BadRequest(new { message = datesError });
+
         // Guard: a deposit with no balance due is invalid. The deposit is the "part now"
         // of a two-step structure — with nothing to defer there is no balance phase, so the
         // amount belongs in Balance Due, not Deposit. (Balance-only is valid; deposit-only is not.)
@@ -392,6 +399,31 @@ public class FeeController : ControllerBase
         => deposit > 0m && !(balanceDue > 0m)
             ? "A fee with a deposit must also have a balance due. Enter a balance due, or move the amount to Balance Due."
             : null;
+
+    /// <summary>
+    /// Every Early Bird Discount and Late Fee must carry BOTH a start and end date. A null
+    /// bound resolves to "open-ended" (MinValue/MaxValue), so a dateless modifier is active
+    /// forever — a "late" fee with no start silently behaves as a permanent surcharge. The
+    /// window is mandatory so the modifier has a defined lifespan. Amount-less rows are ignored
+    /// (they are dropped on save). Returns an error message, or null when valid.
+    /// </summary>
+    private static string? ValidateModifierDates(List<FeeModifierDto>? modifiers)
+    {
+        if (modifiers == null) return null;
+
+        foreach (var m in modifiers)
+        {
+            if (m.Amount <= 0m) continue;
+            if (m.StartDate == null || m.EndDate == null)
+            {
+                var label = m.ModifierType == FeeConstants.ModifierLateFee
+                    ? "Late Fee" : "Early Bird Discount";
+                return $"{label} requires both a start date and an end date.";
+            }
+        }
+
+        return null;
+    }
 
     private static string? ValidateModifierWindows(List<FeeModifierDto>? modifiers)
     {

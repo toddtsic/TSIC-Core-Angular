@@ -124,9 +124,14 @@ public class FeeRepository : IFeeRepository
     }
 
     public async Task<List<FeeModifiers>> GetActiveModifiersForCascadeAsync(
-        Guid jobId, string roleId, Guid agegroupId, Guid teamId, DateTime asOfDate,
+        Guid jobId, string roleId, Guid agegroupId, Guid teamId, DateTime? asOfDate,
         CancellationToken ct = default)
     {
+        // asOfDate null = ignore the date window (the CONFIGURED amount regardless of start/end),
+        // used to cap the "already paid" late-fee lock so a closed window can't erase a paid fee.
+        var ignoreDates = asOfDate is null;
+        var asOf = asOfDate ?? default;
+
         // League is the top scope for modifiers — resolve the agegroup's league.
         var leagueId = await _context.Agegroups
             .AsNoTracking()
@@ -150,8 +155,9 @@ public class FeeRepository : IFeeRepository
                     // League scope (top tier — replaces job-level for modifiers)
                     || (m.JobFee.LeagueId == leagueId && m.JobFee.AgegroupId == null && m.JobFee.TeamId == null)
                 )
-                && (m.StartDate == null || m.StartDate <= asOfDate)
-                && (m.EndDate == null || m.EndDate >= asOfDate))
+                && (ignoreDates
+                    || ((m.StartDate == null || m.StartDate <= asOf)
+                        && (m.EndDate == null || m.EndDate >= asOf))))
             .Select(m => new
             {
                 Modifier = m,

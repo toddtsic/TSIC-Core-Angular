@@ -39,9 +39,13 @@ public interface IFeeRepository
     /// cascade (team → agegroup → league). Per modifier type, the most-specific scope
     /// that has an active modifier wins outright — scopes do NOT sum. Job-level rows are
     /// not a source for modifiers; league is the top tier (resolved from the agegroup).
+    ///
+    /// <paramref name="asOfDate"/> null = IGNORE the date window (return the CONFIGURED
+    /// modifiers regardless of their start/end) — used to resolve the window-independent late-fee
+    /// amount that caps the "already paid" lock (a closed window must not erase a paid late fee).
     /// </summary>
     Task<List<FeeModifiers>> GetActiveModifiersForCascadeAsync(
-        Guid jobId, string roleId, Guid agegroupId, Guid teamId, DateTime asOfDate,
+        Guid jobId, string roleId, Guid agegroupId, Guid teamId, DateTime? asOfDate,
         CancellationToken ct = default);
 
     /// <summary>

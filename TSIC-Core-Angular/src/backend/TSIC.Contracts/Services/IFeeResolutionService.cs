@@ -62,11 +62,12 @@ public interface IFeeResolutionService
     /// <summary>
     /// Evaluates active modifiers (discounts, late fees) at a point in time.
     /// Collects from all cascade levels (team, agegroup, job) and stacks them.
-    /// Only called for NEW registrations — never on swap/recalc.
+    /// <paramref name="asOfDate"/> null = ignore the date window (configured amounts regardless of
+    /// start/end) — used to resolve the window-independent late fee that caps the paid lock.
     /// </summary>
     Task<ResolvedModifiers> EvaluateModifiersAsync(
         Guid jobId, string roleId, Guid agegroupId, Guid teamId,
-        DateTime asOfDate,
+        DateTime? asOfDate,
         CancellationToken ct = default);
 
     // ── Resolution (Job-level, no agegroup/team) ─────────────────
@@ -122,6 +123,30 @@ public interface IFeeResolutionService
     Task ApplySwapFeesAsync(
         Registrations reg, Guid jobId, Guid targetAgegroupId, Guid targetTeamId,
         FeeApplicationContext ctx,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Charge-entry realize for a PLAYER registration: re-derive the effective late fee (and
+    /// recompute processing + totals) for a single reg about to be charged, so OwedTotal reflects
+    /// an auto-activated late-fee window WITHOUT a prior director reprice. DRY — delegates to
+    /// <see cref="ApplySwapFeesAsync"/> with <c>AssessActiveLateFee = true</c> (the exact path the
+    /// reprice engine uses), keying the cascade off the supplied agegroup/team. Does NOT persist;
+    /// the charge caller saves. Inert in the common case (no active window or fully paid ⇒ no change
+    /// ⇒ no AMOUNT_MISMATCH); only a genuinely owed reg inside an open window moves.
+    /// </summary>
+    Task RealizeLateFeeAtChargeAsync(
+        Registrations reg, Guid jobId, Guid agegroupId, Guid teamId,
+        CancellationToken ct = default);
+
+    /// <summary>
+    /// Charge-entry realize for a TEAM (club-rep) entity — the team-path twin of
+    /// <see cref="RealizeLateFeeAtChargeAsync(Registrations, Guid, Guid, Guid, CancellationToken)"/>.
+    /// Re-derives the effective late fee via <see cref="ApplyTeamSwapFeesAsync"/> with
+    /// <c>AssessActiveLateFee = true</c>, keying the cascade off the team's own agegroup. Does NOT
+    /// persist; the charge caller saves.
+    /// </summary>
+    Task RealizeLateFeeAtChargeAsync(
+        Domain.Entities.Teams team, Guid jobId,
         CancellationToken ct = default);
 
     /// <summary>

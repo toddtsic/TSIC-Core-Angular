@@ -9,6 +9,24 @@ export interface ModifierForm {
   endDate: string | null;
 }
 
+/**
+ * Every Early Bird Discount and Late Fee must carry BOTH a start AND an end date — the window
+ * is what gives the modifier meaning. An open-ended late fee silently behaves as a permanent
+ * surcharge "active since the dawn of time"; an open-ended early bird is a permanent discount.
+ * Amount-less rows are ignored (they are dropped on save). Returns an error message naming the
+ * offending modifier, or null when valid. Mirrors the backend FeeController guard.
+ */
+export function modifierDateError(mods: ModifierForm[]): string | null {
+  for (const m of mods) {
+    if (m.amount == null || m.amount <= 0) continue;
+    if (!m.startDate || !m.endDate) {
+      const label = m.modifierType === 'LateFee' ? 'Late Fee' : 'Early Bird Discount';
+      return `${label} requires both a start date and an end date.`;
+    }
+  }
+  return null;
+}
+
 @Component({
   selector: 'app-fee-card',
   standalone: true,
