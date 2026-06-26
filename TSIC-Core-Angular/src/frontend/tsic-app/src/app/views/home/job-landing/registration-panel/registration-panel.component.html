@@ -67,6 +67,25 @@
 					</div>
 				}
 
+				<!-- Rosters - public roster view. Mounts even when nothing else does
+				     (event over, rosters still public): the band's gate counts rosters,
+				     so it can't orphan. -->
+				@if (showRosters()) {
+					<div class="rp__section">
+						<h4 class="rp__section-title">Rosters</h4>
+						<div class="rp__links">
+							<a class="rp__link" [routerLink]="rostersLink()">
+								<i class="bi bi-card-checklist rp__link-icon" aria-hidden="true"></i>
+								<span class="rp__link-text">
+									<strong>Public Rosters</strong>
+									<small>See who's rostered</small>
+								</span>
+								<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+							</a>
+						</div>
+					</div>
+				}
+
 			</div>
 		</div>
 	</section>

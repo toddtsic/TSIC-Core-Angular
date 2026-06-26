@@ -113,7 +113,7 @@ export class RegistrationPanelComponent {
 		}
 		if (allowed.has('register-referee') && p.refereeRegistrationOpen) {
 			links.push({ key: 'referee', label: 'Register a Referee',
-				icon: 'bi-whistle', routerLink: `${base}/registration/adult`, queryParams: { role: 'referee' } });
+				icon: 'bi-flag', routerLink: `${base}/registration/adult`, queryParams: { role: 'referee' } });
 		}
 		if (allowed.has('register-recruiter') && p.recruiterRegistrationOpen) {
 			links.push({ key: 'recruiter', label: 'Register a College Recruiter',
@@ -196,12 +196,20 @@ export class RegistrationPanelComponent {
 
 	protected readonly showManage = computed(() => this.manageItems().length > 0);
 
-	// NB: Public Rosters is NOT a section here anymore — it's a first-class card in the
-	// Smart Bulletins band (so it can't orphan when this panel doesn't render).
+	// ── Rosters section — the public roster view ("view who's rostered") ─────────
+	// Job-level (not personal), so it shows in public-preview too. Gated on phase
+	// (allowedKeys) AND the pulse flag. NOTE: the band's mount gate (showRegistration
+	// in SmartBulletinsComponent) ALSO counts rosters, so when an event is over but
+	// rosters are still public this panel mounts just to show this — it won't orphan.
+	protected readonly showRosters = computed(() => {
+		const p = this.pulse();
+		return !!p?.publicRostersAvailable && this.allowedKeys().has('rosters');
+	});
+	protected readonly rostersLink = computed(() => `${this.base()}/rosters/public`);
 
 	/** The panel self-hides when no section has content. */
 	protected readonly hasContent = computed(() =>
-		this.selfRosterLinks().length > 0 || this.showManage());
+		this.selfRosterLinks().length > 0 || this.showManage() || this.showRosters());
 
 	openSelfRosterUpdate(): void {
 		this.sruModal.open(this.jobPath());

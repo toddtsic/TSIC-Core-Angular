@@ -117,7 +117,7 @@ export class QuickLinksComponent {
 				: 'No teams exist yet — coaches will have nothing to request, and the "Register Coach" card stays hidden until teams are added.',
 			onTip: 'Coaches can register and request teams — the "Register Coach" card shows on the landing page.',
 			offTip: 'Coach registration is closed — the card is hidden.' },
-		{ key: 'allowRefereeRegistration', label: 'Allow Referee Registration', icon: 'bi-whistle',
+		{ key: 'allowRefereeRegistration', label: 'Allow Referee Registration', icon: 'bi-flag',
 			relevant: true,
 			onTip: 'Referees can register — the "Register Referee" card shows on the landing page.',
 			offTip: 'Referee registration is closed — the card is hidden.' },

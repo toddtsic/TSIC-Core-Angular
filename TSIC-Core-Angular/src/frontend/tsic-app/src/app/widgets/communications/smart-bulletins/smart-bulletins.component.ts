@@ -65,7 +65,6 @@ export class SmartBulletinsComponent {
 	protected readonly jobId = computed(() => this.jobService.currentJob()?.jobId ?? '');
 	protected readonly live = computed(() => this.phase() !== 'concluded');
 	protected readonly storeLink = computed(() => `${this.base()}/store`);
-	protected readonly rostersLink = computed(() => `${this.base()}/rosters/public`);
 
 	// ── Section gates (moved out of job-landing, MINUS the isAdmin early-returns) ──
 
@@ -83,8 +82,9 @@ export class SmartBulletinsComponent {
 	protected readonly showClock = computed(() => this.showGameDay() && this.live());
 
 	// Mount the Registration panel only on SUBSTANTIVE content. Mirrors the panel's
-	// own selfRosterLinks + manageItems exactly (incl. register-team / my-teams), so
-	// the gate and the rendered sections stay in lockstep.
+	// own selfRosterLinks + manageItems + rosters exactly, so the gate and the rendered
+	// sections stay in lockstep — INCLUDING rosters, so when an event is over but rosters
+	// are still public the panel mounts just to show that row (it can't orphan).
 	protected readonly showRegistration = computed(() => {
 		const p = this.pulse();
 		if (!p || !this.jobPath()) return false;
@@ -113,7 +113,8 @@ export class SmartBulletinsComponent {
 				allowed.has('my-teams') ||
 				(p.myClubRepTotalOwed ?? 0) > 0 ||
 				(allowed.has('team-insurance') && p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver === true)));
-		return hasSelfRoster || hasManage;
+		const hasRosters = !!p.publicRostersAvailable && allowed.has('rosters');
+		return hasSelfRoster || hasManage || hasRosters;
 	});
 
 	protected readonly showStore = computed(() => {
@@ -121,12 +122,9 @@ export class SmartBulletinsComponent {
 		return !!p?.storeHasActiveItems && this.allowedKeys().has('store');
 	});
 
-	// Public Rosters as a first-class band card (NOT a registration-panel section), so
-	// it can never orphan when the panels don't render (e.g. concluded + anonymous).
-	protected readonly showRosters = computed(() => {
-		const p = this.pulse();
-		return !!p?.publicRostersAvailable && this.allowedKeys().has('rosters');
-	});
+	// NB: Public Rosters is no longer a standalone band card — it's a section INSIDE the
+	// Registration panel again (showRosters there). The showRegistration gate above counts
+	// rosters, so the panel still mounts (and rosters still shows) when nothing else does.
 
 	// Event Status fills the lifecycle "dead zones" the action panels leave bare —
 	// registration not open yet, nothing/closed, or finished. The component self-hides
@@ -138,5 +136,5 @@ export class SmartBulletinsComponent {
 
 	/** The band self-hides when no smart section has content. */
 	protected readonly hasContent = computed(() =>
-		this.showEventStatus() || this.showRegistration() || this.showGameDay() || this.showRosters() || this.showStore());
+		this.showEventStatus() || this.showRegistration() || this.showGameDay() || this.showStore());
 }

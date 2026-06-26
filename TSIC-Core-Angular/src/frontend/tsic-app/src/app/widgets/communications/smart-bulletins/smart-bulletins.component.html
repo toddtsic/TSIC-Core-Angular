@@ -15,22 +15,8 @@
 				[jobId]="jobId()" [showClock]="showClock()" />
 		}
 
-		<!-- Compact cards — rosters + store ride in the band on their own (each absorbs
-		     its old hero card), so neither can orphan when the panels don't render. -->
-		@if (showRosters()) {
-			<div class="sb__card-wrap">
-				<app-smart-marker text="This list appears on its own whenever rosters are public — always the current roster." />
-				<a class="sb__card" [routerLink]="rostersLink()">
-					<span class="sb__card-icon" aria-hidden="true"><i class="bi bi-card-checklist"></i></span>
-					<span class="sb__card-text">
-						<strong>Public Rosters</strong>
-						<small>See who's rostered</small>
-					</span>
-					<i class="bi bi-arrow-right sb__card-go" aria-hidden="true"></i>
-				</a>
-			</div>
-		}
-
+		<!-- Store rides in the band on its own. (Public Rosters now lives as a section
+		     INSIDE the Registration panel above, not as a standalone card here.) -->
 		@if (showStore()) {
 			<div class="sb__card-wrap">
 				<app-smart-marker text="The store shows whatever items are live right now — it appears and updates on its own." />
