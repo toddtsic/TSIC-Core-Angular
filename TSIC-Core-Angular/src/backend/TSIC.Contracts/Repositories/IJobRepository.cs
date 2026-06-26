@@ -194,6 +194,15 @@ public interface IJobRepository
     Task<JobRegistrationStatus?> GetRegistrationStatusAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Canonical "is this job expired for non-admin users" determination:
+    /// <c>DateTime.Now &gt;= Jobs.ExpiryUsers</c>. This is the single source of truth for the
+    /// public/club-rep expiry boundary — every non-admin write gate should consult it rather
+    /// than comparing <c>ExpiryUsers</c> inline. Admins use the separate <c>ExpiryAdmin</c>
+    /// boundary (enforced on the read side). Returns true for an unknown jobId (fail closed).
+    /// </summary>
+    Task<bool> IsJobExpiredForUsersAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get full job metadata with display options for frontend rendering.
     /// </summary>
     Task<JobMetadataDto?> GetJobMetadataByPathAsync(string jobPath, CancellationToken cancellationToken = default);

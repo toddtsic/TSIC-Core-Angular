@@ -32,7 +32,10 @@ public class JobLookupService : IJobLookupService
     public async Task<bool> IsPlayerRegistrationActiveAsync(Guid jobId)
     {
         var status = await _jobRepo.GetRegistrationStatusAsync(jobId);
-        return status != null && status.BRegistrationAllowPlayer && (status.ExpiryUsers > DateTime.Now);
+        if (status == null || !status.BRegistrationAllowPlayer) return false;
+
+        // Expiry is the canonical determination — don't re-compare ExpiryUsers inline here.
+        return !await _jobRepo.IsJobExpiredForUsersAsync(jobId);
     }
 
     public async Task<JobMetadataDto?> GetJobMetadataAsync(string jobPath)

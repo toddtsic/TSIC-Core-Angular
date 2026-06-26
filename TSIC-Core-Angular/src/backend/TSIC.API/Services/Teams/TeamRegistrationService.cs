@@ -169,6 +169,15 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException($"Event not found: {jobPath}");
         }
 
+        // Canonical expiry gate — refuse to mint a club-rep Phase-2 token (or create a fresh
+        // registration) for an expired job. Closes the direct-call bypass: Phase-1 hides expired
+        // jobs from the role list, but this endpoint resolves the job by jobPath independently.
+        if (await _jobs.IsJobExpiredForUsersAsync(jobId.Value))
+        {
+            _logger.LogWarning("Initialize-registration blocked for job {JobPath}: event has closed (ExpiryUsers).", jobPath);
+            throw new InvalidOperationException("This event has closed and is no longer accepting registrations.");
+        }
+
         var job = await _jobs.GetJobAuthInfoAsync(jobId.Value);
 
         // Find or create Registration record
@@ -619,6 +628,14 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new UnauthorizedAccessException("User does not have access to this club");
         }
 
+        // Canonical expiry gate — a club rep cannot add teams to an expired job (separate from
+        // the capability flags below; expiry is the authoritative "doors closed" signal).
+        if (await _jobs.IsJobExpiredForUsersAsync(jobId))
+        {
+            _logger.LogWarning("Register-team blocked for job {JobId}: event has closed (ExpiryUsers).", jobId);
+            throw new InvalidOperationException("This event has closed and is no longer accepting team registrations.");
+        }
+
         // Job-level capability gate — mirrors legacy BRegistrationAllowTeam / BClubRepAllowAdd
         // semantics. Frontend hides the Add CTA via pulse, but the endpoint must still refuse
         // a direct call after the window closes.
@@ -853,6 +870,14 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         // Capture before Remove so we can re-aggregate the rep row afterward.
         var clubRepId = team.ClubrepRegistrationid;
+
+        // Canonical expiry gate — post-expiry roster changes are admin-only; a club rep cannot
+        // remove a team from an expired job.
+        if (await _jobs.IsJobExpiredForUsersAsync(team.JobId))
+        {
+            _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): event has closed (ExpiryUsers).", teamId, team.JobId);
+            throw new InvalidOperationException("This event has closed and is no longer accepting roster changes.");
+        }
 
         // Job-level capability gate — mirrors legacy BRegistrationAllowTeam / BClubRepAllowDelete.
         var capabilities = await _jobs.GetTeamCapabilitiesAsync(team.JobId);

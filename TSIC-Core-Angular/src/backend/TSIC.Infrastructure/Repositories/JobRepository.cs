@@ -115,6 +115,19 @@ public class JobRepository : IJobRepository
             .SingleOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> IsJobExpiredForUsersAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // Canonical expiry signal: a job is expired for non-admin users once Now reaches ExpiryUsers.
+        // Fail closed — an unknown jobId is treated as expired so callers never open writes on it.
+        var expiryUsers = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => (DateTime?)j.ExpiryUsers)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return expiryUsers == null || DateTime.Now >= expiryUsers.Value;
+    }
+
     public async Task<JobMetadataDto?> GetJobMetadataByPathAsync(string jobPath, CancellationToken cancellationToken = default)
     {
         return await _context.JobDisplayOptions
