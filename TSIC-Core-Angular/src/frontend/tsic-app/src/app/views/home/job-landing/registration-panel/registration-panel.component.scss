@@ -125,27 +125,48 @@
 
 .rp__link-label { line-height: 1.2; }
 
-// Featured self-roster-update — the standout (filled primary, two-line).
+// Two-line label (strong + small) — used by every Manage row.
+.rp__link-text {
+	display: flex;
+	flex-direction: column;
+	line-height: 1.2;
+
+	strong { font-weight: var(--font-weight-medium); }
+	small { font-size: var(--font-size-xs); color: var(--brand-text-muted); }
+}
+
+// Featured self-roster-update — the standout (filled primary).
 .rp__link--feature {
 	background: var(--bs-primary);
 	border-color: var(--bs-primary);
 	color: #fff; // on-primary convention
 
 	.rp__link-icon { color: #fff; }
-
-	.rp__link-text {
-		display: flex;
-		flex-direction: column;
-		line-height: 1.2;
-
-		strong { font-weight: var(--font-weight-semibold); }
-		small { font-size: var(--font-size-xs); opacity: 0.9; }
-	}
+	.rp__link-text strong { font-weight: var(--font-weight-semibold); }
+	.rp__link-text small { color: rgba(255, 255, 255, 0.9); }
 
 	&:hover {
 		border-color: var(--bs-primary);
 		filter: brightness(1.05);
 	}
+}
+
+// Final-balance-due — urgent money emphasis (amber accent + prominent amount).
+.rp__link--alert {
+	border-color: var(--bs-warning);
+	border-left-width: 4px;
+	border-left-color: var(--bs-warning);
+	background: color-mix(in srgb, var(--bs-warning) 12%, var(--brand-surface, var(--neutral-0)));
+
+	.rp__link-icon { color: var(--bs-warning); }
+	.rp__link-text strong { font-weight: var(--font-weight-semibold); }
+	.rp__link-text small {
+		color: var(--brand-text);
+		font-weight: var(--font-weight-bold);
+		font-size: var(--font-size-sm);
+	}
+
+	&:hover { border-color: var(--bs-warning); }
 }
 
 // ── Reduced motion (required for any animation/transition) ───

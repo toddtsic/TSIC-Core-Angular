@@ -15,20 +15,34 @@ interface RegLink {
 	queryParams?: Record<string, string>;
 }
 
+interface ManageItem {
+	key: string;
+	label: string;
+	sublabel?: string;
+	icon: string;
+	/** undefined = plain row; 'feature' = filled primary; 'alert' = balance-due emphasis. */
+	variant?: 'feature' | 'alert';
+	routerLink?: string;
+	queryParams?: Record<string, string>;
+	/** When set the row is a button that opens the modal instead of navigating. */
+	action?: 'self-roster-update';
+}
+
 /**
  * Registration compound viewer — the self-assembling capture of the hand-authored
- * "Player & Coach Registration and Waiver Wizard" bulletin. A single panel that
- * CONDITIONALLY constructs its sections from the live pulse + the viewer's state:
+ * registration bulletins ("Player & Coach Registration and Waiver Wizard", and the
+ * typical player-reg page's "forgot insurance at checkout" / "final balance" notes).
+ * CONDITIONALLY constructs its sections from the live pulse + viewer state:
  *
  *   • Self-Rostering — links for each self-registration role the director has open
- *   • Manage — the FEATURED self-roster-update (change team / uniform # / cancel),
- *     plus My Registration / Pay Balance for a viewer who already holds a reg
+ *   • Manage — the self-service hub that kills support calls: the FINAL BALANCE DUE
+ *     (deposit/balance jobs), self-roster-update (change team / uniform # / cancel),
+ *     My Registration, and the "forgot insurance at checkout?" RegSaver add-ons
+ *     (player + team). Player and club-rep dimensions both handled.
  *   • Rosters — the public roster view
  *
- * The self-roster-update is the support-call killer: it has no other hero presence,
- * and its modal handles its own login, so it's offered to everyone (anonymous
- * included — they sign in inside it). Each section renders only when it has content;
- * the whole panel self-hides when there's nothing to show.
+ * Each section/row is gated on phase (allowedKeys) AND its pulse flag. The whole
+ * panel self-hides when no section has content.
  */
 @Component({
 	selector: 'app-registration-panel',
@@ -96,30 +110,74 @@ export class RegistrationPanelComponent {
 		return links;
 	});
 
-	// ── Manage section ──────────────────────────────────────────────────────────
 	// The self-roster-update (change team / uniform # / cancel) is meaningful while
 	// player registration is open — that's when self-service fixes save support calls.
-	protected readonly showChange = computed(() =>
+	private readonly showChange = computed(() =>
 		this.allowedKeys().has('register-player') && !!this.pulse()?.playerRegistrationOpen);
 
-	protected readonly manageLinks = computed<RegLink[]>(() => {
+	// ── Manage section — the support-call-killing self-service hub ───────────────
+	// Order is deliberate: money owed first (most urgent), then the change/cancel
+	// fix, then My Registration, then the "forgot insurance" add-ons. Player and
+	// club-rep (teams) dimensions both handled.
+	protected readonly manageItems = computed<ManageItem[]>(() => {
 		const p = this.pulse();
-		if (!p || !this.registered() || !this.isPlayerOrFamily()) return [];
+		if (!p) return [];
 		const allowed = this.allowedKeys();
 		const base = this.base();
-		const links: RegLink[] = [];
-		if (allowed.has('my-registration')) {
-			links.push({ key: 'my-registration', label: 'My Registration', icon: 'bi-person-vcard',
-				routerLink: `${base}/registration/player`, queryParams: { step: 'players' } });
+		const registered = this.registered();
+		const isPF = this.isPlayerOrFamily();
+		const items: ManageItem[] = [];
+
+		// ── Player ──
+		if (registered && isPF) {
+			// Final balance — deposit-aware wording: a full-payment job has no deposit
+			// phase, so there's no "final" balance, just an amount due.
+			if (allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0) {
+				const deposit = !this.jobService.currentJob()?.bPlayersFullPaymentRequired;
+				items.push({ key: 'player-balance', icon: 'bi-cash-stack', variant: 'alert',
+					label: deposit ? 'Final Balance Due' : 'Balance Due',
+					sublabel: this.money(p.myRegistrationOwedTotal!),
+					routerLink: `${base}/registration/player`, queryParams: { step: 'payment' } });
+			}
 		}
-		if (allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0) {
-			links.push({ key: 'pay-balance', label: 'Pay Balance Due', icon: 'bi-cash-stack',
-				routerLink: `${base}/registration/player`, queryParams: { step: 'payment' } });
+
+		// Change team / uniform # — or cancel (the self-roster-update modal).
+		if (this.showChange()) {
+			items.push({ key: 'self-roster-update', icon: 'bi-pencil-square', variant: 'feature',
+				label: 'Change Team or Uniform #', sublabel: '…or cancel a player registration',
+				action: 'self-roster-update' });
 		}
-		return links;
+
+		if (registered && isPF) {
+			if (allowed.has('my-registration')) {
+				items.push({ key: 'my-registration', icon: 'bi-person-vcard', label: 'My Registration',
+					routerLink: `${base}/registration/player`, queryParams: { step: 'players' } });
+			}
+			// Forgot insurance at checkout — the RegSaver add-on flow.
+			if (allowed.has('player-insurance') && p.offerPlayerRegsaverInsurance && p.myHasPurchasedPlayerRegsaver !== true) {
+				items.push({ key: 'player-insurance', icon: 'bi-shield-check', label: 'Add RegSaver Insurance',
+					sublabel: 'Forgot it at checkout?', routerLink: `${base}/PlayerVIUpdate` });
+			}
+		}
+
+		// ── Club rep (teams) — myClubRepTeamCount is only populated for a club rep
+		// scoped to this job, so > 0 encodes both role and has-teams. ──
+		if ((p.myClubRepTeamCount ?? 0) > 0) {
+			if ((p.myClubRepTotalOwed ?? 0) > 0) {
+				items.push({ key: 'clubrep-balance', icon: 'bi-cash-stack', variant: 'alert',
+					label: 'Final Balance Due', sublabel: this.money(p.myClubRepTotalOwed!),
+					routerLink: `${base}/registration/team`, queryParams: { step: 'payment' } });
+			}
+			if (allowed.has('team-insurance') && p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver === true) {
+				items.push({ key: 'team-insurance', icon: 'bi-shield-check', label: 'Add Team RegSaver',
+					sublabel: 'Forgot it at checkout?', routerLink: `${base}/ClubRepVIUpdate` });
+			}
+		}
+
+		return items;
 	});
 
-	protected readonly showManage = computed(() => this.showChange() || this.manageLinks().length > 0);
+	protected readonly showManage = computed(() => this.manageItems().length > 0);
 
 	// ── Rosters section ─────────────────────────────────────────────────────────
 	protected readonly rostersLink = computed<RegLink | null>(() => {
@@ -135,5 +193,9 @@ export class RegistrationPanelComponent {
 
 	openSelfRosterUpdate(): void {
 		this.sruModal.open(this.jobPath());
+	}
+
+	private money(v: number): string {
+		return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
 	}
 }

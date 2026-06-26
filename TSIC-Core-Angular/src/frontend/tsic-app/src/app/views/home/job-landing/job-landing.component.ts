@@ -162,7 +162,7 @@ export class JobLandingComponent implements OnDestroy {
 	// Game-Day panel does to view-schedule.
 	private static readonly REG_PANEL_KEYS: ReadonlySet<string> = new Set([
 		'register-player', 'register-coach', 'register-referee', 'register-recruiter',
-		'my-registration', 'pay-balance', 'rosters',
+		'my-registration', 'pay-balance', 'rosters', 'player-insurance', 'team-insurance',
 	]);
 
 	/** The CTA keys this lifecycle phase allows — passed to the panels so they gate
@@ -188,11 +188,17 @@ export class JobLandingComponent implements OnDestroy {
 			(allowed.has('register-coach') && p.staffRegistrationOpen) ||
 			(allowed.has('register-referee') && p.refereeRegistrationOpen) ||
 			(allowed.has('register-recruiter') && p.recruiterRegistrationOpen));
+		// Mirror RegistrationPanel.manageItems exactly, so suppression and rendering
+		// stay in lockstep (player balance/insurance/My-Reg + club-rep balance/insurance).
 		const hasManage =
 			(allowed.has('register-player') && p.playerRegistrationOpen) ||  // self-roster-update
 			(registered && isPlayerOrFamily && (
 				allowed.has('my-registration') ||
-				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0)));
+				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0) ||
+				(allowed.has('player-insurance') && p.offerPlayerRegsaverInsurance && p.myHasPurchasedPlayerRegsaver !== true))) ||
+			((p.myClubRepTeamCount ?? 0) > 0 && (
+				(p.myClubRepTotalOwed ?? 0) > 0 ||
+				(allowed.has('team-insurance') && p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver === true)));
 		return hasSelfRoster || hasManage;
 	});
 
