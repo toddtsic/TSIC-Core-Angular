@@ -201,7 +201,9 @@ export class BulletinEditorComponent implements OnInit {
       r = r.parent;
     }
     if (jobPath) {
-      this.router.navigate(['/', jobPath]);
+      // /home is the public landing without the admin→dashboard redirect, so an
+      // admin who launched this edit from the bulletin lands back where they were.
+      this.router.navigate(['/', jobPath, 'home']);
     }
   }
 

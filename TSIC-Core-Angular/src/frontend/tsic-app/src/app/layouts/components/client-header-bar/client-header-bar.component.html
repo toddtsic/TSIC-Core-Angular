@@ -180,6 +180,11 @@
 
                         @if (isAdmin()) {
                         <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="viewPublicLanding()">
+                            <i class="bi bi-globe"></i>
+                            <span>View Public Landing</span>
+                        </button>
+                        <button type="button" class="user-menu-item" role="menuitem"
                             (click)="openDashboardCustomize(); closeMobileMenu()">
                             <i class="bi bi-sliders"></i>
                             <span>Customize Dashboard</span>
@@ -339,6 +344,11 @@
                         }
 
                         @if (isAdmin()) {
+                        <button type="button" class="user-menu-item" role="menuitem"
+                            (click)="viewPublicLanding()">
+                            <i class="bi bi-globe"></i>
+                            <span>View Public Landing</span>
+                        </button>
                         <button type="button" class="user-menu-item" role="menuitem"
                             (click)="openDashboardCustomize()">
                             <i class="bi bi-sliders"></i>

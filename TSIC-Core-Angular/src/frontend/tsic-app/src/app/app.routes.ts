@@ -99,8 +99,18 @@ export const routes: Routes = [
 				]
 			},
 			{
+				// Public bulletin/quicklinks landing without the admin→dashboard redirect.
+				// Also the authGuard's denial fallback for non-admins hitting /dashboard.
 				path: 'home',
-				loadComponent: () => import('./views/home/job-home/job-home.component').then(m => m.JobHomeComponent)
+				data: { publicView: true },
+				loadComponent: () => import('./views/home/landing-router/landing-router.component').then(m => m.LandingRouterComponent)
+			},
+			{
+				// Admin-only widget dashboard (charts/metrics). Non-admins are bounced to /home.
+				path: 'dashboard',
+				canActivate: [authGuard],
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				loadComponent: () => import('./views/home/widget-dashboard/widget-dashboard.component').then(m => m.WidgetDashboardComponent)
 			},
 			{
 				path: 'brand-preview',

@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, input, signal, isDevMode, ChangeDetectionStrategy, Type } from '@angular/core';
+import { Component, computed, effect, inject, signal, isDevMode, ChangeDetectionStrategy, Type } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
@@ -47,39 +47,14 @@ export class WidgetDashboardComponent {
 	private readonly route = inject(ActivatedRoute);
 	private readonly menuState = inject(MenuStateService);
 
-	/** 'authenticated' = reads job/role from JWT; 'public' = anonymous, needs jobPath input */
-	readonly mode = input<'authenticated' | 'public'>('authenticated');
-
-	/** Job path for public mode (ignored in authenticated mode) */
-	readonly publicJobPath = input<string>('', { alias: 'jobPath' });
-
 	readonly dashboard = signal<WidgetDashboardResponse | null>(null);
 	readonly isLoading = signal(false);
 	readonly hasError = signal(false);
-	readonly activeTab = signal<'dashboard' | 'public'>('dashboard');
 
-	readonly roleName = computed(() =>
-		this.mode() === 'public' ? '' : (this.auth.currentUser()?.role || ''));
+	readonly roleName = computed(() => this.auth.currentUser()?.role || '');
 
-	/** Admin trio (Superuser / Director / SuperDirector) — mirrors the nav carve-out. */
-	readonly isAdmin = this.auth.isAdmin;
-
-	/**
-	 * Whether dashboard tabs should render.
-	 * Only admins (Superuser/Director/SuperDirector) see both tabs; everyone else
-	 * sees public content without a tab bar. When the role view has no widgets
-	 * (all defaults disabled, no per-user picks), drop the tabs entirely and
-	 * fall through to the public content — no empty "Role View" tab.
-	 */
-	readonly showTabs = computed(() =>
-		!this.isPublic() && this.isAdmin() && this.hubCategories().length > 0
-	);
-
-	readonly isPublic = computed(() => this.mode() === 'public');
-
-	/** Resolved job path — from input (public) or JWT/route (authenticated) */
+	/** Resolved job path — from JWT, falling back to the route. */
 	readonly activeJobPath = computed(() => {
-		if (this.mode() === 'public') return this.publicJobPath();
 		const user = this.auth.currentUser();
 		if (user?.jobPath) return user.jobPath;
 		let r: ActivatedRouteSnapshot | null = this.route.snapshot;
@@ -98,14 +73,6 @@ export class WidgetDashboardComponent {
 		const db = this.dashboard();
 		if (!db) return null;
 		return db.workspaces.find(ws => ws.workspace === Workspaces.Dashboard) ?? null;
-	});
-
-	/** The 'public' workspace from the API response (shown to authenticated users too) */
-	readonly publicCategories = computed(() => {
-		const db = this.dashboard();
-		if (!db) return [];
-		const ws = db.workspaces.find(w => w.workspace === Workspaces.Public);
-		return ws?.categories ?? [];
 	});
 
 	/** Dashboard categories sorted so chart-tile categories render before content categories. */
@@ -132,21 +99,16 @@ export class WidgetDashboardComponent {
 	constructor() {
 		// Reactive reload: fires when auth state changes (job switch, role switch)
 		effect(() => {
-			const mode = this.mode();
 			const user = this.auth.currentUser();
 			const jobPath = this.activeJobPath();
 			const regId = user?.regId || '';
-			const loadKey = `${mode}:${jobPath}:${regId}`;
+			const loadKey = `${jobPath}:${regId}`;
 
 			if (!jobPath || loadKey === this.lastLoadedKey) return;
 			this.lastLoadedKey = loadKey;
 
-			if (mode === 'public') {
-				this.loadPublicData();
-			} else {
-				this.jobService.fetchJobMetadata(jobPath).subscribe();
-				this.loadDashboard();
-			}
+			this.jobService.fetchJobMetadata(jobPath).subscribe();
+			this.loadDashboard();
 		});
 
 		// Listen for customize requests from the header dropdown
@@ -169,34 +131,6 @@ export class WidgetDashboardComponent {
 			));
 		}
 		return cmp;
-	}
-
-	/** Public mode: load job metadata + bulletins + widget config */
-	private loadPublicData(): void {
-		const jobPath = this.publicJobPath();
-		if (!jobPath) return;
-
-		this.isLoading.set(true);
-		this.hasError.set(false);
-		this.configCache.clear();
-
-		this.jobService.fetchJobMetadata(jobPath).subscribe({
-			next: (job) => {
-				this.jobService.setJob(job);
-				this.jobService.loadBulletins(jobPath);
-			}
-		});
-
-		this.svc.getPublicDashboard(jobPath).subscribe({
-			next: (data) => {
-				this.dashboard.set(data);
-				this.isLoading.set(false);
-			},
-			error: () => {
-				this.hasError.set(true);
-				this.isLoading.set(false);
-			}
-		});
 	}
 
 	loadDashboard(): void {

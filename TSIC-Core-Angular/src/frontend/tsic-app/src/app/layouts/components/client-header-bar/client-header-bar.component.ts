@@ -286,6 +286,14 @@ export class ClientHeaderBarComponent {
         this.router.navigate([`/${jobPath}`]);
     }
 
+    /** Admin-only: preview the public bulletin/quicklinks landing (no admin→dashboard redirect). */
+    viewPublicLanding() {
+        this.closeUserMenu();
+        this.closeMobileMenu();
+        const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
+        this.router.navigate([`/${jobPath}/home`]);
+    }
+
     /** Navigate to a task-item route (relative to the current job). Closes both menus. */
     navigateTask(route: string): void {
         this.closeUserMenu();
