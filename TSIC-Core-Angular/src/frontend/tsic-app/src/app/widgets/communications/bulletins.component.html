@@ -1,4 +1,15 @@
+<!-- ✨ SMART band — the self-assembling, always-current bulletins. ALWAYS pinned
+     above the director's hand-authored ones (never interleaved). Self-hides when
+     empty. -->
+@if (smart()) {
+<app-smart-bulletins [jobPath]="jobPath()" />
+}
+
 @if (bulletins() && bulletins().length > 0) {
+<!-- Divider: the smart band above is the system's; below is the organizer's. -->
+<div class="bulletins-sep">
+    <span class="bulletins-sep__label"><i class="bi bi-megaphone-fill" aria-hidden="true"></i> News &amp; Updates</span>
+</div>
 <div class="bulletins">
     @for (bulletin of bulletins(); track bulletin.bulletinId) {
     <article class="bulletin">

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { Component, computed, inject, input, signal, ChangeDetectionStrategy } from '@angular/core';
 import { ActivatedRoute, ActivatedRouteSnapshot, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { TranslateLegacyUrlsPipe } from '@infrastructure/pipes/translate-legacy-urls.pipe';
@@ -7,22 +7,28 @@ import { JobService } from '@infrastructure/services/job.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { BulletinAdminService } from '@views/communications/bulletins/services/bulletin-admin.service';
+import { SmartBulletinsComponent } from './smart-bulletins/smart-bulletins.component';
 import type { BulletinDto } from '@core/api';
 
 /**
- * Bulletins Display Component
+ * Bulletins widget — the unified "bulletins" surface = a pinned ✨ SMART band (the
+ * self-assembling, pulse-driven compound viewers, ALWAYS on top) above the
+ * director's hand-authored bulletins. Wherever this widget is dropped (public
+ * job-landing AND the admin widget-dashboard), both tiers come along — so the
+ * dashboard shows the director exactly what the public sees.
  *
- * Self-sufficient: injects JobService for bulletin data and resolves jobPath
- * from auth state or route tree. Zero inputs required.
+ * Self-sufficient: injects JobService for bulletin data and resolves jobPath from
+ * auth state or route tree. Zero inputs required.
  *
  * Admins viewing the public job-home see a "quick inactivate" control on each
- * bulletin (set Active=false) — the manual counterpart to the editor, so a
+ * MANUAL bulletin (set Active=false) — the manual counterpart to the editor, so a
  * stale/redundant bulletin can be hidden in one click without leaving the page.
+ * The smart band is read-only and never carries those controls.
  */
 @Component({
     selector: 'app-bulletins',
     standalone: true,
-    imports: [CommonModule, TranslateLegacyUrlsPipe, InternalLinkDirective],
+    imports: [CommonModule, TranslateLegacyUrlsPipe, InternalLinkDirective, SmartBulletinsComponent],
     templateUrl: './bulletins.component.html',
     styleUrl: './bulletins.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -34,6 +40,10 @@ export class BulletinsComponent {
     private readonly router = inject(Router);
     private readonly toast = inject(ToastService);
     private readonly bulletinAdmin = inject(BulletinAdminService);
+
+    /** Render the pinned ✨ SMART band above the manual bulletins. On by default;
+     *  a future consumer can opt out to show only hand-authored bulletins. */
+    readonly smart = input(true);
 
     readonly bulletins = computed(() => this.jobService.bulletins());
     readonly loading = computed(() => this.jobService.bulletinsLoading());

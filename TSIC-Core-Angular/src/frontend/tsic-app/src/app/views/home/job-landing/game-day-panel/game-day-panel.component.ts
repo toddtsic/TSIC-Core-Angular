@@ -2,6 +2,7 @@ import { afterNextRender, ChangeDetectionStrategy, Component, computed, input, s
 import { RouterLink } from '@angular/router';
 import QRCode from 'qrcode';
 import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
+import { SmartMarkerComponent } from '@widgets/communications/smart-bulletins/smart-marker.component';
 
 type Platform = 'ios' | 'android' | 'desktop';
 
@@ -20,7 +21,7 @@ type Platform = 'ios' | 'android' | 'desktop';
 @Component({
 	selector: 'app-game-day-panel',
 	standalone: true,
-	imports: [RouterLink, InlineGameClockComponent],
+	imports: [RouterLink, InlineGameClockComponent, SmartMarkerComponent],
 	templateUrl: './game-day-panel.component.html',
 	styleUrl: './game-day-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,

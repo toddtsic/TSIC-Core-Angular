@@ -14,6 +14,7 @@
 }
 
 .gd__inner {
+	position: relative; // anchors the corner smart marker
 	display: flex;
 	flex-wrap: wrap;
 	align-items: stretch;
@@ -108,6 +109,8 @@
 	align-items: center;
 	gap: var(--space-2);
 	flex: 0 0 auto;
+	// Leave the very top-right corner clear for the smart marker.
+	margin-top: var(--space-4);
 }
 
 .gd__qr-heading {

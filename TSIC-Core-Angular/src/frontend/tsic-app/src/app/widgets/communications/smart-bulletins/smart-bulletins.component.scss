@@ -1,0 +1,77 @@
+// ============================================================
+//  Smart Bulletins band — groups the self-assembling compound
+//  viewers under one proud ✨ SMART marker. The panels self-center
+//  at their own max-width; the badge + store card align to match.
+// ============================================================
+:host {
+	display: block;
+}
+
+.sb {
+	display: block;
+	padding-top: var(--space-4);
+}
+
+// ── Compact Store card ───────────────────────────────────────
+.sb__store-wrap {
+	position: relative; // anchors the corner smart marker
+	max-width: 960px;
+	margin: var(--space-4) auto 0;
+	padding: 0 var(--space-3);
+}
+
+.sb__store {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	padding: var(--space-4) var(--space-5);
+	border: 1px solid var(--brand-border);
+	border-left: 4px solid var(--bs-primary);
+	border-radius: var(--radius-lg);
+	background: var(--brand-surface, var(--neutral-0));
+	color: var(--brand-text);
+	text-decoration: none;
+	box-shadow: var(--shadow-sm);
+	transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+	.sb__store-go { margin-left: auto; opacity: 0.6; transition: transform 0.15s ease; }
+
+	&:hover {
+		border-color: var(--bs-primary);
+		box-shadow: var(--shadow-md);
+		.sb__store-go { transform: translateX(3px); opacity: 1; }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.sb__store-icon {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
+	color: var(--bs-primary);
+	font-size: 1.25rem;
+}
+
+.sb__store-text {
+	display: flex;
+	flex-direction: column;
+	line-height: 1.25;
+
+	strong { font-weight: var(--font-weight-semibold); }
+	small { font-size: var(--font-size-sm); color: var(--brand-text-muted); }
+}
+
+// ── Reduced motion (required for any animation/transition) ───
+@media (prefers-reduced-motion: reduce) {
+	.sb__store,
+	.sb__store-go { transition: none !important; }
+}

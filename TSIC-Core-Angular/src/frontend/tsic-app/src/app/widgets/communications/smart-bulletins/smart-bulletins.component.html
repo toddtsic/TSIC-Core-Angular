@@ -1,0 +1,30 @@
+@if (hasContent()) {
+	<div class="sb" aria-label="Smart Bulletins — updated automatically">
+
+		@if (showRegistration()) {
+			<app-registration-panel [jobPath]="jobPath()" [allowedKeys]="allowedKeys()" />
+		}
+
+		@if (showGameDay()) {
+			<app-game-day-panel [jobPath]="jobPath()" [live]="live()"
+				[jobId]="jobId()" [showClock]="showClock()" />
+		}
+
+		<!-- Compact Store card — neither registration nor schedule, so it rides in the
+		     band on its own (absorbs the old "Store" hero card). -->
+		@if (showStore()) {
+			<div class="sb__store-wrap">
+				<app-smart-marker text="The store shows whatever items are live right now — it appears and updates on its own." />
+				<a class="sb__store" [routerLink]="storeLink()">
+					<span class="sb__store-icon" aria-hidden="true"><i class="bi bi-bag"></i></span>
+					<span class="sb__store-text">
+						<strong>Team Store</strong>
+						<small>Official gear &amp; merchandise</small>
+					</span>
+					<i class="bi bi-arrow-right sb__store-go" aria-hidden="true"></i>
+				</a>
+			</div>
+		}
+
+	</div>
+}

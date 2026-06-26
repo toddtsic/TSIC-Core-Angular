@@ -6,6 +6,7 @@ import { JobService } from '@infrastructure/services/job.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import { isTournament } from '@infrastructure/constants/job-type.constants';
 import { SelfRosterUpdateModalService } from '@views/registration/self-roster-update/self-roster-update-modal.service';
+import { SmartMarkerComponent } from '@widgets/communications/smart-bulletins/smart-marker.component';
 
 interface RegLink {
 	key: string;
@@ -47,7 +48,7 @@ interface ManageItem {
 @Component({
 	selector: 'app-registration-panel',
 	standalone: true,
-	imports: [RouterLink],
+	imports: [RouterLink, SmartMarkerComponent],
 	templateUrl: './registration-panel.component.html',
 	styleUrl: './registration-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -94,6 +95,10 @@ export class RegistrationPanelComponent {
 		if (allowed.has('register-player') && p.playerRegistrationOpen) {
 			links.push({ key: 'player', label: t ? 'Self-Roster a Player' : 'Register a Player',
 				icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
+		}
+		if (allowed.has('register-team') && p.teamRegistrationOpen) {
+			links.push({ key: 'team', label: 'Register a Team',
+				icon: 'bi-people', routerLink: `${base}/registration/team` });
 		}
 		if (allowed.has('register-coach') && p.staffRegistrationOpen) {
 			links.push({ key: 'coach', label: t ? 'Self-Roster a Coach' : 'Register a Coach',
@@ -163,6 +168,10 @@ export class RegistrationPanelComponent {
 		// ── Club rep (teams) — myClubRepTeamCount is only populated for a club rep
 		// scoped to this job, so > 0 encodes both role and has-teams. ──
 		if ((p.myClubRepTeamCount ?? 0) > 0) {
+			if (allowed.has('my-teams')) {
+				items.push({ key: 'my-teams', icon: 'bi-people', label: 'My Teams',
+					routerLink: `${base}/registration/team`, queryParams: { step: 'teams' } });
+			}
 			if ((p.myClubRepTotalOwed ?? 0) > 0) {
 				items.push({ key: 'clubrep-balance', icon: 'bi-cash-stack', variant: 'alert',
 					label: 'Final Balance Due', sublabel: this.money(p.myClubRepTotalOwed!),

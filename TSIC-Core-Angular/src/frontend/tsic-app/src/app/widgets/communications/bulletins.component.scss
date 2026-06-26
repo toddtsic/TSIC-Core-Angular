@@ -10,6 +10,43 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-6);
+    // Match the Smart band panels' column so smart + manual line up edge-to-edge.
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 var(--space-3);
+}
+
+// ── Separator between the ✨ SMART band and the hand-authored bulletins ──
+// A labeled rule that contrasts with the SMART pill above: the smart content is
+// the system's, this is the organizer's. Aligned to the same 960px column.
+.bulletins-sep {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    max-width: 960px;
+    margin: var(--space-8) auto var(--space-4);
+    padding: 0 var(--space-3);
+    color: var(--brand-text-muted);
+
+    &::after {
+        content: "";
+        flex: 1 1 auto;
+        height: 1px;
+        background: var(--brand-border);
+    }
+}
+
+.bulletins-sep__label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+
+    i { font-size: 0.95rem; }
 }
 
 .bulletin {

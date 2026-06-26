@@ -70,51 +70,17 @@
 
 
 		<!-- ══════════════════════════════════════════════════
-		     ACTION HUB (hero strip) — grounded landing CTAs from
-		     the live pulse. The unified menu's LandingCta placement;
-		     rendered bare (hero only) so the global header chrome is
-		     untouched for now.
-		     ══════════════════════════════════════════════════ -->
-		@if (heroActions().length) {
-			<app-action-hub [bare]="true" [heroActions]="heroActions()" />
-		}
-
-		<!-- ══════════════════════════════════════════════════
-		     REGISTRATION PANEL — compound viewer capturing the
-		     "Player & Coach Registration and Waiver Wizard"
-		     bulletin. Conditionally assembles self-roster links,
-		     the featured self-roster-update (change team/uniform/
-		     cancel), and public rosters. Supersedes the absorbed
-		     strip cards while shown; self-hides when empty.
-		     ══════════════════════════════════════════════════ -->
-		@if (showRegistrationPanel()) {
-			<app-registration-panel [jobPath]="activeJobPath()" [allowedKeys]="allowedCtaKeys()" />
-		}
-
-		<!-- ══════════════════════════════════════════════════
-		     GAME-DAY PANEL — rich, self-assembling capture of the
-		     "Schedules Now Available!" bulletin. Lights up on the
-		     SAME isolated signal as the View Schedule card (schedule
-		     published AND games exist); promotes the web schedule +
-		     the free TSIC-Events app (device-aware). Supersedes the
-		     plain View Schedule card while shown.
-		     ══════════════════════════════════════════════════ -->
-		@if (showGameDayPanel()) {
-			<app-game-day-panel [jobPath]="activeJobPath()" [live]="!isConcluded()"
-				[jobId]="jobId()" [showClock]="showInlineClock()" />
-		}
-
-		<!-- ══════════════════════════════════════════════════
-		     BULLETINS — full-viewport-width publication paper
-		     floating on the atmospheric page background. The section
-		     header carries the title plus, when in-season, the
-		     next-game countdown flush right.
+		     BULLETINS — the unified surface. The app-bulletins widget
+		     renders the pinned ✨ SMART band (self-assembling Game-Day
+		     + Registration + Store viewers, ALWAYS on top) above the
+		     director's hand-authored bulletins. The same widget powers
+		     the admin dashboard, so it sees exactly what the public sees.
 		     ══════════════════════════════════════════════════ -->
 		<section class="jl-bulletins">
 			<div class="jl-bulletins__inner">
 				<header class="jl-bulletins__header">
 					<h2 class="jl-bulletins__title">
-						<span class="jl-gradient-text">News &amp; Updates</span>
+						<span class="jl-gradient-text">Bulletins</span>
 					</h2>
 				</header>
 				<div class="reveal reveal-delay-1">

@@ -1,0 +1,90 @@
+// ============================================================
+//  Smart marker — ✨ corner badge + hover/focus popover. The host
+//  card must be position:relative; the marker pins to its top-right.
+// ============================================================
+:host {
+	position: absolute;
+	top: var(--space-3);
+	right: var(--space-3);
+	z-index: 5;
+	line-height: 0;
+}
+
+.sm {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: var(--radius-full, 999px);
+	background: color-mix(in srgb, var(--bs-primary) 12%, var(--brand-surface, var(--neutral-0)));
+	color: var(--bs-primary);
+	cursor: help;
+	transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+
+	&:hover { transform: scale(1.08); background: color-mix(in srgb, var(--bs-primary) 20%, var(--brand-surface, var(--neutral-0))); }
+
+	&:focus-visible {
+		outline: none;
+		border-color: var(--bs-primary);
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.sm__icon {
+	font-size: 1.25rem; // "not too small" — a clear, legible corner glyph
+	line-height: 1;
+}
+
+// ── Popover — opens DOWN + LEFT so it stays within the card bounds ──
+.sm__pop {
+	position: absolute;
+	top: calc(100% + var(--space-1));
+	right: 0;
+	width: max-content;
+	max-width: 240px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	padding: var(--space-3);
+	border: 1px solid var(--brand-border);
+	border-radius: var(--radius-md);
+	background: var(--brand-surface, var(--neutral-0));
+	box-shadow: var(--shadow-lg);
+	text-align: left;
+	opacity: 0;
+	visibility: hidden;
+	transform: translateY(-4px);
+	transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+	z-index: 10;
+}
+
+.sm:hover .sm__pop,
+.sm:focus-visible .sm__pop {
+	opacity: 1;
+	visibility: visible;
+	transform: none;
+}
+
+.sm__pop-title {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-bold);
+	color: var(--bs-primary);
+}
+
+.sm__pop-body {
+	font-size: var(--font-size-xs);
+	line-height: 1.5;
+	color: var(--brand-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.sm,
+	.sm__pop { transition: none !important; }
+	.sm:hover { transform: none !important; }
+}
