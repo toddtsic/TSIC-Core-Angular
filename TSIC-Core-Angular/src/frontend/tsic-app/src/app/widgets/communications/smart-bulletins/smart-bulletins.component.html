@@ -7,7 +7,7 @@
 		}
 
 		@if (showRegistration()) {
-			<app-registration-panel [jobPath]="jobPath()" [allowedKeys]="allowedKeys()" />
+			<app-registration-panel [jobPath]="jobPath()" [allowedKeys]="allowedKeys()" [publicView]="publicView()" />
 		}
 
 		@if (showGameDay()) {

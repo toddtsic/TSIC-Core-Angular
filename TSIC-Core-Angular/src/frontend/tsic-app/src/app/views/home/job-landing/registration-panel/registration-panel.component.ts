@@ -62,6 +62,12 @@ export class RegistrationPanelComponent {
 	 *  on a concluded event can't resurrect a self-roster link. */
 	readonly allowedKeys = input<ReadonlySet<string>>(new Set<string>());
 
+	/** Public-preview mode: render the panel as an anonymous visitor would see it,
+	 *  ignoring the session user's regId/role and the my* pulse overlay. Set true for
+	 *  Director/SuperDirector/SuperUser previewing the Smart Bulletins band so the
+	 *  dashboard shows exactly what the public sees. Default false = personalized. */
+	readonly publicView = input(false);
+
 	private readonly pulseService = inject(JobPulseService);
 	private readonly auth = inject(AuthService);
 	private readonly jobService = inject(JobService);
@@ -72,8 +78,9 @@ export class RegistrationPanelComponent {
 
 	// A viewer holding a regId is past the "register" stage (Player/Family sees
 	// "My Registration" rather than a self-roster link). Anonymous still registers.
-	private readonly registered = computed(() => !!this.auth.currentUser()?.regId);
+	private readonly registered = computed(() => !this.publicView() && !!this.auth.currentUser()?.regId);
 	private readonly isPlayerOrFamily = computed(() => {
+		if (this.publicView()) return false;
 		const r = this.auth.currentUser()?.role;
 		return r === Roles.Player || r === Roles.Family;
 	});
@@ -166,8 +173,9 @@ export class RegistrationPanelComponent {
 		}
 
 		// ── Club rep (teams) — myClubRepTeamCount is only populated for a club rep
-		// scoped to this job, so > 0 encodes both role and has-teams. ──
-		if ((p.myClubRepTeamCount ?? 0) > 0) {
+		// scoped to this job, so > 0 encodes both role and has-teams. Suppressed in
+		// public-preview (it's the previewing admin's own overlay, not public data). ──
+		if (!this.publicView() && (p.myClubRepTeamCount ?? 0) > 0) {
 			if (allowed.has('my-teams')) {
 				items.push({ key: 'my-teams', icon: 'bi-people', label: 'My Teams',
 					routerLink: `${base}/registration/team`, queryParams: { step: 'teams' } });

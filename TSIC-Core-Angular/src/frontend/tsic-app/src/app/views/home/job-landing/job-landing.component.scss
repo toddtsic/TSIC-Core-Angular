@@ -536,44 +536,6 @@ app-action-hub + .jl-bulletins {
 	}
 }
 
-// Section header for the news — title on the left, next-game countdown flush
-// right. Wraps on narrow screens so the clock drops below the title.
-.jl-bulletins__header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	flex-wrap: wrap;
-	gap: var(--space-2) var(--space-4);
-	margin-bottom: var(--space-5);
-	padding-bottom: var(--space-3);
-	border-bottom: 1px solid var(--brand-border);
-}
-
-.jl-bulletins__title {
-	margin: 0;
-	font-size: clamp(1.25rem, 2.5vw, 1.75rem);
-	font-weight: var(--font-weight-bold);
-	letter-spacing: -0.01em;
-	line-height: 1.2;
-}
-
-// The clock host defaults to flex:1 (it stretches to center inside the
-// view-schedule heading); here it should hug its content at the right.
-.jl-bulletins__header app-inline-game-clock {
-	flex: 0 0 auto;
-}
-
-.jl-gradient-text {
-	background: linear-gradient(
-		135deg,
-		var(--bs-primary) 0%,
-		var(--bs-info, var(--bs-primary)) 100%
-	);
-	-webkit-background-clip: text;
-	-webkit-text-fill-color: transparent;
-	background-clip: text;
-}
-
 // ============================================================
 //  Reveal cascade
 // ============================================================

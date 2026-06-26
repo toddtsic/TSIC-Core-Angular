@@ -46,6 +46,15 @@ export class SmartBulletinsComponent {
 	private readonly pulse = computed(() => this.pulseService.pulse());
 	private readonly base = computed(() => `/${this.jobPath()}`);
 
+	// Director/SuperDirector/SuperUser preview the band as an anonymous visitor would
+	// see it — the whole point of folding the smart band into the widget is that the
+	// dashboard shows the director EXACTLY what the public sees. Without this the
+	// per-user overlay (their regId/role/my* pulse fields) personalizes the band and
+	// they'd see the inverse of the public (e.g. an empty Registration panel). Scoped
+	// to isAdmin() = those three event-runner roles ONLY; a Club Rep / Staff keeps
+	// their personalized hub. Flows into the Registration panel so it matches.
+	protected readonly publicView = computed(() => this.auth.isAdmin());
+
 	// Lifecycle phase from FACTS (shared with the landing's status line so the two
 	// can't drift). allowedKeys is the phase's eligible-CTA set, passed to the
 	// Registration panel so its sections gate on phase as well as pulse.
@@ -81,8 +90,12 @@ export class SmartBulletinsComponent {
 		if (!p || !this.jobPath()) return false;
 		const allowed = this.allowedKeys();
 		const user = this.auth.currentUser();
-		const registered = !!user?.regId;
-		const isPlayerOrFamily = user?.role === Roles.Player || user?.role === Roles.Family;
+		// In public-preview mode the viewer is treated as anonymous: no regId, no
+		// player/family role, and the my* overlay branches collapse — so this gate
+		// stays in lockstep with the panel's own publicView short-circuit below.
+		const pub = this.publicView();
+		const registered = !pub && !!user?.regId;
+		const isPlayerOrFamily = !pub && (user?.role === Roles.Player || user?.role === Roles.Family);
 
 		const hasSelfRoster = !registered && (
 			(allowed.has('register-player') && p.playerRegistrationOpen) ||
@@ -96,7 +109,7 @@ export class SmartBulletinsComponent {
 				allowed.has('my-registration') ||
 				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0) ||
 				(allowed.has('player-insurance') && p.offerPlayerRegsaverInsurance && p.myHasPurchasedPlayerRegsaver !== true))) ||
-			((p.myClubRepTeamCount ?? 0) > 0 && (
+			(!pub && (p.myClubRepTeamCount ?? 0) > 0 && (
 				allowed.has('my-teams') ||
 				(p.myClubRepTotalOwed ?? 0) > 0 ||
 				(allowed.has('team-insurance') && p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver === true)));

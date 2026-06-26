@@ -286,12 +286,13 @@ export class ClientHeaderBarComponent {
         this.router.navigate([`/${jobPath}`]);
     }
 
-    /** Admin-only: preview the public bulletin/quicklinks landing (no admin→dashboard redirect). */
-    viewPublicLanding() {
+    /** Admin-only: go to the widget dashboard (charts/metrics). Admins land on the
+     *  public landing by default now, so this is their explicit way to the dashboard. */
+    viewDashboard() {
         this.closeUserMenu();
         this.closeMobileMenu();
         const jobPath = this.jobService.currentJob()?.jobPath || 'tsic';
-        this.router.navigate([`/${jobPath}/home`]);
+        this.router.navigate([`/${jobPath}/dashboard`]);
     }
 
     /** Navigate to a task-item route (relative to the current job). Closes both menus. */

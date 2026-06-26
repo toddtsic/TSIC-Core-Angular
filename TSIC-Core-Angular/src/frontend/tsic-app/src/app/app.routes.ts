@@ -99,10 +99,9 @@ export const routes: Routes = [
 				]
 			},
 			{
-				// Public bulletin/quicklinks landing without the admin→dashboard redirect.
-				// Also the authGuard's denial fallback for non-admins hitting /dashboard.
+				// Alias of the root landing — kept as the authGuard's denial fallback for
+				// non-admins bounced off /dashboard. Renders the same public landing as '/'.
 				path: 'home',
-				data: { publicView: true },
 				loadComponent: () => import('./views/home/landing-router/landing-router.component').then(m => m.LandingRouterComponent)
 			},
 			{

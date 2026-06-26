@@ -74,7 +74,9 @@ export class JobLandingComponent implements OnDestroy {
 	// (the concluded notice and the inline game clock carry those). Tone softens
 	// with distance. The open-ended far-future deadline is intentionally suppressed.
 	readonly heroStatus = computed<{ text: string; tone: 'open' | 'upcoming' } | null>(() => {
-		if (this.auth.isAdmin()) return null;
+		// Admins land on this public page now; they see the anonymous public line (same
+		// publicView treatment as the Smart Bulletins band) so their preview is faithful.
+		const pub = this.auth.isAdmin();
 		const p = this.pulse();
 		if (!p) return null;
 		switch (this.phase()) {
@@ -87,8 +89,9 @@ export class JobLandingComponent implements OnDestroy {
 			case 'planned':
 				return null;
 			case 'registrationOpen': {
-				// Suppressed for anyone holding a regId (they've registered).
-				if (this.auth.currentUser()?.regId) return null;
+				// Suppressed for anyone holding a regId (they've registered) — except an
+				// admin in publicView, who sees the public line regardless of their own reg.
+				if (!pub && this.auth.currentUser()?.regId) return null;
 				if (p.playerRegClosesSoonest) {
 					const text = this.formatDeadline(p.playerRegClosesSoonest, 'closes');
 					return text ? { text, tone: 'open' } : null;
