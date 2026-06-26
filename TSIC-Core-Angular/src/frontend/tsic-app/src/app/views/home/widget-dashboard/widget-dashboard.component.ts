@@ -9,6 +9,8 @@ import { JobService } from '@infrastructure/services/job.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { ClientBannerComponent } from '@widgets/layout/client-banner/client-banner.component';
+import { BulletinsComponent } from '@widgets/communications/bulletins.component';
 import { MenuStateService } from '../../../layouts/services/menu-state.service';
 import type { AvailableWidgetDto, SaveUserWidgetsRequest, WidgetCategoryGroupDto, WidgetDashboardResponse, WidgetItemDto } from '@core/api';
 
@@ -34,7 +36,7 @@ interface CustomizeRow {
 @Component({
 	selector: 'app-widget-dashboard',
 	standalone: true,
-	imports: [NgComponentOutlet, TsicDialogComponent, ConfirmDialogComponent],
+	imports: [NgComponentOutlet, TsicDialogComponent, ConfirmDialogComponent, ClientBannerComponent, BulletinsComponent],
 	templateUrl: './widget-dashboard.component.html',
 	styleUrl: './widget-dashboard.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -50,8 +52,6 @@ export class WidgetDashboardComponent {
 	readonly dashboard = signal<WidgetDashboardResponse | null>(null);
 	readonly isLoading = signal(false);
 	readonly hasError = signal(false);
-
-	readonly roleName = computed(() => this.auth.currentUser()?.role || '');
 
 	/** Resolved job path — from JWT, falling back to the route. */
 	readonly activeJobPath = computed(() => {

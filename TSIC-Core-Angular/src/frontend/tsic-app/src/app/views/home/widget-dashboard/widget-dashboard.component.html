@@ -16,10 +16,14 @@
 
         <!-- ═══════ Dashboard workspace (charts, bulletins) — admin only ═══════ -->
         @if (hubCategories().length === 0) {
-            <div class="empty-role-view">
-                <i class="bi bi-sliders" aria-hidden="true"></i>
-                <h3>No widgets configured yet</h3>
-                <p>Click <strong>Customize</strong> in the header menu to add widgets to your {{ roleName() }} view.</p>
+            <!-- Default presentation when no dashboard widgets are configured: banner + bulletins.
+                 Once a site configures ANY widget, it owns its full dashboard layout (and must
+                 include the banner/bulletins itself if it wants them). -->
+            <div class="content-widgets">
+                <app-client-banner />
+            </div>
+            <div class="content-widgets">
+                <app-bulletins />
             </div>
         } @else {
             @for (category of hubCategories(); track category.categoryId) {
