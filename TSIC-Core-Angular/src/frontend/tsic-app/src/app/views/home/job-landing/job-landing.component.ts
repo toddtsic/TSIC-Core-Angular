@@ -67,9 +67,6 @@ export class JobLandingComponent implements OnDestroy {
 	// its CTAs, so the two can never drift apart.
 	readonly phase = computed<EventPhase>(() => derivePhase(this.pulse(), new Date()));
 
-	/** Drives the inline "this event has concluded" notice (decoupled from supersession). */
-	readonly isConcluded = computed(() => this.phase() === 'concluded');
-
 	// Phase-aware status line for the public hero (anonymous-leaning; a logged-in
 	// registrant's personalized deadline is a later slice). Pre-event shows when
 	// the games begin; registration-open shows the closing/opening countdown;
@@ -85,10 +82,10 @@ export class JobLandingComponent implements OnDestroy {
 				const text = p.firstGameDate ? this.formatEventStart(p.firstGameDate) : null;
 				return text ? { text, tone: 'upcoming' } : null;
 			}
-			case 'planned': {
-				const dated = p.playerRegOpensSoonest ? this.formatDeadline(p.playerRegOpensSoonest, 'opens') : null;
-				return { text: dated ?? 'Registration opening soon', tone: 'upcoming' };
-			}
+			// 'planned' messaging now lives in the Smart Bulletins band's Event Status
+			// bulletin (so it shows on the dashboard too) — no thin status line here.
+			case 'planned':
+				return null;
 			case 'registrationOpen': {
 				// Suppressed for anyone holding a regId (they've registered).
 				if (this.auth.currentUser()?.regId) return null;

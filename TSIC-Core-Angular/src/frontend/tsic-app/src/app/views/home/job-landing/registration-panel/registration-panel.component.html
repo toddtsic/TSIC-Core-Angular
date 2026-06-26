@@ -67,20 +67,6 @@
 					</div>
 				}
 
-				<!-- Rosters -->
-				@if (rostersLink(); as r) {
-					<div class="rp__section">
-						<h4 class="rp__section-title">Rosters</h4>
-						<div class="rp__links">
-							<a class="rp__link" [routerLink]="r.routerLink">
-								<i class="bi {{ r.icon }} rp__link-icon" aria-hidden="true"></i>
-								<span class="rp__link-label">{{ r.label }}</span>
-								<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
-							</a>
-						</div>
-					</div>
-				}
-
 			</div>
 		</div>
 	</section>

@@ -42,18 +42,8 @@
 		<app-client-banner></app-client-banner>
 
 
-		<!-- ══════════════════════════════════════════════════
-		     CONCLUDED — the last scheduled game has passed. Inline,
-		     non-collapsing notice (no redirect; the schedule/rosters
-		     remain reachable below). Decoupled from supersession —
-		     fires on time alone, no later-year sibling required.
-		     ══════════════════════════════════════════════════ -->
-		@if (isConcluded()) {
-			<div class="jl-concluded" role="status">
-				<i class="bi bi-flag-fill" aria-hidden="true"></i>
-				<span class="jl-concluded__text">This event has concluded</span>
-			</div>
-		}
+		<!-- CONCLUDED notice now lives in the Smart Bulletins band's Event Status
+		     bulletin (so it shows on the admin dashboard too, not just here). -->
 
 
 		<!-- ══════════════════════════════════════════════════

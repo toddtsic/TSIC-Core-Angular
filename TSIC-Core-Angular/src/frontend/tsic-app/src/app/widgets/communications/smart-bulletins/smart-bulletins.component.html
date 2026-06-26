@@ -1,6 +1,11 @@
 @if (hasContent()) {
 	<div class="sb" aria-label="Smart Bulletins — updated automatically">
 
+		<!-- Event Status leads — it's the lifecycle headline/context for the page. -->
+		@if (showEventStatus()) {
+			<app-event-status />
+		}
+
 		@if (showRegistration()) {
 			<app-registration-panel [jobPath]="jobPath()" [allowedKeys]="allowedKeys()" />
 		}
@@ -10,18 +15,32 @@
 				[jobId]="jobId()" [showClock]="showClock()" />
 		}
 
-		<!-- Compact Store card — neither registration nor schedule, so it rides in the
-		     band on its own (absorbs the old "Store" hero card). -->
+		<!-- Compact cards — rosters + store ride in the band on their own (each absorbs
+		     its old hero card), so neither can orphan when the panels don't render. -->
+		@if (showRosters()) {
+			<div class="sb__card-wrap">
+				<app-smart-marker text="This list appears on its own whenever rosters are public — always the current roster." />
+				<a class="sb__card" [routerLink]="rostersLink()">
+					<span class="sb__card-icon" aria-hidden="true"><i class="bi bi-card-checklist"></i></span>
+					<span class="sb__card-text">
+						<strong>Public Rosters</strong>
+						<small>See who's rostered</small>
+					</span>
+					<i class="bi bi-arrow-right sb__card-go" aria-hidden="true"></i>
+				</a>
+			</div>
+		}
+
 		@if (showStore()) {
-			<div class="sb__store-wrap">
+			<div class="sb__card-wrap">
 				<app-smart-marker text="The store shows whatever items are live right now — it appears and updates on its own." />
-				<a class="sb__store" [routerLink]="storeLink()">
-					<span class="sb__store-icon" aria-hidden="true"><i class="bi bi-bag"></i></span>
-					<span class="sb__store-text">
+				<a class="sb__card" [routerLink]="storeLink()">
+					<span class="sb__card-icon" aria-hidden="true"><i class="bi bi-bag"></i></span>
+					<span class="sb__card-text">
 						<strong>Team Store</strong>
 						<small>Official gear &amp; merchandise</small>
 					</span>
-					<i class="bi bi-arrow-right sb__store-go" aria-hidden="true"></i>
+					<i class="bi bi-arrow-right sb__card-go" aria-hidden="true"></i>
 				</a>
 			</div>
 		}

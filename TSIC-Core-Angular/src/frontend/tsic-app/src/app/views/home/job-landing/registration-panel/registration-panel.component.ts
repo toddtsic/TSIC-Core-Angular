@@ -188,17 +188,12 @@ export class RegistrationPanelComponent {
 
 	protected readonly showManage = computed(() => this.manageItems().length > 0);
 
-	// ── Rosters section ─────────────────────────────────────────────────────────
-	protected readonly rostersLink = computed<RegLink | null>(() => {
-		const p = this.pulse();
-		if (!this.allowedKeys().has('rosters') || !p?.publicRostersAvailable) return null;
-		return { key: 'rosters', label: 'View Public Rosters', icon: 'bi-card-checklist',
-			routerLink: `${this.base()}/rosters/public` };
-	});
+	// NB: Public Rosters is NOT a section here anymore — it's a first-class card in the
+	// Smart Bulletins band (so it can't orphan when this panel doesn't render).
 
 	/** The panel self-hides when no section has content. */
 	protected readonly hasContent = computed(() =>
-		this.selfRosterLinks().length > 0 || this.showManage() || this.rostersLink() !== null);
+		this.selfRosterLinks().length > 0 || this.showManage());
 
 	openSelfRosterUpdate(): void {
 		this.sruModal.open(this.jobPath());

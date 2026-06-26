@@ -8,6 +8,7 @@ import { CTAS_BY_PHASE, derivePhase } from '@shared/landing/landing-phase';
 import { RegistrationPanelComponent } from '@views/home/job-landing/registration-panel/registration-panel.component';
 import { GameDayPanelComponent } from '@views/home/job-landing/game-day-panel/game-day-panel.component';
 import { SmartMarkerComponent } from './smart-marker.component';
+import { EventStatusComponent } from './event-status.component';
 
 /**
  * Smart Bulletins band — the self-assembling, always-current "bulletins" the
@@ -29,7 +30,7 @@ import { SmartMarkerComponent } from './smart-marker.component';
 @Component({
 	selector: 'app-smart-bulletins',
 	standalone: true,
-	imports: [RouterLink, RegistrationPanelComponent, GameDayPanelComponent, SmartMarkerComponent],
+	imports: [RouterLink, RegistrationPanelComponent, GameDayPanelComponent, SmartMarkerComponent, EventStatusComponent],
 	templateUrl: './smart-bulletins.component.html',
 	styleUrl: './smart-bulletins.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -55,6 +56,7 @@ export class SmartBulletinsComponent {
 	protected readonly jobId = computed(() => this.jobService.currentJob()?.jobId ?? '');
 	protected readonly live = computed(() => this.phase() !== 'concluded');
 	protected readonly storeLink = computed(() => `${this.base()}/store`);
+	protected readonly rostersLink = computed(() => `${this.base()}/rosters/public`);
 
 	// ── Section gates (moved out of job-landing, MINUS the isAdmin early-returns) ──
 
@@ -106,7 +108,22 @@ export class SmartBulletinsComponent {
 		return !!p?.storeHasActiveItems && this.allowedKeys().has('store');
 	});
 
+	// Public Rosters as a first-class band card (NOT a registration-panel section), so
+	// it can never orphan when the panels don't render (e.g. concluded + anonymous).
+	protected readonly showRosters = computed(() => {
+		const p = this.pulse();
+		return !!p?.publicRostersAvailable && this.allowedKeys().has('rosters');
+	});
+
+	// Event Status fills the lifecycle "dead zones" the action panels leave bare —
+	// registration not open yet, nothing/closed, or finished. The component self-hides
+	// in the action phases; this gate mirrors it for hasContent.
+	protected readonly showEventStatus = computed(() => {
+		const phase = this.phase();
+		return phase === 'planned' || phase === 'preview' || phase === 'concluded';
+	});
+
 	/** The band self-hides when no smart section has content. */
 	protected readonly hasContent = computed(() =>
-		this.showRegistration() || this.showGameDay() || this.showStore());
+		this.showEventStatus() || this.showRegistration() || this.showGameDay() || this.showRosters() || this.showStore());
 }

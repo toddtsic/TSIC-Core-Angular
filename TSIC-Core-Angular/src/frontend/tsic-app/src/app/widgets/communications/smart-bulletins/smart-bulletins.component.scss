@@ -12,15 +12,15 @@
 	padding-top: var(--space-4);
 }
 
-// ── Compact Store card ───────────────────────────────────────
-.sb__store-wrap {
+// ── Compact cards (rosters, store) ───────────────────────────
+.sb__card-wrap {
 	position: relative; // anchors the corner smart marker
 	max-width: 960px;
 	margin: var(--space-4) auto 0;
 	padding: 0 var(--space-3);
 }
 
-.sb__store {
+.sb__card {
 	display: flex;
 	align-items: center;
 	gap: var(--space-3);
@@ -34,12 +34,12 @@
 	box-shadow: var(--shadow-sm);
 	transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 
-	.sb__store-go { margin-left: auto; opacity: 0.6; transition: transform 0.15s ease; }
+	.sb__card-go { margin-left: auto; opacity: 0.6; transition: transform 0.15s ease; }
 
 	&:hover {
 		border-color: var(--bs-primary);
 		box-shadow: var(--shadow-md);
-		.sb__store-go { transform: translateX(3px); opacity: 1; }
+		.sb__card-go { transform: translateX(3px); opacity: 1; }
 	}
 
 	&:focus-visible {
@@ -48,7 +48,7 @@
 	}
 }
 
-.sb__store-icon {
+.sb__card-icon {
 	flex: 0 0 auto;
 	display: inline-flex;
 	align-items: center;
@@ -61,7 +61,7 @@
 	font-size: 1.25rem;
 }
 
-.sb__store-text {
+.sb__card-text {
 	display: flex;
 	flex-direction: column;
 	line-height: 1.25;
@@ -72,6 +72,6 @@
 
 // ── Reduced motion (required for any animation/transition) ───
 @media (prefers-reduced-motion: reduce) {
-	.sb__store,
-	.sb__store-go { transition: none !important; }
+	.sb__card,
+	.sb__card-go { transition: none !important; }
 }
