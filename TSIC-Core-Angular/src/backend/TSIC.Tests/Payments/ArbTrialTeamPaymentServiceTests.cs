@@ -487,6 +487,91 @@ public class ArbTrialTeamPaymentServiceTests
         _addedSettlements[0].Status.Should().Be("Pending");
     }
 
+    // ── Late-fee minting at subscription setup ──────────────────────────
+    // Setting up the ARB subscription IS the qualifying payment commitment, so an auto-activated
+    // late-fee window must be minted here (the team-path twin of ChargeTeamsAsync). These two tests
+    // close the gap that the other ARB tests leave open: they let RealizeLateFeeAtChargeAsync set a
+    // late fee on the team (as the real applier would for an in-window owing team) and assert it both
+    // gets billed into the schedule AND lands on the row — i.e. the realize is actually wired in
+    // before the split, not mocked to nothing.
+
+    private void StubRealizeMintsLateFee(decimal lateFee)
+    {
+        _feeService.Setup(f => f.RealizeLateFeeAtChargeAsync(
+                It.IsAny<Teams>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Callback<Teams, Guid, CancellationToken>((t, _, _) => t.FeeLatefee = lateFee)
+            .Returns(Task.CompletedTask);
+    }
+
+    [Fact]
+    public async Task Cc_activeLateFeeWindow_mintedIntoSubscriptionScheduleAndRow()
+    {
+        var jobId = Guid.NewGuid();
+        var regId = Guid.NewGuid();
+        var team = Team(jobId);
+        StubJobAndCreds(regId, jobId, balanceDate: DateTime.Now.Date.AddDays(30));
+        StubTeams(jobId, [team.TeamId], team);
+        StubFeeResolution(jobId, team, deposit: 200m, balance: 300m);
+        StubPennyVerifySuccess();
+        // The realize applier mints a $30 in-window late fee onto the team before the split runs.
+        StubRealizeMintsLateFee(30m);
+        AdnArbCreateTrialRequest? captured = null;
+        _adn.Setup(a => a.ADN_ARB_CreateTrialSubscription_Cc(It.IsAny<AdnArbCreateTrialRequest>()))
+            .Callback<AdnArbCreateTrialRequest>(r => captured = r)
+            .Returns(new AdnArbCreateResult { Success = true, SubscriptionId = "SUB-1", MessageForUser = "ok", GatewayMessage = "ok" });
+        var sut = BuildSut();
+
+        var result = await sut.ProcessTeamArbTrialPaymentAsync(
+            regId, ActingUserId, [team.TeamId], ValidCard(), null);
+
+        result.Success.Should().BeTrue();
+        // realize ran exactly once for the team, BEFORE the branch.
+        _feeService.Verify(f => f.RealizeLateFeeAtChargeAsync(
+            It.IsAny<Teams>(), jobId, It.IsAny<CancellationToken>()), Times.Once);
+        // Splitter folds the $30 into netBase (530), allocates proportionally to the 200/300 ratio,
+        // and levies CC proc (0.035) on the balance side only:
+        //   depositBase = round(530 * 200/500) = 212;  balanceBase = 318
+        //   balanceProc = round(318 * 0.035) = 11.13
+        //   TrialAmount = 212;  PerIntervalCharge = 318 + 11.13 = 329.13
+        // (Baseline without the late fee is 200 / 310.50 — the $30 is genuinely billed.)
+        captured.Should().NotBeNull();
+        captured!.TrialAmount.Should().Be(212m);
+        captured.PerIntervalCharge.Should().Be(329.13m);
+        // …and the minted late fee is stamped on the row that gets persisted with the schedule.
+        team.FeeLatefee.Should().Be(30m);
+    }
+
+    [Fact]
+    public async Task Fallback_activeLateFeeWindow_mintedIntoChargeAndRow()
+    {
+        var jobId = Guid.NewGuid();
+        var regId = Guid.NewGuid();
+        var team = Team(jobId);
+        // Balance date already passed → fallback single-charge branch (still must mint).
+        StubJobAndCreds(regId, jobId, balanceDate: DateTime.Now.Date.AddDays(-1));
+        StubTeams(jobId, [team.TeamId], team);
+        StubFeeResolution(jobId, team, deposit: 200m, balance: 300m);
+        StubRealizeMintsLateFee(30m);
+        AdnChargeRequest? captured = null;
+        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
+            .Callback<AdnChargeRequest>(r => captured = r)
+            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-FB", ResponseCode = "1", MessageForUser = "Approved" });
+        var sut = BuildSut();
+
+        var result = await sut.ProcessTeamArbTrialPaymentAsync(
+            regId, ActingUserId, [team.TeamId], ValidCard(), null);
+
+        result.Success.Should().BeTrue();
+        result.Mode.Should().Be("FALLBACK_FULL_CHARGE");
+        _feeService.Verify(f => f.RealizeLateFeeAtChargeAsync(
+            It.IsAny<Teams>(), jobId, It.IsAny<CancellationToken>()), Times.Once);
+        // Full single charge = depositCharge + balanceCharge with the late fee folded in:
+        //   212 + 329.13 = 541.13 (baseline without late fee is 510.50).
+        captured.Should().NotBeNull();
+        captured!.Amount.Should().Be(541.13m);
+        team.FeeLatefee.Should().Be(30m);
+    }
+
     [Fact]
     public async Task RegistrationNotFound_returnsRegNotFound()
     {
