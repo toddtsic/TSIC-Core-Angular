@@ -1,4 +1,4 @@
-<section class="gd" aria-label="Schedules are live">
+<section class="gd" [attr.aria-label]="title()">
 	<div class="gd__inner">
 		<!-- Header — panel-level title, consistent with the Registration Links panel:
 		     an icon tile + the title spanning the top, the content below. -->
@@ -13,55 +13,61 @@
 			<h3 class="gd__title">{{ title() }}</h3>
 		</header>
 
-		<!-- Context line. -->
-		<p class="gd__sub">Scores, standings &amp; brackets <em>— on the web, or in the free TSIC-Events app.</em></p>
+		<!-- Context line + app promo — LIVE only. A concluded event drops both: the
+		     schedule is the final record and we don't push app installs for a finished event. -->
+		@if (live()) {
+			<p class="gd__sub">Scores, standings &amp; brackets <em>— on the web, or in the free TSIC-Events app.</em></p>
+		}
 
-		<!-- One unified "watch / get the app" cluster: View Schedule spans the top, then a
-		     column per app store — each with its tappable badge (the install link, all
-		     devices) and, on desktop, a scan-to-install QR with the store label beneath. -->
+		<!-- "Watch / get the app" cluster: the web link spans the top, then a column per app
+		     store — each with its tappable badge (the install link, all devices) and, on
+		     desktop, a scan-to-install QR. The store columns are LIVE-only; a concluded event
+		     shows just the web link (no store/app promo once the event is over). -->
 		<div class="gd__get">
-			<!-- Web schedule — the primary path, spanning both store columns. -->
+			<!-- Web schedule — the primary path (spans both store columns when present). -->
 			<a class="gd__web" [routerLink]="scheduleLink()">
 				<i class="bi bi-calendar-event" aria-hidden="true"></i>
 				<span>{{ webLabel() }}</span>
 				<i class="bi bi-arrow-right gd__web-go" aria-hidden="true"></i>
 			</a>
 
-			<!-- App Store column. The viewer's own platform leads (primary ring). -->
-			<div class="gd__store-col">
-				<a class="gd__store" [class.gd__store--primary]="platform === 'ios'"
-					[href]="iosUrl" target="_blank" rel="noopener noreferrer">
-					<i class="bi bi-apple gd__store-glyph" aria-hidden="true"></i>
-					<span class="gd__store-text">
-						<small>Download on the</small>
-						<strong>App Store</strong>
-					</span>
-				</a>
-				@if (showQr() && iosQrSrc()) {
-					<div class="gd__qr-tile">
-						<img [src]="iosQrSrc()" alt="QR code — scan to install the TSIC-Events app from the App Store"
-							width="84" height="84" class="gd__qr-img" />
-					</div>
-				}
-			</div>
+			@if (live()) {
+				<!-- App Store column. The viewer's own platform leads (primary ring). -->
+				<div class="gd__store-col">
+					<a class="gd__store" [class.gd__store--primary]="platform === 'ios'"
+						[href]="iosUrl" target="_blank" rel="noopener noreferrer">
+						<i class="bi bi-apple gd__store-glyph" aria-hidden="true"></i>
+						<span class="gd__store-text">
+							<small>Download on the</small>
+							<strong>App Store</strong>
+						</span>
+					</a>
+					@if (showQr() && iosQrSrc()) {
+						<div class="gd__qr-tile">
+							<img [src]="iosQrSrc()" alt="QR code — scan to install the TSIC-Events app from the App Store"
+								width="84" height="84" class="gd__qr-img" />
+						</div>
+					}
+				</div>
 
-			<!-- Google Play column. -->
-			<div class="gd__store-col">
-				<a class="gd__store" [class.gd__store--primary]="platform === 'android'"
-					[href]="androidUrl" target="_blank" rel="noopener noreferrer">
-					<i class="bi bi-google-play gd__store-glyph" aria-hidden="true"></i>
-					<span class="gd__store-text">
-						<small>Get it on</small>
-						<strong>Google Play</strong>
-					</span>
-				</a>
-				@if (showQr() && androidQrSrc()) {
-					<div class="gd__qr-tile">
-						<img [src]="androidQrSrc()" alt="QR code — scan to install the TSIC-Events app from Google Play"
-							width="84" height="84" class="gd__qr-img" />
-					</div>
-				}
-			</div>
+				<!-- Google Play column. -->
+				<div class="gd__store-col">
+					<a class="gd__store" [class.gd__store--primary]="platform === 'android'"
+						[href]="androidUrl" target="_blank" rel="noopener noreferrer">
+						<i class="bi bi-google-play gd__store-glyph" aria-hidden="true"></i>
+						<span class="gd__store-text">
+							<small>Get it on</small>
+							<strong>Google Play</strong>
+						</span>
+					</a>
+					@if (showQr() && androidQrSrc()) {
+						<div class="gd__qr-tile">
+							<img [src]="androidQrSrc()" alt="QR code — scan to install the TSIC-Events app from Google Play"
+								width="84" height="84" class="gd__qr-img" />
+						</div>
+					}
+				</div>
+			}
 		</div>
 
 	</div>

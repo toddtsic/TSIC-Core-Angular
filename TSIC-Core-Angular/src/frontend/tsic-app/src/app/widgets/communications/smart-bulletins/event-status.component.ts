@@ -54,7 +54,7 @@ export class EventStatusComponent {
 				return {
 					icon: 'bi-flag-fill',
 					headline: 'This event has concluded',
-					sub: 'Thanks for a great season — the final schedule and rosters are below.',
+					sub: 'Thanks for participating — hope to see you back next season!',
 				};
 			default:
 				return null; // action phases — the panels own the page

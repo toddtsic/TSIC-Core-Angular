@@ -33,8 +33,11 @@ export class GameDayPanelComponent {
 	 *  framing). The app promo stays useful either way (review scores/brackets). */
 	readonly live = input<boolean>(true);
 
-	protected readonly title = computed(() => this.live() ? 'Schedule Links' : 'Final Schedule & Results');
-	protected readonly webLabel = computed(() => this.live() ? 'View Schedule' : 'View Final Schedule');
+	// Title is fixed regardless of lifecycle (keep "Schedule Links" live AND concluded);
+	// the live/concluded distinction is carried by the icon, the app/store promo, and the
+	// button label ("View Schedule" vs "View Final Standings").
+	protected readonly title = computed(() => 'Schedule Links');
+	protected readonly webLabel = computed(() => this.live() ? 'View Schedule' : 'View Final Standings');
 
 	/** Canonical TSIC-Events store URLs — one app serves every event, so these are
 	 *  fixed (same IDs the legacy schedule views and the mobile app itself use). */

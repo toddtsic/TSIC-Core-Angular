@@ -11,17 +11,18 @@
 
 		<div id="sb-panels" class="sb__panels">
 
-			<!-- Game-Day LEADS when a schedule is live — "Schedules Are Live" is the
-			     headline of the moment, so it's the first smart bulletin in play. It
-			     self-hides otherwise. -->
-			@if (showGameDay()) {
-				<app-game-day-panel [jobPath]="jobPath()" [live]="live()" />
-			}
-
-			<!-- Event Status — the lifecycle headline/context for the non-action phases
-			     (planned / preview / concluded); mutually exclusive with Game-Day. -->
+			<!-- Event Status — the lifecycle headline for the non-action phases (planned /
+			     preview / concluded). It LEADS when present: in the concluded phase it shares
+			     the band with the Final Schedule below, and "This event has concluded" must
+			     read FIRST. Self-hides in the action phases, where Game-Day leads instead. -->
 			@if (showEventStatus()) {
 				<app-event-status />
+			}
+
+			<!-- Game-Day — leads when a schedule is live (Event Status is hidden then); in
+			     the concluded phase it follows the status headline as the Final Schedule. -->
+			@if (showGameDay()) {
+				<app-game-day-panel [jobPath]="jobPath()" [live]="live()" />
 			}
 
 			@if (showRegistration()) {
