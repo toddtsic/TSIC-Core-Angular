@@ -8,7 +8,6 @@ import { CTAS_BY_PHASE, derivePhase } from '@shared/landing/landing-phase';
 import { RegistrationPanelComponent } from '@views/home/job-landing/registration-panel/registration-panel.component';
 import { GameDayPanelComponent } from '@views/home/job-landing/game-day-panel/game-day-panel.component';
 import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
-import { SmartMarkerComponent } from './smart-marker.component';
 import { EventStatusComponent } from './event-status.component';
 
 /**
@@ -31,7 +30,7 @@ import { EventStatusComponent } from './event-status.component';
 @Component({
 	selector: 'app-smart-bulletins',
 	standalone: true,
-	imports: [RouterLink, RegistrationPanelComponent, GameDayPanelComponent, InlineGameClockComponent, SmartMarkerComponent, EventStatusComponent],
+	imports: [RouterLink, RegistrationPanelComponent, GameDayPanelComponent, InlineGameClockComponent, EventStatusComponent],
 	templateUrl: './smart-bulletins.component.html',
 	styleUrl: './smart-bulletins.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
