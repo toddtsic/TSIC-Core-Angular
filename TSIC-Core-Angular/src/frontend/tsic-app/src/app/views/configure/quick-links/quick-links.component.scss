@@ -51,6 +51,31 @@
 		border-color: var(--bs-primary);
 		background: var(--bs-primary-bg-subtle);
 	}
+
+	// SuperUser-only row viewed by a non-super admin: read-only, visually muted.
+	&.is-locked {
+		opacity: 0.7;
+
+		.toggle-control {
+			cursor: default;
+		}
+	}
+}
+
+// "SuperUser only" pill on a locked toggle.
+.toggle-su-badge {
+	display: inline-flex;
+	align-items: center;
+	margin-left: auto;
+	padding: var(--space-1) var(--space-2);
+	border-radius: var(--bs-border-radius-pill);
+	background: var(--bs-secondary-bg);
+	color: var(--brand-text-muted);
+	font-size: 0.7rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	white-space: nowrap;
 }
 
 .toggle-control {

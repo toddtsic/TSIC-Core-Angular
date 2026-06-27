@@ -1,5 +1,6 @@
 import { Component, inject, ChangeDetectionStrategy, OnInit, HostListener, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { JobConfigService, type TabKey } from './job-config.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { HasUnsavedChanges } from '../../../infrastructure/guards/unsaved-changes.guard';
@@ -25,6 +26,7 @@ interface TabDef {
   standalone: true,
   imports: [
     CommonModule,
+    RouterLink,
     ConfirmDialogComponent,
     GeneralTabComponent,
     PaymentTabComponent,
@@ -57,6 +59,13 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
     { key: 'mobileStore', label: 'Mobile/Store', icon: '' },
     { key: 'ddlOptions', label: 'Dropdowns', icon: '' },
   ];
+
+  // Tabs that carry registration/visibility switches now owned by the Quick Links
+  // editor. On these, those switches render read-only with a pointer to Quick Links.
+  private readonly quickLinksManagedTabs = new Set<TabKey>([
+    'player', 'teams', 'coaches', 'scheduling', 'mobileStore',
+  ]);
+  readonly showQuickLinksNote = computed(() => this.quickLinksManagedTabs.has(this.svc.activeTab()));
 
   // ── Unsaved-changes dialog state ────────────────────
   showDiscardDialog = signal(false);

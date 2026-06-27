@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { QuickLinksService } from './services/quick-links.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
+import { AuthService } from '@infrastructure/services/auth.service';
 import { isTournament, isLeague } from '@infrastructure/constants/job-type.constants';
 import type { JobVisibilityDto, UpdateJobVisibilityRequest } from '@core/api';
 
@@ -18,6 +19,9 @@ interface ToggleDef {
 	offTip: string;
 	/** When false the toggle is irrelevant to this job and is omitted entirely. */
 	relevant: boolean;
+	/** SuperUser-only flag (insurance/store). Rendered disabled + "SuperUser only"
+	 *  for non-super admins; the backend also ignores it on write for them. */
+	superUserOnly?: boolean;
 	/** Optional fact-derived caution (e.g. releasing coach reg with no teams). Shown
 	 *  when the toggle is ON. Non-forcing — the director can still leave it on. */
 	warn?: string | null;
@@ -41,6 +45,9 @@ export class QuickLinksComponent {
 	private readonly svc = inject(QuickLinksService);
 	private readonly toast = inject(ToastService);
 	private readonly jobService = inject(JobService);
+	private readonly auth = inject(AuthService);
+
+	readonly isSuperUser = computed(() => this.auth.isSuperuser());
 
 	readonly flags = signal<JobVisibilityDto | null>(null);
 	readonly isLoading = signal(true);
@@ -115,14 +122,14 @@ export class QuickLinksComponent {
 			onTip: 'The public schedule is visible — the "View Schedule" card shows.',
 			offTip: 'The schedule is not public — the card is hidden.' },
 		{ key: 'offerPlayerInsurance', label: 'Player RegSaver', icon: 'bi-shield-check',
-			relevant: true,
+			relevant: true, superUserOnly: true,
 			onTip: 'RegSaver insurance is offered to players — the "Player RegSaver" card shows.',
 			offTip: 'Player RegSaver is not offered — the card is hidden.' },
 		// Club-rep pathway, mirrors the player toggle above (the card itself suppresses
 		// once every team is already covered). Tournament-OR-league only — the
 		// competitive settings where club reps register teams.
 		{ key: 'offerTeamInsurance', label: 'Team RegSaver', icon: 'bi-shield-check',
-			relevant: tournament || league,
+			relevant: tournament || league, superUserOnly: true,
 			onTip: 'RegSaver insurance is offered to club reps — the "Team RegSaver" card shows.',
 			offTip: 'Team RegSaver is not offered — the card is hidden.' },
 		// College recruiters scout at competitive events — tournament OR league only.
@@ -136,7 +143,7 @@ export class QuickLinksComponent {
 			onTip: 'Referees can register — the "Register Referee" card shows on the landing page.',
 			offTip: 'Referee registration is closed — the card is hidden.' },
 		{ key: 'enableStore', label: 'Store', icon: 'bi-bag',
-			relevant: true,
+			relevant: true, superUserOnly: true,
 			onTip: 'The store is enabled — the "Store" card shows once it has active items.',
 			offTip: 'The store is disabled — the card is hidden.' },
 		] as ToggleDef[]);

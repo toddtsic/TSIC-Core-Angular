@@ -87,7 +87,8 @@
           <label class="field-check">
             <input type="checkbox"
               [ngModel]="bEnableStore()"
-              (ngModelChange)="bEnableStore.set($event); onFieldChange()" />
+              (ngModelChange)="bEnableStore.set($event); onFieldChange()"
+              [disabled]="true" />
             <span class="field-label">Enable Store</span>
           </label>
           <label class="field-check">

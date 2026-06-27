@@ -6,7 +6,8 @@
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bScheduleAllowPublicAccess()"
-            (ngModelChange)="bScheduleAllowPublicAccess.set($event); onFieldChange()" />
+            (ngModelChange)="bScheduleAllowPublicAccess.set($event); onFieldChange()"
+            [disabled]="true" />
           <span class="field-label">Allow Public Schedule Access</span>
         </label>
         <span class="toggle-tip">
@@ -22,7 +23,8 @@
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="allowPublicRosterAccess()"
-            (ngModelChange)="allowPublicRosterAccess.set($event); onFieldChange()" />
+            (ngModelChange)="allowPublicRosterAccess.set($event); onFieldChange()"
+            [disabled]="true" />
           <span class="field-label">Allow Public Roster Access</span>
         </label>
         <span class="toggle-tip">

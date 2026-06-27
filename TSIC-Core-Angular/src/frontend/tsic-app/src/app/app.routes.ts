@@ -183,7 +183,7 @@ export const routes: Routes = [
 					{
 						path: 'quick-links',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
 						loadComponent: () => import('./views/configure/quick-links/quick-links.component').then(m => m.QuickLinksComponent)
 					},
 					{

@@ -56,22 +56,30 @@ public class JobVisibilityService : IJobVisibilityService
         };
     }
 
-    public async Task UpdateAsync(Guid jobId, UpdateJobVisibilityRequest req, CancellationToken ct = default)
+    public async Task UpdateAsync(Guid jobId, UpdateJobVisibilityRequest req, bool isSuperUser, CancellationToken ct = default)
     {
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
         // Only non-null flags are applied — supports per-toggle save-on-change.
+        // Admin-editable (Director/SuperDirector/SuperUser).
         if (req.AllowPlayerRegistration.HasValue) job.BRegistrationAllowPlayer = req.AllowPlayerRegistration.Value;
         if (req.AllowTeamRegistration.HasValue) job.BRegistrationAllowTeam = req.AllowTeamRegistration.Value;
         if (req.PublishSchedule.HasValue) job.BScheduleAllowPublicAccess = req.PublishSchedule.Value;
         if (req.ShowPublicRosters.HasValue) job.BRestrictPublicRosters = !req.ShowPublicRosters.Value;
-        if (req.EnableStore.HasValue) job.BEnableStore = req.EnableStore.Value;
-        if (req.OfferPlayerInsurance.HasValue) job.BOfferPlayerRegsaverInsurance = req.OfferPlayerInsurance.Value;
-        if (req.OfferTeamInsurance.HasValue) job.BOfferTeamRegsaverInsurance = req.OfferTeamInsurance.Value;
         if (req.AllowStaffRegistration.HasValue) job.BRegistrationAllowStaff = req.AllowStaffRegistration.Value;
         if (req.AllowRefereeRegistration.HasValue) job.BRegistrationAllowReferee = req.AllowRefereeRegistration.Value;
         if (req.AllowRecruiterRegistration.HasValue) job.BRegistrationAllowRecruiter = req.AllowRecruiterRegistration.Value;
+
+        // SuperUser-only — insurance + store. Mirrors the per-field gating in
+        // JobConfigService; silently ignored for non-super callers so opening this
+        // endpoint to the admin tier does not escalate these three powers to Directors.
+        if (isSuperUser)
+        {
+            if (req.EnableStore.HasValue) job.BEnableStore = req.EnableStore.Value;
+            if (req.OfferPlayerInsurance.HasValue) job.BOfferPlayerRegsaverInsurance = req.OfferPlayerInsurance.Value;
+            if (req.OfferTeamInsurance.HasValue) job.BOfferTeamRegsaverInsurance = req.OfferTeamInsurance.Value;
+        }
 
         job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);

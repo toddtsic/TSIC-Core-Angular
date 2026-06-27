@@ -31,6 +31,15 @@
 
     <!-- Tab content -->
     <div class="tab-content">
+      @if (showQuickLinksNote()) {
+        <div class="quick-links-note">
+          <i class="bi bi-info-circle me-2"></i>
+          <span>
+            Registration &amp; public-visibility switches are managed in
+            <a routerLink="../quick-links">Quick Links</a>. They appear here read-only.
+          </span>
+        </div>
+      }
       @switch (svc.activeTab()) {
         @case ('general') {
           <app-general-tab />

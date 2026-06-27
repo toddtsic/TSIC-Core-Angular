@@ -7,7 +7,8 @@
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bRegistrationAllowStaff()"
-            (ngModelChange)="bRegistrationAllowStaff.set($event); onFieldChange()" />
+            (ngModelChange)="bRegistrationAllowStaff.set($event); onFieldChange()"
+            [disabled]="true" />
           <span class="field-label">Allow Staff/Coach Registration</span>
         </label>
         <span class="toggle-tip">
@@ -23,7 +24,8 @@
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bRegistrationAllowReferee()"
-            (ngModelChange)="bRegistrationAllowReferee.set($event); onFieldChange()" />
+            (ngModelChange)="bRegistrationAllowReferee.set($event); onFieldChange()"
+            [disabled]="true" />
           <span class="field-label">Allow Referee Registration</span>
         </label>
         <span class="toggle-tip">
@@ -39,7 +41,8 @@
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bRegistrationAllowRecruiter()"
-            (ngModelChange)="bRegistrationAllowRecruiter.set($event); onFieldChange()" />
+            (ngModelChange)="bRegistrationAllowRecruiter.set($event); onFieldChange()"
+            [disabled]="true" />
           <span class="field-label">Allow College Recruiter Registration</span>
         </label>
         <span class="toggle-tip">

@@ -7,7 +7,8 @@
         <label class="toggle-control">
           <input type="checkbox"
             [ngModel]="bRegistrationAllowPlayer()"
-            (ngModelChange)="bRegistrationAllowPlayer.set($event); onFieldChange()" />
+            (ngModelChange)="bRegistrationAllowPlayer.set($event); onFieldChange()"
+            [disabled]="true" />
           <span class="field-label">Allow Player Registration</span>
         </label>
         <span class="toggle-tip">
@@ -146,7 +147,8 @@
             <label class="field-check">
               <input type="checkbox"
                 [ngModel]="bOfferPlayerRegsaverInsurance()"
-                (ngModelChange)="bOfferPlayerRegsaverInsurance.set($event); onFieldChange()" />
+                (ngModelChange)="bOfferPlayerRegsaverInsurance.set($event); onFieldChange()"
+                [disabled]="true" />
               <span class="field-label">Offer RegSaver Insurance</span>
             </label>
           </div>

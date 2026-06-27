@@ -9,13 +9,15 @@ using TSIC.Domain.Constants;
 namespace TSIC.API.Controllers;
 
 /// <summary>
-/// SuperUser "Quick Links" editor — a focused editor for the public landing-hero
-/// CTA visibility flags of the CURRENT (logged-in) job. Writes the same Jobs.Jobs
-/// columns Configure Job edits, scoped to the JWT's job (no cross-job picker).
+/// "Quick Links" editor — a focused editor for the public landing-hero CTA
+/// visibility flags of the CURRENT (logged-in) job. AdminOnly (Director,
+/// SuperDirector, SuperUser); the insurance/store flags are gated SuperUser-only
+/// in the service layer. Writes the same Jobs.Jobs columns Configure Job edits,
+/// scoped to the JWT's job (no cross-job picker).
 /// </summary>
 [ApiController]
 [Route("api/job-visibility")]
-[Authorize(Roles = RoleConstants.Names.SuperuserName)]
+[Authorize(Policy = "AdminOnly")]
 public class JobVisibilityController : ControllerBase
 {
     private readonly IJobVisibilityService _service;
@@ -26,6 +28,9 @@ public class JobVisibilityController : ControllerBase
         _service = service;
         _jobLookupService = jobLookupService;
     }
+
+    private bool IsSuperUser =>
+        User.IsInRole(RoleConstants.Names.SuperuserName);
 
     private async Task<Guid?> GetJobIdAsync() =>
         await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -49,7 +54,7 @@ public class JobVisibilityController : ControllerBase
         if (jobId is null)
             return NotFound(new { message = "Job not found for current user." });
 
-        await _service.UpdateAsync(jobId.Value, request, ct);
+        await _service.UpdateAsync(jobId.Value, request, IsSuperUser, ct);
         return NoContent();
     }
 }

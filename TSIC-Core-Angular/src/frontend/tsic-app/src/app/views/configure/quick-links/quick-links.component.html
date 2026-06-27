@@ -18,13 +18,17 @@
 	} @else if (ready()) {
 		<div class="ql-list">
 			@for (t of toggles(); track t.key) {
-				<div class="toggle-row" [class.is-on]="isOn(t.key)" [class.is-off]="!isOn(t.key)">
+				@let locked = !!t.superUserOnly && !isSuperUser();
+				<div class="toggle-row" [class.is-on]="isOn(t.key)" [class.is-off]="!isOn(t.key)" [class.is-locked]="locked">
 					<label class="toggle-control">
 						<input type="checkbox"
 							[ngModel]="isOn(t.key)"
-							[disabled]="savingKey() !== null"
+							[disabled]="savingKey() !== null || locked"
 							(ngModelChange)="onToggle(t.key, $event)" />
 						<span class="field-label"><i class="bi {{ t.icon }} me-2"></i>{{ t.label }}</span>
+						@if (locked) {
+							<span class="toggle-su-badge"><i class="bi bi-lock-fill me-1"></i>SuperUser only</span>
+						}
 						@if (savingKey() === t.key) {
 							<span class="spinner-border spinner-border-sm ql-row-spinner" aria-label="Saving"></span>
 						}
