@@ -1,8 +1,6 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import QRCode from 'qrcode';
-import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
-import { SmartMarkerComponent } from '@widgets/communications/smart-bulletins/smart-marker.component';
 
 type Platform = 'ios' | 'android' | 'desktop';
 
@@ -21,7 +19,7 @@ type Platform = 'ios' | 'android' | 'desktop';
 @Component({
 	selector: 'app-game-day-panel',
 	standalone: true,
-	imports: [RouterLink, InlineGameClockComponent, SmartMarkerComponent],
+	imports: [RouterLink],
 	templateUrl: './game-day-panel.component.html',
 	styleUrl: './game-day-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,14 +32,6 @@ export class GameDayPanelComponent {
 	 *  false once concluded — the schedule becomes the FINAL record (no pulse, results
 	 *  framing). The app promo stays useful either way (review scores/brackets). */
 	readonly live = input<boolean>(true);
-
-	/** Job id for the embedded live game clock (self-fetches its own state). */
-	readonly jobId = input<string>('');
-
-	/** Whether to mount the inline game clock (parent gates on game-clock games
-	 *  existing). The clock self-hides when there's nothing active, and hides itself
-	 *  on phones via its own media query. */
-	readonly showClock = input<boolean>(false);
 
 	protected readonly title = computed(() => this.live() ? 'Schedules Are Live' : 'Final Schedule & Results');
 	protected readonly webLabel = computed(() => this.live() ? 'View Schedule' : 'View Final Schedule');

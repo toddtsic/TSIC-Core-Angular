@@ -6,7 +6,6 @@ import { JobService } from '@infrastructure/services/job.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import { isTournament } from '@infrastructure/constants/job-type.constants';
 import { SelfRosterUpdateModalService } from '@views/registration/self-roster-update/self-roster-update-modal.service';
-import { SmartMarkerComponent } from '@widgets/communications/smart-bulletins/smart-marker.component';
 
 interface RegLink {
 	key: string;
@@ -48,7 +47,7 @@ interface ManageItem {
 @Component({
 	selector: 'app-registration-panel',
 	standalone: true,
-	imports: [RouterLink, SmartMarkerComponent],
+	imports: [RouterLink],
 	templateUrl: './registration-panel.component.html',
 	styleUrl: './registration-panel.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,

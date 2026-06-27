@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { derivePhase, startOfDay } from '@shared/landing/landing-phase';
-import { SmartMarkerComponent } from './smart-marker.component';
 
 interface StatusView {
 	icon: string;
@@ -23,7 +22,6 @@ interface StatusView {
 @Component({
 	selector: 'app-event-status',
 	standalone: true,
-	imports: [SmartMarkerComponent],
 	templateUrl: './event-status.component.html',
 	styleUrl: './event-status.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,

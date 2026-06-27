@@ -14,28 +14,25 @@
 }
 
 .gd__inner {
-	position: relative; // anchors the corner smart marker
-	display: flex;
-	flex-wrap: wrap;
-	align-items: stretch;
-	justify-content: space-between;
-	gap: var(--space-5);
 	padding: var(--space-5) var(--space-6);
 	border: 1px solid var(--brand-border);
 	border-left: 4px solid var(--bs-primary);
 	border-radius: var(--radius-lg);
-	// Elevated surface: a soft primary-tinted gradient (palette-responsive) over
-	// the brand surface, lifted with a shadow. No backdrop-filter (banned).
-	background:
-		linear-gradient(135deg,
-			rgba(var(--bs-primary-rgb), 0.10) 0%,
-			rgba(var(--bs-primary-rgb), 0.02) 55%,
-			transparent 100%),
-		var(--brand-surface, var(--neutral-0));
+	// Flat brand surface (gradient removed, per Ann) + shadow for depth.
+	background: var(--brand-surface, var(--neutral-0));
 	box-shadow: var(--shadow-md);
 }
 
-// ── Schedule section (left): headline + its link buttons, continuous ──
+// ── Body — the schedule column + the QR aside, below the panel header ──
+.gd__body {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center; // center the two columns against each other (balanced, compact)
+	justify-content: space-between;
+	gap: var(--space-5);
+}
+
+// ── Schedule section (left): context line + its link buttons ──
 .gd__main {
 	flex: 1 1 320px;
 	display: flex;
@@ -44,7 +41,8 @@
 	min-width: 0;
 }
 
-// ── Aside (right): QR codes top, game clock pinned bottom-right ──
+// ── Aside (right): scan-to-install QR codes, vertically centered against the
+//    schedule column (see .gd__inner align-items:center). Desktop-only. ──
 .gd__aside {
 	flex: 0 0 auto;
 	display: flex;
@@ -53,39 +51,25 @@
 	gap: var(--space-3);
 }
 
-// Push the clock to the bottom of the aside so it sits bottom-right, aligned with
-// the link buttons across the panel (no top divider — it's out of the schedule flow).
-.gd__clock {
-	margin-top: auto;
-}
-
-// ── Headline ────────────────────────────────────────────────
+// ── Header — icon tile + title, mirroring the Registration Links panel ──
 .gd__head {
 	display: flex;
 	align-items: center;
 	gap: var(--space-3);
+	margin-bottom: var(--space-2);
 }
 
-.gd__pulse {
+.gd__icon {
 	flex: 0 0 auto;
-	width: 12px;
-	height: 12px;
-	border-radius: var(--radius-full);
-	background: var(--bs-success, var(--bs-primary));
-	box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb, var(--bs-primary-rgb)), 0.6);
-	animation: gd-pulse 2s ease-out infinite;
-}
-
-@keyframes gd-pulse {
-	0% { box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb, var(--bs-primary-rgb)), 0.55); }
-	70% { box-shadow: 0 0 0 10px rgba(var(--bs-success-rgb, var(--bs-primary-rgb)), 0); }
-	100% { box-shadow: 0 0 0 0 rgba(var(--bs-success-rgb, var(--bs-primary-rgb)), 0); }
-}
-
-.gd__flag {
-	flex: 0 0 auto;
-	font-size: 1rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
 	color: var(--bs-primary);
+	font-size: 1.25rem;
 }
 
 .gd__title {
@@ -96,10 +80,20 @@
 	line-height: 1.2;
 }
 
+// Context line — leads the body's left column (the header carries no subheading,
+// to stay consistent with the Registration Links panel). Styled as an intentional
+// subtitle: medium weight + comfortable leading, with the em-dash clause held muted.
 .gd__sub {
-	margin: var(--space-1) 0 0;
+	margin: 0;
 	font-size: var(--font-size-sm);
-	color: var(--brand-text-muted);
+	font-weight: var(--font-weight-medium);
+	line-height: 1.45;
+	color: var(--brand-text);
+
+	em {
+		font-style: normal;
+		color: var(--brand-text-muted);
+	}
 }
 
 // ── Scan-to-install QRs (desktop) — one per store ───────────
@@ -109,8 +103,6 @@
 	align-items: center;
 	gap: var(--space-2);
 	flex: 0 0 auto;
-	// Leave the very top-right corner clear for the smart marker.
-	margin-top: var(--space-4);
 }
 
 .gd__qr-heading {
@@ -257,7 +249,6 @@
 
 // ── Reduced motion (required for any animation/transition) ───
 @media (prefers-reduced-motion: reduce) {
-	.gd__pulse { animation: none !important; }
 	.gd__web,
 	.gd__web-go,
 	.gd__store { transition: none !important; }

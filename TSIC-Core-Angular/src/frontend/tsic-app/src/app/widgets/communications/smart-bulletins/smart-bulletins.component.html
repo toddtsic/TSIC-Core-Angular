@@ -1,34 +1,66 @@
 @if (hasContent()) {
 	<div class="sb" aria-label="Smart Bulletins — updated automatically">
 
-		<!-- Event Status leads — it's the lifecycle headline/context for the page. -->
-		@if (showEventStatus()) {
-			<app-event-status />
-		}
-
-		@if (showRegistration()) {
-			<app-registration-panel [jobPath]="jobPath()" [allowedKeys]="allowedKeys()" [publicView]="publicView()" />
-		}
-
-		@if (showGameDay()) {
-			<app-game-day-panel [jobPath]="jobPath()" [live]="live()"
-				[jobId]="jobId()" [showClock]="showClock()" />
-		}
-
-		<!-- Store rides in the band on its own. (Public Rosters now lives as a section
-		     INSIDE the Registration panel above, not as a standalone card here.) -->
-		@if (showStore()) {
-			<div class="sb__card-wrap">
-				<app-smart-marker text="The store shows whatever items are live right now — it appears and updates on its own." />
-				<a class="sb__card" [routerLink]="storeLink()">
-					<span class="sb__card-icon" aria-hidden="true"><i class="bi bi-bag"></i></span>
-					<span class="sb__card-text">
-						<strong>Team Store</strong>
-						<small>Official gear &amp; merchandise</small>
-					</span>
-					<i class="bi bi-arrow-right sb__card-go" aria-hidden="true"></i>
-				</a>
+		<!-- Live game clock — centered above the lead-in when a game is on. Self-hides
+		     on phones via its own media query. -->
+		@if (showClock() && jobId()) {
+			<div class="sb__clock-row">
+				<app-inline-game-clock class="sb__clock" [jobId]="jobId()" />
 			</div>
+		}
+
+		<!-- Band lead-in: "Happening Now" is an accordion header (chevron + label =
+		     toggle button) that collapses/expands the panels; the ✨ smart marker is a
+		     SEPARATE sibling flush-right (buttons can't nest). Expanded by default. -->
+		<div class="sb__sep">
+			<button type="button" class="sb__sep-toggle" (click)="toggle()"
+				[attr.aria-expanded]="expanded()" aria-controls="sb-panels">
+				<i class="bi bi-chevron-down sb__sep-chevron"
+					[class.sb__sep-chevron--collapsed]="!expanded()" aria-hidden="true"></i>
+				<span class="sb__sep-label">Happening Now</span>
+			</button>
+			<span class="sb__sep-rule" aria-hidden="true"></span>
+			<app-smart-marker class="sb__marker"
+				text="These bulletins write themselves from live event data — always current, never typed by hand." />
+		</div>
+
+		<!-- Collapsible panel region, controlled by the "Happening Now" header above. -->
+		@if (expanded()) {
+		<div id="sb-panels" class="sb__panels">
+
+			<!-- Game-Day LEADS when a schedule is live — "Schedules Are Live" is the
+			     headline of the moment, so it's the first smart bulletin in play. It
+			     self-hides otherwise. -->
+			@if (showGameDay()) {
+				<app-game-day-panel [jobPath]="jobPath()" [live]="live()" />
+			}
+
+			<!-- Event Status — the lifecycle headline/context for the non-action phases
+			     (planned / preview / concluded); mutually exclusive with Game-Day. -->
+			@if (showEventStatus()) {
+				<app-event-status />
+			}
+
+			@if (showRegistration()) {
+				<app-registration-panel [jobPath]="jobPath()" [allowedKeys]="allowedKeys()" [publicView]="publicView()" />
+			}
+
+			<!-- Store rides in the band on its own. (Public Rosters now lives as a section
+			     INSIDE the Registration panel above, not as a standalone card here.) -->
+			@if (showStore()) {
+				<div class="sb__card-wrap">
+					<a class="sb__card" [routerLink]="storeLink()">
+						<span class="sb__card-icon" aria-hidden="true"><i class="bi bi-bag"></i></span>
+						<span class="sb__card-text">
+							<strong>Team Store</strong>
+							<small>Official gear &amp; merchandise</small>
+						</span>
+						<i class="bi bi-arrow-right sb__card-go" aria-hidden="true"></i>
+					</a>
+				</div>
+			}
+
+		</div>
 		}
 
 	</div>

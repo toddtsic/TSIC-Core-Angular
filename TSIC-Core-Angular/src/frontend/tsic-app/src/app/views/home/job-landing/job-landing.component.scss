@@ -517,7 +517,9 @@ app-action-hub + .jl-bulletins {
 // ============================================================
 
 .jl-bulletins {
-	padding: var(--space-8) 0 var(--space-12);
+	// Slim top inset so the Smart band (clock / "Happening Now") sits near the
+	// paper's top edge; generous bottom inset stays.
+	padding: var(--space-2) 0 var(--space-12);
 	// Same elevation rule as the toolbar — paper sits above the atmosphere.
 	background: color-mix(in srgb, var(--brand-surface) 88%, white);
 	box-shadow:

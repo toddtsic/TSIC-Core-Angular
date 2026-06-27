@@ -9,12 +9,100 @@
 
 .sb {
 	display: block;
-	padding-top: var(--space-4);
+	padding-top: 0; // the .sb__sep lead-in (below) carries its own top gap
+}
+
+// ── Live game clock — centered row above the lead-in ──
+// Constrained to the same 960px column; the clock host self-centers its content
+// and self-hides on phones (its own media query), so the row just collapses then.
+.sb__clock-row {
+	display: flex;
+	justify-content: center;
+	max-width: 960px;
+	// Flush to the top of the band region.
+	margin: 0 auto;
+	padding: 0 var(--space-3);
+}
+
+.sb__clock {
+	flex: 0 0 auto; // hug content so justify-content centers it (host defaults to flex:1)
+}
+
+// ── Band lead-in: "Happening Now" + the ✨ smart marker flush-right ──
+// Label sits left, a hairline rule fills the middle, and the band's single smart
+// marker pins to the far right. Aligned to the same 960px column the panels
+// self-center at.
+.sb__sep {
+	display: flex;
+	align-items: center;
+	gap: var(--space-3);
+	max-width: 960px;
+	margin: var(--space-2) auto 0;
+	padding: 0 var(--space-3);
+	color: var(--brand-text-muted);
+}
+
+// "Happening Now" accordion toggle — chevron + label, styled as bare text so it
+// reads as the section header but is keyboard/click operable.
+.sb__sep-toggle {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: 0;
+	border: none;
+	background: none;
+	color: inherit;
+	cursor: pointer;
+	font: inherit;
+
+	&:hover .sb__sep-label { color: var(--brand-text); }
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--radius-sm);
+	}
+}
+
+.sb__sep-chevron {
+	font-size: 0.85rem;
+	transition: transform 0.2s ease;
+}
+
+// Collapsed → chevron rotates from the default down-caret to point right.
+.sb__sep-chevron--collapsed {
+	transform: rotate(-90deg);
+}
+
+.sb__sep-label {
+	font-size: var(--font-size-xs);
+	font-weight: var(--font-weight-bold);
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	transition: color 0.15s ease;
+}
+
+.sb__sep-rule {
+	flex: 1 1 auto;
+	height: 1px;
+	background: var(--brand-border);
+}
+
+// The shared smart marker normally pins ABSOLUTE to a card's top-right corner; in
+// the divider it must FLOW inline, flush-right after the rule. Override its host
+// positioning to relative (so its popover still anchors to it). (0,2,0) beats the
+// component's own :host (0,1,0).
+.sb__marker {
+	position: relative;
+	top: auto;
+	right: auto;
+	flex: 0 0 auto;
+	line-height: 0;
 }
 
 // ── Compact cards (rosters, store) ───────────────────────────
 .sb__card-wrap {
-	position: relative; // anchors the corner smart marker
 	max-width: 960px;
 	margin: var(--space-4) auto 0;
 	padding: 0 var(--space-3);
@@ -72,6 +160,8 @@
 
 // ── Reduced motion (required for any animation/transition) ───
 @media (prefers-reduced-motion: reduce) {
+	.sb__sep-chevron,
+	.sb__sep-label,
 	.sb__card,
 	.sb__card-go { transition: none !important; }
 }

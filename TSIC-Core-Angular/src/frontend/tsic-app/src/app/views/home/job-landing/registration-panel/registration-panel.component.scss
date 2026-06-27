@@ -14,17 +14,11 @@
 }
 
 .rp__inner {
-	position: relative; // anchors the corner smart marker
 	padding: var(--space-5) var(--space-6);
 	border: 1px solid var(--brand-border);
 	border-left: 4px solid var(--bs-primary);
 	border-radius: var(--radius-lg);
-	background:
-		linear-gradient(135deg,
-			rgba(var(--bs-primary-rgb), 0.10) 0%,
-			rgba(var(--bs-primary-rgb), 0.02) 55%,
-			transparent 100%),
-		var(--brand-surface, var(--neutral-0));
+	background: var(--brand-surface, var(--neutral-0));
 	box-shadow: var(--shadow-md);
 }
 
@@ -84,7 +78,53 @@
 // section; the links inside pick it up via var(--rp-accent).
 .rp__section--register { --rp-accent: var(--bs-primary); }
 .rp__section--manage   { --rp-accent: var(--bs-info); }
-.rp__section--teams    { --rp-accent: var(--bs-success); }
+.rp__section--teams    { --rp-accent: #5c626d; } // gray, matching the Teams badges
+
+// Player/Adult — the standout: white content on a GRADED BLUE fill. The gradient
+// is derived from --bs-primary (mixed toward surface/text) so it stays palette-
+// and light/dark-aware. White text is the on-primary convention.
+.rp__section--register .rp__link {
+	--reg-grad: linear-gradient(160deg,
+		color-mix(in srgb, var(--bs-primary) 82%, var(--brand-surface)) 0%,
+		var(--bs-primary) 55%,
+		color-mix(in srgb, var(--bs-primary) 78%, var(--brand-text)) 100%);
+	background: var(--reg-grad);
+	border-color: var(--bs-primary);
+	color: #fff; // on-primary convention
+
+	.rp__link-icon { color: #fff; }
+
+	&:hover {
+		background: var(--reg-grad);
+		border-color: var(--bs-primary);
+		filter: brightness(1.07);
+	}
+}
+
+// Teams — graded GRAY fill, white content (Register Team uses this).
+.rp__section--teams .rp__link {
+	--teams-grad: linear-gradient(160deg, #717784 0%, #4c515b 100%);
+	background: var(--teams-grad);
+	border-color: #4c515b;
+	color: #fff;
+
+	.rp__link-icon { color: #fff; }
+
+	&:hover {
+		background: var(--teams-grad);
+		border-color: #4c515b;
+		filter: brightness(1.08);
+	}
+}
+
+// Public Rosters — a LIGHT gray instead, with dark (contrasting) text.
+.rp__section--teams .rp__link--public-rosters {
+	--teams-grad: linear-gradient(160deg, #eef0f3 0%, #dfe2e7 100%);
+	border-color: #cdd2d9;
+	color: var(--brand-text);
+
+	.rp__link-icon { color: #5c626d; }
+}
 
 .rp__links {
 	display: flex;
