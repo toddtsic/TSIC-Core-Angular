@@ -1,5 +1,5 @@
 // ============================================================
-//  Game-Day panel — elevated palette-driven surface (gradient +
+//  Game-Day panel — elevated palette-driven surface (flat fill +
 //  shadow + border for depth; NEVER backdrop-filter). Lights up
 //  in lockstep with the "View Schedule" signal.
 // ============================================================
@@ -21,34 +21,6 @@
 	// Flat brand surface (gradient removed, per Ann) + shadow for depth.
 	background: var(--brand-surface, var(--neutral-0));
 	box-shadow: var(--shadow-md);
-}
-
-// ── Body — the schedule column + the QR aside, below the panel header ──
-.gd__body {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: flex-start; // top-align both columns: "Scores…" and "Scan…" share a baseline
-	justify-content: space-between;
-	gap: var(--space-5);
-}
-
-// ── Schedule section (left): context line + its link buttons ──
-.gd__main {
-	flex: 1 1 320px;
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-4);
-	min-width: 0;
-}
-
-// ── Aside (right): scan-to-install QR codes, vertically centered against the
-//    schedule column (see .gd__inner align-items:center). Desktop-only. ──
-.gd__aside {
-	flex: 0 0 auto;
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	gap: var(--space-3);
 }
 
 // ── Header — icon tile + title, mirroring the Registration Links panel ──
@@ -80,9 +52,8 @@
 	line-height: 1.2;
 }
 
-// Context line — leads the body's left column (the header carries no subheading,
-// to stay consistent with the Registration Links panel). Styled as an intentional
-// subtitle: medium weight + comfortable leading, with the em-dash clause held muted.
+// Context line below the header. Two-tone: lead in --brand-text medium-weight, the
+// <em> "where" clause held muted.
 .gd__sub {
 	margin: 0;
 	font-size: var(--font-size-sm);
@@ -96,37 +67,118 @@
 	}
 }
 
-// ── Scan-to-install QRs (desktop) — one per store ───────────
-.gd__qr {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: var(--space-2);
-	flex: 0 0 auto;
+// ── "Watch / get the app" cluster — View Schedule spans the top, then one column per
+//    store (badge + desktop scan QR). One cohesive block, replacing the old left
+//    schedule / right QR split (which read as two competing "install" CTAs). ──
+.gd__get {
+	display: grid;
+	grid-template-columns: repeat(2, max-content);
+	justify-content: start; // cluster hugs the left; it doesn't stretch across the panel
+	gap: var(--space-3);
+	margin-top: var(--space-4);
 }
 
-.gd__qr-heading {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-1);
-	font-size: var(--font-size-xs);
-	font-weight: var(--font-weight-semibold);
-	color: var(--brand-text-muted);
-}
-
-.gd__qr-codes {
+// Per-store unit: badge BESIDE its scan QR (horizontal, to keep the cluster short
+// rather than stacking badge-over-QR-over-label). QR is desktop-only; on phones the
+// unit collapses to just the badge.
+.gd__store-col {
 	display: flex;
+	flex-direction: row;
+	align-items: center; // badge centers against the taller QR figure
 	gap: var(--space-3);
 }
 
-.gd__qr-item {
+// ── Web schedule CTA — spans both store columns (= the two badges' total width) ──
+.gd__web {
+	grid-column: 1 / -1;
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-3) var(--space-5);
+	border-radius: var(--radius-md);
+	background: var(--bs-primary);
+	color: #fff; // on-primary convention across the app (solid primary fill)
+	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-size-sm);
+	text-decoration: none;
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+	// Arrow pinned right so the full-width CTA reads as intentional (icon + label
+	// lead, arrow trails) rather than left-clustered with dead space.
+	.gd__web-go { margin-left: auto; transition: transform 0.15s ease; }
+
+	&:hover {
+		box-shadow: var(--shadow-md);
+		.gd__web-go { transform: translateX(3px); }
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+// Badge-style store buttons (dark pill, "secondary line / name") — generic, on-brand
+// chrome, not the trademarked store artwork.
+.gd__store {
+	display: inline-flex;
+	flex-direction: column;  // logo on its own centered line, label beneath
+	align-items: center;
+	justify-content: center;
+	align-self: stretch; // match the QR tile's height in the same row (no hardcoded px)
+	gap: var(--space-1);
+	padding: var(--space-2) var(--space-4);
+	border-radius: var(--radius-md);
+	// Neutral elevated chrome — a faint mix of --brand-text into the surface (NOT a
+	// color wash, which reads washed-out at badge size next to the bold blue CTA). This
+	// stays theme-aware (light grey card on light, dark grey on dark) and lets the
+	// store logos lead. Both stores share one fill: they're peer "get the app" actions.
+	background: color-mix(in srgb, var(--brand-text) 6%, var(--brand-surface, var(--neutral-0)));
+	color: var(--brand-text);
+	border: 1px solid var(--brand-border);
+	text-decoration: none;
+	transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+	opacity: 0.9;
+
+	&:hover {
+		transform: translateY(-1px);
+		box-shadow: var(--shadow-md);
+		background: color-mix(in srgb, var(--brand-text) 10%, var(--brand-surface, var(--neutral-0)));
+		opacity: 1;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		opacity: 1;
+	}
+
+	// The viewer's detected platform leads — full opacity + a primary ring (the only
+	// blue accent on the badge, so it pops without washing the whole pill).
+	&--primary {
+		opacity: 1;
+		border-color: var(--bs-primary);
+		box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.30);
+	}
+}
+
+.gd__store-glyph {
+	font-size: 1.9rem; // larger logo on its own centered line
+	line-height: 1;
+}
+
+.gd__store-text {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: var(--space-1);
-	margin: 0;
+	line-height: 1.2;
+	text-align: center;
+
+	small { font-size: var(--font-size-xs); opacity: 0.85; }
+	strong { font-size: var(--font-size-base, 1rem); font-weight: var(--font-weight-semibold); }
 }
 
+// ── Scan-to-install QR (desktop) — one per store unit, beside its badge ──
 .gd__qr-tile {
 	// White tile so the dark-on-white code stays scannable under any palette/theme.
 	background: #fff;
@@ -144,107 +196,11 @@
 	image-rendering: pixelated; // keep QR edges crisp when scaled
 }
 
-.gd__qr-cap {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-1);
-	font-size: var(--font-size-xs);
-	color: var(--brand-text-muted);
-}
-
-// ── Actions ─────────────────────────────────────────────────
-.gd__actions {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	gap: var(--space-3);
-}
-
-.gd__web {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-2);
-	padding: var(--space-3) var(--space-5);
-	border-radius: var(--radius-md);
-	background: var(--bs-primary);
-	color: #fff; // on-primary convention across the app (solid primary fill)
-	font-weight: var(--font-weight-semibold);
-	font-size: var(--font-size-sm);
-	text-decoration: none;
-	transition: transform 0.15s ease, box-shadow 0.15s ease;
-
-	.gd__web-go { transition: transform 0.15s ease; }
-
-	&:hover {
-		box-shadow: var(--shadow-md);
-		.gd__web-go { transform: translateX(3px); }
-	}
-
-	&:focus-visible {
-		outline: none;
-		box-shadow: var(--shadow-focus);
-	}
-}
-
-.gd__apps {
-	display: flex;
-	gap: var(--space-2);
-}
-
-// Badge-style store buttons (dark pill, "secondary line / name") — generic,
-// on-brand chrome, not the trademarked store artwork.
-.gd__store {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--space-2);
-	padding: var(--space-2) var(--space-4);
-	border-radius: var(--radius-md);
-	border: 1px solid var(--brand-border);
-	// Theme-adaptive inverse pill: high contrast in BOTH light and dark themes
-	// (dark badge on light theme, light badge on dark) — the neutral scale flips
-	// with the theme, so brand-text/brand-surface guarantees legibility.
-	background: var(--brand-text);
-	color: var(--brand-surface);
-	text-decoration: none;
-	transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
-	opacity: 0.78;
-
-	&:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); opacity: 1; }
-
-	&:focus-visible {
-		outline: none;
-		box-shadow: var(--shadow-focus);
-		opacity: 1;
-	}
-
-	// The viewer's detected platform leads — full opacity + primary ring.
-	&--primary {
-		opacity: 1;
-		border-color: var(--bs-primary);
-		box-shadow: 0 0 0 2px rgba(var(--bs-primary-rgb), 0.35);
-	}
-}
-
-.gd__store-glyph {
-	font-size: 1.4rem;
-	line-height: 1;
-}
-
-.gd__store-text {
-	display: flex;
-	flex-direction: column;
-	line-height: 1.1;
-
-	small { font-size: 0.62rem; opacity: 0.85; }
-	strong { font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
-}
-
-// ── Responsive: stack on phones, full-width web CTA ──────────
+// ── Responsive: single column on phones. The QR is desktop-only, so each column
+//    collapses to just its badge; stack them full-width. ──
 @media (max-width: 575.98px) {
-	.gd__actions { flex-direction: column; align-items: stretch; }
-	.gd__web { justify-content: center; }
-	.gd__apps { justify-content: center; }
-	.gd__web-go { margin-left: auto; }
+	.gd__get { grid-template-columns: 1fr; }
+	.gd__store { flex: 1; justify-content: center; } // QR hidden → badge fills the row
 }
 
 // ── Reduced motion (required for any animation/transition) ───

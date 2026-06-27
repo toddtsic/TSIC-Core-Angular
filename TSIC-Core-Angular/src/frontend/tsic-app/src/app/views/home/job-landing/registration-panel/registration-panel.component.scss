@@ -60,7 +60,12 @@
 // ── Sections ────────────────────────────────────────────────
 .rp__sections {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+	// Cap the track MAX (was 1fr) at EXACTLY the 3-up column width — (container − 2
+	// gaps) / 3 — so a lone/partial row of sections keeps a normal column width
+	// instead of stretching its links across the whole panel (Ann). Track COUNT is
+	// driven by the 260px min, so the full 3-up layout is unchanged (3 tracks fill);
+	// 1–2 tracks cap at this width and left-align. Self-adjusts if width/gap change.
+	grid-template-columns: repeat(auto-fit, minmax(260px, calc((100% - 2 * var(--space-5)) / 3)));
 	gap: var(--space-5);
 }
 
