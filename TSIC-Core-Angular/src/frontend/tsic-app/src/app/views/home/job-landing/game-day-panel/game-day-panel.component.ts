@@ -33,7 +33,7 @@ export class GameDayPanelComponent {
 	 *  framing). The app promo stays useful either way (review scores/brackets). */
 	readonly live = input<boolean>(true);
 
-	protected readonly title = computed(() => this.live() ? 'Schedules Are Live' : 'Final Schedule & Results');
+	protected readonly title = computed(() => this.live() ? 'Schedule Links' : 'Final Schedule & Results');
 	protected readonly webLabel = computed(() => this.live() ? 'View Schedule' : 'View Final Schedule');
 
 	/** Canonical TSIC-Events store URLs — one app serves every event, so these are

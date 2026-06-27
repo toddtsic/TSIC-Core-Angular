@@ -117,13 +117,35 @@
 	}
 }
 
-// Public Rosters — a LIGHT gray instead, with dark (contrasting) text.
-.rp__section--teams .rp__link--public-rosters {
-	--teams-grad: linear-gradient(160deg, #eef0f3 0%, #dfe2e7 100%);
-	border-color: #cdd2d9;
-	color: var(--brand-text);
+// Register Team — the BOLD darker fill now (Ann's final swap): a TEAL blue-green that
+// sits well beside the blue Player/Adult column, dark enough for WHITE text to clear
+// WCAG AA, white icon, with a brightness lift + teal glow on hover.
+.rp__section--teams .rp__link--register-team {
+	--teams-grad: linear-gradient(160deg, #0c7d72 0%, #0a5b54 100%);
+	border-color: #07463f;
+	color: #fff;
 
-	.rp__link-icon { color: #5c626d; }
+	.rp__link-icon { color: #fff; }
+
+	&:hover {
+		border-color: #0a5b54;
+		filter: brightness(1.14);
+		transform: translateY(-1px);
+		box-shadow: 0 6px 16px rgba(12, 125, 114, 0.45);
+	}
+}
+
+// Public Rosters — the PALE tint now: a pale GREEN mint with deep-green text +
+// medium-green icon. (The greener shade keeps it distinct from the cyan Manage tint
+// on "Change Team or Uniform #".)
+.rp__section--teams .rp__link--public-rosters {
+	--teams-grad: linear-gradient(160deg, #e8fce9 0%, #d6f5da 100%);
+	border-color: #bfe9c6;
+	color: #14532d; // deep green — readable on the pale mint
+
+	.rp__link-icon { color: #16a34a; }
+
+	&:hover { border-color: #86d99a; }
 }
 
 .rp__links {

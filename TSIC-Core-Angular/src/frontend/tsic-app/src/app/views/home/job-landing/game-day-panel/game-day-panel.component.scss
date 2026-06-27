@@ -27,7 +27,7 @@
 .gd__body {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: center; // center the two columns against each other (balanced, compact)
+	align-items: flex-start; // top-align both columns: "Scores…" and "Scan…" share a baseline
 	justify-content: space-between;
 	gap: var(--space-5);
 }
@@ -56,7 +56,7 @@
 	display: flex;
 	align-items: center;
 	gap: var(--space-3);
-	margin-bottom: var(--space-2);
+	margin-bottom: var(--space-1);
 }
 
 .gd__icon {
