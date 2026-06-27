@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { QuickLinksService } from './services/quick-links.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
-import { isTournament } from '@infrastructure/constants/job-type.constants';
+import { isTournament, isLeague } from '@infrastructure/constants/job-type.constants';
 import type { JobVisibilityDto, UpdateJobVisibilityRequest } from '@core/api';
 
 /** The flag keys shared by JobVisibilityDto (read) and UpdateJobVisibilityRequest (write). */
@@ -60,8 +60,20 @@ export class QuickLinksComponent {
 	readonly toggles = computed<ToggleDef[]>(() => {
 		const f = this.flags();
 		if (!f) return [];
-		const tournament = isTournament(this.jobService.currentJob()?.jobTypeId);
-		return ([
+		const jobTypeId = this.jobService.currentJob()?.jobTypeId;
+		const tournament = isTournament(jobTypeId);
+		const league = isLeague(jobTypeId);
+		const competitive = tournament || league;
+		// The toggle DEFINITIONS (relevance + copy). Physical order here is irrelevant —
+		// the display order is applied by ORDER below, chosen per job type, then the
+		// non-relevant ones are filtered out.
+		const defs = ([
+		// Tournaments register teams; LEAGUES DO NOT (players self-roster onto a league's
+		// pre-built teams). So exclude leagues even when team fees happen to be configured.
+		{ key: 'allowTeamRegistration', label: 'Register Team', icon: 'bi-people',
+			relevant: f.teamFeesConfigured && !league,
+			onTip: 'Teams can register — the "Register Team" card shows on the landing page.',
+			offTip: 'Team registration is closed — the card is hidden.' },
 		{ key: 'allowPlayerRegistration',
 			label: tournament ? 'Allow Player Self-Rostering' : 'Allow Player Registration',
 			icon: 'bi-person-plus',
@@ -72,39 +84,6 @@ export class QuickLinksComponent {
 			offTip: tournament
 				? 'Self-rostering is closed — the card is hidden.'
 				: 'Player registration is closed — the card is hidden.' },
-		{ key: 'allowTeamRegistration', label: 'Register Team', icon: 'bi-people',
-			relevant: f.teamFeesConfigured,
-			onTip: 'Teams can register — the "Register Team" card shows on the landing page.',
-			offTip: 'Team registration is closed — the card is hidden.' },
-		// Schedule-relevant: publishing access is a legitimate pre-arm action, so the
-		// toggle stays usable, but with no games entered the public "View Schedule"
-		// card stays hidden (pulse gates on FirstGameDate) — surface that as a
-		// non-forcing caution, mirroring the coach/no-teams pattern below.
-		{ key: 'publishSchedule', label: 'View Schedule', icon: 'bi-calendar-event',
-			relevant: true,
-			warn: f.scheduleConfigured
-				? null
-				: 'No games are scheduled yet — the "View Schedule" card stays hidden until a schedule is added.',
-			onTip: 'The public schedule is visible — the "View Schedule" card shows.',
-			offTip: 'The schedule is not public — the card is hidden.' },
-		{ key: 'showPublicRosters', label: 'Rosters', icon: 'bi-list-ul',
-			relevant: true,
-			onTip: 'Public player rosters are visible — the "Rosters" card shows.',
-			offTip: 'Public rosters are hidden — the card is hidden.' },
-		{ key: 'enableStore', label: 'Store', icon: 'bi-bag',
-			relevant: true,
-			onTip: 'The store is enabled — the "Store" card shows once it has active items.',
-			offTip: 'The store is disabled — the card is hidden.' },
-		{ key: 'offerPlayerInsurance', label: 'Player RegSaver', icon: 'bi-shield-check',
-			relevant: true,
-			onTip: 'RegSaver insurance is offered to players — the "Player RegSaver" card shows.',
-			offTip: 'Player RegSaver is not offered — the card is hidden.' },
-		// Club-rep pathway, mirrors the player toggle above (always relevant — the
-		// card itself suppresses once every team is already covered).
-		{ key: 'offerTeamInsurance', label: 'Team RegSaver', icon: 'bi-shield-check',
-			relevant: true,
-			onTip: 'RegSaver insurance is offered to club reps — the "Team RegSaver" card shows.',
-			offTip: 'Team RegSaver is not offered — the card is hidden.' },
 		// Adult registration releases. Coach is team-relevant: a coach requests a team,
 		// so releasing it with no teams configured surfaces a non-forcing caution (the
 		// hero card also stays hidden until teams exist — pulse gates on teams-exist).
@@ -117,15 +96,71 @@ export class QuickLinksComponent {
 				: 'No teams exist yet — coaches will have nothing to request, and the "Register Coach" card stays hidden until teams are added.',
 			onTip: 'Coaches can register and request teams — the "Register Coach" card shows on the landing page.',
 			offTip: 'Coach registration is closed — the card is hidden.' },
-		{ key: 'allowRefereeRegistration', label: 'Allow Referee Registration', icon: 'bi-flag',
+		// Public rosters are a tournament-only concept (self-rostering) — omit the toggle
+		// on leagues/clubs/camps entirely, mirroring the public panel's tournament gate.
+		{ key: 'showPublicRosters', label: 'Rosters', icon: 'bi-list-ul',
+			relevant: tournament,
+			onTip: 'Public player rosters are visible — the "Rosters" card shows.',
+			offTip: 'Public rosters are hidden — the card is hidden.' },
+		// Schedule-relevant: publishing access is a legitimate pre-arm action, so the
+		// toggle stays usable, but with no games entered the public "View Schedule"
+		// card stays hidden (pulse gates on FirstGameDate) — surface that as a
+		// non-forcing caution, mirroring the coach/no-teams pattern above.
+		// A game schedule is a competitive-event concept — tournament OR league only.
+		{ key: 'publishSchedule', label: 'View Schedule', icon: 'bi-calendar-event',
+			relevant: tournament || league,
+			warn: f.scheduleConfigured
+				? null
+				: 'No games are scheduled yet — the "View Schedule" card stays hidden until a schedule is added.',
+			onTip: 'The public schedule is visible — the "View Schedule" card shows.',
+			offTip: 'The schedule is not public — the card is hidden.' },
+		{ key: 'offerPlayerInsurance', label: 'Player RegSaver', icon: 'bi-shield-check',
 			relevant: true,
-			onTip: 'Referees can register — the "Register Referee" card shows on the landing page.',
-			offTip: 'Referee registration is closed — the card is hidden.' },
+			onTip: 'RegSaver insurance is offered to players — the "Player RegSaver" card shows.',
+			offTip: 'Player RegSaver is not offered — the card is hidden.' },
+		// Club-rep pathway, mirrors the player toggle above (the card itself suppresses
+		// once every team is already covered). Tournament-OR-league only — the
+		// competitive settings where club reps register teams.
+		{ key: 'offerTeamInsurance', label: 'Team RegSaver', icon: 'bi-shield-check',
+			relevant: tournament || league,
+			onTip: 'RegSaver insurance is offered to club reps — the "Team RegSaver" card shows.',
+			offTip: 'Team RegSaver is not offered — the card is hidden.' },
+		// College recruiters scout at competitive events — tournament OR league only.
 		{ key: 'allowRecruiterRegistration', label: 'Allow College Recruiter Registration', icon: 'bi-mortarboard',
-			relevant: true,
+			relevant: tournament || league,
 			onTip: 'College recruiters can register — the "Register College Recruiter" card shows.',
 			offTip: 'Recruiter registration is closed — the card is hidden.' },
-		] as ToggleDef[]).filter(t => t.relevant);
+		// Referees officiate at competitive events — tournament OR league only.
+		{ key: 'allowRefereeRegistration', label: 'Allow Referee Registration', icon: 'bi-flag',
+			relevant: tournament || league,
+			onTip: 'Referees can register — the "Register Referee" card shows on the landing page.',
+			offTip: 'Referee registration is closed — the card is hidden.' },
+		{ key: 'enableStore', label: 'Store', icon: 'bi-bag',
+			relevant: true,
+			onTip: 'The store is enabled — the "Store" card shows once it has active items.',
+			offTip: 'The store is disabled — the card is hidden.' },
+		] as ToggleDef[]);
+
+		// Display order is JOB-TYPE-SCOPED. Competitive events (tournament/league) use
+		// Ann's combined ordering. Every OTHER job type (club/camp/sales) keeps its prior
+		// ordering — this combined order must NOT perturb non-competitive layout. Keys not
+		// present in a list sort to the front (indexOf -1), but the relevant-filter has
+		// already dropped the competitive-only toggles for those types, so it never bites.
+		const COMPETITIVE_ORDER: FlagKey[] = [
+			'allowTeamRegistration', 'allowPlayerRegistration', 'allowStaffRegistration',
+			'showPublicRosters', 'publishSchedule', 'offerPlayerInsurance',
+			'offerTeamInsurance', 'allowRecruiterRegistration', 'allowRefereeRegistration',
+			'enableStore',
+		];
+		const DEFAULT_ORDER: FlagKey[] = [
+			'allowPlayerRegistration', 'allowTeamRegistration', 'allowStaffRegistration',
+			'allowRefereeRegistration', 'allowRecruiterRegistration', 'offerPlayerInsurance',
+			'offerTeamInsurance', 'enableStore', 'publishSchedule', 'showPublicRosters',
+		];
+		const order = competitive ? COMPETITIVE_ORDER : DEFAULT_ORDER;
+
+		return defs.filter(t => t.relevant)
+			.sort((a, b) => order.indexOf(a.key) - order.indexOf(b.key));
 	});
 
 	constructor() {

@@ -4,6 +4,7 @@ import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
+import { isTournament, isLeague } from '@infrastructure/constants/job-type.constants';
 import { CTAS_BY_PHASE, derivePhase } from '@shared/landing/landing-phase';
 import { RegistrationPanelComponent } from '@views/home/job-landing/registration-panel/registration-panel.component';
 import { GameDayPanelComponent } from '@views/home/job-landing/game-day-panel/game-day-panel.component';
@@ -61,6 +62,13 @@ export class SmartBulletinsComponent {
 	private readonly phase = computed(() => derivePhase(this.pulse(), new Date()));
 	protected readonly allowedKeys = computed<ReadonlySet<string>>(() => CTAS_BY_PHASE[this.phase()]);
 
+	// A game schedule is a competitive-event concept — tournament OR league only.
+	// Clubs/camps/sales don't run a public schedule, so the Game-Day card is gated to it.
+	private readonly competitive = computed(() => {
+		const t = this.jobService.currentJob()?.jobTypeId;
+		return isTournament(t) || isLeague(t);
+	});
+
 	// Game-Day panel inputs, derived from pulse/phase.
 	protected readonly jobId = computed(() => this.jobService.currentJob()?.jobId ?? '');
 	protected readonly live = computed(() => this.phase() !== 'concluded');
@@ -72,7 +80,7 @@ export class SmartBulletinsComponent {
 	// exist (firstGameDate non-null), in a phase where View Schedule belongs.
 	protected readonly showGameDay = computed(() => {
 		const p = this.pulse();
-		if (!p || !this.jobPath()) return false;
+		if (!p || !this.jobPath() || !this.competitive()) return false;
 		if (!(p.schedulePublished && p.firstGameDate)) return false;
 		return this.allowedKeys().has('view-schedule');
 	});

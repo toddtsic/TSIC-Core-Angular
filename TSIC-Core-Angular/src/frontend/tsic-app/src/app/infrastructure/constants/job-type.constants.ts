@@ -19,3 +19,12 @@ export const JobType = {
 export function isTournament(jobTypeId: number | null | undefined): boolean {
 	return jobTypeId === JobType.Tournament;
 }
+
+/**
+ * League events run competitive games (like tournaments). Some surfaces — e.g.
+ * college-recruiter registration — are gated to tournament-OR-league, since those
+ * are the competitive settings where recruiters scout.
+ */
+export function isLeague(jobTypeId: number | null | undefined): boolean {
+	return jobTypeId === JobType.League;
+}
