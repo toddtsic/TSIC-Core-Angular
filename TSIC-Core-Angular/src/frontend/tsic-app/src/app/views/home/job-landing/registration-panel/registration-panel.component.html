@@ -7,7 +7,6 @@
 				<span class="rp__icon" aria-hidden="true"><i class="bi bi-person-vcard"></i></span>
 				<div class="rp__headtext">
 					<h3 class="rp__title">{{ title() }}</h3>
-					<p class="rp__sub">Self-roster to participate, manage an existing registration, or view who's rostered.</p>
 				</div>
 			</header>
 
@@ -15,8 +14,8 @@
 
 				<!-- Self-Rostering — one link per open self-registration role -->
 				@if (selfRosterLinks().length) {
-					<div class="rp__section">
-						<h4 class="rp__section-title">Self-Rostering</h4>
+					<div class="rp__section rp__section--register">
+						<h4 class="rp__section-title">Register Player/Adult</h4>
 						<div class="rp__links">
 							@for (l of selfRosterLinks(); track l.key) {
 								<a class="rp__link" [routerLink]="l.routerLink" [queryParams]="l.queryParams ?? null">
@@ -33,7 +32,7 @@
 				     balance due, change team/uniform/cancel, My Registration,
 				     and the "forgot insurance" add-ons (player + club rep). -->
 				@if (showManage()) {
-					<div class="rp__section">
+					<div class="rp__section rp__section--manage">
 						<h4 class="rp__section-title">Manage your registration</h4>
 						<div class="rp__links">
 							@for (item of manageItems(); track item.key) {
@@ -67,21 +66,29 @@
 					</div>
 				}
 
-				<!-- Rosters - public roster view. Mounts even when nothing else does
-				     (event over, rosters still public): the band's gate counts rosters,
-				     so it can't orphan. -->
-				@if (showRosters()) {
-					<div class="rp__section">
-						<h4 class="rp__section-title">Rosters</h4>
+				<!-- Teams — Register a Team leads, then the public roster view. Mounts
+				     even when nothing else does (e.g. event over but rosters still
+				     public): the band's gate counts these, so it can't orphan. -->
+				@if (showTeams()) {
+					<div class="rp__section rp__section--teams">
+						<h4 class="rp__section-title">Teams</h4>
 						<div class="rp__links">
-							<a class="rp__link" [routerLink]="rostersLink()">
-								<i class="bi bi-card-checklist rp__link-icon" aria-hidden="true"></i>
-								<span class="rp__link-text">
-									<strong>Public Rosters</strong>
-									<small>See who's rostered</small>
-								</span>
-								<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
-							</a>
+							@if (showRegisterTeam()) {
+								<a class="rp__link" [routerLink]="teamRegLink()">
+									<i class="bi bi-people rp__link-icon" aria-hidden="true"></i>
+									<span class="rp__link-label">Register Team</span>
+									<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+								</a>
+							}
+							@if (showRosters()) {
+								<a class="rp__link" [routerLink]="rostersLink()">
+									<i class="bi bi-card-checklist rp__link-icon" aria-hidden="true"></i>
+									<span class="rp__link-text">
+										<strong>Public Rosters</strong>
+									</span>
+									<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+								</a>
+							}
 						</div>
 					</div>
 				}

@@ -88,7 +88,7 @@ export class RegistrationPanelComponent {
 
 	// Tournament reframes player registration as "self-rostering" (the team is the
 	// registering entity; a player joins one) — centralized so it never drifts.
-	protected readonly title = computed(() => this.tournament() ? 'Player & Coach Self-Rostering' : 'Registration');
+	protected readonly title = computed(() => 'Registration Links');
 
 	// ── Self-Rostering section — one link per open self-registration role ────────
 	// Each gated on phase (allowedKeys) AND its pulse flag.
@@ -100,23 +100,19 @@ export class RegistrationPanelComponent {
 		const t = this.tournament();
 		const links: RegLink[] = [];
 		if (allowed.has('register-player') && p.playerRegistrationOpen) {
-			links.push({ key: 'player', label: t ? 'Self-Roster a Player' : 'Register a Player',
+			links.push({ key: 'player', label: t ? 'Self-Roster Player' : 'Register Player',
 				icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
 		}
-		if (allowed.has('register-team') && p.teamRegistrationOpen) {
-			links.push({ key: 'team', label: 'Register a Team',
-				icon: 'bi-people', routerLink: `${base}/registration/team` });
-		}
 		if (allowed.has('register-coach') && p.staffRegistrationOpen) {
-			links.push({ key: 'coach', label: t ? 'Self-Roster a Coach' : 'Register a Coach',
+			links.push({ key: 'coach', label: 'Register Coach',
 				icon: 'bi-person-badge', routerLink: `${base}/registration/adult`, queryParams: { role: 'coach' } });
 		}
 		if (allowed.has('register-referee') && p.refereeRegistrationOpen) {
-			links.push({ key: 'referee', label: 'Register a Referee',
+			links.push({ key: 'referee', label: 'Register Referee',
 				icon: 'bi-flag', routerLink: `${base}/registration/adult`, queryParams: { role: 'referee' } });
 		}
 		if (allowed.has('register-recruiter') && p.recruiterRegistrationOpen) {
-			links.push({ key: 'recruiter', label: 'Register a College Recruiter',
+			links.push({ key: 'recruiter', label: 'Register College Recruiter',
 				icon: 'bi-mortarboard', routerLink: `${base}/registration/adult`, queryParams: { role: 'recruiter' } });
 		}
 		return links;
@@ -155,7 +151,7 @@ export class RegistrationPanelComponent {
 
 		// Change team / uniform # — or cancel (the self-roster-update modal).
 		if (this.showChange()) {
-			items.push({ key: 'self-roster-update', icon: 'bi-pencil-square', variant: 'feature',
+			items.push({ key: 'self-roster-update', icon: 'bi-pencil-square',
 				label: 'Change Team or Uniform #', sublabel: '…or cancel a player registration',
 				action: 'self-roster-update' });
 		}
@@ -196,20 +192,29 @@ export class RegistrationPanelComponent {
 
 	protected readonly showManage = computed(() => this.manageItems().length > 0);
 
-	// ── Rosters section — the public roster view ("view who's rostered") ─────────
-	// Job-level (not personal), so it shows in public-preview too. Gated on phase
-	// (allowedKeys) AND the pulse flag. NOTE: the band's mount gate (showRegistration
-	// in SmartBulletinsComponent) ALSO counts rosters, so when an event is over but
-	// rosters are still public this panel mounts just to show this — it won't orphan.
+	// ── Teams section — Register a Team (top), then the public roster view ───────
+	// Register a Team is a fresh-registration action (hidden once registered); it
+	// leads the column. Public Rosters is job-level (shows in public-preview too).
+	// Both gated on phase (allowedKeys) AND their pulse flag.
+	protected readonly showRegisterTeam = computed(() => {
+		const p = this.pulse();
+		if (!p || this.registered()) return false;
+		return this.allowedKeys().has('register-team') && p.teamRegistrationOpen;
+	});
+	protected readonly teamRegLink = computed(() => `${this.base()}/registration/team`);
+
 	protected readonly showRosters = computed(() => {
 		const p = this.pulse();
 		return !!p?.publicRostersAvailable && this.allowedKeys().has('rosters');
 	});
 	protected readonly rostersLink = computed(() => `${this.base()}/rosters/public`);
 
+	/** Whether the Teams column has anything to show. */
+	protected readonly showTeams = computed(() => this.showRegisterTeam() || this.showRosters());
+
 	/** The panel self-hides when no section has content. */
 	protected readonly hasContent = computed(() =>
-		this.selfRosterLinks().length > 0 || this.showManage() || this.showRosters());
+		this.selfRosterLinks().length > 0 || this.showManage() || this.showTeams());
 
 	openSelfRosterUpdate(): void {
 		this.sruModal.open(this.jobPath());

@@ -76,8 +76,15 @@
 	font-weight: var(--font-weight-bold);
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
-	color: var(--brand-text-muted);
+	color: color-mix(in srgb, var(--rp-accent, var(--bs-primary)) 70%, var(--brand-text-muted));
 }
+
+// Per-column accent — drawn from the global, theme-aware palette so it adapts to
+// light/dark and every brand palette. Set as an inherited custom property on the
+// section; the links inside pick it up via var(--rp-accent).
+.rp__section--register { --rp-accent: var(--bs-primary); }
+.rp__section--manage   { --rp-accent: var(--bs-info); }
+.rp__section--teams    { --rp-accent: var(--bs-success); }
 
 .rp__links {
 	display: flex;
@@ -86,15 +93,18 @@
 }
 
 // ── Link rows (anchors and the modal-action button share this) ──
+// Per-column color via the inherited --rp-accent: a soft TINTED BACKGROUND (mixed
+// from the accent into the surface so it stays light/dark-aware), with the text in
+// the neutral, high-contrast --brand-text. Icon keeps the full accent.
 .rp__link {
 	display: flex;
 	align-items: center;
 	gap: var(--space-3);
 	width: 100%;
 	padding: var(--space-3) var(--space-4);
-	border: 1px solid var(--brand-border);
+	border: 1px solid color-mix(in srgb, var(--rp-accent, var(--bs-primary)) 25%, var(--brand-border));
 	border-radius: var(--radius-md);
-	background: var(--brand-surface, var(--neutral-0));
+	background: color-mix(in srgb, var(--rp-accent, var(--bs-primary)) 12%, var(--brand-surface, var(--neutral-0)));
 	color: var(--brand-text);
 	font: inherit;
 	font-size: var(--font-size-sm);
@@ -107,7 +117,8 @@
 	.rp__link-go { margin-left: auto; transition: transform 0.15s ease; opacity: 0.6; }
 
 	&:hover {
-		border-color: var(--bs-primary);
+		border-color: var(--rp-accent, var(--bs-primary));
+		background: color-mix(in srgb, var(--rp-accent, var(--bs-primary)) 20%, var(--brand-surface, var(--neutral-0)));
 		box-shadow: var(--shadow-md);
 		.rp__link-go { transform: translateX(3px); opacity: 1; }
 	}
@@ -121,7 +132,7 @@
 .rp__link-icon {
 	flex: 0 0 auto;
 	font-size: 1.05rem;
-	color: var(--bs-primary);
+	color: var(--rp-accent, var(--bs-primary));
 }
 
 .rp__link-label { line-height: 1.2; }
@@ -134,22 +145,6 @@
 
 	strong { font-weight: var(--font-weight-medium); }
 	small { font-size: var(--font-size-xs); color: var(--brand-text-muted); }
-}
-
-// Featured self-roster-update — the standout (filled primary).
-.rp__link--feature {
-	background: var(--bs-primary);
-	border-color: var(--bs-primary);
-	color: #fff; // on-primary convention
-
-	.rp__link-icon { color: #fff; }
-	.rp__link-text strong { font-weight: var(--font-weight-semibold); }
-	.rp__link-text small { color: rgba(255, 255, 255, 0.9); }
-
-	&:hover {
-		border-color: var(--bs-primary);
-		filter: brightness(1.05);
-	}
 }
 
 // Final-balance-due — urgent money emphasis (amber accent + prominent amount).
@@ -174,5 +169,4 @@
 @media (prefers-reduced-motion: reduce) {
 	.rp__link,
 	.rp__link-go { transition: none !important; }
-	.rp__link--feature:hover { filter: none !important; }
 }
