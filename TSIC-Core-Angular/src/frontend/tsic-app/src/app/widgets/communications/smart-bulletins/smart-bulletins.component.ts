@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
 import { AuthService } from '@infrastructure/services/auth.service';
@@ -46,11 +46,6 @@ export class SmartBulletinsComponent {
 
 	private readonly pulse = computed(() => this.pulseService.pulse());
 	private readonly base = computed(() => `/${this.jobPath()}`);
-
-	/** The band's panels collapse under the "Happening Now" accordion header.
-	 *  Expanded by default — collapsing is an opt-in tidy-away, not the resting state. */
-	protected readonly expanded = signal(true);
-	protected toggle(): void { this.expanded.update(v => !v); }
 
 	// Director/SuperDirector/SuperUser preview the band as an anonymous visitor would
 	// see it — the whole point of folding the smart band into the widget is that the

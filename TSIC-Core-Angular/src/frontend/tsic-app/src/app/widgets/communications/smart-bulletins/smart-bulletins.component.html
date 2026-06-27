@@ -9,23 +9,15 @@
 			</div>
 		}
 
-		<!-- Band lead-in: "Happening Now" is an accordion header (chevron + label =
-		     toggle button) that collapses/expands the panels; the ✨ smart marker is a
-		     SEPARATE sibling flush-right (buttons can't nest). Expanded by default. -->
+		<!-- Band lead-in: a hairline rule with the ✨ smart marker flush-right, signalling
+		     that the panels below write themselves. No accordion — the smart bulletins
+		     always show (the "Happening Now" toggle was backed out). -->
 		<div class="sb__sep">
-			<button type="button" class="sb__sep-toggle" (click)="toggle()"
-				[attr.aria-expanded]="expanded()" aria-controls="sb-panels">
-				<i class="bi bi-chevron-down sb__sep-chevron"
-					[class.sb__sep-chevron--collapsed]="!expanded()" aria-hidden="true"></i>
-				<span class="sb__sep-label">Happening Now</span>
-			</button>
 			<span class="sb__sep-rule" aria-hidden="true"></span>
 			<app-smart-marker class="sb__marker"
 				text="These bulletins write themselves from live event data — always current, never typed by hand." />
 		</div>
 
-		<!-- Collapsible panel region, controlled by the "Happening Now" header above. -->
-		@if (expanded()) {
 		<div id="sb-panels" class="sb__panels">
 
 			<!-- Game-Day LEADS when a schedule is live — "Schedules Are Live" is the
@@ -61,7 +53,6 @@
 			}
 
 		</div>
-		}
 
 	</div>
 }
