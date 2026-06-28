@@ -107,9 +107,21 @@ export class RegistrationPanelComponent {
 	// Each gated on phase (allowedKeys) AND its pulse flag.
 	protected readonly selfRosterLinks = computed<RegLink[]>(() => {
 		const p = this.pulse();
-		if (!p || this.registered()) return [];
+		if (!p) return [];
 		const allowed = this.allowedKeys();
 		const base = this.base();
+
+		// A registered player/family is past the "register" stage, so this personal
+		// column shows "My Registration" (moved here from Manage) instead of the
+		// self-roster register links — same gates the Manage row carried.
+		if (this.registered()) {
+			if (this.isPlayerOrFamily() && allowed.has('my-registration')) {
+				return [{ key: 'my-registration', label: 'My Registration', icon: 'bi-person-vcard',
+					routerLink: `${base}/registration/player`, queryParams: { step: 'players' } }];
+			}
+			return [];
+		}
+
 		const t = this.tournament();
 		const comp = this.competitive();
 		const links: RegLink[] = [];
@@ -135,6 +147,17 @@ export class RegistrationPanelComponent {
 				icon: 'bi-mortarboard', routerLink: `${base}/registration/adult`, queryParams: { role: 'recruiter' } });
 		}
 		return links;
+	});
+
+	// Section header tracks WHO this column serves: "Player" when only the player
+	// self-roster (or My Registration) is present, "Adult" for coach/referee/recruiter
+	// only, "Player/Adult" when both classes are open. Derived from the links already
+	// computed above, so it can never disagree with what's rendered.
+	protected readonly selfRosterTitle = computed(() => {
+		const links = this.selfRosterLinks();
+		const hasPlayer = links.some(l => l.key === 'player' || l.key === 'my-registration');
+		const hasAdult = links.some(l => l.key === 'coach' || l.key === 'referee' || l.key === 'recruiter');
+		return hasPlayer && hasAdult ? 'Player/Adult' : hasAdult ? 'Adult' : 'Player';
 	});
 
 	// The self-roster-update (change team / uniform # / cancel) is meaningful while
@@ -183,10 +206,7 @@ export class RegistrationPanelComponent {
 		}
 
 		if (registered && isPF) {
-			if (allowed.has('my-registration')) {
-				items.push({ key: 'my-registration', icon: 'bi-person-vcard', label: 'My Registration',
-					routerLink: `${base}/registration/player`, queryParams: { step: 'players' } });
-			}
+			// My Registration moved to the Player/Adult column (selfRosterLinks).
 			// Forgot insurance at checkout — the RegSaver add-on flow.
 			if (allowed.has('player-insurance') && p.offerPlayerRegsaverInsurance && p.myHasPurchasedPlayerRegsaver !== true) {
 				items.push({ key: 'player-insurance', icon: 'bi-shield-check', label: 'Add RegSaver Insurance',

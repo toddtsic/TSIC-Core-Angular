@@ -13,7 +13,7 @@
 				<!-- Self-Rostering — one link per open self-registration role -->
 				@if (selfRosterLinks().length) {
 					<div class="rp__section rp__section--register">
-						<h4 class="rp__section-title">Player/Adult</h4>
+						<h4 class="rp__section-title">{{ selfRosterTitle() }}</h4>
 						<div class="rp__links">
 							@for (l of selfRosterLinks(); track l.key) {
 								<a class="rp__link" [routerLink]="l.routerLink" [queryParams]="l.queryParams ?? null">
