@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { Router, type CanActivateFn, type CanMatchFn } from '@angular/router';
+import { Router, type ActivatedRouteSnapshot, type CanActivateFn, type CanMatchFn } from '@angular/router';
 import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
@@ -37,9 +37,22 @@ export const authGuard: CanActivateFn = (route, state) => {
     const allowedRoles = route.data['roles'] as RoleName[] | undefined;
 
     // ── Helpers ──────────────────────────────────────────────────────
+    // Resolve :jobPath from the FULL ancestor chain. Routes like configure/* nest two
+    // levels under :jobPath, so a single route.parent lookup misses the param; walking up
+    // finds it at any depth. The Angular-parsed param is authoritative — the URL-string
+    // regex below is only a last-resort fallback (and rejected uppercase / >40-char paths,
+    // silently resolving to 'tsic' and bouncing the user — the marylandcup-...INDIVIDUAL... bug).
+    const jobPathFromParams = (): string | null => {
+        let r: ActivatedRouteSnapshot | null = route;
+        while (r) {
+            const jp = r.paramMap.get('jobPath');
+            if (jp) return jp;
+            r = r.parent;
+        }
+        return null;
+    };
     const jobPath = (): string =>
-        route.paramMap.get('jobPath')
-        || route.parent?.paramMap.get('jobPath')
+        jobPathFromParams()
         || extractJobPathFromUrl(state.url)
         || 'tsic';
 
@@ -154,6 +167,9 @@ export const unselectedRoleMatch: CanMatchFn = () => {
 };
 
 function extractJobPathFromUrl(url: string): string | null {
-    const match = url?.match(/^\/([a-z0-9-]{3,40})(\/|$|\?)/);
+    // jobPath is varchar(80) and may contain UPPERCASE (e.g. '...INDIVIDUALshowcase...').
+    // The prior /^\/([a-z0-9-]{3,40})/ rejected both → null → 'tsic' fallback → silent bounce.
+    // This is only a fallback; jobPathFromParams() is the primary, authoritative source.
+    const match = url?.match(/^\/([A-Za-z0-9-]{3,80})(\/|$|\?)/);
     return match ? match[1] : null;
 }
