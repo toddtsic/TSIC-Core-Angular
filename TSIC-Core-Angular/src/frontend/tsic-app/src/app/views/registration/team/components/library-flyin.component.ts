@@ -1385,6 +1385,9 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
     readonly droppedTeams = input<readonly RegisteredTeamDto[]>([]);
     readonly clubName = input<string>('');
     readonly canRegister = input(false);
+    /** Director's per-event "Allow Edit" toggle, already folded with the eventConcluded door
+     *  (false on a concluded event regardless of the toggle). Gates the "Edit team" menu item. */
+    readonly canEdit = input(false);
     readonly actionInProgress = input(false);
     readonly ageGroups = input<readonly AgeGroupDto[]>([]);
     /** Dev-only diagnostics toggle — surfaces ClubTeamId in the register expand.
@@ -1506,6 +1509,7 @@ export class LibraryFlyinComponent implements AfterViewInit, OnDestroy {
 
     /** Returns the lock reason for Edit, or null if available. */
     editLockReason(team: ClubTeamDto): string | null {
+        if (!this.canEdit()) return 'Editing is off for this event';
         if (team.bHasBeenScheduled) return 'Has event history';
         return null;
     }

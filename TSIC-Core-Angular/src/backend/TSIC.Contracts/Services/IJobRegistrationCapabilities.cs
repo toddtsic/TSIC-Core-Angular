@@ -29,9 +29,12 @@ public enum CapabilityActor
 /// composition <c>door(actor) AND toggle(c) AND precondition(c)</c>; the flags here are
 /// NEVER persisted (honors never-edit-director-config).
 ///
-/// No <c>CanEditRoster</c>/<c>CanDrop</c>/<c>CanEditTeam</c>: managing an EXISTING reg is not
-/// a wrong-year vector and stays ungated (admins own post-event corrections). No SETTLE
-/// fields: payment is never gated by this authority.
+/// <c>CanEditTeam</c> gates the club-rep wizard's team edit (library name/grad-year/LOP via the
+/// pencil) on the director's per-event <c>BClubRepAllowEdit</c> toggle PLUS the same eventConcluded
+/// door as its Add/Delete siblings — a concluded event is a higher-level gate that removes editing
+/// regardless of the toggle. Other manage-existing edits (<c>CanEditRoster</c>/<c>CanDrop</c> —
+/// roster moves, player drops) stay ungated (not a wrong-year vector; admins own post-event
+/// corrections). No SETTLE fields: payment is never gated by this authority.
 ///
 /// NOTE — adult is per-channel (Staff / Referee / Recruiter), a deliberate refinement of the
 /// plan's single-<c>CanRegisterAdult</c> sketch: the three channels have distinct toggles
@@ -62,6 +65,12 @@ public sealed record JobCapabilitySet
     /// <summary>Team <c>unregister-team</c> (kept from Phase-1; moved onto eventConcluded).
     /// = door · BRegistrationAllowTeam · BClubRepAllowDelete.</summary>
     public required bool CanRemoveTeam { get; init; }
+
+    /// <summary>Club-rep wizard team EDIT (library team name/grad-year/LOP via the pencil).
+    /// = door · BRegistrationAllowTeam · BClubRepAllowEdit. The eventConcluded door is the
+    /// higher-level gate — a concluded event removes edit regardless of the toggle (mirrors
+    /// Add/Delete). Resolved for the job the rep authenticated under (their jobPath claim).</summary>
+    public required bool CanEditTeam { get; init; }
 }
 
 /// <summary>

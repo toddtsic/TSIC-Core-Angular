@@ -22,6 +22,7 @@ using Microsoft.AspNetCore.Identity;
 using TSIC.Infrastructure.Data.Identity;
 using TSIC.Domain.Constants;
 using TSIC.Application.Services.Shared.Discount;
+using TSIC.API.Extensions;
 
 namespace TSIC.API.Controllers;
 
@@ -52,6 +53,7 @@ public class TeamRegistrationController : ControllerBase
     private readonly IPaymentStateService _paymentState;
     private readonly ITokenService _tokenService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IJobRegistrationCapabilities _capabilities;
 
     public TeamRegistrationController(
         ITeamRegistrationService teamRegistrationService,
@@ -63,7 +65,8 @@ public class TeamRegistrationController : ControllerBase
         IRegistrationFeeAdjustmentService feeAdjustment,
         IPaymentStateService paymentState,
         ITokenService tokenService,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IJobRegistrationCapabilities capabilities)
     {
         _teamRegistrationService = teamRegistrationService;
         _logger = logger;
@@ -75,6 +78,7 @@ public class TeamRegistrationController : ControllerBase
         _paymentState = paymentState;
         _tokenService = tokenService;
         _userManager = userManager;
+        _capabilities = capabilities;
     }
 
     /// <summary>
@@ -397,6 +401,19 @@ public class TeamRegistrationController : ControllerBase
             return StatusCode(403, new { Message = NotClubRepMessage });
         var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         if (string.IsNullOrEmpty(userId)) return Unauthorized(new { Message = UserNotAuthenticatedMessage });
+
+        // BClubRepAllowEdit gate. Editing a team in the wizard is governed by the director's
+        // per-event "Allow Edit" toggle for the job the rep authenticated under (their jobPath
+        // claim), composed through the one capability authority so the disabled pencil and the
+        // refused write agree. The eventConcluded door is the higher-level gate inside CanEditTeam:
+        // a concluded event removes editing regardless of the toggle (mirrors Add/Delete).
+        var jobPath = User.GetJobPath();
+        var jobId = string.IsNullOrEmpty(jobPath) ? null : await _jobLookupService.GetJobIdByPathAsync(jobPath);
+        if (jobId is null)
+            return StatusCode(403, new { Message = "Team editing is not available in this session." });
+        var caps = await _capabilities.ResolveAsync(jobId.Value, User.ToCapabilityActor());
+        if (!caps.CanEditTeam)
+            return StatusCode(403, new { Message = "Team editing is not enabled for this event." });
 
         try
         {

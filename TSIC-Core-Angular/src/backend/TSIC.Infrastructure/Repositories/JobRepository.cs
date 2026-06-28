@@ -847,6 +847,7 @@ public class JobRepository : IJobRepository
                     AllowReferee = j.BRegistrationAllowReferee == true,
                     AllowRecruiter = j.BRegistrationAllowRecruiter == true,
                     ClubRepAllowAdd = j.BClubRepAllowAdd == true,
+                    ClubRepAllowEdit = j.BClubRepAllowEdit == true,
                     ClubRepAllowDelete = j.BClubRepAllowDelete == true,
 
                     // data preconditions (a $0 row still counts — "configured" = a row exists)

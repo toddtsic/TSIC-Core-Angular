@@ -164,6 +164,7 @@ import type { TeamsMetadataResponse, AgeGroupDto, RegisteredTeamDto, ClubTeamDto
         [clubTeams]="allLibraryTeams()"
         [clubName]="clubName()"
         [canRegister]="canRegisterTeam()"
+        [canEdit]="canEditTeam()"
         [actionInProgress]="actionInProgress()"
         [ageGroups]="ageGroups()"
         [enteredTeams]="enteredTeamsMap()"
@@ -605,9 +606,10 @@ export class TeamTeamsStepComponent implements OnInit {
         return idx > 0 ? raw.substring(idx + 1).trim() : raw;
     });
 
-    /** Capability flags from job pulse — gate the Register/Remove UI controls. */
+    /** Capability flags from job pulse — gate the Register/Remove/Edit UI controls. */
     readonly canRegisterTeam = this.state.canRegisterTeam;
     readonly canRemoveTeam = this.state.canRemoveTeam;
+    readonly canEditTeam = this.state.canEditTeam;
 
     /** Job-config flag — the phase baseline (default before any team is entered). */
     readonly fullPaymentRequired = this.state.fullPaymentRequired;

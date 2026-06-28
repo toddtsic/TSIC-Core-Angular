@@ -24,6 +24,7 @@ public static class CapabilityMocks
         CanRegisterRecruiter = true,
         CanAddTeam = true,
         CanRemoveTeam = true,
+        CanEditTeam = true,
     });
 
     /// <summary>An authority that denies every create surface (fail-closed / concluded event).</summary>
@@ -35,6 +36,7 @@ public static class CapabilityMocks
         CanRegisterRecruiter = false,
         CanAddTeam = false,
         CanRemoveTeam = false,
+        CanEditTeam = false,
     });
 
     /// <summary>An authority that returns the given set for any job/actor.</summary>

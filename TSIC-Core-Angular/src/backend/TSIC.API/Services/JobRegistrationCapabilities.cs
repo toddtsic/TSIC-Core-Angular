@@ -67,6 +67,10 @@ public sealed class JobRegistrationCapabilities : IJobRegistrationCapabilities
             CanAddTeam = door && toggle(facts.AllowTeam && facts.ClubRepAllowAdd) && facts.ClubRepFeesConfigured,
             // Removal needs no fee/pricing precondition — only the door + the delete toggle.
             CanRemoveTeam = door && toggle(facts.AllowTeam && facts.ClubRepAllowDelete),
+            // Edit (wizard library-team metadata) mirrors removal: door + the edit toggle, no
+            // pricing precondition. The eventConcluded door is the higher-level gate (concluded
+            // ⇒ no edit regardless of the toggle).
+            CanEditTeam = door && toggle(facts.AllowTeam && facts.ClubRepAllowEdit),
         };
     }
 
@@ -78,5 +82,6 @@ public sealed class JobRegistrationCapabilities : IJobRegistrationCapabilities
         CanRegisterRecruiter = false,
         CanAddTeam = false,
         CanRemoveTeam = false,
+        CanEditTeam = false,
     };
 }

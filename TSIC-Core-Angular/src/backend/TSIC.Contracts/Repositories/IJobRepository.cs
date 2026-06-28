@@ -430,6 +430,7 @@ public record JobCapabilityFacts
     public required bool AllowReferee { get; init; }  // BRegistrationAllowReferee
     public required bool AllowRecruiter { get; init; } // BRegistrationAllowRecruiter
     public required bool ClubRepAllowAdd { get; init; }    // BClubRepAllowAdd
+    public required bool ClubRepAllowEdit { get; init; }   // BClubRepAllowEdit
     public required bool ClubRepAllowDelete { get; init; } // BClubRepAllowDelete
 
     // ── data preconditions (facts — bind even admins) ──

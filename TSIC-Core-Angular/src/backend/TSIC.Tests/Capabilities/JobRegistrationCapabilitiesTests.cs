@@ -43,6 +43,7 @@ public class JobRegistrationCapabilitiesTests
         AllowReferee = true,
         AllowRecruiter = true,
         ClubRepAllowAdd = true,
+        ClubRepAllowEdit = true,
         ClubRepAllowDelete = true,
         PlayerFeesConfigured = true,
         ClubRepFeesConfigured = true,
@@ -73,6 +74,7 @@ public class JobRegistrationCapabilitiesTests
         set.CanRegisterRecruiter.Should().BeTrue();
         set.CanAddTeam.Should().BeTrue();
         set.CanRemoveTeam.Should().BeTrue();
+        set.CanEditTeam.Should().BeTrue();
     }
 
     // ── The door: eventConcluded ────────────────────────────────────────────
@@ -92,6 +94,8 @@ public class JobRegistrationCapabilitiesTests
         set.CanRegisterRecruiter.Should().BeFalse();
         set.CanAddTeam.Should().BeFalse();
         set.CanRemoveTeam.Should().BeFalse();
+        // The concluded door is the higher-level gate: it removes edit even with ClubRepAllowEdit on.
+        set.CanEditTeam.Should().BeFalse();
     }
 
     [Fact(DisplayName = "lftc shape → ADMIN unaffected (session proves ExpiryAdmin; preconditions still met)")]
@@ -230,6 +234,18 @@ public class JobRegistrationCapabilitiesTests
 
         set.CanAddTeam.Should().BeTrue();
         set.CanRemoveTeam.Should().BeFalse();
+    }
+
+    [Fact(DisplayName = "Per-surface toggle isolation: only ClubRepAllowEdit off → add/remove allowed, edit denied")]
+    public async Task EditToggleOff_AddRemoveSurvive_EditDenied()
+    {
+        var facts = Healthy() with { ClubRepAllowEdit = false };
+
+        var set = await Resolve(facts, CapabilityActor.User);
+
+        set.CanAddTeam.Should().BeTrue();
+        set.CanRemoveTeam.Should().BeTrue();
+        set.CanEditTeam.Should().BeFalse();
     }
 
     // ── Preconditions (bind even admins) ────────────────────────────────────

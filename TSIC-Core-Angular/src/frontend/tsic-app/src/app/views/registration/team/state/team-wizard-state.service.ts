@@ -72,6 +72,17 @@ export class TeamWizardStateService {
         return !!p && p.teamRegistrationOpen && p.clubRepAllowDelete;
     });
 
+    /**
+     * Can the ClubRep edit a library team while in this event's wizard?
+     * teamRegistrationOpen already folds the eventConcluded door (server-side), so a concluded
+     * event hides the pencil regardless of clubRepAllowEdit — matching the server's CanEditTeam
+     * gate (the door is the higher-level gate over the per-event toggle).
+     */
+    readonly canEditTeam = computed(() => {
+        const p = this._pulse();
+        return !!p && p.teamRegistrationOpen && p.clubRepAllowEdit;
+    });
+
     /** True when the job has a refund policy configured */
     hasRefundPolicy(): boolean { return !!this._refundPolicyHtml()?.trim(); }
 
