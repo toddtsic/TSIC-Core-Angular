@@ -29,13 +29,15 @@ export const CTAS_BY_PHASE: Record<EventPhase, ReadonlySet<string>> = {
 	preview: new Set(),
 	planned: new Set(['store']),
 	concluded: new Set(['pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters']),
-	// Player/coach/referee/recruiter registration is NOT gated by schedule
-	// publication — publishing the schedule must not hide those cards. Team
-	// registration (register-team) is intentionally absent: it stays gated and
-	// vanishes once the schedule goes public. Each still requires its own pulse
-	// flag, so these only appear when the director actually has that reg open.
-	inSeason: new Set(['register-player', 'register-coach', 'register-referee', 'register-recruiter', 'my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance']),
-	preEvent: new Set(['register-player', 'register-coach', 'register-referee', 'register-recruiter', 'my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance']),
+	// Registration cards are NOT gated by schedule publication — publishing the schedule
+	// must not hide them. This now INCLUDES team registration: per director discretion,
+	// the "Register Team" card stays governed by the director's toggle (+ team fees),
+	// rather than auto-vanishing once the schedule goes public (it used to be special-cased
+	// to disappear in these phases; that override was removed 2026-06-28). Each card still
+	// requires its own pulse flag, so it only appears when the director actually has that reg
+	// open — and the eventConcluded door still hides everything once the event is truly over.
+	inSeason: new Set(['register-player', 'register-team', 'register-coach', 'register-referee', 'register-recruiter', 'my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance']),
+	preEvent: new Set(['register-player', 'register-team', 'register-coach', 'register-referee', 'register-recruiter', 'my-registration', 'pay-balance', 'my-teams', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance']),
 	registrationOpen: new Set(['register-player', 'my-registration', 'pay-balance', 'register-team', 'my-teams', 'register-coach', 'register-referee', 'register-recruiter', 'view-schedule', 'store', 'rosters', 'player-insurance', 'team-insurance'])
 };
 
