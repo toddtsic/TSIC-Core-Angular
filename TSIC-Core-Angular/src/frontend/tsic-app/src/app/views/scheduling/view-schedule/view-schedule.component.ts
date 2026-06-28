@@ -322,6 +322,7 @@ interface FilterChip {
                             [standings]="standings()"
                             [records]="records()"
                             [isLoading]="tabLoading()"
+                            [agegroupColors]="agegroupColors()"
                             [followedTeamIds]="directTeamIds()"
                             (viewTeamResults)="onViewTeamResults($event)" />
                     }

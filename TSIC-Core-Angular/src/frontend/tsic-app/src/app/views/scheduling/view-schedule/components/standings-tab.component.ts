@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, input, signal, output } from '@angular/core';
 import type { StandingsByDivisionResponse } from '@core/api';
+import { contrastText } from '../../shared/utils/scheduling-helpers';
 
 type StandingsMode = 'all' | 'rr';
 
@@ -20,11 +21,15 @@ type StandingsMode = 'all' | 'rr';
                 <!-- Toolbar: age group tabs (left) + mode toggle (right) -->
                 <div class="toolbar-row">
                     <div class="ag-tabs">
-                        @for (tab of ageGroupTabs(); track tab; let i = $index) {
+                        @for (tab of ageGroupTabs(); track tab.name; let i = $index) {
                             <button class="ag-tab"
                                     [class.active]="activeAgTabIndex() === i"
+                                    [class.has-color]="!!tab.color"
+                                    [style.background]="tab.color ?? null"
+                                    [style.color]="tab.color ? tab.contrastColor : null"
+                                    [style.border-color]="tab.color ?? null"
                                     (click)="activeAgTabIndex.set(i)">
-                                {{ tab }}
+                                {{ tab.name }}
                             </button>
                         }
                     </div>
@@ -160,10 +165,31 @@ type StandingsMode = 'all' | 'rr';
             color: var(--bs-body-color);
         }
 
-        .ag-tab.active {
+        /* Colored (agegroup) tabs: full-bleed colored background, contrast text from inline style.
+           Inactive colored tabs are dimmed; active colored tab pops with a focus ring.
+           Mirrors the brackets tab so the two strips read identically. */
+        .ag-tab.has-color { opacity: 0.55; }
+        .ag-tab.has-color:hover { opacity: 0.85; }
+        .ag-tab.has-color.active {
+            opacity: 1;
+            font-weight: 700;
+            box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 4px var(--bs-body-color);
+        }
+
+        /* Fallback when no agegroup color is set */
+        .ag-tab:not(.has-color).active {
             background: var(--bs-primary);
             color: white;
             border-color: var(--bs-primary);
+        }
+
+        .ag-tab:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .ag-tab { transition: none !important; }
         }
 
         /* ── Mode Toggle (segmented control) ── */
@@ -332,6 +358,8 @@ export class StandingsTabComponent {
     records = input<StandingsByDivisionResponse | null>(null);
     isLoading = input<boolean>(false);
     followedTeamIds = input<readonly string[]>([]);
+    /** Map of agegroupName → color hex (from the LADT tree). Drives tab tinting. */
+    agegroupColors = input<Record<string, string | null>>({});
 
     readonly viewTeamResults = output<string>();
 
@@ -347,16 +375,22 @@ export class StandingsTabComponent {
         this.standingsMode() === 'rr' ? this.standings() : this.records()
     );
 
-    /** Unique age group names from the active dataset, preserving backend sort order. */
-    readonly ageGroupTabs = computed<string[]>(() => {
+    /**
+     * Unique age groups from the active dataset, preserving backend sort order.
+     * Each carries its color + contrasting text so the tab strip matches the
+     * brackets tab's colored treatment.
+     */
+    readonly ageGroupTabs = computed<{ name: string; color: string | null; contrastColor: string }[]>(() => {
         const data = this.activeData();
         if (!data || data.divisions.length === 0) return [];
+        const colors = this.agegroupColors();
         const seen = new Set<string>();
-        const result: string[] = [];
+        const result: { name: string; color: string | null; contrastColor: string }[] = [];
         for (const div of data.divisions) {
             if (!seen.has(div.agegroupName)) {
                 seen.add(div.agegroupName);
-                result.push(div.agegroupName);
+                const color = colors[div.agegroupName] ?? null;
+                result.push({ name: div.agegroupName, color, contrastColor: contrastText(color) });
             }
         }
         return result;
@@ -368,7 +402,7 @@ export class StandingsTabComponent {
         const tabs = this.ageGroupTabs();
         const idx = this.activeAgTabIndex();
         if (!data || tabs.length === 0) return [];
-        const agName = tabs[idx];
+        const agName = tabs[idx]?.name;
         return data.divisions.filter(d => d.agegroupName === agName);
     });
 
