@@ -203,6 +203,16 @@ public interface IJobRepository
     Task<bool> IsJobExpiredForUsersAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Canonical "has this event concluded" determination — the CREATE door (distinct from the
+    /// <see cref="IsJobExpiredForUsersAsync"/> login/expiry door). Applies the single shared
+    /// predicate <c>TSIC.Domain.JobRules.JobLifecycle.EventConcluded</c> over the fact hierarchy
+    /// (published last-game date → EventEndDate → ExpiryUsers fallback). Returns true for an
+    /// unknown jobId (fail closed). Use when a create surface needs the over/not-over verdict
+    /// without the full capability composition.
+    /// </summary>
+    Task<bool> IsEventConcludedAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get full job metadata with display options for frontend rendering.
     /// </summary>
     Task<JobMetadataDto?> GetJobMetadataByPathAsync(string jobPath, CancellationToken cancellationToken = default);
@@ -351,11 +361,14 @@ public interface IJobRepository
     Task<bool> IsStoreWalkupAllowedAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Job-level team-registration capability flags consumed by ClubRep-facing endpoints
-    /// to gate add/edit/delete operations. Mirrors the three <c>BClubRepAllow*</c> columns
-    /// plus the global <c>BRegistrationAllowTeam</c> gate. Returns null when jobId is unknown.
+    /// Loads the raw FACTS the registration-capability authority composes into create
+    /// permissions: the create toggles, the data preconditions (fees configured / teams
+    /// exist), the eventConcluded date inputs (schedule published + last game date +
+    /// EventEndDate + ExpiryUsers), and the superseded-by-later-sibling flag. Pure read,
+    /// no composition — the authority (<c>IJobRegistrationCapabilities</c>) folds these into
+    /// door/toggle/precondition. Returns null when jobId is unknown (authority fails closed).
     /// </summary>
-    Task<JobTeamCapabilities?> GetTeamCapabilitiesAsync(Guid jobId, CancellationToken cancellationToken = default);
+    Task<JobCapabilityFacts?> GetCapabilityFactsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     // ── Event Browse (public-facing mobile endpoints) ──
 
@@ -390,12 +403,42 @@ public record JobFeeSettings
     public DateTime? AdnStartDateAfterTrial { get; init; }
 }
 
-public record JobTeamCapabilities
+/// <summary>
+/// The raw, uncomposed facts about a job that the registration-capability authority needs.
+/// One flat shape, one query — no derivation here. The authority applies
+/// <c>JobLifecycle.EventConcluded</c> over the date inputs and the
+/// <c>door AND toggle AND precondition</c> composition over the rest.
+/// </summary>
+public record JobCapabilityFacts
 {
-    public required bool TeamRegistrationOpen { get; init; }
-    public required bool ClubRepAllowAdd { get; init; }
-    public required bool ClubRepAllowEdit { get; init; }
-    public required bool ClubRepAllowDelete { get; init; }
+    // ── eventConcluded date inputs (the MUTATE door) ──
+    /// <summary><c>BScheduleAllowPublicAccess</c> — published schedule unlocks the lastGameDate signal.</summary>
+    public required bool SchedulePublished { get; init; }
+    /// <summary>Latest scheduled game date, or null when no games are scheduled.</summary>
+    public DateTime? LastGameDate { get; init; }
+    /// <summary>Director-stated event end (<c>Jobs.EventEndDate</c>), or null — the signal bare-expiry missed.</summary>
+    public DateTime? EventEndDate { get; init; }
+    /// <summary><c>Jobs.ExpiryUsers</c> — last-resort eventConcluded fallback (non-null column).</summary>
+    public required DateTime ExpiryUsers { get; init; }
+    /// <summary>A live later-year sibling exists (same supersession heuristic the pulse uses).</summary>
+    public required bool SupersededByLaterEvent { get; init; }
+
+    // ── create toggles (director flags — admin is exempt from these) ──
+    public required bool AllowPlayer { get; init; }   // BRegistrationAllowPlayer
+    public required bool AllowTeam { get; init; }     // BRegistrationAllowTeam
+    public required bool AllowStaff { get; init; }    // BRegistrationAllowStaff
+    public required bool AllowReferee { get; init; }  // BRegistrationAllowReferee
+    public required bool AllowRecruiter { get; init; } // BRegistrationAllowRecruiter
+    public required bool ClubRepAllowAdd { get; init; }    // BClubRepAllowAdd
+    public required bool ClubRepAllowDelete { get; init; } // BClubRepAllowDelete
+
+    // ── data preconditions (facts — bind even admins) ──
+    /// <summary>A Player-role JobFees row exists so a player reg can be priced.</summary>
+    public required bool PlayerFeesConfigured { get; init; }
+    /// <summary>A ClubRep-role JobFees row exists so a team reg can be priced.</summary>
+    public required bool ClubRepFeesConfigured { get; init; }
+    /// <summary>At least one team exists (a coach can only request a team once teams are in).</summary>
+    public required bool TeamsExist { get; init; }
 }
 
 public record InsuranceOfferInfo

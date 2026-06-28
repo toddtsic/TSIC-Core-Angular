@@ -141,7 +141,10 @@ public class BulletinsController : ControllerBase
                 PlayerRegistrationPlanned = true,
                 AdultRegistrationPlanned = true,
                 PublicSuspended = false,
-                RegistrationExpiry = null
+                RegistrationExpiry = null,
+                EventConcluded = false,
+                HasNonAdminActivity = false,
+                EventStartDate = null
             }
         };
     }

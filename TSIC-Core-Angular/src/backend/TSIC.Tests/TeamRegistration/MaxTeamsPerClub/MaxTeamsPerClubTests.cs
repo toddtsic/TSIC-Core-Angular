@@ -96,16 +96,8 @@ public class MaxTeamsPerClubTests
             .Setup(j => j.GetJobFeeSettingsAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings { PaymentMethodsAllowedCode = 1 });
 
-        // 2b. GetTeamCapabilitiesAsync → job allows team registration + club-rep add
-        jobs
-            .Setup(j => j.GetTeamCapabilitiesAsync(TestJobId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new JobTeamCapabilities
-            {
-                TeamRegistrationOpen = true,
-                ClubRepAllowAdd = true,
-                ClubRepAllowEdit = true,
-                ClubRepAllowDelete = true,
-            });
+        // 2b. Team add capability now comes from the create authority (CapabilityMocks.Open is
+        // passed to the service ctor below), not the retired GetTeamCapabilitiesAsync.
 
         // 3. GetEffectiveProcessingRateAsync → return 0 (no processing fees)
         feeService
@@ -186,7 +178,8 @@ public class MaxTeamsPerClubTests
             users.Object, tokenService.Object, userManager, feeService.Object,
             textSubstitution.Object, emailService.Object, discountCodeRepo.Object,
             clubTeams.Object, placement.Object, paymentState.Object,
-            new Mock<IRegisteredTeamShaper>().Object);
+            new Mock<IRegisteredTeamShaper>().Object,
+            TSIC.Tests.Helpers.CapabilityMocks.Open());
 
         return (svc, teamRepo, placement, agRepo);
     }

@@ -4,6 +4,7 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
+using TSIC.Domain.JobRules;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -126,6 +127,28 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
 
         return expiryUsers == null || DateTime.Now >= expiryUsers.Value;
+    }
+
+    public async Task<bool> IsEventConcludedAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // Load only the four EventConcluded inputs; apply the single shared Domain predicate.
+        var inputs = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new
+            {
+                SchedulePublished = j.BScheduleAllowPublicAccess == true,
+                LastGameDate = _context.Schedule
+                    .Where(s => s.JobId == j.JobId && s.GDate != null)
+                    .Max(s => (DateTime?)s.GDate),
+                j.EventEndDate,
+                j.ExpiryUsers
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Fail closed: unknown job → treat as concluded so callers never open a create on it.
+        return inputs == null || JobLifecycle.EventConcluded(
+            inputs.SchedulePublished, inputs.LastGameDate, inputs.EventEndDate, inputs.ExpiryUsers, DateTime.Now);
     }
 
     public async Task<JobMetadataDto?> GetJobMetadataByPathAsync(string jobPath, CancellationToken cancellationToken = default)
@@ -577,58 +600,105 @@ public class JobRepository : IJobRepository
                     LastGameDate = _context.Schedule
                         .Where(s => s.JobId == j.JobId && s.GDate != null)
                         .Max(s => (DateTime?)s.GDate),
+                    EventStartDate = j.EventStartDate,
+                    EventEndDate = j.EventEndDate,
+                    EventConcluded = false, // computed post-projection (see door fold below)
+                    // Any active non-admin participant (excluding admins + store-purchase shells).
+                    // The residual new-vs-concluded discriminator: a finished event has real
+                    // registrants, a brand-new one has none. Display-only (derivePhase tail).
+                    HasNonAdminActivity = _context.Registrations.Any(r =>
+                        r.JobId == j.JobId
+                        && r.BActive == true
+                        && r.RoleId != RoleConstants.Superuser
+                        && r.RoleId != RoleConstants.Director
+                        && r.RoleId != RoleConstants.SuperDirector
+                        && r.RegistrationCategory != "Store Purchase"),
                     SupersededByLaterEvent = null
                 },
                 j.JobId,
                 j.JobName,
-                j.CustomerId
+                j.CustomerId,
+                j.Year
             })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (row == null) return null;
 
+        var pulse = row.Pulse;
+
+        // "isNumeric(Year)" guard — only a cleanly-parseable event year feeds the residual
+        // new-vs-concluded discriminator; messy/null Years are simply skipped (signal absent).
+        var eventYear = int.TryParse(row.Year?.Trim(), out var parsedYear) ? parsedYear : (int?)null;
+
         // Step 2: supersession check. Only meaningful when the current name parses
         // to year + prefix; otherwise we can't identify the series.
         var current = ParseSeriesNameAndYear(row.JobName);
-        if (current is null) return row.Pulse;
+        if (current is not null)
+        {
+            // Sibling pool: same customer, not this job, released to public, currently
+            // accepting either registration type, and within its own deadline.
+            var siblings = await _context.Jobs
+                .AsNoTracking()
+                .Where(s => s.CustomerId == row.CustomerId
+                    && s.JobId != row.JobId
+                    && !s.BSuspendPublic
+                    && (s.BRegistrationAllowPlayer == true || s.BRegistrationAllowTeam == true)
+                    && s.ExpiryUsers > now
+                    && s.JobName != null
+                    && s.JobPath != null)
+                .Select(s => new { s.JobName, s.JobPath })
+                .ToListAsync(cancellationToken);
 
-        // Sibling pool: same customer, not this job, released to public, currently
-        // accepting either registration type, and within its own deadline.
-        var siblings = await _context.Jobs
-            .AsNoTracking()
-            .Where(s => s.CustomerId == row.CustomerId
-                && s.JobId != row.JobId
-                && !s.BSuspendPublic
-                && (s.BRegistrationAllowPlayer == true || s.BRegistrationAllowTeam == true)
-                && s.ExpiryUsers > now
-                && s.JobName != null
-                && s.JobPath != null)
-            .Select(s => new { s.JobName, s.JobPath })
-            .ToListAsync(cancellationToken);
+            // Match by stripped-prefix + later year; pick the closest year forward.
+            var supersedingEvent = siblings
+                .Select(s =>
+                {
+                    var parsed = ParseSeriesNameAndYear(s.JobName);
+                    return parsed is null
+                        ? null
+                        : new { s.JobName, s.JobPath, parsed.Value.Prefix, parsed.Value.Year };
+                })
+                .Where(s => s != null
+                    && string.Equals(s.Prefix, current.Value.Prefix, StringComparison.OrdinalIgnoreCase)
+                    && s.Year > current.Value.Year)
+                .OrderBy(s => s!.Year)
+                .Select(s => new Contracts.Dtos.SupersedingEventInfoDto
+                {
+                    JobPath = s!.JobPath!,
+                    JobName = s.JobName!
+                })
+                .FirstOrDefault();
 
-        // Match by stripped-prefix + later year; pick the closest year forward.
-        var supersedingEvent = siblings
-            .Select(s =>
-            {
-                var parsed = ParseSeriesNameAndYear(s.JobName);
-                return parsed is null
-                    ? null
-                    : new { s.JobName, s.JobPath, parsed.Value.Prefix, parsed.Value.Year };
-            })
-            .Where(s => s != null
-                && string.Equals(s.Prefix, current.Value.Prefix, StringComparison.OrdinalIgnoreCase)
-                && s.Year > current.Value.Year)
-            .OrderBy(s => s!.Year)
-            .Select(s => new Contracts.Dtos.SupersedingEventInfoDto
-            {
-                JobPath = s!.JobPath!,
-                JobName = s.JobName!
-            })
-            .FirstOrDefault();
+            if (supersedingEvent is not null)
+                pulse = pulse with { SupersededByLaterEvent = supersedingEvent };
+        }
 
-        return supersedingEvent is null
-            ? row.Pulse
-            : row.Pulse with { SupersededByLaterEvent = supersedingEvent };
+        // Step 3: fold the create DOOR into the pulse. eventConcluded uses the SAME shared
+        // predicate as the write authority (JobLifecycle.EventConcluded over the published
+        // lastGameDate → EventEndDate → ExpiryUsers fallback hierarchy), so the disabled control
+        // and the refused write can never disagree. door = NOT concluded AND NOT superseded;
+        // every CREATE field is ANDed with it. Manage-existing fields (ClubRepAllowEdit) and
+        // SETTLE/display fields are left untouched (create-freeze, not full-CRUD freeze).
+        var concluded = TSIC.Domain.JobRules.JobLifecycle.EventConcluded(
+            pulse.SchedulePublished,
+            pulse.LastGameDate,
+            pulse.EventEndDate,
+            pulse.RegistrationExpiry ?? DateTime.MaxValue,
+            now);
+        var door = !concluded && pulse.SupersededByLaterEvent is null;
+
+        return pulse with
+        {
+            EventYear = eventYear,
+            EventConcluded = concluded,
+            PlayerRegistrationOpen = pulse.PlayerRegistrationOpen && door,
+            TeamRegistrationOpen = pulse.TeamRegistrationOpen && door,
+            ClubRepAllowAdd = pulse.ClubRepAllowAdd && door,
+            ClubRepAllowDelete = pulse.ClubRepAllowDelete && door,
+            StaffRegistrationOpen = pulse.StaffRegistrationOpen && door,
+            RefereeRegistrationOpen = pulse.RefereeRegistrationOpen && door,
+            RecruiterRegistrationOpen = pulse.RecruiterRegistrationOpen && door,
+        };
     }
 
     /// <summary>
@@ -745,20 +815,77 @@ public class JobRepository : IJobRepository
         };
     }
 
-    public async Task<JobTeamCapabilities?> GetTeamCapabilitiesAsync(Guid jobId, CancellationToken cancellationToken = default)
+    public async Task<Contracts.Repositories.JobCapabilityFacts?> GetCapabilityFactsAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
     {
-        return await _context.Jobs
+        var now = DateTime.Now;
+        var playerRoleId = RoleConstants.Player;
+        var clubRepRoleId = RoleConstants.ClubRep;
+
+        // Step 1: flat facts projection (same fee/teams semantics as the pulse) plus the
+        // identity columns the supersession heuristic needs.
+        var row = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new JobTeamCapabilities
+            .Select(j => new
             {
-                TeamRegistrationOpen = j.BRegistrationAllowTeam == true
-                    && (j.JobTypeId == 2 || j.JobTypeId == 3),
-                ClubRepAllowAdd = j.BClubRepAllowAdd == true,
-                ClubRepAllowEdit = j.BClubRepAllowEdit == true,
-                ClubRepAllowDelete = j.BClubRepAllowDelete == true
+                Facts = new Contracts.Repositories.JobCapabilityFacts
+                {
+                    // eventConcluded inputs
+                    SchedulePublished = j.BScheduleAllowPublicAccess == true,
+                    LastGameDate = _context.Schedule
+                        .Where(s => s.JobId == j.JobId && s.GDate != null)
+                        .Max(s => (DateTime?)s.GDate),
+                    EventEndDate = j.EventEndDate,
+                    ExpiryUsers = j.ExpiryUsers,
+                    SupersededByLaterEvent = false, // filled in Step 2
+
+                    // create toggles
+                    AllowPlayer = j.BRegistrationAllowPlayer == true,
+                    AllowTeam = j.BRegistrationAllowTeam == true,
+                    AllowStaff = j.BRegistrationAllowStaff == true,
+                    AllowReferee = j.BRegistrationAllowReferee == true,
+                    AllowRecruiter = j.BRegistrationAllowRecruiter == true,
+                    ClubRepAllowAdd = j.BClubRepAllowAdd == true,
+                    ClubRepAllowDelete = j.BClubRepAllowDelete == true,
+
+                    // data preconditions (a $0 row still counts — "configured" = a row exists)
+                    PlayerFeesConfigured = _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == playerRoleId),
+                    ClubRepFeesConfigured = _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == clubRepRoleId),
+                    TeamsExist = _context.Teams.Any(t => t.JobId == j.JobId),
+                },
+                j.JobName,
+                j.CustomerId
             })
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (row == null) return null; // unknown job → authority fails closed
+
+        // Step 2: supersession — identical heuristic to the pulse (a live later-year sibling
+        // in the same series). Only meaningful when this name parses to prefix + year.
+        var current = ParseSeriesNameAndYear(row.JobName);
+        if (current is null) return row.Facts;
+
+        var siblings = await _context.Jobs
+            .AsNoTracking()
+            .Where(s => s.CustomerId == row.CustomerId
+                && s.JobId != jobId
+                && !s.BSuspendPublic
+                && (s.BRegistrationAllowPlayer == true || s.BRegistrationAllowTeam == true)
+                && s.ExpiryUsers > now
+                && s.JobName != null)
+            .Select(s => s.JobName)
+            .ToListAsync(cancellationToken);
+
+        var superseded = siblings.Any(name =>
+        {
+            var parsed = ParseSeriesNameAndYear(name);
+            return parsed is not null
+                && string.Equals(parsed.Value.Prefix, current.Value.Prefix, StringComparison.OrdinalIgnoreCase)
+                && parsed.Value.Year > current.Value.Year;
+        });
+
+        return superseded ? row.Facts with { SupersededByLaterEvent = true } : row.Facts;
     }
 
     public async Task<PriorYearJobInfo?> GetPriorYearJobAsync(
@@ -803,9 +930,11 @@ public class JobRepository : IJobRepository
 
     public async Task<List<EventListingDto>> GetActivePublicEventsAsync(CancellationToken ct = default)
     {
-        var now = DateTime.Now;
+        // Canonical login door (now < ExpiryUsers) — fixes the old `>= now` boundary that left a
+        // job expiring at this exact instant still listed; mirrors IsJobExpiredForUsersAsync.
         return await _context.Jobs.AsNoTracking()
-            .Where(j => j.ExpiryUsers >= now && !j.BSuspendPublic && j.BScheduleAllowPublicAccess == true)
+            .Where(JobExpiry.NotExpiredForUsers)
+            .Where(j => !j.BSuspendPublic && j.BScheduleAllowPublicAccess == true)
             .Select(j => new EventListingDto
             {
                 JobId = j.JobId,

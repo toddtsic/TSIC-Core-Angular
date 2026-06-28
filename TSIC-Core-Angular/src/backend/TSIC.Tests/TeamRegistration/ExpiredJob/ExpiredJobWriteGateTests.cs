@@ -113,13 +113,22 @@ public class ExpiredJobWriteGateTests
             .Setup(cr => cr.ExistsAsync(TestUserId, 1, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
+        // initialize still consults the ExpiryUsers ENTRY door (IsJobExpiredForUsersAsync, set
+        // above) — it is the SETTLE/manage gateway, not a create. register-team / unregister-team
+        // now consult the create AUTHORITY, so mirror the expired state there too: an expired
+        // job is also a concluded one, so the authority denies every create surface.
+        var capabilities = expired
+            ? TSIC.Tests.Helpers.CapabilityMocks.Closed()
+            : TSIC.Tests.Helpers.CapabilityMocks.Open();
+
         var svc = new TeamRegistrationService(
             logger.Object, clubReps.Object, clubs.Object, jobs.Object,
             jobLeagues.Object, agRepo.Object, teamRepo.Object, regRepo.Object,
             users.Object, tokenService.Object, userManager, feeService.Object,
             textSubstitution.Object, emailService.Object, discountCodeRepo.Object,
             clubTeams.Object, placement.Object, paymentState.Object,
-            new Mock<IRegisteredTeamShaper>().Object);
+            new Mock<IRegisteredTeamShaper>().Object,
+            capabilities);
 
         return new Mocks { Svc = svc, Jobs = jobs, Teams = teamRepo, Regs = regRepo };
     }

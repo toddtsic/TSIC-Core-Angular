@@ -30,6 +30,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     private readonly ITeamRepository _teamRepo;
     private readonly IUserRepository _userRepo;
     private readonly ITextSubstitutionService _textSub;
+    private readonly IJobRegistrationCapabilities _capabilities;
 
     private static readonly Guid CreditCardPaymentMethodId =
         Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
@@ -44,7 +45,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         IRegistrationAccountingRepository acctRepo,
         ITeamRepository teamRepo,
         IUserRepository userRepo,
-        ITextSubstitutionService textSub)
+        ITextSubstitutionService textSub,
+        IJobRegistrationCapabilities capabilities)
     {
         _repo = repo;
         _metadataService = metadataService;
@@ -56,6 +58,30 @@ public class AdultRegistrationService : IAdultRegistrationService
         _teamRepo = teamRepo;
         _userRepo = userRepo;
         _textSub = textSub;
+        _capabilities = capabilities;
+    }
+
+    /// <summary>
+    /// Create-authority DOOR gate for adult self-registration. The per-channel toggle is already
+    /// enforced by <see cref="EnsureAdultRegOpen"/> inside <see cref="ResolveAdultRole"/>; this
+    /// adds the missing eventConcluded/superseded DOOR (the wrong-year adult-create hole) plus the
+    /// "teams exist" precondition for coaches. Adult endpoints are non-admin self-service → the
+    /// User actor; an admin needing a post-conclusion adult add uses admin tooling.
+    /// </summary>
+    private async Task EnsureCreateDoorOpenAsync(Guid jobId, AdultRoleResolution resolution, CancellationToken ct)
+    {
+        var caps = await _capabilities.ResolveAsync(jobId, CapabilityActor.User, ct);
+        var open = resolution.RoleId switch
+        {
+            RoleConstants.Referee => caps.CanRegisterReferee,
+            RoleConstants.Recruiter => caps.CanRegisterRecruiter,
+            _ => caps.CanRegisterStaff, // coach / UnassignedAdult (BRegistrationAllowStaff + teams exist)
+        };
+        if (!open)
+        {
+            throw new InvalidOperationException(
+                "This event is closed and is no longer accepting registrations.");
+        }
     }
 
     public async Task<AdultRegJobInfoResponse> GetJobInfoByPathAsync(string jobPath, CancellationToken cancellationToken = default)
@@ -179,6 +205,7 @@ public class AdultRegistrationService : IAdultRegistrationService
         // Resolve role server-side (security model gate). This validates roleKey,
         // checks job type, enforces the BAllowRosterViewAdult invariant for Tournament.
         var resolution = ResolveAdultRole(jobData, request.RoleKey);
+        await EnsureCreateDoorOpenAsync(jobData.JobId, resolution, cancellationToken);
         var roleId = resolution.RoleId;
         var roleType = ResolveRoleTypeFromId(roleId);
 
@@ -264,6 +291,7 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         // Resolve role server-side (security model gate).
         var resolution = ResolveAdultRole(jobData, request.RoleKey);
+        await EnsureCreateDoorOpenAsync(jobId, resolution, cancellationToken);
         var roleId = resolution.RoleId;
         var roleType = ResolveRoleTypeFromId(roleId);
 
@@ -556,6 +584,7 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         // Resolve role server-side (security gate).
         var resolution = ResolveAdultRole(jobData, request.RoleKey);
+        await EnsureCreateDoorOpenAsync(jobId, resolution, cancellationToken);
         var roleId = resolution.RoleId;
         var roleType = ResolveRoleTypeFromId(roleId);
 

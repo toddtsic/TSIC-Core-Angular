@@ -34,6 +34,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly ITeamPlacementService _placement;
     private readonly IPaymentStateService _paymentState;
     private readonly IRegisteredTeamShaper _shaper;
+    private readonly IJobRegistrationCapabilities _capabilities;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -54,7 +55,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         IClubTeamRepository clubTeams,
         ITeamPlacementService placement,
         IPaymentStateService paymentState,
-        IRegisteredTeamShaper shaper)
+        IRegisteredTeamShaper shaper,
+        IJobRegistrationCapabilities capabilities)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -75,6 +77,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _placement = placement;
         _paymentState = paymentState;
         _shaper = shaper;
+        _capabilities = capabilities;
     }
 
     /// <summary>
@@ -185,6 +188,19 @@ public class TeamRegistrationService : ITeamRegistrationService
 
         if (registration == null)
         {
+            // No existing club-rep registration → minting a token here would CREATE a fresh
+            // empty shell. On a CONCLUDED event that rep has nothing to settle (no teams, no
+            // balance) and register-team is blocked anyway, so refuse rather than open a token +
+            // junk shell on a finished event. An EXISTING reg (found above) falls through to
+            // SETTLE/manage through the generous ExpiryUsers window — entry-to-pay survives.
+            if (await _jobs.IsEventConcludedAsync(jobId.Value))
+            {
+                _logger.LogWarning(
+                    "Initialize-registration blocked for job {JobPath}: event concluded and no existing club-rep registration to manage.",
+                    jobPath);
+                throw new InvalidOperationException("This event is closed and is no longer accepting new registrations.");
+            }
+
             _logger.LogInformation("Creating new registration for user {UserId}, job {JobId}", userId, jobId);
             registration = new Domain.Entities.Registrations
             {
@@ -628,31 +644,17 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new UnauthorizedAccessException("User does not have access to this club");
         }
 
-        // Canonical expiry gate — a club rep cannot add teams to an expired job (separate from
-        // the capability flags below; expiry is the authoritative "doors closed" signal).
-        if (await _jobs.IsJobExpiredForUsersAsync(jobId))
+        // Single create-authority gate. CanAddTeam = door(eventConcluded AND NOT superseded)
+        //   AND toggles (BRegistrationAllowTeam + BClubRepAllowAdd) AND precondition (a clubRep
+        //   fee row exists so the team can be priced). Club-rep endpoints are always the User
+        //   actor — admins manage via the dashboard within ExpiryAdmin. This supersedes the
+        //   Phase-1 bare-ExpiryUsers guard AND the jobType-driven GetTeamCapabilitiesAsync check
+        //   (the create hole closes here even on a direct call after the event is over).
+        var caps = await _capabilities.ResolveAsync(jobId, CapabilityActor.User);
+        if (!caps.CanAddTeam)
         {
-            _logger.LogWarning("Register-team blocked for job {JobId}: event has closed (ExpiryUsers).", jobId);
-            throw new InvalidOperationException("This event has closed and is no longer accepting team registrations.");
-        }
-
-        // Job-level capability gate — mirrors legacy BRegistrationAllowTeam / BClubRepAllowAdd
-        // semantics. Frontend hides the Add CTA via pulse, but the endpoint must still refuse
-        // a direct call after the window closes.
-        var capabilities = await _jobs.GetTeamCapabilitiesAsync(jobId);
-        if (capabilities == null)
-        {
-            throw new InvalidOperationException("Event not found");
-        }
-        if (!capabilities.TeamRegistrationOpen)
-        {
-            _logger.LogWarning("Register-team blocked for job {JobId}: team registration CLOSED", jobId);
-            throw new InvalidOperationException("Team registration is CLOSED at this time.");
-        }
-        if (!capabilities.ClubRepAllowAdd)
-        {
-            _logger.LogWarning("Register-team blocked for job {JobId}: ClubRepAllowAdd=false", jobId);
-            throw new InvalidOperationException("The site is currently CLOSED to ADDING Teams/Coaches.");
+            _logger.LogWarning("Register-team blocked for job {JobId}: CanAddTeam=false (event concluded/superseded, toggle off, or no clubRep fee row).", jobId);
+            throw new InvalidOperationException("This event is closed and is no longer accepting team registrations.");
         }
 
         // Get league for this job (prefer primary, fall back to first league)
@@ -871,29 +873,15 @@ public class TeamRegistrationService : ITeamRegistrationService
         // Capture before Remove so we can re-aggregate the rep row afterward.
         var clubRepId = team.ClubrepRegistrationid;
 
-        // Canonical expiry gate — post-expiry roster changes are admin-only; a club rep cannot
-        // remove a team from an expired job.
-        if (await _jobs.IsJobExpiredForUsersAsync(team.JobId))
+        // Single create-authority gate. CanRemoveTeam = door(eventConcluded AND NOT superseded)
+        //   AND toggles (BRegistrationAllowTeam + BClubRepAllowDelete). Post-conclusion roster
+        //   restructuring is admin-only (RosterSwapper, within ExpiryAdmin); a club rep is the
+        //   User actor. Supersedes the Phase-1 bare-ExpiryUsers guard and GetTeamCapabilitiesAsync.
+        var caps = await _capabilities.ResolveAsync(team.JobId, CapabilityActor.User);
+        if (!caps.CanRemoveTeam)
         {
-            _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): event has closed (ExpiryUsers).", teamId, team.JobId);
-            throw new InvalidOperationException("This event has closed and is no longer accepting roster changes.");
-        }
-
-        // Job-level capability gate — mirrors legacy BRegistrationAllowTeam / BClubRepAllowDelete.
-        var capabilities = await _jobs.GetTeamCapabilitiesAsync(team.JobId);
-        if (capabilities == null)
-        {
-            throw new InvalidOperationException("Event not found");
-        }
-        if (!capabilities.TeamRegistrationOpen)
-        {
-            _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): team registration CLOSED", teamId, team.JobId);
-            throw new InvalidOperationException("Team registration is CLOSED at this time.");
-        }
-        if (!capabilities.ClubRepAllowDelete)
-        {
-            _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): ClubRepAllowDelete=false", teamId, team.JobId);
-            throw new InvalidOperationException("The site is currently CLOSED to DELETING Teams/Coaches.");
+            _logger.LogWarning("Unregister-team blocked for team {TeamId} (job {JobId}): CanRemoveTeam=false (event concluded/superseded or toggle off).", teamId, team.JobId);
+            throw new InvalidOperationException("This event is closed and is no longer accepting roster changes.");
         }
 
         // Check if team has made payments

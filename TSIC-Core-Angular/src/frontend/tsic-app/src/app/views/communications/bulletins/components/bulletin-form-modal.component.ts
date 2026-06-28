@@ -672,7 +672,10 @@ export class BulletinFormModalComponent implements OnInit {
             playerRegistrationPlanned: partial.playerRegistrationPlanned ?? true,
             adultRegistrationPlanned: partial.adultRegistrationPlanned ?? true,
             publicSuspended: partial.publicSuspended ?? false,
-            registrationExpiry: partial.registrationExpiry
+            registrationExpiry: partial.registrationExpiry,
+            eventConcluded: partial.eventConcluded ?? false,
+            hasNonAdminActivity: partial.hasNonAdminActivity ?? false,
+            eventStartDate: partial.eventStartDate ?? null
         };
     }
 }

@@ -80,15 +80,8 @@ public class RegisterTeamSyncTests
             .Setup(j => j.GetJobFeeSettingsAsync(TestJobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobFeeSettings { PaymentMethodsAllowedCode = 1 });
 
-        jobs
-            .Setup(j => j.GetTeamCapabilitiesAsync(TestJobId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new JobTeamCapabilities
-            {
-                TeamRegistrationOpen = true,
-                ClubRepAllowAdd = true,
-                ClubRepAllowEdit = true,
-                ClubRepAllowDelete = true,
-            });
+        // Team add/remove capability now comes from the create authority (CapabilityMocks.Open
+        // is passed to the service ctor below), not the retired GetTeamCapabilitiesAsync.
 
         feeService
             .Setup(f => f.GetEffectiveProcessingRateAsync(TestJobId, It.IsAny<CancellationToken>()))
@@ -144,7 +137,8 @@ public class RegisterTeamSyncTests
             users.Object, tokenService.Object, userManager, feeService.Object,
             textSubstitution.Object, emailService.Object, discountCodeRepo.Object,
             clubTeams.Object, placement.Object, paymentState.Object,
-            new Mock<IRegisteredTeamShaper>().Object);
+            new Mock<IRegisteredTeamShaper>().Object,
+            TSIC.Tests.Helpers.CapabilityMocks.Open());
 
         return (svc, regRepo, teamRepo);
     }

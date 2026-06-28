@@ -33,6 +33,11 @@ export type JobPulseDto = {
     playerRegOpensSoonest?: string | null;
     firstGameDate?: string | null;
     lastGameDate?: string | null;
+    eventStartDate?: string | null;
+    eventEndDate?: string | null;
+    eventConcluded: boolean;
+    hasNonAdminActivity: boolean;
+    eventYear?: number | null;
     supersededByLaterEvent?: (null | SupersedingEventInfoDto);
     myAssignedTeamId?: string | null;
     myRegistrationOwedTotal?: number | null;

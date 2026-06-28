@@ -29,19 +29,22 @@ public class PlayerRegistrationController : ControllerBase
     private readonly IFamilyRepository _familyRepo;
     private readonly ITokenService _tokenService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IJobRegistrationCapabilities _capabilities;
 
     public PlayerRegistrationController(
         IJobLookupService jobLookupService,
         IPlayerRegistrationService registrationService,
         IFamilyRepository familyRepo,
         ITokenService tokenService,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IJobRegistrationCapabilities capabilities)
     {
         _jobLookupService = jobLookupService;
         _registrationService = registrationService;
         _familyRepo = familyRepo;
         _tokenService = tokenService;
         _userManager = userManager;
+        _capabilities = capabilities;
     }
 
     /// <summary>
@@ -125,6 +128,15 @@ public class PlayerRegistrationController : ControllerBase
         var jobId = await _jobLookupService.GetJobIdByPathAsync(request.JobPath);
         if (jobId is null)
             return NotFound(new { message = $"Job not found: {request.JobPath}" });
+
+        // CREATE-AUTHORITY GATE — closes the long-standing hole: registrations are created HERE
+        // and nowhere else, yet this path was ungated, so a returning parent (or a direct call)
+        // could create a player registration for a CONCLUDED/superseded event whose generous
+        // ExpiryUsers window was still open. CanRegisterPlayer = door(eventConcluded) AND
+        // BRegistrationAllowPlayer AND a player fee row exists. Admins are exempt from the door.
+        var caps = await _capabilities.ResolveAsync(jobId.Value, User.ToCapabilityActor());
+        if (!caps.CanRegisterPlayer)
+            return BadRequest(new { message = "This event is not accepting player registrations at this time." });
 
         // Delegate heavy lifting to service
         var response = await _registrationService.PreSubmitAsync(jobId.Value, familyUserId, request, familyUserId);

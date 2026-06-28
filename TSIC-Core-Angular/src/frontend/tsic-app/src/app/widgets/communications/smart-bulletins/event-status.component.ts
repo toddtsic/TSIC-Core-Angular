@@ -44,8 +44,10 @@ export class EventStatusComponent {
 			}
 			case 'preview': {
 				// "Closed" (a registration window that has elapsed, or a suspended page)
-				// reads differently from "not configured yet".
-				const closed = p.publicSuspended || this.isPast(p.playerRegClosesSoonest) || this.isPast(p.registrationExpiry);
+				// reads differently from "not configured yet". The event-over case is no longer
+				// tested here — that's the server's eventConcluded bit (→ the 'concluded' phase
+				// above), so this only distinguishes a closed team reg-window from "coming soon".
+				const closed = p.publicSuspended || this.isPast(p.playerRegClosesSoonest);
 				return closed
 					? { icon: 'bi-lock', headline: 'Registration is closed', sub: 'The game schedule will be posted here once it’s set.' }
 					: { icon: 'bi-hourglass', headline: 'This event is coming soon', sub: 'Details will appear here as they’re announced.' };

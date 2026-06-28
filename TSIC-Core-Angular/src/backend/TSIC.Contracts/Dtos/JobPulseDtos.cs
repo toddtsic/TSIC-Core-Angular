@@ -90,6 +90,53 @@ public record JobPulseDto
     public DateTime? LastGameDate { get; init; }
 
     /// <summary>
+    /// Director-stated event start (Jobs.EventStartDate), or null. NOT an EventConcluded input
+    /// (start-passed ≠ over). Used as a VETO in derivePhase's residual tail: a start date in the
+    /// future blocks the participation signal from mislabeling a still-upcoming event 'concluded'
+    /// (the "took early signups then paused, no end date" case). Render-only otherwise.
+    /// </summary>
+    public DateTime? EventStartDate { get; init; }
+
+    /// <summary>
+    /// Director-stated event end (Jobs.EventEndDate), or null. An input to EventConcluded:
+    /// when no published schedule exists, this is the authoritative "over" signal that the
+    /// generous ExpiryUsers window (set ~a year out on purpose) misses. Render-only on the FE
+    /// (countdowns) — never compared to now for a gating decision outside EventConcluded.
+    /// </summary>
+    public DateTime? EventEndDate { get; init; }
+
+    /// <summary>
+    /// Server-authoritative "the event is over" bit — the SINGLE source the FE consumes for
+    /// the lifecycle gate (no client-clock recompute → no timezone/day-boundary drift). Computed
+    /// by TSIC.Domain.JobRules.JobLifecycle.EventConcluded over the fact hierarchy
+    /// (published lastGameDate → EventEndDate → ExpiryUsers fallback). When true (or superseded),
+    /// the create fields below are already folded to false — the same door the write authority
+    /// enforces, so a disabled button and a refused write can never disagree.
+    /// </summary>
+    public required bool EventConcluded { get; init; }
+
+    /// <summary>
+    /// True when the job has at least one ACTIVE non-admin registration (Player / ClubRep /
+    /// Staff / Referee / Recruiter / Family / UnassignedAdult — excluding admins and store-
+    /// purchase shells). Resolves the ONE residual new-vs-concluded ambiguity: a job with no
+    /// date signal at all (no EventEndDate, no published schedule, future ExpiryUsers) is
+    /// fact-identical to a brand-new not-yet-open job EXCEPT that a finished event accumulated
+    /// real participants and a new one has none. DISPLAY-ONLY — consumed by derivePhase's
+    /// quiet tail (registration not open) to label such a job 'concluded' vs 'coming soon';
+    /// NEVER a write gate (the authority stays permissive in the residual).
+    /// </summary>
+    public required bool HasNonAdminActivity { get; init; }
+
+    /// <summary>
+    /// The event's calendar year (Jobs.Year), parsed to an int — null when Jobs.Year isn't a
+    /// clean number ("isNumeric" guard). The most decisive residual signal in derivePhase: a
+    /// prior year (&lt; now.year) means the event is over (overrides even a stale registration
+    /// toggle — "last year's job"); a future year vetoes the participation signal. Year
+    /// granularity ⇒ DISPLAY-ONLY; writes stay on real dates (EventConcluded), never the year.
+    /// </summary>
+    public int? EventYear { get; init; }
+
+    /// <summary>
     /// When set, a later-year sibling event (same customer, same name prefix
     /// with the year stripped) is currently accepting registration. Treat the
     /// current job as superseded — hide registration CTAs and surface a
