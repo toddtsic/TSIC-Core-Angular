@@ -1,5 +1,5 @@
 @if (hasContent()) {
-	<section class="rp" aria-label="Registration">
+	<section class="rp" [attr.aria-label]="title()">
 		<div class="rp__inner">
 			<header class="rp__head">
 				<span class="rp__icon" aria-hidden="true"><i class="bi bi-person-vcard"></i></span>
@@ -71,6 +71,13 @@
 					<div class="rp__section rp__section--teams">
 						<h4 class="rp__section-title">Teams</h4>
 						<div class="rp__links">
+							@if (showMyTeams()) {
+								<a class="rp__link rp__link--my-teams" [routerLink]="myTeamsLink()" [queryParams]="{ step: 'teams' }">
+									<i class="bi bi-people rp__link-icon" aria-hidden="true"></i>
+									<span class="rp__link-label">My Teams</span>
+									<i class="bi bi-arrow-right rp__link-go" aria-hidden="true"></i>
+								</a>
+							}
 							@if (showRegisterTeam()) {
 								<a class="rp__link rp__link--register-team" [routerLink]="teamRegLink()">
 									<i class="bi bi-people rp__link-icon" aria-hidden="true"></i>

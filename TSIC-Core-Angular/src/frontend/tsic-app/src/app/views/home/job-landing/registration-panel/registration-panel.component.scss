@@ -85,72 +85,71 @@
 .rp__section--manage   { --rp-accent: var(--bs-info); }
 .rp__section--teams    { --rp-accent: #5c626d; } // gray, matching the Teams badges
 
-// Player/Adult — the standout: white content on a GRADED BLUE fill. The gradient
-// is derived from --bs-primary (mixed toward surface/text) so it stays palette-
-// and light/dark-aware. White text is the on-primary convention.
+// ════════════════════════════════════════════════════════════
+//  Filled-link archetype
+//  ─────────────────────
+//  The colored "standout" links (Player/Adult, Register Team, My Teams, Public
+//  Rosters) are all ONE shape: a gradient fill + matching border + white-or-dark
+//  text + a hover (brightness, optional lift/glow). Captured as a mixin so each
+//  variant is a single call and every color lives in exactly ONE place — no more
+//  teal-defined-twice drift, no cascade-coupled "load-bearing dead" base rule.
+//
+//  The hand-tuned teal/mint literals are Ann-approved exceptions where the --bs-*
+//  semantic palette doesn't fit; the BLUE is palette-derived so it stays theme-aware.
+// ════════════════════════════════════════════════════════════
+$rp-teal-grad: linear-gradient(160deg, #0c7d72 0%, #0a5b54 100%);
+$rp-teal-border: #07463f;
+$rp-teal-hover-border: #0a5b54;
+$rp-teal-glow: rgba(12, 125, 114, 0.45);
+
+$rp-mint-grad: linear-gradient(160deg, #e8fce9 0%, #d6f5da 100%);
+$rp-mint-border: #bfe9c6;
+$rp-mint-hover-border: #86d99a;
+$rp-mint-text: #14532d; // deep green — readable on the pale mint
+$rp-mint-icon: #16a34a;
+
+@mixin rp-fill($grad, $border, $hover-border: $border, $text: #fff, $icon: #fff, $brightness: 1.1, $glow: null) {
+	background: $grad;
+	border-color: $border;
+	color: $text;
+
+	.rp__link-icon { color: $icon; }
+
+	&:hover {
+		background: $grad;
+		border-color: $hover-border;
+		filter: brightness($brightness);
+		@if $glow {
+			transform: translateY(-1px);
+			box-shadow: 0 6px 16px $glow;
+		}
+	}
+}
+
+// Player/Adult — the standout: white content on a GRADED BLUE fill, derived from
+// --bs-primary (mixed toward surface/text) so it stays palette- and light/dark-aware.
 .rp__section--register .rp__link {
 	--reg-grad: linear-gradient(160deg,
 		color-mix(in srgb, var(--bs-primary) 82%, var(--brand-surface)) 0%,
 		var(--bs-primary) 55%,
 		color-mix(in srgb, var(--bs-primary) 78%, var(--brand-text)) 100%);
-	background: var(--reg-grad);
-	border-color: var(--bs-primary);
-	color: #fff; // on-primary convention
-
-	.rp__link-icon { color: #fff; }
-
-	&:hover {
-		background: var(--reg-grad);
-		border-color: var(--bs-primary);
-		filter: brightness(1.07);
-	}
+	@include rp-fill(var(--reg-grad), var(--bs-primary), $brightness: 1.07);
 }
 
-// Teams — graded GRAY fill, white content (Register Team uses this).
-.rp__section--teams .rp__link {
-	--teams-grad: linear-gradient(160deg, #717784 0%, #4c515b 100%);
-	background: var(--teams-grad);
-	border-color: #4c515b;
-	color: #fff;
-
-	.rp__link-icon { color: #fff; }
-
-	&:hover {
-		background: var(--teams-grad);
-		border-color: #4c515b;
-		filter: brightness(1.08);
-	}
+// Register Team + My Teams — the SAME bold teal standout (Ann ties the two team
+// actions together): a blue-green that sits well beside the Player/Adult blue, dark
+// enough for WHITE text to clear WCAG AA, with a brightness lift + teal glow on hover.
+.rp__section--teams .rp__link--register-team,
+.rp__section--teams .rp__link--my-teams {
+	@include rp-fill($rp-teal-grad, $rp-teal-border,
+		$hover-border: $rp-teal-hover-border, $brightness: 1.14, $glow: $rp-teal-glow);
 }
 
-// Register Team — the BOLD darker fill now (Ann's final swap): a TEAL blue-green that
-// sits well beside the blue Player/Adult column, dark enough for WHITE text to clear
-// WCAG AA, white icon, with a brightness lift + teal glow on hover.
-.rp__section--teams .rp__link--register-team {
-	--teams-grad: linear-gradient(160deg, #0c7d72 0%, #0a5b54 100%);
-	border-color: #07463f;
-	color: #fff;
-
-	.rp__link-icon { color: #fff; }
-
-	&:hover {
-		border-color: #0a5b54;
-		filter: brightness(1.14);
-		transform: translateY(-1px);
-		box-shadow: 0 6px 16px rgba(12, 125, 114, 0.45);
-	}
-}
-
-// Public Rosters — the PALE tint now: a pale GREEN mint with deep-green text +
-// medium-green icon. (The greener shade keeps it distinct from the cyan Manage tint
-// on "Change Team or Uniform #".)
+// Public Rosters — the PALE mint tint: deep-green text + medium-green icon (kept
+// distinct from the cyan Manage tint). Subtle hover — brightness only, no lift/glow.
 .rp__section--teams .rp__link--public-rosters {
-	--teams-grad: linear-gradient(160deg, #e8fce9 0%, #d6f5da 100%);
-	border-color: #bfe9c6;
-	color: #14532d; // deep green — readable on the pale mint
-
-	.rp__link-icon { color: #16a34a; }
-
-	&:hover { border-color: #86d99a; }
+	@include rp-fill($rp-mint-grad, $rp-mint-border,
+		$hover-border: $rp-mint-hover-border, $text: $rp-mint-text, $icon: $rp-mint-icon, $brightness: 1.08);
 }
 
 .rp__links {
