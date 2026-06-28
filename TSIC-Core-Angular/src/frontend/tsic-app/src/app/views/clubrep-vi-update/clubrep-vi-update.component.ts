@@ -270,12 +270,26 @@ export class ClubRepVIUpdateComponent implements OnDestroy {
             ?? '';
         this.jobPath.set(jp);
 
-        // Legacy parity: unconditionally sign out any authenticated user on entry.
-        // The email link is a persistent attack surface — we always want an explicit
-        // password re-challenge before building an insurance offer.
-        if (this.auth.isAuthenticated()) {
-            this.auth.logoutLocal();
+        // Inherit an existing session. This page is surfaced by the role-specific smart
+        // bulletin's "Add Team RegSaver" row, which only renders for an already logged-in
+        // club rep — so the click arrives authenticated. Wiping that session (the legacy
+        // unconditional logout) destroyed the caller's auth context on return. A logged-in
+        // club rep already holds a regId- and jobPath-bearing JWT for THIS job — exactly
+        // what team/pre-submit needs — so we skip both the login challenge AND
+        // set-clubrep-context (which would re-mint the token). A true-anonymous visitor has
+        // no session and still gets the login form (state defaults to 'login').
+        const u = this.auth.currentUser();
+        if (u?.regId && u.jobPath?.toLowerCase() === jp.toLowerCase()) {
+            this.loadOfferFromInheritedSession();
         }
+    }
+
+    /** Inherited-session path: the club rep's token is already regId- and jobPath-scoped to
+     *  this job, so go straight to the offer — no set-clubrep-context, no token rewrite.
+     *  Mirrors upgradeTokenAndLoadOffer() minus the upgrade. */
+    private loadOfferFromInheritedSession(): void {
+        this.state.set('loading');
+        this.fetchOffer();
     }
 
     ngOnDestroy(): void {

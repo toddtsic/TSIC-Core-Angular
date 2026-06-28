@@ -284,12 +284,29 @@ export class PlayerVIUpdateComponent implements OnDestroy {
         this.jobPath.set(jp);
         this.jobCtx.setJobPath(jp);
 
-        // Legacy parity: unconditionally sign out any authenticated user on entry.
-        // The email link is a persistent attack surface — we always want an explicit
-        // password re-challenge before building an insurance offer.
-        if (this.auth.isAuthenticated()) {
-            this.auth.logoutLocal();
+        // Inherit an existing session. This page is surfaced by the role-specific smart
+        // bulletin's "Add RegSaver Insurance" row, which only renders for an already
+        // logged-in player/family — so the click arrives authenticated. Wiping that
+        // session (the legacy unconditional logout) destroyed the caller's auth context:
+        // on return the landing reverted from "My Registration" to the anonymous register
+        // link. The offer endpoint authorizes on sub + the jobPath claim, both of which the
+        // inherited full JWT already carries for THIS job — so we skip both the login
+        // challenge AND the token-downgrading set-wizard-context (which would strip regId).
+        // A true-anonymous visitor (e.g. the email link) has no session and still gets the
+        // login form (state defaults to 'login').
+        const u = this.auth.currentUser();
+        if (u && u.jobPath?.toLowerCase() === jp.toLowerCase()) {
+            this.loadOfferFromInheritedSession();
         }
+    }
+
+    /** Inherited-session path: the token is already family-scoped to this job (sub + jobPath
+     *  claims), so go straight to the offer — no set-wizard-context, no token rewrite, regId
+     *  preserved. Mirrors upgradeTokenAndLoadOffer() minus the upgrade. */
+    private loadOfferFromInheritedSession(): void {
+        this.state.set('loading');
+        this.fp.loadFamilyPlayers(this.jobPath(), `${environment.apiUrl}`);
+        this.fetchOffer();
     }
 
     ngOnDestroy(): void {

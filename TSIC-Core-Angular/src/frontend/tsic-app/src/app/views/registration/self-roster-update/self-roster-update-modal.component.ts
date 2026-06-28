@@ -262,12 +262,29 @@ export class SelfRosterUpdateModalComponent {
     readonly password = signal('');
     readonly showPassword = signal(false);
 
+    /** True only when WE authenticated inside this modal (anonymous entry → login).
+     *  Lets close() tear down the session we created without disturbing an inherited one. */
+    private loggedInHere = false;
+
     constructor() {
-        // Always start fresh: logout any prior session
-        this.auth.logoutLocal();
+        // Inherit an existing session when the modal opens from a logged-in context.
+        // The self-roster endpoints authorize on the family id in `sub`, which every
+        // authenticated token (phase-1 or full JWT) already carries — so a logged-in
+        // family skips the password re-challenge. Crucially we do NOT logoutLocal() an
+        // inherited session, so the caller's auth context survives the round-trip: the
+        // landing still shows "My Registration", not the anonymous register link, on
+        // return. Only a true-anonymous visitor falls through to the login form
+        // (phase defaults to 'login').
+        if (this.auth.isAuthenticated()) {
+            this.phase.set('loading');
+            this.loadPlayers();
+        }
     }
 
     close(): void {
+        // Return the app to the auth context we found it in: tear down only a session WE
+        // created here (anonymous → login), never an inherited one.
+        if (this.loggedInHere) this.auth.logoutLocal();
         this.modalService.close();
     }
 
@@ -279,6 +296,7 @@ export class SelfRosterUpdateModalComponent {
         this.auth.login({ username: this.username(), password: this.password() }).subscribe({
             next: () => {
                 this.loggingIn.set(false);
+                this.loggedInHere = true; // we created this session — close() tears it down
                 this.password.set('');
                 this.phase.set('loading');
                 this.loadPlayers();
