@@ -5,7 +5,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import { isTournament, isLeague } from '@infrastructure/constants/job-type.constants';
-import { CTAS_BY_PHASE, derivePhase } from '@shared/landing/landing-phase';
+import { CTAS_BY_PHASE, derivePhase, isPlayerRegistrationEffectivelyOpen } from '@shared/landing/landing-phase';
 import { RegistrationPanelComponent } from '@views/home/job-landing/registration-panel/registration-panel.component';
 import { GameDayPanelComponent } from '@views/home/job-landing/game-day-panel/game-day-panel.component';
 import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
@@ -106,13 +106,13 @@ export class SmartBulletinsComponent {
 		const isPlayerOrFamily = !pub && (user?.role === Roles.Player || user?.role === Roles.Family);
 
 		const hasSelfRoster = !registered && (
-			(allowed.has('register-player') && p.playerRegistrationOpen) ||
+			(allowed.has('register-player') && isPlayerRegistrationEffectivelyOpen(p)) ||
 			(allowed.has('register-team') && p.teamRegistrationOpen) ||
 			(allowed.has('register-coach') && p.staffRegistrationOpen) ||
 			(allowed.has('register-referee') && p.refereeRegistrationOpen) ||
 			(allowed.has('register-recruiter') && p.recruiterRegistrationOpen));
 		const hasManage =
-			(allowed.has('register-player') && p.playerRegistrationOpen) ||  // self-roster-update
+			(allowed.has('register-player') && isPlayerRegistrationEffectivelyOpen(p)) ||  // self-roster-update
 			(registered && isPlayerOrFamily && (
 				allowed.has('my-registration') ||
 				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0) ||

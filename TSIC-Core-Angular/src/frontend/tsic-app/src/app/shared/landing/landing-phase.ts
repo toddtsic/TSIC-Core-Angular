@@ -49,6 +49,22 @@ export function startOfDay(d: Date): Date {
 }
 
 /**
+ * Canonical "a player can register right now" predicate — the SINGLE source of truth shared
+ * by derivePhase (below), the registration-panel cards, and the player wizard's
+ * `registrationClosed` gate. The invite guard enforces the same rule (by pulse-key config).
+ *
+ * Player registration is TEAM-LEVEL: a player registers ONTO a team, valid only while that
+ * team is within its registration-availability window (Teams.Effectiveasofdate..Expireondate),
+ * surfaced as `playerTeamsAvailableForRegistration`. The job-level toggle being on is NOT
+ * enough — with no team in-window the wizard shows "registration closed", so a card/phase that
+ * keys off the toggle alone would disagree with the wizard (e.g. a showcase whose team windows
+ * have all passed). Routing every landing consumer through this one function keeps them in lockstep.
+ */
+export function isPlayerRegistrationEffectivelyOpen(p: JobPulseDto | null): boolean {
+	return !!p && p.playerRegistrationOpen && p.playerTeamsAvailableForRegistration;
+}
+
+/**
  * Resolve the lifecycle phase from the live pulse. Pure: same pulse + same day
  * always yields the same phase. First match wins — a finished event (concluded)
  * or an in-progress one (inSeason) outranks the registration flags, so a Register
@@ -69,9 +85,10 @@ export function derivePhase(p: JobPulseDto | null, now: Date): EventPhase {
 	// No schedule published → residual zone. "Concluded" is NOT decided here: it is the
 	// backend's call alone (pulse.eventConcluded, checked above). The frontend must never
 	// re-derive "event is over" from raw dates, the event year, or participation — doing so
-	// lets the page contradict the backend authority. The only signals we read here are the
-	// live registration flags.
-	if (p.playerRegistrationOpen || p.teamRegistrationOpen || (p.myClubRepTeamCount ?? 0) > 0) return 'registrationOpen';
+	// lets the page contradict the backend authority. The signals we read here are the live
+	// registration flags — player reg via the canonical predicate (toggle AND a team in-window)
+	// so the phase never disagrees with the cards/wizard that share the same function.
+	if (isPlayerRegistrationEffectivelyOpen(p) || p.teamRegistrationOpen || (p.myClubRepTeamCount ?? 0) > 0) return 'registrationOpen';
 	if (p.playerRegistrationPlanned || p.adultRegistrationPlanned || p.playerRegOpensSoonest != null) return 'planned';
 	return 'preview';
 }

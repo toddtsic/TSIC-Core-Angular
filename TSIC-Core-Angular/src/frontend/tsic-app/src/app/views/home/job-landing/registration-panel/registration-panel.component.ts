@@ -5,7 +5,7 @@ import { AuthService } from '@infrastructure/services/auth.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import { isTournament, isLeague } from '@infrastructure/constants/job-type.constants';
-import { derivePhase } from '@shared/landing/landing-phase';
+import { derivePhase, isPlayerRegistrationEffectivelyOpen } from '@shared/landing/landing-phase';
 import { SelfRosterUpdateModalService } from '@views/registration/self-roster-update/self-roster-update-modal.service';
 
 interface RegLink {
@@ -113,12 +113,12 @@ export class RegistrationPanelComponent {
 		const t = this.tournament();
 		const comp = this.competitive();
 		const links: RegLink[] = [];
-		// playerTeamsAvailableForRegistration mirrors the wizard's `registrationClosed` gate
-		// and the invite guard: the job toggle being on isn't enough — at least one team must
-		// be within its registration-availability window (Teams.Effectiveasofdate..Expireondate),
-		// else the click dead-ends on the wizard's "registration closed" panel. A showcase whose
-		// team windows have all passed must NOT show this card.
-		if (allowed.has('register-player') && p.playerRegistrationOpen && p.playerTeamsAvailableForRegistration) {
+		// isPlayerRegistrationEffectivelyOpen = the canonical predicate shared with derivePhase,
+		// the player wizard's `registrationClosed` gate, and the invite guard: the job toggle being
+		// on isn't enough — at least one team must be within its registration-availability window
+		// (Teams.Effectiveasofdate..Expireondate), else the click dead-ends on the wizard's
+		// "registration closed" panel. A showcase whose team windows have all passed must NOT show this.
+		if (allowed.has('register-player') && isPlayerRegistrationEffectivelyOpen(p)) {
 			links.push({ key: 'player', label: t ? 'Self-Roster Player' : 'Register Player',
 				icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
 		}
@@ -145,8 +145,8 @@ export class RegistrationPanelComponent {
 	// leagues/clubs/camps don't self-roster onto teams, so the link never appears there.
 	private readonly showChange = computed(() =>
 		this.tournament()
-		&& this.allowedKeys().has('register-player') && !!this.pulse()?.playerRegistrationOpen
-		&& !!this.pulse()?.playerTeamsAvailableForRegistration
+		&& this.allowedKeys().has('register-player')
+		&& isPlayerRegistrationEffectivelyOpen(this.pulse())
 		&& !this.isClubRep());
 
 	// ── Manage section — the support-call-killing self-service hub ───────────────

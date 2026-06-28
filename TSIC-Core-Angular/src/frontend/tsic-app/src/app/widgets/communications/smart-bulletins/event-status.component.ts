@@ -49,7 +49,7 @@ export class EventStatusComponent {
 				// above), so this only distinguishes a closed team reg-window from "coming soon".
 				const closed = p.publicSuspended || this.isPast(p.playerRegClosesSoonest);
 				return closed
-					? { icon: 'bi-lock', headline: 'Registration is closed', sub: 'The game schedule will be posted here once it’s set.' }
+					? { icon: 'bi-lock', headline: 'Registration is closed', sub: 'This event isn’t currently accepting new registrations.' }
 					: { icon: 'bi-hourglass', headline: 'This event is coming soon', sub: 'Details will appear here as they’re announced.' };
 			}
 			case 'concluded':

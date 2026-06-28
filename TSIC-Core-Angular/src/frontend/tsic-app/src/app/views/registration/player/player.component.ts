@@ -17,6 +17,7 @@ import { ReviewStepComponent } from './steps/review-step.component';
 import { PaymentStepComponent } from './steps/payment-step.component';
 import { ConfirmationStepComponent } from './steps/confirmation-step.component';
 import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-shell.types';
+import { isPlayerRegistrationEffectivelyOpen } from '@shared/landing/landing-phase';
 
 @Component({
     selector: 'app-registration-player',
@@ -99,8 +100,8 @@ export class PlayerWizardV2Component implements OnInit {
      */
     readonly registrationClosed = computed(() => {
         const p = this.jobPulseService.pulse();
-        if (!p) return false;
-        return !p.playerRegistrationOpen || !p.playerTeamsAvailableForRegistration;
+        if (!p) return false; // pulse not loaded yet — render optimistically, don't flash "closed"
+        return !isPlayerRegistrationEffectivelyOpen(p);
     });
 
     goToJobHome(): void {
