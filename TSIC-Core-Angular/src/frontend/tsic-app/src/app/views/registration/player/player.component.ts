@@ -92,15 +92,34 @@ export class PlayerWizardV2Component implements OnInit {
     readonly state = inject(PlayerWizardStateService);
 
     /**
+     * True when the viewer already holds a registration in THIS job — a phase-2 token
+     * (regId claim, bound to this jobPath) for the Family/Player role. Such a viewer
+     * reached the wizard via "My Registration" to review / pay / manage what already
+     * exists, so the new-signup closed gate must not bar them. Their granular CRUD
+     * (add a new player, edit, cancel) is enforced canonically server-side by
+     * IJobRegistrationCapabilities (CanRegisterPlayer); payment is never gated. This
+     * door only stops a brand-new signup with nothing here yet.
+     */
+    private readonly hasExistingRegistration = computed(() => {
+        const u = this.authService.currentUser();
+        if (!u?.regId) return false;
+        const validRole = u.role === 'Family' || u.role === 'Player';
+        const sameJob = u.jobPath?.toLowerCase() === this.resolveJobPath().toLowerCase();
+        return validRole && sameJob;
+    });
+
+    /**
      * True when the job's pulse says player registration is effectively closed:
      * either the admin toggle is off, or no team is currently within its
      * registration-availability window. Null pulse (not yet loaded) is not
      * treated as closed — we render the wizard optimistically and swap to the
-     * closed panel if the pulse later confirms closure.
+     * closed panel if the pulse later confirms closure. An existing registrant is
+     * always let in (they came to manage what exists, not to start a new signup).
      */
     readonly registrationClosed = computed(() => {
         const p = this.jobPulseService.pulse();
         if (!p) return false; // pulse not loaded yet — render optimistically, don't flash "closed"
+        if (this.hasExistingRegistration()) return false; // managing an existing reg, not a new signup
         return !isPlayerRegistrationEffectivelyOpen(p);
     });
 
