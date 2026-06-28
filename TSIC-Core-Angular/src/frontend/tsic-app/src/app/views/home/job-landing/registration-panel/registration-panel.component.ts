@@ -113,7 +113,12 @@ export class RegistrationPanelComponent {
 		const t = this.tournament();
 		const comp = this.competitive();
 		const links: RegLink[] = [];
-		if (allowed.has('register-player') && p.playerRegistrationOpen) {
+		// playerTeamsAvailableForRegistration mirrors the wizard's `registrationClosed` gate
+		// and the invite guard: the job toggle being on isn't enough — at least one team must
+		// be within its registration-availability window (Teams.Effectiveasofdate..Expireondate),
+		// else the click dead-ends on the wizard's "registration closed" panel. A showcase whose
+		// team windows have all passed must NOT show this card.
+		if (allowed.has('register-player') && p.playerRegistrationOpen && p.playerTeamsAvailableForRegistration) {
 			links.push({ key: 'player', label: t ? 'Self-Roster Player' : 'Register Player',
 				icon: 'bi-person-plus', routerLink: `${base}/registration/player` });
 		}
@@ -141,6 +146,7 @@ export class RegistrationPanelComponent {
 	private readonly showChange = computed(() =>
 		this.tournament()
 		&& this.allowedKeys().has('register-player') && !!this.pulse()?.playerRegistrationOpen
+		&& !!this.pulse()?.playerTeamsAvailableForRegistration
 		&& !this.isClubRep());
 
 	// ── Manage section — the support-call-killing self-service hub ───────────────
