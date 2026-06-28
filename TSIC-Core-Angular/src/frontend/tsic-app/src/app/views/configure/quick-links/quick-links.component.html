@@ -61,8 +61,9 @@
 		</div>
 
 		<!-- Not-applicable toggles (wrong job type, or fees not configured) collapsed into an
-		     accordion so they don't clutter the go-live view, but stay discoverable for debugging. -->
-		@if (unavailableToggles().length) {
+		     accordion so they don't clutter the go-live view, but stay discoverable for debugging.
+		     SuperUser-ONLY: it's a debugging aid; regular admins only see the toggles that apply. -->
+		@if (isSuperUser() && unavailableToggles().length) {
 			<section class="ql-unavailable">
 				<button type="button" class="ql-unavailable-toggle"
 					(click)="toggleUnavailable()" [attr.aria-expanded]="showUnavailable()">
