@@ -60,6 +60,19 @@
 			cursor: default;
 		}
 	}
+
+	// Toggle that can't be configured for this job (wrong job type, or fees not set).
+	// Shown DISABLED with a reason rather than hidden, so it's always discoverable and
+	// its stored flag value stays visible. Dashed border distinguishes it from active rows.
+	&.is-unavailable {
+		opacity: 0.65;
+		border-style: dashed;
+		background: var(--bs-body-bg);
+
+		.toggle-control {
+			cursor: default;
+		}
+	}
 }
 
 // "SuperUser only" pill on a locked toggle.
@@ -122,6 +135,20 @@
 	padding-left: calc(2.5rem + var(--space-3));
 }
 
+// Why a toggle is unavailable (disabled-not-hidden). Neutral/informational.
+.toggle-unavailable {
+	display: flex;
+	align-items: flex-start;
+	color: var(--brand-text-muted);
+	font-size: 0.825rem;
+	padding-left: calc(2.5rem + var(--space-3));
+
+	i {
+		flex: 0 0 auto;
+		margin-top: 0.1em;
+	}
+}
+
 // Fact-derived caution (e.g. coach reg released with no teams). Informative, not blocking.
 .toggle-warn {
 	display: flex;
@@ -134,6 +161,38 @@
 		flex: 0 0 auto;
 		margin-top: 0.1em;
 	}
+}
+
+// Accordion isolating the not-applicable (disabled) toggles, collapsed by default so the
+// top list previews the eventual go-live view (only applicable toggles, together).
+.ql-unavailable {
+	margin-top: var(--space-4);
+	border-top: 1px solid var(--bs-border-color);
+	padding-top: var(--space-3);
+}
+
+.ql-unavailable-toggle {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2);
+	width: 100%;
+	padding: var(--space-2) var(--space-1);
+	background: transparent;
+	border: none;
+	color: var(--brand-text-muted);
+	font-size: 0.85rem;
+	font-weight: 600;
+	cursor: pointer;
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--bs-border-radius-sm);
+	}
+}
+
+.ql-list--unavailable {
+	margin-top: var(--space-3);
 }
 
 @media (prefers-reduced-motion: reduce) {

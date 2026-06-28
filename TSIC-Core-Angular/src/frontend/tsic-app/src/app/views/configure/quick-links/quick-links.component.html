@@ -16,31 +16,67 @@
 			<i class="bi bi-exclamation-triangle me-2"></i>Could not load this job's settings.
 		</div>
 	} @else if (ready()) {
-		<div class="ql-list">
-			@for (t of toggles(); track t.key) {
-				@let locked = !!t.superUserOnly && !isSuperUser();
-				<div class="toggle-row" [class.is-on]="isOn(t.key)" [class.is-off]="!isOn(t.key)" [class.is-locked]="locked">
-					<label class="toggle-control">
-						<input type="checkbox"
-							[ngModel]="isOn(t.key)"
-							[disabled]="savingKey() !== null || locked"
-							(ngModelChange)="onToggle(t.key, $event)" />
-						<span class="field-label"><i class="bi {{ t.icon }} me-2"></i>{{ t.label }}</span>
-						@if (locked) {
-							<span class="toggle-su-badge"><i class="bi bi-lock-fill me-1"></i>SuperUser only</span>
-						}
-						@if (savingKey() === t.key) {
-							<span class="spinner-border spinner-border-sm ql-row-spinner" aria-label="Saving"></span>
-						}
-					</label>
+		<!-- One shared row definition, rendered into both the applicable list and the accordion. -->
+		<ng-template #row let-t>
+			@let locked = !!t.superUserOnly && !isSuperUser();
+			@let blocked = !!t.unavailable;
+			<div class="toggle-row"
+				[class.is-on]="isOn(t.key)" [class.is-off]="!isOn(t.key)"
+				[class.is-locked]="locked" [class.is-unavailable]="blocked">
+				<label class="toggle-control">
+					<input type="checkbox"
+						[ngModel]="isOn(t.key)"
+						[disabled]="savingKey() !== null || locked || blocked"
+						(ngModelChange)="onToggle(t.key, $event)" />
+					<span class="field-label"><i class="bi {{ t.icon }} me-2"></i>{{ t.label }}</span>
+					@if (locked) {
+						<span class="toggle-su-badge"><i class="bi bi-lock-fill me-1"></i>SuperUser only</span>
+					}
+					@if (savingKey() === t.key) {
+						<span class="spinner-border spinner-border-sm ql-row-spinner" aria-label="Saving"></span>
+					}
+				</label>
+				@if (blocked) {
+					<!-- Disabled-not-hidden: say WHY it can't be configured, and surface the
+					     stored flag value (the checkbox above still reflects it) for debugging. -->
+					<span class="toggle-unavailable" role="note">
+						<i class="bi bi-info-circle me-1"></i>{{ t.unavailable }}
+					</span>
+				} @else {
 					<span class="toggle-tip">{{ isOn(t.key) ? t.onTip : t.offTip }}</span>
 					@if (t.warn && isOn(t.key)) {
 						<span class="toggle-warn" role="alert">
 							<i class="bi bi-exclamation-triangle me-1"></i>{{ t.warn }}
 						</span>
 					}
-				</div>
+				}
+			</div>
+		</ng-template>
+
+		<!-- Applicable toggles — the eventual go-live view; these stay together. -->
+		<div class="ql-list">
+			@for (t of availableToggles(); track t.key) {
+				<ng-container *ngTemplateOutlet="row; context: { $implicit: t }"></ng-container>
 			}
 		</div>
+
+		<!-- Not-applicable toggles (wrong job type, or fees not configured) collapsed into an
+		     accordion so they don't clutter the go-live view, but stay discoverable for debugging. -->
+		@if (unavailableToggles().length) {
+			<section class="ql-unavailable">
+				<button type="button" class="ql-unavailable-toggle"
+					(click)="toggleUnavailable()" [attr.aria-expanded]="showUnavailable()">
+					<i class="bi" [class.bi-chevron-right]="!showUnavailable()" [class.bi-chevron-down]="showUnavailable()"></i>
+					<span>Not applicable to this job ({{ unavailableToggles().length }})</span>
+				</button>
+				@if (showUnavailable()) {
+					<div class="ql-list ql-list--unavailable">
+						@for (t of unavailableToggles(); track t.key) {
+							<ng-container *ngTemplateOutlet="row; context: { $implicit: t }"></ng-container>
+						}
+					</div>
+				}
+			</section>
+		}
 	}
 </div>
