@@ -13,7 +13,10 @@ import { Subject, Subscription, interval, takeUntil } from 'rxjs';
 import type { GameClockAvailableGameTimesDto, GameClockConfigDto } from '@core/api';
 import { ViewScheduleService } from '../services/view-schedule.service';
 
-type InlineStatus = 'hidden' | 'loading' | 'active' | 'completed';
+// No 'completed' state: once there's no active/upcoming game to count down to, the
+// clock hides. "The event is over" is the backend's call alone (pulse.eventConcluded,
+// surfaced as the concluded bulletin) — the live clock must not post a competing verdict.
+type InlineStatus = 'hidden' | 'loading' | 'active';
 
 interface InlineActiveGame {
     gameStart: Date;
@@ -33,7 +36,7 @@ interface InlineActiveGame {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
         @if (status() !== 'hidden') {
-            <button type="button" class="inline-clock" [class.completed]="status() === 'completed'"
+            <button type="button" class="inline-clock"
                     (click)="onClick()" aria-label="Open game clock">
                 @if (status() === 'active' && activeGame(); as ag) {
                     <div class="clock-left">
@@ -67,11 +70,6 @@ interface InlineActiveGame {
                             <div class="time-value">{{ ag.remainingSeconds | number: '2.0-0' }}</div>
                             <div class="time-label">SEC</div>
                         </div>
-                    </div>
-                } @else if (status() === 'completed') {
-                    <div class="state-chip" data-state="completed">
-                        <span class="state-dot"></span>
-                        <span class="state-text">COMPLETED</span>
                     </div>
                 } @else if (status() === 'loading') {
                     <div class="state-chip" data-state="upcoming">
@@ -110,9 +108,6 @@ interface InlineActiveGame {
             outline: none;
             box-shadow: var(--shadow-focus);
         }
-        .inline-clock.completed {
-            padding: var(--space-1) var(--space-2);
-        }
 
         .clock-left {
             display: flex;
@@ -147,7 +142,6 @@ interface InlineActiveGame {
         .state-chip[data-state="live"]       { color: var(--bs-danger); }
         .state-chip[data-state="halftime"]   { color: var(--bs-warning); }
         .state-chip[data-state="transition"] { color: var(--bs-secondary-color); }
-        .state-chip[data-state="completed"]  { color: var(--bs-secondary-color); }
 
         @media (prefers-reduced-motion: no-preference) {
             .state-chip[data-state="live"] .state-dot {
@@ -334,7 +328,7 @@ export class InlineGameClockComponent implements OnInit, OnDestroy {
 
         if (rrGames.length === 0) {
             this.stopCountdown();
-            this.status.set('completed');
+            this.status.set('hidden'); // no games left to count down → go quiet (no verdict)
             this.activeGame.set(null);
             return;
         }
@@ -353,7 +347,7 @@ export class InlineGameClockComponent implements OnInit, OnDestroy {
         const phase = this.calculateInterval(gameStart, now, intervals, isRoundRobin);
         if (!phase) {
             this.stopCountdown();
-            this.status.set('completed');
+            this.status.set('hidden'); // window elapsed, nothing live → go quiet (no verdict)
             this.activeGame.set(null);
             return;
         }

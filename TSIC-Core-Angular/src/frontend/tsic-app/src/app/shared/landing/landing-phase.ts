@@ -11,7 +11,7 @@ import type { JobPulseDto } from '@core/api';
  */
 export type EventPhase =
 	| 'superseded'       // a live later-year sibling exists — page redirects to it
-	| 'concluded'        // schedule published AND the last game day has fully passed
+	| 'concluded'        // the backend's eventConcluded answer — the ONLY source of "event is over"
 	| 'inSeason'         // schedule published AND the first game day has arrived
 	| 'preEvent'         // schedule published, first game still in the future
 	| 'registrationOpen' // registration (player/team) accepting, or a club rep with teams
@@ -64,24 +64,12 @@ export function derivePhase(p: JobPulseDto | null, now: Date): EventPhase {
 	const firstGame = p.firstGameDate ? startOfDay(new Date(p.firstGameDate)).getTime() : null;
 	if (p.schedulePublished && firstGame !== null && firstGame <= today) return 'inSeason';
 	if (p.schedulePublished) return 'preEvent';
-	// No schedule published → residual zone (eventConcluded couldn't fire: no EventEndDate, no
-	// schedule, future ExpiryUsers). The numeric event-year is the most decisive signal here.
-	const nowYear = now.getFullYear();
-	const year = p.eventYear ?? null; // server-parsed; null when Jobs.Year wasn't numeric
-	// A PRIOR-year job is over — "last year's job." This beats even a stale registration toggle
-	// (showing "Register for the 2025 event" in 2026 is just wrong), so it sits BEFORE the
-	// registration-open check. Display-only; the write authority still keys off real dates.
-	if (year !== null && year < nowYear) return 'concluded';
+	// No schedule published → residual zone. "Concluded" is NOT decided here: it is the
+	// backend's call alone (pulse.eventConcluded, checked above). The frontend must never
+	// re-derive "event is over" from raw dates, the event year, or participation — doing so
+	// lets the page contradict the backend authority. The only signals we read here are the
+	// live registration flags.
 	if (p.playerRegistrationOpen || p.teamRegistrationOpen || (p.myClubRepTeamCount ?? 0) > 0) return 'registrationOpen';
-	// Residual discriminator (the originating bug): with no date signal, the one thing that still
-	// separates a finished event from a brand-new one is real participation — a finished event
-	// accumulated non-admin registrations, a new one has none. We only reach here with
-	// registration NOT open, so an actively-registering job already resolved to 'registrationOpen'.
-	// VETO: a future event (start date OR event-year ahead) hasn't happened yet — don't let early
-	// signups on a now-paused, date-less job read as 'concluded'. Display-only.
-	const startInFuture = p.eventStartDate != null && startOfDay(new Date(p.eventStartDate)).getTime() > today;
-	const futureEvent = startInFuture || (year !== null && year > nowYear);
-	if (p.hasNonAdminActivity && !futureEvent) return 'concluded';
 	if (p.playerRegistrationPlanned || p.adultRegistrationPlanned || p.playerRegOpensSoonest != null) return 'planned';
 	return 'preview';
 }
