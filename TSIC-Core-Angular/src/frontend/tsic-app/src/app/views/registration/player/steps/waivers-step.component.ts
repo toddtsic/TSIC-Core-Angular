@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal, output, AfterViewInit, OnDestroy, DestroyRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal, AfterViewInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
 
@@ -96,11 +96,9 @@ import { PlayerWizardStateService } from '../state/player-wizard-state.service';
     styles: [],
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class WaiversStepComponent implements AfterViewInit, OnDestroy {
-    readonly advance = output<void>();
+export class WaiversStepComponent implements AfterViewInit {
     readonly state = inject(PlayerWizardStateService);
     readonly openIndex = signal(0);
-    private _autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
 
     ngAfterViewInit(): void {
         // Auto-open first unchecked waiver
@@ -144,22 +142,15 @@ export class WaiversStepComponent implements AfterViewInit, OnDestroy {
         const checked = (event.target as HTMLInputElement).checked;
         this.state.jobCtx.setWaiverAccepted(waiverId, checked);
 
-        if (this._autoAdvanceTimer) clearTimeout(this._autoAdvanceTimer);
-
         if (checked) {
+            // Open the next unchecked waiver in the accordion. When all are
+            // accepted there is no auto-advance off the tab — leaving the
+            // waivers step is always explicit via the Continue button.
             const defs = this.waiverDefs();
             const nextIdx = defs.findIndex(w => !this.isAccepted(w.id));
             if (nextIdx >= 0) {
-                // Open next unchecked waiver
                 this.openIndex.set(nextIdx);
-            } else {
-                // All waivers accepted — auto-advance after 500ms
-                this._autoAdvanceTimer = setTimeout(() => this.advance.emit(), 500);
             }
         }
-    }
-
-    ngOnDestroy(): void {
-        if (this._autoAdvanceTimer) clearTimeout(this._autoAdvanceTimer);
     }
 }
