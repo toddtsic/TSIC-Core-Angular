@@ -163,7 +163,7 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
                             </div>
                             <div class="empty-note">
                                 <i class="bi bi-info-circle me-1"></i>
-                                A request only — the director reviews and assigns you. You are not added to any roster.
+                                Team Assignment requests need to be reviewed and approved by the Director.
                             </div>
                         } @else {
                             <div class="empty-note">
