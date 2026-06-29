@@ -37,8 +37,6 @@ export interface AvailableTeam {
     clubName?: string | null;
 }
 
-interface CacheEntry { data: AvailableTeam[]; ts: number; }
-
 @Injectable({ providedIn: 'root' })
 export class TeamService {
     private readonly http = inject(HttpClient);
@@ -48,15 +46,16 @@ export class TeamService {
     // raw teams for current job
     private readonly _teams = signal<AvailableTeam[] | null>(null);
     readonly allTeams = this._teams.asReadonly();
+    // distinct club names present at the job — for the BYCLUBNAME "Choose Player Club"
+    // picker. Sourced from /clubs (window-independent), NOT derived from allTeams, whose
+    // registration-window filter would drop clubs whose teams are out of window.
+    private readonly _clubs = signal<string[]>([]);
+    readonly clubNames = this._clubs.asReadonly();
     // loading + error state signals
     private readonly _loading = signal<boolean>(false);
     private readonly _error = signal<string | null>(null);
     readonly loading = this._loading.asReadonly();
     readonly error = this._error.asReadonly();
-
-    // simple in-memory cache keyed by jobPath
-    private readonly cache = new Map<string, CacheEntry>();
-    private readonly cacheTtlMs = 60_000; // 1 minute for now
 
     // Derived filtered collection based on eligibility constraint
     filteredTeams = computed(() => {
@@ -221,14 +220,12 @@ export class TeamService {
      * Replace the team dataset with a fresh server snapshot. The PreSubmit round-trip
      * returns raw teams reflecting post-reconcile occupancy; pushing them here re-derives every
      * dependent signal (filteredTeams, grouped) and resolver (getTeamById) in one shot, so the
-     * wizard reflects current truth instead of stale init-time data. Updates the cache so a later
-     * read agrees. No-op on null/undefined (the server signals "no change" that way).
+     * wizard reflects current truth instead of stale init-time data. No-op on null/undefined
+     * (the server signals "no change" that way).
      */
     applyRawTeams(teams: AvailableTeam[] | null | undefined): void {
         if (!teams) return;
         this._teams.set(teams);
-        const jobPath = this.jobCtx.jobPath();
-        if (jobPath) this.cache.set(jobPath, { data: teams, ts: Date.now() });
     }
 
     /**
@@ -251,12 +248,13 @@ export class TeamService {
 
     /**
      * Call explicitly when the job context is ready (replaces constructor effect).
-     * onLoaded fires once the teams signal is populated (cache hit, fetch success, or fetch
-     * error) — lets callers run logic that needs the teams list without a reactive effect.
+     * onLoaded fires once the teams signal is populated (fetch success or fetch error)
+     * — lets callers run logic that needs the teams list without a reactive effect.
      */
     loadForJob(jobPath: string, onLoaded?: () => void): void {
         if (jobPath) {
-            this.ensureLoaded(jobPath, onLoaded);
+            this.fetchClubs(jobPath);
+            this.fetch(jobPath, false, onLoaded);
         } else {
             this._teams.set(null);
         }
@@ -264,18 +262,20 @@ export class TeamService {
 
     refresh(): void {
         const jobPath = this.jobCtx.jobPath();
-        if (jobPath) this.fetch(jobPath, true);
+        if (jobPath) {
+            this.fetchClubs(jobPath);
+            this.fetch(jobPath, true);
+        }
     }
 
-    private ensureLoaded(jobPath: string, onLoaded?: () => void): void {
-        const cached = this.cache.get(jobPath);
-        const now = Date.now();
-        if (cached && (now - cached.ts) < this.cacheTtlMs) {
-            this._teams.set(cached.data);
-            onLoaded?.();
-            return;
-        }
-        this.fetch(jobPath, false, onLoaded);
+    private fetchClubs(jobPath: string): void {
+        if (!jobPath) return;
+        const base = environment.apiUrl;
+        this.http.get<string[]>(`${base}/jobs/${encodeURIComponent(jobPath)}/clubs`)
+            .subscribe({
+                next: clubs => this._clubs.set(clubs || []),
+                error: err => console.error('[TeamService] failed to load clubs', err)
+            });
     }
 
     private fetch(jobPath: string, force: boolean, onLoaded?: () => void): void {
@@ -288,7 +288,6 @@ export class TeamService {
                 next: data => {
                     this._loading.set(false);
                     this._teams.set(data || []);
-                    this.cache.set(jobPath, { data: data || [], ts: Date.now() });
                     onLoaded?.();
                 },
                 error: err => {

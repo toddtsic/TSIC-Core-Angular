@@ -1285,6 +1285,28 @@ public class TeamRepository : ITeamRepository
             .CountAsync(ct);
     }
 
+    public async Task<List<string>> GetDistinctClubNamesForJobAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Club roster for the "Choose Player Club" picker: every club that owns an
+        // active team in a real (non-WAITLIST / non-DROPPED) agegroup. Deliberately
+        // NOT filtered by the team's Effectiveasofdate/Expireondate registration window
+        // — that window governs team PLACEMENT, not which clubs exist at the event.
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId
+                && t.Active == true
+                && t.ClubrepRegistrationid != null
+                && t.ClubrepRegistration!.ClubName != null
+                && t.Agegroup != null
+                && t.Agegroup!.AgegroupName != null
+                && !t.Agegroup!.AgegroupName.Contains("WAITLIST")
+                && !t.Agegroup!.AgegroupName.Contains("DROPPED"))
+            .Select(t => t.ClubrepRegistration!.ClubName!)
+            .Distinct()
+            .OrderBy(n => n)
+            .ToListAsync(ct);
+    }
+
     public async Task<List<Teams>> GetActiveClubTeamsOrderedByOwedAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default)
     {
         return await _context.Teams

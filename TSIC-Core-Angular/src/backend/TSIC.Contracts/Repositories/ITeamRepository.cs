@@ -446,6 +446,13 @@ public interface ITeamRepository
     Task<int> GetDistinctClubCountAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Distinct club names that own an active team in a real (non-WAITLIST / non-DROPPED)
+    /// agegroup for the job. Powers the player "Choose Player Club" picker. NOT filtered by
+    /// the team registration window — that window governs placement, not club existence.
+    /// </summary>
+    Task<List<string>> GetDistinctClubNamesForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get all active club teams for a club rep in a job, ordered by OwedTotal DESC.
     /// Returns tracked entities for cross-club payment mutation.
     /// </summary>

@@ -5,6 +5,12 @@ namespace TSIC.API.Services.Teams;
 public interface ITeamLookupService
 {
     Task<IReadOnlyList<AvailableTeamDto>> GetAvailableTeamsForJobAsync(Guid jobId);
+
+    /// <summary>
+    /// Distinct club names present at the job (active team in a real agegroup) for the
+    /// "Choose Player Club" picker. Independent of the team registration window.
+    /// </summary>
+    Task<IReadOnlyList<string>> GetClubNamesForJobAsync(Guid jobId);
     Task<(decimal Fee, decimal Deposit)> ResolvePerRegistrantAsync(Guid teamId);
 
     /// <summary>

@@ -256,12 +256,10 @@ export class EligibilityStepComponent {
     eligibilityOptions(playerId: string): string[] {
         const ct = (this.state.eligibility.teamConstraintType() || '').toUpperCase();
         if (ct === 'BYCLUBNAME') {
-            const teams = this.teamService.allTeams();
-            if (!teams) return [];
-            const clubs = [...new Set(
-                teams.filter(t => !!t.clubName).map(t => t.clubName!.trim())
-            )].sort();
-            return clubs;
+            // Server-sourced distinct club list (every club with an active team in a real
+            // agegroup) — NOT derived from the window-filtered available-teams set, which
+            // would hide clubs whose teams sit outside the registration window.
+            return this.teamService.clubNames();
         }
         if (ct === 'BYAGEGROUP') {
             // Pickable view: a full agegroup is offered as its WAITLIST twin (see TeamService).
