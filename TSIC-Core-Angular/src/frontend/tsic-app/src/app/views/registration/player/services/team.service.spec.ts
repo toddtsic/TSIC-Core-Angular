@@ -71,14 +71,9 @@ describe('TeamService', () => {
         httpCtrl.verify();
     });
 
-    /**
-     * Triggers loadForJob and flushes both HTTP requests it fires: the distinct-club
-     * list (/clubs) and the available-teams list. Tests here exercise team filtering, so
-     * the club list is flushed empty.
-     */
+    /** Triggers loadForJob and flushes the HTTP request with the given teams. */
     function loadTeams(teams: AvailableTeam[]): void {
         service.loadForJob('test-job');
-        httpCtrl.expectOne(`${environment.apiUrl}/jobs/test-job/clubs`).flush([]);
         const req = httpCtrl.expectOne(
             `${environment.apiUrl}/jobs/test-job/available-teams`
         );

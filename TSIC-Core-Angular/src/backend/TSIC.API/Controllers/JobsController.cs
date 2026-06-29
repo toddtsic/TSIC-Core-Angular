@@ -157,27 +157,6 @@ public class JobsController : ControllerBase
     }
 
     /// <summary>
-    /// Distinct club names present at a job — every club that owns an active team in a
-    /// real (non-WAITLIST / non-DROPPED) agegroup. Powers the player "Choose Player Club"
-    /// picker. Unlike available-teams, this is NOT filtered by the team registration window.
-    /// </summary>
-    /// <param name="jobPath">Job path segment (e.g. summer-showcase-2025)</param>
-    /// <returns>Sorted distinct club names.</returns>
-    [AllowAnonymous]
-    [HttpGet("{jobPath}/clubs")]
-    public async Task<ActionResult<IEnumerable<string>>> GetClubs(string jobPath)
-    {
-        var jobId = await _jobLookupService.GetJobIdByPathAsync(jobPath);
-        if (jobId == null)
-        {
-            return NotFound(new { message = $"Job not found: {jobPath}" });
-        }
-
-        var clubs = await _teamLookupService.GetClubNamesForJobAsync(jobId.Value);
-        return Ok(clubs);
-    }
-
-    /// <summary>
     /// Get role-specific menu for a job with hierarchical structure.
     /// Returns best-fit menu based on JWT roleId claim (role-specific → anonymous fallback).
     /// Public endpoint supports anonymous users (returns menu with roleId NULL).

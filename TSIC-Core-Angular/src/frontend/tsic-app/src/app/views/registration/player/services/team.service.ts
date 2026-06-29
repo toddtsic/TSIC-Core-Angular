@@ -46,11 +46,6 @@ export class TeamService {
     // raw teams for current job
     private readonly _teams = signal<AvailableTeam[] | null>(null);
     readonly allTeams = this._teams.asReadonly();
-    // distinct club names present at the job — for the BYCLUBNAME "Choose Player Club"
-    // picker. Sourced from /clubs (window-independent), NOT derived from allTeams, whose
-    // registration-window filter would drop clubs whose teams are out of window.
-    private readonly _clubs = signal<string[]>([]);
-    readonly clubNames = this._clubs.asReadonly();
     // loading + error state signals
     private readonly _loading = signal<boolean>(false);
     private readonly _error = signal<string | null>(null);
@@ -253,7 +248,6 @@ export class TeamService {
      */
     loadForJob(jobPath: string, onLoaded?: () => void): void {
         if (jobPath) {
-            this.fetchClubs(jobPath);
             this.fetch(jobPath, false, onLoaded);
         } else {
             this._teams.set(null);
@@ -262,20 +256,7 @@ export class TeamService {
 
     refresh(): void {
         const jobPath = this.jobCtx.jobPath();
-        if (jobPath) {
-            this.fetchClubs(jobPath);
-            this.fetch(jobPath, true);
-        }
-    }
-
-    private fetchClubs(jobPath: string): void {
-        if (!jobPath) return;
-        const base = environment.apiUrl;
-        this.http.get<string[]>(`${base}/jobs/${encodeURIComponent(jobPath)}/clubs`)
-            .subscribe({
-                next: clubs => this._clubs.set(clubs || []),
-                error: err => console.error('[TeamService] failed to load clubs', err)
-            });
+        if (jobPath) this.fetch(jobPath, true);
     }
 
     private fetch(jobPath: string, force: boolean, onLoaded?: () => void): void {

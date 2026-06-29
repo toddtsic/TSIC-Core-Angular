@@ -136,8 +136,14 @@ public class TeamRepository : ITeamRepository
             .Where(t => t.JobId == jobId)
             .Where(t => (t.Active ?? true))
             .Where(t => (t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
-            .Where(t => (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
-                        && (t.Expireondate == null || t.Expireondate >= now))
+            // Registration window gates availability ONLY when it's a real window. A null,
+            // zero-width, or sub-second Eff/Expire pair (e.g. the getdate() insert default a
+            // self-rostered team gets when no window is set) is meaningless → availability
+            // rests on Active + agegroup alone. A genuine window must still contain 'now'.
+            .Where(t => t.Effectiveasofdate == null
+                        || t.Expireondate == null
+                        || t.Expireondate <= t.Effectiveasofdate.Value.AddSeconds(1)
+                        || (t.Effectiveasofdate <= now && t.Expireondate >= now))
             // Waitlist mirror agegroups (WAITLIST - ...) ARE surfaced: a pending player placed on a
             // full team's $0 twin must see + resume into that agegroup. Only Dropped stays hidden.
             .Where(t => !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped"))
@@ -1283,28 +1289,6 @@ public class TeamRepository : ITeamRepository
             .Select(t => t.ClubrepRegistrationid)
             .Distinct()
             .CountAsync(ct);
-    }
-
-    public async Task<List<string>> GetDistinctClubNamesForJobAsync(Guid jobId, CancellationToken ct = default)
-    {
-        // Club roster for the "Choose Player Club" picker: every club that owns an
-        // active team in a real (non-WAITLIST / non-DROPPED) agegroup. Deliberately
-        // NOT filtered by the team's Effectiveasofdate/Expireondate registration window
-        // — that window governs team PLACEMENT, not which clubs exist at the event.
-        return await _context.Teams
-            .AsNoTracking()
-            .Where(t => t.JobId == jobId
-                && t.Active == true
-                && t.ClubrepRegistrationid != null
-                && t.ClubrepRegistration!.ClubName != null
-                && t.Agegroup != null
-                && t.Agegroup!.AgegroupName != null
-                && !t.Agegroup!.AgegroupName.Contains("WAITLIST")
-                && !t.Agegroup!.AgegroupName.Contains("DROPPED"))
-            .Select(t => t.ClubrepRegistration!.ClubName!)
-            .Distinct()
-            .OrderBy(n => n)
-            .ToListAsync(ct);
     }
 
     public async Task<List<Teams>> GetActiveClubTeamsOrderedByOwedAsync(Guid jobId, Guid clubRepRegistrationId, CancellationToken ct = default)

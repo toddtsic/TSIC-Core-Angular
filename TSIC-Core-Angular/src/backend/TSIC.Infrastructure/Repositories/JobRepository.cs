@@ -522,13 +522,17 @@ public class JobRepository : IJobRepository
                     // no row at all → FeeResolutionService throws, so the card would dead-end).
                     PlayerRegistrationOpen = j.BRegistrationAllowPlayer == true
                         && _context.JobFees.Any(f => f.JobId == j.JobId && f.RoleId == playerRoleId),
-                    // Mirrors TeamRepository.GetAvailableTeamsQueryResultsAsync filters exactly.
+                    // Mirrors TeamRepository.GetAvailableTeamsQueryResultsAsync — same window rule:
+                    // a real window must contain 'now'; a null/zero-width/sub-second window is
+                    // meaningless, so availability rests on Active + agegroup alone.
                     PlayerTeamsAvailableForRegistration = _context.Teams.Any(t =>
                         t.JobId == j.JobId
                         && (t.Active ?? true)
                         && ((t.BAllowSelfRostering ?? false) || (t.Agegroup.BAllowSelfRostering ?? false))
-                        && (t.Effectiveasofdate == null || t.Effectiveasofdate <= now)
-                        && (t.Expireondate == null || t.Expireondate >= now)
+                        && (t.Effectiveasofdate == null
+                            || t.Expireondate == null
+                            || t.Expireondate <= t.Effectiveasofdate.Value.AddSeconds(1)
+                            || (t.Effectiveasofdate <= now && t.Expireondate >= now))
                         && !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped")
                         && !(t.Agegroup.AgegroupName ?? "").StartsWith("Waitlist")),
                     PlayerRegRequiresToken = j.BplayerRegRequiresToken == true,

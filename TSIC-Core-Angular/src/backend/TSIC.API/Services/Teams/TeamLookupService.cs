@@ -27,9 +27,6 @@ public class TeamLookupService : ITeamLookupService
         _logger = logger;
     }
 
-    public async Task<IReadOnlyList<string>> GetClubNamesForJobAsync(Guid jobId)
-        => await _teamRepo.GetDistinctClubNamesForJobAsync(jobId);
-
     public async Task<IReadOnlyList<AvailableTeamDto>> GetAvailableTeamsForJobAsync(Guid jobId)
     {
         var jobUsesWaitlists = await _jobRepo.GetUsesWaitlistsAsync(jobId);
