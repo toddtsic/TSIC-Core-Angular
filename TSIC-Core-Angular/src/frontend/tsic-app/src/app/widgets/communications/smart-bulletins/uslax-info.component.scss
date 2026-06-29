@@ -1,0 +1,226 @@
+// ============================================================
+//  USA Lacrosse membership notice — elevated info panel (gradient +
+//  border + shadow, NEVER backdrop-filter). Shares the Registration
+//  panel visual language; adds an info eyebrow, an iconographic
+//  checklist, an out-links row, and a help footer.
+// ============================================================
+:host {
+	display: block;
+}
+
+// Outer = the 960px column with a side inset, identical to .rp / .es so the
+// card lines up flush with the Registration panel above it.
+.ul {
+	max-width: 960px;
+	margin: var(--space-4) auto 0;
+	padding: 0 var(--space-3);
+}
+
+// Inner = the elevated bordered card itself. Solid surface (NO gradient) to match
+// the Registration panel's .rp__inner exactly — that's the "white smart-bulletin"
+// look; the gradient wash made this read as a colored/regular bulletin instead.
+.ul__inner {
+	padding: var(--space-5) var(--space-6);
+	border: 1px solid var(--brand-border);
+	border-left: 4px solid var(--bs-primary);
+	border-radius: var(--radius-lg);
+	background: var(--brand-surface, var(--neutral-0));
+	box-shadow: var(--shadow-md);
+}
+
+.ul__head {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-4);
+}
+
+.ul__icon {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border-radius: var(--radius-md);
+	background: color-mix(in srgb, var(--bs-primary) 14%, transparent);
+	color: var(--bs-primary);
+	font-size: 1.5rem;
+}
+
+.ul__head-text {
+	min-width: 0;
+}
+
+// Small "informational, not an action" eyebrow above the headline.
+.ul__eyebrow {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	margin-bottom: var(--space-1);
+	font-size: var(--font-size-xs, 0.75rem);
+	font-weight: var(--font-weight-semibold);
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--bs-primary);
+
+	i {
+		font-size: 0.85rem;
+	}
+}
+
+.ul__headline {
+	margin: 0;
+	font-size: var(--font-size-lg, 1.125rem);
+	font-weight: var(--font-weight-bold);
+	color: var(--brand-text);
+	line-height: 1.2;
+}
+
+.ul__lead {
+	margin: var(--space-2) 0 0;
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+	line-height: 1.5;
+}
+
+// ── Iconographic checklist ───────────────────────────────────
+.ul__list {
+	list-style: none;
+	margin: var(--space-4) 0 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.ul__item {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+	font-size: var(--font-size-sm);
+	color: var(--brand-text-muted);
+	line-height: 1.4;
+
+	strong {
+		color: var(--brand-text);
+		font-weight: var(--font-weight-semibold);
+	}
+}
+
+// Circular tinted badge — the "informational icon" for each row.
+.ul__item-icon {
+	flex: 0 0 auto;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 26px;
+	height: 26px;
+	border-radius: 50%;
+	background: color-mix(in srgb, var(--bs-primary) 12%, transparent);
+	color: var(--bs-primary);
+	font-size: 0.85rem;
+}
+
+.ul__item-text {
+	min-width: 0;
+	padding-top: 2px; // optically center the first line against the round badge
+}
+
+// ── Out-links to USA Lacrosse ────────────────────────────────
+.ul__links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-3);
+	margin-top: var(--space-5);
+	padding-top: var(--space-4);
+	border-top: 1px solid var(--brand-border);
+}
+
+.ul__link {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-2);
+	padding: var(--space-2) var(--space-3);
+	border: 1px solid color-mix(in srgb, var(--bs-primary) 28%, var(--brand-border));
+	border-radius: var(--radius-md);
+	// Light-blue (primary-subtle) chip so the links stand apart from the white card.
+	background: color-mix(in srgb, var(--bs-primary) 10%, var(--brand-surface, var(--neutral-0)));
+	color: var(--bs-primary);
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	text-decoration: none;
+	transition: background-color 0.15s ease, border-color 0.15s ease;
+
+	&:hover {
+		background: color-mix(in srgb, var(--bs-primary) 18%, var(--brand-surface, var(--neutral-0)));
+		border-color: var(--bs-primary);
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.ul__link-ext {
+	font-size: 0.7rem;
+	opacity: 0.7;
+}
+
+// ── Help footer ──────────────────────────────────────────────
+.ul__foot {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-2);
+	margin: var(--space-4) 0 0;
+	font-size: var(--font-size-xs, 0.75rem);
+	color: var(--brand-text-muted);
+	line-height: 1.5;
+
+	i {
+		flex: 0 0 auto;
+		margin-top: 2px;
+		color: var(--bs-primary);
+	}
+
+	a {
+		color: var(--bs-primary);
+		text-decoration: none;
+
+		&:hover {
+			text-decoration: underline;
+		}
+
+		&:focus-visible {
+			outline: none;
+			box-shadow: var(--shadow-focus);
+			border-radius: var(--radius-sm, 4px);
+		}
+	}
+}
+
+.ul__nowrap {
+	white-space: nowrap;
+}
+
+// ── Reduced motion (required for any transition) ─────────────
+@media (prefers-reduced-motion: reduce) {
+	.ul__link {
+		transition: none;
+	}
+}
+
+@media (max-width: 560px) {
+	.ul {
+		padding: 0 var(--space-2);
+	}
+
+	.ul__inner {
+		padding: var(--space-4);
+	}
+
+	.ul__link {
+		flex: 1 1 auto;
+		justify-content: center;
+	}
+}

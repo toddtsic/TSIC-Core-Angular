@@ -29,6 +29,13 @@
 				<app-registration-panel [jobPath]="jobPath()" [allowedKeys]="allowedKeys()" [publicView]="publicView()" />
 			}
 
+			<!-- USA Lacrosse membership notice — follows the Registration panel: the family
+			     sees Register Player first, then the "what you'll need to pass validation"
+			     primer. Shows only when the profile requires it (pulse flag). -->
+			@if (showUsLax()) {
+				<app-uslax-info />
+			}
+
 			<!-- Store rides in the band on its own. (Public Rosters now lives as a section
 			     INSIDE the Registration panel above, not as a standalone card here.) -->
 			@if (showStore()) {

@@ -20,6 +20,26 @@ public record JobPulseDto
     public required bool PlayerTeamsAvailableForRegistration { get; init; }
 
     public required bool PlayerRegRequiresToken { get; init; }
+
+    /// <summary>
+    /// True when the player profile requires a USA Lacrosse membership number — i.e.
+    /// PlayerProfileMetadataJson contains a REQUIRED field named sportAssnId (or uslax,
+    /// or whose label mentions "lacrosse"). Mirrors the FormSchemaService USLax-field
+    /// detection rule, computed post-projection (the JSON can't be parsed in LINQ-to-SQL).
+    /// Drives the proactive "USA Lacrosse Membership Required" smart bulletin that
+    /// pre-empts the most common registration support calls. A pure profile fact — NOT
+    /// gated on the registration door; the bulletin ANDs it with reg-open on the client.
+    /// </summary>
+    public required bool PlayerRegRequiresUsLax { get; init; }
+
+    /// <summary>
+    /// Jobs.UslaxNumberValidThroughDate — the latest date through which a player's USA
+    /// Lacrosse membership must remain valid to pass validation. Null when the director
+    /// set no explicit through-date. Display-only: the USA Lacrosse bulletin surfaces it
+    /// ("must be valid through …") so families renew before they start registering.
+    /// </summary>
+    public DateTime? UsLaxMembershipValidThrough { get; init; }
+
     public required bool TeamRegistrationOpen { get; init; }
     public required bool TeamRegRequiresToken { get; init; }
 

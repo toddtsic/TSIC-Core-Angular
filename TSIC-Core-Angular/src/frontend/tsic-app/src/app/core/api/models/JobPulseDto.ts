@@ -7,6 +7,8 @@ export type JobPulseDto = {
     playerRegistrationOpen: boolean;
     playerTeamsAvailableForRegistration: boolean;
     playerRegRequiresToken: boolean;
+    playerRegRequiresUsLax: boolean;
+    usLaxMembershipValidThrough?: string | null;
     teamRegistrationOpen: boolean;
     teamRegRequiresToken: boolean;
     staffRegistrationOpen: boolean;

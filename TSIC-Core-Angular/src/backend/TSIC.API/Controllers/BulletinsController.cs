@@ -120,6 +120,7 @@ public class BulletinsController : ControllerBase
                 PlayerRegistrationOpen = true,
                 PlayerTeamsAvailableForRegistration = true,
                 PlayerRegRequiresToken = false,
+                PlayerRegRequiresUsLax = true,
                 TeamRegistrationOpen = true,
                 TeamRegRequiresToken = false,
                 StaffRegistrationOpen = true,

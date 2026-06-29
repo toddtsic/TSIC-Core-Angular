@@ -1,0 +1,71 @@
+<section class="ul" aria-label="USA Lacrosse membership required">
+	<div class="ul__inner">
+		<header class="ul__head">
+			<span class="ul__icon" aria-hidden="true"><i class="bi bi-shield-check"></i></span>
+			<div class="ul__head-text">
+				<span class="ul__eyebrow"><i class="bi bi-info-circle-fill" aria-hidden="true"></i> Before you register</span>
+				<h3 class="ul__headline">USA Lacrosse Membership Required</h3>
+				<p class="ul__lead">
+					To pass validation, check the player's membership:
+				</p>
+			</div>
+		</header>
+
+		<ul class="ul__list">
+			<li class="ul__item">
+				<span class="ul__item-icon" aria-hidden="true"><i class="bi bi-person-vcard"></i></span>
+				<span class="ul__item-text">
+					<strong>Name &amp; date of birth match.</strong>
+					These Family Account details must match USA Lacrosse records exactly.
+				</span>
+			</li>
+			<li class="ul__item">
+				<span class="ul__item-icon" aria-hidden="true"><i class="bi bi-calendar-check"></i></span>
+				<span class="ul__item-text">
+					<strong>Membership stays active.</strong>
+					It must be active and not expire
+					@if (validThrough(); as vt) {
+						before <strong>{{ vt }}</strong>
+					} @else {
+						before the date this event requires
+					}
+					— renew first if it's close.
+				</span>
+			</li>
+			<li class="ul__item">
+				<span class="ul__item-icon" aria-hidden="true"><i class="bi bi-patch-check"></i></span>
+				<span class="ul__item-text">
+					<strong>Age verification complete.</strong>
+					Members must finish USA Lacrosse's <strong>one-time age verification</strong> (required since July 1, 2025) — the #1 reason validation fails.
+				</span>
+			</li>
+		</ul>
+
+		<div class="ul__links">
+			<a class="ul__link" href="https://account.usalacrosse.com/login/lookup" target="_blank" rel="noopener">
+				<i class="bi bi-search" aria-hidden="true"></i>
+				<span>Look up your number</span>
+				<i class="bi bi-box-arrow-up-right ul__link-ext" aria-hidden="true"></i>
+			</a>
+			<a class="ul__link" href="https://www.usalacrosse.com/membership" target="_blank" rel="noopener">
+				<i class="bi bi-person-plus" aria-hidden="true"></i>
+				<span>Get or renew a membership</span>
+				<i class="bi bi-box-arrow-up-right ul__link-ext" aria-hidden="true"></i>
+			</a>
+			<a class="ul__link" href="https://www.usalacrosse.com/age-verification" target="_blank" rel="noopener">
+				<i class="bi bi-patch-check" aria-hidden="true"></i>
+				<span>Age verification</span>
+				<i class="bi bi-box-arrow-up-right ul__link-ext" aria-hidden="true"></i>
+			</a>
+		</div>
+
+		<p class="ul__foot">
+			<i class="bi bi-life-preserver" aria-hidden="true"></i>
+			<span>
+				Questions about a membership? Contact USA Lacrosse at
+				<a href="mailto:membership@usalacrosse.com">membership&#64;usalacrosse.com</a>
+				or <span class="ul__nowrap">410-235-6882</span>.
+			</span>
+		</p>
+	</div>
+</section>

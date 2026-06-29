@@ -651,6 +651,7 @@ export class BulletinFormModalComponent implements OnInit {
             playerRegistrationOpen: partial.playerRegistrationOpen ?? true,
             playerTeamsAvailableForRegistration: partial.playerTeamsAvailableForRegistration ?? true,
             playerRegRequiresToken: partial.playerRegRequiresToken ?? false,
+            playerRegRequiresUsLax: partial.playerRegRequiresUsLax ?? false,
             teamRegistrationOpen: partial.teamRegistrationOpen ?? true,
             teamRegRequiresToken: partial.teamRegRequiresToken ?? false,
             staffRegistrationOpen: partial.staffRegistrationOpen ?? true,

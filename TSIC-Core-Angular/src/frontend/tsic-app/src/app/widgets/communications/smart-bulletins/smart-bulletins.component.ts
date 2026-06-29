@@ -10,6 +10,7 @@ import { RegistrationPanelComponent } from '@views/home/job-landing/registration
 import { GameDayPanelComponent } from '@views/home/job-landing/game-day-panel/game-day-panel.component';
 import { InlineGameClockComponent } from '@views/scheduling/view-schedule/components/inline-game-clock.component';
 import { EventStatusComponent } from './event-status.component';
+import { UsLaxInfoComponent } from './uslax-info.component';
 
 /**
  * Smart Bulletins band — the self-assembling, always-current "bulletins" the
@@ -31,7 +32,7 @@ import { EventStatusComponent } from './event-status.component';
 @Component({
 	selector: 'app-smart-bulletins',
 	standalone: true,
-	imports: [RouterLink, RegistrationPanelComponent, GameDayPanelComponent, InlineGameClockComponent, EventStatusComponent],
+	imports: [RouterLink, RegistrationPanelComponent, GameDayPanelComponent, InlineGameClockComponent, EventStatusComponent, UsLaxInfoComponent],
 	templateUrl: './smart-bulletins.component.html',
 	styleUrl: './smart-bulletins.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush,
@@ -130,6 +131,17 @@ export class SmartBulletinsComponent {
 		return !!p?.storeHasActiveItems && this.allowedKeys().has('store');
 	});
 
+	// USA Lacrosse membership notice — shows ONLY when the player profile actually
+	// requires a USLax number (pulse.playerRegRequiresUsLax) AND player registration
+	// is effectively open in a phase that offers it. Kept in lockstep with the
+	// Registration panel's register-player section gate so the notice can't appear
+	// without the action it explains. Purely informational; pre-empts USLax support calls.
+	protected readonly showUsLax = computed(() => {
+		const p = this.pulse();
+		if (!p || !p.playerRegRequiresUsLax) return false;
+		return this.allowedKeys().has('register-player') && isPlayerRegistrationEffectivelyOpen(p);
+	});
+
 	// NB: Public Rosters is no longer a standalone band card — it's a section INSIDE the
 	// Registration panel again (showRosters there). The showRegistration gate above counts
 	// rosters, so the panel still mounts (and rosters still shows) when nothing else does.
@@ -144,5 +156,5 @@ export class SmartBulletinsComponent {
 
 	/** The band self-hides when no smart section has content. */
 	protected readonly hasContent = computed(() =>
-		this.showEventStatus() || this.showRegistration() || this.showGameDay() || this.showStore());
+		this.showEventStatus() || this.showRegistration() || this.showGameDay() || this.showStore() || this.showUsLax());
 }
