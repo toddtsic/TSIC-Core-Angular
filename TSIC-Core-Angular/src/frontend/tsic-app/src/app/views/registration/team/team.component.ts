@@ -164,7 +164,7 @@ export class TeamWizardV2Component implements OnInit {
     readonly transitioning = computed(() => this.teamsStep()?.actionInProgress() ?? false);
 
     readonly steps = computed<WizardStepDef[]>(() => [
-        { id: 'login', label: 'Club & Rep Info', enabled: true },
+        { id: 'login', label: 'Club Rep Info', enabled: true },
         { id: 'waivers', label: 'Waivers', enabled: this.state.hasRefundPolicy() },
         { id: 'teams', label: 'Teams', enabled: true },
         { id: 'payment', label: 'Payment', enabled: true },

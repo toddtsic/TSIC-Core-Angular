@@ -273,7 +273,6 @@ type LoginView = 'sign-in' | 'create' | 'account-summary';
               </h5>
             </div>
             <div class="card-body bg-neutral-0">
-              <p class="wizard-tip">Set up your permanent Club Team Library — register teams once, reuse at every future event.</p>
               <app-club-rep-register-form
                 mode="create"
                 (registered)="onRegistered()" />

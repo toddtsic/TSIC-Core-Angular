@@ -254,10 +254,6 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                        placeholder="Start typing your club name..."
                        autocomplete="off"
                        [class.is-invalid]="submitted() && form.controls.clubName.invalid" />
-                <div class="value-prop mt-1">
-                  <i class="bi bi-lightning-charge me-1"></i>
-                  Your TeamSportsInfo <strong>Club Team Library</strong> is permanent. Add each team once, register from the list at every future event.
-                </div>
               </div>
 
               <!-- Loading -->
