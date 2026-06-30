@@ -124,6 +124,16 @@ public interface ITextSubstitutionRepository
     /// Get coach team choices for a registration.
     /// </summary>
     Task<List<CoachTeamChoice>> GetCoachTeamChoicesAsync(Guid registrationId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resolve a set of team ids to their current display labels (Club / Age Group / Team),
+    /// rename-proof. Used to render an Unassigned Adult coach's REQUESTED teams from the
+    /// structured <c>Registrations.SpecialRequests</c> JSON — these are requests pending
+    /// director approval, not rostered teams (so the club-rep join in
+    /// <see cref="GetTeamsSummaryAsync"/> finds nothing for them). Unknown ids are silently
+    /// dropped (a request is advisory, not a gate).
+    /// </summary>
+    Task<List<CoachTeamChoice>> GetTeamLabelsByIdsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

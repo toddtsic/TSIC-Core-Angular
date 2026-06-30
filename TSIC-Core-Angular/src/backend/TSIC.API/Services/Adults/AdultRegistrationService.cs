@@ -361,6 +361,20 @@ public class AdultRegistrationService : IAdultRegistrationService
             .Distinct()
             .ToList();
 
+        // SpecialRequests holds EITHER legacy free-text OR — for an Unassigned Adult coach —
+        // a structured AdultTeamRequestData JSON blob ({teams:[{teamId,src}], note}). Parse it
+        // so we never echo the raw JSON back into the editable form: the requested team ids
+        // repopulate the multi-select, and only the human note returns to the text field.
+        var requestRecord = AdultTeamRequestData.Parse(first.SpecialRequests);
+
+        // Unassigned Adult coaches are never rostered (no AssignedTeamId) — their requested
+        // teams live as Self ids in the JSON record, so seed the picker from those. (For other
+        // roles RequestedTeamIds is empty, so this is a no-op; AssignedTeamId drives Staff.)
+        if (roleType == AdultRoleType.UnassignedAdult && requestRecord.RequestedTeamIds.Count > 0)
+        {
+            teamIds = requestRecord.RequestedTeamIds.Concat(teamIds).Distinct().ToList();
+        }
+
         // Reverse-map stored columns back to form field values. We look up the
         // role's metadata (or fallback) schema, then pull each field's value
         // from the appropriate property on the first registration.
@@ -370,8 +384,10 @@ public class AdultRegistrationService : IAdultRegistrationService
             : [];
 
         // SpecialRequests column — used both by the fallback SpecialRequests field
-        // and by any metadata field with DbColumn=SpecialRequests.
-        if (!string.IsNullOrWhiteSpace(first.SpecialRequests))
+        // and by any metadata field with DbColumn=SpecialRequests. Only the human-readable
+        // NOTE is surfaced (legacy free-text parses to the note as-is); the structured teams
+        // JSON is intentionally withheld so it can never appear raw in the textarea.
+        if (!string.IsNullOrWhiteSpace(requestRecord.Note))
         {
             // Find matching field name from schema (fallback "SpecialRequests" if none).
             var fieldName = "SpecialRequests";
@@ -383,7 +399,7 @@ public class AdultRegistrationService : IAdultRegistrationService
                     break;
                 }
             }
-            formValues[fieldName] = JsonSerializer.SerializeToElement(first.SpecialRequests);
+            formValues[fieldName] = JsonSerializer.SerializeToElement(requestRecord.Note);
         }
 
         var waiverAcceptance = new Dictionary<string, bool>

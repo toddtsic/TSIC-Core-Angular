@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TSIC.Domain.Constants;
+using TSIC.Domain.Adults;
 using TSIC.Contracts.Repositories;
 using TSIC.Application.Services.Players;
 using TSIC.Application.Services.Shared.Html;
@@ -527,7 +528,15 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             tokens["!F-ACCOUNTING-TEAMS"] = await BuildAccountingTeamsHtmlAsync(registrationId.Value, paymentMethodCreditCardId, emailMode);
 
         if (template.Contains("!F-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
-            tokens["!F-TEAMS"] = await BuildTeamsSummaryHtmlAsync(registrationId.Value, emailMode);
+        {
+            // !F-TEAMS is overloaded by role. An Unassigned Adult (coach) is never rostered
+            // at registration — their teams live as REQUESTS in SpecialRequests JSON, so the
+            // club-rep-rostered summary below finds nothing for them. Render the requested
+            // teams (clearly labeled as pending director approval) instead.
+            tokens["!F-TEAMS"] = string.Equals(first.RoleName, RoleConstants.Names.UnassignedAdultName, StringComparison.OrdinalIgnoreCase)
+                ? await BuildRequestedTeamsHtmlAsync(registrationId.Value, emailMode)
+                : await BuildTeamsSummaryHtmlAsync(registrationId.Value, emailMode);
+        }
 
         if (template.Contains("!F-NO-MONEY-TEAMS", StringComparison.OrdinalIgnoreCase) && registrationId.HasValue)
             tokens["!F-NO-MONEY-TEAMS"] = await BuildNoMoneyTeamsHtmlAsync(registrationId.Value, emailMode);
@@ -834,6 +843,44 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         HtmlTableBuilder.EndBodyStartFoot(sb);
         HtmlTableBuilder.AddFooterRow(sb, "Totals", string.Empty, HtmlTableBuilder.FormatCurrency(sumDeposit), HtmlTableBuilder.FormatCurrency(sumAdditional), HtmlTableBuilder.FormatCurrency(sumProcessing), HtmlTableBuilder.FormatCurrency(sumPaid), HtmlTableBuilder.FormatCurrency(sumOwed));
         HtmlTableBuilder.EndFootEndTable(sb);
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Renders an Unassigned Adult (coach) registration's REQUESTED teams — the coach's own
+    /// picks (<see cref="AdultTeamRequestSource.Self"/>) codified as JSON in
+    /// <c>Registrations.SpecialRequests</c>. These are requests pending director approval, NOT
+    /// roster assignments, so the caption frames them as such. Team ids resolve to their
+    /// CURRENT Club / Age Group / Team labels (rename-proof). Returns empty when the coach
+    /// recorded no structured team requests (e.g. legacy free-text), so the token collapses.
+    /// </summary>
+    private async Task<string> BuildRequestedTeamsHtmlAsync(Guid registrationId, bool emailMode)
+    {
+        var info = await _repo.GetStaffInfoAsync(registrationId);
+        if (info == null) return string.Empty;
+
+        var record = AdultTeamRequestData.Parse(info.SpecialRequests);
+        var requestedIds = record.RequestedTeamIds;
+        if (requestedIds.Count == 0) return string.Empty;
+
+        var teams = await _repo.GetTeamLabelsByIdsAsync(requestedIds);
+        if (teams.Count == 0) return string.Empty;
+
+        var sb = new StringBuilder();
+        HtmlTableBuilder.StartTable(sb, emailMode);
+        HtmlTableBuilder.AddCaption(sb, "Requested Teams (pending director approval)", emailMode);
+        HtmlTableBuilder.StartHead(sb);
+        HtmlTableBuilder.AddHeaderRow(sb, "Club", "Age Group", "Team");
+        HtmlTableBuilder.EndHeadStartBody(sb);
+        foreach (var c in teams)
+        {
+            HtmlTableBuilder.AddRow(sb,
+                WebUtility.HtmlEncode(c.Club ?? string.Empty),
+                WebUtility.HtmlEncode(c.Age ?? string.Empty),
+                WebUtility.HtmlEncode(c.Team ?? string.Empty));
+        }
+        HtmlTableBuilder.EndBodyOnly(sb);
+        HtmlTableBuilder.EndTableOnly(sb);
         return sb.ToString();
     }
 

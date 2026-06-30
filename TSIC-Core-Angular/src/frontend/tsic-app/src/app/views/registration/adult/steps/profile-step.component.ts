@@ -79,7 +79,7 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                         <ejs-multiselect
                             [dataSource]="teamsDataSource()"
                             [fields]="teamFields"
-                            [value]="state.teamIdsCoaching()"
+                            [value]="state.teamPickerSeed()"
                             (change)="onTeamsChange($event.value)"
                             [mode]="'CheckBox'"
                             [allowFiltering]="true"
@@ -96,8 +96,8 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                             <div class="selected-teams mt-2">
                                 <strong class="small">Selected ({{ state.teamIdsCoaching().length }}):</strong>
                                 <ul class="small mb-0">
-                                    @for (id of state.teamIdsCoaching(); track id) {
-                                        <li>{{ teamLabel(id) }}</li>
+                                    @for (t of selectedTeamsSorted(); track t.id) {
+                                        <li>{{ t.label }}</li>
                                     }
                                 </ul>
                             </div>
@@ -260,6 +260,13 @@ export class ProfileStepComponent implements AfterViewInit {
         const t = this.state.availableTeams().find(x => x.teamId === teamId);
         return t?.displayText ?? teamId;
     }
+
+    /** Selected teams resolved to labels and sorted alphabetically for the summary list. */
+    readonly selectedTeamsSorted = computed(() =>
+        this.state.teamIdsCoaching()
+            .map(id => ({ id, label: this.teamLabel(id) }))
+            .sort((a, b) => a.label.localeCompare(b.label)),
+    );
 
     onTeamsChange(value: string[] | string | null | undefined): void {
         const ids = Array.isArray(value) ? value : (value ? [value] : []);

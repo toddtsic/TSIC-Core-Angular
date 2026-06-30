@@ -111,10 +111,17 @@ export class AdultWizardStateService {
     private readonly _teamsLoading = signal(false);
     private readonly _teamsError = signal<string | null>(null);
     private readonly _teamIdsCoaching = signal<string[]>([]);
+    // Stable seed fed to the Syncfusion multi-select's [value] input. It is set ONLY on
+    // prefill (returning user) and reset — NEVER on each user click. Re-feeding the live
+    // selection back into [value] on every (change) makes Syncfusion repaint the just-clicked
+    // checkbox as unchecked (visual desync → "click twice to check"); keeping the seed
+    // reference stable lets the control own its own checkbox state during interaction.
+    private readonly _teamPickerSeed = signal<string[]>([]);
     readonly availableTeams = this._availableTeams.asReadonly();
     readonly teamsLoading = this._teamsLoading.asReadonly();
     readonly teamsError = this._teamsError.asReadonly();
     readonly teamIdsCoaching = this._teamIdsCoaching.asReadonly();
+    readonly teamPickerSeed = this._teamPickerSeed.asReadonly();
 
     // ── Waiver acceptance ─────────────────────────────────────────
     private readonly _waiverAcceptance = signal<Record<string, boolean>>({});
@@ -396,7 +403,11 @@ export class AdultWizardStateService {
 
             this._hasExistingRegistration.set(true);
             this._existingRegistrationIds.set(existing.registrationIds ?? []);
+            // Seed BOTH the tracked selection and the picker's [value] input. The seed is the
+            // one intentional [value] re-feed (prefill) — user clicks thereafter touch only
+            // _teamIdsCoaching, so the control's checkbox state isn't disturbed mid-interaction.
             this._teamIdsCoaching.set([...(existing.teamIds ?? [])]);
+            this._teamPickerSeed.set([...(existing.teamIds ?? [])]);
 
             if (existing.formValues) {
                 const fv: Record<string, FormFieldValue> = {};
@@ -647,6 +658,7 @@ export class AdultWizardStateService {
         this._teamsLoading.set(false);
         this._teamsError.set(null);
         this._teamIdsCoaching.set([]);
+        this._teamPickerSeed.set([]);
         this._preSubmitResponse.set(null);
         this._preSubmitting.set(false);
         this._preSubmitError.set(null);

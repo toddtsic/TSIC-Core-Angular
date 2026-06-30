@@ -516,4 +516,31 @@ public sealed class TextSubstitutionRepository : ITextSubstitutionRepository
                           Team = t.TeamName
                       }).ToListAsync(cancellationToken);
     }
+
+    public async Task<List<CoachTeamChoice>> GetTeamLabelsByIdsAsync(IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        if (teamIds == null || teamIds.Count == 0) return new List<CoachTeamChoice>();
+
+        var ids = teamIds.ToList();
+
+        // Resolve labels straight from the team ids (the Unassigned Adult's requested teams
+        // live as ids in SpecialRequests JSON — there is no AssignedTeamId/Staff row yet).
+        // Club name via the canonical Teams.ClubrepRegistrationid -> Registrations.ClubName
+        // route; left-joined because that FK is nullable (some league/club teams carry no
+        // club rep) and a requested team must never be dropped for lacking a club.
+        return await (from t in _context.Teams
+                      join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+                      join rCR in _context.Registrations on t.ClubrepRegistrationid equals rCR.RegistrationId into crj
+                      from rCR in crj.DefaultIfEmpty()
+                      where ids.Contains(t.TeamId)
+                      orderby ag.AgegroupName, t.TeamName
+                      select new CoachTeamChoice
+                      {
+                          Club = rCR != null ? rCR.ClubName : null,
+                          Age = ag.AgegroupName,
+                          Team = t.TeamName
+                      })
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+    }
 }
