@@ -9,7 +9,6 @@ import {
   signal
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { PaletteService } from '../../../infrastructure/services/palette.service';
 import { ScrollToTopComponent } from '../../../shared-ui/scroll-to-top/scroll-to-top.component';
 
 @Component({
@@ -23,10 +22,8 @@ import { ScrollToTopComponent } from '../../../shared-ui/scroll-to-top/scroll-to
 export class TsicLandingComponent implements OnDestroy {
   private readonly elRef = inject(ElementRef);
   private readonly cdRef = inject(ChangeDetectorRef);
-  readonly paletteService = inject(PaletteService);
   private observer: IntersectionObserver | null = null;
   private navObserver: IntersectionObserver | null = null;
-  private previewedPaletteIndex = -1;
   private readonly navScrollHandler = () => {
     const solid = window.scrollY > 10;
     if (solid !== this.navSolid()) {
@@ -134,8 +131,6 @@ export class TsicLandingComponent implements OnDestroy {
 
   constructor() {
     afterNextRender(() => {
-      this.previewedPaletteIndex = 0;
-      this.paletteService.selectPalette(4);
       this.initScrollAnimations();
       this.startTestimonialRotation();
       this.loadCalendlyWidget();
@@ -159,10 +154,6 @@ export class TsicLandingComponent implements OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.previewedPaletteIndex !== -1) {
-      this.paletteService.selectPalette(this.previewedPaletteIndex);
-      this.previewedPaletteIndex = -1;
-    }
     this.observer?.disconnect();
     this.observer = null;
     window.removeEventListener('scroll', this.navScrollHandler);
