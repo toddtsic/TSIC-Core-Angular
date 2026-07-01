@@ -2,7 +2,7 @@ import { AfterViewInit, ChangeDetectionStrategy, Component, QueryList, ViewChild
 import { FormsModule } from '@angular/forms';
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
-import type { AdultRegField } from '@infrastructure/services/adult-registration.service';
+import type { JobRegFieldDto } from '@core/api';
 
 /**
  * Profile step — role-config-driven.
@@ -405,7 +405,7 @@ export class ProfileStepComponent implements AfterViewInit {
         return (inputType ?? 'text').toLowerCase();
     }
 
-    getFieldColClass(field: AdultRegField): string {
+    getFieldColClass(field: JobRegFieldDto): string {
         const type = this.normalizeInputType(field.inputType);
         return type === 'textarea' ? 'col-12' : 'col-md-6';
     }
@@ -415,7 +415,7 @@ export class ProfileStepComponent implements AfterViewInit {
     }
 
     /** True when a required field has no value — drives the .is-required red accent. */
-    isFieldEmpty(field: AdultRegField): boolean {
+    isFieldEmpty(field: JobRegFieldDto): boolean {
         if (!field.validation?.required) return false;
         const v = this.state.formValues()[field.name];
         if (v === null || v === undefined) return true;
@@ -434,16 +434,16 @@ export class ProfileStepComponent implements AfterViewInit {
     usLaxCode = '';
 
     /** The USA Lacrosse number field — drives the inline verify UI. */
-    isUsLaxField(field: AdultRegField): boolean {
+    isUsLaxField(field: JobRegFieldDto): boolean {
         return (field.name ?? '').toLowerCase() === 'sportassnid';
     }
 
     /** Trimmed current value of the USLax number field. */
-    usLaxValue(field: AdultRegField): string {
+    usLaxValue(field: JobRegFieldDto): string {
         return String(this.getFieldValue(field.name) ?? '').trim();
     }
 
-    beginVerify(field: AdultRegField): void {
+    beginVerify(field: JobRegFieldDto): void {
         const num = this.usLaxValue(field);
         if (!num) return;
         this.usLaxCode = '';
@@ -459,13 +459,14 @@ export class ProfileStepComponent implements AfterViewInit {
         void this.state.confirmUsLaxCode(this.usLaxCode);
     }
 
-    shouldShowField(field: AdultRegField): boolean {
+    shouldShowField(field: JobRegFieldDto): boolean {
         if (field.visibility === 'hidden' || field.visibility === 'adminOnly') return false;
-        if (!field.conditionalOn) return true;
+        const cond = field.conditionalOn;
+        if (!cond?.field) return true;
 
-        const depValue = this.state.formValues()[field.conditionalOn.field];
-        const expected = field.conditionalOn.value;
-        const op = field.conditionalOn.operator ?? 'equals';
+        const depValue = this.state.formValues()[cond.field];
+        const expected = cond.value;
+        const op = cond.operator ?? 'equals';
 
         if (op === 'equals') return depValue == expected;
         if (op === 'notEquals') return depValue != expected;

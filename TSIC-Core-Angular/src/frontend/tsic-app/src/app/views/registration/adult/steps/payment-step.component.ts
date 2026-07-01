@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { CurrencyPipe } from '@angular/common';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
 import { CreditCardFormComponent } from '@views/registration/shared/components/credit-card-form.component';
-import type { CreditCardValues } from '@infrastructure/services/adult-registration.service';
+import type { CreditCardInfo } from '@core/api';
 
 /**
  * Payment step — matches the player wizard's pattern:
@@ -152,7 +152,7 @@ export class PaymentStepComponent {
     readonly state = inject(AdultWizardStateService);
 
     readonly ccValid = signal(false);
-    private ccValues: CreditCardValues | null = null;
+    private ccValues: CreditCardInfo | null = null;
 
     /** Submit enabled when payment method's prerequisites are met. */
     readonly canSubmit = computed(() =>

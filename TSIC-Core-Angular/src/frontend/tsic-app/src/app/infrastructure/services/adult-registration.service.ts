@@ -2,181 +2,32 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { environment } from '@environments/environment';
 import type {
+    AdultRegJobInfoResponse,
+    AdultRegFormResponse,
     AdultRegistrationRequest,
     AdultRegistrationExistingRequest,
+    AdultRegistrationResponse,
+    AdultConfirmationResponse,
+    AdultTeamOptionDto,
+    AdultRoleConfigDto,
+    AdultExistingRegistrationDto,
+    PreSubmitAdultRegRequestDto,
+    PreSubmitAdultRegResponseDto,
+    AdultPaymentRequestDto,
+    AdultPaymentResponseDto,
     UsLaxVerifyBeginResponseDto,
     UsLaxVerifyConfirmResponseDto,
 } from '@core/api';
 
-// ── Response types (not auto-generated — controller returns IActionResult) ──
-
-export interface AdultRegJobInfoResponse {
-    jobId: string;
-    jobName: string;
-    availableRoles: AdultRoleOption[];
-}
-
-export interface AdultRoleOption {
-    roleType: number;
-    displayName: string;
-    description: string;
-}
-
-export interface AdultRegFormResponse {
-    roleType: number;
-    fields: AdultRegField[];
-    waivers: AdultWaiverDto[];
-}
-
-export interface AdultRegField {
-    name: string;
-    dbColumn: string;
-    displayName: string;
-    inputType: string;
-    dataSource?: string | null;
-    options?: Array<{ value: string; label: string }> | null;
-    validation?: {
-        required?: boolean;
-        email?: boolean;
-        requiredTrue?: boolean;
-        minLength?: number | null;
-        maxLength?: number | null;
-        pattern?: string | null;
-        min?: number | null;
-        max?: number | null;
-        message?: string | null;
-    } | null;
-    order: number;
-    visibility: string;
-    computed?: boolean;
-    conditionalOn?: {
-        field: string;
-        operator: string;
-        value: unknown;
-    } | null;
-}
-
-export interface AdultWaiverDto {
-    key: string;
-    title: string;
-    htmlContent: string;
-}
-
-export interface AdultRegistrationResponse {
-    success: boolean;
-    registrationId: string;
-    message?: string | null;
-}
-
-export interface AdultConfirmationResponse {
-    registrationId: string;
-    confirmationHtml: string;
-    roleDisplayName: string;
-}
-
-export interface AdultTeamOption {
-    teamId: string;
-    clubName: string;
-    agegroupName: string;
-    divName: string;
-    teamName: string;
-    displayText: string;
-}
+// ── Role keys ────────────────────────────────────────────────────
+// NOT a backend DTO — a frontend-only URL-key allowlist + guard. The backend
+// resolves the key (+ JobTypeId) to an actual RoleId server-side.
 
 /** Mirrors AdultRegRoleKeys (backend). Allowed URL role keys. */
 export const ADULT_REG_ROLE_KEYS = ['coach', 'referee', 'recruiter', 'unassigned'] as const;
 export type AdultRegRoleKey = typeof ADULT_REG_ROLE_KEYS[number];
 export function isValidAdultRegRoleKey(v: string | null | undefined): v is AdultRegRoleKey {
     return v != null && (ADULT_REG_ROLE_KEYS as readonly string[]).includes(v.trim().toLowerCase());
-}
-
-/**
- * Returning-user prefill — an authenticated user's existing active registrations
- * for (jobPath, roleKey). GET /adult-registration/{jobPath}/my-registration/{roleKey}.
- */
-export interface AdultExistingRegistration {
-    hasExisting: boolean;
-    registrationIds: string[];
-    teamIds: string[];
-    formValues?: Record<string, unknown> | null;
-    waiverAcceptance?: Record<string, boolean> | null;
-}
-
-/**
- * Unified role configuration for the adult wizard — returned by
- * GET /adult-registration/{jobPath}/role-config/{roleKey}.
- */
-export interface AdultRoleConfig {
-    roleKey: AdultRegRoleKey;
-    displayName: string;
-    description: string;
-    icon: string;
-    needsTeamSelection: boolean;
-    /** Club/League coach: show the team picker as a non-binding REQUEST (no assignment). */
-    allowTeamRequests: boolean;
-    profileFields: AdultRegField[];
-    waivers: AdultWaiverDto[];
-}
-
-// ── PreSubmit types ──────────────────────────────────────────────
-
-export interface PreSubmitAdultRequest {
-    roleKey: string;
-    formValues: Record<string, unknown>;
-    waiverAcceptance: Record<string, boolean>;
-    teamIdsCoaching?: string[];
-    usLaxVerificationId?: string;
-}
-
-export interface PreSubmitAdultResponse {
-    valid: boolean;
-    validationErrors?: AdultValidationError[] | null;
-    registrationId: string | null;
-    fees: AdultFeeBreakdown;
-    // True iff this job's merchant account accepts AMEX (backend IJobPaymentFeaturesService).
-    // Gates whether the payment step offers AMEX as a card type. Fail-closed false.
-    jobUsesAmex: boolean;
-}
-
-export interface AdultFeeBreakdown {
-    feeBase: number;
-    feeProcessing: number;
-    feeDiscount: number;
-    feeLateFee: number;
-    feeTotal: number;
-    owedTotal: number;
-}
-
-export interface AdultValidationError {
-    field: string;
-    message: string;
-}
-
-// ── Payment types ────────────────────────────────────────────────
-
-export interface AdultPaymentRequest {
-    registrationId: string;
-    creditCard?: CreditCardValues | null;
-    paymentMethod: 'CC' | 'Check';
-}
-
-export interface CreditCardValues {
-    number: string;
-    expiry: string;
-    code: string;
-    firstName: string;
-    lastName: string;
-    address: string;
-    zip: string;
-    email: string;
-    phone: string;
-}
-
-export interface AdultPaymentResponse {
-    success: boolean;
-    message?: string | null;
-    transactionId?: string | null;
-    errorCode?: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -189,15 +40,15 @@ export class AdultRegistrationService {
     }
 
     getAvailableTeams(jobPath: string) {
-        return this.http.get<AdultTeamOption[]>(`${this.apiUrl}/${jobPath}/available-teams`);
+        return this.http.get<AdultTeamOptionDto[]>(`${this.apiUrl}/${jobPath}/available-teams`);
     }
 
     getRoleConfig(jobPath: string, roleKey: string) {
-        return this.http.get<AdultRoleConfig>(`${this.apiUrl}/${jobPath}/role-config/${roleKey}`);
+        return this.http.get<AdultRoleConfigDto>(`${this.apiUrl}/${jobPath}/role-config/${roleKey}`);
     }
 
     getMyExistingRegistration(jobPath: string, roleKey: string) {
-        return this.http.get<AdultExistingRegistration>(`${this.apiUrl}/${jobPath}/my-registration/${roleKey}`);
+        return this.http.get<AdultExistingRegistrationDto>(`${this.apiUrl}/${jobPath}/my-registration/${roleKey}`);
     }
 
     getFormSchema(jobPath: string, roleType: number) {
@@ -223,12 +74,12 @@ export class AdultRegistrationService {
         return this.http.post<{ message: string }>(`${this.apiUrl}/confirmation/${registrationId}/resend`, {});
     }
 
-    preSubmit(jobPath: string, request: PreSubmitAdultRequest) {
-        return this.http.post<PreSubmitAdultResponse>(`${this.apiUrl}/${jobPath}/pre-submit`, request);
+    preSubmit(jobPath: string, request: PreSubmitAdultRegRequestDto) {
+        return this.http.post<PreSubmitAdultRegResponseDto>(`${this.apiUrl}/${jobPath}/pre-submit`, request);
     }
 
-    submitPayment(request: AdultPaymentRequest) {
-        return this.http.post<AdultPaymentResponse>(`${this.apiUrl}/submit-payment`, request);
+    submitPayment(request: AdultPaymentRequestDto) {
+        return this.http.post<AdultPaymentResponseDto>(`${this.apiUrl}/submit-payment`, request);
     }
 
     /** Begin coach USLax identity verification — validates the number and emails a code

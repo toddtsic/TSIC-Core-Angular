@@ -4,17 +4,17 @@ import { firstValueFrom } from 'rxjs';
 import { skipErrorToast } from '@app/infrastructure/interceptors/http-error-context';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { AccountService } from '@infrastructure/services/account.service';
-import {
-    AdultRegistrationService,
-    type AdultRegField,
-    type AdultWaiverDto,
-    type AdultTeamOption,
-    type AdultRoleConfig,
-    type PreSubmitAdultResponse,
-    type AdultFeeBreakdown,
-    type AdultValidationError,
-    type CreditCardValues,
-} from '@infrastructure/services/adult-registration.service';
+import { AdultRegistrationService } from '@infrastructure/services/adult-registration.service';
+import type {
+    JobRegFieldDto,
+    AdultWaiverDto,
+    AdultTeamOptionDto,
+    AdultRoleConfigDto,
+    PreSubmitAdultRegResponseDto,
+    AdultFeeBreakdownDto,
+    AdultValidationErrorDto,
+    CreditCardInfo,
+} from '@core/api';
 import { formatHttpError } from '../../shared/utils/error-utils';
 
 export type FormFieldValue = string | number | boolean | null;
@@ -82,7 +82,7 @@ export class AdultWizardStateService {
     readonly acceptedTos = this._acceptedTos.asReadonly();
 
     // ── Role configuration (loaded from backend) ──────────────────
-    private readonly _roleConfig = signal<AdultRoleConfig | null>(null);
+    private readonly _roleConfig = signal<AdultRoleConfigDto | null>(null);
     private readonly _roleConfigLoading = signal(false);
     private readonly _roleConfigError = signal<string | null>(null);
     readonly roleConfig = this._roleConfig.asReadonly();
@@ -121,7 +121,7 @@ export class AdultWizardStateService {
     readonly usLaxMessage = this._usLaxMessage.asReadonly();
 
     // ── Teams (Coach in tournament only) ──────────────────────────
-    private readonly _availableTeams = signal<AdultTeamOption[]>([]);
+    private readonly _availableTeams = signal<AdultTeamOptionDto[]>([]);
     private readonly _teamsLoading = signal(false);
     private readonly _teamsError = signal<string | null>(null);
     private readonly _teamIdsCoaching = signal<string[]>([]);
@@ -142,18 +142,18 @@ export class AdultWizardStateService {
     readonly waiverAcceptance = this._waiverAcceptance.asReadonly();
 
     // ── PreSubmit state ───────────────────────────────────────────
-    private readonly _preSubmitResponse = signal<PreSubmitAdultResponse | null>(null);
+    private readonly _preSubmitResponse = signal<PreSubmitAdultRegResponseDto | null>(null);
     private readonly _preSubmitting = signal(false);
     private readonly _preSubmitError = signal<string | null>(null);
     readonly preSubmitResponse = this._preSubmitResponse.asReadonly();
     readonly preSubmitting = this._preSubmitting.asReadonly();
     readonly preSubmitError = this._preSubmitError.asReadonly();
 
-    readonly fees = computed<AdultFeeBreakdown | null>(() => this._preSubmitResponse()?.fees ?? null);
+    readonly fees = computed<AdultFeeBreakdownDto | null>(() => this._preSubmitResponse()?.fees ?? null);
     // AMEX offered only when this job's merchant account accepts it (fail-closed false).
     readonly jobUsesAmex = computed<boolean>(() => this._preSubmitResponse()?.jobUsesAmex ?? false);
     readonly hasFees = computed(() => (this.fees()?.owedTotal ?? 0) > 0);
-    readonly validationErrors = computed<AdultValidationError[]>(() => this._preSubmitResponse()?.validationErrors ?? []);
+    readonly validationErrors = computed<AdultValidationErrorDto[]>(() => this._preSubmitResponse()?.validationErrors ?? []);
 
     // ── Payment state ─────────────────────────────────────────────
     private readonly _paymentMethod = signal<'CC' | 'Check'>('CC');
@@ -186,7 +186,7 @@ export class AdultWizardStateService {
     readonly roleKey = this._roleKey.asReadonly();
 
     // ── Derived from role config ──────────────────────────────────
-    readonly profileFields = computed<AdultRegField[]>(() => this._roleConfig()?.profileFields ?? []);
+    readonly profileFields = computed<JobRegFieldDto[]>(() => this._roleConfig()?.profileFields ?? []);
     readonly waivers = computed<AdultWaiverDto[]>(() => this._roleConfig()?.waivers ?? []);
     readonly needsTeamSelection = computed(() => this._roleConfig()?.needsTeamSelection ?? false);
     /** Club/League coach: team picker shown as a non-binding REQUEST (no assignment, no PII). */
@@ -549,7 +549,7 @@ export class AdultWizardStateService {
     }
 
     // ── API: Submit payment (with fees) ───────────────────────────
-    async submitPayment(creditCard?: CreditCardValues): Promise<boolean> {
+    async submitPayment(creditCard?: CreditCardInfo): Promise<boolean> {
         this._paymentSubmitting.set(true);
         this._paymentError.set(null);
 

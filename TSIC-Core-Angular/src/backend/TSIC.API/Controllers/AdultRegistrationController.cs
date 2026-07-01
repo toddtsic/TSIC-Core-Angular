@@ -32,6 +32,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("{jobPath}/job-info")]
+    [ProducesResponseType(typeof(AdultRegJobInfoResponse), 200)]
     public async Task<IActionResult> GetJobInfo(string jobPath, CancellationToken ct)
     {
         try
@@ -50,6 +51,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("{jobPath}/form-schema/{roleType}")]
+    [ProducesResponseType(typeof(AdultRegFormResponse), 200)]
     public async Task<IActionResult> GetFormSchema(string jobPath, AdultRoleType roleType, CancellationToken ct)
     {
         try
@@ -68,6 +70,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpPost("{jobPath}/register")]
+    [ProducesResponseType(typeof(AdultRegistrationResponse), 200)]
     public async Task<IActionResult> RegisterNewUser(string jobPath, [FromBody] AdultRegistrationRequest request, CancellationToken ct)
     {
         try
@@ -90,6 +93,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [Authorize]
     [HttpPost("register-existing")]
+    [ProducesResponseType(typeof(AdultRegistrationResponse), 200)]
     public async Task<IActionResult> RegisterExistingUser([FromBody] AdultRegistrationExistingRequest request, CancellationToken ct)
     {
         try
@@ -155,6 +159,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("{jobPath}/available-teams")]
+    [ProducesResponseType(typeof(List<AdultTeamOptionDto>), 200)]
     public async Task<IActionResult> GetAvailableTeams(string jobPath, CancellationToken ct)
     {
         try
@@ -174,6 +179,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [Authorize]
     [HttpGet("{jobPath}/my-registration/{roleKey}")]
+    [ProducesResponseType(typeof(AdultExistingRegistrationDto), 200)]
     public async Task<IActionResult> GetMyExistingRegistration(string jobPath, string roleKey, CancellationToken ct)
     {
         try
@@ -202,6 +208,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpGet("{jobPath}/role-config/{roleKey}")]
+    [ProducesResponseType(typeof(AdultRoleConfigDto), 200)]
     public async Task<IActionResult> GetRoleConfig(string jobPath, string roleKey, CancellationToken ct)
     {
         try
@@ -225,6 +232,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [AllowAnonymous]
     [HttpPost("{jobPath}/pre-submit")]
+    [ProducesResponseType(typeof(PreSubmitAdultRegResponseDto), 200)]
     public async Task<IActionResult> PreSubmit(string jobPath, [FromBody] PreSubmitAdultRegRequestDto request, CancellationToken ct)
     {
         try
@@ -258,6 +266,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [Authorize]
     [HttpPost("submit-payment")]
+    [ProducesResponseType(typeof(AdultPaymentResponseDto), 200)]
     public async Task<IActionResult> SubmitPayment([FromBody] AdultPaymentRequestDto request, CancellationToken ct)
     {
         try
@@ -288,6 +297,7 @@ public class AdultRegistrationController : ControllerBase
     /// </summary>
     [Authorize]
     [HttpGet("confirmation/{registrationId:guid}")]
+    [ProducesResponseType(typeof(AdultConfirmationResponse), 200)]
     public async Task<IActionResult> GetConfirmation(Guid registrationId, CancellationToken ct)
     {
         try
