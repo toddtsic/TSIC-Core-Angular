@@ -22,6 +22,10 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<AdntripleThreatData> AdntripleThreatData { get; set; }
 
+    public virtual DbSet<AdvancementFeeds> AdvancementFeeds { get; set; }
+
+    public virtual DbSet<AdvancementRoutes> AdvancementRoutes { get; set; }
+
     public virtual DbSet<AgegroupScheduleProfile> AgegroupScheduleProfile { get; set; }
 
     public virtual DbSet<AgegroupWaveAssignment> AgegroupWaveAssignment { get; set; }
@@ -57,6 +61,8 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<BillingTypes> BillingTypes { get; set; }
 
     public virtual DbSet<BracketDataSingleElimination> BracketDataSingleElimination { get; set; }
+
+    public virtual DbSet<BracketInstances> BracketInstances { get; set; }
 
     public virtual DbSet<BracketSeeds> BracketSeeds { get; set; }
 
@@ -302,6 +308,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<ScheduleTeamTypes> ScheduleTeamTypes { get; set; }
 
+    public virtual DbSet<SeedAssignments> SeedAssignments { get; set; }
+
     public virtual DbSet<Settlement> Settlement { get; set; }
 
     public virtual DbSet<Sliders> Sliders { get; set; }
@@ -344,6 +352,8 @@ public partial class SqlDbContext : DbContext
 
     public virtual DbSet<Stores> Stores { get; set; }
 
+    public virtual DbSet<Strategies> Strategies { get; set; }
+
     public virtual DbSet<SweepLog> SweepLog { get; set; }
 
     public virtual DbSet<TeamAttendanceEvents> TeamAttendanceEvents { get; set; }
@@ -371,6 +381,10 @@ public partial class SqlDbContext : DbContext
     public virtual DbSet<TeamTournamentMappings> TeamTournamentMappings { get; set; }
 
     public virtual DbSet<Teams> Teams { get; set; }
+
+    public virtual DbSet<TemplateGames> TemplateGames { get; set; }
+
+    public virtual DbSet<Templates> Templates { get; set; }
 
     public virtual DbSet<Themes> Themes { get; set; }
 
@@ -1146,6 +1160,75 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("ZIP");
         });
 
+        modelBuilder.Entity<AdvancementFeeds>(entity =>
+        {
+            entity.HasKey(e => e.AdvancementFeedId).HasName("PK_brackets_AdvancementFeeds");
+
+            entity.ToTable("AdvancementFeeds", "brackets");
+
+            entity.HasIndex(e => e.BracketInstanceId, "IX_brackets_AdvancementFeeds_Instance");
+
+            entity.HasIndex(e => e.SourceGid, "IX_brackets_AdvancementFeeds_SourceGid");
+
+            entity.HasIndex(e => new { e.TargetGid, e.TargetSlot }, "UX_brackets_AdvancementFeeds_Target").IsUnique();
+
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.SourceResult).HasMaxLength(6);
+
+            entity.HasOne(d => d.BracketInstance).WithMany(p => p.AdvancementFeeds)
+                .HasForeignKey(d => d.BracketInstanceId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_AdvancementFeeds_Instance");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.AdvancementFeeds)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_brackets_AdvancementFeeds_LebUser");
+
+            entity.HasOne(d => d.SourceG).WithMany(p => p.AdvancementFeedsSourceG)
+                .HasForeignKey(d => d.SourceGid)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_AdvancementFeeds_SourceGid");
+
+            entity.HasOne(d => d.TargetG).WithMany(p => p.AdvancementFeedsTargetG)
+                .HasForeignKey(d => d.TargetGid)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_AdvancementFeeds_TargetGid");
+        });
+
+        modelBuilder.Entity<AdvancementRoutes>(entity =>
+        {
+            entity.HasKey(e => e.AdvancementRouteId).HasName("PK_brackets_AdvancementRoutes");
+
+            entity.ToTable("AdvancementRoutes", "brackets");
+
+            entity.HasIndex(e => new { e.SourceTemplateGameId, e.SourceResult }, "UX_brackets_AdvRoutes_Source").IsUnique();
+
+            entity.HasIndex(e => new { e.TargetTemplateGameId, e.TargetSlot }, "UX_brackets_AdvRoutes_Target").IsUnique();
+
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.SourceResult).HasMaxLength(6);
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.AdvancementRoutes)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_brackets_AdvRoutes_LebUser");
+
+            entity.HasOne(d => d.SourceTemplateGame).WithMany(p => p.AdvancementRoutesSourceTemplateGame)
+                .HasForeignKey(d => d.SourceTemplateGameId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_AdvRoutes_Source");
+
+            entity.HasOne(d => d.TargetTemplateGame).WithMany(p => p.AdvancementRoutesTargetTemplateGame)
+                .HasForeignKey(d => d.TargetTemplateGameId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_AdvRoutes_Target");
+        });
+
         modelBuilder.Entity<AgegroupScheduleProfile>(entity =>
         {
             entity.HasKey(e => e.AgegroupId).HasName("PK_scheduling_AgegroupScheduleProfile");
@@ -1464,6 +1547,45 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.RoundType)
                 .HasMaxLength(10)
                 .IsUnicode(false);
+        });
+
+        modelBuilder.Entity<BracketInstances>(entity =>
+        {
+            entity.HasKey(e => e.BracketInstanceId).HasName("PK_brackets_BracketInstances");
+
+            entity.ToTable("BracketInstances", "brackets");
+
+            entity.HasIndex(e => e.AgegroupId, "IX_brackets_BracketInstances_Agegroup");
+
+            entity.HasIndex(e => e.JobId, "IX_brackets_BracketInstances_Job");
+
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Agegroup).WithMany(p => p.BracketInstances)
+                .HasForeignKey(d => d.AgegroupId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_BracketInstances_Agegroup");
+
+            entity.HasOne(d => d.Div).WithMany(p => p.BracketInstances)
+                .HasForeignKey(d => d.DivId)
+                .HasConstraintName("FK_brackets_BracketInstances_Div");
+
+            entity.HasOne(d => d.Job).WithMany(p => p.BracketInstances)
+                .HasForeignKey(d => d.JobId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_BracketInstances_Job");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.BracketInstances)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_brackets_BracketInstances_LebUser");
+
+            entity.HasOne(d => d.Template).WithMany(p => p.BracketInstances)
+                .HasForeignKey(d => d.TemplateId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_BracketInstances_Template");
         });
 
         modelBuilder.Entity<BracketSeeds>(entity =>
@@ -1965,6 +2087,7 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("customerID");
             entity.Property(e => e.AdnLoginId).HasColumnName("adnLoginID");
             entity.Property(e => e.AdnTransactionKey).HasColumnName("adnTransactionKey");
+            entity.Property(e => e.BAllowAmex).HasColumnName("bAllowAmex");
             entity.Property(e => e.CustomerAi)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("customerAI");
@@ -6061,6 +6184,40 @@ public partial class SqlDbContext : DbContext
                 .HasColumnName("teamTypeDesc");
         });
 
+        modelBuilder.Entity<SeedAssignments>(entity =>
+        {
+            entity.HasKey(e => e.SeedAssignmentId).HasName("PK_brackets_SeedAssignments");
+
+            entity.ToTable("SeedAssignments", "brackets");
+
+            entity.HasIndex(e => e.BracketInstanceId, "IX_brackets_SeedAssignments_Instance");
+
+            entity.HasIndex(e => new { e.Gid, e.TargetSlot }, "UX_brackets_SeedAssignments_Slot").IsUnique();
+
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.BracketInstance).WithMany(p => p.SeedAssignments)
+                .HasForeignKey(d => d.BracketInstanceId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_SeedAssignments_Instance");
+
+            entity.HasOne(d => d.GidNavigation).WithMany(p => p.SeedAssignments)
+                .HasForeignKey(d => d.Gid)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_SeedAssignments_Gid");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.SeedAssignments)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_brackets_SeedAssignments_LebUser");
+
+            entity.HasOne(d => d.SeedDiv).WithMany(p => p.SeedAssignments)
+                .HasForeignKey(d => d.SeedDivId)
+                .HasConstraintName("FK_brackets_SeedAssignments_Div");
+        });
+
         modelBuilder.Entity<Settlement>(entity =>
         {
             entity.HasKey(e => e.SettlementId).HasName("PK_echeck_Settlement");
@@ -6169,13 +6326,20 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.Ai)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("ai");
+            entity.Property(e => e.DrawPts)
+                .HasDefaultValue(1, "DF_Sports_drawPts")
+                .HasColumnName("drawPts");
             entity.Property(e => e.LebUserId)
                 .HasMaxLength(450)
                 .HasColumnName("lebUserID");
+            entity.Property(e => e.LossPts).HasColumnName("lossPts");
             entity.Property(e => e.Modified)
                 .HasDefaultValueSql("(getdate())")
                 .HasColumnName("modified");
             entity.Property(e => e.SportName).HasColumnName("sportName");
+            entity.Property(e => e.WinPts)
+                .HasDefaultValue(3, "DF_Sports_winPts")
+                .HasColumnName("winPts");
 
             entity.HasOne(d => d.LebUser).WithMany(p => p.Sports)
                 .HasForeignKey(d => d.LebUserId)
@@ -6604,6 +6768,28 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.ParentStore).WithMany(p => p.InverseParentStore)
                 .HasForeignKey(d => d.ParentStoreId)
                 .HasConstraintName("FK__Stores__ParentSt__344C18E9");
+        });
+
+        modelBuilder.Entity<Strategies>(entity =>
+        {
+            entity.HasKey(e => e.StrategyId).HasName("PK_brackets_Strategies");
+
+            entity.ToTable("Strategies", "brackets");
+
+            entity.HasIndex(e => e.Code, "UX_brackets_Strategies_Code").IsUnique();
+
+            entity.Property(e => e.Code).HasMaxLength(10);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Name).HasMaxLength(100);
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.Strategies)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_brackets_Strategies_LebUser");
         });
 
         modelBuilder.Entity<SweepLog>(entity =>
@@ -7176,6 +7362,57 @@ public partial class SqlDbContext : DbContext
             entity.HasOne(d => d.ViPolicyClubRepReg).WithMany(p => p.TeamsViPolicyClubRepReg)
                 .HasForeignKey(d => d.ViPolicyClubRepRegId)
                 .HasConstraintName("FK__teams__viPolicyC__700BFD35");
+        });
+
+        modelBuilder.Entity<TemplateGames>(entity =>
+        {
+            entity.HasKey(e => e.TemplateGameId).HasName("PK_brackets_TemplateGames");
+
+            entity.ToTable("TemplateGames", "brackets");
+
+            entity.HasIndex(e => new { e.TemplateId, e.RoundType, e.GameKey }, "UX_brackets_TemplateGames_Key").IsUnique();
+
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.RoundType).HasMaxLength(4);
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.TemplateGames)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_brackets_TemplateGames_LebUser");
+
+            entity.HasOne(d => d.Template).WithMany(p => p.TemplateGames)
+                .HasForeignKey(d => d.TemplateId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_TemplateGames_Template");
+        });
+
+        modelBuilder.Entity<Templates>(entity =>
+        {
+            entity.HasKey(e => e.TemplateId).HasName("PK_brackets_Templates");
+
+            entity.ToTable("Templates", "brackets");
+
+            entity.HasIndex(e => new { e.StrategyId, e.BracketSize, e.Variant }, "UX_brackets_Templates_Strategy_Size_Variant").IsUnique();
+
+            entity.Property(e => e.LebUserId).HasMaxLength(450);
+            entity.Property(e => e.Modified)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+            entity.Property(e => e.Name).HasMaxLength(100);
+            entity.Property(e => e.Variant)
+                .HasMaxLength(20)
+                .HasDefaultValue("Standard", "DF_brackets_Templates_Variant");
+
+            entity.HasOne(d => d.LebUser).WithMany(p => p.Templates)
+                .HasForeignKey(d => d.LebUserId)
+                .HasConstraintName("FK_brackets_Templates_LebUser");
+
+            entity.HasOne(d => d.Strategy).WithMany(p => p.Templates)
+                .HasForeignKey(d => d.StrategyId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_brackets_Templates_Strategy");
         });
 
         modelBuilder.Entity<Themes>(entity =>
