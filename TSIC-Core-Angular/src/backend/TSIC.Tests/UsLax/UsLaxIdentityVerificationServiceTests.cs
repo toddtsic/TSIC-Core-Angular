@@ -148,6 +148,42 @@ public class UsLaxIdentityVerificationServiceTests
         result.VerificationId.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Begin_ExceedsSendCap_IsThrottled_WithoutPingingVendorAgain()
+    {
+        SetupPing(ActiveCoach());
+        SetupEmailSucceeds();
+        var sut = CreateSut();
+
+        // 5 sends (MaxSendsPerWindow) for the same number all succeed.
+        for (var i = 0; i < 5; i++)
+            (await sut.BeginAsync(GoodNumber)).Status.Should().Be(UsLaxVerifyBeginStatus.Sent);
+
+        // 6th is throttled — surfaced as ServiceUnavailable so the UI shows the message.
+        var sixth = await sut.BeginAsync(GoodNumber);
+        sixth.Status.Should().Be(UsLaxVerifyBeginStatus.ServiceUnavailable);
+
+        // The throttle short-circuits BEFORE the vendor ping (exactly 5 pings, not 6).
+        _usLax.Verify(s => s.GetMemberAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(5));
+    }
+
+    [Fact]
+    public async Task Begin_FailedSends_DoNotCountAgainstCap()
+    {
+        // Vendor down on every call → ServiceUnavailable, but nothing was actually emailed,
+        // so the send counter stays at 0 and a coach isn't locked out by transient failures.
+        SetupPing(null);
+        var sut = CreateSut();
+
+        for (var i = 0; i < 8; i++)
+            (await sut.BeginAsync(GoodNumber)).Status.Should().Be(UsLaxVerifyBeginStatus.ServiceUnavailable);
+
+        // Vendor recovers → the very next call still sends (not throttled).
+        SetupPing(ActiveCoach());
+        SetupEmailSucceeds();
+        (await sut.BeginAsync(GoodNumber)).Status.Should().Be(UsLaxVerifyBeginStatus.Sent);
+    }
+
     // ── Confirm + Consume: the OTP round-trip ─────────────────────
 
     private static string ExtractCode(EmailMessageDto msg)

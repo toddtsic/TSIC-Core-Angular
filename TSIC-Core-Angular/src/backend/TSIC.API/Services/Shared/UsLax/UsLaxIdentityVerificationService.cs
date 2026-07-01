@@ -78,6 +78,15 @@ public class UsLaxIdentityVerificationService : IUsLaxIdentityVerificationServic
     private const int MaxAttempts = 5;
     private const string CoachInvolvement = "Coach";
 
+    // Per-number send throttle: the begin endpoint is anonymous (coach self-registration),
+    // so cap how many codes one membership number can trigger — stops a known number being
+    // replayed to bomb the coach's on-file inbox / burn vendor+SES quota. Per-IP enumeration
+    // limiting is intentionally out of scope (would need HttpContext/middleware); the OTP
+    // itself is attempt-capped + single-use, so this is abuse-mitigation, not a auth control.
+    private const string SendThrottlePrefix = "uslax:idsend:";
+    private static readonly TimeSpan SendThrottleWindow = TimeSpan.FromHours(1);
+    private const int MaxSendsPerWindow = 5;
+
     public UsLaxIdentityVerificationService(
         IUsLaxService usLax, IEmailService email, IMemoryCache cache)
     {
@@ -97,6 +106,11 @@ public class UsLaxIdentityVerificationService : IUsLaxIdentityVerificationServic
                 Message = "Enter a valid USA Lacrosse number (6–12 digits)."
             };
         }
+
+        // Throttle before pinging the vendor, so abuse doesn't even reach USA Lacrosse.
+        var throttleKey = SendThrottlePrefix + padded;
+        var priorSends = _cache.TryGetValue(throttleKey, out int c) ? c : 0;
+        if (priorSends >= MaxSendsPerWindow) return Throttled();
 
         UsLaxMemberPingResult? member;
         try
@@ -145,6 +159,13 @@ public class UsLaxIdentityVerificationService : IUsLaxIdentityVerificationServic
 
         var sent = await SendCodeEmailAsync(onFileEmail, entry.Code, ct);
         if (!sent) return ServiceUnavailable();
+
+        // Count this send against the per-number window (rolling — a fresh burst re-arms the
+        // block). Only successful sends count, so vendor/format failures don't lock a coach out.
+        _cache.Set(throttleKey, priorSends + 1, new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = SendThrottleWindow
+        });
 
         _cache.Set(CachePrefix + verificationId, entry, new MemoryCacheEntryOptions
         {
@@ -252,6 +273,13 @@ public class UsLaxIdentityVerificationService : IUsLaxIdentityVerificationServic
     {
         Status = UsLaxVerifyBeginStatus.ServiceUnavailable,
         Message = "We couldn't reach USA Lacrosse just now. Please try again in a moment."
+    };
+
+    // Reuses ServiceUnavailable so the UI shows the message with no new status/DTO/regen churn.
+    private static UsLaxVerifyBeginResult Throttled() => new()
+    {
+        Status = UsLaxVerifyBeginStatus.ServiceUnavailable,
+        Message = "Too many verification emails requested for this number. Please try again later."
     };
 
     /// <summary>Trim, validate 6–12 digits, left-pad to 12 (the form USLax records/returns).</summary>
