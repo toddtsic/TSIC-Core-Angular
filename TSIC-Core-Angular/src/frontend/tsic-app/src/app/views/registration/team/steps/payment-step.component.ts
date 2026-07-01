@@ -145,6 +145,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                   <section class="payment-form-panel mt-3">
                     <h6 class="fw-semibold mb-3">Payment for Insurance</h6>
                     <app-credit-card-form
+                      [allowAmex]="state.jobUsesAmex()"
                       [defaultFirstName]="clubRepContact()?.firstName ?? null"
                       [defaultLastName]="clubRepContact()?.lastName ?? null"
                       [defaultAddress]="clubRepContact()?.streetAddress ?? null"
@@ -328,6 +329,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
           @if (isCc()) {
             <section class="payment-form-panel">
               <app-credit-card-form
+                [allowAmex]="state.jobUsesAmex()"
                 [defaultFirstName]="clubRepContact()?.firstName ?? null"
                 [defaultLastName]="clubRepContact()?.lastName ?? null"
                 [defaultAddress]="clubRepContact()?.streetAddress ?? null"
@@ -433,6 +435,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
 
               @if (arbTrialSource() === 'CC') {
                 <app-credit-card-form
+                  [allowAmex]="state.jobUsesAmex()"
                   [defaultFirstName]="clubRepContact()?.firstName ?? null"
                   [defaultLastName]="clubRepContact()?.lastName ?? null"
                   [defaultAddress]="clubRepContact()?.streetAddress ?? null"

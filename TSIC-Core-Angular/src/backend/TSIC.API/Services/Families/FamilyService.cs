@@ -30,6 +30,7 @@ public sealed class FamilyService : IFamilyService
     private readonly IFamilyMemberRepository _familyMemberRepo;
     private readonly TSIC.Contracts.Services.IPaymentStateService _paymentState;
     private readonly TSIC.Contracts.Services.IFeeResolutionService _feeService;
+    private readonly TSIC.Contracts.Services.IJobPaymentFeaturesService _paymentFeatures;
     private const string DateFormat = "yyyy-MM-dd";
 
     public FamilyService(
@@ -45,7 +46,8 @@ public sealed class FamilyService : IFamilyService
         IJobDiscountCodeRepository jobDiscountRepo,
         IFamilyMemberRepository familyMemberRepo,
         TSIC.Contracts.Services.IPaymentStateService paymentState,
-        TSIC.Contracts.Services.IFeeResolutionService feeService)
+        TSIC.Contracts.Services.IFeeResolutionService feeService,
+        TSIC.Contracts.Services.IJobPaymentFeaturesService paymentFeatures)
     {
         _userManager = userManager;
         _profileMeta = profileMeta;
@@ -60,6 +62,7 @@ public sealed class FamilyService : IFamilyService
         _familyMemberRepo = familyMemberRepo;
         _paymentState = paymentState;
         _feeService = feeService;
+        _paymentFeatures = paymentFeatures;
     }
 
     public async Task<FamilyPlayersResponseDto> GetFamilyPlayersAsync(string familyUserId, string jobPath)
@@ -720,19 +723,7 @@ public sealed class FamilyService : IFamilyService
         var now = DateTime.Now;
         var hasActiveDiscountCodes = (await _jobDiscountRepo.GetActiveCodesForJobAsync(jobId.Value, now)).Any();
 
-        var customerId = await _jobRepo.GetCustomerIdAsync(jobId.Value);
-
-        var usesAmex = false;
-        if (customerId != null)
-        {
-            try
-            {
-                var amexIds = _config.GetSection("PaymentMethods_NonMCVisa_ClientIds:Amex").Get<string[]>() ?? Array.Empty<string>();
-                var cust = customerId.Value.ToString();
-                usesAmex = Array.Exists(amexIds, id => string.Equals(id, cust, StringComparison.OrdinalIgnoreCase));
-            }
-            catch { usesAmex = false; }
-        }
+        var usesAmex = await _paymentFeatures.UsesAmexAsync(jobId);
 
         return (hasActiveDiscountCodes, usesAmex);
     }

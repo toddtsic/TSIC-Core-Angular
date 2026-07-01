@@ -150,6 +150,8 @@ export class AdultWizardStateService {
     readonly preSubmitError = this._preSubmitError.asReadonly();
 
     readonly fees = computed<AdultFeeBreakdown | null>(() => this._preSubmitResponse()?.fees ?? null);
+    // AMEX offered only when this job's merchant account accepts it (fail-closed false).
+    readonly jobUsesAmex = computed<boolean>(() => this._preSubmitResponse()?.jobUsesAmex ?? false);
     readonly hasFees = computed(() => (this.fees()?.owedTotal ?? 0) > 0);
     readonly validationErrors = computed<AdultValidationError[]>(() => this._preSubmitResponse()?.validationErrors ?? []);
 

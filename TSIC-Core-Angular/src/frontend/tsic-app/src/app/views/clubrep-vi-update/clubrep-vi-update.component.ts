@@ -172,7 +172,8 @@ type ViewState = 'login' | 'loading' | 'offer' | 'nothing' | 'success' | 'error'
                   <app-credit-card-form
                     (validChange)="ccValid.set($event)"
                     (valueChange)="ccValue.set($event)"
-                    [viOnly]="true" />
+                    [viOnly]="true"
+                    [allowAmex]="jobUsesAmex()" />
 
                   <div class="d-flex justify-content-between gap-2 mt-4">
                     <a class="btn btn-outline-secondary" [routerLink]="['/', jobPath()]">
@@ -254,6 +255,8 @@ export class ClubRepVIUpdateComponent implements OnDestroy {
     readonly purchasing = signal(false);
     readonly ccValid = signal(false);
     readonly ccValue = signal<Record<string, string> | null>(null);
+    // AMEX offered only when this job's merchant account accepts it (fail-closed false).
+    readonly jobUsesAmex = signal(false);
 
     readonly hasSelectedQuotes = computed(() =>
         this.teamInsurance.hasUserResponse() && this.teamInsurance.quotes().length > 0,
@@ -375,6 +378,7 @@ export class ClubRepVIUpdateComponent implements OnDestroy {
             this.state.set('nothing');
             return;
         }
+        this.jobUsesAmex.set(offer.jobUsesAmex ?? false);
         this.state.set('offer');
         this.viInitTimeout = setTimeout(() => this.tryInitWidget(offer.teamObject as VIOfferData), 0);
     }

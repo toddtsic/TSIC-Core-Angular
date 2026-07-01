@@ -79,7 +79,8 @@ public partial class VerticalInsureService
                 Available = true,
                 TeamObject = teamObj,
                 ExpiresUtc = DateTime.Now.AddMinutes(10),
-                StateId = $"vi-team-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}"
+                StateId = $"vi-team-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}",
+                JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId)
             };
         }
         catch (Exception ex)

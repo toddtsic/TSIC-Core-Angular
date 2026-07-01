@@ -17,17 +17,20 @@ public sealed class StoreCartService : IStoreCartService
     private readonly IStoreCartRepository _cartRepo;
     private readonly IStoreItemRepository _itemRepo;
     private readonly IAdnApiService _adnApiService;
+    private readonly TSIC.Contracts.Services.IJobPaymentFeaturesService _paymentFeatures;
 
     public StoreCartService(
         IStoreRepository storeRepo,
         IStoreCartRepository cartRepo,
         IStoreItemRepository itemRepo,
-        IAdnApiService adnApiService)
+        IAdnApiService adnApiService,
+        TSIC.Contracts.Services.IJobPaymentFeaturesService paymentFeatures)
     {
         _storeRepo = storeRepo;
         _cartRepo = cartRepo;
         _itemRepo = itemRepo;
         _adnApiService = adnApiService;
+        _paymentFeatures = paymentFeatures;
     }
 
     public async Task<StoreCartBatchDto> GetCurrentCartAsync(Guid jobId, string familyUserId)
@@ -44,7 +47,8 @@ public sealed class StoreCartService : IStoreCartService
         if (batch == null)
             return EmptyCart();
 
-        return await BuildCartBatchDto(batch.StoreCartBatchId);
+        return (await BuildCartBatchDto(batch.StoreCartBatchId))
+            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
     public async Task<StoreCartBatchDto> AddToCartAsync(
@@ -117,7 +121,8 @@ public sealed class StoreCartService : IStoreCartService
 
         await _cartRepo.SaveChangesAsync();
 
-        return await BuildCartBatchDto(batch.StoreCartBatchId);
+        return (await BuildCartBatchDto(batch.StoreCartBatchId))
+            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
     public async Task<StoreCartBatchDto> UpdateQuantityAsync(
@@ -154,7 +159,8 @@ public sealed class StoreCartService : IStoreCartService
 
         await _cartRepo.SaveChangesAsync();
 
-        return await BuildCartBatchDto(lineItem.StoreCartBatchId);
+        return (await BuildCartBatchDto(lineItem.StoreCartBatchId))
+            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
     public async Task<StoreCartBatchDto> RemoveFromCartAsync(
@@ -167,7 +173,8 @@ public sealed class StoreCartService : IStoreCartService
         _cartRepo.RemoveLineItem(lineItem);
         await _cartRepo.SaveChangesAsync();
 
-        return await BuildCartBatchDto(batchId);
+        return (await BuildCartBatchDto(batchId))
+            with { JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId) };
     }
 
     public async Task<SkuAvailabilityDto> CheckAvailabilityAsync(int storeSkuId)

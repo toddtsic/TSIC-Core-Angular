@@ -10,5 +10,6 @@ export type StoreCartBatchDto = {
     totalFees: number;
     totalTax: number;
     grandTotal: number;
+    jobUsesAmex?: boolean;
 };
 

@@ -304,6 +304,7 @@ builder.Services.AddScoped<IJobConfigService, JobConfigService>();
 builder.Services.AddScoped<IJobVisibilityService, JobVisibilityService>();
 // The single authority for registration-CREATE permission (door · toggle · precondition).
 builder.Services.AddScoped<IJobRegistrationCapabilities, JobRegistrationCapabilities>();
+builder.Services.AddScoped<IJobPaymentFeaturesService, JobPaymentFeaturesService>();
 // ARB Defensive
 builder.Services.AddScoped<IArbDefensiveService, ArbDefensiveService>();
 // Customer Configure

@@ -128,7 +128,8 @@ public class ExpiredJobWriteGateTests
             textSubstitution.Object, emailService.Object, discountCodeRepo.Object,
             clubTeams.Object, placement.Object, paymentState.Object,
             new Mock<IRegisteredTeamShaper>().Object,
-            capabilities);
+            capabilities,
+            new Mock<IJobPaymentFeaturesService>().Object);
 
         return new Mocks { Svc = svc, Jobs = jobs, Teams = teamRepo, Regs = regRepo };
     }

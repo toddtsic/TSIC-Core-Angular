@@ -186,6 +186,10 @@ public sealed record PreSubmitTeamInsuranceDto
     public DateTime? ExpiresUtc { get; init; }
     public string? StateId { get; init; }
     public string? Error { get; init; }
+
+    /// <summary>True iff this job's merchant account accepts AMEX (see IJobPaymentFeaturesService).
+    /// Gates whether the club-rep VI-update payment step offers AMEX as a card type. Fail-closed false.</summary>
+    public bool JobUsesAmex { get; init; }
 }
 
 /// <summary>

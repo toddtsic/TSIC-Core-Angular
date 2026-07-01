@@ -6,6 +6,7 @@ using Moq;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 
 namespace TSIC.Tests.PlayerRegistration.Insurance;
 
@@ -68,6 +69,11 @@ public class VerticalInsureFreeTeamGateTests
         var env = new Mock<IHostEnvironment>();
         env.SetupGet(e => e.EnvironmentName).Returns("Development");
 
+        var paymentFeatures = new Mock<IJobPaymentFeaturesService>();
+        paymentFeatures
+            .Setup(p => p.UsesAmexAsync(It.IsAny<Guid?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
         return new VerticalInsureService(
             jobRepo.Object,
             regRepo.Object,
@@ -78,6 +84,7 @@ public class VerticalInsureFreeTeamGateTests
             new Mock<ILogger<VerticalInsureService>>().Object,
             teamLookup.Object,
             Options.Create(new VerticalInsureSettings()),
+            paymentFeatures.Object,
             httpClientFactory: null);
     }
 

@@ -45,6 +45,8 @@ export class StoreCheckoutComponent {
 	readonly subtotal = computed(() => this.cart()?.subtotal ?? 0);
 	readonly totalFees = computed(() => this.cart()?.totalFees ?? 0);
 	readonly totalTax = computed(() => this.cart()?.totalTax ?? 0);
+	// AMEX offered only when this job's merchant account accepts it (fail-closed false).
+	readonly jobUsesAmex = computed(() => this.cart()?.jobUsesAmex ?? false);
 
 	readonly defaultEmail = computed(() => {
 		const user = this.auth.currentUser();

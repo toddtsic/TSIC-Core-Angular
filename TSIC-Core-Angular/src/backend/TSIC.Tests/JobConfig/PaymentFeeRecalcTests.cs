@@ -168,7 +168,8 @@ public class PaymentFeeRecalcTests
             new Mock<ITeamPlacementService>().Object,
             new Mock<IPaymentStateService>().Object,
             new Mock<IRegisteredTeamShaper>().Object,
-            CapabilityMocks.Open());
+            CapabilityMocks.Open(),
+            new Mock<IJobPaymentFeaturesService>().Object);
 
         var playerMock = new Mock<IPlayerRegistrationService>();
         playerMock
@@ -332,7 +333,8 @@ public class PaymentFeeRecalcTests
             new Mock<ITeamPlacementService>().Object,
             new Mock<IPaymentStateService>().Object,
             new Mock<IRegisteredTeamShaper>().Object,
-            CapabilityMocks.Open());
+            CapabilityMocks.Open(),
+            new Mock<IJobPaymentFeaturesService>().Object);
 
         var configService = new JobConfigService(
             configRepo,

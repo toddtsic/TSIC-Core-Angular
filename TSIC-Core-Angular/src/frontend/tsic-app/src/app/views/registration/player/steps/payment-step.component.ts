@@ -509,6 +509,7 @@ import type { LineItem } from '../state/payment-v2.service';
             (validChange)="onCcValidChange($event)"
             (valueChange)="onCcValueChange($event)"
             [viOnly]="isViCcOnlyFlow() || isViCheckHybridFlow()"
+            [allowAmex]="jobCtx.jobUsesAmex()"
             [defaultFirstName]="familyUser()?.firstName ?? familyUser()?.ccInfo?.firstName ?? null"
             [defaultLastName]="familyUser()?.lastName ?? familyUser()?.ccInfo?.lastName ?? null"
             [defaultAddress]="familyUser()?.address ?? familyUser()?.ccInfo?.streetAddress ?? null"

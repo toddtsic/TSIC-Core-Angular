@@ -133,6 +133,9 @@ export interface PreSubmitAdultResponse {
     validationErrors?: AdultValidationError[] | null;
     registrationId: string | null;
     fees: AdultFeeBreakdown;
+    // True iff this job's merchant account accepts AMEX (backend IJobPaymentFeaturesService).
+    // Gates whether the payment step offers AMEX as a card type. Fail-closed false.
+    jobUsesAmex: boolean;
 }
 
 export interface AdultFeeBreakdown {

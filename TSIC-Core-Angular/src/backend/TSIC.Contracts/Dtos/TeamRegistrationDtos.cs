@@ -94,6 +94,9 @@ public sealed record TeamsMetadataResponse
     public required bool BAddProcessingFees { get; init; }
     public required bool BApplyProcessingFeesToTeamDeposit { get; init; }
     public required bool HasActiveDiscountCodes { get; init; }
+    /// <summary>True iff this job's merchant account accepts AMEX (see IJobPaymentFeaturesService).
+    /// Gates whether the team payment step offers AMEX as a card type. Fail-closed false.</summary>
+    public required bool JobUsesAmex { get; init; }
     public UserContactInfoDto? ClubRepContactInfo { get; init; }
     public string? PayTo { get; init; }
     public string? MailTo { get; init; }

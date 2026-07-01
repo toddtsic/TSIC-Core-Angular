@@ -109,6 +109,7 @@ import type { CreditCardValues } from '@infrastructure/services/adult-registrati
                 <!-- CC form (only when CC selected) -->
                 @if (state.paymentMethod() === 'CC') {
                     <app-credit-card-form
+                        [allowAmex]="state.jobUsesAmex()"
                         [defaultFirstName]="state.firstName()"
                         [defaultLastName]="state.lastName()"
                         [defaultEmail]="state.email()"

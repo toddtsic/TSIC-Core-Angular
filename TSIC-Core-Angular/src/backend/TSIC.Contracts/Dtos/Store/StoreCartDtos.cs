@@ -15,6 +15,10 @@ public record StoreCartBatchDto
     public required decimal TotalFees { get; init; }
     public required decimal TotalTax { get; init; }
     public required decimal GrandTotal { get; init; }
+
+    /// <summary>True iff this job's merchant account accepts AMEX (see IJobPaymentFeaturesService).
+    /// Gates whether store checkout offers AMEX as a card type. Fail-closed false.</summary>
+    public bool JobUsesAmex { get; init; }
 }
 
 /// <summary>

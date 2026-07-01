@@ -213,6 +213,10 @@ public record PreSubmitAdultRegResponseDto
     public List<AdultValidationErrorDto>? ValidationErrors { get; init; }
     public Guid? RegistrationId { get; init; }
     public required AdultFeeBreakdownDto Fees { get; init; }
+
+    /// <summary>True iff this job's merchant account accepts AMEX (see IJobPaymentFeaturesService).
+    /// Gates whether the payment step offers AMEX as a card type. Fail-closed false.</summary>
+    public required bool JobUsesAmex { get; init; }
 }
 
 /// <summary>

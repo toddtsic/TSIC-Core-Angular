@@ -113,6 +113,7 @@
 			<div class="section-card">
 				<h6 class="section-title"><i class="bi bi-credit-card-fill me-1"></i>Payment</h6>
 				<app-credit-card-form
+					[allowAmex]="jobUsesAmex()"
 					[defaultEmail]="defaultEmail()"
 					(validChange)="onCcValidChange($event)"
 					(valueChange)="onCcValueChange($event)">

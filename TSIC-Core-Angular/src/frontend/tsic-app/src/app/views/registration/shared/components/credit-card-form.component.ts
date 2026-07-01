@@ -83,7 +83,9 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
               <option value=""></option>
               <option value="MC">MC</option>
               <option value="VISA">VISA</option>
-              <option value="AMEX">AMEX</option>
+              @if (allowAmex()) {
+                <option value="AMEX">AMEX</option>
+              }
             </select>
             @if (err('type')) {
               <div id="cc-type-err" class="form-text text-danger" role="alert">{{ err('type') }}</div>
@@ -127,6 +129,12 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
 })
 export class CreditCardFormComponent implements OnInit, OnChanges {
   readonly viOnly = input<boolean>(false);
+  // Whether AMEX is an accepted card type for this job's merchant account.
+  // Fail-closed: AMEX is an allow-listed exception, so it only appears when a caller
+  // affirmatively sets this true from the job's real ADN capability (jobUsesAmex).
+  // A caller that doesn't yet supply the flag gets MC/VISA only — never a card type
+  // the merchant can't process.
+  readonly allowAmex = input<boolean>(false);
   // Default prefill values (from family user or ccInfo). Only applied to blank, pristine fields.
   readonly defaultFirstName = input<string | null>(null);
   readonly defaultLastName = input<string | null>(null);

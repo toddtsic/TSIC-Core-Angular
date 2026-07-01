@@ -10,6 +10,7 @@ using TSIC.Contracts.Dtos.VerticalInsure;
 using TSIC.Domain.Entities;
 using TSIC.Domain.Constants;
 using TSIC.Contracts.Repositories;
+using TSIC.Contracts.Services;
 using TSIC.Application.Services.Shared.Insurance;
 using TSIC.API.Services.Teams;
 
@@ -31,6 +32,7 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
     private readonly ITeamLookupService _teamLookupService;
     private readonly IHttpClientFactory? _httpClientFactory;
     private readonly IOptions<VerticalInsureSettings> _options;
+    private readonly IJobPaymentFeaturesService _paymentFeatures;
 
     public VerticalInsureService(
         IJobRepository jobRepo,
@@ -42,8 +44,10 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
         ILogger<VerticalInsureService> logger,
         ITeamLookupService teamLookupService,
         IOptions<VerticalInsureSettings> options,
+        IJobPaymentFeaturesService paymentFeatures,
         IHttpClientFactory? httpClientFactory = null)
     {
+        _paymentFeatures = paymentFeatures;
         _jobRepo = jobRepo;
         _registrationRepo = registrationRepo;
         _familyRepo = familyRepo;
@@ -88,7 +92,8 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
                 Available = true,
                 PlayerObject = playerObj,
                 ExpiresUtc = DateTime.Now.AddMinutes(10),
-                StateId = $"vi-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}"
+                StateId = $"vi-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid().ToString("N")[..8]}",
+                JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId)
             };
         }
         catch (Exception ex)

@@ -179,7 +179,8 @@ public class MaxTeamsPerClubTests
             textSubstitution.Object, emailService.Object, discountCodeRepo.Object,
             clubTeams.Object, placement.Object, paymentState.Object,
             new Mock<IRegisteredTeamShaper>().Object,
-            TSIC.Tests.Helpers.CapabilityMocks.Open());
+            TSIC.Tests.Helpers.CapabilityMocks.Open(),
+            new Mock<IJobPaymentFeaturesService>().Object);
 
         return (svc, teamRepo, placement, agRepo);
     }

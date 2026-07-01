@@ -176,6 +176,7 @@ type ViewState = 'login' | 'loading' | 'offer' | 'nothing' | 'success' | 'error'
                     (validChange)="ccValid.set($event)"
                     (valueChange)="ccValue.set($event)"
                     [viOnly]="true"
+                    [allowAmex]="jobUsesAmex()"
                     [defaultFirstName]="familyUser()?.firstName ?? familyUser()?.ccInfo?.firstName ?? null"
                     [defaultLastName]="familyUser()?.lastName ?? familyUser()?.ccInfo?.lastName ?? null"
                     [defaultAddress]="familyUser()?.address ?? familyUser()?.ccInfo?.streetAddress ?? null"
@@ -265,6 +266,8 @@ export class PlayerVIUpdateComponent implements OnDestroy {
     readonly purchasing = signal(false);
     readonly ccValid = signal(false);
     readonly ccValue = signal<Record<string, string> | null>(null);
+    // AMEX offered only when this job's merchant account accepts it (fail-closed false).
+    readonly jobUsesAmex = signal(false);
 
     readonly familyUser = computed(() => this.fp.familyUser());
 
@@ -383,6 +386,7 @@ export class PlayerVIUpdateComponent implements OnDestroy {
                         return;
                     }
                     this.jobCtx.setVerticalInsureOffer({ loading: false, data: offer.playerObject, error: null });
+                    this.jobUsesAmex.set(offer.jobUsesAmex ?? false);
                     this.state.set('offer');
                     this.viInitTimeout = setTimeout(() => this.tryInitWidget(offer.playerObject as VIOfferData), 0);
                 },

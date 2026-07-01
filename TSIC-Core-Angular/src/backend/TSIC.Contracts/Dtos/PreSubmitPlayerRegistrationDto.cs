@@ -53,6 +53,10 @@ namespace TSIC.Contracts.Dtos
         public string? Error { get; init; }
         public DateTime? ExpiresUtc { get; init; }
         public string? StateId { get; init; }
+
+        /// <summary>True iff this job's merchant account accepts AMEX (see IJobPaymentFeaturesService).
+        /// Gates whether the VI-update payment step offers AMEX as a card type. Fail-closed false.</summary>
+        public bool JobUsesAmex { get; init; }
     }
 
     public record PreSubmitValidationErrorDto

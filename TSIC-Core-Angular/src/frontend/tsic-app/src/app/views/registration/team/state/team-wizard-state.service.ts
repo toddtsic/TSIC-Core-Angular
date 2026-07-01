@@ -39,6 +39,10 @@ export class TeamWizardStateService {
     private readonly _hasActiveDiscountCodes = signal(false);
     readonly hasActiveDiscountCodes = this._hasActiveDiscountCodes.asReadonly();
 
+    // AMEX offered only when this job's merchant account accepts it (fail-closed false).
+    private readonly _jobUsesAmex = signal(false);
+    readonly jobUsesAmex = this._jobUsesAmex.asReadonly();
+
     private readonly _fullPaymentRequired = signal(true);
     readonly fullPaymentRequired = this._fullPaymentRequired.asReadonly();
 
@@ -117,6 +121,7 @@ export class TeamWizardStateService {
             meta.effectiveEcheckProcessingRate ?? 0,
         );
         this._hasActiveDiscountCodes.set(meta.hasActiveDiscountCodes);
+        this._jobUsesAmex.set(meta.jobUsesAmex ?? false);
         this._fullPaymentRequired.set(meta.bTeamsFullPaymentRequired ?? true);
         this._clubRepContact.set(meta.clubRepContactInfo ?? null);
         this._refundPolicyHtml.set(meta.playerRegRefundPolicy ?? null);
@@ -174,6 +179,7 @@ export class TeamWizardStateService {
     reset(): void {
         this._jobPath.set('');
         this._hasActiveDiscountCodes.set(false);
+        this._jobUsesAmex.set(false);
         this._fullPaymentRequired.set(true);
         this._clubRepContact.set(null);
         this._refundPolicyHtml.set(null);

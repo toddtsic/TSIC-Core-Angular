@@ -9,5 +9,6 @@ export type PreSubmitTeamInsuranceDto = {
     expiresUtc?: string | null;
     stateId?: string | null;
     error?: string | null;
+    jobUsesAmex?: boolean;
 };
 

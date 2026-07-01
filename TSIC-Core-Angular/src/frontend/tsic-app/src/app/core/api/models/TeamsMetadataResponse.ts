@@ -22,6 +22,7 @@ export type TeamsMetadataResponse = {
     bAddProcessingFees: boolean;
     bApplyProcessingFeesToTeamDeposit: boolean;
     hasActiveDiscountCodes: boolean;
+    jobUsesAmex: boolean;
     clubRepContactInfo?: (null | UserContactInfoDto);
     payTo?: string | null;
     mailTo?: string | null;

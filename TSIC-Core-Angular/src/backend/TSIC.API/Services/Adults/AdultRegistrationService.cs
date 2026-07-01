@@ -34,6 +34,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     private readonly IJobRegistrationCapabilities _capabilities;
     private readonly IUsLaxService _usLax;
     private readonly IUsLaxIdentityVerificationService _usLaxVerify;
+    private readonly IJobPaymentFeaturesService _paymentFeatures;
 
     private static readonly Guid CreditCardPaymentMethodId =
         Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
@@ -51,7 +52,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         ITextSubstitutionService textSub,
         IJobRegistrationCapabilities capabilities,
         IUsLaxService usLax,
-        IUsLaxIdentityVerificationService usLaxVerify)
+        IUsLaxIdentityVerificationService usLaxVerify,
+        IJobPaymentFeaturesService paymentFeatures)
     {
         _repo = repo;
         _metadataService = metadataService;
@@ -66,6 +68,7 @@ public class AdultRegistrationService : IAdultRegistrationService
         _capabilities = capabilities;
         _usLax = usLax;
         _usLaxVerify = usLaxVerify;
+        _paymentFeatures = paymentFeatures;
     }
 
     /// <summary>
@@ -605,6 +608,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         var jobData = await _repo.GetJobAdultRegDataAsync(jobId, cancellationToken)
             ?? throw new KeyNotFoundException("Job not found.");
 
+        var jobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId, cancellationToken);
+
         // Resolve role server-side (security gate).
         var resolution = ResolveAdultRole(jobData, request.RoleKey);
         await EnsureCreateDoorOpenAsync(jobId, resolution, cancellationToken);
@@ -629,7 +634,8 @@ public class AdultRegistrationService : IAdultRegistrationService
                 {
                     FeeBase = 0m, FeeProcessing = 0m, FeeDiscount = 0m,
                     FeeLateFee = 0m, FeeTotal = 0m, OwedTotal = 0m
-                }
+                },
+                JobUsesAmex = jobUsesAmex
             };
         }
 
@@ -676,7 +682,8 @@ public class AdultRegistrationService : IAdultRegistrationService
             Valid = true,
             ValidationErrors = null,
             RegistrationId = registrationId,
-            Fees = fees
+            Fees = fees,
+            JobUsesAmex = jobUsesAmex
         };
     }
 

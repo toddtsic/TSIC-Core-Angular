@@ -35,6 +35,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IPaymentStateService _paymentState;
     private readonly IRegisteredTeamShaper _shaper;
     private readonly IJobRegistrationCapabilities _capabilities;
+    private readonly IJobPaymentFeaturesService _paymentFeatures;
 
     public TeamRegistrationService(
         ILogger<TeamRegistrationService> logger,
@@ -56,7 +57,8 @@ public class TeamRegistrationService : ITeamRegistrationService
         ITeamPlacementService placement,
         IPaymentStateService paymentState,
         IRegisteredTeamShaper shaper,
-        IJobRegistrationCapabilities capabilities)
+        IJobRegistrationCapabilities capabilities,
+        IJobPaymentFeaturesService paymentFeatures)
     {
         _logger = logger;
         _clubReps = clubReps;
@@ -78,6 +80,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _paymentState = paymentState;
         _shaper = shaper;
         _capabilities = capabilities;
+        _paymentFeatures = paymentFeatures;
     }
 
     /// <summary>
@@ -528,6 +531,7 @@ public class TeamRegistrationService : ITeamRegistrationService
             BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit ?? false,
             // Discount-code dates are stored in local AZ time, not UTC.
             HasActiveDiscountCodes = (await _discountCodeRepo.GetActiveCodesForJobAsync(jobId, DateTime.Now)).Any(),
+            JobUsesAmex = await _paymentFeatures.UsesAmexAsync(jobId),
             ClubRepContactInfo = clubRepContactInfo,
             PayTo = job.PayTo,
             MailTo = job.MailTo,
