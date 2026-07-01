@@ -100,6 +100,10 @@ public record AdultRegistrationRequest
     // Coach-only: teams they want to coach (first is primary → AssignedTeamId)
     public List<Guid>? TeamIdsCoaching { get; init; }
 
+    // Coach-only: a confirmed USLax identity-verification id (from the email OTP flow).
+    // Present ⇒ identity proven; absent ⇒ recorded as "unverified" (fallback path).
+    public string? UsLaxVerificationId { get; init; }
+
     // Payment (optional — only if job has fees)
     public CreditCardInfo? CreditCard { get; init; }
     public string? PaymentMethod { get; init; }
@@ -129,6 +133,7 @@ public record AdultRegistrationExistingRequest
     public Dictionary<string, JsonElement>? FormValues { get; init; }
     public Dictionary<string, bool>? WaiverAcceptance { get; init; }
     public List<Guid>? TeamIdsCoaching { get; init; }
+    public string? UsLaxVerificationId { get; init; }
 }
 
 /// <summary>
@@ -195,6 +200,7 @@ public record PreSubmitAdultRegRequestDto
     public Dictionary<string, JsonElement>? FormValues { get; init; }
     public Dictionary<string, bool>? WaiverAcceptance { get; init; }
     public List<Guid>? TeamIdsCoaching { get; init; }
+    public string? UsLaxVerificationId { get; init; }
 }
 
 /// <summary>
@@ -229,6 +235,42 @@ public record AdultValidationErrorDto
 {
     public required string Field { get; init; }
     public required string Message { get; init; }
+}
+
+// ── USLax identity verification DTOs ──────────────────────────────
+
+/// <summary>Begin coach USLax identity verification — validates the number and emails a
+/// one-time code to the address USA Lacrosse has on file.</summary>
+public record UsLaxVerifyBeginRequestDto
+{
+    public required string SportAssnId { get; init; }
+}
+
+/// <summary>Result of begin. Status is one of: "Sent", "MembershipInvalid",
+/// "EmailUnavailable", "ServiceUnavailable" (mirrors the service enum names).</summary>
+public record UsLaxVerifyBeginResponseDto
+{
+    public required string Status { get; init; }
+    public string? VerificationId { get; init; }
+    /// <summary>Masked on-file address for a UI hint, e.g. j•••@gmail.com.</summary>
+    public string? MaskedEmail { get; init; }
+    public required int ExpiresInSeconds { get; init; }
+    public string? Message { get; init; }
+}
+
+/// <summary>Confirm a code entered by the registrant against an outstanding verification.</summary>
+public record UsLaxVerifyConfirmRequestDto
+{
+    public required string VerificationId { get; init; }
+    public required string Code { get; init; }
+}
+
+/// <summary>Result of confirm — ExpDate (yyyy-MM-dd) surfaced for immediate display.</summary>
+public record UsLaxVerifyConfirmResponseDto
+{
+    public required bool Success { get; init; }
+    public string? ExpDate { get; init; }
+    public string? Message { get; init; }
 }
 
 // ── Payment DTOs ──────────────────────────────────────────────────

@@ -23,6 +23,9 @@ public sealed class UsLaxMemberPingOutput
     public string? ExpDate { get; init; }
     public string? FirstName { get; init; }
     public string? LastName { get; init; }
+    /// <summary>Member's on-file email — the address USA Lacrosse has for this membership.
+    /// Used as the identity-verification destination (controlling it ⇒ owning the membership).</summary>
+    public string? Email { get; init; }
     public string? AgeVerified { get; init; }
     public IReadOnlyList<string>? Involvement { get; init; }
 }

@@ -165,6 +165,25 @@ public class RosterSwapperController : ControllerBase
         }
     }
 
+    [HttpPost("revalidate-uslax")]
+    public async Task<ActionResult<RevalidateUsLaxResultDto>> RevalidateUsLax(
+        [FromBody] RevalidateUsLaxRequestDto request, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        try
+        {
+            var result = await _swapperService.RevalidateUsLaxAsync(jobId.Value, request.RegistrationId, ct);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPut("players/{registrationId:guid}/active")]
     public async Task<ActionResult> TogglePlayerActive(
         Guid registrationId, [FromBody] UpdatePlayerActiveRequest request, CancellationToken ct)

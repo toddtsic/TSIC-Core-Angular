@@ -2600,6 +2600,8 @@ public class RegistrationRepository : IRegistrationRepository
                 State = r.User != null ? r.User.State : null,
                 r.ClubName,
                 r.SpecialRequests,
+                r.SportAssnId,
+                r.SportAssnIdexpDate,
                 r.RegistrationTs
             })
             .ToListAsync(ct);
@@ -2737,6 +2739,9 @@ public class RegistrationRepository : IRegistrationRepository
                 State = c.State,
                 RegistrationTs = c.RegistrationTs,
                 Note = p.Req.Note,
+                SportAssnId = c.SportAssnId,
+                SportAssnIdexpDate = c.SportAssnIdexpDate,
+                IdVerified = p.Req.IdVerified == true,
                 PriorStaff = prior,
                 LinkedPlayerNames = linked,
                 RecordedTeams = recorded,
@@ -2745,6 +2750,36 @@ public class RegistrationRepository : IRegistrationRepository
         }
 
         return result.OrderBy(r => r.PlayerName).ToList();
+    }
+
+    public async Task<CoachUsLaxRefDto?> GetUnassignedAdultUsLaxRefAsync(
+        Guid registrationId, Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId && r.JobId == jobId
+                && r.Role!.Name == RoleConstants.Names.UnassignedAdultName)
+            .Select(r => new CoachUsLaxRefDto { UserId = r.UserId, SportAssnId = r.SportAssnId })
+            .FirstOrDefaultAsync(ct);
+    }
+
+    public async Task<int> UpdateUsLaxExpiryForUserInJobAsync(
+        string userId, Guid jobId, DateTime? expDate, CancellationToken ct = default)
+    {
+        // Fan out to the anchor + every Staff grant for this coach in the job. Tracked load +
+        // SaveChanges (small row count per coach) keeps it in the unit-of-work the repo owns.
+        var rows = await _context.Registrations
+            .Where(r => r.UserId == userId && r.JobId == jobId && r.SportAssnId != null)
+            .ToListAsync(ct);
+
+        foreach (var r in rows)
+        {
+            r.SportAssnIdexpDate = expDate;
+            r.Modified = DateTime.Now;
+        }
+
+        if (rows.Count > 0) await _context.SaveChangesAsync(ct);
+        return rows.Count;
     }
 
     /// <summary>

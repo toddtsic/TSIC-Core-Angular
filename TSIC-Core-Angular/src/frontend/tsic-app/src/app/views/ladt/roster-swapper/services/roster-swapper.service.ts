@@ -11,11 +11,12 @@ import type {
     RosterTransferResultDto,
     UnassignedAdultQueueRowDto,
     UnassignedAdultAssignedTeamDto,
-    UnassignedAdultRecordedTeamDto
+    UnassignedAdultRecordedTeamDto,
+    RevalidateUsLaxResultDto
 } from '@core/api';
 
 // Re-export for consumers
-export type { SwapperPoolOptionDto, SwapperPlayerDto, RosterTransferFeePreviewDto, RosterTransferResultDto, UnassignedAdultQueueRowDto, UnassignedAdultAssignedTeamDto, UnassignedAdultRecordedTeamDto };
+export type { SwapperPoolOptionDto, SwapperPlayerDto, RosterTransferFeePreviewDto, RosterTransferResultDto, UnassignedAdultQueueRowDto, UnassignedAdultAssignedTeamDto, UnassignedAdultRecordedTeamDto, RevalidateUsLaxResultDto };
 
 /** All-zeros GUID = the Unassigned Adults pool (transfer source/target sentinel). */
 const UNASSIGNED_POOL_ID = '00000000-0000-0000-0000-000000000000';
@@ -58,6 +59,15 @@ export class RosterSwapperService {
     /** Deny a coach outright — deletes ALL their Staff rows + deactivates the anchor (bActive=0). */
     denyCoach(registrationId: string): Observable<void> {
         return this.http.post<void>(`${this.apiUrl}/deny-coach`, { registrationId });
+    }
+
+    /**
+     * Re-validate a coach's USA Lacrosse membership currency — re-pings the vendor and refreshes
+     * the stored expiry on the anchor + the coach's Staff rows in this job. Identity proof is
+     * unchanged (proven once at registration); this refreshes membership currency only.
+     */
+    revalidateUsLax(registrationId: string): Observable<RevalidateUsLaxResultDto> {
+        return this.http.post<RevalidateUsLaxResultDto>(`${this.apiUrl}/revalidate-uslax`, { registrationId });
     }
 
     /**

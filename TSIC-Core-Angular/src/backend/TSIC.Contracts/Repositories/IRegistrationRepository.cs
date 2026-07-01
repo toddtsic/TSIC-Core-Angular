@@ -526,6 +526,14 @@ public interface IRegistrationRepository
     /// </summary>
     Task<List<UnassignedAdultQueueRowDto>> GetUnassignedAdultQueueAsync(Guid jobId, CancellationToken ct = default);
 
+    /// <summary>(UserId, SportAssnId) for an UnassignedAdult anchor in a job — the inputs the
+    /// queue's USLax re-validate needs. Null if the registration isn't a coach anchor for the job.</summary>
+    Task<CoachUsLaxRefDto?> GetUnassignedAdultUsLaxRefAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>Re-validate fan-out: set <c>SportAssnIdexpDate</c> on every row for this user in the
+    /// job that carries a USLax number (the anchor + all Staff grants). Returns rows updated.</summary>
+    Task<int> UpdateUsLaxExpiryForUserInJobAsync(string userId, Guid jobId, DateTime? expDate, CancellationToken ct = default);
+
     /// <summary>
     /// Build Rule (one-time seed): for active UnassignedAdult coaches with ≥1 Staff assignment
     /// but no codified JSON yet, snapshot those grants into the record as <c>admin</c>. Idempotent.

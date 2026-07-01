@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
+using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.AdultRegistration;
 using TSIC.Contracts.Services;
 
@@ -14,13 +15,16 @@ public class AdultRegistrationController : ControllerBase
 {
     private readonly IAdultRegistrationService _service;
     private readonly IJobLookupService _jobLookupService;
+    private readonly IUsLaxIdentityVerificationService _usLaxVerify;
 
     public AdultRegistrationController(
         IAdultRegistrationService service,
-        IJobLookupService jobLookupService)
+        IJobLookupService jobLookupService,
+        IUsLaxIdentityVerificationService usLaxVerify)
     {
         _service = service;
         _jobLookupService = jobLookupService;
+        _usLaxVerify = usLaxVerify;
     }
 
     /// <summary>
@@ -109,6 +113,41 @@ public class AdultRegistrationController : ControllerBase
         {
             return BadRequest(new { message = ex.Message });
         }
+    }
+
+    /// <summary>
+    /// Begin coach USLax identity verification: validate the number is an active Coach
+    /// membership and email a one-time code to the address USA Lacrosse has on file.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("{jobPath}/uslax-verify/begin")]
+    public async Task<ActionResult<UsLaxVerifyBeginResponseDto>> BeginUsLaxVerify(string jobPath, [FromBody] UsLaxVerifyBeginRequestDto request, CancellationToken ct)
+    {
+        var result = await _usLaxVerify.BeginAsync(request.SportAssnId, ct);
+        return Ok(new UsLaxVerifyBeginResponseDto
+        {
+            Status = result.Status.ToString(),
+            VerificationId = result.VerificationId,
+            MaskedEmail = result.MaskedEmail,
+            ExpiresInSeconds = result.ExpiresInSeconds,
+            Message = result.Message
+        });
+    }
+
+    /// <summary>
+    /// Confirm a code entered by the registrant against an outstanding USLax verification.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("{jobPath}/uslax-verify/confirm")]
+    public ActionResult<UsLaxVerifyConfirmResponseDto> ConfirmUsLaxVerify(string jobPath, [FromBody] UsLaxVerifyConfirmRequestDto request)
+    {
+        var result = _usLaxVerify.Confirm(request.VerificationId, request.Code);
+        return Ok(new UsLaxVerifyConfirmResponseDto
+        {
+            Success = result.Success,
+            ExpDate = result.ExpDate,
+            Message = result.Message
+        });
     }
 
     /// <summary>

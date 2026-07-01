@@ -34,11 +34,20 @@ interface QueueRow {
     contact: string;
     registrationTs: string;
     note: string | null;
+    /** True when the note is a JSON-ish blob (legacy un-parseable SpecialRequests) — kept behind
+     *  the info popup; plain-text notes render inline as a labeled line instead. */
+    noteIsJson: boolean;
     priorStaffCount: number;
     priorStaffText: string;
     /** Prior staff assignments (team · job) — shown in the "Coached before" popover. */
     priorStaff: PriorStaffAssignmentDto[];
     linkedPlayerNames: string[];
+    /** USA Lacrosse membership number, if the coach supplied one (lacrosse jobs). */
+    sportAssnId: string | null;
+    /** Stored membership expiry (ISO) — refreshed by Re-validate. */
+    sportAssnIdExp: string | null;
+    /** True when the coach proved ownership of the on-file USLax email at registration. */
+    idVerified: boolean;
     status: CoachStatus;
     teams: DisplayTeam[];
     /** Coach's asks (source ★self), sorted — each carries its live granted/pending state. */
@@ -89,6 +98,8 @@ export class CoachApprovalQueueComponent implements OnInit {
     readonly confirmingDeny = signal<string | null>(null);
     /** `${registrationId}|${teamId}` armed for a team-removal confirm; null when idle. */
     readonly confirmingRemove = signal<string | null>(null);
+    /** registrationId whose USLax membership is being re-validated (drives the link spinner). */
+    readonly revalidating = signal<string | null>(null);
 
     /** Active status lens. */
     readonly activeFilter = signal<CoachStatus | 'all'>('all');
@@ -269,6 +280,12 @@ export class CoachApprovalQueueComponent implements OnInit {
 
     // ── Row → view-model ──
 
+    /** A note is treated as a JSON blob (→ popup) only when it opens with a JSON delimiter. */
+    private isJsonNote(note: string): boolean {
+        const s = note.trimStart();
+        return s.startsWith('{') || s.startsWith('[');
+    }
+
     private toRow(r: UnassignedAdultQueueRowDto): QueueRow {
         const grantedIds = new Set(r.assignedTeams.map(t => t.teamId));
         const staffByTeam = new Map(r.assignedTeams.map(t => [t.teamId, t.staffRegistrationId]));
@@ -302,11 +319,15 @@ export class CoachApprovalQueueComponent implements OnInit {
             contact: this.contactLine(r),
             registrationTs: r.registrationTs,
             note: r.note ?? null,
+            noteIsJson: !!r.note && this.isJsonNote(r.note),
             priorStaffCount: r.priorStaff.length,
             priorStaffText: r.priorStaff.map(p => `${p.teamName} · ${p.jobName}`).join('\n'),
             priorStaff: [...r.priorStaff].sort((a, b) =>
                 a.jobName.localeCompare(b.jobName) || a.teamName.localeCompare(b.teamName)),
             linkedPlayerNames: r.linkedPlayerNames,
+            sportAssnId: r.sportAssnId ?? null,
+            sportAssnIdExp: r.sportAssnIdexpDate ?? null,
+            idVerified: r.idVerified,
             status,
             teams,
             requestedTeams,
@@ -501,6 +522,34 @@ export class CoachApprovalQueueComponent implements OnInit {
                 this.toast.show(err?.error?.message || 'Could not grant — refreshing.', 'danger', 4000);
                 this.busyCoach.set(null);
                 this.load(true);
+            }
+        });
+    }
+
+    // ── USLax membership re-validation ──
+
+    /**
+     * Re-ping the coach's USA Lacrosse membership and refresh the stored expiry (on the anchor and
+     * the coach's Staff rows in this job). Identity proof is unchanged — this is currency only.
+     */
+    revalidateUsLax(row: QueueRow): void {
+        if (this.revalidating()) return;
+        this.revalidating.set(row.registrationId);
+        this.swapperService.revalidateUsLax(row.registrationId).subscribe({
+            next: res => {
+                this.revalidating.set(null);
+                if (res.found) {
+                    const exp = res.expDate ? new Date(res.expDate).toLocaleDateString() : 'n/a';
+                    this.toast.show(
+                        `${row.playerName}: ${res.memStatus ?? 'Active'} · expires ${exp}.`, 'success', 4000);
+                    this.load(true);
+                } else {
+                    this.toast.show(res.message || `${row.playerName}: membership not found.`, 'warning', 5000);
+                }
+            },
+            error: err => {
+                this.revalidating.set(null);
+                this.toast.show(err?.error?.message || 'Could not re-validate — try again.', 'danger', 4000);
             }
         });
     }

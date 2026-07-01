@@ -1,7 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpContext } from '@angular/common/http';
 import { environment } from '@environments/environment';
-import type { AdultRegistrationRequest, AdultRegistrationExistingRequest } from '@core/api';
+import type {
+    AdultRegistrationRequest,
+    AdultRegistrationExistingRequest,
+    UsLaxVerifyBeginResponseDto,
+    UsLaxVerifyConfirmResponseDto,
+} from '@core/api';
 
 // ── Response types (not auto-generated — controller returns IActionResult) ──
 
@@ -120,6 +125,7 @@ export interface PreSubmitAdultRequest {
     formValues: Record<string, unknown>;
     waiverAcceptance: Record<string, boolean>;
     teamIdsCoaching?: string[];
+    usLaxVerificationId?: string;
 }
 
 export interface PreSubmitAdultResponse {
@@ -220,5 +226,18 @@ export class AdultRegistrationService {
 
     submitPayment(request: AdultPaymentRequest) {
         return this.http.post<AdultPaymentResponse>(`${this.apiUrl}/submit-payment`, request);
+    }
+
+    /** Begin coach USLax identity verification — validates the number and emails a code
+     *  to the address USA Lacrosse has on file. */
+    beginUsLaxVerify(jobPath: string, sportAssnId: string) {
+        return this.http.post<UsLaxVerifyBeginResponseDto>(
+            `${this.apiUrl}/${jobPath}/uslax-verify/begin`, { sportAssnId });
+    }
+
+    /** Confirm the code the registrant entered against an outstanding verification. */
+    confirmUsLaxVerify(jobPath: string, verificationId: string, code: string) {
+        return this.http.post<UsLaxVerifyConfirmResponseDto>(
+            `${this.apiUrl}/${jobPath}/uslax-verify/confirm`, { verificationId, code });
     }
 }

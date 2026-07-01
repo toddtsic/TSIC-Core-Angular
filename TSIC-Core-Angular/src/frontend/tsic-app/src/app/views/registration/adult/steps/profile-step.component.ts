@@ -164,6 +164,88 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
                                             [maxlength]="field.validation?.maxLength ?? null" />
                                     }
                                 }
+
+                                @if (isUsLaxField(field)) {
+                                    @let st = state.usLaxStatus();
+                                    <div class="uslax-verify">
+                                        @switch (st) {
+                                            @case ('verified') {
+                                                <div class="uslax-badge uslax-badge--ok">
+                                                    <i class="bi bi-patch-check-fill"></i>
+                                                    Identity verified via USA&nbsp;Lacrosse email
+                                                </div>
+                                            }
+                                            @case ('unverified') {
+                                                <div class="uslax-notice uslax-notice--warn">
+                                                    <i class="bi bi-exclamation-triangle-fill"></i>
+                                                    <div>
+                                                        We couldn't reach your USA&nbsp;Lacrosse email to verify you.
+                                                        You can continue — a director will verify you before you're assigned.
+                                                        @if (state.usLaxMessage()) {
+                                                            <div class="uslax-msg">{{ state.usLaxMessage() }}</div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            }
+                                            @case ('sent') {
+                                                <div class="uslax-code">
+                                                    <small class="uslax-hint">
+                                                        <i class="bi bi-envelope-check me-1"></i>
+                                                        We sent a 6-digit code to your USA&nbsp;Lacrosse email
+                                                        @if (state.usLaxMaskedEmail()) {
+                                                            (<strong>{{ state.usLaxMaskedEmail() }}</strong>)
+                                                        }. Enter it below to verify your identity.
+                                                    </small>
+                                                    <div class="uslax-code-row">
+                                                        <input type="text" inputmode="numeric" autocomplete="one-time-code"
+                                                            class="field-input uslax-code-input" maxlength="6"
+                                                            placeholder="000000"
+                                                            [(ngModel)]="usLaxCode"
+                                                            (ngModelChange)="onCodeInput($event)" />
+                                                        <button type="button" class="btn btn-primary btn-sm"
+                                                            [disabled]="usLaxCode.length < 6"
+                                                            (click)="confirmCode()">
+                                                            Confirm
+                                                        </button>
+                                                    </div>
+                                                    @if (state.usLaxMessage()) {
+                                                        <div class="uslax-msg uslax-msg--err">{{ state.usLaxMessage() }}</div>
+                                                    }
+                                                    <button type="button" class="btn btn-link btn-sm uslax-skip"
+                                                        (click)="state.markUsLaxUnverified()">
+                                                        I can't access that email — continue without verifying
+                                                    </button>
+                                                </div>
+                                            }
+                                            @case ('verifying') {
+                                                <div class="uslax-busy">
+                                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                                    Verifying code…
+                                                </div>
+                                            }
+                                            @case ('sending') {
+                                                <div class="uslax-busy">
+                                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                                    Checking membership & sending code…
+                                                </div>
+                                            }
+                                            @default {
+                                                <button type="button" class="btn btn-outline-primary btn-sm"
+                                                    [disabled]="!usLaxValue(field)"
+                                                    (click)="beginVerify(field)">
+                                                    <i class="bi bi-shield-check me-1"></i>
+                                                    Verify my USA&nbsp;Lacrosse membership
+                                                </button>
+                                                @if (st === 'error' && state.usLaxMessage()) {
+                                                    <div class="uslax-msg uslax-msg--err">{{ state.usLaxMessage() }}</div>
+                                                }
+                                                <small class="uslax-hint d-block mt-1">
+                                                    We'll email a one-time code to the address USA&nbsp;Lacrosse has on file to confirm it's you.
+                                                </small>
+                                            }
+                                        }
+                                    </div>
+                                }
                             </div>
                         }
                     }
@@ -192,6 +274,52 @@ import type { AdultRegField } from '@infrastructure/services/adult-registration.
             border-left: 3px solid var(--bs-success);
             border-radius: var(--radius-sm);
         }
+        /* USLax identity verification */
+        .uslax-verify { margin-top: var(--space-2); }
+        .uslax-hint { color: var(--text-muted); }
+        .uslax-code-row {
+            display: flex;
+            gap: var(--space-2);
+            align-items: center;
+            margin-top: var(--space-2);
+        }
+        .uslax-code-input {
+            max-width: 8rem;
+            letter-spacing: 0.3em;
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+        }
+        .uslax-skip {
+            display: block;
+            padding-left: 0;
+            margin-top: var(--space-1);
+        }
+        .uslax-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+            font-weight: var(--font-weight-semibold);
+        }
+        .uslax-badge--ok {
+            background: rgba(var(--bs-success-rgb), 0.1);
+            color: var(--bs-success);
+            border-left: 3px solid var(--bs-success);
+        }
+        .uslax-notice {
+            display: flex;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--radius-sm);
+        }
+        .uslax-notice--warn {
+            background: rgba(var(--bs-warning-rgb), 0.12);
+            border-left: 3px solid var(--bs-warning);
+        }
+        .uslax-busy { color: var(--text-muted); }
+        .uslax-msg { font-size: 0.85rem; margin-top: var(--space-1); }
+        .uslax-msg--err { color: var(--bs-danger); }
     `],
 })
 export class ProfileStepComponent implements AfterViewInit {
@@ -298,6 +426,37 @@ export class ProfileStepComponent implements AfterViewInit {
 
     onFieldChange(fieldName: string, value: string | number | boolean | null): void {
         this.state.setFieldValue(fieldName, value);
+    }
+
+    // ── USLax identity verification ───────────────────────────────
+
+    /** Local code-entry buffer for the OTP input. */
+    usLaxCode = '';
+
+    /** The USA Lacrosse number field — drives the inline verify UI. */
+    isUsLaxField(field: AdultRegField): boolean {
+        return (field.name ?? '').toLowerCase() === 'sportassnid';
+    }
+
+    /** Trimmed current value of the USLax number field. */
+    usLaxValue(field: AdultRegField): string {
+        return String(this.getFieldValue(field.name) ?? '').trim();
+    }
+
+    beginVerify(field: AdultRegField): void {
+        const num = this.usLaxValue(field);
+        if (!num) return;
+        this.usLaxCode = '';
+        void this.state.beginUsLaxVerify(num);
+    }
+
+    onCodeInput(value: string): void {
+        this.usLaxCode = (value ?? '').replace(/\D/g, '').slice(0, 6);
+    }
+
+    confirmCode(): void {
+        if (this.usLaxCode.length < 6) return;
+        void this.state.confirmUsLaxCode(this.usLaxCode);
     }
 
     shouldShowField(field: AdultRegField): boolean {

@@ -267,6 +267,7 @@ builder.Services.AddScoped<ITeamRegistrationService, TeamRegistrationService>();
 builder.Services.AddScoped<IProfileMetadataService, ProfileMetadataService>();
 builder.Services.AddScoped<IRegistrationQueryService, RegistrationQueryService>();
 builder.Services.AddScoped<IUsLaxService, UsLaxService>();
+builder.Services.AddScoped<IUsLaxIdentityVerificationService, UsLaxIdentityVerificationService>();
 builder.Services.AddScoped<IUsLaxMembershipService, UsLaxMembershipService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IAdultRegistrationService, AdultRegistrationService>();

@@ -9,5 +9,6 @@ export type AdultRegistrationExistingRequest = {
     formValues?: any | null;
     waiverAcceptance?: any | null;
     teamIdsCoaching?: any[] | null;
+    usLaxVerificationId?: string | null;
 };
 

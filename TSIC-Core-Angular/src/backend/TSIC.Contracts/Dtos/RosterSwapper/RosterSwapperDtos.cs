@@ -155,6 +155,13 @@ public record UnassignedAdultQueueRowDto
     public string? State { get; init; }
     public required DateTime RegistrationTs { get; init; }
     public string? Note { get; init; }
+    /// <summary>The coach's USA Lacrosse membership number (lacrosse jobs that collect it).</summary>
+    public string? SportAssnId { get; init; }
+    /// <summary>USLax membership expiry on record — refreshed by the queue's re-validate action.</summary>
+    public DateTime? SportAssnIdexpDate { get; init; }
+    /// <summary>True once the coach proved ownership of the membership via the on-file email code.
+    /// False ⇒ "identity unverified" badge (registered before/without email verification).</summary>
+    public required bool IdVerified { get; init; }
     /// <summary>Prior Staff assignments in OTHER jobs — the lead recognition signal.</summary>
     public required List<PriorStaffAssignmentDto> PriorStaff { get; init; }
     /// <summary>Names of the coach's own players registered in THIS job (minor secondary signal).</summary>
@@ -175,6 +182,30 @@ public record ApproveTeamRequestDto
 {
     public required Guid RegistrationId { get; init; }
     public required Guid TeamId { get; init; }
+}
+
+/// <summary>Internal read: the inputs the queue's USLax re-validate needs for one coach.</summary>
+public record CoachUsLaxRefDto
+{
+    public string? UserId { get; init; }
+    public string? SportAssnId { get; init; }
+}
+
+/// <summary>Re-validate a coach's USLax membership currency from the director queue.</summary>
+public record RevalidateUsLaxRequestDto
+{
+    public required Guid RegistrationId { get; init; }
+}
+
+/// <summary>Result of a re-validate: current USA Lacrosse status + refreshed expiry. The stored
+/// <c>SportAssnIdexpDate</c> (anchor + Staff rows) is updated to match when a definitive response
+/// is returned. Identity verification is unaffected — this refreshes currency only.</summary>
+public record RevalidateUsLaxResultDto
+{
+    public required bool Found { get; init; }
+    public string? MemStatus { get; init; }
+    public string? ExpDate { get; init; }
+    public string? Message { get; init; }
 }
 
 /// <summary>

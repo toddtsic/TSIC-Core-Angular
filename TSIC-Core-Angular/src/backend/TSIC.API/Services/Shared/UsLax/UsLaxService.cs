@@ -266,6 +266,7 @@ public class UsLaxService : IUsLaxService
             ExpDate = el.TryGetProperty("exp_date", out var ed) ? ed.GetString() : null,
             FirstName = el.TryGetProperty("firstname", out var fn) ? fn.GetString() : null,
             LastName = el.TryGetProperty("lastname", out var ln) ? ln.GetString() : null,
+            Email = el.TryGetProperty("email", out var em) ? em.GetString() : null,
             AgeVerified = el.TryGetProperty("age_verified", out var av) ? av.GetString() : null,
             Involvement = ExtractInvolvement(el)
         };

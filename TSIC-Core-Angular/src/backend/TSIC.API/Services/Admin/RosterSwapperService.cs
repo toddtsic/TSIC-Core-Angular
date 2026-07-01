@@ -1,3 +1,4 @@
+using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -22,6 +23,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
     private readonly IFeeResolutionService _feeService;
     private readonly IJobRepository _jobRepo;
     private readonly ITeamPlacementService _placement;
+    private readonly IUsLaxService _usLax;
 
     public RosterSwapperService(
         IRegistrationRepository registrationRepo,
@@ -29,7 +31,8 @@ public sealed class RosterSwapperService : IRosterSwapperService
         IDeviceRepository deviceRepo,
         IFeeResolutionService feeService,
         IJobRepository jobRepo,
-        ITeamPlacementService placement)
+        ITeamPlacementService placement,
+        IUsLaxService usLax)
     {
         _registrationRepo = registrationRepo;
         _teamRepo = teamRepo;
@@ -37,6 +40,7 @@ public sealed class RosterSwapperService : IRosterSwapperService
         _feeService = feeService;
         _jobRepo = jobRepo;
         _placement = placement;
+        _usLax = usLax;
     }
 
     public async Task<List<SwapperPoolOptionDto>> GetPoolOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -247,6 +251,10 @@ public sealed class RosterSwapperService : IRosterSwapperService
                     AssignedAgegroupId = targetTeam.AgegroupId,
                     AssignedDivId = targetTeam.DivId,
                     AssignedLeagueId = targetTeam.LeagueId,
+                    // Carry the coach's USLax membership onto the minted Staff row so rosters
+                    // and reports read it without resolving back to the anchor.
+                    SportAssnId = reg.SportAssnId,
+                    SportAssnIdexpDate = reg.SportAssnIdexpDate,
                     BActive = true,
                     FeeBase = 0,
                     FeeProcessing = 0,
@@ -472,6 +480,36 @@ public sealed class RosterSwapperService : IRosterSwapperService
         if (!denied)
             throw new ArgumentException("Coach registration not found for this job.");
         return true;
+    }
+
+    public async Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(
+        Guid jobId, Guid registrationId, CancellationToken ct = default)
+    {
+        var reference = await _registrationRepo.GetUnassignedAdultUsLaxRefAsync(registrationId, jobId, ct)
+            ?? throw new ArgumentException("Coach registration not found for this job.");
+
+        if (string.IsNullOrWhiteSpace(reference.SportAssnId))
+            return new RevalidateUsLaxResultDto { Found = false, Message = "No USA Lacrosse number on file." };
+
+        var member = await _usLax.GetMemberAsync(reference.SportAssnId, ct);
+
+        // Vendor unreachable / transient → leave the stored value untouched, just report.
+        if (member is null || member.StatusCode == 0)
+            return new RevalidateUsLaxResultDto { Found = false, Message = "USA Lacrosse is unreachable right now. Try again shortly." };
+
+        var expDate = DateTime.TryParse(member.Output?.ExpDate, out var dt) ? dt : (DateTime?)null;
+
+        // Definitive response → refresh stored expiry on the anchor + every Staff grant.
+        if (!string.IsNullOrWhiteSpace(reference.UserId))
+            await _registrationRepo.UpdateUsLaxExpiryForUserInJobAsync(reference.UserId!, jobId, expDate, ct);
+
+        return new RevalidateUsLaxResultDto
+        {
+            Found = member.StatusCode == 200,
+            MemStatus = member.Output?.MemStatus ?? (member.StatusCode == 404 ? "Not found" : null),
+            ExpDate = expDate?.ToString("yyyy-MM-dd"),
+            Message = member.StatusCode == 200 ? null : (member.ErrorMessage ?? "Membership not found.")
+        };
     }
 
     private static string GetPlayerName(Registrations reg)

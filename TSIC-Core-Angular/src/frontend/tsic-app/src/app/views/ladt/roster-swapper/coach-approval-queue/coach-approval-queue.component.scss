@@ -223,6 +223,22 @@
 .sig-new { color: var(--bs-secondary-color); }
 .sig-family { color: var(--bs-info-text-emphasis, var(--bs-info)); }
 .sig-note { color: var(--bs-secondary-color); }
+
+/* Plain-text note rendered inline as "Note: <value>" (JSON blobs stay behind the popup). */
+.coach-note {
+    font-size: 0.75rem;
+    line-height: 1.35;
+    color: var(--brand-text);
+}
+.coach-note-label {
+    color: var(--bs-secondary-color);
+    font-weight: 600;
+    margin-right: var(--space-1);
+    white-space: nowrap;
+}
+.coach-note-value {
+    color: var(--brand-text);
+}
 .coach-contact {
     font-size: 0.75rem;
     color: var(--bs-secondary-color);
@@ -231,6 +247,54 @@
     font-size: 0.7rem;
     color: var(--bs-secondary-color);
     opacity: 0.85;
+}
+
+/* ── USA Lacrosse membership row (number · expiry · identity badge · re-validate) ── */
+.uslax-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+    font-size: 0.72rem;
+    margin-top: var(--space-1);
+}
+.uslax-num {
+    color: var(--brand-text);
+    font-weight: 600;
+}
+.uslax-exp {
+    color: var(--bs-secondary-color);
+}
+.uslax-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+
+    &.ok {
+        color: var(--bs-success);
+        background: rgba(var(--bs-success-rgb), 0.12);
+    }
+    &.warn {
+        color: var(--bs-warning);
+        background: rgba(var(--bs-warning-rgb), 0.15);
+    }
+}
+.uslax-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--bs-primary);
+    cursor: pointer;
+    font-size: 0.72rem;
+
+    &:hover { text-decoration: underline; }
+    &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 }
 
 /* ── Teams cell: the grant control (checkbox = grant state) ── */

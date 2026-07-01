@@ -45,6 +45,15 @@ public sealed class AdultTeamRequestData
     [JsonPropertyName("note")]
     public string? Note { get; set; }
 
+    /// <summary>True once the coach proved ownership of the USLax membership via the on-file
+    /// email one-time code. False/absent ⇒ "identity unverified" in the approval queue.</summary>
+    [JsonPropertyName("idVerified")]
+    public bool? IdVerified { get; set; }
+
+    /// <summary>When the identity verification succeeded (audit/display).</summary>
+    [JsonPropertyName("idVerifiedTs")]
+    public DateTime? IdVerifiedTs { get; set; }
+
     /// <summary>True when parsed from our JSON shape (new/legacy). False for free-text or empty.
     /// Not serialized — the seed (Build Rule) only fires when this is false.</summary>
     [JsonIgnore]
@@ -106,7 +115,14 @@ public sealed class AdultTeamRequestData
                             .Select(id => new AdultTeamRequest { TeamId = id, Src = AdultTeamRequestSource.Self })
                             .ToList();
 
-                    return new AdultTeamRequestData { Teams = teams, Note = dto.Note, IsStructured = true };
+                    return new AdultTeamRequestData
+                    {
+                        Teams = teams,
+                        Note = dto.Note,
+                        IdVerified = dto.IdVerified,
+                        IdVerifiedTs = dto.IdVerifiedTs,
+                        IsStructured = true
+                    };
                 }
             }
             catch (JsonException)
@@ -130,5 +146,11 @@ public sealed class AdultTeamRequestData
 
         [JsonPropertyName("note")]
         public string? Note { get; set; }
+
+        [JsonPropertyName("idVerified")]
+        public bool? IdVerified { get; set; }
+
+        [JsonPropertyName("idVerifiedTs")]
+        public DateTime? IdVerifiedTs { get; set; }
     }
 }

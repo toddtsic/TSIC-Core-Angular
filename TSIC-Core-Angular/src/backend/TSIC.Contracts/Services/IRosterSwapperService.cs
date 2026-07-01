@@ -36,4 +36,10 @@ public interface IRosterSwapperService
     /// (bActive=0). The immutable team record is left untouched.</summary>
     Task<bool> DenyCoachAsync(
         Guid jobId, string adminUserId, Guid registrationId, CancellationToken ct = default);
+
+    /// <summary>Re-validate a coach's USLax membership currency against USA Lacrosse now, refresh
+    /// the stored expiry on the anchor + all their Staff rows in the job, and return current
+    /// status/expiry. Identity verification is unaffected — currency only.</summary>
+    Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(
+        Guid jobId, Guid registrationId, CancellationToken ct = default);
 }

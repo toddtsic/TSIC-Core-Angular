@@ -15,6 +15,9 @@ export type UnassignedAdultQueueRowDto = {
     state?: string | null;
     registrationTs: string;
     note?: string | null;
+    sportAssnId?: string | null;
+    sportAssnIdexpDate?: string | null;
+    idVerified: boolean;
     priorStaff: Array<PriorStaffAssignmentDto>;
     linkedPlayerNames: Array<string>;
     recordedTeams: Array<UnassignedAdultRecordedTeamDto>;

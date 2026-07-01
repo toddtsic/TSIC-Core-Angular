@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using TSIC.API.Services.Metadata;
 using TSIC.Application.Services.Shared.Html;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Dtos;
@@ -31,6 +32,8 @@ public class AdultRegistrationService : IAdultRegistrationService
     private readonly IUserRepository _userRepo;
     private readonly ITextSubstitutionService _textSub;
     private readonly IJobRegistrationCapabilities _capabilities;
+    private readonly IUsLaxService _usLax;
+    private readonly IUsLaxIdentityVerificationService _usLaxVerify;
 
     private static readonly Guid CreditCardPaymentMethodId =
         Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
@@ -46,7 +49,9 @@ public class AdultRegistrationService : IAdultRegistrationService
         ITeamRepository teamRepo,
         IUserRepository userRepo,
         ITextSubstitutionService textSub,
-        IJobRegistrationCapabilities capabilities)
+        IJobRegistrationCapabilities capabilities,
+        IUsLaxService usLax,
+        IUsLaxIdentityVerificationService usLaxVerify)
     {
         _repo = repo;
         _metadataService = metadataService;
@@ -59,6 +64,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         _userRepo = userRepo;
         _textSub = textSub;
         _capabilities = capabilities;
+        _usLax = usLax;
+        _usLaxVerify = usLaxVerify;
     }
 
     /// <summary>
@@ -232,7 +239,7 @@ public class AdultRegistrationService : IAdultRegistrationService
             jobData, user.Id, roleId, roleType,
             request.FormValues, request.WaiverAcceptance,
             request.TeamIdsCoaching,
-            user.Id, cancellationToken);
+            user.Id, cancellationToken, request.UsLaxVerificationId);
 
         // Stamp fees per-registration (Staff: per-team cascade).
         var feeCtx = new FeeApplicationContext { AddProcessingFees = jobData.BAddProcessingFees };
@@ -309,7 +316,7 @@ public class AdultRegistrationService : IAdultRegistrationService
             jobData, userId, roleId, roleType,
             request.FormValues, request.WaiverAcceptance,
             request.TeamIdsCoaching,
-            auditUserId, cancellationToken);
+            auditUserId, cancellationToken, request.UsLaxVerificationId);
 
         await _repo.SaveChangesAsync(cancellationToken);
 
@@ -647,7 +654,7 @@ public class AdultRegistrationService : IAdultRegistrationService
                 jobData, userId, roleId, roleType,
                 request.FormValues, request.WaiverAcceptance,
                 request.TeamIdsCoaching,
-                userId, cancellationToken);
+                userId, cancellationToken, request.UsLaxVerificationId);
 
             await ApplyFeesToRegistrationsAsync(jobId, roleId, roleType, registrations, feeCtx, cancellationToken);
             await _repo.SaveChangesAsync(cancellationToken);
@@ -882,7 +889,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         Dictionary<string, bool>? waiverAcceptance,
         List<Guid>? teamIdsCoaching,
         string auditUserId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? usLaxVerificationId = null)
     {
         var registrations = new List<Registrations>();
 
@@ -922,18 +930,25 @@ public class AdultRegistrationService : IAdultRegistrationService
                 assignedTeamId: null,
                 auditUserId);
 
-            // UnassignedAdult (Club/League coach) may submit team REQUESTS via the
-            // multi-select. These are NOT assignments — we leave AssignedTeamId null and
-            // compose the picked team labels into SpecialRequests so the director sees
-            // them in the Roster Swapper's "Requests" column (Unassigned Adults pool).
-            if (roleType == AdultRoleType.UnassignedAdult && teamIdsCoaching is { Count: > 0 })
-            {
-                await ComposeTeamRequestsIntoSpecialRequestsAsync(
-                    reg, jobData.JobId, teamIdsCoaching, cancellationToken);
-            }
-
             _repo.Add(reg);
             registrations.Add(reg);
+        }
+
+        // USLax coach validation: HARD-gate a supplied number to an active Coach membership,
+        // stamp SportAssnIdexpDate on every built row, and resolve whether identity was proven
+        // (email OTP). Coach roles only (UnassignedAdult / Staff).
+        var (idVerified, idVerifiedTs) = await ApplyUsLaxCoachValidationAsync(
+            registrations, roleType, usLaxVerificationId, cancellationToken);
+
+        // UnassignedAdult (Club/League coach) may submit team REQUESTS via the multi-select.
+        // These are NOT assignments — we leave AssignedTeamId null and compose the picked team
+        // labels + the identity-verification marker into SpecialRequests so the director sees
+        // them in the Roster Swapper's "Requests" column (Unassigned Adults pool).
+        if (roleType == AdultRoleType.UnassignedAdult)
+        {
+            await ComposeTeamRequestsIntoSpecialRequestsAsync(
+                registrations[0], jobData.JobId, teamIdsCoaching ?? new List<Guid>(),
+                idVerified, idVerifiedTs, cancellationToken);
         }
 
         return registrations;
@@ -1002,6 +1017,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         Registrations registration,
         Guid jobId,
         List<Guid> teamIdsCoaching,
+        bool idVerified,
+        DateTime? idVerifiedTs,
         CancellationToken cancellationToken)
     {
         var available = await _repo.GetAvailableTeamsAsync(jobId, cancellationToken);
@@ -1014,10 +1031,12 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         var note = registration.SpecialRequests?.Trim();
 
-        // Nothing to codify (no valid requests, no note) → leave SpecialRequests as-is.
-        if (requestedTeamIds.Count == 0 && string.IsNullOrEmpty(note)) return;
+        // Nothing to codify (no valid requests, no note, no verification) → leave as-is.
+        if (requestedTeamIds.Count == 0 && string.IsNullOrEmpty(note) && !idVerified) return;
 
         // The coach's own picks are tagged Self — the intent half of the append-only record.
+        // A confirmed USLax identity (email OTP) is recorded so the approval queue can badge it;
+        // an unverified coach simply carries no marker (queue shows "identity unverified").
         registration.SpecialRequests = AdultTeamRequestData.Serialize(
             new AdultTeamRequestData
             {
@@ -1025,8 +1044,79 @@ public class AdultRegistrationService : IAdultRegistrationService
                     .Select(id => new AdultTeamRequest { TeamId = id, Src = AdultTeamRequestSource.Self })
                     .ToList(),
                 Note = string.IsNullOrEmpty(note) ? null : note,
+                IdVerified = idVerified ? true : null,
+                IdVerifiedTs = idVerified ? idVerifiedTs : null,
             });
     }
+
+    /// <summary>
+    /// Coach USLax validation at submit. A supplied membership number is HARD-validated to an
+    /// active <c>Coach</c> membership (definitive non-coach/expired ⇒ registration rejected);
+    /// <see cref="Registrations.SportAssnIdexpDate"/> is stamped on every built row. Identity
+    /// proof is resolved from the email-OTP flow: a confirmed <paramref name="usLaxVerificationId"/>
+    /// (bound to this number) ⇒ verified (and trusted for currency, skipping a re-ping); otherwise
+    /// unverified. A vendor outage on the unverified path does NOT block — the number rides through
+    /// unverified with unknown expiry, matching the "allow + flag" fallback. Non-coach roles no-op.
+    /// </summary>
+    private async Task<(bool idVerified, DateTime? idVerifiedTs)> ApplyUsLaxCoachValidationAsync(
+        List<Registrations> registrations,
+        AdultRoleType roleType,
+        string? usLaxVerificationId,
+        CancellationToken ct)
+    {
+        if (roleType is not (AdultRoleType.UnassignedAdult or AdultRoleType.Staff))
+            return (false, null);
+
+        var sportAssnId = registrations.FirstOrDefault()?.SportAssnId?.Trim();
+        if (string.IsNullOrEmpty(sportAssnId)) return (false, null);
+
+        DateTime? expDate;
+        bool idVerified;
+        DateTime? idVerifiedTs = null;
+
+        // A confirmed verification is authoritative: it already proved active-Coach at begin time,
+        // so trust its captured expiry and don't re-ping. Single-use (Consume removes it).
+        var verified = !string.IsNullOrEmpty(usLaxVerificationId)
+            ? _usLaxVerify.Consume(usLaxVerificationId!, sportAssnId)
+            : null;
+
+        if (verified != null)
+        {
+            expDate = verified.ExpDate;
+            idVerified = true;
+            idVerifiedTs = DateTime.Now;
+        }
+        else
+        {
+            // Unverified path — still hard-validate the number is an active Coach membership.
+            var member = await _usLax.GetMemberAsync(sportAssnId, ct);
+            if (member != null && member.StatusCode != 0)
+            {
+                if (!IsActiveCoachMembership(member))
+                    throw new InvalidOperationException(
+                        "This USA Lacrosse number is not an active coach membership.");
+                expDate = DateTime.TryParse(member.Output?.ExpDate, out var dt) ? dt : null;
+            }
+            else
+            {
+                // Vendor unreachable — don't block the coach; record unverified, expiry unknown.
+                expDate = null;
+            }
+            idVerified = false;
+        }
+
+        foreach (var r in registrations)
+            if (!string.IsNullOrWhiteSpace(r.SportAssnId))
+                r.SportAssnIdexpDate = expDate;
+
+        return (idVerified, idVerifiedTs);
+    }
+
+    private static bool IsActiveCoachMembership(UsLaxMemberPingResult member) =>
+        member.StatusCode == 200
+        && string.Equals(member.Output?.MemStatus, "Active", StringComparison.OrdinalIgnoreCase)
+        && member.Output?.Involvement is { } inv
+        && inv.Any(i => string.Equals(i, "Coach", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
     /// Apply fees across a set of registrations. For Staff (multi-team group), each

@@ -23,6 +23,7 @@ export type AdultRegistrationRequest = {
     formValues?: any | null;
     waiverAcceptance?: any | null;
     teamIdsCoaching?: any[] | null;
+    usLaxVerificationId?: string | null;
     creditCard?: (null | CreditCardInfo);
     paymentMethod?: string | null;
 };

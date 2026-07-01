@@ -87,14 +87,44 @@
                                         <i class="bi bi-people"></i> Parent in event
                                     </span>
                                 }
-                                @if (data.note) {
+                                @if (data.note && data.noteIsJson) {
                                     <span class="sig sig-note">
                                         <i class="bi bi-chat-left-quote"></i> Note
                                         <app-info-tooltip trigger="hover" [message]="data.note" />
                                     </span>
                                 }
                             </div>
+                            @if (data.note && !data.noteIsJson) {
+                                <div class="coach-note">
+                                    <span class="coach-note-label"><i class="bi bi-chat-left-quote"></i> Note:</span>
+                                    <span class="coach-note-value">{{ data.note }}</span>
+                                </div>
+                            }
                             @if (data.contact) { <div class="coach-contact">{{ data.contact }}</div> }
+                            @if (data.sportAssnId) {
+                                <div class="uslax-row">
+                                    <span class="uslax-num"><i class="bi bi-card-heading"></i> USA Lacrosse #{{ data.sportAssnId }}</span>
+                                    @if (data.sportAssnIdExp) {
+                                        <span class="uslax-exp">exp {{ data.sportAssnIdExp | date:'mediumDate' }}</span>
+                                    }
+                                    @if (data.idVerified) {
+                                        <span class="uslax-badge ok" title="Identity proven via USA Lacrosse email at registration">
+                                            <i class="bi bi-patch-check-fill"></i> Verified
+                                        </span>
+                                    } @else {
+                                        <span class="uslax-badge warn" title="Identity not proven — verify before granting roster access">
+                                            <i class="bi bi-exclamation-triangle-fill"></i> Unverified
+                                        </span>
+                                    }
+                                    @if (revalidating() === data.registrationId) {
+                                        <span class="uslax-link"><span class="spinner-border spinner-border-sm"></span></span>
+                                    } @else {
+                                        <button type="button" class="uslax-link" (click)="revalidateUsLax(data)">
+                                            <i class="bi bi-arrow-repeat"></i> Re-validate
+                                        </button>
+                                    }
+                                </div>
+                            }
                             <div class="coach-reg">Registered {{ data.registrationTs | date:'mediumDate' }}</div>
                         </div>
                     </ng-template>

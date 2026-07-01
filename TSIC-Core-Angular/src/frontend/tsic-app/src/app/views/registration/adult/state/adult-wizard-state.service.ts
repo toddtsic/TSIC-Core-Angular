@@ -19,6 +19,9 @@ import { formatHttpError } from '../../shared/utils/error-utils';
 
 export type FormFieldValue = string | number | boolean | null;
 
+export type UsLaxVerifyStatus =
+    'idle' | 'sending' | 'sent' | 'verifying' | 'verified' | 'unverified' | 'error';
+
 /**
  * Adult wizard state service — unified, role-config-driven.
  *
@@ -105,6 +108,17 @@ export class AdultWizardStateService {
     // ── Dynamic form values (role-specific profile fields) ────────
     private readonly _formValues = signal<Record<string, FormFieldValue>>({});
     readonly formValues = this._formValues.asReadonly();
+
+    // ── Coach USLax identity verification (email OTP) ─────────────
+    // idle → sending → sent (code-entry open) → verifying → verified
+    //                              └→ unverified (no on-file email / coach skipped) | error
+    private readonly _usLaxStatus = signal<UsLaxVerifyStatus>('idle');
+    private readonly _usLaxVerificationId = signal<string | null>(null);
+    private readonly _usLaxMaskedEmail = signal<string | null>(null);
+    private readonly _usLaxMessage = signal<string | null>(null);
+    readonly usLaxStatus = this._usLaxStatus.asReadonly();
+    readonly usLaxMaskedEmail = this._usLaxMaskedEmail.asReadonly();
+    readonly usLaxMessage = this._usLaxMessage.asReadonly();
 
     // ── Teams (Coach in tournament only) ──────────────────────────
     private readonly _availableTeams = signal<AdultTeamOption[]>([]);
@@ -466,6 +480,7 @@ export class AdultWizardStateService {
                     formValues: this._formValues() as Record<string, unknown>,
                     waiverAcceptance: this._waiverAcceptance(),
                     teamIdsCoaching: this._teamIdsCoaching(),
+                    usLaxVerificationId: this.confirmedUsLaxVerificationId(),
                 } as never),
             );
 
@@ -607,7 +622,72 @@ export class AdultWizardStateService {
             formValues: this._formValues(),
             waiverAcceptance: this._waiverAcceptance(),
             teamIdsCoaching: this._teamIdsCoaching(),
+            usLaxVerificationId: this.confirmedUsLaxVerificationId(),
         } as unknown as never;
+    }
+
+    /** The verification id to submit — only when identity was actually confirmed; otherwise
+     *  undefined so the backend records the coach as "unverified" (the fallback path). */
+    private confirmedUsLaxVerificationId(): string | undefined {
+        return this._usLaxStatus() === 'verified' ? (this._usLaxVerificationId() ?? undefined) : undefined;
+    }
+
+    // ── Coach USLax identity verification (email OTP) ──────────────
+
+    /** Validate the number + email a code to the on-file USA Lacrosse address. */
+    async beginUsLaxVerify(sportAssnId: string): Promise<void> {
+        const num = sportAssnId?.trim();
+        if (!num) return;
+        this._usLaxStatus.set('sending');
+        this._usLaxMessage.set(null);
+        try {
+            const resp = await firstValueFrom(this.api.beginUsLaxVerify(this._jobPath(), num));
+            switch (resp.status) {
+                case 'Sent':
+                    this._usLaxVerificationId.set(resp.verificationId ?? null);
+                    this._usLaxMaskedEmail.set(resp.maskedEmail ?? null);
+                    this._usLaxStatus.set('sent');
+                    break;
+                case 'EmailUnavailable':
+                    this._usLaxStatus.set('unverified');
+                    this._usLaxMessage.set(resp.message ?? null);
+                    break;
+                default: // MembershipInvalid | ServiceUnavailable
+                    this._usLaxStatus.set('error');
+                    this._usLaxMessage.set(resp.message ?? 'Could not verify this number.');
+            }
+        } catch (err: unknown) {
+            this._usLaxStatus.set('error');
+            this._usLaxMessage.set(formatHttpError(err));
+        }
+    }
+
+    /** Confirm the code the registrant entered. */
+    async confirmUsLaxCode(code: string): Promise<void> {
+        const vid = this._usLaxVerificationId();
+        const trimmed = code?.trim();
+        if (!vid || !trimmed) return;
+        this._usLaxStatus.set('verifying');
+        this._usLaxMessage.set(null);
+        try {
+            const resp = await firstValueFrom(this.api.confirmUsLaxVerify(this._jobPath(), vid, trimmed));
+            if (resp.success) {
+                this._usLaxStatus.set('verified');
+                this._usLaxMessage.set(null);
+            } else {
+                this._usLaxStatus.set('sent'); // keep the code-entry open
+                this._usLaxMessage.set(resp.message ?? 'Incorrect code.');
+            }
+        } catch (err: unknown) {
+            this._usLaxStatus.set('error');
+            this._usLaxMessage.set(formatHttpError(err));
+        }
+    }
+
+    /** Coach opts to continue without verifying (fallback) — recorded as unverified. */
+    markUsLaxUnverified(): void {
+        this._usLaxStatus.set('unverified');
+        this._usLaxVerificationId.set(null);
     }
 
     // ── API: Load confirmation HTML ───────────────────────────────
@@ -674,5 +754,9 @@ export class AdultWizardStateService {
         this._confirmationLoading.set(false);
         this._jobPath.set('');
         this._roleKey.set('');
+        this._usLaxStatus.set('idle');
+        this._usLaxVerificationId.set(null);
+        this._usLaxMaskedEmail.set(null);
+        this._usLaxMessage.set(null);
     }
 }
