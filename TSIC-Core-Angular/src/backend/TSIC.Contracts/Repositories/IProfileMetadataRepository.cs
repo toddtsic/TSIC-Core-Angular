@@ -81,6 +81,11 @@ public interface IProfileMetadataRepository
     /// </summary>
     Task UpdateJobJsonOptionsAsync(Guid jobId, string jsonOptions);
 
+    /// <summary>
+    /// Update AdultProfileMetadataJson (role-keyed) for a single job
+    /// </summary>
+    Task UpdateJobAdultMetadataAsync(Guid jobId, string adultMetadataJson);
+
     // ============ REGISTRATIONS READ OPERATIONS ============
 
     /// <summary>
@@ -143,4 +148,5 @@ public record RegistrationJobProjection
     public string? CoreRegformPlayer { get; init; }
     public string? JsonOptions { get; init; }
     public string? PlayerProfileMetadataJson { get; init; }
+    public string? AdultProfileMetadataJson { get; init; }
 }

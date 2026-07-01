@@ -134,6 +134,27 @@ export interface CurrentJobProfileConfigResponse {
     metadata: ProfileMetadata | null;
 }
 
+// Role-keyed adult form metadata for the current job. Keys match the controller's emitted casing.
+export type AdultRoleKey = 'UnassignedAdult' | 'Referee' | 'Recruiter';
+
+export interface AdultRoleMetadataResponse {
+    roles: {
+        unassignedAdult: ProfileMetadata;
+        referee: ProfileMetadata;
+        recruiter: ProfileMetadata;
+    };
+}
+
+export interface UpdateAdultRoleMetadataRequest {
+    roleKey: AdultRoleKey;
+    metadata: ProfileMetadata;
+}
+
+export interface UpdateAdultRoleMetadataResponse {
+    roleKey: AdultRoleKey;
+    metadata: ProfileMetadata;
+}
+
 export interface OptionSet {
     key: string;
     values: ProfileFieldOption[];

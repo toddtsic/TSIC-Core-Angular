@@ -210,10 +210,11 @@ $adminManifest = @(
     (New-AdminItem 'Tools' 'tools' 9 'Uniform Upload'       'upload'        'tools/uniform-upload'       4 1 1 1)
     (New-AdminItem 'Tools' 'tools' 9 'Profile Migration'    'arrow-right'   'tools/profile-migration'    5 0 0 1)
     (New-AdminItem 'Tools' 'tools' 9 'Profile Editor'       'pencil-square' 'tools/profile-editor'       6 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Change Password'      'key'           'tools/change-password'      7 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 8 0 1 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Camp Day/Night Groups' 'sun'          'tools/camp-groups'          9 1 1 1 $rulesCampSales)
-    (New-AdminItem 'Tools' 'tools' 9 'Check-In'              'clipboard-check' 'tools/checkin'           10 1 1 1 '{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}' 'NEW')
+    (New-AdminItem 'Tools' 'tools' 9 'Adult Form Designer'  'people-fill'   'tools/adult-profile-editor' 7 0 0 1 $null 'NEW')
+    (New-AdminItem 'Tools' 'tools' 9 'Change Password'      'key'           'tools/change-password'      8 0 0 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 9 0 1 1)
+    (New-AdminItem 'Tools' 'tools' 9 'Camp Day/Night Groups' 'sun'          'tools/camp-groups'         10 1 1 1 $rulesCampSales)
+    (New-AdminItem 'Tools' 'tools' 9 'Check-In'              'clipboard-check' 'tools/checkin'           11 1 1 1 '{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}' 'NEW')
 )
 
 Write-Host "Admin manifest: $($adminManifest.Count) items" -ForegroundColor DarkGray

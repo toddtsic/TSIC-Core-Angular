@@ -185,10 +185,11 @@ INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'US Lax Membership', 
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Uniform Upload', N'upload', N'tools/uniform-upload', 4, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 6, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Change Password', N'key', N'tools/change-password', 7, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 8, 0, 1, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Camp Day/Night Groups', N'sun', N'tools/camp-groups', 9, 1, 1, 1, N'{"jobTypes":["Camp Registration","Sales Venue"]}', NULL);
-INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Check-In', N'clipboard-check', N'tools/checkin', 10, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}', N'NEW');
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Adult Form Designer', N'people-fill', N'tools/adult-profile-editor', 7, 0, 0, 1, NULL, N'NEW');
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Change Password', N'key', N'tools/change-password', 8, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Customer Job Revenue', N'cash-stack', N'tools/customer-job-revenue', 9, 0, 1, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Camp Day/Night Groups', N'sun', N'tools/camp-groups', 10, 1, 1, 1, N'{"jobTypes":["Camp Registration","Sales Venue"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Tools', N'tools', 9, N'Check-In', N'clipboard-check', N'tools/checkin', 11, 1, 1, 1, N'{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}', N'NEW');
 
 -- Section-level rules applied to L1 independent of per-item aggregation
 IF OBJECT_ID('tempdb..#SectionRules') IS NOT NULL DROP TABLE #SectionRules;

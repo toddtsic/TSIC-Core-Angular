@@ -658,6 +658,79 @@ public async Task<ActionResult<object>> UpdateCurrentJobProfileConfig([FromBody]
     }
 }
 
+// ============ CURRENT JOB ADULT METADATA (role-keyed) ============
+
+/// <summary>
+/// Get the current job's role-keyed adult form metadata (all three adult roles), resolved from
+/// the JWT regId. Absent roles come back as an empty { fields: [] } block.
+/// </summary>
+[HttpGet("profiles/current/adult-metadata")]
+public async Task<ActionResult<object>> GetCurrentJobAdultMetadata()
+{
+    try
+    {
+        var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return BadRequest(new { error = MissingRegIdMsg });
+        }
+
+        var set = await _migrationService.GetCurrentJobAdultMetadataAsync(regId);
+        if (set == null)
+        {
+            return NotFound(new { error = "Current job adult metadata not found" });
+        }
+
+        return Ok(new { roles = set });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to get current job adult metadata");
+        return StatusCode(500, new { error = "Failed to get current job adult metadata", details = ex.Message });
+    }
+}
+
+public sealed class UpdateAdultRoleMetadataRequest
+{
+    public string RoleKey { get; set; } = string.Empty;   // UnassignedAdult | Referee | Recruiter
+    public ProfileMetadata Metadata { get; set; } = new();
+}
+
+/// <summary>
+/// Replace ONE adult role's field set in the current job's AdultProfileMetadataJson, preserving the
+/// other roles. Returns the normalized metadata that was persisted.
+/// </summary>
+[HttpPut("profiles/current/adult-metadata")]
+public async Task<ActionResult<object>> UpdateCurrentJobAdultRoleMetadata([FromBody] UpdateAdultRoleMetadataRequest request)
+{
+    try
+    {
+        var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return BadRequest(new { error = MissingRegIdMsg });
+        }
+
+        if (!AdultMetadataRoleKeys.IsValid(request.RoleKey))
+        {
+            return BadRequest(new { error = "Invalid adult role key" });
+        }
+
+        var updated = await _migrationService.UpdateCurrentJobAdultRoleMetadataAsync(regId, request.RoleKey, request.Metadata);
+        if (updated == null)
+        {
+            return NotFound(new { error = "Current job not found" });
+        }
+
+        return Ok(new { roleKey = request.RoleKey, metadata = updated });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to update current job adult role metadata");
+        return StatusCode(500, new { error = "Failed to update current job adult metadata", details = ex.Message });
+    }
+}
+
 // (Deprecated) CURRENT JOB OPTION SOURCES endpoints removed. Source discovery has been retired from the UI.
 
 /// <summary>

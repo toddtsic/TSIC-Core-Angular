@@ -27,4 +27,6 @@ public interface IProfileMetadataMigrationService
     Task<bool> RenameCurrentJobOptionSetAsync(Guid regId, string oldKey, string newKey);
     Task<List<OptionSet>> GetCurrentJobOptionSourcesAsync(Guid regId);
     Task<ProfileMigrationResult> UpdateProfileMetadataAsync(string profileType, ProfileMetadata metadata);
+    Task<AdultRoleMetadataSet?> GetCurrentJobAdultMetadataAsync(Guid regId);
+    Task<ProfileMetadata?> UpdateCurrentJobAdultRoleMetadataAsync(Guid regId, string roleKey, ProfileMetadata metadata);
 }

@@ -119,6 +119,17 @@ public class ProfileFieldOption
 }
 
 /// <summary>
+/// The three adult roles' metadata for one job, read from the role-keyed AdultProfileMetadataJson.
+/// Absent roles are returned as an empty <see cref="ProfileMetadata"/> (Fields = []).
+/// </summary>
+public class AdultRoleMetadataSet
+{
+    public ProfileMetadata UnassignedAdult { get; set; } = new();
+    public ProfileMetadata Referee { get; set; } = new();
+    public ProfileMetadata Recruiter { get; set; } = new();
+}
+
+/// <summary>
 /// Source tracking for migrations
 /// </summary>
 public class ProfileMetadataSource

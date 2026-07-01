@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -1110,42 +1111,11 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 };
             }
 
-            // Normalize: ensure hidden fields use inputType = HIDDEN
-            metadata.Fields
-                .Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
-                .ToList()
-                .ForEach(f => f.InputType = InputTypeHidden);
-
-            // Renumber orders consistently by visibility groups: Public -> AdminOnly -> Hidden
-            var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityPublic, StringComparison.OrdinalIgnoreCase))
-                                         .OrderBy(f => f.Order)
-                                         .ToList();
-            var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityAdminOnly, StringComparison.OrdinalIgnoreCase))
-                                         .OrderBy(f => f.Order)
-                                         .ToList();
-            var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
-                                         .OrderBy(f => f.Order)
-                                         .ToList();
-
-            var counter = 1;
-            foreach (var f in hiddens) f.Order = counter++;
-            foreach (var f in publics) f.Order = counter++;
-            foreach (var f in admins) f.Order = counter++;
-
-            metadata.Fields = hiddens.Concat(publics).Concat(admins).ToList();
-
-            // Update source tracking
-            metadata.Source ??= new ProfileMetadataSource();
-            metadata.Source.MigratedAt = DateTime.UtcNow;
-            metadata.Source.MigratedBy = "ProfileEditor";
+            // Normalize field order/visibility/HIDDEN + stamp source (shared with adult save path)
+            NormalizeMetadataInPlace(metadata);
 
             // Serialize metadata
-            var jsonOptions = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
-            var metadataJson = JsonSerializer.Serialize(metadata, jsonOptions);
+            var metadataJson = JsonSerializer.Serialize(metadata, s_IndentedCamelCase);
 
             // Apply to ALL jobs
             foreach (var job in jobs)
@@ -1190,6 +1160,114 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
                 Warnings = new List<string>()
             };
         }
+    }
+
+    /// <summary>
+    /// Normalizes a metadata block in place, shared by the player and adult save paths so the two
+    /// never drift: forces hidden fields to inputType HIDDEN, renumbers Order consecutively by
+    /// visibility group (Hidden -> Public -> AdminOnly), reorders the Fields list to match, and
+    /// stamps source tracking.
+    /// </summary>
+    private static void NormalizeMetadataInPlace(ProfileMetadata metadata, string migratedBy = "ProfileEditor")
+    {
+        // ensure hidden fields use inputType = HIDDEN
+        metadata.Fields
+            .Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
+            .ToList()
+            .ForEach(f => f.InputType = InputTypeHidden);
+
+        // Renumber orders consistently by visibility groups: Hidden -> Public -> AdminOnly
+        var publics = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityPublic, StringComparison.OrdinalIgnoreCase))
+                                     .OrderBy(f => f.Order)
+                                     .ToList();
+        var admins = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityAdminOnly, StringComparison.OrdinalIgnoreCase))
+                                     .OrderBy(f => f.Order)
+                                     .ToList();
+        var hiddens = metadata.Fields.Where(f => string.Equals(f.Visibility, VisibilityHidden, StringComparison.OrdinalIgnoreCase))
+                                     .OrderBy(f => f.Order)
+                                     .ToList();
+
+        var counter = 1;
+        foreach (var f in hiddens) f.Order = counter++;
+        foreach (var f in publics) f.Order = counter++;
+        foreach (var f in admins) f.Order = counter++;
+
+        metadata.Fields = hiddens.Concat(publics).Concat(admins).ToList();
+
+        // Update source tracking
+        metadata.Source ??= new ProfileMetadataSource();
+        metadata.Source.MigratedAt = DateTime.UtcNow;
+        metadata.Source.MigratedBy = migratedBy;
+    }
+
+    /// <summary>
+    /// Reads the current job's role-keyed adult metadata (all three adult roles) for the registrant
+    /// resolved from the JWT regId. Absent roles come back as an empty { fields: [] } block.
+    /// </summary>
+    public async Task<AdultRoleMetadataSet?> GetCurrentJobAdultMetadataAsync(Guid regId)
+    {
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
+        if (jobData == null) return null;
+
+        var json = jobData.AdultProfileMetadataJson;
+        return new AdultRoleMetadataSet
+        {
+            UnassignedAdult = ParseAdultRoleOrEmpty(json, AdultMetadataRoleKeys.UnassignedAdult),
+            Referee = ParseAdultRoleOrEmpty(json, AdultMetadataRoleKeys.Referee),
+            Recruiter = ParseAdultRoleOrEmpty(json, AdultMetadataRoleKeys.Recruiter)
+        };
+    }
+
+    /// <summary>
+    /// Replaces ONE adult role's field set in the current job's AdultProfileMetadataJson, preserving
+    /// the other roles' sub-objects byte-for-byte. Returns the normalized metadata that was persisted,
+    /// or null when the job cannot be resolved.
+    /// </summary>
+    public async Task<ProfileMetadata?> UpdateCurrentJobAdultRoleMetadataAsync(Guid regId, string roleKey, ProfileMetadata metadata)
+    {
+        if (!AdultMetadataRoleKeys.IsValid(roleKey))
+            throw new ArgumentException($"Invalid adult role key '{roleKey}'.", nameof(roleKey));
+
+        var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
+        if (jobData == null) return null;
+
+        // 1) Normalize incoming role metadata exactly like the player save.
+        NormalizeMetadataInPlace(metadata, "AdultProfileEditor");
+
+        // 2) Parse the existing root as a mutable JsonObject so untouched roles are copied verbatim.
+        var root = string.IsNullOrWhiteSpace(jobData.AdultProfileMetadataJson)
+            ? new JsonObject()
+            : (JsonNode.Parse(jobData.AdultProfileMetadataJson) as JsonObject) ?? new JsonObject();
+
+        // 3) Replace ONLY this role (round-trip the role node through camelCase serialization).
+        var roleJson = JsonSerializer.Serialize(metadata, s_IndentedCamelCase);
+        root[roleKey] = JsonNode.Parse(roleJson);
+
+        // 4) Persist the whole root by jobId.
+        var newRootJson = root.ToJsonString(s_IndentedCamelCase);
+        await _repo.UpdateJobAdultMetadataAsync(jobData.JobId, newRootJson);
+
+        return metadata;
+    }
+
+    private static ProfileMetadata ParseAdultRoleOrEmpty(string? rootJson, string roleKey)
+    {
+        if (!string.IsNullOrWhiteSpace(rootJson))
+        {
+            using var doc = JsonDocument.Parse(rootJson);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty(roleKey, out var roleEl)
+                && roleEl.ValueKind == JsonValueKind.Object)
+            {
+                var meta = JsonSerializer.Deserialize<ProfileMetadata>(roleEl.GetRawText(), s_CaseInsensitive);
+                if (meta != null)
+                {
+                    meta.Fields ??= new List<ProfileMetadataField>();
+                    return meta;
+                }
+            }
+        }
+        return new ProfileMetadata { Fields = new List<ProfileMetadataField>() };
     }
 
     /// <summary>

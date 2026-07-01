@@ -177,6 +177,16 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
         }
     }
 
+    public async Task UpdateJobAdultMetadataAsync(Guid jobId, string adultMetadataJson)
+    {
+        var job = await _context.Jobs.FindAsync(jobId);
+        if (job != null)
+        {
+            job.AdultProfileMetadataJson = adultMetadataJson;
+            await _context.SaveChangesAsync();
+        }
+    }
+
     // ============ REGISTRATIONS READ OPERATIONS ============
 
     public async Task<RegistrationJobProjection?> GetJobDataForRegistrationAsync(Guid regId)
@@ -190,7 +200,8 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
                 JobName = r.Job.JobName,
                 CoreRegformPlayer = r.Job.CoreRegformPlayer,
                 JsonOptions = r.Job.JsonOptions,
-                PlayerProfileMetadataJson = r.Job.PlayerProfileMetadataJson
+                PlayerProfileMetadataJson = r.Job.PlayerProfileMetadataJson,
+                AdultProfileMetadataJson = r.Job.AdultProfileMetadataJson
             })
             .FirstOrDefaultAsync();
     }
