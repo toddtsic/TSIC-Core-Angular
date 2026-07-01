@@ -304,6 +304,17 @@ export class AdultWizardStateService {
         this._teamIdsCoaching.set([...ids]);
     }
 
+    /**
+     * Re-seed the picker's [value] from the current tracked selection. Called when
+     * the Profile step (re)mounts so returning to the step preselects the dropdown
+     * checkboxes to match the persisted selection. It is safe because it runs once
+     * per mount — NOT on each click — so the stable-seed contract (which prevents
+     * the Syncfusion "click twice" checkbox desync) is preserved during interaction.
+     */
+    syncTeamPickerSeed(): void {
+        this._teamPickerSeed.set([...this._teamIdsCoaching()]);
+    }
+
     setPaymentMethod(method: 'CC' | 'Check'): void {
         this._paymentMethod.set(method);
     }

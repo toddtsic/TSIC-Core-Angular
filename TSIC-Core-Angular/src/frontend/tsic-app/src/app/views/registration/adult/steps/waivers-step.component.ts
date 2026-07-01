@@ -1,13 +1,13 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, OnDestroy, inject, output, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
 
 /**
  * Waivers step — matches the player wizard's pattern:
  * welcome-hero + info callout + Bootstrap accordion with status badges.
- * Auto-opens the first unchecked waiver on mount, advances to the next
- * unchecked when one is accepted, and auto-emits <c>advance</c> ~500ms
- * after the final waiver is accepted.
+ * Auto-opens the first unchecked waiver on mount and opens the next
+ * unchecked when one is accepted. Does NOT auto-advance off this step —
+ * the user moves on manually via the wizard's Next button.
  */
 @Component({
     selector: 'app-adult-waivers-step',
@@ -83,12 +83,9 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
     `,
     styles: [],
 })
-export class WaiversStepComponent implements AfterViewInit, OnDestroy {
-    readonly advance = output<void>();
+export class WaiversStepComponent implements AfterViewInit {
     readonly state = inject(AdultWizardStateService);
     readonly openIndex = signal(0);
-
-    private _autoAdvanceTimer: ReturnType<typeof setTimeout> | null = null;
 
     ngAfterViewInit(): void {
         // Auto-open first unaccepted waiver.
@@ -109,21 +106,14 @@ export class WaiversStepComponent implements AfterViewInit, OnDestroy {
         const checked = (event.target as HTMLInputElement).checked;
         this.state.setWaiverAccepted(key, checked);
 
-        if (this._autoAdvanceTimer) clearTimeout(this._autoAdvanceTimer);
-
         if (checked) {
+            // Open the next unaccepted waiver, but never auto-advance off this
+            // step — the user advances manually via the wizard's Next button.
             const waivers = this.state.waivers();
             const nextIdx = waivers.findIndex(w => !this.isAccepted(w.key));
             if (nextIdx >= 0) {
                 this.openIndex.set(nextIdx);
-            } else {
-                // All accepted — auto-advance after a short beat.
-                this._autoAdvanceTimer = setTimeout(() => this.advance.emit(), 500);
             }
         }
-    }
-
-    ngOnDestroy(): void {
-        if (this._autoAdvanceTimer) clearTimeout(this._autoAdvanceTimer);
     }
 }

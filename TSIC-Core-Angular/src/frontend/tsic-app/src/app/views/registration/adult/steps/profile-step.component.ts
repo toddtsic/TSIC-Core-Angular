@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, QueryList, ViewChildren, computed, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, OnInit, QueryList, ViewChildren, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
@@ -322,11 +322,20 @@ import type { JobRegFieldDto } from '@core/api';
         .uslax-msg--err { color: var(--bs-danger); }
     `],
 })
-export class ProfileStepComponent implements AfterViewInit {
+export class ProfileStepComponent implements OnInit, AfterViewInit {
     readonly state = inject(AdultWizardStateService);
 
     @ViewChildren(MultiSelectComponent) readonly teamPickers!: QueryList<MultiSelectComponent>;
     private _openedOnce = false;
+
+    /**
+     * Re-seed the picker's [value] from the persisted selection on every mount.
+     * Without this, returning to this step shows an empty dropdown even though the
+     * selection survived (the green "Selected" summary reads the same source).
+     */
+    ngOnInit(): void {
+        this.state.syncTeamPickerSeed();
+    }
 
     /**
      * Auto-open the team picker when it lands in the DOM. Mirrors the pattern
