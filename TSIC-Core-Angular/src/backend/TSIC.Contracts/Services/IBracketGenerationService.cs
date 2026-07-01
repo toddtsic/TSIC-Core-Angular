@@ -20,4 +20,13 @@ public interface IBracketGenerationService
     /// </returns>
     Task<BracketGenerationResult?> RecomputeDivisionAsync(
         Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Materializes bracket wiring for every division in the job that has bracket
+    /// games but no BracketInstance yet (backfill for data placed before the new
+    /// system existed). Idempotent, non-destructive, cheap-skip once done — safe
+    /// to call on admin scheduling entry in any environment. Returns the number of
+    /// divisions materialized.
+    /// </summary>
+    Task<int> BackfillJobAsync(Guid jobId, string userId, CancellationToken ct = default);
 }

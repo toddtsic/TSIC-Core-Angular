@@ -28,6 +28,7 @@ public class DevSchedulingController : ControllerBase
     private readonly IJobRepository _jobRepo;
     private readonly IAgeGroupRepository _agRepo;
     private readonly ISchedulingContextResolver _contextResolver;
+    private readonly IBracketDevToolsService _bracketDevTools;
     private readonly ILogger<DevSchedulingController> _logger;
 
     public DevSchedulingController(
@@ -42,6 +43,7 @@ public class DevSchedulingController : ControllerBase
         IJobRepository jobRepo,
         IAgeGroupRepository agRepo,
         ISchedulingContextResolver contextResolver,
+        IBracketDevToolsService bracketDevTools,
         ILogger<DevSchedulingController> logger)
     {
         _env = env;
@@ -55,7 +57,53 @@ public class DevSchedulingController : ControllerBase
         _jobRepo = jobRepo;
         _agRepo = agRepo;
         _contextResolver = contextResolver;
+        _bracketDevTools = bracketDevTools;
         _logger = logger;
+    }
+
+    // ── Bracket exercise tools (sandbox-only; never reachable in live Production) ──
+
+    /// <summary>POST /api/dev-scheduling/bracket/clear-scores — wipe a division back to
+    /// "pools scheduled, brackets empty" so seeding can be re-run from scratch.</summary>
+    [HttpPost("bracket/clear-scores")]
+    [ProducesResponseType<BracketDevActionResult>(200)]
+    public Task<ActionResult<BracketDevActionResult>> BracketClearScores(
+        [FromBody] BracketDevActionRequest req, CancellationToken ct) =>
+        RunBracketToolAsync((jobId, userId) =>
+            _bracketDevTools.ClearDivisionScoresAsync(jobId, req.AgegroupId, req.DivId, userId, ct));
+
+    /// <summary>POST /api/dev-scheduling/bracket/auto-score-pool — decisively score every
+    /// unscored pool game so completed pools lock standings and seeds resolve.</summary>
+    [HttpPost("bracket/auto-score-pool")]
+    [ProducesResponseType<BracketDevActionResult>(200)]
+    public Task<ActionResult<BracketDevActionResult>> BracketAutoScorePool(
+        [FromBody] BracketDevActionRequest req, CancellationToken ct) =>
+        RunBracketToolAsync((jobId, userId) =>
+            _bracketDevTools.AutoScorePoolAsync(jobId, req.AgegroupId, req.DivId, userId, ct));
+
+    /// <summary>POST /api/dev-scheduling/bracket/auto-score-round — decisively score every
+    /// ready bracket game so winners advance one round.</summary>
+    [HttpPost("bracket/auto-score-round")]
+    [ProducesResponseType<BracketDevActionResult>(200)]
+    public Task<ActionResult<BracketDevActionResult>> BracketAutoScoreRound(
+        [FromBody] BracketDevActionRequest req, CancellationToken ct) =>
+        RunBracketToolAsync((jobId, userId) =>
+            _bracketDevTools.AutoScoreBracketRoundAsync(jobId, req.AgegroupId, req.DivId, userId, ct));
+
+    // Shared guard/resolve wrapper for the sandbox bracket tools.
+    private async Task<ActionResult<BracketDevActionResult>> RunBracketToolAsync(
+        Func<Guid, string, Task<BracketDevActionResult>> action)
+    {
+        if (!_env.IsSandbox())
+            return NotFound(); // hidden entirely in live Production
+
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Scheduling context required" });
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "dev";
+        var result = await action(jobId.Value, userId);
+        return Ok(result);
     }
 
     /// <summary>

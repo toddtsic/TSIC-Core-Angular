@@ -106,6 +106,8 @@ export type { BatchUpdateStatusRequest } from './models/BatchUpdateStatusRequest
 export type { BillingTypeRefDto } from './models/BillingTypeRefDto';
 export type { BlankJobRequest } from './models/BlankJobRequest';
 export type { BlankJobResponse } from './models/BlankJobResponse';
+export type { BracketDevActionRequest } from './models/BracketDevActionRequest';
+export type { BracketDevActionResult } from './models/BracketDevActionResult';
 export type { BracketMatchDto } from './models/BracketMatchDto';
 export type { BracketSeedDivisionOptionDto } from './models/BracketSeedDivisionOptionDto';
 export type { BracketSeedGameDto } from './models/BracketSeedGameDto';

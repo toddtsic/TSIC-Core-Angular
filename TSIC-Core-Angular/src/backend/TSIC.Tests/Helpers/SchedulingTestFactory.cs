@@ -15,9 +15,12 @@ public static class SchedulingTestFactory
     public static BracketAdvancementService Advancement(SqlDbContext ctx, ScheduleRepository scheduleRepo) =>
         new(new BracketRepository(ctx), scheduleRepo, NullLogger<BracketAdvancementService>.Instance);
 
+    public static BracketSeedResolutionService SeedResolution(SqlDbContext ctx, ScheduleRepository scheduleRepo) =>
+        new(new BracketRepository(ctx), scheduleRepo, NullLogger<BracketSeedResolutionService>.Instance);
+
     public static ViewScheduleService ViewSchedule(
         SqlDbContext ctx, ScheduleRepository scheduleRepo, TeamRepository teamRepo) =>
-        new(scheduleRepo, teamRepo, Advancement(ctx, scheduleRepo));
+        new(scheduleRepo, teamRepo, Advancement(ctx, scheduleRepo), SeedResolution(ctx, scheduleRepo));
 
     public static ViewScheduleService ViewSchedule(SqlDbContext ctx) =>
         ViewSchedule(ctx, new ScheduleRepository(ctx), new TeamRepository(ctx));

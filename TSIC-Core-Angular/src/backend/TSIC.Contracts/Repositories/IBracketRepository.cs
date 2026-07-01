@@ -25,6 +25,30 @@ public interface IBracketRepository
     /// <summary>Materialized feeds whose source is the given (just-scored) game.</summary>
     Task<List<AdvancementFeeds>> GetFeedsBySourceAsync(int sourceGid, CancellationToken ct = default);
 
+    /// <summary>
+    /// Director-entered seed intent (which pool + rank feeds each slot) for the
+    /// given games, from the legacy-in-app BracketSeeds screen. Used to seed the
+    /// brackets.* SeedAssignments so cross-pool intent isn't lost.
+    /// </summary>
+    Task<List<BracketSeeds>> GetBracketSeedsByGidsAsync(
+        IReadOnlyCollection<int> gids, CancellationToken ct = default);
+
+    /// <summary>Every leaf seed slot in the job with a resolvable (division, rank).</summary>
+    Task<List<SeedSlotToResolve>> GetSeedSlotsForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// DivIds in the job that still have at least one unscored pool ("T") game —
+    /// their standings rank is not yet final, so seeds drawn from them must wait.
+    /// </summary>
+    Task<HashSet<Guid>> GetIncompletePoolDivIdsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Divisions in the job that have bracket games placed but no BracketInstance —
+    /// i.e. need their wiring materialized (backfill). Cheap when none.
+    /// </summary>
+    Task<List<BracketBackfillTarget>> GetDivisionsWithBracketGamesLackingInstanceAsync(
+        Guid jobId, CancellationToken ct = default);
+
     void AddInstance(BracketInstances instance);
 
     /// <summary>

@@ -5,6 +5,7 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Scheduling;
 
+
 /// <summary>
 /// Projects a division's placed bracket games onto its SE template to produce
 /// the brackets.* wiring. See <see cref="IBracketGenerationService"/>.
@@ -12,6 +13,8 @@ namespace TSIC.API.Services.Scheduling;
 public sealed class BracketGenerationService : IBracketGenerationService
 {
     private readonly IBracketRepository _bracketRepo;
+    private readonly IViewScheduleService _viewSchedule;
+    private readonly IBracketSeedResolutionService _resolution;
     private readonly ILogger<BracketGenerationService> _logger;
 
     // Ladder round type -> number of teams entering that round.
@@ -22,10 +25,50 @@ public sealed class BracketGenerationService : IBracketGenerationService
 
     public BracketGenerationService(
         IBracketRepository bracketRepo,
+        IViewScheduleService viewSchedule,
+        IBracketSeedResolutionService resolution,
         ILogger<BracketGenerationService> logger)
     {
         _bracketRepo = bracketRepo;
+        _viewSchedule = viewSchedule;
+        _resolution = resolution;
         _logger = logger;
+    }
+
+    public async Task<int> BackfillJobAsync(Guid jobId, string userId, CancellationToken ct = default)
+    {
+        var targets = await _bracketRepo.GetDivisionsWithBracketGamesLackingInstanceAsync(jobId, ct);
+        if (targets.Count == 0) return 0;
+
+        var materialized = 0;
+        foreach (var t in targets)
+        {
+            try
+            {
+                var result = await RecomputeDivisionAsync(jobId, t.AgegroupId, t.DivId, userId, ct);
+                if (result is not null) materialized++;
+            }
+            catch (Exception ex)
+            {
+                // One odd division must not break the admin's scheduling entry.
+                _logger.LogWarning(ex,
+                    "BracketBackfill: failed to materialize div {DivId} in job {JobId} — skipped.",
+                    t.DivId, jobId);
+            }
+        }
+
+        _logger.LogInformation(
+            "BracketBackfill: job {JobId} — materialized {N}/{Total} division(s).",
+            jobId, materialized, targets.Count);
+
+        // A completed tournament won't be re-scored, so resolve seeds now: any pool
+        // that is already final drops its ranked teams into the freshly-materialized
+        // bracket slots. Cheap no-op when the job has no seed slots.
+        await _resolution.ResolveJobAsync(
+            jobId, userId,
+            c => _viewSchedule.GetStandingsAsync(jobId, new ScheduleFilterRequest(), c), ct);
+
+        return materialized;
     }
 
     public async Task<BracketGenerationResult?> RecomputeDivisionAsync(
@@ -150,6 +193,15 @@ public sealed class BracketGenerationService : IBracketGenerationService
         }
 
         // 8. Seeds — one per placed leaf slot (a slot NOT fed by a route).
+        //    Director-entered seed intent (BracketSeeds, cross-pool aware) is the
+        //    source of truth; this is the migration of that intent into the
+        //    brackets.* schema. Where the director set nothing, default to the
+        //    same division at the slot's placed number.
+        var seedIntentByGid = (await _bracketRepo.GetBracketSeedsByGidsAsync(
+                placed.Select(p => p.Gid).ToList(), ct))
+            .GroupBy(bs => bs.Gid)
+            .ToDictionary(g => g.Key, g => g.First());
+
         var fedSlots = new HashSet<(int, int)>(
             routes.Select(r => (r.TargetTemplateGameId, (int)r.TargetSlot)));
         var seeds = new List<SeedAssignments>();
@@ -162,21 +214,35 @@ public sealed class BracketGenerationService : IBracketGenerationService
                     pg.RoundType, pg.Gid, pg.MinLabel);
                 continue;
             }
+            seedIntentByGid.TryGetValue(pg.Gid, out var intent);
             for (var slot = 1; slot <= 2; slot++)
             {
                 if (fedSlots.Contains((tg.TemplateGameId, slot))) continue; // fed, not seeded
-                // Template confirms this is a leaf (seed) slot; the actual seed
-                // position/rank comes from the placed row itself (anchors on grid
-                // data, not on template slot-order agreement).
+                // Template confirms this is a leaf (seed) slot.
                 var isSeedSlot = (slot == 1 ? tg.Slot1Seed : tg.Slot2Seed).HasValue;
                 if (!isSeedSlot) continue;
+
+                // Same-division default anchored on the placed row's slot number;
+                // overridden by the director's cross-pool intent when present.
+                var seedDivId = divId;
                 var seedRank = slot == 1 ? pg.Slot1No : pg.Slot2No;
+                if (intent is not null)
+                {
+                    var intentDiv = slot == 1 ? intent.T1SeedDivId : intent.T2SeedDivId;
+                    var intentRank = slot == 1 ? intent.T1SeedRank : intent.T2SeedRank;
+                    if (intentDiv.HasValue)
+                    {
+                        seedDivId = intentDiv.Value;
+                        if (intentRank.HasValue) seedRank = intentRank.Value;
+                    }
+                }
+
                 seeds.Add(new SeedAssignments
                 {
                     BracketInstanceId = instance.BracketInstanceId,
                     Gid = pg.Gid,
                     TargetSlot = (byte)slot,
-                    SeedDivId = divId,        // same-division default; cross-pool set later
+                    SeedDivId = seedDivId,
                     SeedRank = seedRank,
                     AcrossPoolRank = null,
                     Modified = now,

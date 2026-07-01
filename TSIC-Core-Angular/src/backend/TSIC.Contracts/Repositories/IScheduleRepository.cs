@@ -108,6 +108,14 @@ public interface IScheduleRepository
     Task<List<Schedule>> GetGamesByIdsAsync(List<int> gids, CancellationToken ct = default);
 
     /// <summary>
+    /// All games in a single division (tracked for batch mutation). Unlike the
+    /// grid/filter reads this does not require a scheduled date — used by dev-only
+    /// bracket exercise tools that clear/auto-score a whole division.
+    /// </summary>
+    Task<List<Schedule>> GetDivisionGamesTrackedAsync(
+        Guid jobId, Guid agegroupId, Guid divId, CancellationToken ct = default);
+
+    /// <summary>
     /// Find the schedule record at a specific date/field intersection (tracked for mutation).
     /// </summary>
     Task<Schedule?> GetGameAtSlotAsync(DateTime gDate, Guid fieldId, CancellationToken ct = default);

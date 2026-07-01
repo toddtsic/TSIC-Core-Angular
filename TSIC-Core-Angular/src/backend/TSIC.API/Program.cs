@@ -289,6 +289,8 @@ builder.Services.AddScoped<IScheduleDivisionService, ScheduleDivisionService>();
 builder.Services.AddScoped<IAutoBuildScheduleService, AutoBuildScheduleService>();
 builder.Services.AddScoped<IBracketGenerationService, BracketGenerationService>();
 builder.Services.AddScoped<IBracketAdvancementService, BracketAdvancementService>();
+builder.Services.AddScoped<IBracketSeedResolutionService, BracketSeedResolutionService>();
+builder.Services.AddScoped<IBracketDevToolsService, BracketDevToolsService>();
 builder.Services.AddScoped<IBracketSeedService, BracketSeedService>();
 builder.Services.AddScoped<IScheduleCascadeService, ScheduleCascadeService>();
 builder.Services.AddScoped<IScheduleQaService, ScheduleQaService>();

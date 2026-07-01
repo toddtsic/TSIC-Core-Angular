@@ -77,6 +77,74 @@ public class BracketRepository : IBracketRepository
             .Where(f => f.SourceGid == sourceGid)
             .ToListAsync(ct);
 
+    public async Task<List<BracketSeeds>> GetBracketSeedsByGidsAsync(
+        IReadOnlyCollection<int> gids, CancellationToken ct = default)
+    {
+        if (gids.Count == 0) return [];
+        return await _context.BracketSeeds
+            .AsNoTracking()
+            .Where(bs => gids.Contains(bs.Gid))
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<SeedSlotToResolve>> GetSeedSlotsForJobAsync(
+        Guid jobId, CancellationToken ct = default) =>
+        await (from sa in _context.SeedAssignments.AsNoTracking()
+               join bi in _context.BracketInstances.AsNoTracking()
+                   on sa.BracketInstanceId equals bi.BracketInstanceId
+               where bi.JobId == jobId && sa.SeedDivId != null
+               select new SeedSlotToResolve
+               {
+                   Gid = sa.Gid,
+                   TargetSlot = sa.TargetSlot,
+                   SeedDivId = sa.SeedDivId!.Value,
+                   SeedRank = sa.SeedRank
+               })
+            .ToListAsync(ct);
+
+    public async Task<HashSet<Guid>> GetIncompletePoolDivIdsAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var divs = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                     && s.DivId != null
+                     && s.T1Type == "T"
+                     && (s.T1Score == null || s.T2Score == null))
+            .Select(s => s.DivId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+        return new HashSet<Guid>(divs);
+    }
+
+    public async Task<List<BracketBackfillTarget>> GetDivisionsWithBracketGamesLackingInstanceAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        var candidates = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                     && s.AgegroupId != null && s.DivId != null
+                     && s.T1Type != null && s.T1Type == s.T2Type && s.T1Type != "T")
+            .Select(s => new { AgegroupId = s.AgegroupId!.Value, DivId = s.DivId!.Value })
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (candidates.Count == 0) return [];
+
+        var existing = await _context.BracketInstances
+            .AsNoTracking()
+            .Where(b => b.JobId == jobId && b.DivId != null)
+            .Select(b => new { b.AgegroupId, DivId = b.DivId!.Value })
+            .ToListAsync(ct);
+
+        var have = new HashSet<(Guid, Guid)>(existing.Select(e => (e.AgegroupId, e.DivId)));
+
+        return candidates
+            .Where(c => !have.Contains((c.AgegroupId, c.DivId)))
+            .Select(c => new BracketBackfillTarget { AgegroupId = c.AgegroupId, DivId = c.DivId })
+            .ToList();
+    }
+
     public async Task ReplaceFeedsAndSeedsAsync(
         int bracketInstanceId,
         IReadOnlyCollection<AdvancementFeeds> feeds,

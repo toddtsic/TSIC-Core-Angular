@@ -43,6 +43,7 @@ import { ManagePairingsComponent } from '../pairings/manage-pairings.component';
 import { ManageTimeslotsComponent } from '../timeslots/manage-timeslots.component';
 import { PoolAssignmentComponent } from '../../ladt/pool-assignment/pool-assignment.component';
 import { BracketSeedsComponent } from '../bracket-seeds/bracket-seeds.component';
+import { BracketDevToolsComponent } from '../bracket-dev-tools/bracket-dev-tools.component';
 import { MasterScheduleComponent } from '../master-schedule/master-schedule.component';
 import { QaResultsComponent } from '../qa-results/qa-results.component';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
@@ -57,7 +58,7 @@ import { LadtService } from '../../ladt/editor/services/ladt.service';
 @Component({
     selector: 'app-schedule-division',
     standalone: true,
-    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent],
+    imports: [CommonModule, FormsModule, TsicDialogComponent, DivisionNavigatorComponent, ScheduleGridComponent, OperationSpinnerModalComponent, PairingsPanelComponent, AutoScheduleConfigModalComponent, DivisionBuildConfirmModalComponent, CanvasConfigPanelComponent, BuildResultsPanelComponent, BulkDateAssignModalComponent, ScheduleConfigPanelComponent, ManageFieldsComponent, ManagePairingsComponent, ManageTimeslotsComponent, PoolAssignmentComponent, BracketSeedsComponent, BracketDevToolsComponent, MasterScheduleComponent, QaResultsComponent, ConfirmDialogComponent],
     templateUrl: './schedule-division.component.html',
     styleUrl: './schedule-division.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,

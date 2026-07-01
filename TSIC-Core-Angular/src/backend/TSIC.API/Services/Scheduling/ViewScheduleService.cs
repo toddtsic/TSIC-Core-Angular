@@ -13,15 +13,30 @@ public sealed class ViewScheduleService : IViewScheduleService
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly IBracketAdvancementService _bracketAdvancement;
+    private readonly IBracketSeedResolutionService _bracketResolution;
 
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
         ITeamRepository teamRepo,
-        IBracketAdvancementService bracketAdvancement)
+        IBracketAdvancementService bracketAdvancement,
+        IBracketSeedResolutionService bracketResolution)
     {
         _scheduleRepo = scheduleRepo;
         _teamRepo = teamRepo;
         _bracketAdvancement = bracketAdvancement;
+        _bracketResolution = bracketResolution;
+    }
+
+    // A round-robin result can complete a pool and lock its standings — resolve any
+    // bracket leaf slots that draw from a now-final pool. No-op for bracket games and
+    // for jobs without seed slots. (Bracket-game results advance via _bracketAdvancement.)
+    private async Task ResolveSeedsIfPoolGameAsync(
+        Guid jobId, string userId, Domain.Entities.Schedule game, CancellationToken ct)
+    {
+        if (game.T1Type != "T") return;
+        await _bracketResolution.ResolveJobAsync(
+            jobId, userId,
+            c => GetStandingsAsync(jobId, new ScheduleFilterRequest(), c), ct);
     }
 
     public async Task<ScheduleFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -310,6 +325,9 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         // R2: write the winner (and loser, for a bronze feed) forward into the next game.
         await _bracketAdvancement.AdvanceWinnerAsync(game.Gid, userId, ct);
+
+        // R1: a pool result may lock standings — fill any bracket slots seeded from it.
+        await ResolveSeedsIfPoolGameAsync(jobId, userId, game, ct);
     }
 
     public async Task EditGameAsync(
@@ -338,6 +356,9 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         // R2: write the winner (and loser, for a bronze feed) forward into the next game.
         await _bracketAdvancement.AdvanceWinnerAsync(game.Gid, userId, ct);
+
+        // R1: a pool result may lock standings — fill any bracket slots seeded from it.
+        await ResolveSeedsIfPoolGameAsync(jobId, userId, game, ct);
     }
 
     // ── Private Helpers ──

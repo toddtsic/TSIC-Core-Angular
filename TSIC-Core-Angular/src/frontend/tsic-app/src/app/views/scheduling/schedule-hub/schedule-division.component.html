@@ -45,6 +45,13 @@
                         (placementModeChanged)="setPlacementMode($event)"
                         (teamEditRequested)="openTeamEditModal($event)"
                         (pairingLocated)="locateScheduledGame($event)" />
+
+                    <!-- Dev/sandbox-only: exercise seeding + advancement on this division.
+                         Observe results on View Schedule → Standings / Brackets. -->
+                    <app-bracket-dev-tools
+                        [agegroupId]="selectedAgegroupId() ?? ''"
+                        [divId]="selectedDivision()?.divId ?? ''"
+                        [divisionName]="selectedDivision()?.divName ?? ''" />
                 }
             }
 
