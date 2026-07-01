@@ -1,6 +1,6 @@
 import {
     ChangeDetectionStrategy, Component, DestroyRef,
-    inject, signal, computed, output,
+    inject, signal, computed,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TeamWizardStateService } from '../state/team-wizard-state.service';
