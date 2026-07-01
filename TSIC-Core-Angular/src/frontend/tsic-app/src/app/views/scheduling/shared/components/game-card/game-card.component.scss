@@ -1,6 +1,9 @@
 :host {
     display: block;
-    height: 100%;
+    // min-height (not height): fill the cell when there's room, but grow to fit
+    // content rather than clip. A fixed `height: 100%` inside a fixed-height <td>
+    // clips in Firefox when the text rows render a hair taller than the cell.
+    min-height: 100%;
 }
 
 // ── Game card base ──
@@ -15,7 +18,7 @@
     border-radius: var(--bs-border-radius-sm);
     background: var(--bs-body-bg);
     position: relative;
-    height: 100%;
+    min-height: 100%;
 }
 
 // ── Row 1: agegroup:div label + round ──
