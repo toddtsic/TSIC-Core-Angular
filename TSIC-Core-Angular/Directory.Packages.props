@@ -65,6 +65,8 @@
     <PackageVersion Include="MimeKit" Version="4.16.0" />
     <!-- Amazon SES (email service) -->
     <PackageVersion Include="AWSSDK.SimpleEmail" Version="4.0.2.24" />
+    <!-- Amazon SES v2 — suppression-list APIs (GetSuppressedDestination/DeleteSuppressedDestination), used by the E-Mail Troubleshooter -->
+    <PackageVersion Include="AWSSDK.SimpleEmailV2" Version="4.0.3" />
     <!-- Hosting + Logging primitives (used in Application services) -->
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.6" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.6" />

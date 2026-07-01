@@ -29,6 +29,7 @@
     <PackageReference Include="SonarAnalyzer.CSharp" />
     <PackageReference Include="MimeKit" />
     <PackageReference Include="AWSSDK.SimpleEmail" />
+    <PackageReference Include="AWSSDK.SimpleEmailV2" />
     <PackageReference Include="Serilog.AspNetCore" />
     <PackageReference Include="Syncfusion.Pdf.Net.Core" />
     <PackageReference Include="Syncfusion.XlsIO.Net.Core" />

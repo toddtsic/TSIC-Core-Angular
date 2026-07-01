@@ -245,6 +245,8 @@ export type { EditTimeslotFieldRequest } from './models/EditTimeslotFieldRequest
 export type { EmailBatchHandle } from './models/EmailBatchHandle';
 export type { EmailBatchJobStatus } from './models/EmailBatchJobStatus';
 export type { EmailHealthStatus } from './models/EmailHealthStatus';
+export type { EmailInvestigateResultDto } from './models/EmailInvestigateResultDto';
+export type { EmailListRequest } from './models/EmailListRequest';
 export type { EmailLogDetailDto } from './models/EmailLogDetailDto';
 export type { EmailLogSummaryDto } from './models/EmailLogSummaryDto';
 export type { EmailParticipantsRequest } from './models/EmailParticipantsRequest';
@@ -626,6 +628,8 @@ export type { SubscriptionDetailDto } from './models/SubscriptionDetailDto';
 export type { SuggestedEventDto } from './models/SuggestedEventDto';
 export type { SuggestedTeamNameDto } from './models/SuggestedTeamNameDto';
 export type { SupersedingEventInfoDto } from './models/SupersedingEventInfoDto';
+export type { SuppressionEntryDto } from './models/SuppressionEntryDto';
+export type { SuppressionRemoveResultDto } from './models/SuppressionRemoveResultDto';
 export type { SuspendedJobDto } from './models/SuspendedJobDto';
 export type { SwapDeviceTokenRequest } from './models/SwapDeviceTokenRequest';
 export type { SwapperPlayerDto } from './models/SwapperPlayerDto';

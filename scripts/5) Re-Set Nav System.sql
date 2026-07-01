@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-06-27 15:46:30 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-06-30 16:05:34 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -130,8 +130,9 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Job Clone', N'cop
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 13, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Push Notification', N'bell', N'communications/push-notification', 3, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}', NULL);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Team Links', N'link-45deg', N'communications/team-links', 4, 1, 1, 1, N'{"requiresFlags":["playerSiteOnly"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'E-Mail Troubleshooter', N'envelope-exclamation', N'tools/email-troubleshooter', 3, 1, 1, 1, NULL, N'NEW');
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Push Notification', N'bell', N'communications/push-notification', 4, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 3, N'Team Links', N'link-45deg', N'communications/team-links', 5, 1, 1, 1, N'{"requiresFlags":["playerSiteOnly"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'LADT', N'diagram-3', 4, N'Coach Approvals', N'person-check', N'ladt/coach-approvals', 3, 1, 1, 1, NULL, NULL);

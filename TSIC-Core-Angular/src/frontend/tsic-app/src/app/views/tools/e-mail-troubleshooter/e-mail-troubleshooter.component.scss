@@ -1,0 +1,212 @@
+:host {
+	display: block;
+	padding: var(--space-4);
+}
+
+.troubleshooter {
+	max-width: 760px;
+}
+
+// ── Header ──
+
+.page-head {
+	margin-bottom: var(--space-4);
+}
+
+.page-title {
+	font-size: var(--font-size-xl, 1.5rem);
+	font-weight: 700;
+	margin: 0 0 var(--space-1);
+}
+
+.page-sub {
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	margin: 0;
+}
+
+// ── Tabs ──
+
+.nav-tabs .nav-link {
+	cursor: pointer;
+	color: var(--bs-secondary-color);
+
+	&.active {
+		color: var(--bs-primary);
+		font-weight: 600;
+	}
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+	}
+}
+
+.tab-panel {
+	padding-top: var(--space-4);
+}
+
+.tab-help {
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	margin-bottom: var(--space-3);
+}
+
+// ── Form ──
+
+.field-label {
+	display: block;
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+	margin-bottom: var(--space-1);
+}
+
+.email-input {
+	font-family: var(--font-monospace, monospace);
+	resize: vertical;
+}
+
+.actions {
+	display: flex;
+	gap: var(--space-2);
+	margin-top: var(--space-3);
+}
+
+.btn:focus-visible {
+	outline: none;
+	box-shadow: var(--shadow-focus);
+}
+
+.alert {
+	margin-top: var(--space-3);
+}
+
+.empty-state {
+	margin-top: var(--space-4);
+	padding: var(--space-4);
+	text-align: center;
+	color: var(--bs-secondary-color);
+	font-size: var(--font-size-sm);
+	border: 1px dashed var(--border-color);
+	border-radius: var(--radius-md);
+}
+
+// ── Results (shared) ──
+
+.result-list {
+	margin-top: var(--space-4);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.row-email {
+	font-weight: 600;
+	word-break: break-all;
+}
+
+// ── Tab 1: suppression rows ──
+
+.suppression-row {
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-md);
+	padding: var(--space-3);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2);
+}
+
+.row-main {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+}
+
+.row-detail {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
+}
+
+.detail-chip {
+	font-size: var(--font-size-sm);
+	color: var(--bs-secondary-color);
+
+	&.muted {
+		font-style: italic;
+	}
+}
+
+// ── Tab 2: investigate cards ──
+
+.investigate-card {
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-md);
+	padding: var(--space-3) var(--space-4);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3);
+}
+
+.card-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--space-2);
+}
+
+.findings {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-1);
+	font-size: var(--font-size-sm);
+}
+
+.finding-key {
+	font-weight: 600;
+	margin-right: var(--space-1);
+	color: var(--bs-secondary-color);
+}
+
+.conclusion {
+	border-left: 3px solid var(--border-color);
+	padding: var(--space-2) var(--space-3);
+	background: var(--bg-elevated);
+	border-radius: var(--radius-sm);
+
+	&.concl-recipient {
+		border-left-color: var(--bs-success);
+		background: rgba(var(--bs-success-rgb), 0.08);
+	}
+
+	&.concl-sending {
+		border-left-color: var(--bs-warning);
+		background: rgba(var(--bs-warning-rgb), 0.08);
+	}
+}
+
+.concl-label {
+	font-size: var(--font-size-sm);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--bs-secondary-color);
+	margin-bottom: var(--space-1);
+}
+
+.concl-text {
+	margin: 0;
+	font-size: var(--font-size-sm);
+	line-height: 1.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	* {
+		animation: none !important;
+		transition: none !important;
+	}
+}

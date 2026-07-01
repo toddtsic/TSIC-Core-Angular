@@ -405,8 +405,39 @@ builder.Services.AddSingleton<IAmazonSimpleEmailService>(sp =>
     }
     return new AmazonSimpleEmailServiceClient();
 });
+// Amazon SES v2 client — same region/credential cascade as the v1 client above.
+// Needed only for the suppression-list APIs (GetSuppressedDestination/DeleteSuppressedDestination)
+// which the E-Mail Troubleshooter uses; the v1 client remains the send transport.
+builder.Services.AddSingleton<Amazon.SimpleEmailV2.IAmazonSimpleEmailServiceV2>(sp =>
+{
+    var opts = sp.GetRequiredService<IOptions<EmailSettings>>().Value;
+    var aws = sp.GetRequiredService<IOptions<AwsSettings>>().Value;
+
+    var regionName = opts.AwsRegion
+                     ?? aws.Region
+                     ?? Environment.GetEnvironmentVariable("AWS_REGION")
+                     ?? Environment.GetEnvironmentVariable("AWS_DEFAULT_REGION");
+    var region = !string.IsNullOrWhiteSpace(regionName) ? Amazon.RegionEndpoint.GetBySystemName(regionName) : null;
+
+    var haveKeys = !string.IsNullOrWhiteSpace(aws.AccessKey) && !string.IsNullOrWhiteSpace(aws.SecretKey);
+
+    if (haveKeys && region != null)
+    {
+        return new Amazon.SimpleEmailV2.AmazonSimpleEmailServiceV2Client(new BasicAWSCredentials(aws.AccessKey!, aws.SecretKey!), region);
+    }
+    if (haveKeys)
+    {
+        return new Amazon.SimpleEmailV2.AmazonSimpleEmailServiceV2Client(new BasicAWSCredentials(aws.AccessKey!, aws.SecretKey!));
+    }
+    if (region != null)
+    {
+        return new Amazon.SimpleEmailV2.AmazonSimpleEmailServiceV2Client(region);
+    }
+    return new Amazon.SimpleEmailV2.AmazonSimpleEmailServiceV2Client();
+});
 builder.Services.AddSingleton<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailHealthService, EmailHealthService>();
+builder.Services.AddScoped<IEmailTroubleshooterService, EmailTroubleshooterService>();
 // Batch-email engine: background orchestration above the SES transport. Both singletons
 // (engine owns no scoped state; render workers create their own scopes per IEmailBatchService).
 builder.Services.AddSingleton<IEmailBatchJobRegistry, EmailBatchJobRegistry>();

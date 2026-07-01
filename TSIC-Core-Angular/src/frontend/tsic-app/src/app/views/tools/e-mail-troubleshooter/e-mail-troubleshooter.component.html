@@ -1,0 +1,182 @@
+<div class="troubleshooter">
+	<header class="page-head">
+		<h1 class="page-title">E-Mail Troubleshooter</h1>
+		<p class="page-sub">
+			Diagnose "I never got your email" reports. Check the email provider's suppression list,
+			or send a live test and find out which side a delivery failure is on.
+		</p>
+	</header>
+
+	<ul class="nav nav-tabs" role="tablist">
+		<li class="nav-item" role="presentation">
+			<button
+				type="button"
+				class="nav-link"
+				[class.active]="activeTab() === 'suppression'"
+				(click)="setTab('suppression')"
+				role="tab">
+				Suppression List
+			</button>
+		</li>
+		<li class="nav-item" role="presentation">
+			<button
+				type="button"
+				class="nav-link"
+				[class.active]="activeTab() === 'investigate'"
+				(click)="setTab('investigate')"
+				role="tab">
+				Investigate E-Mail Failure
+			</button>
+		</li>
+	</ul>
+
+	<!-- ─────────────── Tab 1: Suppression List ─────────────── -->
+	@if (activeTab() === 'suppression') {
+		<section class="tab-panel" role="tabpanel">
+			<p class="tab-help">
+				Look up whether address(es) are on Amazon SES's account-level suppression list (placed there
+				automatically after a hard bounce or complaint), and remove them to un-stick a recipient.
+			</p>
+
+			<label class="field-label" for="suppression-emails">Email address(es) — separate multiple with a semicolon</label>
+			<textarea
+				id="suppression-emails"
+				class="form-control email-input"
+				rows="3"
+				placeholder="jane@example.com; john@example.com"
+				[ngModel]="suppressionInput()"
+				(ngModelChange)="suppressionInput.set($event)"></textarea>
+
+			<div class="actions">
+				<button type="button" class="btn btn-primary" (click)="checkSuppression()" [disabled]="suppressionLoading()">
+					{{ suppressionLoading() ? 'Checking…' : 'Check Suppression' }}
+				</button>
+				<button type="button" class="btn btn-outline-secondary" (click)="clearSuppression()" [disabled]="suppressionLoading()">
+					Clear
+				</button>
+			</div>
+
+			@if (suppressionError()) {
+				<div class="alert alert-danger" role="alert">{{ suppressionError() }}</div>
+			}
+
+			@if (suppressionSearched() && !suppressionLoading() && suppressionResults().length === 0 && !suppressionError()) {
+				<div class="empty-state">No addresses to show.</div>
+			}
+
+			@if (suppressionResults().length > 0) {
+				<div class="result-list">
+					@for (row of suppressionResults(); track row.email) {
+						<div class="suppression-row">
+							<div class="row-main">
+								<span class="row-email">{{ row.email }}</span>
+								@switch (row.status) {
+									@case ('Suppressed') {
+										<span class="badge bg-danger">Suppressed</span>
+									}
+									@case ('NotSuppressed') {
+										<span class="badge bg-success">Not suppressed</span>
+									}
+									@default {
+										<span class="badge bg-secondary">Unknown</span>
+									}
+								}
+							</div>
+							@if (row.status === 'Suppressed') {
+								<div class="row-detail">
+									@if (row.reason) { <span class="detail-chip">Reason: {{ row.reason }}</span> }
+									@if (row.lastUpdate) { <span class="detail-chip">Since: {{ row.lastUpdate | date:'medium' }}</span> }
+								</div>
+								<div class="row-action">
+									<button
+										type="button"
+										class="btn btn-sm btn-outline-danger"
+										(click)="removeFromSuppression(row.email)"
+										[disabled]="isRemoving(row.email)">
+										{{ isRemoving(row.email) ? 'Removing…' : 'Remove from suppression' }}
+									</button>
+								</div>
+							}
+							@if (row.status === 'Unknown' && row.reason) {
+								<div class="row-detail"><span class="detail-chip muted">{{ row.reason }}</span></div>
+							}
+						</div>
+					}
+				</div>
+			}
+		</section>
+	}
+
+	<!-- ─────────────── Tab 2: Investigate E-Mail Failure ─────────────── -->
+	@if (activeTab() === 'investigate') {
+		<section class="tab-panel" role="tabpanel">
+			<p class="tab-help">
+				Sends a live test message to each address and reports which side a failure is on. Tip: include a
+				known-good control address (e.g. your own inbox) alongside the suspect one to compare.
+			</p>
+
+			<label class="field-label" for="investigate-emails">Email address(es) — separate multiple with a semicolon</label>
+			<textarea
+				id="investigate-emails"
+				class="form-control email-input"
+				rows="3"
+				placeholder="suspect@theirdomain.com; your-control@gmail.com"
+				[ngModel]="investigateInput()"
+				(ngModelChange)="investigateInput.set($event)"></textarea>
+
+			<div class="actions">
+				<button type="button" class="btn btn-primary" (click)="investigate()" [disabled]="investigateLoading()">
+					{{ investigateLoading() ? 'Sending & checking…' : 'Investigate' }}
+				</button>
+				<button type="button" class="btn btn-outline-secondary" (click)="clearInvestigate()" [disabled]="investigateLoading()">
+					Clear
+				</button>
+			</div>
+
+			@if (investigateError()) {
+				<div class="alert alert-danger" role="alert">{{ investigateError() }}</div>
+			}
+
+			@if (investigateResults().length > 0) {
+				<div class="result-list">
+					@for (row of investigateResults(); track row.email) {
+						<div class="investigate-card">
+							<div class="card-head">
+								<span class="row-email">{{ row.email }}</span>
+								@switch (row.side) {
+									@case ('Recipient') { <span class="badge bg-success">Recipient side</span> }
+									@case ('Sending') { <span class="badge bg-warning text-dark">Our side</span> }
+									@default { <span class="badge bg-secondary">Inconclusive</span> }
+								}
+							</div>
+
+							<ul class="findings">
+								<li>
+									<span class="finding-key">Suppression list:</span>
+									@switch (row.suppressionStatus) {
+										@case ('Suppressed') { <span class="text-danger">Blocked{{ row.suppressionReason ? ' (' + row.suppressionReason + ')' : '' }}</span> }
+										@case ('NotSuppressed') { <span class="text-success">Not blocked</span> }
+										@default { <span class="text-muted">Could not check</span> }
+									}
+								</li>
+								<li>
+									<span class="finding-key">Test send:</span>
+									@if (row.sendAccepted) {
+										<span class="text-success">Accepted &amp; dispatched by our email service</span>
+									} @else {
+										<span class="text-danger">Not sent{{ row.error ? ' (' + row.error + ')' : '' }}</span>
+									}
+								</li>
+							</ul>
+
+							<div class="conclusion" [class.concl-recipient]="row.side === 'Recipient'" [class.concl-sending]="row.side === 'Sending'">
+								<div class="concl-label">Conclusion</div>
+								<p class="concl-text">{{ row.conclusion }}</p>
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</section>
+	}
+</div>
