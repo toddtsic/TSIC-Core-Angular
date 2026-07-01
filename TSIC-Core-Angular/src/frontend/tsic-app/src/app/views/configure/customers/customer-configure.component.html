@@ -13,24 +13,24 @@
 
 <!-- Segment Filter -->
 @if (!isLoading() && !errorMessage()) {
-    <div class="btn-group btn-group-sm mb-3" role="group" aria-label="Filter customers by job activity">
-        <button type="button" class="btn"
-                [class.btn-primary]="segment() === 'has'"
-                [class.btn-outline-secondary]="segment() !== 'has'"
-                (click)="setSegment('has')">
-            Has Jobs <span class="badge rounded-pill bg-light text-dark ms-1">{{ hasJobsCount() }}</span>
+    <div class="segmented mb-3" role="group" aria-label="Filter customers by job activity">
+        <button type="button" class="segmented__btn" [class.is-active]="segment() === 'has'"
+                [attr.aria-pressed]="segment() === 'has'" (click)="setSegment('has')">
+            <i class="bi bi-briefcase"></i>
+            <span class="segmented__label">Has Jobs</span>
+            <span class="segmented__count">{{ hasJobsCount() }}</span>
         </button>
-        <button type="button" class="btn"
-                [class.btn-primary]="segment() === 'no'"
-                [class.btn-outline-secondary]="segment() !== 'no'"
-                (click)="setSegment('no')">
-            No Jobs <span class="badge rounded-pill bg-light text-dark ms-1">{{ noJobsCount() }}</span>
+        <button type="button" class="segmented__btn" [class.is-active]="segment() === 'no'"
+                [attr.aria-pressed]="segment() === 'no'" (click)="setSegment('no')">
+            <i class="bi bi-slash-circle"></i>
+            <span class="segmented__label">No Jobs</span>
+            <span class="segmented__count">{{ noJobsCount() }}</span>
         </button>
-        <button type="button" class="btn"
-                [class.btn-primary]="segment() === 'all'"
-                [class.btn-outline-secondary]="segment() !== 'all'"
-                (click)="setSegment('all')">
-            All <span class="badge rounded-pill bg-light text-dark ms-1">{{ customers().length }}</span>
+        <button type="button" class="segmented__btn" [class.is-active]="segment() === 'all'"
+                [attr.aria-pressed]="segment() === 'all'" (click)="setSegment('all')">
+            <i class="bi bi-collection"></i>
+            <span class="segmented__label">All</span>
+            <span class="segmented__count">{{ customers().length }}</span>
         </button>
     </div>
 }

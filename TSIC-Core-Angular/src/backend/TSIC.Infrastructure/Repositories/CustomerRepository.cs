@@ -56,30 +56,57 @@ public class CustomerRepository : ICustomerRepository
 
     public async Task<List<CustomerListDto>> GetAllCustomersAsync(CancellationToken ct = default)
     {
-        return await _context.Customers
+        // Base rows — cheap: one row per customer, job count via a small correlated COUNT.
+        var customers = await _context.Customers
             .AsNoTracking()
             .OrderBy(c => c.CustomerName)
-            .Select(c => new CustomerListDto
+            .Select(c => new
             {
-                CustomerId = c.CustomerId,
-                CustomerAi = c.CustomerAi,
-                CustomerName = c.CustomerName,
-                BAllowAmex = c.BAllowAmex,
-                JobCount = c.Jobs.Count,
-                // Last activity = the single most recently modified registration across the
-                // customer's jobs; surface that job's name and the registration timestamp.
-                LastActiveJobName = c.Jobs
-                    .SelectMany(j => j.Registrations.Select(r => new { r.Modified, j.JobName }))
-                    .OrderByDescending(x => x.Modified)
-                    .Select(x => x.JobName)
-                    .FirstOrDefault(),
-                LastActiveJobDate = c.Jobs
-                    .SelectMany(j => j.Registrations)
-                    .OrderByDescending(r => r.Modified)
-                    .Select(r => (DateTime?)r.Modified)
-                    .FirstOrDefault()
+                c.CustomerId,
+                c.CustomerAi,
+                c.CustomerName,
+                c.BAllowAmex,
+                JobCount = c.Jobs.Count
             })
             .ToListAsync(ct);
+
+        // Latest registration activity per job, in a SINGLE grouped aggregate over Registrations
+        // (one pass), instead of a correlated top-1 scan per customer. Reduced to the latest job
+        // per customer in memory below.
+        var perJob = await (
+            from r in _context.Registrations
+            join j in _context.Jobs on r.JobId equals j.JobId
+            group r by new { j.JobId, j.CustomerId, j.JobName } into g
+            select new
+            {
+                g.Key.CustomerId,
+                g.Key.JobName,
+                MaxModified = g.Max(x => x.Modified)
+            })
+            .ToListAsync(ct);
+
+        var latestByCustomer = perJob
+            .GroupBy(x => x.CustomerId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderByDescending(x => x.MaxModified).First());
+
+        return customers
+            .Select(c =>
+            {
+                latestByCustomer.TryGetValue(c.CustomerId, out var last);
+                return new CustomerListDto
+                {
+                    CustomerId = c.CustomerId,
+                    CustomerAi = c.CustomerAi,
+                    CustomerName = c.CustomerName,
+                    BAllowAmex = c.BAllowAmex,
+                    JobCount = c.JobCount,
+                    LastActiveJobName = last?.JobName,
+                    LastActiveJobDate = last?.MaxModified
+                };
+            })
+            .ToList();
     }
 
     public async Task<CustomerDetailDto?> GetCustomerByIdAsync(Guid customerId, CancellationToken ct = default)
