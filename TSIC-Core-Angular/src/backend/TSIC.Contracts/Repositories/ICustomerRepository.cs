@@ -22,7 +22,9 @@ public interface ICustomerRepository
     // ── Customer Configure CRUD ──────────────────────────
 
     /// <summary>
-    /// List all customers with timezone name and job count (read-only).
+    /// List all customers with AMEX flag, job count, and last registration activity
+    /// (read-only). The frontend segments by job count; no-job customers have null
+    /// last-activity fields.
     /// </summary>
     Task<List<CustomerListDto>> GetAllCustomersAsync(CancellationToken ct = default);
 
@@ -32,19 +34,16 @@ public interface ICustomerRepository
     Task<CustomerDetailDto?> GetCustomerByIdAsync(Guid customerId, CancellationToken ct = default);
 
     /// <summary>
-    /// List all timezones for dropdown (read-only).
-    /// </summary>
-    Task<List<TimezoneDto>> GetTimezonesAsync(CancellationToken ct = default);
-
-    /// <summary>
     /// Count how many jobs belong to a customer (for delete safety check).
     /// </summary>
     Task<int> GetCustomerJobCountAsync(Guid customerId, CancellationToken ct = default);
 
     /// <summary>
-    /// Check whether a timezone ID is valid.
+    /// Resolve a valid, non-null TzId for a newly created customer. Timezone is no longer
+    /// user-editable, but the column is NOT NULL — carry the platform default customer's
+    /// timezone, falling back to any existing timezone row.
     /// </summary>
-    Task<bool> TimezoneExistsAsync(int tzId, CancellationToken ct = default);
+    Task<int> ResolveDefaultTzIdAsync(Guid defaultCustomerId, CancellationToken ct = default);
 
     // ── Write (tracked) ──────────────────────────────────
 

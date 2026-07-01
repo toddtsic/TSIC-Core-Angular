@@ -33,20 +33,12 @@ public class CustomerConfigureService : ICustomerConfigureService
         return await _repo.GetCustomerByIdAsync(customerId, ct);
     }
 
-    public async Task<List<TimezoneDto>> GetTimezonesAsync(CancellationToken ct = default)
-    {
-        return await _repo.GetTimezonesAsync(ct);
-    }
-
     public async Task<CustomerDetailDto> CreateCustomerAsync(
         CreateCustomerRequest request, string userId, CancellationToken ct = default)
     {
         var trimmed = request.CustomerName.Trim();
         if (string.IsNullOrWhiteSpace(trimmed))
             throw new ArgumentException("Customer name is required.");
-
-        if (!await _repo.TimezoneExistsAsync(request.TzId, ct))
-            throw new ArgumentException($"Timezone ID {request.TzId} is not valid.");
 
         // Default ADN credentials from TSIC default customer if not supplied
         var adnLogin = request.AdnLoginId;
@@ -62,11 +54,15 @@ public class CustomerConfigureService : ICustomerConfigureService
             }
         }
 
+        // Timezone is no longer user-editable, but the column is NOT NULL.
+        var tzId = await _repo.ResolveDefaultTzIdAsync(_tsicSettings.DefaultCustomerId, ct);
+
         var entity = new Customers
         {
             CustomerId = Guid.NewGuid(),
             CustomerName = trimmed,
-            TzId = request.TzId,
+            TzId = tzId,
+            BAllowAmex = request.BAllowAmex,
             AdnLoginId = adnLogin,
             AdnTransactionKey = adnKey,
             LebUserId = userId,
@@ -81,7 +77,7 @@ public class CustomerConfigureService : ICustomerConfigureService
             CustomerId = entity.CustomerId,
             CustomerAi = entity.CustomerAi,
             CustomerName = entity.CustomerName,
-            TzId = entity.TzId,
+            BAllowAmex = entity.BAllowAmex,
             AdnLoginId = entity.AdnLoginId,
             AdnTransactionKey = entity.AdnTransactionKey
         };
@@ -94,14 +90,11 @@ public class CustomerConfigureService : ICustomerConfigureService
         if (string.IsNullOrWhiteSpace(trimmed))
             throw new ArgumentException("Customer name is required.");
 
-        if (!await _repo.TimezoneExistsAsync(request.TzId, ct))
-            throw new ArgumentException($"Timezone ID {request.TzId} is not valid.");
-
         var entity = await _repo.GetCustomerTrackedAsync(customerId, ct)
             ?? throw new KeyNotFoundException($"Customer {customerId} not found.");
 
         entity.CustomerName = trimmed;
-        entity.TzId = request.TzId;
+        entity.BAllowAmex = request.BAllowAmex;
         entity.AdnLoginId = request.AdnLoginId;
         entity.AdnTransactionKey = request.AdnTransactionKey;
         entity.LebUserId = userId;
@@ -114,7 +107,7 @@ public class CustomerConfigureService : ICustomerConfigureService
             CustomerId = entity.CustomerId,
             CustomerAi = entity.CustomerAi,
             CustomerName = entity.CustomerName,
-            TzId = entity.TzId,
+            BAllowAmex = entity.BAllowAmex,
             AdnLoginId = entity.AdnLoginId,
             AdnTransactionKey = entity.AdnTransactionKey
         };

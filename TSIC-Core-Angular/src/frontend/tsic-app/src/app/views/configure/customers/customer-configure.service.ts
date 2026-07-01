@@ -5,7 +5,6 @@ import { environment } from '../../../../environments/environment';
 import type {
   CustomerListDto,
   CustomerDetailDto,
-  TimezoneDto,
   CreateCustomerRequest,
   UpdateCustomerRequest
 } from '../../../core/api';
@@ -23,10 +22,6 @@ export class CustomerConfigureService {
 
   getById(customerId: string): Observable<CustomerDetailDto> {
     return this.http.get<CustomerDetailDto>(`${this.apiUrl}/${customerId}`);
-  }
-
-  getTimezones(): Observable<TimezoneDto[]> {
-    return this.http.get<TimezoneDto[]>(`${this.apiUrl}/timezones`);
   }
 
   create(request: CreateCustomerRequest): Observable<CustomerDetailDto> {

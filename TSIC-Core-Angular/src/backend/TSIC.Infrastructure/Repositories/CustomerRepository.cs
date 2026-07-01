@@ -64,9 +64,20 @@ public class CustomerRepository : ICustomerRepository
                 CustomerId = c.CustomerId,
                 CustomerAi = c.CustomerAi,
                 CustomerName = c.CustomerName,
-                TzId = c.TzId,
-                TimezoneName = c.Tz.TzName,
-                JobCount = c.Jobs.Count
+                BAllowAmex = c.BAllowAmex,
+                JobCount = c.Jobs.Count,
+                // Last activity = the single most recently modified registration across the
+                // customer's jobs; surface that job's name and the registration timestamp.
+                LastActiveJobName = c.Jobs
+                    .SelectMany(j => j.Registrations.Select(r => new { r.Modified, j.JobName }))
+                    .OrderByDescending(x => x.Modified)
+                    .Select(x => x.JobName)
+                    .FirstOrDefault(),
+                LastActiveJobDate = c.Jobs
+                    .SelectMany(j => j.Registrations)
+                    .OrderByDescending(r => r.Modified)
+                    .Select(r => (DateTime?)r.Modified)
+                    .FirstOrDefault()
             })
             .ToListAsync(ct);
     }
@@ -81,24 +92,11 @@ public class CustomerRepository : ICustomerRepository
                 CustomerId = c.CustomerId,
                 CustomerAi = c.CustomerAi,
                 CustomerName = c.CustomerName,
-                TzId = c.TzId,
+                BAllowAmex = c.BAllowAmex,
                 AdnLoginId = c.AdnLoginId,
                 AdnTransactionKey = c.AdnTransactionKey
             })
             .SingleOrDefaultAsync(ct);
-    }
-
-    public async Task<List<TimezoneDto>> GetTimezonesAsync(CancellationToken ct = default)
-    {
-        return await _context.Timezones
-            .AsNoTracking()
-            .OrderBy(tz => tz.TzName)
-            .Select(tz => new TimezoneDto
-            {
-                TzId = tz.TzId,
-                TzName = tz.TzName
-            })
-            .ToListAsync(ct);
     }
 
     public async Task<int> GetCustomerJobCountAsync(Guid customerId, CancellationToken ct = default)
@@ -108,11 +106,22 @@ public class CustomerRepository : ICustomerRepository
             .CountAsync(j => j.CustomerId == customerId, ct);
     }
 
-    public async Task<bool> TimezoneExistsAsync(int tzId, CancellationToken ct = default)
+    public async Task<int> ResolveDefaultTzIdAsync(Guid defaultCustomerId, CancellationToken ct = default)
     {
+        var tzId = await _context.Customers
+            .AsNoTracking()
+            .Where(c => c.CustomerId == defaultCustomerId)
+            .Select(c => (int?)c.TzId)
+            .FirstOrDefaultAsync(ct);
+
+        if (tzId.HasValue) return tzId.Value;
+
+        // Default customer missing — any valid timezone satisfies the NOT NULL FK.
         return await _context.Timezones
             .AsNoTracking()
-            .AnyAsync(tz => tz.TzId == tzId, ct);
+            .OrderBy(tz => tz.TzId)
+            .Select(tz => tz.TzId)
+            .FirstAsync(ct);
     }
 
     // ── Write (tracked) ──────────────────────────────────

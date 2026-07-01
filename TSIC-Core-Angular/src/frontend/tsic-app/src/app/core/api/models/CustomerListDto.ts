@@ -6,8 +6,9 @@ export type CustomerListDto = {
     customerId: string;
     customerAi: number;
     customerName: string | null;
-    tzId: number;
-    timezoneName: string | null;
+    bAllowAmex: boolean;
     jobCount: number;
+    lastActiveJobName: string | null;
+    lastActiveJobDate: string | null;
 };
 

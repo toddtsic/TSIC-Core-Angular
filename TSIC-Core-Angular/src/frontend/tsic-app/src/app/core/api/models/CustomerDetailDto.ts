@@ -6,7 +6,7 @@ export type CustomerDetailDto = {
     customerId: string;
     customerAi: number;
     customerName: string | null;
-    tzId: number;
+    bAllowAmex: boolean;
     adnLoginId: string | null;
     adnTransactionKey: string | null;
 };

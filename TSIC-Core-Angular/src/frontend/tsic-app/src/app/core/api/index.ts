@@ -688,7 +688,6 @@ export type { TimeRangeDto } from './models/TimeRangeDto';
 export type { TimeslotConfigurationResponse } from './models/TimeslotConfigurationResponse';
 export type { TimeslotDateDto } from './models/TimeslotDateDto';
 export type { TimeslotFieldDto } from './models/TimeslotFieldDto';
-export type { TimezoneDto } from './models/TimezoneDto';
 export type { ToggleHideRequest } from './models/ToggleHideRequest';
 export type { ToggleNavActiveRequest } from './models/ToggleNavActiveRequest';
 export type { ToggleTeamSubscriptionRequest } from './models/ToggleTeamSubscriptionRequest';

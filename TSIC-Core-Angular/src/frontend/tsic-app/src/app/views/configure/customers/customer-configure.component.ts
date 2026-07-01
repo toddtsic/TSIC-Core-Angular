@@ -1,16 +1,18 @@
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
-import { NgClass } from '@angular/common';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { CustomerConfigureService } from './customer-configure.service';
 import { ToastService } from '../../../shared-ui/toast.service';
 import { CustomerDialogComponent } from './customer-dialog/customer-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
-import type { CustomerListDto, TimezoneDto } from '../../../core/api';
+import type { CustomerListDto } from '../../../core/api';
+
+type Segment = 'has' | 'no' | 'all';
 
 @Component({
   selector: 'app-customer-configure',
   standalone: true,
-  imports: [NgClass, GridAllModule, CustomerDialogComponent, ConfirmDialogComponent],
+  imports: [DatePipe, GridAllModule, CustomerDialogComponent, ConfirmDialogComponent],
   templateUrl: './customer-configure.component.html',
   styleUrl: './customer-configure.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -21,7 +23,20 @@ export class CustomerConfigureComponent implements OnInit {
 
   // Data signals
   customers = signal<CustomerListDto[]>([]);
-  timezones = signal<TimezoneDto[]>([]);
+
+  // Segment filter — default to active (has-jobs) customers.
+  segment = signal<Segment>('has');
+
+  readonly hasJobsCount = computed(() => this.customers().filter(c => c.jobCount > 0).length);
+  readonly noJobsCount = computed(() => this.customers().filter(c => c.jobCount === 0).length);
+
+  readonly filteredCustomers = computed(() => {
+    const seg = this.segment();
+    const all = this.customers();
+    if (seg === 'has') return all.filter(c => c.jobCount > 0);
+    if (seg === 'no') return all.filter(c => c.jobCount === 0);
+    return all;
+  });
 
   // UI state
   isLoading = signal(false);
@@ -52,10 +67,10 @@ export class CustomerConfigureComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
 
-    this.svc.getTimezones().subscribe({
-      next: (tz) => this.timezones.set(tz)
-    });
+  setSegment(seg: Segment): void {
+    this.segment.set(seg);
   }
 
   // Modal actions
@@ -99,5 +114,11 @@ export class CustomerConfigureComponent implements OnInit {
     this.showEditModal.set(false);
     this.editTarget.set(null);
     this.loadData();
+  }
+
+  onAddSaved(): void {
+    // A new customer has no jobs yet — jump to the No Jobs segment so it stays visible.
+    this.segment.set('no');
+    this.onFormSaved();
   }
 }

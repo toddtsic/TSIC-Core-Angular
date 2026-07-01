@@ -4,7 +4,7 @@
 /* eslint-disable */
 export type UpdateCustomerRequest = {
     customerName: string;
-    tzId: number;
+    bAllowAmex: boolean;
     adnLoginId?: string | null;
     adnTransactionKey?: string | null;
 };

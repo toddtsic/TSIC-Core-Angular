@@ -31,18 +31,18 @@
                         }
                     </div>
                     <div class="col-12">
-                        <label for="timezone" class="field-label">Timezone</label>
-                        <select
-                            id="timezone"
-                            class="field-input field-select"
-                            [value]="tzId() ?? ''"
-                            (change)="onTzChange($event)"
-                            [class.is-invalid]="tzId() === null">
-                            <option value="" disabled>Select a timezone</option>
-                            @for (tz of timezones(); track tz.tzId) {
-                                <option [value]="tz.tzId">{{ tz.tzName }}</option>
-                            }
-                        </select>
+                        <div class="field-check">
+                            <input id="amexToggle" type="checkbox" role="switch"
+                                class="form-check-input"
+                                [checked]="bAllowAmex()"
+                                (change)="bAllowAmex.set($any($event.target).checked)" />
+                            <label class="field-label" for="amexToggle" style="margin-bottom:0">
+                                Accept American Express
+                            </label>
+                        </div>
+                        <p class="field-help mt-1 mb-0">
+                            Enables AMEX on this merchant's credit-card payment forms.
+                        </p>
                     </div>
                 </div>
 

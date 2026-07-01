@@ -2,3 +2,30 @@
     display: block;
     padding: var(--space-4);
 }
+
+/* Size the grid to its data rather than stretching full-width. */
+.grid-wrap {
+    max-width: 960px;
+}
+
+/* Customer name rendered as an inline link that opens the edit dialog. */
+.link-btn {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-weight: 600;
+    color: var(--bs-primary);
+    cursor: pointer;
+    text-align: left;
+
+    &:hover {
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+        border-radius: var(--radius-sm, 4px);
+    }
+}

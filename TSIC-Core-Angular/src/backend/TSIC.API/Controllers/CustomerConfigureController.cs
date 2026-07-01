@@ -47,15 +47,6 @@ public class CustomerConfigureController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>List all timezones for dropdown selection.</summary>
-    [HttpGet("timezones")]
-    [ProducesResponseType(typeof(List<TimezoneDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<List<TimezoneDto>>> GetTimezones(CancellationToken ct)
-    {
-        var result = await _service.GetTimezonesAsync(ct);
-        return Ok(result);
-    }
-
     // ── Write ───────────────────────────────────────────────
 
     /// <summary>Create a new customer.</summary>

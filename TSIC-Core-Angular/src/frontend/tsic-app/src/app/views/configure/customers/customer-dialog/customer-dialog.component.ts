@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { CustomerConfigureService } from '../customer-configure.service';
 import { ToastService } from '../../../../shared-ui/toast.service';
-import type { TimezoneDto, CreateCustomerRequest, UpdateCustomerRequest } from '@core/api';
+import type { CreateCustomerRequest, UpdateCustomerRequest } from '@core/api';
 
 export type DialogMode = 'add' | 'edit';
 
@@ -18,7 +18,6 @@ export type DialogMode = 'add' | 'edit';
 export class CustomerDialogComponent implements OnInit {
     readonly mode = input<DialogMode>('add');
     readonly customerId = input<string | null>(null);
-    readonly timezones = input<TimezoneDto[]>([]);
     readonly close = output<void>();
     readonly saved = output<void>();
 
@@ -27,7 +26,7 @@ export class CustomerDialogComponent implements OnInit {
 
     // Form fields
     customerName = signal('');
-    tzId = signal<number | null>(null);
+    bAllowAmex = signal(false);
     adnLoginId = signal('');
     adnTransactionKey = signal('');
 
@@ -42,14 +41,13 @@ export class CustomerDialogComponent implements OnInit {
             this.svc.getById(customerId).subscribe({
                 next: (detail) => {
                     this.customerName.set(detail.customerName ?? '');
-                    this.tzId.set(detail.tzId);
+                    this.bAllowAmex.set(detail.bAllowAmex);
                     this.adnLoginId.set(detail.adnLoginId ?? '');
                     this.adnTransactionKey.set(detail.adnTransactionKey ?? '');
                     this.isLoadingDetail.set(false);
                 },
                 error: () => {
                     this.toast.show('Failed to load customer detail', 'danger');
-                    // TODO: The 'emit' function requires a mandatory void argument
                     this.close.emit();
                 }
             });
@@ -61,13 +59,8 @@ export class CustomerDialogComponent implements OnInit {
         this[field].set(value);
     }
 
-    onTzChange(event: Event): void {
-        const value = (event.target as HTMLSelectElement).value;
-        this.tzId.set(value ? +value : null);
-    }
-
     isValid(): boolean {
-        return this.customerName().trim().length > 0 && this.tzId() !== null;
+        return this.customerName().trim().length > 0;
     }
 
     onSubmit(): void {
@@ -78,7 +71,7 @@ export class CustomerDialogComponent implements OnInit {
         if (this.mode() === 'add') {
             const request: CreateCustomerRequest = {
                 customerName: this.customerName().trim(),
-                tzId: this.tzId()!,
+                bAllowAmex: this.bAllowAmex(),
                 adnLoginId: this.adnLoginId() || undefined,
                 adnTransactionKey: this.adnTransactionKey() || undefined
             };
@@ -86,7 +79,6 @@ export class CustomerDialogComponent implements OnInit {
             this.svc.create(request).subscribe({
                 next: () => {
                     this.toast.show(`Customer "${this.customerName().trim()}" created`, 'success');
-                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (err) => {
@@ -97,7 +89,7 @@ export class CustomerDialogComponent implements OnInit {
         } else if (customerId) {
             const request: UpdateCustomerRequest = {
                 customerName: this.customerName().trim(),
-                tzId: this.tzId()!,
+                bAllowAmex: this.bAllowAmex(),
                 adnLoginId: this.adnLoginId() || undefined,
                 adnTransactionKey: this.adnTransactionKey() || undefined
             };
@@ -105,7 +97,6 @@ export class CustomerDialogComponent implements OnInit {
             this.svc.update(customerId, request).subscribe({
                 next: () => {
                     this.toast.show(`Customer "${this.customerName().trim()}" updated`, 'success');
-                    // TODO: The 'emit' function requires a mandatory void argument
                     this.saved.emit();
                 },
                 error: (err) => {
