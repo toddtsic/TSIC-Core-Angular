@@ -2,13 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient, withXhr } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { signal } from '@angular/core';
-import { TeamService, AvailableTeam } from './team.service';
+import { TeamService } from './team.service';
+import type { AvailableTeamDto } from '@core/api';
 import { JobContextService } from '../state/job-context.service';
 import { EligibilityService } from '../state/eligibility.service';
 import { environment } from '@environments/environment';
 
-/** Helper to create an AvailableTeam with sensible defaults. */
-function mkTeam(overrides: Partial<AvailableTeam>): AvailableTeam {
+/** Helper to create an AvailableTeamDto with sensible defaults. */
+function mkTeam(overrides: Partial<AvailableTeamDto>): AvailableTeamDto {
     return {
         teamId: overrides.teamId ?? crypto.randomUUID(),
         teamName: overrides.teamName ?? 'Test Team',
@@ -22,6 +23,8 @@ function mkTeam(overrides: Partial<AvailableTeam>): AvailableTeam {
         fee: overrides.fee ?? null,
         deposit: overrides.deposit ?? null,
         jobUsesWaitlists: overrides.jobUsesWaitlists ?? false,
+        feeConfigured: overrides.feeConfigured ?? true,
+        fullPaymentRequired: overrides.fullPaymentRequired ?? false,
         ...(overrides.clubName !== undefined && { clubName: overrides.clubName }),
         ...(overrides.teamAllowsSelfRostering !== undefined && { teamAllowsSelfRostering: overrides.teamAllowsSelfRostering }),
         ...(overrides.agegroupAllowsSelfRostering !== undefined && { agegroupAllowsSelfRostering: overrides.agegroupAllowsSelfRostering }),
@@ -72,7 +75,7 @@ describe('TeamService', () => {
     });
 
     /** Triggers loadForJob and flushes the HTTP request with the given teams. */
-    function loadTeams(teams: AvailableTeam[]): void {
+    function loadTeams(teams: AvailableTeamDto[]): void {
         service.loadForJob('test-job');
         const req = httpCtrl.expectOne(
             `${environment.apiUrl}/jobs/test-job/available-teams`

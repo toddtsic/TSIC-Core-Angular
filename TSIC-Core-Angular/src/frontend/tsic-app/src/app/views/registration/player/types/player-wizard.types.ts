@@ -8,6 +8,7 @@
 
 // ── Re-exports from generated API models ──────────────────────────────
 export type {
+    AvailableTeamDto,
     FamilyPlayerDto,
     FamilyPlayerRegistrationDto,
     FamilyPlayersResponseDto,

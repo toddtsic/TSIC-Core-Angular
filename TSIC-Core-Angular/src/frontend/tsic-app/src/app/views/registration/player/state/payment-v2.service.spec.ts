@@ -6,12 +6,12 @@ import { PaymentV2Service } from './payment-v2.service';
 import { JobContextService } from './job-context.service';
 import { FamilyPlayersService } from './family-players.service';
 import { PlayerStateService } from '@views/registration/player/services/player-state.service';
-import { TeamService, AvailableTeam } from '@views/registration/player/services/team.service';
-import type { FamilyPlayerDto, RegistrationFinancialsDto } from '@core/api';
+import { TeamService } from '@views/registration/player/services/team.service';
+import type { AvailableTeamDto, FamilyPlayerDto, RegistrationFinancialsDto } from '@core/api';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-function makeTeam(overrides: Partial<AvailableTeam> & { teamId: string }): AvailableTeam {
+function makeTeam(overrides: Partial<AvailableTeamDto> & { teamId: string }): AvailableTeamDto {
     return {
         teamName: 'Team A',
         agegroupId: 'ag1',
@@ -23,6 +23,8 @@ function makeTeam(overrides: Partial<AvailableTeam> & { teamId: string }): Avail
         // Single-phase by default: deposit 0 ⇒ `fee` IS the full price (FullPrice =
         // deposit + balanceDue). Deposit-scenario tests set their own explicit deposit.
         deposit: 0,
+        feeConfigured: true,
+        fullPaymentRequired: false,
         ...overrides,
     };
 }
@@ -93,14 +95,14 @@ function createPlayerStateStub() {
 }
 
 function createTeamServiceStub() {
-    const _teams = new Map<string, AvailableTeam>();
+    const _teams = new Map<string, AvailableTeamDto>();
     return {
         getTeamById: (id: string) => _teams.get(id),
         // Mirror production TeamService.getTeamDisplayName: always the team's real name
         // (no synthetic WAITLIST prefix — a waitlisted player sits on the twin team whose
         // stored name already is "WAITLIST - {name}").
         getTeamDisplayName: (id: string) => _teams.get(id)?.teamName ?? id,
-        _addTeam: (t: AvailableTeam) => _teams.set(t.teamId, t),
+        _addTeam: (t: AvailableTeamDto) => _teams.set(t.teamId, t),
         _clear: () => _teams.clear(),
     };
 }

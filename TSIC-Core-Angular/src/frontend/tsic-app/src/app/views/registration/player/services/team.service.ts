@@ -4,38 +4,7 @@ import { environment } from '@environments/environment';
 import { JobContextService } from '../state/job-context.service';
 import { EligibilityService } from '../state/eligibility.service';
 import { formatHttpError } from '../../shared/utils/error-utils';
-
-// Shared model (aligns with backend AvailableTeamDto)
-export interface AvailableTeam {
-    teamId: string;
-    teamName: string;
-    agegroupId: string;
-    agegroupName?: string | null;
-    divisionId?: string | null;
-    divisionName?: string | null;
-    maxRosterSize: number;
-    currentRosterSize: number;
-    rosterIsFull: boolean;
-    teamAllowsSelfRostering?: boolean | null;
-    agegroupAllowsSelfRostering?: boolean | null;
-    fee?: number | null;
-    deposit?: number | null;
-    effectiveFee?: number | null;
-    /** False = no fee configured at any cascade level → not registerable; the wizard
-     *  shows "Fee not set" and blocks selection instead of fabricating/charging $0. */
-    feeConfigured?: boolean | null;
-    /** Per-scope payment phase (server-resolved via ResolveFullPaymentPhase): true = this
-     *  team must be paid in full (no deposit slice); false = a deposit may be taken. Drives
-     *  per-line phase for a NEW selection that has no stamped registration yet, so a family
-     *  cart spanning deposit and full-payment scopes bills each line by its own phase. */
-    fullPaymentRequired?: boolean | null;
-    jobUsesWaitlists: boolean;
-    waitlistTeamId?: string | null;
-    startDate?: string | null;
-    endDate?: string | null;
-    perRegistrantFee?: number | null;
-    clubName?: string | null;
-}
+import type { AvailableTeamDto } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
 export class TeamService {
@@ -44,7 +13,7 @@ export class TeamService {
     private readonly eligibility = inject(EligibilityService);
 
     // raw teams for current job
-    private readonly _teams = signal<AvailableTeam[] | null>(null);
+    private readonly _teams = signal<AvailableTeamDto[] | null>(null);
     readonly allTeams = this._teams.asReadonly();
     // loading + error state signals
     private readonly _loading = signal<boolean>(false);
@@ -55,7 +24,7 @@ export class TeamService {
     // Derived filtered collection based on eligibility constraint
     filteredTeams = computed(() => {
         const teams = this._teams();
-        if (!teams) return [] as AvailableTeam[];
+        if (!teams) return [] as AvailableTeamDto[];
         const constraintType = this.eligibility.teamConstraintType();
         const constraintValue = this.eligibility.teamConstraintValue();
         if (!constraintType || !constraintValue) return teams;
@@ -85,7 +54,7 @@ export class TeamService {
     // Grouped view (Agegroup -> Division -> Teams) for UI convenience
     grouped = computed(() => {
         const list = this.filteredTeams();
-        const ageMap = new Map<string, { agegroupId: string; agegroupName: string; divisions: Map<string, { divisionId: string | null; divisionName: string | null; teams: AvailableTeam[] }> }>();
+        const ageMap = new Map<string, { agegroupId: string; agegroupName: string; divisions: Map<string, { divisionId: string | null; divisionName: string | null; teams: AvailableTeamDto[] }> }>();
         for (const t of list) {
             const agKey = t.agegroupId;
             if (!ageMap.has(agKey)) {
@@ -111,9 +80,9 @@ export class TeamService {
     });
 
     // Return teams filtered by a specific eligibility value according to the current job's constraint type
-    filterByEligibility(value: string | null | undefined, gender?: string | null): AvailableTeam[] {
+    filterByEligibility(value: string | null | undefined, gender?: string | null): AvailableTeamDto[] {
         const teams = this._teams();
-        if (!teams) return [] as AvailableTeam[];
+        if (!teams) return [] as AvailableTeamDto[];
         const constraintType = this.eligibility.teamConstraintType();
         const v = (value ?? '').toString().trim();
         if (!constraintType || !v) return teams;
@@ -156,7 +125,7 @@ export class TeamService {
         }
     }
 
-    getTeamById(teamId: string): AvailableTeam | undefined {
+    getTeamById(teamId: string): AvailableTeamDto | undefined {
         const teams = this._teams();
         return teams?.find(t => t.teamId === teamId);
     }
@@ -168,7 +137,7 @@ export class TeamService {
      * teamAllowsSelfRostering) remain the source of truth; this is a one-call summary, not a
      * replacement for them.
      */
-    isAvailable(t: AvailableTeam): boolean {
+    isAvailable(t: AvailableTeamDto): boolean {
         if (t.feeConfigured === false) return false;
         if (t.rosterIsFull && !t.jobUsesWaitlists) return false;
         return true;
@@ -195,7 +164,7 @@ export class TeamService {
         if (!teams) return [];
         const self = teams.filter(t => t.agegroupAllowsSelfRostering === true && !!t.agegroupName);
         const isWl = (n: string) => n.toUpperCase().startsWith('WAITLIST -');
-        const hasOpenSeat = (t: AvailableTeam) => !t.rosterIsFull && t.feeConfigured !== false;
+        const hasOpenSeat = (t: AvailableTeamDto) => !t.rosterIsFull && t.feeConfigured !== false;
 
         // Real (non-twin) agegroup names; a twin already in the data (post-PreSubmit) collapses
         // onto the synthesized name below via the Set, so it never double-lists.
@@ -218,7 +187,7 @@ export class TeamService {
      * wizard reflects current truth instead of stale init-time data. No-op on null/undefined
      * (the server signals "no change" that way).
      */
-    applyRawTeams(teams: AvailableTeam[] | null | undefined): void {
+    applyRawTeams(teams: AvailableTeamDto[] | null | undefined): void {
         if (!teams) return;
         this._teams.set(teams);
     }
@@ -264,7 +233,7 @@ export class TeamService {
         this._loading.set(true);
         this._error.set(null);
         const base = environment.apiUrl;
-        this.http.get<AvailableTeam[]>(`${base}/jobs/${encodeURIComponent(jobPath)}/available-teams`)
+        this.http.get<AvailableTeamDto[]>(`${base}/jobs/${encodeURIComponent(jobPath)}/available-teams`)
             .subscribe({
                 next: data => {
                     this._loading.set(false);

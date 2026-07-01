@@ -10,8 +10,9 @@ import { EligibilityService } from './eligibility.service';
 import { PlayerFormsService } from './player-forms.service';
 import { InsuranceStateV2Service } from './insurance-state-v2.service';
 import { InsuranceV2Service } from './insurance-v2.service';
-import { TeamService, AvailableTeam } from '@views/registration/player/services/team.service';
+import { TeamService } from '@views/registration/player/services/team.service';
 import type {
+    AvailableTeamDto,
     FamilyPlayersResponseDto,
     FamilyPlayerDto,
     PlayerProfileFieldSchema,
@@ -268,7 +269,7 @@ export class PlayerWizardStateService {
      */
     private applyTeamsFromRoundTrip(rawTeams: unknown): void {
         if (!rawTeams || !Array.isArray(rawTeams)) return;
-        this.teamService.applyRawTeams(rawTeams as AvailableTeam[]);
+        this.teamService.applyRawTeams(rawTeams as AvailableTeamDto[]);
         this.backfillAgegroupEligibilityFromTeams();
     }
 

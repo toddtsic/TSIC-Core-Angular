@@ -3,7 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
 import { DropDownListModule } from '@syncfusion/ej2-angular-dropdowns';
 import { PlayerWizardStateService } from '../state/player-wizard-state.service';
-import { TeamService, type AvailableTeam } from '@views/registration/player/services/team.service';
+import { TeamService } from '@views/registration/player/services/team.service';
+import type { AvailableTeamDto } from '@core/api';
 import { colorClassForIndex } from '@views/registration/shared/utils/color-class.util';
 import { JobService } from '@infrastructure/services/job.service';
 
@@ -96,7 +97,7 @@ const JOB_TYPE_TOURNAMENT = 2;
                     }
                   } @else if (state.jobCtx.isCacMode()) {
                     <!-- CAC: Keyword filter -->
-                    @if (getAvailableTeams(pid).length > 5) {
+                    @if (getAvailableTeamDtos(pid).length > 5) {
                       <div class="camp-filter">
                         <i class="bi bi-search camp-filter-icon"></i>
                         <input type="text" class="camp-filter-input"
@@ -218,7 +219,7 @@ const JOB_TYPE_TOURNAMENT = 2;
                       </div>
                     }
 
-                    @if (!getAvailableTeams(pid).length) {
+                    @if (!getAvailableTeamDtos(pid).length) {
                       <div class="no-teams-alert" role="alert">
                         <i class="bi bi-exclamation-octagon-fill"></i>
                         <div>
@@ -756,7 +757,7 @@ export class TeamSelectionStepComponent {
     readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
     getTeamDropdownItems(playerId: string): { text: string; value: string; status: string }[] {
-        return this.getAvailableTeams(playerId).map(team => {
+        return this.getAvailableTeamDtos(playerId).map(team => {
             // Identity reads clubName:agegroupName:teamName (club optional). Agegroup leads
             // the team name because self-roster "free agent" teams share a generic name
             // across agegroups — the agegroup is what disambiguates them in the list.
@@ -862,7 +863,7 @@ export class TeamSelectionStepComponent {
         return this.state.jobCtx.isCacMode();
     }
 
-    getAvailableTeams(playerId: string): AvailableTeam[] {
+    getAvailableTeamDtos(playerId: string): AvailableTeamDto[] {
         const eligValue = this.getPlayerEligibility(playerId) ?? null;
         const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
         const teams = this.teamService.filterByEligibility(eligValue, player?.gender);
@@ -893,7 +894,7 @@ export class TeamSelectionStepComponent {
         return filtered;
     }
 
-    filterCamps(teams: AvailableTeam[], query: string): AvailableTeam[] {
+    filterCamps(teams: AvailableTeamDto[], query: string): AvailableTeamDto[] {
         const q = (query || '').trim().toLowerCase();
         if (!q) return teams;
         return teams.filter(t =>
@@ -935,7 +936,7 @@ export class TeamSelectionStepComponent {
     }
 
     hasWaitlistTeamInList(playerId: string): boolean {
-        return this.getAvailableTeams(playerId).some(t => !!t.rosterIsFull && !!t.jobUsesWaitlists);
+        return this.getAvailableTeamDtos(playerId).some(t => !!t.rosterIsFull && !!t.jobUsesWaitlists);
     }
 
     /**
@@ -950,7 +951,7 @@ export class TeamSelectionStepComponent {
         return !this.getSelectedTeamId(playerId) && this.hasWaitlistTeamInList(playerId);
     }
 
-    isTeamFull(team: AvailableTeam): boolean {
+    isTeamFull(team: AvailableTeamDto): boolean {
         return team.rosterIsFull && !team.jobUsesWaitlists;
     }
 
@@ -958,7 +959,7 @@ export class TeamSelectionStepComponent {
         return this.getSelectedTeamIds(playerId).includes(teamId);
     }
 
-    getCapacityLabel(team: AvailableTeam): string {
+    getCapacityLabel(team: AvailableTeamDto): string {
         if (team.rosterIsFull && team.jobUsesWaitlists) return '· Waitlist';
         if (team.rosterIsFull) return '· Full';
         const remaining = team.maxRosterSize - team.currentRosterSize;
@@ -1021,7 +1022,7 @@ export class TeamSelectionStepComponent {
         }
     }
 
-    formatCampDates(team: AvailableTeam): string {
+    formatCampDates(team: AvailableTeamDto): string {
         const fmt = (iso: string) => new Date(iso).toLocaleDateString();
         const start = team.startDate ? fmt(team.startDate) : '';
         const end = team.endDate ? fmt(team.endDate) : '';
@@ -1035,13 +1036,13 @@ export class TeamSelectionStepComponent {
         return player.priorRegistrations?.some(r => r.assignedTeamId === teamId) ?? false;
     }
 
-    getSelectedCamps(playerId: string): AvailableTeam[] {
+    getSelectedCamps(playerId: string): AvailableTeamDto[] {
         const selected = new Set(this.getSelectedTeamIds(playerId));
-        return this.getAvailableTeams(playerId).filter(t => selected.has(t.teamId));
+        return this.getAvailableTeamDtos(playerId).filter(t => selected.has(t.teamId));
     }
 
-    getUnselectedCamps(playerId: string): AvailableTeam[] {
+    getUnselectedCamps(playerId: string): AvailableTeamDto[] {
         const selected = new Set(this.getSelectedTeamIds(playerId));
-        return this.getAvailableTeams(playerId).filter(t => !selected.has(t.teamId));
+        return this.getAvailableTeamDtos(playerId).filter(t => !selected.has(t.teamId));
     }
 }
