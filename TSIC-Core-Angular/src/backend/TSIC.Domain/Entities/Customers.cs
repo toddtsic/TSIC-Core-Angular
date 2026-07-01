@@ -23,6 +23,8 @@ public partial class Customers
 
     public string? Theme { get; set; }
 
+    public bool BAllowAmex { get; set; }
+
     public virtual ICollection<CustomerGroupCustomers> CustomerGroupCustomers { get; set; } = new List<CustomerGroupCustomers>();
 
     public virtual ICollection<JobCustomers> JobCustomers { get; set; } = new List<JobCustomers>();

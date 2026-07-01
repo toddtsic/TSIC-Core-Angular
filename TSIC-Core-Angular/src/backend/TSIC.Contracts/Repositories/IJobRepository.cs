@@ -264,6 +264,12 @@ public interface IJobRepository
     Task<Guid?> GetCustomerIdAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// True when the job's customer (merchant account) is configured to accept American Express
+    /// (Jobs.Customers.bAllowAmex). Fail-closed: false when the job or its customer is absent.
+    /// </summary>
+    Task<bool> GetCustomerUsesAmexAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Check if job uses waitlists.
     /// </summary>
     Task<bool> GetUsesWaitlistsAsync(Guid jobId, CancellationToken cancellationToken = default);

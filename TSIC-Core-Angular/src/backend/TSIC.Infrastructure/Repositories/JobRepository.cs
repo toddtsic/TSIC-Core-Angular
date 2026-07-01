@@ -387,6 +387,17 @@ public class JobRepository : IJobRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<bool> GetCustomerUsesAmexAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        // Inner-join to the customer via the required Customer nav; a job with no matching
+        // customer row drops out and FirstOrDefault yields false (fail-closed).
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.Customer.BAllowAmex)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public Task<bool> GetUsesWaitlistsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         // Waitlists are now MANDATORY for every job (player + team registration alike), so a
