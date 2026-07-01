@@ -188,7 +188,14 @@ public class ViewScheduleController : ControllerBase
         var (jobId, userId, _, error) = await ResolveContext();
         if (error != null) return error;
 
-        await _service.QuickEditScoreAsync(jobId!.Value, userId!, request, ct);
+        try
+        {
+            await _service.QuickEditScoreAsync(jobId!.Value, userId!, request, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
         return Ok();
     }
 
@@ -201,7 +208,14 @@ public class ViewScheduleController : ControllerBase
         var (jobId, userId, _, error) = await ResolveContext();
         if (error != null) return error;
 
-        await _service.EditGameAsync(jobId!.Value, userId!, request, ct);
+        try
+        {
+            await _service.EditGameAsync(jobId!.Value, userId!, request, ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
         return Ok();
     }
 

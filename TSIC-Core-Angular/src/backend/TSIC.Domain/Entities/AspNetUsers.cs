@@ -83,6 +83,10 @@ public partial class AspNetUsers
 
     public virtual ICollection<AccountingPaymentMethods> AccountingPaymentMethods { get; set; } = new List<AccountingPaymentMethods>();
 
+    public virtual ICollection<AdvancementFeeds> AdvancementFeeds { get; set; } = new List<AdvancementFeeds>();
+
+    public virtual ICollection<AdvancementRoutes> AdvancementRoutes { get; set; } = new List<AdvancementRoutes>();
+
     public virtual ICollection<AgegroupScheduleProfile> AgegroupScheduleProfile { get; set; } = new List<AgegroupScheduleProfile>();
 
     public virtual ICollection<AgegroupWaveAssignment> AgegroupWaveAssignment { get; set; } = new List<AgegroupWaveAssignment>();
@@ -96,6 +100,8 @@ public partial class AspNetUsers
     public virtual ICollection<AspNetUserLogins> AspNetUserLogins { get; set; } = new List<AspNetUserLogins>();
 
     public virtual ICollection<BillingTypes> BillingTypes { get; set; } = new List<BillingTypes>();
+
+    public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();
 
     public virtual ICollection<BracketSeeds> BracketSeeds { get; set; } = new List<BracketSeeds>();
 
@@ -203,6 +209,8 @@ public partial class AspNetUsers
 
     public virtual ICollection<Schedule> Schedule { get; set; } = new List<Schedule>();
 
+    public virtual ICollection<SeedAssignments> SeedAssignments { get; set; } = new List<SeedAssignments>();
+
     public virtual ICollection<Sports> Sports { get; set; } = new List<Sports>();
 
     public virtual ICollection<StoreCartBatchAccounting> StoreCartBatchAccounting { get; set; } = new List<StoreCartBatchAccounting>();
@@ -233,6 +241,8 @@ public partial class AspNetUsers
 
     public virtual ICollection<Stores> Stores { get; set; } = new List<Stores>();
 
+    public virtual ICollection<Strategies> Strategies { get; set; } = new List<Strategies>();
+
     public virtual ICollection<TeamAttendanceEvents> TeamAttendanceEvents { get; set; } = new List<TeamAttendanceEvents>();
 
     public virtual ICollection<TeamAttendanceRecords> TeamAttendanceRecordsLebUser { get; set; } = new List<TeamAttendanceRecords>();
@@ -250,6 +260,10 @@ public partial class AspNetUsers
     public virtual ICollection<Teams> TeamsClubrep { get; set; } = new List<Teams>();
 
     public virtual ICollection<Teams> TeamsLebUser { get; set; } = new List<Teams>();
+
+    public virtual ICollection<TemplateGames> TemplateGames { get; set; } = new List<TemplateGames>();
+
+    public virtual ICollection<Templates> Templates { get; set; } = new List<Templates>();
 
     public virtual ICollection<TimeslotsLeagueSeasonDates> TimeslotsLeagueSeasonDates { get; set; } = new List<TimeslotsLeagueSeasonDates>();
 

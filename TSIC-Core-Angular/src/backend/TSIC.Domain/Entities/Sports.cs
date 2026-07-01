@@ -17,6 +17,12 @@ public partial class Sports
 
     public int Ai { get; set; }
 
+    public int WinPts { get; set; }
+
+    public int DrawPts { get; set; }
+
+    public int LossPts { get; set; }
+
     public virtual ICollection<Clubs1> Clubs1 { get; set; } = new List<Clubs1>();
 
     public virtual ICollection<Jobs> Jobs { get; set; } = new List<Jobs>();

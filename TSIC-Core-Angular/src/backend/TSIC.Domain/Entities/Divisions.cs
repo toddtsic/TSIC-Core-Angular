@@ -19,6 +19,8 @@ public partial class Divisions
 
     public virtual Agegroups Agegroup { get; set; } = null!;
 
+    public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();
+
     public virtual ICollection<BracketSeeds> BracketSeedsT1SeedDiv { get; set; } = new List<BracketSeeds>();
 
     public virtual ICollection<BracketSeeds> BracketSeedsT2SeedDiv { get; set; } = new List<BracketSeeds>();
@@ -34,6 +36,8 @@ public partial class Divisions
     public virtual ICollection<Schedule> ScheduleDiv { get; set; } = new List<Schedule>();
 
     public virtual ICollection<Schedule> ScheduleDiv2 { get; set; } = new List<Schedule>();
+
+    public virtual ICollection<SeedAssignments> SeedAssignments { get; set; } = new List<SeedAssignments>();
 
     public virtual ICollection<Teams> Teams { get; set; } = new List<Teams>();
 

@@ -19,6 +19,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
     private readonly IAgeGroupRepository _agegroupRepo;
     private readonly IDivisionRepository _divisionRepo;
     private readonly ISchedulingContextResolver _contextResolver;
+    private readonly IBracketGenerationService _bracketGen;
     private readonly ILogger<ScheduleDivisionService> _logger;
 
     public ScheduleDivisionService(
@@ -29,6 +30,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         IAgeGroupRepository agegroupRepo,
         IDivisionRepository divisionRepo,
         ISchedulingContextResolver contextResolver,
+        IBracketGenerationService bracketGen,
         ILogger<ScheduleDivisionService> logger)
     {
         _scheduleRepo = scheduleRepo;
@@ -38,6 +40,7 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
         _agegroupRepo = agegroupRepo;
         _divisionRepo = divisionRepo;
         _contextResolver = contextResolver;
+        _bracketGen = bracketGen;
         _logger = logger;
     }
 
@@ -255,6 +258,11 @@ public sealed class ScheduleDivisionService : IScheduleDivisionService
 
         // Resolve team names from rank assignments (UpdateGameIds equivalent)
         await _scheduleRepo.SynchronizeScheduleTeamAssignmentsForDivisionAsync(request.DivId, jobId, ct);
+
+        // Placing a bracket game changes the division's placed-game set — recompute
+        // its bracket wiring (feeds/seeds). Round-robin placements don't affect it.
+        if (pairing.T1Type != "T")
+            await _bracketGen.RecomputeDivisionAsync(jobId, request.AgegroupId, request.DivId, userId, ct);
 
         // Re-read to get resolved T1Name/T2Name
         var savedGame = await _scheduleRepo.GetGameByIdAsync(game.Gid, ct)

@@ -47,7 +47,7 @@ public class StandingsTests
 
         var scheduleRepo = new ScheduleRepository(ctx);
         var teamRepo = new TeamRepository(ctx);
-        var svc = new ViewScheduleService(scheduleRepo, teamRepo);
+        var svc = SchedulingTestFactory.ViewSchedule(ctx, scheduleRepo, teamRepo);
 
         return (svc, builder, job.JobId);
     }
@@ -120,7 +120,7 @@ public class StandingsTests
 
         var scheduleRepo = new ScheduleRepository(ctx);
         var teamRepo = new TeamRepository(ctx);
-        var svc = new ViewScheduleService(scheduleRepo, teamRepo);
+        var svc = SchedulingTestFactory.ViewSchedule(ctx, scheduleRepo, teamRepo);
 
         var result = await svc.GetStandingsAsync(job.JobId, new ScheduleFilterRequest());
 
@@ -169,7 +169,7 @@ public class StandingsTests
 
         var scheduleRepo = new ScheduleRepository(ctx);
         var teamRepo = new TeamRepository(ctx);
-        var svc = new ViewScheduleService(scheduleRepo, teamRepo);
+        var svc = SchedulingTestFactory.ViewSchedule(ctx, scheduleRepo, teamRepo);
 
         var result = await svc.GetStandingsAsync(job.JobId, new ScheduleFilterRequest());
 

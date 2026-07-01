@@ -257,6 +257,8 @@ public partial class Jobs
 
     public virtual BillingTypes BillingType { get; set; } = null!;
 
+    public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();
+
     public virtual ICollection<Bulletins> Bulletins { get; set; } = new List<Bulletins>();
 
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();

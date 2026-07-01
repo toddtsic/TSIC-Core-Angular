@@ -85,6 +85,10 @@ public partial class Schedule
 
     public Guid JobId { get; set; }
 
+    public virtual ICollection<AdvancementFeeds> AdvancementFeedsSourceG { get; set; } = new List<AdvancementFeeds>();
+
+    public virtual ICollection<AdvancementFeeds> AdvancementFeedsTargetG { get; set; } = new List<AdvancementFeeds>();
+
     public virtual Agegroups? Agegroup { get; set; }
 
     public virtual ICollection<BracketSeeds> BracketSeeds { get; set; } = new List<BracketSeeds>();
@@ -110,6 +114,8 @@ public partial class Schedule
     public virtual AspNetUsers LebUser { get; set; } = null!;
 
     public virtual ICollection<RefGameAssigments> RefGameAssigments { get; set; } = new List<RefGameAssigments>();
+
+    public virtual ICollection<SeedAssignments> SeedAssignments { get; set; } = new List<SeedAssignments>();
 
     public virtual Teams? T1 { get; set; }
 

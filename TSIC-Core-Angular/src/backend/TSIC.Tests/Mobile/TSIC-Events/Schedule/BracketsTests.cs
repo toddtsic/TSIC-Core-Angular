@@ -32,7 +32,7 @@ public class BracketsTests
             agegroupName: "U12", divName: "Gold");
         await b.SaveAsync();
 
-        var svc = new ViewScheduleService(new ScheduleRepository(ctx), new TeamRepository(ctx));
+        var svc = SchedulingTestFactory.ViewSchedule(ctx);
         var result = await svc.GetBracketsAsync(job.JobId, new ScheduleFilterRequest());
 
         result.Should().HaveCount(2);
@@ -59,7 +59,7 @@ public class BracketsTests
             t1Score: 2, t2Score: 1);
         await b.SaveAsync();
 
-        var svc = new ViewScheduleService(new ScheduleRepository(ctx), new TeamRepository(ctx));
+        var svc = SchedulingTestFactory.ViewSchedule(ctx);
         var result = await svc.GetBracketsAsync(job.JobId, new ScheduleFilterRequest());
 
         result.Should().HaveCount(1);
@@ -89,7 +89,7 @@ public class BracketsTests
             agegroupName: "U10", divName: "", t1Name: "TBD", t2Name: "TBD");
         await b.SaveAsync();
 
-        var svc = new ViewScheduleService(new ScheduleRepository(ctx), new TeamRepository(ctx));
+        var svc = SchedulingTestFactory.ViewSchedule(ctx);
         var result = await svc.GetBracketsAsync(job.JobId, new ScheduleFilterRequest());
 
         var semi = result[0].Matches.First(m => m.RoundType == "S");
@@ -135,7 +135,7 @@ public class BracketsTests
 
         await b.SaveAsync();
 
-        var svc = new ViewScheduleService(new ScheduleRepository(ctx), new TeamRepository(ctx));
+        var svc = SchedulingTestFactory.ViewSchedule(ctx);
         var result = await svc.GetBracketsAsync(job.JobId, new ScheduleFilterRequest());
 
         var matches = result[0].Matches;
@@ -165,7 +165,7 @@ public class BracketsTests
             agegroupName: "U10", divName: "");
         await b.SaveAsync();
 
-        var svc = new ViewScheduleService(new ScheduleRepository(ctx), new TeamRepository(ctx));
+        var svc = SchedulingTestFactory.ViewSchedule(ctx);
         var result = await svc.GetBracketsAsync(job.JobId, new ScheduleFilterRequest());
 
         var matches = result[0].Matches;

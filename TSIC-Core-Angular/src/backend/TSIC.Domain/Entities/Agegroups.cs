@@ -73,6 +73,8 @@ public partial class Agegroups
 
     public virtual ICollection<AgegroupWaveAssignment> AgegroupWaveAssignment { get; set; } = new List<AgegroupWaveAssignment>();
 
+    public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();
+
     public virtual ICollection<CalendarEvents> CalendarEvents { get; set; } = new List<CalendarEvents>();
 
     public virtual ICollection<Divisions> Divisions { get; set; } = new List<Divisions>();

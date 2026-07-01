@@ -31,6 +31,14 @@ export interface TeamOption {
 
             <div class="panel-body">
                 @if (game(); as g) {
+                    @if (showDecidedBracketWarning()) {
+                        <div class="bracket-warning" role="alert">
+                            <span class="bracket-warning-icon" aria-hidden="true">&#9888;</span>
+                            <span>Editing a decided bracket game. Later games that have already been
+                                  played will <strong>not</strong> update automatically — you may need
+                                  to correct them by hand.</span>
+                        </div>
+                    }
                     @if (isBracketMode()) {
                         <div class="panel-card">
                             <h4 class="panel-card-title">Score</h4>
@@ -245,6 +253,27 @@ export interface TeamOption {
             font-weight: 700;
             font-variant-numeric: tabular-nums;
         }
+
+        /* ── Decided-bracket-game caution ── */
+        .bracket-warning {
+            display: flex;
+            gap: var(--space-2);
+            padding: var(--space-3);
+            margin-bottom: var(--space-4);
+            border: 1px solid var(--bs-danger);
+            border-radius: var(--radius-lg);
+            background: color-mix(in srgb, var(--bs-danger) 12%, var(--surface-elevated-bg));
+            color: var(--bs-body-color);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            line-height: 1.4;
+        }
+
+        .bracket-warning-icon {
+            flex: none;
+            font-size: var(--font-size-base);
+            color: var(--bs-danger);
+        }
     `]
 })
 export class EditGameModalComponent {
@@ -258,6 +287,15 @@ export class EditGameModalComponent {
 
     /** Bracket mode: mock game from brackets has empty gDate */
     readonly isBracketMode = computed(() => !this.game()?.gDate);
+
+    /** Bold caution when editing a bracket game that already has a recorded result. */
+    readonly showDecidedBracketWarning = computed(() => {
+        const g = this.game();
+        if (!g) return false;
+        const isBracket = !!g.t1Type && g.t1Type !== 'T';
+        const hasResult = g.t1Score != null && g.t2Score != null;
+        return isBracket && hasResult;
+    });
 
     /** Teams grouped by division for <optgroup> rendering */
     readonly groupedTeams = computed(() => {

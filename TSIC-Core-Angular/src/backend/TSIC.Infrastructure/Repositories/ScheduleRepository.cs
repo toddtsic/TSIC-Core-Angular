@@ -322,9 +322,27 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (bracketSeeds.Count > 0)
             _context.BracketSeeds.RemoveRange(bracketSeeds);
 
+        await StageBracketMetadataCleanupAsync(new List<int> { gid }, ct);
+
         var game = await _context.Schedule.FindAsync(new object[] { gid }, ct);
         if (game != null)
             _context.Schedule.Remove(game);
+    }
+
+    // brackets.* references (FK, NO ACTION) must be cleared before the schedule
+    // rows they point at, or the delete fails. A game can be an advancement feed
+    // source or target, and can carry a seed assignment.
+    private async Task StageBracketMetadataCleanupAsync(List<int> gids, CancellationToken ct)
+    {
+        var feeds = await _context.AdvancementFeeds
+            .Where(f => gids.Contains(f.SourceGid) || gids.Contains(f.TargetGid))
+            .ToListAsync(ct);
+        if (feeds.Count > 0) _context.AdvancementFeeds.RemoveRange(feeds);
+
+        var seeds = await _context.SeedAssignments
+            .Where(s => gids.Contains(s.Gid))
+            .ToListAsync(ct);
+        if (seeds.Count > 0) _context.SeedAssignments.RemoveRange(seeds);
     }
 
     public async Task DeleteDivisionGamesAsync(Guid divId, Guid leagueId, string season, string year, CancellationToken ct = default)
@@ -352,6 +370,8 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToListAsync(ct);
         if (bracketSeeds.Count > 0)
             _context.BracketSeeds.RemoveRange(bracketSeeds);
+
+        await StageBracketMetadataCleanupAsync(gids, ct);
 
         var games = await _context.Schedule
             .Where(s => gids.Contains(s.Gid))
@@ -397,6 +417,8 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (bracketSeeds.Count > 0)
             _context.BracketSeeds.RemoveRange(bracketSeeds);
 
+        await StageBracketMetadataCleanupAsync(gids, ct);
+
         var games = await _context.Schedule
             .Where(s => gids.Contains(s.Gid))
             .ToListAsync(ct);
@@ -431,6 +453,8 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToListAsync(ct);
         if (bracketSeeds.Count > 0)
             _context.BracketSeeds.RemoveRange(bracketSeeds);
+
+        await StageBracketMetadataCleanupAsync(gids, ct);
 
         var games = await _context.Schedule
             .Where(s => gids.Contains(s.Gid))

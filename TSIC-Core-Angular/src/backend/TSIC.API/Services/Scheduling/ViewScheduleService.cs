@@ -12,13 +12,16 @@ public sealed class ViewScheduleService : IViewScheduleService
 {
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ITeamRepository _teamRepo;
+    private readonly IBracketAdvancementService _bracketAdvancement;
 
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
-        ITeamRepository teamRepo)
+        ITeamRepository teamRepo,
+        IBracketAdvancementService bracketAdvancement)
     {
         _scheduleRepo = scheduleRepo;
         _teamRepo = teamRepo;
+        _bracketAdvancement = bracketAdvancement;
     }
 
     public async Task<ScheduleFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default)
@@ -300,7 +303,13 @@ public sealed class ViewScheduleService : IViewScheduleService
         game.LebUserId = userId;
         game.Modified = DateTime.Now;
 
+        // R2: a single-elimination bracket game cannot end in a tie — reject before persisting.
+        _bracketAdvancement.EnsureBracketScoreValid(game);
+
         await _scheduleRepo.SaveChangesAsync(ct);
+
+        // R2: write the winner (and loser, for a bronze feed) forward into the next game.
+        await _bracketAdvancement.AdvanceWinnerAsync(game.Gid, userId, ct);
     }
 
     public async Task EditGameAsync(
@@ -322,7 +331,13 @@ public sealed class ViewScheduleService : IViewScheduleService
         game.LebUserId = userId;
         game.Modified = DateTime.Now;
 
+        // R2: a single-elimination bracket game cannot end in a tie — reject before persisting.
+        _bracketAdvancement.EnsureBracketScoreValid(game);
+
         await _scheduleRepo.SaveChangesAsync(ct);
+
+        // R2: write the winner (and loser, for a bronze feed) forward into the next game.
+        await _bracketAdvancement.AdvanceWinnerAsync(game.Gid, userId, ct);
     }
 
     // ── Private Helpers ──

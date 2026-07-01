@@ -16,7 +16,7 @@ public class ScheduleGamesTests
         var builder = new MobileDataBuilder(ctx);
         var scheduleRepo = new ScheduleRepository(ctx);
         var teamRepo = new TeamRepository(ctx);
-        var svc = new ViewScheduleService(scheduleRepo, teamRepo);
+        var svc = SchedulingTestFactory.ViewSchedule(ctx, scheduleRepo, teamRepo);
         var job = builder.AddJob();
         return (svc, builder, ctx, job.JobId);
     }
