@@ -41,14 +41,21 @@ public class BracketRepository : IBracketRepository
             .ToListAsync(ct);
     }
 
-    public async Task<Templates?> GetSeTemplateAsync(int bracketSize, CancellationToken ct = default)
+    public async Task<Templates?> GetTemplateAsync(
+        string strategyCode, int bracketSize, string variant = "Standard", CancellationToken ct = default)
     {
         return await _context.Templates
             .AsNoTracking()
-            .Where(t => t.Strategy.Code == "SE" && t.BracketSize == bracketSize)
+            .Where(t => t.Strategy.Code == strategyCode
+                     && t.BracketSize == bracketSize
+                     && t.Variant == variant)
             .OrderBy(t => t.TemplateId)
             .FirstOrDefaultAsync(ct);
     }
+
+    // Thin single-strategy shim for callers that only project SE brackets.
+    public Task<Templates?> GetSeTemplateAsync(int bracketSize, CancellationToken ct = default) =>
+        GetTemplateAsync("SE", bracketSize, ct: ct);
 
     public async Task<List<TemplateGames>> GetTemplateGamesAsync(int templateId, CancellationToken ct = default) =>
         await _context.TemplateGames
@@ -70,6 +77,18 @@ public class BracketRepository : IBracketRepository
                 b => b.JobId == jobId && b.AgegroupId == agegroupId && b.DivId == divId, ct);
 
     public void AddInstance(BracketInstances instance) => _context.BracketInstances.Add(instance);
+
+    public async Task<List<BracketStrategyDto>> GetStrategiesAsync(CancellationToken ct = default) =>
+        await _context.Strategies
+            .AsNoTracking()
+            .OrderBy(s => s.Name)
+            .Select(s => new BracketStrategyDto
+            {
+                Code = s.Code,
+                Name = s.Name,
+                IsActive = s.IsActive
+            })
+            .ToListAsync(ct);
 
     public async Task<List<AdvancementFeeds>> GetFeedsBySourceAsync(int sourceGid, CancellationToken ct = default) =>
         await _context.AdvancementFeeds
@@ -164,6 +183,57 @@ public class BracketRepository : IBracketRepository
         if (feeds.Count > 0) await _context.AdvancementFeeds.AddRangeAsync(feeds, ct);
         if (seeds.Count > 0) await _context.SeedAssignments.AddRangeAsync(seeds, ct);
     }
+
+    // ── Structural QA reads ──
+
+    public async Task<List<BracketInstanceInfo>> GetInstanceInfosForJobAsync(
+        Guid jobId, CancellationToken ct = default) =>
+        await _context.BracketInstances
+            .AsNoTracking()
+            .Where(b => b.JobId == jobId && b.DivId != null)
+            .Select(b => new BracketInstanceInfo
+            {
+                BracketInstanceId = b.BracketInstanceId,
+                JobId = b.JobId,
+                AgegroupId = b.AgegroupId,
+                DivId = b.DivId!.Value,
+                AgegroupName = b.Agegroup.AgegroupName ?? "",
+                DivName = b.Div!.DivName ?? "",
+                TemplateId = b.TemplateId,
+                BracketSize = b.Template.BracketSize,
+                StrategyCode = b.Template.Strategy.Code
+            })
+            .ToListAsync(ct);
+
+    public async Task<List<SeedAssignments>> GetSeedAssignmentsByInstanceAsync(
+        int bracketInstanceId, CancellationToken ct = default) =>
+        await _context.SeedAssignments
+            .AsNoTracking()
+            .Where(s => s.BracketInstanceId == bracketInstanceId)
+            .ToListAsync(ct);
+
+    public async Task<List<AdvancementFeeds>> GetFeedsByInstanceAsync(
+        int bracketInstanceId, CancellationToken ct = default) =>
+        await _context.AdvancementFeeds
+            .AsNoTracking()
+            .Where(f => f.BracketInstanceId == bracketInstanceId)
+            .ToListAsync(ct);
+
+    public async Task<Dictionary<int, DateTime?>> GetGDatesByGidsAsync(
+        IReadOnlyCollection<int> gids, CancellationToken ct = default)
+    {
+        if (gids.Count == 0) return [];
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => gids.Contains(s.Gid))
+            .Select(s => new { s.Gid, s.GDate })
+            .ToDictionaryAsync(s => s.Gid, s => s.GDate, ct);
+    }
+
+    public async Task<int> GetActiveTeamCountByDivAsync(Guid divId, CancellationToken ct = default) =>
+        await _context.Teams
+            .AsNoTracking()
+            .CountAsync(t => t.DivId == divId && t.Active == true, ct);
 
     public async Task SaveChangesAsync(CancellationToken ct = default) =>
         await _context.SaveChangesAsync(ct);

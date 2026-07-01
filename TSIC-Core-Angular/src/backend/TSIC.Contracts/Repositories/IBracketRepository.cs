@@ -13,6 +13,14 @@ public interface IBracketRepository
     Task<List<PlacedBracketGame>> GetPlacedBracketGamesAsync(
         Guid jobId, Guid agegroupId, Guid divId, CancellationToken ct = default);
 
+    /// <summary>
+    /// The bracket template for a strategy (e.g. "SE") + size + variant. The single
+    /// strategy switch: drives both generation and projection. Null if unseeded.
+    /// </summary>
+    Task<Templates?> GetTemplateAsync(
+        string strategyCode, int bracketSize, string variant = "Standard", CancellationToken ct = default);
+
+    /// <summary>Single-elimination convenience over <see cref="GetTemplateAsync"/>.</summary>
     Task<Templates?> GetSeTemplateAsync(int bracketSize, CancellationToken ct = default);
 
     Task<List<TemplateGames>> GetTemplateGamesAsync(int templateId, CancellationToken ct = default);
@@ -50,6 +58,29 @@ public interface IBracketRepository
         Guid jobId, CancellationToken ct = default);
 
     void AddInstance(BracketInstances instance);
+
+    /// <summary>All bracket strategies (brackets.Strategies), active flag included, name-ordered.</summary>
+    Task<List<BracketStrategyDto>> GetStrategiesAsync(CancellationToken ct = default);
+
+    // ── Structural QA reads (read-only) ──
+
+    /// <summary>Every division-scoped bracket instance in the job, with names + template facts.</summary>
+    Task<List<BracketInstanceInfo>> GetInstanceInfosForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>Seed assignments materialized for one bracket instance.</summary>
+    Task<List<SeedAssignments>> GetSeedAssignmentsByInstanceAsync(
+        int bracketInstanceId, CancellationToken ct = default);
+
+    /// <summary>Advancement feeds materialized for one bracket instance.</summary>
+    Task<List<AdvancementFeeds>> GetFeedsByInstanceAsync(
+        int bracketInstanceId, CancellationToken ct = default);
+
+    /// <summary>Game date for each of the given schedule games (null when unscheduled).</summary>
+    Task<Dictionary<int, DateTime?>> GetGDatesByGidsAsync(
+        IReadOnlyCollection<int> gids, CancellationToken ct = default);
+
+    /// <summary>Active team count in a division — the valid seed-rank ceiling for a pool.</summary>
+    Task<int> GetActiveTeamCountByDivAsync(Guid divId, CancellationToken ct = default);
 
     /// <summary>
     /// Idempotent replace: deletes this instance's existing feeds + seeds and

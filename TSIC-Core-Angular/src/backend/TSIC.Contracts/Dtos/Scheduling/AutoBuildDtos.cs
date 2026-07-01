@@ -135,6 +135,38 @@ public record AutoBuildQaResult
 
     // ── Cross-Event (null when job is not in a comparison group) ──
     public CrossEventQaResult? CrossEventAnalysis { get; init; }
+
+    // ── Bracket structural QA (null when the job has no materialized brackets) ──
+    public BracketQaResult? BracketQa { get; init; }
+}
+
+/// <summary>
+/// Structural QA over the job's materialized brackets — validates placed bracket
+/// games, seed coverage, and advancement wiring against each bracket instance's
+/// template. Strategy-agnostic: iterates the instance's Template, not a fixed ladder.
+/// </summary>
+public record BracketQaResult
+{
+    /// <summary>Number of materialized bracket instances examined.</summary>
+    public required int InstanceCount { get; init; }
+    public required List<BracketQaFinding> Findings { get; init; }
+}
+
+/// <summary>
+/// One bracket QA finding. Uniform shape across categories so the panel renders
+/// generically and new categories need no new DTO.
+/// </summary>
+public record BracketQaFinding
+{
+    /// <summary>"error" | "warning".</summary>
+    public required string Severity { get; init; }
+    /// <summary>OrphanGame | Incomplete | SeedCoverage | DuplicateSeed | FeedIntegrity | TimeOrder | SeedRank.</summary>
+    public required string Category { get; init; }
+    public required string AgegroupName { get; init; }
+    public required string DivName { get; init; }
+    /// <summary>The offending schedule game, when the finding pins to one.</summary>
+    public int? Gid { get; init; }
+    public required string Detail { get; init; }
 }
 
 /// <summary>

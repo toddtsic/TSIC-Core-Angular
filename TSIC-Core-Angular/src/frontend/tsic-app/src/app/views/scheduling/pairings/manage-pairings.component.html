@@ -139,6 +139,24 @@
                             </button>
                             @if (showBracketDropdown()) {
                                 <div class="action-dropdown bracket-dropdown">
+                                    <!-- Championship format (strategy) -->
+                                    <div class="dropdown-strategy">
+                                        @if (activeStrategies().length > 1) {
+                                            <label class="form-label form-label-sm mb-1">Format</label>
+                                            <select class="form-select form-select-sm"
+                                                    [ngModel]="selectedStrategy()"
+                                                    (ngModelChange)="selectStrategy($event)">
+                                                @for (s of activeStrategies(); track s.code) {
+                                                    <option [value]="s.code">{{ s.name }}</option>
+                                                }
+                                            </select>
+                                        } @else {
+                                            <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                                {{ selectedStrategyLabel() }}
+                                            </span>
+                                        }
+                                    </div>
+                                    <div class="dropdown-divider"></div>
                                     @for (opt of bracketOptions; track opt.key) {
                                         <button class="dropdown-item" (click)="addElimination(opt.key)">
                                             {{ opt.label }}
@@ -255,6 +273,9 @@
                         @if (bracketPairings().length > 0) {
                             <div class="section-label">
                                 <i class="bi bi-trophy me-1"></i> Championship
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis ms-1">
+                                    {{ selectedStrategyLabel() }}
+                                </span>
                             </div>
                             <div class="table-scroll-wrapper">
                                 <table class="table table-sm table-hover pairings-table mb-0">

@@ -12,24 +12,22 @@ namespace TSIC.API.Services.Scheduling;
 public sealed class PairingsService : IPairingsService
 {
     private readonly IPairingsRepository _pairingsRepo;
+    private readonly IBracketRepository _bracketRepo;
     private readonly IDivisionRepository _divisionRepo;
     private readonly ITeamRepository _teamRepo;
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ISchedulingContextResolver _contextResolver;
     private readonly ILogger<PairingsService> _logger;
 
-    /// <summary>Bracket cascade order: Z → Y → X → Q → S → F.</summary>
-    private static readonly Dictionary<string, string> BracketCascade = new()
+    /// <summary>Ladder round type → number of teams entering that round.</summary>
+    private static readonly Dictionary<string, int> RoundSize = new()
     {
-        ["Z"] = "Y",
-        ["Y"] = "X",
-        ["X"] = "Q",
-        ["Q"] = "S",
-        ["S"] = "F"
+        ["Z"] = 64, ["Y"] = 32, ["X"] = 16, ["Q"] = 8, ["S"] = 4, ["F"] = 2
     };
 
     public PairingsService(
         IPairingsRepository pairingsRepo,
+        IBracketRepository bracketRepo,
         IDivisionRepository divisionRepo,
         ITeamRepository teamRepo,
         IScheduleRepository scheduleRepo,
@@ -37,6 +35,7 @@ public sealed class PairingsService : IPairingsService
         ILogger<PairingsService> logger)
     {
         _pairingsRepo = pairingsRepo;
+        _bracketRepo = bracketRepo;
         _divisionRepo = divisionRepo;
         _teamRepo = teamRepo;
         _scheduleRepo = scheduleRepo;
@@ -175,73 +174,99 @@ public sealed class PairingsService : IPairingsService
         return newRecords.Select(p => MapToDto(p, [])).ToList();
     }
 
-    // ── Add Single-Elimination (Bracket Cascade) ──
+    // ── Bracket Strategies (format picker) ──
 
+    public Task<List<BracketStrategyDto>> GetBracketStrategiesAsync(CancellationToken ct = default) =>
+        _bracketRepo.GetStrategiesAsync(ct);
+
+    // ── Add Championship Bracket (strategy-template driven) ──
+
+    /// <summary>
+    /// Emit bracket pairings for a strategy (default "SE") straight from its
+    /// <c>brackets.*</c> template — the template is the source of truth, not the
+    /// legacy BracketDataSingleElimination table. <see cref="AddSingleEliminationRequest.StartKey"/>
+    /// fixes the bracket size (Z=64…F=2); rounds run from that entry down to Finals.
+    /// The optional bronze game is NOT emitted here (it is auto-placed downstream),
+    /// matching the legacy cascade which also stopped at Finals.
+    /// </summary>
     public async Task<List<PairingDto>> AddSingleEliminationAsync(
         Guid jobId, string userId, AddSingleEliminationRequest request, CancellationToken ct = default)
     {
+        if (!RoundSize.TryGetValue(request.StartKey, out var bracketSize))
+            throw new ArgumentException(
+                $"Unknown bracket entry key '{request.StartKey}' (expected Z/Y/X/Q/S/F).", nameof(request));
+
         var (leagueId, season, _) = await _contextResolver.ResolveAsync(jobId, ct);
-        var allNewRecords = new List<PairingsLeagueSeason>();
 
-        await AddSingleEliminationLevel(
-            leagueId, season, request.TeamCount, request.StartKey, userId, allNewRecords, ct);
+        var strategyCode = string.IsNullOrWhiteSpace(request.StrategyCode) ? "SE" : request.StrategyCode;
+        var template = await _bracketRepo.GetTemplateAsync(strategyCode, bracketSize, ct: ct)
+            ?? throw new InvalidOperationException(
+                $"No {strategyCode} bracket template of size {bracketSize} — run the template seed script.");
 
-        _logger.LogInformation(
-            "AddSingleElimination: {Count} bracket pairings from {StartKey}→F for TCnt={TCnt}",
-            allNewRecords.Count, request.StartKey, request.TeamCount);
+        var games = await _bracketRepo.GetTemplateGamesAsync(template.TemplateId, ct);
+        var routes = await _bracketRepo.GetTemplateRoutesAsync(template.TemplateId, ct);
+        var slotLabels = BracketTemplateTopology.ComputeSlotLabels(games, routes);
 
-        return allNewRecords.Select(p => MapToDto(p, [])).ToList();
-    }
-
-    /// <summary>
-    /// Recursive method that generates bracket pairings for one level, saves them,
-    /// then cascades to the next level (Z→Y→X→Q→S→F).
-    /// </summary>
-    private async Task AddSingleEliminationLevel(
-        Guid leagueId, string season, int teamCount, string key, string userId,
-        List<PairingsLeagueSeason> accumulator, CancellationToken ct)
-    {
         var (maxGame, maxRound) = await _pairingsRepo.GetMaxGameAndRoundAsync(
-            leagueId, season, teamCount, ct);
-        var thisRound = maxRound + 1;
+            leagueId, season, request.TeamCount, ct);
 
-        var bracketData = await _pairingsRepo.GetBracketDataAsync(key, ct);
+        // Ladder rounds only (exclude the optional bronze 'B'), largest first
+        // (Z→F): the earliest-played round takes the lowest new Rnd, matching the
+        // legacy cascade's per-level round increment.
+        var ladderRounds = games
+            .Where(g => RoundSize.ContainsKey(g.RoundType))
+            .GroupBy(g => g.RoundType)
+            .OrderByDescending(grp => RoundSize[grp.Key]);
 
         var newRecords = new List<PairingsLeagueSeason>();
         var gameNo = maxGame;
+        var round = maxRound;
+        var now = DateTime.Now;
 
-        foreach (var b in bracketData)
+        foreach (var roundGroup in ladderRounds)
         {
-            newRecords.Add(new PairingsLeagueSeason
+            round++;
+            // T1 = low label, T2 = high label; order the round by low label
+            // ascending (the legacy "ORDER BY T1"), so GameNumbers line up.
+            var orderedGames = roundGroup
+                .Select(g => new
+                {
+                    Lo = Math.Min(slotLabels[(g.TemplateGameId, 1)], slotLabels[(g.TemplateGameId, 2)]),
+                    Hi = Math.Max(slotLabels[(g.TemplateGameId, 1)], slotLabels[(g.TemplateGameId, 2)])
+                })
+                .OrderBy(g => g.Lo);
+
+            foreach (var g in orderedGames)
             {
-                T1 = b.T1 ?? 0,
-                T2 = b.T2 ?? 0,
-                T1Type = key,
-                T2Type = key,
-                GameNumber = ++gameNo,
-                GCnt = null,
-                LeagueId = leagueId,
-                LebUserId = userId,
-                Modified = DateTime.Now,
-                Rnd = thisRound,
-                Season = season,
-                TCnt = teamCount
-            });
+                newRecords.Add(new PairingsLeagueSeason
+                {
+                    T1 = g.Lo,
+                    T2 = g.Hi,
+                    T1Type = roundGroup.Key,
+                    T2Type = roundGroup.Key,
+                    GameNumber = ++gameNo,
+                    GCnt = null,
+                    LeagueId = leagueId,
+                    LebUserId = userId,
+                    Modified = now,
+                    Rnd = round,
+                    Season = season,
+                    TCnt = request.TeamCount
+                });
+            }
         }
 
         if (newRecords.Count > 0)
         {
             await _pairingsRepo.AddRangeAsync(newRecords, ct);
             await _pairingsRepo.SaveChangesAsync(ct);
-            accumulator.AddRange(newRecords);
         }
 
-        // Cascade to next bracket level
-        if (BracketCascade.TryGetValue(key, out var nextKey))
-        {
-            await AddSingleEliminationLevel(
-                leagueId, season, teamCount, nextKey, userId, accumulator, ct);
-        }
+        _logger.LogInformation(
+            "AddBracket: {Count} pairings ({Strategy} size {Size}, {StartKey}→F) for TCnt={TCnt}",
+            newRecords.Count, strategyCode, bracketSize, request.StartKey, request.TeamCount);
+
+        return newRecords.Select(p => MapToDto(p, [])).ToList();
     }
 
     // ── Add Single Pairing ──

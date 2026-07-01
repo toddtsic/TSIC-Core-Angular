@@ -113,31 +113,10 @@ public sealed class BracketGenerationService : IBracketGenerationService
         var routes = await _bracketRepo.GetTemplateRoutesAsync(template.TemplateId, ct);
 
         // 4. Compute each template game's min-label — the identity that matches a
-        //    placed row's min(T1No,T2No). Leaf slot label = its seed position; a
-        //    fed slot's label = the min-label of the game feeding it. A game's
-        //    label = min of its two slot labels.
+        //    placed row's min(T1No,T2No). Single-sourced with bracket generation
+        //    (BracketTemplateTopology) so the two can never drift.
         var gamesById = games.ToDictionary(g => g.TemplateGameId);
-        var sourceOfTargetSlot = routes.ToDictionary(
-            r => (r.TargetTemplateGameId, (int)r.TargetSlot), r => r.SourceTemplateGameId);
-        var labelMemo = new Dictionary<int, int>();
-
-        int Label(int templateGameId)
-        {
-            if (labelMemo.TryGetValue(templateGameId, out var cached)) return cached;
-            var g = gamesById[templateGameId];
-            var label = Math.Min(SlotLabel(g, 1), SlotLabel(g, 2));
-            labelMemo[templateGameId] = label;
-            return label;
-        }
-
-        int SlotLabel(TemplateGames g, int slot)
-        {
-            var seed = slot == 1 ? g.Slot1Seed : g.Slot2Seed;
-            if (seed.HasValue) return seed.Value;                       // leaf: seed position
-            return Label(sourceOfTargetSlot[(g.TemplateGameId, slot)]); // fed: source's label
-        }
-
-        foreach (var g in games) Label(g.TemplateGameId); // warm the memo
+        var labelMemo = BracketTemplateTopology.ComputeMinLabels(games, routes);
 
         // 5. Match placed rows and template games by (RoundType, min-label).
         var placedGidByKey = placed.ToDictionary(p => (p.RoundType, p.MinLabel), p => p.Gid);

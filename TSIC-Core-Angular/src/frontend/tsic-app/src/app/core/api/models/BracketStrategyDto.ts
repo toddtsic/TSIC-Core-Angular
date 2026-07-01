@@ -2,9 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type AddSingleEliminationRequest = {
-    strategyCode?: string;
-    startKey: string;
-    teamCount: number;
+export type BracketStrategyDto = {
+    code: string;
+    name: string;
+    isActive: boolean;
 };
 

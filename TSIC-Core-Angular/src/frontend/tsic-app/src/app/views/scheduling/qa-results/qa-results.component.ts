@@ -20,13 +20,20 @@ export class QaResultsComponent {
     errorMessage = signal('');
     expandedSections = signal<Set<string>>(new Set());
 
+    /** Bracket structural findings split by severity (empty when no brackets). */
+    bracketErrors = computed(() =>
+        this.qaResult()?.bracketQa?.findings.filter(f => f.severity === 'error') ?? []);
+    bracketWarnings = computed(() =>
+        this.qaResult()?.bracketQa?.findings.filter(f => f.severity === 'warning') ?? []);
+
     overallSeverity = computed<'success' | 'warning' | 'error' | 'empty'>(() => {
         const qa = this.qaResult();
         if (!qa) return 'empty';
         if (qa.fieldDoubleBookings.length > 0 || qa.teamDoubleBookings.length > 0
-            || qa.rankMismatches.length > 0) return 'error';
+            || qa.rankMismatches.length > 0 || this.bracketErrors().length > 0) return 'error';
         if (qa.unscheduledTeams.length > 0 || qa.backToBackGames.length > 0
-            || qa.repeatedMatchups.length > 0 || qa.inactiveTeamsInGames.length > 0) return 'warning';
+            || qa.repeatedMatchups.length > 0 || qa.inactiveTeamsInGames.length > 0
+            || this.bracketWarnings().length > 0) return 'warning';
         return 'success';
     });
 
@@ -39,7 +46,9 @@ export class QaResultsComponent {
             + qa.unscheduledTeams.length
             + qa.backToBackGames.length
             + qa.repeatedMatchups.length
-            + qa.inactiveTeamsInGames.length;
+            + qa.inactiveTeamsInGames.length
+            + this.bracketErrors().length
+            + this.bracketWarnings().length;
     });
 
     gameSpreadSummary = computed(() => {

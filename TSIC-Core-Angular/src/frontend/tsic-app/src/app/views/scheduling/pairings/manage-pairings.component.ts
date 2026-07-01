@@ -7,7 +7,8 @@ import {
     type DivisionSummaryDto,
     type PairingDto,
     type DivisionPairingsResponse,
-    type DivisionTeamDto
+    type DivisionTeamDto,
+    type BracketStrategyDto
 } from './services/pairings.service';
 import { DivisionNavigatorComponent } from '../shared/components/division-navigator/division-navigator.component';
 import { WpwMatrixComponent } from '../shared/components/wpw-matrix/wpw-matrix.component';
@@ -79,6 +80,15 @@ export class ManagePairingsComponent implements OnInit {
     readonly showBracketDropdown = signal(false);
     readonly isAddingElimination = signal(false);
 
+    // ── Championship strategy (format) picker ──
+    readonly strategies = signal<BracketStrategyDto[]>([]);
+    readonly selectedStrategy = signal<string>('SE'); // default preserves prior behavior
+    readonly activeStrategies = computed(() => this.strategies().filter(s => s.isActive));
+    readonly selectedStrategyLabel = computed(() =>
+        this.strategies().find(s => s.code === this.selectedStrategy())?.name
+        ?? this.selectedStrategy()
+    );
+
     // ── Add Single ──
     readonly isAddingSingle = signal(false);
 
@@ -114,6 +124,24 @@ export class ManagePairingsComponent implements OnInit {
 
     ngOnInit(): void {
         this.loadAgegroups();
+        this.loadStrategies();
+    }
+
+    loadStrategies(): void {
+        this.svc.getBracketStrategies().subscribe({
+            next: (list: BracketStrategyDto[]) => {
+                this.strategies.set(list);
+                // Keep SE default when present; else fall back to first active strategy.
+                const active = list.filter(s => s.isActive);
+                if (!active.some(s => s.code === this.selectedStrategy()) && active.length > 0) {
+                    this.selectedStrategy.set(active[0].code);
+                }
+            }
+        });
+    }
+
+    selectStrategy(code: string): void {
+        this.selectedStrategy.set(code);
     }
 
     // ── Navigator ──
@@ -249,7 +277,7 @@ export class ManagePairingsComponent implements OnInit {
 
         this.isAddingElimination.set(true);
         this.showBracketDropdown.set(false);
-        this.svc.addElimination({ startKey, teamCount: tc }).subscribe({
+        this.svc.addElimination({ strategyCode: this.selectedStrategy(), startKey, teamCount: tc }).subscribe({
             next: (newPairings) => {
                 this.pairings.update(curr => [...curr, ...newPairings]);
                 this.isAddingElimination.set(false);

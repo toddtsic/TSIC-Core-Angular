@@ -82,13 +82,19 @@ public record AddPairingBlockRequest
 }
 
 /// <summary>
-/// Add single-elimination bracket pairings, cascading from startKey through Finals.
+/// Add championship bracket pairings from a strategy template, entering at
+/// startKey and running through Finals.
 /// </summary>
 public record AddSingleEliminationRequest
 {
-    /// <summary>Starting bracket key: Z, Y, X, Q, S, or F.</summary>
+    /// <summary>
+    /// Bracket strategy code (brackets.Strategies.Code). Defaults to "SE"
+    /// (single elimination) so existing callers keep working unchanged.
+    /// </summary>
+    public string StrategyCode { get; init; } = "SE";
+    /// <summary>Entry round key: Z, Y, X, Q, S, or F — also fixes the bracket size.</summary>
     public required string StartKey { get; init; }
-    /// <summary>Team count for this division.</summary>
+    /// <summary>Team count for this division (filing bucket for the pairings).</summary>
     public required int TeamCount { get; init; }
 }
 

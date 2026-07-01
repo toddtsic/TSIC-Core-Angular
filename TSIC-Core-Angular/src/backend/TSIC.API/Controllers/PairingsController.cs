@@ -91,7 +91,15 @@ public class PairingsController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>POST /api/pairings/add-elimination — Add single-elimination bracket.</summary>
+    /// <summary>GET /api/pairings/bracket-strategies — Available championship formats.</summary>
+    [HttpGet("bracket-strategies")]
+    public async Task<ActionResult<List<BracketStrategyDto>>> GetBracketStrategies(CancellationToken ct)
+    {
+        var result = await _pairingsService.GetBracketStrategiesAsync(ct);
+        return Ok(result);
+    }
+
+    /// <summary>POST /api/pairings/add-elimination — Add a championship bracket (strategy-driven).</summary>
     [HttpPost("add-elimination")]
     public async Task<ActionResult<List<PairingDto>>> AddElimination(
         [FromBody] AddSingleEliminationRequest request, CancellationToken ct)

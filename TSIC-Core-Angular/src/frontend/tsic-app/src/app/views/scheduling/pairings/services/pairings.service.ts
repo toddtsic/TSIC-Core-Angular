@@ -13,7 +13,8 @@ import type {
     EditPairingRequest,
     RemoveAllPairingsRequest,
     DivisionTeamDto,
-    EditDivisionTeamRequest
+    EditDivisionTeamRequest,
+    BracketStrategyDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -29,7 +30,8 @@ export type {
     EditPairingRequest,
     RemoveAllPairingsRequest,
     DivisionTeamDto,
-    EditDivisionTeamRequest
+    EditDivisionTeamRequest,
+    BracketStrategyDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -53,6 +55,10 @@ export class PairingsService {
 
     addBlock(request: AddPairingBlockRequest): Observable<PairingDto[]> {
         return this.http.post<PairingDto[]>(`${this.apiUrl}/add-block`, request);
+    }
+
+    getBracketStrategies(): Observable<BracketStrategyDto[]> {
+        return this.http.get<BracketStrategyDto[]>(`${this.apiUrl}/bracket-strategies`);
     }
 
     addElimination(request: AddSingleEliminationRequest): Observable<PairingDto[]> {

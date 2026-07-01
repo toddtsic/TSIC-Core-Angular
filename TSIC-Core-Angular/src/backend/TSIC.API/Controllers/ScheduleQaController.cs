@@ -85,6 +85,13 @@ public class ScheduleQaController : ControllerBase
         WriteCheckRow(summary, ref sRow, "Back-to-Back Games", qa.BackToBackGames.Count, "Warning");
         WriteCheckRow(summary, ref sRow, "Repeated Matchups", qa.RepeatedMatchups.Count, "Warning");
         WriteCheckRow(summary, ref sRow, "Inactive Teams in Games", qa.InactiveTeamsInGames.Count, "Warning");
+        if (qa.BracketQa is { } bq)
+        {
+            var bracketErrors = bq.Findings.Count(f => f.Severity == "error");
+            WriteCheckRow(summary, ref sRow, "Bracket Structural Errors", bracketErrors, "Critical");
+            WriteCheckRow(summary, ref sRow, "Bracket Structural Warnings",
+                bq.Findings.Count - bracketErrors, "Warning");
+        }
         if (qa.CrossEventAnalysis != null)
         {
             sRow++;
@@ -147,6 +154,14 @@ public class ScheduleQaController : ControllerBase
         if (qa.BracketGames.Count > 0)
             AddSheet(workbook, "Bracket Games", new[] { "AgeGroup", "Field", "GameTime", "Slot1", "Slot2" },
                 qa.BracketGames.Select(i => new object[] { i.AgegroupName, i.FieldName, i.GameDate, $"{i.T1Type}{i.T1No}", $"{i.T2Type}{i.T2No}" }));
+
+        if (qa.BracketQa is { Findings.Count: > 0 } bracketQa)
+            AddSheet(workbook, "Bracket QA", new[] { "Severity", "Category", "AgeGroup", "Division", "Game", "Detail" },
+                bracketQa.Findings.Select(f => new object[]
+                {
+                    f.Severity, f.Category, f.AgegroupName, f.DivName,
+                    f.Gid?.ToString() ?? "", f.Detail
+                }));
 
         // ── Cross-Event sheets (only when job is in a comparison group) ──
         if (qa.CrossEventAnalysis is { } xEvt)

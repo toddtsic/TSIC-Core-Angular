@@ -63,6 +63,34 @@ public record BracketDevActionResult
     public required string Message { get; init; }
 }
 
+/// <summary>
+/// A selectable championship bracket strategy (brackets.Strategies) — drives the
+/// format picker in Manage Pairings. Only <see cref="IsActive"/> strategies are offered.
+/// </summary>
+public record BracketStrategyDto
+{
+    /// <summary>Strategy code, e.g. "SE" (single elimination). Sent back on generate.</summary>
+    public required string Code { get; init; }
+    public required string Name { get; init; }
+    public required bool IsActive { get; init; }
+}
+
+/// <summary>
+/// A materialized bracket instance with its display names + template facts, for QA.
+/// </summary>
+public record BracketInstanceInfo
+{
+    public required int BracketInstanceId { get; init; }
+    public required Guid JobId { get; init; }
+    public required Guid AgegroupId { get; init; }
+    public required Guid DivId { get; init; }
+    public required string AgegroupName { get; init; }
+    public required string DivName { get; init; }
+    public required int TemplateId { get; init; }
+    public required int BracketSize { get; init; }
+    public required string StrategyCode { get; init; }
+}
+
 /// <summary>Outcome of a bracket-metadata recompute for one division.</summary>
 public record BracketGenerationResult
 {

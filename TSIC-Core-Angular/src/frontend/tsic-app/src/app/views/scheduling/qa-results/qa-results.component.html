@@ -364,6 +364,89 @@
             </div>
         </div>
 
+        <!-- ═══════════════ BRACKET STRUCTURE ═══════════════ -->
+        @if (qa.bracketQa; as bq) {
+            <div class="section-label">Bracket Structure ({{ bq.instanceCount }} bracket{{ bq.instanceCount === 1 ? '' : 's' }})</div>
+            <div class="check-grid">
+
+                <!-- Bracket Errors -->
+                <div class="check-card" [class.check-pass]="bracketErrors().length === 0"
+                     [class.check-fail]="bracketErrors().length > 0">
+                    <button class="check-header" (click)="toggleSection('bracketErrors')"
+                            [disabled]="bracketErrors().length === 0">
+                        <div class="check-status">
+                            @if (bracketErrors().length === 0) {
+                                <i class="bi bi-check-circle text-success"></i>
+                            } @else {
+                                <i class="bi bi-x-circle text-danger"></i>
+                            }
+                        </div>
+                        <div class="check-info">
+                            <div class="check-title">Bracket Structural Errors</div>
+                            <div class="check-subtitle">Orphan games, duplicate slots, and broken advancement wiring</div>
+                        </div>
+                        <div class="check-count">
+                            <span class="badge" [class.bg-success]="bracketErrors().length === 0"
+                                  [class.bg-danger]="bracketErrors().length > 0">{{ bracketErrors().length }}</span>
+                            @if (bracketErrors().length > 0) {
+                                <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('bracketErrors')"></i>
+                            }
+                        </div>
+                    </button>
+                    @if (isSectionExpanded('bracketErrors') && bracketErrors().length > 0) {
+                        <div class="check-detail">
+                            <table class="detail-table">
+                                <thead><tr><th>Check</th><th>Age Group</th><th>Division</th><th>Game</th><th>Detail</th></tr></thead>
+                                <tbody>
+                                    @for (f of bracketErrors(); track $index) {
+                                        <tr><td>{{ f.category }}</td><td>{{ f.agegroupName }}</td><td>{{ f.divName }}</td><td>{{ f.gid ?? '—' }}</td><td>{{ f.detail }}</td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <!-- Bracket Warnings -->
+                <div class="check-card" [class.check-pass]="bracketWarnings().length === 0"
+                     [class.check-warn]="bracketWarnings().length > 0">
+                    <button class="check-header" (click)="toggleSection('bracketWarnings')"
+                            [disabled]="bracketWarnings().length === 0">
+                        <div class="check-status">
+                            @if (bracketWarnings().length === 0) {
+                                <i class="bi bi-check-circle text-success"></i>
+                            } @else {
+                                <i class="bi bi-exclamation-triangle text-warning"></i>
+                            }
+                        </div>
+                        <div class="check-info">
+                            <div class="check-title">Bracket Structural Warnings</div>
+                            <div class="check-subtitle">Unplaced slots, uncovered seeds, seed-rank and time-ordering issues</div>
+                        </div>
+                        <div class="check-count">
+                            <span class="badge" [class.bg-success]="bracketWarnings().length === 0"
+                                  [class.bg-warning]="bracketWarnings().length > 0">{{ bracketWarnings().length }}</span>
+                            @if (bracketWarnings().length > 0) {
+                                <i class="bi bi-chevron-down expand-icon" [class.expanded]="isSectionExpanded('bracketWarnings')"></i>
+                            }
+                        </div>
+                    </button>
+                    @if (isSectionExpanded('bracketWarnings') && bracketWarnings().length > 0) {
+                        <div class="check-detail">
+                            <table class="detail-table">
+                                <thead><tr><th>Check</th><th>Age Group</th><th>Division</th><th>Game</th><th>Detail</th></tr></thead>
+                                <tbody>
+                                    @for (f of bracketWarnings(); track $index) {
+                                        <tr><td>{{ f.category }}</td><td>{{ f.agegroupName }}</td><td>{{ f.divName }}</td><td>{{ f.gid ?? '—' }}</td><td>{{ f.detail }}</td></tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
         <!-- ═══════════════ INFORMATIONAL ═══════════════ -->
         <div class="section-label">Schedule Overview</div>
         <div class="check-grid">

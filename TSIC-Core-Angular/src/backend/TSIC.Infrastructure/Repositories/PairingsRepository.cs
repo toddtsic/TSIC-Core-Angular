@@ -6,7 +6,8 @@ using TSIC.Infrastructure.Data.SqlDbContext;
 namespace TSIC.Infrastructure.Repositories;
 
 /// <summary>
-/// Repository for PairingsLeagueSeason, Masterpairingtable, and BracketDataSingleElimination.
+/// Repository for PairingsLeagueSeason and the round-robin Masterpairingtable.
+/// (Bracket pairings are generated from the brackets.* templates — see BracketRepository.)
 /// </summary>
 public class PairingsRepository : IPairingsRepository
 {
@@ -57,16 +58,6 @@ public class PairingsRepository : IPairingsRepository
         return await _context.Masterpairingtable
             .AsNoTracking()
             .Where(m => m.TCnt == teamCount && m.Rnd <= maxRounds)
-            .ToListAsync(ct);
-    }
-
-    public async Task<List<BracketDataSingleElimination>> GetBracketDataAsync(
-        string roundType, CancellationToken ct = default)
-    {
-        return await _context.BracketDataSingleElimination
-            .AsNoTracking()
-            .Where(b => b.RoundType == roundType)
-            .OrderBy(b => b.T1)
             .ToListAsync(ct);
     }
 

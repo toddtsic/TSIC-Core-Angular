@@ -2,6 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { BracketQaResult } from './BracketQaResult';
 import type { CrossEventQaResult } from './CrossEventQaResult';
 import type { QaBackToBack } from './QaBackToBack';
 import type { QaBracketGame } from './QaBracketGame';
@@ -35,5 +36,6 @@ export type AutoBuildQaResult = {
     rrGamesPerDivision: Array<QaRrGamesPerDiv>;
     bracketGames: Array<QaBracketGame>;
     crossEventAnalysis?: (null | CrossEventQaResult);
+    bracketQa?: (null | BracketQaResult);
 };
 

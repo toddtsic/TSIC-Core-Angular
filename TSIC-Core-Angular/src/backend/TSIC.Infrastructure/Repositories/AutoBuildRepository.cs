@@ -923,14 +923,16 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
     private async Task<List<QaInactiveTeamInGame>> GetInactiveTeamsInGamesAsync(
         Guid jobId, CancellationToken ct)
     {
-        var rrGames = _context.Schedule
+        // Any game, pool OR bracket: an inactive team resolved into a game is an
+        // error regardless of format. (Unresolved bracket slots have null TeamId
+        // and are filtered out below.)
+        var games = _context.Schedule
             .AsNoTracking()
-            .Where(s => s.JobId == jobId && s.GDate != null
-                        && s.T1Type == "T" && s.T2Type == "T");
+            .Where(s => s.JobId == jobId && s.GDate != null);
 
-        var scheduledTeamIds = await rrGames
+        var scheduledTeamIds = await games
             .Where(s => s.T1Id != null).Select(s => s.T1Id!.Value)
-            .Union(rrGames.Where(s => s.T2Id != null).Select(s => s.T2Id!.Value))
+            .Union(games.Where(s => s.T2Id != null).Select(s => s.T2Id!.Value))
             .Distinct()
             .ToListAsync(ct);
 
@@ -980,10 +982,11 @@ public sealed class AutoBuildRepository : IAutoBuildRepository
     private async Task<List<QaGamesPerTeamPerDay>> GetGamesPerTeamPerDayAsync(
         Guid jobId, CancellationToken ct)
     {
+        // Pool AND bracket games both count toward a team's per-day workload — a
+        // team playing pool + playoff games on one day is the case we must surface.
         var games = await _context.Schedule
             .AsNoTracking()
-            .Where(s => s.JobId == jobId && s.GDate != null
-                        && s.T1Type == "T" && s.T2Type == "T")
+            .Where(s => s.JobId == jobId && s.GDate != null)
             .Select(s => new
             {
                 s.T1Id, T1Name = s.T1Name ?? "",

@@ -34,7 +34,13 @@ public interface IPairingsService
         Guid jobId, string userId, AddPairingBlockRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Add single-elimination bracket, cascading from startKey through Finals.
+    /// List the available championship bracket strategies for the format picker.
+    /// </summary>
+    Task<List<BracketStrategyDto>> GetBracketStrategiesAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Add a championship bracket from a strategy template (defaults to SE),
+    /// entering at startKey and running through Finals.
     /// </summary>
     Task<List<PairingDto>> AddSingleEliminationAsync(
         Guid jobId, string userId, AddSingleEliminationRequest request, CancellationToken ct = default);

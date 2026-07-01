@@ -36,12 +36,9 @@ public interface IPairingsRepository
     Task<List<Masterpairingtable>> GetMasterPairingsAsync(
         int teamCount, int maxRounds, CancellationToken ct = default);
 
-    /// <summary>
-    /// Get bracket seed data for a given round type (Z, Y, X, Q, S, F).
-    /// Ordered by T1 ascending.
-    /// </summary>
-    Task<List<BracketDataSingleElimination>> GetBracketDataAsync(
-        string roundType, CancellationToken ct = default);
+    // Bracket pairing generation is now driven by the brackets.* templates
+    // (see IBracketRepository.GetTemplateAsync), not the legacy
+    // BracketDataSingleElimination table — so no GetBracketDataAsync here.
 
     // ── Read: Championship (bracket) pairings ──
 

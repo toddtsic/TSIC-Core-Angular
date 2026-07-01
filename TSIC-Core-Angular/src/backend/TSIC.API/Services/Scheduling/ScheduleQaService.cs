@@ -12,10 +12,12 @@ namespace TSIC.API.Services.Scheduling;
 public sealed class ScheduleQaService : IScheduleQaService
 {
     private readonly IAutoBuildRepository _repo;
+    private readonly IBracketRepository _brackets;
 
-    public ScheduleQaService(IAutoBuildRepository repo)
+    public ScheduleQaService(IAutoBuildRepository repo, IBracketRepository brackets)
     {
         _repo = repo;
+        _brackets = brackets;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -59,7 +61,145 @@ public sealed class ScheduleQaService : IScheduleQaService
             result = result with { CrossEventAnalysis = crossEvent };
         }
 
+        // Structural bracket QA (null when the job has no materialized brackets)
+        var bracketQa = await BuildBracketQaAsync(jobId, ct);
+        if (bracketQa != null)
+        {
+            result = result with { BracketQa = bracketQa };
+        }
+
         return result;
+    }
+
+    /// <summary>
+    /// Validates each materialized bracket instance against its template: placed
+    /// games map to template slots, all non-optional slots are placed, seeds cover
+    /// every leaf, feeds are intact and time-ordered, and seed ranks are in range.
+    /// Strategy-agnostic — iterates the instance's Template, not a fixed SE ladder.
+    /// </summary>
+    private async Task<BracketQaResult?> BuildBracketQaAsync(Guid jobId, CancellationToken ct)
+    {
+        var instances = await _brackets.GetInstanceInfosForJobAsync(jobId, ct);
+        if (instances.Count == 0) return null;
+
+        var findings = new List<BracketQaFinding>();
+        var teamCountByDiv = new Dictionary<Guid, int>();
+
+        foreach (var inst in instances)
+        {
+            var games = await _brackets.GetTemplateGamesAsync(inst.TemplateId, ct);
+            var routes = await _brackets.GetTemplateRoutesAsync(inst.TemplateId, ct);
+            var placed = await _brackets.GetPlacedBracketGamesAsync(
+                jobId, inst.AgegroupId, inst.DivId, ct);
+
+            var slotLabels = BracketTemplateTopology.ComputeSlotLabels(games, routes);
+            var minLabels = BracketTemplateTopology.ComputeMinLabels(games, routes);
+
+            // Template game keyed by (RoundType, min-label) — the placed-row match key.
+            var templateByKey = games.ToDictionary(
+                g => (g.RoundType, minLabels[g.TemplateGameId]), g => g);
+            var placedByKey = placed
+                .GroupBy(p => (p.RoundType, p.MinLabel))
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            BracketQaFinding Finding(string sev, string cat, int? gid, string detail) => new()
+            {
+                Severity = sev,
+                Category = cat,
+                AgegroupName = inst.AgegroupName,
+                DivName = inst.DivName,
+                Gid = gid,
+                Detail = detail
+            };
+
+            // (1) Orphan placed games — no template slot / duplicate placements.
+            foreach (var p in placed)
+            {
+                if (!templateByKey.ContainsKey((p.RoundType, p.MinLabel)))
+                {
+                    findings.Add(Finding("error", "OrphanGame", p.Gid,
+                        $"Placed {p.RoundType} game (slot label {p.MinLabel}) matches no {inst.StrategyCode} template slot."));
+                }
+            }
+            foreach (var dup in placedByKey.Where(kv => kv.Value.Count > 1))
+            {
+                findings.Add(Finding("error", "OrphanGame", dup.Value[0].Gid,
+                    $"{dup.Value.Count} placed {dup.Key.RoundType} games share slot label {dup.Key.MinLabel} (should be one)."));
+            }
+
+            // (2) Completeness — every non-optional template game must be placed.
+            foreach (var g in games)
+            {
+                if (g.IsOptional) continue; // bronze may legitimately be absent
+                if (!placedByKey.ContainsKey((g.RoundType, minLabels[g.TemplateGameId])))
+                {
+                    findings.Add(Finding("warning", "Incomplete", null,
+                        $"Template {g.RoundType} game (slot label {minLabels[g.TemplateGameId]}) is not placed on the schedule."));
+                }
+            }
+
+            // (3) Seed assignments — coverage of leaf slots + no duplicate (Gid,slot).
+            var seeds = await _brackets.GetSeedAssignmentsByInstanceAsync(inst.BracketInstanceId, ct);
+            var seedByGidSlot = seeds
+                .GroupBy(s => (s.Gid, (int)s.TargetSlot))
+                .ToDictionary(g => g.Key, g => g.ToList());
+            foreach (var dup in seedByGidSlot.Where(kv => kv.Value.Count > 1))
+            {
+                findings.Add(Finding("error", "DuplicateSeed", dup.Key.Gid,
+                    $"Slot {dup.Key.Item2} of game {dup.Key.Gid} has {dup.Value.Count} seed assignments."));
+            }
+            foreach (var p in placed)
+            {
+                if (!templateByKey.TryGetValue((p.RoundType, p.MinLabel), out var tg)) continue;
+                for (var slot = 1; slot <= 2; slot++)
+                {
+                    var isLeaf = (slot == 1 ? tg.Slot1Seed : tg.Slot2Seed).HasValue;
+                    if (isLeaf && !seedByGidSlot.ContainsKey((p.Gid, slot)))
+                    {
+                        findings.Add(Finding("warning", "SeedCoverage", p.Gid,
+                            $"Leaf slot {slot} of {p.RoundType} game {p.Gid} has no seed source."));
+                    }
+                }
+            }
+
+            // (4) Seed-rank validity — rank within the source pool's active team count.
+            foreach (var s in seeds.Where(s => s.SeedDivId != null))
+            {
+                if (!teamCountByDiv.TryGetValue(s.SeedDivId!.Value, out var teamCount))
+                {
+                    teamCount = await _brackets.GetActiveTeamCountByDivAsync(s.SeedDivId.Value, ct);
+                    teamCountByDiv[s.SeedDivId.Value] = teamCount;
+                }
+                if (s.SeedRank < 1 || s.SeedRank > teamCount)
+                {
+                    findings.Add(Finding("warning", "SeedRank", s.Gid,
+                        $"Seed rank {s.SeedRank} is outside the source pool's 1..{teamCount} team range."));
+                }
+            }
+
+            // (5) Feeds — no dangling endpoints + target scheduled after its source.
+            var feeds = await _brackets.GetFeedsByInstanceAsync(inst.BracketInstanceId, ct);
+            var placedGids = placed.Select(p => p.Gid).ToHashSet();
+            var gdates = await _brackets.GetGDatesByGidsAsync(placedGids, ct);
+            foreach (var f in feeds)
+            {
+                if (!placedGids.Contains(f.SourceGid) || !placedGids.Contains(f.TargetGid))
+                {
+                    findings.Add(Finding("error", "FeedIntegrity", f.TargetGid,
+                        $"Advancement feed references a game not on the schedule (source {f.SourceGid} → target {f.TargetGid})."));
+                    continue;
+                }
+                if (gdates.TryGetValue(f.SourceGid, out var src) && src.HasValue &&
+                    gdates.TryGetValue(f.TargetGid, out var tgt) && tgt.HasValue &&
+                    tgt.Value < src.Value)
+                {
+                    findings.Add(Finding("warning", "TimeOrder", f.TargetGid,
+                        $"Playoff game {f.TargetGid} is scheduled before its feeder game {f.SourceGid}."));
+                }
+            }
+        }
+
+        return new BracketQaResult { InstanceCount = instances.Count, Findings = findings };
     }
 
     private async Task<CrossEventQaResult?> TryBuildCrossEventAnalysisAsync(
