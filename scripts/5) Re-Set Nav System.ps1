@@ -266,17 +266,18 @@ $adminManifest = @(
     (New-AdminItem 'Accounting' 'cash-stack' 11 '2M) Get MERCH Reconciliation Records'     'receipt'            'accounting/merch-reconciliation-records'                                   3  0 0 1)
     (New-AdminItem 'Accounting' 'cash-stack' 11 '3) Last Months Job Stats'                 'bar-chart-line'     'accounting/last-months-job-stats'                                          4  0 0 1)
     (New-AdminItem 'Accounting' 'cash-stack' 11 "4) Last Month's Grand Totals (Excel)||"   'calculator'         'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false'    5  0 0 1)
-    # -- Everything else (unchanged relative order; a divider will bracket the block above).
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'Last Months Invoices SUMMARIES ONLY (pdf)' 'file-earmark-pdf'   'reporting/Get_Invoices_LastMonthSummariesOnly'                              6  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'Manual ARB Sweep (ALL)'                   'arrow-clockwise'    'accounting/manual-arb-sweep'                                                7  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'TSIC Fees YTD By Customer'                'graph-up'           'reporting/TSICFeesYTDByCustomer'                                            8  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'TSIC Fees YTD By Customer and Job'        'graph-up'           'reporting/TSICFeesYTDByCustomerAndJob'                                      9  0 0 1)
+    # -- Upload Nuvei sits just after the numbered sequence, divider below it.
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Upload Nuvei Funding/Batches||'           'upload'             'accounting/upload-nuvei'                                                   6  0 0 1)
+    # -- Remainder, alphabetical by label (for now).
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'ADN-Nuvei Reconcile (Excel)'              'arrow-left-right'   'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false'              7  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Import RegSaver Monthly Payouts'          'cloud-download'     'accounting/upload-regsaver'                                                8  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Job Admin Fees Summary'                   'cash-coin'          'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false'       9  0 0 1)
     (New-AdminItem 'Accounting' 'cash-stack' 11 'Last Months Invoices (pdf)'               'file-earmark-pdf'   'reporting/Get_Invoices_LastMonth'                                          10  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'Produce Last Month Job Invoices Per Job (rtf)' 'file-earmark-text' 'accounting/produce-job-invoices'                                      11  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'Job Admin Fees Summary'                   'cash-coin'          'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false'     12  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'Upload Nuvei Funding/Batches'             'upload'             'accounting/upload-nuvei'                                                  13  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'Import RegSaver Monthly Payouts'          'cloud-download'     'accounting/upload-regsaver'                                               14  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 'ADN-Nuvei Reconcile (Excel)'              'arrow-left-right'   'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false'            15  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Last Months Invoices SUMMARIES ONLY (pdf)' 'file-earmark-pdf'  'reporting/Get_Invoices_LastMonthSummariesOnly'                             11  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Manual ARB Sweep (ALL)'                   'arrow-clockwise'    'accounting/manual-arb-sweep'                                               12  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Produce Last Month Job Invoices Per Job (rtf)' 'file-earmark-text' 'accounting/produce-job-invoices'                                      13  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'TSIC Fees YTD By Customer'                'graph-up'           'reporting/TSICFeesYTDByCustomer'                                          14  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'TSIC Fees YTD By Customer and Job'        'graph-up'           'reporting/TSICFeesYTDByCustomerAndJob'                                    15  0 0 1)
 
     # -- 12. TSIC Admin (SU-only) — the cross-tenant + platform-chrome
     #    console. ONLY items whose scope is the platform / other tenants, not one

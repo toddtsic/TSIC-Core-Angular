@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-07-02 10:53:10 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-07-02 11:00:58 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -69,7 +69,7 @@ FROM nav.NavItem ni
 JOIN nav.Nav n ON ni.NavId = n.NavId
 LEFT JOIN nav.NavItem parent ON ni.ParentNavItemId = parent.NavItemId
 WHERE n.JobId IS NULL AND ni.RouterLink LIKE 'reporting/%'
-  AND ni.RouterLink NOT IN (N'reporting/report-catalogue-editor', N'reporting/reports-library', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', N'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false', N'reporting/Get_Invoices_LastMonthSummariesOnly', N'reporting/TSICFeesYTDByCustomer', N'reporting/TSICFeesYTDByCustomerAndJob', N'reporting/Get_Invoices_LastMonth', N'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false', N'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false', N'reporting/Get_JobPlayers_TSICDAILY', N'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false', N'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false', N'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false', N'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false', N'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false', N'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false', N'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false', N'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false', N'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false', N'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true');
+  AND ni.RouterLink NOT IN (N'reporting/report-catalogue-editor', N'reporting/reports-library', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', N'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false', N'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false', N'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false', N'reporting/Get_Invoices_LastMonth', N'reporting/Get_Invoices_LastMonthSummariesOnly', N'reporting/TSICFeesYTDByCustomer', N'reporting/TSICFeesYTDByCustomerAndJob', N'reporting/Get_JobPlayers_TSICDAILY', N'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false', N'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false', N'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false', N'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false', N'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false', N'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false', N'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false', N'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false', N'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false', N'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true');
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 PRINT CONCAT('Preserved ', @cnt, ' reporting item(s)');
 
@@ -168,16 +168,16 @@ INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'2) Get Re
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'2M) Get MERCH Reconciliation Records', N'receipt', N'accounting/merch-reconciliation-records', 3, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'3) Last Months Job Stats', N'bar-chart-line', N'accounting/last-months-job-stats', 4, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'4) Last Month''s Grand Totals (Excel)', N'calculator', N'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false', 5, 0, 0, 1, N'{"dividerAfter":true}', NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Last Months Invoices SUMMARIES ONLY (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonthSummariesOnly', 6, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Manual ARB Sweep (ALL)', N'arrow-clockwise', N'accounting/manual-arb-sweep', 7, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'TSIC Fees YTD By Customer', N'graph-up', N'reporting/TSICFeesYTDByCustomer', 8, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'TSIC Fees YTD By Customer and Job', N'graph-up', N'reporting/TSICFeesYTDByCustomerAndJob', 9, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Upload Nuvei Funding/Batches', N'upload', N'accounting/upload-nuvei', 6, 0, 0, 1, N'{"dividerAfter":true}', NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'ADN-Nuvei Reconcile (Excel)', N'arrow-left-right', N'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false', 7, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Import RegSaver Monthly Payouts', N'cloud-download', N'accounting/upload-regsaver', 8, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Job Admin Fees Summary', N'cash-coin', N'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false', 9, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Last Months Invoices (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonth', 10, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Produce Last Month Job Invoices Per Job (rtf)', N'file-earmark-text', N'accounting/produce-job-invoices', 11, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Job Admin Fees Summary', N'cash-coin', N'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false', 12, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Upload Nuvei Funding/Batches', N'upload', N'accounting/upload-nuvei', 13, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Import RegSaver Monthly Payouts', N'cloud-download', N'accounting/upload-regsaver', 14, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'ADN-Nuvei Reconcile (Excel)', N'arrow-left-right', N'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false', 15, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Last Months Invoices SUMMARIES ONLY (pdf)', N'file-earmark-pdf', N'reporting/Get_Invoices_LastMonthSummariesOnly', 11, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Manual ARB Sweep (ALL)', N'arrow-clockwise', N'accounting/manual-arb-sweep', 12, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Produce Last Month Job Invoices Per Job (rtf)', N'file-earmark-text', N'accounting/produce-job-invoices', 13, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'TSIC Fees YTD By Customer', N'graph-up', N'reporting/TSICFeesYTDByCustomer', 14, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'TSIC Fees YTD By Customer and Job', N'graph-up', N'reporting/TSICFeesYTDByCustomerAndJob', 15, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Customers', N'building', N'configure/customers', 1, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Customer Groups', N'people', N'configure/customer-groups', 2, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Nav Editor', N'list', N'configure/nav-editor', 3, 0, 0, 1, NULL, NULL);
