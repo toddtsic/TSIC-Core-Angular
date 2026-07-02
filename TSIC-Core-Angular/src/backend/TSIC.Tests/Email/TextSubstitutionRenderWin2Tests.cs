@@ -26,7 +26,8 @@ public class TextSubstitutionRenderWin2Tests
     {
         var repo = new TextSubstitutionRepository(ctx);
         return new TextSubstitutionService(
-            repo, new Mock<IDiscountCodeEvaluator>().Object, new Mock<IFeeResolutionService>().Object);
+            repo, new Mock<IDiscountCodeEvaluator>().Object, new Mock<IFeeResolutionService>().Object,
+            Microsoft.Extensions.Options.Options.Create(new TSIC.API.Configuration.FrontendSettings { BaseUrl = "https://dev.teamsportsinfo.com" }));
     }
 
     private static async Task<(Infrastructure.Data.SqlDbContext.SqlDbContext ctx, Guid jobId, Guid regId, string familyUserId)>

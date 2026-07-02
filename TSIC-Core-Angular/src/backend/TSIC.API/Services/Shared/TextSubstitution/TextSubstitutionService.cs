@@ -77,15 +77,21 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     private readonly ITextSubstitutionRepository _repo;
     private readonly IDiscountCodeEvaluator _discountEvaluator;
     private readonly TSIC.Contracts.Services.IFeeResolutionService _feeService;
+    // Base URL of the frontend for the sending environment (Staging = https://dev.teamsportsinfo.com,
+    // Production = the live host). Invite links must point at the environment that sent them, not a
+    // hardwired www — same pattern as AuthController's password-reset URL.
+    private readonly string _frontendBaseUrl;
 
     public TextSubstitutionService(
         ITextSubstitutionRepository repo,
         IDiscountCodeEvaluator discountEvaluator,
-        TSIC.Contracts.Services.IFeeResolutionService feeService)
+        TSIC.Contracts.Services.IFeeResolutionService feeService,
+        Microsoft.Extensions.Options.IOptions<TSIC.API.Configuration.FrontendSettings> frontendSettings)
     {
         _repo = repo;
         _discountEvaluator = discountEvaluator;
         _feeService = feeService;
+        _frontendBaseUrl = (frontendSettings.Value.BaseUrl ?? string.Empty).TrimEnd('/');
     }
 
     public async Task<string> SubstituteJobTokensAsync(string jobPath, string template)
@@ -452,7 +458,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             if (inviteTargetJobPath != null && list.Count > 0)
             {
                 var regId = list[0].RegistrationId;
-                var url = $"https://www.teamsportsinfo.com/{inviteTargetJobPath}/registration/team?invite={regId:D}";
+                var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/registration/team?invite={regId:D}";
                 tokens["!CLUBREP_INVITE_LINK"] = $"<a href=\"{url}\">Click here to register your team</a>";
             }
             else
@@ -466,7 +472,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             if (inviteTargetJobPath != null && list.Count > 0)
             {
                 var regId = list[0].RegistrationId;
-                var url = $"https://www.teamsportsinfo.com/{inviteTargetJobPath}/registration/player?invite={regId:D}";
+                var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/registration/player?invite={regId:D}";
                 tokens["!INVITE_LINK"] = $"<a href=\"{url}\">Click here to complete your registration</a>";
             }
             else
