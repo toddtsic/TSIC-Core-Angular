@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
 import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
-import { isClubRepRoleFilter } from '../email-templates';
+import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
@@ -185,11 +185,13 @@ export class RegistrationDetailPanelComponent {
   /** True when this registration's role is Club Rep (by role name, not the active-team flag). */
   isClubRepRole = computed(() => this.detail()?.roleName === 'Club Rep');
 
-  /** True when the active search is constrained to exactly one Club Rep role filter (real GUID or
-   *  active-teams sentinel). Matched on the stable filter value, not display text. Mirrors batch-email-modal. */
+  /** True when the active search is constrained to exactly the plain Club Rep role. Deliberately does
+   *  NOT accept the "ACTIVE, NOT WAITLISTED" sentinel: that filter returns only reps who own an active
+   *  team, and a club rep is deletable only with zero teams (see canDelete) — so exposing the delete
+   *  control there would surface a control that can never fire. Matched on the stable role GUID. */
   clubRepOnlySearch = computed(() => {
     const ids = this.activeRoleIds();
-    return ids.length === 1 && isClubRepRoleFilter(ids[0]);
+    return ids.length === 1 && ids[0].toLowerCase() === RoleIds.ClubRep.toLowerCase();
   });
 
   /**
