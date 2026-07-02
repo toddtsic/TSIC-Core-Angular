@@ -6,14 +6,15 @@ using TSIC.Contracts.Services;
 namespace TSIC.API.Controllers;
 
 /// <summary>
-/// Admin diagnostics for email-delivery complaints. Two capabilities:
+/// SuperUser diagnostics for email-delivery complaints. Two capabilities:
 ///  - suppression list lookup/removal (SES v2)
 ///  - "investigate" = check suppression + forced test send + which-side conclusion.
-/// Cross-job admin tool: no :jobPath in the route (mirrors AdministratorsController/MenuAdminController).
+/// Cross-job SuperUser tool: no :jobPath in the route (mirrors AdministratorsController/MenuAdminController).
+/// SuperUser-only (SES suppression edits are platform-wide, not job-scoped).
 /// </summary>
 [ApiController]
 [Route("api/email-troubleshooter")]
-[Authorize(Policy = "AdminOnly")]
+[Authorize(Policy = "SuperUserOnly")]
 public class EmailTroubleshooterController : ControllerBase
 {
     private readonly IEmailTroubleshooterService _service;

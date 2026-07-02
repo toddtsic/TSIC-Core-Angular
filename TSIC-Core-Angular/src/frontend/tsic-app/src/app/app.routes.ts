@@ -296,7 +296,7 @@ export const routes: Routes = [
 					{
 						path: 'email-troubleshooter',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser] },
 						loadComponent: () => import('./views/tools/e-mail-troubleshooter/e-mail-troubleshooter.component').then(m => m.EmailTroubleshooterComponent)
 					},
 					{
