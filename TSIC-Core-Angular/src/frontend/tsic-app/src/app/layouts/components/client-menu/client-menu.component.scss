@@ -32,9 +32,13 @@
             padding-inline: 0;
         }
 
-        // Stack the two header buttons vertically — they won't fit side by side at 64px
+        // Stack the two header buttons vertically — they won't fit side by side at 64px.
+        // Divider below separates the rail chrome (collapse + layout-switch) from the
+        // functional section icons, which read as one ambiguous stack otherwise.
         .admin-rail__header {
             flex-direction: column;
+            border-bottom: 1px solid var(--brand-border);
+            margin-bottom: var(--space-1);
         }
     }
 }
