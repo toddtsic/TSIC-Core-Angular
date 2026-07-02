@@ -700,7 +700,6 @@ public sealed class AdnSweepService : IAdnSweepService
         await _email.SendAsync(new EmailMessageDto
         {
             FromName = "TSIC System",
-            FromAddress = TsicConstants.SupportEmail,
             ToAddresses = [director.Email],
             Subject = $"eCheck NSF return — ${amountStr}",
             HtmlBody = body
@@ -980,7 +979,6 @@ public sealed class AdnSweepService : IAdnSweepService
         await _email.SendAsync(new EmailMessageDto
         {
             FromName = "",
-            FromAddress = TsicConstants.SupportEmail,
             ToAddresses = [TsicConstants.SupportEmail],
             Subject = $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}",
             HtmlBody = html

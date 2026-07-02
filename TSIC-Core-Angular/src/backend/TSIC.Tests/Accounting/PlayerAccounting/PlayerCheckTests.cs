@@ -78,7 +78,7 @@ public class PlayerCheckTests
             registrationRepo, accountingRepo, jobRepo.Object, familiesRepo.Object, deviceRepo.Object,
             new Mock<ITeamRepository>().Object, adnApi.Object, arbRepo.Object, textSub.Object,
             new Mock<IEmailBatchService>().Object, feeAdjustment, new Mock<IPaymentService>().Object, paymentState,
-            new Mock<IRegisteredPlayerShaper>().Object, logger.Object);
+            new Mock<IRegisteredPlayerShaper>().Object, new Mock<IUserRepository>().Object, logger.Object);
 
         return (svc, builder, ctx, job.JobId);
     }

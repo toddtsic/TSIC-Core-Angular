@@ -107,11 +107,13 @@ public sealed class ReschedulerService : IReschedulerService
     public async Task<EmailBatchHandle> StartParticipantsEmailAsync(
         Guid jobId, string userId, EmailParticipantsRequest request, CancellationToken ct = default)
     {
-        // Sender identity → From address (preserves the legacy "send as the admin" behavior).
+        // Sender identity → Reply-To (SES forces From to the verified identity; replies still reach
+        // the sending admin, preserving the legacy "send as the admin" intent).
         var sender = await _userRepo.GetByIdAsync(userId, ct);
         var senderEmail = sender?.Email;
         if (string.IsNullOrWhiteSpace(senderEmail))
             throw new InvalidOperationException("Cannot identify the sender's email address.");
+        var senderName = $"{sender?.FirstName} {sender?.LastName}".Trim();
 
         var displayName = await _jobRepo.GetJobNameAsync(jobId, ct) ?? "TEAMSPORTSINFO.COM";
 
@@ -141,7 +143,8 @@ public sealed class ReschedulerService : IReschedulerService
                     Message = new EmailMessageDto
                     {
                         FromName = displayName,
-                        FromAddress = senderEmail,
+                        ReplyToName = senderName,
+                        ReplyToAddress = senderEmail,
                         Subject = subject,
                         HtmlBody = body,
                         ToAddresses = toAddresses

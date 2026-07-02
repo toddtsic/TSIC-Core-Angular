@@ -470,6 +470,8 @@ public record JobConfirmationEmailInfo
 {
     public required Guid JobId { get; init; }
     public string? JobName { get; init; }
+    /// <summary>Public-facing job/org label (Jobs.DisplayName). Falls back to JobName when unset.</summary>
+    public string? DisplayName { get; init; }
     public required string JobPath { get; init; }
     public bool? AdnArb { get; init; }
     public string? PlayerRegConfirmationEmail { get; init; }

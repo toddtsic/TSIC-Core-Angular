@@ -177,7 +177,6 @@ public sealed class EmailTroubleshooterService : IEmailTroubleshooterService
     private static EmailMessageDto BuildTestMessage(string toAddress) => new()
     {
         FromName = "TEAMSPORTSINFO.COM",
-        FromAddress = TsicConstants.SupportEmail,
         ToAddresses = new List<string> { toAddress },
         Subject = "TSIC Email Test",
         TextBody = "This is an automated email delivery test from TEAMSPORTSINFO.COM. No action is needed - please disregard."

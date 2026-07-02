@@ -213,7 +213,8 @@ public class ArbDefensiveService : IArbDefensiveService
                     Message = new EmailMessageDto
                     {
                         FromName = senderName,
-                        FromAddress = senderEmail,
+                        ReplyToName = senderName,
+                        ReplyToAddress = senderEmail,
                         ToAddresses = toAddresses,
                         Subject = subject,
                         HtmlBody = ReplaceArbTokens(bodyTemplate, reg)
@@ -251,7 +252,6 @@ public class ArbDefensiveService : IArbDefensiveService
                     await email.SendAsync(new EmailMessageDto
                     {
                         FromName = "TEAMSPORTSINFO.COM",
-                        FromAddress = senderEmail,
                         ToAddresses = new List<string> { senderEmail },
                         Subject = $"ARB Defensive Email Batch Complete — {status.Sent} sent",
                         HtmlBody = confirmBody
@@ -276,7 +276,8 @@ public class ArbDefensiveService : IArbDefensiveService
                         await email.SendAsync(new EmailMessageDto
                         {
                             FromName = senderName,
-                            FromAddress = senderEmail,
+                            ReplyToName = senderName,
+                            ReplyToAddress = senderEmail,
                             ToAddresses = new List<string> { director.Email },
                             Subject = $"ARB {flagType} Notifications Sent",
                             HtmlBody = dirBody

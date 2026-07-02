@@ -22,8 +22,22 @@ public interface IEmailService
 /// </summary>
 public sealed class EmailMessageDto
 {
+    /// <summary>
+    /// Display name for the From header. The From ADDRESS is not caller-settable — it is always forced
+    /// to the SES-verified identity (support@teamsportsinfo.com) at the send chokepoint. Put the real
+    /// human/contact on <see cref="ReplyToAddress"/>.
+    /// </summary>
     public string? FromName { get; set; }
-    public string? FromAddress { get; set; }
+    /// <summary>
+    /// Display name for the Reply-To header. When <see cref="ReplyToAddress"/> is set, replies route
+    /// to that address (e.g. the sending admin) instead of the verified From identity.
+    /// </summary>
+    public string? ReplyToName { get; set; }
+    /// <summary>
+    /// Reply-To address — the real human/contact behind a message sent under the verified From identity.
+    /// Ignored if blank or unparseable (Reply-To then falls back to the From identity).
+    /// </summary>
+    public string? ReplyToAddress { get; set; }
     public List<string> ToAddresses { get; set; } = new();
     public List<string> CcAddresses { get; set; } = new();
     public List<string> BccAddresses { get; set; } = new();

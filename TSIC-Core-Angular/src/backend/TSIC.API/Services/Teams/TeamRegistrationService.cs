@@ -1642,10 +1642,12 @@ public class TeamRegistrationService : ITeamRegistrationService
                 HtmlBody = emailHtml
             };
 
-            // Add From/ReplyTo if configured
+            // Route replies to the job's configured contact when set. From stays the SES-verified
+            // identity (forced at the send chokepoint); an unparseable RegFormFrom (e.g. a bare name)
+            // is safely ignored there and Reply-To falls back to the From identity.
             if (!string.IsNullOrWhiteSpace(jobInfo.RegFormFrom))
             {
-                emailMessage.FromAddress = jobInfo.RegFormFrom;
+                emailMessage.ReplyToAddress = jobInfo.RegFormFrom;
             }
 
             // Add CCs/BCCs if configured

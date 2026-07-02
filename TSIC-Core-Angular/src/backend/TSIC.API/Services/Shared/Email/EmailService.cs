@@ -112,11 +112,27 @@ public sealed class EmailService : IEmailService
     private MimeMessage BuildMimeMessage(EmailMessageDto dto)
     {
         var message = new MimeMessage();
-        var fromName = string.IsNullOrWhiteSpace(dto.FromName) ? "TEAMSPORTSINFO.COM" : dto.FromName;
-        var fromAddress = string.IsNullOrWhiteSpace(dto.FromAddress) ? TsicConstants.SupportEmail : dto.FromAddress!;
-        message.From.Add(new MailboxAddress(fromName!, fromAddress!));
-        message.Sender = new MailboxAddress(fromName!, fromAddress!);
-        message.ReplyTo.Add(new MailboxAddress(fromName!, fromAddress!));
+        var fromName = string.IsNullOrWhiteSpace(dto.FromName) ? "TEAMSPORTSINFO.COM" : dto.FromName!;
+        // SES only accepts the verified sender identity, so the From/Sender ADDRESS is always support@.
+        // A caller's FromName is display intent only; the real human (a sending admin, a job's configured
+        // contact) rides Reply-To. NormalizeFromHeader re-asserts this address as a final backstop.
+        var verifiedFrom = TsicConstants.SupportEmail;
+        message.From.Add(new MailboxAddress(fromName, verifiedFrom));
+        message.Sender = new MailboxAddress(fromName, verifiedFrom);
+
+        // Reply-To routes replies to the real sender when supplied and parseable; otherwise it falls
+        // back to the From identity. TryParse guards free-text config (e.g. a job's RegFormFrom that
+        // holds a name rather than an address) from throwing MimeKit's addr-spec parse exception.
+        if (!string.IsNullOrWhiteSpace(dto.ReplyToAddress) &&
+            MailboxAddress.TryParse(dto.ReplyToAddress, out var replyMailbox))
+        {
+            if (!string.IsNullOrWhiteSpace(dto.ReplyToName)) replyMailbox.Name = dto.ReplyToName!;
+            message.ReplyTo.Add(replyMailbox);
+        }
+        else
+        {
+            message.ReplyTo.Add(new MailboxAddress(fromName, verifiedFrom));
+        }
 
         if (dto.ToAddresses != null)
         {
@@ -151,21 +167,18 @@ public sealed class EmailService : IEmailService
         return message;
     }
 
+    // Single write-side chokepoint for the SES verified-identity invariant: EVERY outbound message's
+    // From address is forced to support@teamsportsinfo.com here, regardless of what any caller set.
+    // This is what makes an unverified/invalid From (a job name, an admin's personal email, free-text
+    // config) impossible to transmit — the real human is expected on Reply-To (set in BuildMimeMessage).
     private void NormalizeFromHeader(MimeMessage message)
     {
-        if (message.From.Count == 0)
-        {
-            message.From.Add(new MailboxAddress("TEAMSPORTSINFO.COM", TSIC.Domain.Constants.TsicConstants.SupportEmail));
-            return;
-        }
-        var originalMailbox = message.From.Mailboxes.FirstOrDefault();
-        if (originalMailbox is null) return;
-        var name = string.IsNullOrWhiteSpace(originalMailbox.Name) ? "TEAMSPORTSINFO.COM" : originalMailbox.Name;
-        var brandedName = name.Contains("TEAMSPORTSINFO", StringComparison.OrdinalIgnoreCase)
-            ? name
-            : $"{name} (TEAMSPORTSINFO.COM)";
-        var mailbox = new MailboxAddress(brandedName, originalMailbox.Address);
+        var name = message.From.Mailboxes.FirstOrDefault()?.Name;
+        var displayName = string.IsNullOrWhiteSpace(name) ? "TEAMSPORTSINFO.COM" : name!;
+        var brandedName = displayName.Contains("TEAMSPORTSINFO", StringComparison.OrdinalIgnoreCase)
+            ? displayName
+            : $"{displayName} (TEAMSPORTSINFO.COM)";
         message.From.Clear();
-        message.From.Add(mailbox);
+        message.From.Add(new MailboxAddress(brandedName, TSIC.Domain.Constants.TsicConstants.SupportEmail));
     }
 }

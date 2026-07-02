@@ -37,6 +37,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IPaymentService _paymentService;
     private readonly IPaymentStateService _paymentState;
     private readonly IRegisteredPlayerShaper _playerShaper;
+    private readonly IUserRepository _userRepo;
     private readonly ILogger<RegistrationSearchService> _logger;
 
     // Known payment method GUIDs. CC charging itself goes through PaymentService's
@@ -62,6 +63,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IPaymentService paymentService,
         IPaymentStateService paymentState,
         IRegisteredPlayerShaper playerShaper,
+        IUserRepository userRepo,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -78,6 +80,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _paymentService = paymentService;
         _paymentState = paymentState;
         _playerShaper = playerShaper;
+        _userRepo = userRepo;
         _logger = logger;
     }
 
@@ -699,7 +702,16 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         var subject = request.Subject;
         var body = request.BodyTemplate;
-        var fromName = jobConfirmation?.JobName;
+        // From display = the public job/org label (Jobs.DisplayName, falling back to JobName). The From
+        // ADDRESS is forced to the SES-verified identity downstream; this is only what recipients see.
+        var fromName = jobConfirmation?.DisplayName ?? jobConfirmation?.JobName;
+
+        // Reply-To = the logged-in admin who sent the batch, so replies reach a person, not support@.
+        // (Legacy parity: SearchController put the sender on From+ReplyTo; SES forces From to support@,
+        // so the sender identity now lives solely on Reply-To.)
+        var sender = await _userRepo.GetByIdAsync(userId, ct);
+        var replyToAddress = sender?.Email;
+        var replyToName = $"{sender?.FirstName} {sender?.LastName}".Trim();
 
         // Render-win #3: the per-recipient fixed-fields load takes the family path (a Registrations
         // scan filtered by FamilyUserId — ~70ms each, the true batch bottleneck) ONLY to satisfy
@@ -747,7 +759,11 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 {
                     Message = new EmailMessageDto
                     {
-                        FromAddress = fromName,
+                        // From address is forced to the SES-verified identity at the send chokepoint;
+                        // FromName is the display label (job DisplayName) and ReplyTo carries the admin.
+                        FromName = fromName,
+                        ReplyToName = replyToName,
+                        ReplyToAddress = replyToAddress,
                         Subject = renderedSubject,
                         HtmlBody = renderedBody,
                         ToAddresses = toAddresses
