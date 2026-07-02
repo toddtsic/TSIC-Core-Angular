@@ -43,6 +43,7 @@ public interface ITextSubstitutionService
         string subjectTemplate,
         string bodyTemplate,
         string? inviteTargetJobPath = null,
+        string? inviteTargetJobName = null,
         IReadOnlyDictionary<string, string>? extraTokens = null,
         JobInvariantFieldsData? jobFields = null);
 

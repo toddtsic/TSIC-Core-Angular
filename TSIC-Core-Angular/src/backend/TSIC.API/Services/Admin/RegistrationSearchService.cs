@@ -671,8 +671,17 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         var jobPath = jobConfirmation?.JobPath ?? "";
 
         string? inviteTargetJobPath = null;
+        string? inviteTargetJobName = null;
         if (request.InviteLinkTargetJobId.HasValue)
-            inviteTargetJobPath = await _jobRepo.GetJobPathAsync(request.InviteLinkTargetJobId.Value, ct);
+        {
+            // One read yields both the target path (link URL) and the friendly name for the anchor text.
+            // DisplayName is the admin-facing marketing label; fall back to the raw JobName when unset.
+            var inviteTargetInfo = await _jobRepo.GetConfirmationEmailInfoAsync(request.InviteLinkTargetJobId.Value, ct);
+            inviteTargetJobPath = inviteTargetInfo?.JobPath;
+            inviteTargetJobName = string.IsNullOrWhiteSpace(inviteTargetInfo?.DisplayName)
+                ? inviteTargetInfo?.JobName
+                : inviteTargetInfo!.DisplayName;
+        }
 
         // Render-win #2: load the job-invariant token slice ONCE (Jobs/Customers/Sports/DisplayOptions)
         // and let every recipient's render reuse it, so the per-recipient query drops those four joins.
@@ -753,7 +762,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 var renderFamilyUserId = templateNeedsFamily ? (item.FamilyUserId ?? "") : "";
                 var (renderedSubject, renderedBody) = await textSub.SubstituteSubjectAndBodyAsync(
                     jobPath, jobId, CcPaymentMethodId, item.RegistrationId, renderFamilyUserId, subject, body,
-                    inviteTargetJobPath, jobFields: jobFields);
+                    inviteTargetJobPath, inviteTargetJobName, jobFields: jobFields);
 
                 return new EmailBatchRendered
                 {

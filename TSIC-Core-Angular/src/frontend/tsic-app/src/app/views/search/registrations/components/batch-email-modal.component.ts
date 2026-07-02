@@ -18,10 +18,13 @@ const BASE_TOKENS = [
   { token: '!AMTOWED', description: 'Amount owed' },
   { token: '!SEASON', description: 'Season name' },
   { token: '!SPORT', description: 'Sport name' },
-  { token: '!CUSTOMERNAME', description: 'Customer name' },
-  { token: '!INVITE_LINK', description: 'Personalized registration invitation link (requires target event selection)' }
+  { token: '!CUSTOMERNAME', description: 'Customer name' }
 ];
 
+// Invite tokens are role-scoped: the player invite is offered only when the search is filtered to
+// Player, the club-rep invite only when filtered to Club Rep. Neither is a base token — offering both
+// regardless of the active filter let an admin drop the wrong invitation into a role's email.
+const PLAYER_INVITE_TOKEN = { token: '!INVITE_LINK', description: 'Personalized player registration invitation link (requires target event selection)' };
 const CLUBREP_INVITE_TOKEN = { token: '!CLUBREP_INVITE_LINK', description: 'Club rep team registration invitation link (requires target event selection)' };
 const USLAX_VALID_THROUGH_TOKEN = { token: '!USLAXVALIDTHROUGHDATE', description: 'USA Lacrosse membership must be valid through this date' };
 
@@ -104,18 +107,22 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   clubRepInviteTargetJobs = signal<JobOptionDto[]>([]);
   selectedInviteTargetJobId = signal<string | null>(null);
 
-  /** True when exactly one role is selected and it's "Club Rep" */
-  readonly isClubRepOnly = computed(() => {
+  /** Text of the single selected role, or null when zero/multiple roles are active. */
+  private readonly singleSelectedRoleText = computed(() => {
     const ids = this.activeRoleIds();
-    if (ids.length !== 1) return false;
-    const opts = this.roleOptions();
-    if (!opts) return false;
-    const match = opts.find(o => o.value === ids[0]);
-    return match?.text === 'Club Rep';
+    if (ids.length !== 1) return null;
+    return this.roleOptions()?.find(o => o.value === ids[0])?.text ?? null;
   });
+
+  /** True when exactly one role is selected and it's "Club Rep" */
+  readonly isClubRepOnly = computed(() => this.singleSelectedRoleText() === 'Club Rep');
+
+  /** True when exactly one role is selected and it's "Player" */
+  readonly isPlayerOnly = computed(() => this.singleSelectedRoleText() === 'Player');
 
   readonly availableTokens = computed(() => {
     const tokens = [...BASE_TOKENS];
+    if (this.isPlayerOnly()) tokens.push(PLAYER_INVITE_TOKEN);
     if (this.isClubRepOnly()) tokens.push(CLUBREP_INVITE_TOKEN);
     if (this.jobFlags()?.usLaxMembershipValidated) tokens.push(USLAX_VALID_THROUGH_TOKEN);
     return tokens;

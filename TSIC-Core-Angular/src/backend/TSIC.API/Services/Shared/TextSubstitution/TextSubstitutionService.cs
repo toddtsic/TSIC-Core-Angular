@@ -183,6 +183,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         string subjectTemplate,
         string bodyTemplate,
         string? inviteTargetJobPath = null,
+        string? inviteTargetJobName = null,
         IReadOnlyDictionary<string, string>? extraTokens = null,
         JobInvariantFieldsData? jobFields = null)
     {
@@ -215,7 +216,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         {
             var first = fixedFieldList[0];
             AddSimpleTokens(tokens, first, jobSegment);
-            await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, guard, emailMode, inviteTargetJobPath);
+            await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, guard, emailMode, inviteTargetJobPath, inviteTargetJobName);
         }
 
         if (extraTokens != null)
@@ -451,15 +452,22 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         Guid? registrationId,
         string template,
         bool emailMode,
-        string? inviteTargetJobPath = null)
+        string? inviteTargetJobPath = null,
+        string? inviteTargetJobName = null)
     {
+        // " for {Target Event}" tail — omitted when the target job name isn't known, so the link still
+        // reads cleanly. HtmlEncode because the name is admin-authored free text landing in an anchor.
+        var forTargetJob = string.IsNullOrWhiteSpace(inviteTargetJobName)
+            ? string.Empty
+            : $" for {WebUtility.HtmlEncode(inviteTargetJobName)}";
+
         if (template.Contains("!CLUBREP_INVITE_LINK", StringComparison.OrdinalIgnoreCase))
         {
             if (inviteTargetJobPath != null && list.Count > 0)
             {
                 var regId = list[0].RegistrationId;
                 var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/registration/team?invite={regId:D}";
-                tokens["!CLUBREP_INVITE_LINK"] = $"<a href=\"{url}\">Click here to register your team</a>";
+                tokens["!CLUBREP_INVITE_LINK"] = $"<a href=\"{url}\">Click here to register by invitation as Club Rep{forTargetJob}</a>";
             }
             else
             {
@@ -473,7 +481,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             {
                 var regId = list[0].RegistrationId;
                 var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/registration/player?invite={regId:D}";
-                tokens["!INVITE_LINK"] = $"<a href=\"{url}\">Click here to complete your registration</a>";
+                tokens["!INVITE_LINK"] = $"<a href=\"{url}\">Click here to register by invitation as Player{forTargetJob}</a>";
             }
             else
             {
