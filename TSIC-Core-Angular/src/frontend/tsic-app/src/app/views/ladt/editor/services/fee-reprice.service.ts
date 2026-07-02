@@ -2,6 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable, forkJoin, of } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { LadtService } from './ladt.service';
+import { RoleIds } from '@infrastructure/constants/roles.constants';
 
 /** A fee scope (most-specific id wins on the server: team → agegroup → league). */
 export interface FeeScope {
@@ -16,8 +17,8 @@ export interface BlastArea {
   teamCount: number;
 }
 
-const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
-const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+const PLAYER_ROLE = RoleIds.Player;
+const CLUBREP_ROLE = RoleIds.ClubRep;
 
 /**
  * Computes and renders the "blast area" for a per-scope fee/phase change — the count of

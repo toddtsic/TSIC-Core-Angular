@@ -20,6 +20,7 @@ import {
 } from './configs/ladt-grid-columns';
 import type { ParentBreadcrumb } from './components/ladt-sibling-grid.component';
 import type { LadtTreeNodeDto, DivisionNameSyncPreview, JobFeeDto } from '../../../core/api';
+import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { AGEGROUP_COLORS } from '../../scheduling/shared/utils/scheduling-helpers';
 
 /** Flat node for CdkTree display */
@@ -94,8 +95,8 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   private jobTeamsFullPayment = signal(false);
 
   // Role IDs (mirror ROLE_LABELS) for the role→baseline split.
-  private static readonly PLAYER_ROLE_ID = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
-  private static readonly CLUBREP_ROLE_ID = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+  private static readonly PLAYER_ROLE_ID = RoleIds.Player;
+  private static readonly CLUBREP_ROLE_ID = RoleIds.ClubRep;
 
   // ── Team Status KPIs (computed from tree data) ──
   teamStatusKpis = computed(() => {
@@ -750,8 +751,8 @@ export class LadtEditorComponent implements OnInit, AfterViewChecked {
   }
 
   private static readonly ROLE_LABELS: Record<string, string> = {
-    'DAC0C570-94AA-4A88-8D73-6034F1F72F3A': 'Player',
-    '6A26171F-4D94-4928-94FA-2FEFD42C3C3E': 'ClubRep',
+    [RoleIds.Player]: 'Player',
+    [RoleIds.ClubRep]: 'ClubRep',
   };
 
   /**

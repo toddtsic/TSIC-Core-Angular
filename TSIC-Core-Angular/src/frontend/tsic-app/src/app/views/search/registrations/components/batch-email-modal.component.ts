@@ -1,11 +1,11 @@
 import { Component, ChangeDetectionStrategy, signal, computed, input, output, inject, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { EmailBatchJobStatus, JobOptionDto, FilterOption, RegistrationSearchRequest } from '@core/api';
+import type { EmailBatchJobStatus, JobOptionDto, RegistrationSearchRequest } from '@core/api';
 import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, type EmailTemplate, type JobFlagsForTemplates } from '../email-templates';
+import { EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, isClubRepRoleFilter, isPlayerRoleFilter, type EmailTemplate, type JobFlagsForTemplates } from '../email-templates';
 
 const BASE_TOKENS = [
   { token: '!PERSON', description: 'Contact person name' },
@@ -48,9 +48,9 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   recipients = input<{ name: string; email: string }[]>([]);
   isOpen = input<boolean>(false);
 
-  // Role context — used to conditionally show !CLUBREP_INVITE_LINK
+  // Role context — the active role-filter values (GUIDs / synthetic sentinels) drive which invite
+  // token is offered. Matched by value, so the role display text is not needed here.
   activeRoleIds = input<string[]>([]);
-  roleOptions = input<FilterOption[] | null>(null);
 
   // Full search context — drives template availability (VI filters, etc.)
   searchRequest = input<RegistrationSearchRequest | null>(null);
@@ -107,18 +107,24 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   clubRepInviteTargetJobs = signal<JobOptionDto[]>([]);
   selectedInviteTargetJobId = signal<string | null>(null);
 
-  /** Text of the single selected role, or null when zero/multiple roles are active. */
-  private readonly singleSelectedRoleText = computed(() => {
+  /** The single selected role-filter value (GUID or synthetic sentinel), or null when zero/multiple
+   *  roles are active. Matched on the stable filter value, not the display text. */
+  private readonly singleSelectedRoleId = computed(() => {
     const ids = this.activeRoleIds();
-    if (ids.length !== 1) return null;
-    return this.roleOptions()?.find(o => o.value === ids[0])?.text ?? null;
+    return ids.length === 1 ? ids[0] : null;
   });
 
-  /** True when exactly one role is selected and it's "Club Rep" */
-  readonly isClubRepOnly = computed(() => this.singleSelectedRoleText() === 'Club Rep');
+  /** True when the search is scoped to exactly one Club Rep role filter (real GUID or active-teams sentinel). */
+  readonly isClubRepOnly = computed(() => {
+    const id = this.singleSelectedRoleId();
+    return id != null && isClubRepRoleFilter(id);
+  });
 
-  /** True when exactly one role is selected and it's "Player" */
-  readonly isPlayerOnly = computed(() => this.singleSelectedRoleText() === 'Player');
+  /** True when the search is scoped to exactly one Player role filter (real GUID or not-waitlisted sentinel). */
+  readonly isPlayerOnly = computed(() => {
+    const id = this.singleSelectedRoleId();
+    return id != null && isPlayerRoleFilter(id);
+  });
 
   readonly availableTokens = computed(() => {
     const tokens = [...BASE_TOKENS];

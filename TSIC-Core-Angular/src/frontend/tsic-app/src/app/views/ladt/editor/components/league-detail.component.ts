@@ -10,9 +10,10 @@ import { FeeCardComponent, modifierDateError, type ModifierForm } from './fee-ca
 import { RepriceConfirmComponent } from './reprice-confirm.component';
 import { JobService } from '../../../../infrastructure/services/job.service';
 import type { LeagueDetailDto, UpdateLeagueRequest, SportOptionDto, JobFeeDto, FeeModifierDto } from '../../../../core/api';
+import { RoleIds } from '@infrastructure/constants/roles.constants';
 
-const PLAYER_ROLE = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
-const CLUBREP_ROLE = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+const PLAYER_ROLE = RoleIds.Player;
+const CLUBREP_ROLE = RoleIds.ClubRep;
 const JOB_TYPE_TOURNAMENT = 2;
 
 @Component({

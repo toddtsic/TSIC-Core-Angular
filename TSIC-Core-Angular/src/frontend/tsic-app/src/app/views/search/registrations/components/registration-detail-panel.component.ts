@@ -2,8 +2,9 @@ import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto, FilterOption } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
+import { isClubRepRoleFilter } from '../email-templates';
 import { ToastService } from '@shared-ui/toast.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, RefundEvent } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
@@ -86,7 +87,6 @@ export class RegistrationDetailPanelComponent {
   // Role-filter context from the parent search — mirrors batch-email-modal.
   // Used to gate the Club Rep delete: only available when the search is constrained to Club Rep only.
   activeRoleIds = input<string[]>([]);
-  roleOptions = input<FilterOption[] | null>(null);
 
   closed = output<void>();
   saved = output<void>();
@@ -185,13 +185,11 @@ export class RegistrationDetailPanelComponent {
   /** True when this registration's role is Club Rep (by role name, not the active-team flag). */
   isClubRepRole = computed(() => this.detail()?.roleName === 'Club Rep');
 
-  /** True when the active search is constrained to exactly the Club Rep role. Mirrors batch-email-modal. */
+  /** True when the active search is constrained to exactly one Club Rep role filter (real GUID or
+   *  active-teams sentinel). Matched on the stable filter value, not display text. Mirrors batch-email-modal. */
   clubRepOnlySearch = computed(() => {
     const ids = this.activeRoleIds();
-    if (ids.length !== 1) return false;
-    const opts = this.roleOptions();
-    if (!opts) return false;
-    return opts.find(o => o.value === ids[0])?.text === 'Club Rep';
+    return ids.length === 1 && isClubRepRoleFilter(ids[0]);
   });
 
   /**

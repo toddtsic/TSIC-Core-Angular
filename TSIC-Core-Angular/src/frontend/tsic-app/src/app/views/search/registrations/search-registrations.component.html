@@ -829,7 +829,6 @@
     [detail]="selectedDetail()"
     [isOpen]="isPanelOpen()"
     [activeRoleIds]="searchRequest().roleIds ?? []"
-    [roleOptions]="filterOptions()?.roles ?? null"
     (closed)="closePanel()"
     (saved)="onDetailSaved()"
   ></app-registration-detail-panel>
@@ -853,7 +852,6 @@
     [recipients]="emailRecipients"
     [isOpen]="showBatchEmailModal()"
     [activeRoleIds]="searchRequest().roleIds ?? []"
-    [roleOptions]="filterOptions()?.roles ?? null"
     [searchRequest]="searchRequest()"
     [jobFlags]="jobFlags()"
     [isCardExpiringMode]="arbCardExpiringMode()"

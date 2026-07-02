@@ -1,10 +1,27 @@
 /** Pre-built email templates for the batch-email modal. */
 
 import type { RegistrationSearchRequest } from '@core/api';
+import { RoleIds, RoleFilterSentinels } from '@infrastructure/constants/roles.constants';
 
-/** Role IDs — must match TSIC.Domain.Constants.RoleConstants. */
-export const ROLE_ID_PLAYER = 'DAC0C570-94AA-4A88-8D73-6034F1F72F3A';
-export const ROLE_ID_CLUBREP = '6A26171F-4D94-4928-94FA-2FEFD42C3C3E';
+// Feature-local aliases for the canonical role identifiers (single source: roles.constants.ts).
+export const ROLE_ID_PLAYER = RoleIds.Player;
+export const ROLE_ID_CLUBREP = RoleIds.ClubRep;
+export const ROLE_FILTER_PLAYER_NOT_WAITLISTED = RoleFilterSentinels.PlayerNotWaitlisted;
+export const ROLE_FILTER_CLUBREP_ACTIVE_TEAMS = RoleFilterSentinels.ClubRepActiveTeams;
+
+/** True when a single role-filter value scopes the search to Players — the real Player role GUID
+ *  or its "not waitlisted" sentinel. Case-insensitive, since backend GUID casing is not guaranteed. */
+export function isPlayerRoleFilter(roleId: string): boolean {
+  const v = roleId.toLowerCase();
+  return v === ROLE_ID_PLAYER.toLowerCase() || v === ROLE_FILTER_PLAYER_NOT_WAITLISTED.toLowerCase();
+}
+
+/** True when a single role-filter value scopes the search to Club Reps — the real Club Rep role GUID
+ *  or its "active teams" sentinel. Case-insensitive, since backend GUID casing is not guaranteed. */
+export function isClubRepRoleFilter(roleId: string): boolean {
+  const v = roleId.toLowerCase();
+  return v === ROLE_ID_CLUBREP.toLowerCase() || v === ROLE_FILTER_CLUBREP_ACTIVE_TEAMS.toLowerCase();
+}
 
 /**
  * Job-level feature flags the template availability evaluator cares about.
