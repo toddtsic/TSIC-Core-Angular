@@ -116,6 +116,20 @@ public interface IScheduleRepository
         Guid jobId, Guid agegroupId, Guid divId, CancellationToken ct = default);
 
     /// <summary>
+    /// All games in a single agegroup — every pool across its divisions plus its
+    /// championship (bracket) games (tracked for batch mutation). Used by dev-only
+    /// scope-revert to reset an agegroup back to unplayed.
+    /// </summary>
+    Task<List<Schedule>> GetAgegroupGamesTrackedAsync(
+        Guid jobId, Guid agegroupId, CancellationToken ct = default);
+
+    /// <summary>
+    /// All games in a job — every agegroup, pool and bracket (tracked for batch
+    /// mutation). Used by dev-only scope-revert to reset a whole league to unplayed.
+    /// </summary>
+    Task<List<Schedule>> GetJobGamesTrackedAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Find the schedule record at a specific date/field intersection (tracked for mutation).
     /// </summary>
     Task<Schedule?> GetGameAtSlotAsync(DateTime gDate, Guid fieldId, CancellationToken ct = default);

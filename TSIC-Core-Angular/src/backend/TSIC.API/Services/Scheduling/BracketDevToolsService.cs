@@ -39,7 +39,45 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
     public async Task<BracketDevActionResult> ClearDivisionScoresAsync(
         Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default)
     {
-        var games = await _scheduleRepo.GetDivisionGamesTrackedAsync(jobId, agegroupId, divId, ct);
+        // A division revert must ALSO reset the agegroup's championship games: those
+        // seed cross-pool from this division, so leaving them scored would strand
+        // teams seeded off the standings we're erasing. Fetch the whole agegroup and
+        // reset this division's games plus every bracket game in the agegroup.
+        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
+        var scope = games.Where(g => g.DivId == divId || IsBracketGame(g)).ToList();
+        var affected = await ResetGamesAsync(scope, userId, ct);
+        _logger.LogWarning(
+            "DEV revert (division) — job {JobId} div {DivId}: {N} game(s) reset (incl. agegroup brackets).",
+            jobId, divId, affected);
+        return BuildRevertResult(affected, "division");
+    }
+
+    public async Task<BracketDevActionResult> ClearAgegroupScoresAsync(
+        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
+    {
+        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
+        var affected = await ResetGamesAsync(games, userId, ct);
+        _logger.LogWarning(
+            "DEV revert (agegroup) — job {JobId} agegroup {AgegroupId}: {N} game(s) reset.",
+            jobId, agegroupId, affected);
+        return BuildRevertResult(affected, "agegroup");
+    }
+
+    public async Task<BracketDevActionResult> ClearJobScoresAsync(
+        Guid jobId, string userId, CancellationToken ct = default)
+    {
+        var games = await _scheduleRepo.GetJobGamesTrackedAsync(jobId, ct);
+        var affected = await ResetGamesAsync(games, userId, ct);
+        _logger.LogWarning(
+            "DEV revert (league) — job {JobId}: {N} game(s) reset.", jobId, affected);
+        return BuildRevertResult(affected, "league");
+    }
+
+    // Reset each game to "unplayed": clear scores/status, and blank DERIVED bracket
+    // occupants (pool teams are fixed; brackets.* wiring is left intact so the next
+    // auto-score re-seeds/re-advances). Persists once.
+    private async Task<int> ResetGamesAsync(List<Schedule> games, string userId, CancellationToken ct)
+    {
         var now = DateTime.Now;
         var affected = 0;
 
@@ -75,17 +113,16 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         }
 
         if (affected > 0) await _scheduleRepo.SaveChangesAsync(ct);
-        _logger.LogWarning(
-            "DEV bracket clear-scores — job {JobId} div {DivId}: {N} game(s) reset.", jobId, divId, affected);
-
-        return new BracketDevActionResult
-        {
-            GamesAffected = affected,
-            Message = affected == 0
-                ? "Nothing to clear — division already unscored."
-                : $"Cleared {affected} game(s); bracket slots blanked, ready to re-seed."
-        };
+        return affected;
     }
+
+    private static BracketDevActionResult BuildRevertResult(int affected, string scope) => new()
+    {
+        GamesAffected = affected,
+        Message = affected == 0
+            ? $"Nothing to clear — {scope} already unplayed."
+            : $"Reset {affected} game(s) to unplayed; bracket slots blanked, ready to re-seed."
+    };
 
     public async Task<BracketDevActionResult> AutoScorePoolAsync(
         Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default)

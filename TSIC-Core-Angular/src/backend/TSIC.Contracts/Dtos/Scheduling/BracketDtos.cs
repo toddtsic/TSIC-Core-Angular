@@ -56,6 +56,12 @@ public record BracketDevActionRequest
     public required Guid DivId { get; init; }
 }
 
+/// <summary>Target agegroup for a dev-only agegroup-scope revert.</summary>
+public record AgegroupScopeRequest
+{
+    public required Guid AgegroupId { get; init; }
+}
+
 /// <summary>Result of a dev-only bracket exercise action.</summary>
 public record BracketDevActionResult
 {

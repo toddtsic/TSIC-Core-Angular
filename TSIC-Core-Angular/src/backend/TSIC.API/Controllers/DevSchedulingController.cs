@@ -90,6 +90,27 @@ public class DevSchedulingController : ControllerBase
         RunBracketToolAsync((jobId, userId) =>
             _bracketDevTools.AutoScoreBracketRoundAsync(jobId, req.AgegroupId, req.DivId, userId, ct));
 
+    // ── Scope-ascending revert (reset-to-unplayed) ──
+    // Division scope is the existing bracket/clear-scores endpoint (now also resets
+    // the agegroup's championship games per the cross-pool seed caveat).
+
+    /// <summary>POST /api/dev-scheduling/bracket/revert-agegroup — reset an entire
+    /// agegroup (all pools + championship games) to unplayed.</summary>
+    [HttpPost("bracket/revert-agegroup")]
+    [ProducesResponseType<BracketDevActionResult>(200)]
+    public Task<ActionResult<BracketDevActionResult>> RevertAgegroup(
+        [FromBody] AgegroupScopeRequest req, CancellationToken ct) =>
+        RunBracketToolAsync((jobId, userId) =>
+            _bracketDevTools.ClearAgegroupScoresAsync(jobId, req.AgegroupId, userId, ct));
+
+    /// <summary>POST /api/dev-scheduling/bracket/revert-league — reset the whole job
+    /// (every agegroup, pool and bracket) to unplayed.</summary>
+    [HttpPost("bracket/revert-league")]
+    [ProducesResponseType<BracketDevActionResult>(200)]
+    public Task<ActionResult<BracketDevActionResult>> RevertLeague(CancellationToken ct) =>
+        RunBracketToolAsync((jobId, userId) =>
+            _bracketDevTools.ClearJobScoresAsync(jobId, userId, ct));
+
     // Shared guard/resolve wrapper for the sandbox bracket tools.
     private async Task<ActionResult<BracketDevActionResult>> RunBracketToolAsync(
         Func<Guid, string, Task<BracketDevActionResult>> action)

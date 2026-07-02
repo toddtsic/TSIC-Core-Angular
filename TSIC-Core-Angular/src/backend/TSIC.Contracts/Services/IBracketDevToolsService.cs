@@ -15,12 +15,28 @@ namespace TSIC.Contracts.Services;
 public interface IBracketDevToolsService
 {
     /// <summary>
-    /// Clear scores on every game in the division and blank bracket participants,
-    /// so the next pool auto-score visibly re-seeds and re-advances. Pool teams are
-    /// left intact (they're fixed); only bracket occupants and all scores are reset.
+    /// Revert a division to unplayed: clear scores and blank derived bracket
+    /// occupants. Because championship games seed cross-pool from the division, this
+    /// ALSO resets every bracket game in the division's agegroup (the caveat) — else
+    /// teams seeded off the erased standings would be stranded. Pool teams and the
+    /// brackets.* wiring are left intact so the next auto-score re-seeds/re-advances.
     /// </summary>
     Task<BracketDevActionResult> ClearDivisionScoresAsync(
         Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Revert a whole agegroup to unplayed — every pool across its divisions plus its
+    /// championship games. Same field-level reset as the division scope.
+    /// </summary>
+    Task<BracketDevActionResult> ClearAgegroupScoresAsync(
+        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Revert an entire job/league to unplayed — every agegroup, pool and bracket.
+    /// Same field-level reset as the division scope.
+    /// </summary>
+    Task<BracketDevActionResult> ClearJobScoresAsync(
+        Guid jobId, string userId, CancellationToken ct = default);
 
     /// <summary>
     /// Give every unscored round-robin game in the division a decisive score, via the
