@@ -54,6 +54,7 @@ export type { AgeGroupDto } from './models/AgeGroupDto';
 export type { AgegroupFieldAssignmentEntry } from './models/AgegroupFieldAssignmentEntry';
 export type { AgeGroupOptionDto } from './models/AgeGroupOptionDto';
 export type { AgegroupPreviewDto } from './models/AgegroupPreviewDto';
+export type { AgegroupScopeRequest } from './models/AgegroupScopeRequest';
 export type { AgegroupWithDivisionsDto } from './models/AgegroupWithDivisionsDto';
 export type { AgeRangeDto } from './models/AgeRangeDto';
 export type { AiComposeRequest } from './models/AiComposeRequest';
