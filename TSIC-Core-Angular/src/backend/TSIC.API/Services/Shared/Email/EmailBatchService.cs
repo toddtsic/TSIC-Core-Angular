@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Threading.Channels;
 using Amazon.SimpleEmail;
 using Amazon.SimpleEmail.Model;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -22,6 +23,7 @@ public sealed class EmailBatchService : IEmailBatchService
     private readonly IEmailBatchJobRegistry _registry;
     private readonly IAmazonSimpleEmailService _ses;
     private readonly IHostApplicationLifetime _appLifetime;
+    private readonly IHostEnvironment _env;
     private readonly ILogger<EmailBatchService> _logger;
 
     public EmailBatchService(
@@ -30,6 +32,7 @@ public sealed class EmailBatchService : IEmailBatchService
         IEmailBatchJobRegistry registry,
         IAmazonSimpleEmailService ses,
         IHostApplicationLifetime appLifetime,
+        IHostEnvironment env,
         ILogger<EmailBatchService> logger)
     {
         _scopeFactory = scopeFactory;
@@ -37,6 +40,7 @@ public sealed class EmailBatchService : IEmailBatchService
         _registry = registry;
         _ses = ses;
         _appLifetime = appLifetime;
+        _env = env;
         _logger = logger;
     }
 
@@ -310,13 +314,32 @@ public sealed class EmailBatchService : IEmailBatchService
             return true;
         }
 
+        // ── TEMP TEST HOOK (sandbox only) — invite/token email dev test. REVERT before commit. ──
+        // STRICTLY scoped to the club-rep/player INVITATION service: fires ONLY when the rendered
+        // body carries an invite-token link (/registration/{team|player}?invite=), which only
+        // TextSubstitutionService's invite tokens produce. Every other batch email (announcements,
+        // receipts, etc.) is left completely untouched — normal sandbox suppression still applies.
+        // When matched: forces a real SES send from sandbox and redirects the single recipient to the
+        // tester's inbox so the token link can be exercised. Gated on IsSandbox() — never in Production.
+        var isInviteEmail = message.HtmlBody is string body &&
+            (body.Contains("/registration/team?invite=", StringComparison.OrdinalIgnoreCase) ||
+             body.Contains("/registration/player?invite=", StringComparison.OrdinalIgnoreCase));
+        var sendInDev = _env.IsSandbox() && isInviteEmail;
+        if (sendInDev)
+        {
+            message.CcAddresses.Clear();
+            message.BccAddresses.Clear();
+            message.ToAddresses = new List<string> { "anntsic@gmail.com" };
+        }
+        // ────────────────────────────────────────────────────────────────────────────────────────
+
         var attempts = Math.Max(1, options.MaxSendAttempts);
         for (var attempt = 1; attempt <= attempts; attempt++)
         {
             await pacer.WaitAsync(ct);
             try
             {
-                var ok = await _email.SendAsync(message, sendInDevelopment: false, ct);
+                var ok = await _email.SendAsync(message, sendInDevelopment: sendInDev, ct);
                 if (ok) return true;
             }
             catch (Exception ex)
