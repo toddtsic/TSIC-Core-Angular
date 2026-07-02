@@ -10,7 +10,7 @@ using TSIC.Contracts.Services;
 namespace TSIC.API.Controllers;
 
 /// <summary>
-/// Dev-only scheduling utilities. Guarded by IsDevelopment() check.
+/// Sandbox scheduling utilities (Development + Staging). Guarded by IsSandbox(); 404 in production.
 /// </summary>
 [ApiController]
 [Route("api/dev-scheduling")]

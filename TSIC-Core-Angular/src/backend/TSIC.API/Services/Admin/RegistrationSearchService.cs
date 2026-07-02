@@ -674,13 +674,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         string? inviteTargetJobName = null;
         if (request.InviteLinkTargetJobId.HasValue)
         {
-            // One read yields both the target path (link URL) and the friendly name for the anchor text.
-            // DisplayName is the admin-facing marketing label; fall back to the raw JobName when unset.
+            // One read yields both the target path (link URL) and the event name for the anchor text.
+            // Use the full JobName ("Lax For the Cure:Summer 2027") — the same value !JOBNAME renders —
+            // NOT DisplayName, which is the short brand label ("Lax For The Cure") and drops the season.
             var inviteTargetInfo = await _jobRepo.GetConfirmationEmailInfoAsync(request.InviteLinkTargetJobId.Value, ct);
             inviteTargetJobPath = inviteTargetInfo?.JobPath;
-            inviteTargetJobName = string.IsNullOrWhiteSpace(inviteTargetInfo?.DisplayName)
-                ? inviteTargetInfo?.JobName
-                : inviteTargetInfo!.DisplayName;
+            inviteTargetJobName = inviteTargetInfo?.JobName;
         }
 
         // Render-win #2: load the job-invariant token slice ONCE (Jobs/Customers/Sports/DisplayOptions)

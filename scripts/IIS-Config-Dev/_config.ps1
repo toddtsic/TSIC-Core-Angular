@@ -26,7 +26,12 @@ $Config = @{
     DeployBackupsPath = 'C:\Websites\Backups'
     DatabaseName    = 'TSICV5'
     SqlInstance     = '.\SS2016'
-    AspNetEnv       = 'Development'
+    # Runtime profile for the dev SERVER (distinct from Environment='Dev', the box identity).
+    # dev.teamsportsinfo.com is a client-facing preview that must behave like prod EXCEPT
+    # email is suppressed and CC goes to the ADN sandbox — both keyed on IsSandbox() (true in
+    # Staging). Staging also closes the Development-only exposures (auth password bypass, dev
+    # exception page, Swagger) and fixes BaseUrl. Only localhost F5 uses 'Development'.
+    AspNetEnv       = 'Staging'
 }
 
 function Show-Config {

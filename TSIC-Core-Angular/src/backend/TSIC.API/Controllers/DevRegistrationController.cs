@@ -1,12 +1,14 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Controllers;
 
 /// <summary>
-/// Dev-only registration utilities. Returns 404 in production.
+/// Sandbox registration utilities (Development + Staging). Returns 404 in production —
+/// a cascade delete that removes payment records must never be reachable there.
 /// Allows testers to delete a registration so they can re-register the same player.
 /// </summary>
 [ApiController]
@@ -34,12 +36,12 @@ public class DevRegistrationController : ControllerBase
     /// <summary>
     /// DELETE /api/dev/registration/{registrationId}
     /// Deletes accounting records then the registration itself.
-    /// Dev/test only — returns 404 in production.
+    /// Sandbox only (Development + Staging) — returns 404 in production.
     /// </summary>
     [HttpDelete("{registrationId:guid}")]
     public async Task<IActionResult> DeleteRegistration(Guid registrationId, CancellationToken ct)
     {
-        if (!_env.IsDevelopment())
+        if (!_env.IsSandbox())
             return NotFound();
 
         var reg = await _regRepo.GetByIdAsync(registrationId, ct);
