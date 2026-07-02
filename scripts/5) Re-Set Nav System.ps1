@@ -6,15 +6,21 @@
 # (JobId IS NOT NULL) are preserved.
 #
 # Model:
-#   Admin tier (Director / SuperDirector / SuperUser) — strictly route-driven.
-#   Every L1 maps to an Angular controller (first path segment under :jobPath);
-#   every L2 maps to an action route under that controller. Per-role BIT flags
-#   mirror the route guards in app.routes.ts:
+#   Admin tier (Director / SuperDirector / SuperUser) — grouped by FUNCTION.
+#   Every L1 is a functional Section (e.g. "Teams & Rosters", "Officials"),
+#   NOT an Angular controller. The `Controller` field below is just the L1
+#   grouping key; each item's RouterLink is independent, so items whose routes
+#   live under different controllers can share one functional Section (e.g.
+#   Teams & Rosters gathers ladt/* plus tools/uniform-upload + tools/checkin).
+#   Every L2 maps to an action route. Per-role BIT flags mirror the route
+#   guards in app.routes.ts:
 #     requireAdmin       => Director=1, SuperDirector=1, SuperUser=1
 #     requireSuperUser   => Director=0, SuperDirector=0, SuperUser=1
 #   Consequence: Director and SuperDirector see identical menus today (both
 #   resolve to isAdmin() in the guard). Asymmetry only appears when a route
-#   adds an explicit per-role guard.
+#   adds an explicit per-role guard. SU-only functions live under two
+#   dedicated sections — Accounting (financial ops) and TSIC Admin.
+#   There is no "Tools" junk-drawer: every item names a real functional home.
 #
 #   Narrow admin roles (RefAssignor, StoreAdmin) — single-purpose menus.
 #
@@ -56,8 +62,32 @@ $roleGuids = [ordered]@{
 # controller's [Authorize(Roles = "...")] attributes.
 # D = Director, SD = SuperDirector, SU = SuperUser.
 
+# Fold divider UI-hints into an item's VisibilityRules JSON (a presentation flag the
+# gating evaluator ignores). Merges into any existing rule so gating + divider coexist.
+function Merge-DividerFlags($rulesJson, [bool]$Before, [bool]$After) {
+    $ht = [ordered]@{}
+    if (-not [string]::IsNullOrEmpty($rulesJson)) {
+        $obj = $rulesJson | ConvertFrom-Json
+        foreach ($p in $obj.PSObject.Properties) { $ht[$p.Name] = $p.Value }
+    }
+    if ($Before) { $ht['dividerBefore'] = $true }
+    if ($After)  { $ht['dividerAfter']  = $true }
+    return ($ht | ConvertTo-Json -Compress -Depth 10)
+}
+
 function New-AdminItem {
-    param($Ctrl, $CtrlIcon, $CtrlSort, $Text, $Icon, $Route, $ItemSort, $D, $SD, $SU, $VisRules = $null, $Badge = $null)
+    param($Ctrl, $CtrlIcon, $CtrlSort, $Text, $Icon, $Route, $ItemSort, $D, $SD, $SU, $VisRules = $null, $Badge = $null, [switch]$Standalone)
+    # Authoring sugar: trailing pipes on the display text mark a divider rule.
+    #   'Label|'  -> rule BEFORE this row   |   'Label||' -> rule AFTER this row
+    # The pipes are stripped here (never reach the DB); the flag is folded into
+    # VisibilityRules and surfaces on NavItemDto as dividerBefore / dividerAfter.
+    $divBefore = $false; $divAfter = $false
+    if ($Text -match '\|\|\s*$') {
+        $divAfter = $true;  $Text = ($Text -replace '\|\|\s*$', '').TrimEnd()
+    } elseif ($Text -match '\|\s*$') {
+        $divBefore = $true; $Text = ($Text -replace '\|\s*$', '').TrimEnd()
+    }
+    if ($divBefore -or $divAfter) { $VisRules = Merge-DividerFlags $VisRules $divBefore $divAfter }
     [PSCustomObject]@{
         Controller      = $Ctrl
         ControllerIcon  = $CtrlIcon
@@ -69,8 +99,13 @@ function New-AdminItem {
         ForDirector     = $D
         ForSuperDir     = $SD
         ForSuperUser    = $SU
-        VisibilityRules = $VisRules   # applied to the L1 section; NULL = always visible
+        VisibilityRules = $VisRules   # applied to the L1 section (or the leaf itself when Standalone); NULL = always visible
         BadgeText       = $Badge      # short label rendered as a chip (NEW, BETA, etc.); NULL = no chip
+        # Standalone = render as a direct TOP-LEVEL link (ParentNavItemId NULL, no L1
+        # dropdown) instead of a section+child. For single-purpose functions (Store, ARB)
+        # where a one-child dropdown is pure friction. Text/Icon/Route/VisRules are the
+        # leaf's own; ControllerSort positions it among the L1 sections.
+        Standalone      = [bool]$Standalone
     }
 }
 
@@ -95,126 +130,168 @@ $rulesCampSales          = '{"jobTypes":["Camp Registration","Sales Venue"]}'
 # from per-item aggregation and land on the L1 section parent. Use this when the
 # section is gated as a whole but individual items carry additional per-item rules
 # (e.g. Scheduling is Tournament/League only, while Mobile Scorers adds mobileEnabled).
+# NB: Store + ARB are NOT here — they render as standalone top-level leaves
+# (see -Standalone in the manifest) and carry their gate rule inline on the leaf,
+# so the L1 section-rule mechanism does not apply to them.
 $sectionRules = @{
-    'Scheduling' = $rulesTournamentLeague
-    'ARB'        = $rulesAdnArb
-    'Store'      = $rulesStoreEnabled
+    'Scheduling'  = $rulesTournamentLeague
+    'Officials'   = $rulesTournamentLeague
+    'US Lacrosse' = $rulesLacrosse
 }
 
-# Route-strict admin manifest. Source of truth: app.routes.ts under :jobPath.
-# Every entry below corresponds to one Angular route guarded by requireAdmin
-# (D/SD/SU) or requireSuperUser (SU only). L1 = first path segment (controller),
-# L2 = second segment (action). Excluded by design:
+# Functional admin manifest. L1 = a functional Section (grouping key in the
+# `Controller` field); each item's RouterLink is the real app.routes.ts route
+# and is independent of the Section. Items whose routes live under different
+# controllers can therefore share one Section (e.g. Teams & Rosters gathers
+# ladt/* + tools/uniform-upload + tools/checkin + tools/camp-groups). Per-role
+# BIT flags mirror the route guards (requireAdmin D/SD/SU; requireSuperUser SU).
+# Sections are organized by SCOPE, not audience — role-gating decides who sees a
+# row, so a SU-only tool sits in whatever section matches what it operates on
+# (Configure = this job; TSIC Admin = the platform/other tenants). No "Tools".
+# Excluded by design:
 #   - parameterized routes (e.g. arb/update-cc/:registrationId)
 #   - the scheduling shell index (loads dashboard; not a discrete action)
 #   - public/anonymous routes (no admin guard)
 $adminManifest = @(
-    # -- Search ------------------------------------------------------------
+    # -- 1. Search ---------------------------------------------------------
     (New-AdminItem 'Search' 'search' 1 'Registrations' 'people' 'search/registrations' 1 1 1 1)
     (New-AdminItem 'Search' 'search' 1 'Teams'         'shield' 'search/teams'         2 1 1 1)
 
-    # -- Configure ---------------------------------------------------------
-    (New-AdminItem 'Configure' 'gear' 2 'Job Settings'      'briefcase'    'configure/job'              1  1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Discount Codes'    'tags'         'configure/discount-codes'   2  1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Age Ranges'        'sliders'      'configure/age-ranges'       3  1 1 1 $rulesTeamEligByAge)
-    (New-AdminItem 'Configure' 'gear' 2 'Administrators'    'person-badge' 'configure/administrators'   4  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Customer Groups'   'people'       'configure/customer-groups'  5  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options'  'list'         'configure/ddl-options'      6  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Customers'         'building'     'configure/customers'        7  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Theme'             'palette'      'configure/theme'            8  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Nav Editor'        'list'         'configure/nav-editor'       9  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Widget Editor'     'grid'             'configure/widget-editor'    10 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Quick Links'       'stars'            'configure/quick-links'      11 1 1 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Job Clone'         'copy'             'configure/job-clone'        12 0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'  'collection'       'reporting/report-catalogue-editor' 13 0 0 1)
+    # -- 2. Configure — everything that configures the CURRENTLY-SELECTED job -
+    #    Split axis is SCOPE (this job vs the platform), NOT audience: role-gating
+    #    already decides who sees each row, so a SU-only per-job tool still lives
+    #    here (a Director just never sees it). Director rows (D/SD/SU) first, then
+    #    the SU-only per-job tools that were formerly mis-filed under TSIC Admin.
+    (New-AdminItem 'Configure' 'gear' 2 'Job Settings'        'briefcase'     'configure/job'                     1  1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Discount Codes'      'tags'          'configure/discount-codes'          2  1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Age Ranges'          'sliders'       'configure/age-ranges'              3  1 1 1 $rulesTeamEligByAge)
+    (New-AdminItem 'Configure' 'gear' 2 'Quick Links'         'stars'         'configure/quick-links'             4  1 1 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Administrators'      'person-badge'  'configure/administrators'          5  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options'    'list'          'configure/ddl-options'             6  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Profile Editor'      'pencil-square' 'tools/profile-editor'              7  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Adult Form Designer' 'people-fill'   'tools/adult-profile-editor'        8  0 0 1 $null 'NEW')
+    (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'    'collection'    'reporting/report-catalogue-editor' 9  0 0 1)
+    (New-AdminItem 'Configure' 'gear' 2 'Theme'               'palette'       'configure/theme'                   10 0 0 1)
 
-    # -- Communications ----------------------------------------------------
-    (New-AdminItem 'Communications' 'megaphone' 3 'Bulletins'         'megaphone'     'communications/bulletins'         1 1 1 1)
-    (New-AdminItem 'Communications' 'megaphone' 3 'Email Log'             'envelope-open'        'communications/email-log'         2 1 1 1)
-    (New-AdminItem 'Communications' 'megaphone' 3 'E-Mail Troubleshooter' 'envelope-exclamation' 'tools/email-troubleshooter'       3 1 1 1 $null 'NEW')
-    (New-AdminItem 'Communications' 'megaphone' 3 'Push Notification'     'bell'                 'communications/push-notification' 4 1 1 1 $rulesMobileEnabled)
-    (New-AdminItem 'Communications' 'megaphone' 3 'Team Links'            'link-45deg'           'communications/team-links'        5 1 1 1 $rulesPlayerSite)
+    # -- 3. Teams & Rosters (formerly LADT; team composition + roster ops) -
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'L-A-D-T Editor'        'pencil-square'    'ladt/editor'          1 1 1 1)
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Roster Swapper'        'arrow-left-right' 'ladt/roster-swapper'  2 1 1 1)
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Pool Assignment'       'people'           'ladt/pool-assignment' 3 1 1 1)
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Coach Approvals'       'person-check'     'ladt/coach-approvals' 4 1 1 1)
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Uniform Upload'        'upload'           'tools/uniform-upload' 5 1 1 1)
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Camp Day/Night Groups' 'sun'              'tools/camp-groups'    6 1 1 1 $rulesCampSales)
+    (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'Check-In'              'clipboard-check'  'tools/checkin'        7 1 1 1 '{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}' 'NEW')
 
-    # -- LADT --------------------------------------------------------------
-    (New-AdminItem 'LADT' 'diagram-3' 4 'Editor'          'pencil-square'    'ladt/editor'          1 1 1 1)
-    (New-AdminItem 'LADT' 'diagram-3' 4 'Roster Swapper'  'arrow-left-right' 'ladt/roster-swapper'  2 1 1 1)
-    (New-AdminItem 'LADT' 'diagram-3' 4 'Coach Approvals' 'person-check'     'ladt/coach-approvals' 3 1 1 1)
-    (New-AdminItem 'LADT' 'diagram-3' 4 'Pool Assignment' 'people'           'ladt/pool-assignment' 4 1 1 1)
-
-    # -- Scheduling (section-gated to Tournament/League via $sectionRules) -
+    # -- 4. Scheduling (section-gated to Tournament/League via $sectionRules) -
     # Schedule Hub leads the section as the entry-point dashboard with a NEW chip.
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Schedule Hub'       'house-door'      'scheduling/schedule-hub'       1  1 1 1 -Badge 'NEW')
-    (New-AdminItem 'Scheduling' 'calendar' 5 'View Schedule'      'eye'             'scheduling/view-schedule'      2  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      3  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    4  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Rescheduler'        'arrow-repeat'    'scheduling/rescheduler'        5  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Tournament Parking' 'car-front'       'scheduling/tournament-parking' 6  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment' 7  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Referee Calendar'   'calendar-week'   'scheduling/referee-calendar'   8  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Mobile Scorers'     'phone'           'scheduling/mobile-scorers'     9  1 1 1 $rulesMobileEnabled)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Fields'             'geo-alt'         'scheduling/fields'             10 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Pairings'           'arrows-collapse' 'scheduling/pairings'           11 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'Timeslots'          'clock'           'scheduling/timeslots'          12 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 5 'QA Results'         'check2-square'   'scheduling/qa-results'         13 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Schedule Hub'       'house-door'      'scheduling/schedule-hub'       1  1 1 1 -Badge 'NEW')
+    (New-AdminItem 'Scheduling' 'calendar' 4 'View Schedule'      'eye'             'scheduling/view-schedule'      2  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      3  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    4  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Rescheduler'        'arrow-repeat'    'scheduling/rescheduler'        5  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Tournament Parking' 'car-front'       'scheduling/tournament-parking' 6  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Mobile Scorers'     'phone'           'scheduling/mobile-scorers'     7  1 1 1 $rulesMobileEnabled)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Fields'             'geo-alt'         'scheduling/fields'             8  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Pairings'           'arrows-collapse' 'scheduling/pairings'           9  1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'Timeslots'          'clock'           'scheduling/timeslots'          10 1 1 1)
+    (New-AdminItem 'Scheduling' 'calendar' 4 'QA Results'         'check2-square'   'scheduling/qa-results'         11 1 1 1)
 
-    # -- Reports (legacy /tsic SU menu items 1-10 mirrored as direct links;   -
-    #    Reports Library remains for D/SD job-scoped catalogue browsing.      -
-    #    SP runners use bUseJobId=false (cross-customer) and are SU-only.) ---
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Reports Library'                         'collection'           'reporting/reports-library'                                                                          1  1 1 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Daily Registration Counts (PDF)'         'file-earmark-pdf'     'reporting/Get_JobPlayers_TSICDAILY'                                                                 2  0 0 1)
-    # NB: legacy display says "Purchases" but the action targets reporting.RegsaverRegistrants_ALL
-    # — display/SP-name mismatch is preserved from legacy for menu fidelity.
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Regsaver Purchases (Excel)'              'file-earmark-excel'   'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false'                       3  0 0 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Expired Player Reg Bulletins'            'person-x'             'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false'                   4  0 0 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Expired Team Reg Bulletins'              'shield-x'             'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false'                     5  0 0 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'List of Suspicious ARBs'                 'exclamation-triangle' 'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false'                               6  0 0 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Regsaver Purchases - Raw Data (Excel)'   'file-earmark-excel'   'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false'                 7  0 0 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Job Key Attributes (All)'                'list-columns'         'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false'                          8  0 0 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'ClubRep Contacts (All)'                  'people'               'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false'                           9  0 0 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Tournament Keys (All)'                   'trophy'               'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false'                  10  0 0 1)
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Expiring Bulletins (3 months)'           'clock-history'        'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false'                              11  0 0 1)
-    # NB: legacy invokes this with bUseJobId=true even though the SP name says "rollups across customers";
-    # SP appears to ignore the JobId or use it for filtering. Mirroring legacy.
-    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 6 'Last Month X-Customer Revenue Summary'   'cash-stack'           'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true'                              12  0 0 1)
+    # -- 5. Officials (referee ops; split from Scheduling, same T/L gate) --
+    (New-AdminItem 'Officials' 'person-check' 5 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment' 1 1 1 1)
+    (New-AdminItem 'Officials' 'person-check' 5 'Referee Calendar'   'calendar-week'   'scheduling/referee-calendar'   2 1 1 1)
 
-    # -- ARB (section-gated on adnArb flag via $sectionRules) -------------
-    (New-AdminItem 'ARB' 'credit-card' 7 'Health Check' 'heart-pulse' 'arb/health' 1 1 1 1)
+    # -- 6. Communications -------------------------------------------------
+    (New-AdminItem 'Communications' 'megaphone' 6 'Bulletins'             'megaphone'            'communications/bulletins'         1 1 1 1)
+    (New-AdminItem 'Communications' 'megaphone' 6 'Email Log'             'envelope-open'        'communications/email-log'         2 1 1 1)
+    (New-AdminItem 'Communications' 'megaphone' 6 'E-Mail Troubleshooter' 'envelope-exclamation' 'tools/email-troubleshooter'       3 0 0 1 $null 'NEW')
+    (New-AdminItem 'Communications' 'megaphone' 6 'Push Notification'     'bell'                 'communications/push-notification' 4 1 1 1 $rulesMobileEnabled)
+    (New-AdminItem 'Communications' 'megaphone' 6 'Team Links'            'link-45deg'           'communications/team-links'        5 1 1 1 $rulesPlayerSite)
 
-    # -- Store (single item; Store L1 inherits rulesStoreEnabled) ---------
-    (New-AdminItem 'Store' 'shop' 8 'Store Admin' 'speedometer2' 'store/admin' 1 1 1 1 $rulesStoreEnabled)
+    # -- 7. Reports (TWO libraries, one browse-all surface each) ------------
+    #    Job Report Library = the job-scoped catalogue (Type-1 catalog + the
+    #      per-job reporting.JobReports rows). Already the complete browse/search
+    #      surface for a job's reports — so it is the ONLY job-reports entry.
+    #    X-Job Report Library = SU cross-customer surface for the bUseJobId=false
+    #      platform reports (Suspicious ARBs, ClubRep Contacts, Job Key Attributes,
+    #      Regsaver ALL, bulletin QA, etc.). These run across ALL customers and are
+    #      NOT job-scoped, so they never belonged in the per-job catalogue. The
+    #      dedicated screen is not built yet, so this entry uses a placeholder
+    #      routerLink ('x-job-reports-library' — deliberately NOT under 'reporting/',
+    #      which the nav treats as a download-launcher wildcard) so it renders as a
+    #      disabled "Soon" chip rather than a broken download link. When the screen
+    #      is built, register its route and point this link at it. The ~10 legacy
+    #      flat runners are RETIRED from nav (see $retiredReportingLinks) — they
+    #      become that library's content, not top-level menu items.
+    #    Only report LIBRARIES live here — a live component (e.g. Customer Job
+    #    Revenue, a Syncfusion pivot) is NOT a report; it belongs in its natural
+    #    functional home (→ Accounting), never parked under Reports.
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 7 'Job Report Library'   'collection' 'reporting/reports-library'  1 1 1 1)
+    (New-AdminItem 'Reports' 'file-earmark-bar-graph' 7 'X-Job Report Library' 'globe'      'x-job-reports-library'      2 0 0 1)
 
-    # -- Accounting (SU-only, mirrors legacy /tsic SU Accounting menu) -----
+    # -- 8. US Lacrosse (sport-gated to Lacrosse via $sectionRules) --------
+    (New-AdminItem 'US Lacrosse' 'award' 8 'US Lax Test'       'check-circle' 'tools/uslax-test'       1 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'US Lacrosse' 'award' 8 'US Lax Rankings'   'trophy'       'tools/uslax-rankings'   2 1 1 1 $rulesLacrosse)
+    (New-AdminItem 'US Lacrosse' 'award' 8 'US Lax Membership' 'people'       'tools/uslax-membership' 3 1 1 1 $rulesLacrosse)
+
+    # -- 9. Store — single-purpose → direct top-level link (storeEnabled) --
+    (New-AdminItem 'Store' 'shop' 9 'Store' 'shop' 'store/admin' 1 1 1 1 $rulesStoreEnabled -Standalone)
+
+    # -- 10. ARB — single-purpose → direct top-level link (adnArb) ---------
+    (New-AdminItem 'ARB' 'credit-card' 10 'ARB Health' 'heart-pulse' 'arb/health' 1 1 1 1 $rulesAdnArb -Standalone)
+
+    # -- 11. Accounting (SU-only, mirrors legacy /tsic SU Accounting menu) --
     # 15 items, ordered to match the legacy view. Numeric prefixes ("1)", "2)",
     # "2M)", "3)", "4)") are preserved from legacy display names. Items routing
     # to accounting/* with no built component yet share a coming-soon stub.
-    (New-AdminItem 'Accounting' 'cash-stack' 10 '1) New Jobs Last Month (with txs)'        'plus-square'        'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false'    1  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 '2) Get Reconciliation Records'            'arrow-left-right'   'accounting/get-reconciliation-records'                                     2  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 '2M) Get MERCH Reconciliation Records'     'receipt'            'accounting/merch-reconciliation-records'                                   3  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 "4) Last Month's Grand Totals (Excel)"     'calculator'         'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false'    4  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Last Months Invoices SUMMARIES ONLY (pdf)' 'file-earmark-pdf'   'reporting/Get_Invoices_LastMonthSummariesOnly'                              5  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Manual ARB Sweep (ALL)'                   'arrow-clockwise'    'accounting/manual-arb-sweep'                                                6  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'TSIC Fees YTD By Customer'                'graph-up'           'reporting/TSICFeesYTDByCustomer'                                            7  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'TSIC Fees YTD By Customer and Job'        'graph-up'           'reporting/TSICFeesYTDByCustomerAndJob'                                      8  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Last Months Invoices (pdf)'               'file-earmark-pdf'   'reporting/Get_Invoices_LastMonth'                                           9  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Produce Last Month Job Invoices Per Job (rtf)' 'file-earmark-text' 'accounting/produce-job-invoices'                                       10  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Job Admin Fees Summary'                   'cash-coin'          'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false'      11  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Upload Nuvei Funding/Batches'             'upload'             'accounting/upload-nuvei'                                                   12  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'Import RegSaver Monthly Payouts'          'cloud-download'     'accounting/upload-regsaver'                                                13  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 'ADN-Nuvei Reconcile (Excel)'              'arrow-left-right'   'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false'             14  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 10 '3) Last Months Job Stats'                 'bar-chart-line'     'accounting/last-months-job-stats'                                          15  0 0 1)
+    #
+    # TAXONOMY PRINCIPLE (locked): Accounting = LIVE financial-ops COMPONENTS
+    # (accounting/* — interactive: reconcile, sweep, upload, produce invoices,
+    # job stats). Downloadable financial REPORTS (reporting/* exports+PDFs) belong
+    # in the report library, NOT here. They are kept in place FOR NOW because their
+    # destination (X-Job Report Library) is not built; step 2 migrates them there
+    # with each classified (cross-customer → X-Job Library, job-scoped → Job Report
+    # Library). Migration list — the 8 reporting/* rows below to move in step 2:
+    #   New Jobs Last Month · Last Month's Grand Totals · Last Months Invoices
+    #   SUMMARIES ONLY · TSIC Fees YTD By Customer · TSIC Fees YTD By Customer and
+    #   Job · Last Months Invoices · Job Admin Fees Summary · ADN-Nuvei Reconcile.
+    # The 7 accounting/* rows (reconciliation ×2, ARB sweep, produce invoices,
+    # Nuvei upload, RegSaver import, job stats) STAY as Accounting components.
+    # Customer Job Revenue leads: a live Syncfusion pivot (rollup/counts/admin
+    # fees/CC-check-eCheck records), SD+SU — the sole reason Accounting is visible
+    # to SuperDirector (their customer's revenue window). A component, not a report.
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Customer Job Revenue||'                   'graph-up-arrow'     'tools/customer-job-revenue'                                                0  0 1 1)
+    # -- Numbered month-end sequence, in numeric order (1 -> 2 -> 2M -> 3 -> 4).
+    (New-AdminItem 'Accounting' 'cash-stack' 11 '1) New Jobs Last Month (with txs)'        'plus-square'        'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false'    1  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 '2) Get Reconciliation Records'            'arrow-left-right'   'accounting/get-reconciliation-records'                                     2  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 '2M) Get MERCH Reconciliation Records'     'receipt'            'accounting/merch-reconciliation-records'                                   3  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 '3) Last Months Job Stats'                 'bar-chart-line'     'accounting/last-months-job-stats'                                          4  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 "4) Last Month's Grand Totals (Excel)||"   'calculator'         'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false'    5  0 0 1)
+    # -- Everything else (unchanged relative order; a divider will bracket the block above).
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Last Months Invoices SUMMARIES ONLY (pdf)' 'file-earmark-pdf'   'reporting/Get_Invoices_LastMonthSummariesOnly'                              6  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Manual ARB Sweep (ALL)'                   'arrow-clockwise'    'accounting/manual-arb-sweep'                                                7  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'TSIC Fees YTD By Customer'                'graph-up'           'reporting/TSICFeesYTDByCustomer'                                            8  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'TSIC Fees YTD By Customer and Job'        'graph-up'           'reporting/TSICFeesYTDByCustomerAndJob'                                      9  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Last Months Invoices (pdf)'               'file-earmark-pdf'   'reporting/Get_Invoices_LastMonth'                                          10  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Produce Last Month Job Invoices Per Job (rtf)' 'file-earmark-text' 'accounting/produce-job-invoices'                                      11  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Job Admin Fees Summary'                   'cash-coin'          'reporting/export-sp?spName=reporting.JobAdminFeesAll&bUseJobId=false'     12  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Upload Nuvei Funding/Batches'             'upload'             'accounting/upload-nuvei'                                                  13  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'Import RegSaver Monthly Payouts'          'cloud-download'     'accounting/upload-regsaver'                                               14  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 'ADN-Nuvei Reconcile (Excel)'              'arrow-left-right'   'reporting/export-sp?spName=adn.ReconcileNuvei&bUseJobId=false'            15  0 0 1)
 
-    # -- Tools -------------------------------------------------------------
-    (New-AdminItem 'Tools' 'tools' 9 'US Lax Test'          'check-circle'  'tools/uslax-test'           1 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'Tools' 'tools' 9 'US Lax Rankings'      'trophy'        'tools/uslax-rankings'       2 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'Tools' 'tools' 9 'US Lax Membership'    'people'        'tools/uslax-membership'     3 1 1 1 $rulesLacrosse)
-    (New-AdminItem 'Tools' 'tools' 9 'Uniform Upload'       'upload'        'tools/uniform-upload'       4 1 1 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Profile Migration'    'arrow-right'   'tools/profile-migration'    5 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Profile Editor'       'pencil-square' 'tools/profile-editor'       6 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Adult Form Designer'  'people-fill'   'tools/adult-profile-editor' 7 0 0 1 $null 'NEW')
-    (New-AdminItem 'Tools' 'tools' 9 'Change Password'      'key'           'tools/change-password'      8 0 0 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Customer Job Revenue' 'cash-stack'    'tools/customer-job-revenue' 9 0 1 1)
-    (New-AdminItem 'Tools' 'tools' 9 'Camp Day/Night Groups' 'sun'          'tools/camp-groups'         10 1 1 1 $rulesCampSales)
-    (New-AdminItem 'Tools' 'tools' 9 'Check-In'              'clipboard-check' 'tools/checkin'           11 1 1 1 '{"jobTypes":["Tournament Scheduling","League Scheduling","Camp Registration"]}' 'NEW')
+    # -- 12. TSIC Admin (SU-only) — the cross-tenant + platform-chrome
+    #    console. ONLY items whose scope is the platform / other tenants, not one
+    #    job. Nav Editor + Widget Editor stay because they edit platform DEFAULTS
+    #    that ripple across all jobs (JobId-NULL nav rows / per-job-type widget
+    #    defaults), not the current job. Per-job tools moved to Configure.
+    #    NB: Change Password is a personal ACCOUNT action, not admin of anything —
+    #    it is a misfit here and should move to the header/avatar account menu.
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Customers'         'building'    'configure/customers'       1 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Customer Groups'   'people'      'configure/customer-groups' 2 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Nav Editor'        'list'        'configure/nav-editor'      3 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Widget Editor'     'grid'        'configure/widget-editor'   4 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Job Clone'         'copy'        'configure/job-clone'       5 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Profile Migration' 'arrow-right' 'tools/profile-migration'   6 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Change Password'   'key'         'tools/change-password'     7 0 0 1)
 )
 
 Write-Host "Admin manifest: $($adminManifest.Count) items" -ForegroundColor DarkGray
@@ -310,14 +387,37 @@ foreach ($k in $roleGuids.Keys) {
 }
 [void]$sql.AppendLine("")
 
+# -- Retired reporting links -------------------------------------------------
+# Legacy flat SU cross-customer (bUseJobId=false) runners removed from nav: they
+# are consolidated into the X-Job Report Library (see Reports section). They must
+# NOT be preserved/restored by step 3/13 — otherwise this regen would resurrect
+# them as orphan children under Reports. Excluded from preservation → step 4's
+# DELETE clears them for good. Add a link here when retiring a reporting/* item.
+$retiredReportingLinks = @(
+    'reporting/Get_JobPlayers_TSICDAILY'
+    'reporting/export-sp?spName=reporting.RegsaverRegistrants_ALL&bUseJobId=false'
+    'reporting/export-sp?spName=utility.PlayerRegistrationBulletinsQA&bUseJobId=false'
+    'reporting/export-sp?spName=utility.TeamRegistrationBulletinsQA&bUseJobId=false'
+    'reporting/export-sp?spName=utility.GetSuspiciousArbs&bUseJobId=false'
+    'reporting/export-sp?spName=reporting.RegsaverPurchases_ALL_Rawdata&bUseJobId=false'
+    'reporting/export-sp?spName=reporting.JobKeyAttributes-ALL&bUseJobId=false'
+    'reporting/export-sp?spName=reporting.ClubRepContacts-All&bUseJobId=false'
+    'reporting/export-sp?spName=reporting.TournamentKeyAttributes-ALL&bUseJobId=false'
+    'reporting/export-sp?spName=utility.ExpiringBulletins&bUseJobId=false'
+    'reporting/export-sp?spName=adn.monthlycustomerrollups&bUseJobId=true'
+)
+
 # 3. Preserve reporting items + visibility rules
-# Exclude any RouterLinks the admin manifest now owns — those are (re)inserted
-# in step 6, so preserving them causes duplicates on re-run.
+# Exclude any RouterLinks the admin manifest now owns (re-inserted in step 6) OR
+# that have been explicitly retired — preserving either causes duplicates /
+# resurrection on re-run.
 $adminReportingLinks = $adminManifest |
     Where-Object { $_.RouterLink -like 'reporting/*' } |
     ForEach-Object { "N'$(Esc $_.RouterLink)'" }
-$excludeClause = if ($adminReportingLinks) {
-    "  AND ni.RouterLink NOT IN ($($adminReportingLinks -join ', '))"
+$retiredLinksSql = $retiredReportingLinks | ForEach-Object { "N'$(Esc $_)'" }
+$allExcludedLinks = @($adminReportingLinks) + @($retiredLinksSql)
+$excludeClause = if ($allExcludedLinks) {
+    "  AND ni.RouterLink NOT IN ($($allExcludedLinks -join ', '))"
 } else { '' }
 
 [void]$sql.AppendLine("-- -- 3. Preserve reporting items + visibility rules ----------------------")
@@ -340,14 +440,21 @@ $excludeClause;
 SELECT @cnt = COUNT(*) FROM #ReportingItems;
 PRINT CONCAT('Preserved ', @cnt, ' reporting item(s)');
 
+-- Preserve hand-authored GATING rules across re-seeds, but strip divider UI-hints:
+-- dividers are manifest-owned (authored via trailing pipes), so preserving old
+-- divider state would resurrect a divider after its pipe was removed. JSON_MODIFY
+-- to NULL deletes the key; rows that are divider-ONLY collapse to '{}' and are
+-- excluded so the manifest's fresh value wins untouched.
 IF OBJECT_ID('tempdb..#VisRules') IS NOT NULL DROP TABLE #VisRules;
-SELECT n.RoleId, ni.RouterLink, ni.VisibilityRules
+SELECT n.RoleId, ni.RouterLink,
+       JSON_MODIFY(JSON_MODIFY(ni.VisibilityRules, '$.dividerBefore', NULL), '$.dividerAfter', NULL) AS VisibilityRules
 INTO #VisRules
 FROM nav.NavItem ni JOIN nav.Nav n ON ni.NavId = n.NavId
 WHERE n.JobId IS NULL
   AND ni.RouterLink IS NOT NULL
   AND ni.VisibilityRules IS NOT NULL
-  AND ni.VisibilityRules <> '';
+  AND ni.VisibilityRules <> ''
+  AND NULLIF(JSON_MODIFY(JSON_MODIFY(ni.VisibilityRules, '$.dividerBefore', NULL), '$.dividerAfter', NULL), '{}') IS NOT NULL;
 SELECT @cnt = COUNT(*) FROM #VisRules;
 PRINT CONCAT('Preserved ', @cnt, ' visibility rule(s)');
 "@)
@@ -389,13 +496,42 @@ CREATE TABLE #AdminManifest (
     BadgeText       NVARCHAR(20)  NULL     -- short chip label (NEW / BETA / etc.); NULL = no chip
 );
 "@)
-foreach ($item in $adminManifest) {
+# Sectioned items feed the L1→L2 fan-out; standalone items become top-level leaves.
+foreach ($item in ($adminManifest | Where-Object { -not $_.Standalone })) {
     $rulesCol = if ([string]::IsNullOrEmpty($item.VisibilityRules)) { 'NULL' } else { "N'$(Esc $item.VisibilityRules)'" }
     $badgeCol = if ([string]::IsNullOrEmpty($item.BadgeText)) { 'NULL' } else { "N'$(Esc $item.BadgeText)'" }
     [void]$sql.AppendLine(
         "INSERT INTO #AdminManifest VALUES (" +
         "N'$(Esc $item.Controller)', N'$(Esc $item.ControllerIcon)', $($item.ControllerSort), " +
         "N'$(Esc $item.Text)', N'$(Esc $item.Icon)', N'$(Esc $item.RouterLink)', $($item.ItemSort), " +
+        "$($item.ForDirector), $($item.ForSuperDir), $($item.ForSuperUser), $rulesCol, $badgeCol);"
+    )
+}
+[void]$sql.AppendLine("")
+
+# Standalone leaves — direct top-level links (no L1 section). SortOrder = ControllerSort
+# so each slots into the correct position among the L1 sections.
+[void]$sql.AppendLine("-- Standalone top-level leaves (direct links, no section dropdown)")
+[void]$sql.AppendLine(@"
+IF OBJECT_ID('tempdb..#AdminLeaves') IS NOT NULL DROP TABLE #AdminLeaves;
+CREATE TABLE #AdminLeaves (
+    [Text]          NVARCHAR(100) NOT NULL,
+    Icon            NVARCHAR(50)  NULL,
+    RouterLink      NVARCHAR(200) NOT NULL,
+    SortOrder       INT           NOT NULL,
+    ForDirector     BIT           NOT NULL,
+    ForSuperDir     BIT           NOT NULL,
+    ForSuperUser    BIT           NOT NULL,
+    VisibilityRules NVARCHAR(MAX) NULL,
+    BadgeText       NVARCHAR(20)  NULL
+);
+"@)
+foreach ($item in ($adminManifest | Where-Object { $_.Standalone })) {
+    $rulesCol = if ([string]::IsNullOrEmpty($item.VisibilityRules)) { 'NULL' } else { "N'$(Esc $item.VisibilityRules)'" }
+    $badgeCol = if ([string]::IsNullOrEmpty($item.BadgeText)) { 'NULL' } else { "N'$(Esc $item.BadgeText)'" }
+    [void]$sql.AppendLine(
+        "INSERT INTO #AdminLeaves VALUES (" +
+        "N'$(Esc $item.Text)', N'$(Esc $item.Icon)', N'$(Esc $item.RouterLink)', $($item.ControllerSort), " +
         "$($item.ForDirector), $($item.ForSuperDir), $($item.ForSuperUser), $rulesCol, $badgeCol);"
     )
 }
@@ -486,6 +622,18 @@ BEGIN
     END
     CLOSE ctrl_cursor;
     DEALLOCATE ctrl_cursor;
+
+    -- Standalone top-level leaves for this role (direct links, ParentNavItemId NULL).
+    INSERT INTO nav.NavItem (NavId, ParentNavItemId, Active, SortOrder, [Text], IconName, RouterLink, VisibilityRules, BadgeText, Modified)
+    SELECT @navId, NULL, 1, SortOrder, [Text], Icon, RouterLink, VisibilityRules, BadgeText, GETDATE()
+    FROM #AdminLeaves
+    WHERE CASE @roleId
+             WHEN @Director      THEN ForDirector
+             WHEN @SuperDirector THEN ForSuperDir
+             WHEN @SuperUser     THEN ForSuperUser
+             ELSE 0
+         END = 1
+    ORDER BY SortOrder;
 
     FETCH NEXT FROM role_cursor INTO @roleId;
 END
@@ -634,6 +782,7 @@ PRINT CONCAT('Restored ', @@ROWCOUNT, ' visibility rule(s)');
 DROP TABLE #VisRules;
 DROP TABLE #AdminManifest;
 DROP TABLE #SectionRules;
+DROP TABLE #AdminLeaves;
 "@)
 [void]$sql.AppendLine("")
 

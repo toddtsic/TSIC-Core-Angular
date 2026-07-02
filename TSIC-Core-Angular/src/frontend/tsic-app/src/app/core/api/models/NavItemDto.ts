@@ -13,6 +13,8 @@ export type NavItemDto = {
     target?: string | null;
     active: boolean;
     badgeText?: string | null;
+    dividerBefore?: boolean;
+    dividerAfter?: boolean;
     children: Array<NavItemDto>;
 };
 

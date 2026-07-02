@@ -143,6 +143,8 @@ public class NavRepository : INavRepository
             var parent = filteredItems.FirstOrDefault(r => r.NavItemId == item.DefaultParentNavItemId!.Value);
             if (parent == null) continue; // parent was suppressed or not found
 
+            var (slotBefore, slotAfter) = _visibilityEvaluator.GetDividerFlags(item.VisibilityRules);
+
             parent.Children.Add(new NavItemDto
             {
                 NavItemId = item.NavItemId,
@@ -155,6 +157,8 @@ public class NavRepository : INavRepository
                 Target = item.Target,
                 Active = true,
                 BadgeText = item.BadgeText,
+                DividerBefore = slotBefore,
+                DividerAfter = slotAfter,
                 Children = new List<NavItemDto>()
             });
         }
@@ -176,21 +180,29 @@ public class NavRepository : INavRepository
             var children = newRootChildren
                 .Where(c => c.ParentNavItemId == newRoot.NavItemId)
                 .OrderBy(c => c.SortOrder)
-                .Select(c => new NavItemDto
+                .Select(c =>
                 {
-                    NavItemId = c.NavItemId,
-                    ParentNavItemId = c.ParentNavItemId,
-                    SortOrder = c.SortOrder,
-                    Text = c.Text ?? string.Empty,
-                    IconName = c.IconName,
-                    RouterLink = c.RouterLink,
-                    NavigateUrl = c.NavigateUrl,
-                    Target = c.Target,
-                    Active = true,
-                    BadgeText = c.BadgeText,
-                    Children = new List<NavItemDto>()
+                    var (cBefore, cAfter) = _visibilityEvaluator.GetDividerFlags(c.VisibilityRules);
+                    return new NavItemDto
+                    {
+                        NavItemId = c.NavItemId,
+                        ParentNavItemId = c.ParentNavItemId,
+                        SortOrder = c.SortOrder,
+                        Text = c.Text ?? string.Empty,
+                        IconName = c.IconName,
+                        RouterLink = c.RouterLink,
+                        NavigateUrl = c.NavigateUrl,
+                        Target = c.Target,
+                        Active = true,
+                        BadgeText = c.BadgeText,
+                        DividerBefore = cBefore,
+                        DividerAfter = cAfter,
+                        Children = new List<NavItemDto>()
+                    };
                 })
                 .ToList();
+
+            var (newRootBefore, newRootAfter) = _visibilityEvaluator.GetDividerFlags(newRoot.VisibilityRules);
 
             filteredItems.Add(new NavItemDto
             {
@@ -204,6 +216,8 @@ public class NavRepository : INavRepository
                 Target = newRoot.Target,
                 Active = true,
                 BadgeText = newRoot.BadgeText,
+                DividerBefore = newRootBefore,
+                DividerAfter = newRootAfter,
                 Children = children
             });
         }
@@ -258,6 +272,8 @@ public class NavRepository : INavRepository
             if (jobNavCtx != null && !_visibilityEvaluator.Passes(root.VisibilityRules, jobNavCtx))
                 continue;
 
+            var (rootBefore, rootAfter) = _visibilityEvaluator.GetDividerFlags(root.VisibilityRules);
+
             var rootDto = new NavItemDto
             {
                 NavItemId = root.NavItemId,
@@ -270,6 +286,8 @@ public class NavRepository : INavRepository
                 Target = root.Target,
                 Active = root.Active,
                 BadgeText = root.BadgeText,
+                DividerBefore = rootBefore,
+                DividerAfter = rootAfter,
                 Children = new List<NavItemDto>()
             };
 
@@ -278,6 +296,8 @@ public class NavRepository : INavRepository
             {
                 if (jobNavCtx != null && !_visibilityEvaluator.Passes(child.VisibilityRules, jobNavCtx))
                     continue;
+
+                var (childBefore, childAfter) = _visibilityEvaluator.GetDividerFlags(child.VisibilityRules);
 
                 rootDto.Children.Add(new NavItemDto
                 {
@@ -291,6 +311,8 @@ public class NavRepository : INavRepository
                     Target = child.Target,
                     Active = child.Active,
                     BadgeText = child.BadgeText,
+                    DividerBefore = childBefore,
+                    DividerAfter = childAfter,
                     Children = new List<NavItemDto>()
                 });
             }

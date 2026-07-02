@@ -25,6 +25,19 @@ public record NavItemVisibilityRules
     /// on nav items it's redundant with the per-role manifest but kept consistent.
     /// </summary>
     public List<string>? RequiresRoles { get; init; }
+
+    /// <summary>
+    /// UI hint (NOT gating): render a divider rule immediately BEFORE this item in the menu.
+    /// Authored as a trailing single '|' on the item text in the nav manifest; the generator
+    /// strips the pipe and folds this flag into the JSON. Ignored by <c>Passes()</c>.
+    /// </summary>
+    public bool DividerBefore { get; init; }
+
+    /// <summary>
+    /// UI hint (NOT gating): render a divider rule immediately AFTER this item in the menu.
+    /// Authored as a trailing '||' on the item text in the nav manifest. Ignored by <c>Passes()</c>.
+    /// </summary>
+    public bool DividerAfter { get; init; }
 }
 
 /// <summary>
@@ -70,6 +83,10 @@ public record NavItemDto
     public required bool Active { get; init; }
     /// <summary>Short label rendered as a chip next to the item text (e.g. "NEW", "BETA"). NULL = no chip.</summary>
     public string? BadgeText { get; init; }
+    /// <summary>UI hint: render a divider rule immediately before this item. Sourced from VisibilityRules JSON.</summary>
+    public bool DividerBefore { get; init; }
+    /// <summary>UI hint: render a divider rule immediately after this item. Sourced from VisibilityRules JSON.</summary>
+    public bool DividerAfter { get; init; }
     public required List<NavItemDto> Children { get; init; } = new();
 }
 

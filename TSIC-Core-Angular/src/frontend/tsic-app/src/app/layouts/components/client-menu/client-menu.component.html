@@ -197,6 +197,9 @@
      all reference it. -->
 <ng-template #childList let-parent>
     @for (child of parent.children; track child.navItemId) {
+        @if (child.dividerBefore) {
+        <hr class="dropdown-panel__divider" aria-hidden="true">
+        }
         @if (!isRouteImplemented(child)) {
         <span class="dropdown-panel__item dropdown-panel__item--disabled" role="menuitem" aria-disabled="true">
             <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
@@ -227,6 +230,9 @@
             <i class="bi bi-{{ getMenuIcon(child) }}" aria-hidden="true"></i>
             <span class="dropdown-panel__item-text">{{ child.text }}</span>
         </span>
+        }
+        @if (child.dividerAfter) {
+        <hr class="dropdown-panel__divider" aria-hidden="true">
         }
     }
 </ng-template>

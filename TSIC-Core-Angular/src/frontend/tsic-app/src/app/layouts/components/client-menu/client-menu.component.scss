@@ -33,12 +33,10 @@
         }
 
         // Stack the two header buttons vertically — they won't fit side by side at 64px.
-        // Divider below separates the rail chrome (collapse + layout-switch) from the
-        // functional section icons, which read as one ambiguous stack otherwise.
+        // (The divider itself lives on the base .admin-rail__header rule so it persists
+        // in both collapsed + expanded states, not just here.)
         .admin-rail__header {
             flex-direction: column;
-            border-bottom: 1px solid var(--brand-border);
-            margin-bottom: var(--space-1);
         }
     }
 }
@@ -49,6 +47,12 @@
     align-items: center;
     gap: var(--space-1);
     padding: var(--space-2);
+    // Divider separating the rail chrome (collapse + layout-switch) from the
+    // functional section links below. Persists in BOTH expanded and collapsed
+    // states — and after a layout-type switch back to the sidebar — so the
+    // separation never disappears when the rail re-expands.
+    border-bottom: 1px solid var(--brand-border);
+    margin-bottom: var(--space-1);
 }
 
 .admin-rail__status {
@@ -402,6 +406,16 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+
+// Divider rule between grouped child rows — driven by NavItem dividerBefore / dividerAfter.
+// Separates functional clusters within a section (e.g. Accounting's month-end sequence).
+.dropdown-panel__divider {
+    height: 0;
+    margin: var(--space-1) var(--space-2);
+    border: 0;
+    border-top: 1px solid var(--brand-border);
+    opacity: 0.6;
 }
 
 // Individual row

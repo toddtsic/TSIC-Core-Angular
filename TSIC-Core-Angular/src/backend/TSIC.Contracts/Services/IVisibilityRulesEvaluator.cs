@@ -26,6 +26,13 @@ public interface IVisibilityRulesEvaluator
     /// Malformed JSON fails open (returns true) — matching the nav's behavior.
     /// </summary>
     bool Passes(string? rulesJson, JobNavContext context);
+
+    /// <summary>
+    /// Reads the UI divider hints (<c>dividerBefore</c> / <c>dividerAfter</c>) from an item's
+    /// VisibilityRules JSON. These are presentation-only and never affect visibility.
+    /// Null/empty/malformed JSON returns (false, false).
+    /// </summary>
+    (bool Before, bool After) GetDividerFlags(string? rulesJson);
 }
 
 /// <summary>

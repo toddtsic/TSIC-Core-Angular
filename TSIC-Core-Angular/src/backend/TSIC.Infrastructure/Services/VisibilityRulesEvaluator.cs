@@ -116,4 +116,19 @@ public class VisibilityRulesEvaluator : IVisibilityRulesEvaluator
 
         return true;
     }
+
+    public (bool Before, bool After) GetDividerFlags(string? rulesJson)
+    {
+        if (string.IsNullOrEmpty(rulesJson)) return (false, false);
+
+        try
+        {
+            var rules = JsonSerializer.Deserialize<NavItemVisibilityRules>(rulesJson, JsonOpts);
+            return (rules?.DividerBefore ?? false, rules?.DividerAfter ?? false);
+        }
+        catch
+        {
+            return (false, false); // malformed JSON = no dividers
+        }
+    }
 }
