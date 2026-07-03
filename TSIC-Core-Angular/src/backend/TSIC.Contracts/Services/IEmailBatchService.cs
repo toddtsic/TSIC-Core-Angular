@@ -149,4 +149,11 @@ public sealed record EmailBatchOptions
     /// failed-addresses panel can be exercised (dev sends are otherwise no-op successes).
     /// </summary>
     public int? SyntheticFailEveryN { get; init; }
+
+    /// <summary>
+    /// SANDBOX ONLY. Test inbox. When set (and the host is sandboxed), the send step forces a REAL
+    /// SES send that would otherwise be suppressed and delivers each message to this single address
+    /// instead of its real recipients. Lets an invite-token link be delivered and clicked. Ignored in Production.
+    /// </summary>
+    public string? SandboxTestRecipient { get; init; }
 }

@@ -152,6 +152,21 @@
                 </div>
               }
             </div>
+
+            @if (isStaging) {
+              <div class="form-group invite-test-inbox-group">
+                <label for="invite-test-inbox">To (test inbox) <span class="text-muted">— Staging only</span></label>
+                <input type="email" id="invite-test-inbox" class="form-control"
+                  [ngModel]="sandboxTestRecipient()"
+                  (ngModelChange)="sandboxTestRecipient.set($event)"
+                  placeholder="anntsic@gmail.com" />
+                <small class="form-text text-muted">
+                  On the Staging preview, live email is suppressed. Every invitation in this batch is
+                  delivered to <strong>this inbox instead</strong> of the real recipients, so the token
+                  link can be received and clicked. Editable; clear it to fall back to normal suppression.
+                </small>
+              </div>
+            }
           </fieldset>
         }
 

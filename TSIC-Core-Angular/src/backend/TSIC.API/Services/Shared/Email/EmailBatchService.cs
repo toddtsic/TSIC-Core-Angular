@@ -314,22 +314,19 @@ public sealed class EmailBatchService : IEmailBatchService
             return true;
         }
 
-        // ── TEMP TEST HOOK (sandbox only) — invite/token email dev test. REVERT before commit. ──
-        // STRICTLY scoped to the club-rep/player INVITATION service: fires ONLY when the rendered
-        // body carries an invite-token link (/registration/{team|player}?invite=), which only
-        // TextSubstitutionService's invite tokens produce. Every other batch email (announcements,
-        // receipts, etc.) is left completely untouched — normal sandbox suppression still applies.
-        // When matched: forces a real SES send from sandbox and redirects the single recipient to the
-        // tester's inbox so the token link can be exercised. Gated on IsSandbox() — never in Production.
-        var isInviteEmail = message.HtmlBody is string body &&
-            (body.Contains("/registration/team?invite=", StringComparison.OrdinalIgnoreCase) ||
-             body.Contains("/registration/player?invite=", StringComparison.OrdinalIgnoreCase));
-        var sendInDev = _env.IsSandbox() && isInviteEmail;
-        if (sendInDev)
+        // ── Sandbox test inbox (Staging invite testing) ──────────────────────────────────────────
+        // The invite modal exposes an editable "To (test inbox)" address ONLY in the Staging build.
+        // When that address rides the batch AND the host is sandboxed, we force a real SES send that
+        // would otherwise be suppressed and deliver every message to that single inbox — so the
+        // per-recipient token link can actually be received and clicked. Gated on IsSandbox(): in
+        // Production the field is never rendered and this branch never fires, so live mail is untouched.
+        var testInbox = options.SandboxTestRecipient?.Trim();
+        var deliverToTestInbox = _env.IsSandbox() && !string.IsNullOrWhiteSpace(testInbox) && testInbox.Contains('@');
+        if (deliverToTestInbox)
         {
             message.CcAddresses.Clear();
             message.BccAddresses.Clear();
-            message.ToAddresses = new List<string> { "anntsic@gmail.com" };
+            message.ToAddresses = new List<string> { testInbox! };
         }
         // ────────────────────────────────────────────────────────────────────────────────────────
 
@@ -339,7 +336,7 @@ public sealed class EmailBatchService : IEmailBatchService
             await pacer.WaitAsync(ct);
             try
             {
-                var ok = await _email.SendAsync(message, sendInDevelopment: sendInDev, ct);
+                var ok = await _email.SendAsync(message, sendInDevelopment: deliverToTestInbox, ct);
                 if (ok) return true;
             }
             catch (Exception ex)

@@ -166,6 +166,14 @@ public record BatchEmailRequest
     /// transmitting via SES — drives the "TEST BATCH PROCESSING" preview. Ignored outside sandbox.
     /// </summary>
     public int? SimulatedPerUnitDelayMs { get; init; }
+
+    /// <summary>
+    /// SANDBOX ONLY. Test inbox: when set (and the host is sandboxed), the engine forces a REAL SES
+    /// send from the otherwise-suppressed sandbox and delivers every message to this single address
+    /// instead of its real recipients, so an invite's token link can be received and clicked.
+    /// Set by the Staging-only "To (test inbox)" field on the invite modal. Ignored in Production.
+    /// </summary>
+    public string? SandboxTestRecipient { get; init; }
 }
 
 /// <summary>

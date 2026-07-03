@@ -76,6 +76,11 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   /** Dev-only "TEST BATCH PROCESSING" button gate — never rendered in production builds. */
   readonly isDev = !environment.production;
 
+  /** Staging-only gate for the invite "To (test inbox)" field. The Staging build sets
+   *  production:true (so isDev is false there), so key on the explicit envName instead. The
+   *  backend re-checks IsSandbox() before honoring the test inbox — this is purely UI exposure. */
+  readonly isStaging = environment.envName === 'staging';
+
   registrationIds = input<string[]>([]);
   recipientCount = input<number>(0);
   recipients = input<{ name: string; email: string }[]>([]);
@@ -139,6 +144,11 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   selectedInviteTargetJobId = signal<string | null>(null);
   readonly inviteExpiryOptions = INVITE_EXPIRY_OPTIONS;
   selectedInviteExpiryHours = signal<number>(DEFAULT_INVITE_EXPIRY_HOURS);
+
+  // Staging-only test inbox. Every invite email in the batch is delivered to this one address
+  // server-side so the token link can be received and clicked. Editable; defaults below.
+  readonly defaultSandboxTestRecipient = 'anntsic@gmail.com';
+  sandboxTestRecipient = signal<string>('anntsic@gmail.com');
 
   readonly availableTokens = computed(() => {
     // Invite links are intentionally NOT offered here — they are seeded by the Invite action.
@@ -323,7 +333,10 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
       // Only meaningful when an invite link is present; harmless otherwise. Stamps the token's
       // lifetime AND the !INVITE_EXPIRES copy from the same server instant (consistent by construction).
       inviteExpiryHours: this.requiresInviteLink() ? this.selectedInviteExpiryHours() : undefined,
-      simulatedPerUnitDelayMs: simulatedPerUnitDelayMs ?? undefined
+      simulatedPerUnitDelayMs: simulatedPerUnitDelayMs ?? undefined,
+      // Staging-only: deliver every send to the tester's inbox so the token link is receivable.
+      // Never sent from any other build; the backend also re-gates on IsSandbox().
+      sandboxTestRecipient: this.isStaging ? (this.sandboxTestRecipient().trim() || undefined) : undefined
     }).subscribe({
       next: (handle) => {
         this.batchJobId.set(handle.jobId);
@@ -405,6 +418,7 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     this.showConfirm.set(false);
     this.selectedInviteTargetJobId.set(null);
     this.selectedInviteExpiryHours.set(DEFAULT_INVITE_EXPIRY_HOURS);
+    this.sandboxTestRecipient.set(this.defaultSandboxTestRecipient);
     this.aiPrompt.set('');
     this.isDrafting.set(false);
   }

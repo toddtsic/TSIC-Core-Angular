@@ -9,5 +9,6 @@ export type BatchEmailRequest = {
     inviteLinkTargetJobId?: string | null;
     inviteExpiryHours?: number | null;
     simulatedPerUnitDelayMs?: number | null;
+    sandboxTestRecipient?: string | null;
 };
 

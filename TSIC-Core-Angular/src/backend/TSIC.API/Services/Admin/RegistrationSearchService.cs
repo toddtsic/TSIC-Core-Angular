@@ -802,6 +802,9 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         {
             SimulatedPerUnitDelayMs = request.SimulatedPerUnitDelayMs,
             SyntheticFailEveryN = simulating ? 13 : null,
+            // Staging-only test inbox from the invite modal. Honored only in a sandbox host
+            // (the send step re-checks IsSandbox()); harmless/ignored everywhere else.
+            SandboxTestRecipient = request.SandboxTestRecipient,
             // Render parallelism. Each worker now owns a fresh DI scope/DbContext PER ITEM, so N>1 is
             // safe (no shared-context concurrency) — the old "serial by construction" default for real
             // sends was an unnecessary footgun, not a safety requirement. The TEST run renders the full
