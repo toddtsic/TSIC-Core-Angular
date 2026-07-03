@@ -31,11 +31,49 @@
 
 // ── Results Container ──
 .results-container {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   min-height: 400px;
+}
+
+// ── Results loading overlay ──
+// Sits over the results area (where the eye is) during a fetch — the tiny
+// chip-strip button spinner is too easy to miss. Covers prior results on
+// re-search and fills the empty area on first search.
+.results-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  background: color-mix(in srgb, var(--bs-body-bg) 88%, transparent);
+  border-radius: var(--radius-lg);
+
+  .spinner-border {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-width: 0.22em;
+    color: var(--bs-primary);
+  }
+
+  .results-loading-text {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--brand-text-muted);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .results-loading .spinner-border {
+    animation-duration: 1.5s;
+  }
 }
 
 // ── Spinner ──
@@ -76,16 +114,38 @@
     transform: translateX(0);
   }
 
+  // Single header row: title + subtext (tip / dirty-hint) on the left, the
+  // Reset/Search actions and close X flush-right. Merges what used to be a
+  // separate header + toolbar strip into one line. Warms on dirty (was the
+  // toolbar's job) so the un-applied state still reads at a glance.
   .panel-header {
     padding: var(--space-2) var(--space-3);
     border-bottom: 1px solid var(--bs-border-color);
     background: var(--bs-body-bg);
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    transition: background 0.2s ease, border-color 0.2s ease;
 
-    .header-top-row {
+    &.is-dirty {
+      background: var(--bs-warning-bg-subtle);
+      border-bottom-color: var(--bs-warning-border-subtle);
+    }
+
+    .header-title-block {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .header-actions {
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: var(--space-2);
+      flex-shrink: 0;
     }
 
     .panel-title {
@@ -105,8 +165,24 @@
       }
     }
 
+    .tip {
+      margin: 0;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .unsaved-hint {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-1);
+      font-size: 11px;
+      font-weight: var(--font-weight-semibold);
+      color: var(--bs-warning-text-emphasis);
+    }
+
     .btn-close {
       padding: 2px;
+      margin-left: var(--space-1);
       background: transparent;
       border: none;
       font-size: var(--font-size-lg);
@@ -125,50 +201,6 @@
         box-shadow: var(--shadow-focus);
         border-radius: var(--radius-sm);
       }
-    }
-
-    .tip {
-      margin: 2px 0 0;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-  }
-
-  // Top action bar — same Reset/Search as the footer, pinned above the scrollable
-  // body so they're reachable without scrolling. Mirrors .panel-footer but with a
-  // bottom border (it sits under the header rather than above nothing).
-  .panel-toolbar {
-    flex-shrink: 0;
-    padding: var(--space-2) var(--space-3);
-    border-bottom: 1px solid var(--bs-border-color);
-    background: var(--surface-elevated-bg);
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: var(--space-2);
-    transition: background 0.2s ease, border-color 0.2s ease;
-
-    &.is-dirty {
-      background: var(--bs-warning-bg-subtle);
-      border-bottom-color: var(--bs-warning-border-subtle);
-    }
-
-    // Tip rides on the left of the button row; margin-right:auto shoves Reset/Search
-    // flush right. Keeps the whole status+action affordance to a single strip.
-    .tip {
-      margin: 0 auto 0 0;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .unsaved-hint {
-      margin-right: auto;
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-1);
-      font-size: var(--font-size-sm);
-      font-weight: var(--font-weight-semibold);
-      color: var(--bs-warning-text-emphasis);
     }
   }
 
