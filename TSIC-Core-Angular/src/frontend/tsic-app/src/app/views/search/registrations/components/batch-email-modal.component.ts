@@ -32,23 +32,30 @@ export type InviteMode = 'player' | 'clubrep';
 const INVITE_EXPIRY_OPTIONS = [6, 12, 24, 48, 72] as const;
 const DEFAULT_INVITE_EXPIRY_HOURS = 24;
 
+// The name of the target event the invite is FOR. Unlike the per-recipient tokens, this value is
+// batch-constant and already known on the client (it IS the dropdown selection), so it's filled
+// client-side at send — the backend never sees it. Using it (rather than !JOBNAME, which resolves
+// to the admin's CURRENT job) keeps the copy honest about which event the recipient is invited to.
+const EVENT_INVITED_TO_TOKEN = '!EVENT_INVITEDTO';
+
 /** Seed content for an invite send. The link (!INVITE_LINK / !CLUBREP_INVITE_LINK) and the expiry
- *  (!INVITE_EXPIRES) are resolved per recipient server-side; the admin can edit the surrounding copy
- *  but must keep the link token (a send-time guard enforces this). */
+ *  (!INVITE_EXPIRES) are resolved per recipient server-side; !EVENT_INVITEDTO is filled client-side
+ *  from the target-event dropdown. The admin can edit the surrounding copy but must keep the link
+ *  token (a send-time guard enforces this). */
 const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = {
   player: {
-    subject: 'You\'re invited to register for !JOBNAME',
+    subject: 'You\'re invited to register for !EVENT_INVITEDTO',
     body:
       'Hi !PERSON,\n\n' +
-      'You\'ve been invited to register for an upcoming event. Use your personalized link below:\n\n' +
+      'You\'ve been invited to register for !EVENT_INVITEDTO. Use your personalized link below:\n\n' +
       '!INVITE_LINK\n\n' +
       'This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.',
   },
   clubrep: {
-    subject: 'You\'re invited to register your team',
+    subject: 'You\'re invited to register your team for !EVENT_INVITEDTO',
     body:
       'Hi !PERSON,\n\n' +
-      'You\'ve been invited to register your club/team for an upcoming event. Use your personalized link below:\n\n' +
+      'You\'ve been invited to register your club/team for !EVENT_INVITEDTO. Use your personalized link below:\n\n' +
       '!CLUBREP_INVITE_LINK\n\n' +
       'This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.',
   },
@@ -145,8 +152,20 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     return body.includes('!INVITE_LINK') || body.includes('!CLUBREP_INVITE_LINK');
   });
 
+  /** The link token the active invite mode uses — surfaced in the guidance panel so the admin
+   *  keeps the right one in the body. Club reps register teams; players register themselves. */
+  readonly inviteLinkToken = computed(() =>
+    this.inviteMode() === 'clubrep' ? '!CLUBREP_INVITE_LINK' : '!INVITE_LINK'
+  );
+
+  /** Display name of the selected target event — the value !EVENT_INVITEDTO is filled with. */
+  private selectedInviteTargetJobName(): string {
+    const id = this.selectedInviteTargetJobId();
+    return this.inviteTargetJobs().find(j => j.jobId === id)?.jobName ?? '';
+  }
+
   readonly canSend = computed(() =>
-    !this.requiresInviteLink() || this.selectedInviteTargetJobId() !== null
+    (!this.inviteMode() && !this.requiresInviteLink()) || this.selectedInviteTargetJobId() !== null
   );
 
   /** Single source of truth for both Send and the dev TEST button — they enable/disable together. */
@@ -259,8 +278,8 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
     const ids = this.registrationIds();
     if (ids.length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
-    if (this.requiresInviteLink() && !this.selectedInviteTargetJobId()) {
-      this.toast.show('Select a target registration event for the invite link', 'danger', 4000);
+    if ((this.inviteMode() || this.requiresInviteLink()) && !this.selectedInviteTargetJobId()) {
+      this.toast.show('Select a target registration event for the invitation', 'danger', 4000);
       return;
     }
     this.showConfirm.set(true);
@@ -289,10 +308,17 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     this.pollErrors = 0;
     this.isSending.set(true);
 
+    // !EVENT_INVITEDTO is filled here, client-side, from the target-event dropdown — it's the same
+    // for the whole batch, so there's no reason to make the server resolve it per recipient. The
+    // backend only ever receives the literal event name.
+    const eventName = this.selectedInviteTargetJobName();
+    const subject = this.subject().replaceAll(EVENT_INVITED_TO_TOKEN, eventName);
+    const bodyTemplate = this.bodyTemplate().replaceAll(EVENT_INVITED_TO_TOKEN, eventName);
+
     this.searchService.sendBatchEmail({
       registrationIds: this.registrationIds(),
-      subject: this.subject(),
-      bodyTemplate: this.bodyTemplate(),
+      subject,
+      bodyTemplate,
       inviteLinkTargetJobId: this.selectedInviteTargetJobId() ?? undefined,
       // Only meaningful when an invite link is present; harmless otherwise. Stamps the token's
       // lifetime AND the !INVITE_EXPIRES copy from the same server instant (consistent by construction).

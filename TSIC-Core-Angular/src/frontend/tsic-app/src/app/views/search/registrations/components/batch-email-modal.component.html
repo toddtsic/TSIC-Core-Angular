@@ -2,7 +2,7 @@
   <div class="modal-overlay" (click)="close()">
     <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
       <div class="modal-header">
-        <h3>Send Batch Email</h3>
+        <h3>{{ inviteMode() ? 'Send Invitation Batch Email' : 'Send Batch Email' }}</h3>
         <button type="button" class="btn-close" (click)="close()" [disabled]="isSending()" aria-label="Close">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -31,7 +31,10 @@
         </details>
 
         <!-- Starters: template picker + AI compose. Shown only when at least one template's availability rule passes
-             (so non-ARB/non-VI jobs don't see an empty template dropdown). -->
+             (so non-ARB/non-VI jobs don't see an empty template dropdown). Hidden entirely in invite mode —
+             the copy is pre-seeded and the personalization tokens are fixed, so free compose would only invite
+             the admin to break the token contract. -->
+        @if (!inviteMode()) {
         <section class="starters-group">
           <h4 class="starters-heading">Need help composing your email?</h4>
 
@@ -95,6 +98,62 @@
             </small>
           </div>
         </section>
+        }
+
+        @if (inviteMode()) {
+          <div class="invite-guide" role="note">
+            <div class="invite-guide-head">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+              </svg>
+              <strong>Keep the <code>!TOKENS</code> — they personalize each email when it sends.</strong>
+            </div>
+            <p class="invite-guide-lead">You can edit the wording around them, but don't delete these. Each is filled in automatically when the email sends:</p>
+            <ul class="invite-guide-list">
+              <li><code>!PERSON</code> → the recipient's name</li>
+              <li><code>!EVENT_INVITEDTO</code> → the name of the <strong>“Target registration event”</strong> you pick below</li>
+              <li><code>{{ inviteLinkToken() }}</code> → their <em>unique, single-use</em> registration link for that event. <strong>Removing this disables the invitation.</strong></li>
+              <li><code>!INVITE_EXPIRES</code> → the exact expiry date &amp; time, driven by the <strong>“Invitation expires after”</strong> dropdown below — change the dropdown and this updates to match.</li>
+            </ul>
+          </div>
+
+          <fieldset class="invite-inputs" [disabled]="isSending()">
+            <legend class="invite-inputs-legend">Invitation settings</legend>
+
+            <div class="form-group invite-target-group">
+              <label for="invite-target-job">Target registration event <span class="text-danger">*</span></label>
+              @if (targetJobOptions().length === 0) {
+                <div class="alert alert-warning py-2 mb-0">
+                  No eligible events found for invite links. An invitation needs at least one other event under the same customer.
+                </div>
+              } @else {
+                <select id="invite-target-job" class="form-select"
+                  [ngModel]="selectedInviteTargetJobId()"
+                  (ngModelChange)="selectedInviteTargetJobId.set($event)">
+                  <option [value]="null"></option>
+                  @for (job of targetJobOptions(); track job.jobId) {
+                    <option [value]="job.jobId">{{ job.jobName }}</option>
+                  }
+                </select>
+                <small class="form-text text-muted">
+                  Each recipient gets a unique invite link to this event; its name fills <code>!EVENT_INVITEDTO</code>.
+                </small>
+
+                <div class="invite-expiry-row">
+                  <label for="invite-expiry" class="mb-0">Invitation expires after</label>
+                  <select id="invite-expiry" class="form-select form-select-sm invite-expiry-select"
+                    [ngModel]="selectedInviteExpiryHours()"
+                    (ngModelChange)="selectedInviteExpiryHours.set(+$event)">
+                    @for (hours of inviteExpiryOptions; track hours) {
+                      <option [value]="hours">{{ hours }} hours</option>
+                    }
+                  </select>
+                </div>
+              }
+            </div>
+          </fieldset>
+        }
 
         <div class="email-form">
           <div class="form-group">
@@ -109,44 +168,9 @@
               [ngModel]="bodyTemplate()" (ngModelChange)="bodyTemplate.set($event)"
               placeholder="Enter email body (use tokens below to personalize)" rows="8" [disabled]="isSending()"></textarea>
           </div>
-
-          @if (requiresInviteLink()) {
-            <div class="form-group invite-target-group">
-              <label for="invite-target-job">Target registration event <span class="text-danger">*</span></label>
-              @if (targetJobOptions().length === 0) {
-                <div class="alert alert-warning py-2 mb-0">
-                  No eligible events found for invite links. The invite token requires at least one other event under the same customer.
-                </div>
-              } @else {
-                <select id="invite-target-job" class="form-select"
-                  [ngModel]="selectedInviteTargetJobId()"
-                  (ngModelChange)="selectedInviteTargetJobId.set($event)"
-                  [disabled]="isSending()">
-                  <option [value]="null"></option>
-                  @for (job of targetJobOptions(); track job.jobId) {
-                    <option [value]="job.jobId">{{ job.jobName }}</option>
-                  }
-                </select>
-                <small class="form-text text-muted">
-                  Each recipient will receive a unique invite link to register on the selected event.
-                </small>
-
-                <div class="invite-expiry-row mt-2">
-                  <label for="invite-expiry" class="mb-0">Invitation expires after</label>
-                  <select id="invite-expiry" class="form-select form-select-sm invite-expiry-select"
-                    [ngModel]="selectedInviteExpiryHours()"
-                    (ngModelChange)="selectedInviteExpiryHours.set(+$event)"
-                    [disabled]="isSending()">
-                    @for (hours of inviteExpiryOptions; track hours) {
-                      <option [value]="hours">{{ hours }} hours</option>
-                    }
-                  </select>
-                </div>
-              }
-            </div>
-          }
         </div>
 
+        @if (!inviteMode()) {
         <div class="tokens-section">
           <label class="tokens-label">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -164,6 +188,7 @@
           </div>
           <small class="form-text text-muted">Click a token to insert it at the cursor position.</small>
         </div>
+        }
 
         @if (isSending() && status(); as s) {
           <div class="progress-section" aria-live="polite">
