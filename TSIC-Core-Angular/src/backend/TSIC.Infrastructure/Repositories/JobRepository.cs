@@ -473,21 +473,20 @@ public class JobRepository : IJobRepository
     public async Task<List<Contracts.Dtos.RegistrationSearch.JobOptionDto>> GetInviteTargetJobsForCustomerAsync(
         Guid jobId, Contracts.Dtos.RegistrationSearch.InviteRegistrationKind kind, CancellationToken cancellationToken = default)
     {
-        var source = await _context.Jobs
+        var customerId = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.CustomerId, j.JobTypeId })
+            .Select(j => j.CustomerId)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (source == null || source.CustomerId == Guid.Empty)
+        if (customerId == Guid.Empty)
             return [];
 
-        // Same customer AND same job type (you invite reps/players into a sibling event of the
-        // same kind), excluding the current job and any that have expired.
+        // Any non-expired event under the same customer, excluding the current job. Job type is
+        // intentionally NOT required — a director may invite reps/players across event kinds.
         var query = _context.Jobs
             .AsNoTracking()
-            .Where(j => j.CustomerId == source.CustomerId
-                && j.JobTypeId == source.JobTypeId
+            .Where(j => j.CustomerId == customerId
                 && j.JobId != jobId
                 && (j.ExpiryUsers == DateTime.MinValue || j.ExpiryUsers > DateTime.Now));
 
