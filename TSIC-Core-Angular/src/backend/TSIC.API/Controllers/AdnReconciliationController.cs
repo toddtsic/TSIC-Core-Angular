@@ -69,6 +69,23 @@ public class AdnReconciliationController : ControllerBase
     }
 
     /// <summary>
+    /// POST /api/adn-reconciliation/prepare?settlementMonth=N&amp;settlementYear=Y
+    /// Eager build after the download: runs the reconciliation sprocs ONCE and persists the month's
+    /// ledger + zip to disk so Step 2 (review) and Step 3 (files) open instantly. Returns build metadata
+    /// (built-at + per-stack TRNS counts). Defaults to last month.
+    /// </summary>
+    [HttpPost("prepare")]
+    public async Task<ActionResult<MonthEndArtifactsInfo>> Prepare(
+        [FromQuery] int? settlementMonth,
+        [FromQuery] int? settlementYear,
+        CancellationToken cancellationToken)
+    {
+        var (month, year) = ResolveMonthYear(settlementMonth, settlementYear);
+        var result = await _service.PrepareAsync(month, year, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// GET /api/adn-reconciliation/ledger?settlementMonth=N&amp;settlementYear=Y
     /// Step 2 (present): the human-readable month-end ledger — the export workbook's tabs on screen.
     /// Reads existing Txs. Defaults to last month.

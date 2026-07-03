@@ -13,6 +13,7 @@ using Microsoft.Extensions.Options;
 using Syncfusion.XlsIO;
 using TSIC.API.Configuration;
 using TSIC.API.Utilities;
+using TSIC.Contracts.Configuration;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -25,17 +26,22 @@ public sealed class ReportingService : IReportingService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IHostEnvironment _hostEnvironment;
     private readonly ReportingSettings _settings;
+    private readonly FileStorageOptions _fileStorage;
+
+    private static readonly JsonSerializerOptions MonthEndJsonOptions = new(JsonSerializerDefaults.Web);
 
     public ReportingService(
         IReportingRepository reportingRepository,
         IHttpClientFactory httpClientFactory,
         IHostEnvironment hostEnvironment,
-        IOptions<ReportingSettings> settings)
+        IOptions<ReportingSettings> settings,
+        IOptions<FileStorageOptions> fileStorage)
     {
         _reportingRepository = reportingRepository;
         _httpClientFactory = httpClientFactory;
         _hostEnvironment = hostEnvironment;
         _settings = settings.Value;
+        _fileStorage = fileStorage.Value;
     }
 
     public Task<List<JobReportEntryDto>> GetJobReportsAsync(
@@ -376,26 +382,24 @@ public sealed class ReportingService : IReportingService
         }
     }
 
+    // Persisted artifact filenames within a month's folder. meta.json is written LAST and its presence
+    // is the "built and complete" signal — a reader that sees meta.json can trust zip + ledger are whole.
+    private const string BundleFileName = "bundle.zip";
+    private const string LedgerFileName = "ledger.json";
+    private const string MetaFileName = "meta.json";
+
+    /// <summary>
+    /// Step 3 (files): return the persisted month-end .zip. Builds it once (running the sprocs) if the
+    /// month hasn't been prepared yet; otherwise streams straight off disk with no sproc execution.
+    /// </summary>
     public async Task<ReconciliationBundleResult> ExportMonthEndCloseBundleAsync(
         int settlementMonth,
         int settlementYear,
         CancellationToken cancellationToken = default)
     {
-        // Non-merch and merch reconcile to DIFFERENT QuickBooks customers (registration-customer vs
-        // merch-customer) even inside the same company file, and staff inspect each ledger on its own —
-        // so the close produces two independent .iif files (+ their backing .xlsx) in one zip. One click,
-        // two clean imports, and a malformed merch batch can never corrupt the registration import.
-        var reg = await BuildStackAsync(settlementMonth, settlementYear, isMerchandise: false, cancellationToken);
-        var merch = await BuildStackAsync(settlementMonth, settlementYear, isMerchandise: true, cancellationToken);
-
-        var monthKey = $"{settlementYear}-{settlementMonth:D2}";
-        var zipBytes = BuildReconciliationZip(new (string, byte[])[]
-        {
-            ($"TSIC-AdnReconciliation-Reg-{monthKey}.xlsx", reg.Xlsx),
-            ($"TSIC-AdnReconciliation-Merch-{monthKey}.xlsx", merch.Xlsx),
-            ("reg-consolodated.iif", reg.Iif),
-            ("merch-consolodated.iif", merch.Iif),
-        });
+        var info = await EnsureBuiltAsync(settlementMonth, settlementYear, cancellationToken);
+        var dir = ResolveMonthEndDir(settlementMonth, settlementYear);
+        var zipBytes = await File.ReadAllBytesAsync(Path.Combine(dir, BundleFileName), cancellationToken);
 
         return new ReconciliationBundleResult
         {
@@ -403,21 +407,174 @@ public sealed class ReportingService : IReportingService
             {
                 FileBytes = zipBytes,
                 ContentType = "application/zip",
-                FileName = $"TSIC-AdnReconciliation-{monthKey}.zip",
+                FileName = $"TSIC-AdnReconciliation-{settlementYear}-{settlementMonth:D2}.zip",
             },
+            RegSourceTrnsCount = info.RegSourceTrnsCount,
+            RegConsolidatedTrnsCount = info.RegConsolidatedTrnsCount,
+            MerchSourceTrnsCount = info.MerchSourceTrnsCount,
+            MerchConsolidatedTrnsCount = info.MerchConsolidatedTrnsCount,
+        };
+    }
+
+    /// <summary>
+    /// Step 2 (present): return the persisted human-readable ledger. Builds once if needed, otherwise
+    /// deserializes ledger.json off disk — no sproc execution on revisits.
+    /// </summary>
+    public async Task<MonthEndLedger> GetMonthEndLedgerAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureBuiltAsync(settlementMonth, settlementYear, cancellationToken);
+        var dir = ResolveMonthEndDir(settlementMonth, settlementYear);
+        var json = await File.ReadAllTextAsync(Path.Combine(dir, LedgerFileName), cancellationToken);
+        return JsonSerializer.Deserialize<MonthEndLedger>(json, MonthEndJsonOptions)
+            ?? new MonthEndLedger { SettlementMonth = settlementMonth, SettlementYear = settlementYear, Tabs = Array.Empty<LedgerTab>() };
+    }
+
+    /// <summary>
+    /// Eager build: run BOTH reconciliation sprocs ONCE, project the shared sheet model into the ledger,
+    /// the two consolidated .iif files, their backing .xlsx, and a flattened human-readable summary
+    /// workbook; persist the .zip + ledger.json + meta.json to the month folder. Every later Step-2/Step-3
+    /// read is served from those files, so the sprocs (and the reg sproc's write) run once per pull.
+    /// </summary>
+    public async Task<MonthEndArtifactsInfo> BuildAndPersistMonthEndAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+    {
+        // Sequential (never parallel) — both share the one scoped DbContext connection.
+        var regSheets = await RunStackSheetsAsync(settlementMonth, settlementYear, isMerchandise: false, cancellationToken);
+        var merchSheets = await RunStackSheetsAsync(settlementMonth, settlementYear, isMerchandise: true, cancellationToken);
+
+        var reg = BuildStackArtifacts(regSheets);
+        var merch = BuildStackArtifacts(merchSheets);
+
+        var tabs = new List<LedgerTab>();
+        foreach (var sheet in regSheets) tabs.Add(ParseSheetToLedgerTab(sheet, "Registration"));
+        foreach (var sheet in merchSheets) tabs.Add(ParseSheetToLedgerTab(sheet, "Merch"));
+
+        var monthKey = $"{settlementYear}-{settlementMonth:D2}";
+        var summaryXlsx = BuildFlattenedSummaryXlsx(tabs);
+
+        // Non-merch and merch reconcile to DIFFERENT QuickBooks customers even inside the same company
+        // file, and staff inspect each ledger on its own — so the close ships two independent .iif files
+        // (+ backing .xlsx). The flattened summary is the on-screen ledger for offline review.
+        var zipBytes = BuildReconciliationZip(new (string, byte[])[]
+        {
+            ($"TSIC-AdnReconciliation-Reg-{monthKey}.xlsx", reg.Xlsx),
+            ($"TSIC-AdnReconciliation-Merch-{monthKey}.xlsx", merch.Xlsx),
+            ($"TSIC-AdnReconciliation-Summary-{monthKey}.xlsx", summaryXlsx),
+            ("reg-consolodated.iif", reg.Iif),
+            ("merch-consolodated.iif", merch.Iif),
+        });
+
+        var ledger = new MonthEndLedger
+        {
+            SettlementMonth = settlementMonth,
+            SettlementYear = settlementYear,
+            Tabs = tabs,
+        };
+
+        var info = new MonthEndArtifactsInfo
+        {
+            SettlementMonth = settlementMonth,
+            SettlementYear = settlementYear,
+            BuiltAt = DateTime.Now,
+            LedgerTabCount = tabs.Count,
             RegSourceTrnsCount = reg.SourceTrns,
             RegConsolidatedTrnsCount = reg.ConsolidatedTrns,
             MerchSourceTrnsCount = merch.SourceTrns,
             MerchConsolidatedTrnsCount = merch.ConsolidatedTrns,
         };
+
+        await PersistMonthEndAsync(settlementMonth, settlementYear, zipBytes, ledger, info, cancellationToken);
+        return info;
+    }
+
+    /// <summary>Drops a month's persisted artifacts so the next read rebuilds — called after a re-download.</summary>
+    public void InvalidateMonthEnd(int settlementMonth, int settlementYear)
+    {
+        var dir = ResolveMonthEndDir(settlementMonth, settlementYear);
+        if (Directory.Exists(dir))
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    /// <summary>Builds + persists the month if meta.json (the completeness marker) is absent; returns its info either way.</summary>
+    private async Task<MonthEndArtifactsInfo> EnsureBuiltAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken)
+    {
+        var dir = ResolveMonthEndDir(settlementMonth, settlementYear);
+        var metaPath = Path.Combine(dir, MetaFileName);
+        var bundlePath = Path.Combine(dir, BundleFileName);
+        var ledgerPath = Path.Combine(dir, LedgerFileName);
+
+        if (File.Exists(metaPath) && File.Exists(bundlePath) && File.Exists(ledgerPath))
+        {
+            var existing = JsonSerializer.Deserialize<MonthEndArtifactsInfo>(
+                await File.ReadAllTextAsync(metaPath, cancellationToken), MonthEndJsonOptions);
+            if (existing != null) return existing;
+        }
+
+        return await BuildAndPersistMonthEndAsync(settlementMonth, settlementYear, cancellationToken);
+    }
+
+    private async Task PersistMonthEndAsync(
+        int settlementMonth,
+        int settlementYear,
+        byte[] zipBytes,
+        MonthEndLedger ledger,
+        MonthEndArtifactsInfo info,
+        CancellationToken cancellationToken)
+    {
+        var dir = ResolveMonthEndDir(settlementMonth, settlementYear);
+        Directory.CreateDirectory(dir);
+
+        var metaPath = Path.Combine(dir, MetaFileName);
+        // Clear the completeness marker first so a crash mid-write can't leave a half-built month
+        // looking ready. meta.json is (re)written last, after zip + ledger are safely in place.
+        if (File.Exists(metaPath)) File.Delete(metaPath);
+
+        await WriteAtomicAsync(Path.Combine(dir, BundleFileName), zipBytes, cancellationToken);
+        await WriteAtomicAsync(
+            Path.Combine(dir, LedgerFileName),
+            JsonSerializer.SerializeToUtf8Bytes(ledger, MonthEndJsonOptions),
+            cancellationToken);
+        await WriteAtomicAsync(
+            metaPath,
+            JsonSerializer.SerializeToUtf8Bytes(info, MonthEndJsonOptions),
+            cancellationToken);
+    }
+
+    private static async Task WriteAtomicAsync(string path, byte[] bytes, CancellationToken cancellationToken)
+    {
+        var tmp = path + ".tmp";
+        await File.WriteAllBytesAsync(tmp, bytes, cancellationToken);
+        File.Move(tmp, path, overwrite: true);
     }
 
     /// <summary>
-    /// Runs one reconciliation stored procedure (reg or merch) once and projects the single
-    /// in-memory sheet model into both artifacts — the backing .xlsx and the consolidated .iif —
-    /// so the QuickBooks IIF can never drift from the Excel it was reconciled against.
+    /// Resolves the month's artifact folder under the configured export path (relative values resolve
+    /// against ContentRoot; default <c>{ContentRoot}/App_Data/AdnMonthEnd</c>). The leaf is built from
+    /// validated int month/year only — never request strings — so there is no path-traversal surface.
     /// </summary>
-    private async Task<StackArtifacts> BuildStackAsync(
+    private string ResolveMonthEndDir(int settlementMonth, int settlementYear)
+    {
+        var configured = _fileStorage.MonthEndExportPath;
+        var basePath = string.IsNullOrWhiteSpace(configured)
+            ? Path.Combine(_hostEnvironment.ContentRootPath, "App_Data", "AdnMonthEnd")
+            : Path.IsPathRooted(configured)
+                ? configured
+                : Path.Combine(_hostEnvironment.ContentRootPath, configured);
+
+        return Path.Combine(basePath, $"{settlementYear:D4}-{settlementMonth:D2}");
+    }
+
+    private async Task<List<SheetData>> RunStackSheetsAsync(
         int settlementMonth,
         int settlementYear,
         bool isMerchandise,
@@ -425,18 +582,23 @@ public sealed class ReportingService : IReportingService
     {
         var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
             settlementMonth, settlementYear, isMerchandise, cancellationToken);
-
-        List<SheetData> sheets;
         try
         {
-            sheets = await ReadReaderIntoSheetsAsync(reader);
+            return await ReadReaderIntoSheetsAsync(reader);
         }
         finally
         {
             await reader.CloseAsync();
             await connection.CloseAsync();
         }
+    }
 
+    /// <summary>
+    /// Projects one stack's already-read sheet model into both artifacts — the backing .xlsx and the
+    /// consolidated .iif — so the QuickBooks IIF can never drift from the Excel it was reconciled against.
+    /// </summary>
+    private static StackArtifacts BuildStackArtifacts(List<SheetData> sheets)
+    {
         var (iifBytes, sourceTrns, consolidatedTrns) = BuildConsolidatedIif(sheets);
         return new StackArtifacts(BuildExcelFromSheets(sheets), iifBytes, sourceTrns, consolidatedTrns);
     }
@@ -444,47 +606,67 @@ public sealed class ReportingService : IReportingService
     private readonly record struct StackArtifacts(byte[] Xlsx, byte[] Iif, int SourceTrns, int ConsolidatedTrns);
 
     /// <summary>
-    /// Builds the human-readable month-end ledger by running BOTH reconciliation sprocs (reg + merch)
-    /// and parsing their sheet output into canonical tabs — the on-screen equivalent of the export
-    /// workbook. Because it drains the SAME result sets that build the .xlsx / .iif, the screen and the
-    /// file are guaranteed to agree. IIF (double-entry) sheets are flattened; QA sheets pass through.
+    /// Renders the flattened, human-readable ledger (the on-screen Step-2 view) to an .xlsx for the zip:
+    /// transaction tabs collapse each double-entry group to one line with its splits indented beneath;
+    /// QA tabs pass through. Sheet names are prefixed R/M and made Excel-safe (unique, ≤31 chars).
     /// </summary>
-    public async Task<MonthEndLedger> GetMonthEndLedgerAsync(
-        int settlementMonth,
-        int settlementYear,
-        CancellationToken cancellationToken = default)
+    private static byte[] BuildFlattenedSummaryXlsx(IReadOnlyList<LedgerTab> tabs)
     {
-        var tabs = new List<LedgerTab>();
+        var sheets = new List<SheetData>();
+        var usedNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        // Sequential (never parallel) — both share the one scoped DbContext connection.
-        foreach (var (isMerch, stack) in new[] { (false, "Registration"), (true, "Merch") })
+        foreach (var tab in tabs)
         {
-            var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
-                settlementMonth, settlementYear, isMerch, cancellationToken);
+            var prefix = tab.Stack == "Merch" ? "M " : "R ";
+            var sheet = new SheetData { Name = ToUniqueSheetName(prefix + tab.Name, usedNames) };
 
-            List<SheetData> sheets;
-            try
+            if (tab.Kind == "transactions")
             {
-                sheets = await ReadReaderIntoSheetsAsync(reader);
+                sheet.Columns.AddRange(new[] { "Date", "Type", "Client", "Account", "Amount", "Doc", "Memo" });
+                foreach (var e in tab.Entries)
+                {
+                    sheet.Rows.Add(new object?[] { e.Date, e.Type, e.Party, e.Account, e.Amount, e.DocNum, e.Memo });
+                    foreach (var sp in e.Splits)
+                    {
+                        sheet.Rows.Add(new object?[] { "", "", sp.Party, "    ↳ " + sp.Account, sp.Amount, "", sp.Memo });
+                    }
+                }
             }
-            finally
+            else
             {
-                await reader.CloseAsync();
-                await connection.CloseAsync();
+                sheet.Columns.AddRange(tab.Columns);
+                foreach (var row in tab.Rows)
+                {
+                    sheet.Rows.Add(row.Cast<object?>().ToArray());
+                }
             }
 
-            foreach (var sheet in sheets)
-            {
-                tabs.Add(ParseSheetToLedgerTab(sheet, stack));
-            }
+            sheets.Add(sheet);
         }
 
-        return new MonthEndLedger
+        if (sheets.Count == 0)
         {
-            SettlementMonth = settlementMonth,
-            SettlementYear = settlementYear,
-            Tabs = tabs,
-        };
+            sheets.Add(new SheetData { Name = "Summary" });
+        }
+
+        return BuildExcelFromSheets(sheets);
+    }
+
+    private static string ToUniqueSheetName(string raw, HashSet<string> used)
+    {
+        // Excel sheet names: ≤31 chars, none of : \ / ? * [ ].
+        var cleaned = new string(raw.Select(c => ":\\/?*[]".Contains(c) ? '-' : c).ToArray());
+        if (cleaned.Length > 31) cleaned = cleaned[..31];
+        if (string.IsNullOrWhiteSpace(cleaned)) cleaned = "Sheet";
+
+        var candidate = cleaned;
+        var suffix = 2;
+        while (!used.Add(candidate))
+        {
+            var tag = $" ({suffix++})";
+            candidate = cleaned.Length + tag.Length > 31 ? cleaned[..(31 - tag.Length)] + tag : cleaned + tag;
+        }
+        return candidate;
     }
 
     /// <summary>

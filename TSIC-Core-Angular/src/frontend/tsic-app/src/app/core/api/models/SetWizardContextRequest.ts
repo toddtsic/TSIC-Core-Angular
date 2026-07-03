@@ -4,5 +4,6 @@
 /* eslint-disable */
 export type SetWizardContextRequest = {
     jobPath: string;
+    inviteToken?: string | null;
 };
 

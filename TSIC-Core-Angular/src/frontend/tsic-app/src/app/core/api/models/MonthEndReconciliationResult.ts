@@ -8,5 +8,6 @@ export type MonthEndReconciliationResult = {
     settlementYear: number;
     reg: ReconciliationStackSummary;
     merch: ReconciliationStackSummary;
+    latestSettlementAt?: string | null;
 };
 

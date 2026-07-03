@@ -25,6 +25,7 @@ public class TeamRegistrationService : ITeamRegistrationService
     private readonly IRegistrationRepository _registrations;
     private readonly IUserRepository _users;
     private readonly ITokenService _tokenService;
+    private readonly TSIC.API.Services.Invites.IInviteTokenService _inviteTokens;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IFeeResolutionService _feeService;
     private readonly ITextSubstitutionService _textSubstitution;
@@ -48,6 +49,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         IRegistrationRepository registrations,
         IUserRepository users,
         ITokenService tokenService,
+        TSIC.API.Services.Invites.IInviteTokenService inviteTokens,
         UserManager<ApplicationUser> userManager,
         IFeeResolutionService feeService,
         ITextSubstitutionService textSubstitution,
@@ -70,6 +72,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         _registrations = registrations;
         _users = users;
         _tokenService = tokenService;
+        _inviteTokens = inviteTokens;
         _userManager = userManager;
         _feeService = feeService;
         _textSubstitution = textSubstitution;
@@ -146,7 +149,7 @@ public class TeamRegistrationService : ITeamRegistrationService
         return trimmed;
     }
 
-    public async Task<AuthTokenResponse> InitializeRegistrationAsync(string userId, string clubName, string jobPath)
+    public async Task<AuthTokenResponse> InitializeRegistrationAsync(string userId, string clubName, string jobPath, string? inviteToken = null)
     {
         _logger.LogInformation("Initializing registration for user {UserId}, club {ClubName}, job {JobPath}", userId, clubName, jobPath);
 
@@ -182,6 +185,17 @@ public class TeamRegistrationService : ITeamRegistrationService
         {
             _logger.LogWarning("Initialize-registration blocked for job {JobPath}: event has closed (ExpiryUsers).", jobPath);
             throw new InvalidOperationException("This event has closed and is no longer accepting registrations.");
+        }
+
+        // Invitation gate (write chokepoint). When the target requires a token, only the exact user the
+        // director invited — proven by a validly-signed, unexpired invite for THIS job and THIS user —
+        // may enter. This is the authoritative enforcement; the frontend guard is only a pre-check.
+        var regStatus = await _jobs.GetRegistrationStatusAsync(jobId.Value);
+        if (regStatus?.BTeamRegRequiresToken == true
+            && !_inviteTokens.IsValidFor(inviteToken, jobId.Value, userId))
+        {
+            _logger.LogWarning("Initialize-registration blocked for job {JobPath}: missing/invalid invitation for user {UserId}.", jobPath, userId);
+            throw new InvalidOperationException("This event requires a valid invitation to register a team. Please use the invitation link from your email.");
         }
 
         var job = await _jobs.GetJobAuthInfoAsync(jobId.Value);

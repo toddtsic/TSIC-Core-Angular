@@ -1,10 +1,12 @@
 import { Component, ChangeDetectionStrategy, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule, CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpClient, HttpResponse } from '@angular/common/http';
+import { GridAllModule, GridComponent, ColumnModel } from '@syncfusion/ej2-angular-grids';
 import { environment } from '@environments/environment';
 import {
     AdnImportResult,
     LedgerTab,
+    MonthEndArtifactsInfo,
     MonthEndLedger,
     MonthEndReconciliationResult,
     ReconciliationStackSummary,
@@ -22,12 +24,13 @@ interface ReconciliationStackView {
     label: string;
     summary: ReconciliationStackSummary;
     matched: boolean;
+    empty: boolean;
 }
 
 @Component({
     selector: 'app-get-reconciliation-records',
     standalone: true,
-    imports: [CommonModule, DatePipe, CurrencyPipe],
+    imports: [CommonModule, DatePipe, CurrencyPipe, GridAllModule],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './get-reconciliation-records.component.html',
     styleUrls: ['./get-reconciliation-records.component.scss'],
@@ -56,21 +59,33 @@ export class GetReconciliationRecordsComponent implements OnInit {
 
     readonly activeStep = signal(1);
 
+    // Grid config — Search covers filtering, header-click covers sorting, aggregates cover totals.
+    readonly ledgerToolbar = ['Search', 'ExcelExport'];
+    readonly ledgerPageSettings = { pageSize: 50, pageSizes: [25, 50, 100, 200] };
+
     // Step 1 — Download ADN Txs
     readonly isImporting = signal(false);
     readonly importResult = signal<AdnImportResult | null>(null);
     readonly importError = signal('');
     readonly probing = signal(true);
+    // Probe couldn't reach a working backend — distinct from a genuinely empty month.
+    readonly probeFailed = signal(false);
+    // The beat between "data received" and the verdict — the match query (stats) running.
+    readonly isBuildingStats = signal(false);
 
     // Reconciliation verdict — Step 1's output statement (loaded after import, and on page init as a probe)
     readonly reconciliation = signal<MonthEndReconciliationResult | null>(null);
+
+    // Eager build: after a download we run the sprocs once and persist the ledger + zip so Step 2/3
+    // open instantly. Non-fatal — if it fails, Step 2/3 fall back to build-on-demand.
+    readonly isPreparing = signal(false);
+    readonly prepareInfo = signal<MonthEndArtifactsInfo | null>(null);
 
     // Step 2 — Review summary (the ledger tabs)
     readonly isLoadingLedger = signal(false);
     readonly ledger = signal<MonthEndLedger | null>(null);
     readonly ledgerError = signal('');
     readonly activeTabIndex = signal(0);
-    private readonly expanded = signal<ReadonlySet<string>>(new Set());
 
     // Step 3 — Download files
     readonly isGeneratingFiles = signal(false);
@@ -85,12 +100,16 @@ export class GetReconciliationRecordsComponent implements OnInit {
     });
     readonly dataInPlace = computed(() => this.loadedTransactionCount() > 0);
 
+    // Greatest settlement date/time in the loaded month — a data-currency proxy ("settlements through
+    // here"), not a pull timestamp (Txs records no import time).
+    readonly latestSettlementAt = computed(() => this.reconciliation()?.latestSettlementAt ?? null);
+
     readonly stackViews = computed<ReconciliationStackView[]>(() => {
         const r = this.reconciliation();
         if (!r) return [];
         return [
-            { key: 'reg', label: 'Registration', summary: r.reg, matched: r.reg.unmatchedCount === 0 },
-            { key: 'merch', label: 'Merch', summary: r.merch, matched: r.merch.unmatchedCount === 0 },
+            { key: 'reg', label: 'Registration', summary: r.reg, matched: r.reg.unmatchedCount === 0, empty: r.reg.transactionCount === 0 },
+            { key: 'merch', label: 'Merch', summary: r.merch, matched: r.merch.unmatchedCount === 0, empty: r.merch.transactionCount === 0 },
         ];
     });
     readonly allMatched = computed(() => {
@@ -104,8 +123,32 @@ export class GetReconciliationRecordsComponent implements OnInit {
         return l.tabs[Math.min(this.activeTabIndex(), l.tabs.length - 1)] ?? null;
     });
 
+    // QA (passthrough) tabs have dynamic columns — project the string[][] rows into keyed objects and
+    // build matching column defs so the Grid can sort/search/export them like any other grid.
+    readonly qaColumns = computed<ColumnModel[]>(() => {
+        const tab = this.activeTab();
+        if (!tab || tab.kind !== 'table') return [];
+        return tab.columns.map((h, i) => ({ field: `c${i}`, headerText: h, width: 150 }));
+    });
+    readonly qaRows = computed<Record<string, string>[]>(() => {
+        const tab = this.activeTab();
+        if (!tab || tab.kind !== 'table') return [];
+        return tab.rows.map(r => {
+            const o: Record<string, string> = {};
+            r.forEach((c, i) => (o[`c${i}`] = c));
+            return o;
+        });
+    });
+
     ngOnInit(): void {
-        // Probe: is last month already loaded? Drives step gating without forcing a pull.
+        this.probe();
+    }
+
+    // Probe: is last month already loaded? Drives step gating without forcing a pull.
+    // A failure here (backend down / not deployed) is surfaced, not swallowed into a false "empty".
+    probe(): void {
+        this.probing.set(true);
+        this.probeFailed.set(false);
         this.http
             .get<MonthEndReconciliationResult>(`${this.base}/reconcile${this.monthParams}`)
             .subscribe({
@@ -113,7 +156,10 @@ export class GetReconciliationRecordsComponent implements OnInit {
                     this.reconciliation.set(r);
                     this.probing.set(false);
                 },
-                error: () => this.probing.set(false),
+                error: () => {
+                    this.probeFailed.set(true);
+                    this.probing.set(false);
+                },
             });
     }
 
@@ -153,11 +199,15 @@ export class GetReconciliationRecordsComponent implements OnInit {
                 next: result => {
                     this.importResult.set(result);
                     this.isImporting.set(false);
-                    // Re-probe so the match verdict (Step 1's output statement) reflects the fresh import.
+                    // Data's in — now build the match verdict (Step 1's output statement).
+                    this.isBuildingStats.set(true);
                     this.reloadReconciliation();
-                    // A fresh pull invalidates any previously loaded ledger/files.
+                    // A fresh pull invalidated the persisted ledger/files server-side — clear ours and
+                    // eagerly rebuild them once so Step 2/3 open instantly.
                     this.ledger.set(null);
                     this.filesStats.set(null);
+                    this.prepareInfo.set(null);
+                    this.prepareArtifacts();
                 },
                 error: err => {
                     this.isImporting.set(false);
@@ -166,10 +216,31 @@ export class GetReconciliationRecordsComponent implements OnInit {
             });
     }
 
+    // Eager build (non-fatal): run the sprocs once and persist ledger + zip so Step 2/3 read from disk.
+    private prepareArtifacts(): void {
+        this.isPreparing.set(true);
+        this.http
+            .post<MonthEndArtifactsInfo>(`${this.base}/prepare${this.monthParams}`, null)
+            .subscribe({
+                next: info => {
+                    this.prepareInfo.set(info);
+                    this.isPreparing.set(false);
+                },
+                // Swallow — Step 2/3 will build on demand if the eager build didn't finish.
+                error: () => this.isPreparing.set(false),
+            });
+    }
+
     private reloadReconciliation(): void {
         this.http
             .get<MonthEndReconciliationResult>(`${this.base}/reconcile${this.monthParams}`)
-            .subscribe({ next: r => this.reconciliation.set(r) });
+            .subscribe({
+                next: r => {
+                    this.reconciliation.set(r);
+                    this.isBuildingStats.set(false);
+                },
+                error: () => this.isBuildingStats.set(false),
+            });
     }
 
     // ----- Step 2: Review summary (ledger tabs) ---------------------------
@@ -196,18 +267,11 @@ export class GetReconciliationRecordsComponent implements OnInit {
         this.activeTabIndex.set(index);
     }
 
-    toggleSplits(key: string): void {
-        const next = new Set(this.expanded());
-        if (next.has(key)) {
-            next.delete(key);
-        } else {
-            next.add(key);
+    // Grid Excel export via the toolbar button (grid ref passed from the template).
+    onLedgerToolbar(args: { item?: { id?: string } }, grid: GridComponent): void {
+        if (args.item?.id?.toLowerCase().includes('excelexport')) {
+            grid.excelExport();
         }
-        this.expanded.set(next);
-    }
-
-    isExpanded(key: string): boolean {
-        return this.expanded().has(key);
     }
 
     // ----- Step 3: Download files -----------------------------------------

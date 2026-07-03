@@ -53,13 +53,16 @@ export class TeamRegistrationService {
      *
      * @param clubName - The club name to initialize registration for
      * @param jobPath - The event identifier (e.g., "aim-cac-2026")
+     * @param inviteToken - Signed invite token from ?invite=; required when the target event is
+     *                      token-gated (BTeamRegRequiresToken). Server re-verifies it against the user.
      * @returns Phase 2 token response with accessToken containing regId claim
      */
     initializeRegistration(
         clubName: string,
         jobPath: string,
+        inviteToken?: string | null,
     ): Observable<AuthTokenResponse> {
-        const request: InitializeRegistrationRequest = { clubName, jobPath };
+        const request: InitializeRegistrationRequest = { clubName, jobPath, inviteToken: inviteToken ?? undefined };
         return this.http
             .post<AuthTokenResponse>(
                 `${this.apiUrl}/initialize-registration`,

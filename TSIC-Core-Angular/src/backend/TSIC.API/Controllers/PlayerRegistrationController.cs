@@ -30,6 +30,8 @@ public class PlayerRegistrationController : ControllerBase
     private readonly ITokenService _tokenService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IJobRegistrationCapabilities _capabilities;
+    private readonly IJobRepository _jobRepo;
+    private readonly TSIC.API.Services.Invites.IInviteTokenService _inviteTokens;
 
     public PlayerRegistrationController(
         IJobLookupService jobLookupService,
@@ -37,7 +39,9 @@ public class PlayerRegistrationController : ControllerBase
         IFamilyRepository familyRepo,
         ITokenService tokenService,
         UserManager<ApplicationUser> userManager,
-        IJobRegistrationCapabilities capabilities)
+        IJobRegistrationCapabilities capabilities,
+        IJobRepository jobRepo,
+        TSIC.API.Services.Invites.IInviteTokenService inviteTokens)
     {
         _jobLookupService = jobLookupService;
         _registrationService = registrationService;
@@ -45,6 +49,8 @@ public class PlayerRegistrationController : ControllerBase
         _tokenService = tokenService;
         _userManager = userManager;
         _capabilities = capabilities;
+        _jobRepo = jobRepo;
+        _inviteTokens = inviteTokens;
     }
 
     /// <summary>
@@ -83,6 +89,16 @@ public class PlayerRegistrationController : ControllerBase
         if (jobId == null)
         {
             return BadRequest(new { message = $"Event not found: {request.JobPath}" });
+        }
+
+        // Invitation gate (write chokepoint). Family/Player is created downstream from THIS job-scoped
+        // token, so a token-gated event must verify the signed invite here — only the invited user, for
+        // this exact job, within the window, gets a wizard token. Authoritative; the guard is a pre-check.
+        var regStatus = await _jobRepo.GetRegistrationStatusAsync(jobId.Value);
+        if (regStatus?.BPlayerRegRequiresToken == true
+            && !_inviteTokens.IsValidFor(request.InviteToken, jobId.Value, userId))
+        {
+            return BadRequest(new { message = "This event requires a valid invitation to register. Please use the invitation link from your email." });
         }
 
         // Get job details for logo

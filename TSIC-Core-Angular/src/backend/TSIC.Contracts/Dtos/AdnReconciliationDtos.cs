@@ -15,6 +15,13 @@ public record MonthEndReconciliationResult
     public required int SettlementYear { get; init; }
     public required ReconciliationStackSummary Reg { get; init; }
     public required ReconciliationStackSummary Merch { get; init; }
+
+    /// <summary>
+    /// Greatest settlement date/time present in the loaded data for the month — a proxy for data
+    /// currency ("we have settlements through here"), NOT when the pull ran (Txs records no import
+    /// timestamp). Null when the month holds no rows.
+    /// </summary>
+    public DateTime? LatestSettlementAt { get; init; }
 }
 
 public record ReconciliationStackSummary
@@ -52,4 +59,21 @@ public record ReconciliationUnmatched
     public required string InvoiceNumber { get; init; }
     public required decimal Amount { get; init; }
     public required string Status { get; init; }
+}
+
+/// <summary>
+/// Metadata for a month's persisted close artifacts (bundle.zip + ledger.json on disk). Returned by the
+/// eager "prepare" build and stored as meta.json alongside the artifacts; its presence marks the month
+/// as built. The sprocs run once to produce these — every later Step-2/Step-3 read is served from disk.
+/// </summary>
+public record MonthEndArtifactsInfo
+{
+    public required int SettlementMonth { get; init; }
+    public required int SettlementYear { get; init; }
+    public required DateTime BuiltAt { get; init; }
+    public required int LedgerTabCount { get; init; }
+    public required int RegSourceTrnsCount { get; init; }
+    public required int RegConsolidatedTrnsCount { get; init; }
+    public required int MerchSourceTrnsCount { get; init; }
+    public required int MerchConsolidatedTrnsCount { get; init; }
 }

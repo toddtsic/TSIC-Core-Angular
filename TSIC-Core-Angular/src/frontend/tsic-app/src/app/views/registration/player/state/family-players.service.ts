@@ -125,11 +125,15 @@ export class FamilyPlayersService {
         }
     }
 
-    /** Upgrade Phase 1 token to job-scoped token. */
-    setWizardContext(jobPath: string, apiBase: string): Observable<AuthTokenResponse> {
+    /**
+     * Upgrade Phase 1 token to job-scoped token.
+     * @param inviteToken Signed invite from ?invite=; required when the event is token-gated
+     *   (BPlayerRegRequiresToken). The server re-verifies it against the authenticated user.
+     */
+    setWizardContext(jobPath: string, apiBase: string, inviteToken?: string | null): Observable<AuthTokenResponse> {
         return this.http.post<AuthTokenResponse>(
             `${apiBase}/player-registration/set-wizard-context`,
-            { jobPath },
+            { jobPath, inviteToken: inviteToken ?? undefined },
             { context: skipErrorToast() },
         ).pipe(
             tap(response => {

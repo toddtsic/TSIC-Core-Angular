@@ -54,6 +54,15 @@ public interface IAdnReconciliationService
         int settlementMonth,
         int settlementYear,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Eager build after a download: runs the sprocs ONCE and persists the month's ledger + zip so the
+    /// review (Step 2) and file download (Step 3) are served from disk. Returns the build metadata.
+    /// </summary>
+    Task<MonthEndArtifactsInfo> PrepareAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
 }
 
 public record AdnImportResult

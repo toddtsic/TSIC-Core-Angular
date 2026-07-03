@@ -19,4 +19,12 @@ public class FileStorageOptions
     /// {playerUserId}.pdf — global to the person, persisted across jobs.
     /// </summary>
     public required string MedFormsPath { get; init; }
+
+    /// <summary>
+    /// Where the ADN month-end close artifacts (bundle.zip + ledger.json + meta.json) are persisted so
+    /// the sprocs run once per pull, not once per wizard step. A relative value is resolved against the
+    /// app's ContentRoot; unset defaults to <c>{ContentRoot}/App_Data/AdnMonthEnd</c>. This location is
+    /// deliberately NOT web-served — files are streamed only through the Superuser-gated controller.
+    /// </summary>
+    public string? MonthEndExportPath { get; init; }
 }

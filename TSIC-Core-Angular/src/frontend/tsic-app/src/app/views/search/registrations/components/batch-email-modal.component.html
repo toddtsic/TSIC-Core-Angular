@@ -130,6 +130,18 @@
                 <small class="form-text text-muted">
                   Each recipient will receive a unique invite link to register on the selected event.
                 </small>
+
+                <div class="invite-expiry-row mt-2">
+                  <label for="invite-expiry" class="mb-0">Invitation expires after</label>
+                  <select id="invite-expiry" class="form-select form-select-sm invite-expiry-select"
+                    [ngModel]="selectedInviteExpiryHours()"
+                    (ngModelChange)="selectedInviteExpiryHours.set(+$event)"
+                    [disabled]="isSending()">
+                    @for (hours of inviteExpiryOptions; track hours) {
+                      <option [value]="hours">{{ hours }} hours</option>
+                    }
+                  </select>
+                </div>
               }
             </div>
           }

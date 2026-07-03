@@ -12,6 +12,8 @@ public sealed record InitializeRegistrationRequest
 {
     public required string ClubName { get; init; }
     public required string JobPath { get; init; }
+    /// <summary>Signed invite token from the invitation link (?invite=). Required only for token-gated events.</summary>
+    public string? InviteToken { get; init; }
 }
 
 public class InitializeRegistrationRequestValidator : AbstractValidator<InitializeRegistrationRequest>

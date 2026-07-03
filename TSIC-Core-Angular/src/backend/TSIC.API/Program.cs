@@ -271,6 +271,7 @@ builder.Services.AddScoped<IUsLaxService, UsLaxService>();
 builder.Services.AddScoped<IUsLaxIdentityVerificationService, UsLaxIdentityVerificationService>();
 builder.Services.AddScoped<IUsLaxMembershipService, UsLaxMembershipService>();
 builder.Services.AddScoped<ITokenService, TokenService>();
+builder.Services.AddScoped<TSIC.API.Services.Invites.IInviteTokenService, TSIC.API.Services.Invites.InviteTokenService>();
 builder.Services.AddScoped<IAdultRegistrationService, AdultRegistrationService>();
 builder.Services.AddScoped<IAdministratorService, AdministratorService>();
 builder.Services.AddScoped<ICustomerGroupService, CustomerGroupService>();

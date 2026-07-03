@@ -6,4 +6,7 @@ namespace TSIC.Contracts.Dtos;
 public record SetWizardContextRequest
 {
     public required string JobPath { get; init; }
+
+    /// <summary>Signed invite token from the invitation link (?invite=). Required only for token-gated events.</summary>
+    public string? InviteToken { get; init; }
 }

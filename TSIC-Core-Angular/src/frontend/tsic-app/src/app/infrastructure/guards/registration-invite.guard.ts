@@ -81,11 +81,12 @@ export function createRegistrationInviteGuard(config: InviteGuardConfig): CanAct
             });
         }
 
-        // 4. Validate invite token
-        const user = auth.getCurrentUser()!;
-        const inviteRegId = route.queryParamMap.get('invite');
+        // 4. Validate the signed invite token carried in ?invite=<token>. The token is bound to a
+        //    single user + target job + expiry; the server re-derives the user from the JWT (attached
+        //    by the auth interceptor) and rejects a token minted for anyone else. No userId param.
+        const token = route.queryParamMap.get('invite');
 
-        if (!inviteRegId || !user.userId) {
+        if (!token) {
             toast.show(`Only accepted ${config.registrationType.toLowerCase()}s with valid invitations may register for this event.`, 'danger', 6000);
             return router.createUrlTree([`/${jobPath}`]);
         }
@@ -96,8 +97,7 @@ export function createRegistrationInviteGuard(config: InviteGuardConfig): CanAct
                 http.get<{ allowed: boolean }>(`${environment.apiUrl}/${config.validateEndpoint}/validate`, {
                     params: {
                         targetJobPath: jobPath,
-                        sourceRegId: inviteRegId,
-                        userId: user.userId
+                        token
                     }
                 })
             );

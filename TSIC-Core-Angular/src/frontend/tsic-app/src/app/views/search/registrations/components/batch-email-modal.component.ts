@@ -5,7 +5,7 @@ import type { EmailBatchJobStatus, JobOptionDto, RegistrationSearchRequest } fro
 import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, isClubRepRoleFilter, isPlayerRoleFilter, type EmailTemplate, type JobFlagsForTemplates } from '../email-templates';
+import { EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, type EmailTemplate, type JobFlagsForTemplates } from '../email-templates';
 
 const BASE_TOKENS = [
   { token: '!PERSON', description: 'Contact person name' },
@@ -21,12 +21,38 @@ const BASE_TOKENS = [
   { token: '!CUSTOMERNAME', description: 'Customer name' }
 ];
 
-// Invite tokens are role-scoped: the player invite is offered only when the search is filtered to
-// Player, the club-rep invite only when filtered to Club Rep. Neither is a base token — offering both
-// regardless of the active filter let an admin drop the wrong invitation into a role's email.
-const PLAYER_INVITE_TOKEN = { token: '!INVITE_LINK', description: 'Personalized player registration invitation link (requires target event selection)' };
-const CLUBREP_INVITE_TOKEN = { token: '!CLUBREP_INVITE_LINK', description: 'Club rep team registration invitation link (requires target event selection)' };
 const USLAX_VALID_THROUGH_TOKEN = { token: '!USLAXVALIDTHROUGHDATE', description: 'USA Lacrosse membership must be valid through this date' };
+
+// Invite tokens are NEVER hand-picked from the palette — they are SEEDED by the "Invite" action,
+// which knows the role and pre-places the correct personalized link + expiry text. Offering them in
+// the palette let an admin drop the wrong invitation (or an invite into a plain email) by hand.
+export type InviteMode = 'player' | 'clubrep';
+
+// Selectable lifetimes (hours) for the signed invite token. Short by design — magic-link style.
+const INVITE_EXPIRY_OPTIONS = [6, 12, 24, 48, 72] as const;
+const DEFAULT_INVITE_EXPIRY_HOURS = 24;
+
+/** Seed content for an invite send. The link (!INVITE_LINK / !CLUBREP_INVITE_LINK) and the expiry
+ *  (!INVITE_EXPIRES) are resolved per recipient server-side; the admin can edit the surrounding copy
+ *  but must keep the link token (a send-time guard enforces this). */
+const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = {
+  player: {
+    subject: 'You\'re invited to register for !JOBNAME',
+    body:
+      'Hi !PERSON,\n\n' +
+      'You\'ve been invited to register for an upcoming event. Use your personalized link below:\n\n' +
+      '!INVITE_LINK\n\n' +
+      'This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.',
+  },
+  clubrep: {
+    subject: 'You\'re invited to register your team',
+    body:
+      'Hi !PERSON,\n\n' +
+      'You\'ve been invited to register your club/team for an upcoming event. Use your personalized link below:\n\n' +
+      '!CLUBREP_INVITE_LINK\n\n' +
+      'This invitation is unique to you and expires on !INVITE_EXPIRES. Please complete your registration before then.',
+  },
+};
 
 @Component({
   selector: 'app-batch-email-modal',
@@ -47,10 +73,6 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   recipientCount = input<number>(0);
   recipients = input<{ name: string; email: string }[]>([]);
   isOpen = input<boolean>(false);
-
-  // Role context — the active role-filter values (GUIDs / synthetic sentinels) drive which invite
-  // token is offered. Matched by value, so the role display text is not needed here.
-  activeRoleIds = input<string[]>([]);
 
   // Full search context — drives template availability (VI filters, etc.)
   searchRequest = input<RegistrationSearchRequest | null>(null);
@@ -102,34 +124,18 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   aiPrompt = signal<string>('');
   isDrafting = signal<boolean>(false);
 
-  // Invite link support
-  inviteTargetJobs = signal<JobOptionDto[]>([]);
-  clubRepInviteTargetJobs = signal<JobOptionDto[]>([]);
+  // Invite mode — set by the parent's "Invite" action. When non-null, the modal opens seeded with the
+  // role's invite template and shows the target-event + expiry pickers.
+  inviteMode = input<InviteMode | null>(null);
+  // Eligible target events for the active invite role (from the job-scoped init load, passed by parent).
+  inviteTargetJobs = input<JobOptionDto[]>([]);
   selectedInviteTargetJobId = signal<string | null>(null);
-
-  /** The single selected role-filter value (GUID or synthetic sentinel), or null when zero/multiple
-   *  roles are active. Matched on the stable filter value, not the display text. */
-  private readonly singleSelectedRoleId = computed(() => {
-    const ids = this.activeRoleIds();
-    return ids.length === 1 ? ids[0] : null;
-  });
-
-  /** True when the search is scoped to exactly one Club Rep role filter (real GUID or active-teams sentinel). */
-  readonly isClubRepOnly = computed(() => {
-    const id = this.singleSelectedRoleId();
-    return id != null && isClubRepRoleFilter(id);
-  });
-
-  /** True when the search is scoped to exactly one Player role filter (real GUID or not-waitlisted sentinel). */
-  readonly isPlayerOnly = computed(() => {
-    const id = this.singleSelectedRoleId();
-    return id != null && isPlayerRoleFilter(id);
-  });
+  readonly inviteExpiryOptions = INVITE_EXPIRY_OPTIONS;
+  selectedInviteExpiryHours = signal<number>(DEFAULT_INVITE_EXPIRY_HOURS);
 
   readonly availableTokens = computed(() => {
+    // Invite links are intentionally NOT offered here — they are seeded by the Invite action.
     const tokens = [...BASE_TOKENS];
-    if (this.isPlayerOnly()) tokens.push(PLAYER_INVITE_TOKEN);
-    if (this.isClubRepOnly()) tokens.push(CLUBREP_INVITE_TOKEN);
     if (this.jobFlags()?.usLaxMembershipValidated) tokens.push(USLAX_VALID_THROUGH_TOKEN);
     return tokens;
   });
@@ -163,14 +169,19 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   readonly hasAvailableTemplates = computed(() => this.availableTemplateCategories().length > 0);
 
   ngOnInit(): void {
-    this.searchService.getInviteTargetJobs().subscribe({
-      next: (jobs) => this.inviteTargetJobs.set(jobs),
-      error: () => { /* non-critical — just means dropdown stays empty */ }
-    });
-    this.searchService.getClubRepInviteTargetJobs().subscribe({
-      next: (jobs) => this.clubRepInviteTargetJobs.set(jobs),
-      error: () => { /* non-critical */ }
-    });
+    // Invite send: seed the role's template and default the pickers. The eligible target list is
+    // passed in from the job-scoped init load (no per-open fetch). Auto-select when there's exactly one.
+    const mode = this.inviteMode();
+    if (mode) {
+      const seed = INVITE_TEMPLATES[mode];
+      this.subject.set(seed.subject);
+      this.bodyTemplate.set(seed.body);
+      this.lastAppliedTemplate.set({ subject: seed.subject, body: seed.body });
+      this.selectedInviteExpiryHours.set(DEFAULT_INVITE_EXPIRY_HOURS);
+      const targets = this.inviteTargetJobs();
+      if (targets.length === 1) this.selectedInviteTargetJobId.set(targets[0].jobId);
+      return;
+    }
 
     const initialLabel = this.initialTemplateLabel();
     if (initialLabel) {
@@ -181,12 +192,9 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     }
   }
 
-  /** Jobs shown in the target event dropdown — future-only for club rep invite, all for player invite */
-  readonly targetJobOptions = computed(() => {
-    const body = this.bodyTemplate();
-    if (body.includes('!CLUBREP_INVITE_LINK')) return this.clubRepInviteTargetJobs();
-    return this.inviteTargetJobs();
-  });
+  /** Eligible target events for the active invite role — supplied by the parent from the
+   *  job-scoped init load (RegistrationFilterOptionsDto.eligible{Player,ClubRep}InviteTargetJobs). */
+  readonly targetJobOptions = computed(() => this.inviteTargetJobs());
 
   applyTemplate(template: EmailTemplate): void {
     this.subject.set(template.subject);
@@ -286,6 +294,9 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
       subject: this.subject(),
       bodyTemplate: this.bodyTemplate(),
       inviteLinkTargetJobId: this.selectedInviteTargetJobId() ?? undefined,
+      // Only meaningful when an invite link is present; harmless otherwise. Stamps the token's
+      // lifetime AND the !INVITE_EXPIRES copy from the same server instant (consistent by construction).
+      inviteExpiryHours: this.requiresInviteLink() ? this.selectedInviteExpiryHours() : undefined,
       simulatedPerUnitDelayMs: simulatedPerUnitDelayMs ?? undefined
     }).subscribe({
       next: (handle) => {
@@ -367,6 +378,7 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     this.summaryEmailed.set(false);
     this.showConfirm.set(false);
     this.selectedInviteTargetJobId.set(null);
+    this.selectedInviteExpiryHours.set(DEFAULT_INVITE_EXPIRY_HOURS);
     this.aiPrompt.set('');
     this.isDrafting.set(false);
   }

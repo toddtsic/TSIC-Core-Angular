@@ -1,60 +1,58 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TSIC.API.Services.Invites;
 using TSIC.Contracts.Repositories;
 
 namespace TSIC.API.Controllers;
 
 /// <summary>
-/// Validates whether a club rep (team) or family (player) is allowed to register on
-/// a target job. Player and team invites share identical logic — the only difference
-/// is which pair of job flags gates the flow — so both live here behind their original
-/// routes (<c>api/player-invite/validate</c>, <c>api/team-invite/validate</c>).
-/// No auth required — called by the frontend guard before/after Phase 1 login.
+/// Pre-checks whether the current (Phase-1 authenticated) user may enter a token-gated registration
+/// wizard, so the frontend guard can bounce early instead of letting the wizard fail. Player and team
+/// share identical logic — only which pair of job flags gates the flow — so both live here behind their
+/// original routes (<c>api/player-invite/validate</c>, <c>api/team-invite/validate</c>).
+///
+/// This is a UX pre-check ONLY. The authoritative gate is server-side at the wizard-entry chokepoints
+/// (team <c>initialize-registration</c>, player <c>set-wizard-context</c>), which re-verify the same
+/// signed token against the authenticated user before minting a wizard token.
 /// </summary>
 [ApiController]
-[AllowAnonymous]
+[Authorize] // Phase-1 minimum: the invite is bound to a specific user, so we need to know who is asking.
 public class RegistrationInviteController : ControllerBase
 {
     private readonly IJobRepository _jobRepo;
-    private readonly IRegistrationRepository _registrationRepo;
+    private readonly IInviteTokenService _inviteTokens;
 
     public RegistrationInviteController(
         IJobRepository jobRepo,
-        IRegistrationRepository registrationRepo)
+        IInviteTokenService inviteTokens)
     {
         _jobRepo = jobRepo;
-        _registrationRepo = registrationRepo;
+        _inviteTokens = inviteTokens;
     }
 
     private enum InviteKind { Player, Team }
 
-    /// <summary>
-    /// Validates a player invite. Checks BRegistrationAllowPlayer first, then BPlayerRegRequiresToken.
-    /// </summary>
+    /// <summary>Player invite pre-check. Gates on BRegistrationAllowPlayer, then BPlayerRegRequiresToken.</summary>
     [HttpGet("api/player-invite/validate")]
     public Task<ActionResult<InviteValidationResult>> ValidatePlayer(
         [FromQuery] string targetJobPath,
-        [FromQuery] Guid? sourceRegId,
-        [FromQuery] string? userId,
+        [FromQuery] string? token,
         CancellationToken ct)
-        => ValidateAsync(InviteKind.Player, targetJobPath, sourceRegId, userId, ct);
+        => ValidateAsync(InviteKind.Player, targetJobPath, token, ct);
 
-    /// <summary>
-    /// Validates a team invite. Checks BRegistrationAllowTeam first, then BTeamRegRequiresToken.
-    /// </summary>
+    /// <summary>Team invite pre-check. Gates on BRegistrationAllowTeam, then BTeamRegRequiresToken.</summary>
     [HttpGet("api/team-invite/validate")]
     public Task<ActionResult<InviteValidationResult>> ValidateTeam(
         [FromQuery] string targetJobPath,
-        [FromQuery] Guid? sourceRegId,
-        [FromQuery] string? userId,
+        [FromQuery] string? token,
         CancellationToken ct)
-        => ValidateAsync(InviteKind.Team, targetJobPath, sourceRegId, userId, ct);
+        => ValidateAsync(InviteKind.Team, targetJobPath, token, ct);
 
     private async Task<ActionResult<InviteValidationResult>> ValidateAsync(
         InviteKind kind,
         string targetJobPath,
-        Guid? sourceRegId,
-        string? userId,
+        string? token,
         CancellationToken ct)
     {
         var targetJobId = await _jobRepo.GetJobIdByPathAsync(targetJobPath, ct);
@@ -72,34 +70,21 @@ public class RegistrationInviteController : ControllerBase
             ? status.BPlayerRegRequiresToken
             : status.BTeamRegRequiresToken;
 
-        // Check 1: Is registration open at all?
+        // Registration must be open at all.
         if (!registrationOpen)
             return Ok(new InviteValidationResult { Allowed = false });
 
-        // Check 2: Does this job require a token?
+        // Open enrollment (no token required) — anyone authenticated may proceed.
         if (!requiresToken)
             return Ok(new InviteValidationResult { Allowed = true });
 
-        // Token required — validate sourceRegId and userId
-        if (sourceRegId == null || string.IsNullOrEmpty(userId))
+        // Token-gated: the signed invite must be valid for exactly this job AND this authenticated user.
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        if (string.IsNullOrEmpty(userId))
             return Ok(new InviteValidationResult { Allowed = false });
 
-        var sourceReg = await _registrationRepo.GetByIdAsync(sourceRegId.Value, ct);
-        if (sourceReg == null)
-            return Ok(new InviteValidationResult { Allowed = false });
-
-        // UserId must match exactly
-        if (sourceReg.UserId != userId)
-            return Ok(new InviteValidationResult { Allowed = false });
-
-        // Both jobs must belong to the same customer
-        var sourceCustomerId = await _jobRepo.GetCustomerIdAsync(sourceReg.JobId, ct);
-        var targetCustomerId = await _jobRepo.GetCustomerIdAsync(targetJobId.Value, ct);
-
-        if (sourceCustomerId == null || targetCustomerId == null || sourceCustomerId != targetCustomerId)
-            return Ok(new InviteValidationResult { Allowed = false });
-
-        return Ok(new InviteValidationResult { Allowed = true });
+        var allowed = _inviteTokens.IsValidFor(token, targetJobId.Value, userId);
+        return Ok(new InviteValidationResult { Allowed = allowed });
     }
 }
 

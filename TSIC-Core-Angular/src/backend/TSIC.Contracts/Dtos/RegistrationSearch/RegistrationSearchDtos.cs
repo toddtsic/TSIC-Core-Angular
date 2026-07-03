@@ -179,6 +179,13 @@ public record RegistrationFilterOptionsDto
 
     // Club rep clubs (for roster threshold companion filter)
     public required List<FilterOption> ClubRepClubs { get; init; }
+
+    // Eligible target events for batch invites, precomputed once (job-scoped: same customer + job
+    // type, not expired, respective registration open). Drive the invite button's visibility and the
+    // target-event dropdown — no per-search recompute. Non-required so the repo builds the base DTO
+    // and the service layers these on via `with`.
+    public List<JobOptionDto> EligiblePlayerInviteTargetJobs { get; init; } = [];
+    public List<JobOptionDto> EligibleClubRepInviteTargetJobs { get; init; } = [];
 }
 
 public record FilterOption

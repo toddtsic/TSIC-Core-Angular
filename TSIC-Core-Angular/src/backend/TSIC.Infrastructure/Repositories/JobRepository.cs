@@ -470,23 +470,34 @@ public class JobRepository : IJobRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<Contracts.Dtos.RegistrationSearch.JobOptionDto>> GetFutureJobsForCustomerAsync(
-        Guid jobId, CancellationToken cancellationToken = default)
+    public async Task<List<Contracts.Dtos.RegistrationSearch.JobOptionDto>> GetInviteTargetJobsForCustomerAsync(
+        Guid jobId, Contracts.Dtos.RegistrationSearch.InviteRegistrationKind kind, CancellationToken cancellationToken = default)
     {
-        var customerId = await _context.Jobs
+        var source = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => j.CustomerId)
+            .Select(j => new { j.CustomerId, j.JobTypeId })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (customerId == Guid.Empty)
+        if (source == null || source.CustomerId == Guid.Empty)
             return [];
 
-        return await _context.Jobs
+        // Same customer AND same job type (you invite reps/players into a sibling event of the
+        // same kind), excluding the current job and any that have expired.
+        var query = _context.Jobs
             .AsNoTracking()
-            .Where(j => j.CustomerId == customerId
+            .Where(j => j.CustomerId == source.CustomerId
+                && j.JobTypeId == source.JobTypeId
                 && j.JobId != jobId
-                && (j.ExpiryUsers == DateTime.MinValue || j.ExpiryUsers > DateTime.Now))
+                && (j.ExpiryUsers == DateTime.MinValue || j.ExpiryUsers > DateTime.Now));
+
+        // Only the accept-registration flag gates the target — the requires-token flag is
+        // intentionally NOT checked (an invite is valid into an open-enrollment event too).
+        query = kind == Contracts.Dtos.RegistrationSearch.InviteRegistrationKind.Player
+            ? query.Where(j => j.BRegistrationAllowPlayer == true)
+            : query.Where(j => j.BRegistrationAllowTeam == true);
+
+        return await query
             .OrderBy(j => j.JobName)
             .Select(j => new Contracts.Dtos.RegistrationSearch.JobOptionDto
             {

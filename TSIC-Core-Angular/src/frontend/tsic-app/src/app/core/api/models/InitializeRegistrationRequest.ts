@@ -5,5 +5,6 @@
 export type InitializeRegistrationRequest = {
     clubName: string;
     jobPath: string;
+    inviteToken?: string | null;
 };
 

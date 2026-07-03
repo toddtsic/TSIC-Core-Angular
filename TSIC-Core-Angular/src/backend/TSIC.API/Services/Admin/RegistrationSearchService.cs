@@ -137,7 +137,18 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     public async Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(
         Guid jobId, CancellationToken ct = default)
     {
-        return await _registrationRepo.GetFilterOptionsAsync(jobId, ct);
+        // Sequential awaits — these three reads share the scoped DbContext (no Task.WhenAll).
+        var options = await _registrationRepo.GetFilterOptionsAsync(jobId, ct);
+        var playerTargets = await _jobRepo.GetInviteTargetJobsForCustomerAsync(
+            jobId, Contracts.Dtos.RegistrationSearch.InviteRegistrationKind.Player, ct);
+        var clubRepTargets = await _jobRepo.GetInviteTargetJobsForCustomerAsync(
+            jobId, Contracts.Dtos.RegistrationSearch.InviteRegistrationKind.Team, ct);
+
+        return options with
+        {
+            EligiblePlayerInviteTargetJobs = playerTargets,
+            EligibleClubRepInviteTargetJobs = clubRepTargets
+        };
     }
 
     public async Task<List<CadtClubNode>> GetCadtTreeAsync(
@@ -672,6 +683,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         string? inviteTargetJobPath = null;
         string? inviteTargetJobName = null;
+        DateTime? inviteExpires = null;
         if (request.InviteLinkTargetJobId.HasValue)
         {
             // One read yields both the target path (link URL) and the event name for the anchor text.
@@ -680,6 +692,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             var inviteTargetInfo = await _jobRepo.GetConfirmationEmailInfoAsync(request.InviteLinkTargetJobId.Value, ct);
             inviteTargetJobPath = inviteTargetInfo?.JobPath;
             inviteTargetJobName = inviteTargetInfo?.JobName;
+            // One expiry instant for the whole batch, so every emailed invite states the same deadline
+            // and its signed token expires at exactly that moment. Local time (codebase runs local AZ).
+            // Default 24h when the caller doesn't specify (matches the modal's default selection).
+            inviteExpires = DateTime.Now.AddHours(request.InviteExpiryHours is > 0 ? request.InviteExpiryHours.Value : 24);
         }
 
         // Render-win #2: load the job-invariant token slice ONCE (Jobs/Customers/Sports/DisplayOptions)
@@ -761,7 +777,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                 var renderFamilyUserId = templateNeedsFamily ? (item.FamilyUserId ?? "") : "";
                 var (renderedSubject, renderedBody) = await textSub.SubstituteSubjectAndBodyAsync(
                     jobPath, jobId, CcPaymentMethodId, item.RegistrationId, renderFamilyUserId, subject, body,
-                    inviteTargetJobPath, inviteTargetJobName, jobFields: jobFields);
+                    inviteTargetJobPath, inviteTargetJobName, request.InviteLinkTargetJobId, inviteExpires, jobFields: jobFields);
 
                 return new EmailBatchRendered
                 {
@@ -845,12 +861,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         return await _jobRepo.GetOtherJobsForCustomerAsync(jobId, ct);
     }
 
-    public async Task<List<JobOptionDto>> GetFutureJobOptionsAsync(Guid jobId, CancellationToken ct = default)
-    {
-        return await _jobRepo.GetFutureJobsForCustomerAsync(jobId, ct);
-    }
-
-    public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
+public async Task<ChangeJobResponse> ChangeRegistrationJobAsync(
         Guid jobId, string userId, Guid registrationId, ChangeJobRequest request, CancellationToken ct = default)
     {
         // Load the registration (tracked for update)

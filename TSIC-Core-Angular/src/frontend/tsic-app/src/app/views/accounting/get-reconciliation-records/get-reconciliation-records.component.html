@@ -49,10 +49,28 @@
                     Pulls <strong>{{ targetMonth | date:'MMM d' }} – {{ endOfMonth | date:'MMM d, yyyy' }}</strong>
                     (plus a one-day look-back for settlements that crossed midnight) from production Authorize.Net
                     into <code>Txs</code>. Idempotent — re-running replaces the month cleanly.
-                    @if (dataInPlace()) {
+                    @if (probing()) {
                         <br /><span class="action-panel__note">
-                            Already loaded ({{ loadedTransactionCount() }} transactions). Re-download only to refresh,
+                            Checking whether {{ targetMonth | date:'MMMM yyyy' }} is already loaded&hellip;
+                        </span>
+                    } @else if (probeFailed()) {
+                        <br /><span class="action-panel__note action-panel__note--alert">
+                            Couldn't reach the reconciliation service to check for existing data
+                            &mdash; the API may be starting up.
+                            <button type="button" class="linkish" (click)="probe()">Retry</button>.
+                        </span>
+                    } @else if (dataInPlace()) {
+                        <br /><span class="action-panel__note">
+                            Already loaded ({{ loadedTransactionCount() }} transactions).
+                            @if (latestSettlementAt(); as ts) {
+                                Settlements through <strong>{{ ts | date:'MMM d, y, h:mm a' }}</strong>.
+                            }
+                            Re-download only to refresh,
                             or skip ahead to <button type="button" class="linkish" (click)="goStep(2)">Review</button>.
+                        </span>
+                    } @else if (!isImporting()) {
+                        <br /><span class="action-panel__note">
+                            No transactions downloaded for {{ targetMonth | date:'MMMM yyyy' }} yet.
                         </span>
                     }
                 </p>
@@ -100,8 +118,22 @@
             </section>
         }
 
-        <!-- Output statement: the reconciliation verdict -->
-        @if (reconciliation()) {
+        @if (isBuildingStats()) {
+            <p class="wiz-working" role="status">
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Data received &mdash; building the accounting match&hellip;
+            </p>
+        }
+
+        @if (isPreparing()) {
+            <p class="wiz-working" role="status">
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Preparing the ledger &amp; QuickBooks files &mdash; so Review and Download open instantly&hellip;
+            </p>
+        }
+
+        <!-- Output statement: the reconciliation verdict (only once the month has data) -->
+        @if (reconciliation() && dataInPlace() && !isBuildingStats()) {
             <section class="recon" role="status">
                 <header class="recon__header">
                     <h3 class="recon__title">
@@ -117,10 +149,18 @@
 
                 <div class="recon__grid">
                     @for (v of stackViews(); track v.key) {
-                        <article class="recon-card" [class.recon-card--ok]="v.matched" [class.recon-card--alert]="!v.matched">
+                        <article class="recon-card"
+                            [class.recon-card--ok]="v.matched && !v.empty"
+                            [class.recon-card--alert]="!v.matched"
+                            [class.recon-card--empty]="v.empty">
                             <div class="recon-card__head">
                                 <h4 class="recon-card__label">{{ v.label }}</h4>
-                                @if (v.matched) {
+                                @if (v.empty) {
+                                    <span class="recon-badge recon-badge--muted">
+                                        <i class="bi bi-dash-circle" aria-hidden="true"></i>
+                                        No transactions this month
+                                    </span>
+                                } @else if (v.matched) {
                                     <span class="recon-badge recon-badge--ok">
                                         <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
                                         All {{ v.summary.transactionCount }} matched
@@ -221,6 +261,24 @@
                 </p>
             }
 
+            <!-- Tie-out reference: the ADN-side verdict totals, to compare the ledger against by eye -->
+            @if (reconciliation()) {
+                <div class="ledger-tieout" role="note">
+                    <span class="ledger-tieout__label">ADN settled (tie-out reference):</span>
+                    @for (v of stackViews(); track v.key) {
+                        @if (!v.empty) {
+                            <span class="ledger-tieout__stack">
+                                <strong>{{ v.label }}</strong>
+                                paid {{ v.summary.paidTotal | currency }}
+                                @if (v.summary.creditCount > 0) {
+                                    · credited {{ v.summary.creditTotal | currency }}
+                                }
+                            </span>
+                        }
+                    }
+                </div>
+            }
+
             <section class="ledger">
                 <div class="ledger__tabs" role="tablist">
                     @for (t of l.tabs; track t.name; let i = $index) {
@@ -243,82 +301,84 @@
                             <p class="ledger__empty">No rows on this tab.</p>
                         }
 
-                        <!-- Transaction tab: flattened double-entry -->
+                        <!-- Transaction tab: flattened double-entry — Grid gives sort/search/Excel; the
+                             Amount aggregate is the column total; each row's splits open as a detail row. -->
                         @if (tab.kind === 'transactions' && tab.entries.length > 0) {
-                            <div class="ledger-table-wrap">
-                                <table class="ledger-table">
-                                    <thead>
-                                        <tr>
-                                            <th scope="col"></th>
-                                            <th scope="col">Date</th>
-                                            <th scope="col">Type</th>
-                                            <th scope="col">Client</th>
-                                            <th scope="col">Account</th>
-                                            <th scope="col" class="num">Amount</th>
-                                            <th scope="col">Doc</th>
-                                            <th scope="col">Memo</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @for (e of tab.entries; track $index) {
-                                            <tr>
-                                                <td class="ledger-table__toggle">
-                                                    @if (e.splits.length > 0) {
-                                                        <button type="button" class="ledger-expand"
-                                                            [attr.aria-expanded]="isExpanded(tab.name + $index)"
-                                                            (click)="toggleSplits(tab.name + $index)"
-                                                            [attr.aria-label]="'Show ' + e.splits.length + ' splits'">
-                                                            <i class="bi" [class.bi-chevron-right]="!isExpanded(tab.name + $index)" [class.bi-chevron-down]="isExpanded(tab.name + $index)"></i>
-                                                        </button>
-                                                    }
-                                                </td>
-                                                <td>{{ e.date }}</td>
-                                                <td>{{ e.type }}</td>
-                                                <td>{{ e.party }}</td>
-                                                <td>{{ e.account }}</td>
-                                                <td class="num">{{ e.amount | currency }}</td>
-                                                <td>{{ e.docNum }}</td>
-                                                <td class="ledger-table__memo">{{ e.memo }}</td>
-                                            </tr>
-                                            @if (isExpanded(tab.name + $index)) {
-                                                @for (sp of e.splits; track $index) {
-                                                    <tr class="ledger-split">
-                                                        <td></td>
-                                                        <td colspan="3" class="ledger-split__account">↳ {{ sp.account }}</td>
+                            <ejs-grid #txGrid
+                                [dataSource]="tab.entries"
+                                cssClass="tsic-grid"
+                                [allowPaging]="true"
+                                [allowSorting]="true"
+                                [allowResizing]="true"
+                                [allowExcelExport]="true"
+                                [enableStickyHeader]="true"
+                                [pageSettings]="ledgerPageSettings"
+                                [toolbar]="ledgerToolbar"
+                                (toolbarClick)="onLedgerToolbar($event, txGrid)">
+                                <e-columns>
+                                    <e-column field="date" headerText="Date" width="120"></e-column>
+                                    <e-column field="type" headerText="Type" width="90"></e-column>
+                                    <e-column field="party" headerText="Client" width="240"></e-column>
+                                    <e-column field="account" headerText="Account" width="200"></e-column>
+                                    <e-column field="amount" headerText="Amount" width="120" format="C2" textAlign="Right"></e-column>
+                                    <e-column field="docNum" headerText="Doc" width="90"></e-column>
+                                    <e-column field="memo" headerText="Memo" width="260"></e-column>
+                                </e-columns>
+                                <e-aggregates>
+                                    <e-aggregate>
+                                        <e-columns>
+                                            <e-column field="amount" type="Sum" format="C2">
+                                                <ng-template #footerTemplate let-data>
+                                                    <span class="ledger-agg">Total {{ data.Sum }}</span>
+                                                </ng-template>
+                                            </e-column>
+                                        </e-columns>
+                                    </e-aggregate>
+                                </e-aggregates>
+                                <ng-template #detailTemplate let-data>
+                                    @if (data.splits.length > 0) {
+                                        <table class="ledger-splits">
+                                            <thead>
+                                                <tr>
+                                                    <th>Account</th>
+                                                    <th>Client</th>
+                                                    <th class="num">Amount</th>
+                                                    <th>Memo</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @for (sp of data.splits; track $index) {
+                                                    <tr>
+                                                        <td>{{ sp.account }}</td>
                                                         <td>{{ sp.party }}</td>
                                                         <td class="num">{{ sp.amount | currency }}</td>
-                                                        <td colspan="2">{{ sp.memo }}</td>
+                                                        <td>{{ sp.memo }}</td>
                                                     </tr>
                                                 }
-                                            }
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
+                                            </tbody>
+                                        </table>
+                                    } @else {
+                                        <p class="ledger__empty">No splits on this entry.</p>
+                                    }
+                                </ng-template>
+                            </ejs-grid>
                         }
 
-                        <!-- QA tab: plain passthrough table -->
+                        <!-- QA tab: dynamic-column Grid (sort/search/Excel) -->
                         @if (tab.kind === 'table' && tab.rows.length > 0) {
-                            <div class="ledger-table-wrap">
-                                <table class="ledger-table">
-                                    <thead>
-                                        <tr>
-                                            @for (c of tab.columns; track $index) {
-                                                <th scope="col">{{ c }}</th>
-                                            }
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @for (row of tab.rows; track $index) {
-                                            <tr>
-                                                @for (cell of row; track $index) {
-                                                    <td>{{ cell }}</td>
-                                                }
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
+                            <ejs-grid #qaGrid
+                                [dataSource]="qaRows()"
+                                [columns]="qaColumns()"
+                                cssClass="tsic-grid"
+                                [allowPaging]="true"
+                                [allowSorting]="true"
+                                [allowResizing]="true"
+                                [allowExcelExport]="true"
+                                [enableStickyHeader]="true"
+                                [pageSettings]="ledgerPageSettings"
+                                [toolbar]="ledgerToolbar"
+                                (toolbarClick)="onLedgerToolbar($event, qaGrid)">
+                            </ejs-grid>
                         }
                     </div>
                 }

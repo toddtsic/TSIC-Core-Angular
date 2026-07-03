@@ -9,10 +9,10 @@ import { RegistrationSearchService } from './services/registration-search.servic
 import { ToastService } from '@shared-ui/toast.service';
 import { JobService } from '@infrastructure/services/job.service';
 import { JobPulseService } from '@infrastructure/services/job-pulse.service';
-import { ROLE_ID_PLAYER, ROLE_ID_CLUBREP, type JobFlagsForTemplates } from './email-templates';
+import { ROLE_ID_PLAYER, ROLE_ID_CLUBREP, isPlayerRoleFilter, isClubRepRoleFilter, type JobFlagsForTemplates } from './email-templates';
 import { RegistrationDetailPanelComponent } from './components/registration-detail-panel.component';
 import { RefundModalComponent } from './components/refund-modal.component';
-import { BatchEmailModalComponent } from './components/batch-email-modal.component';
+import { BatchEmailModalComponent, type InviteMode } from './components/batch-email-modal.component';
 import { MobileQuickLookupComponent } from './components/mobile-quick-lookup.component';
 import { LadtTreeFilterComponent } from './components/ladt-tree-filter.component';
 import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cadt-tree-filter.component';
@@ -30,7 +30,8 @@ import type {
   AccountingRecordDto,
   FilterOption,
   LadtTreeNodeDto,
-  CadtClubNode
+  CadtClubNode,
+  JobOptionDto
 } from '@core/api';
 
 interface FilterChip {
@@ -760,6 +761,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   onEmailSelected(): void {
     if (this.canEmailSelected) {
+      this.inviteMode.set(null);
       this.emailMode.set('selected');
       this.showBatchEmailModal.set(true);
     }
@@ -769,9 +771,64 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (this.searchResults()?.result?.length) {
       this.grid().clearSelection();
       this.selectedRegistrations.set(new Set());
+      this.inviteMode.set(null);
       this.emailMode.set('all');
       this.showBatchEmailModal.set(true);
     }
+  }
+
+  // ── Invite action (first-class, decoupled from hand-composing email) ──
+  // A signed-invite send is offered when the current search is scoped to exactly ONE invitable role
+  // AND the job-scoped init load found eligible target events for it. Eligibility (same customer +
+  // job type, not expired, role's reg flag on) is computed server-side; the arrays ride on the
+  // filter-options DTO so this is a pure read, no per-open fetch.
+  inviteMode = signal<InviteMode | null>(null);
+
+  private readonly singleRoleFilter = computed(() => {
+    const ids = this.searchRequest().roleIds ?? [];
+    return ids.length === 1 ? ids[0] : null;
+  });
+
+  readonly eligiblePlayerInviteTargetJobs = computed<JobOptionDto[]>(
+    () => this.filterOptions()?.eligiblePlayerInviteTargetJobs ?? []);
+  readonly eligibleClubRepInviteTargetJobs = computed<JobOptionDto[]>(
+    () => this.filterOptions()?.eligibleClubRepInviteTargetJobs ?? []);
+
+  /** The invite role the current single-role search qualifies for, or null when it doesn't
+   *  (multiple/zero roles, or no eligible target events for that role). Drives the Invite button. */
+  readonly invitableRole = computed<InviteMode | null>(() => {
+    const role = this.singleRoleFilter();
+    if (!role) return null;
+    if (isPlayerRoleFilter(role) && this.eligiblePlayerInviteTargetJobs().length > 0) return 'player';
+    if (isClubRepRoleFilter(role) && this.eligibleClubRepInviteTargetJobs().length > 0) return 'clubrep';
+    return null;
+  });
+
+  /** Eligible target events for the active invitable role — passed straight to the modal. */
+  readonly activeInviteTargetJobs = computed<JobOptionDto[]>(() => {
+    switch (this.invitableRole()) {
+      case 'player': return this.eligiblePlayerInviteTargetJobs();
+      case 'clubrep': return this.eligibleClubRepInviteTargetJobs();
+      default: return [];
+    }
+  });
+
+  /** Role-aware button label that flips on selection: "Invite all Players" ↔ "Invite 3 checked Players". */
+  readonly inviteButtonLabel = computed(() => {
+    const mode = this.invitableRole();
+    if (!mode) return '';
+    const noun = mode === 'player' ? 'Players' : 'Club Reps';
+    const checked = this.selectedRegistrations().size;
+    return checked > 0 ? `Invite ${checked} checked ${noun}` : `Invite all ${noun}`;
+  });
+
+  onInvite(): void {
+    const mode = this.invitableRole();
+    if (!mode) return;
+    // Neutral selection: checked subset → those recipients; nothing checked → the full result set.
+    this.emailMode.set(this.selectedRegistrations().size > 0 ? 'selected' : 'all');
+    this.inviteMode.set(mode);
+    this.showBatchEmailModal.set(true);
   }
 
   onBatchEmailComplete(): void {

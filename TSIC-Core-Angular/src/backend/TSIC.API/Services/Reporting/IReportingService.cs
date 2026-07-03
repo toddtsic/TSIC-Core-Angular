@@ -160,6 +160,22 @@ public interface IReportingService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Eager build for the settlement month: runs both reconciliation sprocs ONCE and persists the
+    /// bundle .zip + human-readable ledger.json to the month's export folder. Steps 2/3 then read those
+    /// files instead of re-running the sprocs. Returns the build metadata (built-at + per-stack counts).
+    /// </summary>
+    Task<MonthEndArtifactsInfo> BuildAndPersistMonthEndAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Drops the month's persisted artifacts so the next Step-2/Step-3 read rebuilds from fresh sproc
+    /// output. Called after a re-download changes <c>adn.Txs</c> for the month.
+    /// </summary>
+    void InvalidateMonthEnd(int settlementMonth, int settlementYear);
+
+    /// <summary>
     /// Generates an iCalendar (.ics) file from selected schedule games.
     /// </summary>
     Task<ReportExportResult> ExportScheduleToICalAsync(

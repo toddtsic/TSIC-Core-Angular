@@ -183,8 +183,8 @@ export class FamilyCheckStepComponent implements OnInit {
     returnUrl(): string {
         const jobPath = this.jobService.getCurrentJob()?.jobPath;
         if (!jobPath) return '/tsic/role-selection';
-        // Preserve ?invite=<regId> so a ToS bounce-back re-enters through the invite
-        // guard with the token intact — invite-only events would otherwise reject the
+        // Preserve ?invite=<token> so a ToS bounce-back re-enters through the invite
+        // guard with the signed token intact — invite-only events would otherwise reject the
         // returning user. (Mirrors the adult step's ?role= preservation.)
         const invite = this.route.snapshot.queryParamMap.get('invite');
         const base = `/${jobPath}/registration/player`;
@@ -221,7 +221,9 @@ export class FamilyCheckStepComponent implements OnInit {
         this.loading.set(true);
         this.loadError.set(null);
         const apiBase = this.state.jobCtx.resolveApiBase();
-        this.state.familyPlayers.setWizardContext(jobPath, apiBase)
+        // Token-gated events re-verify this signed invite server-side at set-wizard-context.
+        const inviteToken = this.route.snapshot.queryParamMap.get('invite');
+        this.state.familyPlayers.setWizardContext(jobPath, apiBase, inviteToken)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {

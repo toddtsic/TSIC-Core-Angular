@@ -30,6 +30,7 @@ public class TextSubstitutionMultiPlayerTests
         var repo = new TextSubstitutionRepository(ctx);
         return new TextSubstitutionService(
             repo, new Mock<IDiscountCodeEvaluator>().Object, new Mock<IFeeResolutionService>().Object,
+            new Mock<TSIC.API.Services.Invites.IInviteTokenService>().Object,
             Microsoft.Extensions.Options.Options.Create(new TSIC.API.Configuration.FrontendSettings { BaseUrl = "https://dev.teamsportsinfo.com" }));
     }
 

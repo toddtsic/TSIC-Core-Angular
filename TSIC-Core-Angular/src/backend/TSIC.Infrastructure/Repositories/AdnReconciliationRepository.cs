@@ -24,36 +24,44 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
         DECLARE @firstDay date = DATEFROMPARTS(@settlementYear, @settlementMonth, 1);
         DECLARE @mkey varchar(20) = '%' + LEFT(DATENAME(month, @firstDay), 3) + '-' + CONVERT(varchar, @settlementYear) + '%';
 
+        IF OBJECT_ID('tempdb..#month') IS NOT NULL DROP TABLE #month;
+        IF OBJECT_ID('tempdb..#ra') IS NOT NULL DROP TABLE #ra;
+        IF OBJECT_ID('tempdb..#sba') IS NOT NULL DROP TABLE #sba;
         IF OBJECT_ID('tempdb..#reg') IS NOT NULL DROP TABLE #reg;
         IF OBJECT_ID('tempdb..#merch') IS NOT NULL DROP TABLE #merch;
 
-        SELECT t.[Transaction ID] AS tid, t.[Invoice Number] AS inv, t.[Transaction Status] AS status,
+        -- One scan of adn.Txs for the month; the join key is bounded to varchar(50) up front.
+        SELECT CONVERT(varchar(50), t.[Transaction ID]) AS tid, t.[Invoice Number] AS inv, t.[Transaction Status] AS status,
                CONVERT(money, t.[Settlement Amount]) AS rawAmt,
                CASE WHEN t.[Transaction Status] = 'Credited'
                     THEN -CONVERT(money, t.[Settlement Amount])
                     ELSE CONVERT(money, t.[Settlement Amount]) END AS signedAmt,
-               CASE WHEN ra.adnTransactionID IS NOT NULL THEN 1 ELSE 0 END AS matched
-        INTO #reg
+               CASE WHEN CHARINDEX('_M', t.[Invoice Number]) > 0 THEN 1 ELSE 0 END AS isMerch,
+               -- Settlement Date Time is nvarchar ('30-Jun-2026 06:13:59 PM EDT'); parse so MAX is
+               -- chronological (12-hour AM/PM breaks a lexical MAX at the noon boundary).
+               TRY_CONVERT(datetime, REPLACE(t.[Settlement Date Time], ' EDT', '')) AS settledAt
+        INTO #month
         FROM adn.Txs t
-        LEFT JOIN (SELECT DISTINCT adnTransactionID FROM Jobs.Registration_Accounting) ra
-               ON ra.adnTransactionID = t.[Transaction ID]
         WHERE t.[Settlement Date Time] LIKE @mkey
-          AND t.[Transaction Status] IN ('Settled Successfully', 'Credited')
-          AND CHARINDEX('_M', t.[Invoice Number]) = 0;
+          AND t.[Transaction Status] IN ('Settled Successfully', 'Credited');
 
-        SELECT t.[Transaction ID] AS tid, t.[Invoice Number] AS inv, t.[Transaction Status] AS status,
-               CONVERT(money, t.[Settlement Amount]) AS rawAmt,
-               CASE WHEN t.[Transaction Status] = 'Credited'
-                    THEN -CONVERT(money, t.[Settlement Amount])
-                    ELSE CONVERT(money, t.[Settlement Amount]) END AS signedAmt,
-               CASE WHEN sba.adnTransactionID IS NOT NULL THEN 1 ELSE 0 END AS matched
+        -- Accounting keys are nvarchar(MAX); DISTINCT/join on the LOB column directly is pathologically slow
+        -- (100s+), so convert to a bounded type first, then the hash join is trivial.
+        SELECT DISTINCT CONVERT(varchar(50), adnTransactionID) AS tid
+        INTO #ra FROM Jobs.Registration_Accounting WHERE adnTransactionID IS NOT NULL;
+
+        SELECT DISTINCT CONVERT(varchar(50), adnTransactionID) AS tid
+        INTO #sba FROM stores.StoreCartBatchAccounting WHERE adnTransactionID IS NOT NULL;
+
+        SELECT m.tid, m.inv, m.status, m.rawAmt, m.signedAmt,
+               CASE WHEN EXISTS (SELECT 1 FROM #ra r WHERE r.tid = m.tid) THEN 1 ELSE 0 END AS matched
+        INTO #reg
+        FROM #month m WHERE m.isMerch = 0;
+
+        SELECT m.tid, m.inv, m.status, m.rawAmt, m.signedAmt,
+               CASE WHEN EXISTS (SELECT 1 FROM #sba s WHERE s.tid = m.tid) THEN 1 ELSE 0 END AS matched
         INTO #merch
-        FROM adn.Txs t
-        LEFT JOIN (SELECT DISTINCT adnTransactionID FROM stores.StoreCartBatchAccounting) sba
-               ON sba.adnTransactionID = t.[Transaction ID]
-        WHERE t.[Settlement Date Time] LIKE @mkey
-          AND t.[Transaction Status] IN ('Settled Successfully', 'Credited')
-          AND CHARINDEX('_M', t.[Invoice Number]) > 0;
+        FROM #month m WHERE m.isMerch = 1;
 
         SELECT stack, transactionCount, matchedCount, unmatchedCount, unmatchedTotal,
                paidCount, paidTotal, creditCount, creditTotal
@@ -90,8 +98,13 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
         ) u
         ORDER BY ord, amt;
 
+        SELECT MAX(settledAt) AS latestSettlement FROM #month;
+
         DROP TABLE #reg;
         DROP TABLE #merch;
+        DROP TABLE #month;
+        DROP TABLE #ra;
+        DROP TABLE #sba;
         """;
 
     private readonly SqlDbContext _context;
@@ -106,17 +119,20 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
         int settlementYear,
         CancellationToken cancellationToken = default)
     {
-        var connection = _context.Database.GetDbConnection();
-        var cmd = connection.CreateCommand();
+        // Dedicated connection — NOT the EF scoped connection. Cancelling a raw command mid-flight
+        // can poison the underlying connection; isolating it here keeps that fallout off EF's pooled
+        // connection (which would otherwise surface as "A severe error occurred" on later requests).
+        var connectionString = _context.Database.GetConnectionString()
+            ?? throw new InvalidOperationException("No connection string configured for the reconciliation query.");
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        await using var cmd = connection.CreateCommand();
         cmd.CommandText = ReconciliationSql;
         cmd.CommandTimeout = 240;
         cmd.Parameters.Add(new SqlParameter("@settlementMonth", SqlDbType.Int) { Value = settlementMonth });
         cmd.Parameters.Add(new SqlParameter("@settlementYear", SqlDbType.Int) { Value = settlementYear });
-
-        if (connection.State != ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
 
         var summaries = new Dictionary<string, StackTotals>(StringComparer.Ordinal);
         var unmatched = new Dictionary<string, List<ReconciliationUnmatched>>(StringComparer.Ordinal)
@@ -124,6 +140,7 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
             ["Reg"] = new(),
             ["Merch"] = new(),
         };
+        DateTime? latestSettlementAt = null;
 
         await using (var reader = await cmd.ExecuteReaderAsync(cancellationToken))
         {
@@ -159,6 +176,13 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
                     Status = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                 });
             }
+
+            await reader.NextResultAsync(cancellationToken);
+
+            if (await reader.ReadAsync(cancellationToken) && !reader.IsDBNull(0))
+            {
+                latestSettlementAt = reader.GetDateTime(0);
+            }
         }
 
         return new MonthEndReconciliationResult
@@ -167,6 +191,7 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
             SettlementYear = settlementYear,
             Reg = BuildStack(summaries.GetValueOrDefault("Reg"), unmatched["Reg"]),
             Merch = BuildStack(summaries.GetValueOrDefault("Merch"), unmatched["Merch"]),
+            LatestSettlementAt = latestSettlementAt,
         };
     }
 

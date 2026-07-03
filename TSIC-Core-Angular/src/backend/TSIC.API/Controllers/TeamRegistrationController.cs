@@ -121,7 +121,7 @@ public class TeamRegistrationController : ControllerBase
 
         try
         {
-            var response = await _teamRegistrationService.InitializeRegistrationAsync(userId, request.ClubName, request.JobPath);
+            var response = await _teamRegistrationService.InitializeRegistrationAsync(userId, request.ClubName, request.JobPath, request.InviteToken);
             return Ok(response);
         }
         catch (InvalidOperationException ex)

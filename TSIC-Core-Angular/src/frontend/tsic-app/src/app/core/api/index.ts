@@ -405,6 +405,7 @@ export type { MigrateProfilesRequest } from './models/MigrateProfilesRequest';
 export type { MigrationReport } from './models/MigrationReport';
 export type { MigrationResult } from './models/MigrationResult';
 export type { MobileScorerDto } from './models/MobileScorerDto';
+export type { MonthEndArtifactsInfo } from './models/MonthEndArtifactsInfo';
 export type { MonthEndLedger } from './models/MonthEndLedger';
 export type { MonthEndReconciliationResult } from './models/MonthEndReconciliationResult';
 export type { MoveGameRequest } from './models/MoveGameRequest';

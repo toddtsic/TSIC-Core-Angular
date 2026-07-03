@@ -36,6 +36,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         public Guid RegistrationId { get; init; }
         public Guid JobId { get; init; }
         public string? FamilyUserId { get; init; }
+        public string? UserId { get; init; }
         public string? Person { get; init; }
         public string? Assignment { get; init; }
         public string? UserName { get; init; }
@@ -77,6 +78,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     private readonly ITextSubstitutionRepository _repo;
     private readonly IDiscountCodeEvaluator _discountEvaluator;
     private readonly TSIC.Contracts.Services.IFeeResolutionService _feeService;
+    private readonly TSIC.API.Services.Invites.IInviteTokenService _inviteTokens;
     // Base URL of the frontend for the sending environment (Staging = https://dev.teamsportsinfo.com,
     // Production = the live host). Invite links must point at the environment that sent them, not a
     // hardwired www — same pattern as AuthController's password-reset URL.
@@ -86,11 +88,13 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         ITextSubstitutionRepository repo,
         IDiscountCodeEvaluator discountEvaluator,
         TSIC.Contracts.Services.IFeeResolutionService feeService,
+        TSIC.API.Services.Invites.IInviteTokenService inviteTokens,
         Microsoft.Extensions.Options.IOptions<TSIC.API.Configuration.FrontendSettings> frontendSettings)
     {
         _repo = repo;
         _discountEvaluator = discountEvaluator;
         _feeService = feeService;
+        _inviteTokens = inviteTokens;
         _frontendBaseUrl = (frontendSettings.Value.BaseUrl ?? string.Empty).TrimEnd('/');
     }
 
@@ -184,6 +188,8 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         string bodyTemplate,
         string? inviteTargetJobPath = null,
         string? inviteTargetJobName = null,
+        Guid? inviteTargetJobId = null,
+        DateTime? inviteExpires = null,
         IReadOnlyDictionary<string, string>? extraTokens = null,
         JobInvariantFieldsData? jobFields = null)
     {
@@ -216,7 +222,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         {
             var first = fixedFieldList[0];
             AddSimpleTokens(tokens, first, jobSegment);
-            await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, guard, emailMode, inviteTargetJobPath, inviteTargetJobName);
+            await AddComplexTokensAsync(tokens, fixedFieldList, paymentMethodCreditCardId, registrationId, guard, emailMode, inviteTargetJobPath, inviteTargetJobName, inviteTargetJobId, inviteExpires);
         }
 
         if (extraTokens != null)
@@ -267,6 +273,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             RegistrationId = data.RegistrationId,
             JobId = data.JobId,
             FamilyUserId = data.FamilyUserId,
+            UserId = data.UserId,
             Person = data.Person,
             Assignment = data.Assignment,
             UserName = data.UserName,
@@ -365,6 +372,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             RegistrationId = r.RegistrationId,
             JobId = r.JobId,
             FamilyUserId = r.FamilyUserId,
+            UserId = r.UserId,
             Person = r.Person,
             Assignment = r.Assignment,
             UserName = r.UserName,
@@ -453,7 +461,9 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         string template,
         bool emailMode,
         string? inviteTargetJobPath = null,
-        string? inviteTargetJobName = null)
+        string? inviteTargetJobName = null,
+        Guid? inviteTargetJobId = null,
+        DateTime? inviteExpires = null)
     {
         // " for {Target Event}" tail — omitted when the target job name isn't known, so the link still
         // reads cleanly. HtmlEncode because the name is admin-authored free text landing in an anchor.
@@ -461,32 +471,44 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
             ? string.Empty
             : $" for {WebUtility.HtmlEncode(inviteTargetJobName)}";
 
+        // A well-formed invite needs a target (path + id), a known recipient identity, and an expiry.
+        // When all present, each invite link carries a per-recipient SIGNED token binding this exact
+        // user to this exact target job until `inviteExpires` — enforced server-side at wizard entry.
+        var recipientUserId = list.Count > 0 ? list[0].UserId : null;
+        var canBuildInvite = inviteTargetJobPath != null
+            && inviteTargetJobId.HasValue
+            && inviteExpires.HasValue
+            && !string.IsNullOrEmpty(recipientUserId);
+
+        string BuildInviteLink(string wizardSegment, string linkText)
+        {
+            var token = _inviteTokens.Create(inviteTargetJobId!.Value, recipientUserId!, inviteExpires!.Value);
+            var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/registration/{wizardSegment}?invite={WebUtility.UrlEncode(token)}";
+            return $"<a href=\"{url}\">{linkText}{forTargetJob}</a>";
+        }
+
         if (template.Contains("!CLUBREP_INVITE_LINK", StringComparison.OrdinalIgnoreCase))
         {
-            if (inviteTargetJobPath != null && list.Count > 0)
-            {
-                var regId = list[0].RegistrationId;
-                var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/registration/team?invite={regId:D}";
-                tokens["!CLUBREP_INVITE_LINK"] = $"<a href=\"{url}\">Click here to register by invitation as Club Rep{forTargetJob}</a>";
-            }
-            else
-            {
-                tokens["!CLUBREP_INVITE_LINK"] = "[CLUBREP INVITE LINK — target job not configured]";
-            }
+            tokens["!CLUBREP_INVITE_LINK"] = canBuildInvite
+                ? BuildInviteLink("team", "Click here to register by invitation as Club Rep")
+                : "[CLUBREP INVITE LINK — target job not configured]";
         }
 
         if (template.Contains("!INVITE_LINK", StringComparison.OrdinalIgnoreCase))
         {
-            if (inviteTargetJobPath != null && list.Count > 0)
-            {
-                var regId = list[0].RegistrationId;
-                var url = $"{_frontendBaseUrl}/{inviteTargetJobPath}/registration/player?invite={regId:D}";
-                tokens["!INVITE_LINK"] = $"<a href=\"{url}\">Click here to register by invitation as Player{forTargetJob}</a>";
-            }
-            else
-            {
-                tokens["!INVITE_LINK"] = "[INVITE LINK — target job not configured]";
-            }
+            tokens["!INVITE_LINK"] = canBuildInvite
+                ? BuildInviteLink("player", "Click here to register by invitation as Player")
+                : "[INVITE LINK — target job not configured]";
+        }
+
+        // Expiry text — sourced from the SAME instant that stamps the token's exp, so the email can
+        // never state a window different from the token's real one. Absolute local time (the codebase
+        // runs on local AZ time), so a recipient reading hours later sees an unambiguous deadline.
+        if (template.Contains("!INVITE_EXPIRES", StringComparison.OrdinalIgnoreCase))
+        {
+            tokens["!INVITE_EXPIRES"] = inviteExpires.HasValue
+                ? inviteExpires.Value.ToString("MMMM d, yyyy 'at' h:mm tt")
+                : string.Empty;
         }
 
         if (template.Contains("!F-DISPLAYINACTIVEPLAYERS", StringComparison.OrdinalIgnoreCase))

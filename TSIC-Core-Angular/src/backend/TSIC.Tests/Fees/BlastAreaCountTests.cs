@@ -125,6 +125,7 @@ public class BlastAreaCountTests
             new Mock<IRegistrationRepository>().Object,
             new Mock<IUserRepository>().Object,
             new Mock<ITokenService>().Object,
+            new Mock<TSIC.API.Services.Invites.IInviteTokenService>().Object,
             MockUserManager(),
             new Mock<IFeeResolutionService>().Object,
             new Mock<TSIC.API.Services.Shared.TextSubstitution.ITextSubstitutionService>().Object,

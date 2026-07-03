@@ -134,7 +134,7 @@ public class RegisterTeamSyncTests
         var svc = new TeamRegistrationService(
             logger.Object, clubReps.Object, clubs.Object, jobs.Object,
             jobLeagues.Object, agRepo.Object, teamRepo.Object, regRepo.Object,
-            users.Object, tokenService.Object, userManager, feeService.Object,
+            users.Object, tokenService.Object, new Mock<TSIC.API.Services.Invites.IInviteTokenService>().Object, userManager, feeService.Object,
             textSubstitution.Object, emailService.Object, discountCodeRepo.Object,
             clubTeams.Object, placement.Object, paymentState.Object,
             new Mock<IRegisteredTeamShaper>().Object,

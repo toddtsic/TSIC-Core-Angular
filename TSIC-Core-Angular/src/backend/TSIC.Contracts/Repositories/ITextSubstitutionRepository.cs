@@ -153,6 +153,8 @@ public record FixedFieldsData
     public required Guid RegistrationId { get; init; }
     public required Guid JobId { get; init; }
     public string? FamilyUserId { get; init; }
+    /// <summary>The recipient's login user id (AspNetUsers.Id) — binds a per-recipient invite token to this identity.</summary>
+    public string? UserId { get; init; }
     public string? Person { get; init; }
     public string? Assignment { get; init; }
     public string? UserName { get; init; }
@@ -222,6 +224,8 @@ public record RegistrantFixedFieldsData
     public required Guid RegistrationId { get; init; }
     public required Guid JobId { get; init; }
     public string? FamilyUserId { get; init; }
+    /// <summary>The recipient's login user id (AspNetUsers.Id) — binds a per-recipient invite token to this identity.</summary>
+    public string? UserId { get; init; }
     public string? Person { get; init; }
     public string? Assignment { get; init; }
     public string? UserName { get; init; }

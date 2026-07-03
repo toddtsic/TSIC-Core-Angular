@@ -313,11 +313,14 @@ public interface IJobRepository
         Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get other jobs owned by the same customer, excluding past jobs (expired).
-    /// Used for club rep invite link target job dropdown.
+    /// Get upcoming jobs owned by the same customer (excludes the current job and expired jobs)
+    /// that currently accept the given registration type. Populates the invite-link target-event
+    /// dropdown so an invite can only point at an event actually open to that role. Filters on the
+    /// accept-registration flag only (never the requires-token flag — inviting into open enrollment
+    /// is valid).
     /// </summary>
-    Task<List<Dtos.RegistrationSearch.JobOptionDto>> GetFutureJobsForCustomerAsync(
-        Guid jobId, CancellationToken cancellationToken = default);
+    Task<List<Dtos.RegistrationSearch.JobOptionDto>> GetInviteTargetJobsForCustomerAsync(
+        Guid jobId, Dtos.RegistrationSearch.InviteRegistrationKind kind, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get all job IDs belonging to the same customer as the specified job.

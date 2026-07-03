@@ -462,7 +462,11 @@ export class TeamWizardV2Component implements OnInit {
      * explicit user action (see next() → advancePastLogin).
      */
     private initializeSession(clubName: string, jobPath: string): void {
-        this.teamReg.initializeRegistration(clubName, jobPath)
+        // Thread the signed invite (?invite=<token>) through to the server chokepoint, which
+        // re-verifies it against the authenticated user when the event is token-gated. Absent on
+        // open-enrollment events; harmless there.
+        const inviteToken = this.route.snapshot.queryParamMap.get('invite');
+        this.teamReg.initializeRegistration(clubName, jobPath, inviteToken)
             .pipe(takeUntilDestroyed(this.destroyRef))
             .subscribe({
                 next: () => {

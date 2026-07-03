@@ -8,7 +8,7 @@ public interface ITeamRegistrationService
     /// Initialize registration for club rep after club selection.
     /// Finds or creates Registration record and returns Phase 2 token with regId.
     /// </summary>
-    Task<AuthTokenResponse> InitializeRegistrationAsync(string userId, string clubName, string jobPath);
+    Task<AuthTokenResponse> InitializeRegistrationAsync(string userId, string clubName, string jobPath, string? inviteToken = null);
 
     /// <summary>
     /// Get list of clubs that the user is a rep for, with usage status.

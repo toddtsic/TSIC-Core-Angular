@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { FilterOption } from './FilterOption';
+import type { JobOptionDto } from './JobOptionDto';
 export type RegistrationFilterOptionsDto = {
     roles: Array<FilterOption>;
     teams: Array<FilterOption>;
@@ -20,5 +21,7 @@ export type RegistrationFilterOptionsDto = {
     mobileRegistrations: Array<FilterOption>;
     paymentTypes: Array<FilterOption>;
     clubRepClubs: Array<FilterOption>;
+    eligiblePlayerInviteTargetJobs?: Array<JobOptionDto>;
+    eligibleClubRepInviteTargetJobs?: Array<JobOptionDto>;
 };
 

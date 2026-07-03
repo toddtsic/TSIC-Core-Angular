@@ -166,6 +166,10 @@ public class AdnReconciliationService : IAdnReconciliationService
             toInsert.Count, skippedDuplicates, batches.Length, pulled.Count,
             settlementYear, settlementMonth);
 
+        // The month's Txs just changed — drop any persisted close artifacts so the next build/read
+        // (the eager Prepare that follows, or a later Step 2/3) regenerates from the fresh data.
+        _reportingService.InvalidateMonthEnd(settlementMonth, settlementYear);
+
         return new AdnImportResult
         {
             BatchesPulled = batches.Length,
@@ -204,6 +208,12 @@ public class AdnReconciliationService : IAdnReconciliationService
         int settlementYear,
         CancellationToken cancellationToken = default)
         => _reportingService.GetMonthEndLedgerAsync(settlementMonth, settlementYear, cancellationToken);
+
+    public Task<MonthEndArtifactsInfo> PrepareAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+        => _reportingService.BuildAndPersistMonthEndAsync(settlementMonth, settlementYear, cancellationToken);
 
     public async Task<AdnReconciliationRunResult> RunMonthlyAsync(
         int settlementMonth,

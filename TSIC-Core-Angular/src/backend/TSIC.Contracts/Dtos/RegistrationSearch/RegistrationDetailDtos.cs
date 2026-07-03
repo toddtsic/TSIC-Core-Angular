@@ -150,9 +150,16 @@ public record BatchEmailRequest
     public required string Subject { get; init; }
     public required string BodyTemplate { get; init; }
     /// <summary>
-    /// When !INVITE_LINK is used in the template, this is the target job the invite links point to.
+    /// When !INVITE_LINK / !CLUBREP_INVITE_LINK is used, this is the target job the invite links point to.
     /// </summary>
     public Guid? InviteLinkTargetJobId { get; init; }
+
+    /// <summary>
+    /// Lifetime (hours) of the per-recipient signed invite token, from send time. Drives both the
+    /// token's expiry and the !INVITE_EXPIRES text. Defaults to 24 when unset. Only meaningful with
+    /// <see cref="InviteLinkTargetJobId"/>.
+    /// </summary>
+    public int? InviteExpiryHours { get; init; }
 
     /// <summary>
     /// DEV/SANDBOX ONLY. When set, the engine simulates each send with this delay instead of
@@ -228,6 +235,18 @@ public record JobOptionDto
 {
     public required Guid JobId { get; init; }
     public required string JobName { get; init; }
+}
+
+/// <summary>
+/// Which registration type an invite targets. Selects the "accepts this registration type"
+/// filter (<c>BRegistrationAllowPlayer</c> vs <c>BRegistrationAllowTeam</c>) when building the
+/// invite-link target-event dropdown. Not gated on the requires-token flag — an invite is valid
+/// into an open-enrollment event too.
+/// </summary>
+public enum InviteRegistrationKind
+{
+    Player,
+    Team
 }
 
 /// <summary>
