@@ -401,16 +401,27 @@
             <div class="action-panel__body">
                 <h3 class="action-panel__title">QuickBooks files for {{ targetMonth | date:'MMMM yyyy' }}</h3>
                 <p class="action-panel__desc">
-                    Generates a <code>.zip</code> with two independent QuickBooks IIF files —
-                    <code>reg-consolodated.iif</code> and <code>merch-consolodated.iif</code> — plus their backing
-                    Excel. Built from the <code>Txs</code> already loaded; no ADN pull. Inspect and import each on its own.
+                    Saves the <code>.zip</code> prepared for {{ targetMonth | date:'MMMM yyyy' }} to your computer —
+                    two independent QuickBooks IIF files (<code>reg-consolodated.iif</code> and
+                    <code>merch-consolodated.iif</code>), their backing Excel, and a human-readable summary.
+                    Built once from the loaded <code>Txs</code>; no ADN pull, no regenerate. Inspect and import each on its own.
+                    @if (artifactsReady()) {
+                        <br /><span class="action-panel__note action-panel__note--ready">
+                            <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                            Prepared and ready to download.
+                        </span>
+                    } @else {
+                        <br /><span class="action-panel__note">
+                            Prepared from the loaded transactions on your first download.
+                        </span>
+                    }
                 </p>
             </div>
             <div class="action-panel__cta">
                 <button type="button" class="btn btn-primary btn-lg" [disabled]="isGeneratingFiles()" (click)="downloadFiles()">
                     @if (isGeneratingFiles()) {
                         <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        Generating&hellip;
+                        @if (artifactsReady()) { Downloading&hellip; } @else { Preparing &amp; downloading&hellip; }
                     } @else {
                         <i class="bi bi-download me-1"></i>Download QuickBooks files
                     }

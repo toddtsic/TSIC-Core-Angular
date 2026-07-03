@@ -104,6 +104,10 @@ export class GetReconciliationRecordsComponent implements OnInit {
     // here"), not a pull timestamp (Txs records no import time).
     readonly latestSettlementAt = computed(() => this.reconciliation()?.latestSettlementAt ?? null);
 
+    // The zip is built server-side once (by the eager prepare, or by the Step-2 ledger build). When
+    // either has happened this session, Step 3 is a pure download of the prepared file, not a rebuild.
+    readonly artifactsReady = computed(() => this.prepareInfo() != null || this.ledger() != null);
+
     readonly stackViews = computed<ReconciliationStackView[]>(() => {
         const r = this.reconciliation();
         if (!r) return [];

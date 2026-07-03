@@ -453,6 +453,16 @@
     &--alert {
         color: var(--bs-danger);
     }
+
+    &--ready {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--space-1);
+        color: var(--bs-success);
+        font-weight: 600;
+
+        .bi { color: var(--bs-success); }
+    }
 }
 
 .linkish {
