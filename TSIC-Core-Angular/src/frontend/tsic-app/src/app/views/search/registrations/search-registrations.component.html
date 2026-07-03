@@ -64,7 +64,35 @@
           </h2>
           <button type="button" class="btn-close" aria-label="Close filters" (click)="requestCloseFilters()">&times;</button>
         </div>
-        <p class="tip">Select more than one filter to narrow your search</p>
+      </div>
+
+      <!-- Drawer Toolbar (mirror of the sticky footer — same Reset/Search, pinned at
+           the top so they're reachable without scrolling the long filter body). The
+           tip rides on the left of this row to spare a dedicated strip of height. -->
+      <div class="panel-toolbar" [class.is-dirty]="isFilterDirty()">
+        @if (isFilterDirty()) {
+          <span class="unsaved-hint">
+            <i class="bi bi-exclamation-circle"></i>Unapplied filter changes
+          </span>
+        } @else {
+          <p class="tip">Select more than one filter to narrow your search</p>
+        }
+        <button type="button" class="btn btn-drawer-reset" (click)="clearFilters()">Reset</button>
+        <button type="button"
+          class="btn btn-drawer-search"
+          [class.pulse]="isFilterDirty()"
+          (click)="executeSearch()"
+          [disabled]="isSearching()">
+          @if (isSearching()) {
+            <span class="spinner-border spinner-border-sm"></span>
+          } @else {
+            <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+          }
+          Search
+          @if (isFilterDirty()) {
+            <span class="dirty-dot" aria-label="Unapplied filter changes"></span>
+          }
+        </button>
       </div>
 
       <!-- Drawer Body -->
