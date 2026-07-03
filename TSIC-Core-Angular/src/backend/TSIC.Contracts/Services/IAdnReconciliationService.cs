@@ -17,6 +17,51 @@ public interface IAdnReconciliationService
         int settlementMonth,
         int settlementYear,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Step 1 (the "load"): pull last month's settled ADN batches (reg + merch) into <c>adn.Txs</c>.
+    /// Idempotent (delete-then-insert per month key). Writes only <c>Txs</c>; produces no files.
+    /// </summary>
+    Task<AdnImportResult> ImportSettlementsAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Custodial reconciliation for a settlement month: does every ADN transaction have a matching
+    /// accounting row (reg → <c>Registration_Accounting</c>, merch → <c>StoreCartBatchAccounting</c>)?
+    /// Reads <c>adn.Txs</c> only — safe to call after the monthly close to verify before importing.
+    /// </summary>
+    Task<MonthEndReconciliationResult> GetReconciliationAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Step 2 (the "presenting"): the human-readable month-end ledger — the export workbook's tabs
+    /// rendered on screen (IIF double-entry flattened, QA passed through). Reads existing <c>Txs</c>.
+    /// </summary>
+    Task<MonthEndLedger> GetLedgerAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Step 3 (the "files"): generate the .zip of two QuickBooks .iif files + backing .xlsx from the
+    /// <c>Txs</c> already imported for the month. Pure read of <c>Txs</c> via the sprocs — no ADN pull.
+    /// </summary>
+    Task<ReconciliationBundleResult> GenerateBundleAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+}
+
+public record AdnImportResult
+{
+    public required int BatchesPulled { get; init; }
+    public required int TransactionsPulled { get; init; }
+    public required int Imported { get; init; }
+    public required int SkippedDuplicates { get; init; }
 }
 
 public record AdnReconciliationRunResult

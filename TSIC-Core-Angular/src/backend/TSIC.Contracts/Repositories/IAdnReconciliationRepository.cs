@@ -33,4 +33,15 @@ public interface IAdnReconciliationRepository
     Task AddRangeAsync(IEnumerable<Txs> txs, CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Custodial reconciliation for a settlement month: for each stack (reg / merch), which ADN
+    /// transactions have a matching accounting row and which do not, plus the paid/credit dollar
+    /// totals staff compare against QuickBooks after importing the IIF. Reads <c>adn.Txs</c> only —
+    /// no ADN pull, no file generation.
+    /// </summary>
+    Task<MonthEndReconciliationResult> GetMonthEndReconciliationAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
 }

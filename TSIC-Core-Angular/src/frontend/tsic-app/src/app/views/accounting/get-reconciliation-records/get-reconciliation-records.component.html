@@ -3,116 +3,400 @@
         <div>
             <h2 class="page-title">
                 <i class="bi bi-cloud-download page-title-icon"></i>
-                Get Reconciliation Records
+                ADN End-of-Month / IIF
             </h2>
             <p class="page-subtitle">
-                Runs the full month-end close: pulls last month's Authorize.Net settled batches (registration
-                <strong>and</strong> merch) into <code>Txs</code>, then downloads a <code>.zip</code> with two
-                separate QuickBooks IIF files — <code>reg-consolodated.iif</code> and
-                <code>merch-consolodated.iif</code> — plus their backing Excel. No more manual Excel-to-IIF step.
-                Idempotent — re-running for the same month wipes that month's <code>Txs</code> rows then
-                repopulates from a fresh ADN pull. The pull always hits production ADN (even when running on dev)
-                so the dev <code>Txs</code> table mirrors prod for debugging.
+                Month-end close for <strong>{{ targetMonth | date:'MMMM yyyy' }}</strong>. Download last month's
+                Authorize.Net settlements, review the ledger on screen, then generate the QuickBooks files.
+                @if (dataInPlace()) {
+                    <span class="page-subtitle__badge">{{ loadedTransactionCount() }} transactions already loaded</span>
+                }
             </p>
         </div>
     </div>
 
-    <section class="action-panel" [class.is-running]="isRunning()">
-        <div class="action-panel__icon" aria-hidden="true">
-            <i class="bi bi-arrow-clockwise"></i>
-        </div>
-        <div class="action-panel__body">
-            <h3 class="action-panel__title">
-                Reconcile {{ targetMonth | date:'MMMM yyyy' }}
-            </h3>
-            <p class="action-panel__desc">
-                Settlement window:
-                <strong>{{ targetMonth | date:'MMM d, yyyy' }}</strong> &mdash;
-                <strong>{{ endOfMonth | date:'MMM d, yyyy' }}</strong>
-                (the entire month). The pull also looks back one day to catch settlements that
-                crossed midnight.
-            </p>
-        </div>
-        <div class="action-panel__cta">
+    <!-- Stepper -->
+    <nav class="wiz-steps" aria-label="Reconciliation steps">
+        @for (s of steps; track s.n) {
             <button
                 type="button"
-                class="btn btn-primary btn-lg"
-                [disabled]="isRunning()"
-                (click)="run()">
-                @if (isRunning()) {
-                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                    Pulling from ADN&hellip;
-                } @else {
-                    <i class="bi bi-play-fill me-1"></i>Run reconciliation
-                }
+                class="wiz-step"
+                [class.is-active]="activeStep() === s.n"
+                [class.is-done]="isStepDone(s.n)"
+                [disabled]="!canEnter(s.n)"
+                (click)="goStep(s.n)">
+                <span class="wiz-step__num">
+                    @if (isStepDone(s.n) && activeStep() !== s.n) {
+                        <i class="bi bi-check-lg" aria-hidden="true"></i>
+                    } @else {
+                        {{ s.n }}
+                    }
+                </span>
+                <span class="wiz-step__label">{{ s.label }}</span>
             </button>
-        </div>
-    </section>
+        }
+    </nav>
 
-    @if (errorMessage()) {
-        <section class="result-panel result-panel--danger" role="alert">
-            <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
-            <div class="result-panel__body">
-                <h4 class="result-panel__title">Reconciliation failed</h4>
-                <p class="result-panel__desc">{{ errorMessage() }}</p>
+    <!-- ============ STEP 1 — Download ADN Txs ============ -->
+    @if (activeStep() === 1) {
+        <section class="action-panel" [class.is-running]="isImporting()">
+            <div class="action-panel__icon" aria-hidden="true">
+                <i class="bi bi-arrow-clockwise"></i>
             </div>
-        </section>
-    }
-
-    @if (stats(); as s) {
-        <section class="result-panel result-panel--success" role="status">
-            <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
-            <div class="result-panel__body">
-                <h4 class="result-panel__title">Close complete &mdash; ZIP downloaded (2 QuickBooks IIF files + Excel)</h4>
-                <p class="result-panel__desc">
-                    Pulled {{ s.batchesPulled }} batch{{ s.batchesPulled === 1 ? '' : 'es' }} containing
-                    {{ s.transactionsPulled }} transaction{{ s.transactionsPulled === 1 ? '' : 's' }}. The zip holds
-                    separate <code>reg-consolodated.iif</code> and <code>merch-consolodated.iif</code> files &mdash;
-                    inspect and import each on its own.
+            <div class="action-panel__body">
+                <h3 class="action-panel__title">Download settlements for {{ targetMonth | date:'MMMM yyyy' }}</h3>
+                <p class="action-panel__desc">
+                    Pulls <strong>{{ targetMonth | date:'MMM d' }} – {{ endOfMonth | date:'MMM d, yyyy' }}</strong>
+                    (plus a one-day look-back for settlements that crossed midnight) from production Authorize.Net
+                    into <code>Txs</code>. Idempotent — re-running replaces the month cleanly.
+                    @if (dataInPlace()) {
+                        <br /><span class="action-panel__note">
+                            Already loaded ({{ loadedTransactionCount() }} transactions). Re-download only to refresh,
+                            or skip ahead to <button type="button" class="linkish" (click)="goStep(2)">Review</button>.
+                        </span>
+                    }
                 </p>
-                <div class="result-stats">
-                    <div class="result-stat result-stat--success">
-                        <span class="result-stat__value">{{ s.imported }}</span>
-                        <span class="result-stat__label">Imported</span>
-                    </div>
-                    <div class="result-stat result-stat--muted">
-                        <span class="result-stat__value">{{ s.skippedDuplicates }}</span>
-                        <span class="result-stat__label">Duplicates Skipped</span>
-                    </div>
-                    <div class="result-stat">
-                        <span class="result-stat__value">{{ s.batchesPulled }}</span>
-                        <span class="result-stat__label">Batches</span>
-                    </div>
-                    <div class="result-stat" [class.result-stat--success]="!regMismatch()">
-                        <span class="result-stat__value">{{ s.regTrnsConsolidated }} / {{ s.regTrnsSource }}</span>
-                        <span class="result-stat__label">Reg IIF Txns</span>
-                    </div>
-                    <div class="result-stat" [class.result-stat--success]="!merchMismatch()">
-                        <span class="result-stat__value">{{ s.merchTrnsConsolidated }} / {{ s.merchTrnsSource }}</span>
-                        <span class="result-stat__label">Merch IIF Txns</span>
-                    </div>
-                </div>
+            </div>
+            <div class="action-panel__cta">
+                <button type="button" class="btn btn-primary btn-lg" [disabled]="isImporting()" (click)="downloadTxs()">
+                    @if (isImporting()) {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Pulling from ADN&hellip;
+                    } @else {
+                        <i class="bi bi-cloud-download me-1"></i>Download ADN Txs
+                    }
+                </button>
             </div>
         </section>
 
-        @if (iifMismatch()) {
+        @if (isImporting()) {
+            <p class="wiz-working" role="status">
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Connecting to Authorize.Net, pulling settled batches and importing &mdash; this can take a minute.
+            </p>
+        }
+
+        @if (importError()) {
             <section class="result-panel result-panel--danger" role="alert">
                 <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
                 <div class="result-panel__body">
-                    <h4 class="result-panel__title">IIF transaction count mismatch</h4>
+                    <h4 class="result-panel__title">Download failed</h4>
+                    <p class="result-panel__desc">{{ importError() }}</p>
+                </div>
+            </section>
+        }
+
+        @if (importResult(); as imp) {
+            <section class="result-panel result-panel--success" role="status">
+                <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">Download complete</h4>
                     <p class="result-panel__desc">
-                        @if (regMismatch()) {
-                            <strong>Registration:</strong> consolidated {{ s.regTrnsConsolidated }} vs source
-                            {{ s.regTrnsSource }}.
-                        }
-                        @if (merchMismatch()) {
-                            <strong>Merch:</strong> consolidated {{ s.merchTrnsConsolidated }} vs source
-                            {{ s.merchTrnsSource }}.
-                        }
-                        The file(s) were still produced &mdash; review before importing into QuickBooks.
+                        Pulled {{ imp.batchesPulled }} batch{{ imp.batchesPulled === 1 ? '' : 'es' }} /
+                        {{ imp.transactionsPulled }} transaction{{ imp.transactionsPulled === 1 ? '' : 's' }};
+                        imported {{ imp.imported }} new, skipped {{ imp.skippedDuplicates }} duplicate{{ imp.skippedDuplicates === 1 ? '' : 's' }}.
                     </p>
                 </div>
             </section>
+        }
+
+        <!-- Output statement: the reconciliation verdict -->
+        @if (reconciliation()) {
+            <section class="recon" role="status">
+                <header class="recon__header">
+                    <h3 class="recon__title">
+                        <i class="bi"
+                            [class.bi-shield-check]="allMatched()" [class.bi-shield-exclamation]="!allMatched()"
+                            [class.recon__title-icon--ok]="allMatched()" [class.recon__title-icon--alert]="!allMatched()"></i>
+                        Accounting match
+                    </h3>
+                    <p class="recon__subtitle">
+                        Every dollar Authorize.Net settled must map to a client in our accounting system.
+                    </p>
+                </header>
+
+                <div class="recon__grid">
+                    @for (v of stackViews(); track v.key) {
+                        <article class="recon-card" [class.recon-card--ok]="v.matched" [class.recon-card--alert]="!v.matched">
+                            <div class="recon-card__head">
+                                <h4 class="recon-card__label">{{ v.label }}</h4>
+                                @if (v.matched) {
+                                    <span class="recon-badge recon-badge--ok">
+                                        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                                        All {{ v.summary.transactionCount }} matched
+                                    </span>
+                                } @else {
+                                    <span class="recon-badge recon-badge--alert">
+                                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                                        {{ v.summary.unmatchedCount }} of {{ v.summary.transactionCount }} unmatched
+                                    </span>
+                                }
+                            </div>
+
+                            <dl class="recon-card__totals">
+                                <div class="recon-total">
+                                    <dt class="recon-total__label">CC dollars paid</dt>
+                                    <dd class="recon-total__value">
+                                        {{ v.summary.paidTotal | currency }}
+                                        <span class="recon-total__count">{{ v.summary.paidCount }} txns</span>
+                                    </dd>
+                                </div>
+                                <div class="recon-total">
+                                    <dt class="recon-total__label">CC dollars credited</dt>
+                                    <dd class="recon-total__value">
+                                        {{ v.summary.creditTotal | currency }}
+                                        <span class="recon-total__count">{{ v.summary.creditCount }} txns</span>
+                                    </dd>
+                                </div>
+                            </dl>
+
+                            @if (!v.matched) {
+                                <div class="recon-card__unmatched">
+                                    <p class="recon-card__unmatched-title">
+                                        ADN settled these, but no accounting row exists on our side:
+                                    </p>
+                                    <div class="recon-table-wrap">
+                                        <table class="recon-table">
+                                            <thead>
+                                                <tr>
+                                                    <th scope="col">Transaction</th>
+                                                    <th scope="col">Invoice</th>
+                                                    <th scope="col" class="num">Amount</th>
+                                                    <th scope="col">Status</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @for (u of v.summary.unmatched; track u.transactionId) {
+                                                    <tr>
+                                                        <td>{{ u.transactionId }}</td>
+                                                        <td>{{ u.invoiceNumber }}</td>
+                                                        <td class="num">{{ u.amount | currency }}</td>
+                                                        <td>{{ u.status }}</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+
+                @if (dataInPlace()) {
+                    <div class="wiz-next">
+                        <button type="button" class="btn btn-primary" (click)="goStep(2)">
+                            Review summary <i class="bi bi-arrow-right ms-1"></i>
+                        </button>
+                    </div>
+                }
+            </section>
+        }
+    }
+
+    <!-- ============ STEP 2 — Review summary (ledger tabs) ============ -->
+    @if (activeStep() === 2) {
+        @if (isLoadingLedger()) {
+            <p class="wiz-working" role="status">
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Building the ledger&hellip;
+            </p>
+        }
+
+        @if (ledgerError()) {
+            <section class="result-panel result-panel--danger" role="alert">
+                <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">Could not load the ledger</h4>
+                    <p class="result-panel__desc">{{ ledgerError() }}</p>
+                </div>
+            </section>
+        }
+
+        @if (ledger(); as l) {
+            @if (!allMatched()) {
+                <p class="recon-inline recon-inline--alert" role="status">
+                    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                    Heads up — the accounting match found unmatched transactions. See Step 1.
+                </p>
+            }
+
+            <section class="ledger">
+                <div class="ledger__tabs" role="tablist">
+                    @for (t of l.tabs; track t.name; let i = $index) {
+                        <button
+                            type="button"
+                            role="tab"
+                            class="ledger-tab"
+                            [class.is-active]="activeTabIndex() === i"
+                            [attr.aria-selected]="activeTabIndex() === i"
+                            (click)="selectTab(i)">
+                            <span class="ledger-tab__stack" [class.ledger-tab__stack--merch]="t.stack === 'Merch'">{{ t.stack === 'Merch' ? 'M' : 'R' }}</span>
+                            {{ t.name }}
+                        </button>
+                    }
+                </div>
+
+                @if (activeTab(); as tab) {
+                    <div class="ledger__panel" role="tabpanel">
+                        @if (tab.entries.length === 0 && tab.rows.length === 0) {
+                            <p class="ledger__empty">No rows on this tab.</p>
+                        }
+
+                        <!-- Transaction tab: flattened double-entry -->
+                        @if (tab.kind === 'transactions' && tab.entries.length > 0) {
+                            <div class="ledger-table-wrap">
+                                <table class="ledger-table">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col"></th>
+                                            <th scope="col">Date</th>
+                                            <th scope="col">Type</th>
+                                            <th scope="col">Client</th>
+                                            <th scope="col">Account</th>
+                                            <th scope="col" class="num">Amount</th>
+                                            <th scope="col">Doc</th>
+                                            <th scope="col">Memo</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (e of tab.entries; track $index) {
+                                            <tr>
+                                                <td class="ledger-table__toggle">
+                                                    @if (e.splits.length > 0) {
+                                                        <button type="button" class="ledger-expand"
+                                                            [attr.aria-expanded]="isExpanded(tab.name + $index)"
+                                                            (click)="toggleSplits(tab.name + $index)"
+                                                            [attr.aria-label]="'Show ' + e.splits.length + ' splits'">
+                                                            <i class="bi" [class.bi-chevron-right]="!isExpanded(tab.name + $index)" [class.bi-chevron-down]="isExpanded(tab.name + $index)"></i>
+                                                        </button>
+                                                    }
+                                                </td>
+                                                <td>{{ e.date }}</td>
+                                                <td>{{ e.type }}</td>
+                                                <td>{{ e.party }}</td>
+                                                <td>{{ e.account }}</td>
+                                                <td class="num">{{ e.amount | currency }}</td>
+                                                <td>{{ e.docNum }}</td>
+                                                <td class="ledger-table__memo">{{ e.memo }}</td>
+                                            </tr>
+                                            @if (isExpanded(tab.name + $index)) {
+                                                @for (sp of e.splits; track $index) {
+                                                    <tr class="ledger-split">
+                                                        <td></td>
+                                                        <td colspan="3" class="ledger-split__account">↳ {{ sp.account }}</td>
+                                                        <td>{{ sp.party }}</td>
+                                                        <td class="num">{{ sp.amount | currency }}</td>
+                                                        <td colspan="2">{{ sp.memo }}</td>
+                                                    </tr>
+                                                }
+                                            }
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+
+                        <!-- QA tab: plain passthrough table -->
+                        @if (tab.kind === 'table' && tab.rows.length > 0) {
+                            <div class="ledger-table-wrap">
+                                <table class="ledger-table">
+                                    <thead>
+                                        <tr>
+                                            @for (c of tab.columns; track $index) {
+                                                <th scope="col">{{ c }}</th>
+                                            }
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @for (row of tab.rows; track $index) {
+                                            <tr>
+                                                @for (cell of row; track $index) {
+                                                    <td>{{ cell }}</td>
+                                                }
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                }
+            </section>
+
+            <div class="wiz-next">
+                <button type="button" class="btn btn-primary" (click)="goStep(3)">
+                    Download files <i class="bi bi-arrow-right ms-1"></i>
+                </button>
+            </div>
+        }
+    }
+
+    <!-- ============ STEP 3 — Download files ============ -->
+    @if (activeStep() === 3) {
+        <section class="action-panel" [class.is-running]="isGeneratingFiles()">
+            <div class="action-panel__icon" aria-hidden="true">
+                <i class="bi bi-filetype-exe"></i>
+            </div>
+            <div class="action-panel__body">
+                <h3 class="action-panel__title">QuickBooks files for {{ targetMonth | date:'MMMM yyyy' }}</h3>
+                <p class="action-panel__desc">
+                    Generates a <code>.zip</code> with two independent QuickBooks IIF files —
+                    <code>reg-consolodated.iif</code> and <code>merch-consolodated.iif</code> — plus their backing
+                    Excel. Built from the <code>Txs</code> already loaded; no ADN pull. Inspect and import each on its own.
+                </p>
+            </div>
+            <div class="action-panel__cta">
+                <button type="button" class="btn btn-primary btn-lg" [disabled]="isGeneratingFiles()" (click)="downloadFiles()">
+                    @if (isGeneratingFiles()) {
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Generating&hellip;
+                    } @else {
+                        <i class="bi bi-download me-1"></i>Download QuickBooks files
+                    }
+                </button>
+            </div>
+        </section>
+
+        @if (filesError()) {
+            <section class="result-panel result-panel--danger" role="alert">
+                <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">File generation failed</h4>
+                    <p class="result-panel__desc">{{ filesError() }}</p>
+                </div>
+            </section>
+        }
+
+        @if (filesStats(); as f) {
+            <section class="result-panel result-panel--success" role="status">
+                <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">ZIP downloaded (2 IIF files + Excel)</h4>
+                    <div class="result-stats">
+                        <div class="result-stat" [class.result-stat--success]="!regFilesMismatch()">
+                            <span class="result-stat__value">{{ f.regTrnsConsolidated }} / {{ f.regTrnsSource }}</span>
+                            <span class="result-stat__label">Reg IIF Txns</span>
+                        </div>
+                        <div class="result-stat" [class.result-stat--success]="!merchFilesMismatch()">
+                            <span class="result-stat__value">{{ f.merchTrnsConsolidated }} / {{ f.merchTrnsSource }}</span>
+                            <span class="result-stat__label">Merch IIF Txns</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            @if (filesMismatch()) {
+                <section class="result-panel result-panel--danger" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+                    <div class="result-panel__body">
+                        <h4 class="result-panel__title">IIF transaction count mismatch</h4>
+                        <p class="result-panel__desc">
+                            The file(s) were still produced &mdash; review before importing into QuickBooks.
+                        </p>
+                    </div>
+                </section>
+            }
         }
     }
 </div>

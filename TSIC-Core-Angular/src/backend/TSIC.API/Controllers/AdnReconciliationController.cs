@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 
 namespace TSIC.API.Controllers;
@@ -49,6 +50,82 @@ public class AdnReconciliationController : ControllerBase
             result.Bundle.FileBytes,
             result.Bundle.ContentType,
             $"TSIC-AdnReconciliation-{year}-{month:D2}.zip");
+    }
+
+    /// <summary>
+    /// POST /api/adn-reconciliation/import?settlementMonth=N&amp;settlementYear=Y
+    /// Step 1 (load): pull last month's settled ADN batches (reg + merch) into Txs and return the
+    /// import counts. Writes Txs only — no files. Defaults to last month.
+    /// </summary>
+    [HttpPost("import")]
+    public async Task<ActionResult<AdnImportResult>> Import(
+        [FromQuery] int? settlementMonth,
+        [FromQuery] int? settlementYear,
+        CancellationToken cancellationToken)
+    {
+        var (month, year) = ResolveMonthYear(settlementMonth, settlementYear);
+        var result = await _service.ImportSettlementsAsync(month, year, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// GET /api/adn-reconciliation/ledger?settlementMonth=N&amp;settlementYear=Y
+    /// Step 2 (present): the human-readable month-end ledger — the export workbook's tabs on screen.
+    /// Reads existing Txs. Defaults to last month.
+    /// </summary>
+    [HttpGet("ledger")]
+    public async Task<ActionResult<MonthEndLedger>> Ledger(
+        [FromQuery] int? settlementMonth,
+        [FromQuery] int? settlementYear,
+        CancellationToken cancellationToken)
+    {
+        var (month, year) = ResolveMonthYear(settlementMonth, settlementYear);
+        var result = await _service.GetLedgerAsync(month, year, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// GET /api/adn-reconciliation/files?settlementMonth=N&amp;settlementYear=Y
+    /// Step 3 (files): generate + download the .zip (two QuickBooks .iif + backing .xlsx) from the Txs
+    /// already imported for the month. No ADN pull. Per-stack TRNS parity in response headers.
+    /// </summary>
+    [HttpGet("files")]
+    public async Task<IActionResult> Files(
+        [FromQuery] int? settlementMonth,
+        [FromQuery] int? settlementYear,
+        CancellationToken cancellationToken)
+    {
+        var (month, year) = ResolveMonthYear(settlementMonth, settlementYear);
+        var bundle = await _service.GenerateBundleAsync(month, year, cancellationToken);
+
+        Response.Headers["X-Iif-Reg-Trns-Source"] = bundle.RegSourceTrnsCount.ToString();
+        Response.Headers["X-Iif-Reg-Trns-Consolidated"] = bundle.RegConsolidatedTrnsCount.ToString();
+        Response.Headers["X-Iif-Merch-Trns-Source"] = bundle.MerchSourceTrnsCount.ToString();
+        Response.Headers["X-Iif-Merch-Trns-Consolidated"] = bundle.MerchConsolidatedTrnsCount.ToString();
+
+        return File(
+            bundle.Zip.FileBytes,
+            bundle.Zip.ContentType,
+            $"TSIC-AdnReconciliation-{year}-{month:D2}.zip");
+    }
+
+    /// <summary>
+    /// GET /api/adn-reconciliation/reconcile?settlementMonth=N&amp;settlementYear=Y
+    /// Custodial reconciliation for the month: does every ADN transaction have a matching accounting
+    /// row (reg → Registration_Accounting, merch → StoreCartBatchAccounting)? Returns per-stack
+    /// matched/unmatched counts, the unmatched list, and the paid/credit dollar totals staff compare
+    /// against QuickBooks after importing the IIF. Reads Txs only — no ADN pull, no files. Defaults
+    /// to last month if no params supplied.
+    /// </summary>
+    [HttpGet("reconcile")]
+    public async Task<ActionResult<MonthEndReconciliationResult>> Reconcile(
+        [FromQuery] int? settlementMonth,
+        [FromQuery] int? settlementYear,
+        CancellationToken cancellationToken)
+    {
+        var (month, year) = ResolveMonthYear(settlementMonth, settlementYear);
+        var result = await _service.GetReconciliationAsync(month, year, cancellationToken);
+        return Ok(result);
     }
 
     private static (int Month, int Year) ResolveMonthYear(int? month, int? year)

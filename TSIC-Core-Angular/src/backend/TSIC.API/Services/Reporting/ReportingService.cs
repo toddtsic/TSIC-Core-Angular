@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -441,6 +442,202 @@ public sealed class ReportingService : IReportingService
     }
 
     private readonly record struct StackArtifacts(byte[] Xlsx, byte[] Iif, int SourceTrns, int ConsolidatedTrns);
+
+    /// <summary>
+    /// Builds the human-readable month-end ledger by running BOTH reconciliation sprocs (reg + merch)
+    /// and parsing their sheet output into canonical tabs — the on-screen equivalent of the export
+    /// workbook. Because it drains the SAME result sets that build the .xlsx / .iif, the screen and the
+    /// file are guaranteed to agree. IIF (double-entry) sheets are flattened; QA sheets pass through.
+    /// </summary>
+    public async Task<MonthEndLedger> GetMonthEndLedgerAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+    {
+        var tabs = new List<LedgerTab>();
+
+        // Sequential (never parallel) — both share the one scoped DbContext connection.
+        foreach (var (isMerch, stack) in new[] { (false, "Registration"), (true, "Merch") })
+        {
+            var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
+                settlementMonth, settlementYear, isMerch, cancellationToken);
+
+            List<SheetData> sheets;
+            try
+            {
+                sheets = await ReadReaderIntoSheetsAsync(reader);
+            }
+            finally
+            {
+                await reader.CloseAsync();
+                await connection.CloseAsync();
+            }
+
+            foreach (var sheet in sheets)
+            {
+                tabs.Add(ParseSheetToLedgerTab(sheet, stack));
+            }
+        }
+
+        return new MonthEndLedger
+        {
+            SettlementMonth = settlementMonth,
+            SettlementYear = settlementYear,
+            Tabs = tabs,
+        };
+    }
+
+    /// <summary>
+    /// Turns one sproc sheet into a ledger tab. A sheet whose first column is a <c>!</c>-prefixed IIF
+    /// header is a double-entry sheet → flatten each <c>TRNS</c>+<c>SPL</c>…<c>ENDTRNS</c> group into one
+    /// entry (amount = the TRNS side; splits attached). Otherwise it's a QA sheet → pass through as a table.
+    /// </summary>
+    private static LedgerTab ParseSheetToLedgerTab(SheetData sheet, string stack)
+    {
+        var isIif = sheet.Columns.Count > 0 && sheet.Columns[0].TrimStart().StartsWith('!');
+
+        if (!isIif)
+        {
+            var rows = sheet.Rows
+                .Select(r => (IReadOnlyList<string>)r.Select(CellToDisplay).ToList())
+                .ToList();
+
+            return new LedgerTab
+            {
+                Name = sheet.Name,
+                Stack = stack,
+                Kind = "table",
+                Columns = sheet.Columns.ToList(),
+                Rows = rows,
+                Entries = Array.Empty<LedgerEntry>(),
+            };
+        }
+
+        var map = IifColumnMap.From(sheet.Columns);
+        var entries = new List<LedgerEntry>();
+
+        string date = "", type = "", party = "", account = "", docNum = "", memo = "";
+        decimal amount = 0m;
+        var splits = new List<LedgerSplit>();
+        var open = false;
+
+        void Flush()
+        {
+            if (!open) return;
+            entries.Add(new LedgerEntry
+            {
+                Date = date,
+                Type = type,
+                Party = party,
+                Account = account,
+                Amount = amount,
+                DocNum = docNum,
+                Memo = memo,
+                Splits = splits,
+            });
+            open = false;
+            splits = new List<LedgerSplit>();
+        }
+
+        foreach (var row in sheet.Rows)
+        {
+            var keyword = (row.Length > 0 ? row[0]?.ToString() : null)?.Trim() ?? string.Empty;
+
+            // Skip the !TRNS / !SPL / !ENDTRNS column-definition rows the sproc emits inline.
+            if (keyword.StartsWith('!'))
+            {
+                continue;
+            }
+
+            switch (keyword)
+            {
+                case "TRNS":
+                    Flush();
+                    open = true;
+                    date = map.Cell(row, map.Date);
+                    type = map.Cell(row, map.Type);
+                    party = map.Cell(row, map.Name);
+                    account = map.Cell(row, map.Account);
+                    amount = map.Amount >= 0 ? ParseAmount(map.Cell(row, map.Amount)) : 0m;
+                    docNum = map.Cell(row, map.DocNum);
+                    memo = map.Cell(row, map.Memo);
+                    break;
+
+                case "SPL":
+                    if (open)
+                    {
+                        splits.Add(new LedgerSplit
+                        {
+                            Account = map.Cell(row, map.Account),
+                            Party = map.Cell(row, map.Name),
+                            Amount = map.Amount >= 0 ? ParseAmount(map.Cell(row, map.Amount)) : 0m,
+                            Memo = map.Cell(row, map.Memo),
+                        });
+                    }
+                    break;
+
+                case "ENDTRNS":
+                    Flush();
+                    break;
+            }
+        }
+
+        Flush();
+
+        return new LedgerTab
+        {
+            Name = sheet.Name,
+            Stack = stack,
+            Kind = "transactions",
+            Columns = Array.Empty<string>(),
+            Rows = Array.Empty<IReadOnlyList<string>>(),
+            Entries = entries,
+        };
+    }
+
+    private static string CellToDisplay(object? value) => value switch
+    {
+        null => string.Empty,
+        DateTime dt => dt.ToString("MM/dd/yyyy", CultureInfo.InvariantCulture),
+        _ => value.ToString() ?? string.Empty,
+    };
+
+    private static decimal ParseAmount(string value)
+        => decimal.TryParse(value, NumberStyles.Any, CultureInfo.InvariantCulture, out var d) ? d : 0m;
+
+    /// <summary>
+    /// Column positions for an IIF sheet, resolved by header name (leading <c>!</c> stripped) so the
+    /// parser follows the sproc if columns shift. -1 means the column is absent on that sheet.
+    /// </summary>
+    private readonly record struct IifColumnMap(int Date, int Type, int Account, int Name, int Amount, int DocNum, int Memo)
+    {
+        public static IifColumnMap From(IReadOnlyList<string> columns)
+        {
+            int Find(string name)
+            {
+                for (var i = 0; i < columns.Count; i++)
+                {
+                    if (string.Equals(columns[i].TrimStart('!').Trim(), name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+
+            return new IifColumnMap(
+                Date: Find("DATE"),
+                Type: Find("TRNSTYPE"),
+                Account: Find("ACCNT"),
+                Name: Find("NAME"),
+                Amount: Find("AMOUNT"),
+                DocNum: Find("DOCNUM"),
+                Memo: Find("MEMO"));
+        }
+
+        public string Cell(object?[] row, int index)
+            => (index >= 0 && index < row.Length ? row[index]?.ToString() : null)?.Trim() ?? string.Empty;
+    }
 
     public async Task<ReportExportResult> ExportScheduleToICalAsync(
         List<int> gameIds,

@@ -2,6 +2,7 @@ using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.Extensions.Logging;
 using TSIC.API.Services.Reporting;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -43,7 +44,13 @@ public class AdnReconciliationService : IAdnReconciliationService
         _logger = logger;
     }
 
-    public async Task<AdnReconciliationRunResult> RunMonthlyAsync(
+    public Task<MonthEndReconciliationResult> GetReconciliationAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+        => _repo.GetMonthEndReconciliationAsync(settlementMonth, settlementYear, cancellationToken);
+
+    public async Task<AdnImportResult> ImportSettlementsAsync(
         int settlementMonth,
         int settlementYear,
         CancellationToken cancellationToken = default)
@@ -159,9 +166,21 @@ public class AdnReconciliationService : IAdnReconciliationService
             toInsert.Count, skippedDuplicates, batches.Length, pulled.Count,
             settlementYear, settlementMonth);
 
-        // Now run BOTH reconciliation reports (reg + merch) and bundle two independent QuickBooks
-        // .iif files + their backing .xlsx into a single .zip — the server-side replacement for the
-        // manual IIFExtract.ps1 step. One ADN pull already imported both reg and merch Txs above.
+        return new AdnImportResult
+        {
+            BatchesPulled = batches.Length,
+            TransactionsPulled = pulled.Count,
+            Imported = toInsert.Count,
+            SkippedDuplicates = skippedDuplicates,
+        };
+    }
+
+    public async Task<ReconciliationBundleResult> GenerateBundleAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+    {
+        // Reads the Txs already imported for the month via the reconciliation sprocs — no ADN pull.
         var bundle = await _reportingService.ExportMonthEndCloseBundleAsync(
             settlementMonth, settlementYear, cancellationToken);
 
@@ -177,13 +196,31 @@ public class AdnReconciliationService : IAdnReconciliationService
                 bundle.MerchSourceTrnsCount, bundle.MerchConsolidatedTrnsCount);
         }
 
+        return bundle;
+    }
+
+    public Task<MonthEndLedger> GetLedgerAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+        => _reportingService.GetMonthEndLedgerAsync(settlementMonth, settlementYear, cancellationToken);
+
+    public async Task<AdnReconciliationRunResult> RunMonthlyAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+    {
+        // Combined legacy flow (Step 1 + Step 3 in one call): pull, then bundle.
+        var import = await ImportSettlementsAsync(settlementMonth, settlementYear, cancellationToken);
+        var bundle = await GenerateBundleAsync(settlementMonth, settlementYear, cancellationToken);
+
         return new AdnReconciliationRunResult
         {
             Bundle = bundle.Zip,
-            BatchesPulled = batches.Length,
-            TransactionsPulled = pulled.Count,
-            Imported = toInsert.Count,
-            SkippedDuplicates = skippedDuplicates,
+            BatchesPulled = import.BatchesPulled,
+            TransactionsPulled = import.TransactionsPulled,
+            Imported = import.Imported,
+            SkippedDuplicates = import.SkippedDuplicates,
             RegSourceTrnsCount = bundle.RegSourceTrnsCount,
             RegConsolidatedTrnsCount = bundle.RegConsolidatedTrnsCount,
             MerchSourceTrnsCount = bundle.MerchSourceTrnsCount,

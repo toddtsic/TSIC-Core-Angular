@@ -150,6 +150,16 @@ public interface IReportingService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Builds the human-readable month-end ledger (both stacks) by parsing the same reconciliation
+    /// sproc output that feeds the workbook — IIF double-entry tabs flattened, QA tabs passed through.
+    /// The on-screen review equivalent of the .xlsx, guaranteed to match the exported files.
+    /// </summary>
+    Task<MonthEndLedger> GetMonthEndLedgerAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Generates an iCalendar (.ics) file from selected schedule games.
     /// </summary>
     Task<ReportExportResult> ExportScheduleToICalAsync(
