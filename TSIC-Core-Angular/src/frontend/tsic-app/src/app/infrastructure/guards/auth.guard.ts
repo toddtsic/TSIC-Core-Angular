@@ -4,7 +4,7 @@ import { map, catchError } from 'rxjs/operators';
 import { AuthService } from '../services/auth.service';
 import { LastLocationService } from '../services/last-location.service';
 import { ToastService } from '@shared-ui/toast.service';
-import { Roles, type RoleName } from '../constants/roles.constants';
+import { type RoleName } from '../constants/roles.constants';
 
 /**
  * Unified authentication guard.
@@ -16,9 +16,11 @@ import { Roles, type RoleName } from '../constants/roles.constants';
  *                            Reading the route shows exactly who can reach it.
  *                            Omit for any-authenticated-user access.
  *
- * Cold start (browser refresh / direct URL):
- *   Phase 1 tokens (no regId) are stale incomplete sessions.
- *   → logoutLocal, redirect to /:jobPath (loads as anonymous).
+ * Cold start (fresh load / refresh / externally-clicked deep link):
+ *   Never resume a session — no role is exempt. logoutLocal(), then honor the requested
+ *   URL (public/landing render anonymously; protected → login with returnUrl preserved).
+ *   This ensures a deep link (e.g. an emailed invite) is evaluated against whoever logs in
+ *   FOR that link, not against whoever was left in the browser.
  */
 export const authGuard: CanActivateFn = (route, state) => {
     const auth = inject(AuthService);
@@ -60,21 +62,24 @@ export const authGuard: CanActivateFn = (route, state) => {
     const toLogin = () => router.createUrlTree([`/${jobPath()}/login`], { queryParams: { returnUrl: state.url } });
     const toJob = (jp: string) => router.createUrlTree([`/${jp}`]);
 
-    // ── Cold start + Phase 1 = stale session ────────────────────────
-    if (isColdStart && isAuth && user && !user.regId) {
-        const jp = user.jobPath;
+    // ── Cold start = never resume a session ─────────────────────────
+    // App startup (fresh load, refresh, or an externally-clicked deep link such as an
+    // emailed invite) must begin clean. A link is then judged against whoever logs in
+    // *for that link* — never against whoever happened to be left in the browser. NO role
+    // is exempt: the former SuperUser/Director "resume across refresh" carve-out is exactly
+    // what let a privileged token evaluate (and reject) someone else's invite, so it's gone.
+    //
+    // Gate on ANY session material — a live token OR just a refresh token. Gating on isAuth
+    // alone would skip an expired-but-refreshable session, which the not-authenticated block
+    // below would then silently refresh back into the OLD user, quietly undoing this. Running
+    // logoutLocal() first (it clears both tokens and stops the refresh timer) closes that path.
+    //
+    // Then honor the URL that was actually requested — do NOT redirect home. Public and
+    // login/landing pages render anonymously; anything protected falls through to toLogin(),
+    // whose returnUrl=state.url carries the full deep link + query (e.g. ?invite=<token>).
+    if (isColdStart && (isAuth || auth.getRefreshToken())) {
         auth.logoutLocal();
-        return toJob(jp || 'tsic');
-    }
-
-    // ── Cold start + Phase 2 + non-privileged = stale session ────────
-    // Only SuperUser and Director persist across refresh.
-    // All other roles must re-authenticate.
-    if (isColdStart && isAuth && user?.regId
-        && user.role !== Roles.Superuser && user.role !== Roles.Director) {
-        const jp = user.jobPath;
-        auth.logoutLocal();
-        return toJob(jp || 'tsic');
+        return (flags.allowAnonymous || flags.redirectAuthenticated) ? true : toLogin();
     }
 
     // ── Bounce authenticated users away from login/landing ──────────
