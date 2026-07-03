@@ -183,7 +183,7 @@
         </div>
         @if (testimonials.length > 1) {
           <div class="proof__dots">
-            @for (t of testimonials; track t.name; let i = $index) {
+            @for (t of testimonials; track i; let i = $index) {
               <button class="proof__dot"
                       [class.proof__dot--active]="activeTestimonial() === i"
                       (click)="selectTestimonial(i)"
