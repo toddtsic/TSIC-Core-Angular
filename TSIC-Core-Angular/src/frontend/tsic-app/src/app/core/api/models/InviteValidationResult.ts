@@ -2,7 +2,7 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type TeamInviteValidationResult = {
+export type InviteValidationResult = {
     allowed: boolean;
 };
 
