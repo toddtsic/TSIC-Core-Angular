@@ -60,23 +60,23 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
         FROM (
             SELECT 'Reg' AS stack, 1 AS ord,
                 COUNT(*) AS transactionCount,
-                SUM(matched) AS matchedCount,
-                SUM(CASE WHEN matched = 0 THEN 1 ELSE 0 END) AS unmatchedCount,
+                ISNULL(SUM(matched), 0) AS matchedCount,
+                ISNULL(SUM(CASE WHEN matched = 0 THEN 1 ELSE 0 END), 0) AS unmatchedCount,
                 ISNULL(SUM(CASE WHEN matched = 0 THEN signedAmt ELSE 0 END), 0) AS unmatchedTotal,
-                SUM(CASE WHEN status = 'Settled Successfully' THEN 1 ELSE 0 END) AS paidCount,
+                ISNULL(SUM(CASE WHEN status = 'Settled Successfully' THEN 1 ELSE 0 END), 0) AS paidCount,
                 ISNULL(SUM(CASE WHEN status = 'Settled Successfully' THEN rawAmt ELSE 0 END), 0) AS paidTotal,
-                SUM(CASE WHEN status = 'Credited' THEN 1 ELSE 0 END) AS creditCount,
+                ISNULL(SUM(CASE WHEN status = 'Credited' THEN 1 ELSE 0 END), 0) AS creditCount,
                 ISNULL(SUM(CASE WHEN status = 'Credited' THEN rawAmt ELSE 0 END), 0) AS creditTotal
             FROM #reg
             UNION ALL
             SELECT 'Merch', 2,
                 COUNT(*),
-                SUM(matched),
-                SUM(CASE WHEN matched = 0 THEN 1 ELSE 0 END),
+                ISNULL(SUM(matched), 0),
+                ISNULL(SUM(CASE WHEN matched = 0 THEN 1 ELSE 0 END), 0),
                 ISNULL(SUM(CASE WHEN matched = 0 THEN signedAmt ELSE 0 END), 0),
-                SUM(CASE WHEN status = 'Settled Successfully' THEN 1 ELSE 0 END),
+                ISNULL(SUM(CASE WHEN status = 'Settled Successfully' THEN 1 ELSE 0 END), 0),
                 ISNULL(SUM(CASE WHEN status = 'Settled Successfully' THEN rawAmt ELSE 0 END), 0),
-                SUM(CASE WHEN status = 'Credited' THEN 1 ELSE 0 END),
+                ISNULL(SUM(CASE WHEN status = 'Credited' THEN 1 ELSE 0 END), 0),
                 ISNULL(SUM(CASE WHEN status = 'Credited' THEN rawAmt ELSE 0 END), 0)
             FROM #merch
         ) s
