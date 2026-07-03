@@ -722,7 +722,11 @@ builder.Services.AddCors(options =>
                   "X-Imported-Count",
                   "X-Skipped-Duplicates",
                   "X-Batches-Pulled",
-                  "X-Transactions-Pulled");
+                  "X-Transactions-Pulled",
+                  "X-Iif-Reg-Trns-Source",
+                  "X-Iif-Reg-Trns-Consolidated",
+                  "X-Iif-Merch-Trns-Source",
+                  "X-Iif-Merch-Trns-Consolidated");
     });
 });
 

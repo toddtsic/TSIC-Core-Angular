@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, inject, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { HttpClient, HttpResponse } from '@angular/common/http';
 import { environment } from '@environments/environment';
@@ -8,6 +8,10 @@ interface ReconciliationStats {
     skippedDuplicates: number;
     batchesPulled: number;
     transactionsPulled: number;
+    regTrnsSource: number;
+    regTrnsConsolidated: number;
+    merchTrnsSource: number;
+    merchTrnsConsolidated: number;
 }
 
 @Component({
@@ -25,6 +29,19 @@ export class GetReconciliationRecordsComponent {
     readonly isRunning = signal(false);
     readonly stats = signal<ReconciliationStats | null>(null);
     readonly errorMessage = signal('');
+
+    // TRNS parity is the consolidation's own integrity check: every transaction line in the source
+    // IIF sheets must survive into the consolidated .iif. Checked per stack (reg + merch); a mismatch
+    // on either = review that file before importing to QuickBooks.
+    readonly regMismatch = computed(() => {
+        const s = this.stats();
+        return s != null && s.regTrnsSource !== s.regTrnsConsolidated;
+    });
+    readonly merchMismatch = computed(() => {
+        const s = this.stats();
+        return s != null && s.merchTrnsSource !== s.merchTrnsConsolidated;
+    });
+    readonly iifMismatch = computed(() => this.regMismatch() || this.merchMismatch());
 
     readonly targetMonth = (() => {
         const today = new Date();
@@ -54,6 +71,10 @@ export class GetReconciliationRecordsComponent {
                         skippedDuplicates: this.readNumberHeader(response, 'X-Skipped-Duplicates'),
                         batchesPulled: this.readNumberHeader(response, 'X-Batches-Pulled'),
                         transactionsPulled: this.readNumberHeader(response, 'X-Transactions-Pulled'),
+                        regTrnsSource: this.readNumberHeader(response, 'X-Iif-Reg-Trns-Source'),
+                        regTrnsConsolidated: this.readNumberHeader(response, 'X-Iif-Reg-Trns-Consolidated'),
+                        merchTrnsSource: this.readNumberHeader(response, 'X-Iif-Merch-Trns-Source'),
+                        merchTrnsConsolidated: this.readNumberHeader(response, 'X-Iif-Merch-Trns-Consolidated'),
                     });
                     this.triggerDownload(response);
                 },
@@ -83,7 +104,7 @@ export class GetReconciliationRecordsComponent {
 
         const disposition = response.headers.get('Content-Disposition') ?? '';
         const match = disposition.match(/filename="?([^";]+)"?/i);
-        const filename = match?.[1] ?? `TSIC-AdnReconciliation-${this.formatMonthKey()}.xlsx`;
+        const filename = match?.[1] ?? `TSIC-AdnReconciliation-${this.formatMonthKey()}.zip`;
 
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

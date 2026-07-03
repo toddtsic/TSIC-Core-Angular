@@ -159,17 +159,35 @@ public class AdnReconciliationService : IAdnReconciliationService
             toInsert.Count, skippedDuplicates, batches.Length, pulled.Count,
             settlementYear, settlementMonth);
 
-        // Now generate the Excel export by running the existing reconciliation report.
-        var excel = await _reportingService.ExportMonthlyReconciliationAsync(
-            settlementMonth, settlementYear, isMerchandise: false, cancellationToken);
+        // Now run BOTH reconciliation reports (reg + merch) and bundle two independent QuickBooks
+        // .iif files + their backing .xlsx into a single .zip — the server-side replacement for the
+        // manual IIFExtract.ps1 step. One ADN pull already imported both reg and merch Txs above.
+        var bundle = await _reportingService.ExportMonthEndCloseBundleAsync(
+            settlementMonth, settlementYear, cancellationToken);
+
+        if (bundle.RegSourceTrnsCount != bundle.RegConsolidatedTrnsCount
+            || bundle.MerchSourceTrnsCount != bundle.MerchConsolidatedTrnsCount)
+        {
+            _logger.LogWarning(
+                "AdnReconciliation: IIF TRNS count mismatch for {Year}-{Month:D2} — " +
+                "reg source {RegSource}/consolidated {RegConsolidated}, merch source {MerchSource}/consolidated {MerchConsolidated}. " +
+                "The .iif files were still produced; verify before importing to QuickBooks.",
+                settlementYear, settlementMonth,
+                bundle.RegSourceTrnsCount, bundle.RegConsolidatedTrnsCount,
+                bundle.MerchSourceTrnsCount, bundle.MerchConsolidatedTrnsCount);
+        }
 
         return new AdnReconciliationRunResult
         {
-            Excel = excel,
+            Bundle = bundle.Zip,
             BatchesPulled = batches.Length,
             TransactionsPulled = pulled.Count,
             Imported = toInsert.Count,
             SkippedDuplicates = skippedDuplicates,
+            RegSourceTrnsCount = bundle.RegSourceTrnsCount,
+            RegConsolidatedTrnsCount = bundle.RegConsolidatedTrnsCount,
+            MerchSourceTrnsCount = bundle.MerchSourceTrnsCount,
+            MerchConsolidatedTrnsCount = bundle.MerchConsolidatedTrnsCount,
         };
     }
 

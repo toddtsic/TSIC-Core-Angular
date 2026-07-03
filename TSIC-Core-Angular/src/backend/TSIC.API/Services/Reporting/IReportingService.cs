@@ -139,6 +139,17 @@ public interface IReportingService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Runs BOTH reconciliation stored procedures (non-merch + merch) for the settlement month and
+    /// returns a single .zip bundling two independent QuickBooks .iif files (reg + merch) plus their
+    /// backing .xlsx — the server-side equivalent of the manual Excel-COM + IIFExtract.ps1 step.
+    /// Carries per-stack source/consolidated TRNS counts for the pre-import reconciliation check.
+    /// </summary>
+    Task<ReconciliationBundleResult> ExportMonthEndCloseBundleAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Generates an iCalendar (.ics) file from selected schedule games.
     /// </summary>
     Task<ReportExportResult> ExportScheduleToICalAsync(

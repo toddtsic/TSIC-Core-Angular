@@ -6,11 +6,13 @@
                 Get Reconciliation Records
             </h2>
             <p class="page-subtitle">
-                Pulls last month's Authorize.Net settled batches into <code>Txs</code> and downloads
-                the QBP reconciliation Excel. Idempotent — re-running for the same month wipes that
-                month's <code>Txs</code> rows then repopulates from a fresh ADN pull. The pull always
-                hits production ADN (even when running on dev) so the dev <code>Txs</code> table
-                mirrors prod for debugging.
+                Runs the full month-end close: pulls last month's Authorize.Net settled batches (registration
+                <strong>and</strong> merch) into <code>Txs</code>, then downloads a <code>.zip</code> with two
+                separate QuickBooks IIF files — <code>reg-consolodated.iif</code> and
+                <code>merch-consolodated.iif</code> — plus their backing Excel. No more manual Excel-to-IIF step.
+                Idempotent — re-running for the same month wipes that month's <code>Txs</code> rows then
+                repopulates from a fresh ADN pull. The pull always hits production ADN (even when running on dev)
+                so the dev <code>Txs</code> table mirrors prod for debugging.
             </p>
         </div>
     </div>
@@ -61,10 +63,12 @@
         <section class="result-panel result-panel--success" role="status">
             <i class="bi bi-check-circle-fill result-panel__icon" aria-hidden="true"></i>
             <div class="result-panel__body">
-                <h4 class="result-panel__title">Reconciliation complete &mdash; Excel downloaded</h4>
+                <h4 class="result-panel__title">Close complete &mdash; ZIP downloaded (2 QuickBooks IIF files + Excel)</h4>
                 <p class="result-panel__desc">
                     Pulled {{ s.batchesPulled }} batch{{ s.batchesPulled === 1 ? '' : 'es' }} containing
-                    {{ s.transactionsPulled }} transaction{{ s.transactionsPulled === 1 ? '' : 's' }}.
+                    {{ s.transactionsPulled }} transaction{{ s.transactionsPulled === 1 ? '' : 's' }}. The zip holds
+                    separate <code>reg-consolodated.iif</code> and <code>merch-consolodated.iif</code> files &mdash;
+                    inspect and import each on its own.
                 </p>
                 <div class="result-stats">
                     <div class="result-stat result-stat--success">
@@ -79,12 +83,36 @@
                         <span class="result-stat__value">{{ s.batchesPulled }}</span>
                         <span class="result-stat__label">Batches</span>
                     </div>
-                    <div class="result-stat">
-                        <span class="result-stat__value">{{ s.transactionsPulled }}</span>
-                        <span class="result-stat__label">Transactions</span>
+                    <div class="result-stat" [class.result-stat--success]="!regMismatch()">
+                        <span class="result-stat__value">{{ s.regTrnsConsolidated }} / {{ s.regTrnsSource }}</span>
+                        <span class="result-stat__label">Reg IIF Txns</span>
+                    </div>
+                    <div class="result-stat" [class.result-stat--success]="!merchMismatch()">
+                        <span class="result-stat__value">{{ s.merchTrnsConsolidated }} / {{ s.merchTrnsSource }}</span>
+                        <span class="result-stat__label">Merch IIF Txns</span>
                     </div>
                 </div>
             </div>
         </section>
+
+        @if (iifMismatch()) {
+            <section class="result-panel result-panel--danger" role="alert">
+                <i class="bi bi-exclamation-triangle-fill result-panel__icon" aria-hidden="true"></i>
+                <div class="result-panel__body">
+                    <h4 class="result-panel__title">IIF transaction count mismatch</h4>
+                    <p class="result-panel__desc">
+                        @if (regMismatch()) {
+                            <strong>Registration:</strong> consolidated {{ s.regTrnsConsolidated }} vs source
+                            {{ s.regTrnsSource }}.
+                        }
+                        @if (merchMismatch()) {
+                            <strong>Merch:</strong> consolidated {{ s.merchTrnsConsolidated }} vs source
+                            {{ s.merchTrnsSource }}.
+                        }
+                        The file(s) were still produced &mdash; review before importing into QuickBooks.
+                    </p>
+                </div>
+            </section>
+        }
     }
 </div>

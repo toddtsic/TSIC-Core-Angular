@@ -36,6 +36,20 @@ public record ReportExportResult
 }
 
 /// <summary>
+/// Result of a month-end close export: a single .zip containing two independent QuickBooks .iif
+/// files (registration + merch) and their backing .xlsx, plus per-stack transaction (TRNS) counts
+/// used to validate that consolidation dropped nothing (source total should equal consolidated total).
+/// </summary>
+public record ReconciliationBundleResult
+{
+    public required ReportExportResult Zip { get; init; }
+    public required int RegSourceTrnsCount { get; init; }
+    public required int RegConsolidatedTrnsCount { get; init; }
+    public required int MerchSourceTrnsCount { get; init; }
+    public required int MerchConsolidatedTrnsCount { get; init; }
+}
+
+/// <summary>
 /// Request model for schedule export with game IDs.
 /// </summary>
 public record ScheduleExportRequest

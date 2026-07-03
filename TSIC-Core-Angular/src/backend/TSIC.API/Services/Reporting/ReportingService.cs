@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using BoldReports.Web;
@@ -374,6 +375,73 @@ public sealed class ReportingService : IReportingService
         }
     }
 
+    public async Task<ReconciliationBundleResult> ExportMonthEndCloseBundleAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+    {
+        // Non-merch and merch reconcile to DIFFERENT QuickBooks customers (registration-customer vs
+        // merch-customer) even inside the same company file, and staff inspect each ledger on its own —
+        // so the close produces two independent .iif files (+ their backing .xlsx) in one zip. One click,
+        // two clean imports, and a malformed merch batch can never corrupt the registration import.
+        var reg = await BuildStackAsync(settlementMonth, settlementYear, isMerchandise: false, cancellationToken);
+        var merch = await BuildStackAsync(settlementMonth, settlementYear, isMerchandise: true, cancellationToken);
+
+        var monthKey = $"{settlementYear}-{settlementMonth:D2}";
+        var zipBytes = BuildReconciliationZip(new (string, byte[])[]
+        {
+            ($"TSIC-AdnReconciliation-Reg-{monthKey}.xlsx", reg.Xlsx),
+            ($"TSIC-AdnReconciliation-Merch-{monthKey}.xlsx", merch.Xlsx),
+            ("reg-consolodated.iif", reg.Iif),
+            ("merch-consolodated.iif", merch.Iif),
+        });
+
+        return new ReconciliationBundleResult
+        {
+            Zip = new ReportExportResult
+            {
+                FileBytes = zipBytes,
+                ContentType = "application/zip",
+                FileName = $"TSIC-AdnReconciliation-{monthKey}.zip",
+            },
+            RegSourceTrnsCount = reg.SourceTrns,
+            RegConsolidatedTrnsCount = reg.ConsolidatedTrns,
+            MerchSourceTrnsCount = merch.SourceTrns,
+            MerchConsolidatedTrnsCount = merch.ConsolidatedTrns,
+        };
+    }
+
+    /// <summary>
+    /// Runs one reconciliation stored procedure (reg or merch) once and projects the single
+    /// in-memory sheet model into both artifacts — the backing .xlsx and the consolidated .iif —
+    /// so the QuickBooks IIF can never drift from the Excel it was reconciled against.
+    /// </summary>
+    private async Task<StackArtifacts> BuildStackAsync(
+        int settlementMonth,
+        int settlementYear,
+        bool isMerchandise,
+        CancellationToken cancellationToken)
+    {
+        var (reader, connection) = await _reportingRepository.ExecuteMonthlyReconciliationAsync(
+            settlementMonth, settlementYear, isMerchandise, cancellationToken);
+
+        List<SheetData> sheets;
+        try
+        {
+            sheets = await ReadReaderIntoSheetsAsync(reader);
+        }
+        finally
+        {
+            await reader.CloseAsync();
+            await connection.CloseAsync();
+        }
+
+        var (iifBytes, sourceTrns, consolidatedTrns) = BuildConsolidatedIif(sheets);
+        return new StackArtifacts(BuildExcelFromSheets(sheets), iifBytes, sourceTrns, consolidatedTrns);
+    }
+
+    private readonly record struct StackArtifacts(byte[] Xlsx, byte[] Iif, int SourceTrns, int ConsolidatedTrns);
+
     public async Task<ReportExportResult> ExportScheduleToICalAsync(
         List<int> gameIds,
         CancellationToken cancellationToken = default)
@@ -439,12 +507,100 @@ public sealed class ReportingService : IReportingService
     /// Ported from legacy ReportingService.BuildExcelExport.
     /// </summary>
     private static async Task<byte[]> BuildExcelFromDataReader(DbDataReader reader)
+        => BuildExcelFromSheets(await ReadReaderIntoSheetsAsync(reader));
+
+    /// <summary>
+    /// One in-memory result set from a multi-sheet stored procedure: the sheet name (from the
+    /// "QA Test:" marker or the legacy default), the column names, and the raw row values.
+    /// Both the Excel renderer and the QuickBooks IIF renderer project from this single model,
+    /// so a reconciliation SP is executed exactly once yet yields two consistent artifacts.
+    /// </summary>
+    private sealed class SheetData
+    {
+        public required string Name { get; init; }
+        public List<string> Columns { get; } = new();
+        public List<object?[]> Rows { get; } = new();
+    }
+
+    /// <summary>
+    /// Drains a (possibly multi-result-set) reader into a list of <see cref="SheetData"/>.
+    /// Mirrors the legacy BuildExcelFromDataReader traversal exactly: a single-column result set
+    /// whose first row is <c>"QA Test: &lt;name&gt;"</c> renames the *next* result set's sheet;
+    /// otherwise rows accumulate into a "SearchResults" sheet. DBNull is normalized to null.
+    /// </summary>
+    private static async Task<List<SheetData>> ReadReaderIntoSheetsAsync(DbDataReader reader)
+    {
+        var sheets = new List<SheetData>();
+        SheetData? current = null;
+
+        SheetData AddSheet(string name)
+        {
+            var sheet = new SheetData { Name = name };
+            sheets.Add(sheet);
+            return sheet;
+        }
+
+        if (reader.HasRows)
+        {
+            do
+            {
+                // A single-column result set with a "QA Test:" first row names the next sheet.
+                if (reader.FieldCount == 1)
+                {
+                    await reader.ReadAsync();
+                    var value = reader.GetValue(0).ToString() ?? string.Empty;
+
+                    if (value.StartsWith("QA Test:"))
+                    {
+                        var sheetName = value.Split(':')[1].Trim();
+                        current = AddSheet(sheetName);
+                        await reader.NextResultAsync();
+                    }
+                }
+
+                current ??= AddSheet("SearchResults");
+
+                var rowCounter = 0;
+                while (await reader.ReadAsync())
+                {
+                    if (rowCounter == 0 && current.Columns.Count == 0)
+                    {
+                        for (var col = 0; col < reader.FieldCount; col++)
+                        {
+                            current.Columns.Add(reader.GetName(col));
+                        }
+                    }
+
+                    var row = new object?[reader.FieldCount];
+                    for (var col = 0; col < reader.FieldCount; col++)
+                    {
+                        var cellValue = reader.GetValue(col);
+                        row[col] = cellValue == DBNull.Value ? null : cellValue;
+                    }
+                    current.Rows.Add(row);
+                    rowCounter++;
+                }
+            } while (await reader.NextResultAsync());
+        }
+
+        if (sheets.Count == 0)
+        {
+            AddSheet("SearchResults");
+        }
+
+        return sheets;
+    }
+
+    /// <summary>
+    /// Renders the sheet model to an .xlsx. Behavior-preserving port of the legacy
+    /// BuildExcelFromDataReader Excel path (reuse default sheet, header row, DateTime formatting).
+    /// </summary>
+    private static byte[] BuildExcelFromSheets(List<SheetData> sheets)
     {
         using var excelEngine = new ExcelEngine();
         IApplication application = excelEngine.Excel;
         application.DefaultVersion = Syncfusion.XlsIO.ExcelVersion.Xlsx;
         IWorkbook workbook = application.Workbooks.Create(1);
-        IWorksheet? worksheet = null;
         var sheetsCreated = 0;
 
         // Reuse the default sheet XlsIO creates for the first sheet, then create new
@@ -458,72 +614,128 @@ public sealed class ReportingService : IReportingService
             return sheet;
         }
 
-        if (reader.HasRows)
+        foreach (var sheetData in sheets)
         {
-            do
+            var worksheet = AddWorksheet(sheetData.Name);
+
+            for (var col = 0; col < sheetData.Columns.Count; col++)
             {
-                // Check if this result set is a worksheet name marker (single column with "QA Test:" prefix)
-                var schema = await reader.GetColumnSchemaAsync();
-                if (schema.Count == 1)
-                {
-                    await reader.ReadAsync();
-                    var value = reader.GetValue(0).ToString() ?? string.Empty;
+                worksheet.Range[1, col + 1].SetCellValue(sheetData.Columns[col]);
+            }
 
-                    if (value.StartsWith("QA Test:"))
+            for (var r = 0; r < sheetData.Rows.Count; r++)
+            {
+                var row = sheetData.Rows[r];
+                for (var col = 0; col < row.Length; col++)
+                {
+                    var cellValue = row[col];
+                    var target = worksheet.Range[r + 2, col + 1];
+
+                    if (cellValue is DateTime)
                     {
-                        var sheetName = value.Split(':')[1].Trim();
-                        worksheet = AddWorksheet(sheetName);
-                        await reader.NextResultAsync();
+                        target.SetCellValue(cellValue);
+                        target.NumberFormat = "mm/dd/yyyy";
+                    }
+                    else
+                    {
+                        target.SetCellValue(cellValue);
                     }
                 }
-
-                // Ensure we have a worksheet
-                worksheet ??= AddWorksheet("SearchResults");
-
-                var rowCounter = 0;
-                while (await reader.ReadAsync())
-                {
-                    // Write headers on first row
-                    if (rowCounter == 0)
-                    {
-                        var headerSchema = await reader.GetColumnSchemaAsync();
-                        var headerIndex = 0;
-                        foreach (var column in headerSchema)
-                        {
-                            worksheet.Range[1, headerIndex + 1].SetCellValue(column.ColumnName);
-                            headerIndex++;
-                        }
-                    }
-
-                    // Write data rows
-                    var dataSchema = await reader.GetColumnSchemaAsync();
-                    for (var col = 0; col < dataSchema.Count; col++)
-                    {
-                        var cellValue = reader.GetValue(col);
-                        var target = worksheet.Range[rowCounter + 2, col + 1];
-
-                        if (cellValue is DateTime)
-                        {
-                            target.SetCellValue(cellValue);
-                            target.NumberFormat = "mm/dd/yyyy";
-                        }
-                        else
-                        {
-                            target.SetCellValue(cellValue == DBNull.Value ? null : cellValue);
-                        }
-                    }
-
-                    rowCounter++;
-                }
-            } while (await reader.NextResultAsync());
-        }
-
-        // Ensure at least one worksheet exists with the legacy default name
-        if (sheetsCreated == 0)
-        {
-            AddWorksheet("SearchResults");
+            }
         }
 
         return workbook.ToByteArray();
+    }
+
+    // Consolidation order for QuickBooks IIF sheets — ported verbatim from scripts/adn/IIFExtract.ps1.
+    // A sheet's position is the index of the first keyword its name contains; unmatched sheets sort last.
+    private static readonly string[] IifKeywordOrder =
+    {
+        "Payments", "Credits", "TSIC-Fees", "MERCH-Fees", "CC-Fees", "Admin-Fees", "Retainers", "Checks",
+    };
+
+    /// <summary>
+    /// Builds the single consolidated QuickBooks .iif from the sheet model — the server-side
+    /// equivalent of the manual Excel-COM + <c>scripts/adn/IIFExtract.ps1</c> pipeline. Keeps only
+    /// sheets that carry BOTH a <c>!</c>-prefixed IIF header line and at least one data line, orders
+    /// them by <see cref="IifKeywordOrder"/>, concatenates (dropping blanks and <c>!ENDDATA</c>), and
+    /// returns the UTF-8 (BOM, CRLF) bytes plus the source/consolidated TRNS counts for validation.
+    /// </summary>
+    private static (byte[] Bytes, int SourceTrns, int ConsolidatedTrns) BuildConsolidatedIif(List<SheetData> sheets)
+    {
+        var candidates = new List<(int SortOrder, List<string> Lines)>();
+
+        foreach (var sheet in sheets)
+        {
+            var lines = new List<string>();
+            if (sheet.Columns.Count > 0)
+            {
+                lines.Add(string.Join('\t', sheet.Columns));
+            }
+            foreach (var row in sheet.Rows)
+            {
+                lines.Add(string.Join('\t', row.Select(CellToIif)));
+            }
+
+            // Drop blank lines and the QuickBooks terminator, matching the .ps1 filter.
+            var kept = lines
+                .Select(l => l.TrimEnd('\r', '\n'))
+                .Where(l => !string.IsNullOrWhiteSpace(l) && l != "!ENDDATA")
+                .ToList();
+
+            var hasHeader = kept.Any(l => l.StartsWith('!'));
+            var hasData = kept.Any(l => !l.StartsWith('!'));
+            if (!hasHeader || !hasData)
+            {
+                continue;
+            }
+
+            var sortOrder = IifKeywordOrder.Length;
+            for (var k = 0; k < IifKeywordOrder.Length; k++)
+            {
+                if (sheet.Name.Contains(IifKeywordOrder[k], StringComparison.Ordinal))
+                {
+                    sortOrder = k;
+                    break;
+                }
+            }
+
+            candidates.Add((sortOrder, kept));
+        }
+
+        var consolidated = new List<string>();
+        var sourceTrns = 0;
+        foreach (var candidate in candidates.OrderBy(c => c.SortOrder))
+        {
+            sourceTrns += candidate.Lines.Count(l => l.StartsWith("TRNS\t"));
+            consolidated.AddRange(candidate.Lines);
+        }
+        var consolidatedTrns = consolidated.Count(l => l.StartsWith("TRNS\t"));
+
+        var text = string.Join("\r\n", consolidated) + "\r\n";
+        var preamble = new UTF8Encoding(true).GetPreamble();
+        var body = new UTF8Encoding(false).GetBytes(text);
+        var bytes = new byte[preamble.Length + body.Length];
+        Buffer.BlockCopy(preamble, 0, bytes, 0, preamble.Length);
+        Buffer.BlockCopy(body, 0, bytes, preamble.Length, body.Length);
+
+        return (bytes, sourceTrns, consolidatedTrns);
+    }
+
+    private static string CellToIif(object? value) => value?.ToString() ?? string.Empty;
+
+    private static byte[] BuildReconciliationZip(IReadOnlyList<(string Name, byte[] Bytes)> entries)
+    {
+        using var ms = new MemoryStream();
+        using (var archive = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, bytes) in entries)
+            {
+                var entry = archive.CreateEntry(name, CompressionLevel.Optimal);
+                using var entryStream = entry.Open();
+                entryStream.Write(bytes, 0, bytes.Length);
+            }
+        }
+        return ms.ToArray();
     }
 }

@@ -260,10 +260,9 @@ $adminManifest = @(
     # fees/CC-check-eCheck records), SD+SU — the sole reason Accounting is visible
     # to SuperDirector (their customer's revenue window). A component, not a report.
     (New-AdminItem 'Accounting' 'cash-stack' 11 'Customer Job Revenue||'                   'graph-up-arrow'     'tools/customer-job-revenue'                                                0  0 1 1)
-    # -- Numbered month-end sequence, in numeric order (1 -> 2 -> 2M -> 3 -> 4).
+    # -- Numbered month-end sequence, in numeric order (1 -> 2 -> 3 -> 4).
     (New-AdminItem 'Accounting' 'cash-stack' 11 '1) New Jobs Last Month (with txs)'        'plus-square'        'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false'    1  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 '2) Get Reconciliation Records'            'arrow-left-right'   'accounting/get-reconciliation-records'                                     2  0 0 1)
-    (New-AdminItem 'Accounting' 'cash-stack' 11 '2M) Get MERCH Reconciliation Records'     'receipt'            'accounting/merch-reconciliation-records'                                   3  0 0 1)
+    (New-AdminItem 'Accounting' 'cash-stack' 11 '2) Gen: ADN EndOfMonth/IIF' 'arrow-left-right'  'accounting/get-reconciliation-records'                                     2  0 0 1)
     (New-AdminItem 'Accounting' 'cash-stack' 11 '3) Last Months Job Stats'                 'bar-chart-line'     'accounting/last-months-job-stats'                                          4  0 0 1)
     (New-AdminItem 'Accounting' 'cash-stack' 11 "4) Last Month's Grand Totals (Excel)||"   'calculator'         'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false'    5  0 0 1)
     # -- Upload Nuvei sits just after the numbered sequence, divider below it.

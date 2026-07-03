@@ -164,8 +164,7 @@ INSERT INTO #AdminManifest VALUES (N'US Lacrosse', N'award', 8, N'US Lax Ranking
 INSERT INTO #AdminManifest VALUES (N'US Lacrosse', N'award', 8, N'US Lax Membership', N'people', N'tools/uslax-membership', 3, 1, 1, 1, N'{"sports":["Lacrosse"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Customer Job Revenue', N'graph-up-arrow', N'tools/customer-job-revenue', 0, 0, 1, 1, N'{"dividerAfter":true}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'1) New Jobs Last Month (with txs)', N'plus-square', N'reporting/export-sp?spName=reporting.NewTsicJobsWithTxs&bUseJobId=false', 1, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'2) Get Reconciliation Records', N'arrow-left-right', N'accounting/get-reconciliation-records', 2, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'2M) Get MERCH Reconciliation Records', N'receipt', N'accounting/merch-reconciliation-records', 3, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'2) Gen: ADN EndOfMonth/IIF', N'arrow-left-right', N'accounting/get-reconciliation-records', 2, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'3) Last Months Job Stats', N'bar-chart-line', N'accounting/last-months-job-stats', 4, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'4) Last Month''s Grand Totals (Excel)', N'calculator', N'reporting/export-sp?spName=adn.GetLastMonthsGrandTotals&bUseJobId=false', 5, 0, 0, 1, N'{"dividerAfter":true}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Accounting', N'cash-stack', 11, N'Upload Nuvei Funding/Batches', N'upload', N'accounting/upload-nuvei', 6, 0, 0, 1, N'{"dividerAfter":true}', NULL);

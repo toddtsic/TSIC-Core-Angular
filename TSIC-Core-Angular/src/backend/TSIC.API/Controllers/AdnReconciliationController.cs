@@ -18,11 +18,13 @@ public class AdnReconciliationController : ControllerBase
 
     /// <summary>
     /// POST /api/adn-reconciliation/run-monthly?settlementMonth=N&amp;settlementYear=Y
-    /// Runs the legacy "Get Reconciliation Records" flow:
-    /// imports last month's settled ADN transactions into Txs, then returns the
-    /// Excel reconciliation report. Defaults to last month if no params supplied.
-    /// Import counts surface in response headers (X-Imported-Count, X-Skipped-Duplicates,
-    /// X-Batches-Pulled, X-Transactions-Pulled) for UI feedback + log inspection.
+    /// Runs the month-end close: imports last month's settled ADN transactions (reg + merch) into
+    /// Txs, then returns a .zip bundling two independent QuickBooks .iif files (registration + merch)
+    /// and their backing .xlsx reports. Defaults to last month if no params supplied.
+    /// Import + per-stack validation counts surface in response headers (X-Imported-Count,
+    /// X-Skipped-Duplicates, X-Batches-Pulled, X-Transactions-Pulled, X-Iif-Reg-Trns-Source,
+    /// X-Iif-Reg-Trns-Consolidated, X-Iif-Merch-Trns-Source, X-Iif-Merch-Trns-Consolidated).
+    /// A source/consolidated TRNS mismatch on either stack means that .iif needs review.
     /// </summary>
     [HttpPost("run-monthly")]
     public async Task<IActionResult> RunMonthly(
@@ -38,11 +40,15 @@ public class AdnReconciliationController : ControllerBase
         Response.Headers["X-Skipped-Duplicates"] = result.SkippedDuplicates.ToString();
         Response.Headers["X-Batches-Pulled"] = result.BatchesPulled.ToString();
         Response.Headers["X-Transactions-Pulled"] = result.TransactionsPulled.ToString();
+        Response.Headers["X-Iif-Reg-Trns-Source"] = result.RegSourceTrnsCount.ToString();
+        Response.Headers["X-Iif-Reg-Trns-Consolidated"] = result.RegConsolidatedTrnsCount.ToString();
+        Response.Headers["X-Iif-Merch-Trns-Source"] = result.MerchSourceTrnsCount.ToString();
+        Response.Headers["X-Iif-Merch-Trns-Consolidated"] = result.MerchConsolidatedTrnsCount.ToString();
 
         return File(
-            result.Excel.FileBytes,
-            result.Excel.ContentType,
-            $"TSIC-AdnReconciliation-{year}-{month:D2}.xlsx");
+            result.Bundle.FileBytes,
+            result.Bundle.ContentType,
+            $"TSIC-AdnReconciliation-{year}-{month:D2}.zip");
     }
 
     private static (int Month, int Year) ResolveMonthYear(int? month, int? year)
