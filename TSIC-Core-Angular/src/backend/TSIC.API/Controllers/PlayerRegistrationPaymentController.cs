@@ -5,7 +5,6 @@ using System.Linq;
 using System.Security.Claims;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Clubs;
-using TSIC.API.Services.Email;
 using TSIC.API.Services.Families;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Payments;

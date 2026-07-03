@@ -263,7 +263,6 @@ export type { EditTimeslotDateRequest } from './models/EditTimeslotDateRequest';
 export type { EditTimeslotFieldRequest } from './models/EditTimeslotFieldRequest';
 export type { EmailBatchHandle } from './models/EmailBatchHandle';
 export type { EmailBatchJobStatus } from './models/EmailBatchJobStatus';
-export type { EmailHealthStatus } from './models/EmailHealthStatus';
 export type { EmailInvestigateResultDto } from './models/EmailInvestigateResultDto';
 export type { EmailListRequest } from './models/EmailListRequest';
 export type { EmailLogDetailDto } from './models/EmailLogDetailDto';

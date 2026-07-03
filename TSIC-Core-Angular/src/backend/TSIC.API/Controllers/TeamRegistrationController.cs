@@ -16,7 +16,6 @@ using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
-using TSIC.API.Services.Email;
 using TSIC.API.Services.Shared.UsLax;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Infrastructure.Data.Identity;

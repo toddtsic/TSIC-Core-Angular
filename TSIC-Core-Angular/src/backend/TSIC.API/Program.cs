@@ -45,7 +45,6 @@ using TSIC.API.Services.Shared.Bulletins.TokenResolution.Resolvers;
 using TSIC.API.Services.Shared.Devices;
 using TSIC.API.Services.Shared.Firebase;
 using TSIC.API.Services.Auth;
-using TSIC.API.Services.Email;
 using TSIC.API.Services.Sweep;
 using TSIC.API.Services.Reporting;
 using TSIC.API.Services;
@@ -444,7 +443,6 @@ builder.Services.AddSingleton<Amazon.SimpleEmailV2.IAmazonSimpleEmailServiceV2>(
     return new Amazon.SimpleEmailV2.AmazonSimpleEmailServiceV2Client();
 });
 builder.Services.AddSingleton<IEmailService, EmailService>();
-builder.Services.AddScoped<IEmailHealthService, EmailHealthService>();
 builder.Services.AddScoped<IEmailTroubleshooterService, EmailTroubleshooterService>();
 // Batch-email engine: background orchestration above the SES transport. Both singletons
 // (engine owns no scoped state; render workers create their own scopes per IEmailBatchService).

@@ -71,33 +71,12 @@ Disabling all outbound email (e.g. staging environment):
 }
 ```
 
-## Health Endpoint Expectations
-
-`GET /api/health/email` returns:
-```jsonc
-{
-  "emailingEnabled": true,
-  "isDevelopment": true,
-  "sandboxMode": true,
-  "sesReachable": true,
-  "max24HourSend": 200,
-  "sentLast24Hours": 4,
-  "maxSendRate": 14.0,
-  "region": "us-east-1",
-  "warning": null
-}
-```
-Warnings:
-- Low quota (non-sandbox & Max24HourSend < 1000): `"Low SES 24h send quota; account may still be in sandbox or recently out of trial."`
-- Email disabled: `"Emailing disabled via configuration."`
-- SES unreachable: `"Failed to reach SES API."`
-
 ## Deployment Notes
 
 1. Keep production Authorize.Net credentials out of source and configuration – they reside in the database (Customers table). Ensure migration or seeding scripts populate them before enabling payments.
 2. For local development, prefer environment variables over committing sandbox keys.
 3. Rotate Authorize.Net sandbox keys periodically; update environment variables and/or appsettings.Development.json accordingly.
-4. If SES quota remains below 1000 after moving out of sandbox, re-verify AWS account identity approval; health endpoint will surface warning until quota increases.
+4. If SES quota remains below 1000 after moving out of sandbox, re-verify AWS account identity approval.
 
 ## Quick Checklist
 - Development: Sandbox Authorize.Net keys present? EmailSettings.SandboxMode=true? SupportEmail set?
