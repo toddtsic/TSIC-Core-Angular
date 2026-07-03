@@ -4,16 +4,36 @@ import { FormsModule } from '@angular/forms';
 import { ChangePasswordService } from './services/change-password.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
 import type {
   ChangePasswordSearchResultDto,
   ChangePasswordRoleOptionDto,
   MergeCandidateDto
 } from '@core/api';
 
+/**
+ * View-model for one LOGIN account — the thing whose password we actually reset.
+ * The backend search is registration-grained (one row per event a person is in);
+ * we collapse those rows to one account per login: UserName for non-players,
+ * FamilyUserName for players (the kid logs in under the family account).
+ * The underlying rows are kept as `registrations` — pure identity proof.
+ */
+interface LoginAccount {
+  key: string;
+  loginUserName: string;
+  isFamilyLogin: boolean;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  anyRegId: string;
+  playerCount: number;
+  registrations: ChangePasswordSearchResultDto[];
+}
+
 @Component({
   selector: 'app-change-password',
   standalone: true,
-  imports: [CommonModule, FormsModule, TsicDialogComponent],
+  imports: [CommonModule, FormsModule, TsicDialogComponent, PhonePipe],
   templateUrl: './change-password.component.html',
   styleUrl: './change-password.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -36,54 +56,46 @@ export class ChangePasswordComponent implements OnInit {
   userName = signal('');
   familyUserName = signal('');
 
-  // ── Results ──
-  results = signal<ChangePasswordSearchResultDto[]>([]);
+  // ── Results (deduped to login accounts) ──
+  accounts = signal<LoginAccount[]>([]);
   isSearching = signal(false);
   hasSearched = signal(false);
   resultsCapped = signal(false);
 
-  // ── Expanded row ──
-  expandedRegId = signal<string | null>(null);
+  // ── Expanded account (only one open at a time) ──
+  expandedKey = signal<string | null>(null);
 
-  // ── Inline email editing ──
-  editingUserEmail = signal('');
-  editingFamilyEmail = signal('');
+  // ── Reset password (transient, for the open account) ──
+  newPassword = signal('');
+  isResetting = signal(false);
+
+  // ── Email edit (transient, for the open account) ──
+  editingEmail = signal('');        // non-family: user email
+  editingFamilyEmail = signal('');  // family: family/mom/dad
   editingMomEmail = signal('');
   editingDadEmail = signal('');
   isSavingEmail = signal(false);
 
-  // ── Reset password modal ──
-  showResetModal = signal(false);
-  resetTarget = signal<{ regId: string; userName: string; label: string } | null>(null);
-  newPassword = signal('');
-  isResetting = signal(false);
-
-  // ── Merge pre-check (expanded row) ──
-  expandedUserMergeCandidates = signal<MergeCandidateDto[]>([]);
-  expandedFamilyMergeCandidates = signal<MergeCandidateDto[]>([]);
-  isCheckingUserMerge = signal(false);
-  isCheckingFamilyMerge = signal(false);
-
-  // ── Merge modal ──
-  showMergeModal = signal(false);
-  mergeTarget = signal<{ regId: string; type: 'user' | 'family'; currentUserName: string } | null>(null);
+  // ── Merge (secondary; auto-hidden when no duplicate exists) ──
   mergeCandidates = signal<MergeCandidateDto[]>([]);
+  isCheckingMerge = signal(false);
+  showMergeModal = signal(false);
   selectedMergeUserName = signal('');
   isMerging = signal(false);
 
-  // ── Computed ──
-  isPlayerSearch = computed(() => {
-    const opts = this.roleOptions();
-    const selected = this.selectedRoleId();
-    const playerOpt = opts.find(o => o.roleName === 'Player');
-    return !!playerOpt && selected === playerOpt.roleId;
+  // Whether the CURRENT search targets players (branch on login type). Snapshotted
+  // at search time so a later role-dropdown change can't re-key existing results.
+  private searchedAsFamily = false;
+
+  isPlayerRole = computed(() => {
+    const player = this.roleOptions().find(o => o.roleName === 'Player');
+    return !!player && this.selectedRoleId() === player.roleId;
   });
 
   ngOnInit(): void {
     this.service.getRoleOptions().subscribe({
       next: (opts) => {
         this.roleOptions.set(opts);
-        // Default to Player
         const player = opts.find(o => o.roleName === 'Player');
         if (player) this.selectedRoleId.set(player.roleId);
       }
@@ -96,9 +108,10 @@ export class ChangePasswordComponent implements OnInit {
 
   onSearch(): void {
     if (!this.selectedRoleId()) return;
+    const asFamily = this.isPlayerRole();
     this.isSearching.set(true);
     this.hasSearched.set(true);
-    this.expandedRegId.set(null);
+    this.expandedKey.set(null);
 
     this.service.search({
       roleId: this.selectedRoleId(),
@@ -111,9 +124,10 @@ export class ChangePasswordComponent implements OnInit {
       userName: this.userName() || undefined,
       familyUserName: this.familyUserName() || undefined
     }).subscribe({
-      next: (data) => {
-        this.results.set(data);
-        this.resultsCapped.set(data.length >= 200);
+      next: (rows) => {
+        this.searchedAsFamily = asFamily;
+        this.accounts.set(this.buildAccounts(rows, asFamily));
+        this.resultsCapped.set(rows.length >= 200);
         this.isSearching.set(false);
       },
       error: (err) => {
@@ -132,131 +146,119 @@ export class ChangePasswordComponent implements OnInit {
     this.phone.set('');
     this.userName.set('');
     this.familyUserName.set('');
-    this.results.set([]);
+    this.accounts.set([]);
     this.hasSearched.set(false);
-    this.expandedRegId.set(null);
+    this.expandedKey.set(null);
   }
 
-  // ═══════════════════════════════════════════════════════════
-  //  Expand/collapse row
-  // ═══════════════════════════════════════════════════════════
-
-  toggleRow(row: ChangePasswordSearchResultDto): void {
-    const regId = row.registrationId as unknown as string;
-    if (this.expandedRegId() === regId) {
-      this.expandedRegId.set(null);
-    } else {
-      this.expandedRegId.set(regId);
-      // Pre-populate email fields
-      this.editingUserEmail.set(row.email || '');
-      this.editingFamilyEmail.set(row.familyEmail || '');
-      this.editingMomEmail.set(row.momEmail || '');
-      this.editingDadEmail.set(row.dadEmail || '');
-      // Pre-fetch merge candidates so buttons only appear when relevant
-      this.prefetchMergeCandidates(regId);
+  /** Collapse registration rows to one account per login. */
+  private buildAccounts(rows: ChangePasswordSearchResultDto[], asFamily: boolean): LoginAccount[] {
+    const byLogin = new Map<string, ChangePasswordSearchResultDto[]>();
+    for (const r of rows) {
+      const key = asFamily ? (r.familyUserName ?? '') : r.userName;
+      if (!key) continue; // no login = nothing to reset; skip
+      const bucket = byLogin.get(key);
+      if (bucket) bucket.push(r);
+      else byLogin.set(key, [r]);
     }
-  }
 
-  private prefetchMergeCandidates(regId: string): void {
-    this.expandedUserMergeCandidates.set([]);
-    this.expandedFamilyMergeCandidates.set([]);
-    this.isCheckingUserMerge.set(true);
-
-    this.service.getUserMergeCandidates(regId).subscribe({
-      next: (c) => { this.expandedUserMergeCandidates.set(c); this.isCheckingUserMerge.set(false); },
-      error: () => { this.isCheckingUserMerge.set(false); }
-    });
-
-    if (this.isPlayerSearch()) {
-      this.isCheckingFamilyMerge.set(true);
-      this.service.getFamilyMergeCandidates(regId).subscribe({
-        next: (c) => { this.expandedFamilyMergeCandidates.set(c); this.isCheckingFamilyMerge.set(false); },
-        error: () => { this.isCheckingFamilyMerge.set(false); }
+    const accounts: LoginAccount[] = [];
+    for (const [key, group] of byLogin) {
+      const first = group[0];
+      accounts.push({
+        key,
+        loginUserName: key,
+        isFamilyLogin: asFamily,
+        displayName: asFamily ? this.familyDisplayName(group) : this.personName(first),
+        email: asFamily ? (first.familyEmail ?? first.email ?? null) : (first.email ?? null),
+        phone: first.phone ?? null,
+        anyRegId: first.registrationId as unknown as string,
+        playerCount: asFamily ? this.distinctPlayers(group).length : 1,
+        registrations: group
       });
     }
+
+    // Alphabetical by display name — stable, scannable.
+    return accounts.sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
 
-  isExpanded(row: ChangePasswordSearchResultDto): boolean {
-    return this.expandedRegId() === (row.registrationId as unknown as string);
+  private personName(r: ChangePasswordSearchResultDto): string {
+    return `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim() || r.userName;
   }
 
-  regIdStr(row: ChangePasswordSearchResultDto): string {
-    return row.registrationId as unknown as string;
+  private distinctPlayers(rows: ChangePasswordSearchResultDto[]): string[] {
+    const seen = new Set<string>();
+    for (const r of rows) {
+      const name = this.personName(r);
+      if (name) seen.add(name);
+    }
+    return [...seen];
   }
 
-  // ═══════════════════════════════════════════════════════════
-  //  Email editing
-  // ═══════════════════════════════════════════════════════════
-
-  saveUserEmail(row: ChangePasswordSearchResultDto): void {
-    this.isSavingEmail.set(true);
-    this.service.updateUserEmail(this.regIdStr(row), {
-      email: this.editingUserEmail()
-    }).subscribe({
-      next: (res) => {
-        this.toast.show(res.message, 'success');
-        this.isSavingEmail.set(false);
-        this.onSearch(); // Refresh results
-      },
-      error: (err) => {
-        this.toast.show(err?.error?.message || 'Failed to update email.', 'danger');
-        this.isSavingEmail.set(false);
-      }
-    });
-  }
-
-  saveFamilyEmails(row: ChangePasswordSearchResultDto): void {
-    this.isSavingEmail.set(true);
-    this.service.updateFamilyEmails(this.regIdStr(row), {
-      familyEmail: this.editingFamilyEmail() || undefined,
-      momEmail: this.editingMomEmail() || undefined,
-      dadEmail: this.editingDadEmail() || undefined
-    }).subscribe({
-      next: (res) => {
-        this.toast.show(res.message, 'success');
-        this.isSavingEmail.set(false);
-        this.onSearch();
-      },
-      error: (err) => {
-        this.toast.show(err?.error?.message || 'Failed to update family emails.', 'danger');
-        this.isSavingEmail.set(false);
-      }
-    });
+  private familyDisplayName(rows: ChangePasswordSearchResultDto[]): string {
+    const lastNames = new Set(rows.map(r => (r.lastName ?? '').trim()).filter(Boolean));
+    if (lastNames.size === 1) return `${[...lastNames][0]} family`;
+    return `${rows[0].familyUserName} family`;
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  Password reset
+  //  Expand / collapse
   // ═══════════════════════════════════════════════════════════
 
-  openResetModal(row: ChangePasswordSearchResultDto, type: 'user' | 'family'): void {
-    const uname = type === 'user' ? row.userName : row.familyUserName;
-    const label = type === 'user' ? 'User' : 'Family';
-    this.resetTarget.set({ regId: this.regIdStr(row), userName: uname || '', label });
+  isExpanded(acct: LoginAccount): boolean {
+    return this.expandedKey() === acct.key;
+  }
+
+  toggleAccount(acct: LoginAccount): void {
+    if (this.expandedKey() === acct.key) {
+      this.expandedKey.set(null);
+      return;
+    }
+    this.expandedKey.set(acct.key);
     this.newPassword.set('');
-    this.showResetModal.set(true);
+    this.closeMerge();
+
+    // Seed the (secondary) email editors from the account's rows.
+    const first = acct.registrations[0];
+    if (acct.isFamilyLogin) {
+      this.editingFamilyEmail.set(first.familyEmail ?? '');
+      this.editingMomEmail.set(first.momEmail ?? '');
+      this.editingDadEmail.set(first.dadEmail ?? '');
+    } else {
+      this.editingEmail.set(first.email ?? '');
+    }
+
+    this.prefetchMergeCandidates(acct);
   }
 
-  cancelReset(): void {
-    this.showResetModal.set(false);
-    this.resetTarget.set(null);
-    this.newPassword.set('');
+  /** Registrations as identity breadcrumbs. Family rows carry the player name. */
+  proofLabel(r: ChangePasswordSearchResultDto): string {
+    return `${r.customerName} : ${r.jobName}`;
   }
 
-  confirmResetPassword(): void {
-    const target = this.resetTarget();
-    if (!target || this.newPassword().length < 6) return;
+  // ═══════════════════════════════════════════════════════════
+  //  Reset password (the hero action)
+  // ═══════════════════════════════════════════════════════════
 
+  resetTargetLabel(acct: LoginAccount): string {
+    return acct.isFamilyLogin
+      ? `Resets the ${acct.displayName} login (${acct.loginUserName})`
+      : `Resets ${acct.loginUserName}'s login`;
+  }
+
+  confirmReset(acct: LoginAccount): void {
+    if (this.newPassword().length < 6 || this.isResetting()) return;
     this.isResetting.set(true);
-    const req = { userName: target.userName, newPassword: this.newPassword() };
-    const call = target.label === 'Family'
-      ? this.service.resetFamilyPassword(target.regId, req)
-      : this.service.resetPassword(target.regId, req);
+    const req = { userName: acct.loginUserName, newPassword: this.newPassword() };
+    const call = acct.isFamilyLogin
+      ? this.service.resetFamilyPassword(acct.anyRegId, req)
+      : this.service.resetPassword(acct.anyRegId, req);
 
     call.subscribe({
       next: (res) => {
         this.toast.show(res.message, 'success');
+        this.newPassword.set('');
         this.isResetting.set(false);
-        this.cancelReset();
       },
       error: (err) => {
         this.toast.show(err?.error?.message || 'Password reset failed.', 'danger');
@@ -266,44 +268,77 @@ export class ChangePasswordComponent implements OnInit {
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  Username merge
+  //  Email (secondary account tool)
   // ═══════════════════════════════════════════════════════════
 
-  openMergeModal(row: ChangePasswordSearchResultDto, type: 'user' | 'family'): void {
-    const currentUserName = type === 'user' ? row.userName : (row.familyUserName || '');
-    const candidates = type === 'user'
-      ? this.expandedUserMergeCandidates()
-      : this.expandedFamilyMergeCandidates();
+  saveEmail(acct: LoginAccount): void {
+    this.isSavingEmail.set(true);
+    const done = {
+      next: (res: { message: string }) => {
+        this.toast.show(res.message, 'success');
+        this.isSavingEmail.set(false);
+        this.onSearch(); // refresh face values (collapses; acceptable — matches prior tool)
+      },
+      error: (err: { error?: { message?: string } }) => {
+        this.toast.show(err?.error?.message || 'Failed to update email.', 'danger');
+        this.isSavingEmail.set(false);
+      }
+    };
 
-    this.mergeTarget.set({ regId: this.regIdStr(row), type, currentUserName });
-    this.mergeCandidates.set(candidates);
+    if (acct.isFamilyLogin) {
+      this.service.updateFamilyEmails(acct.anyRegId, {
+        familyEmail: this.editingFamilyEmail() || undefined,
+        momEmail: this.editingMomEmail() || undefined,
+        dadEmail: this.editingDadEmail() || undefined
+      }).subscribe(done);
+    } else {
+      this.service.updateUserEmail(acct.anyRegId, {
+        email: this.editingEmail()
+      }).subscribe(done);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  Merge username (secondary; only surfaces when a duplicate exists)
+  // ═══════════════════════════════════════════════════════════
+
+  private prefetchMergeCandidates(acct: LoginAccount): void {
+    this.mergeCandidates.set([]);
+    this.isCheckingMerge.set(true);
+    const call = acct.isFamilyLogin
+      ? this.service.getFamilyMergeCandidates(acct.anyRegId)
+      : this.service.getUserMergeCandidates(acct.anyRegId);
+    call.subscribe({
+      next: (c) => { this.mergeCandidates.set(c); this.isCheckingMerge.set(false); },
+      error: () => { this.isCheckingMerge.set(false); }
+    });
+  }
+
+  openMerge(): void {
+    const candidates = this.mergeCandidates();
     this.selectedMergeUserName.set(candidates.length > 0 ? candidates[0].userName : '');
     this.showMergeModal.set(true);
   }
 
-  cancelMerge(): void {
+  closeMerge(): void {
     this.showMergeModal.set(false);
-    this.mergeTarget.set(null);
-    this.mergeCandidates.set([]);
     this.selectedMergeUserName.set('');
   }
 
-  confirmMerge(): void {
-    const target = this.mergeTarget();
-    const selected = this.selectedMergeUserName();
-    if (!target || !selected) return;
-
+  confirmMerge(acct: LoginAccount): void {
+    const target = this.selectedMergeUserName();
+    if (!target || this.isMerging()) return;
     this.isMerging.set(true);
-    const req = { targetUserName: selected };
-    const call = target.type === 'user'
-      ? this.service.mergeUsername(target.regId, req)
-      : this.service.mergeFamilyUsername(target.regId, req);
+    const req = { targetUserName: target };
+    const call = acct.isFamilyLogin
+      ? this.service.mergeFamilyUsername(acct.anyRegId, req)
+      : this.service.mergeUsername(acct.anyRegId, req);
 
     call.subscribe({
       next: (res) => {
         this.toast.show(res.message, 'success');
         this.isMerging.set(false);
-        this.cancelMerge();
+        this.closeMerge();
         this.onSearch();
       },
       error: (err) => {
@@ -311,5 +346,10 @@ export class ChangePasswordComponent implements OnInit {
         this.isMerging.set(false);
       }
     });
+  }
+
+  expandedAccount(): LoginAccount | null {
+    const key = this.expandedKey();
+    return key ? this.accounts().find(a => a.key === key) ?? null : null;
   }
 }
