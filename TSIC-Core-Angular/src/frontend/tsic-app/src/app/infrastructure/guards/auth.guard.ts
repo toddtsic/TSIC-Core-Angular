@@ -137,10 +137,10 @@ export const authGuard: CanActivateFn = (route, state) => {
         if (state.url.includes('/role-selection')) {
             return true; // allow cross-job role switching
         }
-        toast.show(
-            `You are logged into '${user.jobPath}' but attempted to access '${urlJob}'. Please logout first.`,
-            'danger', 7000
-        );
+        // Silent bounce home. This is warm-navigation only (cold start force-logs-off
+        // above); a URL-bar edit reloads → cold start, and mandated-relative routerLinks
+        // can't cross jobs — so the only thing landing here is a stray internal nav the
+        // user never intended. No toast: there's nothing for them to act on.
         return toJob(user.jobPath);
     }
 
