@@ -1,0 +1,70 @@
+<h3>Searching registrations</h3>
+<p>
+  Find, review, contact, and manage the individual people registered in this event — players, club reps,
+  coaches, and more. The screen opens with a default search (Active registrations) already run.
+</p>
+
+<h4>How it works</h4>
+<ol>
+  <li>Open <strong>Set Filters</strong> to choose what you're looking for.</li>
+  <li>Click <strong>Search</strong> to apply them.</li>
+  <li>Click a person's name in the results to open their detail panel.</li>
+</ol>
+
+<!-- The one thing that trips people up, drawn as the app's own primary button. -->
+<div style="display:flex; align-items:center; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-warning,#ffc107); border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-bottom:var(--space-4,1rem);">
+  <i class="bi bi-info-circle" style="font-size:1.5rem; color:var(--bs-warning,#ffc107);"></i>
+  <div>
+    <strong>Filters don't apply until you press Search.</strong>
+    <button type="button" class="btn btn-primary btn-sm" style="margin-left:var(--space-2,.5rem);" disabled>Search</button>
+    <div style="margin-top:var(--space-1,.25rem); color:var(--bs-secondary-color);">
+      If you close the filter drawer with unapplied changes, you'll be asked to run the search.
+    </div>
+  </div>
+</div>
+
+<h4>What you can filter by</h4>
+<ul>
+  <li><strong>Core</strong> — role, name, active status, pay status, payment method.</li>
+  <li>
+    <strong>Hierarchy</strong> — check boxes down the League → Agegroup → Division → Team tree, or the
+    Club tree, to scope to specific teams. Each node shows its team and player counts.
+  </li>
+  <li><strong>Contact &amp; dates</strong> — email, phone, registered on-or-after a date.</li>
+  <li><strong>Demographics</strong> — gender, position, grad year, grade, age range, school, club.</li>
+  <li><strong>Billing</strong> — subscription status, invoice number.</li>
+</ul>
+<p>
+  Some filters only appear when the event uses that feature (RegSaver insurance, or ARB recurring
+  billing). Note that a couple of them narrow the role for you automatically — an insurance filter, for
+  example, implies you're looking at players.
+</p>
+<p>
+  Your active filters show as removable <strong>chips</strong> above the results, so you can always see —
+  and clear — exactly what's applied.
+</p>
+
+<h4>Reading the results</h4>
+<ul>
+  <li>
+    <strong>Owed</strong> shows in red when a balance is due; a small calendar icon means an automatic
+    payment is scheduled. The footer totals <strong>Paid</strong> and <strong>Owed</strong> across the
+    whole result set.
+  </li>
+  <li>Inactive registrations are styled with a strikethrough so they're easy to spot.</li>
+</ul>
+
+<h4>What you can do</h4>
+<ul>
+  <li><strong>View / edit</strong> — click a name to open the detail panel: update contact info and demographics, process a credit-card refund, or delete the registration.</li>
+  <li><strong>Email</strong> — <em>Email All</em>, or check rows and <em>Email Selected</em>, to open the batch-email composer.</li>
+  <li><strong>Invite</strong> — when your search is scoped to a single invitable role (Player or Club Rep), send a signed invitation to another event.</li>
+  <li><strong>Export</strong> — download the current results to Excel.</li>
+</ul>
+
+<h4>Handy for collections</h4>
+<p>
+  If the event uses recurring billing, <strong>"Look up CCs expiring this month"</strong> runs a live
+  card-processor query and returns everyone with a card about to expire — deliberately
+  <em>ignoring your filters</em> — so you can collect balances before an automatic payment fails.
+</p>

@@ -92,6 +92,48 @@
       transition: none;
     }
   }
+
+  /* ── Help / FAQ tab strip ── */
+  .help-tabs {
+    display: flex;
+    gap: var(--space-1);
+    margin-top: var(--space-3);
+    border-bottom: 1px solid var(--bs-border-color);
+  }
+
+  .help-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    background: transparent;
+    color: var(--bs-secondary-color, var(--neutral-500));
+    font-size: var(--font-size-sm, 0.875rem);
+    font-weight: var(--font-weight-medium, 500);
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      color: var(--bs-body-color);
+    }
+
+    &.active {
+      color: var(--bs-primary);
+      border-bottom-color: var(--bs-primary);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
 }
 
 /* ── Empty / loading / error states ── */
@@ -175,6 +217,98 @@
     max-width: 100%;
     height: auto;
     border-radius: var(--radius-md);
+  }
+}
+
+/* ── Edit-mode "Insert" palette ── */
+.help-edit-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
+.help-insert {
+  position: relative;
+}
+
+.help-insert-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  .help-insert-caret {
+    font-size: 0.75em;
+    transition: transform 0.15s ease;
+  }
+
+  &.active .help-insert-caret {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .help-insert-caret {
+      transition: none;
+    }
+  }
+}
+
+/* Transparent full-screen catcher so a click anywhere dismisses the palette (the drawer's own idiom). */
+.help-insert-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1055;
+  background: transparent;
+}
+
+.help-insert-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 1056;
+  min-width: 14rem;
+  padding: var(--space-1);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  background: var(--bs-body-bg, #fff);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.help-insert-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--bs-body-color);
+  font-size: var(--font-size-sm, 0.875rem);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+
+  > i {
+    color: var(--bs-primary);
+    font-size: 1rem;
+  }
+
+  &:hover {
+    background: var(--bs-primary);
+    color: #fff;
+
+    > i {
+      color: #fff;
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
   }
 }
 

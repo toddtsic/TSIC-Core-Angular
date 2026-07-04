@@ -1,0 +1,60 @@
+<h3>Searching teams</h3>
+<p>
+  The team-level companion to Searching Registrations: find, review, and manage whole registered teams —
+  their placement, payment status, and club-rep contact. The screen opens with a default search (Active
+  teams) already run.
+</p>
+
+<h4>How it works</h4>
+<ol>
+  <li>Open <strong>Set Filters</strong>, choose your criteria, and click <strong>Search</strong>.</li>
+  <li>Click a team name in the results to open its detail panel.</li>
+</ol>
+<p style="color:var(--bs-secondary-color);">
+  As on the registrations search, filters only take effect when you press <strong>Search</strong> — closing
+  the drawer with unapplied changes will prompt you to run it.
+</p>
+
+<h4>What you can filter by</h4>
+<ul>
+  <li><strong>Waitlist / Scheduled</strong> status, active status, pay status, payment method, and level of play.</li>
+  <li>The same <strong>League</strong> and <strong>Club</strong> hierarchy trees — check down to specific agegroups, divisions, or teams.</li>
+</ul>
+
+<h4>Reading the Owed column</h4>
+<p>A team's balance tells you its payment health at a glance:</p>
+
+<!-- Example illustration — the three Owed states, drawn in the app's own styles. -->
+<div style="display:flex; flex-wrap:wrap; gap:var(--space-3,.75rem); margin-bottom:var(--space-4,1rem);">
+  <span class="badge rounded-pill text-bg-light" style="border:1px solid var(--bs-border-color);">$250 owed</span>
+  <span class="badge rounded-pill text-bg-primary"><i class="bi bi-calendar-event"></i> Auto-pay scheduled</span>
+  <span class="badge rounded-pill text-bg-danger"><i class="bi bi-exclamation-triangle"></i> Autopay failed</span>
+</div>
+<ul>
+  <li><strong>Plain amount</strong> — a balance is due.</li>
+  <li><strong>Scheduled</strong> — an automatic payment is set for an upcoming date.</li>
+  <li><strong>Autopay failed</strong> — a scheduled charge didn't go through and needs attention.</li>
+</ul>
+<p>The footer totals <strong>Paid</strong> and <strong>Owed</strong> across all results.</p>
+
+<h4>What you can do</h4>
+<ul>
+  <li>
+    <strong>View / manage</strong> — click a team name to open its detail panel: edit the team's fields,
+    <strong>Drop</strong> it from the event, or <strong>Move</strong> it to a different agegroup or division.
+    (Each of those confirms before it acts.)
+  </li>
+  <li><strong>Export</strong> — download the current results to Excel.</li>
+  <li>
+    <strong>Send Invoice Reminders</strong> — appears only when some teams are payment-flagged. It emails
+    the club reps of those teams a payment reminder; reps with no email, or who've opted out, are skipped,
+    and it tells you the count before sending.
+  </li>
+</ul>
+
+<h4>Good to know</h4>
+<p>
+  Team names show as <strong>Club: Team</strong>, and the club rep's name, email, and phone are right in the
+  grid so you can reach the right person without opening the panel. A small dot by a team name means that
+  club rep has opted out of email.
+</p>

@@ -34,6 +34,15 @@ export class HelpManifestService {
     return this.keys().has(key);
   }
 
+  /** True when the component has content under any topic (e.g. Help or FAQ) — drives "?" visibility. */
+  hasComponent(component: string): boolean {
+    const prefix = `${component}/`;
+    for (const key of this.keys()) {
+      if (key.startsWith(prefix)) return true;
+    }
+    return false;
+  }
+
   /** After a SuperUser authors a page, remember its key so the "?" persists without a full reload. */
   markAvailable(key: string): void {
     if (this.keys().has(key)) return;

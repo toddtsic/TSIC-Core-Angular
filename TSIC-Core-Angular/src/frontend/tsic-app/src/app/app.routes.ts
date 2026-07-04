@@ -86,6 +86,7 @@ export const routes: Routes = [
 					{
 						path: 'team',
 						canActivate: [teamInviteGuard],
+						data: { helpKey: 'team-registration' },
 						loadComponent: () => import('./views/registration/team/team.component').then(m => m.TeamWizardV2Component)
 					},
 					{
@@ -202,13 +203,13 @@ export const routes: Routes = [
 					{
 						path: 'registrations',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'search-registrations' },
 						loadComponent: () => import('./views/search/registrations/search-registrations.component').then(m => m.RegistrationSearchComponent)
 					},
 					{
 						path: 'teams',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'search-teams' },
 						loadComponent: () => import('./views/search/teams/search-teams.component').then(m => m.TeamSearchComponent)
 					}
 				]

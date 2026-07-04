@@ -38,7 +38,7 @@
               type="button"
               class="help-icon-btn"
               (click)="startEdit()"
-              aria-label="Edit this help page"
+              aria-label="Edit this page"
               title="Edit this page">
               <i class="bi bi-pencil" aria-hidden="true"></i>
             </button>
@@ -48,6 +48,23 @@
           </button>
         </div>
       </div>
+
+      <!-- Tab strip: Help + FAQ, one topic each. Shown only when more than one tab is available. -->
+      @if (visibleTabs().length > 1) {
+        <div class="help-tabs" role="tablist" aria-label="Help sections">
+          @for (tab of visibleTabs(); track tab.topic) {
+            <button
+              type="button"
+              class="help-tab"
+              role="tab"
+              [class.active]="tab.topic === activeTopic()"
+              [attr.aria-selected]="tab.topic === activeTopic()"
+              (click)="selectTab(tab.topic)">
+              <i class="bi {{ tab.icon }}" aria-hidden="true"></i>{{ tab.label }}
+            </button>
+          }
+        </div>
+      }
     </div>
 
     <div class="panel-body">
@@ -58,6 +75,36 @@
           </div>
         </div>
       } @else if (editing()) {
+        <div class="help-edit-toolbar">
+          <div class="help-insert">
+            <button
+              type="button"
+              class="btn btn-outline-primary btn-sm help-insert-toggle"
+              [class.active]="insertOpen()"
+              (click)="toggleInsert()"
+              aria-haspopup="menu"
+              [attr.aria-expanded]="insertOpen()">
+              <i class="bi bi-plus-lg" aria-hidden="true"></i>
+              <span>Insert</span>
+              <i class="bi bi-chevron-down help-insert-caret" aria-hidden="true"></i>
+            </button>
+            @if (insertOpen()) {
+              <div class="help-insert-backdrop" (click)="insertOpen.set(false)"></div>
+              <div class="help-insert-menu" role="menu" aria-label="Insert a style-sheet block">
+                @for (snippet of snippets; track snippet.label) {
+                  <button
+                    type="button"
+                    class="help-insert-item"
+                    role="menuitem"
+                    (click)="insertSnippet(snippet.html)">
+                    <i class="bi {{ snippet.icon }}" aria-hidden="true"></i>
+                    <span>{{ snippet.label }}</span>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+        </div>
         <ejs-richtexteditor
           #rteEditor
           [value]="draft()"
@@ -74,24 +121,25 @@
       } @else if (failed()) {
         <div class="help-state help-state-error" aria-live="polite">
           <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
-          <p>Couldn't load help right now. Please try again.</p>
+          <p>Couldn't load this section right now. Please try again.</p>
         </div>
       } @else if (content()?.exists) {
         <div class="help-content" [innerHTML]="safeHtml()"></div>
       } @else {
         <div class="help-state help-state-empty" aria-live="polite">
-          <i class="bi bi-cone-striped" aria-hidden="true"></i>
-          @if (noKey()) {
-            <p class="help-empty-title">No help for this page yet</p>
-            <p class="help-empty-sub">This page hasn't been added to the manual.</p>
+          @if (activeTopic() === 'faq') {
+            <i class="bi bi-patch-question" aria-hidden="true"></i>
+            <p class="help-empty-title">No questions yet</p>
+            <p class="help-empty-sub">Answers to common questions about this page will appear here.</p>
           } @else {
+            <i class="bi bi-cone-striped" aria-hidden="true"></i>
             <p class="help-empty-title">Under development</p>
             <p class="help-empty-sub">This page of the manual hasn't been written yet.</p>
-            @if (canEdit()) {
-              <button type="button" class="btn btn-primary" (click)="startEdit()">
-                <i class="bi bi-pencil me-2" aria-hidden="true"></i>Write this page
-              </button>
-            }
+          }
+          @if (canEdit()) {
+            <button type="button" class="btn btn-primary" (click)="startEdit()">
+              <i class="bi bi-pencil me-2" aria-hidden="true"></i>Write this page
+            </button>
           }
         </div>
       }
