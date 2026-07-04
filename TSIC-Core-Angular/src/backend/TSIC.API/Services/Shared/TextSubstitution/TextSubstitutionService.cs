@@ -474,7 +474,14 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         // A well-formed invite needs a target (path + id), a known recipient identity, and an expiry.
         // When all present, each invite link carries a per-recipient SIGNED token binding this exact
         // user to this exact target job until `inviteExpires` — enforced server-side at wizard entry.
-        var recipientUserId = list.Count > 0 ? list[0].UserId : null;
+        //
+        // The subject MUST be the LOGIN account that will click the link and authenticate — i.e.
+        // Registrations.FamilyUserId, which the wizard chokepoints read from the JWT sub
+        // (User.FindFirst(NameIdentifier)). For a Player registration, UserId is the child's own user
+        // record while FamilyUserId is the parent who actually logs in; binding to UserId would mint a
+        // token no one can redeem (parent's sub != child's id). Non-Player roles carry
+        // FamilyUserId == UserId, so this is correct for ClubReps and staff too.
+        var recipientUserId = list.Count > 0 ? list[0].FamilyUserId : null;
         var canBuildInvite = inviteTargetJobPath != null
             && inviteTargetJobId.HasValue
             && inviteExpires.HasValue
