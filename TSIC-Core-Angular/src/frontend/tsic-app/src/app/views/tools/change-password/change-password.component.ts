@@ -65,6 +65,9 @@ export class ChangePasswordComponent implements OnInit {
   // ── Expanded account (only one open at a time) ──
   expandedKey = signal<string | null>(null);
 
+  // Key of the account whose username was just copied — flips its icon to a check briefly.
+  copiedKey = signal<string | null>(null);
+
   // ── Reset password (transient, for the open account) ──
   newPassword = signal('');
   isResetting = signal(false);
@@ -234,6 +237,16 @@ export class ChangePasswordComponent implements OnInit {
   /** Registrations as identity breadcrumbs. Family rows carry the player name. */
   proofLabel(r: ChangePasswordSearchResultDto): string {
     return `${r.customerName} : ${r.jobName}`;
+  }
+
+  /** Copy the login username to the clipboard; flip the row's icon to a check for ~2s. */
+  copyUsername(acct: LoginAccount): void {
+    navigator.clipboard.writeText(acct.loginUserName).then(() => {
+      this.copiedKey.set(acct.key);
+      setTimeout(() => { if (this.copiedKey() === acct.key) this.copiedKey.set(null); }, 2000);
+    }).catch(() => {
+      this.toast.show('Could not copy to the clipboard.', 'danger');
+    });
   }
 
   // ═══════════════════════════════════════════════════════════
