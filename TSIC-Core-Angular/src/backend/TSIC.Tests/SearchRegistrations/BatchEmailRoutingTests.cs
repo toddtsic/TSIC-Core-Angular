@@ -149,9 +149,11 @@ public class BatchEmailRoutingTests
         var clubRepRole = b.AddRole(RoleConstants.ClubRep, "Club Rep");
         var clubRepUser = b.AddUser("Jane", "Rep", email: "clubrep@test.com");
         var reg = b.AddRegistration(jobId, clubRepUser.Id, clubRepRole.Id);
-        // Non-Player roles carry FamilyUserId = their own UserId (legacy convention the
-        // resolver's else-branch relies on — it never does a Families lookup for them).
-        reg.FamilyUserId = clubRepUser.Id;
+        // Real club-rep rows carry NO FamilyUserId (UserId is the login). The recipient resolver
+        // never does a Families lookup for non-Player roles, so it routes to User.Email regardless.
+        // (Do NOT assume FamilyUserId == UserId here — it's empty; that false belief broke the
+        // club-rep invite link, see TextSubstitutionInviteLinkTests.)
+        reg.FamilyUserId.Should().BeNull();
         await b.SaveAsync();
 
         var to = await ResolveAsync(ctx, reg);

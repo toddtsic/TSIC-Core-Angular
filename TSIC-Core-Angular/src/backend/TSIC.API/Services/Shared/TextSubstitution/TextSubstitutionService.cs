@@ -475,13 +475,19 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         // When all present, each invite link carries a per-recipient SIGNED token binding this exact
         // user to this exact target job until `inviteExpires` — enforced server-side at wizard entry.
         //
-        // The subject MUST be the LOGIN account that will click the link and authenticate — i.e.
-        // Registrations.FamilyUserId, which the wizard chokepoints read from the JWT sub
-        // (User.FindFirst(NameIdentifier)). For a Player registration, UserId is the child's own user
-        // record while FamilyUserId is the parent who actually logs in; binding to UserId would mint a
-        // token no one can redeem (parent's sub != child's id). Non-Player roles carry
-        // FamilyUserId == UserId, so this is correct for ClubReps and staff too.
-        var recipientUserId = list.Count > 0 ? list[0].FamilyUserId : null;
+        // The subject MUST be the LOGIN account that will click the link and authenticate — the value
+        // the wizard chokepoints read from the JWT sub (User.FindFirst(NameIdentifier)). That account
+        // differs by role, and the two identity columns are NOT interchangeable:
+        //   • Player registration — FamilyUserId is the parent who logs in; UserId is the child's own
+        //     user record. Bind to FamilyUserId, else the parent's sub != the child's id and no one can
+        //     redeem the token.
+        //   • Club Rep / staff — FamilyUserId is null; UserId IS the login account. Bind to UserId.
+        // So prefer FamilyUserId when present and fall back to UserId. (An earlier comment here wrongly
+        // assumed non-Player roles carry FamilyUserId == UserId — they don't; ClubRep FamilyUserId is
+        // empty, which minted the "[…INVITE LINK — target job not configured]" fallback.)
+        var recipientUserId = list.Count > 0
+            ? (string.IsNullOrEmpty(list[0].FamilyUserId) ? list[0].UserId : list[0].FamilyUserId)
+            : null;
         var canBuildInvite = inviteTargetJobPath != null
             && inviteTargetJobId.HasValue
             && inviteExpires.HasValue
