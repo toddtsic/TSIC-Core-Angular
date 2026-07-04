@@ -76,7 +76,8 @@
         <div class="d-flex align-items-center gap-2 flex-shrink-0">
 
             <!-- Mobile: single dropdown trigger -->
-            <div class="d-md-none">
+            <div class="d-md-none d-flex align-items-center gap-2">
+                <app-help-launcher />
                 <div class="user-menu-wrapper">
                     <button type="button" class="mobile-menu-trigger" (click)="toggleMobileMenu($event)"
                         [attr.aria-expanded]="mobileMenuOpen()" aria-label="User menu"
@@ -243,6 +244,9 @@
                     <i class="bi bi-brightness-high-fill"></i>
                     }
                 </button>
+
+                <!-- Context-sensitive help — single "?" for the current route -->
+                <app-help-launcher />
 
                 <!-- User dropdown menu (signed in) / direct Login button (signed out) -->
                 <div class="user-menu-wrapper">

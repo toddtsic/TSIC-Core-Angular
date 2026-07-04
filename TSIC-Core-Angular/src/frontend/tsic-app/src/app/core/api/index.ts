@@ -324,6 +324,8 @@ export type { GameSummaryResponse } from './models/GameSummaryResponse';
 export type { GetChatMessagesRequest } from './models/GetChatMessagesRequest';
 export type { GetChatMessagesResponse } from './models/GetChatMessagesResponse';
 export type { GetConfirmationTextRequest } from './models/GetConfirmationTextRequest';
+export type { HelpContentDto } from './models/HelpContentDto';
+export type { HelpManifestDto } from './models/HelpManifestDto';
 export type { IdentityExistsResponse } from './models/IdentityExistsResponse';
 export type { IFormFile } from './models/IFormFile';
 export type { ImportLegacyMenuRequest } from './models/ImportLegacyMenuRequest';
@@ -584,6 +586,7 @@ export type { SaveFieldAssignmentsRequest } from './models/SaveFieldAssignmentsR
 export type { SaveFieldAssignmentsResponse } from './models/SaveFieldAssignmentsResponse';
 export type { SaveGameGuaranteeRequest } from './models/SaveGameGuaranteeRequest';
 export type { SaveGameGuaranteeResponse } from './models/SaveGameGuaranteeResponse';
+export type { SaveHelpContentRequest } from './models/SaveHelpContentRequest';
 export type { SaveJobFeeRequest } from './models/SaveJobFeeRequest';
 export type { SaveJobFeeResponse } from './models/SaveJobFeeResponse';
 export type { SaveJobOverridesRequest } from './models/SaveJobOverridesRequest';

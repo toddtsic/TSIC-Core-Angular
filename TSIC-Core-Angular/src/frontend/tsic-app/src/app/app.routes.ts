@@ -80,6 +80,7 @@ export const routes: Routes = [
 					{
 						path: 'player',
 						canActivate: [playerInviteGuard],
+						data: { helpKey: 'registration-wizard' },
 						loadComponent: () => import('./views/registration/player/player.component').then(m => m.PlayerWizardV2Component)
 					},
 					{

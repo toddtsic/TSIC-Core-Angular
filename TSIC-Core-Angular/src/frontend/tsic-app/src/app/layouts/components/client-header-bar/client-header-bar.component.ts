@@ -10,6 +10,7 @@ import { buildAssetUrl } from '@infrastructure/utils/asset-url.utils';
 import { Roles } from '@infrastructure/constants/roles.constants';
 import { MenuStateService } from '../../services/menu-state.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { HelpLauncherComponent } from '../help-launcher/help-launcher.component';
 
 /** Single dropdown task-list entry derived from role + pulse. */
 interface TaskItem {
@@ -22,7 +23,7 @@ interface TaskItem {
 @Component({
     selector: 'app-client-header-bar',
     standalone: true,
-    imports: [ConfirmDialogComponent],
+    imports: [ConfirmDialogComponent, HelpLauncherComponent],
     templateUrl: './client-header-bar.component.html',
     styleUrls: ['./client-header-bar.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush

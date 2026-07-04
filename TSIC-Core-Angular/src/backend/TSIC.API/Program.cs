@@ -200,6 +200,7 @@ builder.Services.Configure<FileStorageOptions>(
     builder.Configuration.GetSection(FileStorageOptions.SectionName));
 builder.Services.AddScoped<IJobImageService, JobImageService>();
 builder.Services.AddScoped<IMedFormService, MedFormService>();
+builder.Services.AddScoped<IHelpContentService, HelpContentService>();
 
 // TsicSettings (default customer for ADN credential defaults)
 builder.Services.Configure<TsicSettings>(

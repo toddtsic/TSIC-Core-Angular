@@ -27,4 +27,14 @@ public class FileStorageOptions
     /// deliberately NOT web-served — files are streamed only through the Superuser-gated controller.
     /// </summary>
     public string? MonthEndExportPath { get; init; }
+
+    /// <summary>
+    /// Where context-sensitive help content lives, as HTML fragments under
+    /// <c>{HelpContentPath}/{component}/{topic}.html</c>. A relative value resolves against the app's
+    /// ContentRoot; unset defaults to <c>{ContentRoot}/App_Data/Help</c>. These files are git-tracked and
+    /// deployed with the app. Like the month-end export, this location is NOT web-served — content is read
+    /// back only through the anonymous, path-traversal-guarded help controller. SuperUser in-app edits
+    /// (sandbox only) write the working-tree file, which is then committed and deployed (Model A).
+    /// </summary>
+    public string? HelpContentPath { get; init; }
 }

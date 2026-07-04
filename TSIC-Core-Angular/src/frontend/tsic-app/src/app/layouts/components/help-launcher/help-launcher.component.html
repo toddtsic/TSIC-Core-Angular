@@ -1,0 +1,118 @@
+<!-- The single, app-wide "?" launcher — hidden where there's no help for the current route -->
+@if (available()) {
+  <button
+    type="button"
+    class="help-launcher-btn"
+    (click)="open()"
+    aria-label="Help for this page"
+    aria-haspopup="dialog"
+    title="Help">
+    <i class="bi bi-question-lg" aria-hidden="true"></i>
+  </button>
+}
+
+@if (isOpen()) {
+  <div class="detail-backdrop" (click)="close()"></div>
+
+  <div
+    class="detail-panel open help-panel"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Help"
+    tabindex="-1"
+    (keydown.escape)="close()">
+
+    <div class="panel-header">
+      <div class="header-top-row">
+        <div class="header-titles">
+          <h3 class="panel-title">
+            <i class="bi bi-life-preserver" aria-hidden="true"></i>Help
+          </h3>
+          @if (pageLabel(); as label) {
+            <span class="help-page-label">{{ label }}</span>
+          }
+        </div>
+        <div class="header-actions">
+          @if (canEdit() && !editing()) {
+            <button
+              type="button"
+              class="help-icon-btn"
+              (click)="startEdit()"
+              aria-label="Edit this help page"
+              title="Edit this page">
+              <i class="bi bi-pencil" aria-hidden="true"></i>
+            </button>
+          }
+          <button type="button" class="btn-close" (click)="close()" aria-label="Close help">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-body">
+      @if (loading()) {
+        <div class="help-state" aria-live="polite">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading…</span>
+          </div>
+        </div>
+      } @else if (editing()) {
+        <ejs-richtexteditor
+          #rteEditor
+          [value]="draft()"
+          [toolbarSettings]="rteTools"
+          [height]="420"
+          [enableHtmlSanitizer]="false"
+          (change)="onRteChange($event)">
+        </ejs-richtexteditor>
+        <p class="help-edit-hint">
+          Tip: illustrate with the app's own styles — a
+          <code>&lt;button class="btn btn-primary"&gt;Continue&lt;/button&gt;</code>
+          renders exactly as it does in the product, in every palette.
+        </p>
+      } @else if (failed()) {
+        <div class="help-state help-state-error" aria-live="polite">
+          <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+          <p>Couldn't load help right now. Please try again.</p>
+        </div>
+      } @else if (content()?.exists) {
+        <div class="help-content" [innerHTML]="safeHtml()"></div>
+      } @else {
+        <div class="help-state help-state-empty" aria-live="polite">
+          <i class="bi bi-cone-striped" aria-hidden="true"></i>
+          @if (noKey()) {
+            <p class="help-empty-title">No help for this page yet</p>
+            <p class="help-empty-sub">This page hasn't been added to the manual.</p>
+          } @else {
+            <p class="help-empty-title">Under development</p>
+            <p class="help-empty-sub">This page of the manual hasn't been written yet.</p>
+            @if (canEdit()) {
+              <button type="button" class="btn btn-primary" (click)="startEdit()">
+                <i class="bi bi-pencil me-2" aria-hidden="true"></i>Write this page
+              </button>
+            }
+          }
+        </div>
+      }
+    </div>
+
+    @if (editing()) {
+      <div class="panel-footer">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          (click)="cancelEdit()"
+          [disabled]="saving()">
+          Cancel
+        </button>
+        <button type="button" class="btn btn-primary" (click)="save()" [disabled]="saving()">
+          @if (saving()) {
+            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+          }
+          Save
+        </button>
+      </div>
+    }
+  </div>
+}
