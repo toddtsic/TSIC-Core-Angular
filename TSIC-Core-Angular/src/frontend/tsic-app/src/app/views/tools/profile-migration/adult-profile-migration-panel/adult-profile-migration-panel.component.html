@@ -17,18 +17,15 @@
 <div class="card mb-4">
     <div class="card-body">
         <h5 class="card-title"><i class="bi bi-info-circle"></i> About Adult Migration</h5>
-        <p class="card-text">
+        <p class="card-text mb-0">
             This materializes the role-keyed adult form (Coach/Staff, Referee, Recruiter) into
-            <code>AdultProfileMetadataJson</code> for every job on a canonical profile. The two profiles —
-            <strong>AC1 (Standard)</strong> and <strong>AC2 (Apparel)</strong> — are mapped from each job's legacy
-            <code>RegformName_Coach</code>.
+            <code>AdultProfileMetadataJson</code> for every job on a canonical profile. The three coach profiles —
+            <strong>AC1 (Standard)</strong> (notes only), <strong>AC2 (Apparel)</strong> (shirt / shorts / waist /
+            shoe sizes) and <strong>AC3 (Shirt + Shoe)</strong> — are mapped from each job's legacy
+            <code>RegformName_Coach</code>. Jobs whose legacy form required USA Lacrosse also get a required
+            <code>sportAssnId</code> prepended to the coach block — a per-job capability (the USLax count below),
+            not a separate profile.
         </p>
-        <div class="alert alert-warning mb-0">
-            <i class="bi bi-exclamation-circle"></i>
-            <strong>USA Lacrosse</strong> is a per-job capability, not a separate profile: jobs whose legacy form
-            required it get a required <code>sportAssnId</code> field prepended to the coach block. The USLax count
-            below is how many of a profile's jobs carry that capability.
-        </div>
     </div>
 </div>
 
