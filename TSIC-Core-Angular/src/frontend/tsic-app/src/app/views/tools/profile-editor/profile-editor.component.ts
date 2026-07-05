@@ -11,11 +11,12 @@ import { FieldSetEditorComponent } from './field-set-editor/field-set-editor.com
 import { ALLOWED_PROFILE_FIELDS } from './allowed-fields';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { AdultProfileEditorPanelComponent } from './adult-profile-editor-panel/adult-profile-editor-panel.component';
+import { CopyFormsCardComponent } from './copy-forms-card/copy-forms-card.component';
 
 @Component({
     selector: 'app-profile-editor',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, TsicDialogComponent, OptionsPanelComponent, FieldSetEditorComponent, AdultProfileEditorPanelComponent],
+    imports: [CommonModule, FormsModule, RouterLink, TsicDialogComponent, OptionsPanelComponent, FieldSetEditorComponent, AdultProfileEditorPanelComponent, CopyFormsCardComponent],
     templateUrl: './profile-editor.component.html',
     styleUrl: './profile-editor.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush

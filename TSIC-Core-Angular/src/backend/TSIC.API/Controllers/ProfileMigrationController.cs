@@ -873,6 +873,65 @@ public async Task<ActionResult<object>> UpdateCurrentJobAdultRoleMetadata([FromB
     }
 }
 
+/// <summary>
+/// Copy another job's player and/or adult (coach) form definition onto the current job (target resolved
+/// from the JWT regId). Form JSON only — the copied forms render immediately from the materialized metadata.
+/// </summary>
+[HttpPost("profiles/current/copy-forms")]
+public async Task<ActionResult<CopyJobFormsResult>> CopyFormsToCurrentJob([FromBody] CopyJobFormsRequest request)
+{
+    try
+    {
+        var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return BadRequest(new { error = MissingRegIdMsg });
+        }
+
+        if (request.SourceJobId == Guid.Empty)
+        {
+            return BadRequest(new { error = "sourceJobId is required" });
+        }
+
+        var result = await _migrationService.CopyFormsToCurrentJobAsync(regId, request);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to copy forms to current job");
+        return StatusCode(500, new { error = "Failed to copy forms", details = ex.Message });
+    }
+}
+
+/// <summary>
+/// List jobs that can serve as a copy source for the current job (each flagged with which form
+/// it carries). The current job is excluded server-side. Feeds the copy-forms source picker.
+/// </summary>
+[HttpGet("profiles/copy-sources")]
+public async Task<ActionResult<List<CopyFormSourceDto>>> GetCopyFormSources()
+{
+    try
+    {
+        var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return BadRequest(new { error = MissingRegIdMsg });
+        }
+
+        var sources = await _migrationService.GetCopyFormSourcesAsync(regId);
+        return Ok(sources);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to list copy-form sources");
+        return StatusCode(500, new { error = "Failed to list copy-form sources", details = ex.Message });
+    }
+}
+
 // (Deprecated) CURRENT JOB OPTION SOURCES endpoints removed. Source discovery has been retired from the UI.
 
 /// <summary>

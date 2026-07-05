@@ -1,0 +1,69 @@
+<section class="copy-forms-card">
+    <header class="cfc-header">
+        <h3 class="cfc-title">Copy forms from another job</h3>
+        <p class="cfc-subtitle">
+            Seed this job&rsquo;s registration forms from an existing job. The selected form(s) are copied
+            straight onto this job &mdash; verify by previewing the registration form.
+        </p>
+    </header>
+
+    @if (errorMessage(); as err) {
+        <div class="cfc-alert cfc-alert--error" role="alert">{{ err }}</div>
+    }
+
+    @if (lastResult(); as res) {
+        <div class="cfc-alert cfc-alert--success" role="status">
+            Copied
+            @if (res.playerCopied && res.coachCopied) { player + coach forms }
+            @else if (res.playerCopied) { player form }
+            @else { coach form }
+            from &ldquo;{{ res.sourceJobName }}&rdquo;.
+        </div>
+    }
+
+    <div class="cfc-body">
+        <label class="cfc-field">
+            <span class="cfc-label">Source job</span>
+            <select class="cfc-select"
+                    [disabled]="isLoadingSources() || isCopying()"
+                    (change)="onSourceChange($any($event.target).value || null)">
+                <option value="" [selected]="!selectedJobId()">
+                    {{ isLoadingSources() ? 'Loading jobs…' : 'Choose a job…' }}
+                </option>
+                @for (s of sources(); track s.jobId) {
+                    <option [value]="s.jobId" [selected]="s.jobId === selectedJobId()">{{ sourceLabel(s) }}</option>
+                }
+            </select>
+        </label>
+
+        @if (selectedSource(); as src) {
+            <fieldset class="cfc-forms" [disabled]="isCopying()">
+                <legend class="cfc-label">Forms to copy</legend>
+
+                <label class="cfc-check" [class.cfc-check--disabled]="!src.hasPlayerForm">
+                    <input type="checkbox"
+                           [checked]="includePlayer()"
+                           [disabled]="!src.hasPlayerForm || isCopying()"
+                           (change)="includePlayer.set($any($event.target).checked)">
+                    <span>Player form</span>
+                    @if (!src.hasPlayerForm) { <span class="cfc-none">(none on this job)</span> }
+                </label>
+
+                <label class="cfc-check" [class.cfc-check--disabled]="!src.hasCoachForm">
+                    <input type="checkbox"
+                           [checked]="includeCoach()"
+                           [disabled]="!src.hasCoachForm || isCopying()"
+                           (change)="includeCoach.set($any($event.target).checked)">
+                    <span>Coach / adult form</span>
+                    @if (!src.hasCoachForm) { <span class="cfc-none">(none on this job)</span> }
+                </label>
+            </fieldset>
+        }
+
+        <div class="cfc-actions">
+            <button type="button" class="cfc-btn" [disabled]="!canCopy()" (click)="copy()">
+                {{ isCopying() ? 'Copying…' : 'Copy onto this job' }}
+            </button>
+        </div>
+    </div>
+</section>

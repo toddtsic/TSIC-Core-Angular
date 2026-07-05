@@ -19,6 +19,7 @@ import {
     OptionSetUpdateRequest,
     RenameOptionSetRequest
 } from '../view-models/profile-migration.models';
+import type { CopyFormSourceDto, CopyJobFormsRequest, CopyJobFormsResult } from '@core/api';
 
 @Injectable({
     providedIn: 'root'
@@ -310,6 +311,30 @@ export class ProfileMigrationService {
             this.http.post<{ updatedKey: string; referencingFields: string[] }>(`${this.apiUrl}/profiles/current/options/${encodeURIComponent(oldKey)}/rename`, body),
             { setLoading: v => this._optionsLoading.set(v), setError: m => { this._optionsError.set(m); this._errorMessage.set(m); }, errorMessage: 'Failed to rename option set' },
             resp => { this._currentOptionSets.update(list => list.map(s => s.key.toLowerCase() === oldKey.toLowerCase() ? { ...s, key: newKey } : s)); onSuccess(resp); },
+            onError
+        );
+    }
+
+    // ============================================================================
+    // COPY FORMS (seed the current job's forms from another job's materialized JSON)
+    // ============================================================================
+
+    /** List jobs that can serve as a copy source (each flagged with which form it carries). */
+    getCopyFormSources(onSuccess: (sources: CopyFormSourceDto[]) => void, onError?: (error: any) => void): void {
+        this.runCall<CopyFormSourceDto[]>(
+            this.http.get<CopyFormSourceDto[]>(`${this.apiUrl}/profiles/copy-sources`),
+            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load copy sources' },
+            sources => onSuccess(sources),
+            onError
+        );
+    }
+
+    /** Copy the chosen job's player and/or coach form JSON onto the current job (resolved from JWT). */
+    copyFormsToCurrentJob(request: CopyJobFormsRequest, onSuccess: (result: CopyJobFormsResult) => void, onError?: (error: any) => void): void {
+        this.runCall<CopyJobFormsResult>(
+            this.http.post<CopyJobFormsResult>(`${this.apiUrl}/profiles/current/copy-forms`, request),
+            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to copy forms' },
+            result => onSuccess(result),
             onError
         );
     }

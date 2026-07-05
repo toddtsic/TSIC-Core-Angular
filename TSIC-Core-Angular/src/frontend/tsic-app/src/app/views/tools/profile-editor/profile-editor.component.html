@@ -33,6 +33,9 @@
         </div>
     </div>
 
+    <!-- Seed this job's forms from another job (job-scoped; independent of the type editors below). -->
+    <app-copy-forms-card />
+
     <!-- Player / Adult segment -->
     <div class="btn-group mb-4" role="group" aria-label="Editor mode">
         <button type="button" class="btn" [class.btn-primary]="mode() === 'player'"

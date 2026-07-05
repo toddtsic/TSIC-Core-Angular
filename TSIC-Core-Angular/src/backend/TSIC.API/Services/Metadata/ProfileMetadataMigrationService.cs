@@ -1251,6 +1251,124 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         return metadata;
     }
 
+    /// <summary>
+    /// Copy another job's player and/or adult (coach) form definition onto the current job (resolved
+    /// from <paramref name="regId"/>). Form-JSON only: the runtime renders from the materialized
+    /// metadata, so the copied form works immediately with its baked-in options. Template pointers
+    /// (CoreRegformPlayer / RegformNameCoach) and JsonOptions size customizations are intentionally NOT
+    /// carried. Validates the requested form(s) exist on the source BEFORE writing — never a partial copy.
+    /// </summary>
+    public async Task<CopyJobFormsResult> CopyFormsToCurrentJobAsync(Guid regId, CopyJobFormsRequest request)
+    {
+        if (!request.IncludePlayer && !request.IncludeCoach)
+            return Fail("Select at least the player or the coach form to copy.");
+
+        var target = await _repo.GetJobDataForRegistrationAsync(regId);
+        if (target == null)
+            return Fail("Current job could not be resolved.");
+
+        if (request.SourceJobId == target.JobId)
+            return Fail("The source job is the same as the current job.");
+
+        var source = await _repo.GetJobBasicInfoAsync(request.SourceJobId);
+        if (source == null)
+            return Fail("Source job not found.");
+
+        if (request.IncludePlayer && string.IsNullOrWhiteSpace(source.PlayerProfileMetadataJson))
+            return Fail($"'{source.JobName}' has no player form to copy.");
+        if (request.IncludeCoach && string.IsNullOrWhiteSpace(source.AdultProfileMetadataJson))
+            return Fail($"'{source.JobName}' has no coach/adult form to copy.");
+
+        var playerCopied = false;
+        var coachCopied = false;
+
+        if (request.IncludePlayer)
+        {
+            await _repo.UpdateJobPlayerMetadataAsync(target.JobId, source.PlayerProfileMetadataJson!);
+            playerCopied = true;
+        }
+
+        if (request.IncludeCoach)
+        {
+            await _repo.UpdateJobAdultMetadataAsync(target.JobId, source.AdultProfileMetadataJson!);
+            coachCopied = true;
+        }
+
+        _logger.LogInformation(
+            "Copied forms from job {SourceJobId} onto current job {TargetJobId} (player={PlayerCopied}, coach={CoachCopied})",
+            request.SourceJobId, target.JobId, playerCopied, coachCopied);
+
+        return new CopyJobFormsResult
+        {
+            Success = true,
+            PlayerCopied = playerCopied,
+            CoachCopied = coachCopied,
+            SourceJobName = source.JobName,
+            ErrorMessage = null
+        };
+
+        static CopyJobFormsResult Fail(string message) => new()
+        {
+            Success = false,
+            PlayerCopied = false,
+            CoachCopied = false,
+            SourceJobName = string.Empty,
+            ErrorMessage = message
+        };
+    }
+
+    /// <summary>
+    /// List every job that can serve as a copy source for <see cref="CopyFormsToCurrentJobAsync"/>,
+    /// flagged with which form(s) it carries. Composes the two summary reads the migration tooling
+    /// already exposes (player + adult) — no new repository query. The current job (resolved from
+    /// <paramref name="regId"/>) is excluded so it can't be picked as its own source.
+    /// </summary>
+    public async Task<List<CopyFormSourceDto>> GetCopyFormSourcesAsync(Guid regId)
+    {
+        // Resolve the current job so it can be filtered out of the candidate list.
+        var current = await _repo.GetJobDataForRegistrationAsync(regId);
+        var currentJobId = current?.JobId ?? Guid.Empty;
+
+        // Sequential awaits — both reads share the same scoped DbContext (never Task.WhenAll).
+        var playerJobs = await _repo.GetJobsForProfileSummaryAsync();
+        var adultJobs = await _repo.GetJobsForAdultProfileSummaryAsync();
+
+        var byJob = new Dictionary<Guid, CopyFormSourceDto>();
+
+        foreach (var p in playerJobs)
+        {
+            byJob[p.JobId] = new CopyFormSourceDto
+            {
+                JobId = p.JobId,
+                JobName = p.JobName,
+                Year = null,
+                HasPlayerForm = !string.IsNullOrWhiteSpace(p.PlayerProfileMetadataJson),
+                HasCoachForm = false
+            };
+        }
+
+        foreach (var a in adultJobs)
+        {
+            var hasCoach = !string.IsNullOrWhiteSpace(a.AdultProfileMetadataJson);
+            byJob[a.JobId] = byJob.TryGetValue(a.JobId, out var existing)
+                ? existing with { Year = a.Year, HasCoachForm = hasCoach }
+                : new CopyFormSourceDto
+                {
+                    JobId = a.JobId,
+                    JobName = a.JobName,
+                    Year = a.Year,
+                    HasPlayerForm = false,
+                    HasCoachForm = hasCoach
+                };
+        }
+
+        return byJob.Values
+            .Where(j => j.JobId != currentJobId && (j.HasPlayerForm || j.HasCoachForm))
+            .OrderBy(j => j.JobName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(j => j.Year)
+            .ToList();
+    }
+
     private static ProfileMetadata ParseAdultRoleOrEmpty(string? rootJson, string roleKey)
     {
         if (!string.IsNullOrWhiteSpace(rootJson))
