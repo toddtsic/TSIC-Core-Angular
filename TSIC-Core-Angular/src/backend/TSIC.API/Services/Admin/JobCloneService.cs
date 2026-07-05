@@ -994,6 +994,7 @@ public sealed class JobCloneService : IJobCloneService
             BOfferTeamRegsaverInsurance = source.BOfferTeamRegsaverInsurance,
             BEnableMobileTeamChat = source.BEnableMobileTeamChat,
             PlayerProfileMetadataJson = source.PlayerProfileMetadataJson,
+            AdultProfileMetadataJson = source.AdultProfileMetadataJson,
             BenableStp = source.BenableStp,
             StoreTsicrate = source.StoreTsicrate,
             // JobAi — auto-increment, let DB assign

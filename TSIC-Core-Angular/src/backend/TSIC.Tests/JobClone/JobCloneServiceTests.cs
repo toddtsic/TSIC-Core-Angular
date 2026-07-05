@@ -388,6 +388,37 @@ public class JobCloneServiceTests
     }
 
     // ══════════════════════════════════════════════════════════
+    // Profile metadata carry-forward
+    // ══════════════════════════════════════════════════════════
+
+    // Regression guard: the clone must carry BOTH materialized profile forms. Player was
+    // always copied; adult (AdultProfileMetadataJson) was dropped until the copy block was
+    // fixed, silently collapsing every adult role on a cloned job to the SpecialRequests
+    // fallback even though its ListSizes_* apparel lists rode along in JsonOptions.
+    [Fact]
+    public async Task Clone_CarriesPlayerAndAdultProfileMetadataJson()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
+
+        const string playerJson = "{\"fields\":[{\"name\":\"jerseyNumber\"}]}";
+        const string adultJson =
+            "{\"UnassignedAdult\":{\"fields\":[{\"name\":\"jerseySize\"}]}," +
+            "\"Referee\":{\"fields\":[]},\"Recruiter\":{\"fields\":[]}}";
+
+        var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        src.PlayerProfileMetadataJson = playerJson;
+        src.AdultProfileMetadataJson = adultJson;
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+
+        var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
+        newJob.PlayerProfileMetadataJson.Should().Be(playerJson);
+        newJob.AdultProfileMetadataJson.Should().Be(adultJson);
+    }
+
+    // ══════════════════════════════════════════════════════════
     // LADT scope
     // ══════════════════════════════════════════════════════════
 
