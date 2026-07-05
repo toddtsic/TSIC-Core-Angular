@@ -253,7 +253,7 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                             Create Your Account
                         </h5>
                         <p class="wizard-tip">
-                            Fill in your details below. Your account will be created when you accept the Terms of Service.
+                            Fill in your details below. Your account is created when you complete your registration.
                         </p>
                     </div>
 
@@ -292,7 +292,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                         <option value="">-- Select --</option>
                                         <option value="F">Female</option>
                                         <option value="M">Male</option>
-                                        <option value="U">Prefer not to say</option>
                                     </select>
                                 </div>
                                 <div class="col-md-7">
@@ -385,11 +384,19 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                     <input type="text" class="field-input"
                                         name="adult-new-username"
                                         autocomplete="off"
-                                        [class.is-required]="state.username().trim().length < 6"
+                                        [class.is-required]="state.username().trim().length < 6 || state.usernameStatus() === 'taken'"
                                         [ngModel]="state.username()"
                                         (ngModelChange)="state.setUsername($event)"
                                         placeholder="6+ characters" />
-                                    <small class="wizard-tip">Minimum 6 characters</small>
+                                    @if (state.usernameStatus() === 'checking') {
+                                        <small class="wizard-tip"><span class="spinner-border spinner-border-sm me-1"></span>Checking availability…</small>
+                                    } @else if (state.usernameStatus() === 'taken') {
+                                        <small class="wizard-tip text-danger">That username is already taken — choose another.</small>
+                                    } @else if (state.usernameStatus() === 'available') {
+                                        <small class="wizard-tip text-success">Username is available.</small>
+                                    } @else {
+                                        <small class="wizard-tip">Minimum 6 characters</small>
+                                    }
                                 </div>
                                 <div class="col-md-4">
                                     <label class="field-label">Password <span class="req">*</span></label>

@@ -20,4 +20,12 @@ public interface IUserProfileService
     /// Returns false when the user doesn't exist or Identity rejects the update.
     /// </summary>
     Task<bool> UpdateSelfProfileAsync(string userId, UserProfileUpdateRequest request);
+
+    /// <summary>
+    /// True when no account already owns <paramref name="username"/>. The name is
+    /// normalized the SAME way Identity's <c>UserManager.CreateAsync</c> normalizes it,
+    /// so this pre-check and the final create agree. Advisory only — a concurrent
+    /// registration can still win the race, which CreateAsync rejects authoritatively.
+    /// </summary>
+    Task<bool> IsUsernameAvailableAsync(string username);
 }

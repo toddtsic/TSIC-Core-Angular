@@ -71,4 +71,18 @@ public sealed class UserProfileService : IUserProfileService
         var result = await _userManager.UpdateAsync(user);
         return result.Succeeded;
     }
+
+    public async Task<bool> IsUsernameAvailableAsync(string username)
+    {
+        var candidate = username?.Trim() ?? string.Empty;
+        if (candidate.Length == 0)
+        {
+            return false;
+        }
+
+        // FindByNameAsync applies the same ILookupNormalizer that CreateAsync uses,
+        // so "taken" here is exactly what account creation would reject.
+        var existing = await _userManager.FindByNameAsync(candidate);
+        return existing == null;
+    }
 }

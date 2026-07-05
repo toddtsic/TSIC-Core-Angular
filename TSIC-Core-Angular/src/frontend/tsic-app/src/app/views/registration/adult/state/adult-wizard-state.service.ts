@@ -22,6 +22,9 @@ export type FormFieldValue = string | number | boolean | null;
 export type UsLaxVerifyStatus =
     'idle' | 'sending' | 'sent' | 'verifying' | 'verified' | 'unverified' | 'error';
 
+/** Live username-availability verdict for the create form (advisory; server still gates). */
+export type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken';
+
 /**
  * Adult wizard state service — unified, role-config-driven.
  *
@@ -50,6 +53,13 @@ export class AdultWizardStateService {
     readonly username = this._username.asReadonly();
     readonly password = this._password.asReadonly();
     readonly confirmPassword = this._confirmPassword.asReadonly();
+
+    // Live username-availability probe for the create form. Advisory only — the
+    // backend UserManager.CreateAsync remains the authoritative uniqueness gate.
+    private readonly _usernameStatus = signal<UsernameStatus>('idle');
+    readonly usernameStatus = this._usernameStatus.asReadonly();
+    private _usernameCheckTimer: ReturnType<typeof setTimeout> | null = null;
+    private _usernameCheckSeq = 0;
 
     // ── Identity ──────────────────────────────────────────────────
     private readonly _firstName = signal('');
@@ -222,6 +232,7 @@ export class AdultWizardStateService {
         return identityOk
             && addressOk
             && this._username().trim().length >= 6
+            && this._usernameStatus() !== 'taken'
             && this.passwordsMatch()
             && this.emailsMatch();
     });
@@ -277,7 +288,34 @@ export class AdultWizardStateService {
     setJobPath(path: string): void { this._jobPath.set(path); }
     setRoleKey(key: string): void { this._roleKey.set(key); }
 
-    setUsername(v: string): void { this._username.set(v); }
+    setUsername(v: string): void {
+        this._username.set(v);
+        // Debounced availability probe — explicit setTimeout (no RxJS, no effect()). A
+        // sequence guard drops stale responses so a shortened/changed username is never
+        // overwritten by an in-flight check. CreateAsync stays the authoritative gate.
+        if (this._usernameCheckTimer !== null) {
+            clearTimeout(this._usernameCheckTimer);
+        }
+        const candidate = v.trim();
+        if (candidate.length < 6) {
+            this._usernameStatus.set('idle');
+            return;
+        }
+        this._usernameStatus.set('checking');
+        const seq = ++this._usernameCheckSeq;
+        this._usernameCheckTimer = setTimeout(async () => {
+            try {
+                const res = await firstValueFrom(this.account.checkUsernameAvailable(candidate));
+                if (seq === this._usernameCheckSeq) {
+                    this._usernameStatus.set(res.available ? 'available' : 'taken');
+                }
+            } catch {
+                if (seq === this._usernameCheckSeq) {
+                    this._usernameStatus.set('idle');
+                }
+            }
+        }, 400);
+    }
     setPassword(v: string): void { this._password.set(v); }
     setConfirmPassword(v: string): void { this._confirmPassword.set(v); }
     setFirstName(v: string): void { this._firstName.set(v); }

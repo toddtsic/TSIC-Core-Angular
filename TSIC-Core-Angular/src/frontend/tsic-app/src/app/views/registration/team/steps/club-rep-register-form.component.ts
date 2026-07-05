@@ -1,9 +1,10 @@
 import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, input, OnInit, output, signal, computed, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, tap } from 'rxjs/operators';
+import { debounceTime, distinctUntilChanged, filter, switchMap, catchError, tap, map } from 'rxjs/operators';
 import { of } from 'rxjs';
 import { ClubService } from '@infrastructure/services/club.service';
+import { AccountService } from '@infrastructure/services/account.service';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { TosContentComponent } from '../../shared/components/tos-content.component';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
@@ -390,7 +391,12 @@ type ClubDecision = 'pending' | 'new' | 'clear';
                       <input class="field-input" formControlName="username"
                              placeholder="Username" autocomplete="off"
                              [class.is-required]="!form.controls.username.value?.trim()"
-                             [class.is-invalid]="submitted() && form.controls.username.invalid" />
+                             [class.is-invalid]="(submitted() && form.controls.username.invalid) || usernameStatus() === 'taken'" />
+                      @if (usernameStatus() === 'checking') {
+                        <div class="small text-muted mt-1"><span class="spinner-border spinner-border-sm me-1"></span>Checking availability…</div>
+                      } @else if (usernameStatus() === 'taken') {
+                        <div class="field-error">That username is already taken — choose another.</div>
+                      }
                     </div>
                     <div class="col-6">
                       <div class="position-relative">
@@ -566,6 +572,7 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
 
     private readonly fb = inject(FormBuilder);
     private readonly clubService = inject(ClubService);
+    private readonly account = inject(AccountService);
     private readonly auth = inject(AuthService);
     private readonly fieldData = inject(FormFieldDataService);
     private readonly toast = inject(ToastService);
@@ -584,6 +591,9 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
     readonly showPassword = signal(false);
     readonly showConfirm = signal(false);
     readonly tosExpanded = signal(false);
+
+    /** Live username-availability probe (advisory; /clubreps/register is the real gate). */
+    readonly usernameStatus = signal<'idle' | 'checking' | 'available' | 'taken'>('idle');
 
     // Club search state
     readonly clubSearchResults = signal<ClubSearchResult[]>([]);
@@ -657,6 +667,24 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
             const hasSimilar = results.some(r => r.matchScore >= 65);
             this.clubDecision.set(hasSimilar ? 'pending' : 'clear');
         });
+
+        // Live username-availability probe — mirrors the club-name search above so the rep
+        // learns a username is taken before hitting Create. Advisory; /clubreps/register is
+        // still the authoritative uniqueness gate, so an error/throttle just resets to 'idle'.
+        this.form.controls.username.valueChanges.pipe(
+            distinctUntilChanged(),
+            tap((v) => {
+                if (!v || v.trim().length < 3) this.usernameStatus.set('idle');
+            }),
+            debounceTime(400),
+            filter((v): v is string => !!v && v.trim().length >= 3),
+            tap(() => this.usernameStatus.set('checking')),
+            switchMap(name => this.account.checkUsernameAvailable(name.trim()).pipe(
+                map(res => (res.available ? 'available' : 'taken') as 'available' | 'taken'),
+                catchError(() => of('idle' as const)),
+            )),
+            takeUntilDestroyed(this.destroyRef),
+        ).subscribe(status => this.usernameStatus.set(status));
     }
 
     ngOnInit(): void {
@@ -734,6 +762,7 @@ export class ClubRepRegisterFormComponent implements OnInit, AfterViewInit {
      *  Exact-normalized match always blocks (cannot be bypassed — backend agrees). */
     canSubmit(): boolean {
         if (this.exactMatch() !== null) return false;
+        if (this.usernameStatus() === 'taken') return false;
         const decision = this.clubDecision();
         return (decision === 'clear' || decision === 'new')
             && this.form.valid
