@@ -30,7 +30,9 @@ foreach ($dir in @($Config.ApiPath, $Config.AngularPath)) {
 }
 
 # Create API subdirectories that persist across deployments
-foreach ($subdir in @('logs', 'keys')) {
+# App_Data\AdnMonthEnd holds the month-end close cache (ledger.json/bundle.zip/meta.json); the
+# import invalidates + rewrites it, so the pool needs Modify (create AND delete/overwrite) here.
+foreach ($subdir in @('logs', 'keys', 'App_Data\AdnMonthEnd')) {
     $subdirPath = Join-Path $Config.ApiPath $subdir
     if (-not (Test-Path $subdirPath)) {
         New-Item -ItemType Directory -Path $subdirPath -Force | Out-Null
@@ -48,8 +50,8 @@ foreach ($dir in @($Config.ApiPath, $Config.AngularPath)) {
     Write-Host "  Granted IIS_IUSRS ReadAndExecute on $dir" -ForegroundColor White
 }
 
-# Grant app pool identity write access to logs/ and keys/
-foreach ($subdir in @('logs', 'keys')) {
+# Grant app pool identity write access to logs/, keys/, and the month-end close cache
+foreach ($subdir in @('logs', 'keys', 'App_Data\AdnMonthEnd')) {
     $subdirPath = Join-Path $Config.ApiPath $subdir
     $acl = Get-Acl $subdirPath
     $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(

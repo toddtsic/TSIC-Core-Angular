@@ -211,6 +211,18 @@ if (!$SkipApi) {
         Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
     Copy-Item "$ApiPublish\*" $ApiStaging -Recurse -Force
 
+    # Nothing under App_Data should ship: AdnMonthEnd is a runtime cache the API regenerates on
+    # demand, and Help is retired backend content (migrated to frontend static assets, f94e80eb).
+    # A dirty publish carries these, and this admin-run Copy-Item seeds admin-owned files the app
+    # pool cannot delete/overwrite — which 500s the ADN month-end import. Strip the whole folder
+    # from staging so the pool recreates its cache (pool-owned) at runtime. Setup grants the pool
+    # Modify on App_Data\AdnMonthEnd (03-Create-Directories.ps1).
+    $apiAppData = Join-Path $ApiStaging "App_Data"
+    if (Test-Path $apiAppData) {
+        Remove-Item $apiAppData -Recurse -Force -ErrorAction SilentlyContinue
+        Write-Host "  Stripped non-shipping App_Data (runtime cache + retired Help)" -ForegroundColor White
+    }
+
     # No web.config patching: the template is env-agnostic and the prod app pool's
     # ASPNETCORE_ENVIRONMENT=Production env var is the single source of truth.
     # No appsettings patching either: appsettings.Production.json overlay supplies

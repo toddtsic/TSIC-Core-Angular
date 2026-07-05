@@ -104,6 +104,18 @@ Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue | Where-Object { $
 Write-Host "  Copying API files..." -ForegroundColor White
 Copy-Item "$ApiSource\*" $ApiTarget -Recurse -Force
 
+# Nothing under App_Data should ship: AdnMonthEnd is a runtime cache the API regenerates on
+# demand, and Help is retired backend content (migrated to frontend static assets, f94e80eb).
+# A dirty publish carries these, and this admin-run Copy-Item seeds admin-owned files the app
+# pool cannot delete/overwrite — which 500s the ADN month-end import. Strip the whole folder so
+# the pool recreates its cache (pool-owned) at runtime. Setup grants the pool Modify on
+# App_Data\AdnMonthEnd (03-Create-Directories.ps1).
+$apiAppData = Join-Path $ApiTarget "App_Data"
+if (Test-Path $apiAppData) {
+    Remove-Item $apiAppData -Recurse -Force -ErrorAction SilentlyContinue
+    Write-Host "  Stripped non-shipping App_Data (runtime cache + retired Help)" -ForegroundColor White
+}
+
 # Copy canonical web.config template (env-agnostic; ASPNETCORE_ENVIRONMENT lives
 # on the dev-api app pool, set during setup by IIS-Config-Dev/Setup/07-Apply-Secrets.ps1).
 $apiConfigSrc = Join-Path $PSScriptRoot "web.config.api"
