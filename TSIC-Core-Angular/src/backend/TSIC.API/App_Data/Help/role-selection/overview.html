@@ -1,0 +1,53 @@
+<h3>Open a Registration</h3>
+<p>
+  After you sign in, this screen lists everything on your account so you can pick which one to open. One
+  login can hold several registrations — different children, teams, or roles across events — so this is
+  where you choose the one you want to work in right now.
+</p>
+
+<h4>Choosing a registration</h4>
+<p>Each row is one registration. Click it to open that registration and continue.</p>
+
+<!-- Example illustration — registration rows, drawn in the app's own styles. -->
+<div style="display:flex; flex-direction:column; gap:var(--space-2,.5rem); margin-bottom:var(--space-4,1rem);">
+  <div style="display:flex; align-items:center; gap:var(--space-3,.75rem); padding:var(--space-3,.75rem) var(--space-4,1rem); border:1px solid var(--bs-border-color); border-radius:var(--radius-md,8px); background:var(--bs-body-bg,#fff);">
+    <i class="bi bi-trophy" style="font-size:1.4rem; color:var(--bs-primary);" aria-hidden="true"></i>
+    <div style="flex:1 1 auto;">
+      <div style="font-weight:var(--font-weight-semibold,600);">Summer Classic</div>
+      <div style="color:var(--bs-secondary-color); font-size:var(--font-size-sm,.875rem);">Jordan Lee &bull; U12 &bull; Thunder</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:var(--bs-secondary-color);" aria-hidden="true"></i>
+  </div>
+  <div style="display:flex; align-items:center; gap:var(--space-3,.75rem); padding:var(--space-3,.75rem) var(--space-4,1rem); border:1px solid var(--bs-border-color); border-radius:var(--radius-md,8px); background:var(--bs-body-bg,#fff);">
+    <i class="bi bi-trophy" style="font-size:1.4rem; color:var(--bs-primary);" aria-hidden="true"></i>
+    <div style="flex:1 1 auto;">
+      <div style="font-weight:var(--font-weight-semibold,600);">Riverside Cup</div>
+      <div style="color:var(--bs-secondary-color); font-size:var(--font-size-sm,.875rem);">Alex Lee &bull; U10 &bull; Comets</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:var(--bs-secondary-color);" aria-hidden="true"></i>
+  </div>
+</div>
+<ul>
+  <li>The bold line is the <strong>event</strong>; the muted line below identifies exactly which one it is
+    — for a player, that's the <strong>name, age group, and team</strong>. That detail line is how you tell
+    two children (or two teams) apart.</li>
+  <li>Registrations are grouped by <strong>role</strong> — for example a <em>Player</em> section and a
+    <em>Club Rep</em> section — each shown under its own heading.</li>
+  <li>If a role has a lot of registrations, it appears as a <strong>search box</strong> instead of a list —
+    just start typing to filter.</li>
+</ul>
+
+<h4>Switching accounts</h4>
+<p>
+  The <strong>Logout</strong> button at the bottom signs you out — use it if you reached the wrong account
+  and need to sign in as someone else.
+</p>
+
+<!-- Tip treatment. -->
+<div style="display:flex; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-border-color); border-left:4px solid var(--bs-primary); border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-top:var(--space-4,1rem);">
+  <i class="bi bi-lightbulb" style="font-size:1.2rem; color:var(--bs-primary);" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> even if you see only one registration, you still tap it to open it — the screen
+    never opens one for you, so you always know which you're in.
+  </div>
+</div>

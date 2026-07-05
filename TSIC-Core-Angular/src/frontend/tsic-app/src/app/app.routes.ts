@@ -59,7 +59,7 @@ export const routes: Routes = [
 				path: 'login',
 				loadComponent: () => import('./views/auth/login/login.component').then(m => m.LoginComponent),
 				canActivate: [authGuard],
-				data: { redirectAuthenticated: true }
+				data: { redirectAuthenticated: true, helpKey: 'login' }
 			},
 			{
 				path: 'terms-of-service',
@@ -67,7 +67,8 @@ export const routes: Routes = [
 			},
 			{
 				path: 'role-selection',
-				loadComponent: () => import('./views/auth/role-selection/role-selection.component').then(m => m.RoleSelectionComponent)
+				loadComponent: () => import('./views/auth/role-selection/role-selection.component').then(m => m.RoleSelectionComponent),
+				data: { helpKey: 'role-selection' }
 			},
 			// Registration (Controller/Action)
 			{
