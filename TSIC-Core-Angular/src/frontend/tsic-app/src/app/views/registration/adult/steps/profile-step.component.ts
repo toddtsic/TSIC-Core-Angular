@@ -1,6 +1,6 @@
-import { AfterViewInit, ChangeDetectionStrategy, Component, OnInit, QueryList, ViewChildren, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, OnInit, computed, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
+import { ListBoxModule, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 import { AdultWizardStateService } from '../state/adult-wizard-state.service';
 import type { JobRegFieldDto } from '@core/api';
 
@@ -17,7 +17,9 @@ import type { JobRegFieldDto } from '@core/api';
 @Component({
     selector: 'app-adult-profile-step',
     standalone: true,
-    imports: [FormsModule, MultiSelectModule],
+    imports: [FormsModule, ListBoxModule],
+    // ListBox with showCheckbox needs the CheckBoxSelection module injected —
+    // without it, wireEvents() dereferences an undefined checkBoxSelectionModule.
     providers: [CheckBoxSelectionService],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -76,21 +78,23 @@ import type { JobRegFieldDto } from '@core/api';
                             }
                         </div>
                     } @else {
-                        <ejs-multiselect
+                        <!--
+                            Inline ListBox (Syncfusion's native "check all that apply, always
+                            visible" control) — NOT a MultiSelect popup. Living in page flow
+                            means it can't overlay the profile fields below and there's no
+                            open/close/click-outside interaction to confuse the coach.
+                        -->
+                        <ejs-listbox
                             [dataSource]="teamsDataSource()"
                             [fields]="teamFields"
                             [value]="state.teamPickerSeed()"
                             (change)="onTeamsChange($event.value)"
-                            [mode]="'CheckBox'"
+                            [selectionSettings]="listBoxSelection"
                             [allowFiltering]="true"
                             [filterBarPlaceholder]="'Search by club or team...'"
-                            [showSelectAll]="false"
-                            [closePopupOnSelect]="false"
-                            [changeOnBlur]="false"
-                            [showDropDownIcon]="true"
-                            [placeholder]="'Select teams you\\'d like to coach'"
-                            [popupHeight]="'320px'">
-                        </ejs-multiselect>
+                            [height]="'320px'"
+                            cssClass="team-listbox">
+                        </ejs-listbox>
 
                         @if (state.teamIdsCoaching().length > 0) {
                             <div class="selected-teams mt-2">
@@ -268,6 +272,16 @@ import type { JobRegFieldDto } from '@core/api';
             border-left: 3px solid var(--bs-danger);
         }
         .req { color: var(--bs-danger); }
+        /* Inline team ListBox — full-width, framed to sit in the section like a field.
+           Syncfusion adds cssClass to its runtime wrapper (.e-listbox-wrapper), which
+           carries no ng-content attr, so ::ng-deep is required to reach it. */
+        :host ::ng-deep .team-listbox {
+            display: block;
+            width: 100%;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
         .selected-teams {
             padding: var(--space-2) var(--space-3);
             background: rgba(var(--bs-success-rgb), 0.08);
@@ -322,43 +336,19 @@ import type { JobRegFieldDto } from '@core/api';
         .uslax-msg--err { color: var(--bs-danger); }
     `],
 })
-export class ProfileStepComponent implements OnInit, AfterViewInit {
+export class ProfileStepComponent implements OnInit {
     readonly state = inject(AdultWizardStateService);
 
-    @ViewChildren(MultiSelectComponent) readonly teamPickers!: QueryList<MultiSelectComponent>;
-    private _openedOnce = false;
+    /** ListBox selection config — checkboxes on each row, no select-all header. */
+    readonly listBoxSelection = { showCheckbox: true, showSelectAll: false };
 
     /**
      * Re-seed the picker's [value] from the persisted selection on every mount.
-     * Without this, returning to this step shows an empty dropdown even though the
+     * Without this, returning to this step shows an empty list even though the
      * selection survived (the green "Selected" summary reads the same source).
      */
     ngOnInit(): void {
         this.state.syncTeamPickerSeed();
-    }
-
-    /**
-     * Auto-open the team picker when it lands in the DOM. Mirrors the pattern
-     * used in RoleSelectionComponent: subscribe to QueryList.changes so we catch
-     * the component whether it's present immediately or arrives after async
-     * team loading. Skip on mobile — Syncfusion's full-screen overlay is poor
-     * UX on narrow viewports.
-     */
-    ngAfterViewInit(): void {
-        this.tryOpenTeamPicker();
-        this.teamPickers.changes.subscribe(() => this.tryOpenTeamPicker());
-    }
-
-    private tryOpenTeamPicker(): void {
-        if (this._openedOnce) return;
-        if (!this.state.needsTeamSelection()) return;
-        if (typeof window !== 'undefined' && window.innerWidth < 768) return;
-
-        const first = this.teamPickers?.first;
-        if (first) {
-            this._openedOnce = true;
-            setTimeout(() => { try { first.showPopup(); } catch { /* no-op */ } }, 0);
-        }
     }
 
     readonly titleLabel = computed(() => {
@@ -366,7 +356,7 @@ export class ProfileStepComponent implements OnInit, AfterViewInit {
         return name ? `${name} Details` : 'Profile Information';
     });
 
-    /** Syncfusion MultiSelect config — groupBy renders collapsible club headers. */
+    /** Syncfusion ListBox field map — groupBy renders club headers above each group. */
     readonly teamFields = {
         text: 'label',
         value: 'teamId',
@@ -374,7 +364,7 @@ export class ProfileStepComponent implements OnInit, AfterViewInit {
     };
 
     /**
-     * Flat list shaped for Syncfusion MultiSelect with groupBy.
+     * Flat list shaped for the Syncfusion ListBox with groupBy.
      *
      * The <c>label</c> intentionally includes the club name so the default
      * filter (which matches against the text field) works for BOTH club-name
