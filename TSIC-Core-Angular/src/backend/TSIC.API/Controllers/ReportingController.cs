@@ -239,11 +239,22 @@ public class ReportingController : ControllerBase
         // SuperUser can run any report visible in its all-roles catalogue, so its check
         // isn't scoped to the SU role — but the SP must still be a real configured report
         // for the job. Everyone else is checked against their own roles.
-        var entitled = User.IsInRole("Superuser")
-            ? await _reportingService.HasStoredProcedureEntitlementAnyRoleAsync(
-                jobId, spName, cancellationToken)
-            : await _reportingService.HasStoredProcedureEntitlementAsync(
-                jobId, GetCallerRoleIds(), spName, cancellationToken);
+        var isSuperuser = User.IsInRole("Superuser");
+
+        // Cross-job accounting reports (New Jobs, month-end Grand Totals, ADN-Nuvei
+        // reconcile, Job Admin Fees) launch from the SuperUser Accounting nav — not the
+        // per-job reports-library — and run with bUseJobId=false, aggregating across ALL
+        // jobs. They therefore have no reporting.JobReports row to satisfy the per-job
+        // check, so authorize them via the SuperUser-gated global allow-list. An spName
+        // not on the list falls through to the normal per-job entitlement and is denied
+        // (fail closed).
+        var entitled =
+            (isSuperuser && GlobalAccountingReports.Contains(spName))
+            || (isSuperuser
+                ? await _reportingService.HasStoredProcedureEntitlementAnyRoleAsync(
+                    jobId, spName, cancellationToken)
+                : await _reportingService.HasStoredProcedureEntitlementAsync(
+                    jobId, GetCallerRoleIds(), spName, cancellationToken));
         if (!entitled)
         {
             return Forbid();
