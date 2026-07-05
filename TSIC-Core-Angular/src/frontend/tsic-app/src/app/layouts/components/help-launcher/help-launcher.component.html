@@ -72,157 +72,25 @@
           </div>
         </div>
       } @else if (editing()) {
-        <div class="help-edit">
-        <div class="help-edit-toolbar">
-          <!-- Save/Cancel live top-left, right above the editor, so the exit is always in reach. -->
-          <div class="help-edit-actions">
-            <button
-              type="button"
-              class="btn btn-outline-secondary btn-sm help-edit-action"
-              (click)="cancelEdit()"
-              [disabled]="saving()"
-              title="Discard changes and stop editing">
-              <i class="bi bi-x-lg" aria-hidden="true"></i>
-              <span>Cancel</span>
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary btn-sm help-edit-action"
-              (click)="save()"
-              [disabled]="saving()"
-              title="Save to your working tree">
-              @if (saving()) {
-                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
-              } @else {
-                <i class="bi bi-check-lg" aria-hidden="true"></i>
-              }
-              <span>Save</span>
-            </button>
-          </div>
-
-          <div class="help-edit-inserts">
-            @if (activeTopic() === 'faq') {
-              <button
-                type="button"
-                class="btn btn-primary btn-sm help-add-faq"
-                (click)="addFaqItem()"
-                title="Add a new question">
-                <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                <span>Add question</span>
-              </button>
-            } @else {
-            <div class="help-insert">
-            <button
-              type="button"
-              class="btn btn-outline-primary btn-sm help-insert-toggle"
-              [class.active]="insertOpen()"
-              (click)="toggleInsert()"
-              aria-haspopup="menu"
-              [attr.aria-expanded]="insertOpen()">
-              <i class="bi bi-plus-lg" aria-hidden="true"></i>
-              <span>Insert</span>
-              <i class="bi bi-chevron-down help-insert-caret" aria-hidden="true"></i>
-            </button>
-            @if (insertOpen()) {
-              <div class="help-insert-backdrop" (click)="insertOpen.set(false)"></div>
-              <div class="help-insert-menu" role="menu" aria-label="Insert a style-sheet block">
-                @for (snippet of snippets; track snippet.label) {
-                  <button
-                    type="button"
-                    class="help-insert-item"
-                    role="menuitem"
-                    (click)="insertSnippet(snippet.html)">
-                    <i class="bi {{ snippet.icon }}" aria-hidden="true"></i>
-                    <span>{{ snippet.label }}</span>
-                  </button>
-                }
-              </div>
-            }
+        <!--
+          The authoring UI (Syncfusion RTE + FAQ editor) is a separate standalone component rendered
+          only here, inside @defer, so its heavy dependencies land in a lazy chunk instead of the initial
+          bundle. Editing is local-dev-only, so staging/prod never even fetch this chunk.
+        -->
+        @defer (when editing()) {
+          <app-help-editor
+            [topic]="activeTopic()"
+            [html]="content()?.html ?? ''"
+            [saving]="saving()"
+            (save)="onEditorSave($event)"
+            (cancelEdit)="cancelEdit()" />
+        } @placeholder {
+          <div class="help-state" aria-live="polite">
+            <div class="spinner-border" role="status">
+              <span class="visually-hidden">Loading editor…</span>
             </div>
-            }
           </div>
-        </div>
-        @if (activeTopic() === 'faq') {
-          <!-- Structured FAQ editor: each question is a draggable card; the answer edits in an inline RTE. -->
-          <div class="help-faq-editor" cdkDropList (cdkDropListDropped)="dropFaq($event)">
-            @for (item of faqItems(); track item.id) {
-              <div class="faq-edit-card" cdkDrag [class.expanded]="activeFaqId() === item.id">
-                <div class="faq-edit-head">
-                  <button
-                    type="button"
-                    class="faq-drag"
-                    cdkDragHandle
-                    aria-label="Drag to reorder"
-                    title="Drag to reorder">
-                    <i class="bi bi-grip-vertical" aria-hidden="true"></i>
-                  </button>
-                  <input
-                    type="text"
-                    class="form-control form-control-sm faq-q-input"
-                    [value]="item.question"
-                    (input)="updateQuestion(item.id, $event)"
-                    placeholder="Type the question" />
-                  <button
-                    type="button"
-                    class="faq-icon-btn"
-                    (click)="toggleFaq(item.id)"
-                    [attr.aria-expanded]="activeFaqId() === item.id"
-                    aria-label="Edit answer"
-                    title="Edit answer">
-                    <i
-                      class="bi"
-                      [class.bi-chevron-down]="activeFaqId() === item.id"
-                      [class.bi-chevron-right]="activeFaqId() !== item.id"
-                      aria-hidden="true"></i>
-                  </button>
-                  <button
-                    type="button"
-                    class="faq-icon-btn faq-del"
-                    (click)="removeFaq(item.id)"
-                    aria-label="Delete question"
-                    title="Delete question">
-                    <i class="bi bi-trash" aria-hidden="true"></i>
-                  </button>
-                </div>
-                @if (activeFaqId() === item.id) {
-                  <div class="faq-edit-body">
-                    <ejs-richtexteditor
-                      #faqRte
-                      [value]="item.answerHtml"
-                      [toolbarSettings]="rteTools"
-                      [height]="200"
-                      [enableHtmlSanitizer]="false"
-                      (change)="updateAnswer(item.id, $event)">
-                    </ejs-richtexteditor>
-                  </div>
-                }
-              </div>
-            }
-            @if (faqItems().length === 0) {
-              <div class="faq-editor-empty">
-                <i class="bi bi-patch-question" aria-hidden="true"></i>
-                <p>No questions yet. Click <strong>Add question</strong> to create the first one.</p>
-              </div>
-            }
-          </div>
-        } @else {
-          <div class="help-rte-wrap">
-            <ejs-richtexteditor
-              #rteEditor
-              [value]="draft()"
-              [toolbarSettings]="rteTools"
-              height="100%"
-              [enableHtmlSanitizer]="false"
-              (change)="onRteChange($event)">
-            </ejs-richtexteditor>
-          </div>
-          <p class="help-edit-hint">
-            Tip: illustrate with the app's own styles — a
-            <code>&lt;button class="btn btn-primary"&gt;Continue&lt;/button&gt;</code>
-            renders exactly as it does in the product, in every palette.
-          </p>
         }
-        </div>
       } @else if (failed()) {
         <div class="help-state help-state-error" aria-live="polite">
           <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>

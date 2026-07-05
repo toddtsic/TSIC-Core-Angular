@@ -1,0 +1,365 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/*
+ * ── FAQ accordion inside the editor ──
+ * The Syncfusion editor's content area (.e-content) renders authored <details class="faq-item"> blocks,
+ * so the author previews accordions exactly as they read in the product. Without this the RTE shows raw
+ * <details>: the browser's native ▼ marker AND our own > caret, with no card styling. (The read view's
+ * matching rule for .help-content lives in help-launcher.component.scss.)
+ */
+:host ::ng-deep .e-content details.faq-item {
+  margin: 0 0 var(--space-2);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  background: var(--bs-body-bg, #fff);
+  overflow: hidden;
+
+  summary {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--bs-body-color);
+    cursor: pointer;
+    list-style: none; /* strip the native disclosure triangle */
+
+    &::-webkit-details-marker {
+      display: none;
+    }
+
+    &:hover {
+      background: var(--bs-tertiary-bg, var(--neutral-100));
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus);
+    }
+  }
+
+  .faq-caret {
+    flex-shrink: 0;
+    font-size: 0.8em;
+    color: var(--bs-primary);
+    transition: transform 0.15s ease;
+  }
+
+  &[open] {
+    summary {
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+
+    .faq-caret {
+      transform: rotate(90deg);
+    }
+  }
+
+  .faq-a {
+    padding: var(--space-3) var(--space-4);
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .faq-caret {
+      transition: none;
+    }
+  }
+}
+
+/* ── Edit mode: fill the panel body so the editor is near full-height ── */
+.help-edit {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Save/Cancel sit top-left in the edit toolbar (right above the editor); Insert controls stay right. */
+.help-edit-actions,
+.help-edit-inserts {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.help-edit-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ── Structured FAQ editor: draggable question cards, inline answer RTE ── */
+.help-faq-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-right: var(--space-1);
+}
+
+.faq-edit-card {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  background: var(--bs-body-bg, #fff);
+
+  &.expanded {
+    border-color: var(--bs-primary);
+    box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.08));
+  }
+}
+
+.faq-edit-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+}
+
+.faq-drag {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--bs-secondary-color, var(--neutral-500));
+  cursor: grab;
+
+  &:hover {
+    color: var(--bs-body-color);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+}
+
+.faq-q-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.faq-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--bs-secondary-color, var(--neutral-500));
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background: var(--bs-tertiary-bg, var(--neutral-100));
+    color: var(--bs-body-color);
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.faq-del:hover {
+  background: var(--bs-danger-bg-subtle, #f8d7da);
+  color: var(--bs-danger, #dc3545);
+}
+
+.faq-edit-body {
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.faq-editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--bs-secondary-color, var(--neutral-500));
+
+  > i {
+    font-size: 2rem;
+    color: var(--neutral-400, var(--bs-secondary-color));
+  }
+
+  p {
+    margin: 0;
+    max-width: 32ch;
+  }
+}
+
+/* CDK drag chrome. The preview clone is appended to <body>, so it needs an unscoped (::ng-deep) rule;
+   it's keyed on .faq-edit-card so it can't leak to other drag lists. */
+::ng-deep .faq-edit-card.cdk-drag-preview {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.faq-edit-card.cdk-drag-placeholder {
+  opacity: 0.4;
+}
+
+.cdk-drag-animating {
+  transition: transform 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+.help-faq-editor.cdk-drop-list-dragging .faq-edit-card:not(.cdk-drag-placeholder) {
+  transition: transform 0.2s cubic-bezier(0, 0, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cdk-drag-animating,
+  .help-faq-editor.cdk-drop-list-dragging .faq-edit-card:not(.cdk-drag-placeholder) {
+    transition: none;
+  }
+}
+
+/* Flex child with a resolved height, so the RTE's height:100% has something to measure against. */
+.help-rte-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+:host ::ng-deep .help-rte-wrap .e-richtexteditor {
+  height: 100% !important;
+}
+
+/* ── Edit-mode toolbar: Save/Cancel (left) · Add question / Insert (right) ── */
+.help-edit-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  flex-shrink: 0;
+}
+
+.help-add-faq {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.help-insert {
+  position: relative;
+}
+
+.help-insert-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+
+  .help-insert-caret {
+    font-size: 0.75em;
+    transition: transform 0.15s ease;
+  }
+
+  &.active .help-insert-caret {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .help-insert-caret {
+      transition: none;
+    }
+  }
+}
+
+/* Transparent full-screen catcher so a click anywhere dismisses the palette (the drawer's own idiom). */
+.help-insert-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1055;
+  background: transparent;
+}
+
+.help-insert-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 1056;
+  min-width: 14rem;
+  padding: var(--space-1);
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--radius-md);
+  background: var(--bs-body-bg, #fff);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+.help-insert-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--bs-body-color);
+  font-size: var(--font-size-sm, 0.875rem);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+
+  > i {
+    color: var(--bs-primary);
+    font-size: 1rem;
+  }
+
+  &:hover {
+    background: var(--bs-primary);
+    color: #fff;
+
+    > i {
+      color: #fff;
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: var(--shadow-focus);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.help-edit-hint {
+  flex-shrink: 0;
+  margin: var(--space-3) 0 0;
+  font-size: var(--font-size-sm, 0.875rem);
+  color: var(--bs-secondary-color, var(--neutral-500));
+
+  code {
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-sm);
+    background: var(--bs-tertiary-bg, var(--neutral-100));
+    font-size: 0.85em;
+  }
+}
