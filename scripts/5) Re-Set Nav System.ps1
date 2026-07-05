@@ -169,7 +169,6 @@ $adminManifest = @(
     (New-AdminItem 'Configure' 'gear' 2 'Administrators'      'person-badge'  'configure/administrators'          5  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options'    'list'          'configure/ddl-options'             6  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Profile Editor'      'pencil-square' 'tools/profile-editor'              7  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Adult Form Designer' 'people-fill'   'tools/adult-profile-editor'        8  0 0 1 $null 'NEW')
     (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'    'collection'    'reporting/report-catalogue-editor' 9  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Theme'               'palette'       'configure/theme'                   10 0 0 1)
 
