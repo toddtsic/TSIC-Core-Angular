@@ -6,5 +6,7 @@ export type AdultRegistrationResponse = {
     success: boolean;
     registrationId: string;
     message?: string | null;
+    paymentSucceeded?: boolean;
+    amountOwed?: number;
 };
 

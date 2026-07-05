@@ -174,6 +174,12 @@ export class AdultWizardStateService {
     readonly paymentSubmitting = this._paymentSubmitting.asReadonly();
     readonly paymentError = this._paymentError.asReadonly();
     readonly paymentSuccess = this._paymentSuccess.asReadonly();
+    // Set when the account + registration were created but the card was DECLINED — the
+    // wizard must show a "payment not completed" state, NOT the success confirmation.
+    private readonly _paymentDeclined = signal(false);
+    private readonly _amountOwed = signal(0);
+    readonly paymentDeclined = this._paymentDeclined.asReadonly();
+    readonly amountOwed = this._amountOwed.asReadonly();
 
     // ── Submission state ──────────────────────────────────────────
     private readonly _submitting = signal(false);
@@ -638,6 +644,20 @@ export class AdultWizardStateService {
             );
             this._paymentSubmitting.set(false);
 
+            // Card declined: the account + registration ARE created (owing the balance),
+            // but no charge was captured. Surface the unpaid balance instead of the success
+            // confirmation. Re-submit is blocked in the UI because it would re-run account
+            // creation — the just-created anonymous user has no token to pay in place.
+            if (res?.success && res.paymentSucceeded === false) {
+                this._registrationId.set(res.registrationId);
+                this._amountOwed.set(res.amountOwed ?? 0);
+                this._paymentDeclined.set(true);
+                this._paymentError.set(
+                    res.message ?? 'Your payment was declined and has not been completed.',
+                );
+                return false;
+            }
+
             if (res?.success) {
                 this._paymentSuccess.set(true);
                 this._submitSuccess.set(true);
@@ -797,6 +817,8 @@ export class AdultWizardStateService {
         this._paymentSubmitting.set(false);
         this._paymentError.set(null);
         this._paymentSuccess.set(false);
+        this._paymentDeclined.set(false);
+        this._amountOwed.set(0);
         this._submitting.set(false);
         this._submitError.set(null);
         this._submitSuccess.set(false);

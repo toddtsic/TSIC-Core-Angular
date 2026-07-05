@@ -144,6 +144,17 @@ public record AdultRegistrationResponse
     public required bool Success { get; init; }
     public required Guid RegistrationId { get; init; }
     public string? Message { get; init; }
+
+    /// <summary>
+    /// False ONLY when a credit-card charge was attempted and declined. The account and
+    /// registration are still persisted (owing the balance) — this flag lets the client
+    /// surface a "payment not completed" state instead of the success confirmation.
+    /// Defaults to true so no-fee, pay-by-check, and non-charging paths report success.
+    /// </summary>
+    public bool PaymentSucceeded { get; init; } = true;
+
+    /// <summary>Outstanding balance on the registration after this call (0 when fully paid or free).</summary>
+    public decimal AmountOwed { get; init; }
 }
 
 /// <summary>

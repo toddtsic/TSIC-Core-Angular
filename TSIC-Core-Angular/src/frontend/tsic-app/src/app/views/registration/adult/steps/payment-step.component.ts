@@ -33,10 +33,31 @@ import type { CreditCardInfo } from '@core/api';
         <div class="card shadow border-0 card-rounded">
             <div class="card-body">
                 <!-- Error banner -->
-                @if (state.paymentError()) {
+                @if (state.paymentError() && !state.paymentDeclined()) {
                     <div class="alert alert-danger d-flex align-items-start gap-2" role="alert">
                         <i class="bi bi-exclamation-triangle-fill mt-1"></i>
                         <div>{{ state.paymentError() }}</div>
+                    </div>
+                }
+
+                <!-- Card declined: registration saved but unpaid. The interactive payment UI
+                     below is hidden because re-submitting would re-run account creation — the
+                     just-created anonymous user has no token to pay in place. -->
+                @if (state.paymentDeclined()) {
+                    <div class="alert alert-warning d-flex align-items-start gap-2" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+                        <div>
+                            <div class="fw-bold">Payment not completed</div>
+                            <div>
+                                Your registration has been saved, but your card was declined — a
+                                balance of <strong>{{ state.amountOwed() | currency }}</strong> is
+                                still owed and no charge was made.
+                            </div>
+                            <div class="mt-1">
+                                To complete payment, sign in with the username and password you just
+                                created, or contact the event director for help.
+                            </div>
+                        </div>
                     </div>
                 }
 
@@ -86,6 +107,7 @@ import type { CreditCardInfo } from '@core/api';
                     </section>
                 }
 
+                @if (!state.paymentDeclined()) {
                 <!-- Payment method selector -->
                 <section class="mb-4">
                     <h6 class="text-muted mb-2">Payment Method</h6>
@@ -143,6 +165,7 @@ import type { CreditCardInfo } from '@core/api';
                         }
                     </button>
                 </div>
+                }
             </div>
         </div>
     `,
