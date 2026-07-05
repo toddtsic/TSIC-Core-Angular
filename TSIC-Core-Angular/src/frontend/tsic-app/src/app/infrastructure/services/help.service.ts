@@ -1,30 +1,38 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { environment } from '@environments/environment';
-import type { HelpContentDto, HelpManifestDto, SaveHelpContentRequest } from '@core/api';
+import { Observable, of, catchError, map } from 'rxjs';
+import { HelpContent, HelpManifest } from './help.types';
+import { HelpFsService } from './help-fs.service';
 
 /**
- * Context-sensitive help content. Reads are anonymous; the save is SuperUser + sandbox only
- * (the API returns 404 for a save on production). Content is authored as HTML fragments and
- * illustrated with the app's own design-system markup — see App_Data/Help on the backend.
+ * Context-sensitive help content, served as static assets from public/help. It travels with the
+ * frontend build (no API dependency), lives next to the design-system styles it renders with, and is
+ * validated against the route table at build time (scripts/verify-help.mjs). Reads are plain HTTP GETs
+ * for the static files; the dev-only save writes the working-tree file via the File System Access API.
+ * There is deliberately no server — production is read-only by construction.
  */
 @Injectable({ providedIn: 'root' })
 export class HelpService {
   private readonly http = inject(HttpClient);
-  private readonly apiUrl = `${environment.apiUrl}/help`;
+  private readonly fs = inject(HelpFsService);
+  private readonly base = 'help';
 
-  /** The set of keys that actually have content — used to hide the "?" where there's nothing to show. */
-  getManifest(): Observable<HelpManifestDto> {
-    return this.http.get<HelpManifestDto>(`${this.apiUrl}/manifest`);
+  /** The keys that actually have content — drives "?" visibility. Fails closed to an empty set. */
+  getManifest(): Observable<HelpManifest> {
+    return this.http
+      .get<HelpManifest>(`/${this.base}/manifest.json`)
+      .pipe(catchError(() => of({ keys: [] as string[] })));
   }
 
-  getContent(component: string, topic: string): Observable<HelpContentDto> {
-    return this.http.get<HelpContentDto>(`${this.apiUrl}/${component}/${topic}`);
+  /** Fetch one topic's HTML. Callers gate on the manifest, so a missing file is never requested. */
+  getContent(component: string, topic: string): Observable<HelpContent> {
+    return this.http
+      .get(`/${this.base}/${component}/${topic}.html`, { responseType: 'text' })
+      .pipe(map((html) => ({ component, topic, html, exists: true })));
   }
 
-  saveContent(component: string, topic: string, html: string): Observable<HelpContentDto> {
-    const body: SaveHelpContentRequest = { html };
-    return this.http.put<HelpContentDto>(`${this.apiUrl}/${component}/${topic}`, body);
+  /** Dev-only save (local development). Writes the working-tree file; author commits & pushes it. */
+  saveContent(component: string, topic: string, html: string): Promise<void> {
+    return this.fs.write(component, topic, html);
   }
 }

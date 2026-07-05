@@ -1,0 +1,106 @@
+<h3>Searching registrations</h3>
+
+<!-- Callout: the one thing that trips people up on both search screens. -->
+<div style="display:flex; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-warning,#ffc107); border-left-width:4px; border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-bottom:var(--space-5,1.25rem);">
+  <i class="bi bi-exclamation-triangle-fill" style="font-size:1.35rem; color:var(--bs-warning,#ffc107);" aria-hidden="true"></i>
+  <div>
+    <strong>Filters don't apply until you press Search.</strong>
+    <div style="margin-top:var(--space-1,.25rem); color:var(--bs-secondary-color);">
+      Set your criteria, then press <button type="button" class="btn btn-primary btn-sm" style="vertical-align:baseline;" disabled>Search</button>. Closing the drawer with unapplied changes prompts you to run it.
+    </div>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I changed my filters but the results didn't update.</span></summary>
+  <div class="faq-a">
+    <p>
+      Filters take effect only when you press <strong>Search</strong>. Active filters then show as removable
+      <strong>chips</strong> above the results, so you can always see — and clear — what's applied.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>A filter changed the role for me. Is that a bug?</span></summary>
+  <div class="faq-a">
+    <p>
+      No. A few filters narrow the role because they only make sense for one kind of registrant — an
+      insurance filter implies players, for example. Some filters also appear only when the event uses that
+      feature (RegSaver insurance, or ARB recurring billing).
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What do the red amount and calendar icon in the Owed column mean?</span></summary>
+  <div class="faq-a">
+    <div style="display:flex; flex-wrap:wrap; gap:var(--space-3,.75rem); margin-bottom:var(--space-3,.75rem);">
+      <span class="badge rounded-pill text-bg-danger">$250 owed</span>
+      <span class="badge rounded-pill text-bg-primary"><i class="bi bi-calendar-event"></i> Auto-pay scheduled</span>
+    </div>
+    <p>
+      A red amount means a balance is due; a calendar icon means an automatic payment is
+      <strong>scheduled</strong> for an upcoming date. The footer totals <strong>Paid</strong> and
+      <strong>Owed</strong> across the whole result set.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why are some rows struck through?</span></summary>
+  <div class="faq-a">
+    <p>Those registrations are <strong>inactive</strong>. The strikethrough sets them apart from active rows.</p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I email just some people, not everyone?</span></summary>
+  <div class="faq-a">
+    <p>
+      Check the rows you want and use <strong>Email Selected</strong> to open the batch composer for those
+      people. <strong>Email All</strong> composes to the entire result set.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Where do I refund a card payment or delete a registration?</span></summary>
+  <div class="faq-a">
+    <p>
+      Click a person's name to open their detail panel. From there you can update contact info and
+      demographics, process a credit-card refund, or delete the registration.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why don't I see the Invite button?</span></summary>
+  <div class="faq-a">
+    <p>
+      It appears only when your search is scoped to a single invitable role — <strong>Player</strong> or
+      <strong>Club Rep</strong> — since an invitation is tied to that role.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "Look up CCs expiring this month" do?</span></summary>
+  <div class="faq-a">
+    <p>
+      For events with recurring billing, it queries the card processor live and returns everyone with a card
+      about to expire — deliberately <em>ignoring your current filters</em> — so you can collect balances
+      before an automatic payment fails.
+    </p>
+  </div>
+</details>
+
+<!-- Tip treatment. -->
+<div style="display:flex; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-border-color); border-left:4px solid var(--bs-primary); border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-top:var(--space-4,1rem);">
+  <i class="bi bi-lightbulb" style="font-size:1.2rem; color:var(--bs-primary);" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> the filter <strong>chips</strong> above the results are your safety check. If a
+    search looks wrong, check the chips before assuming the data is off — usually a stray filter is still
+    applied.
+  </div>
+</div>

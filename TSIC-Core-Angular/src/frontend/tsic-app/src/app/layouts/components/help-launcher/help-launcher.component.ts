@@ -13,7 +13,7 @@ import {
   RichTextEditorAllModule,
   RichTextEditorComponent,
 } from '@syncfusion/ej2-angular-richtexteditor';
-import type { HelpContentDto } from '@core/api';
+import type { HelpContent } from '@infrastructure/services/help.types';
 import { HelpService } from '@infrastructure/services/help.service';
 import { HelpContextService } from '@infrastructure/services/help-context.service';
 import { HelpManifestService } from '@infrastructure/services/help-manifest.service';
@@ -42,8 +42,12 @@ const HELP_SNIPPETS: readonly HelpSnippet[] = [
   {
     label: 'Question & answer',
     icon: 'bi-chat-left-text',
-    html: `<h4>New question — replace with your question</h4>
-<p>Replace with the answer. A sentence or two is ideal; <strong>bold</strong> the key term so it stands out.</p>`,
+    html: `<details class="faq-item" open>
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Replace with your question</span></summary>
+  <div class="faq-a">
+    <p>Replace with the answer. A sentence or two is ideal; <strong>bold</strong> the key term so it stands out.</p>
+  </div>
+</details>`,
   },
   {
     label: 'Warning callout',
@@ -85,12 +89,13 @@ const HELP_SNIPPETS: readonly HelpSnippet[] = [
 /**
  * The single, app-wide "?" launcher. It reads the current route's help key (via HelpContextService)
  * and opens a right-side drawer with two tabs for that page: Help (the authored explainer) and FAQ
- * (a growing Q&A). Each tab is a topic under the same component — Help = "overview", FAQ = "faq" — so
- * the whole thing rides on the existing {component}/{topic} storage with no backend change.
+ * (a growing Q&A). Each tab is a topic under the same component — Help = "overview", FAQ = "faq" —
+ * served as a static asset from public/{component}/{topic}.html.
  *
  * Content renders with the app's own design-system styles, so illustrations look like the real product.
- * A SuperUser on a sandbox environment sees a pencil that edits whichever tab is active via the
- * Syncfusion editor and writes the working-tree file (Model A). FAQ is the tab that grows over time.
+ * In LOCAL development the served files are the working tree, so a SuperUser sees a pencil that edits
+ * whichever tab is active in the Syncfusion editor and writes the file directly (File System Access
+ * API) — then it's committed and pushed like any change. FAQ is the tab that grows over time.
  */
 @Component({
   selector: 'app-help-launcher',
@@ -119,7 +124,7 @@ export class HelpLauncherComponent {
   readonly isOpen = signal(false);
   readonly loading = signal(false);
   readonly failed = signal(false);
-  readonly content = signal<HelpContentDto | null>(null);
+  readonly content = signal<HelpContent | null>(null);
   readonly editing = signal(false);
   readonly saving = signal(false);
   readonly draft = signal('');
@@ -130,7 +135,7 @@ export class HelpLauncherComponent {
   readonly snippets = HELP_SNIPPETS;
 
   // Per-topic cache so switching Help <-> FAQ doesn't refetch/flicker within a session.
-  private readonly cache = new Map<string, HelpContentDto>();
+  private readonly cache = new Map<string, HelpContent>();
 
   /** The component (page) for the current route, or null when the route declares no help key. */
   readonly component = computed(() => {
@@ -144,9 +149,9 @@ export class HelpLauncherComponent {
     return html ? this.sanitizer.bypassSecurityTrustHtml(html) : null;
   });
 
-  /** Show the edit affordance only where the server permits it (sandbox) AND the user is a SuperUser. */
+  /** Show the edit affordance only in local development (writable working tree) AND to a SuperUser. */
   readonly canEdit = computed(
-    () => !!this.content()?.canEdit && this.auth.isSuperuser() && !!this.component()
+    () => this.manifest.canEdit() && this.auth.isSuperuser() && !!this.component()
   );
 
   /**
@@ -210,9 +215,19 @@ export class HelpLauncherComponent {
     }
 
     const topic = this.activeTopic();
-    const cached = this.cache.get(`${component}/${topic}`);
+    const key = `${component}/${topic}`;
+    const cached = this.cache.get(key);
     if (cached) {
       this.content.set(cached);
+      this.failed.set(false);
+      this.loading.set(false);
+      return;
+    }
+
+    // Gate on the manifest: only fetch topics that actually have a file. A GET for a missing static
+    // asset would fall through to the SPA's index.html (200 + HTML), not a 404 — so never request one.
+    if (!this.manifest.has(key)) {
+      this.content.set({ component, topic, html: '', exists: false });
       this.failed.set(false);
       this.loading.set(false);
       return;
@@ -221,9 +236,9 @@ export class HelpLauncherComponent {
     this.loading.set(true);
     this.failed.set(false);
     this.help.getContent(component, topic).subscribe({
-      next: (dto) => {
-        this.cache.set(`${component}/${topic}`, dto);
-        this.content.set(dto);
+      next: (c) => {
+        this.cache.set(key, c);
+        this.content.set(c);
         this.loading.set(false);
       },
       error: () => {
@@ -234,9 +249,21 @@ export class HelpLauncherComponent {
   }
 
   startEdit(): void {
-    this.draft.set(this.content()?.html ?? '');
+    // Expand every accordion so its answer is visible/editable in the RTE (collapsed <details> hide their
+    // body). The `open` state is authoring-only — save() strips it so the live view renders collapsed.
+    this.draft.set(this.expandAccordions(this.content()?.html ?? ''));
     this.editing.set(true);
     this.insertOpen.set(false);
+  }
+
+  /** Add `open` to any FAQ <details> that lacks it, so authors can see the answer while editing. */
+  private expandAccordions(html: string): string {
+    return html.replace(/<details\b(?![^>]*\bopen\b)([^>]*)>/gi, '<details$1 open>');
+  }
+
+  /** Strip the authoring-only `open` attribute so saved content renders collapsed on the read view. */
+  private collapseAccordions(html: string): string {
+    return html.replace(/(<details\b[^>]*?)\s+open(\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi, '$1');
   }
 
   cancelEdit(): void {
@@ -269,21 +296,27 @@ export class HelpLauncherComponent {
     const component = this.component();
     if (!component) return;
     const topic = this.activeTopic();
+    const key = `${component}/${topic}`;
+    const html = this.collapseAccordions(this.draft());
 
     this.saving.set(true);
-    this.help.saveContent(component, topic, this.draft()).subscribe({
-      next: (dto) => {
-        this.cache.set(`${component}/${topic}`, dto);
-        this.content.set(dto);
+    this.help
+      .saveContent(component, topic, html)
+      .then(() => {
+        const saved: HelpContent = { component, topic, html, exists: true };
+        this.cache.set(key, saved);
+        this.content.set(saved);
         this.editing.set(false);
         this.saving.set(false);
-        this.manifest.markAvailable(`${component}/${topic}`);
-        this.toast.show('Help content saved', 'success');
-      },
-      error: (err) => {
+        this.manifest.markAvailable(key);
+        this.toast.show('Saved to your working tree — commit & push to publish', 'success');
+      })
+      .catch((err: unknown) => {
         this.saving.set(false);
-        this.toast.show(err?.error?.message ?? 'Failed to save help content', 'danger');
-      },
-    });
+        const e = err as { name?: string; message?: string };
+        const msg =
+          e?.name === 'AbortError' ? 'Save cancelled' : e?.message ?? 'Failed to save help content';
+        this.toast.show(msg, 'danger');
+      });
   }
 }

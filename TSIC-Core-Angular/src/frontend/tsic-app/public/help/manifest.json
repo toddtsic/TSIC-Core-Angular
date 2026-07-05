@@ -1,0 +1,16 @@
+{
+  "keys": [
+    "login/faq",
+    "login/overview",
+    "registration-wizard/faq",
+    "registration-wizard/overview",
+    "role-selection/faq",
+    "role-selection/overview",
+    "search-registrations/faq",
+    "search-registrations/overview",
+    "search-teams/faq",
+    "search-teams/overview",
+    "team-registration/faq",
+    "team-registration/overview"
+  ]
+}

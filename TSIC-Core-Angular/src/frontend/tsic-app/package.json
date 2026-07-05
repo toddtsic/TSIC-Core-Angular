@@ -3,10 +3,13 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
+    "prestart": "node scripts/gen-help-manifest.mjs",
     "start": "ng serve --configuration development",
+    "prebuild": "node scripts/gen-help-manifest.mjs",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "verify:help": "node scripts/verify-help.mjs",
     "serve:ssr:tsic-app": "node dist/tsic-app/server/server.mjs",
     "generate:api": "npx openapi-typescript-codegen --input http://localhost:5022/swagger/v1/swagger.json --output ./src/app/core/api --client fetch --useOptions false --exportCore false --exportServices false --exportModels true --exportSchemas false"
   },

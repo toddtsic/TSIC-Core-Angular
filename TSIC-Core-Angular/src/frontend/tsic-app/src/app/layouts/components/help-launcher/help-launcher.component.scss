@@ -218,6 +218,70 @@
     height: auto;
     border-radius: var(--radius-md);
   }
+
+  /* ── FAQ accordion — each Q is a <details class="faq-item">, question in the <summary> ── */
+  details.faq-item {
+    margin: 0 0 var(--space-2);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    background: var(--bs-body-bg, #fff);
+    overflow: hidden;
+
+    summary {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      font-weight: var(--font-weight-semibold, 600);
+      color: var(--bs-body-color);
+      cursor: pointer;
+      list-style: none; /* strip the native disclosure triangle */
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &:hover {
+        background: var(--bs-tertiary-bg, var(--neutral-100));
+      }
+
+      &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+      }
+    }
+
+    .faq-caret {
+      flex-shrink: 0;
+      font-size: 0.8em;
+      color: var(--bs-primary);
+      transition: transform 0.15s ease;
+    }
+
+    &[open] {
+      summary {
+        border-bottom: 1px solid var(--bs-border-color);
+      }
+
+      .faq-caret {
+        transform: rotate(90deg);
+      }
+    }
+
+    .faq-a {
+      padding: var(--space-3) var(--space-4);
+
+      > :last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .faq-caret {
+        transition: none;
+      }
+    }
+  }
 }
 
 /* ── Edit-mode "Insert" palette ── */
