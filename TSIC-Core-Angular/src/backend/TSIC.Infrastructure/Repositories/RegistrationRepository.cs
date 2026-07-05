@@ -2783,24 +2783,26 @@ public class RegistrationRepository : IRegistrationRepository
     }
 
     /// <summary>
-    /// Build Rule seed — MINT-ONLY for the "Assigned, no anchor" population: every adult directly
-    /// rostered as Staff (<c>AssignedTeamId</c> set) who has NO UnassignedAdult anchor yet (the
-    /// legacy coaches who were rostered without being funneled through the firewall). Each gets an
-    /// active anchor minted (carrying the Staff club label + earliest roster date), seeded with
-    /// the current grants as <see cref="AdultTeamRequestSource.Admin"/>, so they surface in the
-    /// approval queue.
-    ///
-    /// The seed NEVER touches an existing anchor — the other two populations need no work:
+    /// Build Rule seed — codify pre-existing (legacy) team grants into each coach's append-only
+    /// record so every LIVE Staff grant reads as "assigned" in the approval queue. Restores the
+    /// invariant <c>assignedTeams ⊆ recordedTeams</c> for adults rostered before the record was
+    /// codified. Keyed on the live Staff rows (<c>AssignedTeamId</c> set) — the assignment source
+    /// of truth — grouped per adult, with two actions:
     /// <list type="bullet">
-    /// <item><b>Unassigned only</b> (anchor, no grant) — its record is whatever it registered with;
-    ///   nothing to codify, and the queue read surfaces it on its own.</item>
-    /// <item><b>Combo</b> (anchor + grant) — already kept in sync by
-    ///   <see cref="AppendGrantedTeamToRecordAsync"/> at approval time (and a minted anchor already
-    ///   carries its grants), so a merge here is a redundant no-op.</item>
+    /// <item><b>No anchor</b> ("Assigned, no anchor" — legacy coaches rostered without being funneled
+    ///   through the firewall): MINT an active anchor carrying the Staff club label + earliest roster
+    ///   date, seeded with the current grants as <see cref="AdultTeamRequestSource.Admin"/>.</item>
+    /// <item><b>Active anchor</b> whose record is missing a held grant (legacy free-text record, or
+    ///   drift — the <b>Combo</b> population that <see cref="AppendGrantedTeamToRecordAsync"/> never
+    ///   codified because the grant predates the flow): APPEND the missing grants as
+    ///   <see cref="AdultTeamRequestSource.Admin"/>. <see cref="AdultTeamRequestData.Parse"/> keeps the
+    ///   legacy free-text as the note and <see cref="AdultTeamRequestData.AddTeam"/> dedups + never
+    ///   downgrades a <see cref="AdultTeamRequestSource.Self"/> pick, so it is a pure append —
+    ///   nothing is rewritten or lost.</item>
     /// </list>
-    /// So the seed only ever INSERTS, never updates — idempotent (a minted anchor suppresses its
-    /// own re-mint, and an existing anchor of any status suppresses minting, so a denied coach is
-    /// not resurrected).
+    /// A coach whose ONLY anchor is denied (<c>bActive=0</c>) is skipped for both mint and append —
+    /// never resurrected. Idempotent: a fully-codified record yields no writes (every AddTeam is a
+    /// no-op), so re-running (every queue open) is a no-op once healed.
     /// </summary>
     public async Task SeedAdultRequestRecordsAsync(Guid jobId, string adminUserId, CancellationToken ct = default)
     {
@@ -2814,15 +2816,19 @@ public class RegistrationRepository : IRegistrationRepository
             .ToListAsync(ct);
         if (staffRows.Count == 0) return;
 
-        // Adults who already have ANY UnassignedAdult anchor (active or denied) — suppresses mint.
-        var anchoredUserIds = (await _context.Registrations
-            .AsNoTracking()
+        // Every UnassignedAdult anchor in the job (any status), tracked — we append into the
+        // ACTIVE ones. A denied-only anchor (bActive=0) still suppresses mint so a denied coach is
+        // never resurrected; denied rows are loaded but never mutated.
+        var anchors = await _context.Registrations
             .Where(r => r.JobId == jobId
                 && r.Role!.Name == RoleConstants.Names.UnassignedAdultName
                 && r.UserId != null)
-            .Select(r => r.UserId!)
-            .ToListAsync(ct))
-            .ToHashSet();
+            .ToListAsync(ct);
+        var activeAnchorByUser = anchors
+            .Where(r => r.BActive == true)
+            .GroupBy(r => r.UserId!)
+            .ToDictionary(g => g.Key, g => g.First());
+        var anchoredUserIds = anchors.Select(r => r.UserId!).ToHashSet();
 
         // Team label parts (shared lookup) → the minted anchor's Assignment field.
         var teamIds = staffRows.Select(r => r.TeamId).Distinct().ToList();
@@ -2830,13 +2836,32 @@ public class RegistrationRepository : IRegistrationRepository
             .ToDictionary(kv => kv.Key, kv => kv.Value.AssignmentLabel());
 
         var now = DateTime.Now;
-        var minted = false;
+        var dirty = false;
         foreach (var grp in staffRows.GroupBy(r => r.UserId!))
         {
-            if (anchoredUserIds.Contains(grp.Key)) continue; // already funneled (or denied) — leave it
-
             var grpTeamIds = grp.Select(x => x.TeamId).Distinct().ToList();
 
+            // Existing active anchor → fold any held grant missing from its record (legacy
+            // free-text or drift) as Admin. Pure append: the note + any Self tags are preserved.
+            if (activeAnchorByUser.TryGetValue(grp.Key, out var anchor))
+            {
+                var record = AdultTeamRequestData.Parse(anchor.SpecialRequests);
+                var changed = false;
+                foreach (var tid in grpTeamIds)
+                    changed |= record.AddTeam(tid, AdultTeamRequestSource.Admin);
+                if (changed)
+                {
+                    anchor.SpecialRequests = AdultTeamRequestData.Serialize(record);
+                    anchor.Modified = now;
+                    anchor.LebUserId = adminUserId;
+                    dirty = true;
+                }
+                continue;
+            }
+
+            if (anchoredUserIds.Contains(grp.Key)) continue; // denied-only anchor — do not resurrect
+
+            // No anchor at all → MINT an active anchor seeded with the current grants.
             var data = new AdultTeamRequestData();
             foreach (var tid in grpTeamIds)
                 data.AddTeam(tid, AdultTeamRequestSource.Admin);
@@ -2866,10 +2891,10 @@ public class RegistrationRepository : IRegistrationRepository
                 LebUserId = adminUserId,
                 Modified = now
             });
-            minted = true;
+            dirty = true;
         }
 
-        if (minted) await _context.SaveChangesAsync(ct);
+        if (dirty) await _context.SaveChangesAsync(ct);
     }
 
     /// <summary>
