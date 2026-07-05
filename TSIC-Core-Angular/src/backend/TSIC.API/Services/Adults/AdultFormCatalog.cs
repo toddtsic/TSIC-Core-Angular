@@ -11,10 +11,13 @@ namespace TSIC.API.Services.Adults;
 ///
 /// <para><b>Nomenclature is ours, not the legacy strings.</b> The legacy values are only a migration
 /// <i>source</i> (mirrored from <c>StartARegistrationController</c>'s staff-form switch). Going forward a
-/// job's adult coach form is one of two substantive shapes:</para>
+/// job's adult coach form is one of three substantive shapes:</para>
 /// <list type="bullet">
 ///   <item><description><b>AC1 — Adult Coach (Standard)</b>: just Special Requests.</description></item>
 ///   <item><description><b>AC2 — Adult Coach (Apparel)</b>: jersey / shorts / waist / shoe sizes + Special Requests.</description></item>
+///   <item><description><b>AC3 — Adult Coach (Shirt + Shoe)</b>: jersey + shoe sizes only + Special Requests
+///   (the faithful legacy <c>StaffASL</c> subset — a strict subset of AC2, kept distinct so ASL jobs don't
+///   over-collect shorts/waist).</description></item>
 /// </list>
 ///
 /// <para><b><c>sportAssnId</c>/USLax is a capability, NOT a profile.</b> Whether a coach form requires a
@@ -28,8 +31,9 @@ public static class AdultFormCatalog
     // ── Canonical profile codes (ours; analogous to the player PP##/CAC## profile-types) ──
     public const string AC1 = "AC1";
     public const string AC2 = "AC2";
+    public const string AC3 = "AC3";
 
-    public static readonly IReadOnlyList<string> AllProfiles = new[] { AC1, AC2 };
+    public static readonly IReadOnlyList<string> AllProfiles = new[] { AC1, AC2, AC3 };
 
     public static bool IsKnownProfile(string? profile) =>
         !string.IsNullOrWhiteSpace(profile) &&
@@ -39,6 +43,7 @@ public static class AdultFormCatalog
     {
         AC1 => "Adult Coach (Standard)",
         AC2 => "Adult Coach (Apparel)",
+        AC3 => "Adult Coach (Shirt + Shoe)",
         _ => profile
     };
 
@@ -61,10 +66,10 @@ public static class AdultFormCatalog
     {
         var v = (regformNameCoach ?? string.Empty).Trim();
 
-        if (Eq(v, "StaffSTEPS")) return (AC2, false);            // apparel
-        if (Eq(v, "StaffLaxValidatePlus")) return (AC2, true);   // apparel + USLax
+        if (Eq(v, "StaffSTEPS")) return (AC2, false);            // full apparel (jersey/shorts/waist/shoe)
+        if (Eq(v, "StaffLaxValidatePlus")) return (AC2, true);   // full apparel + USLax
         if (Eq(v, "StaffLaxValidate")) return (AC1, true);       // base + USLax
-        if (Eq(v, "StaffASL")) return (AC2, false);              // apparel (jersey/shoe subset → folded into AC2)
+        if (Eq(v, "StaffASL")) return (AC3, false);              // shirt + shoe ONLY (legacy StaffASL subset)
 
         // Default "Staff" base coach form: RegAdult_WANTTOCOACH_RegForm, Defalt_Form, Default_Form,
         // CP-STEPS, and anything unrecognized.
@@ -101,13 +106,21 @@ public static class AdultFormCatalog
             fields.Add(UsLaxField(order++));
         }
 
-        // Apparel (AC2 only): sizes carried as legacy option lists (inline Options + per-job ListSizes_*).
+        // Apparel: sizes carried as legacy option lists (inline Options + per-job ListSizes_*).
+        // AC2 = full apparel (jersey/shorts/waist/shoe); AC3 = shirt+shoe subset (legacy StaffASL).
+        // Display names are the legacy DataAnnotation [Display(Name=...)] strings, verbatim from the staff
+        // RegformFields view models (StaffSTEPS / StaffLaxValidatePlus / StaffASL all agree on these).
         if (Eq(profile, AC2))
         {
-            fields.Add(Size("jerseySize", "JerseySize", "Jersey Size", "ListSizes_Jersey", JerseySizes, order++));
-            fields.Add(Size("shortsSize", "ShortsSize", "Shorts Size", "ListSizes_Shorts", ShortsSizes, order++));
+            fields.Add(Size("jerseySize", "JerseySize", "Men's Shirt Size", "ListSizes_Jersey", JerseySizes, order++));
+            fields.Add(Size("shortsSize", "ShortsSize", "Men's or Women's Short Size", "ListSizes_Shorts", ShortsSizes, order++));
             // Waist is overloaded onto the legacy Sweatpants column (no dedicated waist column exists).
-            fields.Add(Size("sweatpants", "Sweatpants", "Waist Size", "ListSizes_Sweatpants", WaistSizes, order++));
+            fields.Add(Size("sweatpants", "Sweatpants", "Men's Waist Size", "ListSizes_Sweatpants", WaistSizes, order++));
+            fields.Add(Size("shoes", "Shoes", "Shoe Size", "ListSizes_Shoes", ShoeSizes, order++));
+        }
+        else if (Eq(profile, AC3))
+        {
+            fields.Add(Size("jerseySize", "JerseySize", "Men's Shirt Size", "ListSizes_Jersey", JerseySizes, order++));
             fields.Add(Size("shoes", "Shoes", "Shoe Size", "ListSizes_Shoes", ShoeSizes, order++));
         }
 

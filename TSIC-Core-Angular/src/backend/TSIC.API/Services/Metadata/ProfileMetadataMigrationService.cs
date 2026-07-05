@@ -1577,10 +1577,18 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
     {
         var roleSet = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax);
 
-        // AC2: seed the apparel ListSizes_* into Jobs.JsonOptions so sizes are admin-editable via the
-        // option-set editor. Upsert-if-absent — never clobber a job's existing custom size list.
-        if (string.Equals(profile, AdultFormCatalog.AC2, StringComparison.OrdinalIgnoreCase))
-            job.JsonOptions = UpsertApparelOptionSets(job.JsonOptions);
+        // Seed the apparel ListSizes_* into Jobs.JsonOptions so sizes are admin-editable via the option-set
+        // editor — but ONLY the sets this profile's coach form actually references (AC2 → 4 sets, AC3 →
+        // jersey+shoe, AC1 → none). Derived from the built coach fields so profiles never over-seed.
+        // Upsert-if-absent — never clobber a job's existing custom size list.
+        var apparelKeys = roleSet.UnassignedAdult.Fields
+            .Where(f => !string.IsNullOrWhiteSpace(f.DataSource)
+                        && AdultFormCatalog.ApparelOptionSets.ContainsKey(f.DataSource!))
+            .Select(f => f.DataSource!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (apparelKeys.Count > 0)
+            job.JsonOptions = UpsertApparelOptionSets(job.JsonOptions, apparelKeys);
 
         // Inject the job's JsonOptions into each role's SELECT fields (custom sizes win over inline defaults),
         // then normalize exactly like the player save (order/visibility/HIDDEN + source stamp).
@@ -1599,8 +1607,8 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         return root.ToJsonString(s_IndentedCamelCase);
     }
 
-    /// <summary>Adds the catalog's apparel option sets to a job's JsonOptions if the key is absent (case-insensitive).</summary>
-    private static string UpsertApparelOptionSets(string? jsonOptions)
+    /// <summary>Adds the named apparel option sets to a job's JsonOptions if the key is absent (case-insensitive).</summary>
+    private static string UpsertApparelOptionSets(string? jsonOptions, IEnumerable<string> keys)
     {
         Dictionary<string, JsonElement>? dict = null;
         if (!string.IsNullOrWhiteSpace(jsonOptions))
@@ -1610,8 +1618,10 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         }
         dict ??= new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (key, values) in AdultFormCatalog.ApparelOptionSets)
+        foreach (var key in keys)
         {
+            if (!AdultFormCatalog.ApparelOptionSets.TryGetValue(key, out var values))
+                continue; // not a known apparel set
             if (dict.Keys.Any(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase)))
                 continue; // upsert-if-absent
 

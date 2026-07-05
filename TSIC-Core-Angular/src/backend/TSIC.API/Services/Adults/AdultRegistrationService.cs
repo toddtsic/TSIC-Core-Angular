@@ -253,6 +253,10 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         var primary = registrations[0];
         var owedSum = registrations.Sum(r => r.OwedTotal);
+        // Outstanding balance after this call. Starts at the full owed amount and is
+        // cleared to 0 only when a charge actually settles (or nothing was owed). A
+        // declined card or a pay-by-check choice leaves the balance standing.
+        decimal amountOwed = owedSum;
 
         // Payment — charges the whole group as one transaction.
         if (owedSum > 0m)
@@ -271,25 +275,40 @@ public class AdultRegistrationService : IAdultRegistrationService
 
                 if (!paymentResult.Success)
                 {
+                    // Account + registration are persisted (owing the balance), but the
+                    // card was declined. Report it explicitly (PaymentSucceeded = false +
+                    // AmountOwed) so the client surfaces the unpaid balance instead of a
+                    // "Registration Complete!" confirmation. No charge was captured.
                     return new AdultRegistrationResponse
                     {
                         Success = true,
                         RegistrationId = primary.RegistrationId,
+                        PaymentSucceeded = false,
+                        AmountOwed = owedSum,
                         Message = $"Registration created but payment failed: {paymentResult.Message}"
                     };
                 }
+
+                amountOwed = 0m; // charge settled the full group balance
             }
             else if (request.PaymentMethod == "Check")
             {
                 foreach (var r in registrations) r.PaymentMethodChosen = 3; // Check
                 await _repo.SaveChangesAsync(cancellationToken);
+                // amountOwed stays owedSum — balance is due by mailed check.
             }
+        }
+        else
+        {
+            amountOwed = 0m; // nothing owed
         }
 
         return new AdultRegistrationResponse
         {
             Success = true,
             RegistrationId = primary.RegistrationId,
+            PaymentSucceeded = true,
+            AmountOwed = amountOwed,
             Message = "Registration completed successfully."
         };
     }
@@ -385,32 +404,41 @@ public class AdultRegistrationService : IAdultRegistrationService
             teamIds = requestRecord.RequestedTeamIds.Concat(teamIds).Distinct().ToList();
         }
 
-        // Reverse-map stored columns back to form field values. We look up the
-        // role's metadata (or fallback) schema, then pull each field's value
-        // from the appropriate property on the first registration.
-        var formValues = new Dictionary<string, JsonElement>();
+        // Reverse-map stored columns back to form field values. We look up the role's metadata
+        // (or fallback) schema, then pull EVERY field's value from its backing column on the first
+        // registration (jersey/shoe/sportAssnId/etc.) — the same reflection map the save path uses,
+        // run in reverse. Without this, only teams + the note rehydrated and the size selects came
+        // back blank on return.
         var schemaFields = !string.IsNullOrWhiteSpace(jobData.AdultProfileMetadataJson)
             ? _metadataService.ParseForRole(jobData.AdultProfileMetadataJson, GetRoleKey(roleType), jobData.JsonOptions).TypedFields
             : [];
 
-        // SpecialRequests column — used both by the fallback SpecialRequests field
-        // and by any metadata field with DbColumn=SpecialRequests. Only the human-readable
-        // NOTE is surfaced (legacy free-text parses to the note as-is); the structured teams
-        // JSON is intentionally withheld so it can never appear raw in the textarea.
-        if (!string.IsNullOrWhiteSpace(requestRecord.Note))
+        var mapped = schemaFields
+            .Where(f => !string.IsNullOrWhiteSpace(f.Name))
+            .Select(f => (f.Name, DbColumn: string.IsNullOrWhiteSpace(f.DbColumn) ? f.Name : f.DbColumn))
+            .ToList();
+
+        var formValues = new Dictionary<string, JsonElement>(
+            FormValueMapper.BuildFormValuesDictionary(first, mapped), StringComparer.Ordinal);
+
+        // SpecialRequests is special: for an Unassigned Adult coach the column holds the structured
+        // {teams, note} JSON blob, not free text. Never echo that raw blob into the editable textarea —
+        // replace the reverse-mapped value with the human NOTE only (or drop it when there's no note,
+        // so a raw-JSON legacy value can never leak). Applies to the fallback field and to any metadata
+        // field whose DbColumn is SpecialRequests.
+        var specialRequestsField = "SpecialRequests";
+        foreach (var f in schemaFields)
         {
-            // Find matching field name from schema (fallback "SpecialRequests" if none).
-            var fieldName = "SpecialRequests";
-            foreach (var f in schemaFields)
+            if (string.Equals(f.DbColumn, "SpecialRequests", StringComparison.OrdinalIgnoreCase))
             {
-                if (string.Equals(f.DbColumn, "SpecialRequests", StringComparison.OrdinalIgnoreCase))
-                {
-                    fieldName = f.Name;
-                    break;
-                }
+                specialRequestsField = f.Name;
+                break;
             }
-            formValues[fieldName] = JsonSerializer.SerializeToElement(requestRecord.Note);
         }
+        if (!string.IsNullOrWhiteSpace(requestRecord.Note))
+            formValues[specialRequestsField] = JsonSerializer.SerializeToElement(requestRecord.Note);
+        else
+            formValues.Remove(specialRequestsField);
 
         var waiverAcceptance = new Dictionary<string, bool>
         {

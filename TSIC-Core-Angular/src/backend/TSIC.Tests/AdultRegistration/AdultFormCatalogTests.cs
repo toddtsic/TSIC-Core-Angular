@@ -19,10 +19,10 @@ public class AdultFormCatalogTests
     // ── (a) MapLegacy ────────────────────────────────────────────────────────
 
     [Theory(DisplayName = "MapLegacy collapses each known RegformName_Coach to the right (profile, USLax)")]
-    [InlineData("StaffSTEPS", "AC2", false)]          // apparel
-    [InlineData("StaffLaxValidatePlus", "AC2", true)] // apparel + USLax
+    [InlineData("StaffSTEPS", "AC2", false)]          // full apparel
+    [InlineData("StaffLaxValidatePlus", "AC2", true)] // full apparel + USLax
     [InlineData("StaffLaxValidate", "AC1", true)]     // base + USLax
-    [InlineData("StaffASL", "AC2", false)]            // apparel subset → AC2
+    [InlineData("StaffASL", "AC3", false)]            // shirt + shoe ONLY (distinct subset)
     [InlineData("CP-STEPS", "AC1", false)]            // "STEPS" in name but NOT StaffSTEPS → base
     [InlineData("RegAdult_WANTTOCOACH_RegForm", "AC1", false)]
     [InlineData("Defalt_Form", "AC1", false)]         // legacy misspelling
@@ -106,11 +106,37 @@ public class AdultFormCatalogTests
         coach.Select(f => f.Name).Should().Equal("sportAssnId", "jerseySize", "shortsSize", "sweatpants", "shoes", "specialRequests");
     }
 
+    [Fact(DisplayName = "AC3 without USLax: shirt + shoe SELECTs ONLY (no shorts/waist) then Special Requests")]
+    public void BuildRoleSet_AC3_NoUsLax()
+    {
+        var coach = AdultFormCatalog.BuildRoleSet("AC3", requiresUsLax: false).UnassignedAdult.Fields;
+
+        // The whole point of AC3: jersey + shoe only — NOT shorts/waist (that would be AC2 over-collecting).
+        coach.Select(f => f.Name).Should().Equal("jerseySize", "shoes", "specialRequests");
+
+        var apparel = coach.Where(f => f.Name != "specialRequests").ToList();
+        apparel.Should().OnlyContain(f => f.InputType == "SELECT");
+        apparel.Should().OnlyContain(f => f.Options != null && f.Options.Count > 0);
+        apparel.Should().OnlyContain(f => f.Validation != null && f.Validation.Required);
+        apparel.Select(f => f.DataSource).Should().Equal("ListSizes_Jersey", "ListSizes_Shoes");
+        coach.Should().NotContain(f => f.Name == "shortsSize" || f.Name == "sweatpants");
+        coach.Should().NotContain(f => f.Name == "sportAssnId");
+    }
+
+    [Fact(DisplayName = "AC3 with USLax: sportAssnId first, then shirt + shoe, then Special Requests")]
+    public void BuildRoleSet_AC3_UsLax()
+    {
+        var coach = AdultFormCatalog.BuildRoleSet("AC3", requiresUsLax: true).UnassignedAdult.Fields;
+        coach.Select(f => f.Name).Should().Equal("sportAssnId", "jerseySize", "shoes", "specialRequests");
+    }
+
     [Theory(DisplayName = "sportAssnId appears in the coach block IFF USLax is required")]
     [InlineData("AC1", false, false)]
     [InlineData("AC1", true, true)]
     [InlineData("AC2", false, false)]
     [InlineData("AC2", true, true)]
+    [InlineData("AC3", false, false)]
+    [InlineData("AC3", true, true)]
     public void BuildRoleSet_SportAssnId_PresentIffUsLax(string profile, bool requiresUsLax, bool expectPresent)
     {
         var coach = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax).UnassignedAdult.Fields;
@@ -123,6 +149,8 @@ public class AdultFormCatalogTests
     [InlineData("AC1", true)]
     [InlineData("AC2", false)]
     [InlineData("AC2", true)]
+    [InlineData("AC3", false)]
+    [InlineData("AC3", true)]
     public void BuildRoleSet_OrdersSequential(string profile, bool requiresUsLax)
     {
         var coach = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax).UnassignedAdult.Fields;
@@ -136,6 +164,8 @@ public class AdultFormCatalogTests
     [InlineData("AC1", true)]
     [InlineData("AC2", false)]
     [InlineData("AC2", true)]
+    [InlineData("AC3", false)]
+    [InlineData("AC3", true)]
     public void BuildRoleSet_RefereeRecruiter_Uniform(string profile, bool requiresUsLax)
     {
         var set = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax);
@@ -157,22 +187,26 @@ public class AdultFormCatalogTests
     [Theory(DisplayName = "Canonical normalizes casing and passes unknown values through unchanged")]
     [InlineData("ac1", "AC1")]
     [InlineData("Ac2", "AC2")]
+    [InlineData("ac3", "AC3")]
     [InlineData("AC1", "AC1")]
     [InlineData("weird", "weird")]
     public void Canonical_Normalizes(string input, string expected)
         => AdultFormCatalog.Canonical(input).Should().Be(expected);
 
-    [Theory(DisplayName = "DisplayName gives the two canonical coach labels")]
+    [Theory(DisplayName = "DisplayName gives the three canonical coach labels")]
     [InlineData("AC1", "Adult Coach (Standard)")]
     [InlineData("ac2", "Adult Coach (Apparel)")]
+    [InlineData("AC3", "Adult Coach (Shirt + Shoe)")]
     public void DisplayName_Labels(string profile, string expected)
         => AdultFormCatalog.DisplayName(profile).Should().Be(expected);
 
-    [Theory(DisplayName = "IsKnownProfile recognizes AC1/AC2 in any case and nothing else")]
+    [Theory(DisplayName = "IsKnownProfile recognizes AC1/AC2/AC3 in any case and nothing else")]
     [InlineData("AC1", true)]
     [InlineData("AC2", true)]
+    [InlineData("AC3", true)]
     [InlineData("ac1", true)]
-    [InlineData("AC3", false)]
+    [InlineData("ac3", true)]
+    [InlineData("AC9", false)]
     [InlineData("", false)]
     [InlineData(null, false)]
     public void IsKnownProfile_Recognizes(string? profile, bool expected)

@@ -42,9 +42,9 @@ export const ADULT_ALLOWED_FIELDS: AllowedField[] = [
 
     // Apparel (SELECT, options sourced from the ListSizes_* sets seeded into Jobs.JsonOptions at migration)
     { name: 'tShirt', displayName: 'T‑Shirt Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'TShirt', dataSource: 'ListSizes_Jersey' },
-    { name: 'jerseySize', displayName: 'Jersey Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'JerseySize', dataSource: 'ListSizes_Jersey' },
-    { name: 'shortsSize', displayName: 'Shorts Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'ShortsSize', dataSource: 'ListSizes_Shorts' },
-    { name: 'sweatpants', displayName: 'Sweatpants (Waist)', inputType: 'SELECT', visibility: 'public', dbColumn: 'Sweatpants', dataSource: 'ListSizes_Sweatpants' },
+    { name: 'jerseySize', displayName: "Men's Shirt Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'JerseySize', dataSource: 'ListSizes_Jersey' },
+    { name: 'shortsSize', displayName: "Men's or Women's Short Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'ShortsSize', dataSource: 'ListSizes_Shorts' },
+    { name: 'sweatpants', displayName: "Men's Waist Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'Sweatpants', dataSource: 'ListSizes_Sweatpants' },
     { name: 'shoes', displayName: 'Shoe Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'Shoes', dataSource: 'ListSizes_Shoes' },
 
     // General

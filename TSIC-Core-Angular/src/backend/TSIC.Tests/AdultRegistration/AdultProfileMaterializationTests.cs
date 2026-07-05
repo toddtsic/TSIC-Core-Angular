@@ -66,6 +66,33 @@ public class AdultProfileMaterializationTests
         repo.Verify(r => r.UpdateMultipleJobsAdultMetadataAsync(It.IsAny<List<Jobs>>()), Times.Once);
     }
 
+    [Fact(DisplayName = "Migrating AC3 (StaffASL) writes shirt+shoe ONLY and seeds just those two size sets — no shorts/waist")]
+    public async Task Migrate_AC3_ShirtAndShoeOnly()
+    {
+        var ac3 = Job("StaffASL");      // → AC3 (legacy StaffASL: jersey + shoe only)
+        var ac2 = Job("StaffSTEPS");    // → AC2, must stay out of an AC3 migration
+        var svc = BuildService(new List<Jobs> { ac3, ac2 }, out _);
+
+        var result = await svc.MigrateAdultProfileAsync("AC3", dryRun: false, force: false);
+
+        result.Success.Should().BeTrue();
+        result.JobsAffected.Should().Be(1);
+
+        var set = JsonSerializer.Deserialize<AdultRoleMetadataSet>(ac3.AdultProfileMetadataJson!, CaseInsensitive)!;
+        var names = set.UnassignedAdult.Fields.Select(f => f.Name).ToList();
+        names.Should().Contain(new[] { "jerseySize", "shoes", "specialRequests" });
+        names.Should().NotContain(new[] { "shortsSize", "sweatpants" });   // the over-collection bug this fixes
+
+        // Only the two referenced size sets are seeded — not the full apparel four.
+        ac3.JsonOptions.Should().NotBeNull();
+        ac3.JsonOptions!.Should().Contain("ListSizes_Jersey");
+        ac3.JsonOptions!.Should().Contain("ListSizes_Shoes");
+        ac3.JsonOptions!.Should().NotContain("ListSizes_Shorts");
+        ac3.JsonOptions!.Should().NotContain("ListSizes_Sweatpants");
+
+        ac2.AdultProfileMetadataJson.Should().BeNull(); // AC2 job untouched by an AC3 migration
+    }
+
     [Fact(DisplayName = "A USLax job gets a required sportAssnId in the materialized coach block")]
     public async Task Migrate_UsLaxJob_PrependsSportAssnId()
     {
