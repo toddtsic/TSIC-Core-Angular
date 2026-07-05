@@ -133,6 +133,31 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .ToListAsync();
     }
 
+    // ============ ADULT PROFILE READ OPERATIONS ============
+
+    public async Task<List<JobForAdultProfileSummary>> GetJobsForAdultProfileSummaryAsync()
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => !string.IsNullOrEmpty(j.RegformNameCoach))
+            .Select(j => new JobForAdultProfileSummary
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? "",
+                Year = j.Year,
+                RegformNameCoach = j.RegformNameCoach,
+                AdultProfileMetadataJson = j.AdultProfileMetadataJson
+            })
+            .ToListAsync();
+    }
+
+    public async Task<List<Jobs>> GetJobsForAdultMigrationAsync()
+    {
+        return await _context.Jobs
+            .Where(j => !string.IsNullOrEmpty(j.RegformNameCoach))
+            .ToListAsync();
+    }
+
     // ============ JOBS WRITE OPERATIONS ============
 
     public async Task UpdateJobPlayerMetadataAsync(Guid jobId, string metadataJson)
@@ -185,6 +210,13 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             job.AdultProfileMetadataJson = adultMetadataJson;
             await _context.SaveChangesAsync();
         }
+    }
+
+    public async Task UpdateMultipleJobsAdultMetadataAsync(List<Jobs> jobs)
+    {
+        // Jobs are already tracked entities from GetJobsForAdultMigrationAsync; the caller mutated
+        // AdultProfileMetadataJson (and JsonOptions for apparel). Just persist.
+        await _context.SaveChangesAsync();
     }
 
     // ============ REGISTRATIONS READ OPERATIONS ============

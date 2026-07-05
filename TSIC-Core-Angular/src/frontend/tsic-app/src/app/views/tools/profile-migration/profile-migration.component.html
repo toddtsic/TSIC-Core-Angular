@@ -2,14 +2,14 @@
     <div class="row">
         <div class="col-12">
             <div class="page-header">
-                <h2 class="page-title"><i class="bi bi-database-gear me-2"></i>Player Profile Migration</h2>
+                <h2 class="page-title"><i class="bi bi-database-gear me-2"></i>{{ mode() === 'adult' ? 'Adult' : 'Player' }} Profile Migration</h2>
                 <div class="page-header-actions">
                     <div class="btn-group btn-group-sm">
                         <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary">
                             <i class="bi bi-house-door me-1"></i> <span class="d-none d-sm-inline">Home</span><span
                                 class="d-inline d-sm-none">Home</span>
                         </a>
-                        <button class="btn btn-outline-secondary" (click)="loadProfiles()" [disabled]="isLoading()">
+                        <button class="btn btn-outline-secondary" (click)="refresh()" [disabled]="isLoading()">
                             <i class="bi bi-arrow-clockwise me-1"></i> <span
                                 class="d-none d-sm-inline">Refresh</span><span class="d-inline d-sm-none">Ref</span>
                         </button>
@@ -21,6 +21,19 @@
                 </div>
             </div>
 
+            <!-- Player / Adult segment -->
+            <div class="btn-group mb-4" role="group" aria-label="Migration mode">
+                <button type="button" class="btn" [class.btn-primary]="mode() === 'player'"
+                    [class.btn-outline-primary]="mode() !== 'player'" (click)="setMode('player')">
+                    <i class="bi bi-person-arms-up me-1"></i> Player
+                </button>
+                <button type="button" class="btn" [class.btn-primary]="mode() === 'adult'"
+                    [class.btn-outline-primary]="mode() !== 'adult'" (click)="setMode('adult')">
+                    <i class="bi bi-person-badge me-1"></i> Adult
+                </button>
+            </div>
+
+            @if (mode() === 'player') {
             <!-- Alert Messages -->
             @if (errorMessage()) {
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -221,6 +234,9 @@
                     }
                 </div>
             </div>
+            } @else {
+            <app-adult-profile-migration-panel></app-adult-profile-migration-panel>
+            }
         </div>
     </div>
 </div>

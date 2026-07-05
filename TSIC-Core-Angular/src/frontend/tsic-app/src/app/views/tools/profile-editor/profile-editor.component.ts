@@ -10,11 +10,12 @@ import { OptionsPanelComponent } from './options-panel/options-panel.component';
 import { FieldSetEditorComponent } from './field-set-editor/field-set-editor.component';
 import { ALLOWED_PROFILE_FIELDS } from './allowed-fields';
 import { AuthService } from '@infrastructure/services/auth.service';
+import { AdultProfileEditorPanelComponent } from './adult-profile-editor-panel/adult-profile-editor-panel.component';
 
 @Component({
     selector: 'app-profile-editor',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, TsicDialogComponent, OptionsPanelComponent, FieldSetEditorComponent],
+    imports: [CommonModule, FormsModule, RouterLink, TsicDialogComponent, OptionsPanelComponent, FieldSetEditorComponent, AdultProfileEditorPanelComponent],
     templateUrl: './profile-editor.component.html',
     styleUrl: './profile-editor.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -23,6 +24,10 @@ export class ProfileEditorComponent implements OnInit {
     private readonly migrationService = inject(ProfileMigrationService);
     private readonly authService = inject(AuthService);
     private readonly toast = inject(ToastService);
+
+    // Player / Adult segment. Player is the original editor; Adult is the type-scoped mirror.
+    mode = signal<'player' | 'adult'>('player');
+    setMode(m: 'player' | 'adult'): void { this.mode.set(m); }
 
     // Allowed field catalogue handed to the shared field editor.
     readonly playerAllowedFields = ALLOWED_PROFILE_FIELDS;

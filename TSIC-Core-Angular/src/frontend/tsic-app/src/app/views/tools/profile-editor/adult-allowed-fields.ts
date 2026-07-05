@@ -1,15 +1,18 @@
-import { AllowedField } from '../profile-editor/allowed-fields';
+import { AllowedField } from './allowed-fields';
 
 // Allowed fields for the ADULT (coach/volunteer, referee, recruiter) form designer.
 //
 // Every dbColumn below is a real Registrations property that survives FormValueMapper's write-side
 // whitelist (IDs are dropped except SportAssnId; fees/system columns and BUploaded*/Adn*/Regsaver*
-// are excluded). Player-only academics (gradYear, SAT/ACT, position-by-sport, sizes catalogue) are
-// intentionally omitted. Extend this list freely — no editor code changes required.
+// are excluded). Player-only academics (gradYear, SAT/ACT, position-by-sport) are intentionally omitted.
+//
+// NOTE: sportAssnId / sportAssnIdexpDate are intentionally ABSENT. USA Lacrosse is an orthogonal
+// per-job capability composed from the immutable RegformName_Coach (see AdultFormCatalog.UsLaxField):
+// the migrator/editor prepend the required sportAssnId to USLax jobs' coach block automatically, and the
+// type-scoped editor strips it on read / re-composes it on write. Offering it here would let a user add a
+// field that is silently stripped on save. Extend this list freely — no editor code changes required.
 export const ADULT_ALLOWED_FIELDS: AllowedField[] = [
-    // Identity / association
-    { name: 'sportAssnId', displayName: 'Sport Assn ID (e.g. USA Lacrosse #)', inputType: 'TEXT', visibility: 'public', dbColumn: 'SportAssnId' },
-    { name: 'sportAssnIdexpDate', displayName: 'Sport Assn ID Exp Date', inputType: 'DATE', visibility: 'public', dbColumn: 'SportAssnIdexpDate' },
+    // Association / experience
     { name: 'sportYearsExp', displayName: 'Years of Experience', inputType: 'SELECT', visibility: 'public', dbColumn: 'SportYearsExp' },
 
     // Coach / volunteer
@@ -37,8 +40,12 @@ export const ADULT_ALLOWED_FIELDS: AllowedField[] = [
     { name: 'twitter', displayName: 'Twitter', inputType: 'TEXT', visibility: 'public', dbColumn: 'Twitter' },
     { name: 'instagram', displayName: 'Instagram', inputType: 'TEXT', visibility: 'public', dbColumn: 'Instagram' },
 
-    // Apparel
-    { name: 'tShirt', displayName: 'T‑Shirt Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'TShirt' },
+    // Apparel (SELECT, options sourced from the ListSizes_* sets seeded into Jobs.JsonOptions at migration)
+    { name: 'tShirt', displayName: 'T‑Shirt Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'TShirt', dataSource: 'ListSizes_Jersey' },
+    { name: 'jerseySize', displayName: 'Jersey Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'JerseySize', dataSource: 'ListSizes_Jersey' },
+    { name: 'shortsSize', displayName: 'Shorts Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'ShortsSize', dataSource: 'ListSizes_Shorts' },
+    { name: 'sweatpants', displayName: 'Sweatpants (Waist)', inputType: 'SELECT', visibility: 'public', dbColumn: 'Sweatpants', dataSource: 'ListSizes_Sweatpants' },
+    { name: 'shoes', displayName: 'Shoe Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'Shoes', dataSource: 'ListSizes_Shoes' },
 
     // General
     { name: 'medicalNote', displayName: 'Medical Note', inputType: 'TEXTAREA', visibility: 'public', dbColumn: 'MedicalNote' },

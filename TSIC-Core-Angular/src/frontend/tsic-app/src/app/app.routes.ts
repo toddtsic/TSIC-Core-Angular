@@ -333,12 +333,6 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/tools/profile-editor/profile-editor.component').then(m => m.ProfileEditorComponent)
 					},
 					{
-						path: 'adult-profile-editor',
-						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser] },
-						loadComponent: () => import('./views/tools/adult-profile-editor/adult-profile-editor.component').then(m => m.AdultProfileEditorComponent)
-					},
-					{
 						path: 'change-password',
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser] },

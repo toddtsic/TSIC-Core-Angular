@@ -1,0 +1,98 @@
+<!-- Alert Messages -->
+@if (errorMessage()) {
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    {{ errorMessage() }}
+    <button type="button" class="btn-close" (click)="errorMessage.set(null)"></button>
+</div>
+}
+
+@if (successMessage()) {
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="bi bi-check-circle-fill me-2"></i>
+    {{ successMessage() }}
+    <button type="button" class="btn-close" (click)="successMessage.set(null)"></button>
+</div>
+}
+
+<!-- Profile Selector -->
+<div class="row mb-4 g-3">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title mb-2">Adult Profile</h5>
+                <select class="form-select" [ngModel]="selectedProfile()" (ngModelChange)="onProfileChange($event)"
+                    [disabled]="isLoading() || isSaving()" aria-label="Select adult profile">
+                    <option [ngValue]="null">-- Choose a profile --</option>
+                    @for (p of profiles(); track p.profile) {
+                    <option [ngValue]="p.profile">{{ p.profile }} — {{ p.displayName }}</option>
+                    }
+                </select>
+                @if (selectedProfile()) {
+                <div class="mt-3 d-flex flex-wrap gap-2 align-items-center">
+                    <span class="badge bg-info">{{ selectedSummary()?.jobCount }} jobs</span>
+                    <span class="badge bg-success">{{ selectedSummary()?.migratedJobCount }} migrated</span>
+                    @if (selectedUsLaxJobs() > 0) {
+                    <span class="badge bg-primary"><i class="bi bi-shield-check"></i> {{ selectedUsLaxJobs() }} USA
+                        Lacrosse</span>
+                    }
+                </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-info-circle me-1"></i> Type-scoped editing</h6>
+                <p class="card-text small mb-0">
+                    Edits to a role below propagate to <strong>every already-materialized job</strong> of
+                    <strong>{{ selectedDisplay() }}</strong>. USA Lacrosse is managed automatically per job — the
+                    <code>sportAssnId</code> field is not editable here.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (selectedNotMigrated()) {
+<div class="alert alert-warning" role="alert">
+    <i class="bi bi-exclamation-circle me-2"></i>
+    This profile has <strong>no materialized jobs yet</strong>. You can preview the form shape, but edits won't reach
+    any job until you migrate it first (Profile Migration → Adult).
+</div>
+}
+
+<!-- Role tabs -->
+<ul class="nav nav-tabs mb-3">
+    @for (tab of roleTabs; track tab.key) {
+    <li class="nav-item">
+        <button class="nav-link" [class.active]="activeRole() === tab.key" (click)="selectRole(tab.key)"
+            [disabled]="isSaving() || isLoading()">
+            <i class="bi bi-person-badge me-1"></i> {{ tab.label }}
+        </button>
+    </li>
+    }
+</ul>
+
+<!-- Loading Spinner -->
+@if (isLoading()) {
+<div class="text-center py-5">
+    <div class="spinner-border text-primary">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-2">Loading adult profile metadata...</p>
+</div>
+} @else if (selectedProfile()) {
+<app-field-set-editor [fields]="activeFields()" [allowedFields]="adultAllowedFields" [disabled]="isSaving()"
+    [scopeLabel]="activeRoleLabel() + ' — ' + selectedDisplay()"
+    [headerNote]="'These fields apply to the ' + activeRoleLabel() + ' registration form across all jobs of ' + selectedDisplay() + '.'"
+    [removeWarning]="'Remove this field from the ' + activeRoleLabel() + ' form? This updates AdultProfileMetadataJson across all materialized jobs of this profile.'"
+    [testResult]="testResult()" [testing]="isTesting()" (fieldsChange)="onActiveFieldsChange($event)"
+    (validationTest)="onValidationTest($event)"></app-field-set-editor>
+} @else {
+<div class="text-center py-5 text-muted">
+    <i class="bi bi-arrow-up-circle icon-xl"></i>
+    <p class="mt-3">Choose an adult profile to edit its role forms.</p>
+</div>
+}

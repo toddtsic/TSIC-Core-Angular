@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using TSIC.API.Services.Adults;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -1269,6 +1270,383 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         }
         return new ProfileMetadata { Fields = new List<ProfileMetadataField>() };
     }
+
+    // ============================================================================
+    // ADULT PROFILE MIGRATION (materializes role-keyed Jobs.AdultProfileMetadataJson).
+    // Mirrors the player profile-centric methods; canonical profiles (AC1/AC2) are OUR
+    // nomenclature mapped from legacy RegformName_Coach via AdultFormCatalog, with USLax
+    // as an orthogonal per-job capability (a required sportAssnId), never a separate form.
+    // ============================================================================
+
+    /// <summary>
+    /// Summarize the canonical adult profiles (AC1/AC2) across all jobs: job counts, how many carry the
+    /// USLax capability, and migration status. Adult analog of <see cref="GetProfileSummariesAsync"/>.
+    /// </summary>
+    public async Task<List<AdultProfileSummary>> GetAdultProfileSummariesAsync()
+    {
+        var jobs = await _repo.GetJobsForAdultProfileSummaryAsync();
+
+        return jobs
+            .Select(j => new
+            {
+                j.JobName,
+                Map = AdultFormCatalog.MapLegacy(j.RegformNameCoach),
+                HasMetadata = !string.IsNullOrEmpty(j.AdultProfileMetadataJson)
+            })
+            .GroupBy(j => j.Map.Profile)
+            .Select(g => new AdultProfileSummary
+            {
+                Profile = g.Key,
+                DisplayName = AdultFormCatalog.DisplayName(g.Key),
+                JobCount = g.Count(),
+                UsLaxJobCount = g.Count(j => j.Map.RequiresUsLax),
+                MigratedJobCount = g.Count(j => j.HasMetadata),
+                AllJobsMigrated = g.All(j => j.HasMetadata),
+                SampleJobNames = g.Take(5).Select(j => j.JobName ?? "Unnamed Job").ToList()
+            })
+            .OrderBy(p => p.Profile)
+            .ToList();
+    }
+
+    /// <summary>Preview (dry run) materialization for a single adult profile — shows the full scope + metadata.</summary>
+    public async Task<AdultProfileMigrationResult> PreviewAdultProfileMigrationAsync(string profile)
+        => await MigrateAdultProfileAsync(profile, dryRun: true, force: true);
+
+    /// <summary>
+    /// Materialize one canonical adult profile across all its jobs: for each job,
+    /// <c>MapLegacy</c> → <c>BuildRoleSet</c> → seed apparel option sets (AC2) → inject job options →
+    /// normalize each role → write the full three-role object. Idempotent: skips already-materialized jobs
+    /// unless <paramref name="force"/>.
+    /// </summary>
+    public async Task<AdultProfileMigrationResult> MigrateAdultProfileAsync(string profile, bool dryRun = false, bool force = false)
+    {
+        profile = AdultFormCatalog.Canonical(profile);
+        if (!AdultFormCatalog.IsKnownProfile(profile))
+            return FailedAdultResult(profile, $"Unknown adult profile '{profile}'");
+
+        try
+        {
+            var allJobs = await _repo.GetJobsForAdultMigrationAsync();
+            var target = allJobs
+                .Where(j => string.Equals(AdultFormCatalog.MapLegacy(j.RegformNameCoach).Profile, profile, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var affected = new List<Jobs>();
+            var uslaxAffected = 0;
+
+            foreach (var job in target)
+            {
+                if (!force && !string.IsNullOrEmpty(job.AdultProfileMetadataJson))
+                    continue; // already materialized — idempotent skip
+
+                var (_, requiresUsLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
+                if (!dryRun)
+                    job.AdultProfileMetadataJson = MaterializeAdultForJob(job, profile, requiresUsLax);
+
+                affected.Add(job);
+                if (requiresUsLax) uslaxAffected++;
+            }
+
+            if (!dryRun && affected.Count > 0)
+                await _repo.UpdateMultipleJobsAdultMetadataAsync(allJobs);
+
+            var anyUsLax = target.Exists(j => AdultFormCatalog.MapLegacy(j.RegformNameCoach).RequiresUsLax);
+
+            _logger.LogInformation(
+                "Adult profile {Profile}: materialized {Count} jobs ({UsLax} with USLax), DryRun={DryRun}, Force={Force}",
+                profile, affected.Count, uslaxAffected, dryRun, force);
+
+            return new AdultProfileMigrationResult
+            {
+                Profile = profile,
+                DisplayName = AdultFormCatalog.DisplayName(profile),
+                Success = true,
+                JobsAffected = affected.Count,
+                UsLaxJobsAffected = uslaxAffected,
+                AffectedJobIds = affected.Select(j => j.JobId).ToList(),
+                AffectedJobNames = affected.Select(j => j.JobName ?? "Unnamed Job").ToList(),
+                AffectedJobYears = affected.Select(j => j.Year ?? "").ToList(),
+                GeneratedMetadata = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax: false),
+                GeneratedMetadataUsLax = anyUsLax ? AdultFormCatalog.BuildRoleSet(profile, requiresUsLax: true) : null,
+                Warnings = new List<string>(),
+                ErrorMessage = null
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to materialize adult profile {Profile}", profile);
+            return FailedAdultResult(profile, ex.Message);
+        }
+    }
+
+    /// <summary>Materialize multiple adult profiles (or all if no filter). Adult analog of <see cref="MigrateMultipleProfilesAsync"/>.</summary>
+    public async Task<AdultProfileBatchMigrationReport> MigrateAllAdultProfilesAsync(bool dryRun = false, bool force = false, List<string>? profiles = null)
+    {
+        var startedAt = DateTime.UtcNow;
+        var results = new List<AdultProfileMigrationResult>();
+
+        var targets = AdultFormCatalog.AllProfiles
+            .Where(p => profiles == null || profiles.Count == 0
+                || profiles.Exists(f => string.Equals(f, p, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        foreach (var profile in targets)
+            results.Add(await MigrateAdultProfileAsync(profile, dryRun, force));
+
+        var successCount = results.Count(r => r.Success);
+
+        return new AdultProfileBatchMigrationReport
+        {
+            StartedAt = startedAt,
+            CompletedAt = DateTime.UtcNow,
+            TotalProfiles = targets.Count,
+            SuccessCount = successCount,
+            FailureCount = results.Count - successCount,
+            TotalJobsAffected = results.Where(r => r.Success).Sum(r => r.JobsAffected),
+            Results = results,
+            GlobalWarnings = new List<string>()
+        };
+    }
+
+    /// <summary>
+    /// SQL export for adult metadata — idempotent, touches ONLY [AdultProfileMetadataJson]. Inline apparel
+    /// options make each row self-contained, so no JsonOptions rows are exported (never clobbers a job's options).
+    /// </summary>
+    public async Task<string> GenerateAdultMigrationSqlScriptAsync()
+    {
+        var jobs = await _repo.GetJobsForAdultProfileSummaryAsync();
+        var withMetadata = jobs.Where(j => !string.IsNullOrEmpty(j.AdultProfileMetadataJson)).ToList();
+
+        var sb = new System.Text.StringBuilder();
+        sb.AppendLine("-- =====================================================");
+        sb.AppendLine("-- Adult Profile Migration SQL Export");
+        sb.AppendLine($"-- Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+        sb.AppendLine($"-- Jobs with adult metadata: {withMetadata.Count}");
+        sb.AppendLine("-- Idempotent: safe to run multiple times");
+        sb.AppendLine("-- Only touches: [Jobs].[Jobs].[AdultProfileMetadataJson]");
+        sb.AppendLine("-- =====================================================");
+        sb.AppendLine();
+        sb.AppendLine("SET NOCOUNT ON;");
+        sb.AppendLine("SET XACT_ABORT ON;");
+        sb.AppendLine("BEGIN TRANSACTION;");
+        sb.AppendLine();
+
+        foreach (var job in withMetadata)
+        {
+            var escapedJson = job.AdultProfileMetadataJson!.Replace("'", "''");
+            sb.AppendLine($"-- {job.JobName ?? "Unnamed"} (Job ID: {job.JobId})");
+            sb.AppendLine("UPDATE [Jobs].[Jobs]");
+            sb.AppendLine($"SET [AdultProfileMetadataJson] = '{escapedJson}'");
+            sb.AppendLine($"WHERE [jobID] = '{job.JobId}';");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine("COMMIT TRANSACTION;");
+        sb.AppendLine();
+        sb.AppendLine($"PRINT 'Adult profile migration complete: {withMetadata.Count} jobs updated';");
+        sb.AppendLine();
+        sb.AppendLine("-- Verify results:");
+        sb.AppendLine("SELECT COUNT(*) AS [Jobs With Adult Metadata] FROM [Jobs].[Jobs] WHERE [AdultProfileMetadataJson] IS NOT NULL;");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Materializes one job's full three-role adult metadata for the given profile/USLax, seeding apparel
+    /// option sets into the job's JsonOptions (upsert-if-absent) for AC2. Mutates <paramref name="job"/>.JsonOptions.
+    /// </summary>
+    private string MaterializeAdultForJob(Jobs job, string profile, bool requiresUsLax)
+    {
+        var roleSet = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax);
+
+        // AC2: seed the apparel ListSizes_* into Jobs.JsonOptions so sizes are admin-editable via the
+        // option-set editor. Upsert-if-absent — never clobber a job's existing custom size list.
+        if (string.Equals(profile, AdultFormCatalog.AC2, StringComparison.OrdinalIgnoreCase))
+            job.JsonOptions = UpsertApparelOptionSets(job.JsonOptions);
+
+        // Inject the job's JsonOptions into each role's SELECT fields (custom sizes win over inline defaults),
+        // then normalize exactly like the player save (order/visibility/HIDDEN + source stamp).
+        foreach (var role in new[] { roleSet.UnassignedAdult, roleSet.Referee, roleSet.Recruiter })
+        {
+            InjectJobOptionsIntoMetadata(role, job.JsonOptions);
+            NormalizeMetadataInPlace(role, "AdultFormCatalog");
+        }
+
+        var root = new JsonObject
+        {
+            [AdultMetadataRoleKeys.UnassignedAdult] = JsonNode.Parse(JsonSerializer.Serialize(roleSet.UnassignedAdult, s_IndentedCamelCase)),
+            [AdultMetadataRoleKeys.Referee] = JsonNode.Parse(JsonSerializer.Serialize(roleSet.Referee, s_IndentedCamelCase)),
+            [AdultMetadataRoleKeys.Recruiter] = JsonNode.Parse(JsonSerializer.Serialize(roleSet.Recruiter, s_IndentedCamelCase))
+        };
+        return root.ToJsonString(s_IndentedCamelCase);
+    }
+
+    /// <summary>Adds the catalog's apparel option sets to a job's JsonOptions if the key is absent (case-insensitive).</summary>
+    private static string UpsertApparelOptionSets(string? jsonOptions)
+    {
+        Dictionary<string, JsonElement>? dict = null;
+        if (!string.IsNullOrWhiteSpace(jsonOptions))
+        {
+            try { dict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(jsonOptions, s_CaseInsensitive); }
+            catch { /* ignore malformed — start fresh */ }
+        }
+        dict ??= new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (key, values) in AdultFormCatalog.ApparelOptionSets)
+        {
+            if (dict.Keys.Any(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase)))
+                continue; // upsert-if-absent
+
+            using var doc = JsonDocument.Parse(JsonSerializer.Serialize(values, s_IndentedCamelCase));
+            dict[key] = doc.RootElement.Clone();
+        }
+
+        return JsonSerializer.Serialize(dict, s_IndentedCamelCase);
+    }
+
+    // ============================================================================
+    // ADULT PROFILE EDITOR (type-scoped, mirrors the player profile editor). Edits a canonical
+    // profile's substantive role fields; USLax stays a per-job capability re-composed from the
+    // immutable RegformName_Coach, so the coach role's sportAssnId is never edited directly.
+    // ============================================================================
+
+    /// <summary>
+    /// Type-scoped READ: the role-keyed metadata for a profile, sampled from a representative already-migrated
+    /// job (coach block stripped of the capability sportAssnId so it shows only substantive fields). Falls back
+    /// to the catalog base template when no job of the profile is materialized yet.
+    /// </summary>
+    public async Task<AdultRoleMetadataSet> GetAdultProfileMetadataAsync(string profile)
+    {
+        profile = AdultFormCatalog.Canonical(profile);
+        if (!AdultFormCatalog.IsKnownProfile(profile))
+            return new AdultRoleMetadataSet();
+
+        var jobs = await _repo.GetJobsForAdultProfileSummaryAsync();
+        var rep = jobs.FirstOrDefault(j =>
+            !string.IsNullOrEmpty(j.AdultProfileMetadataJson)
+            && string.Equals(AdultFormCatalog.MapLegacy(j.RegformNameCoach).Profile, profile, StringComparison.OrdinalIgnoreCase));
+
+        if (rep?.AdultProfileMetadataJson is { } json && !string.IsNullOrWhiteSpace(json))
+        {
+            return new AdultRoleMetadataSet
+            {
+                UnassignedAdult = StripCapabilityFields(ParseAdultRoleOrEmpty(json, AdultMetadataRoleKeys.UnassignedAdult)),
+                Referee = ParseAdultRoleOrEmpty(json, AdultMetadataRoleKeys.Referee),
+                Recruiter = ParseAdultRoleOrEmpty(json, AdultMetadataRoleKeys.Recruiter)
+            };
+        }
+
+        return AdultFormCatalog.BuildRoleSet(profile, requiresUsLax: false);
+    }
+
+    /// <summary>
+    /// Type-scoped WRITE: replace ONE role's field set across all already-materialized jobs of a profile,
+    /// preserving the other two roles per job. For the coach role, the incoming sportAssnId is stripped and
+    /// re-composed per job from RegformName_Coach (USLax jobs keep their required sportAssnId).
+    /// </summary>
+    public async Task<AdultProfileMigrationResult> UpdateAdultProfileRoleAsync(string profile, string roleKey, ProfileMetadata metadata)
+    {
+        profile = AdultFormCatalog.Canonical(profile);
+        if (!AdultFormCatalog.IsKnownProfile(profile))
+            return FailedAdultResult(profile, $"Unknown adult profile '{profile}'");
+        if (!AdultMetadataRoleKeys.IsValid(roleKey))
+            return FailedAdultResult(profile, $"Invalid adult role key '{roleKey}'");
+
+        try
+        {
+            var isCoach = string.Equals(roleKey, AdultMetadataRoleKeys.UnassignedAdult, StringComparison.Ordinal);
+            var baseMeta = isCoach ? StripCapabilityFields(metadata) : metadata;
+
+            var allJobs = await _repo.GetJobsForAdultMigrationAsync();
+            var target = allJobs
+                .Where(j => string.Equals(AdultFormCatalog.MapLegacy(j.RegformNameCoach).Profile, profile, StringComparison.OrdinalIgnoreCase)
+                            && !string.IsNullOrEmpty(j.AdultProfileMetadataJson)) // only already-materialized jobs
+                .ToList();
+
+            var affected = new List<Jobs>();
+            var uslaxAffected = 0;
+
+            foreach (var job in target)
+            {
+                var (_, requiresUsLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
+                var roleMeta = CloneMetadata(baseMeta);
+
+                if (isCoach && requiresUsLax)
+                {
+                    roleMeta.Fields.Insert(0, AdultFormCatalog.UsLaxField());
+                    uslaxAffected++;
+                }
+
+                // Renumber by list position so the capability field sorts first, then inject options + normalize.
+                for (var i = 0; i < roleMeta.Fields.Count; i++) roleMeta.Fields[i].Order = i + 1;
+                InjectJobOptionsIntoMetadata(roleMeta, job.JsonOptions);
+                NormalizeMetadataInPlace(roleMeta, "AdultProfileEditor");
+
+                var root = string.IsNullOrWhiteSpace(job.AdultProfileMetadataJson)
+                    ? new JsonObject()
+                    : (JsonNode.Parse(job.AdultProfileMetadataJson) as JsonObject) ?? new JsonObject();
+                root[roleKey] = JsonNode.Parse(JsonSerializer.Serialize(roleMeta, s_IndentedCamelCase));
+                job.AdultProfileMetadataJson = root.ToJsonString(s_IndentedCamelCase);
+
+                affected.Add(job);
+            }
+
+            if (affected.Count > 0)
+                await _repo.UpdateMultipleJobsAdultMetadataAsync(allJobs);
+
+            _logger.LogInformation("Adult editor: updated role {Role} on {Count} jobs of profile {Profile}",
+                roleKey, affected.Count, profile);
+
+            return new AdultProfileMigrationResult
+            {
+                Profile = profile,
+                DisplayName = AdultFormCatalog.DisplayName(profile),
+                Success = true,
+                JobsAffected = affected.Count,
+                UsLaxJobsAffected = isCoach ? uslaxAffected : 0,
+                AffectedJobIds = affected.Select(j => j.JobId).ToList(),
+                AffectedJobNames = affected.Select(j => j.JobName ?? "Unnamed Job").ToList(),
+                AffectedJobYears = affected.Select(j => j.Year ?? "").ToList(),
+                GeneratedMetadata = null,
+                GeneratedMetadataUsLax = null,
+                Warnings = affected.Count == 0
+                    ? new List<string> { "No materialized jobs for this profile yet — run the migration first." }
+                    : new List<string>(),
+                ErrorMessage = null
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update adult profile {Profile} role {Role}", profile, roleKey);
+            return FailedAdultResult(profile, ex.Message);
+        }
+    }
+
+    /// <summary>Deep-clone a role's metadata without the USLax capability fields (they are per-job, not substantive).</summary>
+    private ProfileMetadata StripCapabilityFields(ProfileMetadata metadata)
+    {
+        var clone = CloneMetadata(metadata);
+        clone.Fields = clone.Fields
+            .Where(f => !AdultFormCatalog.UsLaxCapabilityFieldNames.Contains(f.Name ?? string.Empty))
+            .ToList();
+        return clone;
+    }
+
+    private static AdultProfileMigrationResult FailedAdultResult(string profile, string error) => new()
+    {
+        Profile = profile,
+        DisplayName = AdultFormCatalog.DisplayName(profile),
+        Success = false,
+        JobsAffected = 0,
+        UsLaxJobsAffected = 0,
+        AffectedJobIds = new List<Guid>(),
+        AffectedJobNames = new List<string>(),
+        AffectedJobYears = new List<string>(),
+        GeneratedMetadata = null,
+        GeneratedMetadataUsLax = null,
+        Warnings = new List<string>(),
+        ErrorMessage = error
+    };
 
     /// <summary>
     /// Test field validation rules without saving

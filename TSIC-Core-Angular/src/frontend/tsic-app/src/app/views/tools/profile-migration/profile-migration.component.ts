@@ -3,15 +3,17 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal, computed, i
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
+import { AdultProfileMigrationService } from '@infrastructure/services/adult-profile-migration.service';
 import { ProfileSummary, ProfileMigrationResult } from '@infrastructure/view-models/profile-migration.models';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { ProfileFormPreviewComponent } from '@shared-ui/components/profile-form-preview/profile-form-preview.component';
+import { AdultProfileMigrationPanelComponent } from './adult-profile-migration-panel/adult-profile-migration-panel.component';
 
 @Component({
     selector: 'app-profile-migration',
     standalone: true,
-    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule, TsicDialogComponent],
+    imports: [CommonModule, RouterLink, ProfileFormPreviewComponent, FormsModule, TsicDialogComponent, AdultProfileMigrationPanelComponent],
     templateUrl: './profile-migration.component.html',
     styleUrls: ['./profile-migration.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -20,6 +22,10 @@ export class ProfileMigrationComponent implements OnInit {
     // Reference to satisfy strict template analyzer for standalone component usage.
     private readonly __tsicDialogComponentRef = TsicDialogComponent;
     readonly isDevMode = isDevMode();
+
+    // Player / Adult segment. Player is the original tool; Adult is the materialized mirror.
+    mode = signal<'player' | 'adult'>('player');
+    setMode(m: 'player' | 'adult'): void { this.mode.set(m); }
     // For dropdown filtering (signal-based)
     selectedProfileType = signal<string | null>(null);
     filteredProfiles = computed(() => {
@@ -33,6 +39,7 @@ export class ProfileMigrationComponent implements OnInit {
         this.selectedProfileType.set(value || null);
     }
     private readonly migrationService = inject(ProfileMigrationService);
+    private readonly adultService = inject(AdultProfileMigrationService);
     private readonly authService = inject(AuthService);
 
     // Navigation
@@ -137,6 +144,15 @@ export class ProfileMigrationComponent implements OnInit {
     loadProfiles(): void {
         this.errorMessage.set(null);
         this.migrationService.loadProfileSummaries();
+    }
+
+    /** Header refresh — reloads the active segment's summaries. */
+    refresh(): void {
+        if (this.mode() === 'adult') {
+            this.adultService.loadAdultSummaries();
+        } else {
+            this.loadProfiles();
+        }
     }
 
     migrateAllPending(): void {

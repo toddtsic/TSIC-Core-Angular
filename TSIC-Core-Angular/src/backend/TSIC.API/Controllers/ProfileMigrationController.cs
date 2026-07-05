@@ -293,6 +293,149 @@ public class ProfileMigrationController : ControllerBase
     }
 
     // ============================================================================
+    // ADULT PROFILE ENDPOINTS — materialize role-keyed AdultProfileMetadataJson.
+    // Canonical profiles AC1/AC2 are OUR nomenclature, mapped from legacy RegformName_Coach;
+    // USLax is an orthogonal per-job capability (a required sportAssnId), never a separate form.
+    // ============================================================================
+
+    /// <summary>Summarize the canonical adult profiles (AC1/AC2): job counts, USLax counts, migration status.</summary>
+    [HttpGet("adult/summary")]
+    public async Task<ActionResult<List<AdultProfileSummary>>> GetAdultProfileSummaries()
+    {
+        try
+        {
+            var summaries = await _migrationService.GetAdultProfileSummariesAsync();
+            return Ok(summaries);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get adult profile summaries");
+            return StatusCode(500, new { error = "Failed to get adult profile summaries", details = ex.Message });
+        }
+    }
+
+    /// <summary>Preview (dry run) what materializing a single adult profile would produce.</summary>
+    [HttpGet("adult/preview/{profile}")]
+    public async Task<ActionResult<AdultProfileMigrationResult>> PreviewAdultProfile(string profile)
+    {
+        try
+        {
+            var result = await _migrationService.PreviewAdultProfileMigrationAsync(profile);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to preview adult profile {Profile}", profile);
+            return StatusCode(500, new { error = "Adult preview failed", details = ex.Message });
+        }
+    }
+
+    /// <summary>Materialize a single adult profile across its jobs (skips already-migrated unless force=true).</summary>
+    [HttpPost("adult/migrate/{profile}")]
+    public async Task<ActionResult<AdultProfileMigrationResult>> MigrateAdultProfile(string profile, [FromQuery] bool force = false)
+    {
+        try
+        {
+            var result = await _migrationService.MigrateAdultProfileAsync(profile, dryRun: false, force: force);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to migrate adult profile {Profile}", profile);
+            return StatusCode(500, new { error = MigrationFailedMsg, details = ex.Message });
+        }
+    }
+
+    /// <summary>Materialize all adult profiles (or a filtered subset), skipping already-migrated jobs unless force.</summary>
+    [HttpPost("adult/migrate-all")]
+    public async Task<ActionResult<AdultProfileBatchMigrationReport>> MigrateAllAdultProfiles([FromBody] AdultMigrateAllRequest request)
+    {
+        try
+        {
+            _logger.LogInformation(
+                "Materializing adult profiles (DryRun: {DryRun}, Force: {Force}, Filter: {Filter})",
+                request.DryRun, request.Force,
+                request.Profiles != null ? string.Join(", ", request.Profiles) : "all");
+
+            var report = await _migrationService.MigrateAllAdultProfilesAsync(request.DryRun, request.Force, request.Profiles);
+            return Ok(report);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, MigrationFailedMsg);
+            return StatusCode(500, new { error = MigrationFailedMsg, details = ex.Message });
+        }
+    }
+
+    /// <summary>Export SQL applying adult metadata to another database (touches only [AdultProfileMetadataJson]).</summary>
+    [HttpPost("adult/export-sql")]
+    public async Task<IActionResult> ExportAdultMigrationSql()
+    {
+        try
+        {
+            var sql = await _migrationService.GenerateAdultMigrationSqlScriptAsync();
+            var fileName = $"adult-profile-migration-{DateTime.Now:yyyyMMdd-HHmmss}.sql";
+            var bytes = System.Text.Encoding.UTF8.GetBytes(sql);
+            return File(bytes, "text/plain", fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to export adult migration SQL");
+            return StatusCode(500, new { error = "Adult SQL export failed", details = ex.Message });
+        }
+    }
+
+    /// <summary>Type-scoped adult editor READ: the role-keyed metadata for a canonical profile (AC1/AC2).</summary>
+    [HttpGet("adult-profiles/{profile}/metadata")]
+    public async Task<ActionResult<object>> GetAdultProfileMetadata(string profile)
+    {
+        try
+        {
+            var set = await _migrationService.GetAdultProfileMetadataAsync(profile);
+            return Ok(new { profile, roles = set });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get adult profile metadata for {Profile}", profile);
+            return StatusCode(500, new { error = "Failed to get adult profile metadata", details = ex.Message });
+        }
+    }
+
+    public sealed class UpdateAdultProfileRoleRequest
+    {
+        public string RoleKey { get; set; } = string.Empty;   // UnassignedAdult | Referee | Recruiter
+        public ProfileMetadata Metadata { get; set; } = new();
+    }
+
+    /// <summary>Type-scoped adult editor WRITE: replace ONE role's fields across all materialized jobs of a profile.</summary>
+    [HttpPut("adult-profiles/{profile}/metadata")]
+    public async Task<ActionResult<AdultProfileMigrationResult>> UpdateAdultProfileRole(string profile, [FromBody] UpdateAdultProfileRoleRequest request)
+    {
+        try
+        {
+            var result = await _migrationService.UpdateAdultProfileRoleAsync(profile, request.RoleKey, request.Metadata);
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update adult profile {Profile} role", profile);
+            return StatusCode(500, new { error = "Failed to update adult profile role", details = ex.Message });
+        }
+    }
+
+    // ============================================================================
     // PROFILE EDITOR ENDPOINTS (for ongoing metadata management)
     // ============================================================================
 

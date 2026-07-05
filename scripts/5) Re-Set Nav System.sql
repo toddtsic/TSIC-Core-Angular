@@ -129,7 +129,6 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Quick Links', N's
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Dropdown Options', N'list', N'configure/ddl-options', 6, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 7, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Adult Form Designer', N'people-fill', N'tools/adult-profile-editor', 8, 0, 0, 1, NULL, N'NEW');
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 9, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 10, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'L-A-D-T Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL, NULL);

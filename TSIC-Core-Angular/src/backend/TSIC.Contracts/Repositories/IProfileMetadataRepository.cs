@@ -59,6 +59,20 @@ public interface IProfileMetadataRepository
     /// </summary>
     Task<List<string>> GetJobsCoreRegformValuesAsync();
 
+    // ============ ADULT PROFILE READ OPERATIONS ============
+
+    /// <summary>
+    /// Get jobs for adult profile summary/export (projection): all jobs with a RegformName_Coach,
+    /// carrying the value + current AdultProfileMetadataJson so the service can group by canonical profile.
+    /// </summary>
+    Task<List<JobForAdultProfileSummary>> GetJobsForAdultProfileSummaryAsync();
+
+    /// <summary>
+    /// Get all jobs with a non-empty RegformName_Coach as TRACKED entities (for adult materialization —
+    /// the service mutates AdultProfileMetadataJson and JsonOptions, then saves once).
+    /// </summary>
+    Task<List<Jobs>> GetJobsForAdultMigrationAsync();
+
     // ============ JOBS WRITE OPERATIONS ============
 
     /// <summary>
@@ -85,6 +99,12 @@ public interface IProfileMetadataRepository
     /// Update AdultProfileMetadataJson (role-keyed) for a single job
     /// </summary>
     Task UpdateJobAdultMetadataAsync(Guid jobId, string adultMetadataJson);
+
+    /// <summary>
+    /// Persist AdultProfileMetadataJson/JsonOptions changes for tracked jobs (single SaveChanges).
+    /// Caller has already mutated the tracked entities returned by <see cref="GetJobsForAdultMigrationAsync"/>.
+    /// </summary>
+    Task UpdateMultipleJobsAdultMetadataAsync(List<Jobs> jobs);
 
     // ============ REGISTRATIONS READ OPERATIONS ============
 
@@ -129,6 +149,15 @@ public record JobForProfileSummary
     public required string JobName { get; init; }
     public string? CoreRegformPlayer { get; init; }
     public string? PlayerProfileMetadataJson { get; init; }
+}
+
+public record JobForAdultProfileSummary
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+    public string? Year { get; init; }
+    public string? RegformNameCoach { get; init; }
+    public string? AdultProfileMetadataJson { get; init; }
 }
 
 public record JobKnownProfileType

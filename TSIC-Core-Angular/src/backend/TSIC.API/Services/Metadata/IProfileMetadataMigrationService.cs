@@ -29,4 +29,15 @@ public interface IProfileMetadataMigrationService
     Task<ProfileMigrationResult> UpdateProfileMetadataAsync(string profileType, ProfileMetadata metadata);
     Task<AdultRoleMetadataSet?> GetCurrentJobAdultMetadataAsync(Guid regId);
     Task<ProfileMetadata?> UpdateCurrentJobAdultRoleMetadataAsync(Guid regId, string roleKey, ProfileMetadata metadata);
+
+    // Adult profile materialization (AC1/AC2 canonical profiles ← legacy RegformName_Coach)
+    Task<List<AdultProfileSummary>> GetAdultProfileSummariesAsync();
+    Task<AdultProfileMigrationResult> PreviewAdultProfileMigrationAsync(string profile);
+    Task<AdultProfileMigrationResult> MigrateAdultProfileAsync(string profile, bool dryRun = false, bool force = false);
+    Task<AdultProfileBatchMigrationReport> MigrateAllAdultProfilesAsync(bool dryRun = false, bool force = false, List<string>? profiles = null);
+    Task<string> GenerateAdultMigrationSqlScriptAsync();
+
+    // Adult profile editor (type-scoped, mirrors the player profile editor)
+    Task<AdultRoleMetadataSet> GetAdultProfileMetadataAsync(string profile);
+    Task<AdultProfileMigrationResult> UpdateAdultProfileRoleAsync(string profile, string roleKey, ProfileMetadata metadata);
 }

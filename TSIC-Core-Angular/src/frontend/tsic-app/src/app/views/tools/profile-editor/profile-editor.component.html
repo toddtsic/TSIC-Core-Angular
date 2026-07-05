@@ -13,18 +13,13 @@
                             <span class="d-none d-sm-inline">Home</span>
                             <span class="d-inline d-sm-none">Home</span>
                         </a>
+                        @if (mode() === 'player') {
                         <button class="btn btn-success" type="button" title="Create new profile"
                             aria-label="Create new profile" (click)="openCreateModal()">
                             <i class="bi bi-plus-lg me-1"></i>
                             <span>New Profile</span>
                         </button>
-                        <a [routerLink]="['/', jobPath(), 'tools', 'adult-profile-editor']"
-                            class="btn btn-outline-primary" title="Adult form designer"
-                            aria-label="Adult form designer">
-                            <i class="bi bi-people me-1"></i>
-                            <span class="d-none d-sm-inline">Adult Designer</span>
-                            <span class="d-inline d-sm-none">Adult</span>
-                        </a>
+                        }
                         <a [routerLink]="['/admin/profile-migration']" class="btn btn-outline-primary"
                             title="Open migration dashboard" aria-label="Open migration dashboard">
                             <i class="bi bi-diagram-3 me-1"></i>
@@ -38,6 +33,19 @@
         </div>
     </div>
 
+    <!-- Player / Adult segment -->
+    <div class="btn-group mb-4" role="group" aria-label="Editor mode">
+        <button type="button" class="btn" [class.btn-primary]="mode() === 'player'"
+            [class.btn-outline-primary]="mode() !== 'player'" (click)="setMode('player')">
+            <i class="bi bi-person-vcard me-1"></i> Player
+        </button>
+        <button type="button" class="btn" [class.btn-primary]="mode() === 'adult'"
+            [class.btn-outline-primary]="mode() !== 'adult'" (click)="setMode('adult')">
+            <i class="bi bi-people me-1"></i> Adult
+        </button>
+    </div>
+
+    @if (mode() === 'player') {
     <!-- Alert Messages -->
     @if (errorMessage()) {
     <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -180,6 +188,9 @@
             }
         </div>
     </div>
+    }
+    } @else {
+    <app-adult-profile-editor-panel></app-adult-profile-editor-panel>
     }
 </div>
 
