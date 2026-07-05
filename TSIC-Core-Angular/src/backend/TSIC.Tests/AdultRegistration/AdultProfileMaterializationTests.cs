@@ -60,7 +60,7 @@ public class AdultProfileMaterializationTests
         set.Recruiter.Fields.Should().ContainSingle();
 
         ac2.JsonOptions.Should().NotBeNull();
-        ac2.JsonOptions!.Should().Contain("ListSizes_Jersey");
+        ac2.JsonOptions!.Should().Contain("ListSizes_CoachJersey");
 
         ac1.AdultProfileMetadataJson.Should().BeNull(); // AC1 job is not part of an AC2 migration
         repo.Verify(r => r.UpdateMultipleJobsAdultMetadataAsync(It.IsAny<List<Jobs>>()), Times.Once);
@@ -85,10 +85,10 @@ public class AdultProfileMaterializationTests
 
         // Only the two referenced size sets are seeded — not the full apparel four.
         ac3.JsonOptions.Should().NotBeNull();
-        ac3.JsonOptions!.Should().Contain("ListSizes_Jersey");
-        ac3.JsonOptions!.Should().Contain("ListSizes_Shoes");
-        ac3.JsonOptions!.Should().NotContain("ListSizes_Shorts");
-        ac3.JsonOptions!.Should().NotContain("ListSizes_Sweatpants");
+        ac3.JsonOptions!.Should().Contain("ListSizes_CoachJersey");
+        ac3.JsonOptions!.Should().Contain("ListSizes_CoachShoes");
+        ac3.JsonOptions!.Should().NotContain("ListSizes_CoachShorts");
+        ac3.JsonOptions!.Should().NotContain("ListSizes_CoachWaist");
 
         ac2.AdultProfileMetadataJson.Should().BeNull(); // AC2 job untouched by an AC3 migration
     }

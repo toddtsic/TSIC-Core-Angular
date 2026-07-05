@@ -118,7 +118,7 @@ public class AdultFormCatalogTests
         apparel.Should().OnlyContain(f => f.InputType == "SELECT");
         apparel.Should().OnlyContain(f => f.Options != null && f.Options.Count > 0);
         apparel.Should().OnlyContain(f => f.Validation != null && f.Validation.Required);
-        apparel.Select(f => f.DataSource).Should().Equal("ListSizes_Jersey", "ListSizes_Shoes");
+        apparel.Select(f => f.DataSource).Should().Equal("ListSizes_CoachJersey", "ListSizes_CoachShoes");
         coach.Should().NotContain(f => f.Name == "shortsSize" || f.Name == "sweatpants");
         coach.Should().NotContain(f => f.Name == "sportAssnId");
     }
@@ -214,15 +214,15 @@ public class AdultFormCatalogTests
 
     // ── Apparel option sets + USLax capability ───────────────────────────────
 
-    [Fact(DisplayName = "ApparelOptionSets exposes the four ListSizes_* sets with the legacy size lists")]
+    [Fact(DisplayName = "ApparelOptionSets exposes the four adult-namespaced ListSizes_Coach* sets with the legacy size lists")]
     public void ApparelOptionSets_FourSets()
     {
         var sets = AdultFormCatalog.ApparelOptionSets;
-        sets.Keys.Should().BeEquivalentTo(new[] { "ListSizes_Jersey", "ListSizes_Shorts", "ListSizes_Sweatpants", "ListSizes_Shoes" });
-        sets["ListSizes_Jersey"].Select(o => o.Value).Should().Equal("SM", "MD", "LG", "XL", "XXL", "XXXL");
-        sets["ListSizes_Sweatpants"].Should().HaveCount(10);  // 28..46
-        sets["ListSizes_Shoes"].Should().HaveCount(23);       // 5..16 half-steps
-        sets["ListSizes_Shoes"].Should().OnlyContain(o => o.Value == o.Label);
+        sets.Keys.Should().BeEquivalentTo(new[] { "ListSizes_CoachJersey", "ListSizes_CoachShorts", "ListSizes_CoachWaist", "ListSizes_CoachShoes" });
+        sets["ListSizes_CoachJersey"].Select(o => o.Value).Should().Equal("SM", "MD", "LG", "XL", "XXL", "XXXL");
+        sets["ListSizes_CoachWaist"].Should().HaveCount(10);  // 28..46
+        sets["ListSizes_CoachShoes"].Should().HaveCount(23);  // 5..16 half-steps
+        sets["ListSizes_CoachShoes"].Should().OnlyContain(o => o.Value == o.Label);
     }
 
     [Fact(DisplayName = "The AC2 apparel DataSources are a subset of the seeded ApparelOptionSets keys (exact-match enrichment)")]

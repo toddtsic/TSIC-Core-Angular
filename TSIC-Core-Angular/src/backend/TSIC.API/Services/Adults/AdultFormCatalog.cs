@@ -35,6 +35,16 @@ public static class AdultFormCatalog
 
     public static readonly IReadOnlyList<string> AllProfiles = new[] { AC1, AC2, AC3 };
 
+    // ── Adult apparel option-set keys (Jobs.JsonOptions) ──
+    // Deliberately NAMESPACED away from the player apparel keys (ListSizes_Jersey/Shorts/Shoes). Player and
+    // adult are independent forms whose size lists a director sets separately — mirroring the legacy split
+    // where player sizes came from Jobs.JsonOptions but staff sizes were the hardcoded StaffSTEPSController
+    // lists. Reusing the player keys made the coach form inherit the player's list; these Coach* keys fix that.
+    public const string CoachJerseyKey = "ListSizes_CoachJersey";
+    public const string CoachShortsKey = "ListSizes_CoachShorts";
+    public const string CoachWaistKey = "ListSizes_CoachWaist";
+    public const string CoachShoesKey = "ListSizes_CoachShoes";
+
     public static bool IsKnownProfile(string? profile) =>
         !string.IsNullOrWhiteSpace(profile) &&
         AllProfiles.Any(p => string.Equals(p, profile, StringComparison.OrdinalIgnoreCase));
@@ -112,16 +122,16 @@ public static class AdultFormCatalog
         // RegformFields view models (StaffSTEPS / StaffLaxValidatePlus / StaffASL all agree on these).
         if (Eq(profile, AC2))
         {
-            fields.Add(Size("jerseySize", "JerseySize", "Men's Shirt Size", "ListSizes_Jersey", JerseySizes, order++));
-            fields.Add(Size("shortsSize", "ShortsSize", "Men's or Women's Short Size", "ListSizes_Shorts", ShortsSizes, order++));
+            fields.Add(Size("jerseySize", "JerseySize", "Men's Shirt Size", CoachJerseyKey, JerseySizes, order++));
+            fields.Add(Size("shortsSize", "ShortsSize", "Men's or Women's Short Size", CoachShortsKey, ShortsSizes, order++));
             // Waist is overloaded onto the legacy Sweatpants column (no dedicated waist column exists).
-            fields.Add(Size("sweatpants", "Sweatpants", "Men's Waist Size", "ListSizes_Sweatpants", WaistSizes, order++));
-            fields.Add(Size("shoes", "Shoes", "Shoe Size", "ListSizes_Shoes", ShoeSizes, order++));
+            fields.Add(Size("sweatpants", "Sweatpants", "Men's Waist Size", CoachWaistKey, WaistSizes, order++));
+            fields.Add(Size("shoes", "Shoes", "Shoe Size", CoachShoesKey, ShoeSizes, order++));
         }
         else if (Eq(profile, AC3))
         {
-            fields.Add(Size("jerseySize", "JerseySize", "Men's Shirt Size", "ListSizes_Jersey", JerseySizes, order++));
-            fields.Add(Size("shoes", "Shoes", "Shoe Size", "ListSizes_Shoes", ShoeSizes, order++));
+            fields.Add(Size("jerseySize", "JerseySize", "Men's Shirt Size", CoachJerseyKey, JerseySizes, order++));
+            fields.Add(Size("shoes", "Shoes", "Shoe Size", CoachShoesKey, ShoeSizes, order++));
         }
 
         // Special Requests: matches the current UnassignedAdult fallback — an OPTIONAL free-text note (the
@@ -184,10 +194,10 @@ public static class AdultFormCatalog
     public static IReadOnlyDictionary<string, List<ProfileFieldOption>> ApparelOptionSets { get; } =
         new Dictionary<string, List<ProfileFieldOption>>(StringComparer.OrdinalIgnoreCase)
         {
-            ["ListSizes_Jersey"] = JerseySizes,
-            ["ListSizes_Shorts"] = ShortsSizes,
-            ["ListSizes_Sweatpants"] = WaistSizes,
-            ["ListSizes_Shoes"] = ShoeSizes
+            [CoachJerseyKey] = JerseySizes,
+            [CoachShortsKey] = ShortsSizes,
+            [CoachWaistKey] = WaistSizes,
+            [CoachShoesKey] = ShoeSizes
         };
 
     // ── legacy option lists (StaffSTEPSController.GetList*Sizes) ──

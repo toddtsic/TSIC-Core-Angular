@@ -40,12 +40,14 @@ export const ADULT_ALLOWED_FIELDS: AllowedField[] = [
     { name: 'twitter', displayName: 'Twitter', inputType: 'TEXT', visibility: 'public', dbColumn: 'Twitter' },
     { name: 'instagram', displayName: 'Instagram', inputType: 'TEXT', visibility: 'public', dbColumn: 'Instagram' },
 
-    // Apparel (SELECT, options sourced from the ListSizes_* sets seeded into Jobs.JsonOptions at migration)
-    { name: 'tShirt', displayName: 'T‑Shirt Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'TShirt', dataSource: 'ListSizes_Jersey' },
-    { name: 'jerseySize', displayName: "Men's Shirt Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'JerseySize', dataSource: 'ListSizes_Jersey' },
-    { name: 'shortsSize', displayName: "Men's or Women's Short Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'ShortsSize', dataSource: 'ListSizes_Shorts' },
-    { name: 'sweatpants', displayName: "Men's Waist Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'Sweatpants', dataSource: 'ListSizes_Sweatpants' },
-    { name: 'shoes', displayName: 'Shoe Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'Shoes', dataSource: 'ListSizes_Shoes' },
+    // Apparel (SELECT, options sourced from the adult-namespaced ListSizes_Coach* sets seeded into
+    // Jobs.JsonOptions at migration — kept distinct from the player ListSizes_* keys so the coach form
+    // does NOT inherit the player's size lists and directors edit the two independently).
+    { name: 'tShirt', displayName: 'T‑Shirt Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'TShirt', dataSource: 'ListSizes_CoachJersey' },
+    { name: 'jerseySize', displayName: "Men's Shirt Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'JerseySize', dataSource: 'ListSizes_CoachJersey' },
+    { name: 'shortsSize', displayName: "Men's or Women's Short Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'ShortsSize', dataSource: 'ListSizes_CoachShorts' },
+    { name: 'sweatpants', displayName: "Men's Waist Size", inputType: 'SELECT', visibility: 'public', dbColumn: 'Sweatpants', dataSource: 'ListSizes_CoachWaist' },
+    { name: 'shoes', displayName: 'Shoe Size', inputType: 'SELECT', visibility: 'public', dbColumn: 'Shoes', dataSource: 'ListSizes_CoachShoes' },
 
     // General
     { name: 'medicalNote', displayName: 'Medical Note', inputType: 'TEXTAREA', visibility: 'public', dbColumn: 'MedicalNote' },
