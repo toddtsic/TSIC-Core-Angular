@@ -418,6 +418,78 @@ public class JobCloneServiceTests
         newJob.AdultProfileMetadataJson.Should().Be(adultJson);
     }
 
+    // Regression guard: BRegistrationAllow{Staff,Referee,Recruiter} were added to Jobs after the
+    // clone copy-block was written, so clone carried Player/Team but silently dropped the three
+    // adult-role enablement switches — a cloned multi-role job came out coach-only (it kept the
+    // ref/recruiter confirmation emails but lost the flags that actually turn those regs on).
+    [Fact]
+    public async Task Clone_CarriesAllRegistrationAllowFlags()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx);
+
+        var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        src.BRegistrationAllowPlayer = true;
+        src.BRegistrationAllowTeam = true;
+        src.BRegistrationAllowStaff = true;
+        src.BRegistrationAllowReferee = true;
+        src.BRegistrationAllowRecruiter = true;
+        await ctx.SaveChangesAsync();
+
+        var resp = await svc.CloneJobAsync(BaseRequest(jobId), SuperUserId);
+
+        var newJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == resp.NewJobId);
+        newJob.BRegistrationAllowPlayer.Should().BeTrue();
+        newJob.BRegistrationAllowTeam.Should().BeTrue();
+        newJob.BRegistrationAllowStaff.Should().BeTrue();
+        newJob.BRegistrationAllowReferee.Should().BeTrue();
+        newJob.BRegistrationAllowRecruiter.Should().BeTrue();
+    }
+
+    // Regression guard: auditing the copy-block after the role flags found 8 more scalar columns
+    // silently dropped — registration token-gating, public-roster privacy, ADN trial (partial ARB
+    // copy), donations, and store walk-up. Each had copied siblings; none was intentional. Two
+    // refinements verified here: AdnStartDateAfterTrial year-shifts like AdnArbstartDate, and
+    // BAllowStoreWalkup follows the resolved store state (can't leak back on under "disable store").
+    [Fact]
+    public async Task Clone_CarriesRecoveredRegistrationBillingAndStoreConfig()
+    {
+        var (svc, ctx) = BuildService();
+        var (jobId, _, _, _) = await SeedSourceJobAsync(ctx, year: "2025", bEnableStore: true);
+
+        var trialStart = new DateTime(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
+        var src = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        src.BplayerRegRequiresToken = true;
+        src.BteamRegRequiresToken = true;
+        src.BRestrictPublicRosters = true;
+        src.BIncludePlayerDonation = true;
+        src.BIncludeTeamDonation = true;
+        src.AdnArbtrial = true;
+        src.AdnStartDateAfterTrial = trialStart;
+        src.BAllowStoreWalkup = true;
+        await ctx.SaveChangesAsync();
+
+        // storeChoice "keep" → store stays enabled, so walk-up rides along.
+        var kept = await svc.CloneJobAsync(BaseRequest(jobId, storeChoice: "keep"), SuperUserId);
+        var keptJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == kept.NewJobId);
+
+        keptJob.BplayerRegRequiresToken.Should().BeTrue();
+        keptJob.BteamRegRequiresToken.Should().BeTrue();
+        keptJob.BRestrictPublicRosters.Should().BeTrue();
+        keptJob.BIncludePlayerDonation.Should().BeTrue();
+        keptJob.BIncludeTeamDonation.Should().BeTrue();
+        keptJob.AdnArbtrial.Should().BeTrue();
+        keptJob.BAllowStoreWalkup.Should().BeTrue();
+        // 2025 source → 2026 target = +1yr, mirroring AdnArbstartDate's shift (not copied raw).
+        keptJob.AdnStartDateAfterTrial.Should().NotBeNull();
+        keptJob.AdnStartDateAfterTrial!.Value.Year.Should().Be(2026);
+
+        // storeChoice "disable" → store off, so walk-up is forced off regardless of source.
+        var disabled = await svc.CloneJobAsync(BaseRequest(jobId, storeChoice: "disable"), SuperUserId);
+        var disabledJob = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == disabled.NewJobId);
+        disabledJob.BAllowStoreWalkup.Should().BeFalse();
+    }
+
     // ══════════════════════════════════════════════════════════
     // LADT scope
     // ══════════════════════════════════════════════════════════

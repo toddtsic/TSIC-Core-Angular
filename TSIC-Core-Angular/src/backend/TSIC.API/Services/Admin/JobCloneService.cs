@@ -907,6 +907,7 @@ public sealed class JobCloneService : IJobCloneService
             EventStartDate = ShiftByYears(source.EventStartDate, yearDelta),
             EventEndDate = ShiftByYears(source.EventEndDate, yearDelta),
             AdnArbstartDate = ShiftByYears(source.AdnArbstartDate, yearDelta),
+            AdnStartDateAfterTrial = ShiftByYears(source.AdnStartDateAfterTrial, yearDelta),
 
             // ── Copy all other config from source ──
             BillingTypeId = source.BillingTypeId,
@@ -914,6 +915,7 @@ public sealed class JobCloneService : IJobCloneService
             SportId = source.SportId,
             BAllowRosterViewAdult = source.BAllowRosterViewAdult,
             BAllowRosterViewPlayer = source.BAllowRosterViewPlayer,
+            BRestrictPublicRosters = source.BRestrictPublicRosters,
             BBannerIsCustom = source.BBannerIsCustom,
             PaymentMethodsAllowedCode = source.PaymentMethodsAllowedCode,
             BAddProcessingFees = source.BAddProcessingFees,
@@ -969,6 +971,11 @@ public sealed class JobCloneService : IJobCloneService
             BScheduleAllowPublicAccess = source.BScheduleAllowPublicAccess,
             BRegistrationAllowPlayer = source.BRegistrationAllowPlayer,
             BRegistrationAllowTeam = source.BRegistrationAllowTeam,
+            BRegistrationAllowStaff = source.BRegistrationAllowStaff,
+            BRegistrationAllowReferee = source.BRegistrationAllowReferee,
+            BRegistrationAllowRecruiter = source.BRegistrationAllowRecruiter,
+            BplayerRegRequiresToken = source.BplayerRegRequiresToken,
+            BteamRegRequiresToken = source.BteamRegRequiresToken,
             BAllowRefundsInPriorMonths = source.BAllowRefundsInPriorMonths,
             BAllowCreditAll = source.BAllowCreditAll,
             PlayerRegCovid19Waiver = source.PlayerRegCovid19Waiver,
@@ -976,6 +983,7 @@ public sealed class JobCloneService : IJobCloneService
             AdnArbbillingOccurences = source.AdnArbbillingOccurences,
             AdnArbintervalLength = source.AdnArbintervalLength,
             AdnArbMinimunTotalCharge = source.AdnArbMinimunTotalCharge,
+            AdnArbtrial = source.AdnArbtrial,
             MobileScoreHoursPastGameEligible = source.MobileScoreHoursPastGameEligible,
             BSignalRschedule = source.BSignalRschedule,
             BDisallowCcplayerConfirmations = source.BDisallowCcplayerConfirmations,
@@ -986,6 +994,9 @@ public sealed class JobCloneService : IJobCloneService
             BEnableTsicteams = source.BEnableTsicteams,
             BEnableMobileRsvp = source.BEnableMobileRsvp,
             BEnableStore = enableStore,
+            // Store walk-up is a store sub-feature — follow the resolved store state so a
+            // "disable store" clone can't leak walk-up back on.
+            BAllowStoreWalkup = enableStore == true && source.BAllowStoreWalkup,
             MobileJobName = source.MobileJobName,
             StoreSalesTax = source.StoreSalesTax,
             StoreRefundPolicy = source.StoreRefundPolicy,
@@ -997,6 +1008,8 @@ public sealed class JobCloneService : IJobCloneService
             AdultProfileMetadataJson = source.AdultProfileMetadataJson,
             BenableStp = source.BenableStp,
             StoreTsicrate = source.StoreTsicrate,
+            BIncludePlayerDonation = source.BIncludePlayerDonation,
+            BIncludeTeamDonation = source.BIncludeTeamDonation,
             // JobAi — auto-increment, let DB assign
             // UpdatedOn — rowversion, let DB assign
         };
