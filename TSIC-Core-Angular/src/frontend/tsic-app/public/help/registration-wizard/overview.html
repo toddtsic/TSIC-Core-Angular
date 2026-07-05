@@ -12,14 +12,16 @@
 </p>
 
 <!-- Example illustration — built from the app's own styles, so it looks exactly like the product. -->
-<div style="display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; padding:var(--space-4,1rem); border:1px solid var(--bs-border-color); border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-bottom:var(--space-4,1rem);">
-  <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-lg"></i> Player</span>
-  <span style="color:var(--bs-secondary-color);">&rarr;</span>
-  <span class="badge rounded-pill text-bg-primary">2. Details</span>
-  <span style="color:var(--bs-secondary-color);">&rarr;</span>
-  <span class="badge rounded-pill text-bg-light">3. Waivers</span>
-  <span style="color:var(--bs-secondary-color);">&rarr;</span>
-  <span class="badge rounded-pill text-bg-light">4. Pay</span>
+<div class="help-surface">
+  <div class="help-flow">
+    <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-lg"></i> Player</span>
+    <span class="help-muted">&rarr;</span>
+    <span class="badge rounded-pill text-bg-primary">2. Details</span>
+    <span class="help-muted">&rarr;</span>
+    <span class="badge rounded-pill text-bg-light">3. Waivers</span>
+    <span class="help-muted">&rarr;</span>
+    <span class="badge rounded-pill text-bg-light">4. Pay</span>
+  </div>
 </div>
 
 <h4>What you'll do</h4>
@@ -33,7 +35,7 @@
 <p>
   When a step is complete and ready to move on, the <strong>Continue</strong> button becomes active:
 </p>
-<p style="margin-bottom:var(--space-4,1rem);">
+<p>
   <button type="button" class="btn btn-primary" disabled>Continue to payment</button>
 </p>
 

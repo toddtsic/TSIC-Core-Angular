@@ -9,22 +9,22 @@
 <p>Each row is one registration. Click it to open that registration and continue.</p>
 
 <!-- Example illustration — registration rows, drawn in the app's own styles. -->
-<div style="display:flex; flex-direction:column; gap:var(--space-2,.5rem); margin-bottom:var(--space-4,1rem);">
-  <div style="display:flex; align-items:center; gap:var(--space-3,.75rem); padding:var(--space-3,.75rem) var(--space-4,1rem); border:1px solid var(--bs-border-color); border-radius:var(--radius-md,8px); background:var(--bs-body-bg,#fff);">
-    <i class="bi bi-trophy" style="font-size:1.4rem; color:var(--bs-primary);" aria-hidden="true"></i>
-    <div style="flex:1 1 auto;">
-      <div style="font-weight:var(--font-weight-semibold,600);">Summer Classic</div>
-      <div style="color:var(--bs-secondary-color); font-size:var(--font-size-sm,.875rem);">Jordan Lee &bull; U12 &bull; Thunder</div>
+<div class="help-menu-list">
+  <div class="help-menu-row">
+    <i class="bi bi-trophy" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Summer Classic</div>
+      <div class="help-menu-row__sub">Jordan Lee &bull; U12 &bull; Thunder</div>
     </div>
-    <i class="bi bi-chevron-right" style="color:var(--bs-secondary-color);" aria-hidden="true"></i>
+    <i class="bi bi-chevron-right help-menu-row__chevron" aria-hidden="true"></i>
   </div>
-  <div style="display:flex; align-items:center; gap:var(--space-3,.75rem); padding:var(--space-3,.75rem) var(--space-4,1rem); border:1px solid var(--bs-border-color); border-radius:var(--radius-md,8px); background:var(--bs-body-bg,#fff);">
-    <i class="bi bi-trophy" style="font-size:1.4rem; color:var(--bs-primary);" aria-hidden="true"></i>
-    <div style="flex:1 1 auto;">
-      <div style="font-weight:var(--font-weight-semibold,600);">Riverside Cup</div>
-      <div style="color:var(--bs-secondary-color); font-size:var(--font-size-sm,.875rem);">Alex Lee &bull; U10 &bull; Comets</div>
+  <div class="help-menu-row">
+    <i class="bi bi-trophy" aria-hidden="true"></i>
+    <div class="help-menu-row__body">
+      <div class="help-menu-row__title">Riverside Cup</div>
+      <div class="help-menu-row__sub">Alex Lee &bull; U10 &bull; Comets</div>
     </div>
-    <i class="bi bi-chevron-right" style="color:var(--bs-secondary-color);" aria-hidden="true"></i>
+    <i class="bi bi-chevron-right help-menu-row__chevron" aria-hidden="true"></i>
   </div>
 </div>
 <ul>
@@ -44,8 +44,8 @@
 </p>
 
 <!-- Tip treatment. -->
-<div style="display:flex; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-border-color); border-left:4px solid var(--bs-primary); border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-top:var(--space-4,1rem);">
-  <i class="bi bi-lightbulb" style="font-size:1.2rem; color:var(--bs-primary);" aria-hidden="true"></i>
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
   <div>
     <strong>Tip:</strong> even if you see only one registration, you still tap it to open it — the screen
     never opens one for you, so you always know which you're in.

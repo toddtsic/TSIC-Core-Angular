@@ -1,13 +1,13 @@
 <h3>Signing in</h3>
 
 <!-- Callout: the crux of almost every "I can't log in" report. -->
-<div style="display:flex; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-warning,#ffc107); border-left-width:4px; border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-bottom:var(--space-5,1.25rem);">
-  <i class="bi bi-info-circle-fill" style="font-size:1.35rem; color:var(--bs-warning,#ffc107);" aria-hidden="true"></i>
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-info-circle-fill" aria-hidden="true"></i>
   <div>
     <strong>"Invalid username or password" is deliberately vague.</strong>
-    <div style="margin-top:var(--space-1,.25rem); color:var(--bs-secondary-color);">
+    <p class="help-callout__body">
       For security it won't say which field was wrong. Check both — start with the username.
-    </div>
+    </p>
   </div>
 </div>
 
@@ -77,8 +77,8 @@
 </details>
 
 <!-- Tip treatment. -->
-<div style="display:flex; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-border-color); border-left:4px solid var(--bs-primary); border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-top:var(--space-4,1rem);">
-  <i class="bi bi-lightbulb" style="font-size:1.2rem; color:var(--bs-primary);" aria-hidden="true"></i>
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
   <div>
     <strong>Tip:</strong> still locked out after a reset? The event contact on the event's landing page can
     confirm the right username for your account.

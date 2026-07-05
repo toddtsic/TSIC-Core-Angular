@@ -51,8 +51,9 @@ const FAQ_ITEM_HTML = `<details class="faq-item" open>
 
 /**
  * The "Insert" palette — one entry per building block in the manual's style sheet. Each drops a
- * pre-styled placeholder into the editor so authoring is just replacing the dummy text, and every
- * snippet matches the hand-authored pages (same inline styles, same CSS-var + hex fallbacks).
+ * pre-styled placeholder into the editor so authoring is just replacing the dummy text. Snippets are
+ * class-only (styles/_help-content.scss owns the look), so they render identically here and on the page,
+ * and a manual-wide restyle is one edit to that partial — never a find-and-replace across content files.
  */
 const HELP_SNIPPETS: readonly HelpSnippet[] = [
   {
@@ -63,37 +64,60 @@ const HELP_SNIPPETS: readonly HelpSnippet[] = [
   {
     label: 'Warning callout',
     icon: 'bi-exclamation-triangle',
-    html: `<div style="display:flex; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-warning,#ffc107); border-left-width:4px; border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin-bottom:var(--space-5,1.25rem);">
-  <i class="bi bi-exclamation-triangle-fill" style="font-size:1.35rem; color:var(--bs-warning,#ffc107);" aria-hidden="true"></i>
+    html: `<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
   <div>
     <strong>Replace with the key warning.</strong>
-    <div style="margin-top:var(--space-1,.25rem); color:var(--bs-secondary-color);">Add a supporting sentence here.</div>
+    <p class="help-callout__body">Add a supporting sentence here.</p>
   </div>
 </div>`,
   },
   {
     label: 'Tip callout',
     icon: 'bi-lightbulb',
-    html: `<div style="display:flex; gap:var(--space-3,.75rem); padding:var(--space-4,1rem); border:1px solid var(--bs-border-color); border-left:4px solid var(--bs-primary); border-radius:var(--radius-md,8px); background:var(--bs-tertiary-bg,#f5f5f4); margin:var(--space-4,1rem) 0;">
-  <i class="bi bi-lightbulb" style="font-size:1.2rem; color:var(--bs-primary);" aria-hidden="true"></i>
+    html: `<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
   <div><strong>Tip:</strong> replace with your tip.</div>
+</div>`,
+  },
+  {
+    label: 'Success callout',
+    icon: 'bi-shield-check',
+    html: `<div class="help-callout help-callout--success">
+  <i class="bi bi-shield-check" aria-hidden="true"></i>
+  <div>
+    <strong>Replace with the reassuring point.</strong>
+    <p class="help-callout__body">Add a supporting sentence here.</p>
+  </div>
 </div>`,
   },
   {
     label: 'Status badges',
     icon: 'bi-tag',
-    html: `<div style="display:flex; flex-wrap:wrap; gap:var(--space-3,.75rem); margin-bottom:var(--space-4,1rem);">
+    html: `<div class="help-badge-row">
   <span class="badge rounded-pill text-bg-secondary">Label one</span>
   <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-lg"></i> Label two</span>
   <span class="badge rounded-pill text-bg-warning">WL</span>
 </div>`,
   },
   {
+    label: 'Two-column cards',
+    icon: 'bi-layout-split',
+    html: `<div class="help-card-grid">
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary">First state</span>
+    <p>Describe what this state means.</p>
+  </div>
+  <div class="help-card help-card--success">
+    <span class="badge rounded-pill text-bg-success"><i class="bi bi-check-lg"></i> Second state</span>
+    <p>Describe the contrasting state.</p>
+  </div>
+</div>`,
+  },
+  {
     label: 'Button example',
     icon: 'bi-hand-index',
-    html: `<p style="margin-bottom:var(--space-4,1rem);">
-  <button type="button" class="btn btn-primary btn-sm" disabled>Button label</button>
-</p>`,
+    html: `<p><button type="button" class="btn btn-primary btn-sm" disabled>Button label</button></p>`,
   },
 ];
 

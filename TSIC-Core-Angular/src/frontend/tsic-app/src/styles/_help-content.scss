@@ -1,0 +1,319 @@
+/* ============================================================================
+   HELP CONTENT — shared block vocabulary (single source of truth)
+   ----------------------------------------------------------------------------
+   How authored help renders, defined ONCE. Applied to three surfaces so the
+   read view and BOTH editor previews are pixel-identical:
+     .help-content             — the drawer's read view ([innerHTML])
+     .help-rte-wrap .e-content — the overview RTE preview (help-editor)
+     .faq-edit-body .e-content — the FAQ answer RTE preview (help-editor)
+
+   The two .e-content selectors are namespaced under help-only wrappers, so
+   these rules never leak to the other Syncfusion editors in the app.
+
+   AUTHORING CONTRACT: help content is class-only — NO inline styles. Every
+   block has a semantic class below; scripts/verify-help.mjs fails the build if
+   a content file reintroduces a style="" attribute. To restyle a block across
+   the whole manual (and the editor preview), change it HERE, once.
+   ============================================================================ */
+
+.help-content,
+.help-rte-wrap .e-content,
+.faq-edit-body .e-content {
+  color: var(--bs-body-color);
+  line-height: 1.6;
+
+  /* ── Typography ────────────────────────────────────────────────────────── */
+  h3 {
+    margin: 0 0 var(--space-3);
+    font-size: var(--font-size-xl, 1.25rem);
+    font-weight: var(--font-weight-semibold, 600);
+  }
+
+  h4 {
+    margin: var(--space-5) 0 var(--space-2);
+    font-size: var(--font-size-md, 1rem);
+    font-weight: var(--font-weight-semibold, 600);
+  }
+
+  p {
+    margin: 0 0 var(--space-3);
+  }
+
+  ul,
+  ol {
+    margin: 0 0 var(--space-3);
+    padding-left: var(--space-5);
+  }
+
+  li {
+    margin-bottom: var(--space-2);
+  }
+
+  a {
+    color: var(--bs-primary);
+    text-decoration: underline;
+  }
+
+  /* Tier-1 "example images": inline illustrations built from the app's own design-system markup. */
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--radius-md);
+  }
+
+  /* ── Utilities ─────────────────────────────────────────────────────────── */
+  /* Secondary/quiet text — flow arrows, sub-lines, captions. */
+  .help-muted {
+    color: var(--bs-secondary-color);
+  }
+
+  /* Light badges need a hairline to read against the light surface. */
+  .badge.text-bg-light {
+    border: 1px solid var(--bs-border-color);
+  }
+
+  /* Demo buttons dropped mid-sentence sit on the text baseline, not above it. */
+  .btn {
+    vertical-align: baseline;
+  }
+
+  /* Generic padded surface — a neutral container for a mockup or worked example. */
+  .help-surface {
+    padding: var(--space-4);
+    margin: 0 0 var(--space-4);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    background: var(--bs-tertiary-bg);
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  /* ── Callout: icon + message with a left accent, colored by variant ─────── */
+  .help-callout {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-4);
+    margin: 0 0 var(--space-4);
+    border: 1px solid var(--bs-border-color);
+    border-left: 4px solid var(--bs-primary);
+    border-radius: var(--radius-md);
+    background: var(--bs-tertiary-bg);
+
+    > i {
+      flex-shrink: 0;
+      font-size: 1.3rem;
+      line-height: 1.4;
+      color: var(--bs-primary);
+    }
+
+    /* Trailing detail line under the callout's lead sentence. */
+    .help-callout__body {
+      margin: var(--space-1) 0 0;
+      color: var(--bs-secondary-color);
+    }
+
+    > div > :last-child {
+      margin-bottom: 0;
+    }
+
+    /* --tip is the default (primary accent) — no override needed. */
+    &--warning {
+      border-left-color: var(--bs-warning);
+
+      > i {
+        color: var(--bs-warning);
+      }
+    }
+
+    &--success {
+      border-left-color: var(--bs-success);
+
+      > i {
+        color: var(--bs-success);
+      }
+    }
+
+    &--info {
+      align-items: center;
+      border-left-color: var(--bs-info, var(--bs-primary));
+
+      > i {
+        color: var(--bs-info, var(--bs-primary));
+      }
+    }
+  }
+
+  /* ── Badge row (wrapping pills) and chip flow (pills joined by → arrows) ── */
+  .help-badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-4);
+  }
+
+  .help-flow {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-4);
+  }
+
+  /* ── Card grid: side-by-side equal-width surfaces ───────────────────────── */
+  .help-card-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin: 0 0 var(--space-4);
+  }
+
+  .help-card {
+    flex: 1 1 220px;
+    padding: var(--space-4);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    background: var(--bs-tertiary-bg);
+
+    /* A lead badge sits on its own line, spaced from the description below. */
+    > .badge {
+      display: inline-block;
+      margin-bottom: var(--space-2);
+    }
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+
+    &--success {
+      border-color: var(--bs-success);
+    }
+  }
+
+  /* ── Menu-row mockup: icon · title/subtitle · chevron (role & event pickers) */
+  .help-menu-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-4);
+  }
+
+  .help-menu-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    background: var(--bs-body-bg);
+
+    > i {
+      flex-shrink: 0;
+      font-size: 1.4rem;
+      color: var(--bs-primary);
+    }
+
+    &__body {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    &__title {
+      font-weight: var(--font-weight-semibold, 600);
+    }
+
+    &__sub {
+      color: var(--bs-secondary-color);
+      font-size: var(--font-size-sm, 0.875rem);
+    }
+
+    &__chevron {
+      color: var(--bs-secondary-color);
+    }
+  }
+
+  /* ── Form-field mockup (e.g. the login screen) ──────────────────────────── */
+  .help-form-preview {
+    max-width: 340px;
+    padding: var(--space-4);
+    margin: 0 0 var(--space-4);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    background: var(--bs-tertiary-bg);
+
+    .form-control,
+    .btn {
+      margin-bottom: var(--space-3);
+    }
+
+    > :last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  /* ── FAQ accordion — each Q is a <details class="faq-item">, Q in <summary> ── */
+  details.faq-item {
+    margin: 0 0 var(--space-2);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    background: var(--bs-body-bg, #fff);
+    overflow: hidden;
+
+    summary {
+      display: flex;
+      align-items: baseline;
+      gap: var(--space-2);
+      padding: var(--space-3) var(--space-4);
+      font-weight: var(--font-weight-semibold, 600);
+      color: var(--bs-body-color);
+      cursor: pointer;
+      list-style: none; /* strip the native disclosure triangle */
+
+      &::-webkit-details-marker {
+        display: none;
+      }
+
+      &:hover {
+        background: var(--bs-tertiary-bg, var(--neutral-100));
+      }
+
+      &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
+      }
+    }
+
+    .faq-caret {
+      flex-shrink: 0;
+      font-size: 0.8em;
+      color: var(--bs-primary);
+      transition: transform 0.15s ease;
+    }
+
+    &[open] {
+      summary {
+        border-bottom: 1px solid var(--bs-border-color);
+      }
+
+      .faq-caret {
+        transform: rotate(90deg);
+      }
+    }
+
+    .faq-a {
+      padding: var(--space-3) var(--space-4);
+
+      > :last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .faq-caret {
+        transition: none;
+      }
+    }
+  }
+}

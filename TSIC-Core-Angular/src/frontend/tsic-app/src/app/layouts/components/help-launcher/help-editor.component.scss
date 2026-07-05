@@ -6,74 +6,11 @@
 }
 
 /*
- * ── FAQ accordion inside the editor ──
- * The Syncfusion editor's content area (.e-content) renders authored <details class="faq-item"> blocks,
- * so the author previews accordions exactly as they read in the product. Without this the RTE shows raw
- * <details>: the browser's native ▼ marker AND our own > caret, with no card styling. (The read view's
- * matching rule for .help-content lives in help-launcher.component.scss.)
+ * The RTE content areas (.e-content) render authored blocks — FAQ accordions, callouts, cards — exactly
+ * as they read in the product. Those block styles come from the shared, global styles/_help-content.scss,
+ * scoped there to `.help-rte-wrap .e-content` and `.faq-edit-body .e-content` so they reach these previews
+ * WITHOUT leaking to the app's other Syncfusion editors. Only the editor's own UI chrome lives below.
  */
-:host ::ng-deep .e-content details.faq-item {
-  margin: 0 0 var(--space-2);
-  border: 1px solid var(--bs-border-color);
-  border-radius: var(--radius-md);
-  background: var(--bs-body-bg, #fff);
-  overflow: hidden;
-
-  summary {
-    display: flex;
-    align-items: baseline;
-    gap: var(--space-2);
-    padding: var(--space-3) var(--space-4);
-    font-weight: var(--font-weight-semibold, 600);
-    color: var(--bs-body-color);
-    cursor: pointer;
-    list-style: none; /* strip the native disclosure triangle */
-
-    &::-webkit-details-marker {
-      display: none;
-    }
-
-    &:hover {
-      background: var(--bs-tertiary-bg, var(--neutral-100));
-    }
-
-    &:focus-visible {
-      outline: none;
-      box-shadow: var(--shadow-focus);
-    }
-  }
-
-  .faq-caret {
-    flex-shrink: 0;
-    font-size: 0.8em;
-    color: var(--bs-primary);
-    transition: transform 0.15s ease;
-  }
-
-  &[open] {
-    summary {
-      border-bottom: 1px solid var(--bs-border-color);
-    }
-
-    .faq-caret {
-      transform: rotate(90deg);
-    }
-  }
-
-  .faq-a {
-    padding: var(--space-3) var(--space-4);
-
-    > :last-child {
-      margin-bottom: 0;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .faq-caret {
-      transition: none;
-    }
-  }
-}
 
 /* ── Edit mode: fill the panel body so the editor is near full-height ── */
 .help-edit {

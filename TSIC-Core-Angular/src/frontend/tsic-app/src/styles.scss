@@ -28,6 +28,8 @@
 @use 'styles/syncfusion-dark';
 @use 'styles/syncfusion-popups';
 @use 'styles/syncfusion-cell-utils';
+/* Help drawer content vocabulary — after syncfusion-* so it wins over .e-content defaults. */
+@use 'styles/help-content';
 
 /* External Dependencies */
 @import '../node_modules/bootstrap-icons/font/bootstrap-icons.css';

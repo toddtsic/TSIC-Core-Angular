@@ -6,6 +6,8 @@
 //   1. Every route `helpKey: '<component>'` must have public/help/<component>/overview.html.
 //   2. Every public/help/<component> folder must be referenced by some route helpKey.
 //   3. Every topic file must be named overview.html or faq.html (the two tabs the launcher renders).
+//   4. No content file may carry an inline style="" attribute. Presentation is class-only — the block
+//      vocabulary lives in styles/_help-content.scss, so a restyle is one edit, not a sweep across pages.
 import { readdir, readFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,6 +40,11 @@ for (const c of await readdir(helpDir, { withFileTypes: true })) {
     const topic = f.slice(0, -'.html'.length);
     if (!KNOWN_TOPICS.has(topic)) {
       errors.push(`unexpected topic file public/help/${c.name}/${f} (only overview.html / faq.html render)`);
+    }
+    // Content is class-only — an inline style="" defeats the shared _help-content.scss vocabulary.
+    const html = await readFile(join(helpDir, c.name, f), 'utf8');
+    if (/\sstyle\s*=/.test(html)) {
+      errors.push(`inline style found in public/help/${c.name}/${f} — use a help-* class from styles/_help-content.scss instead`);
     }
     topics.add(topic);
   }
