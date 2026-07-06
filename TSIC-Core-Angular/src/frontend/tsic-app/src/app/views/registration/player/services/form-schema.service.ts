@@ -191,6 +191,13 @@ export class FormSchemaService {
                 };
                 const min = toNum(pickCI(f, 'min') ?? val?.['min']);
                 const max = toNum(pickCI(f, 'max') ?? val?.['max']);
+                // A field carrying numeric bounds is inherently numeric — render + validate it as
+                // a number even when migration typed it 'text' and it's absent from numericColumns
+                // (e.g. ACT, SAT Writing, whose legacy props are `string`). The range is the source
+                // of truth; this is what makes min/max actually enforce for those fields.
+                if (type === 'text' && (min != null || max != null)) {
+                    type = 'number';
+                }
                 // US Lax fields always use the same API validation endpoint and error message
                 const finalRemoteUrl = isUsLaxField ? '/api/validation/uslax' : remoteUrl;
                 const finalErrorMessage = isUsLaxField
