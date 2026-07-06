@@ -286,6 +286,14 @@ describe('PlayerFormsService', () => {
             const school = mkField({ name: 'schoolName', label: 'School' });
             expect(service.isFieldVisibleForPlayer('p1', school, [], null, [], null)).toBe(true);
         });
+
+        // Aggregate SAT ('sat', label "SAT Total") is a recruiting field too — it must gate with
+        // its Math/Verbal/Writing siblings, not leak out as a plain field below the fieldset.
+        it('aggregate sat field gates like the other recruiting fields', () => {
+            const sat = mkField({ name: 'sat', label: 'SAT Total' });
+            expect(service.isFieldVisibleForPlayer('p1', sat, [], null, ['2024'], null)).toBe(false);
+            expect(service.isFieldVisibleForPlayer('p1', sat, [], null, ['2024', '2025'], '2025')).toBe(true);
+        });
     });
 
     // ── 4. Form Seeding ──────────────────────────────────────────────

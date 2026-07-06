@@ -15,7 +15,7 @@ import type {
 // (NCAA), regardless of job type. No list configured → hidden.
 const RECRUITING_FIELD_NAMES = new Set<string>([
     'gpa', 'classrank', 'act',
-    'satmath', 'satverbal', 'satwriting',
+    'sat', 'satmath', 'satverbal', 'satwriting',
     'weightlbs', 'heightinches',
     'bcollegecommit', 'collegecommit',
 ]);

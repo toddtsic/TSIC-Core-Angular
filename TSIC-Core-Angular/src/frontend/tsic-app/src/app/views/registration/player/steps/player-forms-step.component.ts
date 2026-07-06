@@ -15,7 +15,7 @@ import type { PlayerProfileFieldSchema, PlayerFormFieldValue } from '../types/pl
 // the position of the first canonical field present in the editor schema.
 const RECRUITING_ORDER: readonly string[] = [
     'gpa', 'classrank', 'act',
-    'satmath', 'satverbal', 'satwriting',
+    'sat', 'satmath', 'satverbal', 'satwriting',
     'weightlbs', 'heightinches',
     'bcollegecommit', 'collegecommit',
 ];
