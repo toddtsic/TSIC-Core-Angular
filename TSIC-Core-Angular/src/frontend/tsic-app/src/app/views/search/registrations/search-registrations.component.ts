@@ -1,7 +1,7 @@
 import { Component, OnInit, OnDestroy, HostListener, signal, computed, inject, ChangeDetectionStrategy, CUSTOM_ELEMENTS_SCHEMA, viewChild, viewChildren } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel, SelectionSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { GridAllModule, GridComponent, PageSettingsModel, SortSettingsModel, SelectionSettingsModel, DataStateChangeEventArgs, RowSelectEventArgs, RowDeselectEventArgs } from '@syncfusion/ej2-angular-grids';
 
 import { MultiSelectModule, MultiSelectComponent, CheckBoxSelectionService } from '@syncfusion/ej2-angular-dropdowns';
 
@@ -214,9 +214,23 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   private resizeHandler = () => this.checkMobileView();
 
   // Grid configuration
-  pageSettings: PageSettingsModel = { pageSize: 20, pageSizes: [20, 50, 100, 'All'] };
+  // Server-side paging: the grid fetches ONE page at a time (dataStateChange → fetchRegistrations).
+  // Capped at 1000/page — no "All" (10K rows would render as a DOM bomb without virtualization).
+  pageSettings: PageSettingsModel = { pageSize: 100, pageSizes: [100, 500, 1000] };
   sortSettings: SortSettingsModel = { columns: [{ field: 'lastName', direction: 'Ascending' }] };
-  selectionSettings: SelectionSettingsModel = { checkboxOnly: true };
+  // persistSelection + a registrationId primary key keep checkboxes ticked across page fetches;
+  // the authoritative selection set is maintained in selectedRegistrations (rowSelected/rowDeselected).
+  selectionSettings: SelectionSettingsModel = { checkboxOnly: true, persistSelection: true };
+
+  // ── Server-side paging state (drives the request; the grid reports skip/take/sort via
+  // dataStateChange). Kept as separate signals so searchRequest stays pure filter criteria —
+  // which lets it double as the batch-email Criteria payload unchanged. ──
+  private gridPage = signal(1);
+  private gridPageSize = signal(100);
+  private gridSort = signal<{ field: string; dir: 'asc' | 'desc' }>({ field: 'lastName', dir: 'asc' });
+  // Dedupe guard: the grid fires an initial dataStateChange after the first manual search; skip a
+  // fetch whose (filters + page + size + sort) key matches the one already loaded.
+  private lastFetchKey = '';
 
   // Syncfusion MultiSelect fields
   msFields = { value: 'value', text: 'text' };
@@ -412,17 +426,56 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     }));
   }
 
+  /** A new search from the filter panel / Search button: reset to page 1, clear selection, force a fetch. */
   executeSearch(keepPanelOpen = false): void {
     if (this.isSearching()) return; // Guard against double-fire (Enter bubbling + button click)
     this.arbCardExpiringMode.set(false);
     if (!keepPanelOpen) this.isFiltersPanelOpen.set(false);
-    this.isSearching.set(true);
+    this.gridPage.set(1);
     this.lastExecutedRequest.set(JSON.stringify(this.searchRequest()));
-    const req = this.sanitizeRequest(this.searchRequest());
+    // Fetch FIRST so lastFetchKey registers page-1 for the new criteria, THEN reset the pager UI:
+    // goToPage(1)'s dataStateChange re-asks for the same page-1 key and dedupes (no double request).
+    this.fetchRegistrations({ clearSelection: true, force: true });
+    this.grid()?.goToPage?.(1); // move the pager UI back to page 1 (no-op before first render)
+  }
+
+  /**
+   * The grid asks for a page/sort (init, pager click, column sort). Update paging state and fetch.
+   * Selection is preserved across paging/sorting — that's the whole point of server-side selection.
+   */
+  onDataStateChange(state: DataStateChangeEventArgs): void {
+    // ARB card-expiring results come from a live lookup (a fixed, unpaged id set), not the filter
+    // pipeline — never let a grid-driven page/sort re-run the normal search and clobber them.
+    if (this.arbCardExpiringMode()) return;
+    const take = state.take && state.take > 0 ? state.take : this.gridPageSize();
+    const skip = state.skip ?? 0;
+    this.gridPageSize.set(take);
+    this.gridPage.set(Math.floor(skip / take) + 1);
+    const sorted = state.sorted?.[0];
+    this.gridSort.set(sorted
+      ? { field: String(sorted.name), dir: sorted.direction === 'descending' ? 'desc' : 'asc' }
+      : { field: 'lastName', dir: 'asc' });
+    this.fetchRegistrations({ clearSelection: false, force: false });
+  }
+
+  /** Single fetch chokepoint. Builds filters + paging + sort, dedupes, and sets searchResults. */
+  private fetchRegistrations(opts: { clearSelection: boolean; force: boolean }): void {
+    const sort = this.gridSort();
+    const req: RegistrationSearchRequest = {
+      ...this.sanitizeRequest(this.searchRequest()),
+      page: this.gridPage(),
+      pageSize: this.gridPageSize(),
+      sortField: sort.field,
+      sortDir: sort.dir
+    };
+    const key = JSON.stringify(req);
+    if (!opts.force && key === this.lastFetchKey) return; // grid re-asked for what we already have
+    this.lastFetchKey = key;
+    this.isSearching.set(true);
+    if (opts.clearSelection) this.selectedRegistrations.set(new Set());
     this.searchService.search(req).subscribe({
       next: (results) => {
         this.searchResults.set(results);
-        this.selectedRegistrations.set(new Set());
         this.isSearching.set(false);
       },
       error: (err) => {
@@ -627,24 +680,57 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.executeSearch();
   }
 
-  onRowSelected(): void {
-    const selectedRecords = this.grid().getSelectedRecords() as RegistrationSearchResultDto[];
-    const pageSize = (this.grid().pageSettings.pageSize as number) || 20;
-    const currentPageRecords = this.grid().getCurrentViewRecords().length;
+  // Cross-page selection: the authoritative recipient set is selectedRegistrations, accumulated by
+  // registrationId. We ADD/REMOVE per (de)selection delta rather than snapshotting the grid's current
+  // view — with server-side paging getSelectedRecords() only ever sees the loaded page, so overwriting
+  // from it would silently drop off-page picks. Header select-all here = "select the current page"
+  // (Syncfusion can't select rows it hasn't fetched); Email All is its own explicit button.
+  private isRestoringSelection = false;
 
-    // Header "select all" click = open Email All immediately
-    if (selectedRecords.length >= currentPageRecords && currentPageRecords === pageSize) {
-      this.grid().clearSelection();
-      this.selectedRegistrations.set(new Set());
-      this.onEmailAll();
-      return;
-    }
+  onRowSelected(args: RowSelectEventArgs): void {
+    this.applySelectionDelta(args?.data, true);
+  }
 
-    const newSelection = new Set(selectedRecords.map(r => r.registrationId));
-    this.selectedRegistrations.set(newSelection);
-    if (newSelection.size > 0) {
-      this.emailMode.set('selected');
+  onRowDeselected(args: RowDeselectEventArgs): void {
+    this.applySelectionDelta(args?.data, false);
+  }
+
+  private applySelectionDelta(data: unknown, add: boolean): void {
+    if (this.isRestoringSelection) return;
+    const rows = (Array.isArray(data) ? data : data ? [data] : []) as RegistrationSearchResultDto[];
+    if (rows.length === 0) return;
+    const next = new Set(this.selectedRegistrations());
+    for (const r of rows) {
+      if (!r?.registrationId) continue;
+      if (add) next.add(r.registrationId);
+      else next.delete(r.registrationId);
     }
+    this.selectedRegistrations.set(next);
+    if (next.size > 0) this.emailMode.set('selected');
+  }
+
+  // Fires after every page render (initial load + each server-side page fetch). Re-tick persisted
+  // selections first, then stamp the full-set row numbers over the (possibly re-rendered) rows.
+  onGridDataBound(): void {
+    this.restorePageSelection();
+    this.refreshRowNumbers();
+  }
+
+  // Re-check the checkboxes for rows whose id is already in the selection set, so paging back to an
+  // earlier page shows the picks intact. Guarded so the programmatic reselect doesn't churn the set
+  // through onRowSelected.
+  private restorePageSelection(): void {
+    const set = this.selectedRegistrations();
+    if (set.size === 0) return;
+    const grid = this.grid();
+    if (!grid) return;
+    const view = grid.getCurrentViewRecords() as RegistrationSearchResultDto[];
+    const indexes: number[] = [];
+    view.forEach((r, i) => { if (set.has(r.registrationId)) indexes.push(i); });
+    if (indexes.length === 0) return;
+    this.isRestoringSelection = true;
+    try { grid.selectRows(indexes); }
+    finally { this.isRestoringSelection = false; }
   }
 
   onActionComplete(args: any): void {
@@ -654,8 +740,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   refreshRowNumbers(): void {
-    const pageSize = this.grid().pageSettings.pageSize as number ?? 20;
-    const currentPage = this.grid().pageSettings.currentPage ?? 1;
+    // Row numbers are 1-based across the full set — offset by the current server page, not the
+    // grid's internal pager state (which we drive via dataStateChange).
+    const pageSize = this.gridPageSize();
+    const currentPage = this.gridPage();
     const start = (currentPage - 1) * pageSize;
     const gridEl = this.grid().element;
     if (!gridEl) return;
@@ -716,11 +804,31 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   exportExcel(): void {
-    const results = this.searchResults();
     const grid = this.grid();
-    if (grid && results) {
-      grid.excelExport({ dataSource: results.result, includeHiddenColumn: true });
+    if (!grid) return;
+
+    // ARB card-expiring results are already the full unpaged set — export what's loaded.
+    if (this.arbCardExpiringMode()) {
+      const loaded = this.searchResults()?.result ?? [];
+      grid.excelExport({ dataSource: loaded, includeHiddenColumn: true });
+      return;
     }
+
+    // The grid holds only ONE page; export must be the whole match. Re-run the search with no paging
+    // params (backend returns all) and export that. Explicit user action, so a heavy 10K pull is fine.
+    const req: RegistrationSearchRequest = { ...this.sanitizeRequest(this.searchRequest()) };
+    this.isSearching.set(true);
+    this.searchService.search(req).subscribe({
+      next: (full) => {
+        this.isSearching.set(false);
+        grid.excelExport({ dataSource: full.result, includeHiddenColumn: true });
+      },
+      error: (err) => {
+        this.isSearching.set(false);
+        this.toast.show('Export failed', 'danger', 4000);
+        console.error('Export error:', err);
+      }
+    });
   }
 
 
@@ -731,29 +839,42 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     return this.selectedRegistrations().size > 0;
   }
 
+  // 'all' mode normally sends NO ids — the server re-resolves the full audience from the search
+  // criteria at send time (correct even though only one page is loaded client-side). EXCEPTION: an
+  // ARB card-expiring lookup isn't reproducible from filter criteria, so its 'all' sends the loaded
+  // (fully unpaged) id set explicitly. 'selected' sends the accumulated id set — which may include
+  // off-page picks the grid no longer holds.
   get emailRegistrationIds(): string[] {
     if (this.emailMode() === 'all') {
-      return this.searchResults()?.result?.map(r => r.registrationId) ?? [];
+      return this.arbCardExpiringMode()
+        ? (this.searchResults()?.result?.map(r => r.registrationId) ?? [])
+        : [];
     }
     return Array.from(this.selectedRegistrations());
   }
 
+  // The exact filter criteria that produced the on-screen results, sanitized so an "Email All" send
+  // re-resolves the IDENTICAL audience server-side (empty arrays → undefined, matching the search
+  // request that ran). Also feeds the modal's template-availability gating.
+  readonly emailCriteria = computed(() => this.sanitizeRequest(this.searchRequest()));
+
+  // Authoritative recipient count: 'all' = the full-set server count (NOT the loaded page length),
+  // 'selected' = the accumulated set size.
   get emailRecipientCount(): number {
     if (this.emailMode() === 'all') {
-      return this.searchResults()?.result?.length ?? 0;
+      return this.searchResults()?.count ?? 0;
     }
     return this.selectedRegistrations().size;
   }
 
+  // Display-only name sample. Off-page recipients aren't in memory, so this is best-effort from the
+  // loaded page; emailRecipientCount is the authoritative headline and the send is resolved server-side.
   get emailRecipients(): { name: string; email: string }[] {
-    if (this.emailMode() === 'all') {
-      return this.searchResults()?.result?.map(r => ({
-        name: `${r.lastName}, ${r.firstName}`,
-        email: r.email
-      })) ?? [];
-    }
-    const records = this.grid().getSelectedRecords() as RegistrationSearchResultDto[];
-    return records.map(r => ({
+    const loaded = this.searchResults()?.result ?? [];
+    const rows = this.emailMode() === 'all'
+      ? loaded
+      : loaded.filter(r => this.selectedRegistrations().has(r.registrationId));
+    return rows.map(r => ({
       name: `${r.lastName}, ${r.firstName}`,
       email: r.email
     }));
@@ -768,7 +889,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   onEmailAll(): void {
-    if (this.searchResults()?.result?.length) {
+    if (this.searchResults()?.count) {
       this.grid().clearSelection();
       this.selectedRegistrations.set(new Set());
       this.inviteMode.set(null);
@@ -1042,6 +1163,10 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     this.isFiltersPanelOpen.set(false);
     this.searchService.arbCardExpiringLookup().subscribe({
       next: (results) => {
+        // ARB results are the full unpaged set. Reset to page 1 so row numbering (offset by gridPage)
+        // starts at 1; the dataStateChange guard keeps the pager from re-running the filter search.
+        this.gridPage.set(1);
+        this.grid()?.goToPage?.(1);
         this.searchResults.set(results);
         this.selectedRegistrations.set(new Set());
         this.arbCardExpiringMode.set(true);

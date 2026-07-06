@@ -363,14 +363,15 @@
         </div>
       </div>
 
+      <div class="results-grid-wrap">
       <ejs-grid
         #grid
         [dataSource]="searchResults()!.result"
         cssClass="tsic-grid-tight"
+        [height]="'100%'"
         [allowPaging]="true"
         [allowSorting]="true"
         [allowExcelExport]="true"
-        [enableStickyHeader]="true"
         [frozenColumns]="3"
         [pageSettings]="pageSettings"
         [sortSettings]="sortSettings"
@@ -473,6 +474,7 @@
           </e-aggregate>
         </e-aggregates>
       </ejs-grid>
+      </div>
     }
   </div>
 

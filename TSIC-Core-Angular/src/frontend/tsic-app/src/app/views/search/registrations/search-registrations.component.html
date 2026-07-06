@@ -696,7 +696,7 @@
             </span>
           </span>
           <div class="results-actions">
-            <button type="button" class="btn btn-results-action btn-results-export" (click)="exportExcel()" [disabled]="!searchResults()?.result?.length">
+            <button type="button" class="btn btn-results-action btn-results-export" (click)="exportExcel()" [disabled]="!searchResults()?.count">
               <svg class="btn-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               Export
             </button>
@@ -706,7 +706,7 @@
                 class="btn btn-segment btn-segment--left"
                 [class.btn-segment--active]="emailMode() === 'all'"
                 (click)="onEmailAll()"
-                [disabled]="!searchResults()?.result?.length">
+                [disabled]="!searchResults()?.count">
                 Email All
               </button>
               <button type="button"
@@ -725,24 +725,28 @@
           </div>
         </div>
 
+        <div class="results-grid-wrap">
         <ejs-grid
             #grid
-            [dataSource]="searchResults()!.result"
+            [dataSource]="searchResults()"
             cssClass="tsic-grid-tight"
+            [height]="'100%'"
             [allowPaging]="true"
             [allowSorting]="true"
             [allowExcelExport]="true"
-            [enableStickyHeader]="true"
             [frozenColumns]="2"
             [pageSettings]="pageSettings"
             [sortSettings]="sortSettings"
             [selectionSettings]="selectionSettings"
-            (rowSelected)="onRowSelected()"
-            (rowDeselected)="onRowSelected()"
-            (dataBound)="refreshRowNumbers()"
+            (dataStateChange)="onDataStateChange($event)"
+            (rowSelected)="onRowSelected($event)"
+            (rowDeselected)="onRowDeselected($event)"
+            (dataBound)="onGridDataBound()"
             (actionComplete)="onActionComplete($event)"
           >
           <e-columns>
+            <!-- Hidden primary key: anchors persistSelection so checkboxes survive server-side page fetches -->
+            <e-column field="registrationId" [isPrimaryKey]="true" [visible]="false"></e-column>
             <!-- Row number (unbound — stamped via queryCellInfo/actionComplete) -->
             <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
             <!-- Frozen: Name with inline detail icon -->
@@ -837,6 +841,7 @@
             </e-aggregate>
           </e-aggregates>
         </ejs-grid>
+        </div>
       }
     </div>
 
@@ -889,7 +894,7 @@
     [recipientCount]="emailRecipientCount"
     [recipients]="emailRecipients"
     [isOpen]="showBatchEmailModal()"
-    [searchRequest]="searchRequest()"
+    [searchRequest]="emailCriteria()"
     [jobFlags]="jobFlags()"
     [isCardExpiringMode]="arbCardExpiringMode()"
     [inviteMode]="inviteMode()"

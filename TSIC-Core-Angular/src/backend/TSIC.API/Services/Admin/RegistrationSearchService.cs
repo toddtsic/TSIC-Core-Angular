@@ -669,10 +669,33 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     /// resolution + render run per-recipient on the engine's render-worker scopes; the engine owns
     /// opt-out suppression, the unsubscribe footer, retry, rate-limiting, and the audit row.
     /// </summary>
+    /// <summary>Which source drives a batch-email recipient set. See <see cref="SelectBatchRecipientSource"/>.</summary>
+    public enum BatchRecipientSource { ExplicitIds, Criteria }
+
+    /// <summary>
+    /// Pure recipient-selection rule (isolated for testability): a non-empty explicit id list is used
+    /// SOLELY and any Criteria is ignored; otherwise recipients resolve from Criteria; supplying NEITHER
+    /// is invalid and throws (fail closed — a mis-wired caller must never fall through to "everyone").
+    /// </summary>
+    public static BatchRecipientSource SelectBatchRecipientSource(
+        IReadOnlyCollection<Guid>? registrationIds, RegistrationSearchRequest? criteria)
+    {
+        if (registrationIds is { Count: > 0 }) return BatchRecipientSource.ExplicitIds;
+        if (criteria is not null) return BatchRecipientSource.Criteria;
+        throw new InvalidOperationException("Batch email requires either explicit recipients or search criteria.");
+    }
+
     public async Task<EmailBatchHandle> StartBatchEmailAsync(
         Guid jobId, string userId, BatchEmailRequest request, CancellationToken ct = default)
     {
-        var registrations = await _registrationRepo.GetByIdsAsync(request.RegistrationIds, ct);
+        // Recipient set: an explicit id list is used SOLELY; otherwise resolve the full matching set
+        // server-side from Criteria (how Email-All targets everyone without the client enumerating up
+        // to 10K ids). Resolved unpaged. Selection rule (incl. fail-closed) is in SelectBatchRecipientSource.
+        var ids = SelectBatchRecipientSource(request.RegistrationIds, request.Criteria) == BatchRecipientSource.ExplicitIds
+            ? request.RegistrationIds
+            : await _registrationRepo.GetMatchingRegistrationIdsAsync(jobId, request.Criteria!, ct);
+
+        var registrations = await _registrationRepo.GetByIdsAsync(ids, ct);
 
         var invalidRegs = registrations.Where(r => r.JobId != jobId).ToList();
         if (invalidRegs.Count > 0)
@@ -713,7 +736,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         // to ~1/sec. Two bulk AsNoTracking reads here turn the render loop's address lookup into pure
         // in-memory dictionary hits. emailByRegId = each registrant's own email; familyEmailsById =
         // parent emails for player recipients only.
-        var emailByRegId = (await _registrationRepo.GetRecipientEmailsByIdsAsync(request.RegistrationIds, ct))
+        var emailByRegId = (await _registrationRepo.GetRecipientEmailsByIdsAsync(ids, ct))
             .GroupBy(r => r.RegistrationId)
             .ToDictionary(g => g.Key, g => g.First().Email);
         var playerFamilyIds = allItems
@@ -824,7 +847,14 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     public async Task<EmailPreviewResponse> PreviewEmailAsync(
         Guid jobId, EmailPreviewRequest request, CancellationToken ct = default)
     {
-        var registrations = await _registrationRepo.GetByIdsAsync(request.RegistrationIds, ct);
+        // Same recipient rule as the send (explicit ids win), but for Email-All (criteria-only) we
+        // only need a few representative recipients to render the token preview — never thousands.
+        var previewIds = request.RegistrationIds is { Count: > 0 }
+            ? request.RegistrationIds
+            : request.Criteria is not null
+                ? (await _registrationRepo.GetMatchingRegistrationIdsAsync(jobId, request.Criteria, ct)).Take(3).ToList()
+                : new List<Guid>();
+        var registrations = await _registrationRepo.GetByIdsAsync(previewIds, ct);
         var jobConfirmation = await _jobRepo.GetConfirmationEmailInfoAsync(jobId, ct);
         var jobPath = jobConfirmation?.JobPath ?? "";
 

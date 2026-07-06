@@ -48,6 +48,21 @@ main {
     // so sticky elements can sit flush at top:0 without a visible gap
     > .row {
         padding-top: var(--space-4);
+        // Give the content row a definite height (= main's content box) so a routed
+        // component can build a flex height chain down to a self-scrolling child
+        // (e.g. the search grids' internal scroll). Pages with taller content
+        // overflow visibly and main scrolls as before — inert for normal flow pages.
+        height: 100%;
+
+        // The row is flex-wrap:wrap (Bootstrap), so its flex LINE grows to fit
+        // content — without this, .col-12 stretches to the full row count instead
+        // of the row's 100%, and the whole height chain balloons (verified in
+        // DevTools: row=905px but col-12=10372px). Clamp the col to the row height
+        // so height:100% resolves cleanly down to the routed component's host.
+        > .col-12 {
+            height: 100%;
+            min-height: 0;
+        }
     }
 
     // On mobile, push content above the fixed bottom nav bar (56px + safe area)

@@ -71,6 +71,19 @@ public record RegistrationSearchRequest
     // a candidate set from an external source (Authorize.net) and want the grid
     // pipeline to render them with normal totals/aggregates.
     public List<Guid>? RegistrationIds { get; init; }
+
+    // Server-side paging. When BOTH Page and PageSize are set, only that slice of matching
+    // rows is returned in Result; Count and the Total* aggregates always span the FULL match.
+    // When either is null the full set is returned (back-compat: mobile lookup, ARB card-expiring
+    // lookup, export-all, and criteria-based email resolution all rely on the unpaged behavior).
+    public int? Page { get; init; }
+    public int? PageSize { get; init; }
+
+    // Server-side sort. SortField is a RegistrationSearchResultDto property name (camelCase from
+    // the grid, matched case-insensitively); SortDir is "asc"/"desc". Defaults to LastName, FirstName
+    // ascending when unset.
+    public string? SortField { get; init; }
+    public string? SortDir { get; init; }
 }
 
 /// <summary>

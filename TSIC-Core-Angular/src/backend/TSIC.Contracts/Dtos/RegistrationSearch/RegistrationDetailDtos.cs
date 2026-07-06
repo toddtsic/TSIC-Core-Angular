@@ -146,7 +146,19 @@ public record UpdateRegistrationProfileRequest
 /// </summary>
 public record BatchEmailRequest
 {
+    /// <summary>
+    /// Explicit recipient set. When non-empty it is used SOLELY (any <see cref="Criteria"/> is
+    /// ignored). When empty, recipients are resolved server-side by re-running <see cref="Criteria"/>
+    /// — this is how "Email All" targets the whole result set without the client enumerating ids.
+    /// </summary>
     public required List<Guid> RegistrationIds { get; init; }
+
+    /// <summary>
+    /// Search criteria used to resolve recipients when <see cref="RegistrationIds"/> is empty.
+    /// The same filter the grid ran; resolved unpaged at send time ("who matches now").
+    /// </summary>
+    public RegistrationSearchRequest? Criteria { get; init; }
+
     public required string Subject { get; init; }
     public required string BodyTemplate { get; init; }
     /// <summary>
@@ -198,6 +210,9 @@ public record SetActiveRequest
 public record EmailPreviewRequest
 {
     public required List<Guid> RegistrationIds { get; init; }
+    /// <summary>Same role as <see cref="BatchEmailRequest.Criteria"/> — resolves a representative
+    /// recipient for the token preview when no explicit ids are supplied (Email-All mode).</summary>
+    public RegistrationSearchRequest? Criteria { get; init; }
     public required string Subject { get; init; }
     public required string BodyTemplate { get; init; }
 }

@@ -1,5 +1,7 @@
 using FluentAssertions;
+using TSIC.API.Services.Admin;
 using TSIC.API.Services.Shared.Email;
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Repositories;
@@ -159,5 +161,40 @@ public class BatchEmailRoutingTests
         var to = await ResolveAsync(ctx, reg);
 
         to.Should().ContainSingle().Which.Should().Be("clubrep@test.com");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  RECIPIENT SOURCE SELECTION (Email Selected vs Email All vs fail-closed)
+    //  The pure branch that decides whether a send targets an explicit id list
+    //  or re-runs the search criteria. Comms-critical: a wrong branch mails the
+    //  wrong audience; the no-input case must fail closed, never blast the job.
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact(DisplayName = "Recipient source →non-empty ids used SOLELY (criteria ignored)")]
+    public void RecipientSource_ExplicitIdsWin_EvenWithCriteria()
+    {
+        var source = RegistrationSearchService.SelectBatchRecipientSource(
+            new[] { Guid.NewGuid() },
+            new RegistrationSearchRequest { ActiveStatuses = ["True"] });
+
+        source.Should().Be(RegistrationSearchService.BatchRecipientSource.ExplicitIds);
+    }
+
+    [Fact(DisplayName = "Recipient source →empty ids + criteria → resolve from criteria (Email All)")]
+    public void RecipientSource_EmptyIdsWithCriteria_ResolvesFromCriteria()
+    {
+        var source = RegistrationSearchService.SelectBatchRecipientSource(
+            Array.Empty<Guid>(),
+            new RegistrationSearchRequest());
+
+        source.Should().Be(RegistrationSearchService.BatchRecipientSource.Criteria);
+    }
+
+    [Fact(DisplayName = "Recipient source →neither ids nor criteria → throws (fail closed, no whole-job blast)")]
+    public void RecipientSource_NeitherSupplied_Throws()
+    {
+        var act = () => RegistrationSearchService.SelectBatchRecipientSource(Array.Empty<Guid>(), null);
+
+        act.Should().Throw<InvalidOperationException>();
     }
 }

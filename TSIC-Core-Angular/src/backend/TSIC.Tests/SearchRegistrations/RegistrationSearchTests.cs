@@ -792,4 +792,133 @@ public class RegistrationSearchTests
         // Filter is a no-op → all registrations returned
         result.Count.Should().Be(2);
     }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  20. SERVER-SIDE PAGING
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact(DisplayName = "Paging →PageSize slices Result while Count + aggregates span the FULL match")]
+    public async Task Paging_SlicesResultButCountAndAggregatesAreFullSet()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+        var role = b.AddRole(RoleConstants.Player, "Player");
+        for (var i = 0; i < 5; i++)
+            b.AddRegistration(jobId, b.AddUser($"User{i}", $"Last{i}").Id, role.Id, feeTotal: 100m, paidTotal: 40m);
+        await b.SaveAsync();
+
+        var page1 = await repo.SearchAsync(jobId, new RegistrationSearchRequest { Page = 1, PageSize = 2 });
+
+        page1.Result.Should().HaveCount(2);   // one page of rows
+        page1.Count.Should().Be(5);           // full-set total
+        page1.TotalFees.Should().Be(500m);    // full-set aggregate (not the page)
+        page1.TotalPaid.Should().Be(200m);
+    }
+
+    [Fact(DisplayName = "Paging →pages partition the full ordered set with no overlap or gaps")]
+    public async Task Paging_PagesPartitionFullOrderedSet()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+        var role = b.AddRole(RoleConstants.Player, "Player");
+        for (var i = 0; i < 5; i++)
+            b.AddRegistration(jobId, b.AddUser($"U{i}", $"L{i}").Id, role.Id);
+        await b.SaveAsync();
+
+        var all = (await repo.SearchAsync(jobId, new RegistrationSearchRequest()))
+            .Result.Select(r => r.RegistrationId).ToList();
+        var p1 = (await repo.SearchAsync(jobId, new RegistrationSearchRequest { Page = 1, PageSize = 2 }))
+            .Result.Select(r => r.RegistrationId).ToList();
+        var p2 = (await repo.SearchAsync(jobId, new RegistrationSearchRequest { Page = 2, PageSize = 2 }))
+            .Result.Select(r => r.RegistrationId).ToList();
+        var p3 = (await repo.SearchAsync(jobId, new RegistrationSearchRequest { Page = 3, PageSize = 2 }))
+            .Result.Select(r => r.RegistrationId).ToList();
+
+        p1.Should().HaveCount(2);
+        p2.Should().HaveCount(2);
+        p3.Should().HaveCount(1);
+        // Same deterministic order, exact partition — proves the RegistrationId tiebreaker keeps
+        // paging stable (no row duplicated or skipped across page fetches).
+        p1.Concat(p2).Concat(p3).Should().Equal(all);
+    }
+
+    [Fact(DisplayName = "Paging →absent Page/PageSize returns the full set (back-compat)")]
+    public async Task Paging_AbsentReturnsFullSet()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+        var role = b.AddRole(RoleConstants.Player, "Player");
+        for (var i = 0; i < 5; i++)
+            b.AddRegistration(jobId, b.AddUser($"U{i}", $"L{i}").Id, role.Id);
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(jobId, new RegistrationSearchRequest());
+
+        result.Result.Should().HaveCount(5);
+    }
+
+    [Fact(DisplayName = "Sort →SortField/SortDir overrides the default ordering")]
+    public async Task Sort_ByPaidTotalDescending()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+        var role = b.AddRole(RoleConstants.Player, "Player");
+        b.AddRegistration(jobId, b.AddUser("Low", "A").Id, role.Id, feeTotal: 100m, paidTotal: 10m);
+        b.AddRegistration(jobId, b.AddUser("High", "B").Id, role.Id, feeTotal: 100m, paidTotal: 90m);
+        b.AddRegistration(jobId, b.AddUser("Mid", "C").Id, role.Id, feeTotal: 100m, paidTotal: 50m);
+        await b.SaveAsync();
+
+        var result = await repo.SearchAsync(jobId,
+            new RegistrationSearchRequest { SortField = "paidTotal", SortDir = "desc" });
+
+        result.Result.Select(r => r.FirstName).Should().ContainInOrder("High", "Mid", "Low");
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  21. GetMatchingRegistrationIdsAsync (criteria → recipient set)
+    // ═══════════════════════════════════════════════════════════════════
+
+    [Fact(DisplayName = "GetMatchingRegistrationIds →returns all filtered ids, unpaged (ignores Page/PageSize)")]
+    public async Task GetMatchingIds_ReturnsAllFilteredUnpaged()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+        var role = b.AddRole(RoleConstants.Player, "Player");
+        for (var i = 0; i < 5; i++)
+            b.AddRegistration(jobId, b.AddUser($"U{i}", $"L{i}").Id, role.Id);
+        await b.SaveAsync();
+
+        // Paging fields set — must be ignored by recipient resolution (the whole point of Email All).
+        var ids = await repo.GetMatchingRegistrationIdsAsync(jobId,
+            new RegistrationSearchRequest { Page = 1, PageSize = 2 });
+
+        ids.Should().HaveCount(5);
+    }
+
+    [Fact(DisplayName = "GetMatchingRegistrationIds →honors the same filters as SearchAsync")]
+    public async Task GetMatchingIds_HonorsFilters()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+        var role = b.AddRole(RoleConstants.Player, "Player");
+        var active = b.AddRegistration(jobId, b.AddUser("Active", "A").Id, role.Id);
+        b.AddRegistration(jobId, b.AddUser("Inactive", "B").Id, role.Id, active: false);
+        await b.SaveAsync();
+
+        var ids = await repo.GetMatchingRegistrationIdsAsync(jobId,
+            new RegistrationSearchRequest { ActiveStatuses = ["True"] });
+
+        ids.Should().ContainSingle().Which.Should().Be(active.RegistrationId);
+    }
+
+    [Fact(DisplayName = "GetMatchingRegistrationIds →exactly matches the ids SearchAsync returns for the same filter")]
+    public async Task GetMatchingIds_MatchesSearchResultIds()
+    {
+        var (repo, jobId, b, _) = await CreateScenarioAsync();
+        var role = b.AddRole(RoleConstants.Player, "Player");
+        for (var i = 0; i < 4; i++)
+            b.AddRegistration(jobId, b.AddUser($"U{i}", $"L{i}").Id, role.Id, active: i % 2 == 0);
+        await b.SaveAsync();
+
+        var req = new RegistrationSearchRequest { ActiveStatuses = ["True"] };
+        var searchIds = (await repo.SearchAsync(jobId, req)).Result.Select(r => r.RegistrationId).ToHashSet();
+        var criteriaIds = (await repo.GetMatchingRegistrationIdsAsync(jobId, req)).ToHashSet();
+
+        // The grid-count and the email recipient-set must never diverge.
+        criteriaIds.Should().BeEquivalentTo(searchIds);
+    }
 }

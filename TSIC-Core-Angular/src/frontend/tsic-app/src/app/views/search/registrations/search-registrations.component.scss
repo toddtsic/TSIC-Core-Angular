@@ -2,6 +2,16 @@
 // Grid cell utilities: global _syncfusion-cell-utils.scss
 // Dark mode: global _syncfusion-dark.scss
 
+// Fill the scroll container (<main>) exactly so the flex chain below can hand the
+// results grid the real leftover height — no viewport math, no reserved-px guess.
+// min-height:0 lets the inner grid bound itself instead of growing the page.
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
 .registration-search-container {
   --page-accent: var(--bs-primary);
   --page-accent-rgb: var(--bs-primary-rgb);
@@ -9,7 +19,8 @@
   flex-direction: column;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-4) var(--space-8);
-  min-height: 100%;
+  flex: 1;
+  min-height: 0;
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--page-accent) 3%, var(--bs-body-bg)) 0%,
@@ -105,7 +116,17 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  min-height: 400px;
+  min-height: 0;
+}
+
+// The grid takes whatever height is left after the toolbar/summary above it —
+// measured by flexbox, not guessed. flex:1 claims the remaining space in the
+// column; min-height:0 lets it shrink so the grid scrolls INSIDE its own body
+// (fixed column header) instead of growing the page. Grid fills this via
+// [height]="'100%'".
+.results-grid-wrap {
+  flex: 1;
+  min-height: 0;
 }
 
 // ── Results loading overlay ──

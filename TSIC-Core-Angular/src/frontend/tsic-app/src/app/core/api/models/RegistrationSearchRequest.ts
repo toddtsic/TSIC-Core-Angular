@@ -33,5 +33,9 @@ export type RegistrationSearchRequest = {
     arbHealthStatus?: string | null;
     usLaxMembershipStatus?: string | null;
     registrationIds?: any[] | null;
+    page?: number | null;
+    pageSize?: number | null;
+    sortField?: string | null;
+    sortDir?: string | null;
 };
 

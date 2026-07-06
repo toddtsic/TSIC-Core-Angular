@@ -286,8 +286,9 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
 
   sendEmail(): void {
     if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
-    const ids = this.registrationIds();
-    if (ids.length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
+    // Empty id list is the valid "Email All" case (server re-resolves from criteria) — gate on the
+    // authoritative recipient COUNT, not the id array.
+    if (this.recipientCount() === 0) { this.toast.show('No recipients to email', 'danger', 4000); return; }
     if ((this.inviteMode() || this.requiresInviteLink()) && !this.selectedInviteTargetJobId()) {
       this.toast.show('Select a target registration event for the invitation', 'danger', 4000);
       return;
@@ -304,7 +305,7 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
   testBatchProcessing(): void {
     if (!this.isDev) return;
     if (!this.subject().trim() || !this.bodyTemplate().trim()) { this.toast.show('Subject and body are required', 'danger', 4000); return; }
-    if (this.registrationIds().length === 0) { this.toast.show('No registrations selected', 'danger', 4000); return; }
+    if (this.recipientCount() === 0) { this.toast.show('No recipients to email', 'danger', 4000); return; }
     // 0 = no artificial per-send delay; the render stage paces the run. (On Windows Task.Delay is
     // quantized to ~15ms, so any 1–14ms value would behave like 15ms — 0 is the only real speedup.)
     this.startBatch(0);
@@ -326,7 +327,10 @@ export class BatchEmailModalComponent implements OnInit, OnDestroy {
     const bodyTemplate = this.bodyTemplate().replaceAll(EVENT_INVITED_TO_TOKEN, eventName);
 
     this.searchService.sendBatchEmail({
+      // Recipient routing (server-side): a non-empty id list is used SOLELY; otherwise the audience
+      // is re-resolved from the search criteria at send time ("Email All"). See SelectBatchRecipientSource.
       registrationIds: this.registrationIds(),
+      criteria: this.searchRequest() ?? undefined,
       subject,
       bodyTemplate,
       inviteLinkTargetJobId: this.selectedInviteTargetJobId() ?? undefined,

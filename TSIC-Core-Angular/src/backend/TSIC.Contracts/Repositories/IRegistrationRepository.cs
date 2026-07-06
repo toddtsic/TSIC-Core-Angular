@@ -433,10 +433,16 @@ public interface IRegistrationRepository
     /// <summary>
     /// Server-side paged search with multi-criteria filtering and aggregates.
     /// Joins Registrations → AspNetUsers, Teams, Roles, Agegroups, Divisions.
-    /// Computes Count + Aggregates (TotalFees, TotalPaid, TotalOwed) BEFORE paging.
-    /// AsNoTracking.
+    /// Computes Count + Aggregates (TotalFees, TotalPaid, TotalOwed) over the FULL match; slices
+    /// Result by Page/PageSize only when both are supplied (absent ⇒ full set). AsNoTracking.
     /// </summary>
     Task<RegistrationSearchResponse> SearchAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Unpaged, ids-only projection of the same filtered query <see cref="SearchAsync"/> runs.
+    /// Recipient source of truth for criteria-based batch email (Email All). AsNoTracking.
+    /// </summary>
+    Task<List<Guid>> GetMatchingRegistrationIdsAsync(Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Returns distinct roles, teams, agegroups, divisions, club names for this job's registrations.

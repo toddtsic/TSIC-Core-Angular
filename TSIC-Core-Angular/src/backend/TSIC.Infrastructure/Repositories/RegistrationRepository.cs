@@ -1235,7 +1235,20 @@ public class RegistrationRepository : IRegistrationRepository
             .ToList();
     }
 
-    public async Task<RegistrationSearchResponse> SearchAsync(
+    // Unpaged, ids-only projection of the same filtered query the grid runs. This is the recipient
+    // source of truth for the batch-email engine when the caller sends no explicit id list.
+    public async Task<List<Guid>> GetMatchingRegistrationIdsAsync(
+        Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default)
+    {
+        var query = await BuildFilteredQueryAsync(jobId, request, ct);
+        return await query.Select(r => r.RegistrationId).ToListAsync(ct);
+    }
+
+    // Composes the full filtered, AsNoTracking IQueryable for a search request (JobId scope + every
+    // optional filter, including the RoleId-sentinel / Vertical Insure / USLax / ARB Health inline
+    // side-queries). Shared by SearchAsync (grid pipeline) and GetMatchingRegistrationIdsAsync
+    // (recipient resolution) so the money filters live in exactly one place.
+    private async Task<IQueryable<Registrations>> BuildFilteredQueryAsync(
         Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default)
     {
         var query = _context.Registrations
@@ -1624,7 +1637,15 @@ public class RegistrationRepository : IRegistrationRepository
             }
         }
 
-        // Compute count + aggregates BEFORE paging
+        return query;
+    }
+
+    public async Task<RegistrationSearchResponse> SearchAsync(
+        Guid jobId, RegistrationSearchRequest request, CancellationToken ct = default)
+    {
+        var query = await BuildFilteredQueryAsync(jobId, request, ct);
+
+        // Compute count + aggregates BEFORE paging (they always span the FULL match, never the page)
         var aggregates = await query
             .GroupBy(r => 1)
             .Select(g => new
@@ -1675,10 +1696,52 @@ public class RegistrationRepository : IRegistrationRepository
             AdnOccurrences = r.AdnSubscriptionBillingOccurences
         });
 
-        // Default sort (sorting done client-side)
-        var rows = await projected
-            .OrderBy(r => r.Dto.LastName).ThenBy(r => r.Dto.FirstName)
-            .ToListAsync(ct);
+        // Sort: honor request SortField/SortDir (grid sends camelCase DTO field names), default
+        // LastName, FirstName ascending. Every branch ends with a RegistrationId tiebreaker so the
+        // total order is deterministic — REQUIRED for stable server-side paging (ties must not
+        // reshuffle between page fetches, or rows could duplicate/skip across pages). The computed
+        // Assignment column is not DB-backed, so it falls through to the default sort.
+        var desc = string.Equals(request.SortDir, "desc", StringComparison.OrdinalIgnoreCase);
+        var sortField = request.SortField?.ToLowerInvariant();
+        var ordered = sortField switch
+        {
+            "firstname" => desc
+                ? projected.OrderByDescending(r => r.Dto.FirstName).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.FirstName).ThenBy(r => r.Dto.RegistrationId),
+            "rolename" => desc
+                ? projected.OrderByDescending(r => r.Dto.RoleName).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.RoleName).ThenBy(r => r.Dto.RegistrationId),
+            "registered" or "registrationts" => desc
+                ? projected.OrderByDescending(r => r.Dto.RegistrationTs).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.RegistrationTs).ThenBy(r => r.Dto.RegistrationId),
+            "phone" => desc
+                ? projected.OrderByDescending(r => r.Dto.Phone).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.Phone).ThenBy(r => r.Dto.RegistrationId),
+            "dob" => desc
+                ? projected.OrderByDescending(r => r.Dto.Dob).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.Dob).ThenBy(r => r.Dto.RegistrationId),
+            "position" => desc
+                ? projected.OrderByDescending(r => r.Dto.Position).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.Position).ThenBy(r => r.Dto.RegistrationId),
+            "paidtotal" => desc
+                ? projected.OrderByDescending(r => r.Dto.PaidTotal).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.PaidTotal).ThenBy(r => r.Dto.RegistrationId),
+            "owedtotal" => desc
+                ? projected.OrderByDescending(r => r.Dto.OwedTotal).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.OwedTotal).ThenBy(r => r.Dto.RegistrationId),
+            "lastname" when desc
+                => projected.OrderByDescending(r => r.Dto.LastName).ThenByDescending(r => r.Dto.FirstName).ThenBy(r => r.Dto.RegistrationId),
+            _ => projected.OrderBy(r => r.Dto.LastName).ThenBy(r => r.Dto.FirstName).ThenBy(r => r.Dto.RegistrationId)
+        };
+
+        // Server-side paging: slice only when BOTH Page and PageSize are supplied. Absent ⇒ full set
+        // (mobile lookup, ARB card-expiring lookup, export-all, and criteria email resolution rely
+        // on the unpaged behavior).
+        var paged = request.Page is int page and > 0 && request.PageSize is int size and > 0
+            ? ordered.Skip((page - 1) * size).Take(size)
+            : ordered;
+
+        var rows = await paged.ToListAsync(ct);
 
         // Bulk-fetch team ARB info for all club rep rows with an outstanding balance —
         // a rep aggregate row is only "scheduled" when ALL its owing teams are themselves
