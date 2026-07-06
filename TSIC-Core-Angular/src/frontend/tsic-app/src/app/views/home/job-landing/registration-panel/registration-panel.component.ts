@@ -89,6 +89,12 @@ export class RegistrationPanelComponent {
 	// Ignored in public-preview (an admin previews the anonymous public view).
 	private readonly isClubRep = computed(() =>
 		!this.publicView() && this.auth.currentUser()?.role === Roles.ClubRep);
+	// A logged-in ADULT registrant (Staff = a self-rostered coach) — holds a regId but
+	// isn't a player/family or club rep. The player self-service flows (self-roster-update,
+	// "Change Team or Uniform #") don't apply; they get "My Registration" into the adult
+	// wizard instead, mirroring the header-bar task menu's Staff branch.
+	private readonly isRegisteredAdult = computed(() =>
+		this.registered() && !this.isPlayerOrFamily() && !this.isClubRep());
 	private readonly tournament = computed(() => isTournament(this.jobService.currentJob()?.jobTypeId));
 	private readonly league = computed(() => isLeague(this.jobService.currentJob()?.jobTypeId));
 	// The competitive settings — tournament OR league — where referees officiate and
@@ -118,6 +124,13 @@ export class RegistrationPanelComponent {
 			if (this.isPlayerOrFamily() && allowed.has('my-registration')) {
 				return [{ key: 'my-registration', label: 'My Registration', icon: 'bi-person-vcard',
 					routerLink: `${base}/registration/player`, queryParams: { step: 'players' } }];
+			}
+			// Staff (self-rostered coach) — My Registration routes into the ADULT wizard.
+			// The adult wizard REQUIRES ?role=<key> or it shows an "incomplete link" error,
+			// so the coach roleKey rides the URL (same wiring as the header-bar Staff branch).
+			if (this.isRegisteredAdult() && allowed.has('my-registration')) {
+				return [{ key: 'my-registration-adult', label: 'My Registration', icon: 'bi-person-vcard',
+					routerLink: `${base}/registration/adult`, queryParams: { role: 'coach', step: 'profile' } }];
 			}
 			return [];
 		}
@@ -156,7 +169,7 @@ export class RegistrationPanelComponent {
 	protected readonly selfRosterTitle = computed(() => {
 		const links = this.selfRosterLinks();
 		const hasPlayer = links.some(l => l.key === 'player' || l.key === 'my-registration');
-		const hasAdult = links.some(l => l.key === 'coach' || l.key === 'referee' || l.key === 'recruiter');
+		const hasAdult = links.some(l => l.key === 'coach' || l.key === 'referee' || l.key === 'recruiter' || l.key === 'my-registration-adult');
 		return hasPlayer && hasAdult ? 'Player/Adult' : hasAdult ? 'Adult' : 'Player';
 	});
 
@@ -170,7 +183,8 @@ export class RegistrationPanelComponent {
 		this.tournament()
 		&& this.allowedKeys().has('register-player')
 		&& isPlayerRegistrationEffectivelyOpen(this.pulse())
-		&& !this.isClubRep());
+		&& !this.isClubRep()
+		&& !this.isRegisteredAdult());
 
 	// ── Manage section — the support-call-killing self-service hub ───────────────
 	// Order is deliberate: money owed first (most urgent), then the change/cancel
