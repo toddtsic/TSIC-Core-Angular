@@ -10,7 +10,7 @@ import type { JobDdlOptionsDto } from '@core/api';
 interface DdlCategory {
 	key: keyof JobDdlOptionsDto;
 	label: string;
-	group: 'clothing' | 'player' | 'team' | 'camp';
+	group: 'clothing' | 'coach' | 'player' | 'team' | 'camp';
 }
 
 interface DdlGroup {
@@ -29,6 +29,12 @@ const CATEGORIES: DdlCategory[] = [
 	{ key: 'glovesSizes',      label: 'Gloves Sizes',      group: 'clothing' },
 	{ key: 'sweatshirtSizes',  label: 'Sweatshirt Sizes',  group: 'clothing' },
 	{ key: 'shoesSizes',       label: 'Shoes Sizes',       group: 'clothing' },
+
+	// Clothing Sizes (Adult / Coach) — namespaced apart from the player sizes above
+	{ key: 'coachJerseySizes', label: 'Coach Shirt Sizes', group: 'coach' },
+	{ key: 'coachShortsSizes', label: 'Coach Shorts Sizes', group: 'coach' },
+	{ key: 'coachWaistSizes',  label: 'Coach Waist Sizes',  group: 'coach' },
+	{ key: 'coachShoesSizes',  label: 'Coach Shoe Sizes',   group: 'coach' },
 
 	// Player Data
 	{ key: 'yearsExperience',      label: 'Years Experience',      group: 'player' },
@@ -53,6 +59,7 @@ const CATEGORIES: DdlCategory[] = [
 
 const GROUP_LABELS: Record<string, string> = {
 	clothing: 'Clothing Sizes',
+	coach:    'Clothing Sizes (Adult / Coach)',
 	player:   'Player Data',
 	team:     'Team & Context',
 	camp:     'Camp Roster',
@@ -220,7 +227,7 @@ export class DdlOptionsComponent {
 	// ── Helpers ──
 
 	private buildGroups(): DdlGroup[] {
-		const groupOrder = ['clothing', 'player', 'team'];
+		const groupOrder = ['clothing', 'coach', 'player', 'team'];
 		return groupOrder.map(key => ({
 			key,
 			label: GROUP_LABELS[key],

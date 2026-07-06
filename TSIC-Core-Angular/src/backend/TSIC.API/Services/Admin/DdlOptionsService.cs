@@ -67,6 +67,10 @@ public class DdlOptionsService : IDdlOptionsService
             GlovesSizes = ExtractValues(options.ListSizes_Gloves),
             SweatshirtSizes = ExtractValues(options.ListSizes_Sweatshirt),
             ShoesSizes = ExtractValues(options.ListSizes_Shoes),
+            CoachJerseySizes = ExtractValues(options.ListSizes_CoachJersey),
+            CoachShortsSizes = ExtractValues(options.ListSizes_CoachShorts),
+            CoachWaistSizes = ExtractValues(options.ListSizes_CoachWaist),
+            CoachShoesSizes = ExtractValues(options.ListSizes_CoachShoes),
             YearsExperience = ExtractValues(options.List_YearsExperience),
             Positions = ExtractValues(options.List_Positions),
             GradYears = ExtractValues(options.List_GradYears),
@@ -96,6 +100,10 @@ public class DdlOptionsService : IDdlOptionsService
             ListSizes_Gloves = ToJsonItems(dto.GlovesSizes),
             ListSizes_Sweatshirt = ToJsonItems(dto.SweatshirtSizes),
             ListSizes_Shoes = ToJsonItems(dto.ShoesSizes),
+            ListSizes_CoachJersey = ToJsonItems(dto.CoachJerseySizes),
+            ListSizes_CoachShorts = ToJsonItems(dto.CoachShortsSizes),
+            ListSizes_CoachWaist = ToJsonItems(dto.CoachWaistSizes),
+            ListSizes_CoachShoes = ToJsonItems(dto.CoachShoesSizes),
             List_YearsExperience = ToJsonItems(dto.YearsExperience),
             List_Positions = ToJsonItems(dto.Positions),
             List_GradYears = ToJsonItems(dto.GradYears),
@@ -145,6 +153,10 @@ public class DdlOptionsService : IDdlOptionsService
             GlovesSizes = SanitizeList(dto.GlovesSizes),
             SweatshirtSizes = SanitizeList(dto.SweatshirtSizes),
             ShoesSizes = SanitizeList(dto.ShoesSizes),
+            CoachJerseySizes = SanitizeList(dto.CoachJerseySizes),
+            CoachShortsSizes = SanitizeList(dto.CoachShortsSizes),
+            CoachWaistSizes = SanitizeList(dto.CoachWaistSizes),
+            CoachShoesSizes = SanitizeList(dto.CoachShoesSizes),
             YearsExperience = SanitizeList(dto.YearsExperience),
             Positions = SanitizeList(dto.Positions),
             GradYears = SanitizeList(dto.GradYears),
@@ -191,6 +203,10 @@ public class DdlOptionsService : IDdlOptionsService
         GlovesSizes = [],
         SweatshirtSizes = [],
         ShoesSizes = [],
+        CoachJerseySizes = [],
+        CoachShortsSizes = [],
+        CoachWaistSizes = [],
+        CoachShoesSizes = [],
         YearsExperience = [],
         Positions = [],
         GradYears = [],
@@ -221,6 +237,10 @@ public class DdlOptionsService : IDdlOptionsService
         public List<JsonSelectListItem>? ListSizes_Gloves { get; set; }
         public List<JsonSelectListItem>? ListSizes_Sweatshirt { get; set; }
         public List<JsonSelectListItem>? ListSizes_Shoes { get; set; }
+        public List<JsonSelectListItem>? ListSizes_CoachJersey { get; set; }
+        public List<JsonSelectListItem>? ListSizes_CoachShorts { get; set; }
+        public List<JsonSelectListItem>? ListSizes_CoachWaist { get; set; }
+        public List<JsonSelectListItem>? ListSizes_CoachShoes { get; set; }
         public List<JsonSelectListItem>? List_YearsExperience { get; set; }
         public List<JsonSelectListItem>? List_Positions { get; set; }
         public List<JsonSelectListItem>? List_GradYears { get; set; }

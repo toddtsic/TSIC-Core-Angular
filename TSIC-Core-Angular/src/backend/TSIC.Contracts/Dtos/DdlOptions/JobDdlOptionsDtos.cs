@@ -6,7 +6,7 @@ namespace TSIC.Contracts.Dtos.DdlOptions;
 /// </summary>
 public record JobDdlOptionsDto
 {
-    // ── Clothing sizes ──
+    // ── Clothing sizes (player) ──
     public required List<string> JerseySizes { get; init; }
     public required List<string> ShortsSizes { get; init; }
     public required List<string> ReversibleSizes { get; init; }
@@ -15,6 +15,14 @@ public record JobDdlOptionsDto
     public required List<string> GlovesSizes { get; init; }
     public required List<string> SweatshirtSizes { get; init; }
     public required List<string> ShoesSizes { get; init; }
+
+    // ── Clothing sizes (adult / coach) ──
+    // Namespaced apart from the player sizes above (ListSizes_Coach* in Jobs.JsonOptions) so the coach
+    // registration form's size dropdowns are edited independently of the player form's. See AdultFormCatalog.
+    public required List<string> CoachJerseySizes { get; init; }
+    public required List<string> CoachShortsSizes { get; init; }
+    public required List<string> CoachWaistSizes { get; init; }
+    public required List<string> CoachShoesSizes { get; init; }
 
     // ── Player data ──
     public required List<string> YearsExperience { get; init; }

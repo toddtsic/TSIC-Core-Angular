@@ -11,6 +11,10 @@ export type JobDdlOptionsDto = {
     glovesSizes: Array<string>;
     sweatshirtSizes: Array<string>;
     shoesSizes: Array<string>;
+    coachJerseySizes: Array<string>;
+    coachShortsSizes: Array<string>;
+    coachWaistSizes: Array<string>;
+    coachShoesSizes: Array<string>;
     yearsExperience: Array<string>;
     positions: Array<string>;
     gradYears: Array<string>;

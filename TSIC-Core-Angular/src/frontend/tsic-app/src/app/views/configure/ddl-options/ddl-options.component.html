@@ -11,7 +11,7 @@
 	@for (group of groups; track group.key) {
 		<section class="category-group">
 			<h3 class="group-header">
-				<i class="bi" [class]="group.key === 'clothing' ? 'bi-tag' : group.key === 'player' ? 'bi-person' : 'bi-people'"></i>
+				<i class="bi" [class]="group.key === 'clothing' || group.key === 'coach' ? 'bi-tag' : group.key === 'player' ? 'bi-person' : 'bi-people'"></i>
 				{{ group.label }}
 			</h3>
 
