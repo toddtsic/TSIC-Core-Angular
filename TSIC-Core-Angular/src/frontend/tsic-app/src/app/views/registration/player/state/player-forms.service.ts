@@ -346,7 +346,8 @@ export class PlayerFormsService {
      * The gating year is the team's division/agegroup grad year — not the player's
      * self-reported academic grad year, and NOT gated by job type. When the job has no
      * List_RecruitingGradYears configured (recruitingGradYears empty), the fields are
-     * hidden — matching legacy AdjustRecruittingInfoVisibility for all job types.
+     * SHOWN (empty = no restriction) — legacy hid them, which silently dropped
+     * required-but-hidden fields like heightInches on showcase forms (e.g. PP35).
      */
     isFieldVisibleForPlayer(
         playerId: string,

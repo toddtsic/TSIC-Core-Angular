@@ -264,9 +264,11 @@ describe('PlayerFormsService', () => {
         // ── Recruiting field gating (SP-040) ─────────────────────────
         // Gated by jsonOptions.List_RecruitingGradYears vs the registered team's grad
         // year (NCAA contact rules) — no job-type gate. No list configured → hidden.
-        it('recruiting field hidden when recruitingGradYears is empty (no list configured)', () => {
+        it('recruiting field visible when no list configured (empty = no restriction)', () => {
+            // Empty List_RecruitingGradYears = no gating: show the field so required-but-hidden
+            // recruiting fields (e.g. heightInches on PP35 showcase forms) can't silently deadlock.
             const gpa = mkField({ name: 'gpa', label: 'GPA' });
-            expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, [], '2026')).toBe(false);
+            expect(service.isFieldVisibleForPlayer('p1', gpa, [], null, [], '2026')).toBe(true);
         });
 
         it('recruiting field hidden when team grad year not in list', () => {
