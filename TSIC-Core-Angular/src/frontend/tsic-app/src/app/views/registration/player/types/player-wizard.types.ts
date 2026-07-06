@@ -45,6 +45,10 @@ export interface PlayerProfileFieldSchema {
     helpText: string | null;
     remoteUrl: string | null;
     errorMessage: string | null;
+    // Numeric bounds migrated from legacy [Range] attributes (e.g. SAT 200–800, GPA 0–5).
+    // Absent/null when the field has no range constraint.
+    min?: number | null;
+    max?: number | null;
     visibility?: 'public' | 'adminOnly' | 'hidden';
     condition?: { field: string; value: unknown; operator?: string } | null;
 }

@@ -17,6 +17,8 @@ function mkField(overrides: Partial<PlayerProfileFieldSchema> = {}): PlayerProfi
         helpText: null,
         remoteUrl: null,
         errorMessage: null,
+        min: null,
+        max: null,
         ...overrides,
     };
 }

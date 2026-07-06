@@ -201,6 +201,8 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
                    (ngModelChange)="setFieldValue(pid, field.name, $event)"
                    [disabled]="isPlayerLocked(pid)"
                    [attr.placeholder]="field.placeholder"
+                   [attr.min]="field.min"
+                   [attr.max]="field.max"
                    [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
           }
           @case ('email') {

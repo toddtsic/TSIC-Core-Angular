@@ -273,9 +273,16 @@ export class PlayerFormsService {
     private validateBasicType(field: PlayerProfileFieldSchema, raw: unknown, str: string): string | null {
         if (str.length === 0 && field.type !== 'multiselect') return null;
         switch (field.type) {
-            case 'number':
-                if (str.length && Number.isNaN(Number(str))) return 'Must be a number';
+            case 'number': {
+                const num = Number(str);
+                if (Number.isNaN(num)) return 'Must be a number';
+                // Enforce migrated [Range] bounds (SAT 200–800, GPA 0–5, ACT 1–36, etc.).
+                if ((field.min != null && num < field.min) || (field.max != null && num > field.max)) {
+                    return field.errorMessage
+                        ?? `Must be between ${field.min ?? ''} and ${field.max ?? ''}`.trim();
+                }
                 return null;
+            }
             case 'date':
                 if (str.length) {
                     const dt = new Date(str);

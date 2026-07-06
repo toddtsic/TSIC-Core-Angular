@@ -126,7 +126,7 @@ export interface RawProfileField {
     placeholder?: string;
     visibility?: string;
     adminOnly?: boolean;
-    validation?: { required?: boolean; requiredTrue?: boolean };
+    validation?: { required?: boolean; requiredTrue?: boolean; min?: number; max?: number; message?: string };
     condition?: { field: string; value?: unknown; operator?: string };
     [key: string]: unknown;
 }

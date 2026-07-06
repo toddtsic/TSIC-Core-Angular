@@ -182,6 +182,15 @@ export class FormSchemaService {
                     if (c && typeof c === 'object' && c.field) return { field: String(c.field), value: c.value, operator: c.operator ? String(c.operator) : undefined };
                     return null;
                 })();
+                // Numeric bounds from migrated [Range] validation (SAT/GPA/ACT/measurables).
+                // Accept top-level min/max or nested validation.min/max; coerce to number|null.
+                const toNum = (v: unknown): number | null => {
+                    if (v === null || v === undefined || v === '') return null;
+                    const n = Number(v);
+                    return Number.isFinite(n) ? n : null;
+                };
+                const min = toNum(pickCI(f, 'min') ?? val?.['min']);
+                const max = toNum(pickCI(f, 'max') ?? val?.['max']);
                 // US Lax fields always use the same API validation endpoint and error message
                 const finalRemoteUrl = isUsLaxField ? '/api/validation/uslax' : remoteUrl;
                 const finalErrorMessage = isUsLaxField
@@ -198,7 +207,7 @@ export class FormSchemaService {
                       + '<li>Register for a USA Lacrosse Number — <a href="https://www.usalacrosse.com/membership" target="_blank">CLICK HERE</a></li></ul>'
                       + 'For assistance please contact <a href="mailto:membership@usalacrosse.com">membership@usalacrosse.com</a> or call <span style="white-space:nowrap">410-235-6882</span>'
                     : errorMessage;
-                return { name, label, type, required, options, placeholder, helpText, remoteUrl: finalRemoteUrl, errorMessage: finalErrorMessage, visibility, condition } as PlayerProfileFieldSchema;
+                return { name, label, type, required, options, placeholder, helpText, remoteUrl: finalRemoteUrl, errorMessage: finalErrorMessage, min, max, visibility, condition } as PlayerProfileFieldSchema;
             }).filter(s => !!s?.name) as PlayerProfileFieldSchema[];
             this._profileFieldSchemas.set(schemas);
             this._aliasFieldMap.set(aliasMapLocal);

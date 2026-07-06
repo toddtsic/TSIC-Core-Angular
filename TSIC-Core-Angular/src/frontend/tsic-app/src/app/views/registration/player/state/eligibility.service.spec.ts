@@ -16,6 +16,8 @@ function makeField(overrides: Partial<PlayerProfileFieldSchema> = {}): PlayerPro
         helpText: null,
         remoteUrl: null,
         errorMessage: null,
+        min: null,
+        max: null,
         ...overrides,
     };
 }

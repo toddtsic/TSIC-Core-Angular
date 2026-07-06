@@ -415,8 +415,14 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
         var validation = new FieldValidation();
         var hasValidation = false;
 
-        // [Required] or [Required(ErrorMessage = "...")]
-        if (Regex.IsMatch(attributesText, @"\[Required(?:\([^\)]*\))?\]"))
+        // [Required], [Required(ErrorMessage = "...")], or [Required(AllowEmptyStrings = true)].
+        // NOTE: [Required(AllowEmptyStrings = true)] validates true on an empty-string form post, so
+        // legacy treated these fields as effectively OPTIONAL. Migrating them as hard-required would
+        // block submission on blank academics/measurables (GPA, SAT, ACT, height, weight) — a field a
+        // registrant may legitimately have no value for. Do NOT mark those required.
+        var requiredMatch = Regex.Match(attributesText, @"\[Required(?:\(([^\)]*)\))?\]");
+        if (requiredMatch.Success
+            && !Regex.IsMatch(requiredMatch.Groups[1].Value, @"AllowEmptyStrings\s*=\s*true", RegexOptions.IgnoreCase))
         {
             validation.Required = true;
             hasValidation = true;
@@ -435,8 +441,9 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             hasValidation = true;
         }
 
-        // [StringLength(50, MinimumLength = 2)]
-        var stringLengthMatch = Regex.Match(attributesText, @"\[StringLength\s*\(\s*(\d+)\s*(?:,\s*MinimumLength\s*=\s*(\d+))?\s*\)\]");
+        // [StringLength(50, MinimumLength = 2)] or [StringLength(12, MinimumLength = 7, ErrorMessage = "...")]
+        // Trailing named string args (ErrorMessage = "...") tolerated via the quoted-string tail matcher.
+        var stringLengthMatch = Regex.Match(attributesText, @"\[StringLength\s*\(\s*(\d+)\s*(?:,\s*MinimumLength\s*=\s*(\d+))?(?:\s*,\s*\w+\s*=\s*@?""[^""]*"")*\s*\)\]");
         if (stringLengthMatch.Success)
         {
             validation.MaxLength = int.Parse(stringLengthMatch.Groups[1].Value);
@@ -447,8 +454,13 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             hasValidation = true;
         }
 
-        // [Range(1, 100)] or [Range(typeof(bool), "true", "true")]
-        var rangeMatch = Regex.Match(attributesText, @"\[Range\s*\(\s*(?:typeof\(bool\)|(\d+(?:\.\d+)?))\s*,\s*(?:""true""|(\d+(?:\.\d+)?))\s*(?:,\s*(?:""true""|(\d+(?:\.\d+)?)))?\s*\)\]");
+        // [Range(1, 100)], [Range(minimum: 0, maximum: 5.0, ErrorMessage = "...")], or [Range(typeof(bool), "true", "true")].
+        // Tolerates named-arg prefixes (minimum:/maximum:) and trailing named string args (ErrorMessage = "...")
+        // whose values may themselves contain ')' (e.g. "SAT (Math) must be between 200 and 800") — hence the
+        // quoted-string tail matcher instead of a bare ')]' anchor.
+        // Tail accepts BOTH trailing positional args (e.g. the third "true" in the typeof(bool) form)
+        // and trailing named string args (ErrorMessage = "..."), in any mix.
+        var rangeMatch = Regex.Match(attributesText, @"\[Range\s*\(\s*(?:typeof\(bool\)|(?:minimum\s*:\s*)?(\d+(?:\.\d+)?))\s*,\s*(?:""true""|(?:maximum\s*:\s*)?(\d+(?:\.\d+)?))(?:\s*,\s*(?:\w+\s*=\s*@?""[^""]*""|@?""[^""]*""|\d+(?:\.\d+)?))*\s*\)\]");
         if (rangeMatch.Success)
         {
             // Check if it's the RequiredTrue pattern for checkboxes
@@ -463,12 +475,20 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
                 {
                     validation.Max = double.Parse(rangeMatch.Groups[2].Value);
                 }
+                // Preserve the author's range message (e.g. "SAT (Math) must be between 200 and 800")
+                // so the presentation layer can surface it verbatim.
+                var rangeMsg = Regex.Match(rangeMatch.Value, @"ErrorMessage\s*=\s*@?""([^""]*)""");
+                if (rangeMsg.Success && string.IsNullOrEmpty(validation.Message))
+                {
+                    validation.Message = rangeMsg.Groups[1].Value;
+                }
             }
             hasValidation = true;
         }
 
-        // [RegularExpression(@"pattern")]
-        var regexMatch = Regex.Match(attributesText, @"\[RegularExpression\s*\(\s*@?""([^""]+)""\s*\)\]");
+        // [RegularExpression(@"pattern")] or [RegularExpression(pattern: "([0-9]+)", ErrorMessage = "...")]
+        // Tolerates a pattern: named-arg prefix and trailing named string args.
+        var regexMatch = Regex.Match(attributesText, @"\[RegularExpression\s*\(\s*(?:pattern\s*:\s*)?@?""([^""]+)""(?:\s*,\s*\w+\s*=\s*@?""[^""]*"")*\s*\)\]");
         if (regexMatch.Success)
         {
             validation.Pattern = regexMatch.Groups[1].Value;
