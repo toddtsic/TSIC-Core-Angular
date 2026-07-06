@@ -247,6 +247,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
             // Parse into metadata
             var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha, viewContent);
+            ApplyCanonicalFieldCorrections(metadata);
 
             // Normalize: any hidden field must use inputType = HIDDEN
             metadata.Fields
@@ -477,6 +478,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
 
             // 2. Parse ONCE
             var metadata = await _parser.ParseProfileAsync(profileSource, baseSource, profileType, profileSha, viewContent);
+            ApplyCanonicalFieldCorrections(metadata);
 
             // Normalize: any hidden field must use inputType = HIDDEN
             metadata.Fields
@@ -2120,6 +2122,45 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         await _repo.UpdateJobCoreRegformAndMetadataAsync(jobData.JobId, newCore, metadataJsonToSave);
 
         return (profileType, teamConstraint, newCore, metadata);
+    }
+
+    /// <summary>
+    /// Canonical post-parse corrections to the migrated field set, applied at every parse
+    /// chokepoint so a one-time production migrate lands the corrected values.
+    ///
+    /// The legacy player POCOs encoded the pre-2016 SAT model — separate 200–800 Verbal and
+    /// Writing sections. Modern SAT is Evidence-Based Reading &amp; Writing (200–800) plus a
+    /// 400–1600 composite Total. We keep the legacy DB columns (SatVerbal / SatWriting) — field
+    /// names ARE the physical columns and cannot change — but relabel and re-bound them:
+    ///   SatVerbal  → "SAT (Reading &amp; Writing)", 200–800 (label/message only)
+    ///   SatWriting → "SAT (Total)",                 400–1600
+    /// Matched by DbColumn (case-insensitive); profiles without these fields are untouched.
+    /// </summary>
+    private static void ApplyCanonicalFieldCorrections(ProfileMetadata metadata)
+    {
+        foreach (var f in metadata.Fields)
+        {
+            if (string.Equals(f.DbColumn, "SatVerbal", StringComparison.OrdinalIgnoreCase))
+            {
+                f.DisplayName = "SAT (Reading & Writing)";
+                if (f.Validation != null)
+                {
+                    f.Validation.Min = 200;
+                    f.Validation.Max = 800;
+                    f.Validation.Message = "SAT (Reading & Writing) must be between 200 and 800";
+                }
+            }
+            else if (string.Equals(f.DbColumn, "SatWriting", StringComparison.OrdinalIgnoreCase))
+            {
+                f.DisplayName = "SAT (Total)";
+                if (f.Validation != null)
+                {
+                    f.Validation.Min = 400;
+                    f.Validation.Max = 1600;
+                    f.Validation.Message = "SAT (Total) must be between 400 and 1600";
+                }
+            }
+        }
     }
 
     /// <summary>
