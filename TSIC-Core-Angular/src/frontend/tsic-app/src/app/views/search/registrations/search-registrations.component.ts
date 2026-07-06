@@ -436,7 +436,11 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     // Fetch FIRST so lastFetchKey registers page-1 for the new criteria, THEN reset the pager UI:
     // goToPage(1)'s dataStateChange re-asks for the same page-1 key and dedupes (no double request).
     this.fetchRegistrations({ clearSelection: true, force: true });
-    this.grid()?.goToPage?.(1); // move the pager UI back to page 1 (no-op before first render)
+    // Reset the pager only if the grid is already rendered. grid() is a REQUIRED query that THROWS
+    // (NG0951) when absent — and the grid lives under @if(searchResults()), so on the first/auto
+    // search there's no grid yet (it renders at page 1 by default). searchResults() still holds the
+    // pre-fetch value here, so it correctly reflects whether the grid is currently in the DOM.
+    if (this.searchResults()) this.grid().goToPage(1);
   }
 
   /**
@@ -1165,8 +1169,9 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
       next: (results) => {
         // ARB results are the full unpaged set. Reset to page 1 so row numbering (offset by gridPage)
         // starts at 1; the dataStateChange guard keeps the pager from re-running the filter search.
+        // Guard the pager reset — grid() is a required query that throws when not yet rendered.
         this.gridPage.set(1);
-        this.grid()?.goToPage?.(1);
+        if (this.searchResults()) this.grid().goToPage(1);
         this.searchResults.set(results);
         this.selectedRegistrations.set(new Set());
         this.arbCardExpiringMode.set(true);

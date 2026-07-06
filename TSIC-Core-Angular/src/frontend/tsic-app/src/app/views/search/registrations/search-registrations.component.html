@@ -664,7 +664,10 @@
 
     <!-- Results Grid -->
     <div class="results-container">
-      @if (isSearching()) {
+      <!-- Initial-load overlay only. During paging/sorting the grid is already visible and shows its
+           OWN built-in spinner (custom binding shows it between dataStateChange and the dataSource
+           update) — gating on !searchResults() avoids two stacked spinners. -->
+      @if (isSearching() && !searchResults()) {
         <div class="results-loading" role="status" aria-live="polite">
           <span class="spinner-border"></span>
           <span class="results-loading-text">Searching registrations&hellip;</span>
@@ -745,8 +748,6 @@
             (actionComplete)="onActionComplete($event)"
           >
           <e-columns>
-            <!-- Hidden primary key: anchors persistSelection so checkboxes survive server-side page fetches -->
-            <e-column field="registrationId" [isPrimaryKey]="true" [visible]="false"></e-column>
             <!-- Row number (unbound — stamped via queryCellInfo/actionComplete) -->
             <e-column headerText="#" width="50" textAlign="Center" [allowSorting]="false"></e-column>
             <!-- Frozen: Name with inline detail icon -->
@@ -822,6 +823,10 @@
 
             <!-- Batch email selection checkbox -->
             <e-column type="checkbox" headerText="" width="45"></e-column>
+            <!-- Hidden primary key (LAST so it stays outside the frozen columns and the "#" cell
+                 remains the first e-rowcell for row-number stamping). Anchors persistSelection so
+                 checkboxes survive server-side page fetches. -->
+            <e-column field="registrationId" [isPrimaryKey]="true" [visible]="false"></e-column>
           </e-columns>
 
           <e-aggregates>
