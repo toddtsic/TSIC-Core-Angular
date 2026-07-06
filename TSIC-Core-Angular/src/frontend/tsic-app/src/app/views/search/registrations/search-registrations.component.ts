@@ -200,6 +200,12 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   // Selection state
   selectedRegistrations = signal<Set<string>>(new Set());
 
+  // {name,email} captured at the moment a row is checked, keyed by registrationId. Server-side paging
+  // means the grid only ever holds the current page — an off-page pick's row DTO is gone once you page
+  // away. Snapshotting here lets the batch-email modal list EVERY selected recipient by name, not just
+  // the ones still on screen. Kept in lockstep with selectedRegistrations via applySelectionDelta/resetSelection.
+  private selectedRecipientSnapshots = signal<Map<string, { name: string; email: string }>>(new Map());
+
   // Detail panel state
   selectedDetail = signal<RegistrationDetailDto | null>(null);
   isPanelOpen = signal(false);
@@ -476,7 +482,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     if (!opts.force && key === this.lastFetchKey) return; // grid re-asked for what we already have
     this.lastFetchKey = key;
     this.isSearching.set(true);
-    if (opts.clearSelection) this.selectedRegistrations.set(new Set());
+    if (opts.clearSelection) this.resetSelection();
     this.searchService.search(req).subscribe({
       next: (results) => {
         this.searchResults.set(results);
@@ -704,13 +710,26 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     const rows = (Array.isArray(data) ? data : data ? [data] : []) as RegistrationSearchResultDto[];
     if (rows.length === 0) return;
     const next = new Set(this.selectedRegistrations());
+    const snaps = new Map(this.selectedRecipientSnapshots());
     for (const r of rows) {
       if (!r?.registrationId) continue;
-      if (add) next.add(r.registrationId);
-      else next.delete(r.registrationId);
+      if (add) {
+        next.add(r.registrationId);
+        snaps.set(r.registrationId, { name: `${r.lastName}, ${r.firstName}`, email: r.email });
+      } else {
+        next.delete(r.registrationId);
+        snaps.delete(r.registrationId);
+      }
     }
     this.selectedRegistrations.set(next);
+    this.selectedRecipientSnapshots.set(snaps);
     if (next.size > 0) this.emailMode.set('selected');
+  }
+
+  /** Clear the selection set AND its captured recipient snapshots together — they must never drift. */
+  private resetSelection(): void {
+    this.selectedRegistrations.set(new Set());
+    this.selectedRecipientSnapshots.set(new Map());
   }
 
   // Fires after every page render (initial load + each server-side page fetch). Re-tick persisted
@@ -871,17 +890,20 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
     return this.selectedRegistrations().size;
   }
 
-  // Display-only name sample. Off-page recipients aren't in memory, so this is best-effort from the
-  // loaded page; emailRecipientCount is the authoritative headline and the send is resolved server-side.
+  // Recipient name list for the modal.
+  //   'selected' — resolved from the per-pick snapshots, so EVERY checked recipient shows by name,
+  //                including off-page picks the grid no longer holds. Complete, not a sample.
+  //   'all'      — the audience is re-resolved server-side from criteria; only the loaded page is in
+  //                memory, so this is a best-effort sample. emailRecipientCount is the authoritative headline.
   get emailRecipients(): { name: string; email: string }[] {
+    if (this.emailMode() === 'selected') {
+      const snaps = this.selectedRecipientSnapshots();
+      return Array.from(this.selectedRegistrations())
+        .map(id => snaps.get(id))
+        .filter((r): r is { name: string; email: string } => !!r);
+    }
     const loaded = this.searchResults()?.result ?? [];
-    const rows = this.emailMode() === 'all'
-      ? loaded
-      : loaded.filter(r => this.selectedRegistrations().has(r.registrationId));
-    return rows.map(r => ({
-      name: `${r.lastName}, ${r.firstName}`,
-      email: r.email
-    }));
+    return loaded.map(r => ({ name: `${r.lastName}, ${r.firstName}`, email: r.email }));
   }
 
   onEmailSelected(): void {
@@ -895,7 +917,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   onEmailAll(): void {
     if (this.searchResults()?.count) {
       this.grid().clearSelection();
-      this.selectedRegistrations.set(new Set());
+      this.resetSelection();
       this.inviteMode.set(null);
       this.emailMode.set('all');
       this.showBatchEmailModal.set(true);
@@ -1173,7 +1195,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
         this.gridPage.set(1);
         if (this.searchResults()) this.grid().goToPage(1);
         this.searchResults.set(results);
-        this.selectedRegistrations.set(new Set());
+        this.resetSelection();
         this.arbCardExpiringMode.set(true);
         this.isArbCardExpiringLoading.set(false);
         if (results.count === 0) {
