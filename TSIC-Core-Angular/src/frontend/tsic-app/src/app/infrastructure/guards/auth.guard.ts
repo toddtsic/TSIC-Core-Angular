@@ -165,9 +165,19 @@ export const authGuard: CanActivateFn = (route, state) => {
  * Returns false (route does not match) when the user has selected a role,
  * so authenticated Phase 2 users fall through to :jobPath and see their
  * workspace at /tsic instead of the corporate landing page.
+ *
+ * Cold start is exempt: canMatch runs BEFORE canActivate, so on a fresh load a
+ * leftover Phase-2 token still reads as hasSelectedRole()===true here — which used
+ * to decline the marketing landing and fall through to :jobPath, only for authGuard's
+ * cold-start "never resume" block to then logoutLocal() and render job-landing
+ * anonymously (the "came up logged in, logged out, screen never changed" bug). On cold
+ * start the session is always discarded, so treat the user as anonymous and MATCH the
+ * corporate landing — consistent with authGuard's own isColdStart handling.
  */
 export const unselectedRoleMatch: CanMatchFn = () => {
     const auth = inject(AuthService);
+    const router = inject(Router);
+    if (!router.navigated) return true;
     return !auth.hasSelectedRole();
 };
 
