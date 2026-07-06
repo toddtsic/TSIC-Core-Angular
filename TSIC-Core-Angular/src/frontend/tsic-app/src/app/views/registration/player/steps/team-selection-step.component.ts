@@ -883,11 +883,17 @@ export class TeamSelectionStepComponent {
                 return a.teamName.localeCompare(b.teamName, undefined, { numeric: true, sensitivity: 'base' });
             });
         } else {
-            // Non-CAC (tournament, season, etc.): natural alpha sort by club then team
+            // Non-CAC (tournament, season, etc.): natural alpha sort matching the label the
+            // user reads — clubName:agegroupName:teamName. Agegroup is the middle key (often
+            // the only distinguishing field, e.g. self-roster teams sharing a generic name
+            // across grad years), so it MUST participate or the list reads unsorted.
             const cmp = (x: string, y: string) => x.localeCompare(y, undefined, { numeric: true, sensitivity: 'base' });
             filtered = [...filtered].sort((a, b) => {
-                const c = cmp(a.clubName?.trim() || '', b.clubName?.trim() || '');
-                return c !== 0 ? c : cmp(a.teamName, b.teamName);
+                const club = cmp(a.clubName?.trim() || '', b.clubName?.trim() || '');
+                if (club !== 0) return club;
+                const age = cmp(a.agegroupName?.trim() || '', b.agegroupName?.trim() || '');
+                if (age !== 0) return age;
+                return cmp(a.teamName, b.teamName);
             });
         }
 
