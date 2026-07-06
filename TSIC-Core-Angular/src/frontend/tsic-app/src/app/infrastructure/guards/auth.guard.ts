@@ -17,10 +17,13 @@ import { type RoleName } from '../constants/roles.constants';
  *                            Omit for any-authenticated-user access.
  *
  * Cold start (fresh load / refresh / externally-clicked deep link):
- *   Never resume a session — no role is exempt. logoutLocal(), then honor the requested
- *   URL (public/landing render anonymously; protected → login with returnUrl preserved).
- *   This ensures a deep link (e.g. an emailed invite) is evaluated against whoever logs in
- *   FOR that link, not against whoever was left in the browser.
+ *   Never resume a session — no role is exempt. logoutLocal(), then honor the requested URL
+ *   (public/landing render anonymously). Two protected-route sub-cases:
+ *     • fresh anonymous deep link (no prior session) → login with returnUrl preserved, so an
+ *       emailed invite is evaluated against whoever logs in FOR that link.
+ *     • a LIVE session was discarded (user refreshed while working) → job home. The deep,
+ *       role-gated returnUrl is dropped so re-login doesn't teleport back to e.g.
+ *       search/registrations. Distinguished by the forced-logout marker on AuthService.
  */
 export const authGuard: CanActivateFn = (route, state) => {
     const auth = inject(AuthService);
@@ -31,6 +34,12 @@ export const authGuard: CanActivateFn = (route, state) => {
     const user = auth.getCurrentUser();
     const isAuth = auth.isAuthenticated();
     const isColdStart = !router.navigated;
+
+    // The forced-logout marker only applies to the very first (cold-start) navigation. Any
+    // warm navigation renders it stale — clear it so a deliberate protected-link click still
+    // bounces to login with its returnUrl preserved (the parent :jobPath guard runs before any
+    // protected child, so this clears ahead of the not-authenticated check below).
+    if (!isColdStart) auth.clearForcedColdStartLogout();
 
     const flags = {
         allowAnonymous: route.data['allowAnonymous'] === true,
@@ -75,11 +84,16 @@ export const authGuard: CanActivateFn = (route, state) => {
     // logoutLocal() first (it clears both tokens and stops the refresh timer) closes that path.
     //
     // Then honor the URL that was actually requested — do NOT redirect home. Public and
-    // login/landing pages render anonymously; anything protected falls through to toLogin(),
-    // whose returnUrl=state.url carries the full deep link + query (e.g. ?invite=<token>).
+    // login/landing pages render anonymously; anything protected lands the user on the job
+    // HOME (see below) rather than round-tripping the deep URL through login.
     if (isColdStart && (isAuth || auth.getRefreshToken())) {
         auth.logoutLocal();
-        return (flags.allowAnonymous || flags.redirectAuthenticated) ? true : toLogin();
+        // A LIVE session was just discarded on this cold start (a fresh anonymous deep-link
+        // click has no session and never reaches here). Mark it so a role-gated child guard
+        // sends the user to the job home instead of preserving the deep, role-gated returnUrl
+        // — which would teleport the re-login back to e.g. search/registrations.
+        auth.markForcedColdStartLogout();
+        return (flags.allowAnonymous || flags.redirectAuthenticated) ? true : toJob(jobPath());
     }
 
     // ── Bounce authenticated users away from login/landing ──────────
@@ -113,6 +127,12 @@ export const authGuard: CanActivateFn = (route, state) => {
     // ── Not authenticated ────────────────────────────────────────────
     if (!user || !isAuth) {
         if (flags.allowAnonymous) return true;
+
+        // Forced cold-start logout of a live session → don't round-trip this role-gated URL
+        // through login (that teleports the re-login back to e.g. search/registrations). Land
+        // on the job home; the user logs in from the header when ready. A genuinely anonymous
+        // deep-link click (no prior session) is never marked, so its returnUrl is preserved.
+        if (auth.wasForcedColdStartLogout()) return toJob(jobPath());
 
         const refreshToken = auth.getRefreshToken();
         const regId = user?.regId;

@@ -42,6 +42,13 @@ export class AuthService {
   public readonly registrationsError = signal<string | null>(null);
   // Internal flag so we don't refetch registrations repeatedly in the same session
   private _registrationsFetched = false;
+
+  // One-shot marker: set by authGuard when a cold-start "never resume" discards a LIVE
+  // session. A role-gated bounce reads it to land the user on the job HOME rather than
+  // round-tripping the deep URL through login (which would teleport the re-login back to
+  // e.g. search/registrations). A fresh anonymous deep-link click has no session, so it
+  // never gets marked and its returnUrl is preserved. Cleared on the first warm navigation.
+  private _forcedColdStartLogout = false;
   public readonly suggestedEvents = signal<SuggestedEventDto[]>([]);
   private _suggestedEventsFetched = false;
   public readonly selectLoading = signal(false);
@@ -307,6 +314,13 @@ export class AuthService {
       return false;
     }
   }
+
+  /** Mark that a cold-start logout just discarded a live session (see `_forcedColdStartLogout`). */
+  markForcedColdStartLogout(): void { this._forcedColdStartLogout = true; }
+  /** True while a cold-start forced logout is still unresolved (until the first warm navigation). */
+  wasForcedColdStartLogout(): boolean { return this._forcedColdStartLogout; }
+  /** Clear the forced-logout marker — called by the guard on the first warm navigation. */
+  clearForcedColdStartLogout(): void { this._forcedColdStartLogout = false; }
 
   /**
    * Check if user has selected a role (token has regId claim)
