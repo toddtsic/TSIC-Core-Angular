@@ -72,140 +72,15 @@
 	}
 }
 
-// ── Search ──
+// ── Team finder ListBox ──
+// Syncfusion adds cssClass to its runtime wrapper (.e-listbox-wrapper), which
+// carries no ng-content attr, so ::ng-deep is required to reach it. The panel
+// itself supplies the frame/radius; the ListBox just fills it edge to edge.
 
-.search-section {
-	padding: var(--space-3);
-	border-bottom: 1px solid var(--border-color);
-}
-
-.search-wrapper {
-	position: relative;
-	display: flex;
-	align-items: center;
-}
-
-.search-icon {
-	position: absolute;
-	left: var(--space-3);
-	color: var(--neutral-400);
-	font-size: var(--font-size-sm);
-	pointer-events: none;
-}
-
-.search-input {
+:host ::ng-deep .public-team-listbox {
+	display: block;
 	width: 100%;
-	padding-left: var(--space-8) !important;
-	padding-right: var(--space-8) !important;
-	font-size: var(--font-size-base);
-
-	&::placeholder {
-		font-weight: var(--font-weight-medium);
-		color: var(--neutral-500);
-	}
-}
-
-.search-prompt {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	padding: var(--space-8) var(--space-4);
-	color: var(--neutral-400);
-
-	.bi {
-		font-size: 1.5rem;
-		margin-bottom: var(--space-2);
-	}
-
-	p {
-		font-size: var(--font-size-sm);
-		margin: 0;
-	}
-}
-
-.search-clear {
-	position: absolute;
-	right: var(--space-2);
-	background: none;
 	border: none;
-	color: var(--neutral-400);
-	cursor: pointer;
-	padding: var(--space-1);
-	line-height: 1;
-
-	&:hover {
-		color: var(--brand-text);
-	}
-}
-
-// ── Team list ──
-
-.team-list {
-	max-height: 520px;
-	overflow-y: auto;
-}
-
-.list-count {
-	padding: var(--space-2) var(--space-3);
-	font-size: var(--font-size-xs);
-	color: var(--neutral-500);
-	border-bottom: 1px solid var(--border-color);
-}
-
-.team-item {
-	padding: var(--space-2) var(--space-3);
-	cursor: pointer;
-	border-bottom: 1px solid rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.04);
-	transition: background 0.15s ease;
-
-	&:hover {
-		background: rgba(var(--bs-primary-rgb), 0.06);
-	}
-
-	&.active {
-		background: rgba(var(--bs-primary-rgb), 0.12);
-	}
-
-	&:last-child {
-		border-bottom: none;
-	}
-}
-
-.team-name-row {
-	font-size: var(--font-size-sm);
-	font-weight: var(--font-weight-medium);
-	color: var(--brand-text);
-	display: flex;
-	align-items: center;
-	gap: var(--space-1);
-
-	.bi-people-fill {
-		color: var(--bs-primary);
-		font-size: 0.75rem;
-	}
-
-	.badge {
-		font-size: 0.65rem;
-		font-weight: var(--font-weight-normal);
-		margin-left: auto;
-	}
-}
-
-.team-name {
-	flex: 1;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.team-placement {
-	font-size: var(--font-size-xs);
-	color: var(--neutral-500);
-	margin-top: 1px;
-	padding-left: calc(1rem + var(--space-1));
-	display: flex;
-	align-items: center;
-	gap: var(--space-1);
 }
 
 .placement-label {

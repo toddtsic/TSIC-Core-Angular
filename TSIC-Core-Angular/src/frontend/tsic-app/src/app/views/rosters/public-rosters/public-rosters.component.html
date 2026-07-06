@@ -13,65 +13,21 @@
 		<div class="rosters-layout">
 			<!-- Left: Team finder -->
 			<div class="finder-panel">
-				<div class="search-section">
-					<div class="search-wrapper">
-						<i class="bi bi-search search-icon"></i>
-						<input
-							type="text"
-							class="field-input search-input"
-							placeholder="Type your team or club name..."
-						#searchInput
-							[value]="searchText()"
-							(input)="onSearchChange($event)" />
-						@if (searchText()) {
-							<button type="button" class="search-clear" (click)="clearSearch()" aria-label="Clear search">
-								<i class="bi bi-x-lg"></i>
-							</button>
-						}
-					</div>
-				</div>
-
 				@if (isLoadingTree()) {
 					<div class="text-center py-3">
 						<span class="spinner-border spinner-border-sm"></span> Loading...
 					</div>
 				} @else {
-					<div class="team-list">
-						@if (!searchText()) {
-							<div class="search-prompt">
-								<i class="bi bi-search"></i>
-								<p>Start typing to find your team</p>
-							</div>
-						} @else if (filteredTeams().length === 0) {
-							<div class="text-muted text-center py-3">
-								No matches for "{{ searchText() }}"
-							</div>
-						} @else {
-							<div class="list-count">
-								{{ filteredTeams().length }} team{{ filteredTeams().length === 1 ? '' : 's' }}
-							</div>
-							@for (ft of filteredTeams(); track ft.team.teamId) {
-								<div class="team-item"
-									[class.active]="selectedTeamId() === ft.team.teamId"
-									(click)="selectFlatTeam(ft)">
-									<div class="team-name-row">
-										<i class="bi bi-people-fill"></i>
-										<span class="team-name">{{ ft.clubName }} — {{ ft.team.teamName }}</span>
-										<span class="badge bg-secondary-subtle text-secondary">{{ ft.team.playerCount }}</span>
-									</div>
-									<div class="team-placement">
-										<span class="placement-label">Playing in</span>
-										<span class="placement-label">Agegroup:</span>
-										<span class="placement-badge" [style.background]="ft.color || 'var(--neutral-400)'"
-											[style.color]="contrastText(ft.color)">{{ ft.agegroupName }}</span>
-										<span class="placement-label">Pool:</span>
-										<span class="placement-badge" [style.background]="ft.color || 'var(--neutral-400)'"
-											[style.color]="contrastText(ft.color)">{{ ft.divName }}</span>
-									</div>
-								</div>
-							}
-						}
-					</div>
+					<ejs-listbox
+						[dataSource]="listBoxData()"
+						[fields]="listBoxFields()"
+						[selectionSettings]="listBoxSelection"
+						[allowFiltering]="true"
+						[filterBarPlaceholder]="'Search by club or team...'"
+						[height]="'560px'"
+						(change)="onTeamSelect($event.value)"
+						cssClass="public-team-listbox">
+					</ejs-listbox>
 				}
 			</div>
 
@@ -84,7 +40,7 @@
 				} @else if (!selectedTeamId()) {
 					<div class="empty-state">
 						<i class="bi bi-card-list"></i>
-						<p>Type a team or club name to view their roster</p>
+						<p>Select a team to view their roster</p>
 					</div>
 				} @else if (rosterPlayers().length === 0) {
 					<div class="empty-state">

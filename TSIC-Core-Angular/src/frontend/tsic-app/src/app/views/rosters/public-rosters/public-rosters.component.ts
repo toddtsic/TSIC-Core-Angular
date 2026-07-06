@@ -1,7 +1,8 @@
-import { Component, ChangeDetectionStrategy, inject, signal, viewChild, ElementRef, afterNextRender } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { GridAllModule, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { ListBoxModule } from '@syncfusion/ej2-angular-dropdowns';
 import { CadtClubNode, CadtTeamNode, PublicRosterPlayerDto, TeamResultDto } from '@core/api';
 import { PublicRosterService } from './public-roster.service';
 import { ViewScheduleService } from '../../scheduling/view-schedule/services/view-schedule.service';
@@ -16,10 +17,18 @@ interface FlatTeam {
 	color: string | null;
 }
 
+/** Row shape bound to the Syncfusion ListBox (text/value/groupBy fields). */
+interface TeamListItem {
+	teamId: string;
+	clubName: string;
+	agegroupName: string;
+	label: string;
+}
+
 @Component({
 	selector: 'app-public-rosters',
 	standalone: true,
-	imports: [CommonModule, GridAllModule, TeamResultsModalComponent],
+	imports: [CommonModule, GridAllModule, ListBoxModule, TeamResultsModalComponent],
 	templateUrl: './public-rosters.component.html',
 	styleUrls: ['./public-rosters.component.scss'],
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -28,11 +37,6 @@ export class PublicRostersComponent {
 	private readonly route = inject(ActivatedRoute);
 	private readonly svc = inject(PublicRosterService);
 	private readonly scheduleSvc = inject(ViewScheduleService);
-	private readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
-
-	constructor() {
-		afterNextRender(() => this.searchInput()?.nativeElement.focus());
-	}
 
 	clubs = signal<CadtClubNode[]>([]);
 	rosterPlayers = signal<PublicRosterPlayerDto[]>([]);
@@ -45,12 +49,11 @@ export class PublicRostersComponent {
 	isLoadingTree = signal(false);
 	isLoadingRoster = signal(false);
 	errorMessage = signal('');
-	searchText = signal('');
 
 	// Whether the event restricts public rosters (Jobs.bRestrictPublicRosters) — shows a "not available" notice.
 	restricted = signal(false);
 
-	// Pre-built flat team index — always visible, filtered by search
+	// Pre-built flat team index — source for both the ListBox and roster lookup.
 	allTeams = signal<FlatTeam[]>([]);
 
 	// Whether the event allows public schedule viewing
@@ -62,6 +65,48 @@ export class PublicRostersComponent {
 	teamResults = signal<TeamResultDto[]>([]);
 
 	private jobPath = '';
+
+	/**
+	 * Group by club when the event actually spans multiple clubs; otherwise group
+	 * by agegroup (single-club / house events, where every team shares one club
+	 * name and a club header would be meaningless).
+	 */
+	readonly groupField = computed<'clubName' | 'agegroupName'>(() => {
+		const distinctClubs = new Set(this.allTeams().map(ft => ft.clubName));
+		return distinctClubs.size > 1 ? 'clubName' : 'agegroupName';
+	});
+
+	/** Syncfusion ListBox field map — groupBy renders section headers. */
+	readonly listBoxFields = computed(() => ({
+		text: 'label',
+		value: 'teamId',
+		groupBy: this.groupField(),
+	}));
+
+	/** Single-select picker (no checkboxes) — one team loads one roster. */
+	readonly listBoxSelection = { mode: 'Single' as const, showCheckbox: false };
+
+	/**
+	 * Flat list shaped for the ListBox. The label carries club + team so the
+	 * built-in filter bar (which matches the text field) works as a typeahead for
+	 * either. Sorted by the active group field first so groups stay contiguous.
+	 */
+	readonly listBoxData = computed<TeamListItem[]>(() => {
+		const group = this.groupField();
+		return this.allTeams()
+			.map(ft => ({
+				teamId: ft.team.teamId,
+				clubName: ft.clubName,
+				agegroupName: ft.agegroupName,
+				label: `${ft.clubName} — ${ft.team.teamName} (${ft.team.playerCount})`,
+			}))
+			.sort((a, b) =>
+				(group === 'clubName'
+					? a.clubName.localeCompare(b.clubName)
+					: a.agegroupName.localeCompare(b.agegroupName))
+				|| a.label.localeCompare(b.label)
+			);
+	});
 
 	ngOnInit(): void {
 		this.jobPath = this.route.snapshot.params['jobPath']
@@ -112,17 +157,6 @@ export class PublicRostersComponent {
 		return result;
 	}
 
-	/** Filter teams by search text. Empty search = no results (user must type). */
-	filteredTeams(): FlatTeam[] {
-		const q = this.searchText().toLowerCase().trim();
-		if (!q) return [];
-		return this.allTeams().filter(ft =>
-			ft.team.teamName.toLowerCase().includes(q) ||
-			ft.clubName.toLowerCase().includes(q) ||
-			ft.agegroupName.toLowerCase().includes(q)
-		);
-	}
-
 	private selectTeamById(teamId: string): void {
 		if (this.selectedTeamId() === teamId) return;
 		this.selectedTeamId.set(teamId);
@@ -139,7 +173,7 @@ export class PublicRostersComponent {
 		});
 	}
 
-	selectFlatTeam(ft: FlatTeam): void {
+	private selectFlatTeam(ft: FlatTeam): void {
 		this.selectedTeamName.set(`${ft.clubName} — ${ft.team.teamName}`);
 		this.selectedAgegroupName.set(ft.agegroupName);
 		this.selectedDivName.set(ft.divName);
@@ -147,12 +181,12 @@ export class PublicRostersComponent {
 		this.selectTeamById(ft.team.teamId);
 	}
 
-	onSearchChange(event: Event): void {
-		this.searchText.set((event.target as HTMLInputElement).value);
-	}
-
-	clearSearch(): void {
-		this.searchText.set('');
+	/** ListBox selection changed — map the picked value back to its FlatTeam. */
+	onTeamSelect(value: string[] | string | null | undefined): void {
+		const teamId = Array.isArray(value) ? value[0] : value;
+		if (!teamId) return;
+		const ft = this.allTeams().find(x => x.team.teamId === teamId);
+		if (ft) this.selectFlatTeam(ft);
 	}
 
 	viewTeamSchedule(teamId: string): void {
