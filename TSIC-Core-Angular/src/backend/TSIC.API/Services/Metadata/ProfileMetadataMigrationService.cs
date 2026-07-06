@@ -1625,7 +1625,12 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             if (dict.Keys.Any(k => string.Equals(k, key, StringComparison.OrdinalIgnoreCase)))
                 continue; // upsert-if-absent
 
-            using var doc = JsonDocument.Parse(JsonSerializer.Serialize(values, s_IndentedCamelCase));
+            // Seed in the legacy Jobs.JsonOptions item shape { "Text", "Value" } (PascalCase) — the same
+            // convention every other option set uses and the ONLY shape DdlOptionsService (Configure Job
+            // Dropdowns) reads. Serializing ProfileFieldOption directly emits { "value", "label" }, which
+            // that editor's case-sensitive { Text, Value } binder silently drops (dropdown shows no values).
+            var legacyItems = values.Select(o => new { Text = o.Label ?? o.Value, o.Value });
+            using var doc = JsonDocument.Parse(JsonSerializer.Serialize(legacyItems));
             dict[key] = doc.RootElement.Clone();
         }
 

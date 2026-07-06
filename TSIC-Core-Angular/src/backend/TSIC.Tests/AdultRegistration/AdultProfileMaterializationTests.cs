@@ -62,6 +62,13 @@ public class AdultProfileMaterializationTests
         ac2.JsonOptions.Should().NotBeNull();
         ac2.JsonOptions!.Should().Contain("ListSizes_CoachJersey");
 
+        // Seeded items MUST use the legacy { "Text", "Value" } PascalCase shape so the Configure Job
+        // Dropdowns editor (DdlOptionsService, case-sensitive) can read them — not { "value", "label" }.
+        using var opts = JsonDocument.Parse(ac2.JsonOptions!);
+        var firstCoachJersey = opts.RootElement.GetProperty("ListSizes_CoachJersey")[0];
+        firstCoachJersey.GetProperty("Value").GetString().Should().Be("SM");
+        firstCoachJersey.GetProperty("Text").GetString().Should().Be("SM");
+
         ac1.AdultProfileMetadataJson.Should().BeNull(); // AC1 job is not part of an AC2 migration
         repo.Verify(r => r.UpdateMultipleJobsAdultMetadataAsync(It.IsAny<List<Jobs>>()), Times.Once);
     }
