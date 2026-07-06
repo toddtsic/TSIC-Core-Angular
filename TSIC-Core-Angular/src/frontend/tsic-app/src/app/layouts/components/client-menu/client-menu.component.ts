@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, inject, Injector, signal } from '@angular/core';
 
 import { NavigationEnd, Route, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { NgTemplateOutlet } from '@angular/common';
@@ -26,6 +26,7 @@ export class ClientMenuComponent {
     private readonly router = inject(Router);
     private readonly reporting = inject(ReportingService);
     private readonly toast = inject(ToastService);
+    private readonly injector = inject(Injector);
 
     // The desktop vertical rail is admin-only chrome; non-admins get no inline nav.
     readonly isAdmin = this.auth.isAdmin;
@@ -136,6 +137,7 @@ export class ClientMenuComponent {
         this.dropdownPanelLeft.set(Math.max(8, left));
         this.dropdownPanelTop.set(rect.bottom + 4);
         this.expandedItems.set(new Set([normalizedId]));
+        this.clampPanelIntoViewport();
     }
 
     /** Horizontal pill nav: delayed close when the mouse leaves the group (pill + panel). */
@@ -176,7 +178,8 @@ export class ClientMenuComponent {
     /**
      * Position the fixed flyout panel flush against the right edge of the rail item
      * (flush so there's no dead zone for the pointer to cross). Flips to the left if
-     * the panel would overflow the viewport; clamps vertically within the window.
+     * the panel would overflow the viewport horizontally; the vertical edge is
+     * corrected by clampPanelIntoViewport() once the panel's real height is known.
      */
     private openRailFlyout(anchor: HTMLElement, menuItemId: string | number): void {
         const rect = anchor.getBoundingClientRect();
@@ -186,8 +189,35 @@ export class ClientMenuComponent {
             left = Math.max(8, rect.left - PANEL_WIDTH);
         }
         this.dropdownPanelLeft.set(left);
-        this.dropdownPanelTop.set(Math.max(8, Math.min(rect.top, window.innerHeight - 120)));
+        // Align with the item's top as a starting point; clampPanelIntoViewport
+        // pulls it up if a tall child list would spill past the bottom of the screen.
+        this.dropdownPanelTop.set(Math.max(8, rect.top));
         this.expandedItems.set(new Set([String(menuItemId)]));
+        this.clampPanelIntoViewport();
+    }
+
+    /**
+     * The flyout / dropdown panel is fixed-positioned and its height depends on the
+     * child count, so a group near the bottom of the viewport can spill below the
+     * fold (and get clipped, since the panel hides overflow). Once the panel has
+     * painted we know its real height: if its bottom edge is off-screen, pull the
+     * panel up by exactly that overshoot so it appears to grow upward from the
+     * anchor. The CSS max-height keeps a panel taller than the whole viewport
+     * scrollable rather than clipped.
+     */
+    private clampPanelIntoViewport(): void {
+        afterNextRender(
+            () => {
+                const panel = document.querySelector<HTMLElement>('.dropdown-panel');
+                if (!panel) return;
+                const MARGIN = 8;
+                const overshoot = panel.getBoundingClientRect().bottom - (window.innerHeight - MARGIN);
+                if (overshoot > 0) {
+                    this.dropdownPanelTop.set(Math.max(MARGIN, this.dropdownPanelTop() - overshoot));
+                }
+            },
+            { injector: this.injector }
+        );
     }
 
     private startHoverCloseTimer(): void {

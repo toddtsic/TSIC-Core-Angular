@@ -369,11 +369,16 @@
     z-index: 10001;
     min-width: 240px;
     max-width: 320px;
+    // Never taller than the viewport (minus the 8px margins the positioning logic
+    // reserves top and bottom). A child list longer than this scrolls instead of
+    // spilling off-screen; clampPanelIntoViewport handles the shift-up case.
+    max-height: calc(100vh - 16px);
     background: var(--brand-surface);
     border: 1px solid var(--brand-border);
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-xl), 0 2px 8px rgba(0, 0, 0, 0.06);
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
     animation: dropdownPanelIn 0.16s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
