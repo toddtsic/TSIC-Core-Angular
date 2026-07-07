@@ -73,7 +73,7 @@
             <e-column field="startDate" headerText="Dates" width="160" type="date">
                 <ng-template #template let-data>
                     <span class="text-body-secondary" style="font-size: var(--font-size-xs)">
-                        {{ data.startDate | date:'shortDate' }} – {{ data.endDate | date:'shortDate' }}
+                        {{ data.startDate | date:'MM/dd/yyyy' }} – {{ data.endDate | date:'MM/dd/yyyy' }}
                     </span>
                 </ng-template>
             </e-column>

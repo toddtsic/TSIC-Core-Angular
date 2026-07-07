@@ -203,6 +203,7 @@ type FieldGroup = { kind: 'plain' | 'recruiting'; fields: PlayerProfileFieldSche
                    [attr.placeholder]="field.placeholder"
                    [attr.min]="field.min"
                    [attr.max]="field.max"
+                   [attr.step]="field.name.toLowerCase() === 'gpa' ? '0.1' : null"
                    [class.is-required]="field.required && !isPlayerLocked(pid) && !hasValue(pid, field.name)">
           }
           @case ('email') {
