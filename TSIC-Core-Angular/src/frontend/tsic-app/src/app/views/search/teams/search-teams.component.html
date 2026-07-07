@@ -400,7 +400,7 @@
           </e-column>
 
           <!-- Active status -->
-          <e-column field="active" headerText="Active" width="75" textAlign="Center">
+          <e-column field="active" headerText="Active" width="95" textAlign="Center">
             <ng-template #template let-data>
               <span class="active-badge" [class.active-yes]="data.active" [class.active-no]="!data.active">
                 {{ data.active ? 'Yes' : 'No' }}

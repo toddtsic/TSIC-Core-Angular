@@ -20,7 +20,7 @@ export interface LopChoice {
 }
 
 export const LOP_CHOICES: readonly LopChoice[] = [
-    { value: '1', short: '1', label: '1 (weakest)' },
+    { value: '1', short: '1', label: '1' },
     { value: '2', short: '2', label: '2' },
     { value: '3', short: '3', label: '3' },
     { value: '4', short: '4', label: '4' },
