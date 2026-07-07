@@ -362,7 +362,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
         var response = new ApplyDiscountResponseDto
         {
             Success = successCount > 0,
-            Message = successCount > 0 ? $"Successfully applied discount to {successCount} player(s)" : "No discounts were applied",
+            Message = successCount > 0 ? $"Successfully applied discount to {successCount} registration(s)" : "No discounts were applied",
             TotalDiscount = totalDiscount,
             TotalPlayersProcessed = results.Count,
             SuccessCount = successCount,

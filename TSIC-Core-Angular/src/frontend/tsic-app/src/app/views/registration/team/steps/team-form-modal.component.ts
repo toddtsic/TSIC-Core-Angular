@@ -102,7 +102,7 @@ import { LevelOfPlayPickerComponent } from '@views/registration/team/components/
             </div>
 
             <div class="form-row">
-              <label for="tf-year" class="field-label">Players' Grad Year</label>
+              <label for="tf-year" class="field-label">Grad Year</label>
               <select id="tf-year" class="field-select"
                       [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
                       [disabled]="!step1Done()"

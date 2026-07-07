@@ -30,18 +30,18 @@
             (ngModelChange)="regFormBccs.set($event); onFieldChange()" />
         </div>
         <div class="col-md-6">
-          <label class="field-label">Reschedule Email List</label>
-          <span class="field-help">(semi-colon between emails, no spaces)</span>
-          <input type="text" class="field-input"
-            [ngModel]="rescheduleemaillist()"
-            (ngModelChange)="rescheduleemaillist.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-6">
           <label class="field-label">Always Copy Email List</label>
           <span class="field-help">(semi-colon between emails, no spaces)</span>
           <input type="text" class="field-input"
             [ngModel]="alwayscopyemaillist()"
             (ngModelChange)="alwayscopyemaillist.set($event); onFieldChange()" />
+        </div>
+        <div class="col-md-6">
+          <label class="field-label">Reschedule Email List</label>
+          <span class="field-help">(semi-colon between emails, no spaces)</span>
+          <input type="text" class="field-input"
+            [ngModel]="rescheduleemaillist()"
+            (ngModelChange)="rescheduleemaillist.set($event); onFieldChange()" />
         </div>
         <div class="col-12">
           <label class="field-check">

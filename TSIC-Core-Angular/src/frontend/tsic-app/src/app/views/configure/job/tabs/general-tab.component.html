@@ -47,9 +47,9 @@
         </div>
         <div class="col-md-6">
           <label class="field-label">Description</label>
-          <textarea class="field-input" rows="2"
+          <input type="text" class="field-input"
             [ngModel]="jobDescription()"
-            (ngModelChange)="jobDescription.set($event); onFieldChange()"></textarea>
+            (ngModelChange)="jobDescription.set($event); onFieldChange()" />
         </div>
       </div>
     </div>

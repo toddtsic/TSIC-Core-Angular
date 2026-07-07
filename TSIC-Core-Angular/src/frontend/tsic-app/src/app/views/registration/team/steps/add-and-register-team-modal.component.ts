@@ -97,7 +97,7 @@ import { resolveRecommendedAgeGroupId } from '@views/registration/team/component
 
             <div class="form-row-split">
               <div>
-                <label for="art-year" class="field-label">Players' Grad Year</label>
+                <label for="art-year" class="field-label">Grad Year</label>
                 <select id="art-year" class="field-select"
                         [ngModel]="gradYear()" (ngModelChange)="gradYear.set($event)"
                         [disabled]="!step1Done()"
