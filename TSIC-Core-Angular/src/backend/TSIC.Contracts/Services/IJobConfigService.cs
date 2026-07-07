@@ -18,6 +18,8 @@ public interface IJobConfigService
     Task UpdatePlayerAsync(Guid jobId, UpdateJobConfigPlayerRequest req, bool isSuperUser, CancellationToken ct = default);
     Task UpdateTeamsAsync(Guid jobId, UpdateJobConfigTeamsRequest req, bool isSuperUser, CancellationToken ct = default);
     Task UpdateCoachesAsync(Guid jobId, UpdateJobConfigCoachesRequest req, CancellationToken ct = default);
+    // Per-job coach-form template swap (SuperUser only — enforced at controller level)
+    Task UpdateCoachFormTemplateAsync(Guid jobId, UpdateCoachFormTemplateRequest req, CancellationToken ct = default);
     Task UpdateSchedulingAsync(Guid jobId, UpdateJobConfigSchedulingRequest req, CancellationToken ct = default);
     Task UpdateMobileStoreAsync(Guid jobId, UpdateJobConfigMobileStoreRequest req, bool isSuperUser, CancellationToken ct = default);
     Task UpdateBrandingAsync(Guid jobId, UpdateJobConfigBrandingRequest req, CancellationToken ct = default);

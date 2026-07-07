@@ -86,6 +86,29 @@ public static class AdultFormCatalog
         return (AC1, false);
     }
 
+    /// <summary>
+    /// Whether a profile supports the USA-Lacrosse capability overlay. AC3 (the legacy StaffASL shirt+shoe
+    /// subset) does not: no legacy <c>RegformName_Coach</c> value maps to (AC3, USLax), so the per-job
+    /// picker (which persists the choice by writing back a legacy string via <see cref="ToLegacyRegformName"/>)
+    /// cannot represent that combination. Historically that form never carried a USLax number.
+    /// </summary>
+    public static bool CanRequireUsLax(string profile) => !Eq(Canonical(profile), AC3);
+
+    /// <summary>
+    /// Reverse of <see cref="MapLegacy"/>: the canonical legacy <c>RegformName_Coach</c> string for a
+    /// (profile, requiresUsLax) pair, chosen so <c>MapLegacy</c> round-trips back to the same pair. Returns
+    /// <c>null</c> for the one unrepresentable combination (AC3 + USLax). Used by the per-job coach-form
+    /// picker to keep the immutable legacy identity field in sync with the re-materialized blob without a
+    /// schema change.
+    /// </summary>
+    public static string? ToLegacyRegformName(string profile, bool requiresUsLax) => Canonical(profile) switch
+    {
+        AC1 => requiresUsLax ? "StaffLaxValidate" : "Default_Form",
+        AC2 => requiresUsLax ? "StaffLaxValidatePlus" : "StaffSTEPS",
+        AC3 => requiresUsLax ? null : "StaffASL",
+        _ => null
+    };
+
     // ────────────────────────────────────────────────────────────────────────────────────
     // (b) Materialize the three-role set for a job
     // ────────────────────────────────────────────────────────────────────────────────────

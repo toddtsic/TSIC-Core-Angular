@@ -1609,6 +1609,47 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         return root.ToJsonString(s_IndentedCamelCase);
     }
 
+    /// <summary>
+    /// Per-job coach-form swap: rebuild ONLY the coach (UnassignedAdult) role from a chosen profile + USLax,
+    /// preserving Referee/Recruiter when a blob already exists. Falls back to a full three-role materialize
+    /// when the job has no (or malformed) existing blob. Mutates <paramref name="job"/>.JsonOptions; does not
+    /// persist. See the interface doc for the caller contract.
+    /// </summary>
+    public string ComputeCoachFormSwap(Jobs job, string profile, bool requiresUsLax)
+    {
+        profile = AdultFormCatalog.Canonical(profile);
+
+        // No usable existing blob → full three-role build (also seeds apparel JsonOptions).
+        JsonObject? existing = null;
+        if (!string.IsNullOrWhiteSpace(job.AdultProfileMetadataJson))
+        {
+            try { existing = JsonNode.Parse(job.AdultProfileMetadataJson) as JsonObject; }
+            catch { existing = null; /* malformed — rebuild from scratch */ }
+        }
+        if (existing is null)
+            return MaterializeAdultForJob(job, profile, requiresUsLax);
+
+        // Existing blob → rebuild the coach role only, leaving Referee/Recruiter sub-objects verbatim.
+        var coach = AdultFormCatalog.BuildRoleSet(profile, requiresUsLax).UnassignedAdult;
+
+        // Seed only the apparel sets this coach form references (upsert-if-absent; AC1 seeds none).
+        var apparelKeys = coach.Fields
+            .Where(f => !string.IsNullOrWhiteSpace(f.DataSource)
+                        && AdultFormCatalog.ApparelOptionSets.ContainsKey(f.DataSource!))
+            .Select(f => f.DataSource!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        if (apparelKeys.Count > 0)
+            job.JsonOptions = UpsertApparelOptionSets(job.JsonOptions, apparelKeys);
+
+        InjectJobOptionsIntoMetadata(coach, job.JsonOptions);
+        NormalizeMetadataInPlace(coach, "AdultFormCatalog");
+
+        existing[AdultMetadataRoleKeys.UnassignedAdult] =
+            JsonNode.Parse(JsonSerializer.Serialize(coach, s_IndentedCamelCase));
+        return existing.ToJsonString(s_IndentedCamelCase);
+    }
+
     /// <summary>Adds the named apparel option sets to a job's JsonOptions if the key is absent (case-insensitive).</summary>
     private static string UpsertApparelOptionSets(string? jsonOptions, IEnumerable<string> keys)
     {

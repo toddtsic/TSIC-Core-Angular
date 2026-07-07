@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Metadata;
 
@@ -40,4 +41,14 @@ public interface IProfileMetadataMigrationService
     // Adult profile editor (type-scoped, mirrors the player profile editor)
     Task<AdultRoleMetadataSet> GetAdultProfileMetadataAsync(string profile);
     Task<AdultProfileMigrationResult> UpdateAdultProfileRoleAsync(string profile, string roleKey, ProfileMetadata metadata);
+
+    /// <summary>
+    /// Rebuild ONE job's coach (UnassignedAdult) role from a chosen canonical profile + USLax capability.
+    /// When the job already has a materialized blob, only the coach role is replaced (Referee/Recruiter are
+    /// preserved); otherwise the full three-role set is built. Mutates <paramref name="job"/>.JsonOptions
+    /// (apparel option-set seeding, upsert-if-absent) and returns the new AdultProfileMetadataJson. Pure
+    /// compute — does NOT persist and does NOT touch RegformName_Coach; the caller writes the reverse-mapped
+    /// legacy identity (<see cref="Adults.AdultFormCatalog.ToLegacyRegformName"/>) and saves.
+    /// </summary>
+    string ComputeCoachFormSwap(Jobs job, string profile, bool requiresUsLax);
 }

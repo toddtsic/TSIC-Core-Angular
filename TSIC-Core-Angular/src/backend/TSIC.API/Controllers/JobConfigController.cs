@@ -154,6 +154,30 @@ public class JobConfigController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Swap this job's coach-form template (SuperUser only). Re-materializes the coach form to the chosen
+    /// canonical profile (AC1/AC2/AC3) + USLax capability and re-syncs the legacy identity field.
+    /// </summary>
+    [HttpPut("coaches/coach-form-template")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<IActionResult> UpdateCoachFormTemplate(
+        [FromBody] UpdateCoachFormTemplateRequest request, CancellationToken ct)
+    {
+        var jobId = await GetJobIdAsync();
+        if (jobId is null)
+            return NotFound(new { message = "Job not found for current user." });
+
+        try
+        {
+            await _configService.UpdateCoachFormTemplateAsync(jobId.Value, request, ct);
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     /// <summary>Update Scheduling tab fields.</summary>
     [HttpPut("scheduling")]
     public async Task<IActionResult> UpdateScheduling(

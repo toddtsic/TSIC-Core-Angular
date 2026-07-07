@@ -305,7 +305,15 @@ public record JobConfigCoachesDto
     public required bool? BRegistrationAllowStaff { get; init; }
     public required bool? BRegistrationAllowReferee { get; init; }
     public required bool? BRegistrationAllowRecruiter { get; init; }
-    public required string RegformNameCoach { get; init; }
+
+    // Coach-form template identity, DERIVED read-only from the legacy RegformName_Coach via
+    // AdultFormCatalog.MapLegacy (the single source of truth — no AC code is persisted). The raw legacy
+    // string is intentionally NOT surfaced; the picker shows/edits the mapped profile instead.
+    public required string AdultCoachProfileCode { get; init; }
+    public required string AdultCoachProfileName { get; init; }
+    public required bool AdultCoachRequiresUsLax { get; init; }
+    public required IReadOnlyList<AdultCoachProfileOptionDto> AvailableAdultCoachProfiles { get; init; }
+
     public required string? AdultRegConfirmationEmail { get; init; }
     public required string? AdultRegConfirmationOnScreen { get; init; }
     public required string? AdultRegRefundPolicy { get; init; }
@@ -317,12 +325,19 @@ public record JobConfigCoachesDto
     public required string? RecruiterRegConfirmationOnScreen { get; init; }
 }
 
+/// <summary>One selectable adult coach-form template for the per-job picker.</summary>
+public record AdultCoachProfileOptionDto
+{
+    public required string Code { get; init; }
+    public required string Name { get; init; }
+    public required bool CanRequireUsLax { get; init; }
+}
+
 public record UpdateJobConfigCoachesRequest
 {
     public required bool? BRegistrationAllowStaff { get; init; }
     public required bool? BRegistrationAllowReferee { get; init; }
     public required bool? BRegistrationAllowRecruiter { get; init; }
-    public required string RegformNameCoach { get; init; }
     public required string? AdultRegConfirmationEmail { get; init; }
     public required string? AdultRegConfirmationOnScreen { get; init; }
     public required string? AdultRegRefundPolicy { get; init; }
@@ -332,6 +347,16 @@ public record UpdateJobConfigCoachesRequest
     public required string? RefereeRegConfirmationOnScreen { get; init; }
     public required string? RecruiterRegConfirmationEmail { get; init; }
     public required string? RecruiterRegConfirmationOnScreen { get; init; }
+}
+
+/// <summary>
+/// SuperUser-only per-job coach-form swap. Rebuilds the job's coach form from the chosen canonical
+/// profile (AC1/AC2/AC3) + USLax capability and re-syncs the legacy identity field.
+/// </summary>
+public record UpdateCoachFormTemplateRequest
+{
+    public required string ProfileCode { get; init; }
+    public required bool RequiresUsLax { get; init; }
 }
 
 // ════════════════════════════════════════════════════════════════

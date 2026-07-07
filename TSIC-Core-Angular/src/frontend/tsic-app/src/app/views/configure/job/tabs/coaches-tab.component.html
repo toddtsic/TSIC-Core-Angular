@@ -60,10 +60,46 @@
       <div class="row g-2">
         <div class="col-md-6">
           <fieldset class="config-fieldset">
-            <legend class="field-label">Form Name</legend>
-            <input type="text" class="field-input"
-              [ngModel]="regformNameCoach()"
-              (ngModelChange)="regformNameCoach.set($event); onFieldChange()" />
+            <legend class="field-label">
+              Coach Form
+              @if (!svc.isSuperUser()) {
+                <i class="bi bi-lock-fill ms-1 text-muted" title="SuperUser only"></i>
+              }
+            </legend>
+
+            <select class="form-select field-input"
+              [ngModel]="coachProfileCode()"
+              (ngModelChange)="onCoachProfileChange($event)"
+              [disabled]="!svc.isSuperUser()">
+              @for (p of availableCoachProfiles(); track p.code) {
+                <option [value]="p.code">{{ p.name }} ({{ p.code }})</option>
+              }
+            </select>
+
+            <div class="form-check mt-2">
+              <input class="form-check-input" type="checkbox" id="coachUsLax"
+                [ngModel]="coachRequiresUsLax()"
+                (ngModelChange)="coachRequiresUsLax.set($event)"
+                [disabled]="!svc.isSuperUser() || !selectedProfileCanUsLax()" />
+              <label class="form-check-label" for="coachUsLax">
+                Require USA Lacrosse #
+                @if (!selectedProfileCanUsLax()) {
+                  <span class="text-muted small">— not available for this form</span>
+                }
+              </label>
+            </div>
+
+            @if (svc.isSuperUser()) {
+              <button type="button" class="btn btn-warning btn-sm mt-3"
+                [disabled]="!coachFormDirty() || svc.isSaving()"
+                (click)="requestSwap()">
+                <i class="bi bi-arrow-repeat me-1"></i>Apply coach form change
+              </button>
+              <div class="text-muted small mt-2">
+                Changing the coach form rebuilds it from the selected template. To edit individual fields,
+                use Profile Editor → Adult.
+              </div>
+            }
           </fieldset>
         </div>
       </div>
@@ -178,4 +214,15 @@
     </div>
 
   </div>
+
+  @if (showSwapConfirm()) {
+    <confirm-dialog
+      title="Change coach form?"
+      [message]="swapConfirmMessage()"
+      confirmLabel="Rebuild coach form"
+      cancelLabel="Cancel"
+      confirmVariant="warning"
+      (confirmed)="confirmSwap()"
+      (cancelled)="cancelSwap()" />
+  }
 }

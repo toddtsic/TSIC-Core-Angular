@@ -7,6 +7,8 @@ using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.API.Services.Teams;
+using TSIC.API.Services.Adults;
+using TSIC.API.Services.Metadata;
 
 namespace TSIC.API.Services.Admin;
 
@@ -20,6 +22,7 @@ public class JobConfigService : IJobConfigService
     private readonly ITeamRegistrationService _teamRegService;
     private readonly IPlayerRegistrationService _playerRegService;
     private readonly IScheduleRepository _scheduleRepo;
+    private readonly IProfileMetadataMigrationService _profileMigration;
     private readonly ILogger<JobConfigService> _logger;
 
     public JobConfigService(
@@ -27,12 +30,14 @@ public class JobConfigService : IJobConfigService
         ITeamRegistrationService teamRegService,
         IPlayerRegistrationService playerRegService,
         IScheduleRepository scheduleRepo,
+        IProfileMetadataMigrationService profileMigration,
         ILogger<JobConfigService> logger)
     {
         _repo = repo;
         _teamRegService = teamRegService;
         _playerRegService = playerRegService;
         _scheduleRepo = scheduleRepo;
+        _profileMigration = profileMigration;
         _logger = logger;
     }
 
@@ -315,7 +320,9 @@ public class JobConfigService : IJobConfigService
         job.BRegistrationAllowStaff = req.BRegistrationAllowStaff;
         job.BRegistrationAllowReferee = req.BRegistrationAllowReferee;
         job.BRegistrationAllowRecruiter = req.BRegistrationAllowRecruiter;
-        job.RegformNameCoach = req.RegformNameCoach;
+        // RegformNameCoach is NOT written here. It is the derived coach-form identity, owned by the
+        // SuperUser-only coach-form-template swap (UpdateCoachFormTemplateAsync), which keeps it in sync
+        // with the materialized AdultProfileMetadataJson. A plain coaches save must never desync them.
         job.AdultRegConfirmationEmail = req.AdultRegConfirmationEmail;
         job.AdultRegConfirmationOnScreen = req.AdultRegConfirmationOnScreen;
         job.AdultRegRefundPolicy = req.AdultRegRefundPolicy;
@@ -326,6 +333,33 @@ public class JobConfigService : IJobConfigService
         job.RecruiterRegConfirmationEmail = req.RecruiterRegConfirmationEmail;
         job.RecruiterRegConfirmationOnScreen = req.RecruiterRegConfirmationOnScreen;
 
+        job.Modified = DateTime.Now;
+        await _repo.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// SuperUser-only per-job coach-form swap. Re-materializes THIS job's coach form to the chosen
+    /// canonical profile + USLax (preserving Referee/Recruiter) and re-syncs the legacy identity field
+    /// (RegformName_Coach) so MapLegacy keeps agreeing with the stored blob. Overwrites any hand
+    /// customization on the coach role — the UI gates this behind a confirm.
+    /// </summary>
+    public async Task UpdateCoachFormTemplateAsync(Guid jobId, UpdateCoachFormTemplateRequest req, CancellationToken ct = default)
+    {
+        var profile = AdultFormCatalog.Canonical(req.ProfileCode);
+        if (!AdultFormCatalog.IsKnownProfile(profile))
+            throw new ArgumentException($"Unknown coach form template '{req.ProfileCode}'.", nameof(req));
+        if (req.RequiresUsLax && !AdultFormCatalog.CanRequireUsLax(profile))
+            throw new ArgumentException($"Template '{profile}' cannot require a USA Lacrosse number.", nameof(req));
+
+        var legacyName = AdultFormCatalog.ToLegacyRegformName(profile, req.RequiresUsLax)
+            ?? throw new ArgumentException($"Unsupported template/USLax combination for '{profile}'.", nameof(req));
+
+        var job = await _repo.GetJobTrackedAsync(jobId, ct)
+            ?? throw new KeyNotFoundException($"Job {jobId} not found.");
+
+        // Rebuild the coach role (mutates job.JsonOptions for apparel seeding) and re-sync the identity.
+        job.AdultProfileMetadataJson = _profileMigration.ComputeCoachFormSwap(job, profile, req.RequiresUsLax);
+        job.RegformNameCoach = legacyName;
         job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
     }
@@ -710,22 +744,41 @@ public class JobConfigService : IJobConfigService
         BOfferTeamRegsaverInsurance = isSuperUser ? job.BOfferTeamRegsaverInsurance : null,
     };
 
-    private static JobConfigCoachesDto MapCoaches(Jobs job) => new()
+    // The selectable coach-form templates, single-sourced from the catalog (no FE copy).
+    private static readonly IReadOnlyList<AdultCoachProfileOptionDto> s_adultCoachProfileOptions =
+        AdultFormCatalog.AllProfiles
+            .Select(p => new AdultCoachProfileOptionDto
+            {
+                Code = p,
+                Name = AdultFormCatalog.DisplayName(p),
+                CanRequireUsLax = AdultFormCatalog.CanRequireUsLax(p)
+            })
+            .ToList();
+
+    private static JobConfigCoachesDto MapCoaches(Jobs job)
     {
-        BRegistrationAllowStaff = job.BRegistrationAllowStaff,
-        BRegistrationAllowReferee = job.BRegistrationAllowReferee,
-        BRegistrationAllowRecruiter = job.BRegistrationAllowRecruiter,
-        RegformNameCoach = job.RegformNameCoach,
-        AdultRegConfirmationEmail = job.AdultRegConfirmationEmail,
-        AdultRegConfirmationOnScreen = job.AdultRegConfirmationOnScreen,
-        AdultRegRefundPolicy = job.AdultRegRefundPolicy,
-        AdultRegReleaseOfLiability = job.AdultRegReleaseOfLiability,
-        AdultRegCodeOfConduct = job.AdultRegCodeOfConduct,
-        RefereeRegConfirmationEmail = job.RefereeRegConfirmationEmail,
-        RefereeRegConfirmationOnScreen = job.RefereeRegConfirmationOnScreen,
-        RecruiterRegConfirmationEmail = job.RecruiterRegConfirmationEmail,
-        RecruiterRegConfirmationOnScreen = job.RecruiterRegConfirmationOnScreen,
-    };
+        // Derive the coach-form identity from the legacy string — the single source of truth.
+        var (profile, requiresUsLax) = AdultFormCatalog.MapLegacy(job.RegformNameCoach);
+        return new()
+        {
+            BRegistrationAllowStaff = job.BRegistrationAllowStaff,
+            BRegistrationAllowReferee = job.BRegistrationAllowReferee,
+            BRegistrationAllowRecruiter = job.BRegistrationAllowRecruiter,
+            AdultCoachProfileCode = profile,
+            AdultCoachProfileName = AdultFormCatalog.DisplayName(profile),
+            AdultCoachRequiresUsLax = requiresUsLax,
+            AvailableAdultCoachProfiles = s_adultCoachProfileOptions,
+            AdultRegConfirmationEmail = job.AdultRegConfirmationEmail,
+            AdultRegConfirmationOnScreen = job.AdultRegConfirmationOnScreen,
+            AdultRegRefundPolicy = job.AdultRegRefundPolicy,
+            AdultRegReleaseOfLiability = job.AdultRegReleaseOfLiability,
+            AdultRegCodeOfConduct = job.AdultRegCodeOfConduct,
+            RefereeRegConfirmationEmail = job.RefereeRegConfirmationEmail,
+            RefereeRegConfirmationOnScreen = job.RefereeRegConfirmationOnScreen,
+            RecruiterRegConfirmationEmail = job.RecruiterRegConfirmationEmail,
+            RecruiterRegConfirmationOnScreen = job.RecruiterRegConfirmationOnScreen,
+        };
+    }
 
     private static JobConfigSchedulingDto MapScheduling(Jobs job, GameClockParams? gcp) => new()
     {

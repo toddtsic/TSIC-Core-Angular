@@ -2,11 +2,15 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { AdultCoachProfileOptionDto } from './AdultCoachProfileOptionDto';
 export type JobConfigCoachesDto = {
     bRegistrationAllowStaff: boolean | null;
     bRegistrationAllowReferee: boolean | null;
     bRegistrationAllowRecruiter: boolean | null;
-    regformNameCoach: string;
+    adultCoachProfileCode: string;
+    adultCoachProfileName: string;
+    adultCoachRequiresUsLax: boolean;
+    availableAdultCoachProfiles: Array<AdultCoachProfileOptionDto>;
     adultRegConfirmationEmail: string | null;
     adultRegConfirmationOnScreen: string | null;
     adultRegRefundPolicy: string | null;

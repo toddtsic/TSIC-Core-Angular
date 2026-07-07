@@ -183,6 +183,7 @@ public class PaymentFeeRecalcTests
             teamRegService,
             playerMock.Object,
             new ScheduleRepository(ctx),
+            new Mock<TSIC.API.Services.Metadata.IProfileMetadataMigrationService>().Object,
             new Mock<ILogger<JobConfigService>>().Object);
 
         return (configService, ctx, job.JobId, playerMock);
@@ -343,6 +344,7 @@ public class PaymentFeeRecalcTests
             teamRegService,
             new Mock<IPlayerRegistrationService>().Object,
             new ScheduleRepository(ctx),
+            new Mock<TSIC.API.Services.Metadata.IProfileMetadataMigrationService>().Object,
             new Mock<ILogger<JobConfigService>>().Object);
 
         return (configService, ctx, job.JobId, teams);

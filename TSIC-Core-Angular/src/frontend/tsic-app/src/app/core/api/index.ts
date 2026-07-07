@@ -26,6 +26,7 @@ export type { AdminResetPasswordRequest } from './models/AdminResetPasswordReque
 export type { AdminTeamLinkDto } from './models/AdminTeamLinkDto';
 export type { AdnImportResult } from './models/AdnImportResult';
 export type { AdnSweepResult } from './models/AdnSweepResult';
+export type { AdultCoachProfileOptionDto } from './models/AdultCoachProfileOptionDto';
 export type { AdultConfirmationResponse } from './models/AdultConfirmationResponse';
 export type { AdultExistingRegistrationDto } from './models/AdultExistingRegistrationDto';
 export type { AdultFeeBreakdownDto } from './models/AdultFeeBreakdownDto';
@@ -735,6 +736,7 @@ export type { UpdateCampGroupsRequest } from './models/UpdateCampGroupsRequest';
 export type { UpdateCartQuantityRequest } from './models/UpdateCartQuantityRequest';
 export type { UpdateClubNameRequest } from './models/UpdateClubNameRequest';
 export type { UpdateClubTeamRequest } from './models/UpdateClubTeamRequest';
+export type { UpdateCoachFormTemplateRequest } from './models/UpdateCoachFormTemplateRequest';
 export type { UpdateCurrentJobProfileConfigRequest } from './models/UpdateCurrentJobProfileConfigRequest';
 export type { UpdateCustomerRequest } from './models/UpdateCustomerRequest';
 export type { UpdateDiscountCodeRequest } from './models/UpdateDiscountCodeRequest';

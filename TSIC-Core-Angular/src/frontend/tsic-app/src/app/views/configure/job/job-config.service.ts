@@ -12,6 +12,7 @@ import type {
   UpdateJobConfigPlayerRequest,
   UpdateJobConfigTeamsRequest,
   UpdateJobConfigCoachesRequest,
+  UpdateCoachFormTemplateRequest,
   UpdateJobConfigSchedulingRequest,
   UpdateJobConfigMobileStoreRequest,
   UpdateJobConfigBrandingRequest,
@@ -131,6 +132,26 @@ export class JobConfigService {
 
   saveCoaches(req: UpdateJobConfigCoachesRequest): void {
     this.saveTab('coaches', req);
+  }
+
+  /**
+   * SuperUser-only: swap this job's coach-form template. A distinct, immediate action (not the batched
+   * tab save) — it re-materializes the coach form server-side, so we reload the config to pick up the new
+   * derived profile label. The backend returns a 400 with a message for an invalid template/USLax combo.
+   */
+  swapCoachFormTemplate(req: UpdateCoachFormTemplateRequest): void {
+    this.isSaving.set(true);
+    this.http.put(`${this.baseUrl}/coaches/coach-form-template`, req).subscribe({
+      next: () => {
+        this.toast.show('Coach form template updated.', 'success');
+        this.isSaving.set(false);
+        this.loadConfig();
+      },
+      error: (err) => {
+        this.toast.show(err?.error?.message ?? 'Failed to update coach form template.', 'danger');
+        this.isSaving.set(false);
+      },
+    });
   }
 
   saveScheduling(req: UpdateJobConfigSchedulingRequest): void {

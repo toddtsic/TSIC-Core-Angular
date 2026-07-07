@@ -474,6 +474,9 @@ builder.Services.AddHostedService<AdnSweepBackgroundService>();
 builder.Services.AddScoped<IGitHubProfileFetcher, GitHubProfileFetcher>();
 builder.Services.AddScoped<CSharpToMetadataParser>();
 builder.Services.AddScoped<ProfileMetadataMigrationService>();
+// Interface handle forwards to the same scoped instance so consumers depending on the abstraction
+// (e.g. JobConfigService.ComputeCoachFormSwap) share the concrete the ProfileMigrationController uses.
+builder.Services.AddScoped<IProfileMetadataMigrationService>(sp => sp.GetRequiredService<ProfileMetadataMigrationService>());
 
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
