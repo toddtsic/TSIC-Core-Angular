@@ -74,29 +74,75 @@ export class PublicRostersComponent {
 
 	private jobPath = '';
 
+	/** Active sort column for the roster table; null = default (name ascending). */
+	readonly sortColumn = signal<'uniform' | 'name' | 'position' | null>(null);
+	readonly sortDir = signal<'asc' | 'desc'>('asc');
+
+	/** Header click: same column toggles direction, new column starts ascending. */
+	toggleSort(col: 'uniform' | 'name' | 'position'): void {
+		if (this.sortColumn() === col) {
+			this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
+		} else {
+			this.sortColumn.set(col);
+			this.sortDir.set('asc');
+		}
+	}
+
+	/** aria-sort value for a header cell. */
+	ariaSort(col: 'uniform' | 'name' | 'position'): 'ascending' | 'descending' | 'none' {
+		if (this.sortColumn() !== col) return 'none';
+		return this.sortDir() === 'asc' ? 'ascending' : 'descending';
+	}
+
 	/**
-	 * Roster rows for display — players first, staff last, alphabetical within each group.
-	 * Staff sit at the bottom so the first row under the "# / Player / Position" headers is
-	 * a player, making the column meanings immediately clear.
-	 * `RoleLabel` is reliably "Player"/"Staff"; the "Staff:" name prefix baked in
-	 * by the backend is stripped here so the badge carries that signal instead.
+	 * Compare two rows by the active sort. Name is the tiebreaker everywhere.
+	 * Blank uniform / position always sort last (regardless of direction) so
+	 * empty cells don't lead the list.
 	 */
-	readonly sortedRoster = computed<RosterRow[]>(() =>
-		this.rosterPlayers()
-			.map(p => {
-				const isStaff = p.roleLabel === 'Staff';
-				return {
-					name: isStaff ? p.displayName.replace(/^Staff:\s*/i, '') : p.displayName,
-					position: p.position ?? '',
-					uniformNo: p.uniformNo ?? '',
-					isStaff,
-				};
-			})
-			.sort((a, b) =>
-				(a.isStaff === b.isStaff ? 0 : a.isStaff ? 1 : -1)
-				|| a.name.localeCompare(b.name)
-			)
-	);
+	private compareRows(a: RosterRow, b: RosterRow): number {
+		const col = this.sortColumn();
+		const dir = this.sortDir() === 'desc' ? -1 : 1;
+		if (col === 'uniform') {
+			const an = parseInt(a.uniformNo, 10);
+			const bn = parseInt(b.uniformNo, 10);
+			const aHas = !isNaN(an), bHas = !isNaN(bn);
+			if (!aHas && !bHas) return a.name.localeCompare(b.name);
+			if (!aHas) return 1;
+			if (!bHas) return -1;
+			return dir * (an - bn) || a.name.localeCompare(b.name);
+		}
+		if (col === 'position') {
+			const av = a.position.trim(), bv = b.position.trim();
+			if (!av && !bv) return a.name.localeCompare(b.name);
+			if (!av) return 1;
+			if (!bv) return -1;
+			return dir * av.localeCompare(bv) || a.name.localeCompare(b.name);
+		}
+		// col === 'name' or default (null)
+		return dir * a.name.localeCompare(b.name);
+	}
+
+	/**
+	 * Roster rows for display. Staff are ALWAYS pinned below players (so the first
+	 * row under the "# / Player / Position" headers is a player); the active column
+	 * sort is applied within each group. `RoleLabel` is reliably "Player"/"Staff";
+	 * the "Staff:" name prefix baked in by the backend is stripped here so the badge
+	 * carries that signal instead.
+	 */
+	readonly sortedRoster = computed<RosterRow[]>(() => {
+		const rows = this.rosterPlayers().map(p => {
+			const isStaff = p.roleLabel === 'Staff';
+			return {
+				name: isStaff ? p.displayName.replace(/^Staff:\s*/i, '') : p.displayName,
+				position: p.position ?? '',
+				uniformNo: p.uniformNo ?? '',
+				isStaff,
+			};
+		});
+		const players = rows.filter(r => !r.isStaff).sort((a, b) => this.compareRows(a, b));
+		const staff = rows.filter(r => r.isStaff).sort((a, b) => this.compareRows(a, b));
+		return [...players, ...staff];
+	});
 
 	/** Player / staff tallies for the roster summary line. */
 	readonly rosterCounts = computed(() => {

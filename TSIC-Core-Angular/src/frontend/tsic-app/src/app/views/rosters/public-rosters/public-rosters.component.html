@@ -76,9 +76,30 @@
 					<table class="roster-table">
 						<thead>
 							<tr>
-								<th class="th-jersey" scope="col">#</th>
-								<th scope="col">Player</th>
-								<th class="th-pos" scope="col">Position</th>
+								<th class="th-jersey" scope="col" [attr.aria-sort]="ariaSort('uniform')">
+									<button type="button" class="th-sort" (click)="toggleSort('uniform')">
+										<span>#</span>
+										@if (sortColumn() === 'uniform') {
+											<i class="bi" [class.bi-caret-up-fill]="sortDir() === 'asc'" [class.bi-caret-down-fill]="sortDir() === 'desc'" aria-hidden="true"></i>
+										}
+									</button>
+								</th>
+								<th scope="col" [attr.aria-sort]="ariaSort('name')">
+									<button type="button" class="th-sort" (click)="toggleSort('name')">
+										<span>Player</span>
+										@if (sortColumn() === 'name') {
+											<i class="bi" [class.bi-caret-up-fill]="sortDir() === 'asc'" [class.bi-caret-down-fill]="sortDir() === 'desc'" aria-hidden="true"></i>
+										}
+									</button>
+								</th>
+								<th class="th-pos" scope="col" [attr.aria-sort]="ariaSort('position')">
+									<button type="button" class="th-sort" (click)="toggleSort('position')">
+										<span>Position</span>
+										@if (sortColumn() === 'position') {
+											<i class="bi" [class.bi-caret-up-fill]="sortDir() === 'asc'" [class.bi-caret-down-fill]="sortDir() === 'desc'" aria-hidden="true"></i>
+										}
+									</button>
+								</th>
 							</tr>
 						</thead>
 						<tbody>

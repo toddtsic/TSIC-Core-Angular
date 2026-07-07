@@ -203,6 +203,33 @@
 		border-bottom: 2px solid var(--bs-primary-border-subtle);
 	}
 
+	// Sortable header trigger — reset to inherit the header's type styling, add
+	// a clear hover/focus affordance and room for the direction caret.
+	.th-sort {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--space-1);
+		padding: 0;
+		margin: 0;
+		background: none;
+		border: none;
+		font: inherit;
+		color: inherit;
+		text-transform: inherit;
+		letter-spacing: inherit;
+		cursor: pointer;
+
+		&:hover { color: var(--bs-primary); }
+
+		&:focus-visible {
+			outline: none;
+			box-shadow: var(--shadow-focus);
+			border-radius: var(--radius-sm);
+		}
+
+		.bi { font-size: 0.85em; }
+	}
+
 	.th-jersey { width: 3.5rem; text-align: center; }
 	.th-pos { width: 8.5rem; }
 
