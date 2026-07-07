@@ -255,6 +255,8 @@ public partial class Jobs
 
     public bool? BRegistrationAllowRecruiter { get; set; }
 
+    public bool BReseedTournament { get; set; }
+
     public virtual BillingTypes BillingType { get; set; } = null!;
 
     public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();

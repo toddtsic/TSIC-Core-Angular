@@ -63,7 +63,7 @@ public class JobConfigService : IJobConfigService
             Player = MapPlayer(job, isSuperUser),
             Teams = MapTeams(job, isSuperUser),
             Coaches = MapCoaches(job),
-            Scheduling = MapScheduling(job, gameClock),
+            Scheduling = MapScheduling(job, gameClock, isSuperUser),
             MobileStore = MapMobileStore(job, isSuperUser),
         };
     }
@@ -364,7 +364,7 @@ public class JobConfigService : IJobConfigService
         await _repo.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateSchedulingAsync(Guid jobId, UpdateJobConfigSchedulingRequest req, CancellationToken ct = default)
+    public async Task UpdateSchedulingAsync(Guid jobId, UpdateJobConfigSchedulingRequest req, bool isSuperUser, CancellationToken ct = default)
     {
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
@@ -373,6 +373,10 @@ public class JobConfigService : IJobConfigService
         job.EventEndDate = req.EventEndDate;
         job.BScheduleAllowPublicAccess = req.BScheduleAllowPublicAccess;
         job.BRestrictPublicRosters = req.BRestrictPublicRosters;
+
+        // SuperUser-only
+        if (isSuperUser && req.BReseedTournament.HasValue)
+            job.BReseedTournament = req.BReseedTournament.Value;
 
         // GameClockParams — upsert pattern
         if (req.GameClock is not null)
@@ -780,12 +784,14 @@ public class JobConfigService : IJobConfigService
         };
     }
 
-    private static JobConfigSchedulingDto MapScheduling(Jobs job, GameClockParams? gcp) => new()
+    private static JobConfigSchedulingDto MapScheduling(Jobs job, GameClockParams? gcp, bool isSuperUser) => new()
     {
         EventStartDate = job.EventStartDate,
         EventEndDate = job.EventEndDate,
         BScheduleAllowPublicAccess = job.BScheduleAllowPublicAccess,
         BRestrictPublicRosters = job.BRestrictPublicRosters,
+        // SuperUser-only
+        BReseedTournament = isSuperUser ? job.BReseedTournament : null,
         GameClock = gcp is null ? null : new GameClockParamsDto
         {
             Id = gcp.Id,

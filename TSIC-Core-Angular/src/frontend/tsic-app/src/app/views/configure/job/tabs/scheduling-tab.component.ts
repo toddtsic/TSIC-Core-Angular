@@ -21,6 +21,9 @@ export class SchedulingTabComponent implements OnInit {
   // Positive UI framing: "Allow Public Roster Access" = inverse of the stored bRestrictPublicRosters flag.
   allowPublicRosterAccess = linkedSignal(() => !(this.svc.scheduling()?.bRestrictPublicRosters ?? false));
 
+  // SuperUser-only (null for non-super callers)
+  bReseedTournament = linkedSignal(() => this.svc.scheduling()?.bReseedTournament ?? false);
+
   halfMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.halfMinutes ?? 0);
   halfTimeMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.halfTimeMinutes ?? 0);
   transitionMinutes = linkedSignal(() => this.svc.scheduling()?.gameClock?.transitionMinutes ?? 0);
@@ -34,7 +37,7 @@ export class SchedulingTabComponent implements OnInit {
   private readonly cleanSnapshot = computed(() => {
     const s = this.svc.scheduling();
     if (!s) return '';
-    return JSON.stringify({
+    const req: UpdateJobConfigSchedulingRequest = {
       eventStartDate: toDateOnly(s.eventStartDate) ?? null,
       eventEndDate: toDateOnly(s.eventEndDate) ?? null,
       bScheduleAllowPublicAccess: s.bScheduleAllowPublicAccess,
@@ -51,7 +54,11 @@ export class SchedulingTabComponent implements OnInit {
         quarterTimeMinutes: s.gameClock?.quarterTimeMinutes,
         utcOffsetHours: s.gameClock?.utcOffsetHours,
       },
-    } satisfies UpdateJobConfigSchedulingRequest);
+    };
+    if (this.svc.isSuperUser()) {
+      req.bReseedTournament = s.bReseedTournament ?? false;
+    }
+    return JSON.stringify(req);
   });
 
   ngOnInit(): void {
@@ -71,7 +78,7 @@ export class SchedulingTabComponent implements OnInit {
   }
 
   private buildPayload(): UpdateJobConfigSchedulingRequest {
-    return {
+    const req: UpdateJobConfigSchedulingRequest = {
       eventStartDate: this.eventStartDate(),
       eventEndDate: this.eventEndDate(),
       bScheduleAllowPublicAccess: this.bScheduleAllowPublicAccess(),
@@ -89,5 +96,9 @@ export class SchedulingTabComponent implements OnInit {
         utcOffsetHours: this.utcOffsetHours(),
       },
     };
+    if (this.svc.isSuperUser()) {
+      req.bReseedTournament = this.bReseedTournament();
+    }
+    return req;
   }
 }

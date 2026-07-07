@@ -9,5 +9,6 @@ export type JobConfigSchedulingDto = {
     bScheduleAllowPublicAccess: boolean | null;
     bRestrictPublicRosters: boolean;
     gameClock: (null | GameClockParamsDto);
+    bReseedTournament?: boolean | null;
 };
 

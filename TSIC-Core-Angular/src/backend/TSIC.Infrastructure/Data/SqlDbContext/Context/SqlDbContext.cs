@@ -4717,6 +4717,7 @@ public partial class SqlDbContext : DbContext
             entity.Property(e => e.BRegistrationAllowTeam)
                 .HasDefaultValue(false)
                 .HasColumnName("bRegistrationAllowTeam");
+            entity.Property(e => e.BReseedTournament).HasColumnName("bReseedTournament");
             entity.Property(e => e.BRestrictPlayerTeamsToAgerange)
                 .HasDefaultValue(false)
                 .HasColumnName("bRestrictPlayerTeamsToAgerange");

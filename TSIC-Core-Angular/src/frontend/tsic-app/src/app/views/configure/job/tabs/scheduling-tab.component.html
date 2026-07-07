@@ -109,5 +109,29 @@
       </div>
     </div>
 
+    @if (svc.isSuperUser()) {
+      <div class="form-section form-section--super">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-2"></i>
+          Tournament (SuperUser)
+        </h6>
+        <div class="toggle-row" [class.is-on]="bReseedTournament()" [class.is-off]="!bReseedTournament()">
+          <label class="toggle-control">
+            <input type="checkbox"
+              [ngModel]="bReseedTournament()"
+              (ngModelChange)="bReseedTournament.set($event); onFieldChange()" />
+            <span class="field-label">Re-seed Tournament Brackets</span>
+          </label>
+          <span class="toggle-tip">
+            @if (bReseedTournament()) {
+              Bracket generation re-seeds this tournament's pairings.
+            } @else {
+              Bracket pairings are preserved as-is (no re-seeding).
+            }
+          </span>
+        </div>
+      </div>
+    }
+
   </div>
 }

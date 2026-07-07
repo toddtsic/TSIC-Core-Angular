@@ -371,6 +371,10 @@ public record JobConfigSchedulingDto
     /// <summary>When true, public team rosters are hidden for this job (Jobs.bRestrictPublicRosters).</summary>
     public required bool BRestrictPublicRosters { get; init; }
     public required GameClockParamsDto? GameClock { get; init; }
+
+    // SuperUser-only (null for non-super callers)
+    /// <summary>When true, bracket generation re-seeds this tournament's pairings (Jobs.bReseedTournament).</summary>
+    public bool? BReseedTournament { get; init; }
 }
 
 public record UpdateJobConfigSchedulingRequest
@@ -381,6 +385,9 @@ public record UpdateJobConfigSchedulingRequest
     /// <summary>When true, public team rosters are hidden for this job (Jobs.bRestrictPublicRosters).</summary>
     public required bool BRestrictPublicRosters { get; init; }
     public GameClockParamsDto? GameClock { get; init; }
+
+    // SuperUser-only (ignored for non-super callers)
+    public bool? BReseedTournament { get; init; }
 }
 
 public record GameClockParamsDto

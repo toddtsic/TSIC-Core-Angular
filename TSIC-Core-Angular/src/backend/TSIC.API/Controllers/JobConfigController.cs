@@ -187,7 +187,7 @@ public class JobConfigController : ControllerBase
         if (jobId is null)
             return NotFound(new { message = "Job not found for current user." });
 
-        await _configService.UpdateSchedulingAsync(jobId.Value, request, ct);
+        await _configService.UpdateSchedulingAsync(jobId.Value, request, IsSuperUser, ct);
         return NoContent();
     }
 
