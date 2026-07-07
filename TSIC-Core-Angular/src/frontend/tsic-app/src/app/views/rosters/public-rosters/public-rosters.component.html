@@ -1,5 +1,5 @@
 <div class="public-rosters-container">
-	<h3 class="rosters-title">Club Team Rosters</h3>
+	<h3 class="rosters-title">{{ pageTitle() }}</h3>
 
 	@if (errorMessage()) {
 		<div class="alert alert-warning text-center">{{ errorMessage() }}</div>
@@ -23,8 +23,10 @@
 						[fields]="listBoxFields()"
 						[selectionSettings]="listBoxSelection"
 						[allowFiltering]="true"
-						[filterBarPlaceholder]="'Search by club or team...'"
+						[filterBarPlaceholder]="filterPlaceholder()"
+						(filtering)="onFiltering($event)"
 						[height]="'560px'"
+						(created)="onListBoxCreated()"
 						(change)="onTeamSelect($event.value)"
 						cssClass="public-team-listbox">
 					</ejs-listbox>
@@ -65,18 +67,49 @@
 							}
 						</div>
 					</div>
-					<ejs-grid
-						[dataSource]="rosterPlayers()"
-						cssClass="tsic-grid-tight"
-						[allowSorting]="true"
-						[sortSettings]="rosterSortSettings"
-					>
-						<e-columns>
-							<e-column field="displayName" headerText="Player" width="250"></e-column>
-							<e-column field="position" headerText="Position" width="120"></e-column>
-							<e-column field="uniformNo" headerText="Uniform" width="100" textAlign="Center"></e-column>
-						</e-columns>
-					</ejs-grid>
+					<div class="roster-meta">
+						<strong>{{ rosterCounts().players }}</strong> player{{ rosterCounts().players === 1 ? '' : 's' }}
+						@if (rosterCounts().staff > 0) {
+							<span class="dot">·</span><strong>{{ rosterCounts().staff }}</strong> staff
+						}
+					</div>
+					<table class="roster-table">
+						<thead>
+							<tr>
+								<th class="th-jersey" scope="col">#</th>
+								<th scope="col">Player</th>
+								<th class="th-pos" scope="col">Position</th>
+							</tr>
+						</thead>
+						<tbody>
+							@for (row of sortedRoster(); track $index) {
+								<tr [class.staff-row]="row.isStaff">
+									<td class="td-jersey">
+										<span class="jersey" [class.jersey--staff]="row.isStaff">
+											@if (row.isStaff) {
+												<i class="bi bi-person-fill" aria-hidden="true"></i>
+											} @else {
+												{{ row.uniformNo || '—' }}
+											}
+										</span>
+									</td>
+									<td class="td-name">
+										<span class="player-name">{{ row.name }}</span>
+										@if (row.isStaff) {
+											<span class="role-badge"><i class="bi bi-person-badge" aria-hidden="true"></i>Staff</span>
+										}
+									</td>
+									<td class="td-pos">
+										@if (row.position) {
+											<span class="pos-pill">{{ row.position }}</span>
+										} @else {
+											<span class="pos-empty">—</span>
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
 				}
 			</div>
 		</div>

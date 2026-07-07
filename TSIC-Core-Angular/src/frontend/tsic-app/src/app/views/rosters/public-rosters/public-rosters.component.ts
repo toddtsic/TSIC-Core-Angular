@@ -1,8 +1,8 @@
-import { Component, ChangeDetectionStrategy, inject, signal, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, inject, signal, computed, ElementRef } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { GridAllModule, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
-import { ListBoxModule } from '@syncfusion/ej2-angular-dropdowns';
+import { ListBoxModule, FilteringEventArgs } from '@syncfusion/ej2-angular-dropdowns';
+import { Query } from '@syncfusion/ej2-data';
 import { CadtClubNode, CadtTeamNode, PublicRosterPlayerDto, TeamResultDto } from '@core/api';
 import { PublicRosterService } from './public-roster.service';
 import { ViewScheduleService } from '../../scheduling/view-schedule/services/view-schedule.service';
@@ -25,10 +25,18 @@ interface TeamListItem {
 	label: string;
 }
 
+/** Presentation model for a roster row — name cleaned of the "Staff:" prefix. */
+interface RosterRow {
+	name: string;
+	position: string;
+	uniformNo: string;
+	isStaff: boolean;
+}
+
 @Component({
 	selector: 'app-public-rosters',
 	standalone: true,
-	imports: [CommonModule, GridAllModule, ListBoxModule, TeamResultsModalComponent],
+	imports: [CommonModule, ListBoxModule, TeamResultsModalComponent],
 	templateUrl: './public-rosters.component.html',
 	styleUrls: ['./public-rosters.component.scss'],
 	changeDetection: ChangeDetectionStrategy.OnPush
@@ -37,10 +45,10 @@ export class PublicRostersComponent {
 	private readonly route = inject(ActivatedRoute);
 	private readonly svc = inject(PublicRosterService);
 	private readonly scheduleSvc = inject(ViewScheduleService);
+	private readonly host: ElementRef<HTMLElement> = inject(ElementRef);
 
 	clubs = signal<CadtClubNode[]>([]);
 	rosterPlayers = signal<PublicRosterPlayerDto[]>([]);
-	rosterSortSettings: SortSettingsModel = { columns: [{ field: 'displayName', direction: 'Ascending' }] };
 	selectedTeamId = signal<string | null>(null);
 	selectedTeamName = signal('');
 	selectedAgegroupName = signal('');
@@ -67,14 +75,53 @@ export class PublicRostersComponent {
 	private jobPath = '';
 
 	/**
-	 * Group by club when the event actually spans multiple clubs; otherwise group
-	 * by agegroup (single-club / house events, where every team shares one club
-	 * name and a club header would be meaningless).
+	 * Roster rows for display — staff first, then alphabetical within each group.
+	 * `RoleLabel` is reliably "Player"/"Staff"; the "Staff:" name prefix baked in
+	 * by the backend is stripped here so the badge carries that signal instead.
 	 */
-	readonly groupField = computed<'clubName' | 'agegroupName'>(() => {
-		const distinctClubs = new Set(this.allTeams().map(ft => ft.clubName));
-		return distinctClubs.size > 1 ? 'clubName' : 'agegroupName';
+	readonly sortedRoster = computed<RosterRow[]>(() =>
+		this.rosterPlayers()
+			.map(p => {
+				const isStaff = p.roleLabel === 'Staff';
+				return {
+					name: isStaff ? p.displayName.replace(/^Staff:\s*/i, '') : p.displayName,
+					position: p.position ?? '',
+					uniformNo: p.uniformNo ?? '',
+					isStaff,
+				};
+			})
+			.sort((a, b) =>
+				(a.isStaff === b.isStaff ? 0 : a.isStaff ? -1 : 1)
+				|| a.name.localeCompare(b.name)
+			)
+	);
+
+	/** Player / staff tallies for the roster summary line. */
+	readonly rosterCounts = computed(() => {
+		const rows = this.sortedRoster();
+		const staff = rows.filter(r => r.isStaff).length;
+		return { players: rows.length - staff, staff };
 	});
+
+	/**
+	 * True when the event actually spans multiple clubs. Drives grouping, the club
+	 * prefix in each row, and the page title — single-club / house events have no
+	 * meaningful club axis.
+	 */
+	readonly hasClubs = computed(() => new Set(this.allTeams().map(ft => ft.clubName)).size > 1);
+
+	/** Group by club when the event spans clubs; otherwise by agegroup. */
+	readonly groupField = computed<'clubName' | 'agegroupName'>(() =>
+		this.hasClubs() ? 'clubName' : 'agegroupName'
+	);
+
+	/** Page heading — reflects whether the event is club- or agegroup-organized. */
+	readonly pageTitle = computed(() => this.hasClubs() ? 'Club Team Rosters' : 'Age Group Team Rosters');
+
+	/** Filter placeholder — omits "club" when the event has no club axis. */
+	readonly filterPlaceholder = computed(() =>
+		this.hasClubs() ? 'Search by club, age group, or team…' : 'Search by age group or team…'
+	);
 
 	/** Syncfusion ListBox field map — groupBy renders section headers. */
 	readonly listBoxFields = computed(() => ({
@@ -87,18 +134,20 @@ export class PublicRostersComponent {
 	readonly listBoxSelection = { mode: 'Single' as const, showCheckbox: false };
 
 	/**
-	 * Flat list shaped for the ListBox. The label carries club + team so the
-	 * built-in filter bar (which matches the text field) works as a typeahead for
-	 * either. Sorted by the active group field first so groups stay contiguous.
+	 * Flat list shaped for the ListBox. The label concatenates every searchable
+	 * field — club (only for multi-club events), agegroup, team, roster count — so
+	 * the custom "contains" filter matches any of them anywhere. Sorted by the
+	 * active group field first so groups stay contiguous.
 	 */
 	readonly listBoxData = computed<TeamListItem[]>(() => {
 		const group = this.groupField();
+		const withClub = this.hasClubs();
 		return this.allTeams()
 			.map(ft => ({
 				teamId: ft.team.teamId,
 				clubName: ft.clubName,
 				agegroupName: ft.agegroupName,
-				label: `${ft.clubName} — ${ft.team.teamName} (${ft.team.playerCount})`,
+				label: `${withClub ? `${ft.clubName} — ` : ''}${ft.agegroupName}:${ft.team.teamName} (${ft.team.playerCount})`,
 			}))
 			.sort((a, b) =>
 				(group === 'clubName'
@@ -179,6 +228,28 @@ export class PublicRostersComponent {
 		this.selectedDivName.set(ft.divName);
 		this.selectedColor.set(ft.color);
 		this.selectTeamById(ft.team.teamId);
+	}
+
+	/** Focus the ListBox filter bar on render so users can type immediately. */
+	onListBoxCreated(): void {
+		// The filter input exists at `created`, but a synchronous focus() during the
+		// render cycle is dropped by the browser — defer to after the next paint.
+		requestAnimationFrame(() =>
+			this.host.nativeElement.querySelector<HTMLInputElement>('.e-input-filter')?.focus()
+		);
+	}
+
+	/**
+	 * Custom typeahead — case-insensitive "contains" against the whole label, so a
+	 * match on any part (club, agegroup, team, or count) anywhere in the string
+	 * surfaces the row. Default ListBox filtering only prefix-matches.
+	 */
+	onFiltering(e: FilteringEventArgs): void {
+		const text = e.text?.trim();
+		const query = text
+			? new Query().where('label', 'contains', text, true)
+			: new Query();
+		e.updateData(this.listBoxData() as unknown as { [key: string]: object }[], query);
 	}
 
 	/** ListBox selection changed — map the picked value back to its FlatTeam. */

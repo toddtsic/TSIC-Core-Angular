@@ -166,48 +166,145 @@
 	}
 }
 
-.roster-table {
-	--bs-table-bg: transparent;
-	--bs-table-striped-bg: rgba(var(--bs-primary-rgb), 0.04);
-	--bs-table-border-color: rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.05);
-	margin-bottom: 0;
+// ── Roster summary line ──
 
-	th {
-		font-size: var(--font-size-xs);
-		text-transform: uppercase;
-		letter-spacing: 0.03em;
-		color: var(--neutral-500);
-		background: transparent;
-		border-bottom: 2px solid rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.08);
+.roster-meta {
+	font-size: var(--font-size-xs);
+	color: var(--neutral-500);
+	margin-bottom: var(--space-3);
 
-		&.sortable {
-			cursor: pointer;
-			user-select: none;
-			white-space: nowrap;
-
-			&:hover {
-				color: var(--brand-text);
-			}
-
-			.bi {
-				font-size: 0.6rem;
-				margin-left: 2px;
-				opacity: 0.5;
-			}
-
-			&:hover .bi {
-				opacity: 1;
-			}
-		}
+	strong {
+		color: var(--brand-text);
+		font-weight: var(--font-weight-semibold);
 	}
 
-	td {
-		font-size: var(--font-size-sm);
-		vertical-align: middle;
+	.dot {
+		margin: 0 var(--space-2);
+		opacity: 0.5;
 	}
 }
 
-.staff-row {
-	font-style: italic;
-	color: var(--neutral-600);
+// ── Roster table ──
+
+.roster-table {
+	width: 100%;
+	border-collapse: separate;
+	border-spacing: 0;
+
+	thead th {
+		text-align: left;
+		font-size: var(--font-size-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		font-weight: var(--font-weight-semibold);
+		color: var(--neutral-500);
+		padding: 0 var(--space-3) var(--space-2);
+		border-bottom: 2px solid var(--bs-primary-border-subtle);
+	}
+
+	.th-jersey { width: 3.5rem; text-align: center; }
+	.th-pos { width: 8.5rem; }
+
+	tbody td {
+		padding: var(--space-2) var(--space-3);
+		border-bottom: 1px solid rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.06);
+		vertical-align: middle;
+	}
+
+	tbody tr:last-child td {
+		border-bottom: none;
+	}
+
+	tbody tr {
+		transition: background 0.15s ease;
+
+		&:hover {
+			background: rgba(var(--bs-primary-rgb), 0.05);
+		}
+	}
+
+	// Staff sit above players with a subtle tint + a leading accent bar.
+	tbody tr.staff-row {
+		background: var(--bs-warning-bg-subtle);
+
+		&:hover {
+			background: var(--bs-warning-bg-subtle);
+		}
+
+		td:first-child {
+			box-shadow: inset 3px 0 0 var(--bs-warning);
+		}
+	}
+}
+
+.td-jersey {
+	text-align: center;
+}
+
+// Circular jersey-number chip (player) / role glyph (staff).
+.jersey {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.125rem;
+	height: 2.125rem;
+	border-radius: 50%;
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-semibold);
+	font-variant-numeric: tabular-nums;
+	color: var(--bs-primary-text-emphasis);
+	background: var(--bs-primary-bg-subtle);
+	border: 1px solid var(--bs-primary-border-subtle);
+}
+
+.jersey--staff {
+	color: var(--bs-warning-text-emphasis);
+	background: var(--bs-warning-bg-subtle);
+	border-color: var(--bs-warning-border-subtle);
+}
+
+.player-name {
+	font-size: var(--font-size-sm);
+	font-weight: var(--font-weight-medium);
+	color: var(--brand-text);
+}
+
+// Staff role badge — pairs an icon with the word so it isn't colour-only.
+.role-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--space-1);
+	margin-left: var(--space-2);
+	padding: 1px var(--space-2);
+	border-radius: 999px;
+	font-size: 0.65rem;
+	font-weight: var(--font-weight-semibold);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--bs-warning-text-emphasis);
+	background: var(--bs-warning-bg-subtle);
+	border: 1px solid var(--bs-warning-border-subtle);
+
+	.bi { font-size: 0.7rem; }
+}
+
+// Position pill
+.pos-pill {
+	display: inline-block;
+	padding: 1px var(--space-2);
+	border-radius: var(--radius-sm);
+	font-size: var(--font-size-xs);
+	color: var(--bs-secondary-text-emphasis);
+	background: var(--bs-secondary-bg-subtle);
+	text-transform: capitalize;
+}
+
+.pos-empty {
+	color: var(--neutral-400);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.roster-table tbody tr {
+		transition: none;
+	}
 }
