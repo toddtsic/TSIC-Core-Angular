@@ -1,14 +1,15 @@
 .public-rosters-container {
-	padding: var(--space-4);
+	padding: var(--space-3) var(--space-4);
 	max-width: 1200px;
 	margin: 0 auto;
 }
 
 .rosters-title {
 	text-align: center;
+	font-size: var(--font-size-xl);
 	font-weight: var(--font-weight-semibold);
 	color: var(--brand-text);
-	margin-bottom: var(--space-4);
+	margin-bottom: var(--space-2);
 }
 
 .rosters-layout {
@@ -116,7 +117,7 @@
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: var(--space-2);
-	margin-bottom: var(--space-3);
+	margin-bottom: var(--space-2);
 	padding-bottom: var(--space-2);
 	border-bottom: 2px solid var(--bs-primary);
 }
@@ -171,7 +172,7 @@
 .roster-meta {
 	font-size: var(--font-size-xs);
 	color: var(--neutral-500);
-	margin-bottom: var(--space-3);
+	margin-bottom: var(--space-1);
 
 	strong {
 		color: var(--brand-text);
@@ -206,7 +207,7 @@
 	.th-pos { width: 8.5rem; }
 
 	tbody td {
-		padding: var(--space-2) var(--space-3);
+		padding: var(--space-1) var(--space-3);
 		border-bottom: 1px solid rgba(var(--bs-body-color-rgb, 0, 0, 0), 0.06);
 		vertical-align: middle;
 	}
@@ -223,7 +224,7 @@
 		}
 	}
 
-	// Staff sit above players with a subtle tint + a leading accent bar.
+	// Staff sit below players with a subtle tint + a leading accent bar.
 	tbody tr.staff-row {
 		background: var(--bs-warning-bg-subtle);
 
@@ -246,8 +247,8 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	width: 2.125rem;
-	height: 2.125rem;
+	width: 1.625rem;
+	height: 1.625rem;
 	border-radius: 50%;
 	font-size: var(--font-size-sm);
 	font-weight: var(--font-weight-semibold);

@@ -75,7 +75,9 @@ export class PublicRostersComponent {
 	private jobPath = '';
 
 	/**
-	 * Roster rows for display — staff first, then alphabetical within each group.
+	 * Roster rows for display — players first, staff last, alphabetical within each group.
+	 * Staff sit at the bottom so the first row under the "# / Player / Position" headers is
+	 * a player, making the column meanings immediately clear.
 	 * `RoleLabel` is reliably "Player"/"Staff"; the "Staff:" name prefix baked in
 	 * by the backend is stripped here so the badge carries that signal instead.
 	 */
@@ -91,7 +93,7 @@ export class PublicRostersComponent {
 				};
 			})
 			.sort((a, b) =>
-				(a.isStaff === b.isStaff ? 0 : a.isStaff ? -1 : 1)
+				(a.isStaff === b.isStaff ? 0 : a.isStaff ? 1 : -1)
 				|| a.name.localeCompare(b.name)
 			)
 	);
