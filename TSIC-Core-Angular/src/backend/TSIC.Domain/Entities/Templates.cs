@@ -11,13 +11,13 @@ public partial class Templates
 
     public int BracketSize { get; set; }
 
+    public string Variant { get; set; } = null!;
+
     public string? Name { get; set; }
 
     public DateTime Modified { get; set; }
 
     public string? LebUserId { get; set; }
-
-    public string Variant { get; set; } = null!;
 
     public virtual ICollection<BracketInstances> BracketInstances { get; set; } = new List<BracketInstances>();
 

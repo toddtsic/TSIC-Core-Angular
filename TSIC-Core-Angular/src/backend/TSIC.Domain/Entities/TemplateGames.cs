@@ -19,11 +19,11 @@ public partial class TemplateGames
 
     public int SortOrder { get; set; }
 
+    public bool IsOptional { get; set; }
+
     public DateTime Modified { get; set; }
 
     public string? LebUserId { get; set; }
-
-    public bool IsOptional { get; set; }
 
     public virtual ICollection<AdvancementRoutes> AdvancementRoutesSourceTemplateGame { get; set; } = new List<AdvancementRoutes>();
 
