@@ -46,19 +46,26 @@ import type { JobRegFieldDto } from '@core/api';
                             Teams you'd like to coach <span class="req">*</span>
                         </label>
                         <small class="wizard-tip mb-2 d-block">
-                            Required — select every team you'd like to coach. Type a club or team name to
-                            filter. The director reviews your request and assigns you; choosing teams here
-                            does <strong>not</strong> add you to a roster or grant access to any roster.
+                            Required — select every team you'd like to coach. Type a club or team name to filter.
                         </small>
+                        <p class="tip-important mb-2" role="note">
+                            <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                            <span>The director reviews your request and assigns you; choosing teams here
+                            does <strong>not</strong> add you to a roster or grant access to any roster.</span>
+                        </p>
                     } @else {
                         <label class="field-label">
                             Teams you'd like to coach
                         </label>
                         <small class="wizard-tip mb-2 d-block">
                             Optional — select any teams you're interested in. The director reviews every
-                            request and assigns you. Choosing teams here does <strong>not</strong> add you
-                            to a roster or grant access to any roster.
+                            request and assigns you.
                         </small>
+                        <p class="tip-important mb-2" role="note">
+                            <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                            <span>Choosing teams here does <strong>not</strong> add you to a roster or
+                            grant access to any roster.</span>
+                        </p>
                     }
 
                     @if (state.teamsLoading()) {
@@ -288,6 +295,23 @@ import type { JobRegFieldDto } from '@core/api';
             border-left: 3px solid var(--bs-success);
             border-radius: var(--radius-sm);
         }
+        /* Important caution — corrects the "selecting = rostered" misconception.
+           Icon + amber tint (not colour alone) so it reads as a heads-up, not an error. */
+        .tip-important {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2);
+            font-size: var(--font-size-xs);
+            line-height: var(--line-height-normal);
+            color: var(--bs-warning-text-emphasis);
+            background: var(--bs-warning-bg-subtle);
+            border: 1px solid var(--bs-warning-border-subtle);
+            border-left: 3px solid var(--bs-warning);
+            border-radius: var(--radius-sm);
+            padding: var(--space-2) var(--space-3);
+        }
+        .tip-important .bi { flex-shrink: 0; margin-top: 1px; color: var(--bs-warning); }
+        .tip-important strong { font-weight: var(--font-weight-semibold); text-transform: uppercase; }
         /* USLax identity verification */
         .uslax-verify { margin-top: var(--space-2); }
         .uslax-hint { color: var(--text-muted); }

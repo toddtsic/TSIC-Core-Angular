@@ -161,10 +161,11 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
                                     <span class="review-team-pill">{{ teamLabel(id) }}</span>
                                 }
                             </div>
-                            <div class="empty-note">
-                                <i class="bi bi-info-circle me-1"></i>
-                                Team Assignment requests need to be reviewed and approved by the Director.
-                            </div>
+                            <p class="tip-important" role="note">
+                                <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                                <span>Team Assignment requests need to be reviewed and approved by the
+                                Director before you can access the roster(s).</span>
+                            </p>
                         } @else {
                             <div class="empty-note">
                                 <i class="bi bi-info-circle me-1"></i>
@@ -346,7 +347,7 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
         }
 
         .review-team-pill {
-            font-size: 11px;
+            font-size: var(--font-size-sm);
             font-weight: var(--font-weight-medium);
             padding: 2px var(--space-2);
             border-radius: var(--radius-full);
@@ -361,6 +362,25 @@ import { AdultWizardStateService } from '../state/adult-wizard-state.service';
             color: var(--brand-text-muted);
         }
         .empty-note i { color: var(--bs-warning); }
+
+        /* Important caution — mirrors the Profile step's team-request notice.
+           Icon + amber tint (not colour alone) so it reads as a heads-up, not an error.
+           Inset to line up with the team pills above it. */
+        .tip-important {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2);
+            margin: 0 var(--space-3) var(--space-3);
+            padding: var(--space-2) var(--space-3);
+            font-size: var(--font-size-xs);
+            line-height: var(--line-height-normal);
+            color: var(--bs-warning-text-emphasis);
+            background: var(--bs-warning-bg-subtle);
+            border: 1px solid var(--bs-warning-border-subtle);
+            border-left: 3px solid var(--bs-warning);
+            border-radius: var(--radius-sm);
+        }
+        .tip-important .bi { flex-shrink: 0; margin-top: 1px; color: var(--bs-warning); }
 
         .review-total-row {
             display: flex;
