@@ -1,0 +1,141 @@
+<h3>Job Settings</h3>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div>
+    <strong>Each tab saves separately.</strong>
+    <p class="help-callout__body">
+      The floating Save button saves only the tab you're on. A dot on a tab means it still has unsaved
+      changes &mdash; save each dotted tab before you leave.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I changed a setting, switched tabs, and my change was gone. Why?</span></summary>
+  <div class="faq-a">
+    <p>
+      Each tab saves on its own. When you switch tabs with unsaved changes, you're asked whether to
+      <strong>discard</strong> them &mdash; choosing to move on drops them. Press <strong>Save</strong> first
+      (or answer <strong>Stay</strong> at the prompt) to keep your changes.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Where's the Save button?</span></summary>
+  <div class="faq-a">
+    <p>
+      It only appears when the tab you're on has unsaved changes &mdash; a floating <strong>Save</strong>
+      button at the bottom-right. It saves that one tab, so if several tabs have dots, save each of them.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The "Allow ... Registration" toggle is greyed out. How do I turn registration on or off?</span></summary>
+  <div class="faq-a">
+    <p>
+      Those switches &mdash; player, team, and staff/coach registration, plus public schedule and roster
+      access &mdash; are managed in <strong>Quick Links</strong>. They show here read-only so you can see the
+      current state without two screens disagreeing. Change them in Quick Links and they update here.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does the padlock icon mean?</span></summary>
+  <div class="faq-a">
+    <p>
+      A padlock <i class="bi bi-lock-fill" aria-hidden="true"></i> marks a <strong>SuperUser-only</strong>
+      field. Directors can see it but can't change it &mdash; things like processing fees, sport / customer /
+      billing type, recurring billing, and store settings.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why can't I turn on eCheck?</span></summary>
+  <div class="faq-a">
+    <p>
+      eCheck rides on check payments, so <strong>Check must be an allowed method first</strong> &mdash; set
+      Allowed Methods to <strong>CC or Check</strong> or <strong>Check Only</strong>, then the Enable eCheck
+      box unlocks. Note the processing and eCheck fees themselves are SuperUser-only.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Where did the "full payment required" setting go?</span></summary>
+  <div class="faq-a">
+    <p>
+      It's no longer a single job-wide switch. Full-payment phase is now set <strong>per league, age group,
+      or team</strong> on the fee cards (the most specific scope wins), so different divisions can differ.
+      Existing job-level values are still honored as the fallback.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>On the Adult tab, what does "Apply coach form change" do?</span></summary>
+  <div class="faq-a">
+    <p>
+      Picking a different coach form and applying it <strong>rebuilds the form from that template</strong> &mdash;
+      it's a structural swap, not a field tweak. To edit individual fields on the existing form, use
+      <strong>Profile Editor &rarr; Adult</strong> instead. &ldquo;Require USA&nbsp;Lacrosse #&rdquo; is only
+      available on forms that support it.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do invitation tokens work?</span></summary>
+  <div class="faq-a">
+    <p>
+      When <strong>Require Invitation Token</strong> is on (Players or Teams tab), registrants need a valid
+      invite link to start. Generate those links in batch emails with <code>!INVITE_LINK</code> for players
+      and <code>!CLUBREP_INVITE_LINK</code> for club reps. With the token off, registration is open to anyone.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What size should banner images be?</span></summary>
+  <div class="faq-a">
+    <p>
+      Upload the <strong>banner background at 1920&nbsp;&times;&nbsp;422</strong> (50:11) so it fits without
+      cropping. The overlay image is resized to max 800px wide and the header logo to max 400px wide. If
+      &ldquo;Use custom banner images&rdquo; is off, a default TSIC banner shows instead.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I add several dropdown options at once?</span></summary>
+  <div class="faq-a">
+    <p>
+      On the <strong>Dropdowns</strong> tab, type multiple values separated by <strong>semicolons</strong> in
+      the add box and they're added in bulk. These values feed the dropdowns on the player and team
+      registration forms.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What are player and team donations?</span></summary>
+  <div class="faq-a">
+    <p>
+      Enabling them (Payment tab) adds an optional donation field to the payment page. Any amount entered is
+      charged <strong>in full, plus processing</strong>, together with the registrant's payment.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> setting up a new event? Walk the tabs left to right &mdash; General, Branding,
+    Payment, then the registration tabs &mdash; saving as you go. The dots tell you which tabs you've touched
+    but not yet saved.
+  </div>
+</div>

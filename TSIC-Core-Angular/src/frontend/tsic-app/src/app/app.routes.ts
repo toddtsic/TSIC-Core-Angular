@@ -126,7 +126,7 @@ export const routes: Routes = [
 						path: 'job',
 						canActivate: [authGuard],
 						canDeactivate: [unsavedChangesGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'job-settings' },
 						loadComponent: () => import('./views/configure/job/job-config.component').then(m => m.JobConfigComponent)
 					},
 					{

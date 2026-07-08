@@ -1,5 +1,7 @@
 {
   "keys": [
+    "job-settings/faq",
+    "job-settings/overview",
     "ladt-editor/faq",
     "ladt-editor/overview",
     "login/faq",
