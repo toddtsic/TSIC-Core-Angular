@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 
 namespace TSIC.Contracts.Services;
@@ -21,6 +22,12 @@ public interface IRegistrationSearchService
     Task<RegistrationFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default);
     Task<List<CadtClubNode>> GetCadtTreeAsync(Guid jobId, CancellationToken ct = default);
     Task<RegistrationDetailDto?> GetRegistrationDetailAsync(Guid registrationId, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Re-ping this registration's USA Lacrosse membership and record the refreshed expiry
+    /// (<c>SportAssnIdexpDate</c>) onto that single row. Works for players and coaches alike.
+    /// </summary>
+    Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(Guid jobId, Guid registrationId, CancellationToken ct = default);
 
     /// <summary>
     /// Family-wide accounting for the player whose detail panel is open: a combined ledger

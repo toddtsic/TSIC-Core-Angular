@@ -34,7 +34,8 @@ import type {
 	RegistrationCheckOrCorrectionResponse,
 	EditAccountingRecordRequest,
 	SubscriptionDetailDto,
-	FamilyAccountingDto
+	FamilyAccountingDto,
+	RevalidateUsLaxResultDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -209,5 +210,10 @@ export class RegistrationSearchService {
 
 	setActive(registrationId: string, active: boolean): Observable<void> {
 		return this.http.put<void>(`${this.apiUrl}/${registrationId}/active`, { active });
+	}
+
+	/** Live-refresh this registration's USA Lacrosse membership; backend records the returned expiry. */
+	revalidateUsLax(registrationId: string): Observable<RevalidateUsLaxResultDto> {
+		return this.http.post<RevalidateUsLaxResultDto>(`${this.apiUrl}/${registrationId}/revalidate-uslax`, {});
 	}
 }

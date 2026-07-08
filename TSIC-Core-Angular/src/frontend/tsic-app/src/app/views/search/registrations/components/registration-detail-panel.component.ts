@@ -133,6 +133,14 @@ export class RegistrationDetailPanelComponent {
   // Profile save state
   isSavingProfile = signal<boolean>(false);
 
+  // USA Lacrosse live re-validation (records SportAssnIdexpDate server-side)
+  revalidating = signal<boolean>(false);
+
+  /** This is a Lacrosse job (USLax membership applies). */
+  readonly isLacrosse = computed(() => this.detail()?.sportName?.toLowerCase() === 'lacrosse');
+  /** Show the "Live update" link only for a Lacrosse job with a number on file. */
+  readonly canRevalidateUsLax = computed(() => this.isLacrosse() && !!this.profileValues()['SportAssnId']);
+
   // Email
   emailSubject = signal<string>('');
   emailBody = signal<string>('');
@@ -403,6 +411,43 @@ export class RegistrationDetailPanelComponent {
     return field.label;
   }
 
+  /** The editable USA Lacrosse # field that carries the "Live update" link (Lacrosse jobs only). */
+  isUsLaxNumberField(field: FieldMetadata): boolean {
+    return this.canRevalidateUsLax() && field.key.toLowerCase() === 'sportassnid';
+  }
+
+  /**
+   * Live-refresh the registrant's USA Lacrosse membership. The backend re-pings USA Lacrosse and
+   * records the returned expiry onto this registration's SportAssnIdexpDate. We mirror the new date
+   * locally (and re-snapshot so the profile zone doesn't read as dirty — the server already saved it).
+   */
+  revalidateUsLax(): void {
+    const d = this.detail();
+    if (!d || this.revalidating()) return;
+
+    this.revalidating.set(true);
+    this.searchService.revalidateUsLax(d.registrationId).subscribe({
+      next: (res) => {
+        this.revalidating.set(false);
+        if (res.found) {
+          if (res.expDate) {
+            this.profileValues.set({ ...this.profileValues(), SportAssnIdexpDate: res.expDate });
+            this.snapshotProfile.set(this.serializeProfile());
+          }
+          const exp = res.expDate ? new Date(res.expDate + 'T00:00:00').toLocaleDateString() : 'n/a';
+          this.toast.show(`${res.memStatus ?? 'Active'} · expires ${exp}`, 'success', 4000, 'USA Lacrosse');
+          this.saved.emit();
+        } else {
+          this.toast.show(res.message || 'Membership not found.', 'warning', 5000, 'USA Lacrosse');
+        }
+      },
+      error: (err) => {
+        this.revalidating.set(false);
+        this.toast.show(err?.error?.message || 'Could not re-validate — try again.', 'danger', 4000, 'USA Lacrosse');
+      }
+    });
+  }
+
   /** For lacrosse: move SportAssnId immediately before SportAssnIdexpDate */
   private reorderForSport(fields: FieldMetadata[]): FieldMetadata[] {
     const sport = this.detail()?.sportName?.toLowerCase() ?? '';
@@ -460,13 +505,13 @@ export class RegistrationDetailPanelComponent {
     });
   }
 
-  nonPlayerFields(): { label: string; value: string }[] {
+  nonPlayerFields(): { key: string; label: string; value: string }[] {
     const pv = this.profileValues();
-    const result: { label: string; value: string }[] = [];
+    const result: { key: string; label: string; value: string }[] = [];
     for (const [key, label] of Object.entries(NON_PLAYER_FIELD_LABELS)) {
       const val = pv[key];
       if (this.hasValue(val)) {
-        result.push({ label, value: String(val) });
+        result.push({ key, label, value: String(val) });
       }
     }
     return result;

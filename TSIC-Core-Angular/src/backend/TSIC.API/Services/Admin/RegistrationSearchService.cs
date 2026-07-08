@@ -5,8 +5,10 @@ using TSIC.API.Services.Players;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.TextSubstitution;
+using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
@@ -38,6 +40,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     private readonly IPaymentStateService _paymentState;
     private readonly IRegisteredPlayerShaper _playerShaper;
     private readonly IUserRepository _userRepo;
+    private readonly IUsLaxService _usLax;
     private readonly ILogger<RegistrationSearchService> _logger;
 
     // Known payment method GUIDs. CC charging itself goes through PaymentService's
@@ -64,6 +67,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         IPaymentStateService paymentState,
         IRegisteredPlayerShaper playerShaper,
         IUserRepository userRepo,
+        IUsLaxService usLax,
         ILogger<RegistrationSearchService> logger)
     {
         _registrationRepo = registrationRepo;
@@ -81,6 +85,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         _paymentState = paymentState;
         _playerShaper = playerShaper;
         _userRepo = userRepo;
+        _usLax = usLax;
         _logger = logger;
     }
 
@@ -163,6 +168,44 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         Guid registrationId, Guid jobId, CancellationToken ct = default)
     {
         return await _registrationRepo.GetRegistrationDetailAsync(registrationId, jobId, ct);
+    }
+
+    /// <summary>
+    /// Re-ping this single registration's USA Lacrosse membership and refresh the stored
+    /// <c>SportAssnIdexpDate</c> on that one row. Unlike the coach-approval-queue re-validate
+    /// (which is anchor-scoped and fans the expiry across every Staff grant for the user), this
+    /// records onto exactly the registration in view — so it works for players and coaches alike.
+    /// A vendor outage leaves the stored expiry untouched and reports the transient failure.
+    /// </summary>
+    public async Task<RevalidateUsLaxResultDto> RevalidateUsLaxAsync(
+        Guid jobId, Guid registrationId, CancellationToken ct = default)
+    {
+        var reg = await _registrationRepo.GetByIdAsync(registrationId, ct);
+        if (reg is null || reg.JobId != jobId)
+            return new RevalidateUsLaxResultDto { Found = false, Message = "Registration not found for this job." };
+
+        if (string.IsNullOrWhiteSpace(reg.SportAssnId))
+            return new RevalidateUsLaxResultDto { Found = false, Message = "No USA Lacrosse number on file." };
+
+        var member = await _usLax.GetMemberAsync(reg.SportAssnId, ct);
+
+        // Vendor unreachable / transient → leave the stored value untouched, just report.
+        if (member is null || member.StatusCode == 0)
+            return new RevalidateUsLaxResultDto { Found = false, Message = "USA Lacrosse is unreachable right now. Try again shortly." };
+
+        var expDate = DateTime.TryParse(member.Output?.ExpDate, out var dt) ? dt : (DateTime?)null;
+
+        // Definitive membership hit with a parseable expiry → record it on this registration.
+        if (member.StatusCode == 200 && expDate.HasValue)
+            await _registrationRepo.UpdateSportAssnIdExpDateAsync(registrationId, expDate.Value, ct);
+
+        return new RevalidateUsLaxResultDto
+        {
+            Found = member.StatusCode == 200,
+            MemStatus = member.Output?.MemStatus ?? (member.StatusCode == 404 ? "Not found" : null),
+            ExpDate = expDate?.ToString("yyyy-MM-dd"),
+            Message = member.StatusCode == 200 ? null : (member.ErrorMessage ?? "Membership not found.")
+        };
     }
 
     public async Task<FamilyAccountingDto?> GetFamilyAccountingAsync(

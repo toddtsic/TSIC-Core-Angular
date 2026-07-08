@@ -339,6 +339,16 @@
                             [ngModel]="profileValues()[field.key]" (ngModelChange)="updateProfileValue(field.key, $event)"
                             [name]="field.key">
                         }
+                        @if (isUsLaxNumberField(field)) {
+                          @if (revalidating()) {
+                            <span class="uslax-link"><span class="spinner-border spinner-border-sm"></span> Checking…</span>
+                          } @else {
+                            <button type="button" class="uslax-link" (click)="revalidateUsLax()"
+                                    title="Re-check USA Lacrosse and record the current expiration">
+                              <i class="bi bi-arrow-repeat"></i> Live update
+                            </button>
+                          }
+                        }
                       </div>
                     }
                   </div>
@@ -369,7 +379,19 @@
                   @for (f of npFields; track f.label) {
                     <div class="info-item" [class.info-item-full]="f.label === 'Special Requests'">
                       <span class="info-label">{{ f.label }}</span>
-                      <span class="info-value">{{ f.value }}</span>
+                      <span class="info-value">
+                        {{ f.value }}
+                        @if (f.key === 'SportAssnId' && canRevalidateUsLax()) {
+                          @if (revalidating()) {
+                            <span class="uslax-link"><span class="spinner-border spinner-border-sm"></span></span>
+                          } @else {
+                            <button type="button" class="uslax-link" (click)="revalidateUsLax()"
+                                    title="Re-check USA Lacrosse and record the current expiration">
+                              <i class="bi bi-arrow-repeat"></i> Live update
+                            </button>
+                          }
+                        }
+                      </span>
                     </div>
                   }
                 </div>

@@ -53,6 +53,7 @@ public class ClubRepDeleteTests
             new Mock<IPaymentStateService>().Object,
             new Mock<IRegisteredPlayerShaper>().Object,
             new Mock<IUserRepository>().Object,
+            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object,
             new Mock<ILogger<RegistrationSearchService>>().Object);
 
         return (svc, b, job.JobId);

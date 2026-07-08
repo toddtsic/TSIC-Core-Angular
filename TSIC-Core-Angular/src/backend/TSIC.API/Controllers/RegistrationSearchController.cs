@@ -4,6 +4,7 @@ using System.Security.Claims;
 using TSIC.API.Extensions;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Services;
 
@@ -118,6 +119,23 @@ public class RegistrationSearchController : ControllerBase
             return NotFound();
 
         return Ok(detail);
+    }
+
+    /// <summary>
+    /// Live-refresh this registration's USA Lacrosse membership and record the returned expiry
+    /// onto <c>SportAssnIdexpDate</c>. Surfaced as the "Live update" link beside the USA Lacrosse #
+    /// in the detail fly-in's Details tab.
+    /// </summary>
+    [HttpPost("{registrationId:guid}/revalidate-uslax")]
+    public async Task<ActionResult<RevalidateUsLaxResultDto>> RevalidateUsLax(
+        Guid registrationId, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = RegistrationContextRequired });
+
+        var result = await _searchService.RevalidateUsLaxAsync(jobId.Value, registrationId, ct);
+        return Ok(result);
     }
 
     [HttpGet("{registrationId:guid}/family-accounting")]
