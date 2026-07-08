@@ -31,7 +31,7 @@
         </div>
       </div>
       <div class="header-tags">
-        <span class="header-tag">
+        <span class="header-tag header-tag--role">
           <span class="header-tag-label">Role:</span>
           <span class="header-tag-value">{{ reg.roleName }}</span>
           <label class="active-toggle-switch" [class.disabled]="isTogglingActive()">
@@ -41,6 +41,18 @@
               {{ reg.active ? 'Active' : 'Inactive' }}
             </span>
           </label>
+          <!-- Recurring-billing (ARB) marker — a registrant-status flag alongside Role/Active, so it
+               shows on every tab. Terse "ARB"; hover carries the amount/status. Colored by status so a
+               canceled subscription never reads as active. Full detail lives in the ARB card. -->
+          @if (subscription(); as sub) {
+            <span class="arb-badge" [class.arb-badge--inactive]="sub.status !== 'active'"
+                  [title]="'Recurring billing · ' + (sub.status | titlecase) + ' · ' + (sub.perOccurrenceAmount | currency) + ' ' + sub.intervalLabel">
+              <span class="arb-badge-text">ARB</span>
+              @if (arbProgress(); as p) {
+                <span class="arb-badge-count">{{ p.paid }}/{{ p.total }}</span>
+              }
+            </span>
+          }
         </span>
         @if (reg.assignment) {
           <span class="header-tag">
@@ -371,16 +383,6 @@
       <!-- ═══════════════════════ ACCOUNTING TAB ═══════════════════════ -->
       @if (activeTab() === 'accounting') {
         <div class="tab-content">
-          <!-- At-a-glance recurring-billing status, right above Account Summary — so an admin reading
-               the balance knows it's on a payment plan. Full detail + actions live in the ARB card below. -->
-          @if (subscription(); as sub) {
-            <div class="arb-pill" [class.arb-pill--inactive]="sub.status !== 'active'">
-              <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
-              <span class="arb-pill-label">Recurring billing</span>
-              <span class="arb-pill-status">{{ sub.status }}</span>
-              <span class="arb-pill-amount">{{ sub.perOccurrenceAmount | currency }} {{ sub.intervalLabel }}</span>
-            </div>
-          }
           @if (isClubRep()) {
             <app-club-rep-payment
               [clubRepRegistrationId]="reg.registrationId"

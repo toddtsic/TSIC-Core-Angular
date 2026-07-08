@@ -615,42 +615,41 @@
   color: var(--text-muted);
 }
 
-// Compact recurring-billing status pill — sits at the top of the accounting tab, above Account
-// Summary, so the balance below reads in context ("$X owed, but on a plan"). Detail is in the ARB card.
-.arb-pill {
+// Recurring-billing (ARB) marker on the Role header row — flush right, so it reads as a
+// registrant-status flag alongside Active. Full width lets margin-left:auto push it to the edge.
+.header-tag--role {
   display: flex;
+  width: 100%;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  margin-bottom: var(--space-3);
-  border: 1px solid color-mix(in srgb, var(--bs-success) 35%, var(--bs-border-color));
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--bs-success) 8%, var(--bs-card-bg));
-  font-size: var(--font-size-sm);
+}
 
-  .bi { color: var(--bs-success); }
+.arb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  cursor: default;
+  background: color-mix(in srgb, var(--bs-success) 16%, transparent);
+  color: var(--bs-success-text-emphasis, var(--bs-success));
+  border: 1px solid color-mix(in srgb, var(--bs-success) 40%, transparent);
 
-  .arb-pill-label { font-weight: var(--font-weight-semibold); color: var(--bs-body-color); }
-
-  .arb-pill-status {
-    text-transform: capitalize;
-    padding: 0 var(--space-2);
-    border-radius: var(--radius-pill);
-    background: color-mix(in srgb, var(--bs-success) 18%, transparent);
-    color: var(--bs-success-text-emphasis, var(--bs-body-color));
-    font-weight: var(--font-weight-medium);
+  // Payment progress (x of y occurrences) — set off from the "ARB" label with a hairline divider.
+  .arb-badge-count {
+    padding-left: 4px;
+    border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+    font-variant-numeric: tabular-nums;
   }
 
-  .arb-pill-amount { color: var(--text-muted); margin-left: auto; }
-
-  // Non-active subscription (canceled/suspended/expired): drop the success cue, use a neutral tone.
-  &.arb-pill--inactive {
+  // Non-active subscription (canceled/suspended/expired): neutral, so it never reads as live.
+  &.arb-badge--inactive {
+    background: var(--bs-secondary-bg);
+    color: var(--text-muted);
     border-color: var(--bs-border-color);
-    background: var(--bs-tertiary-bg);
-
-    .bi { color: var(--text-muted); }
-    .arb-pill-status { background: var(--bs-secondary-bg); color: var(--text-muted); }
   }
 }
 

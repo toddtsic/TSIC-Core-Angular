@@ -766,6 +766,22 @@ export class RegistrationDetailPanelComponent {
   private readonly isProdEnv = environment.envName === 'production';
 
   subscription = signal<SubscriptionDetailDto | null>(null);
+
+  // Payment progress for the header ARB badge (x of y occurrences). Derived from paid ÷ per-occurrence,
+  // but ONLY shown when the paid total is a CLEAN multiple of the occurrence amount (uniform monthly
+  // ARB) — never infer a count off a deposit / partial / mixed balance, which would misstate money.
+  arbProgress = computed<{ paid: number; total: number } | null>(() => {
+    const sub = this.subscription();
+    const d = this.detail();
+    if (!sub || !d) return null;
+    const total = sub.totalOccurrences;
+    const per = sub.perOccurrenceAmount;
+    const paidTotal = d.paidTotal ?? 0;
+    if (!total || !per || per <= 0) return null;
+    const paid = Math.round(paidTotal / per);
+    if (paid < 0 || paid > total || Math.abs(paid * per - paidTotal) > 0.005) return null;
+    return { paid, total };
+  });
   // True only once a LIVE Authorize.Net read has succeeded (Production). While false, the card
   // is showing the stored snapshot — which is display-only, so destructive actions stay hidden.
   subscriptionIsLive = signal<boolean>(false);
