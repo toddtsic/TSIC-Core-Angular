@@ -41,10 +41,13 @@
        payment (see the banner below). Each grid's footer is its own section summation. -->
   @for (sec of breakdownSections(); track sec.title; let first = $first) {
     <div class="family-summary-card">
-      @if (first) {
-        <h4 class="summary-eyebrow">Account Summary</h4>
-      }
-      <h5 class="section-title">{{ sec.title }}</h5>
+      <div class="summary-head">
+        @if (first) {
+          <span class="summary-eyebrow">Account Summary</span>
+          <span class="summary-head-sep" aria-hidden="true">·</span>
+        }
+        <h5 class="section-title">{{ sec.title }}</h5>
+      </div>
       <app-registered-teams-grid
         [teams]="sec.teams"
         [teamColHeader]="sec.teamColHeader"

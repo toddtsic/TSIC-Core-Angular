@@ -5,16 +5,12 @@ namespace TSIC.API.Services.Shared.Adn;
 
 public interface IAdnApiService
 {
-    AuthorizeNet.Environment GetADNEnvironment(bool bProdOnly = false);
+    // ADN environment is host-bound with NO override: non-Production → sandbox, Production → prod.
+    // See AdnApiService for the rationale (ARB subscriptions belong to their create-time account).
+    AuthorizeNet.Environment GetADNEnvironment();
 
-    Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(
-        Guid jobId,
-        bool bProdOnly = false
-    );
-    Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(
-        Guid customerId,
-        bool bProdOnly = false
-    );
+    Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(Guid jobId);
+    Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(Guid customerId);
 
     getTransactionDetailsResponse ADN_GetTransactionDetails(
         AuthorizeNet.Environment env,

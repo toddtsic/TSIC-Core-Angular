@@ -257,10 +257,13 @@ export class RegistrationDetailPanelComponent {
         this.emailSubject.set('');
         this.emailBody.set('');
 
-        // Accounting is the default tab now, so the subscription must load up front
-        // rather than lazily on tab-switch. Clear the prior registrant's value first.
-        this.subscription.set(null);
-        if (d.hasSubscription) this.loadSubscription();
+        // Seed the ARB card from the stored snapshot (projected from the Registrations.AdnSubscription*
+        // columns) so it shows in EVERY environment with no gateway call. Only Production refreshes
+        // against live Authorize.Net — off-Production the subscription lives in an account this host
+        // can't reach, so the stored record is the honest source and there's no failing live call.
+        this.subscription.set(d.storedSubscription ?? null);
+        this.subscriptionIsLive.set(false);
+        if (this.isProdEnv && d.hasSubscription) this.loadSubscription();
 
         // Baseline for dirty tracking. untracked() so reading the editable signals here
         // doesn't make this effect a dependency of them (which would re-snapshot — and wipe
@@ -298,9 +301,65 @@ export class RegistrationDetailPanelComponent {
 
   setActiveTab(tab: TabType): void {
     this.activeTab.set(tab);
-    if (tab === 'accounting' && this.detail()?.hasSubscription && !this.subscription()) {
+    // Live refresh is Production-only; off-Production the stored snapshot (seeded on load) stands.
+    if (tab === 'accounting' && this.isProdEnv && this.detail()?.hasSubscription && !this.subscriptionIsLive()) {
       this.loadSubscription();
     }
+  }
+
+  // ── Panel resize ──
+  // The panel is anchored to the right, so dragging the left edge LEFT widens it. Width
+  // persists per-browser so the accounting tables (which overflow horizontally) stay as wide
+  // as the user set them. Pointer capture routes move/up back to the handle — no document
+  // listeners, no effect().
+  private static readonly WIDTH_KEY = 'regDetailPanelWidth';
+  private static readonly DEFAULT_WIDTH = 560;
+  private static readonly MIN_WIDTH = 480;
+  private static readonly MAX_WIDTH = 1100;
+
+  panelWidth = signal<number>(this.readStoredWidth());
+  isResizing = signal<boolean>(false);
+  private resizeStartX = 0;
+  private resizeStartWidth = 0;
+
+  private readStoredWidth(): number {
+    try {
+      const raw = Number(localStorage.getItem(RegistrationDetailPanelComponent.WIDTH_KEY));
+      if (raw && !Number.isNaN(raw)) return this.clampWidth(raw);
+    } catch { /* localStorage unavailable — fall through to default */ }
+    return RegistrationDetailPanelComponent.DEFAULT_WIDTH;
+  }
+
+  private clampWidth(w: number): number {
+    const max = Math.min(RegistrationDetailPanelComponent.MAX_WIDTH, Math.round(window.innerWidth * 0.9));
+    return Math.max(RegistrationDetailPanelComponent.MIN_WIDTH, Math.min(max, w));
+  }
+
+  startResize(ev: PointerEvent): void {
+    ev.preventDefault();
+    this.resizeStartX = ev.clientX;
+    this.resizeStartWidth = this.panelWidth();
+    this.isResizing.set(true);
+    (ev.target as HTMLElement).setPointerCapture?.(ev.pointerId);
+  }
+
+  onResizeMove(ev: PointerEvent): void {
+    if (!this.isResizing()) return;
+    // Right-anchored: as the pointer moves left (clientX shrinks), the panel grows.
+    const delta = this.resizeStartX - ev.clientX;
+    this.panelWidth.set(this.clampWidth(this.resizeStartWidth + delta));
+  }
+
+  endResize(ev: PointerEvent): void {
+    if (!this.isResizing()) return;
+    this.isResizing.set(false);
+    (ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
+    try { localStorage.setItem(RegistrationDetailPanelComponent.WIDTH_KEY, String(this.panelWidth())); } catch { /* ignore */ }
+  }
+
+  resetWidth(): void {
+    this.panelWidth.set(RegistrationDetailPanelComponent.DEFAULT_WIDTH);
+    try { localStorage.removeItem(RegistrationDetailPanelComponent.WIDTH_KEY); } catch { /* ignore */ }
   }
 
   // ── Template helpers ──
@@ -702,7 +761,14 @@ export class RegistrationDetailPanelComponent {
 
   // ── Subscription ──
 
+  // Only Production talks to live Authorize.Net; every other host is sandboxed and the
+  // subscription lives in an account it can't reach, so we lean on the stored snapshot.
+  private readonly isProdEnv = environment.envName === 'production';
+
   subscription = signal<SubscriptionDetailDto | null>(null);
+  // True only once a LIVE Authorize.Net read has succeeded (Production). While false, the card
+  // is showing the stored snapshot — which is display-only, so destructive actions stay hidden.
+  subscriptionIsLive = signal<boolean>(false);
   isLoadingSubscription = signal<boolean>(false);
   isCancellingSubscription = signal<boolean>(false);
   showCancelSubConfirm = signal<boolean>(false);
@@ -715,18 +781,15 @@ export class RegistrationDetailPanelComponent {
     this.searchService.getSubscription(d.registrationId).subscribe({
       next: (sub) => {
         this.subscription.set(sub);
+        this.subscriptionIsLive.set(true);
         this.isLoadingSubscription.set(false);
       },
       error: () => {
-        this.subscription.set(null);
+        // Live refresh failed (e.g. ADN outage). Keep the stored snapshot on screen rather than
+        // wiping it to "no subscription", and mark it as not-live so actions stay gated.
+        this.subscriptionIsLive.set(false);
         this.isLoadingSubscription.set(false);
-        // Subscriptions are created against the production Authorize.Net account. Off
-        // Production the gateway points at the sandbox, which can't resolve a production
-        // subscription id — explain that rather than implying the record is missing.
-        const msg = environment.envName === 'production'
-          ? 'Subscription not found.'
-          : `Can't confirm a production subscription id in the ${environment.envName} environment.`;
-        this.toast.show(msg, 'warning', 5000);
+        this.toast.show('Live subscription status unavailable; showing the stored record.', 'warning', 5000);
       }
     });
   }

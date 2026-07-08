@@ -71,6 +71,12 @@ public record RegistrationDetailDto
     // ARB subscription (true when registration has an AdnSubscriptionId)
     public bool HasSubscription { get; init; }
 
+    // Stored ARB snapshot, projected from the Registrations.AdnSubscription* columns. Unlike the
+    // live GetSubscription endpoint (which queries the production Authorize.Net gateway and cannot
+    // resolve a prod subscription id from a sandbox environment), this is available in EVERY
+    // environment. Kept fresh in Production by the ADN sweep; may lag live status off-Production.
+    public SubscriptionDetailDto? StoredSubscription { get; init; }
+
     // Accounting records
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
 

@@ -127,10 +127,19 @@
   margin-bottom: var(--space-3);
 }
 
-// Leading section label on the summary card — parallels the "PAYMENT LEDGER" /
-// "ARB SUBSCRIPTION" eyebrows so the three accounting cards read as one set.
+// Summary card heading — the "Account Summary" label sits on the SAME line as the
+// player/section name, baseline-aligned with a middot between them.
+.summary-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+// Leading section label — parallels the "PAYMENT LEDGER" / "ARB SUBSCRIPTION"
+// eyebrows so the three accounting cards read as one set.
 .summary-eyebrow {
-  margin: 0 0 var(--space-2) 0;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
   color: var(--bs-primary);
@@ -138,10 +147,14 @@
   letter-spacing: 0.05em;
 }
 
+.summary-head-sep {
+  color: var(--text-muted);
+}
+
 .section-title {
+  margin: 0;
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
-  margin-bottom: var(--space-3);
   color: var(--bs-body-color);
 }
 

@@ -68,9 +68,9 @@ public class AdnSweepServiceTests
     {
         _settleRepo.Setup(r => r.StartSweepLogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SweepLog { StartedAt = DateTime.UtcNow, TriggeredBy = "Test" });
-        _adn.Setup(a => a.GetJobAdnCredentials_FromCustomerId(TsicCustomerId, true))
+        _adn.Setup(a => a.GetJobAdnCredentials_FromCustomerId(TsicCustomerId))
             .ReturnsAsync(new AdnCredentialsViewModel { AdnLoginId = "login", AdnTransactionKey = "key" });
-        _adn.Setup(a => a.GetADNEnvironment(It.IsAny<bool>())).Returns(AuthorizeNet.Environment.PRODUCTION);
+        _adn.Setup(a => a.GetADNEnvironment()).Returns(AuthorizeNet.Environment.PRODUCTION);
     }
 
     private void StubBatchListWith(params transactionSummaryType[] txs)

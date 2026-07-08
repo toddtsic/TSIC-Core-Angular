@@ -80,9 +80,9 @@ public class ArbTrialTeamPaymentServiceTests
                 BAddProcessingFees = addProcessingFees,
                 BApplyProcessingFeesToTeamDeposit = applyToDeposit
             });
-        _adn.Setup(a => a.GetJobAdnCredentials_FromJobId(jobId, It.IsAny<bool>()))
+        _adn.Setup(a => a.GetJobAdnCredentials_FromJobId(jobId))
             .ReturnsAsync(new AdnCredentialsViewModel { AdnLoginId = "login", AdnTransactionKey = "key" });
-        _adn.Setup(a => a.GetADNEnvironment(It.IsAny<bool>())).Returns(AuthorizeNet.Environment.SANDBOX);
+        _adn.Setup(a => a.GetADNEnvironment()).Returns(AuthorizeNet.Environment.SANDBOX);
         _feeService.Setup(f => f.GetEffectiveProcessingRateAsync(jobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(0.035m);
         _feeService.Setup(f => f.GetEffectiveEcheckProcessingRateAsync(jobId, It.IsAny<CancellationToken>()))

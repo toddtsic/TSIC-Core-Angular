@@ -20,6 +20,35 @@
   &.open {
     transform: translateX(0);
   }
+
+  // While dragging, kill text selection so the drag feels solid.
+  &.resizing {
+    user-select: none;
+  }
+}
+
+// Left-edge drag handle — panel is right-anchored, so dragging left widens it.
+.resize-handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+  background: transparent;
+  transition: background-color 0.15s ease;
+
+  &:hover,
+  .detail-panel.resizing & {
+    background: var(--bs-primary);
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resize-handle { transition: none; }
 }
 
 .detail-backdrop {
@@ -577,6 +606,52 @@
 .sub-value {
   font-size: var(--font-size-sm);
   color: var(--bs-body-color);
+}
+
+// Muted note shown when the ARB card is rendering the stored snapshot (not a live ADN read).
+.sub-stored-note {
+  margin: var(--space-3) 0 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+// Compact recurring-billing status pill — sits at the top of the accounting tab, above Account
+// Summary, so the balance below reads in context ("$X owed, but on a plan"). Detail is in the ARB card.
+.arb-pill {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+  border: 1px solid color-mix(in srgb, var(--bs-success) 35%, var(--bs-border-color));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bs-success) 8%, var(--bs-card-bg));
+  font-size: var(--font-size-sm);
+
+  .bi { color: var(--bs-success); }
+
+  .arb-pill-label { font-weight: var(--font-weight-semibold); color: var(--bs-body-color); }
+
+  .arb-pill-status {
+    text-transform: capitalize;
+    padding: 0 var(--space-2);
+    border-radius: var(--radius-pill);
+    background: color-mix(in srgb, var(--bs-success) 18%, transparent);
+    color: var(--bs-success-text-emphasis, var(--bs-body-color));
+    font-weight: var(--font-weight-medium);
+  }
+
+  .arb-pill-amount { color: var(--text-muted); margin-left: auto; }
+
+  // Non-active subscription (canceled/suspended/expired): drop the success cue, use a neutral tone.
+  &.arb-pill--inactive {
+    border-color: var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+
+    .bi { color: var(--text-muted); }
+    .arb-pill-status { background: var(--bs-secondary-bg); color: var(--text-muted); }
+  }
 }
 
 // Email Tab

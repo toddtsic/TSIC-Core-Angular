@@ -8,6 +8,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using TSIC.API.Configuration;
+using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 
@@ -30,20 +31,20 @@ public class AdnApiService : IAdnApiService
         _customerRepo = customerRepo;
     }
 
-    public AuthorizeNet.Environment GetADNEnvironment(bool bProdOnly = false)
+    // Single ADN environment rule, no exceptions: any non-Production host uses SANDBOX; only a
+    // Production host uses the real production account. There is deliberately NO override to force
+    // prod from a non-prod host — ARB subscriptions are created against the ambient account and
+    // carry no marker of their origin, so reading/acting on one must use the SAME account that
+    // created it. Uses the shared _env.IsSandbox() gate (Extensions/HostEnvironmentExtensions.cs),
+    // the same sandbox rule that governs SES and VerticalInsure.
+    public AuthorizeNet.Environment GetADNEnvironment()
     {
-        // Sandbox unless the host's ASPNETCORE_ENVIRONMENT is Production (caller can force prod for sweeps).
-        if (!_env.IsProduction() && !bProdOnly)
-        {
-            return AuthorizeNet.Environment.SANDBOX;
-        }
-        return AuthorizeNet.Environment.PRODUCTION;
+        return _env.IsSandbox() ? AuthorizeNet.Environment.SANDBOX : AuthorizeNet.Environment.PRODUCTION;
     }
 
-    public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(Guid jobId, bool bProdOnly = false)
+    public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromJobId(Guid jobId)
     {
-        var isSandbox = !_env.IsProduction() && !bProdOnly;
-        if (isSandbox)
+        if (_env.IsSandbox())
         {
             var (login, key) = ResolveCredentials();
             return new AdnCredentialsViewModel { AdnLoginId = login, AdnTransactionKey = key };
@@ -60,10 +61,9 @@ public class AdnApiService : IAdnApiService
         return creds;
     }
 
-    public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(Guid customerId, bool bProdOnly = false)
+    public async Task<AdnCredentialsViewModel> GetJobAdnCredentials_FromCustomerId(Guid customerId)
     {
-        var isSandbox = !_env.IsProduction() && !bProdOnly;
-        if (isSandbox)
+        if (_env.IsSandbox())
         {
             var (login, key) = ResolveCredentials();
             return new AdnCredentialsViewModel { AdnLoginId = login, AdnTransactionKey = key };

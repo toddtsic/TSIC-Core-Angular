@@ -2214,6 +2214,27 @@ public class RegistrationRepository : IRegistrationRepository
         var clubRepTeamCount = await _context.Teams
             .CountAsync(t => t.ClubrepRegistrationid == reg.RegistrationId, ct);
 
+        // Project the stored ARB snapshot from the Registrations.AdnSubscription* columns so the
+        // detail panel can show subscription status in every environment — the live ADN lookup only
+        // works in Production (a prod subscription id can't be resolved against the sandbox gateway).
+        SubscriptionDetailDto? storedSubscription = null;
+        if (!string.IsNullOrWhiteSpace(reg.AdnSubscriptionId))
+        {
+            var perOccurrence = reg.AdnSubscriptionAmountPerOccurence ?? 0m;
+            var occurrences = reg.AdnSubscriptionBillingOccurences ?? 0;
+            var intervalLength = reg.AdnSubscriptionIntervalLength ?? 1;
+            storedSubscription = new SubscriptionDetailDto
+            {
+                SubscriptionId = reg.AdnSubscriptionId!,
+                Status = reg.AdnSubscriptionStatus ?? "unknown",
+                PerOccurrenceAmount = perOccurrence,
+                TotalOccurrences = occurrences,
+                TotalAmount = perOccurrence * occurrences,
+                StartDate = reg.AdnSubscriptionStartDate ?? DateTime.MinValue,
+                IntervalLabel = intervalLength == 1 ? "every month" : $"every {intervalLength} months"
+            };
+        }
+
         return new RegistrationDetailDto
         {
             RegistrationId = reg.RegistrationId,
@@ -2270,6 +2291,7 @@ public class RegistrationRepository : IRegistrationRepository
                 PostalCode = reg.User.PostalCode,
             } : null,
             HasSubscription = !string.IsNullOrWhiteSpace(reg.AdnSubscriptionId),
+            StoredSubscription = storedSubscription,
             RegistrationDate = reg.RegistrationTs,
             ModifiedDate = reg.Modified,
             AccountingRecords = accountingRecords,

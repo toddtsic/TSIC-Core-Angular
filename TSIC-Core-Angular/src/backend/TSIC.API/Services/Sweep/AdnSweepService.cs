@@ -81,8 +81,11 @@ public sealed class AdnSweepService : IAdnSweepService
 
         try
         {
-            var creds = await _adn.GetJobAdnCredentials_FromCustomerId(_tsicSettings.DefaultCustomerId, bProdOnly: true);
-            var env = _adn.GetADNEnvironment(bProdOnly: true);
+            // The scheduled sweep is hard-gated to a Production host (AdnSweepBackgroundService),
+            // so the env-bound resolvers return the production account where it actually runs. A
+            // manual off-Production trigger harmlessly hits sandbox and finds no prod batches.
+            var creds = await _adn.GetJobAdnCredentials_FromCustomerId(_tsicSettings.DefaultCustomerId);
+            var env = _adn.GetADNEnvironment();
 
             // 1) Walk batches, accumulate flat tx list.
             var allTxs = FetchBatchTransactions(env, creds.AdnLoginId!, creds.AdnTransactionKey!, daysPrior);

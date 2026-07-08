@@ -50,8 +50,9 @@ public class ArbDefensiveService : IArbDefensiveService
     private async Task<List<ArbFlaggedRegistrantDto>> GetExpiringCardFlagsAsync(
         Guid jobId, CancellationToken ct)
     {
-        var env = _adnApi.GetADNEnvironment(bProdOnly: true);
-        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
+        // Env-bound: resolve subscriptions against their create-time account (sandbox off-Production).
+        var env = _adnApi.GetADNEnvironment();
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
 
         var response = _adnApi.ARBGetSubscriptionListRequest(
             env, creds.AdnLoginId!, creds.AdnTransactionKey!,
@@ -108,11 +109,12 @@ public class ArbDefensiveService : IArbDefensiveService
             flagged.Add((reg, owes));
         }
 
-        // Refresh subscription status from Authorize.Net for flagged registrations
+        // Refresh subscription status from Authorize.Net for flagged registrations.
+        // Env-bound: resolve against the create-time account (sandbox off-Production).
         if (flagged.Count > 0)
         {
-            var env = _adnApi.GetADNEnvironment(bProdOnly: true);
-            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
+            var env = _adnApi.GetADNEnvironment();
+            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
 
             var result = new List<ArbFlaggedRegistrantDto>();
 
@@ -356,8 +358,11 @@ public class ArbDefensiveService : IArbDefensiveService
                 Message = "Subscription not found or ID mismatch."
             };
 
-        var env = _adnApi.GetADNEnvironment(bProdOnly: true);
-        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(detail.JobId, bProdOnly: true);
+        // Env-bound: this validates the card, updates the subscription, and charges the balance —
+        // all against the create-time account. Off-Production that is sandbox, so this destructive
+        // flow can never touch a real customer's card from a preview host.
+        var env = _adnApi.GetADNEnvironment();
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(detail.JobId);
 
         var expiry = $"{request.ExpirationMonth}{request.ExpirationYear[^2..]}";
 

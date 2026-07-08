@@ -71,9 +71,9 @@ public class EcheckTeamPaymentServiceTests
             .ReturnsAsync(jobId);
         _jobs.Setup(j => j.GetJobPaymentInfoAsync(jobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobPaymentInfo { BEnableEcheck = enableEcheck });
-        _adn.Setup(a => a.GetJobAdnCredentials_FromJobId(jobId, It.IsAny<bool>()))
+        _adn.Setup(a => a.GetJobAdnCredentials_FromJobId(jobId))
             .ReturnsAsync(new AdnCredentialsViewModel { AdnLoginId = "login", AdnTransactionKey = "key" });
-        _adn.Setup(a => a.GetADNEnvironment(It.IsAny<bool>())).Returns(AuthorizeNet.Environment.SANDBOX);
+        _adn.Setup(a => a.GetADNEnvironment()).Returns(AuthorizeNet.Environment.SANDBOX);
     }
 
     private void StubTeams(Guid jobId, IReadOnlyCollection<Guid> teamIds, params Teams[] teams)

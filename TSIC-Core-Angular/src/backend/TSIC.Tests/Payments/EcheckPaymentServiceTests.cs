@@ -80,9 +80,9 @@ public class EcheckPaymentServiceTests
                 BPlayersFullPaymentRequired = fullPaymentRequired,
                 BEnableEcheck = enableEcheck
             });
-        _adn.Setup(a => a.GetJobAdnCredentials_FromJobId(jobId, It.IsAny<bool>()))
+        _adn.Setup(a => a.GetJobAdnCredentials_FromJobId(jobId))
             .ReturnsAsync(new AdnCredentialsViewModel { AdnLoginId = "login", AdnTransactionKey = "key" });
-        _adn.Setup(a => a.GetADNEnvironment(It.IsAny<bool>())).Returns(AuthorizeNet.Environment.SANDBOX);
+        _adn.Setup(a => a.GetADNEnvironment()).Returns(AuthorizeNet.Environment.SANDBOX);
     }
 
     private void StubRegs(Guid jobId, params Registrations[] regs)

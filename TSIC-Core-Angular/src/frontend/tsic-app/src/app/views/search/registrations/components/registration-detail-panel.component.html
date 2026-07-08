@@ -2,7 +2,13 @@
   <div class="detail-backdrop" (click)="close()" (keydown.escape)="close()"></div>
 }
 
-<div class="detail-panel" [class.open]="isOpen()">
+<div class="detail-panel" [class.open]="isOpen()" [class.resizing]="isResizing()" [style.width.px]="panelWidth()">
+  <div class="resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize panel"
+       title="Drag to resize · double-click to reset"
+       (pointerdown)="startResize($event)"
+       (pointermove)="onResizeMove($event)"
+       (pointerup)="endResize($event)"
+       (dblclick)="resetWidth()"></div>
   @if (detail(); as reg) {
     <div class="panel-header">
       <div class="header-top-row">
@@ -365,6 +371,16 @@
       <!-- ═══════════════════════ ACCOUNTING TAB ═══════════════════════ -->
       @if (activeTab() === 'accounting') {
         <div class="tab-content">
+          <!-- At-a-glance recurring-billing status, right above Account Summary — so an admin reading
+               the balance knows it's on a payment plan. Full detail + actions live in the ARB card below. -->
+          @if (subscription(); as sub) {
+            <div class="arb-pill" [class.arb-pill--inactive]="sub.status !== 'active'">
+              <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+              <span class="arb-pill-label">Recurring billing</span>
+              <span class="arb-pill-status">{{ sub.status }}</span>
+              <span class="arb-pill-amount">{{ sub.perOccurrenceAmount | currency }} {{ sub.intervalLabel }}</span>
+            </div>
+          }
           @if (isClubRep()) {
             <app-club-rep-payment
               [clubRepRegistrationId]="reg.registrationId"
@@ -417,7 +433,14 @@
                     <span class="sub-value">{{ sub.totalOccurrences }}</span>
                   </div>
                 </div>
-                @if (sub.status === 'active') {
+                @if (!subscriptionIsLive()) {
+                  <p class="sub-stored-note">
+                    <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Stored record — live Authorize.Net status is shown in Production.
+                  </p>
+                }
+                <!-- Cancel targets live Authorize.Net, so it only appears once a live read has
+                     succeeded (Production). Off-Production the stored snapshot is display-only. -->
+                @if (subscriptionIsLive() && sub.status === 'active') {
                   <button type="button" class="btn btn-sm btn-outline-danger mt-3" (click)="confirmCancelSubscription()" [disabled]="isCancellingSubscription()">
                     @if (isCancellingSubscription()) { <span class="spinner-border spinner-border-sm me-1"></span> } Cancel Subscription
                   </button>

@@ -70,9 +70,9 @@ public class PlayerCcPaymentServiceTests
     {
         _jobs.Setup(j => j.GetJobPaymentInfoAsync(jobId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JobPaymentInfo { AllowPif = allowPif });
-        _adn.Setup(a => a.GetJobAdnCredentials_FromJobId(jobId, It.IsAny<bool>()))
+        _adn.Setup(a => a.GetJobAdnCredentials_FromJobId(jobId))
             .ReturnsAsync(new AdnCredentialsViewModel { AdnLoginId = "login", AdnTransactionKey = "key" });
-        _adn.Setup(a => a.GetADNEnvironment(It.IsAny<bool>())).Returns(AuthorizeNet.Environment.SANDBOX);
+        _adn.Setup(a => a.GetADNEnvironment()).Returns(AuthorizeNet.Environment.SANDBOX);
         _regRepo.Setup(r => r.GetRegistrationWithInvoiceDataAsync(It.IsAny<Guid>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new RegistrationWithInvoiceData { CustomerAi = 5, JobAi = 100, RegistrationAi = 200 });
     }

@@ -93,8 +93,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
     public async Task<RegistrationSearchResponse> ArbCardExpiringLookupAsync(
         Guid jobId, CancellationToken ct = default)
     {
-        var env = _adnApi.GetADNEnvironment(bProdOnly: true);
-        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
+        // Env-bound: subscriptions resolve only against the account that created them (sandbox
+        // off-Production). On Production this hits the real ADN account as before.
+        var env = _adnApi.GetADNEnvironment();
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
 
         var response = _adnApi.ARBGetSubscriptionListRequest(
             env, creds.AdnLoginId!, creds.AdnTransactionKey!,
@@ -642,9 +644,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         if (string.IsNullOrWhiteSpace(reg.AdnSubscriptionId))
             throw new InvalidOperationException("Registration has no ARB subscription.");
 
-        // Subscription IDs are always from production ADN — use bProdOnly to bypass sandbox
-        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId, bProdOnly: true);
-        var env = _adnApi.GetADNEnvironment(bProdOnly: true);
+        // Env-bound: cancel against the SAME account that created the subscription (sandbox
+        // off-Production, production on Production). A prod-origin subscription is therefore not
+        // cancellable from a non-Production host — by design, so a preview environment can never
+        // cancel a real customer's recurring billing.
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+        var env = _adnApi.GetADNEnvironment();
 
         var result = _adnApi.ADN_CancelSubscription(env, creds.AdnLoginId!, creds.AdnTransactionKey!, reg.AdnSubscriptionId);
 

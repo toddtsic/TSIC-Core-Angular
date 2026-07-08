@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { AccountingRecordDto } from './AccountingRecordDto';
 import type { FamilyContactDto } from './FamilyContactDto';
+import type { SubscriptionDetailDto } from './SubscriptionDetailDto';
 import type { UserDemographicsDto } from './UserDemographicsDto';
 export type RegistrationDetailDto = {
     registrationId: string;
@@ -36,6 +37,7 @@ export type RegistrationDetailDto = {
     registrationDate?: string | null;
     modifiedDate?: string | null;
     hasSubscription?: boolean;
+    storedSubscription?: (null | SubscriptionDetailDto);
     accountingRecords: Array<AccountingRecordDto>;
     isClubRep?: boolean;
     clubRepTeamCount?: number;
