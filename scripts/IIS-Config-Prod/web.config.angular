@@ -16,6 +16,20 @@
     </system.webServer>
   </location>
 
+  <!-- Context-sensitive help (public/help/**): manifest.json + authored HTML.
+       These live in public/ so they are NOT content-hashed — filenames are stable across
+       builds. Under the 1-year default below, a returning browser would serve a stale manifest
+       and never see newly-published help (this is exactly the "help not showing after publish"
+       bug). DisableCache emits Cache-Control: no-cache — the browser may cache but must
+       revalidate first, getting a fast 304 when unchanged and new content the moment it changes. -->
+  <location path="help">
+    <system.webServer>
+      <staticContent>
+        <clientCache cacheControlMode="DisableCache" />
+      </staticContent>
+    </system.webServer>
+  </location>
+
   <location path="." inheritInChildApplications="false">
     <system.webServer>
       <!-- Enable directory browsing (optional) -->
