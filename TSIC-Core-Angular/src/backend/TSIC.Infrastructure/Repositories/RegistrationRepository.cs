@@ -1,4 +1,6 @@
 using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.CampGroups;
@@ -2141,6 +2143,39 @@ public class RegistrationRepository : IRegistrationRepository
             }
         }
 
+        // Resolve the role-appropriate profile template. Player roles use the flat
+        // PlayerProfileMetadataJson (unchanged); adult roles (coach/Staff/Referee/Recruiter) use the
+        // flat sub-slice of the role-keyed AdultProfileMetadataJson; roles with no template (Club Rep,
+        // etc.) get null so the panel keeps its legacy read-only list. templateDbColumns are the
+        // columns the form actually collects — unioned into the projection below so the value read is
+        // template-driven (e.g. a coach's BBgcheck is no longer dropped for being off the static set).
+        string? resolvedMetadataJson;
+        List<string> templateDbColumns;
+        var adultRoleKey = AdultMetadataRoleResolver.KeyForRoleId(reg.RoleId);
+        if (adultRoleKey != null)
+        {
+            (resolvedMetadataJson, templateDbColumns) = SliceAdultRoleTemplate(reg.Job?.AdultProfileMetadataJson, adultRoleKey);
+        }
+        else if (reg.RoleId == RoleConstants.Player)
+        {
+            resolvedMetadataJson = reg.Job?.PlayerProfileMetadataJson;
+            templateDbColumns = ExtractDbColumns(resolvedMetadataJson);
+        }
+        else
+        {
+            resolvedMetadataJson = null;
+            templateDbColumns = new List<string>();
+        }
+
+        // Coach/Staff: decode the human note out of the codified SpecialRequests team-request blob so
+        // the panel can show it read-only. Never the raw JSON (that stays owned by the approval queue).
+        string? coachRequestNote = null;
+        if (adultRoleKey == AdultMetadataRoleResolver.UnassignedAdult)
+        {
+            var note = AdultTeamRequestData.Parse(reg.SpecialRequests).Note;
+            coachRequestNote = string.IsNullOrWhiteSpace(note) ? null : note;
+        }
+
         // Build profile values from entity columns using reflection
         var profileValues = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
         var profileProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -2162,6 +2197,11 @@ public class RegistrationRepository : IRegistrationRepository
             "Twitter", "Instagram", "ClubTeamName", "Sweatpants", "SkillLevel",
             "Snapchat", "TikTokHandle", "RecruitingHandle", "PreviousCoach1", "PreviousCoach2"
         };
+
+        // Union the active template's declared columns so the projection reads exactly what the form
+        // collects (columns not present on the entity are silently skipped by the reflection below).
+        foreach (var col in templateDbColumns)
+            profileProps.Add(col);
 
         var regType = typeof(Registrations);
         foreach (var propName in profileProps)
@@ -2262,7 +2302,8 @@ public class RegistrationRepository : IRegistrationRepository
             ProfileValues = profileValues,
             AccountUsername = accountUsername,
             FamilyUserId = reg.FamilyUserId,
-            ProfileMetadataJson = reg.Job?.PlayerProfileMetadataJson,
+            ProfileMetadataJson = resolvedMetadataJson,
+            CoachRequestNote = coachRequestNote,
             SportName = reg.Job?.Sport?.SportName,
             JsonOptions = reg.Job?.JsonOptions,
             MomLabel = !string.IsNullOrWhiteSpace(reg.Job?.MomLabel) ? reg.Job.MomLabel : "Mom",
@@ -2300,6 +2341,77 @@ public class RegistrationRepository : IRegistrationRepository
         };
     }
 
+    /// <summary>
+    /// Slice one role out of the role-keyed <c>AdultProfileMetadataJson</c> and re-emit it as the flat
+    /// <c>{"fields":[...]}</c> shape the detail panel's parser expects. For the coach block
+    /// (<c>UnassignedAdult</c>, which also backs Staff) the <c>SpecialRequests</c> field is dropped —
+    /// that column holds the codified team-request blob, never an editable free-text answer. Returns the
+    /// declared dbColumns alongside so the value projection can read exactly the collected columns.
+    /// </summary>
+    private static (string? MetadataJson, List<string> DbColumns) SliceAdultRoleTemplate(string? adultJson, string roleKey)
+    {
+        var dbColumns = new List<string>();
+        if (string.IsNullOrWhiteSpace(adultJson)) return (null, dbColumns);
+        try
+        {
+            if (JsonNode.Parse(adultJson) is not JsonObject root
+                || root[roleKey] is not JsonObject roleObj
+                || roleObj["fields"] is not JsonArray fields)
+                return (null, dbColumns);
+
+            var stripSpecialRequests = roleKey == AdultMetadataRoleResolver.UnassignedAdult;
+            var kept = new JsonArray();
+            foreach (var f in fields)
+            {
+                if (f is not JsonObject fo) continue;
+                var col = FieldColumn(fo);
+                if (stripSpecialRequests
+                    && string.Equals(col, nameof(Registrations.SpecialRequests), StringComparison.OrdinalIgnoreCase))
+                    continue;
+                if (!string.IsNullOrWhiteSpace(col)) dbColumns.Add(col!);
+                kept.Add(fo.DeepClone());
+            }
+            return (new JsonObject { ["fields"] = kept }.ToJsonString(), dbColumns);
+        }
+        catch (JsonException)
+        {
+            return (null, dbColumns);
+        }
+    }
+
+    /// <summary>Collect the backing dbColumns from a flat player template (<c>{"fields":[...]}</c> or a
+    /// bare fields array). Used to make the value projection template-driven for players too.</summary>
+    private static List<string> ExtractDbColumns(string? flatJson)
+    {
+        var dbColumns = new List<string>();
+        if (string.IsNullOrWhiteSpace(flatJson)) return dbColumns;
+        try
+        {
+            var fields = JsonNode.Parse(flatJson) switch
+            {
+                JsonArray arr => arr,
+                JsonObject obj when obj["fields"] is JsonArray fa => fa,
+                _ => null
+            };
+            if (fields == null) return dbColumns;
+            foreach (var f in fields)
+            {
+                if (f is not JsonObject fo) continue;
+                var col = FieldColumn(fo);
+                if (!string.IsNullOrWhiteSpace(col)) dbColumns.Add(col!);
+            }
+        }
+        catch (JsonException) { /* malformed metadata → no extra columns */ }
+        return dbColumns;
+    }
+
+    /// <summary>A metadata field's backing column: <c>dbColumn</c> if present, else <c>name</c>.</summary>
+    private static string? FieldColumn(JsonObject field)
+    {
+        var dbColumn = field["dbColumn"]?.GetValue<string>();
+        return !string.IsNullOrWhiteSpace(dbColumn) ? dbColumn : field["name"]?.GetValue<string>();
+    }
+
     public async Task UpdateRegistrationProfileAsync(
         Guid jobId, string userId, UpdateRegistrationProfileRequest request, CancellationToken ct = default)
     {
@@ -2309,14 +2421,22 @@ public class RegistrationRepository : IRegistrationRepository
             .FirstOrDefaultAsync(ct)
             ?? throw new KeyNotFoundException("Registration not found or does not belong to this job.");
 
-        var isUnassignedAdult = reg.Role?.Name == RoleConstants.Names.UnassignedAdultName;
+        // Coach persona = Unassigned Adult OR promoted Staff; both carry the codified SpecialRequests blob.
+        var isCoachPersona = reg.Role?.Name == RoleConstants.Names.UnassignedAdultName
+                          || reg.Role?.Name == RoleConstants.Names.StaffName;
 
         var regType = typeof(Registrations);
         foreach (var (key, value) in request.ProfileValues)
         {
-            // Immutability: a coach's SpecialRequests is an append-only codified record managed by
-            // the approval queue — the generic profile editor must never overwrite it.
-            if (isUnassignedAdult
+            // USA Lacrosse expiry is USLax-authoritative for EVERY role: the generic profile editor
+            // never writes it. Its sole writer is the revalidate path (UpdateSportAssnIdExpDateAsync),
+            // which records only a definitive USLax hit — so an admin can never assert an unverified date.
+            if (string.Equals(key, nameof(Registrations.SportAssnIdexpDate), StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            // Immutability: a coach's/Staff's SpecialRequests is an append-only codified record managed
+            // by the approval queue — the generic profile editor must never overwrite it.
+            if (isCoachPersona
                 && string.Equals(key, nameof(Registrations.SpecialRequests), StringComparison.OrdinalIgnoreCase))
                 continue;
 

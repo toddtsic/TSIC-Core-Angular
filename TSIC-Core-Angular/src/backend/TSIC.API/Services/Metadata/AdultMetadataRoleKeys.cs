@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using TSIC.Domain.Adults;
 
 namespace TSIC.API.Services.Metadata;
 
@@ -12,9 +13,9 @@ namespace TSIC.API.Services.Metadata;
 /// </summary>
 public static class AdultMetadataRoleKeys
 {
-    public const string UnassignedAdult = "UnassignedAdult";
-    public const string Referee = "Referee";
-    public const string Recruiter = "Recruiter";
+    public const string UnassignedAdult = AdultMetadataRoleResolver.UnassignedAdult;
+    public const string Referee = AdultMetadataRoleResolver.Referee;
+    public const string Recruiter = AdultMetadataRoleResolver.Recruiter;
 
     public static readonly FrozenSet<string> All =
         new[] { UnassignedAdult, Referee, Recruiter }.ToFrozenSet(StringComparer.Ordinal);

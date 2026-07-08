@@ -291,13 +291,13 @@
             </div>
           </div>
 
-          <!-- ── Editable: Player Profile (metadata-driven) ── -->
-          @if (isPlayerRole()) {
+          <!-- ── Editable: Profile (metadata-driven — players AND adult roles) ── -->
+          @if (showProfileCard()) {
             @let profileFields = editableProfileFields();
             @if (profileFields.length > 0) {
               <div class="contact-zone">
                 <div class="section-title-row">
-                  <h4 class="section-title">Player Profile</h4>
+                  <h4 class="section-title">{{ profileCardTitle() }}</h4>
                   @if (reg.assignment || reg.teamName) {
                     <span class="account-username">
                       <span class="info-label">Team:</span>
@@ -310,7 +310,12 @@
                     @for (field of profileFields; track field.key) {
                       <div class="form-group">
                         <label [for]="'profile-' + field.key" class="form-label">{{ getFieldLabel(field) }}</label>
-                        @if (field.type === 'select' && field.options?.length) {
+                        @if (isDerivedReadOnlyField(field)) {
+                          <!-- USA Lacrosse expiry is USLax-authoritative — read-only; changes only via "Live update". -->
+                          <input [id]="'profile-' + field.key" type="date" class="form-control form-control-sm"
+                            [value]="profileValues()[field.key] || ''" disabled
+                            title="Set automatically from USA Lacrosse — use Live update on the number to refresh">
+                        } @else if (field.type === 'select' && field.options?.length) {
                           <select [id]="'profile-' + field.key" class="form-select form-select-sm"
                             [ngModel]="profileValues()[field.key]" (ngModelChange)="updateProfileValue(field.key, $event)"
                             [name]="field.key">
@@ -369,8 +374,16 @@
             }
           }
 
-          <!-- ── Read-Only: Non-Player Info (only populated fields) ── -->
-          @if (!isPlayerRole()) {
+          <!-- ── Read-Only: Coach/Staff request note (decoded from the codified SpecialRequests blob) ── -->
+          @if (coachRequestNote(); as note) {
+            <div class="info-section">
+              <h5 class="info-section-title">Coach Request Note</h5>
+              <p class="info-value coach-request-note">{{ note }}</p>
+            </div>
+          }
+
+          <!-- ── Read-Only: Non-templated roles (Club Rep) — only populated fields ── -->
+          @if (!showProfileCard()) {
             @let npFields = nonPlayerFields();
             @if (npFields.length > 0) {
               <div class="info-section">

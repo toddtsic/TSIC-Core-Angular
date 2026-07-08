@@ -97,8 +97,11 @@ export class RegistrationDetailPanelComponent {
   private auth = inject(AuthService);
 
 
-  // Tab state — Accounting is the default/first tab; resets to it each time a new registrant opens.
-  activeTab = linkedSignal({ source: () => this.detail(), computation: () => 'accounting' as TabType });
+  // Tab state — Accounting is the default/first tab; resets to it only when a DIFFERENT registrant
+  // opens. Keyed on registrationId (not the whole detail object) so an in-place refresh of the SAME
+  // registrant — e.g. after "Live update" / a profile save re-fetches the detail — preserves the tab
+  // the user is on instead of yanking them back to Accounting.
+  activeTab = linkedSignal({ source: () => this.detail()?.registrationId, computation: () => 'accounting' as TabType });
 
   // Profile values (for read-only display + always-include editable fields)
   profileValues = signal<Record<string, any>>({});
@@ -129,6 +132,17 @@ export class RegistrationDetailPanelComponent {
     const fields = this.metadataFields().filter(f => !PROFILE_EXCLUDED_KEYS.has(f.key.toLowerCase()));
     return this.reorderForSport(fields);
   });
+
+  /** Show the metadata-driven profile card for ANY role whose template has fields — players and
+   *  adults (coach/Staff/Referee/Recruiter) alike. Template-less roles (Club Rep) fall back to the
+   *  legacy read-only list. The backend ships the role-appropriate metadata, so this stays role-agnostic. */
+  readonly showProfileCard = computed(() => this.editableProfileFields().length > 0);
+
+  /** Card heading — player vs generic adult/registration profile. */
+  readonly profileCardTitle = computed(() => this.isPlayerRole() ? 'Player Profile' : 'Registration Profile');
+
+  /** Coach/Staff decoded team-request note (read-only), surfaced by the backend from the codified blob. */
+  readonly coachRequestNote = computed(() => this.detail()?.coachRequestNote ?? null);
 
   // Profile save state
   isSavingProfile = signal<boolean>(false);
@@ -414,6 +428,13 @@ export class RegistrationDetailPanelComponent {
   /** The editable USA Lacrosse # field that carries the "Live update" link (Lacrosse jobs only). */
   isUsLaxNumberField(field: FieldMetadata): boolean {
     return this.canRevalidateUsLax() && field.key.toLowerCase() === 'sportassnid';
+  }
+
+  /** USA Lacrosse expiry is USLax-authoritative: server-derived and refreshed ONLY via the revalidate
+   *  ("Live update") path. Render it read-only in the card — an admin can never type an unverified date.
+   *  The backend enforces the same lock, so this is the matching UI, not the guarantee. */
+  isDerivedReadOnlyField(field: FieldMetadata): boolean {
+    return field.key.toLowerCase() === 'sportassnidexpdate';
   }
 
   /**

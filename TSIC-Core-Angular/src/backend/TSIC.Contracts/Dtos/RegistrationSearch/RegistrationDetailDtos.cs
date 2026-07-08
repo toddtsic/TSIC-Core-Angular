@@ -34,8 +34,14 @@ public record RegistrationDetailDto
     // Dynamic profile fields (key = metadata field name, value = current value as string)
     public required Dictionary<string, string?> ProfileValues { get; init; }
 
-    // Metadata schema (from Job.PlayerProfileMetadataJson — for form rendering)
+    // Metadata schema for form rendering. Role-resolved: player roles get the flat
+    // Job.PlayerProfileMetadataJson; adult roles (coach/Staff/Referee/Recruiter) get the flat
+    // sub-slice of Job.AdultProfileMetadataJson for their role; roles with no template get null.
     public string? ProfileMetadataJson { get; init; }
+
+    // Coach/Staff only: the decoded human NOTE from the codified SpecialRequests team-request blob
+    // (AdultTeamRequestData). Never the raw JSON — surfaced read-only in the panel. Null otherwise.
+    public string? CoachRequestNote { get; init; }
 
     // Account username: for players = family account username, for non-players = registrant username
     public string? AccountUsername { get; init; }

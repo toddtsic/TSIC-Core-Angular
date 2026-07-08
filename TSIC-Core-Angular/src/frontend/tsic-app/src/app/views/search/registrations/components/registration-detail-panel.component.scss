@@ -1113,3 +1113,10 @@
   &:hover { text-decoration: underline; }
   &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 }
+
+// ── Coach/Staff request note (decoded from the codified SpecialRequests blob) ──
+.coach-request-note {
+  margin: 0;
+  white-space: pre-wrap;   // preserve the coach's line breaks
+  word-break: break-word;
+}
