@@ -1,0 +1,51 @@
+@if (isSandbox && agegroupId()) {
+	<section class="dev-tools" aria-label="Age-group bracket seed tools">
+		<header class="dev-tools__head">
+			<span class="dev-tools__badge">DEV</span>
+			<span class="dev-tools__title">Seed Bracket Scores</span>
+		</header>
+
+		<p class="dev-tools__lead">
+			Test bracket seeding for
+			<strong>{{ agegroupName() || 'this age group' }}</strong>
+			with real data: seed the pools, watch the brackets resolve, then advance rounds.
+			Open the <em>Standings</em> and <em>Brackets</em> tabs to see the effect.
+		</p>
+
+		<div class="dev-tools__actions">
+			<button type="button" class="dev-btn"
+					[disabled]="!!busy()"
+					(click)="autoScorePool()">
+				<span class="dev-btn__label">
+					@if (busy() === 'pool') { Scoring pools… } @else { 1 · Seed pool scores }
+				</span>
+				<span class="dev-btn__hint">Scores every pool game 2–1 across all divisions → standings lock → bracket seeds resolve.</span>
+			</button>
+
+			<button type="button" class="dev-btn"
+					[disabled]="!!busy()"
+					(click)="autoScoreRound()">
+				<span class="dev-btn__label">
+					@if (busy() === 'round') { Advancing… } @else { 2 · Seed bracket round }
+				</span>
+				<span class="dev-btn__hint">Scores every ready bracket game → winners advance one round. Click again for the next.</span>
+			</button>
+
+			<button type="button" class="dev-btn dev-btn--danger"
+					[disabled]="!!busy()"
+					(click)="clearScores()">
+				<span class="dev-btn__label">
+					@if (busy() === 'clear') { Clearing… } @else { ↺ Clear scores &amp; reset brackets }
+				</span>
+				<span class="dev-btn__hint">Wipes all scores and blanks bracket slots so seeding can re-run from scratch.</span>
+			</button>
+		</div>
+
+		@if (result(); as r) {
+			<p class="dev-tools__result" role="status">{{ r.message }}</p>
+		}
+		@if (errorMessage()) {
+			<p class="dev-tools__error" role="alert">{{ errorMessage() }}</p>
+		}
+	</section>
+}

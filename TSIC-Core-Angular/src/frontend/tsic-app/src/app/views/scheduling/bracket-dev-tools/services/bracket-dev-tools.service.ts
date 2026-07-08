@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { BracketDevActionRequest, BracketDevActionResult } from '@core/api';
+import type { AgegroupScopeRequest, BracketDevActionRequest, BracketDevActionResult } from '@core/api';
 
 /**
  * Sandbox-only bracket exercise endpoints (backend gates on IsSandbox()).
@@ -24,5 +24,20 @@ export class BracketDevToolsService {
 
 	autoScoreRound(request: BracketDevActionRequest): Observable<BracketDevActionResult> {
 		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-round`, request);
+	}
+
+	// ── Agegroup scope (View Schedule seed strip) — correct granularity for testing
+	//    an agegroup's bracket seeding: pools across ALL its divisions feed the brackets.
+
+	autoScorePoolAgegroup(request: AgegroupScopeRequest): Observable<BracketDevActionResult> {
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-pool-agegroup`, request);
+	}
+
+	autoScoreRoundAgegroup(request: AgegroupScopeRequest): Observable<BracketDevActionResult> {
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-round-agegroup`, request);
+	}
+
+	revertAgegroup(request: AgegroupScopeRequest): Observable<BracketDevActionResult> {
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/revert-agegroup`, request);
 	}
 }

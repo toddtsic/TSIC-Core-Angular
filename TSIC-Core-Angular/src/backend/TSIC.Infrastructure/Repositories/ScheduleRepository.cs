@@ -578,7 +578,8 @@ public sealed class ScheduleRepository : IScheduleRepository
                 Agegroups = [],
                 GameDays = [],
                 Times = [],
-                Fields = []
+                Fields = [],
+                BracketAgegroupIds = []
             };
         }
 
@@ -738,6 +739,16 @@ public sealed class ScheduleRepository : IScheduleRepository
             .AnyAsync(s => s.JobId == jobId
                 && (bracketTypes.Contains(s.T1Type) || bracketTypes.Contains(s.T2Type)), ct);
 
+        // Which agegroups actually have bracket games — drives the sandbox age-group seed
+        // tool (offered only per-agegroup with brackets). Same bracket-type set as above.
+        var bracketAgegroupIds = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.AgegroupId.HasValue
+                && (bracketTypes.Contains(s.T1Type) || bracketTypes.Contains(s.T2Type)))
+            .Select(s => s.AgegroupId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
         return new ScheduleFilterOptionsDto
         {
             Clubs = cadtTree,
@@ -745,7 +756,8 @@ public sealed class ScheduleRepository : IScheduleRepository
             GameDays = gameDays,
             Times = timeStrings,
             Fields = fields,
-            JobHasBrackets = jobHasBrackets
+            JobHasBrackets = jobHasBrackets,
+            BracketAgegroupIds = bracketAgegroupIds
         };
     }
 

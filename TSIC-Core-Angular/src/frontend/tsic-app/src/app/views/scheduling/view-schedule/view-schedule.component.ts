@@ -38,6 +38,7 @@ import { TeamResultsModalComponent } from './components/team-results-modal.compo
 import { EditGameModalComponent } from './components/edit-game-modal.component';
 import { GameClockModalComponent } from './components/game-clock-modal.component';
 import { InlineGameClockComponent } from './components/inline-game-clock.component';
+import { AgegroupSeedToolsComponent } from './components/agegroup-seed-tools.component';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
 
 type TabId = 'games' | 'standings' | 'brackets' | 'contacts';
@@ -71,6 +72,7 @@ interface FilterChip {
         EditGameModalComponent,
         GameClockModalComponent,
         InlineGameClockComponent,
+        AgegroupSeedToolsComponent,
         TsicDialogComponent
     ],
     schemas: [CUSTOM_ELEMENTS_SCHEMA],
@@ -228,6 +230,15 @@ interface FilterChip {
                 }
 
                 </div>
+
+                <!-- Sandbox-only: seed/test an age group's bracket pipeline. Shown only when
+                     the LADT filter resolves to exactly one age group that has bracket games. -->
+                @if (auth.isAdmin() && isSandbox && seedAgegroup(); as ag) {
+                    <app-agegroup-seed-tools
+                        [agegroupId]="ag.id"
+                        [agegroupName]="ag.name"
+                        (changed)="onSeedChanged()" />
+                }
 
                 <!-- Active-filters echo zone: shows every applied filter as a removable chip.
                      Followed teams render first (star-tinted), then non-team filter chips
@@ -1211,6 +1222,10 @@ export class ViewScheduleComponent implements OnInit {
     readonly capabilities = signal<ScheduleCapabilitiesDto | null>(null);
     readonly filterModalVisible = signal(false);
 
+    // Sandbox gate for the dev-only age-group seed tool (staging's `production` flag
+    // is true, so gate on the explicit env name — mirrors backend IsSandbox()).
+    readonly isSandbox = environment.envName !== 'production';
+
     // ── Unified CADT/LADT trees from /api/job-filter-tree ──
     readonly cadtTree = signal<CadtClubNode[]>([]);
     readonly ladtTree = signal<LadtAgegroupNode[]>([]);
@@ -1409,6 +1424,42 @@ export class ViewScheduleComponent implements OnInit {
         }
 
         return chips;
+    });
+
+    /**
+     * The single age group the LADT filter resolves to, IF it has bracket games —
+     * the target for the sandbox seed strip. Returns null unless exactly one age
+     * group is involved in the selection AND that age group has brackets.
+     *
+     * Mirrors the activeFilterChips pattern: `ladtCheckedIds` is a plain Set (not a
+     * signal), so we trigger recompute off the `ladtTeamIds()` signal and read the
+     * set inside. An age group is "involved" if its ag/div/team node is checked.
+     */
+    readonly seedAgegroup = computed<{ id: string; name: string } | null>(() => {
+        if (this.ladtTeamIds().length === 0) return null; // reactive trigger + fast exit
+        const bracketAgIds = this.filterOptions()?.bracketAgegroupIds;
+        if (!bracketAgIds?.length) return null;
+
+        const checked = this.ladtCheckedIds;
+        const involved: LadtAgegroupNode[] = [];
+        for (const ag of this.ladtTree()) {
+            let hit = checked.has(`ag:${ag.agegroupId}`);
+            for (const div of ag.divisions ?? []) {
+                if (checked.has(`div:${div.divId}`)) hit = true;
+                for (const team of div.teams ?? []) {
+                    if (checked.has(`team:${team.teamId}`)) hit = true;
+                }
+            }
+            if (hit) {
+                involved.push(ag);
+                if (involved.length > 1) return null; // more than one age group — no strip
+            }
+        }
+
+        if (involved.length !== 1) return null;
+        const ag = involved[0];
+        if (!bracketAgIds.includes(ag.agegroupId)) return null; // no brackets → no strip
+        return { id: ag.agegroupId, name: ag.agegroupName };
     });
 
     /** Total chip count across both groups — drives the bar's "N" pill and visibility. */
@@ -1834,6 +1885,15 @@ export class ViewScheduleComponent implements OnInit {
     // ══════════════════════════════════════════════════════════════════
     // Score Editing
     // ══════════════════════════════════════════════════════════════════
+
+    /** The sandbox seed strip mutated scores — reload the score-bearing tabs so the
+     *  seeded standings / resolved brackets are visible. */
+    onSeedChanged(): void {
+        this.loadedTabs.delete('games');
+        this.loadedTabs.delete('standings');
+        this.loadedTabs.delete('brackets');
+        this.loadTabData(this.activeTab());
+    }
 
     onQuickScore(event: { gid: number; t1Score: number; t2Score: number }): void {
         const request: EditScoreRequest = {

@@ -52,4 +52,21 @@ public interface IBracketDevToolsService
     /// </summary>
     Task<BracketDevActionResult> AutoScoreBracketRoundAsync(
         Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Agegroup-scope pool seed: give every unscored pool game across ALL divisions in
+    /// the agegroup a decisive score, via the real score path. This is the correct scope
+    /// for testing bracket seeding — championship games seed cross-pool from the agegroup's
+    /// divisions, so all their pools must complete before seeds resolve.
+    /// </summary>
+    Task<BracketDevActionResult> AutoScorePoolAgegroupAsync(
+        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Agegroup-scope bracket-round seed: give every currently-ready bracket game in the
+    /// agegroup (both participants seeded, no score) a decisive score, via the real score
+    /// path — advancing winners one round. Call again to advance further.
+    /// </summary>
+    Task<BracketDevActionResult> AutoScoreBracketRoundAgegroupAsync(
+        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default);
 }

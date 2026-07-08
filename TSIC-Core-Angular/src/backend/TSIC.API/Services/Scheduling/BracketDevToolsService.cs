@@ -170,6 +170,57 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         };
     }
 
+    public async Task<BracketDevActionResult> AutoScorePoolAgegroupAsync(
+        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
+    {
+        // Agegroup scope: pool games across EVERY division in the agegroup. This is the
+        // correct granularity for testing bracket seeding — championship games seed
+        // cross-pool from these divisions, so all their pools must complete first.
+        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
+        var targets = games
+            .Where(g => IsPoolGame(g)
+                     && g.T1Id != null && g.T2Id != null
+                     && (g.T1Score == null || g.T2Score == null))
+            .ToList();
+
+        var scored = await ScoreEachAsync(jobId, userId, targets, ct);
+        _logger.LogWarning(
+            "DEV bracket auto-score-pool (agegroup) — job {JobId} agegroup {AgegroupId}: {N} game(s) scored.",
+            jobId, agegroupId, scored);
+
+        return new BracketDevActionResult
+        {
+            GamesAffected = scored,
+            Message = scored == 0
+                ? "No unscored pool games in this age group."
+                : $"Auto-scored {scored} pool game(s) {WinScore}–{LoseScore}. Completed pools lock standings → bracket seeds resolve."
+        };
+    }
+
+    public async Task<BracketDevActionResult> AutoScoreBracketRoundAgegroupAsync(
+        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
+    {
+        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
+        var targets = games
+            .Where(g => IsBracketGame(g)
+                     && g.T1Id != null && g.T2Id != null
+                     && (g.T1Score == null || g.T2Score == null))
+            .ToList();
+
+        var scored = await ScoreEachAsync(jobId, userId, targets, ct);
+        _logger.LogWarning(
+            "DEV bracket auto-score-round (agegroup) — job {JobId} agegroup {AgegroupId}: {N} game(s) scored.",
+            jobId, agegroupId, scored);
+
+        return new BracketDevActionResult
+        {
+            GamesAffected = scored,
+            Message = scored == 0
+                ? "No bracket games are ready — seed the pools first (auto-score pool)."
+                : $"Auto-scored {scored} ready bracket game(s) {WinScore}–{LoseScore}. Winners advanced to the next round."
+        };
+    }
+
     // Route each score through the real path so R1/R2/R3 fire exactly as in prod.
     private async Task<int> ScoreEachAsync(
         Guid jobId, string userId, List<Schedule> targets, CancellationToken ct)

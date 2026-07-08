@@ -12,6 +12,7 @@ export type ScheduleFilterOptionsDto = {
     times: Array<string>;
     fields: Array<FieldSummaryDto>;
     jobHasBrackets?: boolean;
+    bracketAgegroupIds: Array<string>;
     jobHasLinks?: boolean;
 };
 

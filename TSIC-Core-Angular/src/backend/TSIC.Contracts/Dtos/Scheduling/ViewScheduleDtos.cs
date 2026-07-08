@@ -69,6 +69,11 @@ public record ScheduleFilterOptionsDto
     public required List<string> Times { get; init; }
     public required List<FieldSummaryDto> Fields { get; init; }
     public bool JobHasBrackets { get; init; }
+    /// <summary>
+    /// Agegroup IDs that contain at least one bracket game. Drives the sandbox
+    /// age-group seed tool in View Schedule — offered only for agegroups with brackets.
+    /// </summary>
+    public required List<Guid> BracketAgegroupIds { get; init; }
     public bool JobHasLinks { get; init; }
 }
 
