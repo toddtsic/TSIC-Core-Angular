@@ -587,7 +587,7 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
             next: (lb) => this.repriceDialog.set({
               isPhase: true,
               message: 'Convert existing registrations to the new payment phase. Choose how widely to apply it:',
-              leagueScope: { thisCount, allCount: lb.playerCount + lb.teamCount }
+              leagueScope: { thisCount, allCount: lb.playerCount + lb.teamCount, unit: this.isTournament() ? 'teams' : 'players' }
             }),
             // League count probe failed → single-age-group confirm (no fan-out option).
             error: () => this.repriceDialog.set({

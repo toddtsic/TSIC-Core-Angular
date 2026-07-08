@@ -29,14 +29,14 @@
             [ngModel]="year()"
             (ngModelChange)="year.set($event); onFieldChange()" />
         </div>
+      </div>
+      <div class="row g-2 mt-1">
         <div class="col-md-2">
           <label class="field-label">User Expiry</label>
           <input type="date" class="field-input"
             [ngModel]="expiryUsers()"
             (ngModelChange)="expiryUsers.set($event); onFieldChange()" />
         </div>
-      </div>
-      <div class="row g-2 mt-1">
         <div class="col-md-3">
           <label class="field-label">Job ID</label>
           <input type="text" class="field-input" [value]="g.jobId" disabled />
@@ -45,7 +45,7 @@
           <label class="field-label">Job Path</label>
           <input type="text" class="field-input" [value]="g.jobPath" disabled />
         </div>
-        <div class="col-md-6">
+        <div class="col-md-4">
           <label class="field-label">Description</label>
           <input type="text" class="field-input"
             [ngModel]="jobDescription()"

@@ -8,7 +8,7 @@ export interface RepriceDialog {
    * Present only for an age-group PHASE flip that can fan out across its league: offers a
    * "this age group vs all age groups in the league" scope choice with each side's count.
    */
-  leagueScope?: { thisCount: number; allCount: number } | null;
+  leagueScope?: { thisCount: number; allCount: number; unit: string } | null;
 }
 
 /**
@@ -33,17 +33,18 @@ export interface RepriceDialog {
       </div>
       @if (dialog().isPhase && dialog().leagueScope; as scope) {
         <div class="reprice-scope" role="radiogroup" aria-label="Apply payment phase to">
+          <span class="reprice-scope-legend" aria-hidden="true">{{ scope.unit }}</span>
           <label class="reprice-scope-opt" [class.selected]="selectedScope() === 'all'">
             <input type="radio" name="repriceScope" [checked]="selectedScope() === 'all'"
                    (change)="selectedScope.set('all')">
             <span class="reprice-scope-text">Apply to all age groups in this league</span>
-            <span class="reprice-scope-count">{{ scope.allCount }}</span>
+            <span class="reprice-scope-count" [attr.aria-label]="scope.allCount + ' ' + scope.unit">{{ scope.allCount }}</span>
           </label>
           <label class="reprice-scope-opt" [class.selected]="selectedScope() === 'this'">
             <input type="radio" name="repriceScope" [checked]="selectedScope() === 'this'"
                    (change)="selectedScope.set('this')">
             <span class="reprice-scope-text">Just this age group</span>
-            <span class="reprice-scope-count">{{ scope.thisCount }}</span>
+            <span class="reprice-scope-count" [attr.aria-label]="scope.thisCount + ' ' + scope.unit">{{ scope.thisCount }}</span>
           </label>
         </div>
       }
@@ -94,6 +95,17 @@ export interface RepriceDialog {
       display: flex;
       flex-direction: column;
       gap: var(--space-1);
+    }
+    /* Small caption clarifying that each option's right-hand number is a count of
+       existing registrations (players + teams) the conversion will touch. */
+    .reprice-scope-legend {
+      align-self: flex-end;
+      padding-right: var(--space-3);
+      font-size: var(--font-size-2xs);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
     }
     .reprice-scope-opt {
       display: flex;
