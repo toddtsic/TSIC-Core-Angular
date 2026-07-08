@@ -112,6 +112,60 @@ export class TeamDetailPanelComponent {
 		this.showDiscardConfirm.set(false);
 	}
 
+	// ── Panel resize ──
+	// The panel is anchored to the right, so dragging the left edge LEFT widens it. Width
+	// persists per-browser so wide accounting/club content stays as wide as the user set it.
+	// Pointer capture routes move/up back to the handle — no document listeners, no effect().
+	private static readonly WIDTH_KEY = 'teamDetailPanelWidth';
+	private static readonly DEFAULT_WIDTH = 560;
+	private static readonly MIN_WIDTH = 480;
+	private static readonly MAX_WIDTH = 1100;
+
+	panelWidth = signal<number>(this.readStoredWidth());
+	isResizing = signal<boolean>(false);
+	private resizeStartX = 0;
+	private resizeStartWidth = 0;
+
+	private readStoredWidth(): number {
+		try {
+			const raw = Number(localStorage.getItem(TeamDetailPanelComponent.WIDTH_KEY));
+			if (raw && !Number.isNaN(raw)) return this.clampWidth(raw);
+		} catch { /* localStorage unavailable — fall through to default */ }
+		return TeamDetailPanelComponent.DEFAULT_WIDTH;
+	}
+
+	private clampWidth(w: number): number {
+		const max = Math.min(TeamDetailPanelComponent.MAX_WIDTH, Math.round(window.innerWidth * 0.9));
+		return Math.max(TeamDetailPanelComponent.MIN_WIDTH, Math.min(max, w));
+	}
+
+	startResize(ev: PointerEvent): void {
+		ev.preventDefault();
+		this.resizeStartX = ev.clientX;
+		this.resizeStartWidth = this.panelWidth();
+		this.isResizing.set(true);
+		(ev.target as HTMLElement).setPointerCapture?.(ev.pointerId);
+	}
+
+	onResizeMove(ev: PointerEvent): void {
+		if (!this.isResizing()) return;
+		// Right-anchored: as the pointer moves left (clientX shrinks), the panel grows.
+		const delta = this.resizeStartX - ev.clientX;
+		this.panelWidth.set(this.clampWidth(this.resizeStartWidth + delta));
+	}
+
+	endResize(ev: PointerEvent): void {
+		if (!this.isResizing()) return;
+		this.isResizing.set(false);
+		(ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
+		try { localStorage.setItem(TeamDetailPanelComponent.WIDTH_KEY, String(this.panelWidth())); } catch { /* ignore */ }
+	}
+
+	resetWidth(): void {
+		this.panelWidth.set(TeamDetailPanelComponent.DEFAULT_WIDTH);
+		try { localStorage.removeItem(TeamDetailPanelComponent.WIDTH_KEY); } catch { /* ignore */ }
+	}
+
 	/** Format phone for display */
 	formatPhone(value: string | null | undefined): string | null {
 		return formatPhone(value);
