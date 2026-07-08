@@ -11,6 +11,7 @@ import { HelpService } from '@infrastructure/services/help.service';
 import { HelpContextService } from '@infrastructure/services/help-context.service';
 import { HelpManifestService } from '@infrastructure/services/help-manifest.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { HelpEditorComponent } from './help-editor.component';
 
 interface HelpTab {
@@ -33,7 +34,7 @@ interface HelpTab {
 @Component({
   selector: 'app-help-launcher',
   standalone: true,
-  imports: [HelpEditorComponent],
+  imports: [HelpEditorComponent, ResizablePanelDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './help-launcher.component.html',
   styleUrl: './help-launcher.component.scss',

@@ -322,7 +322,7 @@
 @if (isDetailOpen()) {
   <div class="detail-backdrop" (click)="closeDetail()"></div>
 }
-<div class="detail-flyin" [class.open]="isDetailOpen()">
+<div class="detail-flyin" [class.open]="isDetailOpen()" appResizablePanel storageKey="ladtPanelWidth" panelSide="right">
   @if (detailNode(); as node) {
     <div class="flyin-header">
       @if (flyinSiblings().length > 1) {

@@ -13,6 +13,7 @@ import { CloneTeamDialogComponent } from './components/clone-team-dialog.compone
 import { CloneAgegroupDialogComponent } from './components/clone-agegroup-dialog.component';
 import { ConfirmDialogComponent } from '../../../shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { TsicDialogComponent } from '../../../shared-ui/components/tsic-dialog/tsic-dialog.component';
+import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { FormsModule } from '@angular/forms';
 import {
   COLUMNS_BY_LEVEL, ID_FIELD_BY_LEVEL,
@@ -56,7 +57,8 @@ export interface LadtFlatNode {
     CloneTeamDialogComponent,
     CloneAgegroupDialogComponent,
     ConfirmDialogComponent,
-    TsicDialogComponent
+    TsicDialogComponent,
+    ResizablePanelDirective
   ],
   templateUrl: './ladt.component.html',
   styleUrl: './ladt.component.scss',

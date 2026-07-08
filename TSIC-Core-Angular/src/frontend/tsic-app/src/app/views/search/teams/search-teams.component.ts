@@ -9,6 +9,7 @@ import { TeamDetailPanelComponent } from './components/team-detail-panel.compone
 import { LadtTreeFilterComponent } from '../registrations/components/ladt-tree-filter.component';
 import { CadtTreeFilterComponent } from '@shared/components/cadt-tree-filter/cadt-tree-filter.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { LocalStorageService } from '@infrastructure/services/local-storage.service';
 
@@ -41,7 +42,8 @@ interface FilterChip {
 		TeamDetailPanelComponent,
 		LadtTreeFilterComponent,
 		CadtTreeFilterComponent,
-		ConfirmDialogComponent
+		ConfirmDialogComponent,
+		ResizablePanelDirective
 	],
 	schemas: [CUSTOM_ELEMENTS_SCHEMA],
 	providers: [CheckBoxSelectionService],

@@ -55,6 +55,51 @@
   }
 }
 
+// ── Resizable panels (appResizablePanel directive) ─────────────────────────
+// The directive injects a `.resize-handle` element on the panel's inner edge and
+// applies width inline. Styles live here (global) because the injected handle
+// carries no component view-encapsulation attribute. Side modifier decides which
+// edge: right-anchored panels get the handle on the left, left-anchored on the
+// right. `.resizing` (toggled during a drag) suppresses text selection.
+.resize-handle {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 2;
+  touch-action: none;
+  background: transparent;
+  transition: background-color 0.15s ease;
+
+  &:hover,
+  .resizing > & {
+    background: var(--bs-primary);
+    opacity: 0.35;
+  }
+}
+
+.resize-handle--left { left: 0; }   // right-anchored panel: handle on inner (left) edge
+.resize-handle--right { right: 0; } // left-anchored panel:  handle on inner (right) edge
+
+.resizing {
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resize-handle {
+    transition: none;
+  }
+}
+
+// Once the directive sets width inline on every panel, the inline value would
+// beat any plain mobile media rule. Force full-bleed on mobile regardless.
+@media (max-width: 767.98px) {
+  [appResizablePanel] {
+    width: 100vw !important;
+  }
+}
+
 .detail-panel .panel-header {
   padding: var(--space-5);
   border-bottom: 1px solid var(--bs-border-color);

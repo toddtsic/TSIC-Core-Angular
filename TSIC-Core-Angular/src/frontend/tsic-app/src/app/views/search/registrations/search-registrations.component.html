@@ -52,7 +52,7 @@
     @if (isFiltersPanelOpen()) {
       <div class="filters-backdrop" (click)="requestCloseFilters()"></div>
     }
-    <aside class="filters-panel" [class.open]="isFiltersPanelOpen()">
+    <aside class="filters-panel" [class.open]="isFiltersPanelOpen()" appResizablePanel storageKey="regFiltersWidth" panelSide="left" [defaultWidth]="520">
       <!-- Drawer Header — title + subtext on the left; Reset/Search ride flush-right,
            just ahead of the close X (mirrors the sticky footer's Reset/Search so they're
            reachable without scrolling the long filter body). One row, no separate strip. -->

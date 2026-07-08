@@ -20,36 +20,9 @@
   &.open {
     transform: translateX(0);
   }
-
-  // While dragging, kill text selection so the drag feels solid.
-  &.resizing {
-    user-select: none;
-  }
 }
-
-// Left-edge drag handle — panel is right-anchored, so dragging left widens it.
-.resize-handle {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 6px;
-  height: 100%;
-  cursor: col-resize;
-  z-index: 2;
-  touch-action: none;
-  background: transparent;
-  transition: background-color 0.15s ease;
-
-  &:hover,
-  .detail-panel.resizing & {
-    background: var(--bs-primary);
-    opacity: 0.35;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .resize-handle { transition: none; }
-}
+// Resize handle + `.resizing` styling are global — see styles/_flyin.scss
+// (the appResizablePanel directive injects an unencapsulated handle element).
 
 .detail-backdrop {
   position: fixed;

@@ -11,6 +11,7 @@ import { AccountingLedgerComponent, CcChargeEvent, CheckOrCorrectionEvent, Refun
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 import { FamilyPaymentComponent } from '@shared-ui/components/family-payment/family-payment.component';
+import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { environment } from '@environments/environment';
 
 type TabType = 'details' | 'accounting' | 'email';
@@ -75,7 +76,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
 @Component({
   selector: 'app-registration-detail-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent],
+  imports: [CommonModule, FormsModule, AccountingLedgerComponent, ConfirmDialogComponent, ClubRepPaymentComponent, FamilyPaymentComponent, ResizablePanelDirective],
   templateUrl: './registration-detail-panel.component.html',
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -327,61 +328,6 @@ export class RegistrationDetailPanelComponent {
     if (tab === 'accounting' && this.isProdEnv && this.detail()?.hasSubscription && !this.subscriptionIsLive()) {
       this.loadSubscription();
     }
-  }
-
-  // ── Panel resize ──
-  // The panel is anchored to the right, so dragging the left edge LEFT widens it. Width
-  // persists per-browser so the accounting tables (which overflow horizontally) stay as wide
-  // as the user set them. Pointer capture routes move/up back to the handle — no document
-  // listeners, no effect().
-  private static readonly WIDTH_KEY = 'regDetailPanelWidth';
-  private static readonly DEFAULT_WIDTH = 560;
-  private static readonly MIN_WIDTH = 480;
-  private static readonly MAX_WIDTH = 1100;
-
-  panelWidth = signal<number>(this.readStoredWidth());
-  isResizing = signal<boolean>(false);
-  private resizeStartX = 0;
-  private resizeStartWidth = 0;
-
-  private readStoredWidth(): number {
-    try {
-      const raw = Number(localStorage.getItem(RegistrationDetailPanelComponent.WIDTH_KEY));
-      if (raw && !Number.isNaN(raw)) return this.clampWidth(raw);
-    } catch { /* localStorage unavailable — fall through to default */ }
-    return RegistrationDetailPanelComponent.DEFAULT_WIDTH;
-  }
-
-  private clampWidth(w: number): number {
-    const max = Math.min(RegistrationDetailPanelComponent.MAX_WIDTH, Math.round(window.innerWidth * 0.9));
-    return Math.max(RegistrationDetailPanelComponent.MIN_WIDTH, Math.min(max, w));
-  }
-
-  startResize(ev: PointerEvent): void {
-    ev.preventDefault();
-    this.resizeStartX = ev.clientX;
-    this.resizeStartWidth = this.panelWidth();
-    this.isResizing.set(true);
-    (ev.target as HTMLElement).setPointerCapture?.(ev.pointerId);
-  }
-
-  onResizeMove(ev: PointerEvent): void {
-    if (!this.isResizing()) return;
-    // Right-anchored: as the pointer moves left (clientX shrinks), the panel grows.
-    const delta = this.resizeStartX - ev.clientX;
-    this.panelWidth.set(this.clampWidth(this.resizeStartWidth + delta));
-  }
-
-  endResize(ev: PointerEvent): void {
-    if (!this.isResizing()) return;
-    this.isResizing.set(false);
-    (ev.target as HTMLElement).releasePointerCapture?.(ev.pointerId);
-    try { localStorage.setItem(RegistrationDetailPanelComponent.WIDTH_KEY, String(this.panelWidth())); } catch { /* ignore */ }
-  }
-
-  resetWidth(): void {
-    this.panelWidth.set(RegistrationDetailPanelComponent.DEFAULT_WIDTH);
-    try { localStorage.removeItem(RegistrationDetailPanelComponent.WIDTH_KEY); } catch { /* ignore */ }
   }
 
   // ── Template helpers ──

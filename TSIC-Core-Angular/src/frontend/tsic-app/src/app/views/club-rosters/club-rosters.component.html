@@ -100,7 +100,7 @@
 @if (moveTarget()) {
     <div class="detail-backdrop" (click)="cancelMove()"></div>
 }
-<div class="detail-panel" [class.open]="!!moveTarget()">
+<div class="detail-panel" [class.open]="!!moveTarget()" appResizablePanel storageKey="clubRostersPanelWidth" panelSide="right" [defaultWidth]="400" [minWidth]="320">
     @if (moveTarget(); as player) {
         <div class="panel-header">
             <div class="panel-header__top">

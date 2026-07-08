@@ -4,6 +4,7 @@ import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { ClubRosterService } from './club-rosters.service';
 import { TeamDropdownComponent } from './team-dropdown.component';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 import { ToastService } from '@shared-ui/toast.service';
 import type { ClubRosterTeamDto } from '@core/api/models/ClubRosterTeamDto';
 import type { ClubRosterPlayerDto } from '@core/api/models/ClubRosterPlayerDto';
@@ -11,7 +12,7 @@ import type { ClubRosterPlayerDto } from '@core/api/models/ClubRosterPlayerDto';
 @Component({
     selector: 'app-club-rosters',
     standalone: true,
-    imports: [FormsModule, GridAllModule, TeamDropdownComponent, ConfirmDialogComponent],
+    imports: [FormsModule, GridAllModule, TeamDropdownComponent, ConfirmDialogComponent, ResizablePanelDirective],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './club-rosters.component.html',
     styleUrl: './club-rosters.component.scss'

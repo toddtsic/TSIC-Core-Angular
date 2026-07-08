@@ -2,13 +2,7 @@
   <div class="detail-backdrop" (click)="close()"></div>
 }
 
-<div class="detail-panel" [class.open]="isOpen()" [class.resizing]="isResizing()" [style.width.px]="panelWidth()">
-  <div class="resize-handle" role="separator" aria-orientation="vertical" aria-label="Resize panel"
-       title="Drag to resize · double-click to reset"
-       (pointerdown)="startResize($event)"
-       (pointermove)="onResizeMove($event)"
-       (pointerup)="endResize($event)"
-       (dblclick)="resetWidth()"></div>
+<div class="detail-panel" [class.open]="isOpen()" appResizablePanel storageKey="teamDetailPanelWidth" panelSide="right">
   @if (detail(); as team) {
     <div class="panel-header">
       <div class="header-top-row">

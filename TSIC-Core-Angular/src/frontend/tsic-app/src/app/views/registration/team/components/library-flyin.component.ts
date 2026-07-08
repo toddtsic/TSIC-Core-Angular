@@ -5,6 +5,7 @@ import { normalizeLop } from '@shared/teams/lop-choices';
 import { LevelOfPlayPickerComponent } from './level-of-play-picker.component';
 import { EventAgeGroupPickerComponent } from './event-age-group-picker.component';
 import { resolveRecommendedAgeGroupId } from './event-age-group.util';
+import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 
 export interface RegisteredInfo {
     ageGroupName: string;
@@ -47,7 +48,7 @@ interface LibraryGroup {
 @Component({
     selector: 'app-library-flyin',
     standalone: true,
-    imports: [LevelOfPlayPickerComponent, EventAgeGroupPickerComponent],
+    imports: [LevelOfPlayPickerComponent, EventAgeGroupPickerComponent, ResizablePanelDirective],
     template: `
     <!-- Portaled to document.body in ngAfterViewInit so the panel + backdrop
          escape <main>'s z-index:0 stacking context (which would otherwise
@@ -56,7 +57,7 @@ interface LibraryGroup {
     @if (isOpen()) {
       <div class="library-backdrop" (click)="onClose()"></div>
     }
-    <aside class="library-panel" [class.open]="isOpen()" role="dialog" aria-modal="true" aria-labelledby="library-flyin-title">
+    <aside class="library-panel" [class.open]="isOpen()" appResizablePanel storageKey="libraryPanelWidth" panelSide="right" role="dialog" aria-modal="true" aria-labelledby="library-flyin-title">
 
       <!-- ── Header ─────────────────────────────────────────────────── -->
       <!-- Mirrors search/registrations registration-detail-panel header:
