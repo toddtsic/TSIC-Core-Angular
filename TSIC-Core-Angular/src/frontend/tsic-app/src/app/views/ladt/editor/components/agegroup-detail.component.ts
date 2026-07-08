@@ -133,13 +133,15 @@ const JOB_TYPE_TOURNAMENT = 2;
         </div>
 
         @if (isTournament()) {
-          <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-            [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
-            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
+          @if (showClubRepFees()) {
+            <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
+              namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
+              [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+              [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
+              [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
+              [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
+              hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
+          }
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
@@ -155,13 +157,15 @@ const JOB_TYPE_TOURNAMENT = 2;
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
             hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
-          <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
-            namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
-            [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
-            [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
-            [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
-            [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
+          @if (showClubRepFees()) {
+            <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
+              namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
+              [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; onFeeAmountStart(); clearFeeError()"
+              [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
+              [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
+              [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
+              hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
+          }
         }
 
         <!-- ── Save (sticky footer) ── -->
@@ -307,6 +311,17 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
   private readonly dirtyProbe = () => this.isDirty();
 
   readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
+
+  /** True when this age group already has a saved Club Rep / Team fee with any
+   *  meaningful value — keeps a pre-configured fee visible even if team registration
+   *  is currently toggled off, so its money config can never silently disappear. */
+  private readonly hasExistingClubRepFee = signal(false);
+
+  /** Club Rep / Team fees are only chargeable when the job accepts team (club-rep)
+   *  registration. Gate on the same flag the Teams config toggles; keep the card
+   *  visible if a fee was already configured. */
+  readonly showClubRepFees = computed(() =>
+    this.jobService.isTeamRegistrationOpen() || this.hasExistingClubRepFee());
 
   agegroup = signal<AgegroupDetailDto | null>(null);
   isLoading = signal(false);
@@ -454,6 +469,15 @@ export class AgegroupDetailComponent implements OnChanges, OnInit, OnDestroy {
 
     this.playerModifiers = (playerFee?.modifiers ?? []).map(m => this.toModifierForm(m));
     this.clubRepModifiers = (clubRepFee?.modifiers ?? []).map(m => this.toModifierForm(m));
+
+    this.hasExistingClubRepFee.set(
+      clubRepFee != null && (
+        clubRepFee.deposit != null ||
+        clubRepFee.balanceDue != null ||
+        clubRepFee.bFullPaymentRequired != null ||
+        (clubRepFee.modifiers?.length ?? 0) > 0
+      )
+    );
 
     this.captureOriginals();
   }
