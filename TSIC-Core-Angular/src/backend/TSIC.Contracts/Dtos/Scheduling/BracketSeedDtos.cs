@@ -1,5 +1,16 @@
 namespace TSIC.Contracts.Dtos.Scheduling;
 
+/// <summary>
+/// The bracket-seeds board: the games plus whether this job reseeds across agegroups
+/// (Jobs.bReseedTournament). In reseed mode the client offers job-wide pools + a pool-sized
+/// rank list; otherwise the same-agegroup picker with a static rank list.
+/// </summary>
+public record BracketSeedBoardDto
+{
+    public required bool IsReseed { get; init; }
+    public required List<BracketSeedGameDto> Games { get; init; }
+}
+
 public record BracketSeedGameDto
 {
     public required int Gid { get; init; }
@@ -30,6 +41,12 @@ public record BracketSeedDivisionOptionDto
 {
     public required Guid DivId { get; init; }
     public required string DivName { get; init; }
+
+    /// <summary>
+    /// Owning agegroup name — populated only in reseed mode, where the pool list spans
+    /// agegroups and the label reads "{AgegroupName}: {DivName}". Null for the same-agegroup picker.
+    /// </summary>
+    public string? AgegroupName { get; init; }
 }
 
 /// <summary>

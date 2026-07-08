@@ -27,9 +27,9 @@ public class BracketSeedController : ControllerBase
         _jobLookupService = jobLookupService;
     }
 
-    /// <summary>GET /api/bracket-seeds — All bracket games with seed data.</summary>
+    /// <summary>GET /api/bracket-seeds — All bracket games with seed data + reseed flag.</summary>
     [HttpGet]
-    public async Task<ActionResult<List<BracketSeedGameDto>>> GetBracketGames(
+    public async Task<ActionResult<BracketSeedBoardDto>> GetBracketGames(
         CancellationToken ct)
     {
         var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
@@ -52,12 +52,24 @@ public class BracketSeedController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>GET /api/bracket-seeds/divisions/{gid} — Available divisions for seed dropdown.</summary>
+    /// <summary>GET /api/bracket-seeds/divisions/{gid} — Available seed-source divisions for the dropdown.</summary>
     [HttpGet("divisions/{gid:int}")]
     public async Task<ActionResult<List<BracketSeedDivisionOptionDto>>> GetDivisionsForGame(
         int gid, CancellationToken ct)
     {
-        var result = await _service.GetDivisionsForGameAsync(gid, ct);
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Job context required" });
+
+        var result = await _service.GetDivisionsForGameAsync(gid, jobId.Value, ct);
+        return Ok(result);
+    }
+
+    /// <summary>GET /api/bracket-seeds/rank-ceiling/{divId} — Valid seed-rank ceiling for a pool (reseed mode).</summary>
+    [HttpGet("rank-ceiling/{divId:guid}")]
+    public async Task<ActionResult<int>> GetRankCeiling(Guid divId, CancellationToken ct)
+    {
+        var result = await _service.GetRankCeilingAsync(divId, ct);
         return Ok(result);
     }
 }

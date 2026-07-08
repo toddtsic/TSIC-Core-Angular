@@ -235,6 +235,25 @@ public class BracketRepository : IBracketRepository
             .AsNoTracking()
             .CountAsync(t => t.DivId == divId && t.Active == true, ct);
 
+    public async Task<Teams?> GetTeamTrackedAsync(Guid teamId, CancellationToken ct = default) =>
+        await _context.Teams.FirstOrDefaultAsync(t => t.TeamId == teamId, ct);
+
+    public async Task<Dictionary<Guid, TeamSeedIdentity>> GetTeamIdentitiesAsync(
+        IReadOnlyCollection<Guid> teamIds, CancellationToken ct = default)
+    {
+        if (teamIds.Count == 0) return [];
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => teamIds.Contains(t.TeamId))
+            .Select(t => new TeamSeedIdentity
+            {
+                TeamId = t.TeamId,
+                TeamName = t.TeamName,
+                ClubrepRegistrationid = t.ClubrepRegistrationid
+            })
+            .ToDictionaryAsync(x => x.TeamId, ct);
+    }
+
     public async Task SaveChangesAsync(CancellationToken ct = default) =>
         await _context.SaveChangesAsync(ct);
 }

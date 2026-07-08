@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, OnInit } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, OnInit, WritableSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { BracketSeedService } from './services/bracket-seed.service';
@@ -24,6 +24,7 @@ export class BracketSeedsComponent implements OnInit {
 
 	// Bracket games
 	bracketGames = signal<BracketSeedGameDto[]>([]);
+	isReseed = signal(false);
 	isLoading = signal(true);
 	errorMessage = signal('');
 
@@ -42,7 +43,10 @@ export class BracketSeedsComponent implements OnInit {
 	isLoadingStandings = signal(false);
 	showStandings = signal(true);
 
-	rankOptions = Array.from({ length: 12 }, (_, i) => i + 1);
+	// Normal mode: fixed 1–12. Reseed mode: bounded per-side by the chosen pool's size.
+	private readonly defaultRanks = Array.from({ length: 12 }, (_, i) => i + 1);
+	t1RankOptions = signal<number[]>(this.defaultRanks);
+	t2RankOptions = signal<number[]>(this.defaultRanks);
 
 	ngOnInit(): void {
 		this.loadBracketGames();
@@ -53,8 +57,9 @@ export class BracketSeedsComponent implements OnInit {
 		this.isLoading.set(true);
 		this.errorMessage.set('');
 		this.svc.getBracketGames().subscribe({
-			next: (games) => {
-				this.bracketGames.set(games);
+			next: (board) => {
+				this.bracketGames.set(board.games);
+				this.isReseed.set(board.isReseed);
 				this.isLoading.set(false);
 			},
 			error: (err) => {
@@ -81,15 +86,58 @@ export class BracketSeedsComponent implements OnInit {
 		this.editT1Rank.set(game.t1SeedRank ?? null);
 		this.editT2DivId.set(game.t2SeedDivId ?? '');
 		this.editT2Rank.set(game.t2SeedRank ?? null);
+		this.t1RankOptions.set(this.defaultRanks);
+		this.t2RankOptions.set(this.defaultRanks);
 
 		this.isLoadingDivisions.set(true);
 		this.svc.getDivisionsForGame(game.gid).subscribe({
 			next: (divs) => {
 				this.divisionOptions.set(divs);
 				this.isLoadingDivisions.set(false);
+				// Reseed mode: bound each side's rank list to any pre-selected pool's size.
+				if (this.isReseed()) {
+					if (game.t1SeedDivId) this.refreshRankCeiling(game.t1SeedDivId, this.t1RankOptions);
+					if (game.t2SeedDivId) this.refreshRankCeiling(game.t2SeedDivId, this.t2RankOptions);
+				}
 			},
 			error: () => this.isLoadingDivisions.set(false),
 		});
+	}
+
+	onT1DivChange(divId: string): void {
+		this.editT1DivId.set(divId);
+		if (this.isReseed()) {
+			this.editT1Rank.set(null);
+			this.refreshRankCeiling(divId, this.t1RankOptions);
+		}
+	}
+
+	onT2DivChange(divId: string): void {
+		this.editT2DivId.set(divId);
+		if (this.isReseed()) {
+			this.editT2Rank.set(null);
+			this.refreshRankCeiling(divId, this.t2RankOptions);
+		}
+	}
+
+	/** Reseed mode: a pool's seed rank can't exceed its team count. */
+	private refreshRankCeiling(divId: string, target: WritableSignal<number[]>): void {
+		if (!divId) {
+			target.set(this.defaultRanks);
+			return;
+		}
+		this.svc.getRankCeiling(divId).subscribe({
+			next: (ceiling) =>
+				target.set(Array.from({ length: Math.max(ceiling, 1) }, (_, i) => i + 1)),
+			error: () => target.set(this.defaultRanks),
+		});
+	}
+
+	/** In reseed mode pools span agegroups, so label with the source agegroup. */
+	poolLabel(div: BracketSeedDivisionOptionDto): string {
+		return this.isReseed() && div.agegroupName
+			? `${div.agegroupName}: ${div.divName}`
+			: div.divName;
 	}
 
 	cancelEdit(): void {

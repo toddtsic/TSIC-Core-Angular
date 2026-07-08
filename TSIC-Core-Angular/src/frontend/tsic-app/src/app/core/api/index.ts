@@ -119,6 +119,7 @@ export type { BracketDevActionResult } from './models/BracketDevActionResult';
 export type { BracketMatchDto } from './models/BracketMatchDto';
 export type { BracketQaFinding } from './models/BracketQaFinding';
 export type { BracketQaResult } from './models/BracketQaResult';
+export type { BracketSeedBoardDto } from './models/BracketSeedBoardDto';
 export type { BracketSeedDivisionOptionDto } from './models/BracketSeedDivisionOptionDto';
 export type { BracketSeedGameDto } from './models/BracketSeedGameDto';
 export type { BracketStrategyDto } from './models/BracketStrategyDto';

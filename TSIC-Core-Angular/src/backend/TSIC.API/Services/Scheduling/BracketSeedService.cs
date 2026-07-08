@@ -36,7 +36,7 @@ public class BracketSeedService : IBracketSeedService
         _jobRepo = jobRepo;
     }
 
-    public async Task<List<BracketSeedGameDto>> GetBracketGamesAsync(
+    public async Task<BracketSeedBoardDto> GetBracketGamesAsync(
         Guid jobId, string userId, CancellationToken ct = default)
     {
         // 1. Get all non-RR (bracket) games with current seed data
@@ -120,11 +120,14 @@ public class BracketSeedService : IBracketSeedService
         var result = await _repo.GetBracketGamesAsync(jobId, ct);
 
         // 7. Sort: AgegroupName → bracket type hierarchy descending → T1No
-        return result
+        var games = result
             .OrderBy(g => g.AgegroupName)
             .ThenByDescending(g => BracketTypeOrder.GetValueOrDefault(g.T1Type, 7))
             .ThenBy(g => g.T1No)
             .ToList();
+
+        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
+        return new BracketSeedBoardDto { IsReseed = isReseed, Games = games };
     }
 
     public async Task<BracketSeedGameDto> UpdateSeedAsync(
@@ -169,9 +172,19 @@ public class BracketSeedService : IBracketSeedService
     }
 
     public async Task<List<BracketSeedDivisionOptionDto>> GetDivisionsForGameAsync(
-        int gid, CancellationToken ct = default)
+        int gid, Guid jobId, CancellationToken ct = default)
     {
-        return await _repo.GetDivisionsForGameAsync(gid, ct);
+        // Reseed jobs draw seeds from any round-robin pool across agegroups; normal jobs
+        // stay scoped to the bracket game's own agegroup.
+        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
+        return isReseed
+            ? await _repo.GetSeedSourceDivisionsForJobAsync(jobId, ct)
+            : await _repo.GetDivisionsForGameAsync(gid, ct);
+    }
+
+    public async Task<int> GetRankCeilingAsync(Guid divId, CancellationToken ct = default)
+    {
+        return await _repo.GetActiveTeamCountByDivAsync(divId, ct);
     }
 
     // ── Private: Pre-fill bracket seeds from source/prior year job ──

@@ -16,7 +16,8 @@ public static class SchedulingTestFactory
         new(new BracketRepository(ctx), scheduleRepo, NullLogger<BracketAdvancementService>.Instance);
 
     public static BracketSeedResolutionService SeedResolution(SqlDbContext ctx, ScheduleRepository scheduleRepo) =>
-        new(new BracketRepository(ctx), scheduleRepo, NullLogger<BracketSeedResolutionService>.Instance);
+        new(new BracketRepository(ctx), scheduleRepo, new JobRepository(ctx),
+            NullLogger<BracketSeedResolutionService>.Instance);
 
     public static ViewScheduleService ViewSchedule(
         SqlDbContext ctx, ScheduleRepository scheduleRepo, TeamRepository teamRepo) =>

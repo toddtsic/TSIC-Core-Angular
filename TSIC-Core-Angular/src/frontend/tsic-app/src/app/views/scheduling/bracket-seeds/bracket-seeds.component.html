@@ -1,10 +1,17 @@
 <div class="bs-page">
 	<div class="page-header">
 		<div>
-			<h2 class="page-title">Bracket Seeds</h2>
+		<h2 class="page-title">Bracket Seeds</h2>
 			<p class="page-subtitle">Assign division-ranked teams to bracket/playoff game slots</p>
 		</div>
 	</div>
+
+	@if (isReseed()) {
+		<div class="alert alert-info d-flex align-items-center gap-2 mb-3">
+			<i class="bi bi-shuffle"></i>
+			<span>Re-seed mode: seed pools may be drawn from any round-robin agegroup across the job.</span>
+		</div>
+	}
 
 	@if (errorMessage()) {
 		<div class="alert alert-danger d-flex align-items-center gap-2 mb-3">
@@ -130,10 +137,10 @@
 									<div class="col-8">
 										<select class="form-select form-select-sm"
 											[ngModel]="editT1DivId()"
-											(ngModelChange)="editT1DivId.set($event)">
-											<option value="">— No Division —</option>
+											(ngModelChange)="onT1DivChange($event)">
+											<option value="">— No {{ isReseed() ? 'Pool' : 'Division' }} —</option>
 											@for (div of divisionOptions(); track div.divId) {
-												<option [value]="div.divId">{{ div.divName }}</option>
+												<option [value]="div.divId">{{ poolLabel(div) }}</option>
 											}
 										</select>
 									</div>
@@ -142,7 +149,7 @@
 											[ngModel]="editT1Rank()"
 											(ngModelChange)="editT1Rank.set($event ? +$event : null)">
 											<option [ngValue]="null">Rank</option>
-											@for (r of rankOptions; track r) {
+											@for (r of t1RankOptions(); track r) {
 												<option [ngValue]="r">{{ r }}</option>
 											}
 										</select>
@@ -161,10 +168,10 @@
 									<div class="col-8">
 										<select class="form-select form-select-sm"
 											[ngModel]="editT2DivId()"
-											(ngModelChange)="editT2DivId.set($event)">
-											<option value="">— No Division —</option>
+											(ngModelChange)="onT2DivChange($event)">
+											<option value="">— No {{ isReseed() ? 'Pool' : 'Division' }} —</option>
 											@for (div of divisionOptions(); track div.divId) {
-												<option [value]="div.divId">{{ div.divName }}</option>
+												<option [value]="div.divId">{{ poolLabel(div) }}</option>
 											}
 										</select>
 									</div>
@@ -173,7 +180,7 @@
 											[ngModel]="editT2Rank()"
 											(ngModelChange)="editT2Rank.set($event ? +$event : null)">
 											<option [ngValue]="null">Rank</option>
-											@for (r of rankOptions; track r) {
+											@for (r of t2RankOptions(); track r) {
 												<option [ngValue]="r">{{ r }}</option>
 											}
 										</select>

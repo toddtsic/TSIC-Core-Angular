@@ -5,5 +5,6 @@
 export type BracketSeedDivisionOptionDto = {
     divId: string;
     divName: string;
+    agegroupName?: string | null;
 };
 

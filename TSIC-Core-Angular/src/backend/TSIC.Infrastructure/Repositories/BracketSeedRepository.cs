@@ -107,6 +107,40 @@ public class BracketSeedRepository : IBracketSeedRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<BracketSeedDivisionOptionDto>> GetSeedSourceDivisionsForJobAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        // Pools = divisions that actually host round-robin ("T") games in this job. This
+        // naturally excludes the flight agegroups' "Seed N" divisions (no "T" games there).
+        var poolDivIds = await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.DivId != null
+                     && s.T1Type == "T" && s.T2Type == "T")
+            .Select(s => s.DivId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (poolDivIds.Count == 0) return [];
+
+        return await _context.Divisions
+            .AsNoTracking()
+            .Where(d => poolDivIds.Contains(d.DivId) && d.DivName != DivisionConstants.Unassigned)
+            .OrderBy(d => d.Agegroup.AgegroupName)
+            .ThenBy(d => d.DivName)
+            .Select(d => new BracketSeedDivisionOptionDto
+            {
+                DivId = d.DivId,
+                DivName = d.DivName ?? "",
+                AgegroupName = d.Agegroup.AgegroupName
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<int> GetActiveTeamCountByDivAsync(Guid divId, CancellationToken ct = default) =>
+        await _context.Teams
+            .AsNoTracking()
+            .CountAsync(t => t.DivId == divId && t.Active == true, ct);
+
     public async Task<Schedule?> GetScheduleTrackedAsync(
         int gid, CancellationToken ct = default)
     {

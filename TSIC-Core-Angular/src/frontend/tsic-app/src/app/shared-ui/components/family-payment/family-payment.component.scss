@@ -127,6 +127,17 @@
   margin-bottom: var(--space-3);
 }
 
+// Leading section label on the summary card — parallels the "PAYMENT LEDGER" /
+// "ARB SUBSCRIPTION" eyebrows so the three accounting cards read as one set.
+.summary-eyebrow {
+  margin: 0 0 var(--space-2) 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--bs-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .section-title {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);

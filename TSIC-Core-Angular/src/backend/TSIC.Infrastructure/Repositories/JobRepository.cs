@@ -410,6 +410,15 @@ public class JobRepository : IJobRepository
         return Task.FromResult(true);
     }
 
+    public async Task<bool> GetReseedTournamentFlagAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.BReseedTournament)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task<bool> IsPublicAccessEnabledAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         return await _context.Jobs

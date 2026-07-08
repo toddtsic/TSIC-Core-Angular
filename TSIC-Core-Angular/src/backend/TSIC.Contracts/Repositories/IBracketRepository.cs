@@ -82,6 +82,16 @@ public interface IBracketRepository
     /// <summary>Active team count in a division — the valid seed-rank ceiling for a pool.</summary>
     Task<int> GetActiveTeamCountByDivAsync(Guid divId, CancellationToken ct = default);
 
+    /// <summary>A tracked Teams row, for reseed impersonation (rename + clubrep).</summary>
+    Task<Teams?> GetTeamTrackedAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Raw identity (team name + clubrep registration) for the given source teams,
+    /// keyed by TeamId. Used to stamp a flight placeholder during reseeding.
+    /// </summary>
+    Task<Dictionary<Guid, TeamSeedIdentity>> GetTeamIdentitiesAsync(
+        IReadOnlyCollection<Guid> teamIds, CancellationToken ct = default);
+
     /// <summary>
     /// Idempotent replace: deletes this instance's existing feeds + seeds and
     /// stages the supplied replacements. Caller commits via SaveChangesAsync.

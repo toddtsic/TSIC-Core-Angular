@@ -42,6 +42,16 @@ public interface IBracketSeedRepository
         int gid, CancellationToken ct = default);
 
     /// <summary>
+    /// Reseed mode: every round-robin pool in the job (divisions with "T" games), across
+    /// agegroups, labeled with the owning agegroup. These are the valid cross-agegroup seed sources.
+    /// </summary>
+    Task<List<BracketSeedDivisionOptionDto>> GetSeedSourceDivisionsForJobAsync(
+        Guid jobId, CancellationToken ct = default);
+
+    /// <summary>Active team count in a pool — the valid seed-rank ceiling (reseed rank list bound).</summary>
+    Task<int> GetActiveTeamCountByDivAsync(Guid divId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get the Schedule record (tracked) for updating T1Name/T2Name after seed assignment.
     /// </summary>
     Task<Schedule?> GetScheduleTrackedAsync(

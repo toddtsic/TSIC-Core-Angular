@@ -275,6 +275,13 @@ public interface IJobRepository
     Task<bool> GetUsesWaitlistsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// True when the job re-seeds its tournament across agegroups (Jobs.bReseedTournament).
+    /// Gates the cross-agegroup seed picker and the impersonate-placeholder seed resolution.
+    /// Fail-closed: false when the job is absent.
+    /// </summary>
+    Task<bool> GetReseedTournamentFlagAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Check if public schedule/roster access is enabled for a job.
     /// </summary>
     Task<bool> IsPublicAccessEnabledAsync(Guid jobId, CancellationToken cancellationToken = default);

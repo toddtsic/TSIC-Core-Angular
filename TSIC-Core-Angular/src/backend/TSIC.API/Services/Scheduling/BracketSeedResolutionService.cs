@@ -14,15 +14,18 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
 {
     private readonly IBracketRepository _bracketRepo;
     private readonly IScheduleRepository _scheduleRepo;
+    private readonly IJobRepository _jobRepo;
     private readonly ILogger<BracketSeedResolutionService> _logger;
 
     public BracketSeedResolutionService(
         IBracketRepository bracketRepo,
         IScheduleRepository scheduleRepo,
+        IJobRepository jobRepo,
         ILogger<BracketSeedResolutionService> logger)
     {
         _bracketRepo = bracketRepo;
         _scheduleRepo = scheduleRepo;
+        _jobRepo = jobRepo;
         _logger = logger;
     }
 
@@ -52,6 +55,18 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
             }
         }
 
+        // Reseed jobs cross-agegroup: a championship-only flight must behave like any normal
+        // agegroup, so its slots keep their own INTERNAL placeholder team. Instead of pointing the
+        // schedule at the (foreign-agegroup) source team, we stamp the source college's identity onto
+        // the in-slot placeholder (teamName + clubrep_registrationid) and leave Schedule.TxId internal.
+        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
+        Dictionary<Guid, TeamSeedIdentity> sourceIdentities = [];
+        if (isReseed)
+        {
+            var sourceTeamIds = teamByDivRank.Values.Select(v => v.TeamId).Distinct().ToList();
+            sourceIdentities = await _bracketRepo.GetTeamIdentitiesAsync(sourceTeamIds, ct);
+        }
+
         var now = DateTime.Now;
         var resolved = 0;
         foreach (var slot in slots)
@@ -66,18 +81,11 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
             // R3 guard: never overwrite a bracket game that has already been played.
             if (target.T1Score.HasValue || target.T2Score.HasValue) continue;
 
-            if (slot.TargetSlot == 1)
-            {
-                if (target.T1Id == team.TeamId) continue;                            // already correct
-                target.T1Id = team.TeamId;
-                target.T1Name = team.Name;
-            }
-            else
-            {
-                if (target.T2Id == team.TeamId) continue;
-                target.T2Id = team.TeamId;
-                target.T2Name = team.Name;
-            }
+            bool changed = isReseed
+                ? await ApplyReseedAsync(target, slot.TargetSlot, team, sourceIdentities, ct)
+                : ApplyReference(target, slot.TargetSlot, team);
+
+            if (!changed) continue;
             target.LebUserId = userId;
             target.Modified = now;
             resolved++;
@@ -85,7 +93,73 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
 
         if (resolved > 0) await _scheduleRepo.SaveChangesAsync(ct);
         _logger.LogInformation(
-            "BracketSeedResolve: job {JobId} — filled {N} seed slot(s).", jobId, resolved);
+            "BracketSeedResolve: job {JobId} — {Mode} {N} seed slot(s).",
+            jobId, isReseed ? "reseeded" : "filled", resolved);
         return resolved;
+    }
+
+    /// <summary>
+    /// Normal mode: point the bracket slot directly at the standings-ranked source team.
+    /// Returns false when already correct.
+    /// </summary>
+    private static bool ApplyReference(
+        Domain.Entities.Schedule target, byte targetSlot, (Guid TeamId, string Name) team)
+    {
+        if (targetSlot == 1)
+        {
+            if (target.T1Id == team.TeamId) return false;
+            target.T1Id = team.TeamId;
+            target.T1Name = team.Name;
+        }
+        else
+        {
+            if (target.T2Id == team.TeamId) return false;
+            target.T2Id = team.TeamId;
+            target.T2Name = team.Name;
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Reseed mode: stamp the source college's identity onto the flight's in-slot INTERNAL
+    /// placeholder team (raw teamName + clubrep_registrationid), refresh the schedule's display
+    /// name, and leave Schedule.TxId pointed at the internal id. Returns false when nothing changed
+    /// or the slot has no internal placeholder to rename.
+    /// </summary>
+    private async Task<bool> ApplyReseedAsync(
+        Domain.Entities.Schedule target, byte targetSlot,
+        (Guid TeamId, string Name) source,
+        IReadOnlyDictionary<Guid, TeamSeedIdentity> sourceIdentities,
+        CancellationToken ct)
+    {
+        var internalTeamId = targetSlot == 1 ? target.T1Id : target.T2Id;
+        if (internalTeamId is null) return false;                     // no placeholder seated — skip
+        if (!sourceIdentities.TryGetValue(source.TeamId, out var src)) return false;
+
+        var placeholder = await _bracketRepo.GetTeamTrackedAsync(internalTeamId.Value, ct);
+        if (placeholder is null) return false;
+
+        var changed = false;
+        if (placeholder.TeamName != src.TeamName)
+        {
+            placeholder.TeamName = src.TeamName;                      // raw college name; teamFullName untouched
+            changed = true;
+        }
+        if (placeholder.ClubrepRegistrationid != src.ClubrepRegistrationid)
+        {
+            placeholder.ClubrepRegistrationid = src.ClubrepRegistrationid;  // drives club/college display
+            changed = true;
+        }
+
+        // Schedule display name = source's club-prefixed standings label; the id stays internal.
+        if (targetSlot == 1)
+        {
+            if (target.T1Name != source.Name) { target.T1Name = source.Name; changed = true; }
+        }
+        else
+        {
+            if (target.T2Name != source.Name) { target.T2Name = source.Name; changed = true; }
+        }
+        return changed;
     }
 }

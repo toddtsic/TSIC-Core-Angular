@@ -49,6 +49,18 @@ public record SeedSlotToResolve
     public required int SeedRank { get; init; }
 }
 
+/// <summary>
+/// Source team identity stamped onto a flight's internal placeholder team during
+/// cross-agegroup reseeding: the raw <see cref="TeamName"/> and the
+/// <see cref="ClubrepRegistrationid"/> (which drives club/college resolution).
+/// </summary>
+public record TeamSeedIdentity
+{
+    public required Guid TeamId { get; init; }
+    public required string? TeamName { get; init; }
+    public required Guid? ClubrepRegistrationid { get; init; }
+}
+
 /// <summary>Target division for a dev-only bracket exercise action.</summary>
 public record BracketDevActionRequest
 {
