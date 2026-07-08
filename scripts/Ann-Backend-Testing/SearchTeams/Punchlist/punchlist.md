@@ -44,7 +44,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Obvious entry point to the filter panel
 - **What happened**: Filters are behind an icon with no label — didn't know where to find them at first. Add text like "View Filters" next to (or as a tooltip on) the icon so the affordance is discoverable.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — Todd handled this elsewhere (filter toggle now carries a "Set Filters" text label).
 
 ### PL-002: Team Details flyin — Level of Play field isn't tall enough
 - **Area**: Team Details
@@ -52,7 +52,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The Level of Play field to be tall enough to show its value clearly
 - **What happened**: LOP field is too short — value gets clipped or feels cramped. Increase field height.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — added `min-height: 2.5rem` to `.form-select` in team-detail-panel.component.scss (appearance:none select had no intrinsic height). Scoped, UI-only.
 
 ### PL-001: Search Results Table — "Active" column header is cut off
 - **Area**: Search Results
@@ -60,5 +60,5 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The "Active" column header to be fully visible
 - **What happened**: "Active" header is cut off (truncated). Column needs more width or the header needs to wrap/render in full.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — widened the `active` column width 75 → 95 in search-teams.component.html so the full header shows. UI-only.
 

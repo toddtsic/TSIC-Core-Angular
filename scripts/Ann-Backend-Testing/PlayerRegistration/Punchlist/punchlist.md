@@ -1080,6 +1080,60 @@ Use these as a guide for what to walk through. You don't have to go in order.
   2. **"Save $X" banner**: decide whether we want to actively nudge parents away from credit card. The dollar figure is correct (it's the PF they'd avoid), but the framing may cannibalize CC revenue for clients where PF is retained. Consider making the banner a per-job opt-in or removing it entirely.
   3. **Reminder**: accounting on ISP 2025-2026 (deferral/deposit behavior, PF routing when paid by check, reconciliation entries) still needs to be tested end-to-end — call out as a follow-up test pass after fields above are settled.
 
+### SP-054: Player Details — College Recruiting fields need a polish pass (drop spinners, range placeholders + clamps on SAT/ACT, conditional college commitment)
+- **Refs**: SP-040 (College Recruiting fields show for all age groups; add placeholder text), SP-041 (Height in inches should be a selection list), Accounting PL-005 (drop the up/down arrows on dollar inputs)
+- **Area**: Player Details — College Recruiting section
+- **What I did**: Walked the College Recruiting fields on Player Details
+- **What I expected**: Tight, fast-to-fill fields with sensible validation and no controls that don't apply (SAT/ACT spinners, mandatory college-commit when there's nothing to commit yet)
+- **What happened**: Multi-part cleanup needed:
+  1. **Drop the up/down arrows** on SAT and ACT inputs — same reasoning as Accounting PL-005 on dollar fields; parents type the score, the spinner is noise.
+  2. **Range placeholder + clamp** for SAT and ACT — show the valid range inside the field as light-gray placeholder text (e.g. SAT "400–1600", ACT "1–36") and reject entries outside those ranges so bad data can't be saved.
+  3. **Class Rank options** — Ann's open question: what choices does this field offer today? Want to confirm the list (e.g., Top 10%, Top 25%, Top 50%, etc., or a free-form numeric) before recommending changes. Loop in Todd.
+  4. **College Commitment — make it conditional, not always-on**. Two acceptable shapes; pick one:
+     - **(a)** Remove the "Have you Committed to a College?" checkbox entirely and make the **College Committed To** field simply **optional** — blank = no commit, filled = committed-to college.
+     - **(b)** Keep the checkbox, but only **show the "College Committed To" field when the checkbox is checked**. Cleaner UI when uncommitted; preserves the explicit yes/no signal when committed.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-053: Coach Registration (tournament) — team-options dropdown covers the Continue button, forcing an outside click before you can proceed
+- **Refs**: SP-050 (Assign Teams dropdown — WAITLIST badge placement), SP-044 (Assign Teams sort), SP-037 (single team per player)
+- **Area**: Coach Registration / Tournament — Assign Teams step
+- **What I did**: As a Coach registering for a tournament, opened the team-options dropdown and tried to click Continue while the list was open
+- **What I expected**: The dropdown to either close on Continue-click, or to not occlude the Continue button to begin with — one click to commit and advance
+- **What happened**: The open dropdown list overlays the Continue button. The first click closes the dropdown but does **not** advance, so the parent has to click again to actually fire Continue. Two-click problem for what should be one. Fix by either (a) shrinking/repositioning the dropdown so Continue stays visible/clickable, or (b) having the Continue button accept its click through the open dropdown (close + submit in one).
+- **Severity**: UX
+- **Status**: Fixed — closed on review.
+- **Note**: Filed under PlayerRegistration as the nearest fit for a Coach Reg item — no dedicated Coach Registration punchlist exists. Move to TeamRegistration if Coach lives there in your mental model.
+
+### SP-052: Player-side Discount Code message — re-applying the same code says "No discounts were applied"; should match the Team Discount Code wording
+- **Refs**: SP-025 (Discount Code "Girls100" splits $100 across players), TeamRegistration FP-011 (one-code-per-rep limit), TeamRegistration FP-010 (discount apply on Payment step), Accounting PL-005 (Team Discount Codes input)
+- **Area**: Discount Code / Complete Payment (Player side)
+- **What I did**: On the Player Registration Complete Payment screen, re-applied a Discount Code that was already applied to the same cart
+- **What I expected**: The same friendly wording the **Team** Discount Code path uses when the code has already been applied — i.e., a clear "this code is already applied" type message
+- **What happened**: Player-side message reads **"No discounts were applied"**, which sounds like the code was rejected outright instead of being a no-op repeat. Update the player-side text to mirror the Team Discount Code message for this scenario so the user gets a consistent, accurate cue.
+- **Severity**: UX
+- **Status**: Fixed
+
+### SP-051: Upper-right nav — add direct "Player Registration" and "Pay Balance Due" entries once the family has active registrations on a site (Club Rep parity)
+- **Refs**: TeamRegistration PL-021 (Pay balance due login fix on the Club Rep side)
+- **Area**: Login / Site Navigation
+- **What I did**: As a family with active registrations on a site, looked at the upper-right navigation for a fast way back into Player Registration or to pay an outstanding balance
+- **What I expected**: Same parity Club Reps already have — upper-right entry points that jump straight to **Player Registration** and **Pay Balance Due**, landing on those screens directly without re-walking the whole flow
+- **What happened**: No dedicated entry points in the upper-right nav for returning families. Once the family has active registrations on a site, surface both options there so they go right to the screens they need.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-050: Showcase Assign Teams dropdown — move WAITLIST badge to the right of the team name so the primary option isn't missed
+- **Refs**: SP-044 (Assign Teams dropdown sort), SP-037 (single team per player)
+- **Area**: Tournament/Showcase Assign Teams
+- **What I did**: Selecting a team for a Showcase player (FN Player Test 13, 2029). The dropdown showed two options:
+  1. `2029 Field Player · A ($275)`
+  2. `⚠ WAITLIST · 2029 Goalie · A ($275)`
+- **What I expected**: To see the available, non-waitlist option (`2029 Field Player`) clearly as a choice
+- **What happened**: With `⚠ WAITLIST` rendered as the **leading** text on the second option, my eye read the dropdown as "only Waitlist Goalie is available" and almost missed the Field Player choice entirely. Reorder the row so the team name reads first, with the warning icon and `WAITLIST` label trailing — e.g. `2029 Goalie · A ($275) ⚠ WAITLIST`. The team identity becomes the anchor; the waitlist status is a qualifier on it.
+- **Severity**: UX
+- **Status**: Deferred — Todd question. Whether to move WAITLIST (and possibly FEE NOT SET) badges to trailing on the Assign Teams options needs Todd's call before changing.
+
 ### SP-049: ISP 2025-2026 Pay by Check — verify Inactive (pending-check) players hold their roster spot against max-per-team
 - **Area**: Registration Process Review / Capacity & Rostering
 - **What I did**: Continued walking ISP 2025-2026 registrations that elected **Pay by Check** (registration is held pending receipt of payment, so these players land in an Inactive state)
@@ -1094,4 +1148,44 @@ Use these as a guide for what to walk through. You don't have to go in order.
   3. **Timeout policy**: how long is a pending-check spot held before it's auto-released? Legacy behavior + Todd's preference needed — otherwise an unpaid check can block a paying family indefinitely.
   4. **Status transitions**: when the check arrives and staff mark the registration paid, no roster change should occur (spot was already held). When a pending-check registration is cancelled/expired, the spot must free up and the team availability counts must refresh.
   5. Applies to any site that enables Pay by Check, not just ISP.
+
+### SP-055: Med Form upload — surface "uploaded" status and a view-PDF link to the Director under Player Details (follow-up to SP-046)
+- **Refs**: SP-046 (UM Summer Camps — Med Form Uploaded needs real file upload like Legacy)
+- **Area**: Player Details (Director / admin view)
+- **What I did**: Verified the parent-side med form upload from SP-046 now works — the signed PDF is delivered as part of registration
+- **What I expected**: On the Director-facing Player Details, a clear indication that the medical form was uploaded ("marked as updated"), plus a link to view/open the PDF right there
+- **What happened**: The upload works on the parent side, but the Director has no at-a-glance signal that a med form is on file and no way to view the PDF from Player Details
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Backend already exists from SP-046 — `BUploadedMedForm` is server-stamped on the registration row from on-disk file existence, and `MedFormController` (`api/files/medform/{playerUserId}`) provides GET (stream PDF), HEAD (existence probe), and Director-role authorization. This item is the Director-side surfacing: (1) show the uploaded status on Player Details, (2) add a view/open-PDF link wired to the download endpoint.
+
+### SP-058: Player Details — SAT (Total) field renders below/outside the College Recruiting card (ASL Main Event)
+- **Refs**: SP-040 (College Recruiting fieldset grouping on tournament sites), SP-054 (College Recruiting polish), SP-057 (GPA spinner step)
+- **Area**: Player Details — College Recruiting section
+- **Where**: ASL Main Event registration — Player Details, College Recruiting fields
+- **What I did**: Looked at the College Recruiting fields on the Player Details form for ASL Main Event
+- **What I expected**: SAT (Total) to sit inside the College Recruiting card/fieldset alongside the other recruiting fields
+- **What happened**: The SAT (Total) field renders below and outside the card that contains the rest of the College Recruiting fields — it's separated from the group it belongs to
+- **Severity**: UX
+- **Status**: Fixed — handled in a prior session (SAT (Total) now sits inside the College Recruiting fieldset).
+- **Note**: Likely a fieldset-grouping/ordering gap (see SP-040's recruiting fieldset hoist) — SAT (Total) isn't being pulled into the College Recruiting fieldset for this profile. Confirm the field's canonical name is in `RECRUITING_FIELD_NAMES` and that it's anchored inside the fieldset for ASL Main Event.
+
+### SP-057: Player Details — GPA field up/down arrows step by whole integers; should step by tenths
+- **Refs**: SP-054 (College Recruiting polish — drop spinners on SAT/ACT, range placeholders/clamps), Accounting PL-005 (drop spinner arrows on dollar inputs)
+- **Area**: Player Details — College Recruiting section
+- **What I did**: Used the up/down arrows on the GPA field
+- **What I expected**: The arrows to step by tenths (e.g., 3.4 → 3.5) since GPA is typically a one-decimal value
+- **What happened**: The arrows step by whole-number integers (e.g., 3 → 4), which is too coarse for a GPA
+- **Severity**: UX
+- **Status**: Fixed — added `[attr.step]="field.name === 'gpa' ? '0.1' : null"` to the number-field renderer in player-forms-step.component.ts, so only GPA steps by tenths. Other number fields unaffected. (SP-054 may later drop spinners entirely.)
+- **Note**: Change the GPA input step to 0.1. Ties into SP-054's broader recruiting-field polish (where SAT/ACT spinners are being dropped) — decide whether GPA keeps a tenths-step spinner or also drops arrows in favor of direct entry.
+
+### SP-056: Add a "Register Coach" button on job home pages (alongside "Register Player"), plus a director Allow/Not-Allow coach-registration toggle
+- **Refs**: PL-042 (bulletin link splitting Player/Coach paths), SP-053 (Coach Registration dropdown overlap)
+- **Area**: Job Home / Registration entry points
+- **What I did**: Looked at the job home page for a "Register Coach" entry point comparable to "Register Player"
+- **What I expected**: (1) A "Register Coach" button on the home page for relevant jobs, presented like the existing "Register Player" button. (2) A director-level setting to Allow or Not Allow coach registrations, so the button only appears on jobs that want coach registration.
+- **What happened**: No "Register Coach" button on the home pages, and no director toggle to control whether coach registration is offered for a job.
+- **Severity**: UX
+- **Status**: Fixed
 

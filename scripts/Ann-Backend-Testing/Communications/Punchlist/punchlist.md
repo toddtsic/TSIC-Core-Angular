@@ -44,5 +44,5 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Full bulletin visible — same as a public visitor would see
 - **What happened**: Bulletin is not shown in the Director's Public View. Directors never see what their public sees, so they don't know how their bulletin renders. The Public View should match the actual public experience exactly, including the full bulletin.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 

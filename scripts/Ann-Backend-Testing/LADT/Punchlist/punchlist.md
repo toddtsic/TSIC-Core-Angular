@@ -438,7 +438,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Letter prefix consistent with other Age Group labels elsewhere in the UI (e.g., the `AG SET` / `FROM AG` fee pills use `AG`)
 - **What happened**: Currently `A` is used on the chevron; mixed with `AG` elsewhere
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed (confirmed done on review — reconciles with the "Complete (handled in other session)" note above)
 - **Note**: Change the Age Group chevron label from `A` to `AG` everywhere it appears — both the up-nav chevron (Division/Team rows → Age Group) and the down-drill badge (`A↓N` on League rows per PL-022). Leave `D` (Division) and `T` (Team) as-is since there's no corresponding dual-letter convention for those. Audit hover text / aria labels if the letter is referenced anywhere.
 
 ### SP-010: Sort Age field not visible in Age Group edit UI
@@ -533,7 +533,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Clone to be a full copy of the source team — every configured feature carried over, including the team's fees
 - **What happened**: Fees did not populate on the cloned team; other features should also be audited to confirm parity with the source
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Two-part ask:
   1. **Fix**: Clone Team must copy all team-level features from the original, including fees. Audit every feature/relationship attached to a team and confirm each is cloned (fees, age group linkage, roster caps, contacts, etc.) — fees is the known miss but the pattern suggests others may be incomplete.
   2. **UX**: Add a second Clone Team button placement next to the "Add New Team" button in the upper-right of the Teams table (keep the existing row-level clone too). Goal is to make job creation fast — surfacing Clone Team at the table header turns it into a first-class "new team" path rather than a buried row action.
@@ -544,7 +544,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: All team info plus the Save button to fit in a single viewport — no scroll required to reach Save
 - **What happened**: Fly-in content is tall enough that Save sits below the fold; user has to scroll to commit changes
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Compress the Team Details fly-in layout — tighter vertical spacing, collapse/group rarely-edited sections, or reflow into two columns where the fly-in is wide enough — so the full form + Save action fits in one screen. Pair with a sticky footer holding Save/Cancel if full compression isn't achievable.
 
 ### SP-020: LADT fly-ins — auto-close on Save and reflect changes immediately in the table
@@ -553,7 +553,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Fly-in closes automatically on successful save and the underlying table/tree refreshes in place so the edit is visible right away
 - **What happened**: Fly-in stays open after Save — user has to click the "x" to dismiss it, and it's not obvious the table reflects the change until the fly-in is closed
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Apply to **every LADT fly-in** (Team, Age Group, Division, League, any others). On successful Save: close the fly-in and ensure the parent table/tree shows the updated row without a manual refresh. Keep the "x" for explicit cancel/close, but Save should be a one-click commit-and-dismiss. Confirm error paths still keep the fly-in open with validation messaging.
 
 ### SP-021: Add Clone AgeGroup function (mirror of Clone Team)
@@ -571,6 +571,15 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I did**: Selected LADT / Editor
 - **What I expected**: The agegroup table to appear on the right side, the way it used to — very helpful as an overview landing view
 - **What happened**: The agegroup table no longer appears on the right when LADT/Editor is selected. Add this feature back.
+- **Severity**: UX
+- **Status**: Open
+
+### SP-023: Team table (ISP 2026-2027) still too wide; columns waste space and headers wrap weirdly
+- **Refs**: SP-006 (right-side grids too wide — default column widths tuned, marked Complete), SP-013 (team column order), PL-028 (Team Details reorder/narrow)
+- **Area**: Team Settings / All level grids
+- **What I did**: Looked at the Team table on ISP 2026-2027
+- **What I expected**: A tight table where each column is sized to its content, with clean single-line (or sensibly wrapped) headers
+- **What happened**: The table is way too wide — each column takes up more space than its content needs and should be tightened. Headers are also wrapping weirdly. SP-006 tuned default widths and was marked Complete, but this is still showing on ISP 2026-2027, so the width pass needs another look plus a fix for the awkward header wrapping.
 - **Severity**: UX
 - **Status**: Open
 

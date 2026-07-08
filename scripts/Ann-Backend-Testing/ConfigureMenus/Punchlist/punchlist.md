@@ -38,13 +38,31 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 ## Punch List Items
 
+### PL-073: ISP:2026-2027 Branding — Overlay Headline shows stale "CLONE 2022"; define fallback display when a cloned job has no Banner Background image
+- **Area**: Job Settings → Configure / Branding
+- **Where**: ISP:2026-2027 → Branding → Overlay Headline (reads "CLONE 2022"), Banner Background image
+- **What I did**: Opened Branding on ISP:2026-2027 (a cloned job) and saw the Overlay Headline still reads "CLONE 2022"
+- **What I expected**: A clean, job-appropriate headline, and a sensible banner presentation even when no Banner Background image has been set yet
+- **What happened**: Overlay Headline carries the stale "CLONE 2022" text from the source job. Raises a broader question: as jobs are cloned/brought over, how do we make sure they display appropriately when they don't have a Banner Background image?
+- **Severity**: UX
+- **Status**: Open
+- **Note**: Two parts: (1) cloned jobs shouldn't inherit a stale Overlay Headline like "CLONE 2022" — decide whether clone clears/templatizes the headline or flags it for the Director to set. (2) Define the fallback banner display (placeholder background, solid brand color, or hide the overlay) when a job has no Banner Background image so cloned jobs render cleanly before branding assets are uploaded.
+
+### PL-072: Configure / Discount Codes — Start Date should default to today (date of creation), not tomorrow
+- **Area**: Job Settings → Configure / Discount Codes
+- **What I did**: Created a new discount code and looked at the Start Date default
+- **What I expected**: Start Date to default to **today** (the day the code is created) — that's almost always when the Director wants it to begin
+- **What happened**: Start Date defaults to the **next day**, forcing the Director to back it up by one day every time. Change the default to today so the code is usable immediately on creation.
+- **Severity**: UX
+- **Status**: Open
+
 ### PL-071: Configure / Payment (and likely other tabs) — add a Save button to the upper Right so it isn't forgotten
 - **Area**: Job Settings → Configure / Payment tab (and probably other tabs)
 - **What I did**: Looked at the Save button placement on Configure / Job Settings / Payment
 - **What I expected**: A Save action that stays visible so it isn't missed after editing
 - **What happened**: The Save button is only in the bottom Right. Add one to the upper Right too so it isn't forgotten — applies to Payment and probably the other tabs as well.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Deferred — Todd design call (scope across all tabs + duplicate top/bottom vs sticky Save).
 
 ### PL-070: Configure / Payment — checking "Team Full Payment Required" throws exception; Save spins forever
 - **Refs**: Recent commit `dc6d5f80` feat(job-config): gate Full-Payment-Required + ARB-Trial when ARB owns the schedule
@@ -81,7 +99,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Enough vertical space for Directors/SuperUsers to read multi-line policy text without scrolling within the field
 - **What happened**: Both textareas use `rows="2"` ([mobile-store-tab.component.html:115, 121](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/mobile-store-tab.component.html#L115)) — too cramped for the typical content these fields hold (refund policy paragraphs, pickup details with location + hours)
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — both textareas bumped `rows="2"` → `rows="4"` in mobile-store-tab.component.html (Store Refund Policy + Store Pickup Details). UI-only.
 - **Note**: Bump both to `rows="4"`. UI-only; no DB/DTO/service change. Same fix shape as PL-050 applied to the overlay headline/subheadline textareas. With the global `.field-input` line-height: 1.2 from the Branding session already in place, four rows reads as a tight, generous block.
 
 ### PL-067: Job Settings / Mobile — break Mobile Features into TSIC-Events and TSIC-Teams subsections
@@ -258,7 +276,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Tab name to surface that it covers both Club Reps and Teams (sibling tab "Coaches & Staff" already does this for two-role pairings)
 - **What happened**: Tab label is just "Teams" ([job-config.component.ts:54](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.component.ts#L54)); the longer-form label used in dirty-state warnings is "Teams & Club Reps" ([job-config.service.ts:219](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.service.ts#L219)) — already inconsistent
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Closed — won't change. Decision on review: leave the tab labeled "Teams" as-is; no rename.
 - **Note**: Three options (target wording: **"Club Reps/Teams"** — both plural, slash separator):
   - **A. Tab only** — change tab to "Club Reps/Teams"; leave service label "Teams & Club Reps" untouched. Matches literal ask but preserves existing inconsistency.
   - **B. Unify on "Club Reps/Teams"** — tab and service label both use the same slash format. Compact for tab bar.
@@ -323,7 +341,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Cleanup of the field across the editor, registration wizard, and email substitution
 - **What happened**: Field is still wired across multiple layers — needs a sweep, not just a UI delete
 - **Severity**: Cleanup
-- **Status**: Open
+- **Status**: Won't Fix — decision on review: leave the COVID-19 Waiver field in place; no removal.
 - **Note**: COVID-19 Waiver footprint:
   - **Editor UI**: Player tab textarea (RTE) — strip from `player-tab.component.html` and `player-tab.component.ts`
   - **DTOs**: drop `playerRegCovid19Waiver` from `JobConfigPlayerDto` and `UpdateJobConfigPlayerRequest`
@@ -342,7 +360,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Confirmation of what the flag does, then decision on visibility
 - **What happened**: Function confirmed real and active; visibility decision pending Todd review
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Findings from walkthrough on 2026-04-25:
   - **Function**: `bPlayerRegRequiresToken = true` → players must use a valid invite link to register; `false` → open registration. Drives [PlayerInviteController.ValidateInvite](TSIC-Core-Angular/src/backend/TSIC.API/Controllers/PlayerInviteController.cs#L48-L50) at the API gate.
   - **Current UI** ([player-tab.component.html:22-32](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L22-L32)): renders for all roles, paired with "Allow Player Registration" parent toggle, has a clear tooltip explaining both states.
@@ -453,7 +471,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Always Copy Email List (general-purpose CC-on-every-email) before Reschedule Email List (narrower reschedule flow)
 - **What happened**: Reschedule Email List appears first at [communications-tab.component.html:33-37](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L33-L37); Always Copy Email List at [line 40+](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/communications-tab.component.html#L40)
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — swapped the two `<div class="col-md-6">` blocks so Always Copy Email List renders before Reschedule Email List. UI-only.
 - **Note**: Swap the two `<div class="col-md-6">` blocks in the html. No model/DTO/service change — UI-only reordering.
 
 ### PL-046: Job Settings / Payment — Check/Mail-In/Balance section cleanup: TFPR move, two vestigial flags
@@ -671,7 +689,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The clean 12-sport whitelist (title-cased, sorted) that LADT already uses per PL-007
 - **What happened**: General's Sport dropdown pulls from a different code path and shows the full unfiltered `Sports` table — stale/irrelevant entries, no title-casing
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Awaiting Todd approval — plan agreed with Ann: implement **Option B** (extract the LADT whitelist + title-case + sort into one shared helper; route both `LadtService.GetSportsAsync` and `JobConfigService.GetReferenceDataAsync` through it; each service maps to its own DTO shape). Backend change → needs API deploy. Broader audit (job-clone / customer-setup / reports raw-Sports pulls) noted as a follow-up. Do not implement until Todd signs off.
 - **Note**: Two code paths surface Sports today:
   - **LADT** — `LadtService.GetSportsAsync` ([LadtService.cs:200-225](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/LadtService.cs#L200-L225)) filters to whitelist (lacrosse, soccer, football, hockey, field hockey, basketball, baseball, softball, volleyball, wrestling, rugby, cheerleading) + title-cases + sorts.
   - **Job Config General** — `JobConfigService.BuildReferenceDataAsync` ([JobConfigService.cs:351](TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/JobConfigService.cs#L351)) calls `_repo.GetSportsAsync(ct)` with no filter or casing.
@@ -688,7 +706,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: All three fields the same visible height so the row reads as a single aligned band
 - **What happened**: Description is a `<textarea rows="2">` while Job ID and Job Path are single-line `<input type="text">` — Description is visibly taller ([general-tab.component.html:40-53](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/general-tab.component.html#L40-L53))
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — Option A: Description changed from `<textarea rows="2">` to single-line `<input type="text">` in general-tab.component.html; now matches Job ID / Job Path height. ngModel binding preserved.
 - **Note**: Two ways to align:
   - **A. Drop `rows="2"`** — make Description a single-line `<input>` (or `<textarea rows="1">`). Shortest, matches siblings. Loses multi-line editing for longer descriptions — probably fine since the field is short-form metadata.
   - **B. Keep multi-line but auto-grow** — `<textarea>` with a `min-height` matching the input line-height; let it expand as the user types. Preserves editing headroom without the default 2-row gap.
@@ -768,7 +786,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Month and day zero-padded (`04/07/2026 – 04/22/2026`) so every row's start/end lines up vertically at a glance
 - **What happened**: Dates render unpadded (`4/7/2026 – 4/22/2026`) because [discount-codes.component.html:73-79](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/discount-codes/discount-codes.component.html#L73-L79) uses Angular's `'shortDate'` pipe. Columns don't align between rows with single- vs double-digit months/days
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — swapped both date bindings `shortDate` → `MM/dd/yyyy` in discount-codes.component.html (Discount Codes table only). App-wide date-format sweep of other Configure tables NOT done — left as a separate follow-up.
 - **Note**: Fix: swap `| date:'shortDate'` → `| date:'MM/dd/yyyy'` (or a shared format token) for both start and end. Worth sweeping other Configure tables rendering dates to keep the format consistent app-wide — candidates: Customers' Registered column (admin grid), Administrators' Registered column, any other table using `shortDate`.
 
 ### PL-026: Replace hidden trash can with lock icon + explanatory tooltip when delete is blocked

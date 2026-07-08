@@ -515,7 +515,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What happened**: For Online Correction records, the Comment column says "Non-steps payment" — unclear what this means. Consider replacing it with clearer text.
 - **Example**: STEPS teams on LFTC Summer 2026
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Won't Fix
 - **Update (2026-05-23)**: The "Team Registration" comment only shows for CC transactions — it does not show for Correction or Check (Correction shows "Non-steps payment"; Check shows nothing). Inconsistent across transaction types. Ann's bottom line: the Comment is unnecessary on all of them — recommend removing the Comment column / value across every transaction type in Most Recent Transactions. (See FP-005 point 4 for the CC "Team Registration: 2031 Red" example.)
 
 ### FP-002: "Players' Grad Year" — drop the helper text and shorten the label to "Grad Year"
@@ -524,7 +524,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A simple, fast-to-read label and field
 - **What happened**: The text under "Players' Grad Year" isn't necessary — too busy, too much to read. Also the label should just read "Grad Year". Keep it real simple for fast use.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — label shortened to "Grad Year" in both team modals (team-form-modal + add-and-register-team-modal). Decision on review: KEEP the helper text underneath (only the label was changed).
 
 ### FP-003: Red star (required indicator) missing on subsequent teams; first team should be entered in the Library area
 - **Area**: Team Selection
@@ -532,7 +532,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The red star (required-field indicator) to show on every team entry, and all team entries to happen in the same place
 - **What happened**: (1) The red star was present when I created my first team, but on subsequent teams it isn't there — having it consistently would be really helpful. (2) The first team should be entered in the Library area too, so all entries are in the same place — less confusing for the club rep.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### FP-004: Registering a Library team assigns the Library LOP with no per-tournament edit option (contradicts the helper text)
 - **Refs**: SP-002, TP-008 (LOP on Library framed as an overall assessment, adjustable per tournament)
@@ -542,7 +542,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What happened**: Registration assigns the team's Library LOP automatically with no option to edit it for this tournament, even though the helper text says LOP can be set per tournament. The behavior contradicts the stated text.
 - **Note**: There is an edit button for this in the Library, but going that route is too many steps — the LOP should be editable right at registration time.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+- **Update (2026-05-29) — registration form responsiveness**: When registering a team that's already in the Library, the flow is: click age group → change LOP → nothing happens. Have to click the age group a second time before the LOP change takes effect. The first LOP change after selecting age group is being ignored / not applied to the form state. Fix so the LOP change registers on the first interaction, no double-click on age group required.
 
 ### FP-005: Confirmation screen in Deposit Phase — Summary "Owes" confusion + Most Recent Transactions cleanup
 - **Refs**: FP-001 (confusing comment text in Most Recent Transactions)
@@ -555,7 +556,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   3. **"Fees$" heading** is confusing — reword.
   4. **Comment** reads "Team Registration: 2031 Red" — consider showing no comment, or "Deposit" instead.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — closed on review.
 
 ### FP-006: Confirmation screen — "Return Home" button doesn't work ("Finish" works)
 - **Area**: Confirmation
@@ -563,7 +564,52 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: To be taken home, the same as the "Finish" button
 - **What happened**: "Return Home" does nothing. The "Finish" button works correctly.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
+
+### FP-007: Club Team Library — LOP edit on a registered team doesn't propagate to Status or Registered Teams table
+- **Refs**: FP-004, TP-008, SP-002 (LOP on Library vs. per-tournament editing/display)
+- **Area**: Team Selection
+- **What I did**: Edited the Level of Play (LOP) on a team in the Club Team Library that is already registered for the current event
+- **What I expected**: The updated LOP to be reflected in the team's Status and in the Registered Teams table
+- **What happened**: The LOP change saved in the Library but did not appear in the Status or in the Registered Teams table — the registered team still shows the old LOP
+- **Severity**: Bug
+- **Status**: Fixed
+
+### FP-008: Library Add Team — LOP value "previous 5 (strongest)" not saved (possible length limit); shows once registered
+- **Refs**: FP-007, FP-004, TP-008, SP-002 (LOP on Library vs. per-tournament editing/display)
+- **Area**: Team Selection
+- **What I did**: Added a team to the Club Team Library and set the Level of Play (LOP) to the "previous 5 (strongest)" value
+- **What I expected**: The LOP value to be saved on the Library team
+- **What happened**: The "previous 5 (strongest)" LOP value isn't saved when adding a team to the Library (possibly because the value string is too long), but it does appear once the team is registered
+- **Severity**: Bug
+- **Status**: Fixed
+
+### FP-011: Team Registration — Club Rep can only use one Discount Code per event, even if the second code has a different name
+- **Refs**: FP-010 (discount apply on Payment step), Accounting PL-005 (Team Discount Codes input)
+- **Area**: Payment
+- **What I did**: As a Club Rep on Team Registration, applied a Discount Code on the Payment step, then tried to apply a second, differently-named Discount Code
+- **What I expected**: A Club Rep should be able to stack distinct discount codes (different Code Names) when the codes are meant to be additive — e.g., early-bird code plus a club-specific code
+- **What happened**: Only one Discount Code is accepted per event for a given Club Rep, even when the second attempt uses a completely different Code Name. The second code is rejected/ignored, so combinable promotions can't be used in the same cart.
+- **Severity**: Bug
+- **Status**: Fixed
+
+### FP-010: Payment step grid columns don't refresh after applying a discount code (post add-team-then-discount scenario)
+- **Refs**: Accounting PL-005 (Team Discount Codes), TP-001 (Legacy registrations)
+- **Area**: Payment
+- **Where**: Live Love Lax → Girls Summer 2027 → Team Registration → Payment step (Deposit Only phase). Scenario: added a new team **after** there were already prior registrations, then applied discount code `SUMMER%27` to the cart of 4 teams (2030 Red, 2030 White, 2031 Green, 2032 Blue).
+- **What I did**: Reached the Payment step with 4 teams in the grid and applied a discount code in the DISCOUNT CODE field
+- **What I expected**: Every accounting column on every team row to immediately reflect the applied discount, including the row that was added after the prior registrations
+- **What happened**: Toast confirmed "Successfully applied discount to 4 team(s)", but the grid columns didn't fully update. (Not sure the add-team-then-discount scenario matters — the core point is that the columns visible on the grid don't refresh after the discount is applied.) Capture attached (`Capture.png`): Discount column shows -$45.00 per team / -$180.00 total but has no header; Deposit Due shows $405.00 per team — needs verification against expected post-discount deposit math during Deposit Only phase; confirm CC Owed and Check Owed also re-derive from the discounted fee.
+- **Severity**: Bug
+- **Status**: Fixed
+
+### FP-009: Director view — clicking a club Rep name should jump straight to Accounting, not Details (also: post-payment return target)
+- **Area**: Team Selection
+- **What I did**: As a Director, clicked a club Rep name from the team registration listing; also recorded an accounting payment on a club Rep and observed where the popup returned to
+- **What I expected**: (1) Clicking a club Rep name to land directly on the Rep's Accounting menu — that's almost always what Directors need from this entry point. (2) After recording an accounting payment, the popup to return to the Accounting menu so the Director can keep working there.
+- **What happened**: (1) Click lands on the Details menu instead, forcing an extra click to get to Accounting. (2) After a payment is recorded, the popup returns to the Club Rep Details menu instead of staying in Accounting — another extra click back. Re-route both flows to Accounting — much more streamlined for Director users.
+- **Severity**: UX
+- **Status**: Fixed
 
 <!-- Template — copy and fill in for each new item:
 
