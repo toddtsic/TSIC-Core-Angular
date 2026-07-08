@@ -22,7 +22,13 @@ public class UsLaxService : IUsLaxService
     private const string AccessTokenCacheKey = "uslax:access_token";
     private const string AccessTokenExpiryKey = "uslax:access_token_exp";
     private const string MemberCachePrefix = "uslax:member:";
-    private static readonly TimeSpan MemberCacheTtl = TimeSpan.FromSeconds(60);
+    // Spans a registration/wizard session so the MemberPing made to VALIDATE a number on the
+    // Forms step is reused when the same number is stamped at submit (player expiry minting) —
+    // one vendor call, not two. A longer TTL only REDUCES vendor pressure (the blacklist lever
+    // is batch size, not this window); exp dates don't change minute-to-minute, and a corrected
+    // number is a different cache key, so the staleness cost is negligible. Shared keyspace:
+    // coach submit, revalidate, and batch reconcile all benefit.
+    private static readonly TimeSpan MemberCacheTtl = TimeSpan.FromMinutes(10);
     private static readonly Regex ValidMembershipFormat = new(@"^\d{6,12}$", RegexOptions.Compiled);
 
     public UsLaxService(

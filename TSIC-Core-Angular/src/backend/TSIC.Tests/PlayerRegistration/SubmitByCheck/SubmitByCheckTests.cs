@@ -64,7 +64,8 @@ public class SubmitByCheckTests
             teamRepo.Object,
             jobRepo.Object,
             placement.Object,
-            medForms.Object);
+            medForms.Object,
+            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object);
 
         return (svc, regRepo);
     }

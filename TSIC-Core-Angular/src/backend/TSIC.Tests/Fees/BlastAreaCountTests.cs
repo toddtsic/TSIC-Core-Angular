@@ -61,7 +61,8 @@ public class BlastAreaCountTests
             teamRepo.Object,
             new Mock<IJobRepository>().Object,
             new Mock<ITeamPlacementService>().Object,
-            new Mock<IMedFormService>().Object);
+            new Mock<IMedFormService>().Object,
+            new Mock<TSIC.API.Services.Shared.UsLax.IUsLaxService>().Object);
     }
 
     private static Registrations PlayerReg(Guid teamId) => new()

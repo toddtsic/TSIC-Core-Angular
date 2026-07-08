@@ -5,10 +5,12 @@ using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
 using TSIC.API.Services.Shared;
+using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Teams;
 using TSIC.Contracts.Repositories;
+using TSIC.Domain.UsLax;
 
 namespace TSIC.API.Services.Players;
 
@@ -24,6 +26,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
     private readonly IJobRepository _jobs;
     private readonly ITeamPlacementService _placement;
     private readonly IMedFormService _medForms;
+    private readonly IUsLaxService _usLax;
 
     private sealed class PreSubmitContext
     {
@@ -37,6 +40,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         public Dictionary<string, System.Reflection.PropertyInfo> WritableProps { get; init; } = new(StringComparer.OrdinalIgnoreCase);
         public Dictionary<string, List<Registrations>> ExistingByPlayer { get; init; } = new();
         public Dictionary<(string PlayerId, Guid TeamId), Registrations> ExistingByPlayerTeam { get; init; } = new();
+
+        // Every registration created or mutated this PreSubmit (i.e. every row that had form
+        // values — including SportAssnId — applied to it). Populated at each ApplyFormValues site;
+        // consumed by ApplyUsLaxPlayerValidationAsync to stamp SportAssnIdexpDate before the save.
+        public List<Registrations> TouchedRegs { get; } = new();
     }
 
     public PlayerRegistrationService(
@@ -49,7 +57,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         ITeamRepository teams,
         IJobRepository jobs,
         ITeamPlacementService placement,
-        IMedFormService medForms)
+        IMedFormService medForms,
+        IUsLaxService usLax)
     {
         _logger = logger;
         _feeService = feeService;
@@ -61,6 +70,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         _jobs = jobs;
         _placement = placement;
         _medForms = medForms;
+        _usLax = usLax;
     }
 
     public async Task<PreSubmitPlayerRegistrationResponseDto> PreSubmitAsync(Guid jobId, string familyUserId, PreSubmitPlayerRegistrationRequestDto request, string callerUserId)
@@ -105,6 +115,13 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             // If validation throws, treat as non-fatal and proceed without blocking save (maintain prior behavior)
             _logger.LogWarning(vex, "[PreSubmit] Validation threw unexpectedly; proceeding.");
         }
+
+        // When the player form REQUIRES a USA Lacrosse number, mint the server-derived expiry
+        // (SportAssnIdexpDate) now, so it is persisted by the save below. Mirrors the coach path
+        // (ApplyUsLaxCoachValidationAsync); the wizard already validated the number on the Forms
+        // step, and that MemberPing is reused from cache here — not a second vendor call.
+        if (UsLaxMetadataPolicy.RequiresUsLax(ctx.MetadataJson))
+            await ApplyUsLaxPlayerValidationAsync(ctx.TouchedRegs);
 
         await _registrations.SaveChangesAsync();
 
@@ -324,6 +341,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 existing.Modified = DateTime.Now;
                 var sel = selections.Last(s => s.TeamId == team.TeamId);
                 FormValueMapper.ApplyFormValues(existing, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+                ctx.TouchedRegs.Add(existing);
                 await ApplyInitialFeesAsync(existing, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
                 AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
             }
@@ -366,6 +384,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             regToUpdate.AssignedTeamId = team.TeamId;
             regToUpdate.Assignment = $"Player: {team.TeamName}";
             FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            ctx.TouchedRegs.Add(regToUpdate);
             if (teamChanged)
             {
                 // Team changed before any payment (e.g. parent went back from Payment, re-picked a
@@ -399,6 +418,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         var newTeamBase = resolvedNew?.EffectiveBalanceDue ?? 0m;
         var sameBase = existingBase > 0 && newTeamBase > 0 && existingBase == newTeamBase;
         FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        ctx.TouchedRegs.Add(regToUpdate);
         if (sameBase)
         {
             regToUpdate.AssignedTeamId = team.TeamId;
@@ -423,6 +443,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         if (regToUpdate.AssignedTeamId == team.TeamId)
         {
             FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            ctx.TouchedRegs.Add(regToUpdate);
             regToUpdate.Assignment = $"Player: {team.TeamName}";
             await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
             AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated.", false);
@@ -446,6 +467,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
                 Assignment = $"Player: {team.TeamName}"
             };
             FormValueMapper.ApplyFormValues(newReg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+            ctx.TouchedRegs.Add(newReg);
             newReg.BUploadedMedForm = _medForms.Exists(playerId);
             await ApplyInitialFeesAsync(newReg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
             _registrations.Add(newReg);
@@ -456,6 +478,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         regToUpdate.AssignedTeamId = team.TeamId;
         regToUpdate.Assignment = $"Player: {team.TeamName}";
         FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        ctx.TouchedRegs.Add(regToUpdate);
         await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
         AddResult(teamResults, playerId, team.TeamId, false, team.TeamName ?? string.Empty, "Registration updated (team changed).", false);
     }
@@ -476,6 +499,7 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             Assignment = $"Player: {team.TeamName}"
         };
         FormValueMapper.ApplyFormValues(reg, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
+        ctx.TouchedRegs.Add(reg);
         reg.BUploadedMedForm = _medForms.Exists(playerId);
         await ApplyInitialFeesAsync(reg, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);
         _registrations.Add(reg);
@@ -492,6 +516,55 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         await _feeService.ApplyNewRegistrationFeesAsync(
             reg, jobId, agegroupId, teamId,
             new FeeApplicationContext { IsFullPaymentRequired = isFullPaymentRequired });
+    }
+
+    /// <summary>
+    /// Stamps the server-derived USA Lacrosse expiry (<c>SportAssnIdexpDate</c>) onto every touched
+    /// registration that carries a membership number. Called only when the player form REQUIRES USLax
+    /// (see <see cref="UsLaxMetadataPolicy.RequiresUsLax"/>). Mirrors the coach path's expiry stamp,
+    /// minus OTP: the wizard already validated the number, and the MemberPing is served from the same
+    /// cache that validation warmed (see <c>UsLaxService.MemberCacheTtl</c>) — not a second vendor call.
+    ///
+    /// Non-blocking by design (matches <c>RegistrationSearchService.RevalidateUsLaxAsync</c>): a vendor
+    /// outage or non-200 leaves the expiry untouched (null on a fresh row) rather than failing the
+    /// registration. The detail-panel "Live update" link is the admin backstop for those.
+    /// </summary>
+    private async Task ApplyUsLaxPlayerValidationAsync(List<Registrations> regs)
+    {
+        // One vendor lookup per distinct number — dedups a player on multiple teams (multiple rows,
+        // one number) or a family that happens to share a number.
+        var numbers = regs
+            .Select(r => r.SportAssnId?.Trim())
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        foreach (var number in numbers)
+        {
+            DateTime? expDate = null;
+            try
+            {
+                var member = await _usLax.GetMemberAsync(number!);
+                if (member is { StatusCode: 200 }
+                    && DateTime.TryParse(member.Output?.ExpDate, out var dt))
+                {
+                    expDate = dt;
+                }
+            }
+            catch (Exception ex)
+            {
+                // Transient vendor/parse failure — never block a registration on it.
+                _logger.LogWarning(ex, "[PreSubmit] USLax expiry lookup failed for a player membership; leaving expiry unset.");
+            }
+
+            if (expDate is null) continue; // outage / non-200 → leave stored value untouched
+
+            foreach (var reg in regs)
+            {
+                if (string.Equals(reg.SportAssnId?.Trim(), number, StringComparison.OrdinalIgnoreCase))
+                    reg.SportAssnIdexpDate = expDate;
+            }
+        }
     }
 
     /// <summary>

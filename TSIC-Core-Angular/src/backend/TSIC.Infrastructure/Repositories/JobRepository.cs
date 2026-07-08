@@ -1,4 +1,3 @@
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
@@ -6,6 +5,7 @@ using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Domain.JobRules;
+using TSIC.Domain.UsLax;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -569,7 +569,7 @@ public class JobRepository : IJobRepository
                     PlayerRegRequiresToken = j.BplayerRegRequiresToken == true,
                     // USLax requirement is a JSON-parse of PlayerProfileMetadataJson, which
                     // EF can't translate — placeholder here, folded in post-materialization
-                    // (see MetadataRequiresUsLax below). The valid-through date is a plain
+                    // (UsLaxMetadataPolicy.RequiresUsLax). The valid-through date is a plain
                     // column, so it rides the projection directly.
                     PlayerRegRequiresUsLax = false,
                     UsLaxMembershipValidThrough = j.UslaxNumberValidThroughDate,
@@ -738,7 +738,7 @@ public class JobRepository : IJobRepository
             // Pure profile fact — independent of the create door. The bulletin ANDs it
             // with reg-open client-side; folding the door in here would wrongly drop the
             // notice the instant the event concluded.
-            PlayerRegRequiresUsLax = MetadataRequiresUsLax(row.PlayerProfileMetadataJson),
+            PlayerRegRequiresUsLax = UsLaxMetadataPolicy.RequiresUsLax(row.PlayerProfileMetadataJson),
             PlayerRegistrationOpen = pulse.PlayerRegistrationOpen && door,
             TeamRegistrationOpen = pulse.TeamRegistrationOpen && door,
             ClubRepAllowAdd = pulse.ClubRepAllowAdd && door,
@@ -747,76 +747,6 @@ public class JobRepository : IJobRepository
             RefereeRegistrationOpen = pulse.RefereeRegistrationOpen && door,
             RecruiterRegistrationOpen = pulse.RecruiterRegistrationOpen && door,
         };
-    }
-
-    /// <summary>
-    /// True when the player profile (PlayerProfileMetadataJson) has a REQUIRED USA Lacrosse
-    /// membership field. Mirrors FormSchemaService's USLax detection exactly: a field whose
-    /// name is sportAssnId/uslax (case-insensitive) OR whose label mentions "lacrosse", that
-    /// is required either directly (field.required) or via validation.required/requiredTrue.
-    /// Malformed/empty metadata → false (fail safe to not-shown).
-    /// </summary>
-    private static bool MetadataRequiresUsLax(string? metadataJson)
-    {
-        if (string.IsNullOrWhiteSpace(metadataJson)) return false;
-        try
-        {
-            using var doc = JsonDocument.Parse(metadataJson);
-            if (!doc.RootElement.TryGetProperty("fields", out var fields) || fields.ValueKind != JsonValueKind.Array)
-                return false;
-
-            foreach (var f in fields.EnumerateArray())
-            {
-                if (f.ValueKind != JsonValueKind.Object) continue;
-                var name = GetStringCI(f, "name") ?? string.Empty;
-                var label = GetStringCI(f, "label") ?? GetStringCI(f, "displayName") ?? GetStringCI(f, "display") ?? string.Empty;
-                var isUsLax = name.Equals("sportAssnId", StringComparison.OrdinalIgnoreCase)
-                    || name.Equals("uslax", StringComparison.OrdinalIgnoreCase)
-                    || label.Contains("lacrosse", StringComparison.OrdinalIgnoreCase);
-                if (isUsLax && IsFieldRequired(f)) return true;
-            }
-        }
-        catch (JsonException)
-        {
-            // Malformed metadata → no USLax requirement asserted.
-        }
-        return false;
-    }
-
-    private static bool IsFieldRequired(JsonElement f)
-    {
-        if (ReadBoolCI(f, "required")) return true;
-        if (TryGetPropertyCI(f, "validation", out var val) && val.ValueKind == JsonValueKind.Object)
-        {
-            if (ReadBoolCI(val, "required")) return true;
-            if (ReadBoolCI(val, "requiredTrue")) return true;
-        }
-        return false;
-    }
-
-    private static bool ReadBoolCI(JsonElement obj, string name)
-    {
-        if (!TryGetPropertyCI(obj, name, out var el)) return false;
-        return el.ValueKind == JsonValueKind.True
-            || (el.ValueKind == JsonValueKind.String && bool.TryParse(el.GetString(), out var b) && b);
-    }
-
-    private static string? GetStringCI(JsonElement obj, string name)
-        => TryGetPropertyCI(obj, name, out var el) && el.ValueKind == JsonValueKind.String ? el.GetString() : null;
-
-    private static bool TryGetPropertyCI(JsonElement obj, string name, out JsonElement value)
-    {
-        value = default;
-        if (obj.ValueKind != JsonValueKind.Object) return false;
-        foreach (var p in obj.EnumerateObject())
-        {
-            if (string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))
-            {
-                value = p.Value;
-                return true;
-            }
-        }
-        return false;
     }
 
     /// <summary>
