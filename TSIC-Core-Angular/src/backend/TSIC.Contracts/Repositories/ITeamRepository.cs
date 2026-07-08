@@ -1,6 +1,7 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.CampGroups;
 using TSIC.Contracts.Dtos.ClubRoster;
+using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Dtos.TeamSearch;
@@ -584,6 +585,16 @@ public record TeamDetailQueryResult
 
     /// <summary>True when the team's balance is on a broken ARB subscription.</summary>
     public bool PaymentFlagged { get; init; }
+
+    /// <summary>True when the team has an ARB subscription (Teams.AdnSubscriptionId is set).</summary>
+    public bool HasSubscription { get; init; }
+
+    /// <summary>
+    /// Stored ARB snapshot, projected from the Teams.AdnSubscription* columns. Lets the team
+    /// detail panel show subscription status in every environment with no gateway call — the
+    /// live Authorize.Net lookup only resolves against the account that created it (Production).
+    /// </summary>
+    public SubscriptionDetailDto? StoredSubscription { get; init; }
 }
 
 /// <summary>

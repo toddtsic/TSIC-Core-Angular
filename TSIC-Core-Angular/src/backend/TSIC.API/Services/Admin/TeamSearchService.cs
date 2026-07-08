@@ -167,8 +167,115 @@ public sealed class TeamSearchService : ITeamSearchService
             ClubTeamSummaries = clubTeamSummaries,
             PaymentScheduled = detail.PaymentScheduled,
             NextChargeDate = detail.NextChargeDate,
-            PaymentFlagged = detail.PaymentFlagged
+            PaymentFlagged = detail.PaymentFlagged,
+            HasSubscription = detail.HasSubscription,
+            StoredSubscription = detail.StoredSubscription
         };
+    }
+
+    // ── ARB Subscription (live Authorize.Net) ──
+
+    public async Task<SubscriptionDetailDto?> GetTeamSubscriptionDetailAsync(
+        Guid jobId, Guid teamId, CancellationToken ct = default)
+    {
+        var team = await _teamRepo.GetByIdReadOnlyAsync(teamId, ct);
+        if (team == null || team.JobId != jobId)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(team.AdnSubscriptionId))
+            return null;
+
+        try
+        {
+            // Read the subscription from the same ADN account that created it — sandbox off-Production,
+            // production on Production. A sandbox-origin subscription cannot be resolved against the
+            // production account (and vice versa), so the read env must match the create env.
+            var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+            var env = _adnApi.GetADNEnvironment();
+
+            _logger.LogInformation(
+                "Fetching team subscription from ADN: TeamId={TeamId}, SubscriptionId={SubId}, Env={Env}",
+                teamId, team.AdnSubscriptionId, env);
+
+            var details = _adnApi.GetSubscriptionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, team.AdnSubscriptionId);
+
+            if (details == null)
+            {
+                _logger.LogWarning("ADN GetSubscriptionDetails returned null for team SubId={SubId}", team.AdnSubscriptionId);
+                return null;
+            }
+
+            if (details.messages?.resultCode != messageTypeEnum.Ok)
+            {
+                var errorMsg = details.messages?.message?.FirstOrDefault()?.text ?? "Unknown ADN error";
+                _logger.LogWarning(
+                    "ADN GetSubscriptionDetails failed: team SubId={SubId}, ResultCode={Code}, Error={Error}",
+                    team.AdnSubscriptionId, details.messages?.resultCode, errorMsg);
+                return null;
+            }
+
+            if (details.subscription == null)
+            {
+                _logger.LogWarning("ADN returned Ok but subscription object is null for team SubId={SubId}", team.AdnSubscriptionId);
+                return null;
+            }
+
+            var sub = details.subscription;
+            var intervalLength = sub.paymentSchedule?.interval?.length ?? 1;
+            var intervalLabel = intervalLength == 1 ? "every month" : $"every {intervalLength} months";
+
+            return new SubscriptionDetailDto
+            {
+                SubscriptionId = team.AdnSubscriptionId,
+                Status = sub.status.ToString(),
+                PerOccurrenceAmount = sub.amount,
+                TotalOccurrences = sub.paymentSchedule?.totalOccurrences ?? 0,
+                TotalAmount = sub.amount * (sub.paymentSchedule?.totalOccurrences ?? 0),
+                StartDate = sub.paymentSchedule?.startDate ?? DateTime.MinValue,
+                IntervalLabel = intervalLabel
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to load subscription for team {TeamId}, SubId={SubId}", teamId, team.AdnSubscriptionId);
+            return null;
+        }
+    }
+
+    public async Task CancelTeamSubscriptionAsync(
+        Guid jobId, string userId, Guid teamId, CancellationToken ct = default)
+    {
+        var team = await _teamRepo.GetTeamFromTeamId(teamId, ct)
+            ?? throw new KeyNotFoundException("Team not found.");
+
+        if (team.JobId != jobId)
+            throw new InvalidOperationException("Team does not belong to this job.");
+
+        if (string.IsNullOrWhiteSpace(team.AdnSubscriptionId))
+            throw new InvalidOperationException("Team has no ARB subscription.");
+
+        // Env-bound: cancel against the SAME account that created the subscription (sandbox
+        // off-Production, production on Production). A prod-origin subscription is therefore not
+        // cancellable from a non-Production host — by design, so a preview environment can never
+        // cancel a real customer's recurring billing.
+        var creds = await _adnApi.GetJobAdnCredentials_FromJobId(jobId);
+        var env = _adnApi.GetADNEnvironment();
+
+        var result = _adnApi.ADN_CancelSubscription(env, creds.AdnLoginId!, creds.AdnTransactionKey!, team.AdnSubscriptionId);
+
+        if (result?.messages?.resultCode != messageTypeEnum.Ok)
+        {
+            var err = result?.messages?.message?.FirstOrDefault()?.text ?? "Cancel failed.";
+            throw new InvalidOperationException($"Failed to cancel subscription: {err}");
+        }
+
+        team.AdnSubscriptionStatus = "canceled";
+        team.Modified = DateTime.Now;
+        team.LebUserId = userId;
+
+        await _teamRepo.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Team subscription canceled: TeamId={TeamId}, SubId={SubId}", teamId, team.AdnSubscriptionId);
     }
 
     public async Task<ClubRepAccountingDto?> GetClubRepAccountingAsync(

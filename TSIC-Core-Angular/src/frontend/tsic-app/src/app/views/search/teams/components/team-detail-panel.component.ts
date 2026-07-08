@@ -1,12 +1,13 @@
 import { Component, ChangeDetectionStrategy, input, output, signal, computed, inject, linkedSignal, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto } from '@core/api';
+import type { TeamSearchDetailDto, EditTeamRequest, ClubRegistrationDto, SubscriptionDetailDto } from '@core/api';
 import { TeamSearchService } from '../services/team-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { ClubRepPaymentComponent } from '@shared-ui/components/club-rep-payment/club-rep-payment.component';
 import { LOP_CHOICES, normalizeLop } from '@shared/teams/lop-choices';
+import { environment } from '@environments/environment';
 
 type TabType = 'info' | 'accounting';
 
@@ -173,6 +174,84 @@ export class TeamDetailPanelComponent {
 
 	setActiveTab(tab: TabType): void {
 		this.activeTab.set(tab);
+	}
+
+	// ── ARB Subscription ──
+	// Only Production talks to live Authorize.Net; every other host is sandboxed and a prod-origin
+	// subscription lives in an account it can't reach, so off-Production we lean on the stored snapshot.
+	readonly isProdEnv = environment.envName === 'production';
+
+	// Seeded from the stored snapshot (projected from the team's AdnSubscription* columns) so the
+	// badge + card show in EVERY environment with no gateway call. linkedSignal re-seeds when a new
+	// team opens; a live Production read overwrites it via .set() until the next team. (No effect() —
+	// this is pure derivation, matching the panel's linkedSignal idiom.)
+	subscription = linkedSignal<SubscriptionDetailDto | null>(() => this.detail()?.storedSubscription ?? null);
+	// True only once a LIVE Authorize.Net read has succeeded (Production). While false, the card shows
+	// the stored snapshot — display-only, so Cancel stays hidden. Resets to false on each new team.
+	subscriptionIsLive = linkedSignal({ source: () => this.detail(), computation: () => false });
+	isLoadingSubscription = signal(false);
+	isCancellingSubscription = signal(false);
+	showCancelSubConfirm = signal(false);
+
+	// Payment progress for the header ARB badge (x of y occurrences). Derived from paid ÷ per-occurrence,
+	// but ONLY when the paid total is a CLEAN multiple of the occurrence amount (uniform ARB) — never
+	// infer a count off a deposit / partial / mixed balance, which would misstate money.
+	arbProgress = computed<{ paid: number; total: number } | null>(() => {
+		const sub = this.subscription();
+		const d = this.detail();
+		if (!sub || !d) return null;
+		const total = sub.totalOccurrences;
+		const per = sub.perOccurrenceAmount;
+		const paidTotal = d.paidTotal ?? 0;
+		if (!total || !per || per <= 0) return null;
+		const paid = Math.round(paidTotal / per);
+		if (paid < 0 || paid > total || Math.abs(paid * per - paidTotal) > 0.005) return null;
+		return { paid, total };
+	});
+
+	/** Fetch live Authorize.Net status (Production). Keeps the stored snapshot on failure. */
+	loadSubscription(): void {
+		const d = this.detail();
+		if (!d || !d.hasSubscription) return;
+
+		this.isLoadingSubscription.set(true);
+		this.searchService.getSubscription(d.teamId).subscribe({
+			next: (sub) => {
+				this.subscription.set(sub);
+				this.subscriptionIsLive.set(true);
+				this.isLoadingSubscription.set(false);
+			},
+			error: () => {
+				// Live refresh failed (e.g. ADN outage / off-Production). Keep the stored snapshot on
+				// screen rather than wiping it, and leave it not-live so actions stay gated.
+				this.subscriptionIsLive.set(false);
+				this.isLoadingSubscription.set(false);
+				this.toast.show('Live subscription status unavailable; showing the stored record.', 'warning', 5000);
+			}
+		});
+	}
+
+	confirmCancelSubscription(): void { this.showCancelSubConfirm.set(true); }
+	dismissCancelSubscription(): void { this.showCancelSubConfirm.set(false); }
+
+	cancelSubscription(): void {
+		const d = this.detail();
+		if (!d) return;
+
+		this.showCancelSubConfirm.set(false);
+		this.isCancellingSubscription.set(true);
+		this.searchService.cancelSubscription(d.teamId).subscribe({
+			next: () => {
+				this.isCancellingSubscription.set(false);
+				this.toast.show('Subscription cancelled', 'success', 3000);
+				this.loadSubscription();
+				this.changed.emit();
+			},
+			error: (err) => {
+				this.isCancellingSubscription.set(false);
+				this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Cancel Subscription Failed');
+			}
+		});
 	}
 
 	// ── Edit ──

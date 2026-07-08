@@ -1254,6 +1254,7 @@ public class TeamRepository : ITeamRepository
                 AdnStart = x.t.AdnSubscriptionStartDate,
                 AdnInterval = x.t.AdnSubscriptionIntervalLength,
                 AdnOccurrences = x.t.AdnSubscriptionBillingOccurences,
+                AdnAmountPerOccurrence = x.t.AdnSubscriptionAmountPerOccurence,
                 HasNsfReversal = _context.RegistrationAccounting.Any(a =>
                     a.TeamId == x.t.TeamId
                     && a.PaymentMethodId == FailedEcheckPaymentMethodId
@@ -1273,11 +1274,33 @@ public class TeamRepository : ITeamRepository
             && row.Result.OwedTotal > 0m
             && (statusBroken || row.HasNsfReversal);
 
+        // Stored ARB snapshot from the Teams.AdnSubscription* columns — shown in every environment
+        // with no gateway call. Mirrors the registration-detail projection (RegistrationRepository).
+        SubscriptionDetailDto? storedSubscription = null;
+        if (!string.IsNullOrWhiteSpace(row.AdnSubId))
+        {
+            var perOccurrence = row.AdnAmountPerOccurrence ?? 0m;
+            var occurrences = row.AdnOccurrences ?? 0;
+            var intervalLength = row.AdnInterval ?? 1;
+            storedSubscription = new SubscriptionDetailDto
+            {
+                SubscriptionId = row.AdnSubId!,
+                Status = row.AdnStatus ?? "unknown",
+                PerOccurrenceAmount = perOccurrence,
+                TotalOccurrences = occurrences,
+                TotalAmount = perOccurrence * occurrences,
+                StartDate = row.AdnStart ?? DateTime.MinValue,
+                IntervalLabel = intervalLength == 1 ? "every month" : $"every {intervalLength} months"
+            };
+        }
+
         return row.Result with
         {
             PaymentScheduled = scheduled,
             NextChargeDate = nextDate,
-            PaymentFlagged = flagged
+            PaymentFlagged = flagged,
+            HasSubscription = !string.IsNullOrWhiteSpace(row.AdnSubId),
+            StoredSubscription = storedSubscription
         };
     }
 

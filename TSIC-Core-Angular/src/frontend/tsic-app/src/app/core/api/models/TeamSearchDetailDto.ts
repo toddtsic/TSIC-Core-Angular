@@ -4,6 +4,7 @@
 /* eslint-disable */
 import type { AccountingRecordDto } from './AccountingRecordDto';
 import type { ClubTeamSummaryDto } from './ClubTeamSummaryDto';
+import type { SubscriptionDetailDto } from './SubscriptionDetailDto';
 export type TeamSearchDetailDto = {
     teamId: string;
     teamName: string;
@@ -33,5 +34,7 @@ export type TeamSearchDetailDto = {
     paymentScheduled?: boolean;
     nextChargeDate?: string | null;
     paymentFlagged?: boolean;
+    hasSubscription?: boolean;
+    storedSubscription?: (null | SubscriptionDetailDto);
 };
 

@@ -393,6 +393,72 @@
 }
 
 // ═══════════════════════════════════════════
+// ARB SUBSCRIPTION (header badge + card)
+// ═══════════════════════════════════════════
+
+// Header marker — top-right of the title area, alongside the Active toggle / close.
+.arb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-2xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  cursor: default;
+  background: color-mix(in srgb, var(--bs-success) 16%, transparent);
+  color: var(--bs-success-text-emphasis, var(--bs-success));
+  border: 1px solid color-mix(in srgb, var(--bs-success) 40%, transparent);
+
+  // Payment progress (x of y occurrences) — set off from the "ARB" label with a hairline divider.
+  .arb-badge-count {
+    padding-left: 4px;
+    border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // Non-active subscription (canceled/suspended/expired): neutral, so it never reads as live.
+  &.arb-badge--inactive {
+    background: var(--bs-secondary-bg);
+    color: var(--text-muted);
+    border-color: var(--bs-border-color);
+  }
+}
+
+.sub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-4);
+}
+
+.sub-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sub-label {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.sub-value {
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
+  word-break: break-word;
+}
+
+.sub-stored-note {
+  margin: var(--space-3) 0 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+// ═══════════════════════════════════════════
 // EDIT FORMS
 // ═══════════════════════════════════════════
 

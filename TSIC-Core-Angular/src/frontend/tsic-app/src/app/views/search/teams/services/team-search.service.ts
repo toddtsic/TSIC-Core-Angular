@@ -25,7 +25,8 @@ import type {
 	ClubRepAccountingDto,
 	DropTeamResultDto,
 	ResendInvoicesRequest,
-	ResendInvoicesResponse
+	ResendInvoicesResponse,
+	SubscriptionDetailDto
 } from '@core/api';
 
 // Re-export for consumers
@@ -59,7 +60,8 @@ export type {
 	ClubRepAccountingDto,
 	DropTeamResultDto,
 	ResendInvoicesRequest,
-	ResendInvoicesResponse
+	ResendInvoicesResponse,
+	SubscriptionDetailDto
 } from '@core/api';
 
 @Injectable({ providedIn: 'root' })
@@ -77,6 +79,16 @@ export class TeamSearchService {
 
 	getTeamDetail(teamId: string): Observable<TeamSearchDetailDto> {
 		return this.http.get<TeamSearchDetailDto>(`${this.apiUrl}/${teamId}`);
+	}
+
+	/** Live Authorize.Net status for the team's ARB subscription (Production; 404 off-Production). */
+	getSubscription(teamId: string): Observable<SubscriptionDetailDto> {
+		return this.http.get<SubscriptionDetailDto>(`${this.apiUrl}/${teamId}/subscription`);
+	}
+
+	/** Cancel the team's ARB subscription with Authorize.Net. */
+	cancelSubscription(teamId: string): Observable<void> {
+		return this.http.post<void>(`${this.apiUrl}/${teamId}/cancel-subscription`, {});
 	}
 
 	editTeam(teamId: string, request: EditTeamRequest): Observable<void> {

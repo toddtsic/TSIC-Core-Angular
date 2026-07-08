@@ -96,6 +96,41 @@ public class TeamSearchController : ControllerBase
         return Ok(detail);
     }
 
+    /// <summary>
+    /// Live Authorize.Net status for this team's ARB subscription. 404 when the team has no
+    /// subscription or the live lookup fails (off-Production, where a prod-origin subscription
+    /// can't be resolved) — the panel falls back to the stored snapshot in that case.
+    /// </summary>
+    [HttpGet("{teamId:guid}/subscription")]
+    public async Task<ActionResult<SubscriptionDetailDto>> GetSubscription(Guid teamId, CancellationToken ct)
+    {
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+            return BadRequest(new { message = "Registration context required" });
+
+        var detail = await _teamSearchService.GetTeamSubscriptionDetailAsync(jobId.Value, teamId, ct);
+        if (detail == null)
+            return NotFound();
+
+        return Ok(detail);
+    }
+
+    /// <summary>Cancel this team's ARB subscription with Authorize.Net.</summary>
+    [HttpPost("{teamId:guid}/cancel-subscription")]
+    public async Task<ActionResult> CancelSubscription(Guid teamId, CancellationToken ct)
+    {
+        var (jobId, userId, error) = await ResolveContext();
+        if (error != null) return error;
+
+        try
+        {
+            await _teamSearchService.CancelTeamSubscriptionAsync(jobId!.Value, userId!, teamId, ct);
+            return NoContent();
+        }
+        catch (KeyNotFoundException) { return NotFound(); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
     [HttpGet("club-rep/{clubRepRegId:guid}/accounting")]
     public async Task<ActionResult<ClubRepAccountingDto>> GetClubRepAccounting(Guid clubRepRegId, CancellationToken ct)
     {

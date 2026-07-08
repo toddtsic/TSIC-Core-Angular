@@ -22,6 +22,15 @@ public interface ITeamSearchService
 
     Task<TeamSearchDetailDto?> GetTeamDetailAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
 
+    // ── ARB subscription (live Authorize.Net) ──
+
+    /// <summary>Live Authorize.Net subscription status for a team. Null when no subscription or the
+    /// live lookup fails (e.g. off-Production, where the prod-origin subscription is unreachable).</summary>
+    Task<SubscriptionDetailDto?> GetTeamSubscriptionDetailAsync(Guid jobId, Guid teamId, CancellationToken ct = default);
+
+    /// <summary>Cancel a team's ARB subscription with Authorize.Net and mark the stored status canceled.</summary>
+    Task CancelTeamSubscriptionAsync(Guid jobId, string userId, Guid teamId, CancellationToken ct = default);
+
     /// <summary>
     /// Get club rep accounting view — aggregated totals, team breakdown, all accounting records.
     /// Used by the shared club-rep-payment component from both search/registrations and search/teams.

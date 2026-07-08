@@ -63,6 +63,15 @@ public record TeamSearchDetailDto
     /// Mirrors TeamSearchResultDto.PaymentFlagged.
     /// </summary>
     public bool PaymentFlagged { get; init; }
+
+    /// <summary>True when the team has an ARB subscription (drives the header ARB badge + card).</summary>
+    public bool HasSubscription { get; init; }
+
+    /// <summary>
+    /// Stored ARB snapshot projected from the team's AdnSubscription* columns. Seeds the ARB
+    /// badge + card in every environment; Production refreshes it against live Authorize.Net.
+    /// </summary>
+    public SubscriptionDetailDto? StoredSubscription { get; init; }
 }
 
 /// <summary>

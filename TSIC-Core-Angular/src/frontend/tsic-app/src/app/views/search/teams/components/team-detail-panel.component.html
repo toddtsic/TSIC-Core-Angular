@@ -19,6 +19,18 @@
           </h3>
         </div>
         <div class="header-actions">
+          <!-- Recurring-billing (ARB) marker — top-right of the title area, on every tab. Terse "ARB";
+               hover carries the amount/status. Colored by status so a canceled subscription never reads
+               as active. Full detail lives in the ARB card on the Accounting tab. -->
+          @if (subscription(); as sub) {
+            <span class="arb-badge" [class.arb-badge--inactive]="sub.status !== 'active'"
+                  [title]="'Recurring billing · ' + (sub.status | titlecase) + ' · ' + (sub.perOccurrenceAmount | currency) + ' ' + sub.intervalLabel">
+              <span class="arb-badge-text">ARB</span>
+              @if (arbProgress(); as p) {
+                <span class="arb-badge-count">{{ p.paid }}/{{ p.total }}</span>
+              }
+            </span>
+          }
           <label class="active-toggle-switch" [class.disabled]="isTogglingActive()">
             <input type="checkbox" [checked]="team.active" (change)="toggleActive()" [disabled]="isTogglingActive()">
             <span class="toggle-track"></span>
@@ -238,6 +250,76 @@
             </app-club-rep-payment>
           } @else {
             <div class="text-muted text-center py-3">No club rep assigned to this team.</div>
+          }
+
+          <!-- ── ARB Subscription Card ── -->
+          @if (team.hasSubscription) {
+            <div class="contact-zone arb-zone">
+              <div class="section-title-row">
+                <h4 class="section-title">ARB Subscription</h4>
+                @if (subscription(); as sub) {
+                  <span class="badge" [class.bg-success]="sub.status === 'active'" [class.bg-secondary]="sub.status !== 'active'">{{ sub.status }}</span>
+                }
+              </div>
+              @if (isLoadingSubscription()) {
+                <div class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading...</div>
+              } @else if (subscription(); as sub) {
+                <div class="sub-grid">
+                  <div class="sub-field">
+                    <span class="sub-label">Subscription ID</span>
+                    <span class="sub-value">{{ sub.subscriptionId }}</span>
+                  </div>
+                  <div class="sub-field">
+                    <span class="sub-label">Start Date</span>
+                    <span class="sub-value">{{ sub.startDate | date:'M/d/yy' }}</span>
+                  </div>
+                  <div class="sub-field">
+                    <span class="sub-label">Amount</span>
+                    <span class="sub-value">{{ sub.perOccurrenceAmount | currency }} / {{ sub.intervalLabel }}</span>
+                  </div>
+                  <div class="sub-field">
+                    <span class="sub-label">Occurrences</span>
+                    <span class="sub-value">{{ sub.totalOccurrences }}</span>
+                  </div>
+                </div>
+                @if (!subscriptionIsLive()) {
+                  <p class="sub-stored-note">
+                    <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Stored record — check live Authorize.Net status to enable Cancel.
+                  </p>
+                  <!-- Live read + Cancel target Authorize.Net, which only resolves this subscription in
+                       Production. Off-Production the stored snapshot is display-only. -->
+                  @if (isProdEnv) {
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2" (click)="loadSubscription()" [disabled]="isLoadingSubscription()">
+                      <i class="bi bi-arrow-repeat me-1"></i>Check live status
+                    </button>
+                  }
+                }
+                @if (subscriptionIsLive() && sub.status === 'active') {
+                  <button type="button" class="btn btn-sm btn-outline-danger mt-3" (click)="confirmCancelSubscription()" [disabled]="isCancellingSubscription()">
+                    @if (isCancellingSubscription()) { <span class="spinner-border spinner-border-sm me-1"></span> } Cancel Subscription
+                  </button>
+                }
+
+                @if (showCancelSubConfirm()) {
+                  <div class="cancel-sub-confirm mt-3">
+                    <div class="alert alert-danger d-flex flex-column gap-2 mb-0">
+                      <strong>Are you sure you want to cancel this subscription?</strong>
+                      <span>This will permanently cancel the recurring billing ({{ sub.perOccurrenceAmount | currency }} {{ sub.intervalLabel }}) with Authorize.Net. This action cannot be undone.</span>
+                      <div class="d-flex gap-2 mt-1">
+                        <button type="button" class="btn btn-sm btn-danger" (click)="cancelSubscription()">
+                          Yes, Cancel Subscription
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissCancelSubscription()">
+                          No, Keep Active
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                }
+              } @else {
+                <div class="text-muted">No subscription details available.</div>
+              }
+            </div>
           }
         </div>
       }
