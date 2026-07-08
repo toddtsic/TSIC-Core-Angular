@@ -1,0 +1,142 @@
+<h3>LADT editor — FAQ</h3>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "LADT" stand for?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>L</strong>eagues, <strong>A</strong>ge Groups, <strong>D</strong>ivisions,
+      <strong>T</strong>eams — the four levels of the event tree, in the order they nest. A league contains
+      age groups, an age group contains divisions, and a division contains teams.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I add an age group, division, or team?</span></summary>
+  <div class="faq-a">
+    <p>
+      Hover the parent branch and click its <strong><i class="bi bi-plus-circle"></i></strong> button — a
+      blank row appears right where the new item will live. Type a name and press <strong>Enter</strong> to
+      create it, or <strong>Esc</strong> to back out. You add age groups from a league, divisions from an
+      age group, and teams from a division.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why can't I delete this age group or division?</span></summary>
+  <div class="faq-a">
+    <p>
+      An age group or division can be removed only when it has <strong>no teams beneath it</strong> — the
+      <strong><i class="bi bi-dash-circle"></i></strong> button is hidden while any remain, so you don't
+      strand teams. Move or remove the teams first. The <strong>Unassigned</strong> division is permanent
+      and can never be deleted.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What happens when I remove a team?</span></summary>
+  <div class="faq-a">
+    <p>
+      It depends on whether the team has any history. If it has <strong>no players, payments, or schedule
+      records</strong>, it's deleted permanently. If it does, it isn't erased — it's moved to the
+      <strong>Dropped Teams</strong> bucket and deactivated, so its registrations and payment trail stay
+      intact.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why is a fee shown faded, or labeled "inherited"?</span></summary>
+  <div class="faq-a">
+    <p>
+      Fees cascade down the tree — <strong>Job → League → Age Group → Team</strong> — and the most specific
+      level that actually sets a value wins. A faded pill means this row didn't set that fee itself; it's
+      <strong>inherited</strong> from a level above. Hover the <i class="bi bi-info-circle"></i> to see
+      whether it was set here or inherited, and from which level.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What do "Single", "Deposit", and "PIF" mean in the Payment Phase column?</span></summary>
+  <div class="faq-a">
+    <div class="help-badge-row">
+      <span class="badge rounded-pill text-bg-secondary">Single</span>
+      <span class="badge rounded-pill text-bg-secondary">Deposit</span>
+      <span class="badge rounded-pill text-bg-primary">PIF</span>
+    </div>
+    <p>
+      <strong>Single</strong> — one charge, because the fee has only a deposit or only a balance.
+      <strong>Deposit</strong> — a deposit now with the balance due later. <strong>PIF</strong> (paid in
+      full) — the whole amount is required up front. The phase only matters when a fee carries
+      <em>both</em> a deposit and a balance to split; otherwise it always reads Single.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "Theme Division Names" do?</span></summary>
+  <div class="faq-a">
+    <p>
+      It's a bulk way to name divisions the same across every age group. Open it from the
+      <strong><i class="bi bi-gear"></i></strong> menu, enter a list of names (classic
+      <strong>Pool A, Pool B</strong> or any theme), and each age group's divisions are renamed to match —
+      creating new divisions where an age group has fewer than your list. It shows a full preview first, and
+      a division that already has teams is locked so it won't be renamed away.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What are the "Dropped Teams" and "WAITLIST" buckets?</span></summary>
+  <div class="faq-a">
+    <p>
+      They're holding areas, not real age groups — so they sit at the bottom of the tree and look
+      different. <strong>Dropped Teams</strong> collects teams removed from active play (with their history
+      preserved), and <strong>WAITLIST</strong> holds teams awaiting a spot. You won't add or edit divisions
+      inside them the way you would a normal age group.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Is there a fast way to move between teams while editing?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes. With the detail panel open, use the <strong>▲ / ▼</strong> arrow keys or the dropdown in the
+      panel header to step through siblings without closing it. If you have unsaved edits, it asks before
+      moving on so nothing is lost.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why does the Club column sometimes not appear?</span></summary>
+  <div class="faq-a">
+    <p>
+      The <strong>Club</strong> column shows only when the event actually has teams from more than one club.
+      For a single-club event it's hidden to keep the grid clean.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I recolor an age group?</span></summary>
+  <div class="faq-a">
+    <p>
+      Click the color dot to the left of the age group's name in the tree and pick a swatch (or "none").
+      The color applies immediately and flows down to that age group's divisions, so related items read
+      together in the tree and in scheduling.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> setting a fee once at the <strong>league</strong> or <strong>age group</strong>
+    level lets every team below inherit it — you only drop to team-level fees for the exceptions.
+  </div>
+</div>

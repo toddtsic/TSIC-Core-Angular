@@ -1,5 +1,7 @@
 {
   "keys": [
+    "ladt-editor/faq",
+    "ladt-editor/overview",
     "login/faq",
     "login/overview",
     "registration-wizard/faq",

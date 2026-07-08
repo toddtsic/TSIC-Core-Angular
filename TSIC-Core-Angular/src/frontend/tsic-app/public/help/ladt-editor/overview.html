@@ -1,0 +1,93 @@
+<h3>The LADT editor</h3>
+<p>
+  <strong>LADT</strong> is the structural backbone of an event — its <strong>L</strong>eagues,
+  <strong>A</strong>ge Groups, <strong>D</strong>ivisions, and <strong>T</strong>eams. This screen is
+  where you build and maintain that hierarchy: add and rename branches, set fees, recolor age groups, and
+  edit a single team without losing your place.
+</p>
+
+<h4>The four levels</h4>
+<p>Every event is a tree four levels deep. Each level is the parent of the one below it:</p>
+<div class="help-flow">
+  <span class="badge rounded-pill text-bg-light"><i class="bi bi-trophy"></i> League</span>
+  <span class="help-muted"><i class="bi bi-chevron-right"></i></span>
+  <span class="badge rounded-pill text-bg-light"><i class="bi bi-people"></i> Age Group</span>
+  <span class="help-muted"><i class="bi bi-chevron-right"></i></span>
+  <span class="badge rounded-pill text-bg-light"><i class="bi bi-grid-3x3-gap"></i> Division</span>
+  <span class="help-muted"><i class="bi bi-chevron-right"></i></span>
+  <span class="badge rounded-pill text-bg-light"><i class="bi bi-person-badge"></i> Team</span>
+</div>
+
+<h4>How it works</h4>
+<ol>
+  <li>Pick any item in the <strong>tree</strong> on the left.</li>
+  <li>The <strong>grid</strong> on the right lists everything at that level — the item's siblings — with
+    their counts and fees.</li>
+  <li>Click a row (or a tree item) to open its <strong>detail panel</strong>, where you edit its fields.</li>
+</ol>
+<p class="help-muted">
+  The header shows event-wide totals — teams and players — plus how many active teams are waitlisted,
+  scheduled, or neither. Use <strong>Expand</strong> / <strong>Collapse</strong> to open or close the whole
+  tree, and <strong>Refresh</strong> to reload it.
+</p>
+
+<h4>Building the structure</h4>
+<p>
+  Hover a branch and click the <strong><i class="bi bi-plus-circle"></i></strong> to add a child — an age
+  group under a league, a division under an age group, a team under a division. A new row appears inline;
+  type a name and press <strong>Enter</strong> to keep it or <strong>Esc</strong> to cancel.
+</p>
+<p>
+  From the grid you can also <strong>Clone</strong> a team or a whole age group — a fast way to stand up a
+  second bracket or a returning division without rebuilding it by hand.
+</p>
+
+<h4>Fees at a glance</h4>
+<p>
+  For leagues, age groups, and teams the grid shows the resolved <strong>Deposit / Balance</strong>,
+  <strong>Early Bird Discount</strong>, <strong>Late Fee</strong>, and <strong>Payment Phase</strong>.
+  Fees cascade down the tree — <strong>Job → League → Age Group → Team</strong> — and the most specific
+  level that sets a value wins. A pill shown faded is <strong>inherited</strong> from a level above; hover
+  its <i class="bi bi-info-circle"></i> to see exactly where it came from.
+</p>
+<div class="help-badge-row">
+  <span class="badge rounded-pill text-bg-secondary">Single</span>
+  <span class="badge rounded-pill text-bg-secondary">Deposit</span>
+  <span class="badge rounded-pill text-bg-primary">PIF</span>
+</div>
+<p>
+  <strong>Payment Phase</strong> tells you how a registrant pays: <strong>Single</strong> — one charge (the
+  fee has only a deposit or only a balance); <strong>Deposit</strong> — pay a deposit now, the balance
+  later; <strong>PIF</strong> — the full amount is required up front. The phase only splits when a fee
+  carries <em>both</em> a deposit and a balance.
+</p>
+
+<h4>Colors &amp; division themes</h4>
+<p>
+  Click the color dot beside an <strong>age group</strong> to give it a color — its divisions pick up the
+  same tint, so the tree (and later, schedules) reads at a glance. The gear menu's
+  <strong>Theme Division Names</strong> names divisions across <em>every</em> age group at once: type a set
+  of names (<span class="help-muted">Pool A, Pool B…</span> or a fun theme) and each age group's divisions
+  are renamed to match, with new ones created where an age group is short. It previews every change before
+  you apply it.
+</p>
+
+<h4>Removing things</h4>
+<ul>
+  <li><strong>Leagues</strong> can't be deleted here.</li>
+  <li><strong>Age groups and divisions</strong> can be deleted only when no teams sit beneath them; the
+    <strong><i class="bi bi-dash-circle"></i></strong> is hidden otherwise. The <strong>Unassigned</strong>
+    division is permanent.</li>
+  <li><strong>Removing a team</strong> is safe: if it has no players, payments, or schedule history it's
+    deleted outright; otherwise it's moved to <strong>Dropped Teams</strong> and deactivated so its
+    records survive.</li>
+</ul>
+
+<h4>Good to know</h4>
+<ul>
+  <li><strong>Dropped Teams</strong> and <strong>WAITLIST</strong> buckets always sort to the bottom of the
+    tree and are styled apart — they're holding areas, not editable age groups.</li>
+  <li>With the detail panel open, step through siblings with the <strong>▲ / ▼</strong> keys or the
+    dropdown in its header — no need to close and reopen. Unsaved edits prompt before you leave.</li>
+  <li>The <strong>Club</strong> column appears only when the event has teams from more than one club.</li>
+</ul>

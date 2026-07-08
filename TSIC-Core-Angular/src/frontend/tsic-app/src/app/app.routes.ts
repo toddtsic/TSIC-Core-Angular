@@ -252,7 +252,7 @@ export const routes: Routes = [
 					{
 						path: 'editor',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'ladt-editor' },
 						loadComponent: () => import('./views/ladt/editor/ladt.component').then(m => m.LadtEditorComponent)
 					},
 					{
