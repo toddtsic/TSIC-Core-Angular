@@ -1,4 +1,4 @@
-import { AfterViewInit, Directive, ElementRef, OnDestroy, Renderer2, inject, input } from '@angular/core';
+import { AfterViewInit, Directive, ElementRef, OnDestroy, Renderer2, booleanAttribute, inject, input } from '@angular/core';
 
 /**
  * appDraggableModal — makes a hand-rolled div modal (the `.modal-overlay` >
@@ -21,8 +21,10 @@ import { AfterViewInit, Directive, ElementRef, OnDestroy, Renderer2, inject, inp
     standalone: true
 })
 export class DraggableModalDirective implements AfterViewInit, OnDestroy {
-    /** Whether the modal can be repositioned by dragging its header. Default true. */
-    readonly enabled = input(true, { alias: 'appDraggableModal' });
+    /** Whether the modal can be repositioned by dragging its header. Default true.
+     *  booleanAttribute lets a bare `appDraggableModal` attribute mean true while
+     *  still honouring `[appDraggableModal]="false"` to pin a modal in place. */
+    readonly enabled = input(true, { alias: 'appDraggableModal', transform: booleanAttribute });
 
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly renderer = inject(Renderer2);
