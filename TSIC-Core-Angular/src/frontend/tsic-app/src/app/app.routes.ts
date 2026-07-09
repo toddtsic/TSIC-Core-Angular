@@ -111,7 +111,7 @@ export const routes: Routes = [
 				// Admin-only widget dashboard (charts/metrics). Non-admins are bounced to /home.
 				path: 'dashboard',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'dashboard' },
 				loadComponent: () => import('./views/home/widget-dashboard/widget-dashboard.component').then(m => m.WidgetDashboardComponent)
 			},
 			{
