@@ -537,7 +537,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/referee-assignment',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.RefAssignor] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.RefAssignor], helpKey: 'referee-assignment' },
 				loadComponent: () => import('./views/scheduling/referee-assignment/referee-assignment.component').then(m => m.RefereeAssignmentComponent)
 			},
 			{
