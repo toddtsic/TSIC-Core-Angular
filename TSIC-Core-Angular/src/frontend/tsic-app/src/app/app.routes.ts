@@ -138,7 +138,7 @@ export const routes: Routes = [
 					{
 						path: 'discount-codes',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'discount-codes' },
 						loadComponent: () => import('./views/configure/discount-codes/discount-codes.component').then(m => m.DiscountCodesComponent)
 					},
 					{
