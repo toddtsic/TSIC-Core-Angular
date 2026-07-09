@@ -15,7 +15,7 @@ import type { RegisteredTeamDto } from '@core/api';
     standalone: true,
     imports: [CurrencyPipe, DatePipe, GridAllModule],
     template: `
-      <ejs-grid #grid [dataSource]="teams()" [allowSorting]="true"
+      <ejs-grid #grid [dataSource]="gridRows()" [allowSorting]="true"
                 [allowTextWrap]="true"
                 [textWrapSettings]="{ wrapMode: 'Header' }"
                 [height]="gridHeight()"
@@ -106,7 +106,11 @@ import type { RegisteredTeamDto } from '@core/api';
             </ng-template>
           </e-column>
           <e-column [field]="procFeeField()" [headerText]="procFeeHeader()" width="75" textAlign="Right" format="C2"
-                    [visible]="showProcessing()"></e-column>
+                    [visible]="showProcessing()">
+            <ng-template #template let-data>
+              {{ rowProcFee(data) | currency }}
+            </ng-template>
+          </e-column>
           <e-column field="feeAdj" headerText="Fee-Adj" width="90" textAlign="Right" format="C2"
                     [visible]="showFeeAdj()">
             <!-- The grid renders header templates as static HTML (Angular events never
@@ -121,11 +125,11 @@ import type { RegisteredTeamDto } from '@core/api';
               <span [class.text-success]="data.feeAdj < 0">{{ data.feeAdj | currency }}</span>
             </ng-template>
           </e-column>
-          <e-column field="ccOwedTotal" headerText="CC Owed" width="75" textAlign="Right"
+          <e-column field="ccOwedTotal" [headerText]="ccOwedHeader()" width="75" textAlign="Right"
                     [visible]="showCcOwed()">
             <ng-template #template let-data>
-              <span [style.color]="data.ccOwedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.ccOwedTotal > 0">
-                {{ data.ccOwedTotal | currency }}
+              <span [style.color]="rowMethodOwed(data) > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="rowMethodOwed(data) > 0">
+                {{ rowMethodOwed(data) | currency }}
               </span>
             </ng-template>
           </e-column>
@@ -195,8 +199,8 @@ import type { RegisteredTeamDto } from '@core/api';
               </e-column>
               <e-column field="ccOwedTotal" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
-                  <div class="aggregate-value" [style.color]="sumCcOwed() > 0 ? 'var(--bs-danger)' : 'var(--bs-success)'">
-                    {{ sumCcOwed() | currency }}
+                  <div class="aggregate-value" [style.color]="sumMethodOwed() > 0 ? 'var(--bs-danger)' : 'var(--bs-success)'">
+                    {{ sumMethodOwed() | currency }}
                   </div>
                 </ng-template>
               </e-column>
@@ -306,6 +310,10 @@ export class RegisteredTeamsGridComponent {
     // still owed if CC-billed); the family statement shows 'feeProcessing' (the statement-of-fact
     // proc read off the registration), so Total Fee + Proc reconciles with what was paid.
     readonly procFeeField = input<'feeProcessingDue' | 'feeProcessing'>('feeProcessingDue');
+    // When set (team payment wizard), the Proc Fee + owed columns follow the rep's chosen payment
+    // method instead of the default CC-based figures, so the summary reconciles with the "Pay $X"
+    // button. Null (search ledgers, teams step) keeps the static field-bound render unchanged.
+    readonly paymentMethod = input<'CC' | 'Echeck' | 'Check' | null>(null);
     readonly showRemove = input(false);
     readonly actionInProgress = input(false);
     readonly frozenTeamCol = input(false);
@@ -487,10 +495,46 @@ export class RegisteredTeamsGridComponent {
     readonly sumDepositDue = computed(() => this.teams().reduce((s, t) => s + t.depositDue, 0));
     readonly sumAdditionalDue = computed(() => this.teams().reduce((s, t) => s + t.additionalDue, 0));
     readonly sumOwed = computed(() => this.teams().reduce((s, t) => s + t.owedTotal, 0));
-    readonly sumProcessing = computed(() => this.procFeeField() === 'feeProcessing'
-        ? this.teams().reduce((s, t) => s + (t.feeProcessing ?? 0), 0)
-        : this.teams().reduce((s, t) => s + (t.feeProcessingDue ?? 0), 0));
+    // sumProcessing follows rowProcFee so the footer matches the (possibly method-adjusted) cells.
+    readonly sumProcessing = computed(() => this.teams().reduce((s, t) => s + this.rowProcFee(t), 0));
     readonly sumFeeAdj = computed(() => this.teams().reduce((s, t) => s + (t.feeAdj ?? 0), 0));
-    readonly sumCcOwed = computed(() => this.teams().reduce((s, t) => s + t.ccOwedTotal, 0));
     readonly sumCkOwed = computed(() => this.teams().reduce((s, t) => s + t.ckOwedTotal, 0));
+    readonly sumMethodOwed = computed(() => this.teams().reduce((s, t) => s + this.rowMethodOwed(t), 0));
+
+    // Grid dataSource. Depends on paymentMethod so a method toggle yields a NEW array reference —
+    // Syncfusion diffs dataSource by reference and would otherwise not re-run the (method-aware)
+    // cell templates when only the method changed. Cheap spread; identity is the point.
+    readonly gridRows = computed(() => {
+        this.paymentMethod();
+        return [...this.teams()];
+    });
+
+    // ── Method-aware display (team payment wizard; paymentMethod set) ─────
+    // Proc a given method levies on the still-owed balance: CC = ccOwed − ckOwed (== feeProcessingDue),
+    // eCheck = ekOwed − ckOwed (lower ACH rate), Check = 0. Null → the field the caller bound
+    // (feeProcessingDue or feeProcessing), so search ledgers render exactly as before.
+    rowProcFee(t: RegisteredTeamDto): number {
+        switch (this.paymentMethod()) {
+            case 'Echeck': return Math.max(0, (t.ekOwedTotal ?? 0) - (t.ckOwedTotal ?? 0));
+            case 'Check': return 0;
+            case 'CC': return Math.max(0, (t.ccOwedTotal ?? 0) - (t.ckOwedTotal ?? 0));
+            default: return t[this.procFeeField()] ?? 0;
+        }
+    }
+    // Per-team owed for the selected method (equals that method's charge). Null → CC owed, i.e.
+    // the same value the static "CC Owed" column has always shown.
+    rowMethodOwed(t: RegisteredTeamDto): number {
+        switch (this.paymentMethod()) {
+            case 'Echeck': return t.ekOwedTotal ?? 0;
+            case 'Check': return t.ckOwedTotal ?? 0;
+            default: return t.ccOwedTotal ?? 0;
+        }
+    }
+    readonly ccOwedHeader = computed(() => {
+        switch (this.paymentMethod()) {
+            case 'Echeck': return 'eCheck Owed';
+            case 'Check': return 'Check Owed';
+            default: return 'CC Owed';
+        }
+    });
 }

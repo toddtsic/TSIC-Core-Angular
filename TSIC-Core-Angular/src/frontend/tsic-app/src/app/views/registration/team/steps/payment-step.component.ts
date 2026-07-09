@@ -182,9 +182,10 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
           <section class="mb-3">
             <app-registered-teams-grid
               [teams]="registeredTeams()"
+              [paymentMethod]="gridMethod()"
               [showProcessing]="showProcessing()"
-              [showCcOwed]="allowsCc()"
-              [showCkOwed]="showProcessing()"
+              [showCcOwed]="true"
+              [showCkOwed]="false"
               [showAgeGroup]="false"
               [showTotalFee]="false"
               [showDeposit]="true"
@@ -898,6 +899,15 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly showBalanceColumn = computed(() => this.cartPhase() === 'full' || this.cartPhase() === 'mixed');
     readonly procFeeHeaderLabel = computed(() => this.showBalanceColumn() ? 'ProcFee Due' : 'Proc Fee');
     readonly showProcessing = computed(() => this.state.teamPayment.bAddProcessingFees());
+    /** Drives the summary grid's method-reactive Proc Fee + Owed columns so they track the
+     *  selected tile and reconcile with the Pay button. ARB-Trial follows its funding sub-source
+     *  (CC vs eCheck), since that determines the proc rate on the scheduled charges. */
+    readonly gridMethod = computed<'CC' | 'Echeck' | 'Check'>(() => {
+        if (this.isEcheck()) return 'Echeck';
+        if (this.isCheck()) return 'Check';
+        if (this.isArbTrial()) return this.arbTrialSource() === 'Echeck' ? 'Echeck' : 'CC';
+        return 'CC';
+    });
     // paymentMethodsAllowedCode: 1=CC only, 2=CC or Check, 3=Check only
     readonly allowsCc = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() !== 3);
     readonly allowsCheck = computed(() => this.state.teamPayment.paymentMethodsAllowedCode() >= 2);
@@ -1030,12 +1040,16 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         this.lastError.set(null);
         this.arbTrialResult.set(null);
         this.scheduleViWidgetSync();
+        // Draw the rep back to the re-priced summary at the top (the proc-fee spread means the
+        // amount owed changed with the method). Deferred so it lands after the grid re-renders.
+        setTimeout(() => scrollWizardToTop(), 0);
     }
 
     selectArbTrialSource(src: 'CC' | 'Echeck'): void {
         this.state.teamPayment.selectArbTrialSource(src);
         this.lastError.set(null);
         this.scheduleViWidgetSync();
+        setTimeout(() => scrollWizardToTop(), 0);
     }
 
     /** Re-mount the VI widget when method/source changes flip showViSection().

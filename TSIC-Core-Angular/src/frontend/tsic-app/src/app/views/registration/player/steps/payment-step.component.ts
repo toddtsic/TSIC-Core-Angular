@@ -194,11 +194,11 @@ import type { LineItem } from '../state/payment-v2.service';
                         <td>{{ li.playerName }}</td>
                         <td>{{ li.teamName }}</td>
                         <td class="text-end">{{ li.feeBase | currency }}</td>
-                        <td class="text-end">{{ li.feeProcessing | currency }}</td>
+                        <td class="text-end">{{ procFor(li) | currency }}</td>
                         <td class="text-end" [class.text-success]="li.feeAdj < 0">{{ li.feeAdj | currency }}</td>
-                        <td class="text-end">{{ li.feeTotal | currency }}</td>
+                        <td class="text-end">{{ feeTotalFor(li) | currency }}</td>
                         <td class="text-end">{{ li.tenderPaid | currency }}</td>
-                        <td class="text-end fw-bold">{{ li.amount | currency }}</td>
+                        <td class="text-end fw-bold">{{ owesFor(li) | currency }}</td>
                       </tr>
                     }
                   </tbody>
@@ -210,16 +210,16 @@ import type { LineItem } from '../state/payment-v2.service';
                         </td>
                         <td class="text-end fw-semibold">{{ paySvc.donation() | currency }}</td>
                       </tr>
-                      @if (paySvc.donationProcessing() > 0) {
+                      @if (displayDonationProcessing() > 0) {
                         <tr class="donation-row">
                           <td colspan="7" class="text-end text-muted small">Donation processing fee</td>
-                          <td class="text-end text-muted small">{{ paySvc.donationProcessing() | currency }}</td>
+                          <td class="text-end text-muted small">{{ displayDonationProcessing() | currency }}</td>
                         </tr>
                       }
                     }
                     <tr class="table-primary due-now-row">
                       <th colspan="7" class="text-end">Total Due</th>
-                      <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
+                      <th class="text-end due-now-amount">{{ displayTotal() | currency }}</th>
                     </tr>
                   </tfoot>
                 </table>
@@ -1005,6 +1005,31 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly mailTo = computed(() => this.paySvc.mailTo());
     readonly mailinPaymentWarning = computed(() => this.paySvc.mailinPaymentWarning());
 
+    // ── Method-reactive accounting-table display ─────────────────────────
+    // Each line already carries its per-method charge (amount = CC, echeckAmount, checkAmount).
+    // The whole difference vs CC is the proc credit, so shifting Proc, Fee-Total and Owes by that
+    // one credit keeps the row self-consistent AND makes the footer reconcile with the method's
+    // Pay button (currentTotal / echeckTotal / checkTotal). Check has no online charge here (it's
+    // gated out of the donation/eCheck flows) but the same math yields its no-proc figures.
+    private methodCredit(li: LineItem): number {
+        const methodAmt = this.isEcheck() ? li.echeckAmount : this.isCheck() ? li.checkAmount : li.amount;
+        return li.amount - methodAmt;
+    }
+    procFor(li: LineItem): number { return Math.max(0, li.feeProcessing - this.methodCredit(li)); }
+    feeTotalFor(li: LineItem): number { return li.feeTotal - this.methodCredit(li); }
+    owesFor(li: LineItem): number {
+        return this.isEcheck() ? li.echeckAmount : this.isCheck() ? li.checkAmount : li.amount;
+    }
+    /** Total-Due footer for the selected method — mirrors the method's Pay button exactly. */
+    readonly displayTotal = computed(() =>
+        this.isEcheck() ? this.echeckTotal() : this.isCheck() ? this.checkTotal() : this.currentTotal());
+    /** Donation proc line follows the method's rate (eCheck's is lower). Donation isn't offered on
+     *  check, so only CC/eCheck reach this. */
+    readonly displayDonationProcessing = computed(() =>
+        this.isEcheck()
+            ? Math.max(0, this.paySvc.donationEcheck() - this.paySvc.donation())
+            : this.paySvc.donationProcessing());
+
     readonly canSubmit = computed(() => {
         if (this.arbHideAllOptions()) return false;
         const ccNeeded = this.showCcSection();
@@ -1075,6 +1100,9 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     selectMethod(method: 'CC' | 'Echeck' | 'Check'): void {
         this.paySvc.selectPaymentMethod(method);
         this.lastError.set(null);
+        // Draw the user back to the re-priced Accounting summary at the top — the proc-fee spread
+        // means Total Due changed with the method. Deferred so it lands after the table re-renders.
+        setTimeout(() => scrollWizardToTop(), 0);
     }
 
     /** Check payment — record intent (and process insurance if hybrid flow). */
