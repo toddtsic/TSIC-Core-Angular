@@ -131,34 +131,8 @@ export class RegistrationDetailPanelComponent {
   // Editable profile fields (excludes team selection, reorders for lacrosse)
   editableProfileFields = computed(() => {
     const fields = this.metadataFields().filter(f => !PROFILE_EXCLUDED_KEYS.has(f.key.toLowerCase()));
-    return this.reorderForSport(this.ensureUsLaxFields(fields));
+    return this.reorderForSport(fields);
   });
-
-  /**
-   * A lacrosse registrant carries a USA Lacrosse membership # and a server-authoritative expiry
-   * REGARDLESS of whether the job's profile template happens to declare those columns — coach/adult
-   * templates never declare them, and some player forms omit the expiry. Without this, the "Live
-   * update" link and (critically) the refreshed expiry have no row to render into, so a successful
-   * re-validation silently updates the DB but nothing changes on screen. Guarantee both fields exist
-   * (the number editable + link-bearing, the expiry read-only) so the affordance and its result are
-   * always visible for anyone with a number on file. The value itself is always present — the backend
-   * always projects SportAssnId/SportAssnIdexpDate into profileValues — so these are display-only.
-   */
-  private ensureUsLaxFields(fields: FieldMetadata[]): FieldMetadata[] {
-    if (!this.isLacrosse() || !this.profileValues()['SportAssnId']) return fields;
-    const result = [...fields];
-    const idxOf = (k: string) => result.findIndex(f => f.key.toLowerCase() === k);
-    let numIdx = idxOf('sportassnid');
-    if (numIdx < 0) {
-      result.push({ key: 'SportAssnId', label: 'Sport Association #', type: 'text' });
-      numIdx = result.length - 1;
-    }
-    // Insert the expiry immediately after the number so the pair stays together and nothing relocates.
-    if (idxOf('sportassnidexpdate') < 0) {
-      result.splice(numIdx + 1, 0, { key: 'SportAssnIdexpDate', label: 'Assn # Expiration', type: 'date' });
-    }
-    return result;
-  }
 
   /** Show the metadata-driven profile card for ANY role whose template has fields — players and
    *  adults (coach/Staff/Referee/Recruiter) alike. Template-less roles (Club Rep) fall back to the
