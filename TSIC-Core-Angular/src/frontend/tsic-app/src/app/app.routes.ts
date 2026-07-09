@@ -228,7 +228,7 @@ export const routes: Routes = [
 					{
 						path: 'email-log',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'email-log' },
 						loadComponent: () => import('./views/communications/email-log/email-log.component').then(m => m.EmailLogComponent)
 					},
 					{
