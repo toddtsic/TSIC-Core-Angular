@@ -353,7 +353,7 @@ export const routes: Routes = [
 					{
 						path: 'camp-groups',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'camp-groups' },
 						loadComponent: () => import('./views/tools/camp-groups/camp-groups.component').then(m => m.CampGroupsComponent)
 					},
 					{
