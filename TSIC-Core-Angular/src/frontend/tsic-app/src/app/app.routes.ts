@@ -234,7 +234,7 @@ export const routes: Routes = [
 					{
 						path: 'push-notification',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'push-notification' },
 						loadComponent: () => import('./views/communications/push-notification/push-notification.component').then(m => m.PushNotificationComponent)
 					},
 					{
