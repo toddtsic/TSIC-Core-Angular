@@ -298,35 +298,32 @@ export class PlayerWizardStateService {
         const teamSelections: PreSubmitTeamSelectionDto[] = [];
 
         for (const pid of this.familyPlayers.selectedPlayerIds()) {
-            const teamId = this.eligibility.selectedTeams()[pid];
-            if (!teamId) continue;
+            const teamIds = this.eligibility.selectedTeams()[pid] ?? [];
+            if (teamIds.length === 0) continue;
             const formValues = this.playerForms.buildPreSubmitFormValuesForPlayer(
                 pid, schemas, waiverFieldNames, waiversGateOk,
                 key => this.jobCtx.isWaiverAccepted(key),
                 p => this.eligibility.getEligibilityForPlayer(p),
                 () => this.eligibility.determineEligibilityField(schemas),
             );
-            this.injectRequiredTeamField(formValues, teamId, schemas);
-            if (Array.isArray(teamId)) {
-                for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid, formValues });
-            } else {
-                teamSelections.push({ playerId: pid, teamId, formValues });
-            }
+            this.injectRequiredTeamField(formValues, teamIds, schemas);
+            for (const tid of teamIds) teamSelections.push({ playerId: pid, teamId: tid, formValues });
         }
         return { jobPath, teamSelections };
     }
 
     private injectRequiredTeamField(
         formValues: { [key: string]: Json },
-        teamId: string | string[],
+        teamIds: string[],
         schemas: import('../types/player-wizard.types').PlayerProfileFieldSchema[],
     ): void {
         const schema = schemas.find(s => s.name.toLowerCase() === 'teamid');
         if (!schema?.required) return;
         const existing = Object.entries(formValues).find(([k]) => k.toLowerCase() === 'teamid');
         if (existing && typeof existing[1] === 'string' && existing[1].trim()) return;
-        if (typeof teamId === 'string') formValues['teamId'] = teamId;
-        else if (Array.isArray(teamId) && teamId.length === 1 && typeof teamId[0] === 'string') formValues['teamId'] = teamId[0];
+        // Only a single-team (PP) selection populates the required teamId field; CAC's
+        // multi-select carries its teams via the per-selection loop, not this scalar field.
+        if (teamIds.length === 1) formValues['teamId'] = teamIds[0];
     }
 
     private captureServerValidationErrors(resp: PreSubmitPlayerRegistrationResponseDto): void {

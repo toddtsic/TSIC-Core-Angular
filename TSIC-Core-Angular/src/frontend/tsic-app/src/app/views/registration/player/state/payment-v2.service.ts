@@ -107,9 +107,7 @@ export class PaymentV2Service {
             .map(p => ({ id: p.playerId, name: `${p.firstName} ${p.lastName}`.trim() }));
         const selTeams = this.playerState.selectedTeams();
         for (const p of players) {
-            const sel = selTeams[p.id];
-            if (!sel) continue;
-            const teamIds = Array.isArray(sel) ? sel : [sel];
+            const teamIds = selTeams[p.id] ?? [];
             for (const tid of teamIds) {
                 if (typeof tid !== 'string' || !tid) continue;
                 const team = this.teams.getTeamById(tid);

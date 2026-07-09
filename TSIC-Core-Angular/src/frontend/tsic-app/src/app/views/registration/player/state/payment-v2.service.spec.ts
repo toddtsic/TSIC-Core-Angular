@@ -86,10 +86,10 @@ function createFamilyPlayersStub() {
 }
 
 function createPlayerStateStub() {
-    const _selectedTeams = signal<Record<string, string | string[]>>({});
+    const _selectedTeams = signal<Record<string, string[]>>({});
     return {
         selectedTeams: () => _selectedTeams(),
-        setSelectedTeams: (m: Record<string, string | string[]>) => _selectedTeams.set(m),
+        setSelectedTeams: (m: Record<string, string[]>) => _selectedTeams.set(m),
         _teamsSignal: _selectedTeams,
     };
 }
@@ -144,7 +144,7 @@ describe('PaymentV2Service', () => {
             const team = makeTeam({ teamId: 't1', teamName: 'Panthers', fee: 150 });
             teamSvc._addTeam(team);
             fp._set([makePlayer({ playerId: 'p1', firstName: 'Alice', lastName: 'Smith' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             const items = service.lineItems();
             expect(items).toHaveLength(1);
@@ -161,7 +161,7 @@ describe('PaymentV2Service', () => {
                 makePlayer({ playerId: 'p1', firstName: 'Alice', lastName: 'A' }),
                 makePlayer({ playerId: 'p2', firstName: 'Bob', lastName: 'B' }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+            playerState.setSelectedTeams({ p1: ['t1'], p2: ['t2'] });
 
             const items = service.lineItems();
             expect(items).toHaveLength(2);
@@ -176,7 +176,7 @@ describe('PaymentV2Service', () => {
                 makePlayer({ playerId: 'p2' }),
             ]);
             // Only p1 has a team
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             const items = service.lineItems();
             expect(items).toHaveLength(1);
@@ -188,7 +188,7 @@ describe('PaymentV2Service', () => {
             fp._set([
                 makePlayer({ playerId: 'p1', selected: false, registered: false }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             expect(service.lineItems()).toHaveLength(0);
         });
@@ -210,7 +210,7 @@ describe('PaymentV2Service', () => {
                     }],
                 }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             const items = service.lineItems();
             expect(items).toHaveLength(1);
@@ -221,7 +221,7 @@ describe('PaymentV2Service', () => {
         it('should fall back to team fee for new players without prior registrations', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 250 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             expect(service.lineItems()[0].amount).toBe(250);
         });
@@ -232,7 +232,7 @@ describe('PaymentV2Service', () => {
             // and the wizard blocks completion rather than charging an invented amount.
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: null }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             expect(service.lineItems()[0].amount).toBe(0);
         });
@@ -244,7 +244,7 @@ describe('PaymentV2Service', () => {
         beforeEach(() => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 200, deposit: 50 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
         });
 
         it('should be PIF only when no ARB and deposit scenario evaluates false', () => {
@@ -287,7 +287,7 @@ describe('PaymentV2Service', () => {
                 makePlayer({ playerId: 'p1' }),
                 makePlayer({ playerId: 'p2' }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+            playerState.setSelectedTeams({ p1: ['t1'], p2: ['t2'] });
 
             expect(service.totalAmount()).toBe(350);
         });
@@ -313,7 +313,7 @@ describe('PaymentV2Service', () => {
                 // p2 is new — deposit should count
                 makePlayer({ playerId: 'p2' }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+            playerState.setSelectedTeams({ p1: ['t1'], p2: ['t2'] });
 
             expect(service.depositTotal()).toBe(80);
         });
@@ -321,7 +321,7 @@ describe('PaymentV2Service', () => {
         it('should compute currentTotal in PIF mode as totalAmount', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 200 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
             (jobCtx.paymentOption as WritableSignal<string>).set('PIF');
 
             expect(service.currentTotal()).toBe(200);
@@ -348,7 +348,7 @@ describe('PaymentV2Service', () => {
                 // p2 new — deposit 80 goes into depositTotal
                 makePlayer({ playerId: 'p2' }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+            playerState.setSelectedTeams({ p1: ['t1'], p2: ['t2'] });
             (jobCtx.paymentOption as WritableSignal<string>).set('Deposit');
 
             // existingBalance=50, depositTotal=80 → 130
@@ -359,7 +359,7 @@ describe('PaymentV2Service', () => {
             // Create a scenario with zero fees
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: null }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             // Unresolved fee resolves to 0 (no fabrication), so currentTotal stays >= 0
             expect(service.currentTotal()).toBeGreaterThanOrEqual(0);
@@ -392,7 +392,7 @@ describe('PaymentV2Service', () => {
                     }],
                 }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             expect(service.checkTotal()).toBe(500);
         });
@@ -415,7 +415,7 @@ describe('PaymentV2Service', () => {
                 }),
                 makePlayer({ playerId: 'p2' }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+            playerState.setSelectedTeams({ p1: ['t1'], p2: ['t2'] });
 
             expect(service.checkTotal()).toBe(200);
         });
@@ -424,7 +424,7 @@ describe('PaymentV2Service', () => {
             (jobCtx.bAddProcessingFees as WritableSignal<boolean>).set(false);
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 300 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             expect(service.checkTotal()).toBe(300);
         });
@@ -445,7 +445,7 @@ describe('PaymentV2Service', () => {
         it('should divide totalAmount evenly across occurrences', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 500 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
             (jobCtx.adnArbBillingOccurences as WritableSignal<number | null>).set(5);
 
             expect(service.arbPerOccurrence()).toBe(100);
@@ -454,7 +454,7 @@ describe('PaymentV2Service', () => {
         it('should round arbPerOccurrence to 2 decimal places', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 100 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
             (jobCtx.adnArbBillingOccurences as WritableSignal<number | null>).set(3);
 
             // 100 / 3 = 33.333... → 33.33
@@ -494,7 +494,7 @@ describe('PaymentV2Service', () => {
                     }],
                 }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             expect(service.currentTotal()).toBe(495);
         });
@@ -516,7 +516,7 @@ describe('PaymentV2Service', () => {
                     }],
                 }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             expect(service.currentTotal()).toBe(0);
         });
@@ -524,7 +524,7 @@ describe('PaymentV2Service', () => {
         it('should use team fee when no financials present (new player, pre-discount)', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 595 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             expect(service.currentTotal()).toBe(595);
         });
@@ -560,7 +560,7 @@ describe('PaymentV2Service', () => {
                     }],
                 }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+            playerState.setSelectedTeams({ p1: ['t1'], p2: ['t2'] });
 
             expect(service.currentTotal()).toBe(600);
         });
@@ -585,7 +585,7 @@ describe('PaymentV2Service', () => {
                 }),
                 makePlayer({ playerId: 'p2' }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1', p2: 't2' });
+            playerState.setSelectedTeams({ p1: ['t1'], p2: ['t2'] });
 
             expect(service.currentTotal()).toBe(795);
         });
@@ -607,7 +607,7 @@ describe('PaymentV2Service', () => {
                     }],
                 }),
             ]);
-            playerState.setSelectedTeams({ p1: 't1' });
+            playerState.setSelectedTeams({ p1: ['t1'] });
 
             const totalBefore = service.currentTotal();
             service.resetDiscount();

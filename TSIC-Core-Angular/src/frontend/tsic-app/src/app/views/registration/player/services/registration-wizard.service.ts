@@ -791,27 +791,23 @@ export class RegistrationWizardService {
         }
         const teamSelections: PreSubmitTeamSelectionDto[] = [];
         for (const pid of this.selectedPlayerIds()) {
-            const teamId = this.playerState.selectedTeams()[pid];
-            if (!teamId) continue;
+            const teamIds = this.playerState.selectedTeams()[pid] ?? [];
+            if (teamIds.length === 0) continue;
             const formValues = this.buildPreSubmitFormValuesForPlayer(pid);
-            this.injectRequiredTeamFieldIfNeeded(formValues, teamId);
-            if (Array.isArray(teamId)) {
-                for (const tid of teamId) teamSelections.push({ playerId: pid, teamId: tid, formValues });
-            } else {
-                teamSelections.push({ playerId: pid, teamId, formValues });
-            }
+            this.injectRequiredTeamFieldIfNeeded(formValues, teamIds);
+            for (const tid of teamIds) teamSelections.push({ playerId: pid, teamId: tid, formValues });
         }
         return { jobPath, teamSelections };
     }
 
-    private injectRequiredTeamFieldIfNeeded(formValues: { [key: string]: Json }, teamId: string | string[]): void {
+    private injectRequiredTeamFieldIfNeeded(formValues: { [key: string]: Json }, teamIds: string[]): void {
         // Only inject if required teamId schema exists and value missing.
         const schema = this.profileFieldSchemas().find(s => s.name.toLowerCase() === 'teamid');
         if (!schema?.required) return;
         const existing = Object.entries(formValues).find(([k]) => k.toLowerCase() === 'teamid');
         if (existing && typeof existing[1] === 'string' && existing[1].trim()) return;
-        if (typeof teamId === 'string') formValues['teamId'] = teamId;
-        else if (Array.isArray(teamId) && teamId.length === 1 && typeof teamId[0] === 'string') formValues['teamId'] = teamId[0];
+        // Only a single-team (PP) selection populates the required scalar teamId field.
+        if (teamIds.length === 1) formValues['teamId'] = teamIds[0];
     }
 
     private logPreSubmitPayloadIfLocal(payload: PreSubmitPlayerRegistrationRequestDto): void {

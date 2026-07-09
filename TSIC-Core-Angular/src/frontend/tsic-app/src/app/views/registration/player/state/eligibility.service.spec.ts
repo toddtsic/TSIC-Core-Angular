@@ -198,30 +198,30 @@ describe('EligibilityService', () => {
     describe('pruneDeselectedTeams', () => {
         it('removes teams for players not in selectedIds', () => {
             playerState.setSelectedTeams({
-                p1: 'team-a',
-                p2: 'team-b',
-                p3: 'team-c',
+                p1: ['team-a'],
+                p2: ['team-b'],
+                p3: ['team-c'],
             });
 
             service.pruneDeselectedTeams(new Set(['p1']));
 
             const teams = playerState.selectedTeams();
-            expect(teams['p1']).toBe('team-a');
+            expect(teams['p1']).toEqual(['team-a']);
             expect(teams['p2']).toBeUndefined();
             expect(teams['p3']).toBeUndefined();
         });
 
         it('keeps all teams when all players are in selectedIds', () => {
             playerState.setSelectedTeams({
-                p1: 'team-a',
-                p2: 'team-b',
+                p1: ['team-a'],
+                p2: ['team-b'],
             });
 
             service.pruneDeselectedTeams(new Set(['p1', 'p2']));
 
             const teams = playerState.selectedTeams();
-            expect(teams['p1']).toBe('team-a');
-            expect(teams['p2']).toBe('team-b');
+            expect(teams['p1']).toEqual(['team-a']);
+            expect(teams['p2']).toEqual(['team-b']);
         });
     });
 });
