@@ -69,6 +69,7 @@
       <h5 class="section-title">{{ scope() === 'team' ? 'Team Breakdown' : 'Club Teams Breakdown' }}</h5>
       <app-registered-teams-grid
         [teams]="gridTeams()"
+        [procFeeField]="'feeProcessing'"
         [showAgeGroup]="true"
         [showRegDate]="false"
         [showPaid]="true"
