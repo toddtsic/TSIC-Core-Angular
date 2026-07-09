@@ -21,7 +21,8 @@ public static class SchedulingTestFactory
 
     public static ViewScheduleService ViewSchedule(
         SqlDbContext ctx, ScheduleRepository scheduleRepo, TeamRepository teamRepo) =>
-        new(scheduleRepo, teamRepo, Advancement(ctx, scheduleRepo), SeedResolution(ctx, scheduleRepo));
+        new(scheduleRepo, teamRepo, Advancement(ctx, scheduleRepo), SeedResolution(ctx, scheduleRepo),
+            new JobRepository(ctx));
 
     public static ViewScheduleService ViewSchedule(SqlDbContext ctx) =>
         ViewSchedule(ctx, new ScheduleRepository(ctx), new TeamRepository(ctx));
