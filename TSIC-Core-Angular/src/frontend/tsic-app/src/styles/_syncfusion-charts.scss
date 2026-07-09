@@ -1,0 +1,17 @@
+/* ============================================
+   Syncfusion — Chart chrome
+   Charts render their SVG inside the host component, but the .e-chart /
+   .e-chart-legend-text DOM carries no ng-content attr, so these can't be
+   reached from encapsulated component SCSS. Kept global (was three identical
+   `::ng-deep .e-chart` blocks in the chart widgets) — the transparent-surface,
+   no-border, muted-legend look is the intended default for every chart.
+   ============================================ */
+
+.e-chart {
+  background: transparent !important; // counters SF chart white background
+  border: none !important;
+}
+
+.e-chart-legend-text {
+  fill: var(--brand-text-muted) !important;
+}

@@ -1,0 +1,215 @@
+/* ============================================
+   Component overrides — relocated from component SCSS to drop `::ng-deep`
+
+   Each rule below styles DOM the owning component cannot reach through
+   Angular's emulated encapsulation — third-party (Syncfusion) internals,
+   CDK body-appended clones, or `[innerHTML]`-injected content. Previously
+   each lived behind `::ng-deep` in the component's own SCSS. Kept global and
+   *keyed by a unique class* so nothing leaks beyond its component.
+   ============================================ */
+
+/* ── coach-approval-queue: Syncfusion grid chrome ──
+   Keyed by .coach-grid (the grid's cssClass). Same shape as the .tsic-grid
+   ladder in _syncfusion-base.scss. */
+.coach-grid.e-grid {
+  border: 1px solid var(--bs-border-color);
+  border-radius: var(--bs-border-radius);
+  overflow: hidden;
+}
+
+.coach-grid .e-headercell,
+.coach-grid .e-headercelldiv {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--bs-secondary-color);
+}
+
+.coach-grid .e-rowcell {
+  padding: var(--space-2) var(--space-3);
+  vertical-align: top;
+  border-color: var(--bs-border-color);
+}
+
+.coach-grid .row-number-cell {
+  color: var(--bs-secondary-color);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Status-driven left border — recolors in place when status changes (rowDataBound). */
+.coach-grid .e-row.status-unassigned .e-rowcell:first-child {
+  box-shadow: inset 3px 0 0 var(--bs-danger);
+}
+.coach-grid .e-row.status-assigned .e-rowcell:first-child {
+  box-shadow: inset 3px 0 0 var(--bs-success);
+}
+
+/* ── help-editor: Syncfusion RTE + CDK drag preview ──
+   .help-rte-wrap wraps the RTE; the RTE fills its resolved height.
+   The CDK drag-preview clone is appended to <body>; keyed on .faq-edit-card
+   so it can't leak to other drag lists. */
+.help-rte-wrap .e-richtexteditor {
+  height: 100% !important; // counters SF inline height so RTE fills the flex child
+}
+
+.faq-edit-card.cdk-drag-preview {
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
+}
+
+/* ── public-rosters: Syncfusion ListBox wrapper ──
+   Syncfusion applies the cssClass to its runtime wrapper (.e-listbox-wrapper),
+   which carries no ng-content attr. The panel supplies the frame/radius; the
+   ListBox fills it edge to edge. */
+.public-team-listbox {
+  display: block;
+  width: 100%;
+  border: none;
+}
+
+/* ── job-config: shared tab-child vocabulary ──
+   .form-section / .section-title / .tab-panel / .action-bar live in the child
+   tab components' templates, rendered inside .job-config-tabs on the parent.
+   (Sibling field-label/field-input classes are already global in _forms.scss.) */
+.job-config-tabs {
+  .tab-panel {
+    padding: var(--space-2) 0;
+  }
+
+  .form-section {
+    background: var(--bs-card-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    margin-bottom: var(--space-3);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .form-section--super {
+    background: color-mix(in srgb, var(--bs-warning) 4%, var(--bs-card-bg));
+    border-color: color-mix(in srgb, var(--bs-warning) 25%, var(--bs-border-color));
+    border-left: 3px solid var(--bs-warning);
+
+    .section-title {
+      color: color-mix(in srgb, var(--bs-warning) 70%, var(--bs-body-color));
+    }
+  }
+
+  .section-title {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color);
+    margin: 0 0 var(--space-2) 0;
+    padding-bottom: var(--space-1);
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    align-items: center;
+  }
+
+  .action-bar {
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--bs-border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
+  @media (max-width: 768px) {
+    .form-section {
+      padding: var(--space-3);
+    }
+  }
+
+  @media (max-width: 480px) {
+    .form-section {
+      padding: var(--space-2);
+      margin-bottom: var(--space-3);
+    }
+  }
+}
+
+/* ── bulletins: author-controlled `[innerHTML]` body ──
+   Body content is innerHTML-rendered, so it carries no ng-content attr.
+   Reading-grade typography defaults + legacy class hooks, keyed by
+   .bulletin-body. (Base .bulletin-body font/color stays in the component;
+   only the injected-content rules live here.) */
+.bulletin-body {
+  p {
+    margin: 0 0 var(--space-3);
+    color: var(--brand-text);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  ul,
+  ol {
+    margin: 0 0 var(--space-3) var(--space-5);
+    padding-left: 0;
+    color: var(--brand-text);
+  }
+
+  li {
+    margin-bottom: var(--space-1);
+  }
+
+  strong {
+    font-weight: var(--font-weight-semibold);
+    color: var(--brand-text);
+  }
+
+  em {
+    font-style: italic;
+    color: var(--brand-text);
+  }
+
+  a {
+    color: var(--bs-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+
+    &:hover {
+      text-decoration: none;
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: var(--shadow-focus, 0 0 0 3px rgba(var(--bs-primary-rgb), 0.4));
+      border-radius: 2px;
+    }
+  }
+
+  img {
+    max-width: min(100%, 450px);
+    max-height: 400px;
+    height: auto;
+    object-fit: contain;
+  }
+
+  // Legacy inline-style → class mappings (see translate-legacy-urls.pipe).
+  // Bulletins authored with inline font-size / color lose their styling
+  // through Angular's sanitizer; the pipe rewrites a curated allowlist
+  // of values to these classes. Colors map to palette vars for
+  // light/dark responsiveness. Sizes use em so they scale with the
+  // .bulletin-body master font-size knob.
+  .bl-fs-14 { font-size: 0.875em; }   // 14 / 16
+  .bl-fs-18 { font-size: 1.125em; }   // 18 / 16
+  .bl-fs-22 { font-size: 1.375em; }   // 22 / 16
+  .bl-c-blue  { color: var(--bs-primary); }
+  .bl-c-red   { color: var(--bs-danger); }
+  .bl-c-black { color: var(--brand-text); }
+}
+
+@media (max-width: 575px) {
+  .bulletin-body {
+    ul,
+    ol {
+      margin-left: var(--space-4);
+    }
+  }
+}

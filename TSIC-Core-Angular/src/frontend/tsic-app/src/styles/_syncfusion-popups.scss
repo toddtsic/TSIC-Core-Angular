@@ -83,6 +83,14 @@
   }
 }
 
+/* Compact list-item density (relocated from role-selection.component.scss —
+   was a bare `::ng-deep .e-dropdownbase .e-list-item`, i.e. already global). */
+.e-dropdownbase .e-list-item {
+  padding: 5px 8px;
+  line-height: 1.4;
+  min-height: 0;
+}
+
 /* Mobile: cap popup height */
 @media (max-width: 575.98px) {
   .e-popup.e-ddl,

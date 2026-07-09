@@ -27,7 +27,10 @@
 @use 'styles/syncfusion-density';
 @use 'styles/syncfusion-dark';
 @use 'styles/syncfusion-popups';
+@use 'styles/syncfusion-charts';
 @use 'styles/syncfusion-cell-utils';
+/* Per-component overrides relocated out of component SCSS to drop `::ng-deep`. */
+@use 'styles/component-overrides';
 /* Help drawer content vocabulary — after syncfusion-* so it wins over .e-content defaults. */
 @use 'styles/help-content';
 

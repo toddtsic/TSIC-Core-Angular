@@ -75,14 +75,9 @@
 
 // ── Team finder ListBox ──
 // Syncfusion adds cssClass to its runtime wrapper (.e-listbox-wrapper), which
-// carries no ng-content attr, so ::ng-deep is required to reach it. The panel
-// itself supplies the frame/radius; the ListBox just fills it edge to edge.
-
-:host ::ng-deep .public-team-listbox {
-	display: block;
-	width: 100%;
-	border: none;
-}
+// carries no ng-content attr. The .public-team-listbox rule is global in
+// styles/_component-overrides.scss. The panel supplies the frame/radius; the
+// ListBox fills it edge to edge.
 
 .placement-label {
 	font-style: italic;

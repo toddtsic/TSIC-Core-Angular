@@ -158,13 +158,8 @@
   font-size: 1rem;
 }
 
-// ─── Syncfusion popup list-item padding override ─
-// Popup renders outside component scope — needs ::ng-deep
-::ng-deep .e-dropdownbase .e-list-item {
-  padding: 5px 8px;
-  line-height: 1.4;
-  min-height: 0;
-}
+// Syncfusion popup list-item density is global in styles/_syncfusion-popups.scss
+// (the popup renders in <body>, outside component scope).
 
 // ─── Dropdown item template ──────────────────────
 .dropdown-item-custom {

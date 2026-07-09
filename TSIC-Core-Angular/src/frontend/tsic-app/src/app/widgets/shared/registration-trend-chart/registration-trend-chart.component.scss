@@ -2,14 +2,5 @@
 	display: block;
 }
 
-// Syncfusion chart overrides
-:host ::ng-deep {
-	.e-chart {
-		background: transparent !important;
-		border: none !important;
-	}
-
-	.e-chart-legend-text {
-		fill: var(--brand-text-muted) !important;
-	}
-}
+// Syncfusion chart chrome (transparent surface, no border, muted legend) is
+// global in styles/_syncfusion-charts.scss.

@@ -111,55 +111,9 @@
 .tab-content {
   min-height: 300px;
 
-  ::ng-deep {
-    .tab-panel {
-      padding: var(--space-2) 0;
-    }
-
-    .form-section {
-      background: var(--bs-card-bg);
-      border: 1px solid var(--bs-border-color);
-      border-radius: var(--radius-md);
-      padding: var(--space-3);
-      margin-bottom: var(--space-3);
-      box-shadow: var(--shadow-sm);
-    }
-
-    .form-section--super {
-      background: color-mix(in srgb, var(--bs-warning) 4%, var(--bs-card-bg));
-      border-color: color-mix(in srgb, var(--bs-warning) 25%, var(--bs-border-color));
-      border-left: 3px solid var(--bs-warning);
-
-      .section-title {
-        color: color-mix(in srgb, var(--bs-warning) 70%, var(--bs-body-color));
-      }
-    }
-
-    .section-title {
-      font-size: var(--font-size-xs);
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--bs-secondary-color);
-      margin: 0 0 var(--space-2) 0;
-      padding-bottom: var(--space-1);
-      border-bottom: 1px solid var(--bs-border-color);
-      display: flex;
-      align-items: center;
-    }
-
-    /* field-label, field-input, field-select — defined globally in _forms.scss */
-
-    /* Unify checkbox/radio labels to match field-label density */
-
-    .action-bar {
-      padding-top: var(--space-2);
-      border-top: 1px solid var(--bs-border-color);
-      display: flex;
-      justify-content: flex-end;
-      gap: var(--space-2);
-    }
-  }
+  // Tab-child vocabulary (.form-section / .section-title / .tab-panel /
+  // .action-bar) is rendered inside child tab components, so it's styled
+  // globally under .job-config-tabs in styles/_component-overrides.scss.
 }
 
 // ── FAB Save Button ──
@@ -233,23 +187,13 @@
     font-size: 10px;
   }
 
-  .tab-content ::ng-deep {
-    .form-section {
-      padding: var(--space-3);
-    }
-  }
+  // Responsive .form-section padding lives with the rest of the tab-child
+  // vocabulary in styles/_component-overrides.scss (.job-config-tabs).
 }
 
 @media (max-width: 480px) {
   .job-config-shell {
     padding: var(--space-2) var(--space-2) var(--space-8);
-  }
-
-  .tab-content ::ng-deep {
-    .form-section {
-      padding: var(--space-2);
-      margin-bottom: var(--space-3);
-    }
   }
 
   .fab-save {

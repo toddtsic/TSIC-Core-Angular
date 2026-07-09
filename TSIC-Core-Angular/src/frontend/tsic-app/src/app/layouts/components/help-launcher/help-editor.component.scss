@@ -150,12 +150,8 @@
   }
 }
 
-/* CDK drag chrome. The preview clone is appended to <body>, so it needs an unscoped (::ng-deep) rule;
-   it's keyed on .faq-edit-card so it can't leak to other drag lists. */
-::ng-deep .faq-edit-card.cdk-drag-preview {
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.18));
-}
+/* CDK drag chrome. The preview clone is appended to <body>, so its .cdk-drag-preview
+   rule (keyed on .faq-edit-card) is global in styles/_component-overrides.scss. */
 
 .faq-edit-card.cdk-drag-placeholder {
   opacity: 0.4;
@@ -176,14 +172,11 @@
   }
 }
 
-/* Flex child with a resolved height, so the RTE's height:100% has something to measure against. */
+/* Flex child with a resolved height, so the RTE's height:100% has something to measure against.
+   The .help-rte-wrap .e-richtexteditor height rule is global in styles/_component-overrides.scss. */
 .help-rte-wrap {
   flex: 1 1 auto;
   min-height: 0;
-}
-
-:host ::ng-deep .help-rte-wrap .e-richtexteditor {
-  height: 100% !important;
 }
 
 /* ── Edit-mode toolbar: Save/Cancel (left) · Add question / Insert (right) ── */
