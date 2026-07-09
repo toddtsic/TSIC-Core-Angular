@@ -1,8 +1,8 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal, effect, computed, untracked, HostListener, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal, computed, HostListener, inject, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
-import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto, SubscriptionDetailDto } from '@core/api';
+import type { RegistrationDetailDto, AccountingRecordDto, FamilyContactDto, UserDemographicsDto, JobOptionDto } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { RoleIds } from '@infrastructure/constants/roles.constants';
 import { ToastService } from '@shared-ui/toast.service';
@@ -59,6 +59,44 @@ function stripPhoneToDigits(value: string | null | undefined): string | null {
   return value.replace(/\D/g, '') || null;
 }
 
+/** Coerce stored select values to match their option casing (e.g. "adult m" → "Adult M"). Pure —
+ *  returns a NEW object, never mutates the input. */
+function normalizeSelectValues(raw: Record<string, any>, fields: FieldMetadata[]): Record<string, any> {
+  const pv = { ...raw };
+  for (const field of fields) {
+    if (field.type !== 'select' || !field.options?.length) continue;
+    const stored = pv[field.key];
+    if (!stored) continue;
+    const match = field.options.find(o => o.toLowerCase() === String(stored).toLowerCase());
+    if (match && match !== stored) pv[field.key] = match;
+  }
+  return pv;
+}
+
+/** Seed transforms — pure functions of the detail DTO. Used both to initialize the editable
+ *  linkedSignals when a new registrant loads AND to compute the dirty-tracking baselines, so the
+ *  baseline and the initial editable value are guaranteed identical. */
+function seedFamilyContact(d: RegistrationDetailDto | null): FamilyContactDto {
+  const fc = d?.familyContact;
+  if (!fc) return {};
+  return { ...fc, momCellphone: formatPhone(fc.momCellphone), dadCellphone: formatPhone(fc.dadCellphone) };
+}
+function seedDemographics(d: RegistrationDetailDto | null): UserDemographicsDto {
+  const demo = d?.userDemographics;
+  if (!demo) return {};
+  const out = { ...demo };
+  if (out.dateOfBirth) out.dateOfBirth = out.dateOfBirth.substring(0, 10);
+  out.cellphone = formatPhone(out.cellphone);
+  return out;
+}
+function seedFamilyDemographics(d: RegistrationDetailDto | null): UserDemographicsDto {
+  const fDemo = d?.familyAccountDemographics;
+  if (!fDemo) return {};
+  const out = { ...fDemo };
+  out.cellphone = formatPhone(out.cellphone);
+  return out;
+}
+
 /** Waiver field detection — mirrors backend ProfileMetadataService.IsWaiverField */
 function isWaiverField(key: string, label: string, inputType: string): boolean {
   const lname = key.toLowerCase();
@@ -81,7 +119,7 @@ function isWaiverField(key: string, label: string, inputType: string): boolean {
   styleUrl: './registration-detail-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class RegistrationDetailPanelComponent {
+export class RegistrationDetailPanelComponent implements OnChanges {
   detail = input<RegistrationDetailDto | null>(null);
   isOpen = input<boolean>(false);
 
@@ -104,25 +142,36 @@ export class RegistrationDetailPanelComponent {
   // the user is on instead of yanking them back to Accounting.
   activeTab = linkedSignal({ source: () => this.detail()?.registrationId, computation: () => 'accounting' as TabType });
 
-  // Profile values (for read-only display + always-include editable fields)
-  profileValues = signal<Record<string, any>>({});
-  metadataFields = signal<FieldMetadata[]>([]);
+  // Parsed profile metadata (fields, with option sets resolved). Pure derivation of the detail input —
+  // recomputes only when a new registrant loads.
+  metadataFields = computed<FieldMetadata[]>(() =>
+    this.parseMetadataFields(this.detail()?.profileMetadataJson, this.detail()?.jsonOptions));
+
+  // Editable profile values, reseeded from the detail input whenever a NEW registrant loads (source =
+  // detail) and normalized to option casing. Between loads the admin's edits — and the USLax "Live
+  // update" expiry write — persist via .set(); a reseed fires ONLY when detail() itself changes, so a
+  // write can never be clobbered by a stale reseed. (This replaced a constructor effect() that
+  // transitively read profileValues and thus re-ran on its own writes, silently wiping them.)
+  profileValues = linkedSignal({
+    source: () => this.detail(),
+    computation: (d) => normalizeSelectValues({ ...(d?.profileValues ?? {}) }, this.metadataFields())
+  });
 
   // Contact zone editable state
   isSavingContact = signal<boolean>(false);
 
   // Family contact (player roles only — editable: email + cellphone; read-only: names)
-  familyContact = signal<FamilyContactDto>({});
-  hasFamilyLink = signal<boolean>(false);
+  familyContact = linkedSignal({ source: () => this.detail(), computation: (d) => seedFamilyContact(d) });
+  hasFamilyLink = computed(() => !!this.detail()?.familyContact);
 
   // User demographics (player's own — editable: email, cellphone, dob, gender)
-  demographics = signal<UserDemographicsDto>({});
+  demographics = linkedSignal({ source: () => this.detail(), computation: (d) => seedDemographics(d) });
 
   // Family account demographics (player roles only — email, cell, address)
-  familyDemographics = signal<UserDemographicsDto>({});
+  familyDemographics = linkedSignal({ source: () => this.detail(), computation: (d) => seedFamilyDemographics(d) });
 
   // Role detection
-  isPlayerRole = signal<boolean>(false);
+  isPlayerRole = computed(() => PLAYER_ROLES.has(this.detail()?.roleName?.toLowerCase().trim() ?? ''));
   isClubRep = computed(() => this.detail()?.isClubRep === true);
 
   /** Player registered under a family account → show the combined family-accounting view. */
@@ -130,7 +179,15 @@ export class RegistrationDetailPanelComponent {
 
   // Editable profile fields (excludes team selection, reorders for lacrosse)
   editableProfileFields = computed(() => {
-    const fields = this.metadataFields().filter(f => !PROFILE_EXCLUDED_KEYS.has(f.key.toLowerCase()));
+    let fields = this.metadataFields().filter(f => !PROFILE_EXCLUDED_KEYS.has(f.key.toLowerCase()));
+    // The USLax expiry is server-authoritative — never a field the registrant fills — so a USLax template
+    // carries the number but not its expiry. Guarantee a read-only expiry slot whenever this is a Lacrosse
+    // reg with a number on file, so "Live update" (revalidateUsLax) has a bound element to repaint; without
+    // it, the fetched date is written to profileValues with nothing on screen bound to it. Renders read-only
+    // via isDerivedReadOnlyField; the value comes from profileValues (populated server-side, null when unset).
+    if (this.canRevalidateUsLax() && !fields.some(f => f.key.toLowerCase() === 'sportassnidexpdate')) {
+      fields = [...fields, { key: 'SportAssnIdexpDate', label: 'USA Lacrosse # Expiration', type: 'date' }];
+    }
     return this.reorderForSport(fields);
   });
 
@@ -156,16 +213,19 @@ export class RegistrationDetailPanelComponent {
   /** Show the "Live update" link only for a Lacrosse job with a number on file. */
   readonly canRevalidateUsLax = computed(() => this.isLacrosse() && !!this.profileValues()['SportAssnId']);
 
-  // Email
-  emailSubject = signal<string>('');
-  emailBody = signal<string>('');
+  // Email draft — cleared whenever a new registrant loads (a transient draft, never carried across).
+  emailSubject = linkedSignal({ source: () => this.detail(), computation: () => '' });
+  emailBody = linkedSignal({ source: () => this.detail(), computation: () => '' });
 
   // ── Unsaved-changes tracking ──
   // Snapshots of the editable zones, taken when detail loads and after each save. Compared
   // against current state to drive the per-section Save affordance + the discard-on-close
   // guard. Email is intentionally excluded (a transient draft, cleared on send/load).
-  private snapshotContact = signal<string>('');
-  private snapshotProfile = signal<string>('');
+  // Reseeded from the detail input on load, and re-set after each successful save. Computed PURELY from
+  // detail (never the live editable signals) so editing a field moves the live serialization but NOT the
+  // baseline — otherwise the dirty comparison would always match and the zone would read as never-dirty.
+  private snapshotContact = linkedSignal({ source: () => this.detail(), computation: (d) => this.contactBaseline(d) });
+  private snapshotProfile = linkedSignal({ source: () => this.detail(), computation: (d) => this.profileBaseline(d) });
   showDiscardConfirm = signal<boolean>(false);
 
   private serializeContact(): string {
@@ -178,6 +238,22 @@ export class RegistrationDetailPanelComponent {
   }
   private serializeProfile(): string {
     return JSON.stringify(this.profileValues());
+  }
+
+  /** Dirty-tracking baseline for the Contact zone — mirrors serializeContact() applied to the freshly
+   *  SEEDED values, but built purely from the detail input so it never moves when the user edits. */
+  private contactBaseline(d: RegistrationDetailDto | null): string {
+    const role = d?.roleName?.toLowerCase().trim() ?? '';
+    const player = PLAYER_ROLES.has(role) && !!d?.familyContact;
+    return JSON.stringify({
+      demo: seedDemographics(d),
+      famContact: player ? seedFamilyContact(d) : null,
+      famDemo: player ? seedFamilyDemographics(d) : null
+    });
+  }
+  /** Dirty-tracking baseline for the Profile zone — mirrors serializeProfile() of the seeded values. */
+  private profileBaseline(d: RegistrationDetailDto | null): string {
+    return JSON.stringify(normalizeSelectValues({ ...(d?.profileValues ?? {}) }, this.metadataFields()));
   }
 
   /** Contact Info zone has unsaved edits (player/family demographics + family contact). */
@@ -238,65 +314,21 @@ export class RegistrationDetailPanelComponent {
     return noAccounting;
   });
 
-  constructor() {
-    effect(() => {
-      const d = this.detail();
-      if (d) {
-        const role = d.roleName?.toLowerCase().trim() ?? '';
-        this.isPlayerRole.set(PLAYER_ROLES.has(role));
-
-        this.profileValues.set({ ...d.profileValues });
-        this.parseMetadata(d.profileMetadataJson, d.jsonOptions);
-        this.normalizeSelectValues();
-
-        this.hasFamilyLink.set(!!d.familyContact);
-        if (d.familyContact) {
-          this.familyContact.set({
-            ...d.familyContact,
-            momCellphone: formatPhone(d.familyContact.momCellphone),
-            dadCellphone: formatPhone(d.familyContact.dadCellphone)
-          });
-        } else {
-          this.familyContact.set({});
-        }
-
-        if (d.userDemographics) {
-          const demo = { ...d.userDemographics };
-          if (demo.dateOfBirth) demo.dateOfBirth = demo.dateOfBirth.substring(0, 10);
-          demo.cellphone = formatPhone(demo.cellphone);
-          this.demographics.set(demo);
-        } else {
-          this.demographics.set({});
-        }
-
-        if (d.familyAccountDemographics) {
-          const fDemo = { ...d.familyAccountDemographics };
-          fDemo.cellphone = formatPhone(fDemo.cellphone);
-          this.familyDemographics.set(fDemo);
-        } else {
-          this.familyDemographics.set({});
-        }
-
-        this.emailSubject.set('');
-        this.emailBody.set('');
-
-        // Seed the ARB card from the stored snapshot (projected from the Registrations.AdnSubscription*
-        // columns) so it shows in EVERY environment with no gateway call. Only Production refreshes
-        // against live Authorize.Net — off-Production the subscription lives in an account this host
-        // can't reach, so the stored record is the honest source and there's no failing live call.
-        this.subscription.set(d.storedSubscription ?? null);
-        this.subscriptionIsLive.set(false);
-        if (this.isProdEnv && d.hasSubscription) this.loadSubscription();
-
-        // Baseline for dirty tracking. untracked() so reading the editable signals here
-        // doesn't make this effect a dependency of them (which would re-snapshot — and wipe
-        // the baseline — on every keystroke).
-        untracked(() => {
-          this.snapshotContact.set(this.serializeContact());
-          this.snapshotProfile.set(this.serializeProfile());
-        });
-      }
-    });
+  /**
+   * The ONE genuine side effect tied to a new registrant loading: a Production-only live Authorize.Net
+   * refresh of the subscription card. Everything the old constructor effect() used to do imperatively —
+   * seeding profileValues / familyContact / demographics / email draft / the ARB snapshot / dirty-tracking
+   * baselines — is now declarative (computed + linkedSignal seeded from detail), which is why writing the
+   * USLax expiry can no longer be clobbered by a self-triggering reseed. Only the HTTP call, which is a
+   * true side effect, remains here — and it reads only detail(), writing signals it never reads back.
+   *
+   * Off-Production the subscription lives in an account this host can't reach, so the stored snapshot
+   * (seeded synchronously into `subscription`) is the honest source and there's no failing live call.
+   */
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes['detail']) return;
+    const d = this.detail();
+    if (d && this.isProdEnv && d.hasSubscription) this.loadSubscription();
   }
 
   @HostListener('document:keydown.escape')
@@ -452,23 +484,6 @@ export class RegistrationDetailPanelComponent {
     return result;
   }
 
-  /** Normalize stored profile values to match option casing (e.g. "adult m" → "Adult M") */
-  private normalizeSelectValues(): void {
-    const fields = this.metadataFields();
-    const pv = { ...this.profileValues() };
-    let changed = false;
-    for (const field of fields) {
-      if (field.type !== 'select' || !field.options?.length) continue;
-      const stored = pv[field.key];
-      if (!stored) continue;
-      const match = field.options.find(o => o.toLowerCase() === stored.toLowerCase());
-      if (match && match !== stored) {
-        pv[field.key] = match;
-        changed = true;
-      }
-    }
-    if (changed) this.profileValues.set(pv);
-  }
 
   /** Save profile fields independently from contact info */
   saveProfileInfo(): void {
@@ -525,10 +540,6 @@ export class RegistrationDetailPanelComponent {
   }
 
   // ── Metadata Parsing ──
-
-  parseMetadata(metadataJson: string | null | undefined, jsonOptions?: string | null): void {
-    this.metadataFields.set(this.parseMetadataFields(metadataJson, jsonOptions));
-  }
 
   private parseMetadataFields(metadataJson: string | null | undefined, jsonOptions?: string | null): FieldMetadata[] {
     if (!metadataJson) return [];
@@ -798,7 +809,10 @@ export class RegistrationDetailPanelComponent {
   // subscription lives in an account it can't reach, so we lean on the stored snapshot.
   private readonly isProdEnv = environment.envName === 'production';
 
-  subscription = signal<SubscriptionDetailDto | null>(null);
+  // Seeded synchronously from the stored ARB snapshot (Registrations.AdnSubscription* columns) so the
+  // card shows in EVERY environment with no gateway call. loadSubscription() (Production only) later
+  // .set()s the live Authorize.Net record; that override persists until the next registrant loads.
+  subscription = linkedSignal({ source: () => this.detail(), computation: (d) => d?.storedSubscription ?? null });
 
   // Payment progress for the header ARB badge (x of y occurrences). Derived from paid ÷ per-occurrence,
   // but ONLY shown when the paid total is a CLEAN multiple of the occurrence amount (uniform monthly
@@ -817,7 +831,7 @@ export class RegistrationDetailPanelComponent {
   });
   // True only once a LIVE Authorize.Net read has succeeded (Production). While false, the card
   // is showing the stored snapshot — which is display-only, so destructive actions stay hidden.
-  subscriptionIsLive = signal<boolean>(false);
+  subscriptionIsLive = linkedSignal({ source: () => this.detail(), computation: () => false });
   isLoadingSubscription = signal<boolean>(false);
   isCancellingSubscription = signal<boolean>(false);
   showCancelSubConfirm = signal<boolean>(false);
