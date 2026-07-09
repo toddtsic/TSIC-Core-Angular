@@ -456,7 +456,7 @@ export const routes: Routes = [
 			{
 				path: 'reporting/reports-library',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'reports-library' },
 				loadComponent: () => import('./views/reporting/reports-library/reports-library.component').then(m => m.ReportsLibraryComponent)
 			},
 			{
