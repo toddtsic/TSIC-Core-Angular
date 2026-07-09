@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, input, output, signal, computed, li
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { AccountingRecordDto, CreditCardInfo, RegisteredTeamDto } from '@core/api';
+import { DraggableModalDirective } from '../../directives/draggable-modal.directive';
 
 type PaymentType = 'cc' | 'check' | 'correction' | 'refund';
 
@@ -56,7 +57,7 @@ export interface LedgerAddTarget {
 @Component({
 	selector: 'app-accounting-ledger',
 	standalone: true,
-	imports: [CommonModule, FormsModule],
+	imports: [CommonModule, FormsModule, DraggableModalDirective],
 	templateUrl: './accounting-ledger.component.html',
 	styleUrl: './accounting-ledger.component.scss',
 	changeDetection: ChangeDetectionStrategy.OnPush

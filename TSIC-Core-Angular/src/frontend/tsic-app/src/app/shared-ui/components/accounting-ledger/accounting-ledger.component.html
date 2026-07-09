@@ -152,7 +152,7 @@
 
 @if (showPaymentModal()) {
   <div class="modal-overlay" (click)="closePaymentModal()" (keydown.escape)="closePaymentModal()">
-    <div class="modal-card" [class.modal-card--wide]="paymentType() === 'cc'"
+    <div class="modal-card" [class.modal-card--wide]="paymentType() === 'cc'" appDraggableModal
          (click)="$event.stopPropagation()" (keydown.escape)="closePaymentModal()">
 
       <div class="modal-header">

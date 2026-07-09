@@ -6,6 +6,7 @@ import { environment } from '@environments/environment';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { EMAIL_TEMPLATE_CATEGORIES, isTemplateAvailable, type EmailTemplate, type JobFlagsForTemplates } from '../email-templates';
+import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 
 const BASE_TOKENS = [
   { token: '!PERSON', description: 'Contact person name' },
@@ -64,7 +65,7 @@ const INVITE_TEMPLATES: Record<InviteMode, { subject: string; body: string }> = 
 @Component({
   selector: 'app-batch-email-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DraggableModalDirective],
   templateUrl: './batch-email-modal.component.html',
   styleUrl: './batch-email-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

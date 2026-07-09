@@ -4,11 +4,12 @@ import { FormsModule } from '@angular/forms';
 import type { AccountingRecordDto, RefundResponse } from '@core/api';
 import { RegistrationSearchService } from '../services/registration-search.service';
 import { ToastService } from '@shared-ui/toast.service';
+import { DraggableModalDirective } from '@shared-ui/directives/draggable-modal.directive';
 
 @Component({
   selector: 'app-refund-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, DraggableModalDirective],
   templateUrl: './refund-modal.component.html',
   styleUrl: './refund-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush

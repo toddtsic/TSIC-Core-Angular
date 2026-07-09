@@ -1,6 +1,6 @@
 @if (isOpen()) {
   <div class="modal-overlay" (click)="close()">
-    <div class="modal-card modal-card-large" (click)="$event.stopPropagation()">
+    <div class="modal-card modal-card-large" appDraggableModal (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>{{ inviteMode() ? 'Send Invitation Batch Email' : 'Send Batch Email' }}</h3>
         <button type="button" class="btn-close" (click)="close()" [disabled]="isSending()" aria-label="Close">

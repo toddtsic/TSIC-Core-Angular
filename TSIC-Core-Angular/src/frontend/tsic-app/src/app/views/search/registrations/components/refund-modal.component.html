@@ -1,6 +1,6 @@
 @if (isOpen()) {
   <div class="modal-overlay" (click)="close()">
-    <div class="modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-card" appDraggableModal (click)="$event.stopPropagation()">
       <div class="modal-header">
         <h3>Process Refund</h3>
         <button type="button" class="btn-close" (click)="close()" [disabled]="isProcessing()">&times;</button>

@@ -20,6 +20,11 @@
   width: 100%;
   max-height: 90vh;
   overflow-y: auto;
+
+  // Suppress text selection while a header drag is in flight (appDraggableModal).
+  &.is-dragging {
+    user-select: none;
+  }
 }
 
 .modal-header {

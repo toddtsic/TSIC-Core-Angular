@@ -248,6 +248,11 @@
   &--wide {
     max-width: 520px;
   }
+
+  // Suppress text selection while a header drag is in flight (appDraggableModal).
+  &.is-dragging {
+    user-select: none;
+  }
 }
 
 .modal-header {
