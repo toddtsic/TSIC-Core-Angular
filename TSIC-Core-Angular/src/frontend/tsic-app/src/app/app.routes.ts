@@ -400,7 +400,7 @@ export const routes: Routes = [
 			{
 				path: 'store/admin',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.StoreAdmin] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.StoreAdmin], helpKey: 'store-admin' },
 				loadComponent: () => import('./views/store/admin/store-admin.component').then(m => m.StoreAdminComponent)
 			},
 			// Accounting (SuperUser-only workflow screens — mirrors legacy /tsic SU menu)
