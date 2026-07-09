@@ -48,6 +48,8 @@
     "team-registration/overview",
     "timeslots/faq",
     "timeslots/overview",
+    "tournament-parking/faq",
+    "tournament-parking/overview",
     "view-schedule/faq",
     "view-schedule/overview"
   ]

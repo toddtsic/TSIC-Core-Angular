@@ -531,7 +531,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/tournament-parking',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'tournament-parking' },
 				loadComponent: () => import('./views/scheduling/tournament-parking/tournament-parking.component').then(m => m.TournamentParkingComponent)
 			},
 			{
