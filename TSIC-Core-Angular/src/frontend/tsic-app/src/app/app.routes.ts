@@ -317,7 +317,7 @@ export const routes: Routes = [
 					{
 						path: 'uslax-rankings',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'uslax-rankings' },
 						loadComponent: () => import('./views/tools/uslax-rankings/uslax-rankings.component').then(m => m.UsLaxRankingsComponent)
 					},
 					{
