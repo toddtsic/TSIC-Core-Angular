@@ -92,7 +92,6 @@ public sealed class ScheduleQaService : IScheduleQaService
             var placed = await _brackets.GetPlacedBracketGamesAsync(
                 jobId, inst.AgegroupId, inst.DivId, ct);
 
-            var slotLabels = BracketTemplateTopology.ComputeSlotLabels(games, routes);
             var minLabels = BracketTemplateTopology.ComputeMinLabels(games, routes);
 
             // Template game keyed by (RoundType, min-label) — the placed-row match key.
