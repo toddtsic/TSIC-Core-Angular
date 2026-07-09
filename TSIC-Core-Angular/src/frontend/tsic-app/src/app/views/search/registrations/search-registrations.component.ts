@@ -111,6 +111,7 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   // Filter options
   filterOptions = signal<RegistrationFilterOptionsDto | null>(null);
+  filterOptionsLoading = signal(true);
 
   // LADT tree state
   ladtTree = signal<LadtTreeNodeDto[]>([]);
@@ -125,6 +126,13 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
 
   // Job name derived from LADT root node (level 0) — used as CADT root label
   jobName = computed(() => this.ladtTree()[0]?.name ?? '');
+
+  // True until the view has settled — filter options AND both hierarchy trees loaded.
+  // Gates the "Set Filters" launcher so it can't be opened mid-load (the init auto-search
+  // would otherwise force-close a drawer opened during the load window).
+  isInitializing = computed(() =>
+    this.filterOptionsLoading() || this.ladtTreeLoading() || this.cadtTreeLoading()
+  );
 
   // Search state — multi-select arrays
   searchRequest = signal<RegistrationSearchRequest>({
@@ -379,14 +387,18 @@ export class RegistrationSearchComponent implements OnInit, OnDestroy {
   }
 
   loadFilterOptions(): void {
+    this.filterOptionsLoading.set(true);
     this.searchService.getFilterOptions().subscribe({
       next: (options) => {
         this.filterOptions.set(options);
+        this.filterOptionsLoading.set(false);
         this.applyDefaultChecked(options);
-        // Auto-search on load with default filters
-        this.executeSearch();
+        // Auto-search on load with default filters. keepPanelOpen=true so this initial
+        // search never force-closes a drawer the user opened during load.
+        this.executeSearch(true);
       },
       error: (err) => {
+        this.filterOptionsLoading.set(false);
         this.toast.show('Failed to load filter options', 'danger', 4000);
         console.error('Error loading filter options:', err);
       }

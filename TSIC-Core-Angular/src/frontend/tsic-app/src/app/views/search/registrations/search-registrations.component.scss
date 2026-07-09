@@ -667,6 +667,20 @@
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--bs-primary) 25%, transparent);
   }
 
+  // Held disabled until the view has settled (filter options + both trees loaded), so
+  // the drawer can't be opened mid-load and force-closed by the init auto-search.
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    box-shadow: var(--shadow-xs);
+
+    &:hover {
+      background: var(--bs-primary);
+      box-shadow: var(--shadow-xs);
+      transform: none;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     transition: none;
     &:hover { transform: none; }
