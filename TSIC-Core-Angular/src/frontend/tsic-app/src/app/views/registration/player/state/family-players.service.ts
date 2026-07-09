@@ -159,10 +159,10 @@ export class FamilyPlayersService {
     // ── Team prefill from prior registrations ─────────────────────────
     prefillTeamsFromPriorRegistrations(
         players: FamilyPlayerDto[],
-        currentTeams: Record<string, string | string[]>,
-        setTeams: (map: Record<string, string | string[]>) => void,
+        currentTeams: Record<string, string[]>,
+        setTeams: (map: Record<string, string[]>) => void,
     ): void {
-        const teamMap: Record<string, string | string[]> = { ...currentTeams };
+        const teamMap: Record<string, string[]> = { ...currentTeams };
         for (const fp of players) {
             // Rehydrate teams only from usable prior regs for this job: active, or genuinely
             // pending (PreSubmit, never paid — isPending). Dropped/Waitlist priors are excluded
@@ -174,7 +174,7 @@ export class FamilyPlayersService {
             if (!teamIds.length) continue;
             const unique: string[] = [];
             for (const t of teamIds) if (!unique.includes(t)) unique.push(t);
-            teamMap[fp.playerId] = unique.length === 1 ? unique[0] : unique;
+            teamMap[fp.playerId] = unique;
         }
         setTeams(teamMap);
     }

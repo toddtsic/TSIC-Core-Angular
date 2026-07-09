@@ -8,17 +8,19 @@ import { Injectable, signal } from '@angular/core';
 @Injectable({ providedIn: 'root' })
 export class PlayerStateService {
     // Authoritative signals
-    private readonly _selectedTeams = signal<Record<string, string | string[]>>({});
+    // A player's selection is always a list: PP mode is constrained to length <= 1,
+    // CAC mode is 0..N. Never a bare string — that dual shape caused the CAC Continue-gate bug.
+    private readonly _selectedTeams = signal<Record<string, string[]>>({});
     private readonly _eligibilityByPlayer = signal<Record<string, string>>({});
 
     constructor() { /* no-op */ }
 
     // Public accessors
-    selectedTeams(): Record<string, string | string[]> { return this._selectedTeams(); }
+    selectedTeams(): Record<string, string[]> { return this._selectedTeams(); }
     eligibilityByPlayer(): Record<string, string> { return this._eligibilityByPlayer(); }
 
     // Mutators
-    setSelectedTeams(map: Record<string, string | string[]>): void {
+    setSelectedTeams(map: Record<string, string[]>): void {
         this._selectedTeams.set({ ...map });
     }
     setEligibilityForPlayer(playerId: string, value: string | null | undefined): void {

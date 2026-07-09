@@ -819,13 +819,11 @@ export class TeamSelectionStepComponent {
     shouldPulsePlayerTab(pid: string, idx: number): boolean {
         if (this.activePlayerTab() === idx) return false;
         const teams = this.state.eligibility.selectedTeams();
-        const mine = teams[pid];
-        const mineEmpty = !Array.isArray(mine) || mine.length === 0;
+        const mineEmpty = (teams[pid]?.length ?? 0) === 0;
         if (!mineEmpty) return false;
         for (const other of this.selectedPlayerIds()) {
             if (other === pid) continue;
-            const v = teams[other];
-            if (Array.isArray(v) && v.length > 0) return true;
+            if ((teams[other]?.length ?? 0) > 0) return true;
         }
         return false;
     }
@@ -911,15 +909,11 @@ export class TeamSelectionStepComponent {
     }
 
     getSelectedTeamId(playerId: string): string | null {
-        const sel = this.state.eligibility.selectedTeams()[playerId];
-        if (!sel) return null;
-        return Array.isArray(sel) ? sel[0] ?? null : sel;
+        return this.state.eligibility.selectedTeams()[playerId]?.[0] ?? null;
     }
 
     getSelectedTeamIds(playerId: string): string[] {
-        const sel = this.state.eligibility.selectedTeams()[playerId];
-        if (!sel) return [];
-        return Array.isArray(sel) ? sel : [sel];
+        return this.state.eligibility.selectedTeams()[playerId] ?? [];
     }
 
     getSelectedTeamName(playerId: string): string {
@@ -981,32 +975,27 @@ export class TeamSelectionStepComponent {
         if (team?.feeConfigured === false) return;
         const current = { ...this.state.eligibility.selectedTeams() };
         if (this.isMultiTeamMode()) {
-            const existing = Array.isArray(current[playerId]) ? [...(current[playerId] as string[])] : current[playerId] ? [current[playerId] as string] : [];
+            const existing = [...(current[playerId] ?? [])];
             if (!existing.includes(teamId)) existing.push(teamId);
             current[playerId] = existing;
         } else {
-            current[playerId] = teamId;
+            current[playerId] = [teamId];
         }
         this.state.eligibility.setSelectedTeams(current);
 
         // Auto-advance when every player has a team (single-select mode only)
         if (!this.isMultiTeamMode()) {
             const allSet = this.selectedPlayerIds()
-                .every(id => !!current[id]);
+                .every(id => (current[id]?.length ?? 0) > 0);
             if (allSet) this.advance.emit();
         }
     }
 
     removeTeam(playerId: string, teamId: string): void {
         const current = { ...this.state.eligibility.selectedTeams() };
-        const existing = current[playerId];
-        if (Array.isArray(existing)) {
-            const filtered = existing.filter((t: string) => t !== teamId);
-            if (filtered.length === 0) delete current[playerId];
-            else current[playerId] = filtered;
-        } else if (existing === teamId) {
-            delete current[playerId];
-        }
+        const filtered = (current[playerId] ?? []).filter(t => t !== teamId);
+        if (filtered.length === 0) delete current[playerId];
+        else current[playerId] = filtered;
         this.state.eligibility.setSelectedTeams(current);
     }
 

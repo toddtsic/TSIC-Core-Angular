@@ -194,12 +194,9 @@ export class PlayerWizardV2Component implements OnInit {
             case 'teams': {
                 const selected = this.state.familyPlayers.selectedPlayerIds();
                 const teams = this.state.eligibility.selectedTeams();
-                const cac = this.state.jobCtx.isCacMode();
-                return selected.every(id => {
-                    const v = teams[id];
-                    if (cac) return Array.isArray(v) && v.length > 0;
-                    return !!v;
-                });
+                // selectedTeams is always string[] (PP constrained to <=1, CAC 0..N). A player is
+                // done once they have >=1 selection — one shape-agnostic test for both modes.
+                return selected.every(id => (teams[id]?.length ?? 0) > 0);
             }
             case 'forms': {
                 const schemas = this.state.jobCtx.profileFieldSchemas();

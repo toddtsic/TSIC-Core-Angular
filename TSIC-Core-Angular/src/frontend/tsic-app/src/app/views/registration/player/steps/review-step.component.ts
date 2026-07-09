@@ -429,14 +429,10 @@ export class ReviewStepComponent {
     }
 
     getTeamsForPlayer(playerId: string): string[] {
-        const teams = this.state.eligibility.selectedTeams()[playerId];
-        if (!teams) return [];
         // Shows the team's real name; a player actually waitlisted at payment lands on the
         // twin team (whose stored name already is "WAITLIST - {name}").
-        if (Array.isArray(teams)) {
-            return teams.map((tid: string) => this.teamService.getTeamDisplayName(tid));
-        }
-        return [this.teamService.getTeamDisplayName(teams)];
+        const teams = this.state.eligibility.selectedTeams()[playerId] ?? [];
+        return teams.map(tid => this.teamService.getTeamDisplayName(tid));
     }
 
     getBaseFeeForPlayer(playerId: string): number | null {

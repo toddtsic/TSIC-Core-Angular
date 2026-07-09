@@ -25,8 +25,8 @@ export class EligibilityService {
     setTeamConstraintValue(v: string | null): void { this._teamConstraintValue.set(v); }
 
     // ── Team selection facades ────────────────────────────────────────
-    selectedTeams(): Record<string, string | string[]> { return this.playerState.selectedTeams(); }
-    setSelectedTeams(map: Record<string, string | string[]>): void { this.playerState.setSelectedTeams(map); }
+    selectedTeams(): Record<string, string[]> { return this.playerState.selectedTeams(); }
+    setSelectedTeams(map: Record<string, string[]>): void { this.playerState.setSelectedTeams(map); }
 
     // ── Per-player eligibility facades ────────────────────────────────
     eligibilityByPlayer(): Record<string, string> { return this.playerState.eligibilityByPlayer(); }

@@ -31,7 +31,7 @@ describe('PlayerWizardV2Component — next() navigation', () => {
     // Stub sub-services that feed computed signals in the component
     const eligibilityStub = {
         teamConstraintType: signal<string | null>(null),
-        selectedTeams: signal<Record<string, string>>({}),
+        selectedTeams: signal<Record<string, string[]>>({}),
         getEligibilityForPlayer: () => null,
     };
 

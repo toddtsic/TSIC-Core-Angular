@@ -92,8 +92,8 @@ export class RegistrationWizardService {
     readonly teamConstraintType = this._teamConstraintType.asReadonly();
     readonly teamConstraintValue = this._teamConstraintValue.asReadonly();
     // Backward-compatible facade methods for selectedTeams
-    selectedTeams(): Record<string, string | string[]> { return this.playerState.selectedTeams(); }
-    setSelectedTeams(map: Record<string, string | string[]>): void { this.playerState.setSelectedTeams(map); }
+    selectedTeams(): Record<string, string[]> { return this.playerState.selectedTeams(); }
+    setSelectedTeams(map: Record<string, string[]>): void { this.playerState.setSelectedTeams(map); }
     // Eligibility facades
     eligibilityByPlayer(): Record<string, string> { return this.playerState.eligibilityByPlayer(); }
     setEligibilityForPlayer(playerId: string, value: string | null | undefined): void { this.playerState.setEligibilityForPlayer(playerId, value); }
@@ -444,7 +444,7 @@ export class RegistrationWizardService {
     }
 
     private prefillTeamsFromPriorRegistrations(players: FamilyPlayerDto[]): void {
-        const teamMap: Record<string, string | string[]> = { ...this.playerState.selectedTeams() };
+        const teamMap: Record<string, string[]> = { ...this.playerState.selectedTeams() };
         for (const fp of players) {
             if (!fp.registered) continue;
             const teamIds = fp.priorRegistrations
@@ -453,8 +453,7 @@ export class RegistrationWizardService {
             if (!teamIds.length) continue;
             const unique: string[] = [];
             for (const t of teamIds) if (!unique.includes(t)) unique.push(t);
-            if (unique.length === 1) teamMap[fp.playerId] = unique[0];
-            else if (unique.length > 1) teamMap[fp.playerId] = unique;
+            teamMap[fp.playerId] = unique;
         }
         this.playerState.setSelectedTeams(teamMap);
     }

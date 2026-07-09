@@ -651,9 +651,7 @@ export class PlayerFormsStepComponent implements OnDestroy {
     }
 
     getTeamIds(playerId: string): string[] {
-        const sel = this.state.eligibility.selectedTeams()[playerId];
-        if (!sel) return [];
-        return Array.isArray(sel) ? sel : [sel];
+        return this.state.eligibility.selectedTeams()[playerId] ?? [];
     }
 
     getTeamName(teamId: string): string {

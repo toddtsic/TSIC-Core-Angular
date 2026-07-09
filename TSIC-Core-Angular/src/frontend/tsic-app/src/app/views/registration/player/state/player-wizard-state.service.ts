@@ -74,8 +74,7 @@ export class PlayerWizardStateService {
      */
     private resolveTeamGradYear(playerId: string, recruitingGradYears: string[]): string | null {
         if (recruitingGradYears.length === 0) return null;
-        const sel = this.eligibility.selectedTeams()[playerId];
-        const teamId = Array.isArray(sel) ? sel[0] : sel;
+        const teamId = this.eligibility.selectedTeams()[playerId]?.[0];
         if (!teamId) return null;
         const team = this.teamService.getTeamById(teamId);
         if (!team) return null;
@@ -205,8 +204,7 @@ export class PlayerWizardStateService {
         let changed = false;
         for (const pid of pids) {
             if (this.eligibility.getEligibilityForPlayer(pid)) continue; // never override
-            const sel = selTeams[pid];
-            const teamId = Array.isArray(sel) ? sel[0] : sel;
+            const teamId = selTeams[pid]?.[0];
             if (!teamId) continue;
             const agName = this.teamService.getTeamById(teamId)?.agegroupName?.trim();
             if (agName) { this.eligibility.setEligibilityForPlayer(pid, agName); changed = true; }
