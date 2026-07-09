@@ -1,0 +1,47 @@
+<h3>US Lax Membership Reconciliation</h3>
+<p>
+  This is the roster-wide version of the membership check. It looks up every registrant's USA Lacrosse membership
+  in one pass, refreshes the expiration date on file, flags anyone whose membership isn't in good standing, and
+  lets you email those people a ready-made message telling them how to fix it.
+</p>
+
+<h4>The workflow</h4>
+<ol>
+  <li><strong>Pick a role</strong> — Players or Coaches. Each loads its own eligible list (active registrants with a membership ID on file).</li>
+  <li><strong>Reconcile All</strong> — the tool pings USA Lacrosse for each candidate, updates expiry dates, and fills the grid with each person's status, age-verification, involvement, and old/new expiry.</li>
+  <li><strong>Review who needs action</strong> — rows are flagged when the check errored, the status isn't Active, there's no expiry on file, or the membership expires before this event's required date.</li>
+  <li><strong>Email them</strong> — use <strong>select rows needing action</strong>, open the compose panel (it pre-fills a role-appropriate template), and send. Each recipient gets a personalized message.</li>
+</ol>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-shield-check" aria-hidden="true"></i>
+  <div>
+    <strong>People in good standing are never emailed — even if you select them.</strong>
+    <p class="help-callout__body">
+      The server re-checks each recipient and skips anyone already Active and valid, so a broad selection won't
+      spam families who are fine. Only those who genuinely need action receive a message.
+    </p>
+  </div>
+</div>
+
+<h4>What "needs action" means</h4>
+<p>A registrant is flagged when any of these is true:</p>
+<ul>
+  <li>The USA Lacrosse lookup <strong>errored</strong> (couldn't be checked).</li>
+  <li>Status is <strong>anything other than Active</strong> (Pending, Suspended, Inactive…).</li>
+  <li>There's <strong>no expiration date</strong> on file.</li>
+  <li>The membership <strong>expires before</strong> this event's valid-through date.</li>
+</ul>
+
+<h4>Other actions</h4>
+<ul>
+  <li><strong>Excel export</strong> the full reconciliation grid for your records or to share.</li>
+  <li>The compose panel supports personalization tokens (name, membership ID, status, expiry) that fill in per recipient — the default template already uses them, and you can edit the wording.</li>
+</ul>
+
+<h4>Common mistakes</h4>
+<ul>
+  <li><strong>Emailing before reconciling.</strong> Run Reconcile All first so statuses and expiry dates are current — otherwise you're acting on stale data.</li>
+  <li><strong>Assuming selected = sent.</strong> Recipients without an email, or already in good standing, are skipped; the send summary tells you exactly who got a message.</li>
+  <li><strong>Editing the template into an accusation.</strong> The default copy deliberately <em>reports</em> status and lets each person self-route — keep that tone so it reads correctly for every recipient.</li>
+</ul>

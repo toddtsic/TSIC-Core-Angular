@@ -311,7 +311,7 @@ export const routes: Routes = [
 					{
 						path: 'uslax-membership',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'uslax-membership' },
 						loadComponent: () => import('./views/tools/uslax-membership/uslax-membership.component').then(m => m.UsLaxMembershipComponent)
 					},
 					{

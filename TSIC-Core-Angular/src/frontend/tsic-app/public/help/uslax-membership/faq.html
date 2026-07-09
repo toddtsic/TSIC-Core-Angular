@@ -1,0 +1,84 @@
+<h3>US Lax Membership Reconciliation</h3>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-people" aria-hidden="true"></i>
+  <div>
+    <strong>This is the bulk tool.</strong>
+    <p class="help-callout__body">
+      To check a single number without touching anyone's record, use the US Lax Membership Lookup instead. This
+      page reconciles the whole roster and can email people.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Who shows up in the candidate list?</span></summary>
+  <div class="faq-a">
+    <p>
+      For Players, active lacrosse players with a membership ID on file. For Coaches, active unassigned adults
+      with a USA Lacrosse number on file. Switching the role reloads the list for that group.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does Reconcile All actually change?</span></summary>
+  <div class="faq-a">
+    <p>
+      It looks each membership up live at USA Lacrosse and <strong>updates the expiration date</strong> stored on
+      the registrant. It doesn't change names, statuses, or anything else — those come from USA Lacrosse and are
+      only displayed. The toast afterward tells you how many were checked and how many expiry dates changed.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why is someone flagged when their status is "Active"?</span></summary>
+  <div class="faq-a">
+    <p>
+      Because their membership <strong>expires before this event's required date</strong>, or has no expiry on
+      file. Active today isn't enough if it lapses before the event needs it — that's the same distinction the
+      single-number lookup makes.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I selected 40 rows but the summary says fewer were sent. Why?</span></summary>
+  <div class="faq-a">
+    <p>
+      The server sends only to selected rows that both have an email and actually need action. Anyone already in
+      good standing is skipped, and anyone without an email on file can't be reached. The send summary breaks down
+      sent / failed / unsubscribed / no-email / skipped so you can see exactly what happened.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Can I customize the email?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes. The compose panel loads a default template (different for Players vs Coaches) with personalization
+      tokens that fill in each recipient's details. Edit the subject and body freely — just keep the tone
+      reporting status rather than accusing, since one message goes to people in several different situations.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I keep a record of the results?</span></summary>
+  <div class="faq-a">
+    <p>
+      Use the grid's <strong>Excel export</strong> to download the full reconciliation — every registrant, their
+      status, involvement, and old/new expiry — for your files or to share with staff.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> reconcile, then click <strong>select rows needing action</strong> — it checks exactly
+    the flagged people for you, so you email the right list without hand-picking rows.
+  </div>
+</div>
