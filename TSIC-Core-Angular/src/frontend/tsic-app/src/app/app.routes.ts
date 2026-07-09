@@ -519,7 +519,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/master-schedule',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'master-schedule' },
 				loadComponent: () => import('./views/scheduling/master-schedule/master-schedule.component').then(m => m.MasterScheduleComponent)
 			},
 			{
