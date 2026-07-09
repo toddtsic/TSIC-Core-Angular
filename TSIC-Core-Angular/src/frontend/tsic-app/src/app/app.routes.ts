@@ -576,6 +576,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'timeslots',
+						data: { helpKey: 'timeslots' },
 						loadComponent: () => import('./views/scheduling/timeslots/manage-timeslots.component').then(m => m.ManageTimeslotsComponent)
 					},
 					{

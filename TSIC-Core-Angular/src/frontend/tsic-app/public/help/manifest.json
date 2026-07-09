@@ -46,6 +46,8 @@
     "search-teams/overview",
     "team-registration/faq",
     "team-registration/overview",
+    "timeslots/faq",
+    "timeslots/overview",
     "view-schedule/faq",
     "view-schedule/overview"
   ]
