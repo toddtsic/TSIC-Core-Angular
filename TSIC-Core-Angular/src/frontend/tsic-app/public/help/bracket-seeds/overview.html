@@ -1,0 +1,65 @@
+<h3>Bracket Seeds</h3>
+<p>
+  This screen defines the <strong>playoff bracket</strong> — which teams feed each championship game. You don't
+  pick team names here. Instead, each game slot is filled by a <strong>seed</strong>: a pool plus a rank, like
+  "the #1 team out of Pool A." When pool play finishes, standings decide who that actually is, and the bracket
+  fills itself in.
+</p>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-diagram-3" aria-hidden="true"></i>
+  <div>
+    <strong>You're wiring the bracket, not choosing teams.</strong>
+    <p class="help-callout__body">
+      A slot set to "Pool A, Seed 1" resolves to whichever team finishes first in Pool A — automatically, from
+      the standings.
+    </p>
+  </div>
+</div>
+
+<h4>How a bracket game is defined</h4>
+<p>
+  Every bracket/playoff game has two sides. For each side you set two things:
+</p>
+<div class="help-card-grid">
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary">Seed Pool</span>
+    <p>Which round-robin pool (division/age group) the team comes from.</p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary">Seed Rank</span>
+    <p>Where they finished in that pool — 1 for the winner, 2 for runner-up, and so on.</p>
+  </div>
+</div>
+<p>
+  Read together, the two sides of a game say something like <em>"Pool A #1 plays Pool B #2."</em> Click
+  <strong>Edit</strong> on a game to set its two seeds.
+</p>
+
+<h4>Standings are right there to guide you</h4>
+<p>
+  The <strong>Standings</strong> panel shows each pool's current order — games played, record, points. Use it
+  to sanity-check your seeding: the seeds you assign should line up with how the standings will resolve once
+  pool play is complete.
+</p>
+
+<h4>Where do these games come from?</h4>
+<p>
+  Bracket games aren't created here — they're created during <strong>scheduling</strong> as non-round-robin
+  game types (championship, final, semi, quarter, and so on). If this page says there are no bracket games,
+  none have been created yet. Build your bracket structure in the Schedule Hub first, then come here to seed it.
+</p>
+
+<h4>Common mistakes</h4>
+<ul>
+  <li><strong>Looking for team names.</strong> There aren't any — you assign a pool and a rank, and the team is filled in from standings later.</li>
+  <li><strong>Seeding before the bracket exists.</strong> If the list is empty, create the playoff games in scheduling first.</li>
+  <li><strong>Reseeding after games are played.</strong> Changing a seed changes who advances — only do it deliberately, and re-check the affected games.</li>
+</ul>
+
+<h4>Re-seed events</h4>
+<p>
+  On a re-seed event you'll see a banner: seed pools may be drawn from <strong>any</strong> round-robin age
+  group across the job, and each side's rank list is capped at the chosen pool's size. Everywhere else, seeding
+  works within the event's own pools.
+</p>

@@ -513,7 +513,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/bracket-seeds',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'bracket-seeds' },
 				loadComponent: () => import('./views/scheduling/bracket-seeds/bracket-seeds.component').then(m => m.BracketSeedsComponent)
 			},
 			{
