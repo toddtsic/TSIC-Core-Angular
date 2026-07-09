@@ -442,7 +442,7 @@ import type { LineItem } from '../state/payment-v2.service';
                      (ngModelChange)="discountCode.set($event)"
                      placeholder="Enter code">
             </div>
-            <button type="button" class="btn btn-sm btn-outline-primary"
+            <button type="button" class="btn btn-outline-primary discount-apply"
                     [disabled]="paySvc.discountApplying()"
                     (click)="applyDiscount()">
               {{ paySvc.discountApplying() ? 'Applying...' : 'Apply' }}
@@ -851,6 +851,14 @@ import type { LineItem } from '../state/payment-v2.service';
         font-size: var(--font-size-base);
         text-transform: uppercase;
         letter-spacing: 0.03em;
+      }
+      /* Input and Apply button share one box formula so they match on the row:
+         --space-2 vertical padding + --font-size-base at line-height 1.5. */
+      .discount-input,
+      .discount-apply {
+        padding-block: var(--space-2);
+        font-size: var(--font-size-base);
+        line-height: 1.5;
       }
       .discount-input {
         background-color: var(--neutral-0);

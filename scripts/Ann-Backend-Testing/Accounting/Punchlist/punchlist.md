@@ -124,7 +124,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The input to be prominent and easy to find — clearly a data-entry field the parent/rep is meant to use
 - **What happened**: The field is too small / not visible enough. Make it wider or otherwise more visible so it stands out on the payment screen.
 - **Severity**: UX
-- **Status**: Deferred — Todd call. "More prominent" is a subjective design decision spanning both Player and Team payment screens; needs Todd's direction before changing.
+- **Status**: Fixed — Todd directed the sizing. Input and Apply button now share one box formula (`padding-block: var(--space-2)`, `--font-size-base`, `line-height: 1.5`), taking both from ~31px to ~42px. Applied to **both** Player and Team payment screens (`registration/player/steps/payment-step.component.ts`, `registration/team/steps/payment-step.component.ts`). Apply button dropped `btn-sm`.
 - **Note**: Pairs with PL-013 — once the code is applied, the screen should also auto-scroll back to the top of the Accounting table (already tracked separately).
 
 ### PL-025: UM Summer Camp 2026 — players showing -$0.88 balance due; legacy DC included PF, new DC auto-accounts for PF; decide whether to zero-out + brief Chelsea on next year's DC value
@@ -363,7 +363,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What happened**: The arrows step by 1 cent at a time, which is far too granular. Change the dollar-amount step to **$1**. Percent fields are fine as-is.
 - **Discussion**: Consider removing the up/down arrows entirely on these dollar fields — direct keyboard entry is what makes sense here. Same reasoning applies to Early Bird Fee and Late Fee dollar entries; arrows aren't needed in any of these spots.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — dollar-amount codes now step by $1 in both the Add/Edit Code and Bulk Add popups (`code-form-modal`, `bulk-code-modal`); percent fields keep their $0.01 step. Early Bird / Late Fee dollar entries were already on `step="1"`. Arrows retained per Todd — not removed.
 
 ### PL-004: LADT Editor — Age Group Details Early Bird / Late Fee needs an "apply to all age groups" checkbox
 - **Area**: Early Bird / Late Fees
