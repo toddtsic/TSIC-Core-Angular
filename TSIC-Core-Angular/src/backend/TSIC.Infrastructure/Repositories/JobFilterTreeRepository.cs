@@ -76,11 +76,23 @@ public sealed class JobFilterTreeRepository : IJobFilterTreeRepository
         //     scheduled: its seat is the placed bracket game in its own division at its seed
         //     line (Schedule.TxNo == Teams.DivRank). Without this the flight's agegroups vanish
         //     from every [requireScheduled] filter tree the moment the bracket is cleared.
+        //
+        //     Only for divisions with NO round-robin game — that is what makes a division a
+        //     flight. Elsewhere the bracket shares the pool's division and TxNo is a seed line
+        //     that collides numerically with DivRank, so the seat would be meaningless.
+        var poolDivIds = await _context.Schedule.AsNoTracking()
+            .Where(s => s.JobId == jobId && s.DivId.HasValue && s.T1Type == "T")
+            .Select(s => s.DivId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+        var poolDivSet = poolDivIds.ToHashSet();
+
         var bracketSeats = await _context.Schedule.AsNoTracking()
             .Where(s => s.JobId == jobId && s.GDate.HasValue && s.DivId.HasValue
                      && s.T1Type != null && s.T1Type != "T")
             .Select(s => new { DivId = s.DivId!.Value, s.T1No, s.T2No })
             .ToListAsync(ct);
+        bracketSeats = bracketSeats.Where(s => !poolDivSet.Contains(s.DivId)).ToList();
 
         var seatKeys = new HashSet<(Guid DivId, int SeedLine)>();
         foreach (var seat in bracketSeats)

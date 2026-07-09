@@ -1355,13 +1355,14 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (!hasClubs && !hasAgegroups && !hasDivisions && !hasTeams)
             return query;
 
-        // Bracket games seeded from the selected teams' pools — see BracketGidsSeededFrom.
-        var teamBracketGids = hasTeams
-            ? BracketGidsSeededFrom(_context.Teams
-                .AsNoTracking()
+        // Bracket games belonging to the selected teams though not yet occupied by them.
+        var selectedTeamIds = hasTeams
+            ? _context.Teams.AsNoTracking()
                 .Where(t => request.TeamIds!.Contains(t.TeamId))
-                .Select(t => t.TeamId))
+                .Select(t => t.TeamId)
             : null;
+        var teamSeedGids = hasTeams ? BracketGidsSeededFrom(selectedTeamIds!) : null;
+        var teamSeatGids = hasTeams ? BracketGidsSeatedBy(selectedTeamIds!) : null;
 
         // For club filtering, we need to resolve club names to team IDs first.
         // This is done via a subquery join.
@@ -1378,16 +1379,18 @@ public sealed class ScheduleRepository : IScheduleRepository
                 .Where(x => request.ClubNames!.Contains(x.ClubName!))
                 .Select(x => x.TeamId);
 
-            var clubBracketGids = BracketGidsSeededFrom(clubTeamIds);
+            var clubSeedGids = BracketGidsSeededFrom(clubTeamIds);
+            var clubSeatGids = BracketGidsSeatedBy(clubTeamIds);
 
             query = query.Where(s =>
                 clubTeamIds.Contains(s.T1Id!.Value) || clubTeamIds.Contains(s.T2Id!.Value)
-                || clubBracketGids.Contains(s.Gid)
+                || clubSeedGids.Contains(s.Gid) || clubSeatGids.Contains(s.Gid)
                 || (hasAgegroups && s.AgegroupId.HasValue && request.AgegroupIds!.Contains(s.AgegroupId.Value))
                 || (hasDivisions && s.DivId.HasValue && request.DivisionIds!.Contains(s.DivId.Value))
                 || (hasTeams && (request.TeamIds!.Contains(s.T1Id!.Value)
                     || request.TeamIds!.Contains(s.T2Id!.Value)
-                    || teamBracketGids!.Contains(s.Gid)))
+                    || teamSeedGids!.Contains(s.Gid)
+                    || teamSeatGids!.Contains(s.Gid)))
             );
         }
         else
@@ -1397,7 +1400,8 @@ public sealed class ScheduleRepository : IScheduleRepository
                 || (hasDivisions && s.DivId.HasValue && request.DivisionIds!.Contains(s.DivId.Value))
                 || (hasTeams && (request.TeamIds!.Contains(s.T1Id!.Value)
                     || request.TeamIds!.Contains(s.T2Id!.Value)
-                    || teamBracketGids!.Contains(s.Gid)))
+                    || teamSeedGids!.Contains(s.Gid)
+                    || teamSeatGids!.Contains(s.Gid)))
             );
         }
 
@@ -1413,9 +1417,12 @@ public sealed class ScheduleRepository : IScheduleRepository
     /// covers normal jobs (the pool is the game's own division) and reseeding tournaments (the
     /// pool is in a different agegroup) with one predicate.
     ///
-    /// Deliberately over-inclusive: until the pool is scored no rank exists, so a team matches
-    /// every leaf game its pool feeds, not just the one it will land in. No false negatives.
-    /// Once seeds resolve the slot carries T1Id and the exact T1Id/T2Id match takes over.
+    /// Applies ONLY to a slot that is still empty. While the pool is unscored no rank exists, so a
+    /// team matches every leaf slot its pool feeds rather than the one it will land in — over-
+    /// inclusive, but with no false negatives. The moment seed resolution seats a team the slot
+    /// carries T1Id and the exact occupant match is authoritative; without the empty-slot guard
+    /// this arm would keep firing and bury a resolved bracket in games the team never plays
+    /// (measured: 10,282 spurious matches across 79 jobs and 6,563 teams on the dev database).
     /// Fed slots (Q/S/F targets of AdvancementFeeds) carry no seed row and are never matched.
     /// </summary>
     private IQueryable<int> BracketGidsSeededFrom(IQueryable<Guid> teamIds)
@@ -1425,11 +1432,44 @@ public sealed class ScheduleRepository : IScheduleRepository
             .Where(t => teamIds.Contains(t.TeamId) && t.DivId.HasValue)
             .Select(t => t.DivId!.Value);
 
-        return _context.BracketSeeds
+        return from bs in _context.BracketSeeds.AsNoTracking()
+               join s in _context.Schedule.AsNoTracking() on bs.Gid equals s.Gid
+               where (bs.T1SeedDivId.HasValue && seedDivIds.Contains(bs.T1SeedDivId.Value) && s.T1Id == null)
+                  || (bs.T2SeedDivId.HasValue && seedDivIds.Contains(bs.T2SeedDivId.Value) && s.T2Id == null)
+               select bs.Gid;
+    }
+
+    /// <summary>
+    /// The other half of the same problem, for a team that LIVES in a bracket division rather than
+    /// feeding one: a reseeding tournament's championship flight is its own agegroup whose teams
+    /// (P01..P16) are seated in the flight's bracket games at their seed line. Those teams appear in
+    /// no BracketSeeds row — the seed rows point back at the round-robin pools — so
+    /// BracketGidsSeededFrom cannot see them, and while the bracket is unseeded neither can an
+    /// occupant match. The seat is Schedule.TxNo == Teams.DivRank within the team's own division,
+    /// the same derivation BracketSeedResolutionService uses to find the placeholder.
+    ///
+    /// Restricted to divisions with NO round-robin game, which is what makes a division a flight.
+    /// In an ordinary job the bracket games share the pool's division and their TxNo are seed lines
+    /// 1..N that collide numerically with DivRank 1..N — without this guard a team ranked 3 would
+    /// match every bracket game holding a slot numbered 3, whoever actually plays it. Measured on
+    /// the dev database that was 186 spurious matches across 113 teams in one job alone. There the
+    /// slot is filled by seed resolution and the plain T1Id/T2Id match is already exact.
+    /// </summary>
+    private IQueryable<int> BracketGidsSeatedBy(IQueryable<Guid> teamIds)
+    {
+        var seats = _context.Teams
             .AsNoTracking()
-            .Where(bs => (bs.T1SeedDivId.HasValue && seedDivIds.Contains(bs.T1SeedDivId.Value))
-                      || (bs.T2SeedDivId.HasValue && seedDivIds.Contains(bs.T2SeedDivId.Value)))
-            .Select(bs => bs.Gid);
+            .Where(t => teamIds.Contains(t.TeamId) && t.DivId.HasValue)
+            .Select(t => new { DivId = t.DivId!.Value, t.DivRank });
+
+        return _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.T1Type != null && s.T1Type != "T" && s.DivId.HasValue
+                     && !_context.Schedule.Any(p => p.DivId == s.DivId && p.T1Type == "T")
+                     && seats.Any(t => t.DivId == s.DivId!.Value
+                          && ((s.T1No.HasValue && s.T1No.Value == t.DivRank)
+                           || (s.T2No.HasValue && s.T2No.Value == t.DivRank))))
+            .Select(s => s.Gid);
     }
 
     // ── Master Schedule ──
