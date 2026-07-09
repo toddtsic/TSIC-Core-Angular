@@ -150,7 +150,7 @@ export const routes: Routes = [
 					{
 						path: 'age-ranges',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'age-ranges' },
 						loadComponent: () => import('./views/configure/age-ranges/configure-age-ranges.component').then(m => m.ConfigureAgeRangesComponent)
 					},
 					{
@@ -186,7 +186,7 @@ export const routes: Routes = [
 					{
 						path: 'quick-links',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'quick-links' },
 						loadComponent: () => import('./views/configure/quick-links/quick-links.component').then(m => m.QuickLinksComponent)
 					},
 					{
