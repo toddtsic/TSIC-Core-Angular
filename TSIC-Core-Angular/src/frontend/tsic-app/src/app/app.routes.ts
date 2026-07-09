@@ -561,6 +561,7 @@ export const routes: Routes = [
 				children: [
 					{
 						path: '',
+						data: { helpKey: 'scheduling-dashboard' },
 						loadComponent: () => import('./views/scheduling/dashboard/scheduling-dashboard.component').then(m => m.SchedulingDashboardComponent)
 					},
 					{
