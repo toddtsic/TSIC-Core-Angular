@@ -442,24 +442,25 @@ describe('PaymentV2Service', () => {
             expect(service.arbOccurrences()).toBe(6);
         });
 
-        it('should divide totalAmount evenly across occurrences', () => {
+        it('should divide the owed amount evenly across occurrences', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 500 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
             playerState.setSelectedTeams({ p1: ['t1'] });
             (jobCtx.adnArbBillingOccurences as WritableSignal<number | null>).set(5);
 
-            expect(service.arbPerOccurrence()).toBe(100);
+            expect(service.arbInstallmentTotal()).toBe(100);
         });
 
-        it('should round arbPerOccurrence to 2 decimal places', () => {
+        it('should round each installment to 2 decimal places', () => {
             teamSvc._addTeam(makeTeam({ teamId: 't1', fee: 100 }));
             fp._set([makePlayer({ playerId: 'p1' })]);
             playerState.setSelectedTeams({ p1: ['t1'] });
             (jobCtx.adnArbBillingOccurences as WritableSignal<number | null>).set(3);
 
             // 100 / 3 = 33.333... → 33.33
-            expect(service.arbPerOccurrence()).toBe(33.33);
+            expect(service.arbInstallmentTotal()).toBe(33.33);
         });
+
     });
 
     // ─── Discount Reset ──────────────────────────────────────────────

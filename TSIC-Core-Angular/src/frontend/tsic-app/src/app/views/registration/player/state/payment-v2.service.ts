@@ -23,6 +23,28 @@ function toNumber(value: number | string | undefined | null): number {
     return typeof value === 'string' ? Number.parseFloat(value) || 0 : value;
 }
 
+/** Half-up to cents — mirrors the server's Math.Round(x, 2, MidpointRounding.AwayFromZero) on the
+ *  non-negative amounts this file deals in. */
+function roundCents(value: number): number {
+    return Math.round(value * 100) / 100;
+}
+
+/** One player's recurring-billing plan — the client mirror of the single Authorize.Net subscription
+ *  the server mints for that player's registration. Carries the accounting columns alongside the
+ *  plan so the ARB table renders from one row object. */
+export interface ArbPlanLine {
+    playerId: string;
+    playerName: string;
+    teamName: string;
+    feeBase: number;
+    feeAdj: number;
+    feeTotal: number;
+    /** This player's own owed balance — the subscription's financing basis. */
+    owed: number;
+    /** Charged per cycle for THIS player. Zero when the line owes nothing (no subscription minted). */
+    perOccurrence: number;
+}
+
 export interface LineItem {
     playerId: string;
     playerName: string;
@@ -228,11 +250,42 @@ export class PaymentV2Service {
         const raw = this.jobCtx.adnArbStartDate();
         return raw ? new Date(raw) : new Date(Date.now() + 24 * 60 * 60 * 1000);
     });
-    arbPerOccurrence = computed(() => {
+    /**
+     * Per-player recurring-billing plan. The server creates ONE Authorize.Net subscription per
+     * REGISTRATION (PaymentService.CreateArbSubscriptionsAsync), financing that player's own owed
+     * balance — `li.amount`, the client mirror of `reg.OwedTotal` — over the job's shared occurrence
+     * count. Basis is the OWED amount, not feeTotal: a line with prior payments finances only what
+     * remains, exactly as the server does.
+     *
+     * A line owing nothing mints no subscription (the server activates it directly, since the
+     * gateway rejects a $0 recurring charge), so it carries perOccurrence = 0.
+     */
+    readonly arbPlanLines = computed<ArbPlanLine[]>(() => {
         const occ = this.arbOccurrences();
-        const tot = this.totalAmount();
-        return occ > 0 ? Math.round((tot / occ) * 100) / 100 : tot;
+        return this.lineItems().map(li => ({
+            playerId: li.playerId,
+            playerName: li.playerName,
+            teamName: li.teamName,
+            feeBase: li.feeBase,
+            feeAdj: li.feeAdj,
+            feeTotal: li.feeTotal,
+            owed: li.amount,
+            perOccurrence: li.amount > 0 && occ > 0 ? roundCents(li.amount / occ) : 0,
+        }));
     });
+
+    /** Only the lines that will actually mint a subscription. */
+    readonly arbBilledPlanLines = computed(() => this.arbPlanLines().filter(l => l.perOccurrence > 0));
+
+    /**
+     * What the card is actually charged each cycle: the SUM of the independently-rounded per-player
+     * installments. This is deliberately not round(familyTotal / occurrences) — the server rounds
+     * each subscription on its own, so summing the rounded parts is the only figure that matches the
+     * gateway. (e.g. two $100 players over 3 payments bill 33.33 + 33.33 = $66.66 per cycle, not the
+     * $66.67 a rounded family total would promise.)
+     */
+    readonly arbInstallmentTotal = computed(() =>
+        roundCents(this.arbBilledPlanLines().reduce((sum, l) => sum + l.perOccurrence, 0)));
 
     monthLabel(): string { return this.arbIntervalLength() === 1 ? 'month' : 'months'; }
 

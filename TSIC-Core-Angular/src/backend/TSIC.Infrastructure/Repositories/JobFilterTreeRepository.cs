@@ -41,6 +41,7 @@ public sealed class JobFilterTreeRepository : IJobFilterTreeRepository
                 AgegroupColor = ag.Color,
                 DivId = div != null ? (Guid?)div.DivId : null,
                 DivName = div != null ? div.DivName : null,
+                DivRank = t.DivRank,
                 ClubName = reg != null ? reg.ClubName : null
             }
         ).ToListAsync(ct);
@@ -68,6 +69,26 @@ public sealed class JobFilterTreeRepository : IJobFilterTreeRepository
             .ToListAsync(ct);
         var scheduledIds = t1Ids.Concat(t2Ids).ToHashSet();
 
+        // 2b. A bracket slot is minted empty and carries no T1Id/T2Id until seed resolution
+        //     seats a team, so the two queries above miss a team whose ONLY games are bracket
+        //     games — every team of a reseeding tournament's championship flight, and any
+        //     division whose bracket has been reset to unseeded. Such a team is nonetheless
+        //     scheduled: its seat is the placed bracket game in its own division at its seed
+        //     line (Schedule.TxNo == Teams.DivRank). Without this the flight's agegroups vanish
+        //     from every [requireScheduled] filter tree the moment the bracket is cleared.
+        var bracketSeats = await _context.Schedule.AsNoTracking()
+            .Where(s => s.JobId == jobId && s.GDate.HasValue && s.DivId.HasValue
+                     && s.T1Type != null && s.T1Type != "T")
+            .Select(s => new { DivId = s.DivId!.Value, s.T1No, s.T2No })
+            .ToListAsync(ct);
+
+        var seatKeys = new HashSet<(Guid DivId, int SeedLine)>();
+        foreach (var seat in bracketSeats)
+        {
+            if (seat.T1No.HasValue) seatKeys.Add((seat.DivId, seat.T1No.Value));
+            if (seat.T2No.HasValue) seatKeys.Add((seat.DivId, seat.T2No.Value));
+        }
+
         // 3. Player counts (RoleId == Player only; matches TeamRepository.GetPublicRosterTreeAsync semantics).
         var playerCounts = await _context.Registrations
             .AsNoTracking()
@@ -86,6 +107,7 @@ public sealed class JobFilterTreeRepository : IJobFilterTreeRepository
                 Row = r,
                 PlayerCount = playerCounts.GetValueOrDefault(r.TeamId, 0),
                 IsScheduled = scheduledIds.Contains(r.TeamId)
+                    || (r.DivId.HasValue && seatKeys.Contains((r.DivId.Value, r.DivRank)))
             })
             .ToList();
 
@@ -204,6 +226,7 @@ public sealed class JobFilterTreeRepository : IJobFilterTreeRepository
         public string? AgegroupColor { get; init; }
         public Guid? DivId { get; init; }
         public string? DivName { get; init; }
+        public required int DivRank { get; init; }
         public string? ClubName { get; init; }
     }
 

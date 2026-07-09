@@ -124,27 +124,31 @@ import type { LineItem } from '../state/payment-v2.service';
                       </th>
                       <th class="text-end">Fee-Total</th>
                       <th>
-                        ARB<app-info-tooltip message="Automated Recurring Billing splits each player's registration fee into equal installments charged to your card on a recurring schedule. The number of payments and interval are the same for every player; the amount shown on each row is that player's fee divided by the number of installments."></app-info-tooltip>
+                        ARB<app-info-tooltip message="Automated Recurring Billing finances each player separately: one subscription per player, charged to your card on a shared schedule. Every player has the same number of payments and the same interval; each row's amount is that player's own balance divided by the number of payments. Your card is charged the sum of the rows each cycle."></app-info-tooltip>
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    @for (li of paySvc.lineItems(); track li.playerId) {
+                    <!-- Rows walk arbPlanLines, not lineItems — each carries the accounting columns
+                         plus the server's own financing basis (owed, not feeTotal) and that player's
+                         independently-rounded installment. -->
+                    @for (pl of paySvc.arbPlanLines(); track pl.playerId) {
                       <tr>
-                        <td>{{ li.playerName }}</td>
-                        <td>{{ li.teamName }}</td>
-                        <td class="text-end">{{ li.feeBase | currency }}</td>
-                        <td class="text-end" [class.text-success]="li.feeAdj < 0">{{ li.feeAdj | currency }}</td>
-                        <td class="text-end">{{ li.feeTotal | currency }}</td>
+                        <td>{{ pl.playerName }}</td>
+                        <td>{{ pl.teamName }}</td>
+                        <td class="text-end">{{ pl.feeBase | currency }}</td>
+                        <td class="text-end" [class.text-success]="pl.feeAdj < 0">{{ pl.feeAdj | currency }}</td>
+                        <td class="text-end">{{ pl.feeTotal | currency }}</td>
                         <td class="arb-plan-cell">
-                          <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ perPlayerInstallment(li.feeTotal) | currency }}</div>
-                          <div class="arb-plan-cadence">
-                            @if (paySvc.arbIntervalLength() === 1) {
-                              billed once per month
-                            } @else {
-                              billed once every {{ paySvc.arbIntervalLength() }} months
-                            }
-                          </div>
+                          @if (pl.perOccurrence > 0) {
+                            <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ pl.perOccurrence | currency }}</div>
+                            <div class="arb-plan-cadence">{{ arbCadenceText() }}</div>
+                          } @else {
+                            <!-- Owes nothing after modifiers — the server activates this registration
+                                 outright rather than minting a $0 subscription the gateway would reject. -->
+                            <div class="arb-plan-primary">No payment due</div>
+                            <div class="arb-plan-cadence">not billed</div>
+                          }
                         </td>
                       </tr>
                     }
@@ -154,14 +158,8 @@ import type { LineItem } from '../state/payment-v2.service';
                       <th colspan="4" class="text-end">Total Due</th>
                       <th class="text-end due-now-amount">{{ currentTotal() | currency }}</th>
                       <th class="arb-plan-cell">
-                        <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ paySvc.arbPerOccurrence() | currency }}</div>
-                        <div class="arb-plan-cadence">
-                          @if (paySvc.arbIntervalLength() === 1) {
-                            billed once per month
-                          } @else {
-                            billed once every {{ paySvc.arbIntervalLength() }} months
-                          }
-                        </div>
+                        <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ paySvc.arbInstallmentTotal() | currency }}</div>
+                        <div class="arb-plan-cadence">{{ arbCadenceText() }}</div>
                       </th>
                     </tr>
                   </tfoot>
@@ -249,13 +247,40 @@ import type { LineItem } from '../state/payment-v2.service';
                       <div class="payment-plan-options">
                         <label class="payment-plan-option"
                                [class.is-selected]="paymentState.paymentOption() === 'ARB'"
+                               [class.is-itemized]="paySvc.arbBilledPlanLines().length > 1"
                                for="optArb">
                           <input class="form-check-input" type="radio" name="payOpt" id="optArb" value="ARB"
                                  [checked]="paymentState.paymentOption() === 'ARB'"
                                  (change)="chooseOption('ARB')">
                           <span class="payment-plan-option-text">
                             <span class="payment-plan-option-title">Automated Recurring Billing</span>
-                            <span class="payment-plan-option-detail">{{ paySvc.arbOccurrences() }} payments of <span class="payment-plan-option-amount">{{ paySvc.arbPerOccurrence() | currency }}</span> &middot; billing starts {{ paySvc.arbStartDate() | date:'mediumDate' }}</span>
+                            <!-- One billed player: the family total IS that player's burden, so state it
+                                 plainly. Two or more: itemize. Each player gets their own subscription at
+                                 their own amount, so a lone combined figure hides which player costs what
+                                 and can't be reconciled against the rows above. -->
+                            @if (paySvc.arbBilledPlanLines().length <= 1) {
+                              <span class="payment-plan-option-detail">{{ paySvc.arbOccurrences() }} payments of <span class="payment-plan-option-amount">{{ paySvc.arbInstallmentTotal() | currency }}</span> &middot; billing starts {{ paySvc.arbStartDate() | date:'mediumDate' }}</span>
+                            } @else {
+                              <span class="payment-plan-option-detail">Each player is billed separately, on the same schedule.</span>
+                              <span class="arb-breakdown">
+                                @for (pl of paySvc.arbBilledPlanLines(); track pl.playerId) {
+                                  <span class="arb-breakdown-row">
+                                    <span class="arb-breakdown-player">
+                                      {{ pl.playerName }}
+                                      @if (pl.teamName) { <span class="arb-breakdown-team">{{ pl.teamName }}</span> }
+                                    </span>
+                                    <span class="arb-breakdown-amount">
+                                      {{ paySvc.arbOccurrences() }} &times; <span class="payment-plan-option-amount">{{ pl.perOccurrence | currency }}</span>
+                                    </span>
+                                  </span>
+                                }
+                                <span class="arb-breakdown-row arb-breakdown-total">
+                                  <span class="arb-breakdown-player">Charged each {{ arbCadenceNoun() }}</span>
+                                  <span class="arb-breakdown-amount payment-plan-option-amount">{{ paySvc.arbInstallmentTotal() | currency }}</span>
+                                </span>
+                              </span>
+                              <span class="payment-plan-option-detail">Billing starts {{ paySvc.arbStartDate() | date:'mediumDate' }}</span>
+                            }
                           </span>
                         </label>
                         @if (jobCtx.allowPif()) {
@@ -587,7 +612,7 @@ import type { LineItem } from '../state/payment-v2.service';
               @if (submitting()) {
                 <span class="spinner-border spinner-border-sm me-2"></span>Processing...
               } @else if (paymentState.paymentOption() === 'ARB') {
-                <i class="bi bi-lock-fill me-2"></i>Start Recurring Billing &middot; {{ paySvc.arbOccurrences() }} × {{ paySvc.arbPerOccurrence() | currency }}
+                <i class="bi bi-lock-fill me-2"></i>Start Recurring Billing &middot; {{ paySvc.arbOccurrences() }} × {{ paySvc.arbInstallmentTotal() | currency }}
               } @else {
                 <i class="bi bi-lock-fill me-2"></i>Pay {{ currentTotal() | currency }} Now
               }
@@ -682,16 +707,89 @@ import type { LineItem } from '../state/payment-v2.service';
           box-shadow: 0 0 0 1px rgba(var(--bs-primary-rgb), 0.15);
         }
 
+        /* Multi-player ARB carries a per-player table, so the radio tracks the first
+           text line rather than floating at the block's vertical centre. */
+        &.is-itemized {
+          align-items: flex-start;
+
+          input[type="radio"] { margin-top: 2px; }
+        }
+
         input[type="radio"] {
           flex-shrink: 0;
           margin: 0;
         }
+
+        /* The whole option is a click target; surface keyboard focus on the tile, not
+           the visually-small radio dot. */
+        &:focus-within {
+          outline: none;
+          box-shadow: var(--shadow-focus);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .payment-plan-option { transition: none !important; }
       }
 
       .payment-plan-option-text {
         display: flex;
         flex-direction: column;
         gap: 2px;
+        min-width: 0;
+        flex: 1;
+      }
+
+      /* Per-player ARB breakdown. Spans, not <ul>/<li> — this lives inside a <label>, whose
+         content model is phrasing content; a list here breaks the implicit label association
+         in some browsers. Grid gives the money column a clean right edge without a table. */
+      .arb-breakdown {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 2px var(--space-4);
+        margin: var(--space-2) 0;
+        padding: var(--space-2) 0;
+        border-top: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+        border-bottom: 1px solid rgba(var(--bs-primary-rgb), 0.15);
+        font-size: var(--font-size-sm);
+      }
+
+      .arb-breakdown-row {
+        display: contents;
+      }
+
+      .arb-breakdown-player {
+        color: var(--brand-text);
+        min-width: 0;
+      }
+
+      .arb-breakdown-team {
+        color: var(--brand-text-muted);
+        font-size: var(--font-size-xs);
+
+        &::before { content: '('; }
+        &::after { content: ')'; }
+      }
+
+      .arb-breakdown-amount {
+        color: var(--brand-text-muted);
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Rule runs across both columns; colour is left to .payment-plan-option-amount on the
+         money cell so the total keeps the primary accent the other amounts use. */
+      .arb-breakdown-total {
+        .arb-breakdown-player,
+        .arb-breakdown-amount {
+          margin-top: var(--space-1);
+          padding-top: var(--space-1);
+          border-top: 1px solid rgba(var(--bs-primary-rgb), 0.2);
+          font-weight: var(--font-weight-semibold);
+        }
+
+        .arb-breakdown-player { color: var(--brand-text); }
       }
 
       .payment-plan-option-title {
@@ -878,11 +976,17 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly paySvc = inject(PaymentV2Service);
     readonly jobCtx = inject(JobContextService);
 
-    /** Per-player installment amount, rounded to cents. Mirrors the family-level rounding in PaymentV2Service.arbPerOccurrence. */
-    perPlayerInstallment(playerFeeTotal: number): number {
-        const occ = this.paySvc.arbOccurrences();
-        return occ > 0 ? Math.round((playerFeeTotal / occ) * 100) / 100 : playerFeeTotal;
-    }
+    /** "billed once per month" / "billed once every 3 months" — the cadence sentence under a plan amount. */
+    readonly arbCadenceText = computed(() => {
+        const n = this.paySvc.arbIntervalLength();
+        return n === 1 ? 'billed once per month' : `billed once every ${n} months`;
+    });
+
+    /** The cadence as a bare noun — "month" / "3 months" — for "Charged each …". */
+    readonly arbCadenceNoun = computed(() => {
+        const n = this.paySvc.arbIntervalLength();
+        return n === 1 ? 'month' : `${n} months`;
+    });
 
     readonly paymentState = inject(PaymentStateV2Service);
     readonly insuranceState = inject(InsuranceStateV2Service);
