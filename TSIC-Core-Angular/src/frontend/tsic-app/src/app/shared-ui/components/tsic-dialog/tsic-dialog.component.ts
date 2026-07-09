@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, AfterViewInit, OnChanges, SimpleChanges, input, output, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, AfterViewInit, OnChanges, OnDestroy, Renderer2, SimpleChanges, inject, input, output, viewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FocusTrapDirective } from '../../directives/focus-trap.directive';
 
@@ -8,6 +8,12 @@ import { FocusTrapDirective } from '../../directives/focus-trap.directive';
  *  <tsic-dialog [open]="true" size="lg" (requestClose)="onClose()">
  *    <div class="modal-content"> ... </div>
  *  </tsic-dialog>
+ *
+ * Dragging: modals are movable by default — grab the header and drag. The drag
+ * handle is resolved (in order) as `[data-tsic-drag-handle]`, `.modal-header`,
+ * or the first child of `.modal-content` (covers hero-style headers). Interactive
+ * controls in the header (buttons, inputs, links) never start a drag. Pass
+ * `[draggable]="false"` to pin a dialog in place.
  */
 @Component({
     selector: 'tsic-dialog',
@@ -88,11 +94,17 @@ import { FocusTrapDirective } from '../../directives/focus-trap.directive';
                 }
                 @keyframes tsicDialogFadeIn { from { opacity: 0; } to { opacity: 1; } }
                 @keyframes tsicDialogContentIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+
+                /* Suppress text selection while a drag is in flight. The grab/grabbing
+                   cursor is set inline on the resolved handle from TS (the handle lives
+                   in projected content, so ::ng-deep would be the only CSS route — inline
+                   styling avoids piercing encapsulation). */
+                .tsic-dialog.is-dragging { user-select: none; }
                 `
     ],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TsicDialogComponent implements AfterViewInit, OnChanges {
+export class TsicDialogComponent implements AfterViewInit, OnChanges, OnDestroy {
     /** Controls the native <dialog> open state. Often left as true when wrapped in an @if block. */
     readonly open = input(true);
     /** Size variant to add modifier class (e.g., tsic-dialog-lg). */
@@ -101,10 +113,14 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
     readonly closeOnEsc = input(true);
     /** Close the dialog when clicking on the backdrop area (outside content). Default true. */
     readonly closeOnBackdrop = input(true);
+    /** Whether the modal can be repositioned by dragging its header. Default true. */
+    readonly draggable = input(true);
 
     readonly requestClose = output<void>();
 
     readonly dialogEl = viewChild.required<ElementRef<HTMLDialogElement>>('dlg');
+
+    private readonly renderer = inject(Renderer2);
 
     get sizeClass() {
         return {
@@ -142,6 +158,7 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
 
     ngAfterViewInit(): void {
         this.syncOpenState();
+        this.initDrag();
     }
 
     ngOnChanges(changes: SimpleChanges): void {
@@ -150,13 +167,19 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
         }
     }
 
+    ngOnDestroy(): void {
+        this.teardownDrag();
+    }
+
     private syncOpenState() {
         const dialog = this.dialogEl()?.nativeElement;
         if (!dialog) return;
         try {
             const open = this.open();
             if (open && !dialog.open) {
+                this.resetDragPosition();
                 dialog.showModal();
+                this.markDragHandle();
             } else if (!open && dialog.open) {
                 dialog.close();
             }
@@ -165,10 +188,156 @@ export class TsicDialogComponent implements AfterViewInit, OnChanges {
             requestAnimationFrame(() => {
                 try {
                     const open = this.open();
-                    if (open && !dialog.open) dialog.showModal();
+                    if (open && !dialog.open) { this.resetDragPosition(); dialog.showModal(); this.markDragHandle(); }
                     else if (!open && dialog.open) dialog.close();
                 } catch { /* no-op */ }
             });
         }
+    }
+
+    // ── Dragging ──────────────────────────────────────────────────────────
+    // The native <dialog> lives in the top layer; moving it is a plain
+    // `transform: translate()` on the dialog element (the same technique CDK
+    // uses elsewhere in the app). We roll our own tiny pointer drag so every
+    // consumer gets it for free — no per-modal cdkDrag wiring.
+
+    private offsetX = 0;
+    private offsetY = 0;
+    private dragging = false;
+    private pointerId: number | null = null;
+    private startClientX = 0;
+    private startClientY = 0;
+    private baseX = 0;
+    private baseY = 0;
+    /** Untransformed geometry captured at drag start, for viewport clamping. */
+    private naturalLeft = 0;
+    private naturalTop = 0;
+    private dialogWidth = 0;
+    private dialogHeight = 0;
+    /** Lives for the component's lifetime (the pointerdown listener). */
+    private readonly disposers: Array<() => void> = [];
+    /** Lives only for a single drag gesture (move/up/cancel); cleared on release. */
+    private dragSessionDisposers: Array<() => void> = [];
+
+    private initDrag(): void {
+        const dialog = this.dialogEl()?.nativeElement;
+        if (!dialog) return;
+        this.disposers.push(
+            this.renderer.listen(dialog, 'pointerdown', (e: PointerEvent) => this.onDragPointerDown(e)),
+        );
+        this.markDragHandle();
+    }
+
+    private teardownDrag(): void {
+        this.endDragSession();
+        for (const dispose of this.disposers) dispose();
+        this.disposers.length = 0;
+    }
+
+    private endDragSession(): void {
+        for (const dispose of this.dragSessionDisposers) dispose();
+        this.dragSessionDisposers = [];
+    }
+
+    /** Resolve the header handle within the projected content. */
+    private resolveHandle(dialog: HTMLDialogElement): HTMLElement | null {
+        const content = dialog.querySelector<HTMLElement>('.modal-content') ?? dialog;
+        return (
+            content.querySelector<HTMLElement>('[data-tsic-drag-handle]') ??
+            content.querySelector<HTMLElement>('.modal-header') ??
+            (content.firstElementChild as HTMLElement | null)
+        );
+    }
+
+    /** Tag the resolved handle and give it the grab cursor. Idempotent. */
+    private markDragHandle(): void {
+        if (!this.draggable()) return;
+        const dialog = this.dialogEl()?.nativeElement;
+        if (!dialog) return;
+        // Content may not be projected on the exact frame we open; defer one frame.
+        requestAnimationFrame(() => {
+            const handle = this.resolveHandle(dialog);
+            if (handle) {
+                this.renderer.setAttribute(handle, 'data-tsic-drag-handle', 'true');
+                this.renderer.setStyle(handle, 'cursor', 'grab');
+            }
+        });
+    }
+
+    private onDragPointerDown(e: PointerEvent): void {
+        if (!this.draggable() || e.button !== 0) return;
+        const dialog = this.dialogEl().nativeElement;
+        const handle = this.resolveHandle(dialog);
+        if (!handle) return;
+
+        const target = e.target as HTMLElement | null;
+        if (!target || !handle.contains(target)) return;
+        // Never hijack interactive controls that live in the header.
+        if (target.closest('button, a, input, select, textarea, label, [contenteditable="true"]')) return;
+
+        const rect = dialog.getBoundingClientRect();
+        this.naturalLeft = rect.left - this.offsetX;
+        this.naturalTop = rect.top - this.offsetY;
+        this.dialogWidth = rect.width;
+        this.dialogHeight = rect.height;
+
+        this.dragging = true;
+        this.pointerId = e.pointerId;
+        this.startClientX = e.clientX;
+        this.startClientY = e.clientY;
+        this.baseX = this.offsetX;
+        this.baseY = this.offsetY;
+
+        try { handle.setPointerCapture(e.pointerId); } catch { /* no-op */ }
+        this.renderer.addClass(dialog, 'is-dragging');
+        this.renderer.setStyle(handle, 'cursor', 'grabbing');
+
+        this.dragSessionDisposers.push(
+            this.renderer.listen(handle, 'pointermove', (ev: PointerEvent) => this.onDragPointerMove(ev)),
+            this.renderer.listen(handle, 'pointerup', (ev: PointerEvent) => this.onDragPointerUp(ev)),
+            this.renderer.listen(handle, 'pointercancel', (ev: PointerEvent) => this.onDragPointerUp(ev)),
+        );
+        e.preventDefault();
+    }
+
+    private onDragPointerMove(e: PointerEvent): void {
+        if (!this.dragging || e.pointerId !== this.pointerId) return;
+        const dialog = this.dialogEl().nativeElement;
+
+        let nx = this.baseX + (e.clientX - this.startClientX);
+        let ny = this.baseY + (e.clientY - this.startClientY);
+
+        // Clamp so the dialog stays within the viewport. If the dialog is larger
+        // than the viewport on an axis, the min/max invert — Math.min/max on the
+        // bounds keeps the range valid either way.
+        const minX = -this.naturalLeft;
+        const maxX = window.innerWidth - this.naturalLeft - this.dialogWidth;
+        const minY = -this.naturalTop;
+        const maxY = window.innerHeight - this.naturalTop - this.dialogHeight;
+        nx = Math.min(Math.max(nx, Math.min(minX, maxX)), Math.max(minX, maxX));
+        ny = Math.min(Math.max(ny, Math.min(minY, maxY)), Math.max(minY, maxY));
+
+        this.offsetX = nx;
+        this.offsetY = ny;
+        this.renderer.setStyle(dialog, 'transform', `translate(${nx}px, ${ny}px)`);
+    }
+
+    private onDragPointerUp(e: PointerEvent): void {
+        if (e.pointerId !== this.pointerId) return;
+        this.dragging = false;
+        this.pointerId = null;
+        const dialog = this.dialogEl().nativeElement;
+        this.renderer.removeClass(dialog, 'is-dragging');
+        const handle = e.currentTarget as HTMLElement | null;
+        if (handle) this.renderer.setStyle(handle, 'cursor', 'grab');
+        this.endDragSession();
+    }
+
+    /** Recenter the modal each time it reopens. */
+    private resetDragPosition(): void {
+        this.offsetX = 0;
+        this.offsetY = 0;
+        const dialog = this.dialogEl()?.nativeElement;
+        if (dialog) this.renderer.removeStyle(dialog, 'transform');
     }
 }

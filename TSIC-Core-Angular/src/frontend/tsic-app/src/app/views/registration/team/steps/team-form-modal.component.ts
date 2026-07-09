@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, Input, inject, OnInit, output, signal, input } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { DragDropModule } from '@angular/cdk/drag-drop';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { TeamRegistrationService } from '@views/registration/team/services/team-registration.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -16,18 +15,16 @@ import { LevelOfPlayPickerComponent } from '@views/registration/team/components/
 @Component({
     selector: 'app-team-form-modal',
     standalone: true,
-    imports: [FormsModule, TsicDialogComponent, DragDropModule, LevelOfPlayPickerComponent],
+    imports: [FormsModule, TsicDialogComponent, LevelOfPlayPickerComponent],
     template: `
     <tsic-dialog [open]="true" size="sm" (requestClose)="closed.emit()">
-      <div class="modal-content form-modal"
-           cdkDrag
-           [cdkDragRootElement]="'.tsic-dialog'"
-           cdkDragBoundary="body">
+      <div class="modal-content form-modal">
 
         <!-- Hero banner — matches register picker styling. Doubles as the
-             drag handle so the rep can shift the modal to peek at the
+             drag handle (tsic-dialog resolves the first child of .modal-content
+             as its handle) so the rep can shift the modal to peek at the
              library table beneath. -->
-        <div class="form-hero" cdkDragHandle>
+        <div class="form-hero">
           <h5 class="form-hero-title mb-0">
             @if (isEdit()) {
               <i class="bi bi-pencil-square me-1"></i>Edit Library Team
