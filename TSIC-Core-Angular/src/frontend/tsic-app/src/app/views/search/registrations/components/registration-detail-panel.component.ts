@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal, computed, HostListener, inject, OnChanges, SimpleChanges } from '@angular/core';
+import { Component, ChangeDetectionStrategy, input, output, signal, linkedSignal, computed, untracked, HostListener, inject, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { forkJoin } from 'rxjs';
@@ -218,14 +218,17 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   emailBody = linkedSignal({ source: () => this.detail(), computation: () => '' });
 
   // ── Unsaved-changes tracking ──
-  // Snapshots of the editable zones, taken when detail loads and after each save. Compared
-  // against current state to drive the per-section Save affordance + the discard-on-close
-  // guard. Email is intentionally excluded (a transient draft, cleared on send/load).
-  // Reseeded from the detail input on load, and re-set after each successful save. Computed PURELY from
-  // detail (never the live editable signals) so editing a field moves the live serialization but NOT the
-  // baseline — otherwise the dirty comparison would always match and the zone would read as never-dirty.
-  private snapshotContact = linkedSignal({ source: () => this.detail(), computation: (d) => this.contactBaseline(d) });
-  private snapshotProfile = linkedSignal({ source: () => this.detail(), computation: (d) => this.profileBaseline(d) });
+  // Baseline snapshots of the editable zones, reseeded when a new registrant loads and re-set after each
+  // save. Compared against the live serialization to drive the per-section Save affordance + the
+  // discard-on-close guard. Email is intentionally excluded (a transient draft, cleared on send/load).
+  //
+  // The computation snapshots serialize*() under untracked() so it captures the freshly-seeded values
+  // (the editable signals reseed first — same detail source, glitch-free order) WITHOUT taking a
+  // dependency on them. Tracking them would re-baseline on every keystroke and the zone would read as
+  // never-dirty. untracked() here only READS to snapshot and never writes what it reads — the benign,
+  // idiomatic use — categorically unlike the effect() that WROTE profileValues it also read.
+  private snapshotContact = linkedSignal({ source: () => this.detail(), computation: () => untracked(() => this.serializeContact()) });
+  private snapshotProfile = linkedSignal({ source: () => this.detail(), computation: () => untracked(() => this.serializeProfile()) });
   showDiscardConfirm = signal<boolean>(false);
 
   private serializeContact(): string {
@@ -238,22 +241,6 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   }
   private serializeProfile(): string {
     return JSON.stringify(this.profileValues());
-  }
-
-  /** Dirty-tracking baseline for the Contact zone — mirrors serializeContact() applied to the freshly
-   *  SEEDED values, but built purely from the detail input so it never moves when the user edits. */
-  private contactBaseline(d: RegistrationDetailDto | null): string {
-    const role = d?.roleName?.toLowerCase().trim() ?? '';
-    const player = PLAYER_ROLES.has(role) && !!d?.familyContact;
-    return JSON.stringify({
-      demo: seedDemographics(d),
-      famContact: player ? seedFamilyContact(d) : null,
-      famDemo: player ? seedFamilyDemographics(d) : null
-    });
-  }
-  /** Dirty-tracking baseline for the Profile zone — mirrors serializeProfile() of the seeded values. */
-  private profileBaseline(d: RegistrationDetailDto | null): string {
-    return JSON.stringify(normalizeSelectValues({ ...(d?.profileValues ?? {}) }, this.metadataFields()));
   }
 
   /** Contact Info zone has unsaved edits (player/family demographics + family contact). */
