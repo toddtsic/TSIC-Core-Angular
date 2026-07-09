@@ -270,7 +270,7 @@ export const routes: Routes = [
 					{
 						path: 'pool-assignment',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'pool-assignment' },
 						loadComponent: () => import('./views/ladt/pool-assignment/pool-assignment.component').then(m => m.PoolAssignmentComponent)
 					}
 				]
