@@ -359,7 +359,7 @@ export const routes: Routes = [
 					{
 						path: 'checkin',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'checkin' },
 						loadComponent: () => import('./views/tools/checkin/checkin.component').then(m => m.CheckinComponent)
 					}
 				]
