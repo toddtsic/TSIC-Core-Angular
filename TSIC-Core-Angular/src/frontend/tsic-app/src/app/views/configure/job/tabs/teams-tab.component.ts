@@ -21,7 +21,6 @@ export class TeamsTabComponent implements OnInit {
   bClubRepAllowAdd = linkedSignal(() => this.svc.teams()?.bClubRepAllowAdd ?? null);
   bRestrictPlayerTeamsToAgerange = linkedSignal(() => this.svc.teams()?.bRestrictPlayerTeamsToAgerange ?? null);
   bTeamPushDirectors = linkedSignal(() => this.svc.teams()?.bTeamPushDirectors ?? null);
-  bShowTeamNameOnlyInSchedules = linkedSignal(() => this.svc.teams()?.bShowTeamNameOnlyInSchedules ?? false);
   bAllowRosterViewAdult = linkedSignal(() => this.svc.teams()?.bAllowRosterViewAdult ?? false);
   bAllowRosterViewPlayer = linkedSignal(() => this.svc.teams()?.bAllowRosterViewPlayer ?? false);
 
@@ -41,7 +40,6 @@ export class TeamsTabComponent implements OnInit {
       bClubRepAllowAdd: t.bClubRepAllowAdd,
       bRestrictPlayerTeamsToAgerange: t.bRestrictPlayerTeamsToAgerange,
       bTeamPushDirectors: t.bTeamPushDirectors,
-      bShowTeamNameOnlyInSchedules: t.bShowTeamNameOnlyInSchedules,
       bAllowRosterViewAdult: t.bAllowRosterViewAdult,
       bAllowRosterViewPlayer: t.bAllowRosterViewPlayer,
     };
@@ -79,7 +77,6 @@ export class TeamsTabComponent implements OnInit {
       bClubRepAllowAdd: this.bClubRepAllowAdd(),
       bRestrictPlayerTeamsToAgerange: this.bRestrictPlayerTeamsToAgerange(),
       bTeamPushDirectors: this.bTeamPushDirectors(),
-      bShowTeamNameOnlyInSchedules: this.bShowTeamNameOnlyInSchedules(),
       bAllowRosterViewAdult: this.bAllowRosterViewAdult(),
       bAllowRosterViewPlayer: this.bAllowRosterViewPlayer(),
     };

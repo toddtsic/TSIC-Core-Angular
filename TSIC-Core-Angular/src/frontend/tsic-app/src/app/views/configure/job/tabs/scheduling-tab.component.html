@@ -35,6 +35,22 @@
           }
         </span>
       </div>
+
+      <div class="toggle-row" [class.is-on]="bShowTeamNameOnlyInSchedules()" [class.is-off]="!bShowTeamNameOnlyInSchedules()">
+        <label class="toggle-control">
+          <input type="checkbox"
+            [ngModel]="bShowTeamNameOnlyInSchedules()"
+            (ngModelChange)="bShowTeamNameOnlyInSchedules.set($event); onFieldChange()" />
+          <span class="field-label">Show Team Name Only in Schedules</span>
+        </label>
+        <span class="toggle-tip">
+          @if (bShowTeamNameOnlyInSchedules()) {
+            Schedules show the bare team name.
+          } @else {
+            Schedules prefix each team name with its club name (<code>Club: Team</code>).
+          }
+        </span>
+      </div>
     </div>
 
     <div class="form-section">

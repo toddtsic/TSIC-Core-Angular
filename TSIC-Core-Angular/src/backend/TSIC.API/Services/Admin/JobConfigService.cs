@@ -276,8 +276,6 @@ public class JobConfigService : IJobConfigService
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
-        var prevShowTeamNameOnly = job.BShowTeamNameOnlyInSchedules;
-
         // Admin-editable
         job.BRegistrationAllowTeam = req.BRegistrationAllowTeam;
         job.BteamRegRequiresToken = req.BTeamRegRequiresToken ?? false;
@@ -289,7 +287,7 @@ public class JobConfigService : IJobConfigService
         job.BRestrictPlayerTeamsToAgerange = req.BRestrictPlayerTeamsToAgerange;
         job.BTeamPushDirectors = req.BTeamPushDirectors;
         // BUseWaitlists is retired — waitlists are mandatory and the column is vestigial.
-        job.BShowTeamNameOnlyInSchedules = req.BShowTeamNameOnlyInSchedules;
+        // BShowTeamNameOnlyInSchedules lives on the Scheduling tab (it drives schedule rendering).
         job.BAllowRosterViewAdult = req.BAllowRosterViewAdult;
         job.BAllowRosterViewPlayer = req.BAllowRosterViewPlayer;
 
@@ -302,14 +300,6 @@ public class JobConfigService : IJobConfigService
 
         job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
-
-        if (prevShowTeamNameOnly != req.BShowTeamNameOnlyInSchedules)
-        {
-            _logger.LogInformation(
-                "BShowTeamNameOnlyInSchedules flipped on Job {JobId} ({Prev}→{New}) — recomposing schedule team names.",
-                jobId, prevShowTeamNameOnly, req.BShowTeamNameOnlyInSchedules);
-            await _scheduleRepo.SynchronizeAllScheduleNamesForJobAsync(jobId, ct);
-        }
     }
 
     public async Task UpdateCoachesAsync(Guid jobId, UpdateJobConfigCoachesRequest req, CancellationToken ct = default)
@@ -369,10 +359,13 @@ public class JobConfigService : IJobConfigService
         var job = await _repo.GetJobTrackedAsync(jobId, ct)
             ?? throw new KeyNotFoundException($"Job {jobId} not found.");
 
+        var prevShowTeamNameOnly = job.BShowTeamNameOnlyInSchedules;
+
         job.EventStartDate = req.EventStartDate;
         job.EventEndDate = req.EventEndDate;
         job.BScheduleAllowPublicAccess = req.BScheduleAllowPublicAccess;
         job.BRestrictPublicRosters = req.BRestrictPublicRosters;
+        job.BShowTeamNameOnlyInSchedules = req.BShowTeamNameOnlyInSchedules;
 
         // SuperUser-only
         if (isSuperUser && req.BReseedTournament.HasValue)
@@ -419,6 +412,14 @@ public class JobConfigService : IJobConfigService
 
         job.Modified = DateTime.Now;
         await _repo.SaveChangesAsync(ct);
+
+        if (prevShowTeamNameOnly != req.BShowTeamNameOnlyInSchedules)
+        {
+            _logger.LogInformation(
+                "BShowTeamNameOnlyInSchedules flipped on Job {JobId} ({Prev}→{New}) — recomposing schedule team names.",
+                jobId, prevShowTeamNameOnly, req.BShowTeamNameOnlyInSchedules);
+            await _scheduleRepo.SynchronizeAllScheduleNamesForJobAsync(jobId, ct);
+        }
     }
 
     public async Task UpdateMobileStoreAsync(Guid jobId, UpdateJobConfigMobileStoreRequest req, bool isSuperUser, CancellationToken ct = default)
@@ -741,7 +742,6 @@ public class JobConfigService : IJobConfigService
         BClubRepAllowAdd = job.BClubRepAllowAdd,
         BRestrictPlayerTeamsToAgerange = job.BRestrictPlayerTeamsToAgerange,
         BTeamPushDirectors = job.BTeamPushDirectors,
-        BShowTeamNameOnlyInSchedules = job.BShowTeamNameOnlyInSchedules,
         BAllowRosterViewAdult = job.BAllowRosterViewAdult,
         BAllowRosterViewPlayer = job.BAllowRosterViewPlayer,
         // SuperUser-only
@@ -790,6 +790,7 @@ public class JobConfigService : IJobConfigService
         EventEndDate = job.EventEndDate,
         BScheduleAllowPublicAccess = job.BScheduleAllowPublicAccess,
         BRestrictPublicRosters = job.BRestrictPublicRosters,
+        BShowTeamNameOnlyInSchedules = job.BShowTeamNameOnlyInSchedules,
         // SuperUser-only
         BReseedTournament = isSuperUser ? job.BReseedTournament : null,
         GameClock = gcp is null ? null : new GameClockParamsDto

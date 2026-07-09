@@ -12,7 +12,6 @@ export type JobConfigTeamsDto = {
     bClubRepAllowAdd: boolean | null;
     bRestrictPlayerTeamsToAgerange: boolean | null;
     bTeamPushDirectors: boolean | null;
-    bShowTeamNameOnlyInSchedules: boolean;
     bAllowRosterViewAdult: boolean;
     bAllowRosterViewPlayer: boolean;
     bOfferTeamRegsaverInsurance?: boolean | null;

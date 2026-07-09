@@ -8,6 +8,7 @@ export type UpdateJobConfigSchedulingRequest = {
     eventEndDate: string | null;
     bScheduleAllowPublicAccess: boolean | null;
     bRestrictPublicRosters: boolean;
+    bShowTeamNameOnlyInSchedules: boolean;
     gameClock?: (null | GameClockParamsDto);
     bReseedTournament?: boolean | null;
 };

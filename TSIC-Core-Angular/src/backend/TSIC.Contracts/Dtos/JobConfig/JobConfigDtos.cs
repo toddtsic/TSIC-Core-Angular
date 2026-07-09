@@ -269,7 +269,6 @@ public record JobConfigTeamsDto
     public required bool? BClubRepAllowAdd { get; init; }
     public required bool? BRestrictPlayerTeamsToAgerange { get; init; }
     public required bool? BTeamPushDirectors { get; init; }
-    public required bool BShowTeamNameOnlyInSchedules { get; init; }
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAllowRosterViewPlayer { get; init; }
 
@@ -288,7 +287,6 @@ public record UpdateJobConfigTeamsRequest
     public required bool? BClubRepAllowAdd { get; init; }
     public required bool? BRestrictPlayerTeamsToAgerange { get; init; }
     public required bool? BTeamPushDirectors { get; init; }
-    public required bool BShowTeamNameOnlyInSchedules { get; init; }
     public required bool BAllowRosterViewAdult { get; init; }
     public required bool BAllowRosterViewPlayer { get; init; }
 
@@ -370,6 +368,8 @@ public record JobConfigSchedulingDto
     public required bool? BScheduleAllowPublicAccess { get; init; }
     /// <summary>When true, public team rosters are hidden for this job (Jobs.bRestrictPublicRosters).</summary>
     public required bool BRestrictPublicRosters { get; init; }
+    /// <summary>When true, schedules show the bare team name; when false, names are prefixed with "{ClubName}:" (Jobs.bShowTeamNameOnlyInSchedules).</summary>
+    public required bool BShowTeamNameOnlyInSchedules { get; init; }
     public required GameClockParamsDto? GameClock { get; init; }
 
     // SuperUser-only (null for non-super callers)
@@ -384,6 +384,8 @@ public record UpdateJobConfigSchedulingRequest
     public required bool? BScheduleAllowPublicAccess { get; init; }
     /// <summary>When true, public team rosters are hidden for this job (Jobs.bRestrictPublicRosters).</summary>
     public required bool BRestrictPublicRosters { get; init; }
+    /// <summary>When true, schedules show the bare team name; when false, names are prefixed with "{ClubName}:" (Jobs.bShowTeamNameOnlyInSchedules).</summary>
+    public required bool BShowTeamNameOnlyInSchedules { get; init; }
     public GameClockParamsDto? GameClock { get; init; }
 
     // SuperUser-only (ignored for non-super callers)
