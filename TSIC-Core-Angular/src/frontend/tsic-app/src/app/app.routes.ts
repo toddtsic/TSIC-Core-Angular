@@ -264,7 +264,7 @@ export const routes: Routes = [
 					{
 						path: 'coach-approvals',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'coach-approvals' },
 						loadComponent: () => import('./views/ladt/roster-swapper/coach-approval-queue/coach-approval-queue.component').then(m => m.CoachApprovalQueueComponent)
 					},
 					{
