@@ -387,6 +387,11 @@ export class RegistrationDetailPanelComponent {
    * Live-refresh the registrant's USA Lacrosse membership. The backend re-pings USA Lacrosse and
    * records the returned expiry onto this registration's SportAssnIdexpDate. We mirror the new date
    * locally (and re-snapshot so the profile zone doesn't read as dirty — the server already saved it).
+   *
+   * Deliberately does NOT emit `saved`: that fires the parent's full refresh (re-run the grid search +
+   * re-fetch the entire detail), which flashes the panel and yanks the tab back to Accounting. The
+   * expiry isn't a grid column and we've already reflected it locally, so a parent refresh buys nothing
+   * here — the in-place update below IS the smooth update.
    */
   revalidateUsLax(): void {
     const d = this.detail();
@@ -398,12 +403,14 @@ export class RegistrationDetailPanelComponent {
         this.revalidating.set(false);
         if (res.found) {
           if (res.expDate) {
-            this.profileValues.set({ ...this.profileValues(), SportAssnIdexpDate: res.expDate });
-            this.snapshotProfile.set(this.serializeProfile());
+            this.applyExpiryDate(res.expDate);
+            const exp = new Date(res.expDate + 'T00:00:00').toLocaleDateString();
+            this.toast.show(`${res.memStatus ?? 'Active'} · expires ${exp}`, 'success', 4000, 'USA Lacrosse');
+          } else {
+            // Membership is valid but USA Lacrosse returned no parseable expiration — the server didn't
+            // record a date, so don't imply we did. Surface it plainly rather than a "success · n/a".
+            this.toast.show(`${res.memStatus ?? 'Active'} — USA Lacrosse returned no expiration date`, 'warning', 5000, 'USA Lacrosse');
           }
-          const exp = res.expDate ? new Date(res.expDate + 'T00:00:00').toLocaleDateString() : 'n/a';
-          this.toast.show(`${res.memStatus ?? 'Active'} · expires ${exp}`, 'success', 4000, 'USA Lacrosse');
-          this.saved.emit();
         } else {
           this.toast.show(res.message || 'Membership not found.', 'warning', 5000, 'USA Lacrosse');
         }
@@ -413,6 +420,20 @@ export class RegistrationDetailPanelComponent {
         this.toast.show(err?.error?.message || 'Could not re-validate — try again.', 'danger', 4000, 'USA Lacrosse');
       }
     });
+  }
+
+  /**
+   * Mirror the freshly-recorded USLax expiry into the profile card in place. The read-only expiry input
+   * binds to profileValues()[field.key], and that key is whatever the job's metadata declares for the
+   * column — casing can differ from the entity name. Write under the field's ACTUAL key (matched
+   * case-insensitively, falling back to the canonical column name) so a hardcoded-casing mismatch can't
+   * silently drop the value. Re-snapshot afterward so the zone doesn't read as dirty — the server saved it.
+   */
+  private applyExpiryDate(expDate: string): void {
+    const expiryField = this.metadataFields().find(f => f.key.toLowerCase() === 'sportassnidexpdate');
+    const key = expiryField?.key ?? 'SportAssnIdexpDate';
+    this.profileValues.set({ ...this.profileValues(), [key]: expDate });
+    this.snapshotProfile.set(this.serializeProfile());
   }
 
   /** For lacrosse: move SportAssnId immediately before SportAssnIdexpDate */
