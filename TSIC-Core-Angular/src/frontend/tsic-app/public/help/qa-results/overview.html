@@ -1,0 +1,53 @@
+<h3>QA Results</h3>
+<p>
+  This is the schedule's report card. After you build, it runs a comprehensive set of checks and tells you
+  whether the schedule is clean, has warnings worth a look, or has hard errors you must fix before publishing.
+  Run it before you hand a schedule to anyone.
+</p>
+
+<h4>Three levels of finding</h4>
+<div class="help-card-grid">
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-danger">Errors</span>
+    <p>Things that break the event — a field or team booked twice at once, a seeding rank mismatch, a broken bracket. <strong>Fix these.</strong></p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-warning">Warnings</span>
+    <p>Things to review — a team with no games, back-to-back games, repeated matchups, an inactive team still in a game.</p>
+  </div>
+  <div class="help-card">
+    <span class="badge rounded-pill text-bg-secondary">Summaries</span>
+    <p>Balance checks — games per team, game spread, field utilization. Informational, for fairness.</p>
+  </div>
+</div>
+
+<h4>The critical checks (must-fix)</h4>
+<ul>
+  <li><strong>Field double bookings</strong> — two games on the same field at the same time.</li>
+  <li><strong>Team double bookings</strong> — a team scheduled to play two games at once.</li>
+  <li><strong>Rank mismatches</strong> — a bracket seed pointing at a rank the pool can't produce.</li>
+  <li><strong>Bracket structural errors</strong> — a playoff bracket that doesn't hang together.</li>
+</ul>
+<p>These are the ones that stop play or produce a wrong bracket — clear them before publishing.</p>
+
+<h4>Warnings worth a look</h4>
+<ul>
+  <li><strong>Unscheduled teams</strong> — active teams with zero games. Almost always a real problem.</li>
+  <li><strong>Back-to-back games</strong> and <strong>repeated matchups</strong> — usually fine, sometimes not; judge by your event's rules.</li>
+  <li><strong>Inactive teams in games</strong> — a dropped team still on the grid.</li>
+</ul>
+
+<h4>Reading and acting on it</h4>
+<p>
+  The top badge shows the overall verdict and a total issue count; expand any section to see the specific games.
+  QA only <em>reports</em> — you fix issues where they live: rebuild or delete in the <strong>Schedule Hub</strong>,
+  move a game in the <strong>Rescheduler</strong>, or correct seeding in <strong>Bracket Seeds</strong>. Then
+  re-run QA to confirm it's clean.
+</p>
+
+<h4>Common mistakes</h4>
+<ul>
+  <li><strong>Publishing on warnings without reading them.</strong> A warning like "team has zero games" is often a genuine miss.</li>
+  <li><strong>Treating summaries as errors.</strong> Uneven game counts may be expected; they're there for fairness, not to block you.</li>
+  <li><strong>Not re-running after a fix.</strong> QA reflects the last build — re-run it once you've made changes.</li>
+</ul>

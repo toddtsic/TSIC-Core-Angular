@@ -582,6 +582,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'qa-results',
+						data: { helpKey: 'qa-results' },
 						loadComponent: () => import('./views/scheduling/qa-results/qa-results.component').then(m => m.QaResultsComponent)
 					}
 				]

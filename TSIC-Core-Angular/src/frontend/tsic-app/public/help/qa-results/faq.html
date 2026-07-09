@@ -1,0 +1,83 @@
+<h3>QA Results</h3>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+  <div>
+    <strong>Errors must be fixed; warnings must be read.</strong>
+    <p class="help-callout__body">
+      A red error stops play or breaks a bracket. A yellow warning may be fine — but "team has zero games" often
+      isn't. Don't publish without checking both.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What's the difference between an error and a warning here?</span></summary>
+  <div class="faq-a">
+    <p>
+      <strong>Errors</strong> are things that break the event — a field or team booked twice at once, a seeding
+      rank mismatch, a broken bracket — and must be fixed. <strong>Warnings</strong> are things to review, like a
+      team with no games, back-to-back games, or repeated matchups; some are fine for your event, some aren't.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>It says a team is double-booked. How do I fix that?</span></summary>
+  <div class="faq-a">
+    <p>
+      That team is scheduled for two games in the same slot. Move one of them in the <strong>Rescheduler</strong>,
+      or rebuild the division in the <strong>Schedule Hub</strong>. QA only reports the clash — you resolve it on
+      those screens, then re-run QA.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>QA flagged a rank mismatch or bracket error. Where do I go?</span></summary>
+  <div class="faq-a">
+    <p>
+      Those come from playoff seeding. Open <strong>Bracket Seeds</strong> and check that each slot's Seed Pool
+      and Seed Rank point at a position that pool can actually produce. Correct the seed, then re-run QA.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The game-count summary shows teams with different numbers of games. Is that an error?</span></summary>
+  <div class="faq-a">
+    <p>
+      Not necessarily — the balance summaries are informational, for fairness. Some formats legitimately give
+      teams different counts. Use them to judge whether the spread is acceptable for your event, not as a blocker.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>I fixed the issues. Do I need to run QA again?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes. QA reflects the schedule as it was at the last check. After any move or rebuild, re-run it to confirm
+      the fix worked and nothing new was introduced.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Everything says "All checks passed." Am I done?</span></summary>
+  <div class="faq-a">
+    <p>
+      The structural checks are clean — no double-bookings, no broken brackets, no unscheduled active teams.
+      That's the green light to publish. It's still worth a final human glance at the Master Schedule, but QA has
+      cleared the errors that are hard to catch by eye.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> make QA the last step before every publish. It's the cheapest place to catch a
+    double-booked team or a mis-seeded bracket — far cheaper than a coach catching it on game day.
+  </div>
+</div>
