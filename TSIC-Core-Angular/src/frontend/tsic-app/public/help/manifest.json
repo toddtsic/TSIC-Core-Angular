@@ -20,6 +20,8 @@
     "login/overview",
     "master-schedule/faq",
     "master-schedule/overview",
+    "pairings/faq",
+    "pairings/overview",
     "pool-assignment/faq",
     "pool-assignment/overview",
     "qa-results/faq",

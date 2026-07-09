@@ -1,0 +1,46 @@
+<h3>Manage Pairings</h3>
+<p>
+  Pairings define <strong>who plays whom</strong> — the round-by-round matchup pattern the scheduler uses to
+  generate games. They're set up by <strong>pool size</strong>, not per team: one table for 4-team pools, one
+  for 5-team pools, and so on. Every division of that size uses the same table.
+</p>
+
+<div class="help-callout help-callout--info">
+  <i class="bi bi-arrow-left-right" aria-hidden="true"></i>
+  <div>
+    <strong>Pairings are by rank, not by team.</strong>
+    <p class="help-callout__body">
+      A row like "Rank 1 vs Rank 4" applies to every division of that pool size — the actual teams are filled in
+      from each division's ranking.
+    </p>
+  </div>
+</div>
+
+<h4>How a pairing table reads</h4>
+<ul>
+  <li>Pick a division to view the pairing table that applies to its pool size.</li>
+  <li>Each <strong>round</strong> lists its matchups as <strong>Division Rank</strong> vs Division Rank — the #1 team plays the #4 team, etc.</li>
+  <li>Set the <strong>number of rounds</strong> to control how many games each team plays in pool play.</li>
+  <li><strong>Add Block</strong> extends the pattern; <strong>Championship</strong> rows define playoff matchups sized for the pool.</li>
+</ul>
+
+<h4>Why pool size matters</h4>
+<p>
+  Because a table is keyed to team count, defining pairings for each distinct pool size in your event is what
+  lets the scheduler build round-robin games. The Scheduling Dashboard's <strong>Pairings</strong> card shows how
+  many of your pool sizes already have tables — fill in any that are missing before you build.
+</p>
+
+<h4>Editing teams</h4>
+<p>
+  You can adjust a team's <strong>rank</strong> or name from here (<strong>Edit Team</strong>). Since pairings are
+  rank-based, a team's rank is what decides which matchups it lands in — so ranking is how you shape the
+  strength of each round.
+</p>
+
+<h4>Common mistakes</h4>
+<ul>
+  <li><strong>Missing a pool size.</strong> If a division's size has no pairing table, the scheduler can't build its games. Cover every distinct pool size.</li>
+  <li><strong>Expecting to pick teams directly.</strong> You set the rank pattern; teams flow in from each division's rankings.</li>
+  <li><strong>Too few rounds.</strong> The round count is the number of pool-play games per team — set it to what your event promises.</li>
+</ul>

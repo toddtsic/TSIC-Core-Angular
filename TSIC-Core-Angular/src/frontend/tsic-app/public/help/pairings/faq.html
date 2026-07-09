@@ -1,0 +1,73 @@
+<h3>Manage Pairings</h3>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-diagram-2-fill" aria-hidden="true"></i>
+  <div>
+    <strong>Pairings are set by pool size and by rank — not per team.</strong>
+    <p class="help-callout__body">
+      One table per team-count covers every division of that size; the actual teams come from each division's
+      ranking.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Why don't I see team names in the pairings?</span></summary>
+  <div class="faq-a">
+    <p>
+      Because a pairing table is defined by <strong>rank</strong> — "Rank 1 vs Rank 4" — so it can apply to every
+      division of that pool size at once. Each division's own rankings fill in the real teams when the schedule
+      builds.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "by pool size" mean?</span></summary>
+  <div class="faq-a">
+    <p>
+      A table is keyed to the number of teams in a pool. Your 4-team divisions all share the 4-team table, your
+      5-team divisions share the 5-team table, and so on. That's why you define pairings once per distinct pool
+      size rather than once per division.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How many games will each team play?</span></summary>
+  <div class="faq-a">
+    <p>
+      That's the <strong>number of rounds</strong> in the table — each round is one game per team. Set it to what
+      your event guarantees for pool play, then use <strong>Add Block</strong> if you need to extend the pattern.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The scheduler won't build a division. Could pairings be the cause?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes — if that division's pool size has no pairing table, there's no pattern to generate games from. Check
+      the Scheduling Dashboard's Pairings card for pool sizes still missing a table, and fill them in.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>How do I change which teams meet?</span></summary>
+  <div class="faq-a">
+    <p>
+      Adjust the teams' <strong>ranks</strong> (Edit Team). Since matchups are rank-based, re-ranking a team
+      changes which rounds it lands in — that's the lever for balancing who plays whom, rather than editing
+      individual games.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> settle pool sizes (via Pool Assignment) before finalizing pairings. Change a division's
+    team count later and it needs a different table — getting pools stable first saves reworking pairings.
+  </div>
+</div>

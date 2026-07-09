@@ -571,6 +571,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'pairings',
+						data: { helpKey: 'pairings' },
 						loadComponent: () => import('./views/scheduling/pairings/manage-pairings.component').then(m => m.ManagePairingsComponent)
 					},
 					{
