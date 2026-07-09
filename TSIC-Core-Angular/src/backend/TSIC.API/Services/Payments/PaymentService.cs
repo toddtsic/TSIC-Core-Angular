@@ -1098,9 +1098,14 @@ public class PaymentService : IPaymentService
         var v = await ValidatePaymentRequestInternalAsync(jobId, familyUserId, internalRequest);
         if (v.Response != null) return v.Response;
         var job = v.Job!;
-        var registrations = v.Registrations!;
         var cc = v.Card!;
         var effective = v.Effective;
+
+        // Registrations already financed by a live subscription are dropped before NormalizeFeesAsync
+        // so this transaction neither re-stamps their fees nor charges them a second time.
+        var (registrations, enrolled) = PartitionArbEnrolled(v.Registrations!);
+        if (registrations.Count == 0) return ArbAlreadyActive(enrolled);
+
         await NormalizeFeesAsync(registrations, jobId);
         if (effective == PaymentOption.ARB)
             return await ProcessArbAsync(jobId, familyUserId, internalRequest, userId, registrations, job, cc);
@@ -1182,9 +1187,14 @@ public class PaymentService : IPaymentService
             return Fail("Recurring billing (ARB) is not available for eCheck payments.", "ARB_NOT_ECHECK");
         var v = await ValidateEcheckPaymentRequestAsync(jobId, familyUserId, request);
         if (v.Response != null) return v.Response;
-        var registrations = v.Registrations!;
         var bank = v.Bank!;
         var effective = v.Effective;
+
+        // An ARB job that also allows PIF can reach this path: debiting a financed registration's
+        // balance by ACH while its subscription keeps drafting the card bills the family twice.
+        var (registrations, enrolled) = PartitionArbEnrolled(v.Registrations!);
+        if (registrations.Count == 0) return ArbAlreadyActive(enrolled);
+
         await NormalizeFeesAsync(registrations, jobId);
 
         // Split the cart: players whose team filled up are moved to the waitlist twin at $0 (not
@@ -1460,17 +1470,8 @@ public class PaymentService : IPaymentService
 
     private async Task<PaymentResponseDto> ProcessArbAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, JobInfo job, CreditCardInfo cc)
     {
-        // Early exit: if every registration already has an active ARB subscription, avoid duplicate gateway calls
-        if (registrations.All(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId) && string.Equals(r.AdnSubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase)))
-        {
-            return new PaymentResponseDto
-            {
-                Success = false,
-                Message = "All selected registrations already have active subscriptions.",
-                ErrorCode = "ARB_ALREADY_ACTIVE",
-                SubscriptionIds = registrations.Where(r => !string.IsNullOrWhiteSpace(r.AdnSubscriptionId)).ToDictionary(r => r.RegistrationId, r => r.AdnSubscriptionId!)
-            };
-        }
+        // Callers hand us a set already stripped of live-subscription registrations (PartitionArbEnrolled),
+        // so every reg here still needs financing.
         var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
         if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
         {
@@ -2028,6 +2029,58 @@ public class PaymentService : IPaymentService
             _logger.LogInformation("ARB normalization removed processing fee {Removed} from registration {RegistrationId} (job {JobId}).", removed, reg.RegistrationId, jobId);
         }
     }
+
+    /// <summary>
+    /// Authorize.Net subscription statuses that can no longer draft the card. Anything else —
+    /// "active", "suspended", or a null status alongside a real subscription id — must be treated
+    /// as live: a suspended subscription resumes on its own once the card clears.
+    /// </summary>
+    private static readonly string[] DeadArbStatuses = ["canceled", "terminated", "expired"];
+
+    /// <summary>
+    /// True when this registration's balance is already financed by a subscription that can still
+    /// bill the card. ARB enrollment records NO money — PaidTotal stays 0 and OwedTotal stays at the
+    /// full balance for the life of the plan — so fee math alone cannot tell a financed registration
+    /// apart from an unpaid one. The subscription is the only marker.
+    /// </summary>
+    private static bool HasLiveArbSubscription(Registrations r) =>
+        !string.IsNullOrWhiteSpace(r.AdnSubscriptionId)
+        && !DeadArbStatuses.Contains(r.AdnSubscriptionStatus ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Single write-side intercept for the "already financed" invariant, applied to EVERY charge path
+    /// before fee normalization or any gateway call.
+    ///
+    /// The family fetch (<see cref="IRegistrationRepository.GetByJobAndFamilyWithUsersAsync"/>) returns
+    /// every registration the family holds in the job, not just the ones added on this pass. A parent who
+    /// enrolls player A in ARB, walks back from the confirmation step, adds player B and returns to
+    /// payment therefore arrives here with A still in the list, still showing a full OwedTotal. Charging
+    /// that set would either mint a SECOND subscription for A (ARB) or take A's balance in cash while the
+    /// first subscription keeps drafting (PIF/Deposit). Both bill A twice.
+    ///
+    /// Registrations whose subscription is canceled/terminated/expired stay in the set — an admin cancel
+    /// (RegistrationSearchService.CancelSubscription) leaves the id behind and re-enrollment is legitimate.
+    /// </summary>
+    private (List<Registrations> Chargeable, List<Registrations> Enrolled) PartitionArbEnrolled(List<Registrations> registrations)
+    {
+        var enrolled = registrations.Where(HasLiveArbSubscription).ToList();
+        if (enrolled.Count == 0) return (registrations, enrolled);
+        foreach (var reg in enrolled)
+        {
+            _logger.LogInformation(
+                "Excluding registration {RegistrationId} from the charge set: subscription {SubscriptionId} is {Status}.",
+                reg.RegistrationId, reg.AdnSubscriptionId, reg.AdnSubscriptionStatus ?? "(no status)");
+        }
+        return (registrations.Where(r => !HasLiveArbSubscription(r)).ToList(), enrolled);
+    }
+
+    private static PaymentResponseDto ArbAlreadyActive(List<Registrations> enrolled) => new()
+    {
+        Success = false,
+        Message = "All selected registrations already have active subscriptions.",
+        ErrorCode = "ARB_ALREADY_ACTIVE",
+        SubscriptionIds = enrolled.ToDictionary(r => r.RegistrationId, r => r.AdnSubscriptionId!)
+    };
 
     private sealed record ArbSubArgs(AuthorizeNet.Environment Env, string LoginId, string TransactionKey, short Occur, short IntervalLen, DateTime StartDate, CreditCardInfo Card, string UserId);
 

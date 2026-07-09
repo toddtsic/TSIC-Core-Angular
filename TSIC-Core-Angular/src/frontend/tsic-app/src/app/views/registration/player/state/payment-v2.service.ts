@@ -29,6 +29,20 @@ function roundCents(value: number): number {
     return Math.round(value * 100) / 100;
 }
 
+/** Authorize.Net subscription statuses that can no longer draft the card. Mirrors
+ *  PaymentService.DeadArbStatuses — "suspended" is NOT here: the gateway resumes a suspended
+ *  subscription once the card clears, so it still bills. */
+const DEAD_ARB_STATUSES = ['canceled', 'terminated', 'expired'];
+
+/** True when this registration is already financed by a subscription that can still bill the card.
+ *  A canceled subscription leaves its id behind (admin cancel), so re-enrollment stays possible. */
+function hasLiveArbSubscription(
+    registration: { adnSubscriptionId?: string | null; adnSubscriptionStatus?: string | null } | null | undefined,
+): boolean {
+    if (!registration?.adnSubscriptionId) return false;
+    return !DEAD_ARB_STATUSES.includes((registration.adnSubscriptionStatus || '').toLowerCase());
+}
+
 /** One player's recurring-billing plan — the client mirror of the single Authorize.Net subscription
  *  the server mints for that player's registration. Carries the accounting columns alongside the
  *  plan so the ARB table renders from one row object. */
@@ -43,6 +57,12 @@ export interface ArbPlanLine {
     owed: number;
     /** Charged per cycle for THIS player. Zero when the line owes nothing (no subscription minted). */
     perOccurrence: number;
+    /** This player is already carried by a live subscription — no new plan is minted for them. */
+    alreadyEnrolled: boolean;
+    /** The cycle amount of the subscription ALREADY billing this player. Zero unless alreadyEnrolled. */
+    enrolledPerOccurrence: number;
+    /** The occurrence count of the subscription ALREADY billing this player. Zero unless alreadyEnrolled. */
+    enrolledOccurrences: number;
 }
 
 export interface LineItem {
@@ -77,6 +97,11 @@ export interface LineItem {
      *  blocks completion instead of charging/fabricating. Always true for existing
      *  registrations (already stamped with a real fee). */
     feeConfigured: boolean;
+    /** This registration's balance is already financed by a live ARB subscription. ARB records no
+     *  money — paidTotal stays 0 and owedTotal stays full for the life of the plan — so `amount`
+     *  looks exactly like an unpaid line. It must never be charged again. The server enforces the
+     *  same rule (PaymentService.PartitionArbEnrolled); this flag keeps the screen in step with it. */
+    arbEnrolled: boolean;
 }
 
 /**
@@ -151,11 +176,22 @@ export class PaymentV2Service {
         return this.linePairs().map(p => (p.isFullPhase || pif) ? p.pif : p.deposit);
     });
 
+    /**
+     * The lines this submission can actually charge. A registration already carried by a live ARB
+     * subscription is financed, not owed today, and the server drops it from every charge path
+     * (PaymentService.PartitionArbEnrolled) — so it must not reach any total the parent is quoted
+     * or that we send as `expectedTotal`, or the shown↔charged guard (AMOUNT_MISMATCH) trips.
+     *
+     * It stays in lineItems() so the accounting table can still show the player and their plan.
+     */
+    private readonly billablePairs = computed(() => this.linePairs().filter(p => !p.pif.arbEnrolled));
+    private readonly billableLineItems = computed(() => this.lineItems().filter(li => !li.arbEnrolled));
+
     private readonly existingBalanceTotal = computed(() =>
-        this.lineItems().filter(li => !!this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials).reduce((sum, li) => sum + li.amount, 0),
+        this.billableLineItems().filter(li => !!this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials).reduce((sum, li) => sum + li.amount, 0),
     );
     private readonly newSelectionTotal = computed(() =>
-        this.lineItems().filter(li => !this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials).reduce((sum, li) => sum + li.amount, 0),
+        this.billableLineItems().filter(li => !this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.financials).reduce((sum, li) => sum + li.amount, 0),
     );
 
     // lineItems() now carries each line's resolved phase, so this per-line sum is the correct
@@ -183,7 +219,7 @@ export class PaymentV2Service {
      * lines their deposit. (Display only — drives the radio label.)
      */
     depositOptionTotal = computed(() =>
-        this.linePairs().reduce((sum, p) => sum + (p.isFullPhase ? p.pif.amount : p.deposit.amount), 0),
+        this.billablePairs().reduce((sum, p) => sum + (p.isFullPhase ? p.pif.amount : p.deposit.amount), 0),
     );
 
     /**
@@ -200,7 +236,7 @@ export class PaymentV2Service {
      * of the currently selected option. Every line at its full charge.
      */
     pifOptionTotal = computed(() =>
-        this.linePairs().reduce((sum, p) => sum + p.pif.amount, 0),
+        this.billablePairs().reduce((sum, p) => sum + p.pif.amount, 0),
     );
 
     isArbScenario = computed(() => !!this.jobCtx.adnArb());
@@ -259,23 +295,34 @@ export class PaymentV2Service {
      *
      * A line owing nothing mints no subscription (the server activates it directly, since the
      * gateway rejects a $0 recurring charge), so it carries perOccurrence = 0.
+     *
+     * A line ALREADY carried by a live subscription also mints nothing — the server excludes it from
+     * the charge set. It keeps its row (the parent should see the player is covered) but reports the
+     * plan already billing them, not a fresh quote that would be a second subscription.
      */
     readonly arbPlanLines = computed<ArbPlanLine[]>(() => {
         const occ = this.arbOccurrences();
-        return this.lineItems().map(li => ({
-            playerId: li.playerId,
-            playerName: li.playerName,
-            teamName: li.teamName,
-            feeBase: li.feeBase,
-            feeAdj: li.feeAdj,
-            feeTotal: li.feeTotal,
-            owed: li.amount,
-            perOccurrence: li.amount > 0 && occ > 0 ? roundCents(li.amount / occ) : 0,
-        }));
+        return this.lineItems().map(li => {
+            const reg = this.getExistingRegistrationForTeam(li.playerId, li.teamId);
+            const enrolled = li.arbEnrolled;
+            return {
+                playerId: li.playerId,
+                playerName: li.playerName,
+                teamName: li.teamName,
+                feeBase: li.feeBase,
+                feeAdj: li.feeAdj,
+                feeTotal: li.feeTotal,
+                owed: li.amount,
+                perOccurrence: !enrolled && li.amount > 0 && occ > 0 ? roundCents(li.amount / occ) : 0,
+                alreadyEnrolled: enrolled,
+                enrolledPerOccurrence: enrolled ? toNumber(reg?.adnSubscriptionAmountPerOccurence) : 0,
+                enrolledOccurrences: enrolled ? toNumber(reg?.adnSubscriptionBillingOccurences) : 0,
+            };
+        });
     });
 
-    /** Only the lines that will actually mint a subscription. */
-    readonly arbBilledPlanLines = computed(() => this.arbPlanLines().filter(l => l.perOccurrence > 0));
+    /** Only the lines that will actually mint a subscription on THIS submission. */
+    readonly arbBilledPlanLines = computed(() => this.arbPlanLines().filter(l => !l.alreadyEnrolled && l.perOccurrence > 0));
 
     /**
      * What the card is actually charged each cycle: the SUM of the independently-rounded per-player
@@ -324,7 +371,9 @@ export class PaymentV2Service {
      */
     checkSavings = computed(() => {
         if (!this.jobCtx.bAddProcessingFees()) return 0;
-        return this.lineItems().reduce((sum, li) => sum + Math.max(0, li.amount - li.checkAmount), 0);
+        // Billable lines only — checkTotal is baseTotal − checkSavings, and baseTotal already
+        // excludes ARB-enrolled lines. Crediting their proc here would undershoot the check amount.
+        return this.billableLineItems().reduce((sum, li) => sum + Math.max(0, li.amount - li.checkAmount), 0);
     });
 
     /** Check payment amount (base minus the full CC proc credit). Donation is excluded — a mailed
@@ -343,7 +392,8 @@ export class PaymentV2Service {
         // option; a deposit charge sits at/below principal and is debited the same by either
         // method (echeckAmount == amount → contributes 0). So this per-line sum is correct even
         // under Deposit, where a mixed cart can contain full-payment lines that DO carry a credit.
-        return this.lineItems().reduce((sum, li) => sum + Math.max(0, li.amount - li.echeckAmount), 0);
+        // Billable lines only, for the same reason checkSavings excludes ARB-enrolled lines.
+        return this.billableLineItems().reduce((sum, li) => sum + Math.max(0, li.amount - li.echeckAmount), 0);
     });
 
     /** eCheck payment amount: the base minus the eCheck proc-rate savings, plus the donation
@@ -385,7 +435,11 @@ export class PaymentV2Service {
         // backend rejects with "No valid players for discount". lineItems() already resolves each
         // line's phase (existing owed; new full → full; new deposit → deposit), so li.amount IS
         // that contribution — no per-option special-casing needed.
-        const items: ApplyDiscountItemDto[] = this.lineItems().map(li =>
+        //
+        // ARB-enrolled lines are excluded: their subscription's per-cycle amount was fixed when it
+        // was minted, so discounting the balance behind it would drop OwedTotal while the gateway
+        // keeps drafting the original installment.
+        const items: ApplyDiscountItemDto[] = this.billableLineItems().map(li =>
             // teamId identifies which camp this line is — a player with multiple camps has one
             // reg row per camp, so the backend needs it to discount every camp, not just the first.
             ({ playerId: li.playerId, teamId: li.teamId, amount: li.amount }));
@@ -449,7 +503,9 @@ export class PaymentV2Service {
      * Caller awaits this before advancing past the payment step.
      */
     submitByCheck(): Observable<SubmitByCheckResponseDto> {
-        const registrationIds = this.lineItems()
+        // ARB-enrolled registrations are already financed and active — re-stamping them as
+        // paid-by-check would overwrite the payment method behind a running subscription.
+        const registrationIds = this.billableLineItems()
             .map(li => this.getExistingRegistrationForTeam(li.playerId, li.teamId)?.registrationId)
             .filter((id): id is string => !!id);
         const req: SubmitByCheckRequestDto = {
@@ -502,7 +558,12 @@ export class PaymentV2Service {
         playerName: string,
         teamId: string,
         team: { fee?: number | string | null; deposit?: number | string | null; teamName?: string | null; feeConfigured?: boolean | null } | null | undefined,
-        registration: { assignedTeamName?: string | null; financials?: RegistrationFinancialsDto | null } | null | undefined,
+        registration: {
+            assignedTeamName?: string | null;
+            financials?: RegistrationFinancialsDto | null;
+            adnSubscriptionId?: string | null;
+            adnSubscriptionStatus?: string | null;
+        } | null | undefined,
         phaseExpectsFull: boolean,
     ): LineItem {
         const financials = registration?.financials;
@@ -553,6 +614,7 @@ export class PaymentV2Service {
             // defaults to true so only an explicit false blocks completion. A legitimately-free
             // configured event is feeConfigured=true with fee 0 — it proceeds normally.
             feeConfigured: team?.feeConfigured ?? true,
+            arbEnrolled: hasLiveArbSubscription(registration),
         };
     }
 

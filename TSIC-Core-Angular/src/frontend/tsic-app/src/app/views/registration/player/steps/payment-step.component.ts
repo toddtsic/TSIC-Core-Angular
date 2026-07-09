@@ -140,7 +140,18 @@ import type { LineItem } from '../state/payment-v2.service';
                         <td class="text-end" [class.text-success]="pl.feeAdj < 0">{{ pl.feeAdj | currency }}</td>
                         <td class="text-end">{{ pl.feeTotal | currency }}</td>
                         <td class="arb-plan-cell">
-                          @if (pl.perOccurrence > 0) {
+                          @if (pl.alreadyEnrolled) {
+                            <!-- A subscription is already drafting this player's card. The server
+                                 excludes the registration from the charge set, so quote the plan
+                                 that exists rather than a new one — minting a second subscription
+                                 would bill the family twice for the same player. -->
+                            <div class="arb-plan-primary">
+                              <i class="bi bi-check-circle-fill text-success me-1"></i>Enrolled
+                            </div>
+                            <div class="arb-plan-cadence">
+                              {{ pl.enrolledOccurrences }} payments of {{ pl.enrolledPerOccurrence | currency }} &middot; already billing
+                            </div>
+                          } @else if (pl.perOccurrence > 0) {
                             <div class="arb-plan-primary">{{ paySvc.arbOccurrences() }} payments of {{ pl.perOccurrence | currency }}</div>
                             <div class="arb-plan-cadence">{{ arbCadenceText() }}</div>
                           } @else {
@@ -225,8 +236,9 @@ import type { LineItem } from '../state/payment-v2.service';
             }
 
             <!-- Payment option selector — lives inside the accounting card so the
-                 radios are visually attached to the table they affect. -->
-            @if (currentTotal() > 0) {
+                 radios are visually attached to the table they affect. An all-enrolled cart has a
+                 zero charge total, so it must clear this guard on its own to show its notice. -->
+            @if (currentTotal() > 0 || arbHideAllOptions()) {
               @if (arbHideAllOptions()) {
                 <div class="payment-summary-options">
                   <div class="alert alert-success border-0 mb-0" role="status">
@@ -1058,15 +1070,13 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     readonly hasUnconfiguredFee = computed(() =>
         this.paySvc.lineItems().some(li => li.feeConfigured === false));
 
-    private readonly relevantRegs = computed(() => {
-        const playerIds = new Set(this.state.familyPlayers.familyPlayers().filter(p => p.selected || p.registered).map(p => p.playerId));
-        return this.state.familyPlayers.familyPlayers().filter(p => playerIds.has(p.playerId)).flatMap(p => p.priorRegistrations || []);
-    });
-
+    /** Every line in the cart is already carried by a live subscription — there is nothing left to
+     *  charge, so the payment options collapse to a confirmation notice. Derived from the cart's own
+     *  plan lines, not from the family's whole registration history: a player added on this pass
+     *  still needs a plan even though their sibling is already enrolled. */
     readonly arbHideAllOptions = computed(() => {
-        const regs = this.relevantRegs();
-        if (!regs.length) return false;
-        return regs.every(r => !!r.adnSubscriptionId && (r.adnSubscriptionStatus || '').toLowerCase() === 'active');
+        const lines = this.paySvc.arbPlanLines();
+        return lines.length > 0 && lines.every(l => l.alreadyEnrolled);
     });
 
     readonly tsicChargeDueNow = computed(() => {
