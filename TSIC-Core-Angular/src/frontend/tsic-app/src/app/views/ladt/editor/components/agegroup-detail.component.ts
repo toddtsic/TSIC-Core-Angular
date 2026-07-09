@@ -140,7 +140,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
               [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-              hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
+              hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
@@ -148,7 +148,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
+            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
         } @else {
           <app-fee-card header="Player Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
@@ -156,7 +156,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" placeholder="Optional" [scope]="'agegroup'" [phaseNote]="phaseNote('player')"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
+            hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           @if (showClubRepFees()) {
             <app-fee-card header="Club Rep / Team Fees" headerIcon="bi-shield" variant="clubrep"
               namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
@@ -164,7 +164,7 @@ const JOB_TYPE_TOURNAMENT = 2;
               [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
               [modifiers]="clubRepModifiers" [scope]="'agegroup'" [phaseNote]="phaseNote('clubRep')"
               [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-              hintText="Age group default for every team in it, unless a team sets its own. Overrides the league. Most-specific wins (never stacked)." />
+              hintText="Age group default for every team in it, unless a team sets its own. Overrides the league." />
           }
         }
 

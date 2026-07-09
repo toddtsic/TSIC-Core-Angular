@@ -177,7 +177,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
+            hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; onFeeAmountStart(); clearFeeError()"
@@ -185,7 +185,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
+            hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
         } @else {
           <app-fee-card header="Player Fee Override" headerIcon="bi-person" variant="player"
@@ -194,7 +194,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="onPhaseToggle('player', $event)"
             [modifiers]="playerModifiers" [phaseNote]="phaseNote('player')"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
+            hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
           <app-fee-card header="Club Rep Fee Override" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; onFeeAmountStart(); clearFeeError()"
@@ -202,7 +202,7 @@ const JOB_TYPE_TOURNAMENT = 2;
             [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="onPhaseToggle('clubRep', $event)"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')"
             [amountsDisabled]="feesAmountLocked()" [toggleDisabled]="feesPhaseLocked()" (amountCommitted)="onFeeAmountCommitted()"
-            hintText="Team override — applies only to this team. Overrides the age group and league. Most-specific wins (never stacked). Leave blank to inherit."
+            hintText="Team override — applies only to this team. Overrides the age group and league. Leave blank to inherit."
             placeholder="Agegroup default" [scope]="'team'" />
         }
 

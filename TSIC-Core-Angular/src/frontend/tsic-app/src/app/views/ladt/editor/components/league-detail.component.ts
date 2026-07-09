@@ -84,26 +84,26 @@ const JOB_TYPE_TOURNAMENT = 2;
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
             [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')" [scope]="'league'"
-            hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
+            hintText="League default for every age group unless an age group or team sets its own." />
           <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
             [modifiers]="playerModifiers" placeholder="Optional" [phaseNote]="phaseNote('player')" [scope]="'league'"
-            hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
+            hintText="League default for every age group unless an age group or team sets its own." />
         } @else {
           <app-fee-card header="Player — League Fees" headerIcon="bi-person" variant="player"
             namePrefix="player" [deposit]="feeForm.playerDeposit" (depositChange)="feeForm.playerDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.playerBalanceDue" (balanceDueChange)="feeForm.playerBalanceDue = $event; clearFeeError()"
             [bFullPaymentRequired]="feeForm.playerPhase" (bFullPaymentRequiredChange)="feeForm.playerPhase = $event; markFeeDirty()"
             [modifiers]="playerModifiers" placeholder="Optional" [phaseNote]="phaseNote('player')" [scope]="'league'"
-            hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
+            hintText="League default for every age group unless an age group or team sets its own." />
           <app-fee-card header="Club Rep / Team — League Fees" headerIcon="bi-shield" variant="clubrep"
             namePrefix="clubRep" [deposit]="feeForm.clubRepDeposit" (depositChange)="feeForm.clubRepDeposit = $event; clearFeeError()"
             [balanceDue]="feeForm.clubRepBalanceDue" (balanceDueChange)="feeForm.clubRepBalanceDue = $event; clearFeeError()"
             [bFullPaymentRequired]="feeForm.clubRepPhase" (bFullPaymentRequiredChange)="feeForm.clubRepPhase = $event; markFeeDirty()"
             [modifiers]="clubRepModifiers" [phaseNote]="phaseNote('clubRep')" [scope]="'league'"
-            hintText="League default for every age group unless an age group or team sets its own. Most-specific wins (never stacked)." />
+            hintText="League default for every age group unless an age group or team sets its own." />
         }
 
         <!-- ── Save (sticky footer) ── -->

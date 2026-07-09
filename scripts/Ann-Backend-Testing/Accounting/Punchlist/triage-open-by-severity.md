@@ -1,6 +1,6 @@
 # Accounting — Open Items, Prioritized by Severity
 
-**Regenerated for Ann's review-with-Todd session, as of 2026-07-08.** 16 Open items.
+**Regenerated for Ann's review-with-Todd session, as of 2026-07-08.** 14 Open items.
 Source: `punchlist.md` (Open status only). Bug → Question → UX. **Ⓣ** = flagged "Open — Todd discussion".
 
 ---
@@ -9,25 +9,23 @@ Source: `punchlist.md` (Open status only). Bug → Question → UX. **Ⓣ** = fl
 
 | 🔴 Bug | 🟡 Question | 🟢 Feature | 🔵 UX | Ⓣ Todd | **Total** |
 |:-:|:-:|:-:|:-:|:-:|:-:|
-| 5 | 0 | 0 | 11 | 0 | **16** |
+| 4 | 0 | 0 | 10 | 0 | **14** |
 
 ---
 
-## 🔴 Bugs (5)
+## 🔴 Bugs (4)
 
 - [ ] **PL-029** — Refund of base fee only (no processing fees): re-verify Check Owed and CC Owed on Admin Player Accounting popup
 - [ ] **PL-028** — STEPS Girls: 50% discount code produces fractional cents in the confirmation email "total amount due"
-- [ ] **PL-025** — UM Summer Camp 2026: players show −$0.88 balance (legacy DC baked in PF, new DC auto-accounts PF); zero-out decision + brief Chelsea on next year's DC value
 - [ ] **PL-018** — Correction full-payment: show a red reminder for the Admin to make the Player Active
 - [ ] **PL-014** — Player Accounting Payment Ledger: Check, Correction, AND CC records must indicate which player registration was adjusted
 
 ---
 
-## 🔵 UX (11)
+## 🔵 UX (10)
 
 ### Payment screen / ledger
 - [ ] **PL-033** — Submit Registration success toast: extend duration + add a pay-by-check variant ("Active" + send check to keep status)
-- [ ] **PL-030** — Payment Method choice (Credit Card vs Pay by Check) isn't obvious; surface as radio buttons above Registration Insurance
 - [ ] **PL-021** — Payment Ledger void/refund row: drop "Reason:" suffix, tighten void copy, add matching Refund line with ADN refund tx number
 - [ ] **PL-013** — After Discount Code applied, scroll to top so the updated Accounting table is in view
 - [ ] **PL-008** — Align Player Payment screen with Team Payment screen (drop top "Complete Payment" + tips, rename ACCOUNTING→PAYMENT, harmonize columns)

@@ -82,7 +82,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: An obvious, up-front payment-method choice
 - **What happened**: The Credit Card / Pay by Check options aren't obvious. Suggestion: place the choice **above Registration Insurance** as two radio buttons — **Pay by Credit Card** (selected by default) with **Pay by Check** below it — so the method selection is clear before the rest of the payment details.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Done — no longer an issue. No code fix.
 
 ### PL-029: Refund of base fee only (no processing fees) — re-verify Check Owed and CC Owed on Admin Player Accounting popup
 - **Refs**: PL-021 (Payment Ledger void/refund row + ADN refund tx), PL-014 (ledger must indicate target registration), PL-002 (Check Owed double-subtracts deposit proc fees)
@@ -137,7 +137,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   1. **Data cleanup decision** — do we **zero-out** these credits even though they're not currently in use? Cathy will see the data and is likely to flag it. Recommend zeroing so the ledger is clean and Cathy doesn't have to ask later, but Todd's call.
   2. **Forward-looking fix** — **brief Chelsea** to author next year's DC as a flat **$25** (the new engine handles the PF automatically). If she copies the existing $25.90 value forward, the same -$0.88 credit shows up on every 2027 player.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Done — the -$0.88 credits are no longer visible. No code fix; the data issue resolved itself.
 - **Note**: This is a one-shot data issue tied to the Legacy→new DC migration, not a code defect in the current engine. Once the zero-out call is made and Chelsea has the new-year guidance, this should not recur.
 
 ### PL-024: UM:Maryland Lacrosse Camps Summer 2026 — Balance Due Payment Phase shows "Job Default"; explain what this means and where it's set (for discussion with Todd)
@@ -220,7 +220,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A clear nudge so I don't forget to flip the player to Active — Correction full-payments aren't auto-activating the registration today
 - **What happened**: No reminder is shown, and it's easy to walk away with the player still Inactive. Add a **red note** on the Accounting view (right after a Correction that zeros out Owed) reminding the Admin to make the Player Active. Wording suggestion: **"Reminder: this Correction paid the player in full — make the Player Active."**
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-017: Player-side Discount Code success text — change "player(s)" to "registration(s)" so CAC multi-registration is covered
 - **Refs**: SP-052 (Player-side DC "No discounts were applied" wording), SP-025 ("Girls100" splits across players), PlayerRegistration SP-028 (CAC per-event registration fee), TeamRegistration FP-010 (DC on Payment step)
@@ -262,7 +262,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Every Check, Correction, **and CC** row to clearly label **which player registration** the transaction applied to — Admin needs to scan the ledger and know at a glance who each row touched
 - **What happened**: Check, Correction, and CC records don't show the target player registration, so on family accounts with multiple players the Admin can't tell from the ledger which kid each line affects. Add the player registration identifier (player name + event, or equivalent) to **all three** transaction types so the ledger is self-describing across every payment method.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-013: Payment screen — after Discount Code applied, scroll to top so the updated Accounting table is in view
 - **Refs**: TeamRegistration FP-010 (Payment columns refresh after DC apply), SP-052 (Player-side DC message), PL-005 (DC input)
@@ -306,7 +306,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   1. **Info button**: too small / not prominent enough, and the current label/text isn't doing the job of telling the Admin what's there or why to click it. Make it stand out (size, color, position) and reword so it reads as a clear next action.
   2. **Cross-player linking (more important)**: no direct link from this player's accounting view to the sibling player's account. Add per-player links (or a row-level "Open accounting" button) on the All Family Players list so the Admin can pivot into the other player's accounting and take a payment in the same flow — eliminates the search-and-reopen round-trip.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-009: Player Details popup — Family Players Breakdown column order should be Total Fee, Proc Fee, Paid, Owes
 - **Refs**: PL-007 (Club Teams Breakdown column consolidation), PL-008 (Player vs Team Payment screen alignment), PlayerRegistration SP-024
@@ -329,7 +329,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   2. **Rename** the first card's header from **ACCOUNTING** to **PAYMENT** so both flows label the same card the same way.
   3. **Harmonize headers + column order** with the Team Payment screen. Let's pick this up together with a Team Payment screen open beside the Player Payment screen — pair this with PL-007 so the column consolidation lands consistently across all three views (Player Payment, Team Payment, Club Teams Breakdown).
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Done
 
 ### PL-007: Club Teams Breakdown + Team Registration Payment screen — consolidate columns to kill horizontal scroll
 - **Refs**: PL-003 (Club Teams Breakdown Check Owed column), TeamRegistration TP-004 (Payment screen at-a-glance acceptance-critical), TeamRegistration SP-006 (accounting-column rework)
