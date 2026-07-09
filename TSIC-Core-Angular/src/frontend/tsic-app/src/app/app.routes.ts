@@ -305,7 +305,7 @@ export const routes: Routes = [
 					{
 						path: 'uslax-test',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'uslax-test' },
 						loadComponent: () => import('./views/tools/uslax-test/uslax-test.component').then(m => m.UsLaxTestComponent)
 					},
 					{
