@@ -347,7 +347,7 @@ export const routes: Routes = [
 					{
 						path: 'uniform-upload',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'uniform-upload' },
 						loadComponent: () => import('./views/tools/uniform-upload/uniform-upload.component').then(m => m.UniformUploadComponent)
 					},
 					{

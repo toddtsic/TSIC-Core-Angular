@@ -1,0 +1,47 @@
+<h3>Upload Uniform Numbers</h3>
+<p>
+  This tool sets uniform numbers (and day groups) for a whole event at once, using Excel instead of editing
+  players one by one. You download a spreadsheet pre-filled with every registered player, type in their numbers,
+  and upload it back — the system applies the changes in bulk.
+</p>
+
+<h4>How it works — two steps</h4>
+<ol>
+  <li>
+    <strong>Download Template</strong> — an Excel (<code>.xlsx</code>) file with a row for every player in this
+    event. Fill in the <strong>UniformNo</strong> and <strong>DayGroup</strong> columns. Leave the other columns
+    (including the ID column) exactly as they are.
+  </li>
+  <li>
+    <strong>Upload File</strong> — drop the saved <code>.xlsx</code> back in (or click to browse) and choose
+    <strong>Upload &amp; Apply</strong>. Only <code>.xlsx</code> files up to 10&nbsp;MB are accepted.
+  </li>
+</ol>
+
+<h4>Reading the results</h4>
+<p>After an upload you get a summary:</p>
+<ul>
+  <li><strong>Updated</strong> — rows whose number/group changed.</li>
+  <li><strong>Unchanged</strong> — rows that already matched, so nothing to do.</li>
+  <li><strong>Errors</strong> — rows that couldn't be applied, listed below with the row number and a reason.</li>
+  <li><strong>Total Rows</strong> — everything the file contained.</li>
+</ul>
+<p>If there are errors, fix those rows in the spreadsheet and re-upload — re-uploading is safe and just re-applies.</p>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-file-earmark-lock" aria-hidden="true"></i>
+  <div>
+    <strong>Don't touch the ID column.</strong>
+    <p class="help-callout__body">
+      It's how the system knows which player each row belongs to. Change or delete it and those rows land in the
+      Errors list.
+    </p>
+  </div>
+</div>
+
+<h4>Common mistakes</h4>
+<ul>
+  <li><strong>Uploading a different file format.</strong> It must be the <code>.xlsx</code> template — not a CSV, not an old <code>.xls</code>, not a re-saved copy that changed the columns.</li>
+  <li><strong>Editing or reordering columns.</strong> Only change UniformNo and DayGroup; leave the structure alone or the upload can't map rows.</li>
+  <li><strong>Starting from a stale template.</strong> Download a fresh template if your roster changed — an old file won't include newly-registered players.</li>
+</ul>

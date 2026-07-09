@@ -1,0 +1,71 @@
+<h3>Upload Uniform Numbers</h3>
+
+<div class="help-callout help-callout--warning">
+  <i class="bi bi-file-earmark-excel-fill" aria-hidden="true"></i>
+  <div>
+    <strong>Always start from a freshly downloaded template.</strong>
+    <p class="help-callout__body">
+      The file has hidden columns the system needs to match each player. Type numbers into your own spreadsheet
+      and the upload can't line rows up.
+    </p>
+  </div>
+</div>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Which columns do I fill in?</span></summary>
+  <div class="faq-a">
+    <p>
+      Only <strong>UniformNo</strong> and <strong>DayGroup</strong>. Every other column — especially the ID
+      column — must stay exactly as downloaded, since that's how each row is matched to the right player.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>My upload was rejected. What's wrong?</span></summary>
+  <div class="faq-a">
+    <p>
+      Check three things: the file is a <strong>.xlsx</strong> (not .csv or .xls), it's under
+      <strong>10&nbsp;MB</strong>, and its columns are unchanged from the template. Any of those will stop the
+      whole file from being accepted.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>The results show some rows as Errors. What now?</span></summary>
+  <div class="faq-a">
+    <p>
+      The Error Details table lists each bad row and the reason. Fix those rows in the spreadsheet and upload
+      again — the rows that already applied stay applied, so re-uploading only catches up the ones that failed.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>What does "Unchanged" mean — did those players fail?</span></summary>
+  <div class="faq-a">
+    <p>
+      No. "Unchanged" rows already had the number/group in the file, so there was nothing to update. It's a
+      success, not an error — only the <strong>Errors</strong> count needs your attention.
+    </p>
+  </div>
+</details>
+
+<details class="faq-item">
+  <summary><i class="bi bi-chevron-right faq-caret" aria-hidden="true"></i><span>Is it safe to upload the same file twice?</span></summary>
+  <div class="faq-a">
+    <p>
+      Yes. The upload just applies whatever's in the file; running it again sets the same values, so rows that
+      already matched show as Unchanged. That's why fixing errors and re-uploading is the standard fix.
+    </p>
+  </div>
+</details>
+
+<div class="help-callout help-callout--tip">
+  <i class="bi bi-lightbulb" aria-hidden="true"></i>
+  <div>
+    <strong>Tip:</strong> if your roster changed since you last downloaded the template, grab a fresh one — a
+    stale file won't contain players who registered after you downloaded it.
+  </div>
+</div>
