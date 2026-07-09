@@ -54,19 +54,20 @@ public interface IBracketDevToolsService
         Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default);
 
     /// <summary>
-    /// Agegroup-scope pool seed: give every unscored pool game across ALL divisions in
-    /// the agegroup a decisive score, via the real score path. This is the correct scope
-    /// for testing bracket seeding — championship games seed cross-pool from the agegroup's
-    /// divisions, so all their pools must complete before seeds resolve.
+    /// Job-scope pool seed: give every unscored pool game across the WHOLE event a decisive
+    /// score, via the real score path. This is the scope reseeding tournaments need — pools
+    /// live in their own agegroup and each scored pool game fires job-wide seed resolution,
+    /// so once a pool completes its bracket placeholders (in the separate championship
+    /// agegroups) are reseeded automatically.
     /// </summary>
-    Task<BracketDevActionResult> AutoScorePoolAgegroupAsync(
-        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default);
+    Task<BracketDevActionResult> AutoScorePoolJobAsync(
+        Guid jobId, string userId, CancellationToken ct = default);
 
     /// <summary>
-    /// Agegroup-scope bracket-round seed: give every currently-ready bracket game in the
-    /// agegroup (both participants seeded, no score) a decisive score, via the real score
-    /// path — advancing winners one round. Call again to advance further.
+    /// Job-scope bracket-round seed: give every currently-ready bracket game in the event
+    /// (both participants seeded, no score) a decisive score, via the real score path —
+    /// advancing winners one round across all championship flights. Call again to advance.
     /// </summary>
-    Task<BracketDevActionResult> AutoScoreBracketRoundAgegroupAsync(
-        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default);
+    Task<BracketDevActionResult> AutoScoreBracketRoundJobAsync(
+        Guid jobId, string userId, CancellationToken ct = default);
 }

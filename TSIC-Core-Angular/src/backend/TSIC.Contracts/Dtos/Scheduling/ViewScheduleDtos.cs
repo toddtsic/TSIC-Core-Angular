@@ -69,11 +69,6 @@ public record ScheduleFilterOptionsDto
     public required List<string> Times { get; init; }
     public required List<FieldSummaryDto> Fields { get; init; }
     public bool JobHasBrackets { get; init; }
-    /// <summary>
-    /// Agegroup IDs that contain at least one bracket game. Drives the sandbox
-    /// age-group seed tool in View Schedule — offered only for agegroups with brackets.
-    /// </summary>
-    public required List<Guid> BracketAgegroupIds { get; init; }
     public bool JobHasLinks { get; init; }
 }
 
@@ -419,6 +414,12 @@ public record ScheduleCapabilitiesDto
     public required string SportName { get; init; }
     /// <summary>DB-sourced game status codes + labels. Source of truth for status dropdowns and display.</summary>
     public required List<GameStatusOptionDto> GameStatusOptions { get; init; }
+    /// <summary>
+    /// True when Jobs.BReseedTournament is set — a tournament whose championship flights
+    /// live in separate agegroups reseeded cross-agegroup from a shared round-robin. Gates
+    /// the sandbox event-seed test strip in View Schedule.
+    /// </summary>
+    public bool IsReseedTournament { get; init; }
 }
 
 /// <summary>A single row from Leagues.GameStatusCodes — the source of truth for game status labels.</summary>

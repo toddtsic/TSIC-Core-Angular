@@ -14,6 +14,7 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
 {
     private readonly IScheduleRepository _scheduleRepo;
     private readonly IViewScheduleService _viewSchedule;
+    private readonly IJobRepository _jobRepo;
     private readonly ILogger<BracketDevToolsService> _logger;
 
     // Deterministic, decisive score for every auto-scored game — a tie would be
@@ -24,10 +25,12 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
     public BracketDevToolsService(
         IScheduleRepository scheduleRepo,
         IViewScheduleService viewSchedule,
+        IJobRepository jobRepo,
         ILogger<BracketDevToolsService> logger)
     {
         _scheduleRepo = scheduleRepo;
         _viewSchedule = viewSchedule;
+        _jobRepo = jobRepo;
         _logger = logger;
     }
 
@@ -45,7 +48,8 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         // reset this division's games plus every bracket game in the agegroup.
         var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
         var scope = games.Where(g => g.DivId == divId || IsBracketGame(g)).ToList();
-        var affected = await ResetGamesAsync(scope, userId, ct);
+        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
+        var affected = await ResetGamesAsync(scope, userId, blankBracketOccupants: !isReseed, ct);
         _logger.LogWarning(
             "DEV revert (division) — job {JobId} div {DivId}: {N} game(s) reset (incl. agegroup brackets).",
             jobId, divId, affected);
@@ -56,7 +60,8 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
     {
         var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
-        var affected = await ResetGamesAsync(games, userId, ct);
+        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
+        var affected = await ResetGamesAsync(games, userId, blankBracketOccupants: !isReseed, ct);
         _logger.LogWarning(
             "DEV revert (agegroup) — job {JobId} agegroup {AgegroupId}: {N} game(s) reset.",
             jobId, agegroupId, affected);
@@ -67,16 +72,21 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         Guid jobId, string userId, CancellationToken ct = default)
     {
         var games = await _scheduleRepo.GetJobGamesTrackedAsync(jobId, ct);
-        var affected = await ResetGamesAsync(games, userId, ct);
+        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
+        var affected = await ResetGamesAsync(games, userId, blankBracketOccupants: !isReseed, ct);
         _logger.LogWarning(
             "DEV revert (league) — job {JobId}: {N} game(s) reset.", jobId, affected);
         return BuildRevertResult(affected, "league");
     }
 
-    // Reset each game to "unplayed": clear scores/status, and blank DERIVED bracket
-    // occupants (pool teams are fixed; brackets.* wiring is left intact so the next
-    // auto-score re-seeds/re-advances). Persists once.
-    private async Task<int> ResetGamesAsync(List<Schedule> games, string userId, CancellationToken ct)
+    // Reset each game to "unplayed": clear scores/status, and (normal jobs only) blank
+    // DERIVED bracket occupants so the next auto-score visibly re-seeds/re-advances.
+    // Reseed jobs KEEP occupants: their bracket slots hold an INTERNAL placeholder team
+    // that seed resolution renames in place — blanking it would strand the slot with no
+    // placeholder to re-stamp, so re-running the pools could never refill the bracket.
+    // Persists once.
+    private async Task<int> ResetGamesAsync(
+        List<Schedule> games, string userId, bool blankBracketOccupants, CancellationToken ct)
     {
         var now = DateTime.Now;
         var affected = 0;
@@ -94,8 +104,8 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
             }
 
             // Blank bracket occupants so the next auto-score visibly re-seeds/advances.
-            // Pool games keep their fixed teams.
-            if (IsBracketGame(g) && (g.T1Id != null || g.T2Id != null))
+            // Pool games keep their fixed teams. Skipped for reseed jobs (see method note).
+            if (blankBracketOccupants && IsBracketGame(g) && (g.T1Id != null || g.T2Id != null))
             {
                 g.T1Id = null;
                 g.T2Id = null;
@@ -170,13 +180,13 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         };
     }
 
-    public async Task<BracketDevActionResult> AutoScorePoolAgegroupAsync(
-        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
+    public async Task<BracketDevActionResult> AutoScorePoolJobAsync(
+        Guid jobId, string userId, CancellationToken ct = default)
     {
-        // Agegroup scope: pool games across EVERY division in the agegroup. This is the
-        // correct granularity for testing bracket seeding — championship games seed
-        // cross-pool from these divisions, so all their pools must complete first.
-        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
+        // Job scope: every pool game in the event. Reseeding tournaments keep their pools
+        // in a dedicated agegroup; each scored pool game fires job-wide seed resolution, so
+        // completing the pools reseeds the (separate) championship agegroups automatically.
+        var games = await _scheduleRepo.GetJobGamesTrackedAsync(jobId, ct);
         var targets = games
             .Where(g => IsPoolGame(g)
                      && g.T1Id != null && g.T2Id != null
@@ -185,22 +195,21 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
 
         var scored = await ScoreEachAsync(jobId, userId, targets, ct);
         _logger.LogWarning(
-            "DEV bracket auto-score-pool (agegroup) — job {JobId} agegroup {AgegroupId}: {N} game(s) scored.",
-            jobId, agegroupId, scored);
+            "DEV bracket auto-score-pool (job) — job {JobId}: {N} pool game(s) scored.", jobId, scored);
 
         return new BracketDevActionResult
         {
             GamesAffected = scored,
             Message = scored == 0
-                ? "No unscored pool games in this age group."
+                ? "No unscored pool games in this event."
                 : $"Auto-scored {scored} pool game(s) {WinScore}–{LoseScore}. Completed pools lock standings → bracket seeds resolve."
         };
     }
 
-    public async Task<BracketDevActionResult> AutoScoreBracketRoundAgegroupAsync(
-        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
+    public async Task<BracketDevActionResult> AutoScoreBracketRoundJobAsync(
+        Guid jobId, string userId, CancellationToken ct = default)
     {
-        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
+        var games = await _scheduleRepo.GetJobGamesTrackedAsync(jobId, ct);
         var targets = games
             .Where(g => IsBracketGame(g)
                      && g.T1Id != null && g.T2Id != null
@@ -209,14 +218,13 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
 
         var scored = await ScoreEachAsync(jobId, userId, targets, ct);
         _logger.LogWarning(
-            "DEV bracket auto-score-round (agegroup) — job {JobId} agegroup {AgegroupId}: {N} game(s) scored.",
-            jobId, agegroupId, scored);
+            "DEV bracket auto-score-round (job) — job {JobId}: {N} bracket game(s) scored.", jobId, scored);
 
         return new BracketDevActionResult
         {
             GamesAffected = scored,
             Message = scored == 0
-                ? "No bracket games are ready — seed the pools first (auto-score pool)."
+                ? "No bracket games are ready — seed the pools first (Seed pool scores)."
                 : $"Auto-scored {scored} ready bracket game(s) {WinScore}–{LoseScore}. Winners advanced to the next round."
         };
     }

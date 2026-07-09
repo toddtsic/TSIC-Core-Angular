@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { AgegroupScopeRequest, BracketDevActionRequest, BracketDevActionResult } from '@core/api';
+import type { BracketDevActionRequest, BracketDevActionResult } from '@core/api';
 
 /**
  * Sandbox-only bracket exercise endpoints (backend gates on IsSandbox()).
@@ -26,18 +26,19 @@ export class BracketDevToolsService {
 		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-round`, request);
 	}
 
-	// ── Agegroup scope (View Schedule seed strip) — correct granularity for testing
-	//    an agegroup's bracket seeding: pools across ALL its divisions feed the brackets.
+	// ── Job/event scope (View Schedule seed strip for reseeding tournaments) — pools live
+	//    in their own agegroup and reseed the championship agegroups cross-agegroup, so the
+	//    whole event is the unit of work. All three take no body (job from auth context).
 
-	autoScorePoolAgegroup(request: AgegroupScopeRequest): Observable<BracketDevActionResult> {
-		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-pool-agegroup`, request);
+	autoScorePoolJob(): Observable<BracketDevActionResult> {
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-pool-job`, {});
 	}
 
-	autoScoreRoundAgegroup(request: AgegroupScopeRequest): Observable<BracketDevActionResult> {
-		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-round-agegroup`, request);
+	autoScoreRoundJob(): Observable<BracketDevActionResult> {
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-round-job`, {});
 	}
 
-	revertAgegroup(request: AgegroupScopeRequest): Observable<BracketDevActionResult> {
-		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/revert-agegroup`, request);
+	revertLeague(): Observable<BracketDevActionResult> {
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/revert-league`, {});
 	}
 }

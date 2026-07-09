@@ -14,17 +14,20 @@ public sealed class ViewScheduleService : IViewScheduleService
     private readonly ITeamRepository _teamRepo;
     private readonly IBracketAdvancementService _bracketAdvancement;
     private readonly IBracketSeedResolutionService _bracketResolution;
+    private readonly IJobRepository _jobRepo;
 
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
         ITeamRepository teamRepo,
         IBracketAdvancementService bracketAdvancement,
-        IBracketSeedResolutionService bracketResolution)
+        IBracketSeedResolutionService bracketResolution,
+        IJobRepository jobRepo)
     {
         _scheduleRepo = scheduleRepo;
         _teamRepo = teamRepo;
         _bracketAdvancement = bracketAdvancement;
         _bracketResolution = bracketResolution;
+        _jobRepo = jobRepo;
     }
 
     // A round-robin result can complete a pool and lock its standings — resolve any
@@ -49,6 +52,9 @@ public sealed class ViewScheduleService : IViewScheduleService
     {
         var (allowPublicAccess, hideContacts, sportName) = await _scheduleRepo.GetScheduleFlagsAsync(jobId, ct);
         var statusOptions = await _scheduleRepo.GetGameStatusOptionsAsync(ct);
+        // Only meaningful for admins in a sandbox — the seed strip is gated on both anyway —
+        // but cheap to always resolve so the flag is available wherever capabilities is read.
+        var isReseedTournament = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
 
         return new ScheduleCapabilitiesDto
         {
@@ -56,7 +62,8 @@ public sealed class ViewScheduleService : IViewScheduleService
             HideContacts = hideContacts,
             IsPublicAccess = allowPublicAccess,
             SportName = sportName,
-            GameStatusOptions = statusOptions
+            GameStatusOptions = statusOptions,
+            IsReseedTournament = isReseedTournament
         };
     }
 
