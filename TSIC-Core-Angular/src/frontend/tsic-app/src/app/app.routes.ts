@@ -566,6 +566,7 @@ export const routes: Routes = [
 					},
 					{
 						path: 'fields',
+						data: { helpKey: 'fields' },
 						loadComponent: () => import('./views/scheduling/fields/manage-fields.component').then(m => m.ManageFieldsComponent)
 					},
 					{
