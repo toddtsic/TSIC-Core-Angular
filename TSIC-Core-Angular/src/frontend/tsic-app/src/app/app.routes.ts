@@ -549,7 +549,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/mobile-scorers',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], title: 'Mobile Scorers' },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], title: 'Mobile Scorers', helpKey: 'mobile-scorers' },
 				loadComponent: () => import('./views/scheduling/mobile-scorers/mobile-scorers.component').then(m => m.MobileScorersComponent)
 			},
 			// Scheduling — pipeline shell (dashboard + steps)
