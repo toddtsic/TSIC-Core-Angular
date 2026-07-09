@@ -1007,16 +1007,18 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // ── Method-reactive accounting-table display ─────────────────────────
     // Each line already carries its per-method charge (amount = CC, echeckAmount, checkAmount).
-    // The whole difference vs CC is the proc credit, so shifting Proc, Fee-Total and Owes by that
-    // one credit keeps the row self-consistent AND makes the footer reconcile with the method's
-    // Pay button (currentTotal / echeckTotal / checkTotal). Check has no online charge here (it's
-    // gated out of the donation/eCheck flows) but the same math yields its no-proc figures.
-    private methodCredit(li: LineItem): number {
+    // The ONLY quantity that differs between methods is the processing fee — Fee-Base, Fee-Adj
+    // (discount / late fee / corrections) and paid are identical across CC / eCheck / check. So the
+    // per-method drop (amount − methodAmount) is purely the fee_proc spread between the CC rate and
+    // the chosen method's rate. Subtracting it from the distinct feeProcessing / feeTotal fields
+    // yields the method's proc and total; the footer then equals currentTotal / echeckTotal /
+    // checkTotal. This operates only on the fee_proc axis — Fee-Adj is rendered as-is, untouched.
+    private methodProcDelta(li: LineItem): number {
         const methodAmt = this.isEcheck() ? li.echeckAmount : this.isCheck() ? li.checkAmount : li.amount;
         return li.amount - methodAmt;
     }
-    procFor(li: LineItem): number { return Math.max(0, li.feeProcessing - this.methodCredit(li)); }
-    feeTotalFor(li: LineItem): number { return li.feeTotal - this.methodCredit(li); }
+    procFor(li: LineItem): number { return Math.max(0, li.feeProcessing - this.methodProcDelta(li)); }
+    feeTotalFor(li: LineItem): number { return li.feeTotal - this.methodProcDelta(li); }
     owesFor(li: LineItem): number {
         return this.isEcheck() ? li.echeckAmount : this.isCheck() ? li.checkAmount : li.amount;
     }
