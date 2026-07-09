@@ -258,7 +258,7 @@ export const routes: Routes = [
 					{
 						path: 'roster-swapper',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'roster-swapper' },
 						loadComponent: () => import('./views/ladt/roster-swapper/roster-swapper.component').then(m => m.RosterSwapperComponent)
 					},
 					{
