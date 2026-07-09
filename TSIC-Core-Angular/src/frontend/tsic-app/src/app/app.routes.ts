@@ -525,7 +525,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/rescheduler',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'rescheduler' },
 				loadComponent: () => import('./views/scheduling/rescheduler/rescheduler.component').then(m => m.ReschedulerComponent)
 			},
 			{
