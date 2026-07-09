@@ -74,8 +74,8 @@ export type ModalMode = 'add' | 'edit';
                                     [class.has-suffix]="discountType() === 'Percentage'"
                                     [value]="amount()"
                                     (input)="amount.set(+($any($event.target).value))"
-                                    step="0.01"
-                                    min="0.01"
+                                    [step]="discountType() === 'Percentage' ? 0.01 : 1"
+                                    [min]="discountType() === 'Percentage' ? 0.01 : 0"
                                     [max]="discountType() === 'Percentage' ? 100 : 999999" />
                                 @if (discountType() === 'Percentage') {
                                     <span class="amount-suffix">%</span>

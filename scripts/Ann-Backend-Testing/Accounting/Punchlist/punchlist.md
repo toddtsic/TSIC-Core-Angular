@@ -103,7 +103,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The total amount due to display as a clean currency value (two decimal places)
 - **What happened**: Fractions of a cent appeared in the "total amount due" on the confirmation email (the 50% split produced a sub-cent remainder). Look at rounding the displayed total to whole cents for this purpose.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Won't Fix — could not reproduce, and a rare occurrence. Closed without a code change.
 - **Note**: Confirm whether this is a display-only formatting issue on the email token or an actual stored sub-cent amount. If the underlying value carries fractional cents, decide where to round (at calc time vs. at render time) so the ledger and the email agree.
 
 ### PL-027: UM:Maryland Lacrosse Camps Summer 2026 — team-option amount in balance-due phase should show the camp TOTAL, not the deposit-phase figure
@@ -240,7 +240,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Wording a Director can read and immediately understand without needing to decode "most-specific" or "never stacked"
 - **What happened**: Current text reads "Most-specific wins (never stacked)." — too jargon-y for the audience. Rewrite in plain English so the Director understands the precedence rule (e.g., when both Age Group and League settings exist, the Age Group value wins for that age group and the values don't combine). Replacement wording to be finalized together — likely paired with PL-015 cross-level guidance so the helper text and the cross-level pointer read as one coherent explanation.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — sentence removed outright from the League, Age Group, and Team fee-card hints (12 occurrences). The preceding sentence at each level already states the precedence rule in plain English, so no replacement wording was needed.
 
 ### PL-015: Early Bird Discount / Late Fee — add cross-level guidance text on both Age Group and League editors
 - **Refs**: PL-004 (Early Bird / Late Fee "apply to all age groups" checkbox), PL-006 (Late Fee behavior), PL-011 (Early Bird → "Early Bird Discount" label)
@@ -284,7 +284,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   1. **Drop the "Owed" heading** — there's already an Owed/Owes column at the end of the row (per PL-009 ordering), so a separate "Owed" heading above is redundant.
   2. **Kill the horizontal scroll** by widening the popup a bit and tightening the columns. Same play we're using on PL-007 (Club Teams Breakdown / Team Payment) — coordinate the column-width tuning so the popup and the standalone grids land consistently.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Done — no longer an issue. No code fix.
 
 ### PL-011: Early Bird label should read "Early Bird Discount" so the Admin enters a discount amount, not a replacement fee
 - **Refs**: PL-004 (Early Bird / Late Fee broadcast checkbox), PL-005 (dollar-amount spinner), PL-006 (Late Fee behavior)
