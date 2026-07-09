@@ -183,17 +183,17 @@ $adminManifest = @(
 
     # -- 4. Scheduling (section-gated to Tournament/League via $sectionRules) -
     # Schedule Hub leads the section as the entry-point dashboard with a NEW chip.
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Schedule Hub'       'house-door'      'scheduling/schedule-hub'       1  1 1 1 -Badge 'NEW')
-    (New-AdminItem 'Scheduling' 'calendar' 4 'View Schedule'      'eye'             'scheduling/view-schedule'      2  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      3  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    4  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Rescheduler'        'arrow-repeat'    'scheduling/rescheduler'        5  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Tournament Parking' 'car-front'       'scheduling/tournament-parking' 6  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Mobile Scorers'     'phone'           'scheduling/mobile-scorers'     7  1 1 1 $rulesMobileEnabled)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Fields'             'geo-alt'         'scheduling/fields'             8  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Pairings'           'arrows-collapse' 'scheduling/pairings'           9  1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'Timeslots'          'clock'           'scheduling/timeslots'          10 1 1 1)
-    (New-AdminItem 'Scheduling' 'calendar' 4 'QA Results'         'check2-square'   'scheduling/qa-results'         11 1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Schedule Hub'       'house-door'      'scheduling/schedule-hub'       1  1 1 1 -Badge 'NEW')
+    (New-AdminItem 'Scheduling' 'trophy' 4 'View Schedule'      'eye'             'scheduling/view-schedule'      2  1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Bracket Seeds'      'trophy'          'scheduling/bracket-seeds'      3  1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Master Schedule'    'calendar-week'   'scheduling/master-schedule'    4  1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Rescheduler'        'arrow-repeat'    'scheduling/rescheduler'        5  1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Tournament Parking' 'car-front'       'scheduling/tournament-parking' 6  1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Mobile Scorers'     'phone'           'scheduling/mobile-scorers'     7  1 1 1 $rulesMobileEnabled)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Fields'             'geo-alt'         'scheduling/fields'             8  1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Pairings'           'arrows-collapse' 'scheduling/pairings'           9  1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'Timeslots'          'clock'           'scheduling/timeslots'          10 1 1 1)
+    (New-AdminItem 'Scheduling' 'trophy' 4 'QA Results'         'check2-square'   'scheduling/qa-results'         11 1 1 1)
 
     # -- 5. Officials (referee ops; split from Scheduling, same T/L gate) --
     (New-AdminItem 'Officials' 'person-check' 5 'Referee Assignment' 'clipboard-check' 'scheduling/referee-assignment' 1 1 1 1)
