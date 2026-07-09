@@ -1,6 +1,6 @@
 # Accounting — Open Items, Prioritized by Severity
 
-**Regenerated for Ann's review-with-Todd session, as of 2026-07-09.** 6 Open items (+1 Deferred).
+**Regenerated for Ann's review-with-Todd session, as of 2026-07-09.** 5 Open items (+1 Deferred).
 Source: `punchlist.md` (Open status only). Bug → Question → UX. **Ⓣ** = flagged "Open — Todd discussion".
 
 ---
@@ -9,7 +9,7 @@ Source: `punchlist.md` (Open status only). Bug → Question → UX. **Ⓣ** = fl
 
 | 🔴 Bug | 🟡 Question | 🟢 Feature | 🔵 UX | Ⓣ Todd | **Total** |
 |:-:|:-:|:-:|:-:|:-:|:-:|
-| 1 | 0 | 0 | 5 | 0 | **6** |
+| 1 | 0 | 0 | 4 | 0 | **5** |
 
 ---
 
@@ -19,7 +19,7 @@ Source: `punchlist.md` (Open status only). Bug → Question → UX. **Ⓣ** = fl
 
 ---
 
-## 🔵 UX (5)
+## 🔵 UX (4)
 
 ### Payment screen / ledger
 - [ ] **PL-033** — Submit Registration success toast: extend duration + add a pay-by-check variant ("Active" + send check to keep status)
@@ -28,9 +28,6 @@ Source: `punchlist.md` (Open status only). Bug → Question → UX. **Ⓣ** = fl
 
 ### Payment plans
 - [ ] **PL-019** — ARB Payment Plan selector: split aggregated "10 payments of $985" into per-player amounts
-
-### Early Bird / Late Fee copy
-- [ ] **PL-023** — Age Group Details popup: full text/copy pass across Player Fees and Club Rep / Team Fees sections
 
 ---
 
@@ -47,6 +44,7 @@ Source: `punchlist.md` (Open status only). Bug → Question → UX. **Ⓣ** = fl
 | PL-030 | UX | Done | No longer an issue; no code fix |
 | PL-028 | Bug | Won't Fix | Could not reproduce; rare occurrence |
 | PL-026 | UX | Fixed | DC field + Apply button sized up on both payment screens |
+| PL-023 | UX | Fixed | Closed on Todd's call; no separate copy pass over the popup |
 | PL-025 | Bug | Done | -$0.88 credits no longer visible; no code fix |
 | PL-016 | UX | Fixed | "Most-specific wins (never stacked)" removed from all fee-card hints |
 | PL-012 | UX | Done | No longer an issue; no code fix |

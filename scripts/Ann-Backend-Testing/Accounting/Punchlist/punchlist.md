@@ -159,7 +159,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Wording the Director can read once and act on confidently
 - **What happened**: Several lines are unclear — either jargon-heavy, ambiguous, or written in a way that won't land with non-technical Directors. Needs a full copy pass across both sections together so the wording is consistent and the precedence/scope behavior is obvious. Let's review this together with the popup open and edit line-by-line — pair with PL-016 (replace "Most-specific wins") and PL-015 (cross-level guidance text) so the final copy is one coherent voice.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed — closed on Todd's call. The paired copy work landed under PL-015 (cross-level guidance) and PL-016 (removed the "Most-specific wins (never stacked)" sentence from the fee-card hints). No separate line-by-line pass over the Age Group Details popup was performed.
 
 ### PL-022: Self-rostered players with $0 owed — hide the $0 row and skip the Payment screen straight to Confirmation
 - **Refs**: PL-008 (Player vs Team Payment screen alignment), PL-019 (ARB Payment Plan split), PlayerRegistration SP-024 (Accounting Table on Complete Payment)
