@@ -240,7 +240,7 @@ export const routes: Routes = [
 					{
 						path: 'team-links',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'team-links' },
 						loadComponent: () => import('./views/communications/team-links/team-links.component').then(m => m.TeamLinksComponent)
 					}
 				]
