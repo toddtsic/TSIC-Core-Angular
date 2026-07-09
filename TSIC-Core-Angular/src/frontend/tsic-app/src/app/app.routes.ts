@@ -282,7 +282,7 @@ export const routes: Routes = [
 					{
 						path: 'health',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'arb-health' },
 						loadComponent: () => import('./views/arb/health/arb-health.component').then(m => m.ArbHealthComponent)
 					},
 					{
