@@ -245,9 +245,13 @@ export class RegistrationPanelComponent {
 					sublabel: 'Change uniform #s, move or remove players',
 					routerLink: `${base}/rosters/club` });
 			}
+			// Nudge only — no amount. The pulse aggregate myClubRepTotalOwed can drift
+			// from the per-team sum the payment page recomputes, so the card carries no
+			// dollar figure (that lives on the destination page); the gate (> 0) still
+			// means it appears ONLY when a balance is actually owed.
 			if ((p.myClubRepTotalOwed ?? 0) > 0) {
 				items.push({ key: 'clubrep-balance', icon: 'bi-cash-stack', variant: 'alert',
-					label: 'Final Balance Due', sublabel: this.money(p.myClubRepTotalOwed!),
+					label: 'Pay Balance Due',
 					routerLink: `${base}/registration/team`, queryParams: { step: 'payment' } });
 			}
 			if (this.competitive() && allowed.has('team-insurance') && p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver === true) {
