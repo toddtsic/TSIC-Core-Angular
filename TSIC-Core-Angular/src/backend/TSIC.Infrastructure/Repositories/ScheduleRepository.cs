@@ -4,6 +4,7 @@ using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.SqlDbContext.Helpers;
+using TSIC.Infrastructure.Utilities;
 
 namespace TSIC.Infrastructure.Repositories;
 
@@ -242,6 +243,73 @@ public sealed class ScheduleRepository : IScheduleRepository
 
         if (schedules.Count > 0)
             await _context.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    /// Bracket-slot sibling of <see cref="SynchronizeScheduleTeamAssignmentsForDivisionAsync"/>.
+    /// A "T" slot resolves its occupant from Teams.DivRank; a bracket slot has no occupant until
+    /// seed resolution fills it, and until then its label is the director's seed intent, which
+    /// lives in BracketSeeds. Restamps that label on every UNOCCUPIED bracket slot in
+    /// <paramref name="gids"/>; slots with no intent (the fed targets of AdvancementFeeds) are
+    /// left null and render as "{type}{no}". Occupied slots keep their resolved team name.
+    /// </summary>
+    public async Task<int> SynchronizeBracketSeedAnnotationsAsync(
+        IReadOnlyCollection<int> gids, CancellationToken ct = default)
+    {
+        if (gids.Count == 0) return 0;
+
+        var games = await _context.Schedule
+            .Where(s => gids.Contains(s.Gid) && s.T1Type != null && s.T1Type != "T")
+            .ToListAsync(ct);
+        if (games.Count == 0) return 0;
+
+        var intents = await _context.BracketSeeds
+            .AsNoTracking()
+            .Where(bs => gids.Contains(bs.Gid))
+            .ToDictionaryAsync(bs => bs.Gid, ct);
+
+        var seedDivIds = intents.Values
+            .SelectMany(bs => new[] { bs.T1SeedDivId, bs.T2SeedDivId })
+            .Where(id => id.HasValue)
+            .Select(id => id!.Value)
+            .Distinct()
+            .ToList();
+
+        var divNames = seedDivIds.Count > 0
+            ? await _context.Divisions
+                .AsNoTracking()
+                .Where(d => seedDivIds.Contains(d.DivId))
+                .ToDictionaryAsync(d => d.DivId, d => d.DivName, ct)
+            : [];
+
+        string? Label(Guid? seedDivId, int? seedRank, string? slotType, int? slotNo)
+        {
+            if (seedDivId is null || seedRank is null) return null;
+            if (!divNames.TryGetValue(seedDivId.Value, out var divName)
+                || string.IsNullOrEmpty(divName)) return null;
+            return BracketSlotLabel.Format(slotType, slotNo, divName, seedRank.Value);
+        }
+
+        var stamped = 0;
+        foreach (var s in games)
+        {
+            intents.TryGetValue(s.Gid, out var intent);
+
+            if (s.T1Id is null)
+            {
+                var label = Label(intent?.T1SeedDivId, intent?.T1SeedRank, s.T1Type, s.T1No);
+                if (s.T1Name != label) { s.T1Name = label; stamped++; }
+            }
+
+            if (s.T2Id is null)
+            {
+                var label = Label(intent?.T2SeedDivId, intent?.T2SeedRank, s.T2Type, s.T2No);
+                if (s.T2Name != label) { s.T2Name = label; stamped++; }
+            }
+        }
+
+        if (stamped > 0) await _context.SaveChangesAsync(ct);
+        return stamped;
     }
 
     // ── Schedule Division (009-4) ──

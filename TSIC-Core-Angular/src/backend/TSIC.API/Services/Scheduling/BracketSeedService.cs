@@ -2,6 +2,7 @@ using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
+using TSIC.Infrastructure.Utilities;
 
 namespace TSIC.API.Services.Scheduling;
 
@@ -153,13 +154,15 @@ public class BracketSeedService : IBracketSeedService
             if (request.T1SeedDivId != null && request.T1SeedRank != null)
             {
                 var divName = await _repo.GetDivisionNameAsync(request.T1SeedDivId.Value, ct);
-                schedule.T1Name = $"{schedule.T1Type}{schedule.T1No} ({divName}#{request.T1SeedRank})";
+                schedule.T1Name = BracketSlotLabel.Format(
+                    schedule.T1Type, schedule.T1No, divName ?? "", request.T1SeedRank.Value);
             }
 
             if (request.T2SeedDivId != null && request.T2SeedRank != null)
             {
                 var divName = await _repo.GetDivisionNameAsync(request.T2SeedDivId.Value, ct);
-                schedule.T2Name = $"{schedule.T2Type}{schedule.T2No} ({divName}#{request.T2SeedRank})";
+                schedule.T2Name = BracketSlotLabel.Format(
+                    schedule.T2Type, schedule.T2No, divName ?? "", request.T2SeedRank.Value);
             }
         }
 

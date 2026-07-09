@@ -235,8 +235,10 @@ public class BracketRepository : IBracketRepository
             .AsNoTracking()
             .CountAsync(t => t.DivId == divId && t.Active == true, ct);
 
-    public async Task<Teams?> GetTeamTrackedAsync(Guid teamId, CancellationToken ct = default) =>
-        await _context.Teams.FirstOrDefaultAsync(t => t.TeamId == teamId, ct);
+    public async Task<Teams?> GetTeamTrackedByDivRankAsync(
+        Guid divId, int divRank, CancellationToken ct = default) =>
+        await _context.Teams.FirstOrDefaultAsync(
+            t => t.DivId == divId && t.DivRank == divRank && t.Active == true, ct);
 
     public async Task<Dictionary<Guid, TeamSeedIdentity>> GetTeamIdentitiesAsync(
         IReadOnlyCollection<Guid> teamIds, CancellationToken ct = default)

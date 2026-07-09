@@ -82,8 +82,14 @@ public interface IBracketRepository
     /// <summary>Active team count in a division — the valid seed-rank ceiling for a pool.</summary>
     Task<int> GetActiveTeamCountByDivAsync(Guid divId, CancellationToken ct = default);
 
-    /// <summary>A tracked Teams row, for reseed impersonation (rename + clubrep).</summary>
-    Task<Teams?> GetTeamTrackedAsync(Guid teamId, CancellationToken ct = default);
+    /// <summary>
+    /// The flight's INTERNAL placeholder team seated at a bracket seed line: the active team in
+    /// <paramref name="divId"/> whose DivRank matches the slot's TxNo. Tracked, for reseed
+    /// impersonation (rename + clubrep). Derived rather than read off Schedule.TxId, which a
+    /// schedule reset legitimately clears.
+    /// </summary>
+    Task<Teams?> GetTeamTrackedByDivRankAsync(
+        Guid divId, int divRank, CancellationToken ct = default);
 
     /// <summary>
     /// Raw identity (team name + clubrep registration) for the given source teams,

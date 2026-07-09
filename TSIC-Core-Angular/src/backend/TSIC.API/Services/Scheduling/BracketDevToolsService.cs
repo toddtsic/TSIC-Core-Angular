@@ -14,7 +14,6 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
 {
     private readonly IScheduleRepository _scheduleRepo;
     private readonly IViewScheduleService _viewSchedule;
-    private readonly IJobRepository _jobRepo;
     private readonly ILogger<BracketDevToolsService> _logger;
 
     // Deterministic, decisive score for every auto-scored game — a tie would be
@@ -22,15 +21,17 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
     private const int WinScore = 2;
     private const int LoseScore = 1;
 
+    // Leagues.GameStatusCodes: 1 = scheduled, 6 = final.
+    private const int ScheduledStatusCode = 1;
+    private const int FinalStatusCode = 6;
+
     public BracketDevToolsService(
         IScheduleRepository scheduleRepo,
         IViewScheduleService viewSchedule,
-        IJobRepository jobRepo,
         ILogger<BracketDevToolsService> logger)
     {
         _scheduleRepo = scheduleRepo;
         _viewSchedule = viewSchedule;
-        _jobRepo = jobRepo;
         _logger = logger;
     }
 
@@ -48,8 +49,7 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         // reset this division's games plus every bracket game in the agegroup.
         var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
         var scope = games.Where(g => g.DivId == divId || IsBracketGame(g)).ToList();
-        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
-        var affected = await ResetGamesAsync(scope, userId, blankBracketOccupants: !isReseed, ct);
+        var affected = await ResetGamesAsync(scope, userId, ct);
         _logger.LogWarning(
             "DEV revert (division) — job {JobId} div {DivId}: {N} game(s) reset (incl. agegroup brackets).",
             jobId, divId, affected);
@@ -60,8 +60,7 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
     {
         var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
-        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
-        var affected = await ResetGamesAsync(games, userId, blankBracketOccupants: !isReseed, ct);
+        var affected = await ResetGamesAsync(games, userId, ct);
         _logger.LogWarning(
             "DEV revert (agegroup) — job {JobId} agegroup {AgegroupId}: {N} game(s) reset.",
             jobId, agegroupId, affected);
@@ -72,21 +71,19 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         Guid jobId, string userId, CancellationToken ct = default)
     {
         var games = await _scheduleRepo.GetJobGamesTrackedAsync(jobId, ct);
-        var isReseed = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
-        var affected = await ResetGamesAsync(games, userId, blankBracketOccupants: !isReseed, ct);
+        var affected = await ResetGamesAsync(games, userId, ct);
         _logger.LogWarning(
             "DEV revert (league) — job {JobId}: {N} game(s) reset.", jobId, affected);
         return BuildRevertResult(affected, "league");
     }
 
-    // Reset each game to "unplayed": clear scores/status, and (normal jobs only) blank
-    // DERIVED bracket occupants so the next auto-score visibly re-seeds/re-advances.
-    // Reseed jobs KEEP occupants: their bracket slots hold an INTERNAL placeholder team
-    // that seed resolution renames in place — blanking it would strand the slot with no
-    // placeholder to re-stamp, so re-running the pools could never refill the bracket.
-    // Persists once.
-    private async Task<int> ResetGamesAsync(
-        List<Schedule> games, string userId, bool blankBracketOccupants, CancellationToken ct)
+    // Return each game to the state PlaceGameAsync mints, then re-resolve it the way the
+    // mint does: a "T" slot is seated from Teams.DivRank and survives untouched; a bracket
+    // slot is minted empty, so its occupant is always derived state and always goes. The
+    // seed annotation that a bracket slot carries before the pools are played lives in
+    // BracketSeeds, and is restamped below. Reseed jobs are not a special case — nothing on
+    // the mint path seats a bracket slot for any job.
+    private async Task<int> ResetGamesAsync(List<Schedule> games, string userId, CancellationToken ct)
     {
         var now = DateTime.Now;
         var affected = 0;
@@ -99,17 +96,34 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
             {
                 g.T1Score = null;
                 g.T2Score = null;
-                g.GStatusCode = 1; // 1 = scheduled (Leagues.GameStatusCodes)
                 changed = true;
             }
 
-            // Blank bracket occupants so the next auto-score visibly re-seeds/advances.
-            // Pool games keep their fixed teams. Skipped for reseed jobs (see method note).
-            if (blankBracketOccupants && IsBracketGame(g) && (g.T1Id != null || g.T2Id != null))
+            if (g.T1penalties.HasValue || g.T2penalties.HasValue)
+            {
+                g.T1penalties = null;
+                g.T2penalties = null;
+                changed = true;
+            }
+
+            if (g.GStatusCode != ScheduledStatusCode)
+            {
+                g.GStatusCode = ScheduledStatusCode;
+                changed = true;
+            }
+
+            // Inverse of SynchronizeScheduleTeamAssignmentsForDivisionAsync, which seats a
+            // slot only when that slot's type is "T". Decided per slot, as the mint is.
+            if (g.T1Type != "T" && (g.T1Id != null || g.T1Name != null))
             {
                 g.T1Id = null;
-                g.T2Id = null;
                 g.T1Name = null;
+                changed = true;
+            }
+
+            if (g.T2Type != "T" && (g.T2Id != null || g.T2Name != null))
+            {
+                g.T2Id = null;
                 g.T2Name = null;
                 changed = true;
             }
@@ -123,6 +137,13 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         }
 
         if (affected > 0) await _scheduleRepo.SaveChangesAsync(ct);
+
+        // Restore the director's seed intent onto the leaf slots we just emptied. Without
+        // this the schedule grid would fall back to "X1" while the seed board still showed
+        // the intent — and only a manual re-save per game would ever put the label back.
+        var bracketGids = games.Where(g => g.T1Type != "T").Select(g => g.Gid).ToList();
+        await _scheduleRepo.SynchronizeBracketSeedAnnotationsAsync(bracketGids, ct);
+
         return affected;
     }
 
@@ -241,7 +262,7 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
                 Gid = g.Gid,
                 T1Score = WinScore,
                 T2Score = LoseScore,
-                GStatusCode = 6 // 6 = final
+                GStatusCode = FinalStatusCode
             }, ct);
             scored++;
         }

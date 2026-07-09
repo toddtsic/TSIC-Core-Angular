@@ -121,10 +121,15 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
     }
 
     /// <summary>
-    /// Reseed mode: stamp the source college's identity onto the flight's in-slot INTERNAL
-    /// placeholder team (raw teamName + clubrep_registrationid), refresh the schedule's display
-    /// name, and leave Schedule.TxId pointed at the internal id. Returns false when nothing changed
-    /// or the slot has no internal placeholder to rename.
+    /// Reseed mode: stamp the source college's identity onto the flight's INTERNAL placeholder
+    /// team (raw teamName + clubrep_registrationid), seat that placeholder in the slot, and set
+    /// the schedule's display name — Schedule.TxId stays pointed at the internal id.
+    ///
+    /// The placeholder is DERIVED from the flight's own division at the slot's seed line
+    /// (Teams.DivRank == the slot's TxNo — the same lookup that seats a round-robin slot), not
+    /// read back off Schedule.TxId. A bracket slot is minted empty and stays empty until this
+    /// runs, so reading the occupant would make the reseed depend on a value nothing writes and
+    /// would make a schedule reset unrecoverable.
     /// </summary>
     private async Task<bool> ApplyReseedAsync(
         Domain.Entities.Schedule target, byte targetSlot,
@@ -132,12 +137,15 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
         IReadOnlyDictionary<Guid, TeamSeedIdentity> sourceIdentities,
         CancellationToken ct)
     {
-        var internalTeamId = targetSlot == 1 ? target.T1Id : target.T2Id;
-        if (internalTeamId is null) return false;                     // no placeholder seated — skip
+        if (target.DivId is null) return false;
         if (!sourceIdentities.TryGetValue(source.TeamId, out var src)) return false;
 
-        var placeholder = await _bracketRepo.GetTeamTrackedAsync(internalTeamId.Value, ct);
-        if (placeholder is null) return false;
+        int? seedLine = targetSlot == 1 ? target.T1No : target.T2No;
+        if (seedLine is null) return false;
+
+        var placeholder = await _bracketRepo.GetTeamTrackedByDivRankAsync(
+            target.DivId.Value, seedLine.Value, ct);
+        if (placeholder is null) return false;                        // no placeholder for this seed line
 
         var changed = false;
         if (placeholder.TeamName != src.TeamName)
@@ -151,13 +159,16 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
             changed = true;
         }
 
-        // Schedule display name = source's club-prefixed standings label; the id stays internal.
+        // Seat the placeholder and label the slot with the source's club-prefixed standings
+        // name. The id stays internal to the flight; only the identity travels.
         if (targetSlot == 1)
         {
+            if (target.T1Id != placeholder.TeamId) { target.T1Id = placeholder.TeamId; changed = true; }
             if (target.T1Name != source.Name) { target.T1Name = source.Name; changed = true; }
         }
         else
         {
+            if (target.T2Id != placeholder.TeamId) { target.T2Id = placeholder.TeamId; changed = true; }
             if (target.T2Name != source.Name) { target.T2Name = source.Name; changed = true; }
         }
         return changed;

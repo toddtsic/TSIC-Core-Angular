@@ -72,6 +72,15 @@ public interface IScheduleRepository
     /// </summary>
     Task SynchronizeScheduleTeamAssignmentsForDivisionAsync(Guid divId, Guid jobId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Bracket-slot sibling of the above. Restamps the director's seed intent
+    /// ("X1 (Pool 01#1)", from BracketSeeds) onto every UNOCCUPIED bracket slot in the
+    /// given games. Slots with no intent are nulled and render as "{type}{no}"; occupied
+    /// slots keep their resolved team name. Returns the number of slots changed.
+    /// </summary>
+    Task<int> SynchronizeBracketSeedAnnotationsAsync(
+        IReadOnlyCollection<int> gids, CancellationToken ct = default);
+
     // ── Schedule Division (009-4) ──
 
     /// <summary>
