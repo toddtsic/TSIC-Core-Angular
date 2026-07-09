@@ -1355,6 +1355,14 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (!hasClubs && !hasAgegroups && !hasDivisions && !hasTeams)
             return query;
 
+        // Bracket games seeded from the selected teams' pools — see BracketGidsSeededFrom.
+        var teamBracketGids = hasTeams
+            ? BracketGidsSeededFrom(_context.Teams
+                .AsNoTracking()
+                .Where(t => request.TeamIds!.Contains(t.TeamId))
+                .Select(t => t.TeamId))
+            : null;
+
         // For club filtering, we need to resolve club names to team IDs first.
         // This is done via a subquery join.
         if (hasClubs)
@@ -1370,11 +1378,16 @@ public sealed class ScheduleRepository : IScheduleRepository
                 .Where(x => request.ClubNames!.Contains(x.ClubName!))
                 .Select(x => x.TeamId);
 
+            var clubBracketGids = BracketGidsSeededFrom(clubTeamIds);
+
             query = query.Where(s =>
                 clubTeamIds.Contains(s.T1Id!.Value) || clubTeamIds.Contains(s.T2Id!.Value)
+                || clubBracketGids.Contains(s.Gid)
                 || (hasAgegroups && s.AgegroupId.HasValue && request.AgegroupIds!.Contains(s.AgegroupId.Value))
                 || (hasDivisions && s.DivId.HasValue && request.DivisionIds!.Contains(s.DivId.Value))
-                || (hasTeams && (request.TeamIds!.Contains(s.T1Id!.Value) || request.TeamIds!.Contains(s.T2Id!.Value)))
+                || (hasTeams && (request.TeamIds!.Contains(s.T1Id!.Value)
+                    || request.TeamIds!.Contains(s.T2Id!.Value)
+                    || teamBracketGids!.Contains(s.Gid)))
             );
         }
         else
@@ -1382,11 +1395,41 @@ public sealed class ScheduleRepository : IScheduleRepository
             query = query.Where(s =>
                 (hasAgegroups && s.AgegroupId.HasValue && request.AgegroupIds!.Contains(s.AgegroupId.Value))
                 || (hasDivisions && s.DivId.HasValue && request.DivisionIds!.Contains(s.DivId.Value))
-                || (hasTeams && (request.TeamIds!.Contains(s.T1Id!.Value) || request.TeamIds!.Contains(s.T2Id!.Value)))
+                || (hasTeams && (request.TeamIds!.Contains(s.T1Id!.Value)
+                    || request.TeamIds!.Contains(s.T2Id!.Value)
+                    || teamBracketGids!.Contains(s.Gid)))
             );
         }
 
         return query;
+    }
+
+    /// <summary>
+    /// Bracket games a team may play but does not yet OCCUPY. A bracket slot is minted empty and
+    /// stays empty until seed resolution seats a team, so matching on T1Id/T2Id alone hides a
+    /// team's championship games for the whole window between "bracket placed" and "pools
+    /// scored" — and hides them permanently on any bracket that is reset. The membership lives in
+    /// BracketSeeds: the (pool division, rank) feeding each slot. Matching on the seed division
+    /// covers normal jobs (the pool is the game's own division) and reseeding tournaments (the
+    /// pool is in a different agegroup) with one predicate.
+    ///
+    /// Deliberately over-inclusive: until the pool is scored no rank exists, so a team matches
+    /// every leaf game its pool feeds, not just the one it will land in. No false negatives.
+    /// Once seeds resolve the slot carries T1Id and the exact T1Id/T2Id match takes over.
+    /// Fed slots (Q/S/F targets of AdvancementFeeds) carry no seed row and are never matched.
+    /// </summary>
+    private IQueryable<int> BracketGidsSeededFrom(IQueryable<Guid> teamIds)
+    {
+        var seedDivIds = _context.Teams
+            .AsNoTracking()
+            .Where(t => teamIds.Contains(t.TeamId) && t.DivId.HasValue)
+            .Select(t => t.DivId!.Value);
+
+        return _context.BracketSeeds
+            .AsNoTracking()
+            .Where(bs => (bs.T1SeedDivId.HasValue && seedDivIds.Contains(bs.T1SeedDivId.Value))
+                      || (bs.T2SeedDivId.HasValue && seedDivIds.Contains(bs.T2SeedDivId.Value)))
+            .Select(bs => bs.Gid);
     }
 
     // ── Master Schedule ──
