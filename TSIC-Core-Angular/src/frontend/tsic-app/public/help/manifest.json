@@ -2,6 +2,8 @@
   "keys": [
     "bracket-seeds/faq",
     "bracket-seeds/overview",
+    "bulletins/faq",
+    "bulletins/overview",
     "coach-approvals/faq",
     "coach-approvals/overview",
     "job-settings/faq",

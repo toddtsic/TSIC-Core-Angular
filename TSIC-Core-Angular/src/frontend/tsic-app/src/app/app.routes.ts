@@ -222,7 +222,7 @@ export const routes: Routes = [
 					{
 						path: 'bulletins',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'bulletins' },
 						loadComponent: () => import('./views/communications/bulletins/bulletin-editor.component').then(m => m.BulletinEditorComponent)
 					},
 					{
