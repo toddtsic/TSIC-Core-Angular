@@ -197,14 +197,7 @@ export class PlayerWizardV2Component implements OnInit {
                 const cac = this.state.jobCtx.isCacMode();
                 return selected.every(id => {
                     const v = teams[id];
-                    if (cac) {
-                        // selectedTeams holds `string | string[]` — a single prior registration
-                        // rehydrated by prefillTeamsFromPriorRegistrations is a bare string, not an
-                        // array. Normalize the same way getSelectedTeamIds does so a returning player
-                        // with one prior event still counts (badge shows 1, gate now agrees).
-                        const arr = Array.isArray(v) ? v : (v ? [v] : []);
-                        return arr.length > 0;
-                    }
+                    if (cac) return Array.isArray(v) && v.length > 0;
                     return !!v;
                 });
             }
