@@ -35,6 +35,8 @@
     "search-teams/faq",
     "search-teams/overview",
     "team-registration/faq",
-    "team-registration/overview"
+    "team-registration/overview",
+    "view-schedule/faq",
+    "view-schedule/overview"
   ]
 }

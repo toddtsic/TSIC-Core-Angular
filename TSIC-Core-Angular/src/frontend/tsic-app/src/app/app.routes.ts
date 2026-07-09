@@ -507,7 +507,7 @@ export const routes: Routes = [
 			{
 				path: 'scheduling/view-schedule',
 				canActivate: [authGuard],
-				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'view-schedule' },
 				loadComponent: () => import('./views/scheduling/view-schedule/view-schedule.component').then(m => m.ViewScheduleComponent)
 			},
 			{
