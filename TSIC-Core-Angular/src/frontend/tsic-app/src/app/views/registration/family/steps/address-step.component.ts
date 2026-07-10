@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { FormFieldDataService, type SelectOption } from '@infrastructure/services/form-field-data.service';
@@ -91,14 +92,30 @@ export class AddressStepComponent {
     });
 
     constructor() {
-        // Sync from state when profile loads asynchronously (edit mode)
-        effect(() => {
-            const a = this.state.address();
-            this.form.patchValue({
+        // Seed the form when state arrives asynchronously (edit mode: loadProfile() resolves
+        // after this step mounts on a deep link, so a one-shot ngOnInit seed would miss it).
+        //
+        // Patch only the controls that actually drifted. syncToState() writes a fresh object
+        // into state on every keystroke, so this re-emits on our own writes; patching the
+        // control being typed in re-assigns input.value and jumps the caret to the end.
+        toObservable(this.state.address)
+            .pipe(takeUntilDestroyed())
+            .subscribe(a => this.patchDrift({
                 address1: a.address1, city: a.city,
                 state: a.state, postalCode: a.postalCode,
-            }, { emitEvent: false });
-        });
+            }));
+    }
+
+    /** Patch only the controls whose value differs from `next`. */
+    private patchDrift(next: Record<string, string>): void {
+        const current = this.form.getRawValue() as Record<string, string>;
+        const drift: Record<string, string> = {};
+        for (const key of Object.keys(next)) {
+            if (current[key] !== next[key]) drift[key] = next[key];
+        }
+        if (Object.keys(drift).length > 0) {
+            this.form.patchValue(drift, { emitEvent: false });
+        }
     }
 
     syncToState(): void {

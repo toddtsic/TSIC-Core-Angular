@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, inject, signal, effect } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { AutofocusDirective } from '@shared-ui/directives/autofocus.directive';
 import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
 import { JobService } from '@infrastructure/services/job.service';
@@ -180,17 +181,33 @@ export class ContactsStepComponent {
     });
 
     constructor() {
-        // Sync from state when profile loads asynchronously (edit mode)
-        effect(() => {
-            const p1 = this.state.parent1();
-            const p2 = this.state.parent2();
-            this.form.patchValue({
+        // Seed the form when state arrives asynchronously (edit mode: loadProfile() resolves
+        // after this step mounts on the ?step=contacts deep link, so a one-shot ngOnInit seed
+        // would miss it).
+        //
+        // Patch only the controls that actually drifted. syncToState() writes a fresh object
+        // into state on every keystroke, so this re-emits on our own writes; patching the
+        // control being typed in re-assigns input.value and jumps the caret to the end.
+        toObservable(computed(() => ({ p1: this.state.parent1(), p2: this.state.parent2() })))
+            .pipe(takeUntilDestroyed())
+            .subscribe(({ p1, p2 }) => this.patchDrift({
                 p1First: p1.firstName, p1Last: p1.lastName, p1Phone: p1.phone,
                 p1Email: p1.email, p1EmailConfirm: p1.emailConfirm,
                 p2First: p2.firstName, p2Last: p2.lastName, p2Phone: p2.phone,
                 p2Email: p2.email, p2EmailConfirm: p2.emailConfirm,
-            }, { emitEvent: false });
-        });
+            }));
+    }
+
+    /** Patch only the controls whose value differs from `next`. */
+    private patchDrift(next: Record<string, string>): void {
+        const current = this.form.getRawValue() as Record<string, string>;
+        const drift: Record<string, string> = {};
+        for (const key of Object.keys(next)) {
+            if (current[key] !== next[key]) drift[key] = next[key];
+        }
+        if (Object.keys(drift).length > 0) {
+            this.form.patchValue(drift, { emitEvent: false });
+        }
     }
 
     label1(): string {
