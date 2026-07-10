@@ -100,30 +100,35 @@
       </div>
     </div>
 
-    <!-- Per-Unit Charges -->
-    <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-calculator me-2"></i>Per-Unit Charges</h6>
-      <div class="row g-2">
-        <div class="col-md-4">
-          <label class="field-label">Per Player</label>
-          <input type="number" class="field-input" step="1"
-            [ngModel]="perPlayerCharge()"
-            (ngModelChange)="perPlayerCharge.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-4">
-          <label class="field-label">Per Team</label>
-          <input type="number" class="field-input" step="1"
-            [ngModel]="perTeamCharge()"
-            (ngModelChange)="perTeamCharge.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-4">
-          <label class="field-label">Per Month</label>
-          <input type="number" class="field-input" step="1"
-            [ngModel]="perMonthCharge()"
-            (ngModelChange)="perMonthCharge.set($event); onFieldChange()" />
+    <!-- SuperUser: Per-Unit Charges -->
+    @if (svc.isSuperUser()) {
+      <div class="form-section form-section--super">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-2"></i>
+          Per-Unit Charges
+        </h6>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="field-label">Per Player</label>
+            <input type="number" class="field-input" step="1"
+              [ngModel]="perPlayerCharge()"
+              (ngModelChange)="perPlayerCharge.set($event); onFieldChange()" />
+          </div>
+          <div class="col-md-4">
+            <label class="field-label">Per Team</label>
+            <input type="number" class="field-input" step="1"
+              [ngModel]="perTeamCharge()"
+              (ngModelChange)="perTeamCharge.set($event); onFieldChange()" />
+          </div>
+          <div class="col-md-4">
+            <label class="field-label">Per Month</label>
+            <input type="number" class="field-input" step="1"
+              [ngModel]="perMonthCharge()"
+              (ngModelChange)="perMonthCharge.set($event); onFieldChange()" />
+          </div>
         </div>
       </div>
-    </div>
+    }
 
     <!-- Payment Policy -->
     <div class="form-section">

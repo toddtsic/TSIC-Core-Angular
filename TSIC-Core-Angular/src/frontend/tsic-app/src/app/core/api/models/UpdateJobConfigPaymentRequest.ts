@@ -9,9 +9,6 @@ export type UpdateJobConfigPaymentRequest = {
     bEnableEcheck: boolean;
     ecprocessingFeePercent: number | null;
     bApplyProcessingFeesToTeamDeposit: boolean | null;
-    perPlayerCharge: number | null;
-    perTeamCharge: number | null;
-    perMonthCharge: number | null;
     payTo: string | null;
     mailTo: string | null;
     mailinPaymentWarning: string | null;
@@ -22,6 +19,9 @@ export type UpdateJobConfigPaymentRequest = {
     bIncludeTeamDonation: boolean;
     bAllowRefundsInPriorMonths: boolean | null;
     bAllowCreditAll: boolean | null;
+    perPlayerCharge?: number | null;
+    perTeamCharge?: number | null;
+    perMonthCharge?: number | null;
     adnArb?: boolean | null;
     adnArbBillingOccurrences?: number | null;
     adnArbIntervalLength?: number | null;

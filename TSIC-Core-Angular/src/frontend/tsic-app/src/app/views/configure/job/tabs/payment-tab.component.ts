@@ -32,9 +32,6 @@ export class PaymentTabComponent implements OnInit {
     return code === 2 || code === 3;
   });
   bApplyProcessingFeesToTeamDeposit = linkedSignal(() => this.svc.payment()?.bApplyProcessingFeesToTeamDeposit ?? null);
-  perPlayerCharge = linkedSignal(() => this.svc.payment()?.perPlayerCharge ?? null);
-  perTeamCharge = linkedSignal(() => this.svc.payment()?.perTeamCharge ?? null);
-  perMonthCharge = linkedSignal(() => this.svc.payment()?.perMonthCharge ?? null);
   payTo = linkedSignal(() => this.svc.payment()?.payTo ?? null);
   mailTo = linkedSignal(() => this.svc.payment()?.mailTo ?? null);
   mailinPaymentWarning = linkedSignal(() => this.svc.payment()?.mailinPaymentWarning ?? null);
@@ -47,6 +44,9 @@ export class PaymentTabComponent implements OnInit {
   bAllowCreditAll = linkedSignal(() => this.svc.payment()?.bAllowCreditAll ?? null);
 
   // SuperUser-only
+  perPlayerCharge = linkedSignal(() => this.svc.payment()?.perPlayerCharge ?? null);
+  perTeamCharge = linkedSignal(() => this.svc.payment()?.perTeamCharge ?? null);
+  perMonthCharge = linkedSignal(() => this.svc.payment()?.perMonthCharge ?? null);
   adnArb = linkedSignal(() => this.svc.payment()?.adnArb ?? null);
   adnArbBillingOccurrences = linkedSignal(() => this.svc.payment()?.adnArbBillingOccurrences);
   adnArbIntervalLength = linkedSignal(() => this.svc.payment()?.adnArbIntervalLength);
@@ -68,9 +68,6 @@ export class PaymentTabComponent implements OnInit {
       bEnableEcheck: p.bEnableEcheck,
       ecprocessingFeePercent: p.ecprocessingFeePercent,
       bApplyProcessingFeesToTeamDeposit: p.bApplyProcessingFeesToTeamDeposit,
-      perPlayerCharge: p.perPlayerCharge,
-      perTeamCharge: p.perTeamCharge,
-      perMonthCharge: p.perMonthCharge,
       payTo: p.payTo,
       mailTo: p.mailTo,
       mailinPaymentWarning: p.mailinPaymentWarning,
@@ -83,6 +80,9 @@ export class PaymentTabComponent implements OnInit {
       bAllowCreditAll: p.bAllowCreditAll,
     };
     if (this.svc.isSuperUser()) {
+      req.perPlayerCharge = p.perPlayerCharge ?? null;
+      req.perTeamCharge = p.perTeamCharge ?? null;
+      req.perMonthCharge = p.perMonthCharge ?? null;
       req.adnArb = p.adnArb ?? null;
       req.adnArbBillingOccurrences = p.adnArbBillingOccurrences;
       req.adnArbIntervalLength = p.adnArbIntervalLength;
@@ -147,9 +147,6 @@ export class PaymentTabComponent implements OnInit {
       bEnableEcheck: this.bEnableEcheck(),
       ecprocessingFeePercent: this.ecprocessingFeePercent(),
       bApplyProcessingFeesToTeamDeposit: this.bApplyProcessingFeesToTeamDeposit(),
-      perPlayerCharge: this.perPlayerCharge(),
-      perTeamCharge: this.perTeamCharge(),
-      perMonthCharge: this.perMonthCharge(),
       payTo: this.payTo(),
       mailTo: this.mailTo(),
       mailinPaymentWarning: this.mailinPaymentWarning(),
@@ -162,6 +159,9 @@ export class PaymentTabComponent implements OnInit {
       bAllowCreditAll: this.bAllowCreditAll(),
     };
     if (this.svc.isSuperUser()) {
+      req.perPlayerCharge = this.perPlayerCharge();
+      req.perTeamCharge = this.perTeamCharge();
+      req.perMonthCharge = this.perMonthCharge();
       req.adnArb = this.adnArb();
       req.adnArbBillingOccurrences = this.adnArbBillingOccurrences();
       req.adnArbIntervalLength = this.adnArbIntervalLength();

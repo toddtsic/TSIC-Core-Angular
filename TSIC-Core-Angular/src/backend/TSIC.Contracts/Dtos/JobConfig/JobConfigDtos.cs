@@ -99,9 +99,6 @@ public record JobConfigPaymentDto
     /// </summary>
     public required decimal MaxEcprocessingFeePercent { get; init; }
     public required bool? BApplyProcessingFeesToTeamDeposit { get; init; }
-    public required decimal? PerPlayerCharge { get; init; }
-    public required decimal? PerTeamCharge { get; init; }
-    public required decimal? PerMonthCharge { get; init; }
     public required string? PayTo { get; init; }
     public required string? MailTo { get; init; }
     public required string? MailinPaymentWarning { get; init; }
@@ -112,6 +109,11 @@ public record JobConfigPaymentDto
     public required bool BIncludeTeamDonation { get; init; }
     public required bool? BAllowRefundsInPriorMonths { get; init; }
     public required bool? BAllowCreditAll { get; init; }
+
+    // SuperUser-only — per-unit charges
+    public decimal? PerPlayerCharge { get; init; }
+    public decimal? PerTeamCharge { get; init; }
+    public decimal? PerMonthCharge { get; init; }
 
     // SuperUser-only — ARB settings
     public bool? AdnArb { get; init; }
@@ -134,9 +136,6 @@ public record UpdateJobConfigPaymentRequest
     public required bool BEnableEcheck { get; init; }
     public required decimal? EcprocessingFeePercent { get; init; }
     public required bool? BApplyProcessingFeesToTeamDeposit { get; init; }
-    public required decimal? PerPlayerCharge { get; init; }
-    public required decimal? PerTeamCharge { get; init; }
-    public required decimal? PerMonthCharge { get; init; }
     public required string? PayTo { get; init; }
     public required string? MailTo { get; init; }
     public required string? MailinPaymentWarning { get; init; }
@@ -148,7 +147,12 @@ public record UpdateJobConfigPaymentRequest
     public required bool? BAllowRefundsInPriorMonths { get; init; }
     public required bool? BAllowCreditAll { get; init; }
 
-    // SuperUser-only (ignored for non-super callers)
+    // SuperUser-only (ignored for non-super callers) — per-unit charges
+    public decimal? PerPlayerCharge { get; init; }
+    public decimal? PerTeamCharge { get; init; }
+    public decimal? PerMonthCharge { get; init; }
+
+    // SuperUser-only (ignored for non-super callers) — ARB settings
     public bool? AdnArb { get; init; }
     public int? AdnArbBillingOccurrences { get; init; }
     public int? AdnArbIntervalLength { get; init; }

@@ -141,9 +141,6 @@ public class JobConfigService : IJobConfigService
         job.BEnableEcheck = req.BEnableEcheck;
         job.EcprocessingFeePercent = req.EcprocessingFeePercent;
         job.BApplyProcessingFeesToTeamDeposit = req.BApplyProcessingFeesToTeamDeposit;
-        job.PerPlayerCharge = req.PerPlayerCharge;
-        job.PerTeamCharge = req.PerTeamCharge;
-        job.PerMonthCharge = req.PerMonthCharge;
         job.PayTo = req.PayTo;
         job.MailTo = req.MailTo;
         job.MailinPaymentWarning = req.MailinPaymentWarning;
@@ -155,9 +152,12 @@ public class JobConfigService : IJobConfigService
         job.BAllowRefundsInPriorMonths = req.BAllowRefundsInPriorMonths;
         job.BAllowCreditAll = req.BAllowCreditAll;
 
-        // SuperUser-only — ARB
+        // SuperUser-only — per-unit charges + ARB
         if (isSuperUser)
         {
+            job.PerPlayerCharge = req.PerPlayerCharge;
+            job.PerTeamCharge = req.PerTeamCharge;
+            job.PerMonthCharge = req.PerMonthCharge;
             job.AdnArb = req.AdnArb;
             job.AdnArbbillingOccurences = req.AdnArbBillingOccurrences;
             job.AdnArbintervalLength = req.AdnArbIntervalLength;
@@ -665,9 +665,6 @@ public class JobConfigService : IJobConfigService
         MinEcprocessingFeePercent = FeeConstants.MinEcprocessingFeePercent,
         MaxEcprocessingFeePercent = FeeConstants.MaxEcprocessingFeePercent,
         BApplyProcessingFeesToTeamDeposit = job.BApplyProcessingFeesToTeamDeposit,
-        PerPlayerCharge = job.PerPlayerCharge,
-        PerTeamCharge = job.PerTeamCharge,
-        PerMonthCharge = job.PerMonthCharge,
         PayTo = job.PayTo,
         MailTo = job.MailTo,
         MailinPaymentWarning = job.MailinPaymentWarning,
@@ -678,6 +675,10 @@ public class JobConfigService : IJobConfigService
         BIncludeTeamDonation = job.BIncludeTeamDonation,
         BAllowRefundsInPriorMonths = job.BAllowRefundsInPriorMonths,
         BAllowCreditAll = job.BAllowCreditAll,
+        // SuperUser-only — per-unit charges
+        PerPlayerCharge = isSuperUser ? job.PerPlayerCharge : null,
+        PerTeamCharge = isSuperUser ? job.PerTeamCharge : null,
+        PerMonthCharge = isSuperUser ? job.PerMonthCharge : null,
         // SuperUser-only — ARB
         AdnArb = isSuperUser ? job.AdnArb : null,
         AdnArbBillingOccurrences = isSuperUser ? job.AdnArbbillingOccurences : null,
