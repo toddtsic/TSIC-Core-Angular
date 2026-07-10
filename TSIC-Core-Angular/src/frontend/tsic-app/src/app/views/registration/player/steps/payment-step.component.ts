@@ -4,7 +4,7 @@ import {
   viewChild
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { filter, take } from 'rxjs';
+import { filter } from 'rxjs';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -1041,17 +1041,23 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     private viInitRetries = 0;
     private viInitTimeout?: ReturnType<typeof setTimeout>;
     private readonly viScrollTimers: ReturnType<typeof setTimeout>[] = [];
+    /** Armed for the first widget arrival, and re-armed by a discount remount — but NOT by any
+     *  other re-ready — so the re-priced summary at the top wins the scroll after the widget's
+     *  own autofocus-scroll, without an unrelated re-mount yanking a scrolled-down user up. */
+    private restoreScrollOnNextWidgetReady = true;
 
     constructor() {
         // The VI embed steals scroll on mount (its iframe autofocuses), dropping the
-        // user partway down the Payment page. When the widget first reports ready,
-        // restore the top. take(1) fires it on arrival only — not on a later re-ready —
-        // keeping parity with the team flow's remount-on-toggle.
+        // user partway down the Payment page. On the arrivals we care about — first mount
+        // and a discount remount — restore the top once the widget reports ready. A single
+        // setTimeout(0) at apply time cannot do this: the remounting iframe autofocus-scrolls
+        // AFTER it, re-burying the re-priced summary (this was Ann's "scroll didn't work").
         toObservable(this.insuranceSvc.widgetInitialized).pipe(
             filter(Boolean),
-            take(1),
             takeUntilDestroyed(),
         ).subscribe(() => {
+            if (!this.restoreScrollOnNextWidgetReady) return;
+            this.restoreScrollOnNextWidgetReady = false;
             // Fire just after ready and once more shortly after, to land past the
             // embed's own delayed focus/scroll.
             this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 50));
@@ -1308,7 +1314,9 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!resp?.success) return;
         this.refreshViAfterDiscount();
         // Draw the family back to the re-priced Accounting summary at the top — Fee-Adj, Fee-Proc,
-        // Fee-Total, Owes and Total Due all moved. Deferred so it lands after the table re-renders.
+        // Fee-Total, Owes and Total Due all moved. This immediate scroll handles the no-VI-remount
+        // branches; when refreshViAfterDiscount remounts the VI widget it re-arms the widget-ready
+        // restore, which lands after the remounting iframe's autofocus-scroll.
         setTimeout(() => scrollWizardToTop(), 0);
     }
 
@@ -1336,6 +1344,10 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         if (declined) return;
         this.insuranceSvc.reset();
         this.viInitRetries = 0;
+        // Re-arm the widget-ready scroll restore: the remount's iframe autofocus-scrolls down once
+        // it reloads, so the summary must be re-raised AFTER that — the early setTimeout(0) in
+        // applyDiscount fires before the iframe even mounts and loses the race.
+        this.restoreScrollOnNextWidgetReady = true;
         clearTimeout(this.viInitTimeout);
         this.viInitTimeout = setTimeout(() => this.tryInitVerticalInsure(), 0);
         if (hadSelection) {

@@ -4,7 +4,7 @@ import {
   viewChild
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { filter, take } from 'rxjs';
+import { filter } from 'rxjs';
 import { CurrencyPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -859,18 +859,25 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     /** Which submit path triggered the modal — needed so confirmViAndContinue routes back correctly. */
     private pendingViSubmitFlow: 'cc' | 'arbTrial' | 'viOnly' | null = null;
     private readonly viScrollTimers: ReturnType<typeof setTimeout>[] = [];
+    /** Armed for the first widget arrival, and re-armed by a discount remount — but NOT by a
+     *  toggle-driven remount (scheduleViWidgetSync) — so the re-priced summary at the top wins the
+     *  scroll after the widget's own autofocus-scroll, without a method toggle yanking a
+     *  scrolled-down rep back up. */
+    private restoreScrollOnNextWidgetReady = true;
 
     constructor() {
         // The VI embed steals scroll on mount (its iframe autofocuses), dropping the
-        // rep partway down the Payment page. When the widget first reports ready,
-        // restore the top — but only on the first arrival, never on a toggle-driven
-        // remount (scheduleViWidgetSync → reset → re-init → widget re-ready), which
-        // would yank a scrolled-down rep back up. take(1) enforces the once-only.
+        // rep partway down the Payment page. On the arrivals we care about — first mount
+        // and a discount remount — restore the top once the widget reports ready; a toggle
+        // remount leaves the flag false so the rep is not yanked up. A single setTimeout(0) at
+        // apply time cannot do this: the remounting iframe autofocus-scrolls AFTER it, re-burying
+        // the re-priced summary (this was Ann's "scroll didn't work").
         toObservable(this.insuranceSvc.widgetInitialized).pipe(
             filter(Boolean),
-            take(1),
             takeUntilDestroyed(),
         ).subscribe(() => {
+            if (!this.restoreScrollOnNextWidgetReady) return;
+            this.restoreScrollOnNextWidgetReady = false;
             // Fire just after ready and once more shortly after, to land past the
             // embed's own delayed focus/scroll.
             this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 50));
@@ -1226,8 +1233,11 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                                     this.state.applyTeamsMetadata(meta);
                                     this.refreshViAfterDiscount();
                                     // Draw the rep back to the re-priced summary grid at the top —
-                                    // Fee-Adj, Proc Fee and Owed all moved with the discount.
-                                    // Deferred so it lands after the grid re-renders.
+                                    // Fee-Adj, Proc Fee and Owed all moved with the discount. This
+                                    // immediate scroll handles the no-VI-remount branches; when
+                                    // refreshViAfterDiscount remounts the VI widget it re-arms the
+                                    // widget-ready restore, which lands after the remounting iframe's
+                                    // autofocus-scroll.
                                     setTimeout(() => scrollWizardToTop(), 0);
                                 },
                             });
@@ -1261,6 +1271,10 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         this.insuranceSvc.reset();
         this.insuranceOfferLoaded.set(false);
         this.viInitRetries = 0;
+        // Re-arm the widget-ready scroll restore: the remount's iframe autofocus-scrolls down once
+        // it reloads, so the summary must be re-raised AFTER that — the early setTimeout(0) in
+        // applyDiscount fires before the iframe even mounts and loses the race.
+        this.restoreScrollOnNextWidgetReady = true;
         clearTimeout(this.viInitTimeout);
         this.viInitTimeout = setTimeout(() => this.loadAndInitVi(), 0);
         if (hadSelection) {
