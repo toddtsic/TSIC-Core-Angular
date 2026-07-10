@@ -16,13 +16,16 @@ namespace TSIC.Contracts.Services;
 public interface IBracketSeedResolutionService
 {
     /// <param name="standingsProvider">
-    /// Lazily computes pool-play standings for the job. Invoked only when the job
-    /// actually has seed slots to resolve, so non-bracket jobs pay nothing.
+    /// Lazily computes pool-play standings, SCOPED to the seed divisions handed to it.
+    /// Invoked only when the job has seed slots whose pools are final, so a non-bracket
+    /// job — and every score before a pool's last one — pays nothing. Standings rank
+    /// within a division, so narrowing the division set cannot change any rank; it just
+    /// stops a job with N pools from sweeping all N every time one of them completes.
     /// </param>
     /// <returns>The number of slots filled.</returns>
     Task<int> ResolveJobAsync(
         Guid jobId,
         string userId,
-        Func<CancellationToken, Task<StandingsByDivisionResponse>> standingsProvider,
+        Func<IReadOnlyCollection<Guid>, CancellationToken, Task<StandingsByDivisionResponse>> standingsProvider,
         CancellationToken ct = default);
 }

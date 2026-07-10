@@ -35,7 +35,7 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
     public async Task<int> ResolveJobAsync(
         Guid jobId,
         string userId,
-        Func<CancellationToken, Task<StandingsByDivisionResponse>> standingsProvider,
+        Func<IReadOnlyCollection<Guid>, CancellationToken, Task<StandingsByDivisionResponse>> standingsProvider,
         CancellationToken ct = default)
     {
         // Seed slots only exist once a division's bracket wiring is materialized, and a
@@ -56,7 +56,11 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
         if (ready.Count == 0) return 0;
 
         // Standings are already sorted (incl. tiebreak rules) → 1-based position = rank.
-        var standings = await standingsProvider(ct);
+        // Scoped to the divisions those ready slots actually draw from: a rank is computed
+        // within a division, so this cannot change any result. Job-wide, an event with N
+        // pools swept all N every time one completed.
+        var seedDivIds = ready.Select(s => s.SeedDivId).Distinct().ToList();
+        var standings = await standingsProvider(seedDivIds, ct);
         var teamByDivRank = new Dictionary<(Guid DivId, int Rank), (Guid TeamId, string Name)>();
         foreach (var div in standings.Divisions)
         {
@@ -80,6 +84,11 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
             sourceIdentities = await _bracketRepo.GetTeamIdentitiesAsync(sourceTeamIds, ct);
         }
 
+        // One tracked query for every target game rather than one per slot.
+        var targets = (await _scheduleRepo.GetGamesByIdsAsync(
+                ready.Select(s => s.Gid).Distinct().ToList(), ct))
+            .ToDictionary(g => g.Gid);
+
         var now = DateTime.Now;
         var resolved = 0;
         foreach (var slot in ready)
@@ -87,8 +96,7 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
             if (!teamByDivRank.TryGetValue((slot.SeedDivId, slot.SeedRank), out var team))
                 continue;                                                            // rank not present (yet)
 
-            var target = await _scheduleRepo.GetGameByIdAsync(slot.Gid, ct);
-            if (target is null) continue;
+            if (!targets.TryGetValue(slot.Gid, out var target)) continue;
 
             // R3 guard: never overwrite a bracket game that has already been played.
             if (target.T1Score.HasValue || target.T2Score.HasValue) continue;

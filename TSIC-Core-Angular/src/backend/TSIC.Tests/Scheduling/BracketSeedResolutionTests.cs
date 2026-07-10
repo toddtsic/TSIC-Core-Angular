@@ -104,7 +104,7 @@ public class BracketSeedResolutionTests
             Team(eagles.TeamId, "Eagles", div.DivId),
             Team(hawks.TeamId, "Hawks", div.DivId)));
 
-        var count = await svc.ResolveJobAsync(job.JobId, "user", _ => Task.FromResult(standings));
+        var count = await svc.ResolveJobAsync(job.JobId, "user", (_, _) => Task.FromResult(standings));
 
         count.Should().Be(1);
         var saved = await scheduleRepo.GetGameByIdAsync(final.Gid);
@@ -144,7 +144,7 @@ public class BracketSeedResolutionTests
             Team(eagles.TeamId, "Eagles", div.DivId),
             Team(hawks.TeamId, "Hawks", div.DivId)));
 
-        var count = await svc.ResolveJobAsync(job.JobId, "user", _ => Task.FromResult(standings));
+        var count = await svc.ResolveJobAsync(job.JobId, "user", (_, _) => Task.FromResult(standings));
 
         count.Should().Be(0);
         var saved = await scheduleRepo.GetGameByIdAsync(final.Gid);
@@ -185,7 +185,7 @@ public class BracketSeedResolutionTests
             Team(eagles.TeamId, "Eagles", div.DivId),
             Team(hawks.TeamId, "Hawks", div.DivId)));
 
-        var count = await svc.ResolveJobAsync(job.JobId, "user", _ => Task.FromResult(standings));
+        var count = await svc.ResolveJobAsync(job.JobId, "user", (_, _) => Task.FromResult(standings));
 
         count.Should().Be(0);
         var saved = await scheduleRepo.GetGameByIdAsync(final.Gid);
@@ -231,7 +231,7 @@ public class BracketSeedResolutionTests
                 Team(sharks.TeamId, "Sharks", silver.DivId),
                 Team(minnows.TeamId, "Minnows", silver.DivId)));
 
-        var count = await svc.ResolveJobAsync(job.JobId, "user", _ => Task.FromResult(standings));
+        var count = await svc.ResolveJobAsync(job.JobId, "user", (_, _) => Task.FromResult(standings));
 
         count.Should().Be(1);
         var saved = await scheduleRepo.GetGameByIdAsync(final.Gid);

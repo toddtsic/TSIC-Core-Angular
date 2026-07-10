@@ -52,7 +52,8 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         await _bracketResolution.ResolveJobAsync(
             jobId, userId,
-            c => GetStandingsAsync(jobId, new ScheduleFilterRequest(), c), ct);
+            (divIds, c) => GetStandingsAsync(
+                jobId, new ScheduleFilterRequest { DivisionIds = [.. divIds] }, c), ct);
     }
 
     public async Task<ScheduleFilterOptionsDto> GetFilterOptionsAsync(Guid jobId, CancellationToken ct = default)

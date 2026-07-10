@@ -191,7 +191,8 @@ public class BracketSeedService : IBracketSeedService
 
             await _resolution.ResolveJobAsync(
                 schedule.JobId, userId,
-                c => _viewSchedule.GetStandingsAsync(schedule.JobId, new ScheduleFilterRequest(), c), ct);
+                (divIds, c) => _viewSchedule.GetStandingsAsync(
+                    schedule.JobId, new ScheduleFilterRequest { DivisionIds = [.. divIds] }, c), ct);
         }
 
         // Return updated single game DTO

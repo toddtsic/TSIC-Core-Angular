@@ -47,7 +47,8 @@ public class SchedulingDashboardController : ControllerBase
         {
             await _bracketResolution.ResolveJobAsync(
                 jobId.Value, userId,
-                c => _viewSchedule.GetStandingsAsync(jobId.Value, new ScheduleFilterRequest(), c), ct);
+                (divIds, c) => _viewSchedule.GetStandingsAsync(
+                    jobId.Value, new ScheduleFilterRequest { DivisionIds = [.. divIds] }, c), ct);
         }
 
         var result = await _service.GetStatusAsync(jobId.Value, ct);
