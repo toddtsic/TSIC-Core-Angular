@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, Input, inject, signal, OnInit, AfterViewInit, ViewChild, ElementRef, effect, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Input, inject, signal, OnInit, AfterViewInit, ViewChild, ElementRef, input, output } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Subject, of, debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
@@ -185,17 +187,24 @@ export class CodeFormModalComponent implements OnInit, AfterViewInit {
     codeExists = signal(false);
     isSaving = signal(false);
 
+    /** Keystrokes from the code-name field. Debounced here, at the source. */
+    private readonly codeNameInput$ = new Subject<string>();
+
     constructor() {
-        // Check for duplicate code names on input (add mode only)
-        effect(() => {
-            const name = this.codeName();
-            if (this.mode() === 'add' && name.length >= 3) {
-                this.discountCodeService.checkCodeExists(name).subscribe({
-                    next: (result) => this.codeExists.set(result.exists),
-                    error: () => this.codeExists.set(false)
-                });
-            }
-        });
+        // Check for duplicate code names as the user types (add mode only).
+        // switchMap cancels the in-flight check so a slow early response can never
+        // overwrite the verdict for the name currently in the box.
+        this.codeNameInput$.pipe(
+            debounceTime(300),
+            distinctUntilChanged(),
+            switchMap(name => {
+                if (this.mode() !== 'add' || name.length < 3) return of({ exists: false });
+                return this.discountCodeService.checkCodeExists(name).pipe(
+                    catchError(() => of({ exists: false }))
+                );
+            }),
+            takeUntilDestroyed()
+        ).subscribe(result => this.codeExists.set(result.exists));
     }
 
     ngOnInit(): void {
@@ -226,6 +235,7 @@ export class CodeFormModalComponent implements OnInit, AfterViewInit {
     onCodeNameInput(event: Event): void {
         const value = (event.target as HTMLInputElement).value;
         this.codeName.set(value);
+        this.codeNameInput$.next(value);
     }
 
     isValid(): boolean {

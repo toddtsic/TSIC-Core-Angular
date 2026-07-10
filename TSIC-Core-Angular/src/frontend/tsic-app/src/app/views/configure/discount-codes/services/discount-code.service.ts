@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, debounceTime, distinctUntilChanged } from 'rxjs';
+import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
 import type {
   DiscountCodeDto,
@@ -60,12 +60,11 @@ export class DiscountCodeService {
   }
 
   /**
-   * Check if a discount code already exists for the job (debounced for real-time validation).
+   * Check if a discount code already exists for the job.
+   * Debouncing belongs at the keystroke source, not here — this observable emits once
+   * and completes, so debounceTime on it would only delay the response.
    */
   checkCodeExists(codeName: string): Observable<{ exists: boolean }> {
-    return this.http.get<{ exists: boolean }>(`${this.apiUrl}/check-exists/${encodeURIComponent(codeName)}`).pipe(
-      debounceTime(300),
-      distinctUntilChanged()
-    );
+    return this.http.get<{ exists: boolean }>(`${this.apiUrl}/check-exists/${encodeURIComponent(codeName)}`);
   }
 }
