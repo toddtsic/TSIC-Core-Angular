@@ -1,4 +1,4 @@
-import { Injectable, inject, signal, computed, effect } from '@angular/core';
+import { Injectable, inject, signal, computed, linkedSignal } from '@angular/core';
 import { JobContextService } from './job-context.service';
 import { FamilyPlayersService } from './family-players.service';
 import type { Loadable } from '@infrastructure/shared/state.models';
@@ -17,20 +17,18 @@ export class InsuranceStateV2Service {
     readonly offerPlayerRegSaver = computed(() => this.jobCtx.offerPlayerRegSaver());
     readonly regSaverDetails = computed(() => this.familyPlayers.regSaverDetails());
 
-    private readonly _verticalInsureOffer = signal<Loadable<VIPlayerObjectResponse>>({ loading: false, data: null, error: null });
+    /**
+     * Mirrors JobContextService (where preSubmit writes the offer), while staying locally
+     * settable. Reseeds only when jobCtx's offer actually changes, so a local .set() survives
+     * until the source moves. The effect this replaced read the very signal it wrote, so it
+     * re-ran on its own write and reverted every local set back to the jobCtx value.
+     */
+    private readonly _verticalInsureOffer = linkedSignal<Loadable<VIPlayerObjectResponse>, Loadable<VIPlayerObjectResponse>>({
+        source: () => this.jobCtx.verticalInsureOffer(),
+        computation: offer => offer,
+    });
     verticalInsureOffer(): Loadable<VIPlayerObjectResponse> { return this._verticalInsureOffer(); }
     setVerticalInsureOffer(value: Loadable<VIPlayerObjectResponse>): void { this._verticalInsureOffer.set(value); }
-
-    // Sync from JobContextService (where preSubmit writes it)
-    private readonly _offerSync = effect(() => {
-        try {
-            const offer = this.jobCtx.verticalInsureOffer();
-            const cur = this._verticalInsureOffer();
-            if (cur.data !== offer.data || cur.error !== offer.error || cur.loading !== offer.loading) {
-                this._verticalInsureOffer.set(offer);
-            }
-        } catch { /* ignore */ }
-    });
 
     private readonly _showVerticalInsureModal = signal(false);
     private readonly _viConsent = signal<{
