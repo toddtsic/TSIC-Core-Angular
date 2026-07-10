@@ -1,4 +1,6 @@
-import { Component, inject, signal, computed, effect, ChangeDetectionStrategy, viewChild } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { distinctUntilChanged, filter, map } from 'rxjs';
 import { DecimalPipe } from '@angular/common';
 import { GridAllModule, GridComponent, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
 import { EmailLogService } from './services/email-log.service';
@@ -44,13 +46,16 @@ export class EmailLogComponent {
             .sort();
     });
 
-    // Load on job change
-    private readonly loadOnJobChange = effect(() => {
-        const job = this.jobService.currentJob();
-        if (job?.jobPath) {
-            this.loadEmails();
-        }
-    });
+    constructor() {
+        // Load on job change. distinctUntilChanged keys on jobPath so an unrelated
+        // currentJob.set() (e.g. a metadata refetch) doesn't refire the request.
+        toObservable(this.jobService.currentJob).pipe(
+            map(job => job?.jobPath),
+            filter((jobPath): jobPath is string => !!jobPath),
+            distinctUntilChanged(),
+            takeUntilDestroyed(),
+        ).subscribe(() => this.loadEmails());
+    }
 
     loadEmails() {
         this.isLoading.set(true);

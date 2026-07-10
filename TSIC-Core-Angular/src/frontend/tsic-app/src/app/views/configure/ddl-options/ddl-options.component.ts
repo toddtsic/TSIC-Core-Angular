@@ -1,4 +1,4 @@
-import { Component, inject, signal, computed, ChangeDetectionStrategy, output, effect } from '@angular/core';
+import { Component, inject, signal, computed, ChangeDetectionStrategy, output } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { environment } from '@environments/environment';
@@ -122,11 +122,11 @@ export class DdlOptionsComponent {
 
 	constructor() {
 		this.loadOptions();
+	}
 
-		// Notify parent whenever dirty state changes
-		effect(() => {
-			this.dirtyChange.emit(this.isDirty());
-		});
+	/** Notify the parent of our dirty state. Called from every site that can change it. */
+	private emitDirty(): void {
+		this.dirtyChange.emit(this.isDirty());
 	}
 
 	// ── Data access ──
@@ -168,6 +168,7 @@ export class DdlOptionsComponent {
 
 		this.options.set({ ...current, [key]: existing });
 		this.addInputs.update(inputs => ({ ...inputs, [key]: '' }));
+		this.emitDirty();
 	}
 
 	removeValue(key: keyof JobDdlOptionsDto, index: number): void {
@@ -177,6 +178,7 @@ export class DdlOptionsComponent {
 		const values = [...current[key]];
 		values.splice(index, 1);
 		this.options.set({ ...current, [key]: values });
+		this.emitDirty();
 	}
 
 	// ── Load / Save / Reset ──
@@ -188,6 +190,7 @@ export class DdlOptionsComponent {
 				this.options.set(dto);
 				this.originalJson.set(JSON.stringify(dto));
 				this.isLoading.set(false);
+				this.emitDirty();
 			},
 			error: (err: unknown) => {
 				const msg = (err as { error?: { message?: string } })?.error?.message || 'Failed to load dropdown options.';
@@ -207,6 +210,7 @@ export class DdlOptionsComponent {
 				this.originalJson.set(JSON.stringify(current));
 				this.isSaving.set(false);
 				this.toast.show('Dropdown options saved.', 'success');
+				this.emitDirty();
 			},
 			error: (err: unknown) => {
 				const msg = (err as { error?: { message?: string } })?.error?.message || 'Failed to save.';
@@ -222,6 +226,7 @@ export class DdlOptionsComponent {
 		} catch {
 			// no-op — original is always valid JSON
 		}
+		this.emitDirty();
 	}
 
 	// ── Helpers ──

@@ -1,4 +1,6 @@
-import { Component, computed, effect, inject, signal, isDevMode, ChangeDetectionStrategy, Type } from '@angular/core';
+import { Component, computed, inject, signal, isDevMode, ChangeDetectionStrategy, Type } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { distinctUntilChanged, filter } from 'rxjs';
 import { NgComponentOutlet } from '@angular/common';
 import { ActivatedRoute, ActivatedRouteSnapshot } from '@angular/router';
 import { WidgetDashboardService } from '@widgets/services/widget-dashboard.service';
@@ -93,31 +95,31 @@ export class WidgetDashboardComponent {
 	private configCache = new Map<number, WidgetConfig>();
 	private warnedKeys = new Set<string>();
 
-	/** Track the last loaded identity to avoid redundant reloads */
-	private lastLoadedKey = '';
+	/**
+	 * Identity of what should be loaded. Recomputes only when auth changes —
+	 * activeJobPath() reads route.snapshot, which is not reactive.
+	 */
+	private readonly loadKey = computed(() => {
+		const user = this.auth.currentUser();
+		const jobPath = this.activeJobPath();
+		return jobPath ? `${jobPath}:${user?.regId || ''}` : '';
+	});
 
 	constructor() {
 		// Reactive reload: fires when auth state changes (job switch, role switch)
-		effect(() => {
-			const user = this.auth.currentUser();
-			const jobPath = this.activeJobPath();
-			const regId = user?.regId || '';
-			const loadKey = `${jobPath}:${regId}`;
-
-			if (!jobPath || loadKey === this.lastLoadedKey) return;
-			this.lastLoadedKey = loadKey;
-
-			this.jobService.fetchJobMetadata(jobPath).subscribe();
+		toObservable(this.loadKey).pipe(
+			filter(key => key !== ''),
+			distinctUntilChanged(),
+			takeUntilDestroyed(),
+		).subscribe(() => {
+			this.jobService.fetchJobMetadata(this.activeJobPath()).subscribe();
 			this.loadDashboard();
 		});
 
 		// Listen for customize requests from the header dropdown
-		effect(() => {
-			if (this.menuState.customizeDashboardRequested()) {
-				this.menuState.ackCustomizeDashboard();
-				this.openCustomize();
-			}
-		});
+		this.menuState.customizeDashboard$.pipe(
+			takeUntilDestroyed(),
+		).subscribe(() => this.openCustomize());
 	}
 
 	/** Resolve a componentKey to its Angular component class, or null if unknown */
@@ -267,7 +269,6 @@ export class WidgetDashboardComponent {
 				this.customizeSaving.set(false);
 				this.closeCustomize();
 				this.toast.show('Dashboard customized', 'success');
-				this.lastLoadedKey = '';  // force reload
 				this.loadDashboard();
 			},
 			error: () => {
@@ -290,7 +291,6 @@ export class WidgetDashboardComponent {
 				this.customizeSaving.set(false);
 				this.closeCustomize();
 				this.toast.show('Dashboard reset to defaults', 'success');
-				this.lastLoadedKey = '';
 				this.loadDashboard();
 			},
 			error: () => {

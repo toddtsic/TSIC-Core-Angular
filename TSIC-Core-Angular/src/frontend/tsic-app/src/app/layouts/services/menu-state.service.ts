@@ -1,4 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 import { LocalStorageKey } from '@infrastructure/shared/local-storage.model';
 import { LocalStorageService } from '@infrastructure/services/local-storage.service';
 
@@ -47,8 +48,13 @@ export class MenuStateService {
         this.localStorage.set(LocalStorageKey.AdminNavLayout, layout);
     }
 
-    /** Fires when user requests dashboard customization (from header dropdown) */
-    customizeDashboardRequested = signal(false);
+    /**
+     * Fires when the user requests dashboard customization (from the header dropdown).
+     * A one-shot command, not state — modelled as an event stream so it needs no
+     * acknowledge-and-reset handshake from the consumer.
+     */
+    private readonly _customizeDashboard = new Subject<void>();
+    readonly customizeDashboard$ = this._customizeDashboard.asObservable();
 
     /** Toggle offcanvas sidebar */
     toggleOffcanvas(): void {
@@ -105,12 +111,6 @@ export class MenuStateService {
 
     /** Request the dashboard to open its customize dialog */
     requestCustomizeDashboard(): void {
-        // Pulse: set true, then reset so it can be triggered again
-        this.customizeDashboardRequested.set(true);
-    }
-
-    /** Acknowledge the request (called by the dashboard after opening) */
-    ackCustomizeDashboard(): void {
-        this.customizeDashboardRequested.set(false);
+        this._customizeDashboard.next();
     }
 }

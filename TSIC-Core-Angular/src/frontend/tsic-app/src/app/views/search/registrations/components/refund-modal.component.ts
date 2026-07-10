@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, input, output, inject, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, input, output, inject, linkedSignal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import type { AccountingRecordDto, RefundResponse } from '@core/api';
@@ -24,17 +24,17 @@ export class RefundModalComponent {
   closed = output<void>();
   refunded = output<RefundResponse>();
 
-  refundAmount = signal<number>(0);
+  /**
+   * Editable amount, reseeded from the record whenever a new one is handed in.
+   * A null record leaves the current value alone, matching the effect this replaced.
+   */
+  refundAmount = linkedSignal<AccountingRecordDto | null, number>({
+    source: () => this.accountingRecord(),
+    computation: (record, previous) => record ? (record.paidAmount ?? 0) : (previous?.value ?? 0),
+  });
   reason = signal<string>('');
   isProcessing = signal<boolean>(false);
   showConfirm = signal<boolean>(false);
-
-  constructor() {
-    effect(() => {
-      const record = this.accountingRecord();
-      if (record) { this.refundAmount.set(record.paidAmount ?? 0); }
-    });
-  }
 
   close(): void { this.closed.emit(); this.resetForm(); }
 

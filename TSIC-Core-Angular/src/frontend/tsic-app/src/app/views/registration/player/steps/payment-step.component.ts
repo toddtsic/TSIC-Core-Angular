@@ -1,9 +1,10 @@
 import {
   ChangeDetectionStrategy, Component, DestroyRef, ElementRef,
-  AfterViewInit, OnInit, OnDestroy, inject, signal, computed, effect, output,
+  AfterViewInit, OnInit, OnDestroy, inject, signal, computed, output,
   viewChild
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { filter, take } from 'rxjs';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -1039,19 +1040,18 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     private pendingCheckSubmit = false;
     private viInitRetries = 0;
     private viInitTimeout?: ReturnType<typeof setTimeout>;
-    /** True once we've restored the scroll position after the VI embed's first mount —
-     *  guards against re-scrolling on any later widget re-ready. */
-    private viScrollRestored = false;
     private readonly viScrollTimers: ReturnType<typeof setTimeout>[] = [];
 
     constructor() {
         // The VI embed steals scroll on mount (its iframe autofocuses), dropping the
         // user partway down the Payment page. When the widget first reports ready,
-        // restore the top. Once-gated so it fires on arrival only — not on a later
-        // re-ready — keeping parity with the team flow's remount-on-toggle.
-        effect(() => {
-            if (!this.insuranceSvc.widgetInitialized() || this.viScrollRestored) return;
-            this.viScrollRestored = true;
+        // restore the top. take(1) fires it on arrival only — not on a later re-ready —
+        // keeping parity with the team flow's remount-on-toggle.
+        toObservable(this.insuranceSvc.widgetInitialized).pipe(
+            filter(Boolean),
+            take(1),
+            takeUntilDestroyed(),
+        ).subscribe(() => {
             // Fire just after ready and once more shortly after, to land past the
             // embed's own delayed focus/scroll.
             this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 50));

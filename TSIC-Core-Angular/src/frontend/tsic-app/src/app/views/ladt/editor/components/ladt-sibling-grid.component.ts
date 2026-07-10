@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy, signal, computed, effect, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal, computed, AfterViewChecked, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
 import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
@@ -480,7 +480,7 @@ export interface ParentBreadcrumb {
     }
   `]
 })
-export class LadtSiblingGridComponent implements OnChanges {
+export class LadtSiblingGridComponent implements OnChanges, AfterViewChecked {
   readonly columns = input<LadtColumnDef[]>([]);
   readonly data = input<any[]>([]);
   readonly selectedId = input('');
@@ -502,14 +502,8 @@ export class LadtSiblingGridComponent implements OnChanges {
 
   readonly grid = viewChild<GridComponent>('grid');
 
-  // Repaint the custom row-selected highlight when selectedId changes without a
-  // data rebind — i.e. ▲/▼ sibling navigation from the LADT editor fly-in.
-  // onRowDataBound only runs on bind, so a selection-only change needs this.
-  private readonly selectionSync = effect(() => {
-    this.selectedId();   // track selection changes
-    this.grid();         // re-run once the grid view resolves
-    this.syncSelectedRow();
-  });
+  /** Set when selectedId changes; drained once the view is checked. */
+  private pendingSelectionSync = false;
 
   // Sort state
   sortField = signal<string | null>(null);
@@ -645,6 +639,17 @@ export class LadtSiblingGridComponent implements OnChanges {
       this.sortField.set(null);
       this.sortDirection.set('asc');
     }
+    // A selection-only change — ▲/▼ sibling navigation from the fly-in — doesn't rebind
+    // data, so onRowDataBound won't fire. Repaint the highlight once the view is checked.
+    if (changes['selectedId']) {
+      this.pendingSelectionSync = true;
+    }
+  }
+
+  ngAfterViewChecked(): void {
+    if (!this.pendingSelectionSync) return;
+    this.pendingSelectionSync = false;
+    this.syncSelectedRow();  // safe pre-render: getRows() is guarded internally
   }
 
   // ── Syncfusion event handlers ──
@@ -687,8 +692,8 @@ export class LadtSiblingGridComponent implements OnChanges {
     let rows: HTMLElement[] | null;
     let records: any[] | null;
     try {
-      // getRows() throws if the grid's content module isn't rendered yet — the
-      // effect can fire at init before the first bind (and during teardown).
+      // getRows() throws if the grid's content module isn't rendered yet — this can
+      // run at init before the first bind (and during teardown).
       // Initial highlight is handled by onRowDataBound, so skipping is safe.
       rows = grid.getRows() as HTMLElement[] | null;
       records = grid.getCurrentViewRecords() as any[] | null;

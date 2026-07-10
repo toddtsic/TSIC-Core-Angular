@@ -1,4 +1,6 @@
-import { Component, inject, signal, effect, ChangeDetectionStrategy } from '@angular/core';
+import { Component, inject, signal, ChangeDetectionStrategy } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { distinctUntilChanged, filter, map } from 'rxjs';
 import { NgClass } from '@angular/common';
 import { GridAllModule } from '@syncfusion/ej2-angular-grids';
 import { AdministratorService } from './services/administrator.service';
@@ -33,13 +35,16 @@ export class AdministratorManagementComponent {
     readonly showDeleteConfirm = signal(false);
     readonly deleteTarget = signal<AdministratorDto | null>(null);
 
-    // Load administrators when job context becomes available
-    private readonly loadOnJobChange = effect(() => {
-        const job = this.jobService.currentJob();
-        if (job?.jobPath) {
-            this.loadAdministrators();
-        }
-    });
+    constructor() {
+        // Load administrators when job context becomes available. distinctUntilChanged keys
+        // on jobPath so an unrelated currentJob.set() doesn't refire the request.
+        toObservable(this.jobService.currentJob).pipe(
+            map(job => job?.jobPath),
+            filter((jobPath): jobPath is string => !!jobPath),
+            distinctUntilChanged(),
+            takeUntilDestroyed(),
+        ).subscribe(() => this.loadAdministrators());
+    }
 
     loadAdministrators() {
         this.isLoading.set(true);
