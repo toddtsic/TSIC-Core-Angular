@@ -116,11 +116,15 @@ export class SmartBulletinsComponent {
 			(allowed.has('register-player') && isPlayerRegistrationEffectivelyOpen(p)) ||  // self-roster-update
 			(registered && isPlayerOrFamily && (
 				allowed.has('my-registration') ||
-				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0) ||
+				// ARB registrants are auto-drafted — the panel suppresses their pay-balance
+				// row, so the mount gate must too or the panel can mount with nothing in it.
+				(allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0 && !p.myAdnSubscriptionId) ||
 				(allowed.has('player-insurance') && p.offerPlayerRegsaverInsurance && p.myHasPurchasedPlayerRegsaver !== true))) ||
 			(!pub && (p.myClubRepTeamCount ?? 0) > 0 && (
 				allowed.has('my-teams') ||
-				(p.myClubRepTotalOwed ?? 0) > 0 ||
+				// Non-ARB owed, matching the panel's row: an ARB team's OwedTotal stays
+				// positive while it auto-drafts, so the full sum would mount a stale row.
+				(p.myClubRepNonArbOwed ?? 0) > 0 ||
 				(allowed.has('team-insurance') && p.offerTeamRegsaverInsurance && p.myClubRepHasTeamWithoutRegsaver === true)));
 		const hasRosters = !!p.publicRostersAvailable && allowed.has('rosters');
 		return hasSelfRoster || hasManage || hasRosters;

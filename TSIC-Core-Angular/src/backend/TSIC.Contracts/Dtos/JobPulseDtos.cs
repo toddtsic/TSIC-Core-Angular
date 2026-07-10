@@ -182,6 +182,17 @@ public record JobPulseDto
     // ClubRep context. Null when user is not a ClubRep in this job.
     public int? MyClubRepTeamCount { get; init; }
     public decimal? MyClubRepTotalOwed { get; init; }
+
+    /// <summary>
+    /// Sum of OwedTotal across ONLY the rep's teams that carry no ARB subscription —
+    /// the money a human must actually go pay. A team on ARB keeps a positive OwedTotal
+    /// by design while its subscription drips payments, so MyClubRepTotalOwed cannot gate
+    /// the "Pay Balance Due" nudge without inviting a double payment. Gate on this instead:
+    /// zero here means every outstanding dollar is already auto-drafting. Note a rep with
+    /// one ARB team and two owing teams still gets a positive value, as they should.
+    /// </summary>
+    public decimal? MyClubRepNonArbOwed { get; init; }
+
     public bool? MyClubRepHasTeamWithoutRegsaver { get; init; }
 
     // Display name of the regId owner (Player / ClubRep / Staff / etc). Used for header initials.
@@ -216,6 +227,8 @@ public record JobPulseUserContext
     // ClubRep
     public int? ClubRepTeamCount { get; init; }
     public decimal? ClubRepTotalOwed { get; init; }
+    /// <summary>Owed across the rep's NON-ARB teams only — see JobPulseDto.MyClubRepNonArbOwed.</summary>
+    public decimal? ClubRepNonArbOwed { get; init; }
     public bool? ClubRepHasTeamWithoutRegsaver { get; init; }
 
     // Display name of the regId owner

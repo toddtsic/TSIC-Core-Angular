@@ -824,13 +824,19 @@ public class JobRepository : IJobRepository
             var teams = await _context.Teams
                 .AsNoTracking()
                 .Where(t => t.ClubrepRegistrationid == regId)
-                .Select(t => new { t.OwedTotal, t.ViPolicyId })
+                .Select(t => new { t.OwedTotal, t.ViPolicyId, t.AdnSubscriptionId })
                 .ToListAsync(cancellationToken);
 
             return new Contracts.Dtos.JobPulseUserContext
             {
                 ClubRepTeamCount = teams.Count,
                 ClubRepTotalOwed = teams.Sum(t => t.OwedTotal ?? 0m),
+                // Only the non-ARB teams' balances are payable by hand; an ARB team's
+                // OwedTotal stays positive while its subscription drips. Gating the
+                // "Pay Balance Due" nudge on the full sum would double-charge them.
+                ClubRepNonArbOwed = teams
+                    .Where(t => t.AdnSubscriptionId == null)
+                    .Sum(t => t.OwedTotal ?? 0m),
                 ClubRepHasTeamWithoutRegsaver = teams.Any(t => t.ViPolicyId == null),
                 FirstName = nameInfo?.FirstName,
                 LastName = nameInfo?.LastName

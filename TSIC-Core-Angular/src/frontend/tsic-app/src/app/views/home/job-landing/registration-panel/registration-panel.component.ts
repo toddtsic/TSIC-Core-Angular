@@ -36,8 +36,8 @@ interface ManageItem {
  * CONDITIONALLY constructs its sections from the live pulse + viewer state:
  *
  *   • Self-Rostering — links for each self-registration role the director has open
- *   • Manage — the self-service hub that kills support calls: the FINAL BALANCE DUE
- *     (deposit/balance jobs), self-roster-update (change team / uniform # / cancel),
+ *   • Manage — the self-service hub that kills support calls: Pay Balance Due
+ *     (suppressed for auto-drafted ARB registrants), self-roster-update (change team / uniform # / cancel),
  *     My Registration, and the "forgot insurance at checkout?" RegSaver add-ons
  *     (player + team). Player and club-rep dimensions both handled.
  *   • Rosters — the public roster view
@@ -201,13 +201,14 @@ export class RegistrationPanelComponent {
 
 		// ── Player ──
 		if (registered && isPF) {
-			// Final balance — deposit-aware wording: a full-payment job has no deposit
-			// phase, so there's no "final" balance, just an amount due.
-			if (allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0) {
-				const deposit = !this.jobService.currentJob()?.bPlayersFullPaymentRequired;
+			// Nudge only — no amount, matching the club-rep row: the pulse aggregate can
+			// drift from what the payment page recomputes, and the figure belongs on the
+			// destination. Suppressed entirely for an ARB registrant: their balance is
+			// auto-drafted on a schedule, so myRegistrationOwedTotal stays > 0 by design
+			// and a "pay" nudge would invite a double payment.
+			if (allowed.has('pay-balance') && (p.myRegistrationOwedTotal ?? 0) > 0 && !p.myAdnSubscriptionId) {
 				items.push({ key: 'player-balance', icon: 'bi-cash-stack', variant: 'alert',
-					label: deposit ? 'Final Balance Due' : 'Balance Due',
-					sublabel: this.money(p.myRegistrationOwedTotal!),
+					label: 'Pay Balance Due',
 					routerLink: `${base}/registration/player`, queryParams: { step: 'payment' } });
 			}
 		}
@@ -245,11 +246,16 @@ export class RegistrationPanelComponent {
 					sublabel: 'Change uniform #s, move or remove players',
 					routerLink: `${base}/rosters/club` });
 			}
-			// Nudge only — no amount. The pulse aggregate myClubRepTotalOwed can drift
-			// from the per-team sum the payment page recomputes, so the card carries no
-			// dollar figure (that lives on the destination page); the gate (> 0) still
-			// means it appears ONLY when a balance is actually owed.
-			if ((p.myClubRepTotalOwed ?? 0) > 0) {
+			// Nudge only — no amount. The pulse aggregate can drift from the per-team sum
+			// the payment page recomputes, so the card carries no dollar figure (that lives
+			// on the destination page).
+			//
+			// Gated on myClubRepNonArbOwed, NOT myClubRepTotalOwed: a team on an ARB plan
+			// keeps a positive OwedTotal while its subscription drips payments, so the full
+			// sum would nag a fully-ARB rep forever and invite a double payment. The non-ARB
+			// sum is the money a human must actually go pay — a rep with one ARB team and
+			// two owing teams still sees the row, as they should.
+			if ((p.myClubRepNonArbOwed ?? 0) > 0) {
 				items.push({ key: 'clubrep-balance', icon: 'bi-cash-stack', variant: 'alert',
 					label: 'Pay Balance Due',
 					routerLink: `${base}/registration/team`, queryParams: { step: 'payment' } });
@@ -306,9 +312,5 @@ export class RegistrationPanelComponent {
 
 	openSelfRosterUpdate(): void {
 		this.sruModal.open(this.jobPath());
-	}
-
-	private money(v: number): string {
-		return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(v);
 	}
 }

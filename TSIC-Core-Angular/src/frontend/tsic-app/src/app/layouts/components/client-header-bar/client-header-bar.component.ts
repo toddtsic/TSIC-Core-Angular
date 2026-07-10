@@ -117,7 +117,10 @@ export class ClientHeaderBarComponent {
             // Team Registration is the ClubRep's workspace — always linked; the wizard
             // itself gates add/edit/delete on clubRepAllow* caps.
             items.push({ icon: 'bi-pencil-square', label: 'Team Registration', route: 'registration/team?step=teams' });
-            if ((pulse.myClubRepTotalOwed ?? 0) > 0) {
+            // Non-ARB owed only — an ARB team auto-drafts and keeps a positive OwedTotal,
+            // so the full sum would float a permanent `primary` nudge for a rep who owes
+            // nothing by hand. See JobPulseDto.MyClubRepNonArbOwed.
+            if ((pulse.myClubRepNonArbOwed ?? 0) > 0) {
                 items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/team?step=payment' });
             }
             if ((pulse.myClubRepTeamCount ?? 0) > 0) {
@@ -130,7 +133,10 @@ export class ClientHeaderBarComponent {
             if (pulse.playerRegistrationOpen) {
                 items.push({ icon: 'bi-person-badge', label: 'My Registration', route: 'registration/player?step=players' });
             }
-            if ((pulse.myRegistrationOwedTotal ?? 0) > 0) {
+            // Never nudge an ARB registrant: their balance is auto-drafted on a schedule,
+            // so myRegistrationOwedTotal stays > 0 by design and this row (which floats to
+            // the top as `primary` and lights the avatar badge) would invite a double payment.
+            if ((pulse.myRegistrationOwedTotal ?? 0) > 0 && !pulse.myAdnSubscriptionId) {
                 items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/player?step=payment' });
             }
             if (pulse.allowRosterViewPlayer && pulse.myAssignedTeamId) {
@@ -147,7 +153,9 @@ export class ClientHeaderBarComponent {
             // Staff = a self-rostered coach; the adult wizard REQUIRES ?role=<key> or it
             // shows an "incomplete link" error, so the coach roleKey must ride the URL.
             items.push({ icon: 'bi-person-gear', label: 'My Registration', route: 'registration/adult?role=coach&step=profile' });
-            if ((pulse.myRegistrationOwedTotal ?? 0) > 0) {
+            // Same ARB suppression as the player branch. No adult is placed on an ARB plan
+            // today, but the gate is free and holds if that ever changes.
+            if ((pulse.myRegistrationOwedTotal ?? 0) > 0 && !pulse.myAdnSubscriptionId) {
                 items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/adult?role=coach&step=payment' });
             }
             if (pulse.allowRosterViewAdult && pulse.myAssignedTeamId) {
