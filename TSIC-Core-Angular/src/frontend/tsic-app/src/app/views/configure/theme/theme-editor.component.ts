@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, OnInit, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
@@ -108,6 +109,7 @@ type ThemeKey = 'landing' | 'login' | 'role-select' | 'player' | 'family';
 export class ThemeEditorComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly fb = inject(FormBuilder);
+  private readonly destroyRef = inject(DestroyRef);
 
   jobPath = signal<string>('');
 
@@ -143,11 +145,11 @@ export class ThemeEditorComponent implements OnInit {
     // Load saved values for default theme (player)
     this.loadSavedForTheme(this.form.controls.theme.value);
 
-    // When theme changes, load saved if present
-    effect(() => {
-      const t = this.form.controls.theme.value;
-      this.loadSavedForTheme(t);
-    });
+    // When theme changes, load saved if present. The theme control is a reactive-form
+    // control, not a signal — an effect() never re-runs on its changes.
+    this.form.controls.theme.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(t => this.loadSavedForTheme(t));
   }
 
   private storageKey(theme: string) {
