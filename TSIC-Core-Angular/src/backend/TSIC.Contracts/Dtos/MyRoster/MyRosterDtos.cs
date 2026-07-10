@@ -10,15 +10,6 @@ public record MyRosterResponseDto
     public string? Reason { get; init; }
     public Guid? TeamId { get; init; }
     public string? TeamName { get; init; }
-
-    /// <summary>
-    /// The job's configured parent labels (Jobs.MomLabel / Jobs.DadLabel). The roster cards use
-    /// these instead of hardcoding "Mom"/"Dad" so a job can say "Guardian", "Parent 1", etc.
-    /// Fall back to "Mom"/"Dad" when a job leaves them unset.
-    /// </summary>
-    public string? MomLabel { get; init; }
-    public string? DadLabel { get; init; }
-
     public List<MyRosterPlayerDto>? Players { get; init; }
 }
 
@@ -43,6 +34,7 @@ public record MyRosterPlayerDto
     public string? Cellphone { get; init; }
     public int? GradYear { get; init; }
     public string? Position { get; init; }
+    public string? UniformNo { get; init; }
     public string? Gender { get; init; }
 
     // Parent contacts (Families.Mom* / Families.Dad*). Any/all may be null.

@@ -26,10 +26,6 @@ export class MyRosterComponent implements OnInit {
     readonly players = signal<MyRosterPlayerDto[]>([]);
     readonly selectedIds = signal<Set<string>>(new Set());
 
-    // Job-configured parent terminology (falls back to Mom/Dad server-side).
-    readonly momLabel = signal('Mom');
-    readonly dadLabel = signal('Dad');
-
     // Directory browsing — filter + sort replace the old Syncfusion grid affordances.
     readonly filter = signal('');
     readonly sortBy = signal<SortKey>('name');
@@ -86,8 +82,6 @@ export class MyRosterComponent implements OnInit {
                 this.allowed.set(res.allowed);
                 this.reason.set(res.reason ?? null);
                 this.teamName.set(res.teamName ?? null);
-                this.momLabel.set(res.momLabel?.trim() || 'Mom');
-                this.dadLabel.set(res.dadLabel?.trim() || 'Dad');
                 this.players.set((res.players ?? []) as MyRosterPlayerDto[]);
                 this.selectedIds.set(new Set());
             },

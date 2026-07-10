@@ -509,10 +509,9 @@ public interface IRegistrationRepository
     Task<List<TSIC.Contracts.Dtos.MyRoster.MyRosterPlayerDto>> GetMyRosterByTeamIdAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Reads the two roster-visibility flags plus the job's configured parent labels
-    /// (Jobs.MomLabel / Jobs.DadLabel). Returns null if the job does not exist.
+    /// Reads the two roster-visibility flags on a Job. Returns null if the job does not exist.
     /// </summary>
-    Task<(bool AllowPlayer, bool AllowAdult, string? MomLabel, string? DadLabel)?> GetRosterViewFlagsAsync(Guid jobId, CancellationToken ct = default);
+    Task<(bool AllowPlayer, bool AllowAdult)?> GetRosterViewFlagsAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
     /// Returns the TeamName for a given team, scoped to a job. Null if not found.

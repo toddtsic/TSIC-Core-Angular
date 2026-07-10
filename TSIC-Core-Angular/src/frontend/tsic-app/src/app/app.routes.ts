@@ -616,6 +616,7 @@ export const routes: Routes = [
 				// Player/Staff — restricted team-roster view (job visibility flags checked server-side)
 				path: 'rosters/view-rosters',
 				canActivate: [authGuard],
+				data: { helpKey: 'view-rosters' },
 				loadComponent: () => import('./views/rosters/my-roster/my-roster.component').then(m => m.MyRosterComponent),
 				title: 'Team Roster'
 			},

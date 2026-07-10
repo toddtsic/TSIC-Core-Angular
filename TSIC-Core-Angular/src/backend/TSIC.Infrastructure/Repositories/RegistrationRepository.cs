@@ -2655,6 +2655,7 @@ public class RegistrationRepository : IRegistrationRepository
                 Cellphone = r.User != null ? r.User.Cellphone : null,
                 GradYearRaw = r.GradYear,
                 r.Position,
+                r.UniformNo,
                 Gender = r.User != null ? r.User.Gender : null,
                 MomFirstName = r.FamilyUser != null ? r.FamilyUser.MomFirstName : null,
                 MomLastName = r.FamilyUser != null ? r.FamilyUser.MomLastName : null,
@@ -2682,6 +2683,7 @@ public class RegistrationRepository : IRegistrationRepository
             Cellphone = r.Cellphone,
             GradYear = int.TryParse(r.GradYearRaw, out var gy) ? gy : null,
             Position = r.Position,
+            UniformNo = r.UniformNo,
             Gender = r.Gender,
             MomFirstName = r.MomFirstName,
             MomLastName = r.MomLastName,
@@ -2694,15 +2696,15 @@ public class RegistrationRepository : IRegistrationRepository
         }).ToList();
     }
 
-    public async Task<(bool AllowPlayer, bool AllowAdult, string? MomLabel, string? DadLabel)?> GetRosterViewFlagsAsync(
+    public async Task<(bool AllowPlayer, bool AllowAdult)?> GetRosterViewFlagsAsync(
         Guid jobId, CancellationToken ct = default)
     {
         var row = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.BAllowRosterViewPlayer, j.BAllowRosterViewAdult, j.MomLabel, j.DadLabel })
+            .Select(j => new { j.BAllowRosterViewPlayer, j.BAllowRosterViewAdult })
             .FirstOrDefaultAsync(ct);
-        return row == null ? null : (row.BAllowRosterViewPlayer, row.BAllowRosterViewAdult, row.MomLabel, row.DadLabel);
+        return row == null ? null : (row.BAllowRosterViewPlayer, row.BAllowRosterViewAdult);
     }
 
     public async Task<string?> GetTeamNameAsync(Guid teamId, Guid jobId, CancellationToken ct = default)

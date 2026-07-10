@@ -13,6 +13,7 @@ export type MyRosterPlayerDto = {
     cellphone?: string | null;
     gradYear?: number | null;
     position?: string | null;
+    uniformNo?: string | null;
     gender?: string | null;
     momFirstName?: string | null;
     momLastName?: string | null;
