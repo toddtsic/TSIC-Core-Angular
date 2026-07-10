@@ -3,9 +3,39 @@
 ## Signal Architecture
 
 - **Signals** for all component/domain state
-- **Observables** for HTTP calls only — no BehaviorSubject for state
+- **Observables** for HTTP calls and event streams — no BehaviorSubject for state
 - Update signals in `.subscribe()` callbacks or `tap()` operators
 - Template syntax: `user()` not `user`
+
+## BANNED: `effect()` (NEVER USE)
+
+`effect()` is **permanently banned** from this codebase. Do not import it from `@angular/core`.
+
+**Why**: an effect re-runs whenever any signal it read changes. When it also writes a signal it
+transitively reads, it re-triggers itself and reverts the write a frame later — silently. This
+wiped user edits in the registration detail panel (fixed in `02e8bafd`), and a codebase-wide
+sweep found it had also produced a theme editor whose reload never fired, an HTTP check racing
+on every keystroke, a caret that jumped to the end of every field being edited, and an inert
+public setter. The replacements below are *structural*: a `computed()` cannot write what it
+reads, and a `linkedSignal` reseeds only when its `source` changes.
+
+**Alternatives**, by the job the effect was doing:
+
+| Job | Use |
+|---|---|
+| Pure derivation (incl. clamping) | `computed()` |
+| Editable copy seeded from an `input()` | `linkedSignal({ source, computation })` |
+| React to an `@Input`/`input()` change | `ngOnChanges` gated on `changes['key']` |
+| React to a **service** signal | `toObservable(sig).pipe(…, takeUntilDestroyed()).subscribe()` |
+| Fire HTTP on a user action | An explicit callback |
+| Debounced typeahead → HTTP | `Subject` + `debounceTime` + `distinctUntilChanged` + `switchMap` |
+| DOM work needing the rendered view | `ngOnChanges` sets a flag → `ngAfterViewChecked` drains it |
+| One-shot cross-component command | `Subject<void>` — never a `signal(false)` pulse |
+
+Debounce belongs at the **keystroke source**, never piped onto the per-request `http.get`
+(which emits once and completes, so `debounceTime` there only delays the response).
+
+See `docs/Frontend/angular-signal-patterns.md` Pattern 6.
 
 ## Signal Updates Are Immutable
 

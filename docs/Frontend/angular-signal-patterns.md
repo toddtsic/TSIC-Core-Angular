@@ -448,54 +448,71 @@ export class UserProfileComponent {
 
 ---
 
-## Pattern 6: Effect for Side Effects
+## Pattern 6: `effect()` is BANNED
 
-**Use Case**: Run side effects when signals change.
+**Do not use `effect()`. There is no sanctioned use of it in this codebase.**
 
-### ✅ Correct Pattern
+### Why
 
-```typescript
-export class ThemeService {
-  theme = signal<'light' | 'dark'>('light');
-  
-  constructor() {
-    // Effect runs whenever theme signal changes
-    effect(() => {
-      const currentTheme = this.theme();
-      document.documentElement.setAttribute('data-bs-theme', currentTheme);
-      
-      if (currentTheme === 'dark') {
-        document.body.classList.add('e-dark-mode');
-      } else {
-        document.body.classList.remove('e-dark-mode');
-      }
-      
-      localStorage.setItem('theme', currentTheme);
-    });
-  }
-  
-  toggleTheme(): void {
-    this.theme.set(this.theme() === 'light' ? 'dark' : 'light');
-  }
-}
-```
+An `effect()` re-runs whenever *any* signal it read changes. That is fine until the effect
+also *writes* a signal it transitively reads — then it re-triggers itself and reverts the
+write a frame later. This is not hypothetical: a constructor effect in the registration
+detail panel seeded editable form state from `detail()` while transitively reading
+`profileValues`, so every user edit was silently wiped (fixed in `02e8bafd`).
 
-### ❌ Anti-Pattern: Manual Effect Management
+The failure is silent, intermittent, and survives code review, because nothing in the
+effect body looks wrong. The replacements below make the dependency graph *structural* —
+a `computed()` cannot write what it reads, and a `linkedSignal` reseeds only when its
+`source` changes. Correctness stops depending on discipline.
+
+Real bugs this ban has already surfaced: a theme editor whose "reload on theme change"
+never fired (an effect with no signal dependency), an HTTP duplicate-check firing on every
+keystroke with racing responses, a caret that jumped to the end of every family-wizard
+field being edited, and an inert public setter on the insurance offer state.
+
+### What to use instead
+
+| The job the effect was doing | Use | Reference |
+|---|---|---|
+| Pure derivation (including clamping / write-back) | `computed()` | `standings-tab.component.ts` `activeAgTabIndex` |
+| Editable local copy seeded from an `input()` | `linkedSignal({ source, computation })` | `registration-detail-panel.component.ts` `profileValues` |
+| Snapshot a baseline without depending on it | `linkedSignal` + `untracked()` in the computation | `registration-detail-panel.component.ts` `snapshotProfile` |
+| React to an `@Input`/`input()` change (seed state, fire HTTP) | `ngOnChanges` gated on `changes['key']` | `edit-game-modal.component.ts` |
+| React to a **service** signal | `toObservable(sig).pipe(…, takeUntilDestroyed()).subscribe()` | `email-log.component.ts` |
+| Fire HTTP on a user action | An explicit callback | `setActiveTab()` in the detail panel |
+| Debounced typeahead → HTTP | `Subject` + `debounceTime` + `distinctUntilChanged` + `switchMap` | `admin-form-modal.component.ts` |
+| DOM work that needs the rendered view | `ngOnChanges` sets a flag → `ngAfterViewChecked` drains it | `ladt-sibling-grid.component.ts` |
+| A one-shot command between components | `Subject<void>` on the service, not a `signal(false)` pulse | `menu-state.service.ts` `customizeDashboard$` |
+
+### ❌ Anti-Pattern: a signal used as an event
+
+A one-shot command is not state. Modelling it as `signal(false)` forces the consumer to
+acknowledge-and-reset it, and the only place to observe it is — inevitably — an `effect()`.
 
 ```typescript
 // ❌ DON'T DO THIS
-export class ThemeService {
-  theme = signal<'light' | 'dark'>('light');
-  
-  setTheme(theme: 'light' | 'dark'): void {
-    this.theme.set(theme);
-    // ❌ Manually applying side effects
-    document.documentElement.setAttribute('data-bs-theme', theme);
-    localStorage.setItem('theme', theme);
-  }
-}
+customizeDashboardRequested = signal(false);
+requestCustomizeDashboard() { this.customizeDashboardRequested.set(true); }
+ackCustomizeDashboard()     { this.customizeDashboardRequested.set(false); }
 
-// ✅ USE effect() instead - it runs automatically
+// ✅ An event stream is an Observable
+private readonly _customizeDashboard = new Subject<void>();
+readonly customizeDashboard$ = this._customizeDashboard.asObservable();
+requestCustomizeDashboard() { this._customizeDashboard.next(); }
+```
+
+### On write-through
+
+Applying a side effect where the state changes — the `setTheme()` shape below — is the
+**correct** pattern, not an anti-pattern. It is explicit, greppable, and runs exactly once.
+
+```typescript
+// ✅ CORRECT — write-through at the mutation site
+setTheme(theme: 'light' | 'dark'): void {
+  this.theme.set(theme);
+  document.documentElement.setAttribute('data-bs-theme', theme);
+  localStorage.setItem('theme', theme);
+}
 ```
 
 ---
@@ -508,7 +525,8 @@ export class ThemeService {
 | **Component UI Signal** | Component | Component (in `.subscribe()`) | `isLoading`, `errorMessage`, `submitted` |
 | **Component Data Signal** | Component | Component (from service) | `registrations`, `menuItems`, `bulletins` |
 | **Computed Signal** | Component/Service | Automatic (derived) | `displayName`, `isAdmin`, `filteredList` |
-| **Effect** | Component/Service | Automatic (side effects) | `applyTheme()`, `logAnalytics()` |
+| **Linked Signal** | Component | Reseeds when `source` changes | `profileValues`, `refundAmount` |
+| **Effect** | — | — | **BANNED — see Pattern 6** |
 | **HTTP Observable** | Service | N/A (returns Observable) | `login()`, `fetchData()`, `saveSettings()` |
 
 ---
@@ -606,11 +624,14 @@ addUser(user: User) {
 // ❌ WRONG - signals are not observables
 this.authService.currentUser.subscribe(...);  // ❌ Error!
 
-// ✅ CORRECT - use effect() or computed()
-effect(() => {
-  const user = this.authService.currentUser();
-  console.log('User changed:', user);
-});
+// ✅ CORRECT - derive with computed()
+displayName = computed(() => this.authService.currentUser()?.name ?? '');
+
+// ✅ CORRECT - to *act* on a service signal changing, bridge to an Observable.
+//    Never effect() — see Pattern 6.
+toObservable(this.authService.currentUser)
+  .pipe(distinctUntilChanged(), takeUntilDestroyed())
+  .subscribe(user => this.loadDashboard());
 ```
 
 ### ❌ Don't Use Signals for One-Time Values
@@ -631,7 +652,7 @@ title = 'Login Page';
 2. **Components manage UI signals** - Updated in `.subscribe()` callbacks
 3. **HTTP methods return Observables** - Not Promises (unless complex sequential flows)
 4. **Use `computed()` for derived state** - Automatic reactivity
-5. **Use `effect()` for side effects** - Runs when signals change
+5. **NEVER use `effect()`** - It is banned; see Pattern 6 for the replacement per job
 6. **Always use `.set()` to update signals** - Never mutate directly
 7. **Use signal syntax `()` in templates** - Clean and explicit
 
