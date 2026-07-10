@@ -97,30 +97,48 @@ public class BracketRepository : IBracketRepository
             .Where(f => f.SourceGid == sourceGid)
             .ToListAsync(ct);
 
-    public async Task<List<BracketSeeds>> GetBracketSeedsByGidsAsync(
+    public async Task<List<SeedSlotToResolve>> GetSeedSlotsForJobAsync(
+        Guid jobId, CancellationToken ct = default)
+    {
+        // Seed intent lives in Leagues.BracketSeeds, keyed on the game + side, and is
+        // read here directly — NOT via brackets.SeedAssignments, which cannot represent a
+        // slot whose game is not in a template (that coupling is exactly why consolation
+        // games stopped seeding). A pool ("T") game never carries seed intent, but exclude
+        // it explicitly so the contract is legible.
+        var rows = await (from bs in _context.BracketSeeds.AsNoTracking()
+                          join s in _context.Schedule.AsNoTracking() on bs.Gid equals s.Gid
+                          where s.JobId == jobId && s.T1Type != GameRoundTypes.RoundRobin
+                          select bs)
+            .ToListAsync(ct);
+        return ProjectSeedSlots(rows);
+    }
+
+    public async Task<List<SeedSlotToResolve>> GetSeedSlotsByGidsAsync(
         IReadOnlyCollection<int> gids, CancellationToken ct = default)
     {
         if (gids.Count == 0) return [];
-        return await _context.BracketSeeds
+        var rows = await _context.BracketSeeds
             .AsNoTracking()
             .Where(bs => gids.Contains(bs.Gid))
             .ToListAsync(ct);
+        return ProjectSeedSlots(rows);
     }
 
-    public async Task<List<SeedSlotToResolve>> GetSeedSlotsForJobAsync(
-        Guid jobId, CancellationToken ct = default) =>
-        await (from sa in _context.SeedAssignments.AsNoTracking()
-               join bi in _context.BracketInstances.AsNoTracking()
-                   on sa.BracketInstanceId equals bi.BracketInstanceId
-               where bi.JobId == jobId && sa.SeedDivId != null
-               select new SeedSlotToResolve
-               {
-                   Gid = sa.Gid,
-                   TargetSlot = sa.TargetSlot,
-                   SeedDivId = sa.SeedDivId!.Value,
-                   SeedRank = sa.SeedRank
-               })
-            .ToListAsync(ct);
+    // One BracketSeeds row carries both sides; fan it out to one slot per side that has a
+    // resolvable (division, rank). Single source for the resolver and for QA so they cannot
+    // disagree on what "a seeded slot" is.
+    private static List<SeedSlotToResolve> ProjectSeedSlots(IEnumerable<BracketSeeds> rows)
+    {
+        var slots = new List<SeedSlotToResolve>();
+        foreach (var bs in rows)
+        {
+            if (bs.T1SeedDivId is Guid d1 && bs.T1SeedRank is int r1)
+                slots.Add(new SeedSlotToResolve { Gid = bs.Gid, TargetSlot = 1, SeedDivId = d1, SeedRank = r1 });
+            if (bs.T2SeedDivId is Guid d2 && bs.T2SeedRank is int r2)
+                slots.Add(new SeedSlotToResolve { Gid = bs.Gid, TargetSlot = 2, SeedDivId = d2, SeedRank = r2 });
+        }
+        return slots;
+    }
 
     public async Task<HashSet<Guid>> GetIncompletePoolDivIdsAsync(
         Guid jobId, CancellationToken ct = default)
@@ -166,10 +184,9 @@ public class BracketRepository : IBracketRepository
             .ToList();
     }
 
-    public async Task ReplaceFeedsAndSeedsAsync(
+    public async Task ReplaceFeedsAsync(
         int bracketInstanceId,
         IReadOnlyCollection<AdvancementFeeds> feeds,
-        IReadOnlyCollection<SeedAssignments> seeds,
         CancellationToken ct = default)
     {
         var existingFeeds = await _context.AdvancementFeeds
@@ -177,13 +194,14 @@ public class BracketRepository : IBracketRepository
             .ToListAsync(ct);
         _context.AdvancementFeeds.RemoveRange(existingFeeds);
 
-        var existingSeeds = await _context.SeedAssignments
+        // Drain any legacy seed shadow for this instance. Seeds are no longer projected
+        // here — they are read live from Leagues.BracketSeeds — so these rows are stale.
+        var staleSeeds = await _context.SeedAssignments
             .Where(s => s.BracketInstanceId == bracketInstanceId)
             .ToListAsync(ct);
-        _context.SeedAssignments.RemoveRange(existingSeeds);
+        if (staleSeeds.Count > 0) _context.SeedAssignments.RemoveRange(staleSeeds);
 
         if (feeds.Count > 0) await _context.AdvancementFeeds.AddRangeAsync(feeds, ct);
-        if (seeds.Count > 0) await _context.SeedAssignments.AddRangeAsync(seeds, ct);
     }
 
     // ── Structural QA reads ──
@@ -205,13 +223,6 @@ public class BracketRepository : IBracketRepository
                 BracketSize = b.Template.BracketSize,
                 StrategyCode = b.Template.Strategy.Code
             })
-            .ToListAsync(ct);
-
-    public async Task<List<SeedAssignments>> GetSeedAssignmentsByInstanceAsync(
-        int bracketInstanceId, CancellationToken ct = default) =>
-        await _context.SeedAssignments
-            .AsNoTracking()
-            .Where(s => s.BracketInstanceId == bracketInstanceId)
             .ToListAsync(ct);
 
     public async Task<List<AdvancementFeeds>> GetFeedsByInstanceAsync(

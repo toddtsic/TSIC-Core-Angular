@@ -31,9 +31,15 @@ public record BracketBackfillTarget
 }
 
 /// <summary>
-/// A single leaf bracket slot awaiting a team, and the (division, rank) that
-/// fills it. Produced by joining SeedAssignments to its BracketInstance; consumed
-/// by seed resolution to place the standings-ranked team onto the schedule row.
+/// A single seeded slot awaiting a team, and the (division, rank) that fills it.
+/// Read straight from the director's seed intent in Leagues.BracketSeeds — one
+/// per side of a game that carries a (SeedDivId, SeedRank). Consumed by seed
+/// resolution to place the standings-ranked team onto the schedule row.
+///
+/// Deliberately independent of bracket topology: a slot is seeded because the
+/// director gave it a rank, not because it sits in a template. That is what lets a
+/// consolation game — rank-filled, never advanced, in no bracket — resolve by the
+/// very same path as a ladder leaf.
 /// </summary>
 public record SeedSlotToResolve
 {
@@ -109,12 +115,13 @@ public record BracketInstanceInfo
     public required string StrategyCode { get; init; }
 }
 
-/// <summary>Outcome of a bracket-metadata recompute for one division.</summary>
+/// <summary>Outcome of a bracket-metadata recompute for one division. Only the
+/// advancement feed graph is materialized here — seed intent is not projected;
+/// it is read live from Leagues.BracketSeeds by seed resolution.</summary>
 public record BracketGenerationResult
 {
     public required int BracketInstanceId { get; init; }
     public required int BracketSize { get; init; }
     public required int GamesPlaced { get; init; }
     public required int FeedsWritten { get; init; }
-    public required int SeedsWritten { get; init; }
 }

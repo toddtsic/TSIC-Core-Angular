@@ -8,8 +8,11 @@ namespace TSIC.API.Services.Scheduling;
 
 
 /// <summary>
-/// Projects a division's placed bracket games onto its SE template to produce
-/// the brackets.* wiring. See <see cref="IBracketGenerationService"/>.
+/// Projects a division's placed bracket games onto its SE template to materialize the
+/// advancement feed graph (which game's winner/loser flows into which slot). Seeds are
+/// NOT projected: seed intent is read live from Leagues.BracketSeeds by seed resolution,
+/// so it need not be copied here and a seeded game need not belong to a template.
+/// See <see cref="IBracketGenerationService"/>.
 /// </summary>
 public sealed class BracketGenerationService : IBracketGenerationService
 {
@@ -69,7 +72,7 @@ public sealed class BracketGenerationService : IBracketGenerationService
             var existing = await _bracketRepo.GetInstanceAsync(jobId, agegroupId, divId, ct);
             if (existing is not null)
             {
-                await _bracketRepo.ReplaceFeedsAndSeedsAsync(existing.BracketInstanceId, [], [], ct);
+                await _bracketRepo.ReplaceFeedsAsync(existing.BracketInstanceId, [], ct);
                 await _bracketRepo.SaveChangesAsync(ct);
             }
             _logger.LogInformation(
@@ -131,8 +134,6 @@ public sealed class BracketGenerationService : IBracketGenerationService
         }
 
         var placedGidByKey = placedByKey.ToDictionary(kv => kv.Key, kv => kv.Value.Gid);
-        var templateGameByKey = games.ToDictionary(
-            g => (g.RoundType, labelMemo[g.TemplateGameId]), g => g);
 
         // 6. Get-or-create the division's bracket instance.
         var instance = await _bracketRepo.GetInstanceAsync(jobId, agegroupId, divId, ct);
@@ -182,80 +183,21 @@ public sealed class BracketGenerationService : IBracketGenerationService
             }
         }
 
-        // 8. Seeds — one per placed leaf slot (a slot NOT fed by a route).
-        //    Director-entered seed intent (BracketSeeds, cross-pool aware) is the
-        //    source of truth; this is the migration of that intent into the
-        //    brackets.* schema. Where the director set nothing, default to the
-        //    same division at the slot's placed number.
-        var seedIntentByGid = (await _bracketRepo.GetBracketSeedsByGidsAsync(
-                placedByKey.Values.Select(p => p.Gid).ToList(), ct))
-            .GroupBy(bs => bs.Gid)
-            .ToDictionary(g => g.Key, g => g.First());
-
-        var fedSlots = new HashSet<(int, int)>(
-            routes.Select(r => (r.TargetTemplateGameId, (int)r.TargetSlot)));
-        var seeds = new List<SeedAssignments>();
-        foreach (var pg in placedByKey.Values)
-        {
-            if (!templateGameByKey.TryGetValue((pg.RoundType, pg.MinLabel), out var tg))
-            {
-                _logger.LogWarning(
-                    "BracketGen: placed {Round} game Gid={Gid} label={Label} has no template match.",
-                    pg.RoundType, pg.Gid, pg.MinLabel);
-                continue;
-            }
-            seedIntentByGid.TryGetValue(pg.Gid, out var intent);
-            for (var slot = 1; slot <= 2; slot++)
-            {
-                if (fedSlots.Contains((tg.TemplateGameId, slot))) continue; // fed, not seeded
-                // Template confirms this is a leaf (seed) slot.
-                var isSeedSlot = (slot == 1 ? tg.Slot1Seed : tg.Slot2Seed).HasValue;
-                if (!isSeedSlot) continue;
-
-                // Same-division default anchored on the placed row's slot number;
-                // overridden by the director's cross-pool intent when present.
-                var seedDivId = divId;
-                var seedRank = slot == 1 ? pg.Slot1No : pg.Slot2No;
-                if (intent is not null)
-                {
-                    var intentDiv = slot == 1 ? intent.T1SeedDivId : intent.T2SeedDivId;
-                    var intentRank = slot == 1 ? intent.T1SeedRank : intent.T2SeedRank;
-                    if (intentDiv.HasValue)
-                    {
-                        seedDivId = intentDiv.Value;
-                        if (intentRank.HasValue) seedRank = intentRank.Value;
-                    }
-                }
-
-                seeds.Add(new SeedAssignments
-                {
-                    BracketInstanceId = instance.BracketInstanceId,
-                    Gid = pg.Gid,
-                    TargetSlot = (byte)slot,
-                    SeedDivId = seedDivId,
-                    SeedRank = seedRank,
-                    AcrossPoolRank = null,
-                    Modified = now,
-                    LebUserId = userId
-                });
-            }
-        }
-
-        // 9. Persist idempotently (replace this instance's feeds + seeds).
-        await _bracketRepo.ReplaceFeedsAndSeedsAsync(instance.BracketInstanceId, feeds, seeds, ct);
+        // 8. Persist idempotently (replace this instance's feed graph). Seeds are not
+        //    written here — seed resolution reads them straight from Leagues.BracketSeeds.
+        await _bracketRepo.ReplaceFeedsAsync(instance.BracketInstanceId, feeds, ct);
         await _bracketRepo.SaveChangesAsync(ct);
 
         _logger.LogInformation(
-            "BracketGen: div {DivId} size {Size} — {Games} games, {Feeds} feeds, {Seeds} seeds.",
-            divId, bracketSize, placed.Count, feeds.Count, seeds.Count);
+            "BracketGen: div {DivId} size {Size} — {Games} games, {Feeds} feeds.",
+            divId, bracketSize, placed.Count, feeds.Count);
 
         return new BracketGenerationResult
         {
             BracketInstanceId = instance.BracketInstanceId,
             BracketSize = bracketSize,
             GamesPlaced = placed.Count,
-            FeedsWritten = feeds.Count,
-            SeedsWritten = seeds.Count
+            FeedsWritten = feeds.Count
         };
     }
 }

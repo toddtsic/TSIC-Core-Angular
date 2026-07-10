@@ -6,9 +6,11 @@ namespace TSIC.API.Services.Scheduling;
 
 /// <summary>
 /// Seed resolution (R1). See <see cref="IBracketSeedResolutionService"/>.
-/// Write-forward, mirroring advancement (R2): the occupant of a leaf slot lives
+/// Write-forward, mirroring advancement (R2): the occupant of a seeded slot lives
 /// on Leagues.schedule (T1Id/T2Id); the (division, rank) that fills it lives in
-/// brackets.SeedAssignments; the ranked team comes from pool-play standings.
+/// Leagues.BracketSeeds — the director's intent, independent of bracket topology,
+/// so a consolation game seeds by this same path; the ranked team comes from
+/// pool-play standings.
 /// </summary>
 public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
 {
@@ -38,12 +40,14 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
         Func<IReadOnlyCollection<Guid>, CancellationToken, Task<StandingsByDivisionResponse>> standingsProvider,
         CancellationToken ct = default)
     {
-        // Seed slots only exist once a division's bracket wiring is materialized, and a
-        // division placed before the brackets.* schema existed has none. Without this the
-        // gate below reads zero slots and seed resolution is silently inert forever.
+        // Seeds read straight from Leagues.BracketSeeds below, so they no longer depend on
+        // bracket wiring. This call stays because a pool-game score is also the moment to
+        // ensure the ADVANCEMENT feed graph exists for any bracket placed before the schema —
+        // otherwise a division scored without a dashboard visit would never advance. Feeds
+        // only; idempotent; cheap when everything is already materialized.
         await _generation.EnsureJobWiringAsync(jobId, userId, ct);
 
-        // Cheap gate: nothing to do for a job with no materialized seed slots.
+        // Cheap gate: nothing to do for a job with no seeded slots.
         var slots = await _bracketRepo.GetSeedSlotsForJobAsync(jobId, ct);
         if (slots.Count == 0) return 0;
 

@@ -137,23 +137,19 @@ public sealed class ScheduleQaService : IScheduleQaService
                 }
             }
 
-            // (3) Seed assignments — coverage of leaf slots + no duplicate (Gid,slot).
-            var seeds = await _brackets.GetSeedAssignmentsByInstanceAsync(inst.BracketInstanceId, ct);
-            var seedByGidSlot = seeds
-                .GroupBy(s => (s.Gid, (int)s.TargetSlot))
-                .ToDictionary(g => g.Key, g => g.ToList());
-            foreach (var dup in seedByGidSlot.Where(kv => kv.Value.Count > 1))
-            {
-                findings.Add(Finding("error", "DuplicateSeed", dup.Key.Gid,
-                    $"Slot {dup.Key.Item2} of game {dup.Key.Gid} has {dup.Value.Count} seed assignments."));
-            }
+            // (3) Seed coverage — every leaf slot must carry director seed intent. Read from
+            //     Leagues.BracketSeeds (the seed source of truth), same projection the resolver
+            //     uses, so QA and resolution cannot disagree on what a seeded slot is.
+            var seedSlots = await _brackets.GetSeedSlotsByGidsAsync(
+                placed.Select(p => p.Gid).ToList(), ct);
+            var seededSlots = seedSlots.Select(s => (s.Gid, (int)s.TargetSlot)).ToHashSet();
             foreach (var p in placed)
             {
                 if (!templateByKey.TryGetValue((p.RoundType, p.MinLabel), out var tg)) continue;
                 for (var slot = 1; slot <= 2; slot++)
                 {
                     var isLeaf = (slot == 1 ? tg.Slot1Seed : tg.Slot2Seed).HasValue;
-                    if (isLeaf && !seedByGidSlot.ContainsKey((p.Gid, slot)))
+                    if (isLeaf && !seededSlots.Contains((p.Gid, slot)))
                     {
                         findings.Add(Finding("warning", "SeedCoverage", p.Gid,
                             $"Leaf slot {slot} of {p.RoundType} game {p.Gid} has no seed source."));
@@ -162,12 +158,12 @@ public sealed class ScheduleQaService : IScheduleQaService
             }
 
             // (4) Seed-rank validity — rank within the source pool's active team count.
-            foreach (var s in seeds.Where(s => s.SeedDivId != null))
+            foreach (var s in seedSlots)
             {
-                if (!teamCountByDiv.TryGetValue(s.SeedDivId!.Value, out var teamCount))
+                if (!teamCountByDiv.TryGetValue(s.SeedDivId, out var teamCount))
                 {
-                    teamCount = await _brackets.GetActiveTeamCountByDivAsync(s.SeedDivId.Value, ct);
-                    teamCountByDiv[s.SeedDivId.Value] = teamCount;
+                    teamCount = await _brackets.GetActiveTeamCountByDivAsync(s.SeedDivId, ct);
+                    teamCountByDiv[s.SeedDivId] = teamCount;
                 }
                 if (s.SeedRank < 1 || s.SeedRank > teamCount)
                 {

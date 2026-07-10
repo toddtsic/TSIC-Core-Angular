@@ -5,8 +5,14 @@ namespace TSIC.Contracts.Repositories;
 
 /// <summary>
 /// Data access for the brackets schema. Reads placed bracket games from
-/// Leagues.schedule and reads/writes the brackets.* wiring (instances, feeds,
-/// seeds). Templates/routes are read-only reference topology (seeded by SQL).
+/// Leagues.schedule, reads/writes the advancement feed graph (instances + feeds),
+/// and reads seed intent from Leagues.BracketSeeds. Templates/routes are read-only
+/// reference topology (seeded by SQL).
+///
+/// Seed intent is NOT stored in the brackets schema. It lives in Leagues.BracketSeeds,
+/// keyed on the schedule game and side, independent of any template — so a seeded game
+/// need not belong to a bracket. Feeds (outcome edges) are the only thing genuinely
+/// template-derived, and the only thing this schema materializes.
 /// </summary>
 public interface IBracketRepository
 {
@@ -34,15 +40,19 @@ public interface IBracketRepository
     Task<List<AdvancementFeeds>> GetFeedsBySourceAsync(int sourceGid, CancellationToken ct = default);
 
     /// <summary>
-    /// Director-entered seed intent (which pool + rank feeds each slot) for the
-    /// given games, from the legacy-in-app BracketSeeds screen. Used to seed the
-    /// brackets.* SeedAssignments so cross-pool intent isn't lost.
+    /// Every seeded slot in the job with a resolvable (division, rank), read from the
+    /// director's intent in Leagues.BracketSeeds. Includes consolation slots — any
+    /// non-pool game whose side carries a seed — because seeding does not depend on
+    /// bracket membership.
     /// </summary>
-    Task<List<BracketSeeds>> GetBracketSeedsByGidsAsync(
-        IReadOnlyCollection<int> gids, CancellationToken ct = default);
-
-    /// <summary>Every leaf seed slot in the job with a resolvable (division, rank).</summary>
     Task<List<SeedSlotToResolve>> GetSeedSlotsForJobAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// The same seed-slot projection as <see cref="GetSeedSlotsForJobAsync"/>, scoped to a
+    /// specific set of games. For QA seed-coverage checks over one bracket instance's placed games.
+    /// </summary>
+    Task<List<SeedSlotToResolve>> GetSeedSlotsByGidsAsync(
+        IReadOnlyCollection<int> gids, CancellationToken ct = default);
 
     /// <summary>
     /// DivIds in the job that still have at least one unscored pool ("T") game —
@@ -66,10 +76,6 @@ public interface IBracketRepository
 
     /// <summary>Every division-scoped bracket instance in the job, with names + template facts.</summary>
     Task<List<BracketInstanceInfo>> GetInstanceInfosForJobAsync(Guid jobId, CancellationToken ct = default);
-
-    /// <summary>Seed assignments materialized for one bracket instance.</summary>
-    Task<List<SeedAssignments>> GetSeedAssignmentsByInstanceAsync(
-        int bracketInstanceId, CancellationToken ct = default);
 
     /// <summary>Advancement feeds materialized for one bracket instance.</summary>
     Task<List<AdvancementFeeds>> GetFeedsByInstanceAsync(
@@ -99,13 +105,14 @@ public interface IBracketRepository
         IReadOnlyCollection<Guid> teamIds, CancellationToken ct = default);
 
     /// <summary>
-    /// Idempotent replace: deletes this instance's existing feeds + seeds and
-    /// stages the supplied replacements. Caller commits via SaveChangesAsync.
+    /// Idempotent replace of one instance's advancement feed graph: deletes its existing
+    /// feeds and stages the supplied replacements. Also drains any legacy SeedAssignments
+    /// rows for the instance — seed intent now lives in Leagues.BracketSeeds and this
+    /// schema no longer stores it. Caller commits via SaveChangesAsync.
     /// </summary>
-    Task ReplaceFeedsAndSeedsAsync(
+    Task ReplaceFeedsAsync(
         int bracketInstanceId,
         IReadOnlyCollection<AdvancementFeeds> feeds,
-        IReadOnlyCollection<SeedAssignments> seeds,
         CancellationToken ct = default);
 
     Task SaveChangesAsync(CancellationToken ct = default);
