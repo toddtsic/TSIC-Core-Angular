@@ -1,9 +1,10 @@
 import { ApplicationConfig, inject, provideAppInitializer, provideZonelessChangeDetection } from '@angular/core';
-import { provideRouter, withInMemoryScrolling, withRouterConfig } from '@angular/router';
+import { provideRouter, withInMemoryScrolling, withNavigationErrorHandler, withRouterConfig } from '@angular/router';
 import { provideHttpClient, withInterceptors, withXhr } from '@angular/common/http';
 import { authInterceptor } from './infrastructure/interceptors/auth.interceptor';
 
 import { routes } from './app.routes';
+import { chunkLoadRecoveryHandler } from './infrastructure/navigation/chunk-load-recovery';
 import { LastLocationService } from './infrastructure/services/last-location.service';
 import { ThemeOverridesService } from './infrastructure/services/theme-overrides.service';
 import { JobContextService } from './infrastructure/services/job-context.service';
@@ -14,7 +15,10 @@ export const appConfig: ApplicationConfig = {
     provideRouter(
       routes,
       withRouterConfig({ onSameUrlNavigation: 'ignore', paramsInheritanceStrategy: 'emptyOnly' }),
-      withInMemoryScrolling({ scrollPositionRestoration: 'top' })
+      withInMemoryScrolling({ scrollPositionRestoration: 'top' }),
+      // Deploy-race recovery: a lazy route chunk deleted by a publish surfaces here as a
+      // NavigationError; reload to fetch fresh hashes. See infrastructure/navigation/chunk-load-recovery.
+      withNavigationErrorHandler(chunkLoadRecoveryHandler)
     ),
     provideHttpClient(withXhr(), 
       withInterceptors([authInterceptor])
