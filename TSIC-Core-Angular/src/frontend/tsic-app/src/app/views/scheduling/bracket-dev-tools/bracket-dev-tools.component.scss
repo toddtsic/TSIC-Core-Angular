@@ -91,8 +91,23 @@
 	}
 
 	&__label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 		font-weight: 600;
 		font-size: var(--font-size-sm);
+	}
+
+	// Inline busy spinner; reuses the global `spin` keyframe from _utilities.scss.
+	&__spin {
+		display: inline-block;
+		width: 14px;
+		height: 14px;
+		border: 2px solid currentColor;
+		border-right-color: transparent;
+		border-radius: 50%;
+		flex-shrink: 0;
+		animation: spin 0.6s linear infinite;
 	}
 
 	&__hint {
@@ -103,5 +118,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.dev-btn { transition: none; }
+	.dev-btn {
+		transition: none;
+
+		&__spin { animation: none; }
+	}
 }

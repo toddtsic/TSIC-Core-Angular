@@ -16,7 +16,7 @@
 					[disabled]="!!busy()"
 					(click)="autoScorePool()">
 				<span class="dev-btn__label">
-					@if (busy() === 'pool') { Scoring pools… } @else { 1 · Auto-score pool games }
+					@if (busy() === 'pool') { <span class="dev-btn__spin" aria-hidden="true"></span>Scoring RR games… } @else { 1 · Auto-Score RR Games }
 				</span>
 				<span class="dev-btn__hint">Scores every pool game with random scores (ties allowed) → standings lock → bracket seeds resolve.</span>
 			</button>
@@ -25,7 +25,7 @@
 					[disabled]="!!busy()"
 					(click)="autoScoreRound()">
 				<span class="dev-btn__label">
-					@if (busy() === 'round') { Advancing… } @else { 2 · Auto-score bracket round }
+					@if (busy() === 'round') { <span class="dev-btn__spin" aria-hidden="true"></span>Advancing… } @else { 2 · Auto-Score Bracket Round (1 by 1) }
 				</span>
 				<span class="dev-btn__hint">Scores every ready bracket game → winners advance one round. Click again for the next.</span>
 			</button>
@@ -34,7 +34,7 @@
 					[disabled]="!!busy()"
 					(click)="clearScores()">
 				<span class="dev-btn__label">
-					@if (busy() === 'clear') { Clearing… } @else { ↺ Clear scores &amp; reset bracket }
+					@if (busy() === 'clear') { <span class="dev-btn__spin" aria-hidden="true"></span>Clearing… } @else { ↺ Clear scores &amp; reset bracket }
 				</span>
 				<span class="dev-btn__hint">Wipes all scores and blanks bracket slots so seeding can re-run from scratch.</span>
 			</button>
