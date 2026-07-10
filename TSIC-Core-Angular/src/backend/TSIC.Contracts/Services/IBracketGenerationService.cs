@@ -23,10 +23,10 @@ public interface IBracketGenerationService
 
     /// <summary>
     /// Materializes bracket wiring for every division in the job that has bracket
-    /// games but no BracketInstance yet (backfill for data placed before the new
-    /// system existed). Idempotent, non-destructive, cheap-skip once done — safe
-    /// to call on admin scheduling entry in any environment. Returns the number of
-    /// divisions materialized.
+    /// games but no BracketInstance yet — data placed before this system existed,
+    /// or a division whose PlaceGameAsync recompute never ran. Idempotent,
+    /// non-destructive, cheap-skip once done: call it from anywhere that is about
+    /// to READ the wiring. Returns the number of divisions materialized.
     /// </summary>
-    Task<int> BackfillJobAsync(Guid jobId, string userId, CancellationToken ct = default);
+    Task<int> EnsureJobWiringAsync(Guid jobId, string userId, CancellationToken ct = default);
 }

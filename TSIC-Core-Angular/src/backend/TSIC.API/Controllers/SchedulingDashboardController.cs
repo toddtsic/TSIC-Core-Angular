@@ -14,16 +14,19 @@ namespace TSIC.API.Controllers;
 public class SchedulingDashboardController : ControllerBase
 {
     private readonly ISchedulingDashboardService _service;
-    private readonly IBracketGenerationService _bracketGen;
+    private readonly IBracketSeedResolutionService _bracketResolution;
+    private readonly IViewScheduleService _viewSchedule;
     private readonly IJobLookupService _jobLookupService;
 
     public SchedulingDashboardController(
         ISchedulingDashboardService service,
-        IBracketGenerationService bracketGen,
+        IBracketSeedResolutionService bracketResolution,
+        IViewScheduleService viewSchedule,
         IJobLookupService jobLookupService)
     {
         _service = service;
-        _bracketGen = bracketGen;
+        _bracketResolution = bracketResolution;
+        _viewSchedule = viewSchedule;
         _jobLookupService = jobLookupService;
     }
 
@@ -35,11 +38,17 @@ public class SchedulingDashboardController : ControllerBase
         if (jobId == null)
             return BadRequest(new { message = "Scheduling context required" });
 
-        // Admin scheduling entry: backfill any pre-existing bracket data into the
-        // new model. Env-agnostic, non-destructive, cheap-skip once materialized.
+        // Admin scheduling entry. Resolution materializes any missing bracket wiring
+        // first, then drops the ranked teams of every already-final pool into their
+        // seed slots — a completed tournament won't be re-scored, so nothing else
+        // would ever trigger it. Non-destructive, cheap-skip once done.
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!string.IsNullOrEmpty(userId))
-            await _bracketGen.BackfillJobAsync(jobId.Value, userId, ct);
+        {
+            await _bracketResolution.ResolveJobAsync(
+                jobId.Value, userId,
+                c => _viewSchedule.GetStandingsAsync(jobId.Value, new ScheduleFilterRequest(), c), ct);
+        }
 
         var result = await _service.GetStatusAsync(jobId.Value, ct);
         return Ok(result);

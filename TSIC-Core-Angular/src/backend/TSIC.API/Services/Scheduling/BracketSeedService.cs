@@ -10,6 +10,9 @@ public class BracketSeedService : IBracketSeedService
 {
     private readonly IBracketSeedRepository _repo;
     private readonly IJobRepository _jobRepo;
+    private readonly IBracketGenerationService _generation;
+    private readonly IBracketSeedResolutionService _resolution;
+    private readonly IViewScheduleService _viewSchedule;
 
     /// <summary>
     /// Maps bracket game type to sort order (descending = earliest rounds first in UI).
@@ -31,10 +34,18 @@ public class BracketSeedService : IBracketSeedService
         ["X"] = "Y", ["Y"] = "Z"
     };
 
-    public BracketSeedService(IBracketSeedRepository repo, IJobRepository jobRepo)
+    public BracketSeedService(
+        IBracketSeedRepository repo,
+        IJobRepository jobRepo,
+        IBracketGenerationService generation,
+        IBracketSeedResolutionService resolution,
+        IViewScheduleService viewSchedule)
     {
         _repo = repo;
         _jobRepo = jobRepo;
+        _generation = generation;
+        _resolution = resolution;
+        _viewSchedule = viewSchedule;
     }
 
     public async Task<BracketSeedBoardDto> GetBracketGamesAsync(
@@ -167,6 +178,21 @@ public class BracketSeedService : IBracketSeedService
         }
 
         await _repo.SaveChangesAsync(ct);
+
+        // BracketSeeds is the director's INTENT. brackets.SeedAssignments is the wiring the
+        // resolver actually reads, and RecomputeDivisionAsync is the only thing that projects
+        // one onto the other — without this the slot keeps the same-division default it was
+        // born with and the seed silently draws from the wrong pool. Then resolve immediately:
+        // pools that are already final should fill the slot the moment it is seeded.
+        if (schedule?.AgegroupId is Guid agegroupId && schedule.DivId is Guid divId)
+        {
+            await _generation.RecomputeDivisionAsync(
+                schedule.JobId, agegroupId, divId, userId, ct);
+
+            await _resolution.ResolveJobAsync(
+                schedule.JobId, userId,
+                c => _viewSchedule.GetStandingsAsync(schedule.JobId, new ScheduleFilterRequest(), c), ct);
+        }
 
         // Return updated single game DTO
         // Re-fetch the specific game's seed data

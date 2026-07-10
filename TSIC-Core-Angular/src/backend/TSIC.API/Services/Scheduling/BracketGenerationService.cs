@@ -13,8 +13,6 @@ namespace TSIC.API.Services.Scheduling;
 public sealed class BracketGenerationService : IBracketGenerationService
 {
     private readonly IBracketRepository _bracketRepo;
-    private readonly IViewScheduleService _viewSchedule;
-    private readonly IBracketSeedResolutionService _resolution;
     private readonly ILogger<BracketGenerationService> _logger;
 
     // Ladder round type -> number of teams entering that round.
@@ -25,17 +23,13 @@ public sealed class BracketGenerationService : IBracketGenerationService
 
     public BracketGenerationService(
         IBracketRepository bracketRepo,
-        IViewScheduleService viewSchedule,
-        IBracketSeedResolutionService resolution,
         ILogger<BracketGenerationService> logger)
     {
         _bracketRepo = bracketRepo;
-        _viewSchedule = viewSchedule;
-        _resolution = resolution;
         _logger = logger;
     }
 
-    public async Task<int> BackfillJobAsync(Guid jobId, string userId, CancellationToken ct = default)
+    public async Task<int> EnsureJobWiringAsync(Guid jobId, string userId, CancellationToken ct = default)
     {
         var targets = await _bracketRepo.GetDivisionsWithBracketGamesLackingInstanceAsync(jobId, ct);
         if (targets.Count == 0) return 0;
@@ -50,23 +44,16 @@ public sealed class BracketGenerationService : IBracketGenerationService
             }
             catch (Exception ex)
             {
-                // One odd division must not break the admin's scheduling entry.
+                // One odd division must not break the caller.
                 _logger.LogWarning(ex,
-                    "BracketBackfill: failed to materialize div {DivId} in job {JobId} — skipped.",
+                    "BracketWiring: failed to materialize div {DivId} in job {JobId} — skipped.",
                     t.DivId, jobId);
             }
         }
 
         _logger.LogInformation(
-            "BracketBackfill: job {JobId} — materialized {N}/{Total} division(s).",
+            "BracketWiring: job {JobId} — materialized {N}/{Total} division(s).",
             jobId, materialized, targets.Count);
-
-        // A completed tournament won't be re-scored, so resolve seeds now: any pool
-        // that is already final drops its ranked teams into the freshly-materialized
-        // bracket slots. Cheap no-op when the job has no seed slots.
-        await _resolution.ResolveJobAsync(
-            jobId, userId,
-            c => _viewSchedule.GetStandingsAsync(jobId, new ScheduleFilterRequest(), c), ct);
 
         return materialized;
     }

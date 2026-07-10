@@ -15,17 +15,20 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
     private readonly IBracketRepository _bracketRepo;
     private readonly IScheduleRepository _scheduleRepo;
     private readonly IJobRepository _jobRepo;
+    private readonly IBracketGenerationService _generation;
     private readonly ILogger<BracketSeedResolutionService> _logger;
 
     public BracketSeedResolutionService(
         IBracketRepository bracketRepo,
         IScheduleRepository scheduleRepo,
         IJobRepository jobRepo,
+        IBracketGenerationService generation,
         ILogger<BracketSeedResolutionService> logger)
     {
         _bracketRepo = bracketRepo;
         _scheduleRepo = scheduleRepo;
         _jobRepo = jobRepo;
+        _generation = generation;
         _logger = logger;
     }
 
@@ -35,6 +38,11 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
         Func<CancellationToken, Task<StandingsByDivisionResponse>> standingsProvider,
         CancellationToken ct = default)
     {
+        // Seed slots only exist once a division's bracket wiring is materialized, and a
+        // division placed before the brackets.* schema existed has none. Without this the
+        // gate below reads zero slots and seed resolution is silently inert forever.
+        await _generation.EnsureJobWiringAsync(jobId, userId, ct);
+
         // Cheap gate: nothing to do for a job with no materialized seed slots.
         var slots = await _bracketRepo.GetSeedSlotsForJobAsync(jobId, ct);
         if (slots.Count == 0) return 0;
