@@ -1,7 +1,9 @@
 import {
-  ChangeDetectionStrategy, Component, computed, effect,
-  ElementRef, input, OnDestroy,
+  AfterViewChecked,
+  ChangeDetectionStrategy, Component, computed,
+  ElementRef, input, OnChanges, OnDestroy,
   signal,
+  SimpleChanges,
   output,
   viewChild
 } from '@angular/core';
@@ -153,7 +155,7 @@ interface BracketNode {
         }
     `]
 })
-export class BracketsTabComponent implements OnDestroy {
+export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDestroy {
     brackets = input<DivisionBracketResponse[]>([]);
     canScore = input<boolean>(false);
     isLoading = input<boolean>(false);
@@ -173,7 +175,9 @@ export class BracketsTabComponent implements OnDestroy {
     readonly viewTeamResults = output<string>();
     readonly viewFieldInfo = output<string>();
 
-    readonly diagramHost = viewChild.required<ElementRef<HTMLDivElement>>('diagramHost');
+    // Optional, not required: the host div lives inside the @else branch, so it is absent
+    // while loading and when the job has no brackets. required() throws NG0951 on read.
+    readonly diagramHost = viewChild<ElementRef<HTMLDivElement>>('diagramHost');
 
     // ── Tab state ──
     readonly activeTabIndex = signal(0);
@@ -201,21 +205,25 @@ export class BracketsTabComponent implements OnDestroy {
         return data[idx] ?? null;
     });
 
-    constructor() {
-        // Reset tab + rebuild diagram when brackets data changes
-        effect(() => {
-            this.brackets(); // track
-            this.activeTabIndex.set(0);
-        });
+    // The diagram is imperative Syncfusion DOM, not a template binding, so it is rebuilt
+    // from an explicit request rather than reactively. Requests come from exactly two
+    // places: an input changing (ngOnChanges) and the user picking a tab (selectTab).
+    // The build itself waits for ngAfterViewChecked because #diagramHost lives inside the
+    // template's @else branch and does not exist until the view has been rendered.
+    private rebuildPending = false;
 
-        // Rebuild diagram when active bracket, canScore, or agegroup colors change
-        effect(() => {
-            const bracket = this.activeBracket();
-            this.canScore(); // track — rebuild when capabilities resolve
-            this.agegroupColors(); // track — rebuild when LADT tree loads
-            // Use setTimeout to ensure ViewChild is available after template renders
-            setTimeout(() => this.buildDiagram(bracket), 0);
-        });
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['brackets']) this.activeTabIndex.set(0);
+
+        if (changes['brackets'] || changes['canScore'] || changes['agegroupColors']) {
+            this.rebuildPending = true;
+        }
+    }
+
+    ngAfterViewChecked(): void {
+        if (!this.rebuildPending) return;
+        this.rebuildPending = false;
+        this.buildDiagram(this.activeBracket());
     }
 
     ngOnDestroy(): void {
@@ -223,7 +231,9 @@ export class BracketsTabComponent implements OnDestroy {
     }
 
     selectTab(index: number): void {
+        if (index === this.activeTabIndex()) return;
         this.activeTabIndex.set(index);
+        this.rebuildPending = true;
     }
 
     private destroyDiagram(): void {

@@ -12,6 +12,7 @@ public sealed class ViewScheduleService : IViewScheduleService
 {
     private readonly IScheduleRepository _scheduleRepo;
     private readonly ITeamRepository _teamRepo;
+    private readonly IBracketRepository _bracketRepo;
     private readonly IBracketAdvancementService _bracketAdvancement;
     private readonly IBracketSeedResolutionService _bracketResolution;
     private readonly IJobRepository _jobRepo;
@@ -19,12 +20,14 @@ public sealed class ViewScheduleService : IViewScheduleService
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
         ITeamRepository teamRepo,
+        IBracketRepository bracketRepo,
         IBracketAdvancementService bracketAdvancement,
         IBracketSeedResolutionService bracketResolution,
         IJobRepository jobRepo)
     {
         _scheduleRepo = scheduleRepo;
         _teamRepo = teamRepo;
+        _bracketRepo = bracketRepo;
         _bracketAdvancement = bracketAdvancement;
         _bracketResolution = bracketResolution;
         _jobRepo = jobRepo;
@@ -33,10 +36,20 @@ public sealed class ViewScheduleService : IViewScheduleService
     // A round-robin result can complete a pool and lock its standings — resolve any
     // bracket leaf slots that draw from a now-final pool. No-op for bracket games and
     // for jobs without seed slots. (Bracket-game results advance via _bracketAdvancement.)
+    //
+    // Gated on THIS game's pool being final. A pool game can only move seeds drawn from
+    // its own division, and only once that division is fully scored — so every score
+    // before the pool's last one has nothing to resolve. Resolution costs a full-job
+    // standings sweep, and auto-scoring an event walks every pool game in sequence, so
+    // without this gate the sweep runs once per game instead of once per pool.
     private async Task ResolveSeedsIfPoolGameAsync(
         Guid jobId, string userId, Domain.Entities.Schedule game, CancellationToken ct)
     {
-        if (game.T1Type != "T") return;
+        if (game.T1Type != "T" || game.DivId is null) return;
+
+        var incomplete = await _bracketRepo.GetIncompletePoolDivIdsAsync(jobId, ct);
+        if (incomplete.Contains(game.DivId.Value)) return;
+
         await _bracketResolution.ResolveJobAsync(
             jobId, userId,
             c => GetStandingsAsync(jobId, new ScheduleFilterRequest(), c), ct);

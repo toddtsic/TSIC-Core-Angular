@@ -157,4 +157,15 @@
       (cancelled)="showDateAdder.set(false)">
     </app-date-adder-modal>
   }
+
+  @if (pendingDeleteDate()) {
+    <confirm-dialog
+      [title]="deleteDateTitle()"
+      message="All agegroup assignments, wave configurations, and scheduled games for this date will be permanently deleted."
+      confirmLabel="Remove date"
+      cancelLabel="Keep date"
+      confirmVariant="danger"
+      (confirmed)="onDeleteDateConfirmed()"
+      (cancelled)="onDeleteDateCancelled()" />
+  }
 </div>

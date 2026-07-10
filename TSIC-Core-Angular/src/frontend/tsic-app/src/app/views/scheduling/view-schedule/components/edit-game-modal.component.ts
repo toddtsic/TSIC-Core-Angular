@@ -1,6 +1,6 @@
 import {
-  ChangeDetectionStrategy, Component, computed, effect,
-  input, signal,
+  ChangeDetectionStrategy, Component, computed,
+  input, OnChanges, signal, SimpleChanges,
   output
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -276,7 +276,7 @@ export interface TeamOption {
         }
     `]
 })
-export class EditGameModalComponent {
+export class EditGameModalComponent implements OnChanges {
     game = input<ViewGameDto | null>(null);
     visible = input<boolean>(false);
     teams = input<TeamOption[]>([]);
@@ -320,23 +320,24 @@ export class EditGameModalComponent {
     readonly t2Ann = signal('');
     readonly gStatusCode = signal<number>(1);
 
-    constructor() {
-        // Populate form signals when visibility changes (game becomes available)
-        effect(() => {
-            const isVisible = this.visible();
-            const g = this.game();
-            if (isVisible && g) {
-                this.t1Id.set(g.t1Id ?? null);
-                this.t2Id.set(g.t2Id ?? null);
-                this.t1Name.set(g.t1Name ?? '');
-                this.t2Name.set(g.t2Name ?? '');
-                this.t1Score.set(g.t1Score ?? undefined);
-                this.t2Score.set(g.t2Score ?? undefined);
-                this.t1Ann.set(g.t1Ann ?? '');
-                this.t2Ann.set(g.t2Ann ?? '');
-                this.gStatusCode.set(g.gStatusCode ?? 1);
-            }
-        });
+    // Seed the form from the game the host handed us. Driven by the inputs changing, not
+    // by an effect: these signals are edited by the user afterwards, and an effect that
+    // both reads inputs and writes local state re-runs on every unrelated dependency.
+    ngOnChanges(changes: SimpleChanges): void {
+        if (!changes['visible'] && !changes['game']) return;
+
+        const g = this.game();
+        if (!this.visible() || !g) return;
+
+        this.t1Id.set(g.t1Id ?? null);
+        this.t2Id.set(g.t2Id ?? null);
+        this.t1Name.set(g.t1Name ?? '');
+        this.t2Name.set(g.t2Name ?? '');
+        this.t1Score.set(g.t1Score ?? undefined);
+        this.t2Score.set(g.t2Score ?? undefined);
+        this.t1Ann.set(g.t1Ann ?? '');
+        this.t2Ann.set(g.t2Ann ?? '');
+        this.gStatusCode.set(g.gStatusCode ?? 1);
     }
 
     /** When a team is selected from dropdown, update both ID and name */

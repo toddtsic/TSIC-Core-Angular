@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, signal, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal, output } from '@angular/core';
 import type { StandingsByDivisionResponse } from '@core/api';
 import { contrastText } from '../../shared/utils/scheduling-helpers';
 
@@ -28,7 +28,7 @@ type StandingsMode = 'all' | 'rr';
                                     [style.background]="tab.color ?? null"
                                     [style.color]="tab.color ? tab.contrastColor : null"
                                     [style.border-color]="tab.color ?? null"
-                                    (click)="activeAgTabIndex.set(i)">
+                                    (click)="selectAgTab(i)">
                                 {{ tab.name }}
                             </button>
                         }
@@ -369,7 +369,19 @@ export class StandingsTabComponent {
     }
 
     readonly standingsMode = signal<StandingsMode>('all');
-    readonly activeAgTabIndex = signal(0);
+
+    /** Raw selection. Read through activeAgTabIndex, which clamps it to the tabs on offer. */
+    private readonly selectedAgTabIndex = signal(0);
+
+    /**
+     * Switching mode can shrink the tab list out from under the selection. Clamping it here
+     * derives the valid index synchronously from the tabs — no effect() writing back into
+     * the signal it just read.
+     */
+    readonly activeAgTabIndex = computed(() => {
+        const idx = this.selectedAgTabIndex();
+        return idx < this.ageGroupTabs().length ? idx : 0;
+    });
 
     readonly activeData = computed(() =>
         this.standingsMode() === 'rr' ? this.standings() : this.records()
@@ -406,15 +418,8 @@ export class StandingsTabComponent {
         return data.divisions.filter(d => d.agegroupName === agName);
     });
 
-    constructor() {
-        // Clamp tab index when available tabs change (e.g. mode switch)
-        effect(() => {
-            const tabs = this.ageGroupTabs();
-            const idx = this.activeAgTabIndex();
-            if (idx >= tabs.length && tabs.length > 0) {
-                this.activeAgTabIndex.set(0);
-            }
-        });
+    selectAgTab(index: number): void {
+        this.selectedAgTabIndex.set(index);
     }
 
     formatGoalDiff(gd: number): string {

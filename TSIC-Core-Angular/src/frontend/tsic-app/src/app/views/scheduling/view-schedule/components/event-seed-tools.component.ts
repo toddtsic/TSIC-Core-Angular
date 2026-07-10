@@ -2,6 +2,7 @@ import { Component, ChangeDetectionStrategy, inject, output, signal } from '@ang
 import { CommonModule } from '@angular/common';
 import { environment } from '@environments/environment';
 import { BracketDevToolsService } from '../../bracket-dev-tools/services/bracket-dev-tools.service';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { BracketDevActionResult } from '@core/api';
 
 /**
@@ -18,7 +19,7 @@ import type { BracketDevActionResult } from '@core/api';
 @Component({
 	selector: 'app-event-seed-tools',
 	standalone: true,
-	imports: [CommonModule],
+	imports: [CommonModule, ConfirmDialogComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './event-seed-tools.component.html',
 	styleUrl: './event-seed-tools.component.scss',
@@ -36,6 +37,7 @@ export class EventSeedToolsComponent {
 	readonly busy = signal<string | null>(null);
 	readonly result = signal<BracketDevActionResult | null>(null);
 	readonly errorMessage = signal('');
+	readonly showClearConfirm = signal(false);
 
 	seedPools(): void {
 		if (!this.canRun()) return;
@@ -49,8 +51,16 @@ export class EventSeedToolsComponent {
 
 	clearAll(): void {
 		if (!this.canRun()) return;
-		if (!confirm('Clear ALL scores for this event and reset the brackets to unseeded?')) return;
+		this.showClearConfirm.set(true);
+	}
+
+	onClearConfirmed(): void {
+		this.showClearConfirm.set(false);
 		this.run('clear', () => this.svc.revertLeague());
+	}
+
+	onClearCancelled(): void {
+		this.showClearConfirm.set(false);
 	}
 
 	private canRun(): boolean {

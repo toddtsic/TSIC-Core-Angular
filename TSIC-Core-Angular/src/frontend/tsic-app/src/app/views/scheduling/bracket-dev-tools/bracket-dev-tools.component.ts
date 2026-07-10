@@ -1,7 +1,8 @@
-import { Component, ChangeDetectionStrategy, inject, input, output, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, inject, input, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { environment } from '@environments/environment';
 import { BracketDevToolsService } from './services/bracket-dev-tools.service';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import type { BracketDevActionResult } from '@core/api';
 
 /**
@@ -12,7 +13,7 @@ import type { BracketDevActionResult } from '@core/api';
 @Component({
 	selector: 'app-bracket-dev-tools',
 	standalone: true,
-	imports: [CommonModule],
+	imports: [CommonModule, ConfirmDialogComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './bracket-dev-tools.component.html',
 	styleUrl: './bracket-dev-tools.component.scss',
@@ -34,11 +35,26 @@ export class BracketDevToolsComponent {
 	readonly busy = signal<string | null>(null);
 	readonly result = signal<BracketDevActionResult | null>(null);
 	readonly errorMessage = signal('');
+	readonly showClearConfirm = signal(false);
+
+	readonly clearMessage = computed(() => {
+		const div = this.divisionName();
+		const where = div ? `<strong>${div}</strong>` : 'this division';
+		return `Every score in ${where} will be cleared and its bracket slots blanked back to unseeded.`;
+	});
 
 	clearScores(): void {
 		if (!this.canRun()) return;
-		if (!confirm(`Clear ALL scores in "${this.divisionName()}" and blank its bracket slots?`)) return;
+		this.showClearConfirm.set(true);
+	}
+
+	onClearConfirmed(): void {
+		this.showClearConfirm.set(false);
 		this.run('clear', () => this.svc.clearScores(this.request()));
+	}
+
+	onClearCancelled(): void {
+		this.showClearConfirm.set(false);
 	}
 
 	autoScorePool(): void {

@@ -48,7 +48,12 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
         if (slots.Count == 0) return 0;
 
         // A pool whose games aren't all scored has no final rank — its seeds wait.
+        // Filter BEFORE the standings call: standings is by far the most expensive step
+        // here and this method runs on every pool-game score, so a job whose pools are
+        // all still in progress must cost two cheap queries, not a full standings sweep.
         var incomplete = await _bracketRepo.GetIncompletePoolDivIdsAsync(jobId, ct);
+        var ready = slots.Where(s => !incomplete.Contains(s.SeedDivId)).ToList();
+        if (ready.Count == 0) return 0;
 
         // Standings are already sorted (incl. tiebreak rules) → 1-based position = rank.
         var standings = await standingsProvider(ct);
@@ -77,9 +82,8 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
 
         var now = DateTime.Now;
         var resolved = 0;
-        foreach (var slot in slots)
+        foreach (var slot in ready)
         {
-            if (incomplete.Contains(slot.SeedDivId)) continue;                       // pool not final
             if (!teamByDivRank.TryGetValue((slot.SeedDivId, slot.SeedRank), out var team))
                 continue;                                                            // rank not present (yet)
 

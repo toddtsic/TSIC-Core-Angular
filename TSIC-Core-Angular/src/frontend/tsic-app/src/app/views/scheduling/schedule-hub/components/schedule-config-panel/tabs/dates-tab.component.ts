@@ -8,6 +8,7 @@ import { ToastService } from '@shared-ui/toast.service';
 import { ScheduleCascadeService } from '../../schedule-config/schedule-cascade.service';
 import { TimeslotService } from '../../../../timeslots/services/timeslot.service';
 import { DateAdderModalComponent } from './date-adder-modal.component';
+import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
 import { agTeamCount, contrastText } from '../../../../shared/utils/scheduling-helpers';
 import type { AgegroupCanvasReadinessDto, AgegroupWithDivisionsDto, BulkDateAgegroupEntry } from '@core/api';
 
@@ -28,7 +29,7 @@ interface AgRow {
 @Component({
   selector: 'app-dates-tab',
   standalone: true,
-  imports: [CommonModule, FormsModule, DateAdderModalComponent],
+  imports: [CommonModule, FormsModule, DateAdderModalComponent, ConfirmDialogComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dates-tab.component.html',
   styleUrl: './dates-tab.component.scss',
@@ -71,6 +72,12 @@ export class DatesTabComponent implements OnInit {
 
   /** Whether the date adder modal is open */
   readonly showDateAdder = signal(false);
+  readonly pendingDeleteDate = signal<string | null>(null);
+
+  readonly deleteDateTitle = computed(() => {
+    const iso = this.pendingDeleteDate();
+    return iso ? `Remove ${this.formatDateLabel(iso, this.getDowForDate(iso))}?` : 'Remove date?';
+  });
 
   /** Which date column is being edited (null = none) */
   readonly editingDate = signal<string | null>(null);
@@ -367,11 +374,17 @@ export class DatesTabComponent implements OnInit {
   }
 
   deleteDate(isoDate: string): void {
-    const dow = this.getDowForDate(isoDate);
-    const label = this.formatDateLabel(isoDate, dow);
-    if (!confirm(`Remove ${label}?\n\nAll agegroup assignments, wave configurations, and scheduled games for this date will be permanently deleted.`)) {
-      return;
-    }
+    this.pendingDeleteDate.set(isoDate);
+  }
+
+  onDeleteDateCancelled(): void {
+    this.pendingDeleteDate.set(null);
+  }
+
+  onDeleteDateConfirmed(): void {
+    const isoDate = this.pendingDeleteDate();
+    this.pendingDeleteDate.set(null);
+    if (!isoDate) return;
 
     this.isSaving.set(true);
     this.timeslotSvc.cascadeDeleteDate({ date: isoDate }).subscribe({

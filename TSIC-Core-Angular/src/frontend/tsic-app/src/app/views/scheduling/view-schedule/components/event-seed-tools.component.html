@@ -47,4 +47,15 @@
 			<p class="dev-tools__error" role="alert">{{ errorMessage() }}</p>
 		}
 	</section>
+
+	@if (showClearConfirm()) {
+		<confirm-dialog
+			title="Clear all scores &amp; reset?"
+			message="Every score across this event will be wiped and all bracket slots reset to unseeded. Seeding can then re-run from scratch."
+			confirmLabel="Clear &amp; reset"
+			cancelLabel="Keep scores"
+			confirmVariant="danger"
+			(confirmed)="onClearConfirmed()"
+			(cancelled)="onClearCancelled()" />
+	}
 }
