@@ -1225,6 +1225,10 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                                 next: meta => {
                                     this.state.applyTeamsMetadata(meta);
                                     this.refreshViAfterDiscount();
+                                    // Draw the rep back to the re-priced summary grid at the top —
+                                    // Fee-Adj, Proc Fee and Owed all moved with the discount.
+                                    // Deferred so it lands after the grid re-renders.
+                                    setTimeout(() => scrollWizardToTop(), 0);
                                 },
                             });
                     }

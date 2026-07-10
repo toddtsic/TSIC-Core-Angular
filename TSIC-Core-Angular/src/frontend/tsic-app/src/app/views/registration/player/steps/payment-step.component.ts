@@ -1305,7 +1305,11 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         const code = this.discountCode().trim();
         if (!code) return;
         const resp = await this.paySvc.applyDiscount(code);
-        if (resp?.success) this.refreshViAfterDiscount();
+        if (!resp?.success) return;
+        this.refreshViAfterDiscount();
+        // Draw the family back to the re-priced Accounting summary at the top — Fee-Adj, Fee-Proc,
+        // Fee-Total, Owes and Total Due all moved. Deferred so it lands after the table re-renders.
+        setTimeout(() => scrollWizardToTop(), 0);
     }
 
     /** Remount the VI widget so it re-quotes off the discounted insurable amount (the server
