@@ -22,18 +22,18 @@ export class PlayerTabComponent implements OnInit {
   bRegistrationAllowPlayer = linkedSignal(() => this.svc.player()?.bRegistrationAllowPlayer ?? null);
   bPlayerRegRequiresToken = linkedSignal(() => this.svc.player()?.bPlayerRegRequiresToken ?? null);
   regformNamePlayer = linkedSignal(() => this.svc.player()?.regformNamePlayer ?? '');
-  coreRegformPlayer = linkedSignal(() => this.svc.player()?.coreRegformPlayer ?? null);
   playerRegConfirmationEmail = linkedSignal(() => this.svc.player()?.playerRegConfirmationEmail ?? null);
   playerRegConfirmationOnScreen = linkedSignal(() => this.svc.player()?.playerRegConfirmationOnScreen ?? null);
   playerRegRefundPolicy = linkedSignal(() => this.svc.player()?.playerRegRefundPolicy ?? null);
   playerRegReleaseOfLiability = linkedSignal(() => this.svc.player()?.playerRegReleaseOfLiability ?? null);
   playerRegCodeOfConduct = linkedSignal(() => this.svc.player()?.playerRegCodeOfConduct ?? null);
   playerRegCovid19Waiver = linkedSignal(() => this.svc.player()?.playerRegCovid19Waiver ?? null);
-  playerRegMultiPlayerDiscountMin = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountMin ?? null);
-  playerRegMultiPlayerDiscountPercent = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountPercent ?? null);
   uslaxNumberValidThroughDate = linkedSignal(() => toDateOnly(this.svc.player()?.uslaxNumberValidThroughDate) ?? null);
 
   // SuperUser-only
+  coreRegformPlayer = linkedSignal(() => this.svc.player()?.coreRegformPlayer ?? null);
+  playerRegMultiPlayerDiscountMin = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountMin ?? null);
+  playerRegMultiPlayerDiscountPercent = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountPercent ?? null);
   bOfferPlayerRegsaverInsurance = linkedSignal(() => this.svc.player()?.bOfferPlayerRegsaverInsurance ?? null);
   momLabel = linkedSignal(() => this.svc.player()?.momLabel ?? null);
   dadLabel = linkedSignal(() => this.svc.player()?.dadLabel ?? null);
@@ -45,18 +45,18 @@ export class PlayerTabComponent implements OnInit {
       bRegistrationAllowPlayer: p.bRegistrationAllowPlayer,
       bPlayerRegRequiresToken: p.bPlayerRegRequiresToken,
       regformNamePlayer: p.regformNamePlayer,
-      coreRegformPlayer: p.coreRegformPlayer,
       playerRegConfirmationEmail: p.playerRegConfirmationEmail,
       playerRegConfirmationOnScreen: p.playerRegConfirmationOnScreen,
       playerRegRefundPolicy: p.playerRegRefundPolicy,
       playerRegReleaseOfLiability: p.playerRegReleaseOfLiability,
       playerRegCodeOfConduct: p.playerRegCodeOfConduct,
       playerRegCovid19Waiver: p.playerRegCovid19Waiver,
-      playerRegMultiPlayerDiscountMin: p.playerRegMultiPlayerDiscountMin,
-      playerRegMultiPlayerDiscountPercent: p.playerRegMultiPlayerDiscountPercent,
       uslaxNumberValidThroughDate: toDateOnly(p.uslaxNumberValidThroughDate) ?? null,
     };
     if (this.svc.isSuperUser()) {
+      req.coreRegformPlayer = p.coreRegformPlayer ?? null;
+      req.playerRegMultiPlayerDiscountMin = p.playerRegMultiPlayerDiscountMin ?? null;
+      req.playerRegMultiPlayerDiscountPercent = p.playerRegMultiPlayerDiscountPercent ?? null;
       req.bOfferPlayerRegsaverInsurance = p.bOfferPlayerRegsaverInsurance ?? null;
       req.momLabel = p.momLabel ?? null;
       req.dadLabel = p.dadLabel ?? null;
@@ -91,18 +91,18 @@ export class PlayerTabComponent implements OnInit {
       bRegistrationAllowPlayer: this.bRegistrationAllowPlayer(),
       bPlayerRegRequiresToken: this.bPlayerRegRequiresToken(),
       regformNamePlayer: this.regformNamePlayer(),
-      coreRegformPlayer: this.coreRegformPlayer(),
       playerRegConfirmationEmail: this.playerRegConfirmationEmail(),
       playerRegConfirmationOnScreen: this.playerRegConfirmationOnScreen(),
       playerRegRefundPolicy: this.playerRegRefundPolicy(),
       playerRegReleaseOfLiability: this.playerRegReleaseOfLiability(),
       playerRegCodeOfConduct: this.playerRegCodeOfConduct(),
       playerRegCovid19Waiver: this.playerRegCovid19Waiver(),
-      playerRegMultiPlayerDiscountMin: this.playerRegMultiPlayerDiscountMin(),
-      playerRegMultiPlayerDiscountPercent: this.playerRegMultiPlayerDiscountPercent(),
       uslaxNumberValidThroughDate: this.uslaxNumberValidThroughDate(),
     };
     if (this.svc.isSuperUser()) {
+      req.coreRegformPlayer = this.coreRegformPlayer();
+      req.playerRegMultiPlayerDiscountMin = this.playerRegMultiPlayerDiscountMin();
+      req.playerRegMultiPlayerDiscountPercent = this.playerRegMultiPlayerDiscountPercent();
       req.bOfferPlayerRegsaverInsurance = this.bOfferPlayerRegsaverInsurance();
       req.momLabel = this.momLabel();
       req.dadLabel = this.dadLabel();

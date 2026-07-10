@@ -213,18 +213,18 @@ public record JobConfigPlayerDto
     public required bool? BRegistrationAllowPlayer { get; init; }
     public required bool? BPlayerRegRequiresToken { get; init; }
     public required string RegformNamePlayer { get; init; }
-    public required string? CoreRegformPlayer { get; init; }
     public required string? PlayerRegConfirmationEmail { get; init; }
     public required string? PlayerRegConfirmationOnScreen { get; init; }
     public required string? PlayerRegRefundPolicy { get; init; }
     public required string? PlayerRegReleaseOfLiability { get; init; }
     public required string? PlayerRegCodeOfConduct { get; init; }
     public required string? PlayerRegCovid19Waiver { get; init; }
-    public required int? PlayerRegMultiPlayerDiscountMin { get; init; }
-    public required int? PlayerRegMultiPlayerDiscountPercent { get; init; }
     public required DateTime? UslaxNumberValidThroughDate { get; init; }
 
     // SuperUser-only
+    public string? CoreRegformPlayer { get; init; }
+    public int? PlayerRegMultiPlayerDiscountMin { get; init; }
+    public int? PlayerRegMultiPlayerDiscountPercent { get; init; }
     public bool? BOfferPlayerRegsaverInsurance { get; init; }
     public string? MomLabel { get; init; }
     public string? DadLabel { get; init; }
@@ -236,18 +236,18 @@ public record UpdateJobConfigPlayerRequest
     public required bool? BRegistrationAllowPlayer { get; init; }
     public required bool? BPlayerRegRequiresToken { get; init; }
     public required string RegformNamePlayer { get; init; }
-    public required string? CoreRegformPlayer { get; init; }
     public required string? PlayerRegConfirmationEmail { get; init; }
     public required string? PlayerRegConfirmationOnScreen { get; init; }
     public required string? PlayerRegRefundPolicy { get; init; }
     public required string? PlayerRegReleaseOfLiability { get; init; }
     public required string? PlayerRegCodeOfConduct { get; init; }
     public required string? PlayerRegCovid19Waiver { get; init; }
-    public required int? PlayerRegMultiPlayerDiscountMin { get; init; }
-    public required int? PlayerRegMultiPlayerDiscountPercent { get; init; }
     public required DateTime? UslaxNumberValidThroughDate { get; init; }
 
     // SuperUser-only (ignored for non-super callers)
+    public string? CoreRegformPlayer { get; init; }
+    public int? PlayerRegMultiPlayerDiscountMin { get; init; }
+    public int? PlayerRegMultiPlayerDiscountPercent { get; init; }
     public bool? BOfferPlayerRegsaverInsurance { get; init; }
     public string? MomLabel { get; init; }
     public string? DadLabel { get; init; }

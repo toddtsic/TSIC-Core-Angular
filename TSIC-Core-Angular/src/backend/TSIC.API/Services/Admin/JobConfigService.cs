@@ -245,20 +245,20 @@ public class JobConfigService : IJobConfigService
         job.BRegistrationAllowPlayer = req.BRegistrationAllowPlayer;
         job.BplayerRegRequiresToken = req.BPlayerRegRequiresToken ?? false;
         job.RegformNamePlayer = req.RegformNamePlayer;
-        job.CoreRegformPlayer = req.CoreRegformPlayer;
         job.PlayerRegConfirmationEmail = req.PlayerRegConfirmationEmail;
         job.PlayerRegConfirmationOnScreen = req.PlayerRegConfirmationOnScreen;
         job.PlayerRegRefundPolicy = req.PlayerRegRefundPolicy;
         job.PlayerRegReleaseOfLiability = req.PlayerRegReleaseOfLiability;
         job.PlayerRegCodeOfConduct = req.PlayerRegCodeOfConduct;
         job.PlayerRegCovid19Waiver = req.PlayerRegCovid19Waiver;
-        job.PlayerRegMultiPlayerDiscountMin = req.PlayerRegMultiPlayerDiscountMin;
-        job.PlayerRegMultiPlayerDiscountPercent = req.PlayerRegMultiPlayerDiscountPercent;
         job.UslaxNumberValidThroughDate = req.UslaxNumberValidThroughDate;
 
         // SuperUser-only
         if (isSuperUser)
         {
+            job.CoreRegformPlayer = req.CoreRegformPlayer;
+            job.PlayerRegMultiPlayerDiscountMin = req.PlayerRegMultiPlayerDiscountMin;
+            job.PlayerRegMultiPlayerDiscountPercent = req.PlayerRegMultiPlayerDiscountPercent;
             if (req.BOfferPlayerRegsaverInsurance.HasValue)
                 job.BOfferPlayerRegsaverInsurance = req.BOfferPlayerRegsaverInsurance.Value;
             job.MomLabel = req.MomLabel;
@@ -714,17 +714,17 @@ public class JobConfigService : IJobConfigService
         BRegistrationAllowPlayer = job.BRegistrationAllowPlayer,
         BPlayerRegRequiresToken = job.BplayerRegRequiresToken,
         RegformNamePlayer = job.RegformNamePlayer,
-        CoreRegformPlayer = job.CoreRegformPlayer,
         PlayerRegConfirmationEmail = job.PlayerRegConfirmationEmail,
         PlayerRegConfirmationOnScreen = job.PlayerRegConfirmationOnScreen,
         PlayerRegRefundPolicy = job.PlayerRegRefundPolicy,
         PlayerRegReleaseOfLiability = job.PlayerRegReleaseOfLiability,
         PlayerRegCodeOfConduct = job.PlayerRegCodeOfConduct,
         PlayerRegCovid19Waiver = job.PlayerRegCovid19Waiver,
-        PlayerRegMultiPlayerDiscountMin = job.PlayerRegMultiPlayerDiscountMin,
-        PlayerRegMultiPlayerDiscountPercent = job.PlayerRegMultiPlayerDiscountPercent,
         UslaxNumberValidThroughDate = job.UslaxNumberValidThroughDate,
         // SuperUser-only
+        CoreRegformPlayer = isSuperUser ? job.CoreRegformPlayer : null,
+        PlayerRegMultiPlayerDiscountMin = isSuperUser ? job.PlayerRegMultiPlayerDiscountMin : null,
+        PlayerRegMultiPlayerDiscountPercent = isSuperUser ? job.PlayerRegMultiPlayerDiscountPercent : null,
         BOfferPlayerRegsaverInsurance = isSuperUser ? job.BOfferPlayerRegsaverInsurance : null,
         MomLabel = isSuperUser ? job.MomLabel : null,
         DadLabel = isSuperUser ? job.DadLabel : null,
