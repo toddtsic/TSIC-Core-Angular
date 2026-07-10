@@ -35,6 +35,21 @@ reads, and a `linkedSignal` reseeds only when its `source` changes.
 Debounce belongs at the **keystroke source**, never piped onto the per-request `http.get`
 (which emits once and completes, so `debounceTime` there only delays the response).
 
+**Not banned**: `afterNextRender` / `afterRenderEffect`. They run against the rendered DOM and
+carry none of the re-entrant write-loop risk.
+
+**Enforced**, not merely documented — a rule that relies on discipline is the thing this rule
+exists to prevent:
+
+```bash
+npm run verify:no-effect     # from src/frontend/tsic-app; exits non-zero on any effect import
+```
+
+It matches the *import*, which is the chokepoint (effect cannot be called unimported) and means
+prose in comments never false-positives. Do not reintroduce a wrapper helper that puts `effect()`
+back in reach — the guard fails re-exports too, and a prior `effectWith()` helper was deleted for
+exactly that reason.
+
 See `docs/Frontend/angular-signal-patterns.md` Pattern 6.
 
 ## Signal Updates Are Immutable

@@ -10,6 +10,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "verify:help": "node scripts/verify-help.mjs",
+    "verify:no-effect": "node scripts/verify-no-effect.mjs",
     "serve:ssr:tsic-app": "node dist/tsic-app/server/server.mjs",
     "generate:api": "npx openapi-typescript-codegen --input http://localhost:5022/swagger/v1/swagger.json --output ./src/app/core/api --client fetch --useOptions false --exportCore false --exportServices false --exportModels true --exportSchemas false"
   },
