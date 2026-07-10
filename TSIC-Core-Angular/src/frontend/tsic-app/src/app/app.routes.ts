@@ -93,6 +93,7 @@ export const routes: Routes = [
 					{
 						path: 'adult',
 						canActivate: [adultRegistrationGuard],
+						data: { helpKey: 'adult-registration' },
 						loadComponent: () => import('./views/registration/adult/adult.component').then(m => m.AdultWizardV2Component)
 					},
 					{
@@ -288,6 +289,7 @@ export const routes: Routes = [
 					{
 						path: 'update-cc/:registrationId',
 						canActivate: [authGuard],
+						data: { helpKey: 'arb-update-cc' },
 						loadComponent: () => import('./views/arb/arb-update-cc.component').then(m => m.ArbUpdateCcComponent)
 					}
 				]
@@ -380,6 +382,7 @@ export const routes: Routes = [
 			{
 				path: 'store',
 				canActivate: [storeGuard],
+				data: { helpKey: 'store' },
 				loadComponent: () => import('./views/store/catalog/catalog.component').then(m => m.StoreCatalogComponent)
 			},
 			{
@@ -608,7 +611,7 @@ export const routes: Routes = [
 				// Club Rep — multi-team roster management (move/delete)
 				path: 'rosters/club',
 				canActivate: [authGuard],
-				data: { roles: [Roles.ClubRep, Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.ClubRep, Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'club-rosters' },
 				loadComponent: () => import('./views/club-rosters/club-rosters.component').then(m => m.ClubRostersComponent),
 				title: 'Club Rosters'
 			},
@@ -624,7 +627,7 @@ export const routes: Routes = [
 			{
 				path: 'account/club-rep',
 				canActivate: [authGuard],
-				data: { roles: [Roles.ClubRep, Roles.Superuser, Roles.Director, Roles.SuperDirector] },
+				data: { roles: [Roles.ClubRep, Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'club-rep-profile' },
 				loadComponent: () => import('./views/account/club-rep-profile/club-rep-profile.component').then(m => m.ClubRepProfileComponent),
 				title: 'Edit Profile'
 			},
@@ -636,6 +639,7 @@ export const routes: Routes = [
 			// Exact-case path preserved so existing DB-stored email/confirmation links resolve.
 			{
 				path: 'PlayerVIUpdate',
+				data: { helpKey: 'player-regsaver' },
 				loadComponent: () => import('./views/player-vi-update/player-vi-update.component').then(m => m.PlayerVIUpdateComponent)
 			},
 			{
@@ -646,6 +650,7 @@ export const routes: Routes = [
 			// Team-side equivalent for club reps. Exact-case preserved per legacy.
 			{
 				path: 'ClubRepVIUpdate',
+				data: { helpKey: 'clubrep-regsaver' },
 				loadComponent: () => import('./views/clubrep-vi-update/clubrep-vi-update.component').then(m => m.ClubRepVIUpdateComponent)
 			},
 			{
