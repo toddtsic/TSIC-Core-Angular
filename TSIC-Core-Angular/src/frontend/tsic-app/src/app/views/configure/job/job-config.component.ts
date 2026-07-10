@@ -19,6 +19,7 @@ interface TabDef {
   key: TabKey;
   label: string;
   icon: string;
+  superUserOnly?: boolean;
 }
 
 @Component({
@@ -47,9 +48,9 @@ interface TabDef {
 export class JobConfigComponent implements OnInit, HasUnsavedChanges {
   protected readonly svc = inject(JobConfigService);
 
-  readonly tabs: TabDef[] = [
+  private readonly allTabs: TabDef[] = [
     { key: 'general', label: 'General', icon: '' },
-    { key: 'branding', label: 'Branding', icon: '' },
+    { key: 'branding', label: 'Branding', icon: '', superUserOnly: true },
     { key: 'payment', label: 'Payment', icon: '' },
     { key: 'communications', label: 'Comms', icon: '' },
     { key: 'player', label: 'Players', icon: '' },
@@ -59,6 +60,10 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
     { key: 'mobileStore', label: 'Mobile/Store', icon: '' },
     { key: 'ddlOptions', label: 'Dropdowns', icon: '' },
   ];
+
+  // SuperUser-only tabs (e.g. Branding) are hidden entirely for other roles.
+  readonly tabs = computed(() =>
+    this.allTabs.filter(t => !t.superUserOnly || this.svc.isSuperUser()));
 
   // Tabs that carry registration/visibility switches now owned by the Quick Links
   // editor. On these, those switches render read-only with a pointer to Quick Links.
@@ -143,25 +148,26 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
     if (!keys.includes(event.key)) return;
 
     event.preventDefault();
-    const currentIndex = this.tabs.findIndex(t => t.key === this.svc.activeTab());
+    const tabs = this.tabs();
+    const currentIndex = tabs.findIndex(t => t.key === this.svc.activeTab());
     let nextIndex = currentIndex;
 
     switch (event.key) {
       case 'ArrowRight':
-        nextIndex = (currentIndex + 1) % this.tabs.length;
+        nextIndex = (currentIndex + 1) % tabs.length;
         break;
       case 'ArrowLeft':
-        nextIndex = (currentIndex - 1 + this.tabs.length) % this.tabs.length;
+        nextIndex = (currentIndex - 1 + tabs.length) % tabs.length;
         break;
       case 'Home':
         nextIndex = 0;
         break;
       case 'End':
-        nextIndex = this.tabs.length - 1;
+        nextIndex = tabs.length - 1;
         break;
     }
 
-    this.selectTab(this.tabs[nextIndex].key);
+    this.selectTab(tabs[nextIndex].key);
     // Focus the target tab button after the dialog check resolves
     if (!this.showDiscardDialog()) {
       const buttons = (event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('.tab-btn');

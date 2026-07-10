@@ -11,7 +11,7 @@
     <!-- Tab bar -->
     <div class="tab-bar-wrapper">
       <nav class="tab-bar" role="tablist" (keydown)="onTabKeydown($event)">
-        @for (tab of tabs; track tab.key) {
+        @for (tab of tabs(); track tab.key) {
           <button
             class="tab-btn"
             [class.active]="svc.activeTab() === tab.key"
