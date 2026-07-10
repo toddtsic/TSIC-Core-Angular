@@ -17,10 +17,16 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
     private readonly IViewScheduleService _viewSchedule;
     private readonly ILogger<BracketDevToolsService> _logger;
 
-    // Deterministic, decisive score for every auto-scored game — a tie would be
-    // rejected on bracket games and would muddy pool standings.
-    private const int WinScore = 2;
-    private const int LoseScore = 1;
+    // Auto-scored games get PURE-RANDOM scores so the standings→seed calculation is
+    // genuinely exercised: goal differential, points, and pool ties all feed the sort
+    // that ranks a division (ViewScheduleService.BuildStandingsAsync), and that rank is
+    // what seeds the bracket. A constant score left every tiebreaker collinear with the
+    // win count, so the goal-diff path never ran and equal-record teams fell through to
+    // alphabetical. The range spans past the standings' ±9 goal-diff clamp so the clamp
+    // is exercised too. Pool games may tie; bracket games are forced decisive (see
+    // RandomScore) — a tie there is an impossible single-elim result, rejected on the
+    // advance path.
+    private const int MaxGoals = 12;
 
     // Leagues.GameStatusCodes: 1 = scheduled, 6 = final.
     private const int ScheduledStatusCode = 1;
@@ -181,7 +187,7 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
             GamesAffected = scored,
             Message = scored == 0
                 ? "No unscored pool games in this division."
-                : $"Auto-scored {scored} pool game(s) {WinScore}–{LoseScore}. Completed pools lock standings → bracket seeds resolve."
+                : $"Auto-scored {scored} pool game(s) with random scores. Completed pools lock standings → bracket seeds resolve."
         };
     }
 
@@ -204,7 +210,7 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
             GamesAffected = scored,
             Message = scored == 0
                 ? "No bracket games are ready — seed the pools first (auto-score pool)."
-                : $"Auto-scored {scored} ready bracket game(s) {WinScore}–{LoseScore}. Winners advanced to the next round."
+                : $"Auto-scored {scored} ready bracket game(s) with random decisive scores. Winners advanced to the next round."
         };
     }
 
@@ -230,7 +236,7 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
             GamesAffected = scored,
             Message = scored == 0
                 ? "No unscored pool games in this event."
-                : $"Auto-scored {scored} pool game(s) {WinScore}–{LoseScore}. Completed pools lock standings → bracket seeds resolve."
+                : $"Auto-scored {scored} pool game(s) with random scores. Completed pools lock standings → bracket seeds resolve."
         };
     }
 
@@ -253,26 +259,43 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
             GamesAffected = scored,
             Message = scored == 0
                 ? "No bracket games are ready — seed the pools first (Seed pool scores)."
-                : $"Auto-scored {scored} ready bracket game(s) {WinScore}–{LoseScore}. Winners advanced to the next round."
+                : $"Auto-scored {scored} ready bracket game(s) with random decisive scores. Winners advanced to the next round."
         };
     }
 
     // Route each score through the real path so R1/R2/R3 fire exactly as in prod.
+    // Decisiveness is decided per game: a bracket game may not tie (rejected on the
+    // advance path); a pool game may.
     private async Task<int> ScoreEachAsync(
         Guid jobId, string userId, List<Schedule> targets, CancellationToken ct)
     {
         var scored = 0;
         foreach (var g in targets)
         {
+            var (t1, t2) = RandomScore(decisive: IsBracketGame(g));
             await _viewSchedule.QuickEditScoreAsync(jobId, userId, new EditScoreRequest
             {
                 Gid = g.Gid,
-                T1Score = WinScore,
-                T2Score = LoseScore,
+                T1Score = t1,
+                T2Score = t2,
                 GStatusCode = FinalStatusCode
             }, ct);
             scored++;
         }
         return scored;
+    }
+
+    // Pure-random realistic score. A pool game draws each side independently in
+    // [0, MaxGoals], so it may tie. A decisive game (bracket) draws a loser total and a
+    // strictly greater winner total, then randomly assigns which slot won — so the team
+    // that advances is not biased to the T1 slot and both advancement branches get run.
+    private static (int T1Score, int T2Score) RandomScore(bool decisive)
+    {
+        if (!decisive)
+            return (Random.Shared.Next(0, MaxGoals + 1), Random.Shared.Next(0, MaxGoals + 1));
+
+        var loser = Random.Shared.Next(0, MaxGoals);               // 0 .. MaxGoals-1
+        var winner = Random.Shared.Next(loser + 1, MaxGoals + 1);  // loser+1 .. MaxGoals
+        return Random.Shared.Next(2) == 0 ? (winner, loser) : (loser, winner);
     }
 }
