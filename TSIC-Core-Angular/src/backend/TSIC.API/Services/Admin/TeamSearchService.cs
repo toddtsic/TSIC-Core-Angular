@@ -2,6 +2,7 @@ using AuthorizeNet.Api.Contracts.V1;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Teams;
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.Ladt;
 using TSIC.Contracts.Dtos.RegistrationSearch;
@@ -290,6 +291,7 @@ public sealed class TeamSearchService : ITeamSearchService
         var rawTeams = await _teamRepo.GetRegisteredTeamsForClubRepAndJobAsync(clubRepRegistrationId: clubRepRegistrationId, jobId: jobId, cancellationToken: ct);
         var teams = await _shaper.ShapeAsync(jobId, rawTeams, ct: ct);
         var accountingRecords = await _accountingRepo.GetByRegistrationIdAsync(clubRepRegistrationId, ct);
+        var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
 
         return new ClubRepAccountingDto
         {
@@ -299,7 +301,8 @@ public sealed class TeamSearchService : ITeamSearchService
             PaidTotal = reg.PaidTotal,
             OwedTotal = reg.OwedTotal,
             Teams = teams,
-            AccountingRecords = accountingRecords
+            AccountingRecords = accountingRecords,
+            PaymentMethodsAllowedCode = feeSettings?.PaymentMethodsAllowedCode ?? PaymentMethodConstants.CreditCardOrCheck
         };
     }
 

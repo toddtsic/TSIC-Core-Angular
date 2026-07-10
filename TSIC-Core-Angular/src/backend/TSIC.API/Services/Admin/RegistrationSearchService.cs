@@ -6,6 +6,7 @@ using TSIC.API.Services.Shared.Adn;
 using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.UsLax;
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Dtos.RosterSwapper;
@@ -253,6 +254,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         // counted in the family totals. Inactive pay-by-check siblings owe real money and must be
         // included; dropped/waitlist siblings carry $0 so they add nothing — no classification
         // needed. FeeTotal/PaidTotal/OwedTotal already sum all rawPlayers.
+        var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
+
         return new FamilyAccountingDto
         {
             AnchorRegistrationId = registrationId,
@@ -261,7 +264,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             PaidTotal = rawPlayers.Sum(p => p.PaidTotal),
             OwedTotal = rawPlayers.Sum(p => p.OwedTotal),
             Players = playerRows,
-            AccountingRecords = records.OrderByDescending(r => r.Date).ToList()
+            AccountingRecords = records.OrderByDescending(r => r.Date).ToList(),
+            PaymentMethodsAllowedCode = feeSettings?.PaymentMethodsAllowedCode ?? PaymentMethodConstants.CreditCardOrCheck
         };
     }
 

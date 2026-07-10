@@ -192,6 +192,11 @@ export class FamilyPaymentComponent {
 
   familyName = computed(() => this.data()?.familyName ?? '');
 
+  // CC-only jobs (Jobs.PaymentMethodsAllowedCode === 1) can never take a check, so the
+  // "Check Owed" column in the breakdown grid is pure noise — drop it. Missing code defaults
+  // server-side to CC-or-Check, so the column shows unless the job is explicitly CC-only.
+  ccOnly = computed(() => this.data()?.paymentMethodsAllowedCode === 1);
+
   // Deposit/Balance columns only make sense when the fees actually carry a deposit.
   hasDeposit = computed(() => this.allPlayers().some(p => p.deposit > 0));
 
