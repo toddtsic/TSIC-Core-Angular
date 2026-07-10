@@ -96,11 +96,6 @@ export class ClubRepPaymentComponent {
     this.scope() === 'club' ? this.allTeams() : undefined
   );
 
-  // CC-only jobs (Jobs.PaymentMethodsAllowedCode === 1) can never take a check, so the
-  // "Check Owed" column in the breakdown grid is pure noise — drop it. Missing code defaults
-  // server-side to CC-or-Check, so the column shows unless the job is explicitly CC-only.
-  ccOnly = computed(() => this.data()?.paymentMethodsAllowedCode === 1);
-
   allAccountingRecords = computed(() => this.data()?.accountingRecords ?? []);
   accountingRecords = computed(() => {
     const records = this.allAccountingRecords();

@@ -12,6 +12,5 @@ export type ClubRepAccountingDto = {
     owedTotal: number;
     teams: Array<RegisteredTeamDto>;
     accountingRecords: Array<AccountingRecordDto>;
-    paymentMethodsAllowedCode?: number;
 };
 

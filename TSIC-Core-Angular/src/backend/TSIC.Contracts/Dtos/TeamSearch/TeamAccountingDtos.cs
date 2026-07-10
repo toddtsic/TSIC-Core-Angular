@@ -255,11 +255,4 @@ public record ClubRepAccountingDto
     public required decimal OwedTotal { get; init; }
     public required List<RegisteredTeamDto> Teams { get; init; }
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
-
-    /// <summary>
-    /// Jobs.PaymentMethodsAllowedCode (1=CC only, 2=CC or Check, 3=Check only). Lets the grid
-    /// drop the "Check Owed" column when this job takes credit cards only — an amount that can
-    /// never be tendered by check is noise. See <see cref="TSIC.Contracts.Constants.PaymentMethodConstants"/>.
-    /// </summary>
-    public int PaymentMethodsAllowedCode { get; init; }
 }
