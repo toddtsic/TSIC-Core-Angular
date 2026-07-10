@@ -1,61 +1,17 @@
 @if (isSandbox) {
-	<section class="dev-tools" aria-label="Reseeding-event bracket seed tools">
-		<header class="dev-tools__head">
-			<span class="dev-tools__badge">DEV</span>
-			<span class="dev-tools__title">Seed Reseeding Event</span>
-		</header>
-
-		<p class="dev-tools__lead">
-			Test this reseeding event end-to-end with real data: score the round-robin pools
-			(the championship flights reseed automatically), then advance the bracket rounds.
-			Open the <em>Standings</em> and <em>Brackets</em> tabs to watch the effect.
-		</p>
-
-		<div class="dev-tools__actions">
-			<button type="button" class="dev-btn"
-					[disabled]="!!busy()"
-					(click)="seedPools()">
-				<span class="dev-btn__label">
-					@if (busy() === 'pool') { Scoring pools… } @else { 1 · Seed pool scores }
-				</span>
-				<span class="dev-btn__hint">Scores every round-robin pool game 2–1 → standings lock → championship flights reseed.</span>
-			</button>
-
-			<button type="button" class="dev-btn"
-					[disabled]="!!busy()"
-					(click)="seedBracketRound()">
-				<span class="dev-btn__label">
-					@if (busy() === 'round') { Advancing… } @else { 2 · Seed bracket round }
-				</span>
-				<span class="dev-btn__hint">Scores every ready bracket game → winners advance one round. Click again for the next.</span>
-			</button>
-
-			<button type="button" class="dev-btn dev-btn--danger"
-					[disabled]="!!busy()"
-					(click)="clearAll()">
-				<span class="dev-btn__label">
-					@if (busy() === 'clear') { Clearing… } @else { ↺ Clear all scores &amp; reset }
-				</span>
-				<span class="dev-btn__hint">Wipes every score across the event so seeding can re-run from scratch.</span>
-			</button>
-		</div>
-
-		@if (result(); as r) {
-			<p class="dev-tools__result" role="status">{{ r.message }}</p>
-		}
-		@if (errorMessage()) {
-			<p class="dev-tools__error" role="alert">{{ errorMessage() }}</p>
-		}
-	</section>
-
-	@if (showClearConfirm()) {
-		<confirm-dialog
-			title="Clear all scores &amp; reset?"
-			message="Every score across this event will be wiped and all bracket slots reset to unseeded. Seeding can then re-run from scratch."
-			confirmLabel="Clear &amp; reset"
-			cancelLabel="Keep scores"
-			confirmVariant="danger"
-			(confirmed)="onClearConfirmed()"
-			(cancelled)="onClearCancelled()" />
-	}
+	<app-dev-seed-strip
+		title="Test Bracket Seeding &amp; Advancement"
+		[actions]="actions()"
+		[busy]="busy()"
+		[result]="result()"
+		[errorMessage]="errorMessage()"
+		confirmTitle="Clear this age group's scores?"
+		[confirmMessage]="clearMessage()"
+		(action)="onAction($event)">
+		Admin dev harness: test how a bracket seeds and auto-advances on
+		<strong>{{ agegroupName() || 'the selected age group' }}</strong>
+		with real data. Score its round-robin pools to lock standings and resolve the seeds,
+		then advance the bracket rounds one at a time. Open the <em>Standings</em> and
+		<em>Brackets</em> tabs to watch each step.
+	</app-dev-seed-strip>
 }

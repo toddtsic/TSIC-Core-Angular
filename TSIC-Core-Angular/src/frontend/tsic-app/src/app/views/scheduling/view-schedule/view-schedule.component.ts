@@ -231,10 +231,17 @@ interface FilterChip {
 
                 </div>
 
-                <!-- Sandbox-only: seed/test the reseeding-event pipeline (job-wide). Shown only
-                     for reseed tournaments — pools reseed the separate championship agegroups. -->
-                @if (auth.isAdmin() && isSandbox && capabilities()?.isReseedTournament) {
-                    <app-event-seed-tools (changed)="onSeedChanged()" />
+                <!-- Sandbox-only dev harness to test bracket seeding + auto-advancement,
+                     scoped to the ONE age group selected in "By Age". Hidden until exactly
+                     one age group is selected; admin + sandbox only. -->
+                @if (auth.isAdmin() && isSandbox) {
+                    @if (selectedAgegroup(); as ag) {
+                        <app-event-seed-tools
+                            [agegroupId]="ag.id"
+                            [agegroupName]="ag.name"
+                            [activeTab]="activeTab()"
+                            (changed)="onSeedChanged()" />
+                    }
                 }
 
                 <!-- Active-filters echo zone: shows every applied filter as a removable chip.
@@ -312,7 +319,7 @@ interface FilterChip {
             </div>
 
             <!-- Tab content -->
-            <div class="tab-content">
+            <div class="tab-content" [class.brackets-active]="activeTab() === 'brackets'">
                 @switch (activeTab()) {
                     @case ('games') {
                         <app-games-tab
@@ -1017,6 +1024,13 @@ interface FilterChip {
             margin-bottom: calc(-1 * var(--space-2));
         }
 
+        /* Brackets view: the toolbar pulls space-2 off its bottom to tuck the data grid
+           up under the tabs. The bracket flight selector needs air, so on the Brackets
+           tab cancel that pull (space-2) and add space-3 of real padding below the tabs. */
+        .tab-content.brackets-active {
+            padding-top: calc(var(--space-2) + var(--space-3));
+        }
+
         /* Mobile-only filter trigger */
         .mobile-only { display: inline-flex; }
 
@@ -1356,6 +1370,28 @@ export class ViewScheduleComponent implements OnInit {
 
     readonly cadtFilterCount = computed(() => this.cadtTeamIds().length > 0 ? this.checkedIds.size : 0);
     readonly ladtFilterCount = computed(() => this.ladtTeamIds().length > 0 ? this.ladtCheckedIds.size : 0);
+
+    /**
+     * The single age group the "By Age" filter currently resolves to, or null when the
+     * filter is empty or spans more than one age group. Drives the dev seed strip — both
+     * its visibility and its scope: the tools act on exactly one age group, never the whole
+     * job. Derived purely from the reactive ladtTeamIds()/ladtTree() signals (deriveLadtTeamIds
+     * republishes ladtTeamIds on every selection change), so it recomputes on its own.
+     */
+    readonly selectedAgegroup = computed<{ id: string; name: string } | null>(() => {
+        const teamIds = this.ladtTeamIds();
+        if (teamIds.length === 0) return null;
+        const idSet = new Set(teamIds);
+        let match: LadtAgegroupNode | null = null;
+        for (const ag of this.ladtTree()) {
+            const inThisAg = (ag.divisions ?? []).some(
+                d => (d.teams ?? []).some(t => idSet.has(t.teamId)));
+            if (!inThisAg) continue;
+            if (match) return null; // filter spans >1 age group → not a single selection
+            match = ag;
+        }
+        return match ? { id: match.agegroupId, name: match.agegroupName } : null;
+    });
 
     readonly hasActiveFilters = computed(() => {
         return this.cadtTeamIds().length > 0

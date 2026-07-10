@@ -1,0 +1,45 @@
+<section class="dev-tools" [attr.aria-label]="title()">
+	<header class="dev-tools__head">
+		<span class="dev-tools__badge">DEV</span>
+		<span class="dev-tools__title">{{ title() }}</span>
+	</header>
+
+	<p class="dev-tools__lead"><ng-content /></p>
+
+	<div class="dev-tools__actions">
+		@for (a of actions(); track a.key) {
+			<button type="button" class="dev-btn"
+					[class.dev-btn--danger]="a.danger"
+					[class.dev-btn--busy]="busy() === a.key"
+					[disabled]="!!busy() || a.disabled"
+					(click)="onClick(a)">
+				<span class="dev-btn__label">
+					@if (busy() === a.key) {
+						<span class="dev-btn__spin" aria-hidden="true"></span>{{ a.busyLabel }}
+					} @else {
+						{{ a.label }}
+					}
+				</span>
+				<span class="dev-btn__hint">{{ a.hint }}</span>
+			</button>
+		}
+	</div>
+
+	@if (result(); as r) {
+		<p class="dev-tools__result" role="status">{{ r.message }}</p>
+	}
+	@if (errorMessage()) {
+		<p class="dev-tools__error" role="alert">{{ errorMessage() }}</p>
+	}
+</section>
+
+@if (pendingDanger()) {
+	<confirm-dialog
+		[title]="confirmTitle()"
+		[message]="confirmMessage()"
+		confirmLabel="Clear &amp; reset"
+		cancelLabel="Keep scores"
+		confirmVariant="danger"
+		(confirmed)="onConfirm()"
+		(cancelled)="onCancel()" />
+}

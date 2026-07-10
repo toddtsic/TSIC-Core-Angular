@@ -1,61 +1,15 @@
 @if (isSandbox && divId()) {
-	<section class="dev-tools" aria-label="Bracket test tools">
-		<header class="dev-tools__head">
-			<span class="dev-tools__badge">DEV</span>
-			<span class="dev-tools__title">Bracket Test Tools</span>
-		</header>
-
-		<p class="dev-tools__lead">
-			Exercise seeding &amp; advancement on
-			<strong>{{ divisionName() || 'this division' }}</strong>
-			with real data. Then open <em>View Schedule → Standings / Brackets</em> to watch the effect.
-		</p>
-
-		<div class="dev-tools__actions">
-			<button type="button" class="dev-btn"
-					[disabled]="!!busy()"
-					(click)="autoScorePool()">
-				<span class="dev-btn__label">
-					@if (busy() === 'pool') { <span class="dev-btn__spin" aria-hidden="true"></span>Scoring RR games… } @else { 1 · Auto-Score RR Games }
-				</span>
-				<span class="dev-btn__hint">Scores every pool game with random scores (ties allowed) → standings lock → bracket seeds resolve.</span>
-			</button>
-
-			<button type="button" class="dev-btn"
-					[disabled]="!!busy()"
-					(click)="autoScoreRound()">
-				<span class="dev-btn__label">
-					@if (busy() === 'round') { <span class="dev-btn__spin" aria-hidden="true"></span>Advancing… } @else { 2 · Auto-Score Bracket Round (1 by 1) }
-				</span>
-				<span class="dev-btn__hint">Scores every ready bracket game → winners advance one round. Click again for the next.</span>
-			</button>
-
-			<button type="button" class="dev-btn dev-btn--danger"
-					[disabled]="!!busy()"
-					(click)="clearScores()">
-				<span class="dev-btn__label">
-					@if (busy() === 'clear') { <span class="dev-btn__spin" aria-hidden="true"></span>Clearing… } @else { ↺ Clear scores &amp; reset bracket }
-				</span>
-				<span class="dev-btn__hint">Wipes all scores and blanks bracket slots so seeding can re-run from scratch.</span>
-			</button>
-		</div>
-
-		@if (result(); as r) {
-			<p class="dev-tools__result" role="status">{{ r.message }}</p>
-		}
-		@if (errorMessage()) {
-			<p class="dev-tools__error" role="alert">{{ errorMessage() }}</p>
-		}
-	</section>
-
-	@if (showClearConfirm()) {
-		<confirm-dialog
-			title="Clear scores &amp; reset bracket?"
-			[message]="clearMessage()"
-			confirmLabel="Clear &amp; reset"
-			cancelLabel="Keep scores"
-			confirmVariant="danger"
-			(confirmed)="onClearConfirmed()"
-			(cancelled)="onClearCancelled()" />
-	}
+	<app-dev-seed-strip
+		title="Bracket Test Tools"
+		[actions]="actions"
+		[busy]="busy()"
+		[result]="result()"
+		[errorMessage]="errorMessage()"
+		confirmTitle="Clear scores &amp; reset bracket?"
+		[confirmMessage]="clearMessage()"
+		(action)="onAction($event)">
+		Exercise seeding &amp; advancement on
+		<strong>{{ divisionName() || 'this division' }}</strong>
+		with real data. Then open <em>View Schedule → Standings / Brackets</em> to watch the effect.
+	</app-dev-seed-strip>
 }

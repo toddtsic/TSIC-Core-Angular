@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
-import type { BracketDevActionRequest, BracketDevActionResult } from '@core/api';
+import type { AgegroupScopeRequest, BracketDevActionRequest, BracketDevActionResult } from '@core/api';
 
 /**
  * Sandbox-only bracket exercise endpoints (backend gates on IsSandbox()).
@@ -40,5 +40,25 @@ export class BracketDevToolsService {
 
 	revertLeague(): Observable<BracketDevActionResult> {
 		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/revert-league`, {});
+	}
+
+	// ── Agegroup scope (View Schedule seed strip, scoped to a single selected age group) —
+	//    each takes the agegroupId; job comes from auth context. Pool scoring still fires
+	//    job-wide seed resolution, so a reseeding tournament's separate championship
+	//    agegroups reseed automatically.
+
+	autoScorePoolAgegroup(agegroupId: string): Observable<BracketDevActionResult> {
+		const body: AgegroupScopeRequest = { agegroupId };
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-pool-agegroup`, body);
+	}
+
+	autoScoreRoundAgegroup(agegroupId: string): Observable<BracketDevActionResult> {
+		const body: AgegroupScopeRequest = { agegroupId };
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/auto-score-round-agegroup`, body);
+	}
+
+	revertAgegroup(agegroupId: string): Observable<BracketDevActionResult> {
+		const body: AgegroupScopeRequest = { agegroupId };
+		return this.http.post<BracketDevActionResult>(`${this.apiUrl}/revert-agegroup`, body);
 	}
 }

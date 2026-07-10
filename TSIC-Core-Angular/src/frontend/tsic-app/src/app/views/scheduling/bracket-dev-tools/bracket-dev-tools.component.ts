@@ -1,22 +1,21 @@
 import { Component, ChangeDetectionStrategy, computed, inject, input, output, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { environment } from '@environments/environment';
 import { BracketDevToolsService } from './services/bracket-dev-tools.service';
-import { ConfirmDialogComponent } from '@shared-ui/components/confirm-dialog/confirm-dialog.component';
+import { DevSeedStripComponent, type DevStripAction } from '../shared/components/dev-seed-strip/dev-seed-strip.component';
 import type { BracketDevActionResult } from '@core/api';
 
 /**
  * Dev/sandbox-only strip that exercises the bracket pipeline (seeding + advancement)
  * against real tournament data for the selected division. Renders ONLY outside live
- * Production; the backend independently rejects the calls there too.
+ * Production; the backend independently rejects the calls there too. Chrome + spinner
+ * live in the shared DevSeedStrip; this component owns the division-scoped wiring.
  */
 @Component({
 	selector: 'app-bracket-dev-tools',
 	standalone: true,
-	imports: [CommonModule, ConfirmDialogComponent],
+	imports: [DevSeedStripComponent],
 	changeDetection: ChangeDetectionStrategy.OnPush,
 	templateUrl: './bracket-dev-tools.component.html',
-	styleUrl: './bracket-dev-tools.component.scss',
 })
 export class BracketDevToolsComponent {
 	private readonly svc = inject(BracketDevToolsService);
@@ -35,7 +34,28 @@ export class BracketDevToolsComponent {
 	readonly busy = signal<string | null>(null);
 	readonly result = signal<BracketDevActionResult | null>(null);
 	readonly errorMessage = signal('');
-	readonly showClearConfirm = signal(false);
+
+	readonly actions: DevStripAction[] = [
+		{
+			key: 'pool',
+			label: '1 · Auto-Score RR Games',
+			busyLabel: 'Scoring RR games…',
+			hint: 'Scores every pool game with random scores (ties allowed) → standings lock → bracket seeds resolve.',
+		},
+		{
+			key: 'round',
+			label: '2 · Auto-Score Bracket Round (1 by 1)',
+			busyLabel: 'Advancing…',
+			hint: 'Scores every ready bracket game → winners advance one round. Click again for the next.',
+		},
+		{
+			key: 'clear',
+			label: '↺ Clear scores & reset bracket',
+			busyLabel: 'Clearing…',
+			hint: 'Wipes all scores and blanks bracket slots so seeding can re-run from scratch.',
+			danger: true,
+		},
+	];
 
 	readonly clearMessage = computed(() => {
 		const div = this.divisionName();
@@ -43,32 +63,18 @@ export class BracketDevToolsComponent {
 		return `Every score in ${where} will be cleared and its bracket slots blanked back to unseeded.`;
 	});
 
-	clearScores(): void {
-		if (!this.canRun()) return;
-		this.showClearConfirm.set(true);
-	}
-
-	onClearConfirmed(): void {
-		this.showClearConfirm.set(false);
-		this.run('clear', () => this.svc.clearScores(this.request()));
-	}
-
-	onClearCancelled(): void {
-		this.showClearConfirm.set(false);
-	}
-
-	autoScorePool(): void {
-		if (!this.canRun()) return;
-		this.run('pool', () => this.svc.autoScorePool(this.request()));
-	}
-
-	autoScoreRound(): void {
-		if (!this.canRun()) return;
-		this.run('round', () => this.svc.autoScoreRound(this.request()));
-	}
-
-	private canRun(): boolean {
-		return this.isSandbox && !!this.divId() && !this.busy();
+	onAction(key: string): void {
+		switch (key) {
+			case 'pool':
+				this.run('pool', () => this.svc.autoScorePool(this.request()));
+				break;
+			case 'round':
+				this.run('round', () => this.svc.autoScoreRound(this.request()));
+				break;
+			case 'clear':
+				this.run('clear', () => this.svc.clearScores(this.request()));
+				break;
+		}
 	}
 
 	private request() {

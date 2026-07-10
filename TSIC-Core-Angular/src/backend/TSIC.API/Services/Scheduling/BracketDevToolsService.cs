@@ -263,6 +263,58 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         };
     }
 
+    public async Task<BracketDevActionResult> AutoScorePoolAgegroupAsync(
+        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
+    {
+        // Agegroup scope: every pool game in ONE agegroup. Each scored pool game still fires
+        // job-wide seed resolution, so a reseeding tournament's championship agegroups (separate
+        // agegroups) reseed automatically — the operator scores the pool agegroup, then selects
+        // the flight agegroup to advance it.
+        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
+        var targets = games
+            .Where(g => IsPoolGame(g)
+                     && g.T1Id != null && g.T2Id != null
+                     && (g.T1Score == null || g.T2Score == null))
+            .ToList();
+
+        var scored = await ScoreEachAsync(jobId, userId, targets, ct);
+        _logger.LogWarning(
+            "DEV bracket auto-score-pool (agegroup) — job {JobId} agegroup {AgegroupId}: {N} pool game(s) scored.",
+            jobId, agegroupId, scored);
+
+        return new BracketDevActionResult
+        {
+            GamesAffected = scored,
+            Message = scored == 0
+                ? "No unscored pool games in this age group."
+                : $"Auto-scored {scored} pool game(s) with random scores. Completed pools lock standings → bracket seeds resolve."
+        };
+    }
+
+    public async Task<BracketDevActionResult> AutoScoreBracketRoundAgegroupAsync(
+        Guid jobId, Guid agegroupId, string userId, CancellationToken ct = default)
+    {
+        var games = await _scheduleRepo.GetAgegroupGamesTrackedAsync(jobId, agegroupId, ct);
+        var targets = games
+            .Where(g => IsBracketGame(g)
+                     && g.T1Id != null && g.T2Id != null
+                     && (g.T1Score == null || g.T2Score == null))
+            .ToList();
+
+        var scored = await ScoreEachAsync(jobId, userId, targets, ct);
+        _logger.LogWarning(
+            "DEV bracket auto-score-round (agegroup) — job {JobId} agegroup {AgegroupId}: {N} bracket game(s) scored.",
+            jobId, agegroupId, scored);
+
+        return new BracketDevActionResult
+        {
+            GamesAffected = scored,
+            Message = scored == 0
+                ? "No bracket games are ready — seed the pools first (Auto-Score RR Games)."
+                : $"Auto-scored {scored} ready bracket game(s) with random decisive scores. Winners advanced to the next round."
+        };
+    }
+
     // Route each score through the real path so R1/R2/R3 fire exactly as in prod.
     // Decisiveness is decided per game: a bracket game may not tie (rejected on the
     // advance path); a pool game may.

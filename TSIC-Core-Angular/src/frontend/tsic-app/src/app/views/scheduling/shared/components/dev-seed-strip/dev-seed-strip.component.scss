@@ -1,5 +1,5 @@
-// Styling language mirrors the division dev strip (bracket-dev-tools) so the two
-// read as the same tool at different scopes. Component-scoped, palette-responsive.
+// Shared DEV seed-strip chrome — used by the division panel (bracket-dev-tools) and the
+// reseeding-event panel (event-seed-tools). Component-scoped, palette-responsive.
 .dev-tools {
 	margin-top: var(--space-3);
 	padding: var(--space-3);
@@ -80,8 +80,15 @@
 		box-shadow: var(--shadow-focus);
 	}
 
+	// Disabled = non-interactive (busy, or an action that doesn't apply on this tab).
+	// The one action that's actively running (--busy) shows a progress cursor; every
+	// other disabled button reads as "not right now".
 	&:disabled {
 		opacity: 0.6;
+		cursor: not-allowed;
+	}
+
+	&--busy:disabled {
 		cursor: progress;
 	}
 
@@ -93,8 +100,23 @@
 	}
 
 	&__label {
+		display: flex;
+		align-items: center;
+		gap: var(--space-2);
 		font-weight: 600;
 		font-size: var(--font-size-sm);
+	}
+
+	// Inline busy spinner; reuses the global `spin` keyframe from _utilities.scss.
+	&__spin {
+		display: inline-block;
+		width: 14px;
+		height: 14px;
+		border: 2px solid currentColor;
+		border-right-color: transparent;
+		border-radius: 50%;
+		flex-shrink: 0;
+		animation: spin 0.6s linear infinite;
 	}
 
 	&__hint {
@@ -105,5 +127,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.dev-btn { transition: none; }
+	.dev-btn {
+		transition: none;
+
+		&__spin { animation: none; }
+	}
 }
