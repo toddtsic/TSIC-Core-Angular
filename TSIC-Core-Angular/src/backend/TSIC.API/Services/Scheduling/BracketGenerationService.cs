@@ -1,3 +1,4 @@
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -14,12 +15,6 @@ public sealed class BracketGenerationService : IBracketGenerationService
 {
     private readonly IBracketRepository _bracketRepo;
     private readonly ILogger<BracketGenerationService> _logger;
-
-    // Ladder round type -> number of teams entering that round.
-    private static readonly Dictionary<string, int> RoundSize = new()
-    {
-        ["Z"] = 64, ["Y"] = 32, ["X"] = 16, ["Q"] = 8, ["S"] = 4, ["F"] = 2
-    };
 
     public BracketGenerationService(
         IBracketRepository bracketRepo,
@@ -44,9 +39,14 @@ public sealed class BracketGenerationService : IBracketGenerationService
             }
             catch (Exception ex)
             {
-                // One odd division must not break the caller.
-                _logger.LogWarning(ex,
-                    "BracketWiring: failed to materialize div {DivId} in job {JobId} — skipped.",
+                // This runs on the read chokepoint (every pool-game score) and on dashboard
+                // load, so one odd division must not break the caller. But a division that
+                // fails to materialize gets no seed slots and no feeds: seeding and
+                // advancement are dead for it until this is fixed. That is an error, not a
+                // warning.
+                _logger.LogError(ex,
+                    "BracketWiring: div {DivId} in job {JobId} failed to materialize — its bracket " +
+                    "will not seed or advance.",
                     t.DivId, jobId);
             }
         }
@@ -78,7 +78,9 @@ public sealed class BracketGenerationService : IBracketGenerationService
         }
 
         // 2. Bracket size = largest ladder round present (bronze 'B' excluded).
-        var feedRounds = placed.Where(p => RoundSize.ContainsKey(p.RoundType)).ToList();
+        var feedRounds = placed
+            .Where(p => GameRoundTypes.LadderRoundSize.ContainsKey(p.RoundType))
+            .ToList();
         if (feedRounds.Count == 0)
         {
             _logger.LogWarning(
@@ -86,7 +88,7 @@ public sealed class BracketGenerationService : IBracketGenerationService
                 divId, string.Join(",", placed.Select(p => p.RoundType).Distinct()));
             return null;
         }
-        var bracketSize = feedRounds.Max(p => RoundSize[p.RoundType]);
+        var bracketSize = feedRounds.Max(p => GameRoundTypes.LadderRoundSize[p.RoundType]);
 
         // 3. SE template for that size + its topology (games + routes).
         var template = await _bracketRepo.GetSeTemplateAsync(bracketSize, ct);
@@ -106,7 +108,29 @@ public sealed class BracketGenerationService : IBracketGenerationService
         var labelMemo = BracketTemplateTopology.ComputeMinLabels(games, routes);
 
         // 5. Match placed rows and template games by (RoundType, min-label).
-        var placedGidByKey = placed.ToDictionary(p => (p.RoundType, p.MinLabel), p => p.Gid);
+        //    A division carries at most one placed row per template game — but real schedules
+        //    break that: a bracket placed twice leaves two 'F' rows on the same 1v2 line. Keep
+        //    the earliest-placed row and name the strays. Throwing here is strictly worse: the
+        //    caller's per-division catch would swallow it and leave the whole division unwired,
+        //    so seeding and advancement would die for it, silently, forever.
+        var placedByKey = new Dictionary<(string RoundType, int MinLabel), PlacedBracketGame>();
+        foreach (var group in placed.GroupBy(p => (p.RoundType, p.MinLabel)))
+        {
+            var ordered = group.OrderBy(p => p.Gid).ToList();
+            placedByKey[group.Key] = ordered[0];
+
+            if (ordered.Count > 1)
+            {
+                _logger.LogError(
+                    "BracketGen: div {DivId} has {N} placed '{Round}' games on bracket line {Label} " +
+                    "(Gids {Gids}). Wiring Gid {Kept}; the others are ignored by seeding and " +
+                    "advancement. Delete the duplicate game(s) to clear this.",
+                    divId, ordered.Count, group.Key.RoundType, group.Key.MinLabel,
+                    string.Join(", ", ordered.Select(p => p.Gid)), ordered[0].Gid);
+            }
+        }
+
+        var placedGidByKey = placedByKey.ToDictionary(kv => kv.Key, kv => kv.Value.Gid);
         var templateGameByKey = games.ToDictionary(
             g => (g.RoundType, labelMemo[g.TemplateGameId]), g => g);
 
@@ -164,14 +188,14 @@ public sealed class BracketGenerationService : IBracketGenerationService
         //    brackets.* schema. Where the director set nothing, default to the
         //    same division at the slot's placed number.
         var seedIntentByGid = (await _bracketRepo.GetBracketSeedsByGidsAsync(
-                placed.Select(p => p.Gid).ToList(), ct))
+                placedByKey.Values.Select(p => p.Gid).ToList(), ct))
             .GroupBy(bs => bs.Gid)
             .ToDictionary(g => g.Key, g => g.First());
 
         var fedSlots = new HashSet<(int, int)>(
             routes.Select(r => (r.TargetTemplateGameId, (int)r.TargetSlot)));
         var seeds = new List<SeedAssignments>();
-        foreach (var pg in placed)
+        foreach (var pg in placedByKey.Values)
         {
             if (!templateGameByKey.TryGetValue((pg.RoundType, pg.MinLabel), out var tg))
             {

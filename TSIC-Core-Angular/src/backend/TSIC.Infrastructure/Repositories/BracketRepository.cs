@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
@@ -29,7 +30,7 @@ public class BracketRepository : IBracketRepository
                      && s.DivId == divId
                      && s.T1Type != null && s.T2Type != null
                      && s.T1Type == s.T2Type
-                     && s.T1Type != "T"
+                     && GameRoundTypes.Bracket.Contains(s.T1Type)
                      && s.T1No != null && s.T2No != null)
             .Select(s => new PlacedBracketGame
             {
@@ -143,7 +144,8 @@ public class BracketRepository : IBracketRepository
             .AsNoTracking()
             .Where(s => s.JobId == jobId
                      && s.AgegroupId != null && s.DivId != null
-                     && s.T1Type != null && s.T1Type == s.T2Type && s.T1Type != "T")
+                     && s.T1Type != null && s.T1Type == s.T2Type
+                     && GameRoundTypes.Bracket.Contains(s.T1Type))
             .Select(s => new { AgegroupId = s.AgegroupId!.Value, DivId = s.DivId!.Value })
             .Distinct()
             .ToListAsync(ct);

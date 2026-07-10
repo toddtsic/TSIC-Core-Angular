@@ -1,3 +1,4 @@
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -35,10 +36,13 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         _logger = logger;
     }
 
+    // Ladder + bronze only. A consolation ("C") game never advances, so it is not a bracket
+    // round to auto-score, and its occupant is not derived from the ladder.
     private static bool IsBracketGame(Schedule g) =>
-        !string.IsNullOrEmpty(g.T1Type) && g.T1Type == g.T2Type && g.T1Type != "T";
+        g.T1Type == g.T2Type && GameRoundTypes.IsBracket(g.T1Type);
 
-    private static bool IsPoolGame(Schedule g) => g.T1Type == "T" && g.T2Type == "T";
+    private static bool IsPoolGame(Schedule g) =>
+        g.T1Type == GameRoundTypes.RoundRobin && g.T2Type == GameRoundTypes.RoundRobin;
 
     public async Task<BracketDevActionResult> ClearDivisionScoresAsync(
         Guid jobId, Guid agegroupId, Guid divId, string userId, CancellationToken ct = default)
@@ -112,16 +116,19 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
                 changed = true;
             }
 
-            // Inverse of SynchronizeScheduleTeamAssignmentsForDivisionAsync, which seats a
-            // slot only when that slot's type is "T". Decided per slot, as the mint is.
-            if (g.T1Type != "T" && (g.T1Id != null || g.T1Name != null))
+            // A bracket slot is minted empty, so its occupant is always derived state and can
+            // be rebuilt by seed resolution / advancement — blank it. A "T" slot is seated from
+            // Teams.DivRank at mint and survives. A consolation slot is neither: nothing on any
+            // code path re-seats it, so blanking it would destroy the assignment for good.
+            // Decided per slot, as the mint is.
+            if (GameRoundTypes.IsBracket(g.T1Type) && (g.T1Id != null || g.T1Name != null))
             {
                 g.T1Id = null;
                 g.T1Name = null;
                 changed = true;
             }
 
-            if (g.T2Type != "T" && (g.T2Id != null || g.T2Name != null))
+            if (GameRoundTypes.IsBracket(g.T2Type) && (g.T2Id != null || g.T2Name != null))
             {
                 g.T2Id = null;
                 g.T2Name = null;
@@ -141,7 +148,7 @@ public sealed class BracketDevToolsService : IBracketDevToolsService
         // Restore the director's seed intent onto the leaf slots we just emptied. Without
         // this the schedule grid would fall back to "X1" while the seed board still showed
         // the intent — and only a manual re-save per game would ever put the label back.
-        var bracketGids = games.Where(g => g.T1Type != "T").Select(g => g.Gid).ToList();
+        var bracketGids = games.Where(IsBracketGame).Select(g => g.Gid).ToList();
         await _scheduleRepo.SynchronizeBracketSeedAnnotationsAsync(bracketGids, ct);
 
         return affected;

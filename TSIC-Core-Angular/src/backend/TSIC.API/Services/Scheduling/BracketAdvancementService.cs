@@ -1,3 +1,4 @@
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
@@ -26,9 +27,11 @@ public sealed class BracketAdvancementService : IBracketAdvancementService
         _logger = logger;
     }
 
-    // A bracket game (vs round-robin "T") has both slot types equal, non-empty, not "T".
+    // A bracket game takes part in the ladder: both slots carry the same bracket round type.
+    // Consolation ("C") games are NOT bracket games — they are seeded standalone placement
+    // games that never advance a winner, and they may legitimately end in a tie.
     private static bool IsBracketGame(Schedule g) =>
-        !string.IsNullOrEmpty(g.T1Type) && g.T1Type == g.T2Type && g.T1Type != "T";
+        g.T1Type == g.T2Type && GameRoundTypes.IsBracket(g.T1Type);
 
     public void EnsureBracketScoreValid(Schedule game)
     {
