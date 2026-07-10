@@ -1618,6 +1618,15 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
                     message: response.message ?? null,
                 });
             } catch (e) { console.warn('[Payment] setLastPayment failed', e); }
+            // Refresh the family snapshot the wizard was holding BEFORE this charge. The server has
+            // just stamped subscription ids / paid totals / bActive onto these registrations, and the
+            // parent can navigate straight back here from Review or Confirmation. Without the reload
+            // priorRegistrations still shows no subscription, so every line looks unpaid: the payment
+            // options re-render and the Pay button re-arms on an already-financed cart. ARB is the
+            // sharp case — it records no money, so the subscription id is the ONLY thing that marks
+            // the registration as settled. The failure branch below reloads for the same reason.
+            const paidJobPath = this.state.jobCtx.jobPath();
+            if (paidJobPath) this.state.familyPlayers.loadFamilyPlayers(paidJobPath, this.state.jobCtx.resolveApiBase());
             this.advance.emit();
             this.submitting.set(false);
             if (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0) {
