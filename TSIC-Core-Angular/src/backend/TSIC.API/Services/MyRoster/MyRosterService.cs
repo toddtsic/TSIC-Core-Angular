@@ -54,6 +54,8 @@ public sealed class MyRosterService : IMyRosterService
             Allowed = true,
             TeamId = teamId,
             TeamName = teamName,
+            MomLabel = string.IsNullOrWhiteSpace(flags.Value.MomLabel) ? "Mom" : flags.Value.MomLabel,
+            DadLabel = string.IsNullOrWhiteSpace(flags.Value.DadLabel) ? "Dad" : flags.Value.DadLabel,
             Players = players,
         };
     }

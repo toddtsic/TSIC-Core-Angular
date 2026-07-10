@@ -1,111 +1,201 @@
-<div class="page-header">
-    <h2>
-        @if (teamName()) {
-            {{ teamName() }}
-        } @else {
-            Team Roster
-        }
-    </h2>
-    @if (allowed()) {
-        <span class="header-count">{{ players().length }} {{ players().length === 1 ? 'player' : 'players' }}</span>
-    }
-</div>
-
-@if (isLoading()) {
-    <div class="text-center py-5">
-        <div class="spinner-border text-primary" role="status"></div>
-        <p class="mt-2 text-body-secondary">Loading roster...</p>
-    </div>
-}
-
-@if (!isLoading() && !allowed()) {
-    <div class="alert alert-info d-flex align-items-start" role="alert">
-        <i class="bi bi-info-circle-fill me-2 mt-1"></i>
-        <div>
-            <strong>Roster unavailable.</strong>
-            <div class="small mt-1">{{ reason() ?? 'Please check back later.' }}</div>
+<section class="roster">
+    <!-- ── Hero header ───────────────────────────────────────────────────── -->
+    <header class="roster-hero">
+        <div class="hero-titles">
+            <h2 class="hero-team">{{ teamName() || 'Team Roster' }}</h2>
+            @if (allowed() && players().length) {
+                <span class="hero-count">{{ players().length }} {{ players().length === 1 ? 'member' : 'members' }}</span>
+            }
         </div>
-    </div>
-}
 
-@if (!isLoading() && allowed()) {
-    <!-- Email toolbar -->
-    <div class="email-toolbar">
-        <div class="toolbar-group">
+        @if (!isLoading() && allowed() && players().length) {
+            <div class="hero-tools">
+                <div class="search-field">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <input type="search" class="search-input" placeholder="Find a teammate…"
+                           [value]="filter()" (input)="filter.set($any($event.target).value)"
+                           aria-label="Filter roster by name" />
+                </div>
+                <select class="sort-select" aria-label="Sort roster"
+                        (change)="sortBy.set($any($event.target).value)">
+                    <option value="name">Sort: Name</option>
+                    <option value="role">Sort: Role</option>
+                </select>
+            </div>
+        }
+    </header>
+
+    <!-- ── Loading skeletons ─────────────────────────────────────────────── -->
+    @if (isLoading()) {
+        <ul class="roster-grid" aria-hidden="true">
+            @for (i of skeletons; track i) {
+                <li class="player-card skeleton-card">
+                    <div class="sk-head">
+                        <span class="sk sk-avatar"></span>
+                        <span class="sk-head-lines">
+                            <span class="sk sk-line sk-w-70"></span>
+                            <span class="sk sk-line sk-w-45"></span>
+                        </span>
+                    </div>
+                    <span class="sk sk-block"></span>
+                    <span class="sk sk-block sk-w-60"></span>
+                </li>
+            }
+        </ul>
+    }
+
+    <!-- ── Roster unavailable ────────────────────────────────────────────── -->
+    @if (!isLoading() && !allowed()) {
+        <div class="notice">
+            <i class="bi bi-shield-lock" aria-hidden="true"></i>
+            <h3>Roster unavailable</h3>
+            <p>{{ reason() ?? 'Please check back later.' }}</p>
+        </div>
+    }
+
+    @if (!isLoading() && allowed()) {
+        <!-- ── Selection + email action bar ──────────────────────────────── -->
+        <div class="roster-actionbar">
             <label class="select-all">
-                <input type="checkbox"
-                       [checked]="allChecked"
-                       (change)="toggleAll($any($event.target).checked)" />
+                <input type="checkbox" [checked]="allChecked"
+                       (change)="toggleAll($any($event.target).checked)"
+                       [disabled]="visiblePlayers().length === 0"
+                       aria-label="Select all shown teammates" />
                 <span>Select all</span>
             </label>
             @if (selectedCount() > 0) {
-                <span class="selection-pill">{{ selectedCount() }} selected</span>
+                <span class="selected-badge">{{ selectedCount() }} selected</span>
             }
-        </div>
-        <div class="toolbar-actions">
-            <button type="button" class="btn btn-outline-primary btn-sm"
-                    [disabled]="selectedCount() === 0"
-                    (click)="openEmailSelected()">
-                <i class="bi bi-envelope-check me-1"></i>
-                Email Selected
+            <span class="actionbar-spacer"></span>
+            <button type="button" class="ab-btn ab-btn-ghost"
+                    [disabled]="selectedCount() === 0" (click)="openEmailSelected()">
+                <i class="bi bi-envelope-check" aria-hidden="true"></i>
+                <span>Email Selected</span>
             </button>
-            <button type="button" class="btn btn-primary btn-sm"
-                    [disabled]="players().length === 0"
-                    (click)="openEmailAll()">
-                <i class="bi bi-envelope-fill me-1"></i>
-                Email All
+            <button type="button" class="ab-btn ab-btn-solid"
+                    [disabled]="players().length === 0" (click)="openEmailAll()">
+                <i class="bi bi-envelope-fill" aria-hidden="true"></i>
+                <span>Email All</span>
             </button>
         </div>
-    </div>
 
-    <!-- Roster grid -->
-    @if (players().length > 0) {
-        <ejs-grid [dataSource]="players()"
-                  [allowSorting]="true"
-                  [sortSettings]="{ columns: [{ field: 'playerName', direction: 'Ascending' }] }"
-                  cssClass="tsic-grid-tight my-roster-grid">
-            <e-columns>
-                <e-column headerText="" width="48" [allowSorting]="false">
-                    <ng-template #template let-data>
-                        <input type="checkbox"
-                               class="row-check"
-                               [checked]="isSelected(data.registrationId)"
-                               (change)="toggleRow(data.registrationId, $any($event.target).checked)" />
-                    </ng-template>
-                </e-column>
-                <e-column field="playerName" headerText="Player" width="240"></e-column>
-                <e-column field="roleName" headerText="Role" width="100"></e-column>
-                <e-column field="position" headerText="Position" width="110"></e-column>
-                <e-column field="gradYear" headerText="Grad" width="80" textAlign="Center"></e-column>
-                <e-column field="email" headerText="Email" width="240">
-                    <ng-template #template let-data>
-                        @if (data.email) {
-                            <a [href]="'mailto:' + data.email" class="cell-link">{{ data.email }}</a>
-                        } @else {
-                            <span class="text-body-secondary">&mdash;</span>
-                        }
-                    </ng-template>
-                </e-column>
-                <e-column field="cellphone" headerText="Phone" width="140">
-                    <ng-template #template let-data>
-                        @if (data.cellphone) {
-                            {{ data.cellphone | phone }}
-                        } @else {
-                            <span class="text-body-secondary">&mdash;</span>
-                        }
-                    </ng-template>
-                </e-column>
-            </e-columns>
-        </ejs-grid>
-    }
+        <!-- ── Card directory ────────────────────────────────────────────── -->
+        @if (players().length > 0) {
+            @if (visiblePlayers().length > 0) {
+                <ul class="roster-grid">
+                    @for (p of visiblePlayers(); track p.registrationId) {
+                        <li class="player-card" [class.is-selected]="isSelected(p.registrationId)">
+                            <label class="card-select" [attr.aria-label]="'Select ' + displayName(p)">
+                                <input type="checkbox" [checked]="isSelected(p.registrationId)"
+                                       (change)="toggleRow(p.registrationId, $any($event.target).checked)" />
+                            </label>
 
-    @if (players().length === 0) {
-        <div class="text-center py-5 text-body-secondary">
-            <i class="bi bi-people fs-1 d-block mb-2"></i>
-            <p>No teammates on this roster yet.</p>
-        </div>
+                            <div class="card-head">
+                                <span class="monogram" [class.monogram--staff]="isStaff(p)" aria-hidden="true">{{ initials(p) }}</span>
+                                <div class="head-text">
+                                    <span class="player-name">{{ displayName(p) }}</span>
+                                    <div class="badge-row">
+                                        <span class="role-badge" [class.role-badge--staff]="isStaff(p)">
+                                            @if (isStaff(p)) { <i class="bi bi-person-badge" aria-hidden="true"></i> }
+                                            {{ p.roleName }}
+                                        </span>
+                                        @if (p.position) { <span class="pos-pill">{{ p.position }}</span> }
+                                        @if (gradLabel(p)) { <span class="grad-pill">{{ gradLabel(p) }}</span> }
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="contact-lines">
+                                @if (p.email) {
+                                    <a class="contact-line" [href]="'mailto:' + p.email">
+                                        <i class="bi bi-envelope" aria-hidden="true"></i>
+                                        <span class="contact-text">{{ p.email }}</span>
+                                    </a>
+                                }
+                                @if (p.cellphone) {
+                                    <a class="contact-line" [href]="'tel:' + p.cellphone">
+                                        <i class="bi bi-telephone" aria-hidden="true"></i>
+                                        <span class="contact-text">{{ p.cellphone | phone }}</span>
+                                    </a>
+                                }
+                                @if (!p.email && !p.cellphone) {
+                                    <span class="contact-line contact-empty">
+                                        <i class="bi bi-person-dash" aria-hidden="true"></i>
+                                        <span class="contact-text">No direct contact on file</span>
+                                    </span>
+                                }
+                            </div>
+
+                            @if (hasParents(p)) {
+                                <div class="parents">
+                                    <span class="parents-title">Family</span>
+                                    @if (hasMom(p)) {
+                                        <div class="parent">
+                                            <span class="parent-label">{{ momLabel() }}</span>
+                                            <div class="parent-body">
+                                                @if (momName(p)) { <span class="parent-name">{{ momName(p) }}</span> }
+                                                @if (p.momEmail || p.momCellphone) {
+                                                    <div class="parent-actions">
+                                                        @if (p.momEmail) {
+                                                            <a class="chip-action" [href]="'mailto:' + p.momEmail"
+                                                               [attr.aria-label]="momLabel() + ' email: ' + p.momEmail">
+                                                                <i class="bi bi-envelope" aria-hidden="true"></i>
+                                                            </a>
+                                                        }
+                                                        @if (p.momCellphone) {
+                                                            <a class="chip-action" [href]="'tel:' + p.momCellphone"
+                                                               [attr.aria-label]="momLabel() + ' phone: ' + (p.momCellphone | phone)">
+                                                                <i class="bi bi-telephone" aria-hidden="true"></i>
+                                                            </a>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                    @if (hasDad(p)) {
+                                        <div class="parent">
+                                            <span class="parent-label">{{ dadLabel() }}</span>
+                                            <div class="parent-body">
+                                                @if (dadName(p)) { <span class="parent-name">{{ dadName(p) }}</span> }
+                                                @if (p.dadEmail || p.dadCellphone) {
+                                                    <div class="parent-actions">
+                                                        @if (p.dadEmail) {
+                                                            <a class="chip-action" [href]="'mailto:' + p.dadEmail"
+                                                               [attr.aria-label]="dadLabel() + ' email: ' + p.dadEmail">
+                                                                <i class="bi bi-envelope" aria-hidden="true"></i>
+                                                            </a>
+                                                        }
+                                                        @if (p.dadCellphone) {
+                                                            <a class="chip-action" [href]="'tel:' + p.dadCellphone"
+                                                               [attr.aria-label]="dadLabel() + ' phone: ' + (p.dadCellphone | phone)">
+                                                                <i class="bi bi-telephone" aria-hidden="true"></i>
+                                                            </a>
+                                                        }
+                                                    </div>
+                                                }
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </li>
+                    }
+                </ul>
+            } @else {
+                <div class="empty">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <p>No teammates match “{{ filter() }}”.</p>
+                </div>
+            }
+        } @else {
+            <div class="empty">
+                <i class="bi bi-people" aria-hidden="true"></i>
+                <p>No teammates on this roster yet.</p>
+            </div>
+        }
     }
-}
+</section>
 
 @if (emailDialogOpen()) {
     <app-my-roster-email-dialog

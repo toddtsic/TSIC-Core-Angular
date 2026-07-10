@@ -2639,6 +2639,8 @@ public class RegistrationRepository : IRegistrationRepository
     public async Task<List<TSIC.Contracts.Dtos.MyRoster.MyRosterPlayerDto>> GetMyRosterByTeamIdAsync(
         Guid teamId, Guid jobId, CancellationToken ct = default)
     {
+        // Parent contact comes from Families via the FamilyUser nav (FK_Registrations_Families);
+        // EF emits a LEFT JOIN, so adults/staff with no family account simply project nulls.
         var raw = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.AssignedTeamId == teamId && r.JobId == jobId && (r.BActive ?? true))
@@ -2654,6 +2656,14 @@ public class RegistrationRepository : IRegistrationRepository
                 GradYearRaw = r.GradYear,
                 r.Position,
                 Gender = r.User != null ? r.User.Gender : null,
+                MomFirstName = r.FamilyUser != null ? r.FamilyUser.MomFirstName : null,
+                MomLastName = r.FamilyUser != null ? r.FamilyUser.MomLastName : null,
+                MomEmail = r.FamilyUser != null ? r.FamilyUser.MomEmail : null,
+                MomCellphone = r.FamilyUser != null ? r.FamilyUser.MomCellphone : null,
+                DadFirstName = r.FamilyUser != null ? r.FamilyUser.DadFirstName : null,
+                DadLastName = r.FamilyUser != null ? r.FamilyUser.DadLastName : null,
+                DadEmail = r.FamilyUser != null ? r.FamilyUser.DadEmail : null,
+                DadCellphone = r.FamilyUser != null ? r.FamilyUser.DadCellphone : null,
             })
             .OrderBy(r => r.LastName).ThenBy(r => r.FirstName)
             .ToListAsync(ct);
@@ -2666,23 +2676,33 @@ public class RegistrationRepository : IRegistrationRepository
                 : $"{r.LastName}, {r.FirstName}".Trim().TrimEnd(',').Trim(),
             RoleName = r.RoleName,
             BActive = r.BActive,
+            FirstName = r.FirstName,
+            LastName = r.LastName,
             Email = r.Email,
             Cellphone = r.Cellphone,
             GradYear = int.TryParse(r.GradYearRaw, out var gy) ? gy : null,
             Position = r.Position,
             Gender = r.Gender,
+            MomFirstName = r.MomFirstName,
+            MomLastName = r.MomLastName,
+            MomEmail = r.MomEmail,
+            MomCellphone = r.MomCellphone,
+            DadFirstName = r.DadFirstName,
+            DadLastName = r.DadLastName,
+            DadEmail = r.DadEmail,
+            DadCellphone = r.DadCellphone,
         }).ToList();
     }
 
-    public async Task<(bool AllowPlayer, bool AllowAdult)?> GetRosterViewFlagsAsync(
+    public async Task<(bool AllowPlayer, bool AllowAdult, string? MomLabel, string? DadLabel)?> GetRosterViewFlagsAsync(
         Guid jobId, CancellationToken ct = default)
     {
         var row = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.BAllowRosterViewPlayer, j.BAllowRosterViewAdult })
+            .Select(j => new { j.BAllowRosterViewPlayer, j.BAllowRosterViewAdult, j.MomLabel, j.DadLabel })
             .FirstOrDefaultAsync(ct);
-        return row == null ? null : (row.BAllowRosterViewPlayer, row.BAllowRosterViewAdult);
+        return row == null ? null : (row.BAllowRosterViewPlayer, row.BAllowRosterViewAdult, row.MomLabel, row.DadLabel);
     }
 
     public async Task<string?> GetTeamNameAsync(Guid teamId, Guid jobId, CancellationToken ct = default)

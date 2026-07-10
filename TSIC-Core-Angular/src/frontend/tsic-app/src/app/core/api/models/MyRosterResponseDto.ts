@@ -7,6 +7,8 @@ export type MyRosterResponseDto = {
     reason?: string | null;
     teamId?: string | null;
     teamName?: string | null;
+    momLabel?: string | null;
+    dadLabel?: string | null;
     players?: any[] | null;
 };
 
