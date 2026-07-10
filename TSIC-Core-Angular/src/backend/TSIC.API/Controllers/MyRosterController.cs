@@ -32,6 +32,25 @@ public class MyRosterController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Downloads the caller's own team roster as a PDF listing — same visibility gate as GET.</summary>
+    [HttpGet("pdf")]
+    public async Task<ActionResult> GetPdf(CancellationToken ct)
+    {
+        var regId = User.GetRegistrationId();
+        if (regId == null)
+            return BadRequest(new { message = "Registration context required." });
+
+        try
+        {
+            var result = await _myRosterService.GetRosterPdfAsync(regId.Value, ct);
+            return File(result.FileBytes, result.ContentType, result.FileName);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("email")]
     public async Task<ActionResult<EmailBatchHandle>> SendEmail(
         [FromBody] MyRosterBatchEmailRequest request, CancellationToken ct)

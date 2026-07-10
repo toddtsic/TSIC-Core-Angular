@@ -68,6 +68,11 @@
             }
             <span class="actionbar-spacer"></span>
             <button type="button" class="ab-btn ab-btn-ghost"
+                    [disabled]="players().length === 0 || isDownloading()" (click)="downloadPdf()">
+                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i>
+                <span>{{ isDownloading() ? 'Preparing…' : 'Download PDF' }}</span>
+            </button>
+            <button type="button" class="ab-btn ab-btn-ghost"
                     [disabled]="selectedCount() === 0" (click)="openEmailSelected()">
                 <i class="bi bi-envelope-check" aria-hidden="true"></i>
                 <span>Email Selected</span>
@@ -132,43 +137,47 @@
                             </div>
 
                             @if (hasParents(p)) {
-                                <div class="contacts">
-                                    <span class="contacts-title">Family</span>
+                                <div class="family">
+                                    <span class="family-title">Family</span>
                                     @if (hasMom(p)) {
-                                        <span class="contact-label">Contact 1</span>
-                                        <span class="contact-name">{{ momName(p) || '—' }}</span>
-                                        <span class="contact-actions">
+                                        <div class="contact-group">
+                                            <div class="contact-heading">
+                                                <span class="contact-tag">Contact 1</span>
+                                                @if (momName(p)) { <span class="contact-person">{{ momName(p) }}</span> }
+                                            </div>
                                             @if (p.momEmail) {
-                                                <a class="chip-action" [href]="'mailto:' + p.momEmail"
-                                                   [attr.aria-label]="'Contact 1 email: ' + p.momEmail">
+                                                <a class="contact-line" [href]="'mailto:' + p.momEmail">
                                                     <i class="bi bi-envelope" aria-hidden="true"></i>
+                                                    <span class="contact-text">{{ p.momEmail }}</span>
                                                 </a>
                                             }
                                             @if (p.momCellphone) {
-                                                <a class="chip-action" [href]="'tel:' + p.momCellphone"
-                                                   [attr.aria-label]="'Contact 1 phone: ' + (p.momCellphone | phone)">
+                                                <a class="contact-line" [href]="'tel:' + p.momCellphone">
                                                     <i class="bi bi-telephone" aria-hidden="true"></i>
+                                                    <span class="contact-text">{{ p.momCellphone | phone }}</span>
                                                 </a>
                                             }
-                                        </span>
+                                        </div>
                                     }
                                     @if (hasDad(p)) {
-                                        <span class="contact-label">Contact 2</span>
-                                        <span class="contact-name">{{ dadName(p) || '—' }}</span>
-                                        <span class="contact-actions">
+                                        <div class="contact-group">
+                                            <div class="contact-heading">
+                                                <span class="contact-tag">Contact 2</span>
+                                                @if (dadName(p)) { <span class="contact-person">{{ dadName(p) }}</span> }
+                                            </div>
                                             @if (p.dadEmail) {
-                                                <a class="chip-action" [href]="'mailto:' + p.dadEmail"
-                                                   [attr.aria-label]="'Contact 2 email: ' + p.dadEmail">
+                                                <a class="contact-line" [href]="'mailto:' + p.dadEmail">
                                                     <i class="bi bi-envelope" aria-hidden="true"></i>
+                                                    <span class="contact-text">{{ p.dadEmail }}</span>
                                                 </a>
                                             }
                                             @if (p.dadCellphone) {
-                                                <a class="chip-action" [href]="'tel:' + p.dadCellphone"
-                                                   [attr.aria-label]="'Contact 2 phone: ' + (p.dadCellphone | phone)">
+                                                <a class="contact-line" [href]="'tel:' + p.dadCellphone">
                                                     <i class="bi bi-telephone" aria-hidden="true"></i>
+                                                    <span class="contact-text">{{ p.dadCellphone | phone }}</span>
                                                 </a>
                                             }
-                                        </span>
+                                        </div>
                                     }
                                 </div>
                             }

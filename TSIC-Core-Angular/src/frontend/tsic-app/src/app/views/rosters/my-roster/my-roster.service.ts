@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Observable, timer } from 'rxjs';
 import { switchMap, takeWhile, last } from 'rxjs/operators';
 import { environment } from '../../../../environments/environment';
@@ -15,6 +15,11 @@ export class MyRosterService {
 
     get(): Observable<MyRosterResponseDto> {
         return this.http.get<MyRosterResponseDto>(this.apiUrl);
+    }
+
+    /** Downloads the caller's own team roster as a PDF listing (same server-side gate as get()). */
+    downloadPdf(): Observable<HttpResponse<Blob>> {
+        return this.http.get(`${this.apiUrl}/pdf`, { responseType: 'blob', observe: 'response' });
     }
 
     /** Starts the background roster-email batch; returns a handle to poll. */

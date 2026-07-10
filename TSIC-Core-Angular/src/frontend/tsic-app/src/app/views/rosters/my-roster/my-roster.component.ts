@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
 import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
+import { ReportingService } from '@infrastructure/services/reporting.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { MyRosterService } from './my-roster.service';
 import { MyRosterEmailDialogComponent } from './my-roster-email-dialog.component';
@@ -17,6 +18,7 @@ type SortKey = 'name' | 'role';
 })
 export class MyRosterComponent implements OnInit {
     private readonly rosterService = inject(MyRosterService);
+    private readonly reporting = inject(ReportingService);
     private readonly toast = inject(ToastService);
 
     readonly isLoading = signal(true);
@@ -32,6 +34,7 @@ export class MyRosterComponent implements OnInit {
 
     readonly emailMode = signal<'all' | 'selected'>('all');
     readonly emailDialogOpen = signal(false);
+    readonly isDownloading = signal(false);
 
     /** Placeholder cards while loading. */
     readonly skeletons = [0, 1, 2, 3, 4, 5];
@@ -186,5 +189,23 @@ export class MyRosterComponent implements OnInit {
     onEmailSent(): void {
         this.emailDialogOpen.set(false);
         this.selectedIds.set(new Set());
+    }
+
+    // ── PDF ─────────────────────────────────────────────────────────────────────
+
+    /** Downloads the team roster as a PDF listing (server enforces the same visibility gate). */
+    downloadPdf(): void {
+        if (this.isDownloading()) { return; }
+        this.isDownloading.set(true);
+        this.rosterService.downloadPdf().subscribe({
+            next: (res) => {
+                this.reporting.triggerDownload(res, 'Team-Roster');
+                this.isDownloading.set(false);
+            },
+            error: () => {
+                this.toast.show('Could not generate the roster PDF. Please try again.', 'danger', 4000);
+                this.isDownloading.set(false);
+            },
+        });
     }
 }

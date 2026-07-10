@@ -1,4 +1,6 @@
 using System.Text.RegularExpressions;
+using TSIC.API.Services.Reporting;
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.MyRoster;
 using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Repositories;
@@ -11,13 +13,16 @@ public sealed class MyRosterService : IMyRosterService
 {
     private readonly IRegistrationRepository _registrationRepo;
     private readonly IRegistrationSearchService _searchService;
+    private readonly IMyRosterPdfService _pdfService;
 
     public MyRosterService(
         IRegistrationRepository registrationRepo,
-        IRegistrationSearchService searchService)
+        IRegistrationSearchService searchService,
+        IMyRosterPdfService pdfService)
     {
         _registrationRepo = registrationRepo;
         _searchService = searchService;
+        _pdfService = pdfService;
     }
 
     public async Task<MyRosterResponseDto> GetMyRosterAsync(
@@ -56,6 +61,18 @@ public sealed class MyRosterService : IMyRosterService
             TeamName = teamName,
             Players = players,
         };
+    }
+
+    public async Task<ReportExportResult> GetRosterPdfAsync(
+        Guid callerRegistrationId, CancellationToken ct = default)
+    {
+        // Reuse the exact same role + job-flag gate and team-scoped data the card view runs
+        // through — a staff/player can only ever produce their own team's listing.
+        var snapshot = await GetMyRosterAsync(callerRegistrationId, ct);
+        if (!snapshot.Allowed || snapshot.Players == null)
+            throw new UnauthorizedAccessException(snapshot.Reason ?? "Roster unavailable.");
+
+        return _pdfService.Generate(snapshot.Players, snapshot.TeamName ?? "Team Roster");
     }
 
     public async Task<EmailBatchHandle> StartBatchEmailAsync(

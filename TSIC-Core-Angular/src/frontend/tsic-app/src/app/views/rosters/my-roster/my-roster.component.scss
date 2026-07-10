@@ -369,7 +369,7 @@
 
 .contact-line {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-start; // stays aligned when a long email wraps to two lines
     gap: var(--space-2);
     min-width: 0;
     color: var(--brand-text);
@@ -379,14 +379,16 @@
 
     .bi {
         flex-shrink: 0;
+        margin-top: 0.15em; // optically center the glyph on the first line of text
         color: var(--bs-primary);
         font-size: 0.85rem;
     }
 
+    // Full value always shown — wrap long emails rather than hide them behind an
+    // ellipsis, so the address stays readable and selectable on desktop.
     .contact-text {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        min-width: 0;
+        overflow-wrap: anywhere;
     }
 
     &:hover {
@@ -407,20 +409,19 @@
     .bi { color: var(--text-muted); }
 }
 
-// Family contacts — one grid so labels, names, and action chips form aligned
-// columns across every row (chips flush-right, labels centered on their values).
-.contacts {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: center;
-    column-gap: var(--space-3);
-    row-gap: var(--space-2);
+// Family contacts — each contact is a small stack: a heading (tag + name) then the
+// email and phone listed as full, tappable text. Values are shown, not hidden behind
+// an icon, so a desktop user can read and copy them (mailto:/tel: is a bonus, not the
+// only affordance). Groups are separated by more space than the lines within them.
+.family {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
     padding-top: var(--space-3);
     border-top: 1px solid var(--bs-border-color);
 }
 
-.contacts-title {
-    grid-column: 1 / -1;
+.family-title {
     font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-semibold);
     text-transform: uppercase;
@@ -429,7 +430,19 @@
     opacity: 0.8;
 }
 
-.contact-label {
+.contact-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+}
+
+.contact-heading {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+}
+
+.contact-tag {
     font-size: var(--font-size-2xs);
     font-weight: var(--font-weight-bold);
     text-transform: uppercase;
@@ -438,43 +451,16 @@
     white-space: nowrap;
 }
 
-.contact-name {
+.contact-person {
     min-width: 0;
     font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
     color: var(--brand-text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
 
-.contact-actions {
-    justify-self: end;
-    display: inline-flex;
-    gap: var(--space-1);
-}
-
-.chip-action {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 1.75rem;
-    height: 1.75rem;
-    border-radius: var(--radius-sm);
-    color: var(--bs-primary);
-    background: var(--bs-primary-bg-subtle);
-    border: 1px solid var(--bs-primary-border-subtle);
-    text-decoration: none;
-    font-size: 0.8rem;
-    transition: background 0.15s ease, color 0.15s ease;
-
-    &:hover {
-        background: var(--bs-primary);
-        color: var(--bs-white);
-    }
-
-    &:focus-visible {
-        outline: none;
-        box-shadow: var(--shadow-focus);
+    &::before {
+        content: '·';
+        margin: 0 0.4ch;
+        color: var(--text-muted);
     }
 }
 
@@ -602,8 +588,7 @@
 
 @media (prefers-reduced-motion: reduce) {
     .player-card,
-    .ab-btn,
-    .chip-action {
+    .ab-btn {
         transition: none;
     }
 

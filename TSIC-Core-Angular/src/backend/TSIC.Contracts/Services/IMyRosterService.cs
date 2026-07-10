@@ -1,3 +1,4 @@
+using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.MyRoster;
 
 namespace TSIC.Contracts.Services;
@@ -10,6 +11,13 @@ public interface IMyRosterService
     /// frontend can render a friendly alert.
     /// </summary>
     Task<MyRosterResponseDto> GetMyRosterAsync(Guid callerRegistrationId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Renders the caller's own team roster to a PDF listing, passing through the SAME
+    /// role + job-flag visibility gate as <see cref="GetMyRosterAsync"/>. Throws
+    /// <see cref="UnauthorizedAccessException"/> when the roster is not visible to the caller.
+    /// </summary>
+    Task<ReportExportResult> GetRosterPdfAsync(Guid callerRegistrationId, CancellationToken ct = default);
 
     /// <summary>
     /// Starts a background batch email to the caller's teammates on the shared email engine.
