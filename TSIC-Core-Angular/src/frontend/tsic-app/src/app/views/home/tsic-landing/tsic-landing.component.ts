@@ -64,7 +64,7 @@ export class TsicLandingComponent implements OnDestroy {
     {
       icon: 'bi-phone-vibrate-fill',
       title: 'Automated Communications',
-      description: 'Targeted text and email blasts with filters for all registrants. Mobile app has automated rostering for any TeamSportsInfo club team. Push notifications for game results, schedule reminders, weather alerts that reach the right people at the right time.'
+      description: 'Targeted email blasts and push notifications for all registrants. Mobile app has automated rostering for any TeamSportsInfo club team. Push notifications for game results, schedule reminders, weather alerts that reach the right people at the right time.'
     },
     {
       icon: 'bi-clipboard-data-fill',
