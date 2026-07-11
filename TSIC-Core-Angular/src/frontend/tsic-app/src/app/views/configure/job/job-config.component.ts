@@ -58,7 +58,7 @@ export class JobConfigComponent implements OnInit, HasUnsavedChanges {
     { key: 'coaches', label: 'Adult', icon: '' },
     { key: 'scheduling', label: 'Scheduling', icon: '' },
     { key: 'mobileStore', label: 'Mobile/Store', icon: '' },
-    { key: 'ddlOptions', label: 'Dropdowns', icon: '' },
+    { key: 'ddlOptions', label: 'Dropdowns', icon: '', superUserOnly: true },
   ];
 
   // SuperUser-only tabs (e.g. Branding) are hidden entirely for other roles.
