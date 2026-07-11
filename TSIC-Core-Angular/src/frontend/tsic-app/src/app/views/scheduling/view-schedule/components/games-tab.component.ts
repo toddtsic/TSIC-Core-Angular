@@ -59,9 +59,9 @@ import type { ViewGameDto } from '@core/api';
                                         (click)="onStarClick(game.t2Id!)">
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                 </button>
-                                <span class="clickable" [class.team-name--followed]="isFollowed(game.t2Id)" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
+                                <span class="clickable team-name" [class.team-name--followed]="isFollowed(game.t2Id)" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
                             } @else {
-                                <span>{{ game.t2Name }}</span>
+                                <span class="team-name">{{ game.t2Name }}</span>
                             }
                             @if (game.t2Record) { <span class="record"> ({{ game.t2Record }})</span> }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
@@ -118,15 +118,15 @@ import type { ViewGameDto } from '@core/api';
                         <span class="cell cell-home" role="cell" aria-colindex="5">
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
-                                <span class="clickable" [class.team-name--followed]="isFollowed(game.t1Id)" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t1Id)"
                                         [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
                                         (click)="onStarClick(game.t1Id!)">
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                 </button>
+                                <span class="clickable team-name" [class.team-name--followed]="isFollowed(game.t1Id)" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
                             } @else {
-                                <span>{{ game.t1Name }}</span>
+                                <span class="team-name">{{ game.t1Name }}</span>
                             }
                             <span class="decoy" aria-hidden="true">{{ decoyText(game.gid, 1) }}</span>
                             @if (game.t1Record) { <span class="record"> ({{ game.t1Record }})</span> }
@@ -469,6 +469,30 @@ import type { ViewGameDto } from '@core/api';
 
         .clickable:hover { text-decoration: underline; }
 
+        /* Team cells are flex so the follow-star vertically CENTERS with the team
+           name (as inline elements the 18px star button sat on the text baseline
+           and read low). gap replaces the old inter-span spacing; the star's own
+           horizontal margin is zeroed here so it isn't double-spaced. */
+        .cell-home,
+        .cell-away {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            min-width: 0;
+        }
+        .cell-home { justify-content: flex-end; }
+        .cell-away { justify-content: flex-start; }
+        .cell-home .team-star,
+        .cell-away .team-star { margin: 0; }
+
+        /* Name truncates within the flex row (ellipsis previously lived on .cell). */
+        .team-name {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         /* Followed team — bolds the name to draw the eye when filtering by team. */
         .team-name--followed { font-weight: 700; }
 
@@ -536,7 +560,7 @@ import type { ViewGameDto } from '@core/api';
         .score-line {
             display: inline-flex;
             align-items: baseline;
-            gap: 2px;
+            gap: var(--space-1);
         }
 
         .cell-score.editable { cursor: pointer; }
@@ -553,8 +577,32 @@ import type { ViewGameDto } from '@core/api';
             font-size: var(--font-size-sm);
         }
 
-        .winner { color: var(--bs-success); }
-        .loser  { color: var(--bs-danger); }
+        /* Black-tie result styling: the winning number stays plain monochrome —
+           a tiny yellow check rides SUPERSCRIPT off its trailing edge (same
+           treatment as the location link glyph) to mark the win. It's a CSS
+           pseudo-element, so the winner marker never exists as DOM text and
+           there's no color tell on the number either — a scraper sees identical
+           monochrome scores with zero markup difference. The yellow token is
+           palette-aware (vivid in light, glows in dark). Loser is muted figure. */
+        .winner {
+            color: var(--bs-body-color);
+        }
+        .winner::after {
+            content: "\\f633"; /* bi-check-lg */
+            color: var(--score-winner);
+            font-family: "bootstrap-icons";
+            font-weight: normal;
+            font-style: normal;
+            font-size: 0.6em;
+            vertical-align: super;
+            margin-left: 1px;
+            -webkit-font-smoothing: antialiased;
+        }
+        /* Loser drops to normal weight (both numbers were 700, so winner/loser
+           differed by color alone — too weak in some palettes). Now the winner's
+           bold full-color figure reads as the victor at a glance and the check
+           is a confirming accent, not the sole signal. */
+        .loser    { color: var(--bs-secondary-color); font-weight: 400; }
         .no-score { color: var(--bs-secondary-color); }
 
         /* Status badge — sub-score label. Stays within the 36px row height
@@ -572,7 +620,7 @@ import type { ViewGameDto } from '@core/api';
             white-space: nowrap;
         }
 
-        .status-final        { color: var(--bs-success); }
+        .status-final        { color: var(--bs-body-color); }
         .status-rescheduled  { color: #b45309;  /* amber-700 */ }
         .status-forfeit      { color: #6d28d9;  /* purple-700 */ }
         .status-cancelled    { color: var(--bs-danger); }
@@ -684,8 +732,25 @@ import type { ViewGameDto } from '@core/api';
             font-variant-numeric: tabular-nums;
             font-family: var(--bs-font-monospace);
             min-width: 2ch;
-            text-align: right;
+            text-align: center;
         }
+
+        /* Monochrome number + trailing yellow trophy / muted loser — matches desktop. */
+        .card-team-score.winner {
+            color: var(--bs-body-color);
+        }
+        .card-team-score.winner::after {
+            content: "\\f633"; /* bi-check-lg */
+            color: var(--score-winner);
+            font-family: "bootstrap-icons";
+            font-weight: normal;
+            font-style: normal;
+            font-size: 0.6em;
+            vertical-align: super;
+            margin-left: 1px;
+            -webkit-font-smoothing: antialiased;
+        }
+        .card-team-score.loser { color: var(--bs-secondary-color); font-weight: 400; }
 
         /* Card location row */
         .card-location {

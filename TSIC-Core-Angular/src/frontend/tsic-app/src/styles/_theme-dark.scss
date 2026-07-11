@@ -56,6 +56,10 @@
     --brand-border: #57534e;
     /* Distinct from surface for definition */
 
+    /* Champion yellow — brighter so it glows against the dark body-bg
+       (the light-mode yellow would read dull here). See _tokens.scss. */
+    --tsic-yellow: #fde047;
+
     /* Bootstrap Mappings */
     --bs-body-bg: var(--brand-bg);
     --bs-body-color: var(--brand-text);
