@@ -67,24 +67,6 @@
     </div>
 
     <div class="form-section">
-      <h6 class="section-title"><i class="bi bi-gear me-2"></i>Team Options</h6>
-      <div class="field-check-row">
-        <label class="field-check">
-          <input type="checkbox"
-            [ngModel]="bRestrictPlayerTeamsToAgerange()"
-            (ngModelChange)="bRestrictPlayerTeamsToAgerange.set($event); onFieldChange()" />
-          <span class="field-label">Restrict Players to Age Range</span>
-        </label>
-        <label class="field-check">
-          <input type="checkbox"
-            [ngModel]="bTeamPushDirectors()"
-            (ngModelChange)="bTeamPushDirectors.set($event); onFieldChange()" />
-          <span class="field-label">Push Directors</span>
-        </label>
-      </div>
-    </div>
-
-    <div class="form-section">
       <h6 class="section-title"><i class="bi bi-eye me-2"></i>Roster Visibility</h6>
       <div class="field-check-row">
         <label class="field-check">
@@ -115,6 +97,27 @@
             [disabled]="true" />
           <span class="field-label">Offer Team RegSaver Insurance</span>
         </label>
+      </div>
+
+      <div class="form-section form-section--super">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-2"></i>
+          Team Options (SuperUser)
+        </h6>
+        <div class="field-check-row">
+          <label class="field-check">
+            <input type="checkbox"
+              [ngModel]="bRestrictPlayerTeamsToAgerange()"
+              (ngModelChange)="bRestrictPlayerTeamsToAgerange.set($event); onFieldChange()" />
+            <span class="field-label">Restrict Players to Age Range</span>
+          </label>
+          <label class="field-check">
+            <input type="checkbox"
+              [ngModel]="bTeamPushDirectors()"
+              (ngModelChange)="bTeamPushDirectors.set($event); onFieldChange()" />
+            <span class="field-label">Push Directors</span>
+          </label>
+        </div>
       </div>
     }
 
