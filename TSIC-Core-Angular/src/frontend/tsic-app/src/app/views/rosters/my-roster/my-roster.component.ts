@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
 import { ReportingService } from '@infrastructure/services/reporting.service';
 import { ToastService } from '@shared-ui/toast.service';
@@ -6,12 +7,10 @@ import { MyRosterService } from './my-roster.service';
 import { MyRosterEmailDialogComponent } from './my-roster-email-dialog.component';
 import type { MyRosterPlayerDto } from '@core/api/models/MyRosterPlayerDto';
 
-type SortKey = 'name' | 'role';
-
 @Component({
     selector: 'app-my-roster',
     standalone: true,
-    imports: [PhonePipe, MyRosterEmailDialogComponent],
+    imports: [PhonePipe, DatePipe, MyRosterEmailDialogComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './my-roster.component.html',
     styleUrl: './my-roster.component.scss',
@@ -25,12 +24,12 @@ export class MyRosterComponent implements OnInit {
     readonly allowed = signal(false);
     readonly reason = signal<string | null>(null);
     readonly teamName = signal<string | null>(null);
+    readonly agegroupName = signal<string | null>(null);
     readonly players = signal<MyRosterPlayerDto[]>([]);
     readonly selectedIds = signal<Set<string>>(new Set());
 
-    // Directory browsing — filter + sort replace the old Syncfusion grid affordances.
+    // Directory browsing — filter replaces the old Syncfusion grid affordances.
     readonly filter = signal('');
-    readonly sortBy = signal<SortKey>('name');
 
     readonly emailMode = signal<'all' | 'selected'>('all');
     readonly emailDialogOpen = signal(false);
@@ -41,7 +40,10 @@ export class MyRosterComponent implements OnInit {
 
     readonly selectedCount = computed(() => this.selectedIds().size);
 
-    /** Roster filtered by the search box and ordered by the active sort. */
+    /** Count of players only (staff/coaches excluded) for the hero badge. */
+    readonly playerCount = computed(() => this.players().filter(p => !this.isStaff(p)).length);
+
+    /** Roster filtered by the search box and ordered by name. */
     readonly visiblePlayers = computed(() => {
         const q = this.filter().trim().toLowerCase();
         let rows = this.players();
@@ -52,26 +54,26 @@ export class MyRosterComponent implements OnInit {
                 || (p.lastName ?? '').toLowerCase().includes(q)
                 || (p.position ?? '').toLowerCase().includes(q));
         }
-        const by = this.sortBy();
-        return [...rows].sort((a, b) => by === 'role'
-            ? (a.roleName ?? '').localeCompare(b.roleName ?? '') || (a.playerName ?? '').localeCompare(b.playerName ?? '')
-            : (a.playerName ?? '').localeCompare(b.playerName ?? ''));
+        // Staff/coaches sort to the top, then players — each group alphabetical by name.
+        return [...rows].sort((a, b) =>
+            (Number(this.isStaff(b)) - Number(this.isStaff(a)))
+            || (a.playerName ?? '').localeCompare(b.playerName ?? ''));
     });
 
+    // The modal list mirrors the SELECTION — every checked teammate by name, regardless of whether
+    // they carry a direct email. Address resolution happens server-side (a Player resolves to Mom +
+    // Dad + own email), so filtering on p.email here would silently drop reachable players and make
+    // "Email Selected" inconsistent with "Email All".
     readonly emailRecipients = computed(() => {
         const mode = this.emailMode();
         const all = this.players();
         const source = mode === 'all' ? all : all.filter(p => this.selectedIds().has(p.registrationId));
-        return source
-            .filter(p => !!p.email)
-            .map(p => ({ name: p.playerName, email: p.email! }));
+        return source.map(p => ({ id: p.registrationId, name: p.playerName }));
     });
 
-    readonly emailRegistrationIds = computed(() => this.emailRecipients().length === 0
-        ? []
-        : (this.emailMode() === 'all'
-            ? this.players().filter(p => !!p.email).map(p => p.registrationId)
-            : this.players().filter(p => !!p.email && this.selectedIds().has(p.registrationId)).map(p => p.registrationId)));
+    readonly emailRegistrationIds = computed(() => this.emailMode() === 'all'
+        ? this.players().map(p => p.registrationId)
+        : this.players().filter(p => this.selectedIds().has(p.registrationId)).map(p => p.registrationId));
 
     ngOnInit(): void {
         this.load();
@@ -85,6 +87,7 @@ export class MyRosterComponent implements OnInit {
                 this.allowed.set(res.allowed);
                 this.reason.set(res.reason ?? null);
                 this.teamName.set(res.teamName ?? null);
+                this.agegroupName.set(res.agegroupName ?? null);
                 this.players.set((res.players ?? []) as MyRosterPlayerDto[]);
                 this.selectedIds.set(new Set());
             },
@@ -149,20 +152,6 @@ export class MyRosterComponent implements OnInit {
 
     isSelected(regId: string): boolean {
         return this.selectedIds().has(regId);
-    }
-
-    /** "Select all" operates on the shown (filtered) set, preserving any off-filter picks. */
-    toggleAll(checked: boolean): void {
-        const visible = this.visiblePlayers().map(p => p.registrationId);
-        const next = new Set(this.selectedIds());
-        if (checked) visible.forEach(id => next.add(id));
-        else visible.forEach(id => next.delete(id));
-        this.selectedIds.set(next);
-    }
-
-    get allChecked(): boolean {
-        const visible = this.visiblePlayers();
-        return visible.length > 0 && visible.every(p => this.selectedIds().has(p.registrationId));
     }
 
     // ── Email ─────────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ public record MyRosterResponseDto
     public string? Reason { get; init; }
     public Guid? TeamId { get; init; }
     public string? TeamName { get; init; }
+    public string? AgegroupName { get; init; }
     public List<MyRosterPlayerDto>? Players { get; init; }
 }
 
@@ -36,6 +37,9 @@ public record MyRosterPlayerDto
     public string? Position { get; init; }
     public string? UniformNo { get; init; }
     public string? Gender { get; init; }
+
+    /// <summary>Registrant's date of birth (AspNetUsers.Dob). Null for staff/adults without a recorded DOB.</summary>
+    public DateOnly? Dob { get; init; }
 
     // Parent contacts (Families.Mom* / Families.Dad*). Any/all may be null.
     public string? MomFirstName { get; init; }

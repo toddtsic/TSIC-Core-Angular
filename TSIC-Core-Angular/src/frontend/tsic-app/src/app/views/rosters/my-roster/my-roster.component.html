@@ -2,9 +2,14 @@
     <!-- ── Hero header ───────────────────────────────────────────────────── -->
     <header class="roster-hero">
         <div class="hero-titles">
-            <h2 class="hero-team">{{ teamName() || 'Team Roster' }}</h2>
+            <h2 class="hero-team">
+                @if (agegroupName()) {
+                    <span class="hero-ag">{{ agegroupName() }}</span>
+                }
+                <span class="hero-team-name">{{ teamName() || 'Team Roster' }}</span>
+            </h2>
             @if (allowed() && players().length) {
-                <span class="hero-count">{{ players().length }} {{ players().length === 1 ? 'member' : 'members' }}</span>
+                <span class="hero-count">{{ playerCount() }} {{ playerCount() === 1 ? 'player' : 'players' }}</span>
             }
         </div>
 
@@ -16,11 +21,6 @@
                            [value]="filter()" (input)="filter.set($any($event.target).value)"
                            aria-label="Filter roster by name" />
                 </div>
-                <select class="sort-select" aria-label="Sort roster"
-                        (change)="sortBy.set($any($event.target).value)">
-                    <option value="name">Sort: Name</option>
-                    <option value="role">Sort: Role</option>
-                </select>
             </div>
         }
     </header>
@@ -56,13 +56,6 @@
     @if (!isLoading() && allowed()) {
         <!-- ── Selection + email action bar ──────────────────────────────── -->
         <div class="roster-actionbar">
-            <label class="select-all">
-                <input type="checkbox" [checked]="allChecked"
-                       (change)="toggleAll($any($event.target).checked)"
-                       [disabled]="visiblePlayers().length === 0"
-                       aria-label="Select all shown teammates" />
-                <span>Select all</span>
-            </label>
             @if (selectedCount() > 0) {
                 <span class="selected-badge">{{ selectedCount() }} selected</span>
             }
@@ -98,23 +91,27 @@
                             <div class="card-head">
                                 <span class="monogram" [class.monogram--staff]="isStaff(p)" aria-hidden="true">{{ initials(p) }}</span>
                                 <div class="head-text">
-                                    <span class="player-name">{{ displayName(p) }}</span>
-                                    @if (p.uniformNo || isStaff(p) || p.position || gradLabel(p)) {
-                                        <div class="badge-row">
-                                            @if (p.uniformNo) { <span class="jersey-pill">#{{ p.uniformNo }}</span> }
-                                            @if (isStaff(p)) {
-                                                <span class="role-badge role-badge--staff">
-                                                    <i class="bi bi-person-badge" aria-hidden="true"></i>
-                                                    {{ p.roleName }}
-                                                </span>
-                                            }
-                                            @if (p.position) { <span class="pos-pill">{{ p.position }}</span> }
-                                            @if (gradLabel(p)) { <span class="grad-pill">{{ gradLabel(p) }}</span> }
-                                        </div>
-                                    }
+                                    <div class="name-row">
+                                        <span class="player-name">@if (isStaff(p)) {<span class="name-role">Coach:</span> }{{ displayName(p) }}</span>
+                                    </div>
                                 </div>
                             </div>
 
+                            @if (p.uniformNo || p.position || gradLabel(p) || p.dob) {
+                                <div class="badge-row">
+                                    @if (p.uniformNo) { <span class="jersey-pill">#{{ p.uniformNo }}</span> }
+                                    @if (p.position) { <span class="pos-pill">{{ p.position }}</span> }
+                                    @if (gradLabel(p)) { <span class="grad-pill">{{ gradLabel(p) }}</span> }
+                                    @if (p.dob) {
+                                        <span class="dob-pill">
+                                            <span class="dob-label">DOB</span>
+                                            {{ p.dob | date:'M/d/yyyy':'UTC' }}
+                                        </span>
+                                    }
+                                </div>
+                            }
+
+                            @if (p.email || p.cellphone) {
                             <div class="contact-lines">
                                 @if (p.email) {
                                     <a class="contact-line" [href]="'mailto:' + p.email">
@@ -128,17 +125,11 @@
                                         <span class="contact-text">{{ p.cellphone | phone }}</span>
                                     </a>
                                 }
-                                @if (!p.email && !p.cellphone) {
-                                    <span class="contact-line contact-empty">
-                                        <i class="bi bi-person-dash" aria-hidden="true"></i>
-                                        <span class="contact-text">No direct contact on file</span>
-                                    </span>
-                                }
                             </div>
+                            }
 
                             @if (hasParents(p)) {
                                 <div class="family">
-                                    <span class="family-title">Family</span>
                                     @if (hasMom(p)) {
                                         <div class="contact-group">
                                             <div class="contact-heading">

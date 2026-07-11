@@ -15,6 +15,7 @@ export type MyRosterPlayerDto = {
     position?: string | null;
     uniformNo?: string | null;
     gender?: string | null;
+    dob?: string | null;
     momFirstName?: string | null;
     momLastName?: string | null;
     momEmail?: string | null;

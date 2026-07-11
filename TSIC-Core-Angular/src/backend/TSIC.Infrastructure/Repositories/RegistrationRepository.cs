@@ -2657,6 +2657,7 @@ public class RegistrationRepository : IRegistrationRepository
                 r.Position,
                 r.UniformNo,
                 Gender = r.User != null ? r.User.Gender : null,
+                DobRaw = r.User != null ? r.User.Dob : null,
                 MomFirstName = r.FamilyUser != null ? r.FamilyUser.MomFirstName : null,
                 MomLastName = r.FamilyUser != null ? r.FamilyUser.MomLastName : null,
                 MomEmail = r.FamilyUser != null ? r.FamilyUser.MomEmail : null,
@@ -2685,6 +2686,7 @@ public class RegistrationRepository : IRegistrationRepository
             Position = r.Position,
             UniformNo = r.UniformNo,
             Gender = r.Gender,
+            Dob = r.DobRaw.HasValue ? DateOnly.FromDateTime(r.DobRaw.Value) : null,
             MomFirstName = r.MomFirstName,
             MomLastName = r.MomLastName,
             MomEmail = r.MomEmail,
@@ -2707,13 +2709,15 @@ public class RegistrationRepository : IRegistrationRepository
         return row == null ? null : (row.BAllowRosterViewPlayer, row.BAllowRosterViewAdult);
     }
 
-    public async Task<string?> GetTeamNameAsync(Guid teamId, Guid jobId, CancellationToken ct = default)
+    public async Task<(string? TeamName, string? AgegroupName)?> GetTeamHeaderAsync(
+        Guid teamId, Guid jobId, CancellationToken ct = default)
     {
-        return await _context.Teams
+        var row = await _context.Teams
             .AsNoTracking()
             .Where(t => t.TeamId == teamId && t.JobId == jobId)
-            .Select(t => t.TeamName)
+            .Select(t => new { t.TeamName, AgegroupName = t.Agegroup.AgegroupName })
             .FirstOrDefaultAsync(ct);
+        return row == null ? null : (row.TeamName, row.AgegroupName);
     }
 
     public async Task<List<SwapperPlayerDto>> GetUnassignedAdultsAsync(Guid jobId, CancellationToken ct = default)

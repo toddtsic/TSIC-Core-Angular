@@ -516,7 +516,7 @@ public interface IRegistrationRepository
     /// <summary>
     /// Returns the TeamName for a given team, scoped to a job. Null if not found.
     /// </summary>
-    Task<string?> GetTeamNameAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
+    Task<(string? TeamName, string? AgegroupName)?> GetTeamHeaderAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
 
     /// <summary>
     /// Get all Unassigned Adult registrations for a job.

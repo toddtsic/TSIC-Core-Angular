@@ -29,7 +29,7 @@ import type { EmailBatchJobStatus } from '@core/api/models/EmailBatchJobStatus';
               @if (recipients().length === 0) {
                 <span class="text-body-secondary">No teammates have an email address on file.</span>
               } @else {
-                @for (r of recipients(); track r.email) {
+                @for (r of recipients(); track r.id) {
                   <span class="recipient-chip">{{ r.name }}</span>
                 }
               }
@@ -103,7 +103,7 @@ export class MyRosterEmailDialogComponent {
     private readonly toast = inject(ToastService);
 
     readonly mode = input.required<'all' | 'selected'>();
-    readonly recipients = input.required<{ name: string; email: string }[]>();
+    readonly recipients = input.required<{ id: string; name: string }[]>();
     readonly registrationIds = input.required<string[]>();
 
     readonly closed = output<void>();

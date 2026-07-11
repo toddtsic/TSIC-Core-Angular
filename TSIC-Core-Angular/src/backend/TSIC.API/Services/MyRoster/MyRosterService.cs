@@ -51,14 +51,15 @@ public sealed class MyRosterService : IMyRosterService
             return Denied("Roster viewing is disabled for this event.");
 
         var teamId = caller.AssignedTeamId.Value;
-        var teamName = await _registrationRepo.GetTeamNameAsync(teamId, caller.JobId, ct);
+        var header = await _registrationRepo.GetTeamHeaderAsync(teamId, caller.JobId, ct);
         var players = await _registrationRepo.GetMyRosterByTeamIdAsync(teamId, caller.JobId, ct);
 
         return new MyRosterResponseDto
         {
             Allowed = true,
             TeamId = teamId,
-            TeamName = teamName,
+            TeamName = header?.TeamName,
+            AgegroupName = header?.AgegroupName,
             Players = players,
         };
     }

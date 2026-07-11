@@ -16,22 +16,45 @@
 
 .hero-titles {
     display: flex;
-    align-items: baseline;
+    align-items: center; // center both chips on the team-name line so they share one baseline
     gap: var(--space-3);
     min-width: 0;
 }
 
 .hero-team {
     margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: var(--space-2);
     color: var(--brand-text);
     font-weight: var(--font-weight-semibold);
     font-size: var(--font-size-xl);
     line-height: var(--line-height-tight);
 }
 
-.hero-count {
-    color: var(--brand-text-muted);
-    font-size: var(--font-size-sm);
+// Age group is a distinct chip so it never blurs into the team name — they're often the
+// same grad-year string (e.g. "2030" + "2030 Blue Team"). align-self centers it against
+// the large team-name text on the same baseline row.
+.hero-ag {
+    align-self: center;
+}
+
+// Player-count and age-group chips share one look so they read as the same kind of tag,
+// even though they sit in different type contexts (hero-count beside the title, hero-ag
+// inside the h2). The explicit line-height keeps the h2's large font from stretching the AG chip.
+.hero-count,
+.hero-ag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+    color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.14);
     white-space: nowrap;
 }
 
@@ -56,30 +79,21 @@
     }
 }
 
-.search-input,
-.sort-select {
+.search-input {
     height: 2.25rem;
     border: 1px solid var(--bs-border-color);
     border-radius: var(--radius-md);
     background: var(--bs-body-bg);
     color: var(--bs-body-color);
     font-size: var(--font-size-sm);
+    width: min(16rem, 60vw);
+    padding: 0 var(--space-3) 0 var(--space-8);
 
     &:focus-visible {
         outline: none;
         border-color: var(--bs-primary);
         box-shadow: var(--shadow-focus);
     }
-}
-
-.search-input {
-    width: min(16rem, 60vw);
-    padding: 0 var(--space-3) 0 var(--space-8);
-}
-
-.sort-select {
-    padding: 0 var(--space-3);
-    cursor: pointer;
 }
 
 // ── Selection + email action bar (signature gradient hero) ──────────────────
@@ -102,38 +116,6 @@
 
 .actionbar-spacer {
     flex: 1 1 auto;
-}
-
-.select-all {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin: 0;
-    cursor: pointer;
-    user-select: none;
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-
-    input[type="checkbox"] {
-        width: 1rem;
-        height: 1rem;
-        accent-color: var(--bs-white);
-        cursor: pointer;
-    }
-
-    input:disabled {
-        cursor: not-allowed;
-    }
-
-    &:focus-within {
-        outline: none;
-    }
-
-    input:focus-visible {
-        outline: none;
-        box-shadow: 0 0 0 3px color-mix(in srgb, white 55%, transparent);
-        border-radius: var(--radius-sm);
-    }
 }
 
 .selected-badge {
@@ -286,6 +268,14 @@
     min-width: 0;
 }
 
+// The name owns its row alone so long last names get the full width to truncate.
+.name-row {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
 .player-name {
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
@@ -293,69 +283,67 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    min-width: 0;
 }
 
+// Full-width strip beneath the head so all pills (incl. DOB) share one line
+// instead of wrapping in the narrow column next to the monogram. Negative top
+// margin tucks it back under the identity block rather than floating a full gap away.
 .badge-row {
     display: flex;
     align-items: center;
+    justify-content: center;
     flex-wrap: wrap;
-    gap: var(--space-1);
+    gap: var(--space-2);
+    margin-top: calc(-1 * var(--space-2));
 }
 
-.role-badge {
+// ── Identity pills ──────────────────────────────────────────────────────────
+// One uniform pill shape shared by every badge; only the color token differs so
+// each fact (jersey #, position, grad year, DOB, role) reads as its own category.
+// Color model: a light tint of the hue for the background + a text color mixed
+// toward --bs-body-color so contrast holds in BOTH themes. (The Bootstrap
+// *-bg-subtle / *-text-emphasis pairs are avoided — they don't flip in this app's
+// dark theme; the *-rgb tokens do.)
+.jersey-pill,
+.pos-pill,
+.grad-pill,
+.dob-pill {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    padding: 1px var(--space-2);
+    padding: 2px var(--space-2);
     border-radius: var(--radius-full);
-    font-size: 0.65rem;
+    font-size: var(--font-size-xs);
     font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--bs-secondary-text-emphasis);
-    background: var(--bs-secondary-bg-subtle);
-    border: 1px solid var(--bs-secondary-border-subtle);
-
-    .bi { font-size: 0.7rem; }
-
-    &.role-badge--staff {
-        color: var(--bs-warning-text-emphasis);
-        background: var(--bs-warning-bg-subtle);
-        border-color: var(--bs-warning-border-subtle);
-    }
-}
-
-.pos-pill {
-    display: inline-block;
-    padding: 1px var(--space-2);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
-    color: var(--bs-primary-text-emphasis);
-    background: var(--bs-primary-bg-subtle);
-    text-transform: capitalize;
-}
-
-.grad-pill {
-    display: inline-block;
-    padding: 1px var(--space-2);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    background: var(--bs-tertiary-bg);
-    white-space: nowrap;
-}
-
-// Uniform number — solid accent so the jersey reads at a glance.
-.jersey-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 1px var(--space-2);
-    border-radius: var(--radius-sm);
-    font-size: var(--font-size-xs);
-    font-weight: var(--font-weight-bold);
     font-variant-numeric: tabular-nums;
-    color: var(--bs-white);
-    background: var(--bs-primary);
+    line-height: var(--line-height-tight);
+    white-space: nowrap;
+    color: color-mix(in srgb, var(--pill-color) 72%, var(--bs-body-color));
+    background: rgba(var(--pill-rgb), 0.15);
+}
+
+.jersey-pill { --pill-color: var(--bs-primary); --pill-rgb: var(--bs-primary-rgb); }
+.pos-pill    { --pill-color: var(--bs-success); --pill-rgb: var(--bs-success-rgb); text-transform: capitalize; }
+.grad-pill   { --pill-color: var(--bs-warning); --pill-rgb: var(--bs-warning-rgb); }
+// DOB stays neutral grey (not a semantic color) — it's reference info, not a status.
+// Mixing body-color into the tertiary bg strengthens the pill in BOTH themes
+// (darker on light, lighter on dark) so it reads as a distinct chip.
+.dob-pill    { flex-shrink: 0; color: var(--text-muted); background: color-mix(in srgb, var(--bs-body-color) 12%, var(--bs-tertiary-bg)); }
+
+// "Coach:" prefix on staff names — a warm accent so the role reads without a separate badge.
+// Mixed toward body-color so the amber stays legible in both light and dark themes.
+.name-role {
+    margin-right: 0.35em; // guaranteed gap before the name (template whitespace gets trimmed)
+    color: color-mix(in srgb, var(--bs-warning) 70%, var(--bs-body-color));
+    font-weight: var(--font-weight-semibold);
+}
+
+.dob-pill .dob-label {
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    opacity: 0.8;
 }
 
 // Player contact
@@ -403,12 +391,6 @@
     }
 }
 
-.contact-empty {
-    color: var(--text-muted);
-
-    .bi { color: var(--text-muted); }
-}
-
 // Family contacts — each contact is a small stack: a heading (tag + name) then the
 // email and phone listed as full, tappable text. Values are shown, not hidden behind
 // an icon, so a desktop user can read and copy them (mailto:/tel: is a bonus, not the
@@ -419,15 +401,6 @@
     gap: var(--space-3);
     padding-top: var(--space-3);
     border-top: 1px solid var(--bs-border-color);
-}
-
-.family-title {
-    font-size: var(--font-size-2xs);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--text-muted);
-    opacity: 0.8;
 }
 
 .contact-group {
@@ -581,6 +554,20 @@
     .search-input {
         width: 100%;
         flex: 1;
+    }
+
+    // Balance the blue bar: full-width, equal buttons stacked instead of a lopsided 2 + 1 wrap.
+    .actionbar-spacer {
+        display: none;
+    }
+
+    .ab-btn {
+        flex: 1 1 100%;
+        justify-content: center;
+    }
+
+    .selected-badge {
+        align-self: flex-start;
     }
 }
 
