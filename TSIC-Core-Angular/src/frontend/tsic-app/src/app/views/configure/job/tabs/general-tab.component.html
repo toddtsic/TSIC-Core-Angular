@@ -5,17 +5,11 @@
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-briefcase me-2"></i>Job Properties</h6>
       <div class="row g-2">
-        <div class="col-md-3">
+        <div class="col-md-4">
           <label class="field-label">Event Name</label>
           <input type="text" class="field-input"
             [ngModel]="jobName()"
             (ngModelChange)="jobName.set($event); onFieldChange()" />
-        </div>
-        <div class="col-md-3">
-          <label class="field-label">Display Name</label>
-          <input type="text" class="field-input"
-            [ngModel]="displayName()"
-            (ngModelChange)="displayName.set($event); onFieldChange()" />
         </div>
         <div class="col-md-2">
           <label class="field-label">Season</label>

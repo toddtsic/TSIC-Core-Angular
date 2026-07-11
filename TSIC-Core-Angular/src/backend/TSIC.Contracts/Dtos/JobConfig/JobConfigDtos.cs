@@ -32,7 +32,6 @@ public record JobConfigGeneralDto
     public required string? Season { get; init; }
     public required string? Year { get; init; }
     public required DateTime ExpiryUsers { get; init; }
-    public required string? DisplayName { get; init; }
     public required string? SearchenginKeywords { get; init; }
     public required string? SearchengineDescription { get; init; }
 
@@ -54,7 +53,6 @@ public record UpdateJobConfigGeneralRequest
     public required string? Season { get; init; }
     public required string? Year { get; init; }
     public required DateTime ExpiryUsers { get; init; }
-    public required string? DisplayName { get; init; }
     public required string? SearchenginKeywords { get; init; }
     public required string? SearchengineDescription { get; init; }
 

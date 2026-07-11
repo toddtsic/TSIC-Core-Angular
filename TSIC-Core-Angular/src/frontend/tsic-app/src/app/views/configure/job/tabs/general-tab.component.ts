@@ -53,7 +53,6 @@ export class GeneralTabComponent implements OnInit {
   season = linkedSignal(() => this.svc.general()?.season ?? null);
   year = linkedSignal(() => this.svc.general()?.year ?? null);
   expiryUsers = linkedSignal(() => toDateOnly(this.svc.general()?.expiryUsers) ?? '');
-  displayName = linkedSignal(() => this.svc.general()?.displayName ?? null);
   // SuperUser-only fields
   jobPath = linkedSignal(() => this.svc.general()?.jobPath ?? null);
   jobDescription = linkedSignal(() => this.svc.general()?.jobDescription ?? null);
@@ -74,7 +73,6 @@ export class GeneralTabComponent implements OnInit {
       season: g.season,
       year: g.year,
       expiryUsers: toDateOnly(g.expiryUsers) ?? '',
-      displayName: g.displayName,
       jobTagline: g.jobTagline,
       searchenginKeywords: g.searchenginKeywords,
       searchengineDescription: g.searchengineDescription,
@@ -124,7 +122,6 @@ export class GeneralTabComponent implements OnInit {
       season: this.season(),
       year: this.year(),
       expiryUsers: this.expiryUsers(),
-      displayName: this.displayName(),
       jobTagline: this.svc.general()?.jobTagline ?? null,
       searchenginKeywords: this.svc.general()?.searchenginKeywords ?? null,
       searchengineDescription: this.svc.general()?.searchengineDescription ?? null,

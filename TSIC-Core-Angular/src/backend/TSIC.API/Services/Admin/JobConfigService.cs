@@ -83,7 +83,6 @@ public class JobConfigService : IJobConfigService
         job.Season = req.Season;
         job.Year = req.Year;
         job.ExpiryUsers = req.ExpiryUsers;
-        job.DisplayName = req.DisplayName;
         job.SearchenginKeywords = req.SearchenginKeywords;
         job.SearchengineDescription = req.SearchengineDescription;
         // SuperUser-only
@@ -660,7 +659,6 @@ public class JobConfigService : IJobConfigService
         Season = job.Season,
         Year = job.Year,
         ExpiryUsers = job.ExpiryUsers,
-        DisplayName = job.DisplayName,
         SearchenginKeywords = job.SearchenginKeywords,
         SearchengineDescription = job.SearchengineDescription,
         // SuperUser-only

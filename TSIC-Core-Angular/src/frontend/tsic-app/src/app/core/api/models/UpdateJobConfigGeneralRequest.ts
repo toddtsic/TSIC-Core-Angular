@@ -9,7 +9,6 @@ export type UpdateJobConfigGeneralRequest = {
     season: string | null;
     year: string | null;
     expiryUsers: string;
-    displayName: string | null;
     searchenginKeywords: string | null;
     searchengineDescription: string | null;
     jobPath?: string | null;
