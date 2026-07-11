@@ -232,7 +232,7 @@ export class DdlOptionsComponent {
 	// ── Helpers ──
 
 	private buildGroups(): DdlGroup[] {
-		const groupOrder = ['clothing', 'coach', 'player', 'team'];
+		const groupOrder = ['player', 'team', 'clothing', 'coach'];
 		return groupOrder.map(key => ({
 			key,
 			label: GROUP_LABELS[key],

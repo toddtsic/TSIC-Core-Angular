@@ -9,6 +9,11 @@
 
 .category-group {
 	margin-bottom: var(--space-5);
+
+	// Breathing room between the page subtitle and the first group heading.
+	&:first-of-type {
+		margin-top: var(--space-5);
+	}
 }
 
 .group-header {
