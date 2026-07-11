@@ -1,3 +1,4 @@
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -112,6 +113,12 @@ public sealed class ViewScheduleService : IViewScheduleService
                 T2Type = t2Type,
                 T1TypeDesc = g.T1TypeNavigation?.TeamTypeDesc,
                 T2TypeDesc = g.T2TypeNavigation?.TeamTypeDesc,
+                // Bracket slot label "{type}{seed}" (e.g. "X1", "Q8") so the Games grid reads a
+                // seeded bracket slot as "USC (X1)" and an unresolved one as "(Q1)" instead of a
+                // blank — restoring the legacy schedule annotation (IScheduleService.FormatTeamName)
+                // that the migration dropped. Null for round-robin/consolation (no label).
+                T1SlotLabel = GameRoundTypes.IsBracket(t1Type) ? $"{t1Type}{g.T1No}" : null,
+                T2SlotLabel = GameRoundTypes.IsBracket(t2Type) ? $"{t2Type}{g.T2No}" : null,
                 T1Ann = g.T1Ann,
                 T2Ann = g.T2Ann,
                 Rnd = g.Rnd,

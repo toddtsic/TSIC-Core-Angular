@@ -21,6 +21,8 @@ export type ViewGameDto = {
     t2Type: string;
     t1TypeDesc?: string | null;
     t2TypeDesc?: string | null;
+    t1SlotLabel?: string | null;
+    t2SlotLabel?: string | null;
     t1Ann?: string | null;
     t2Ann?: string | null;
     rnd?: number | null;

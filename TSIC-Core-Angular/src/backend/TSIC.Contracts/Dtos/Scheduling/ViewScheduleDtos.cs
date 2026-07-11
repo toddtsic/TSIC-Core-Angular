@@ -210,6 +210,10 @@ public record ViewGameDto
     public string? T1TypeDesc { get; init; }
     /// <summary>DB-sourced description for T2Type. From reference.scheduleTeamTypes.</summary>
     public string? T2TypeDesc { get; init; }
+    /// <summary>Bracket slot label for team 1, "{type}{seed}" (e.g. "X1", "Q8"). Null for non-bracket (round-robin/consolation) games. Lets the Games grid distinguish a seeded bracket slot from a pool game.</summary>
+    public string? T1SlotLabel { get; init; }
+    /// <summary>Bracket slot label for team 2, "{type}{seed}" (e.g. "X16"). Null for non-bracket games.</summary>
+    public string? T2SlotLabel { get; init; }
     public string? T1Ann { get; init; }
     public string? T2Ann { get; init; }
     public int? Rnd { get; init; }

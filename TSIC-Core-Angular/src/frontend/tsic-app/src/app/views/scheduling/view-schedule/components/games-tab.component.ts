@@ -51,6 +51,7 @@ import type { ViewGameDto } from '@core/api';
                         <!-- ▼ Away team (DOM:1 Visual:7) -->
                         <span class="cell cell-away" role="cell" aria-colindex="7">
                             <span class="decoy" aria-hidden="true">{{ decoyText(game.gid, 0) }}</span>
+                            @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                             @if (game.t2Id) {
                                 <button type="button" class="team-star"
                                         [class.is-on]="isFollowed(game.t2Id)"
@@ -115,6 +116,7 @@ import type { ViewGameDto } from '@core/api';
 
                         <!-- ▼ Home team (DOM:6 Visual:5) -->
                         <span class="cell cell-home" role="cell" aria-colindex="5">
+                            @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
                                 <span class="clickable" [class.team-name--followed]="isFollowed(game.t1Id)" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
                                 <button type="button" class="team-star"
@@ -200,6 +202,7 @@ import type { ViewGameDto } from '@core/api';
                         <!-- Team 1 (Home): full-width row, score right-aligned -->
                         <div class="card-team-row">
                             <span class="card-team-name">
+                                @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                                 @if (game.t1Id) {
                                     <button type="button" class="team-star"
                                             [class.is-on]="isFollowed(game.t1Id)"
@@ -224,6 +227,7 @@ import type { ViewGameDto } from '@core/api';
                         <!-- Team 2 (Away): full-width row, score right-aligned -->
                         <div class="card-team-row">
                             <span class="card-team-name">
+                                @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                                 @if (game.t2Id) {
                                     <button type="button" class="team-star"
                                             [class.is-on]="isFollowed(game.t2Id)"
@@ -435,6 +439,26 @@ import type { ViewGameDto } from '@core/api';
             font-size: var(--font-size-xs);
             line-height: 1.5;
             white-space: nowrap;
+        }
+
+        /* Bracket slot marker (e.g. "X1", "Q8") shown before the team name so a seeded or
+           still-unresolved bracket slot doesn't read like a round-robin game. Neutral +
+           palette-responsive; null slotLabel (round-robin/consolation) renders nothing. */
+        .seed-tag {
+            display: inline-block;
+            padding: 0 var(--space-1);
+            margin-right: var(--space-1);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-sm, 4px);
+            background: var(--bs-tertiary-bg);
+            color: var(--bs-body-color);
+            font-size: var(--font-size-2xs);
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 0.02em;
+            line-height: 1.6;
+            white-space: nowrap;
+            vertical-align: baseline;
         }
 
         .clickable {
