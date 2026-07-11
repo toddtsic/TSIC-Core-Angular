@@ -13,6 +13,7 @@ export type JobConfigGeneralDto = {
     expiryUsers: string;
     searchenginKeywords: string | null;
     searchengineDescription: string | null;
+    adnInvoicePrefix?: string | null;
     jobNameQbp?: string | null;
     expiryAdmin?: string | null;
     jobTypeId?: number | null;

@@ -44,8 +44,8 @@ import type { UpdateJobConfigGeneralRequest } from '@core/api';
 export class GeneralTabComponent implements OnInit {
   protected readonly svc = inject(JobConfigService);
 
-  /** Transient "Copied!" state for the Job ID copy chip (SuperUser-only). */
-  readonly jobIdCopied = signal(false);
+  /** Key of the read-only chip most recently copied (transient "Copied!" state, SuperUser-only). */
+  readonly copiedChip = signal<string | null>(null);
 
   // ── Local form model ──────────────────────────────────
 
@@ -95,11 +95,11 @@ export class GeneralTabComponent implements OnInit {
     this.svc.saveHandler.set(() => this.save());
   }
 
-  /** Copy the Job ID to the clipboard for pasting into SQL queries. */
-  copyJobId(jobId: string): void {
-    navigator.clipboard.writeText(jobId).then(() => {
-      this.jobIdCopied.set(true);
-      setTimeout(() => this.jobIdCopied.set(false), 2000);
+  /** Copy a read-only value (Job ID, ADN invoice prefix) to the clipboard for SQL/lookups. */
+  copyChip(value: string, key: string): void {
+    navigator.clipboard.writeText(value).then(() => {
+      this.copiedChip.set(key);
+      setTimeout(() => this.copiedChip.set(null), 2000);
     });
   }
 

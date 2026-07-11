@@ -663,6 +663,7 @@ public class JobConfigService : IJobConfigService
         SearchengineDescription = job.SearchengineDescription,
         // SuperUser-only
         JobDescription = isSuperUser ? job.JobDescription : null,
+        AdnInvoicePrefix = isSuperUser ? $"{job.Customer?.CustomerAi}_{job.JobAi}" : null,
         JobNameQbp = isSuperUser ? job.JobNameQbp : null,
         ExpiryAdmin = isSuperUser ? job.ExpiryAdmin : null,
         JobTypeId = isSuperUser ? job.JobTypeId : null,

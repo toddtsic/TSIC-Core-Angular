@@ -36,6 +36,9 @@ public record JobConfigGeneralDto
     public required string? SearchengineDescription { get; init; }
 
     // SuperUser-only (null for non-super callers)
+    /// <summary>Read-only ADN invoice prefix "{CustomerAi}_{JobAi}" — the first two segments of the
+    /// ADN transaction invoiceNo ({CustomerAi}_{JobAi}_{RegistrationAi}). SuperUser lookup aid.</summary>
+    public string? AdnInvoicePrefix { get; init; }
     public string? JobNameQbp { get; init; }
     public DateTime? ExpiryAdmin { get; init; }
     public int? JobTypeId { get; init; }

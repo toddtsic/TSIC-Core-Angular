@@ -24,6 +24,7 @@ public class JobConfigRepository : IJobConfigRepository
     {
         return await _context.Jobs
             .AsNoTracking()
+            .Include(j => j.Customer) // CustomerAi feeds the SuperUser ADN invoice prefix
             .FirstOrDefaultAsync(j => j.JobId == jobId, ct);
     }
 

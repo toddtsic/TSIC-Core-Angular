@@ -44,12 +44,22 @@
         <div class="row g-2">
           <div class="col-md-3">
             <label class="field-label">Job ID</label>
-            <button type="button" class="id-copy" (click)="copyJobId(g.jobId)"
-              [title]="jobIdCopied() ? 'Copied!' : 'Copy Job ID'">
+            <button type="button" class="id-copy" (click)="copyChip(g.jobId, 'jobId')"
+              [title]="copiedChip() === 'jobId' ? 'Copied!' : 'Copy Job ID'">
               <span class="id-copy__value">{{ g.jobId }}</span>
-              <i class="bi" [class.bi-clipboard]="!jobIdCopied()" [class.bi-check-lg]="jobIdCopied()"></i>
+              <i class="bi" [class.bi-clipboard]="copiedChip() !== 'jobId'" [class.bi-check-lg]="copiedChip() === 'jobId'"></i>
             </button>
           </div>
+          @if (g.adnInvoicePrefix; as adnPrefix) {
+            <div class="col-md-3">
+              <label class="field-label">ADN Invoice Prefix</label>
+              <button type="button" class="id-copy" (click)="copyChip(adnPrefix, 'adnPrefix')"
+                [title]="copiedChip() === 'adnPrefix' ? 'Copied!' : 'Copy ADN invoice prefix'">
+                <span class="id-copy__value">{{ adnPrefix }}</span>
+                <i class="bi" [class.bi-clipboard]="copiedChip() !== 'adnPrefix'" [class.bi-check-lg]="copiedChip() === 'adnPrefix'"></i>
+              </button>
+            </div>
+          }
           <div class="col-md-3">
             <label class="field-label">Job Path</label>
             <input type="text" class="field-input"
@@ -58,7 +68,7 @@
               placeholder="lowercase-slug" />
             <small class="field-help">Changing this renames the job URL — log out and back in after saving.</small>
           </div>
-          <div class="col-md-6">
+          <div class="col-md-3">
             <label class="field-label">Description</label>
             <input type="text" class="field-input"
               [ngModel]="jobDescription()"
