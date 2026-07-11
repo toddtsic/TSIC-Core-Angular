@@ -12,6 +12,7 @@ export type UpdateJobConfigGeneralRequest = {
     displayName: string | null;
     searchenginKeywords: string | null;
     searchengineDescription: string | null;
+    jobPath?: string | null;
     jobNameQbp?: string | null;
     expiryAdmin?: string | null;
     jobTypeId?: number | null;

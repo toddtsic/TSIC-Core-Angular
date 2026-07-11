@@ -79,7 +79,6 @@ public class JobConfigService : IJobConfigService
 
         // Admin-editable
         job.JobName = req.JobName;
-        job.JobDescription = req.JobDescription;
         job.JobTagline = req.JobTagline;
         job.Season = req.Season;
         job.Year = req.Year;
@@ -90,6 +89,28 @@ public class JobConfigService : IJobConfigService
         // SuperUser-only
         if (isSuperUser)
         {
+            // Job path rename. Blank or unchanged → no-op (guards non-super-shaped payloads
+            // and prevents nulling the required identity slug). A real change is validated for
+            // slug format and uniqueness, then persisted. Note: this invalidates existing JWTs
+            // (jobPath claim) — the admin must log out and back in on the new path.
+            if (!string.IsNullOrWhiteSpace(req.JobPath))
+            {
+                var newPath = req.JobPath.Trim();
+                if (!newPath.Equals(job.JobPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!Regex.IsMatch(newPath, "^[a-z0-9]+(?:-[a-z0-9]+)*$"))
+                        throw new ArgumentException(
+                            "Job path must be a lowercase slug: letters, numbers, and single hyphens only (e.g. 'hhh-summer-2026').",
+                            nameof(req));
+
+                    if (await _repo.JobPathInUseByOtherAsync(newPath, jobId, ct))
+                        throw new InvalidOperationException($"Job path '{newPath}' is already in use by another job.");
+
+                    job.JobPath = newPath;
+                }
+            }
+
+            job.JobDescription = req.JobDescription;
             job.JobNameQbp = req.JobNameQbp;
             if (req.ExpiryAdmin.HasValue) job.ExpiryAdmin = req.ExpiryAdmin.Value;
             if (req.JobTypeId.HasValue) job.JobTypeId = req.JobTypeId.Value;
@@ -635,7 +656,6 @@ public class JobConfigService : IJobConfigService
         JobId = job.JobId,
         JobPath = job.JobPath,
         JobName = job.JobName,
-        JobDescription = job.JobDescription,
         JobTagline = job.JobTagline,
         Season = job.Season,
         Year = job.Year,
@@ -644,6 +664,7 @@ public class JobConfigService : IJobConfigService
         SearchenginKeywords = job.SearchenginKeywords,
         SearchengineDescription = job.SearchengineDescription,
         // SuperUser-only
+        JobDescription = isSuperUser ? job.JobDescription : null,
         JobNameQbp = isSuperUser ? job.JobNameQbp : null,
         ExpiryAdmin = isSuperUser ? job.ExpiryAdmin : null,
         JobTypeId = isSuperUser ? job.JobTypeId : null,

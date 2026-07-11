@@ -27,6 +27,13 @@ public class JobConfigRepository : IJobConfigRepository
             .FirstOrDefaultAsync(j => j.JobId == jobId, ct);
     }
 
+    public Task<bool> JobPathInUseByOtherAsync(string jobPath, Guid excludeJobId, CancellationToken ct = default)
+    {
+        return _context.Jobs
+            .AsNoTracking()
+            .AnyAsync(j => j.JobId != excludeJobId && j.JobPath == jobPath, ct);
+    }
+
     public async Task<bool> JobHasFeesForRoleAsync(Guid jobId, string roleId, CancellationToken ct = default)
     {
         return await _context.JobFees

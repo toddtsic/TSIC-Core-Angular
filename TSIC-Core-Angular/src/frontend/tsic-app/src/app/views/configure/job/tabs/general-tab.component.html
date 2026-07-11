@@ -37,20 +37,6 @@
             [ngModel]="expiryUsers()"
             (ngModelChange)="expiryUsers.set($event); onFieldChange()" />
         </div>
-        <div class="col-md-3">
-          <label class="field-label">Job ID</label>
-          <input type="text" class="field-input" [value]="g.jobId" disabled />
-        </div>
-        <div class="col-md-3">
-          <label class="field-label">Job Path</label>
-          <input type="text" class="field-input" [value]="g.jobPath" disabled />
-        </div>
-        <div class="col-md-4">
-          <label class="field-label">Description</label>
-          <input type="text" class="field-input"
-            [ngModel]="jobDescription()"
-            (ngModelChange)="jobDescription.set($event); onFieldChange()" />
-        </div>
       </div>
     </div>
 
@@ -62,6 +48,30 @@
           SuperUser Only
         </h6>
         <div class="row g-2">
+          <div class="col-md-3">
+            <label class="field-label">Job ID</label>
+            <button type="button" class="id-copy" (click)="copyJobId(g.jobId)"
+              [title]="jobIdCopied() ? 'Copied!' : 'Copy Job ID'">
+              <span class="id-copy__value">{{ g.jobId }}</span>
+              <i class="bi" [class.bi-clipboard]="!jobIdCopied()" [class.bi-check-lg]="jobIdCopied()"></i>
+            </button>
+          </div>
+          <div class="col-md-3">
+            <label class="field-label">Job Path</label>
+            <input type="text" class="field-input"
+              [ngModel]="jobPath()"
+              (ngModelChange)="jobPath.set($event); onFieldChange()"
+              placeholder="lowercase-slug" />
+            <small class="field-help">Changing this renames the job URL — log out and back in after saving.</small>
+          </div>
+          <div class="col-md-6">
+            <label class="field-label">Description</label>
+            <input type="text" class="field-input"
+              [ngModel]="jobDescription()"
+              (ngModelChange)="jobDescription.set($event); onFieldChange()" />
+          </div>
+        </div>
+        <div class="row g-2 mt-1">
           <div class="col-md-2">
             <label class="field-label">Admin Expiry</label>
             <input type="date" class="field-input"

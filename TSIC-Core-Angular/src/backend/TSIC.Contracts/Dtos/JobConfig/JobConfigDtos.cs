@@ -59,6 +59,9 @@ public record UpdateJobConfigGeneralRequest
     public required string? SearchengineDescription { get; init; }
 
     // SuperUser-only (ignored for non-super callers)
+    /// <summary>The job's URL identity slug. SuperUser-only rename; blank/unchanged is a no-op.
+    /// Changing it invalidates existing JWTs (jobPath claim) and outstanding links to the old path.</summary>
+    public string? JobPath { get; init; }
     public string? JobNameQbp { get; init; }
     public DateTime? ExpiryAdmin { get; init; }
     public int? JobTypeId { get; init; }

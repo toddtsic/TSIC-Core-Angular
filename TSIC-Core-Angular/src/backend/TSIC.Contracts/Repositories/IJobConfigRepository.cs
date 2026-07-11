@@ -32,6 +32,10 @@ public interface IJobConfigRepository
     Task<List<BillingTypeRefDto>> GetBillingTypesAsync(CancellationToken ct = default);
     Task<List<ChargeTypeRefDto>> GetChargeTypesAsync(CancellationToken ct = default);
 
+    /// <summary>True if any OTHER job (excluding <paramref name="excludeJobId"/>) already uses
+    /// <paramref name="jobPath"/>. Guards SuperUser job-path renames against collisions.</summary>
+    Task<bool> JobPathInUseByOtherAsync(string jobPath, Guid excludeJobId, CancellationToken ct = default);
+
     // ── Write ────────────────────────────────────────────
     Task<Jobs?> GetJobTrackedAsync(Guid jobId, CancellationToken ct = default);
     Task<GameClockParams?> GetGameClockParamsTrackedAsync(Guid jobId, CancellationToken ct = default);
