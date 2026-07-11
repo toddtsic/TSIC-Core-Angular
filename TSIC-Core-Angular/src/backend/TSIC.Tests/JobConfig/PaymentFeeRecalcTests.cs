@@ -462,6 +462,56 @@ public class PaymentFeeRecalcTests
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // TEST: SuperUser-only per-unit charges — a non-super save that omits
+    // (sends null for) the gated fields MUST NOT null out existing values.
+    // This guards the exact "hiding a field forces nulls into the record"
+    // failure mode. A SuperUser save still writes them.
+    // ═══════════════════════════════════════════════════════════════
+
+    [Fact]
+    public async Task PerUnitCharges_NonSuperSaveWithNulls_PreservesExistingValues()
+    {
+        PrintScenario("Per-Unit Charges: non-super save must not wipe existing values",
+            "Job has PerPlayer=$42. A non-super PUT sends nulls (fields hidden). Values must survive.");
+
+        var (svc, ctx, jobId, _) = await CreateServiceAsync(
+            bTeamsFullPaymentRequired: false, teamFeeBase: Deposit);
+
+        // Establish existing per-unit charges on the record.
+        var seeded = await ctx.Jobs.FirstAsync(j => j.JobId == jobId);
+        seeded.PerPlayerCharge = 42m;
+        seeded.PerTeamCharge = 250m;
+        seeded.PerMonthCharge = 9m;
+        await ctx.SaveChangesAsync();
+
+        // Non-super PUT with the gated fields nulled (as a hidden-section payload would arrive).
+        var nullReq = BuildRequest(ctx, jobId) with
+        {
+            PerPlayerCharge = null,
+            PerTeamCharge = null,
+            PerMonthCharge = null,
+        };
+        await svc.UpdatePaymentAsync(jobId, nullReq, isSuperUser: false);
+
+        var afterNonSuper = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == jobId);
+        afterNonSuper.PerPlayerCharge.Should().Be(42m, "a non-super save must not overwrite gated values with null");
+        afterNonSuper.PerTeamCharge.Should().Be(250m);
+        afterNonSuper.PerMonthCharge.Should().Be(9m);
+
+        // And the read path nulls them out for the non-super (visibility gate), without touching the DB.
+        var read = await svc.GetFullConfigAsync(jobId, isSuperUser: false);
+        read.Payment.PerPlayerCharge.Should().BeNull("non-super read is gated to null");
+
+        // A SuperUser save still writes them.
+        var superReq = BuildRequest(ctx, jobId) with { PerPlayerCharge = 99m };
+        await svc.UpdatePaymentAsync(jobId, superReq, isSuperUser: true);
+        var afterSuper = await ctx.Jobs.AsNoTracking().FirstAsync(j => j.JobId == jobId);
+        afterSuper.PerPlayerCharge.Should().Be(99m, "a SuperUser save writes the gated value");
+
+        PrintResult("Non-super null save preserved $42/$250/$9; SuperUser save wrote $99. PASS");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // TEST 2: Full Pay Required OFF → full-fee teams revert to deposit
     // ═══════════════════════════════════════════════════════════════
 
