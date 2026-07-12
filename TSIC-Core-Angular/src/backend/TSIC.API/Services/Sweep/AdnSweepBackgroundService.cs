@@ -105,7 +105,10 @@ public sealed class AdnSweepBackgroundService : BackgroundService
             try
             {
                 var reconciliation = scope.ServiceProvider.GetRequiredService<IAdnReconciliationService>();
-                var close = await reconciliation.RunMonthEndCloseWithSweepAsync(lastMonth.Month, lastMonth.Year, ct);
+                // "Scheduled" — the 1st-of-month run IS the scheduled sweep, just with its digest folded
+                // into the close email. echeck.SweepLog's CHECK constraint permits only Scheduled/Manual.
+                var close = await reconciliation.RunMonthEndCloseWithSweepAsync(
+                    lastMonth.Month, lastMonth.Year, "Scheduled", ct);
 
                 _logger.LogInformation(
                     "Month-end close finished for {Month:MMMM yyyy}: sweepSucceeded={Succeeded} sweepErrored={Errored} filesAttached={Attached} closeError={CloseError}",

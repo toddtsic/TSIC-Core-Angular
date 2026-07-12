@@ -155,7 +155,9 @@ public class AdnReconciliationController : ControllerBase
 
         if (includeSweep)
         {
-            var close = await _service.RunMonthEndCloseWithSweepAsync(month, year, cancellationToken);
+            // "Manual" — a human is driving. echeck.SweepLog's CHECK constraint permits only
+            // Scheduled/Manual; the BackgroundService passes "Scheduled".
+            var close = await _service.RunMonthEndCloseWithSweepAsync(month, year, "Manual", cancellationToken);
             return Ok(close);
         }
 

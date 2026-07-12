@@ -2,6 +2,7 @@ using System.Text;
 using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.Extensions.Options;
 using TSIC.API.Configuration;
+using TSIC.API.Extensions;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Configuration;
@@ -203,7 +204,9 @@ public sealed class AdnSweepService : IAdnSweepService
         catch (Exception ex)
         {
             _logger.LogError(ex, "ADN sweep run failed");
-            errorMessage = ex.Message;
+            // Flatten: this message goes straight into your inbox and into SweepLog.errorMessage. A bare
+            // DbUpdateException.Message reads "See the inner exception for details" and shows you none.
+            errorMessage = ex.Flatten();
         }
 
         // The digest is built and sent OUTSIDE the try — a failed sweep must still mail, and must say so.

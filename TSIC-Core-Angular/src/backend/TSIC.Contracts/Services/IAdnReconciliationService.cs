@@ -92,9 +92,14 @@ public interface IAdnReconciliationService
     /// 1st, and <c>POST /api/adn-reconciliation/email-close?includeSweep=true</c> calls it on demand — so
     /// what you see when you test IS what arrives at 5am, not a reconstruction of it.</para>
     /// </summary>
+    /// <param name="triggeredBy">
+    /// Recorded on the sweep's <c>echeck.SweepLog</c> row. MUST be "Scheduled" or "Manual" — the column
+    /// carries CHECK constraint CK_echeck_SweepLog_triggeredBy and rejects anything else.
+    /// </param>
     Task<MonthEndCloseResult> RunMonthEndCloseWithSweepAsync(
         int settlementMonth,
         int settlementYear,
+        string triggeredBy,
         CancellationToken cancellationToken = default);
 }
 
