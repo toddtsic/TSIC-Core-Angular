@@ -32,6 +32,7 @@ public class AdnReconciliationService : IAdnReconciliationService
     private readonly IAdnReconciliationRepository _repo;
     private readonly IAdnApiService _adnApi;
     private readonly IReportingService _reportingService;
+    private readonly IAdnSweepService _sweep;
     private readonly IEmailService _email;
     private readonly ILogger<AdnReconciliationService> _logger;
 
@@ -39,12 +40,14 @@ public class AdnReconciliationService : IAdnReconciliationService
         IAdnReconciliationRepository repo,
         IAdnApiService adnApi,
         IReportingService reportingService,
+        IAdnSweepService sweep,
         IEmailService email,
         ILogger<AdnReconciliationService> logger)
     {
         _repo = repo;
         _adnApi = adnApi;
         _reportingService = reportingService;
+        _sweep = sweep;
         _email = email;
         _logger = logger;
     }
@@ -241,6 +244,101 @@ public class AdnReconciliationService : IAdnReconciliationService
             MerchSourceTrnsCount = bundle.MerchSourceTrnsCount,
             MerchConsolidatedTrnsCount = bundle.MerchConsolidatedTrnsCount,
         };
+    }
+
+    public async Task<MonthEndCloseResult> RunMonthEndCloseWithSweepAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+    {
+        // 1) The day's sweep, digest SUPPRESSED — from here on we own that send, and every path below
+        //    must mail it. RunAsync reports its own failures on the result rather than throwing, so a
+        //    throw here means something outside the sweep proper broke; treat that as untrustworthy.
+        AdnSweepResult sweep;
+        try
+        {
+            sweep = await _sweep.RunAsync("MonthEndClose", daysPrior: 0, sendDigest: false, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Month-end close: the sweep threw before reporting");
+            sweep = UnreportedSweep(ex.Message);
+        }
+
+        // 2) The close, gated on that sweep.
+        try
+        {
+            var run = await EmailMonthlyCloseAsync(settlementMonth, settlementYear, sweep, cancellationToken);
+            return new MonthEndCloseResult
+            {
+                Sweep = sweep,
+                Close = run,
+                FilesAttached = sweep.IsTrustworthy,
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Month-end close for {Year}-{Month:D2} failed; mailing the sweep digest alone",
+                settlementYear, settlementMonth);
+
+            // The close blew up, but we are still holding the day's suppressed digest. Mail it.
+            await SendDigestFallbackAsync(sweep, settlementMonth, settlementYear, ex, cancellationToken);
+
+            return new MonthEndCloseResult
+            {
+                Sweep = sweep,
+                Close = null,
+                FilesAttached = false,
+                CloseError = ex.Message,
+            };
+        }
+    }
+
+    /// <summary>Stand-in for a sweep that never reported. Fails the trust gate, so no files ship.</summary>
+    private static AdnSweepResult UnreportedSweep(string error) => new()
+    {
+        Checked = 0,
+        ArbImported = 0,
+        EcheckSettled = 0,
+        EcheckReturnsProcessed = 0,
+        OrphansFound = 0,
+        Errored = 0,
+        Succeeded = false,
+        ErrorMessage = $"The sweep failed before reporting: {error}. Nothing about this morning's booking "
+            + "can be assumed.",
+    };
+
+    /// <summary>
+    /// Last resort when the close itself throws: mail the digest the sweep handed us, with the close
+    /// failure on top. Without this the suppressed digest would simply evaporate and the morning would
+    /// go silent on the one day of the month that matters most.
+    /// </summary>
+    private async Task SendDigestFallbackAsync(
+        AdnSweepResult sweep, int month, int year, Exception closeFailure, CancellationToken ct)
+    {
+        try
+        {
+            var monthName = new DateTime(year, month, 1).ToString("MMMM yyyy");
+            var body =
+                "<p style='font-size:13px;color:#b00;font-weight:bold;'>&#9888; The month-end close for "
+                + $"{monthName} failed to run. No QuickBooks files were produced. Re-run it from "
+                + "Accounting &rarr; ADN End-of-Month / IIF once the cause is fixed.</p>"
+                + $"<p style='font-size:11px;color:#b00;'><b>Close error:</b> {closeFailure.Message}</p>"
+                + "<hr style='margin:20px 0;border:0;border-top:1px solid #ccc;' />"
+                + (sweep.DigestHtml ?? "<p style='font-size:11px;'>The sweep produced no digest either.</p>");
+
+            await _email.SendAsync(new EmailMessageDto
+            {
+                FromName = "TSIC System",
+                ToAddresses = [TsicConstants.SupportEmail],
+                Subject = $"AdnSweep — {monthName} MONTH-END CLOSE FAILED",
+                HtmlBody = body,
+            }, sendInDevelopment: true, cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Month-end fallback digest send failed — the morning report is LOST");
+        }
     }
 
     public async Task<AdnReconciliationRunResult> EmailMonthlyCloseAsync(

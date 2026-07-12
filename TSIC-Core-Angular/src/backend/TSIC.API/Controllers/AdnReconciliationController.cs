@@ -127,21 +127,38 @@ public class AdnReconciliationController : ControllerBase
     }
 
     /// <summary>
-    /// POST /api/adn-reconciliation/email-close?settlementMonth=N&amp;settlementYear=Y
-    /// Manual trigger for the unattended month-end close the daily sweep runs on the 1st: pulls the
-    /// month, builds the bundle, and EMAILS the .zip to support with the accounting-match verdict and
-    /// IIF parity counts. Mirrors AdnSweepController.Run — the sweep's manual trigger — and is the only
-    /// way to exercise the close off Production, since AdnSweepBackgroundService is IsLiveProduction()-
-    /// gated and never fires on Staging. The send bypasses the sandbox gate (sendInDevelopment: true),
-    /// so this really does transmit from Staging. Defaults to last month.
+    /// POST /api/adn-reconciliation/email-close?settlementMonth=N&amp;settlementYear=Y&amp;includeSweep=false
+    /// Manual trigger for the month-end close. The only way to exercise it off Production, since
+    /// AdnSweepBackgroundService is IsLiveProduction()-gated and never fires on Staging. The send
+    /// bypasses the sandbox gate (sendInDevelopment: true), so it really does transmit. Defaults to
+    /// last month.
+    ///
+    /// <para><c>includeSweep=false</c> (default): close only. Pulls the month, builds the bundle, mails
+    /// the .zip with the accounting-match verdict. No sweep runs, so no trust gate — files always attach.</para>
+    ///
+    /// <para><c>includeSweep=true</c>: the FULL 1st-of-month flow. Calls the very same
+    /// <c>RunMonthEndCloseWithSweepAsync</c> that AdnSweepBackgroundService calls at 5am — runs the sweep
+    /// with its digest suppressed, then mails ONE email (close verdict, sweep digest below, .zip attached
+    /// only if the sweep was trustworthy). Not a reconstruction of the scheduled path: it IS the
+    /// scheduled path. Caveat off Production: the sweep resolves ADN from the ambient environment, so on
+    /// Staging it queries the SANDBOX account and its digest comes back empty. The composition is real;
+    /// the digest's contents are only real on PHOENIX.</para>
     /// </summary>
     [HttpPost("email-close")]
-    public async Task<ActionResult<AdnReconciliationRunResult>> EmailClose(
+    public async Task<IActionResult> EmailClose(
         [FromQuery] int? settlementMonth,
         [FromQuery] int? settlementYear,
-        CancellationToken cancellationToken)
+        [FromQuery] bool includeSweep = false,
+        CancellationToken cancellationToken = default)
     {
         var (month, year) = ResolveMonthYear(settlementMonth, settlementYear);
+
+        if (includeSweep)
+        {
+            var close = await _service.RunMonthEndCloseWithSweepAsync(month, year, cancellationToken);
+            return Ok(close);
+        }
+
         // No sweep result to gate on — the operator is driving, so the files are always attached.
         var result = await _service.EmailMonthlyCloseAsync(month, year, sweep: null, cancellationToken);
         return Ok(result);

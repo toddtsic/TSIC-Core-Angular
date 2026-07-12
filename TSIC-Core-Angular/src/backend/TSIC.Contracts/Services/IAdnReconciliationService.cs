@@ -81,6 +81,36 @@ public interface IAdnReconciliationService
         int settlementYear,
         AdnSweepResult? sweep = null,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// THE 1st-of-the-month path, whole: run the daily sweep with its digest suppressed, then run the
+    /// close and mail ONE message — close verdict on top, sweep digest below, .zip attached only if the
+    /// sweep was trustworthy. Never throws: if the close fails, the suppressed digest is still mailed
+    /// with the failure noted, because losing the morning report to a monthly-close bug is not acceptable.
+    ///
+    /// <para>This is the single definition of that flow. <c>AdnSweepBackgroundService</c> calls it on the
+    /// 1st, and <c>POST /api/adn-reconciliation/email-close?includeSweep=true</c> calls it on demand — so
+    /// what you see when you test IS what arrives at 5am, not a reconstruction of it.</para>
+    /// </summary>
+    Task<MonthEndCloseResult> RunMonthEndCloseWithSweepAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+}
+
+/// <summary>Outcome of the combined 1st-of-month run: what the sweep did, what the close did, what shipped.</summary>
+public record MonthEndCloseResult
+{
+    public required AdnSweepResult Sweep { get; init; }
+
+    /// <summary>The close's import + TRNS counts. Null when the close itself failed.</summary>
+    public AdnReconciliationRunResult? Close { get; init; }
+
+    /// <summary>Whether the .zip rode the email. False when the sweep was not trustworthy.</summary>
+    public required bool FilesAttached { get; init; }
+
+    /// <summary>Set when the close threw and the fallback digest was mailed instead.</summary>
+    public string? CloseError { get; init; }
 }
 
 public record AdnImportResult
