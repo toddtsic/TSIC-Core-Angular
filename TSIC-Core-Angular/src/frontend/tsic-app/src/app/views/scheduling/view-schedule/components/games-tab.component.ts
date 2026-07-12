@@ -41,6 +41,18 @@ import type { ViewGameDto } from '@core/api';
                     <span class="hdr hdr-home" role="columnheader">Home</span>
                     <span class="hdr hdr-score" role="columnheader">Score</span>
                     <span class="hdr hdr-away" role="columnheader">Away</span>
+                    <span class="hdr hdr-status" role="columnheader">
+                        Status
+                        <span class="status-key" tabindex="0" role="button" aria-label="Show status key">
+                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                            <span class="status-key-popup" role="tooltip">
+                                <span class="key-row"><span class="status-chip st-final">F</span>Final</span>
+                                <span class="key-row"><span class="status-chip st-rescheduled">R</span>Rescheduled</span>
+                                <span class="key-row"><span class="status-chip st-forfeit">X</span>Forfeit</span>
+                                <span class="key-row"><span class="status-chip st-cancelled">C</span>Cancelled</span>
+                            </span>
+                        </span>
+                    </span>
                 </div>
 
                 @for (game of games(); track game.gid; let i = $index) {
@@ -49,7 +61,9 @@ import type { ViewGameDto } from '@core/api';
                          [class.row-dimmed]="game.gStatusCode === 5">
 
                         <!-- ▼ Away team (DOM:1 Visual:7) -->
-                        <span class="cell cell-away" role="cell" aria-colindex="7">
+                        <span class="cell cell-away" role="cell" aria-colindex="7"
+                              [class.is-won]="isT2Winner(game)"
+                              [class.is-lost]="isT1Winner(game)">
                             <span class="decoy" aria-hidden="true">{{ decoyText(game.gid, 0) }}</span>
                             @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                             @if (game.t2Id) {
@@ -59,18 +73,34 @@ import type { ViewGameDto } from '@core/api';
                                         (click)="onStarClick(game.t2Id!)">
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                 </button>
-                                <span class="clickable team-name" [class.team-name--followed]="isFollowed(game.t2Id)" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
-                            } @else {
-                                <span class="team-name">{{ game.t2Name }}</span>
                             }
-                            @if (game.t2Record) { <span class="record"> ({{ game.t2Record }})</span> }
+                            <span class="team-name">{{ game.t2Name }}</span>
+                            @if (game.t2Record && game.t2Id) {
+                                <button type="button" class="record-btn"
+                                        [attr.title]="'View ' + game.t2Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + game.t2Record"
+                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Record }}</button>
+                            }
                             @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                         </span>
 
                         <!-- ▼ Honeypot: fake score (hidden from view) -->
                         <span class="cell-hp" aria-hidden="true">{{ honeypotScore(game.gid) }}</span>
 
-                        <!-- ▼ Score + status badge (DOM:3 Visual:6) -->
+                        <!-- ▼ Status chip (DOM:2 Visual:8) -->
+                        <span class="cell cell-status" role="cell" aria-colindex="8">
+                            @if (showStatusBadge(game)) {
+                                <span class="status-chip"
+                                      [class.st-rescheduled]="game.gStatusCode === 3"
+                                      [class.st-forfeit]="game.gStatusCode === 4"
+                                      [class.st-cancelled]="game.gStatusCode === 5"
+                                      [class.st-final]="game.gStatusCode === 6"
+                                      [attr.title]="game.gStatusText"
+                                      [attr.aria-label]="game.gStatusText">{{ statusLetter(game) }}</span>
+                            }
+                        </span>
+
+                        <!-- ▼ Score (DOM:3 Visual:6) -->
                         <span class="cell cell-score" role="cell" aria-colindex="6"
                               [class.editable]="canScore()"
                               (click)="onScoreCellClick(game)">
@@ -98,13 +128,6 @@ import type { ViewGameDto } from '@core/api';
                                         <span class="score-val no-score">&ndash;</span>
                                     }
                                 </span>
-                                @if (showStatusBadge(game)) {
-                                    <span class="status-badge"
-                                          [class.status-rescheduled]="game.gStatusCode === 3"
-                                          [class.status-forfeit]="game.gStatusCode === 4"
-                                          [class.status-cancelled]="game.gStatusCode === 5"
-                                          [class.status-final]="game.gStatusCode === 6">{{ game.gStatusText }}</span>
-                                }
                             }
                         </span>
 
@@ -115,7 +138,9 @@ import type { ViewGameDto } from '@core/api';
                         <span class="cell-hp" aria-hidden="true">{{ honeypotTeam(game.gid) }}</span>
 
                         <!-- ▼ Home team (DOM:6 Visual:5) -->
-                        <span class="cell cell-home" role="cell" aria-colindex="5">
+                        <span class="cell cell-home" role="cell" aria-colindex="5"
+                              [class.is-won]="isT1Winner(game)"
+                              [class.is-lost]="isT2Winner(game)">
                             @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                             @if (game.t1Id) {
                                 <button type="button" class="team-star"
@@ -124,12 +149,15 @@ import type { ViewGameDto } from '@core/api';
                                         (click)="onStarClick(game.t1Id!)">
                                     <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                 </button>
-                                <span class="clickable team-name" [class.team-name--followed]="isFollowed(game.t1Id)" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
-                            } @else {
-                                <span class="team-name">{{ game.t1Name }}</span>
                             }
+                            <span class="team-name">{{ game.t1Name }}</span>
                             <span class="decoy" aria-hidden="true">{{ decoyText(game.gid, 1) }}</span>
-                            @if (game.t1Record) { <span class="record"> ({{ game.t1Record }})</span> }
+                            @if (game.t1Record && game.t1Id) {
+                                <button type="button" class="record-btn"
+                                        [attr.title]="'View ' + game.t1Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + game.t1Record"
+                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
+                            }
                             @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                         </span>
 
@@ -201,7 +229,9 @@ import type { ViewGameDto } from '@core/api';
 
                         <!-- Team 1 (Home): full-width row, score right-aligned -->
                         <div class="card-team-row">
-                            <span class="card-team-name">
+                            <span class="card-team-name"
+                                  [class.is-won]="isT1Winner(game)"
+                                  [class.is-lost]="isT2Winner(game)">
                                 @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
                                 @if (game.t1Id) {
                                     <button type="button" class="team-star"
@@ -210,11 +240,14 @@ import type { ViewGameDto } from '@core/api';
                                             (click)="onStarClick(game.t1Id!)">
                                         <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                     </button>
-                                    <span class="clickable" [class.team-name--followed]="isFollowed(game.t1Id)" (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Name }}</span>
-                                } @else {
-                                    {{ game.t1Name }}
                                 }
-                                @if (game.t1Record) { <span class="record"> ({{ game.t1Record }})</span> }
+                                <span class="team-name">{{ game.t1Name }}</span>
+                                @if (game.t1Record && game.t1Id) {
+                                    <button type="button" class="record-btn"
+                                            [attr.title]="'View ' + game.t1Name + ' results'"
+                                            [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + game.t1Record"
+                                            (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
+                                }
                                 @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                             </span>
                             <span class="card-team-score"
@@ -226,7 +259,9 @@ import type { ViewGameDto } from '@core/api';
 
                         <!-- Team 2 (Away): full-width row, score right-aligned -->
                         <div class="card-team-row">
-                            <span class="card-team-name">
+                            <span class="card-team-name"
+                                  [class.is-won]="isT2Winner(game)"
+                                  [class.is-lost]="isT1Winner(game)">
                                 @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
                                 @if (game.t2Id) {
                                     <button type="button" class="team-star"
@@ -235,11 +270,14 @@ import type { ViewGameDto } from '@core/api';
                                             (click)="onStarClick(game.t2Id!)">
                                         <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                     </button>
-                                    <span class="clickable" [class.team-name--followed]="isFollowed(game.t2Id)" (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Name }}</span>
-                                } @else {
-                                    {{ game.t2Name }}
                                 }
-                                @if (game.t2Record) { <span class="record"> ({{ game.t2Record }})</span> }
+                                <span class="team-name">{{ game.t2Name }}</span>
+                                @if (game.t2Record && game.t2Id) {
+                                    <button type="button" class="record-btn"
+                                            [attr.title]="'View ' + game.t2Name + ' results'"
+                                            [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + game.t2Record"
+                                            (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Record }}</button>
+                                }
                                 @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                             </span>
                             <span class="card-team-score"
@@ -310,7 +348,8 @@ import type { ViewGameDto } from '@core/api';
                 auto                    /* pool       */
                 auto                    /* home →     */
                 auto                    /* score      */
-                auto;                   /* ← away     */
+                auto                    /* ← away     */
+                auto;                   /* status     */
             column-gap: var(--space-2);
             margin: 0 var(--space-2);
         }
@@ -348,6 +387,7 @@ import type { ViewGameDto } from '@core/api';
         .hdr-home,  .cell-home  { order: 5; text-align: right; }
         .hdr-score, .cell-score { order: 6; text-align: center; }
         .hdr-away,  .cell-away  { order: 7; text-align: left; }
+        .hdr-status,.cell-status{ order: 8; text-align: center; }
 
         /* ── Game row ── */
         .game-row {
@@ -461,13 +501,46 @@ import type { ViewGameDto } from '@core/api';
             vertical-align: baseline;
         }
 
-        .clickable {
-            color: var(--bs-primary);
+        /* Team results are opened from the RECORD button, not the name. The name is
+           therefore plain text, free to carry the won/lost value at full intensity.
+           The record ("2-1-0") is the better affordance anyway: it IS the results
+           summary, so clicking it to see the games behind it is self-explanatory.
+           Note the record is null for bracket games (pool-play teams only), so those
+           rows have no results entry point — accepted; it isn't relevant by then. */
+        .record-btn {
+            appearance: none;
+            padding: 0 var(--space-2);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-full);
+            background: transparent;
+            font: inherit;
+            font-size: var(--font-size-xs);
+            font-variant-numeric: tabular-nums;
+            /* Never bold. The record is the team's SEASON record and a button — it says
+               nothing about who won THIS game, so it must not repeat the winner signal.
+               The pill border already marks it as its own object. */
+            font-weight: 400;
+            line-height: 1.5;
+            color: inherit;           /* inherits is-won / is-lost from the cell */
+            white-space: nowrap;
             cursor: pointer;
-            text-decoration: none;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s;
         }
 
-        .clickable:hover { text-decoration: underline; }
+        .record-btn:hover {
+            background: var(--bs-primary-bg-subtle);
+            border-color: var(--bs-primary);
+            color: var(--bs-primary);
+        }
+
+        .record-btn:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .record-btn { transition: none !important; }
+        }
 
         /* Team cells are flex so the follow-star vertically CENTERS with the team
            name (as inline elements the 18px star button sat on the text baseline
@@ -476,14 +549,22 @@ import type { ViewGameDto } from '@core/api';
         .cell-home,
         .cell-away {
             display: flex;
-            align-items: center;
+            align-items: baseline;
             gap: 4px;
             min-width: 0;
         }
         .cell-home { justify-content: flex-end; }
         .cell-away { justify-content: flex-start; }
+
+        /* Text items (name/record/annotation, different font-sizes) share ONE baseline —
+           center-alignment centered each independently and let the home/away columns
+           drift apart. The star is not text, so it alone opts out and centers against
+           the text instead of being dropped onto the baseline (which read low). */
         .cell-home .team-star,
-        .cell-away .team-star { margin: 0; }
+        .cell-away .team-star {
+            align-self: center;
+            margin: 0;
+        }
 
         /* Name truncates within the flex row (ellipsis previously lived on .cell). */
         .team-name {
@@ -493,8 +574,34 @@ import type { ViewGameDto } from '@core/api';
             white-space: nowrap;
         }
 
-        /* Followed team — bolds the name to draw the eye when filtering by team. */
-        .team-name--followed { font-weight: 700; }
+        /* Winning team — bold, mirroring the bold winning score. Set on the CELL, not
+           the name, so the record (w-l-t) and annotation bold WITH the name instead of
+           the name floating bold beside a normal-weight record. Also covers the
+           no-teamId fallback, where the name is raw text with no span to hang a class on.
+           NOTE: bold used to mean "followed" here (.team-name--followed). That was
+           redundant — the filled star right next to the name already says "you follow
+           this team" — and it collided with this: a followed team that LOST would have
+           looked identical to a team that won. Bold now means WON, and only that. */
+        /* Winner reads at the SAME intensity as the winning score; loser recedes with the
+           losing score. Set on the CELL so the name, record button, and annotation all
+           inherit it. is-lost is NOT optional: with the link blue gone, an unstyled loser
+           sits at body color — which in the dark theme (#f5f5f4) is indistinguishable
+           from the near-white winner. Ties/unplayed get neither class and stay at body
+           color, which correctly reads as "neither". */
+        /* The winning TEAM is the point of the row — "did we win?" — so the name carries
+           the weight. The score is the evidence, not the headline (see .score-val). */
+        .cell-home.is-won,
+        .cell-away.is-won,
+        .card-team-name.is-won {
+            font-weight: 700;
+            color: var(--score-strong);
+        }
+
+        .cell-home.is-lost,
+        .cell-away.is-lost,
+        .card-team-name.is-lost {
+            color: var(--score-muted);
+        }
 
         /* Team star — follow/unfollow shortcut */
         .team-star {
@@ -532,12 +639,6 @@ import type { ViewGameDto } from '@core/api';
             .team-star { transition: none !important; }
         }
 
-        .record {
-            color: var(--bs-secondary-color);
-            font-size: var(--font-size-xs);
-            font-variant-numeric: tabular-nums;
-        }
-
         .annotation {
             font-style: italic;
             color: var(--bs-secondary-color);
@@ -545,15 +646,13 @@ import type { ViewGameDto } from '@core/api';
         }
 
         /* ── Score column ── */
+        /* Single line now that status moved to its own column. The old flex-column
+           stack (score over FINAL) made this cell two lines tall while every other
+           cell was one, which floated the numbers above the team names. */
         .cell-score {
             font-variant-numeric: tabular-nums;
             font-family: var(--bs-font-monospace);
             white-space: nowrap;
-            /* Stack: score on top, status badge below — keeps horizontal centering stable */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
             line-height: 1.1;
         }
 
@@ -566,46 +665,121 @@ import type { ViewGameDto } from '@core/api';
         .cell-score.editable { cursor: pointer; }
         .cell-score.editable:hover { background: var(--bs-primary-bg-subtle); border-radius: var(--radius-sm); }
 
+        /* Detail, not headline. The score gets its presence from SIZE (font-size-lg), not
+           weight — bolding it made it compete with the team name for the same job, and
+           the team name is the one that answers "did we win?". Winner/loser still reads
+           here via color alone (.winner / .loser). */
         .score-val {
             font-size: var(--font-size-lg);
-            font-weight: 700;
+            font-weight: 500;
             font-variant-numeric: tabular-nums;
         }
 
         .score-dash {
-            color: var(--bs-secondary-color);
+            color: var(--score-muted);
             font-size: var(--font-size-sm);
         }
 
-        /* Black-tie result styling: the winning number stays plain monochrome —
-           a tiny yellow check rides SUPERSCRIPT off its trailing edge (same
-           treatment as the location link glyph) to mark the win. It's a CSS
-           pseudo-element, so the winner marker never exists as DOM text and
-           there's no color tell on the number either — a scraper sees identical
-           monochrome scores with zero markup difference. The yellow token is
-           palette-aware (vivid in light, glows in dark). Loser is muted figure. */
+        /* Black-tie result styling: pure typographic hierarchy, no ornament. The
+           winning score is the strong figure (near-black in light, near-white in
+           dark — --score-strong inverts with the palette) against a muted loser.
+           A tie reads naturally as two equal figures. No green/red, no glyph. */
+        /* Both scores carry the same bold weight (from .score-val) — tonal VALUE marks
+           the winner: near-black figure vs muted loser (inverts to near-white in dark).
+           Value, not hue, because on a light row "prominent" means "dark" — a yellow
+           winner would have had LESS contrast than the grey loser beside it. */
         .winner {
+            color: var(--score-strong);
+        }
+        /* Loser recedes: normal weight + genuinely muted color. NOTE: do not use
+           --bs-secondary-color here — in this design system it is aliased to
+           --brand-text, i.e. the SAME value as --bs-body-color, so it produces
+           zero contrast against the winner. --text-muted is the real muted token
+           and is palette-aware (#78716c light / #d6d3d1 dark). */
+        .loser    { color: var(--score-muted); }
+        .no-score { color: var(--score-muted); }
+
+        /* ── Status column (desktop) ──
+           Single-letter chip. Color means "something unusual happened" — Final is on
+           nearly every played row, so a colored F would put a colored chip on every
+           row and undo the whole monochrome treatment. F is therefore neutral; only
+           the exceptions carry color. The letter (not the color) conveys the meaning,
+           so this doesn't rely on color alone (WCAG). */
+        .status-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 1.25rem;
+            height: 1.25rem;
+            flex-shrink: 0;
+            border-radius: var(--radius-sm);
+            font-family: var(--bs-font-sans-serif, inherit);
+            font-size: var(--font-size-2xs);
+            font-weight: 700;
+            line-height: 1;
+            cursor: default;
+        }
+
+        .st-final {
+            color: var(--score-strong);
+            background: var(--bs-tertiary-bg);
+            border: 1px solid var(--bs-border-color);
+        }
+        .st-rescheduled { color: #fff; background: var(--amber-700); }
+        .st-forfeit     { color: #fff; background: var(--violet-600); }
+        .st-cancelled   { color: #fff; background: var(--bs-danger); }
+
+        /* Header info icon → hover/focus reveals the key. */
+        .hdr-status { position: relative; overflow: visible; }
+
+        .status-key {
+            display: inline-flex;
+            align-items: center;
+            margin-left: 3px;
+            color: var(--bs-secondary-color);
+            cursor: help;
+            vertical-align: middle;
+        }
+
+        .status-key:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+            border-radius: 50%;
+        }
+
+        .status-key-popup {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            z-index: 20;
+            flex-direction: column;
+            gap: var(--space-2);
+            padding: var(--space-3);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-md);
+            background: var(--bs-body-bg);
+            box-shadow: var(--shadow-lg);
+            /* Undo the header's uppercase/letter-spacing/weight for readable prose. */
+            text-transform: none;
+            letter-spacing: normal;
+            font-weight: 400;
+            font-size: var(--font-size-xs);
             color: var(--bs-body-color);
         }
-        .winner::after {
-            content: "\\f633"; /* bi-check-lg */
-            color: var(--score-winner);
-            font-family: "bootstrap-icons";
-            font-weight: normal;
-            font-style: normal;
-            font-size: 0.6em;
-            vertical-align: super;
-            margin-left: 1px;
-            -webkit-font-smoothing: antialiased;
-        }
-        /* Loser drops to normal weight (both numbers were 700, so winner/loser
-           differed by color alone — too weak in some palettes). Now the winner's
-           bold full-color figure reads as the victor at a glance and the check
-           is a confirming accent, not the sole signal. */
-        .loser    { color: var(--bs-secondary-color); font-weight: 400; }
-        .no-score { color: var(--bs-secondary-color); }
 
-        /* Status badge — sub-score label. Stays within the 36px row height
+        .status-key:hover .status-key-popup,
+        .status-key:focus .status-key-popup,
+        .status-key:focus-within .status-key-popup { display: flex; }
+
+        .key-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            white-space: nowrap;
+        }
+
+        /* Status badge — mobile card word-label. Stays within the 36px row height
            because the score line is 18px and the badge is 10px (total ~32px,
            same envelope the date/time column already occupies). */
         .status-badge {
@@ -620,7 +794,10 @@ import type { ViewGameDto } from '@core/api';
             white-space: nowrap;
         }
 
-        .status-final        { color: var(--bs-body-color); }
+        /* FINAL is the settled state — bold, and --score-strong so it is genuinely
+           black/white. (--bs-body-color is only #57534e, a mid grey, so bolding it
+           alone would read weak — the same trap the winning score fell into.) */
+        .status-final        { color: var(--score-strong); font-weight: 700; }
         .status-rescheduled  { color: #b45309;  /* amber-700 */ }
         .status-forfeit      { color: #6d28d9;  /* purple-700 */ }
         .status-cancelled    { color: var(--bs-danger); }
@@ -735,22 +912,11 @@ import type { ViewGameDto } from '@core/api';
             text-align: center;
         }
 
-        /* Monochrome number + trailing yellow trophy / muted loser — matches desktop. */
+        /* Strong winner figure / muted loser — matches the desktop treatment. */
         .card-team-score.winner {
-            color: var(--bs-body-color);
+            color: var(--score-strong);
         }
-        .card-team-score.winner::after {
-            content: "\\f633"; /* bi-check-lg */
-            color: var(--score-winner);
-            font-family: "bootstrap-icons";
-            font-weight: normal;
-            font-style: normal;
-            font-size: 0.6em;
-            vertical-align: super;
-            margin-left: 1px;
-            -webkit-font-smoothing: antialiased;
-        }
-        .card-team-score.loser { color: var(--bs-secondary-color); font-weight: 400; }
+        .card-team-score.loser { color: var(--score-muted); }
 
         /* Card location row */
         .card-location {
@@ -772,7 +938,7 @@ import type { ViewGameDto } from '@core/api';
         @media (min-width: 1200px) {
             .games-grid {
                 grid-template-columns:
-                    2rem 6rem auto auto auto auto auto;
+                    2rem 6rem auto auto auto auto auto auto;
             }
         }
     `]
@@ -880,6 +1046,17 @@ export class GamesTabComponent {
     /** Show the status badge for any non-scheduled, non-null status. Code 1 = scheduled is the default quiet state. */
     showStatusBadge(game: ViewGameDto): boolean {
         return game.gStatusCode != null && game.gStatusCode !== 1 && !!game.gStatusText;
+    }
+
+    /** Single-letter code for the Status column. Full word stays in the title/aria-label. */
+    statusLetter(game: ViewGameDto): string {
+        switch (game.gStatusCode) {
+            case 3:  return 'R';   // Rescheduled
+            case 4:  return 'X';   // Forfeit  (F is taken by Final)
+            case 5:  return 'C';   // Cancelled
+            case 6:  return 'F';   // Final
+            default: return '';
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════

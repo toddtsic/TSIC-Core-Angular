@@ -202,12 +202,18 @@
    --teal-500: #14b8a6;
    --teal-600: #0d9488;
 
-   /* Champion yellow — winner accent for game scores (a small trophy glyph, so
-      saturation is fine; only the icon wears it, never body text). Vivid yellow
-      here, overridden brighter in the dark theme where it needs to glow.
-      Semantic winner token aliases this. */
-   --tsic-yellow: #eab308;
-   --score-winner: var(--tsic-yellow);
+   /* Strong figure — the winning score and the FINAL chip. Body text is only #57534e
+      (mid warm-grey), so a bold weight alone doesn't read as "bold"; it needs real
+      darkness behind it. Near-black here, flipped to near-white in the dark theme,
+      so the winner is the high-contrast figure in BOTH palettes. */
+   --score-strong: var(--neutral-900);
+
+   /* Losing score. The score column needs its OWN muted value, not --text-muted:
+      in the dark theme --text-muted is neutral-300 (#d6d3d1), one step off body text
+      and two off the near-white winner — so the loser would sit almost as bright as
+      the winner and the hierarchy would collapse. This steps down properly in both
+      palettes while staying legible (the losing score is real information). */
+   --score-muted: var(--neutral-500);
 
    /* ============================================
        Semantic Tokens (aliases for backwards compatibility)

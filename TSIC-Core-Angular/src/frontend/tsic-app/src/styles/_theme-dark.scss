@@ -56,9 +56,15 @@
     --brand-border: #57534e;
     /* Distinct from surface for definition */
 
-    /* Champion yellow — brighter so it glows against the dark body-bg
-       (the light-mode yellow would read dull here). See _tokens.scss. */
-    --tsic-yellow: #fde047;
+    /* Strong figure (winning score, FINAL chip) — near-white so it punches out of the
+       dark body-bg, the inverse of the near-black used in light mode. See _tokens.scss. */
+    --score-strong: #ffffff;
+
+    /* Losing score — a real step DOWN from the near-white winner. Do not use
+       --text-muted here: on dark it is neutral-300 (#d6d3d1), nearly as bright as the
+       winner, which flattens the hierarchy. neutral-400 stays legible (~6.8:1 on the
+       dark body-bg) while reading clearly dimmer. See _tokens.scss. */
+    --score-muted: var(--neutral-400);
 
     /* Bootstrap Mappings */
     --bs-body-bg: var(--brand-bg);
