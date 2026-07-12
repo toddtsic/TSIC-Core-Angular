@@ -113,14 +113,14 @@ export class ChangePasswordComponent implements OnInit {
   editingDadEmail = signal('');
   isSavingEmail = signal(false);
 
-  // ── Per-player editor (legacy's row-edit dialog) ──
-  // Legacy's grid row WAS a registration, so its dialog could edit that one player's email,
-  // username and password. Our rows are accounts, so the player-level edits need their own
-  // surface. Editable set = exactly what legacy actually persisted; the rest is read-only.
+  // ── Per-player editor ──
+  // Editable: R-Email and R-UserName (a merge). NOT the password: a player has no usable
+  // login — the family signs in and picks the child, so the player's own credentials are
+  // vestigial (half of them are raw GUIDs). Legacy exposed NewUserPassword because its one
+  // grid also served the adult roles, where the person's username IS their login.
   editPlayer = signal<PlayerRow | null>(null);
   editEmail = signal('');
   editUserName = signal('');
-  editNewPassword = signal('');
   editMergeCandidates = signal<MergeCandidateDto[]>([]);
   isLoadingEditCandidates = signal(false);
   isSavingPlayer = signal(false);
@@ -335,7 +335,6 @@ export class ChangePasswordComponent implements OnInit {
     this.editPlayer.set(player);
     this.editEmail.set(player.email ?? '');
     this.editUserName.set(player.userName);
-    this.editNewPassword.set('');
     this.editMergeCandidates.set([]);
     this.isLoadingEditCandidates.set(true);
 
@@ -354,24 +353,19 @@ export class ChangePasswordComponent implements OnInit {
     const p = this.editPlayer();
     if (!p) return false;
     return this.editEmail().trim() !== (p.email ?? '')
-      || this.editUserName() !== p.userName
-      || this.editNewPassword().length > 0;
+      || this.editUserName() !== p.userName;
   });
 
   savePlayerEdit(): void {
     const player = this.editPlayer();
     if (!player || this.isSavingPlayer()) return;
 
-    const password = this.editNewPassword();
-    if (password.length > 0 && password.length < 6) return;
-
     const regId = this.playerRegId(player);
     const email = this.editEmail().trim();
     const targetUserName = this.editUserName();
 
-    // Sequenced, not parallel: the merge repoints this player's registrations onto the target
-    // login, so the password reset that follows must target the SURVIVING username — which is
-    // what legacy did too (it reset against the username posted from the dialog, not the old one).
+    // Sequenced, not parallel: the merge repoints registrations, so the email edit must land
+    // on the source user first — after the merge, this regId belongs to the target.
     const ops: Observable<ApiMessage>[] = [];
     // Empty is a real edit — it clears the address (legacy parity). Compare, don't truthiness-test.
     if (email !== (player.email ?? '')) {
@@ -379,12 +373,6 @@ export class ChangePasswordComponent implements OnInit {
     }
     if (targetUserName && targetUserName !== player.userName) {
       ops.push(this.service.mergeUsername(regId, { targetUserName }));
-    }
-    if (password.length >= 6) {
-      ops.push(this.service.resetPassword(regId, {
-        userName: targetUserName || player.userName,
-        newPassword: password
-      }));
     }
 
     if (ops.length === 0) {
