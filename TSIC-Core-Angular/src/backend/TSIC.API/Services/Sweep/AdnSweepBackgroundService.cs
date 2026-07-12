@@ -103,6 +103,33 @@ public sealed class AdnSweepBackgroundService : BackgroundService
         {
             _logger.LogError(ex, "Sweep tick threw; will retry on next 24h tick");
         }
+
+        // On the 1st, the month just ended is complete — close it and mail the QuickBooks files, so the
+        // operator wakes up to the .iif instead of driving the wizard by hand. Runs AFTER the daily sweep
+        // (which may still be booking ARB/eCheck rows into the closing month) and in its own scope + try,
+        // so a close failure never takes down the sweep loop or the next tick.
+        if (DateTime.Now.Day == 1 && _options.EmailMonthEndClose)
+        {
+            await RunMonthEndCloseAsync(ct);
+        }
+    }
+
+    private async Task RunMonthEndCloseAsync(CancellationToken ct)
+    {
+        var lastMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
+        try
+        {
+            _logger.LogInformation("Month-end close starting for {Month:MMMM yyyy}", lastMonth);
+
+            using var scope = _services.CreateScope();
+            var reconciliation = scope.ServiceProvider.GetRequiredService<IAdnReconciliationService>();
+            await reconciliation.EmailMonthlyCloseAsync(lastMonth.Month, lastMonth.Year, ct);
+        }
+        catch (Exception ex)
+        {
+            // No retry: the operator can always run the close by hand from Accounting → ADN End-of-Month.
+            _logger.LogError(ex, "Month-end close for {Month:MMMM yyyy} failed; run it by hand from the UI", lastMonth);
+        }
     }
 #endif
 }

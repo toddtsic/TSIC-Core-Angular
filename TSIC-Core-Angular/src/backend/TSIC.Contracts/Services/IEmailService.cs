@@ -44,6 +44,20 @@ public sealed class EmailMessageDto
     public string? Subject { get; set; }
     public string? HtmlBody { get; set; }
     public string? TextBody { get; set; }
+    /// <summary>
+    /// Files to attach. The send path is already raw-MIME (SES <c>SendRawEmail</c>), so these ride the
+    /// same message as the body. SES caps the whole raw message at 10 MB after base64 encoding — keep
+    /// attachments well under that.
+    /// </summary>
+    public List<EmailAttachmentDto> Attachments { get; set; } = new();
+}
+
+/// <summary>A single email attachment: the bytes, the filename the recipient sees, and its MIME type.</summary>
+public sealed class EmailAttachmentDto
+{
+    public required string FileName { get; init; }
+    public required byte[] Content { get; init; }
+    public required string ContentType { get; init; }
 }
 
 public sealed class EmailBatchSendResult

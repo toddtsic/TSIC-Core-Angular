@@ -1,3 +1,4 @@
+using System.Text;
 using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.Extensions.Logging;
 using TSIC.API.Services.Reporting;
@@ -5,6 +6,7 @@ using TSIC.API.Services.Shared.Adn;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 
 namespace TSIC.API.Services.Admin;
@@ -30,17 +32,20 @@ public class AdnReconciliationService : IAdnReconciliationService
     private readonly IAdnReconciliationRepository _repo;
     private readonly IAdnApiService _adnApi;
     private readonly IReportingService _reportingService;
+    private readonly IEmailService _email;
     private readonly ILogger<AdnReconciliationService> _logger;
 
     public AdnReconciliationService(
         IAdnReconciliationRepository repo,
         IAdnApiService adnApi,
         IReportingService reportingService,
+        IEmailService email,
         ILogger<AdnReconciliationService> logger)
     {
         _repo = repo;
         _adnApi = adnApi;
         _reportingService = reportingService;
+        _email = email;
         _logger = logger;
     }
 
@@ -236,6 +241,109 @@ public class AdnReconciliationService : IAdnReconciliationService
             MerchSourceTrnsCount = bundle.MerchSourceTrnsCount,
             MerchConsolidatedTrnsCount = bundle.MerchConsolidatedTrnsCount,
         };
+    }
+
+    public async Task<AdnReconciliationRunResult> EmailMonthlyCloseAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default)
+    {
+        // Same close the operator runs by hand from Accounting → ADN End-of-Month / IIF, just unattended:
+        // pull the month, build the bundle, then read back the custodial match so the covering email can
+        // carry the verdict. Sequential awaits — one scoped DbContext.
+        var run = await RunMonthlyAsync(settlementMonth, settlementYear, cancellationToken);
+        var reconciliation = await GetReconciliationAsync(settlementMonth, settlementYear, cancellationToken);
+
+        var monthName = new DateTime(settlementYear, settlementMonth, 1).ToString("MMMM yyyy");
+        var unmatched = reconciliation.Reg.UnmatchedCount + reconciliation.Merch.UnmatchedCount;
+        var parityOk = run.RegSourceTrnsCount == run.RegConsolidatedTrnsCount
+            && run.MerchSourceTrnsCount == run.MerchConsolidatedTrnsCount;
+
+        var sent = await _email.SendAsync(new EmailMessageDto
+        {
+            FromName = "TSIC System",
+            ToAddresses = [TsicConstants.SupportEmail],
+            Subject = $"AdnMonthEndClose {monthName}"
+                + (unmatched > 0 ? $" — {unmatched} UNMATCHED" : "")
+                + (parityOk ? "" : " — IIF PARITY MISMATCH"),
+            HtmlBody = BuildCloseEmailHtml(monthName, run, reconciliation, unmatched, parityOk),
+            Attachments =
+            [
+                new EmailAttachmentDto
+                {
+                    FileName = run.Bundle.FileName,
+                    Content = run.Bundle.FileBytes,
+                    ContentType = run.Bundle.ContentType,
+                },
+            ],
+        }, sendInDevelopment: true, cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "AdnReconciliation: month-end close emailed for {Month} (sent={Sent}, zipBytes={Bytes}, " +
+            "unmatched={Unmatched}, parityOk={ParityOk})",
+            monthName, sent, run.Bundle.FileBytes.Length, unmatched, parityOk);
+
+        return run;
+    }
+
+    /// <summary>
+    /// Covering note for the close email: the two things that decide whether the .iif can be imported
+    /// as-is — does every ADN dollar map to a client (the custodial match), and did every source TRNS
+    /// survive consolidation (IIF parity). Everything else is in the attached workbook.
+    /// </summary>
+    private static string BuildCloseEmailHtml(
+        string monthName,
+        AdnReconciliationRunResult run,
+        MonthEndReconciliationResult reconciliation,
+        int unmatched,
+        bool parityOk)
+    {
+        var sb = new StringBuilder();
+        sb.Append($"<h3 style='margin-bottom:4px;'>ADN Month-End Close — {monthName}</h3>");
+        sb.Append("<p style='font-size:11px;margin-top:0;'>The attached .zip holds both QuickBooks .iif files "
+            + "(registration + merch), their backing .xlsx, and the human-readable summary.</p>");
+
+        sb.Append(unmatched == 0
+            ? "<p style='font-size:12px;color:#0a0;font-weight:bold;'>&#10003; Accounting match clean — every ADN transaction maps to a client.</p>"
+            : $"<p style='font-size:12px;color:#b00;font-weight:bold;'>&#9888; {unmatched} ADN transaction(s) have no matching accounting row. Review before importing.</p>");
+
+        if (!parityOk)
+        {
+            sb.Append("<p style='font-size:12px;color:#b00;font-weight:bold;'>&#9888; IIF TRNS parity mismatch — "
+                + "a source transaction did not survive consolidation. Verify the .iif before importing.</p>");
+        }
+
+        sb.Append("<table style='border-collapse:separate;border-spacing:10px;font-size:11px;'>");
+        sb.Append("<tr><th align='left'>Stack</th><th align='right'>ADN Txs</th><th align='right'>Matched</th>"
+            + "<th align='right'>Unmatched</th><th align='right'>Paid</th><th align='right'>Credited</th>"
+            + "<th align='right'>IIF TRNS</th></tr>");
+        AppendStackRow(sb, "Registration", reconciliation.Reg, run.RegConsolidatedTrnsCount, run.RegSourceTrnsCount);
+        AppendStackRow(sb, "Merch", reconciliation.Merch, run.MerchConsolidatedTrnsCount, run.MerchSourceTrnsCount);
+        sb.Append("</table>");
+
+        sb.Append($"<p style='font-size:9px;color:#666;'>Pulled {run.BatchesPulled} batch(es) / {run.TransactionsPulled} "
+            + $"transaction(s); imported {run.Imported} new, skipped {run.SkippedDuplicates} duplicate(s).");
+        if (reconciliation.LatestSettlementAt.HasValue)
+        {
+            sb.Append($" Settlements through {reconciliation.LatestSettlementAt.Value:g}.");
+        }
+        sb.Append("</p>");
+
+        return sb.ToString();
+    }
+
+    private static void AppendStackRow(
+        StringBuilder sb, string label, ReconciliationStackSummary s, int consolidatedTrns, int sourceTrns)
+    {
+        sb.Append("<tr>")
+          .Append($"<td>{label}</td>")
+          .Append($"<td align='right'>{s.TransactionCount}</td>")
+          .Append($"<td align='right'>{s.MatchedCount}</td>")
+          .Append($"<td align='right'>{(s.UnmatchedCount > 0 ? $"<b style='color:#b00;'>{s.UnmatchedCount}</b>" : "0")}</td>")
+          .Append($"<td align='right'>{s.PaidTotal:C}</td>")
+          .Append($"<td align='right'>{s.CreditTotal:C}</td>")
+          .Append($"<td align='right'>{consolidatedTrns} / {sourceTrns}</td>")
+          .Append("</tr>");
     }
 
     private static string MapStatus(string adnStatus) => adnStatus switch

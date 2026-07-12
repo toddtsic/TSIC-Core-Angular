@@ -18,4 +18,11 @@ public class AdnSweepOptions
     /// If service starts at 4:30 AM and grace is 60, it runs immediately; if at 5:30, it waits.
     /// </summary>
     public int StartupGraceMinutes { get; set; } = 60;
+
+    /// <summary>
+    /// On the 1st of the month, run the month-end close for the month just ended and email the .zip
+    /// (both QuickBooks .iif + backing .xlsx) to support. Off switch for the unattended close only —
+    /// the daily sweep keeps running either way.
+    /// </summary>
+    public bool EmailMonthEndClose { get; set; } = true;
 }

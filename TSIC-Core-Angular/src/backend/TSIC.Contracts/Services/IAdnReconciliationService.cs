@@ -63,6 +63,17 @@ public interface IAdnReconciliationService
         int settlementMonth,
         int settlementYear,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Unattended month-end close: runs <see cref="RunMonthlyAsync"/> for the month, then emails the
+    /// .zip (QuickBooks .iif + backing .xlsx) to support with a covering summary — the accounting-match
+    /// verdict and the IIF TRNS parity counts — so the close can be triaged before the zip is opened.
+    /// Driven by the daily ADN sweep on the 1st of the month.
+    /// </summary>
+    Task<AdnReconciliationRunResult> EmailMonthlyCloseAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
 }
 
 public record AdnImportResult

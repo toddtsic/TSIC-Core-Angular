@@ -163,6 +163,18 @@ public sealed class EmailService : IEmailService
             HtmlBody = dto.HtmlBody,
             TextBody = dto.TextBody
         };
+
+        if (dto.Attachments != null)
+        {
+            foreach (var attachment in dto.Attachments.Where(a => a.Content.Length > 0))
+            {
+                builder.Attachments.Add(
+                    attachment.FileName,
+                    attachment.Content,
+                    ContentType.Parse(attachment.ContentType));
+            }
+        }
+
         message.Body = builder.ToMessageBody();
         return message;
     }
