@@ -7,6 +7,10 @@ using TSIC.Infrastructure.Data.Identity;
 
 namespace TSIC.API.Services.Admin;
 
+/// <summary>
+/// See <c>docs/Domain/change-password-contract.md</c>. The identity model in §1 is not optional
+/// reading — a player never signs in, and a merge is not a rename.
+/// </summary>
 public class ChangePasswordService : IChangePasswordService
 {
     private readonly IChangePasswordRepository _repo;
@@ -32,6 +36,14 @@ public class ChangePasswordService : IChangePasswordService
         return await _repo.SearchAdultRegistrationsAsync(request, ct);
     }
 
+    /// <summary>
+    /// The six roles legacy offered. Deliberately NOT read from <c>AspNetRoles</c>:
+    /// <c>Family</c> is absent because you reach a family login by searching Player (it arrives on
+    /// the join), and <c>Superuser</c> is absent by policy.
+    ///
+    /// Referee / RefAssignor / Scorer / Recruiter / StoreAdmin / StpAdmin have real logins and are
+    /// NOT findable here. That is an open product decision, not an oversight — contract §4.
+    /// </summary>
     public Task<List<ChangePasswordRoleOptionDto>> GetRoleOptionsAsync(
         CancellationToken ct = default)
     {
@@ -49,15 +61,31 @@ public class ChangePasswordService : IChangePasswordService
     }
 
     public async Task<string> ResetPasswordAsync(
-        string userName,
-        string newPassword,
+        Guid registrationId,
+        AdminResetPasswordRequest request,
         CancellationToken ct = default)
     {
-        var user = await _userManager.FindByNameAsync(userName)
-            ?? throw new InvalidOperationException($"User '{userName}' not found.");
+        // THE targeting step. The account comes from the REGISTRATION's own FK — never from the
+        // request body. The body only says which of the two FKs to follow.
+        var target = await _repo.ResolveResetTargetAsync(registrationId, request.Target, ct)
+            ?? throw new InvalidOperationException(request.Target == ResetPasswordTarget.Family
+                ? "This registration has no family login."
+                : "This registration has no user account.");
+
+        // The caller told us who they think they're resetting. If the UI is stale — the row was
+        // merged away under them, say — that disagreement must stop the write, not be papered over.
+        if (!string.Equals(target.UserName, request.ExpectedUserName, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"This registration's {(request.Target == ResetPasswordTarget.Family ? "family login" : "login")} " +
+                $"is '{target.UserName}', not '{request.ExpectedUserName}'. Re-run the search and try again.");
+        }
+
+        var user = await _userManager.FindByIdAsync(target.UserId)
+            ?? throw new InvalidOperationException($"Account '{target.UserName}' no longer exists.");
 
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
-        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+        var result = await _userManager.ResetPasswordAsync(user, token, request.NewPassword);
 
         if (!result.Succeeded)
         {
@@ -65,12 +93,12 @@ public class ChangePasswordService : IChangePasswordService
             throw new InvalidOperationException($"Password reset failed: {errors}");
         }
 
-        return $"Password for '{userName}' reset successfully.";
+        return $"Password for '{target.UserName}' reset successfully.";
     }
 
     public async Task UpdateUserEmailAsync(
         Guid registrationId,
-        string newEmail,
+        string? newEmail,
         CancellationToken ct = default)
     {
         await _repo.UpdateUserEmailAsync(registrationId, newEmail, ct);
@@ -86,21 +114,21 @@ public class ChangePasswordService : IChangePasswordService
         await _repo.UpdateFamilyEmailsAsync(registrationId, familyEmail, momEmail, dadEmail, ct);
     }
 
-    public async Task<List<MergeCandidateDto>> GetUserMergeCandidatesAsync(
+    public async Task<MergeCandidatesResponse> GetUserMergeCandidatesAsync(
         Guid registrationId,
         CancellationToken ct = default)
     {
         return await _repo.GetUserMergeCandidatesAsync(registrationId, ct);
     }
 
-    public async Task<List<MergeCandidateDto>> GetFamilyMergeCandidatesAsync(
+    public async Task<MergeCandidatesResponse> GetFamilyMergeCandidatesAsync(
         Guid registrationId,
         CancellationToken ct = default)
     {
         return await _repo.GetFamilyMergeCandidatesAsync(registrationId, ct);
     }
 
-    public async Task<int> MergeUsernameAsync(
+    public async Task<MergeResultDto> MergeUsernameAsync(
         Guid registrationId,
         string targetUserName,
         CancellationToken ct = default)
@@ -108,7 +136,7 @@ public class ChangePasswordService : IChangePasswordService
         return await _repo.MergeUserRegistrationsAsync(registrationId, targetUserName, ct);
     }
 
-    public async Task<int> MergeFamilyUsernameAsync(
+    public async Task<MergeResultDto> MergeFamilyUsernameAsync(
         Guid registrationId,
         string targetFamilyUserName,
         CancellationToken ct = default)

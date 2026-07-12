@@ -2,8 +2,10 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
+import type { ResetPasswordTarget } from './ResetPasswordTarget';
 export type AdminResetPasswordRequest = {
-    userName: string;
+    target: ResetPasswordTarget;
     newPassword: string;
+    expectedUserName: string;
 };
 
