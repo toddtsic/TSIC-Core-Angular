@@ -3,21 +3,34 @@
     Fires the month-end close and mails the QuickBooks .zip - the real send, end to end.
 
 .DESCRIPTION
-    Calls POST /api/adn-reconciliation/email-close as a SuperUser. That endpoint runs the SAME code
-    the daily sweep runs unattended on the 1st: pull the month's settled ADN batches into Txs, run both
-    reconciliation sprocs, build the two .iif + three .xlsx, zip them, and EMAIL the zip to support with
-    the accounting-match verdict and IIF TRNS parity counts.
+    Sends the 1st-of-the-month email, for real: ONE message carrying the close verdict, the day's sweep
+    digest, and the QuickBooks .zip.
 
-    This is the only way to exercise the close off Production: AdnSweepBackgroundService is gated to
-    TSIC-PHOENIX (IsLiveProduction), so on Staging the timer never fires and nothing else calls
-    EmailMonthlyCloseAsync.
+    Calls POST /api/adn-reconciliation/email-close?includeSweep=true as a SuperUser, which invokes
+    IAdnReconciliationService.RunMonthEndCloseWithSweepAsync -- the VERY SAME method
+    AdnSweepBackgroundService calls at 5am on the 1st. Run the sweep with its digest suppressed, run the
+    close, mail one email, attach the .zip only if the sweep was trustworthy.
+
+    This is not a reconstruction of the scheduled path. It IS the scheduled path: both callers invoke
+    the one method, so the two cannot drift.
+
+    It is also the only way to see that email off Production. AdnSweepBackgroundService is gated to
+    TSIC-PHOENIX (IsLiveProduction), so on Staging the 5am timer never fires.
 
     WHY IT REALLY SENDS FROM STAGING
       * The close mails with sendInDevelopment: true, so it bypasses the IsSandbox() short-circuit in
         EmailService - the same bypass the daily sweep digest already uses.
       * EmailSettings.EmailingEnabled defaults to true; no config needed.
-      * The ADN pull is hardcoded to AuthorizeNet.Environment.PRODUCTION, so the zip is built from REAL
-        production settlements, not sandbox data. The attachment is the real thing.
+      * The reconciliation's ADN pull is hardcoded to AuthorizeNet.Environment.PRODUCTION, so the zip is
+        built from REAL production settlements, not sandbox data. The attachment is the real thing.
+
+    WHAT IT DOES NOT PROVE
+      The SWEEP, unlike the reconciliation, resolves Authorize.Net from the ambient environment
+      (AdnApiService.GetADNEnvironment - sandbox on any non-prod host, deliberately no override). So off
+      PHOENIX the sweep queries the SANDBOX account, finds no production batches, and its digest comes
+      back EMPTY. The email's composition, the trust gate and the attachment are real; the digest's
+      CONTENTS are only real on PHOENIX. You also only ever see the gate's PASS branch here, since an
+      empty sandbox sweep succeeds cleanly.
 
     PREREQUISITE - AWS CREDENTIALS
       SES needs AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_REGION on the API's app pool
@@ -26,24 +39,9 @@
       endpoint still returns 200 with a clean-looking body and NO mail arrives. A 200 is not proof of
       delivery; your inbox is. See the post-run checklist this script prints.
 
-    TWO MODES
-      Default          Close only. Passes sweep: null, so files are always attached. Exercises the pull,
-                       the sprocs, the zip, and the real SES send with an attachment.
-
-      -IncludeSweep    THE 1st-OF-MONTH FLOW, for real. Calls the very same
-                       RunMonthEndCloseWithSweepAsync that AdnSweepBackgroundService calls at 5am:
-                       runs the sweep with its digest suppressed, then mails ONE email - close verdict
-                       on top, sweep digest below, .zip attached only when the sweep was trustworthy.
-                       This is not a reconstruction of the scheduled path. It IS the scheduled path;
-                       both callers invoke the same method.
-
 .PARAMETER BaseUrl
     API root. Defaults to Staging (dev-api). Use https://localhost:7215/api for a local F5,
     or https://claude-api.teamsportsinfo.com/api for Production.
-
-.PARAMETER IncludeSweep
-    Run the daily sweep first and fold its digest into the close email - the actual 1st-of-month
-    behaviour, one email carrying the zip.
 
 .PARAMETER Username
     SuperUser login. Prompted for if omitted.
@@ -62,12 +60,8 @@
     SuperUser registration for the account.
 
 .EXAMPLE
-    # Close only. Staging, last month, prompts for credentials
+    # Staging, last month, prompts for credentials
     .\testEndOfMonthZippedEmail.ps1
-
-.EXAMPLE
-    # The 1st-of-month email: sweep + close + zip, one message
-    .\testEndOfMonthZippedEmail.ps1 -IncludeSweep
 
 .EXAMPLE
     # A specific month
@@ -93,8 +87,7 @@ param(
     [ValidateRange(1, 12)]
     [int]$SettlementMonth,
     [int]$SettlementYear,
-    [string]$RegId,
-    [switch]$IncludeSweep
+    [string]$RegId
 )
 
 $ErrorActionPreference = 'Stop'
@@ -114,22 +107,16 @@ $monthName = (Get-Date -Year $SettlementYear -Month $SettlementMonth -Day 1).ToS
 $monthPad = '{0:D2}' -f $SettlementMonth
 $zipName = "TSIC-AdnReconciliation-$SettlementYear-$monthPad.zip"
 
-$mode = if ($IncludeSweep) { 'SWEEP + CLOSE (the 1st-of-month email)' } else { 'CLOSE ONLY' }
-
 Write-Host ""
 Write-Host "==========================================================" -ForegroundColor Magenta
-Write-Host " ADN Month-End Close - REAL SEND TEST" -ForegroundColor Magenta
+Write-Host " ADN 1st-of-Month Email - REAL SEND TEST" -ForegroundColor Magenta
 Write-Host " API:    $BaseUrl" -ForegroundColor Magenta
 Write-Host " Month:  $monthName" -ForegroundColor Magenta
-Write-Host " Mode:   $mode" -ForegroundColor Magenta
 Write-Host "==========================================================" -ForegroundColor Magenta
 Write-Host ""
-
-if ($IncludeSweep) {
-    Write-Info "This calls RunMonthEndCloseWithSweepAsync - the SAME method the 5am"
-    Write-Info "BackgroundService calls on the 1st. Not a reconstruction of it."
-    Write-Host ""
-}
+Write-Info "Calls RunMonthEndCloseWithSweepAsync - the SAME method the 5am"
+Write-Info "BackgroundService calls on the 1st. Not a reconstruction of it."
+Write-Host ""
 
 # --- Credentials ---
 if (-not $Username) { $Username = Read-Host "SuperUser username" }
@@ -194,15 +181,12 @@ if (-not $auth.accessToken) {
 }
 Write-Done "Authenticated."
 
-# --- Fire the close ---
-$sweepFlag = if ($IncludeSweep) { 'true' } else { 'false' }
-$uri = "$BaseUrl/adn-reconciliation/email-close?settlementMonth=$SettlementMonth&settlementYear=$SettlementYear&includeSweep=$sweepFlag"
+# --- Fire it ---
+$uri = "$BaseUrl/adn-reconciliation/email-close?settlementMonth=$SettlementMonth&settlementYear=$SettlementYear&includeSweep=true"
 
 Write-Host ""
 Write-Info "POST $uri"
-if ($IncludeSweep) {
-    Write-Info "Running the sweep (digest suppressed), then the close, then ONE email."
-}
+Write-Info "Running the sweep (digest suppressed), then the close, then ONE email."
 Write-Info "Pulling ADN batches, running both sprocs, building the zip, sending the mail."
 Write-Info "This takes a while - the sprocs aggregate a full month. Do not kill it."
 Write-Host ""
@@ -226,47 +210,45 @@ $elapsed = (Get-Date) - $started
 
 Write-Done "Endpoint returned 200 in $([math]::Round($elapsed.TotalSeconds, 1))s."
 
-# --- Unwrap ---
-# includeSweep=true returns MonthEndCloseResult { sweep, close, filesAttached, closeError }.
-# Default returns AdnReconciliationRunResult directly.
-if ($IncludeSweep) {
-    $sweep = $response.sweep
-    $result = $response.close
-    $filesAttached = $response.filesAttached
+# --- Unwrap: MonthEndCloseResult { sweep, close, filesAttached, closeError } ---
+$sweep = $response.sweep
+$result = $response.close
+$filesAttached = $response.filesAttached
 
-    Write-Host ""
-    Write-Host "Sweep (the daily pass, digest folded into the close email)" -ForegroundColor Cyan
-    $sweepColor = if ($sweep.succeeded -and $sweep.errored -eq 0) { 'Green' } else { 'Red' }
-    Write-Host ("  Succeeded:   {0}" -f $sweep.succeeded) -ForegroundColor $sweepColor
-    Write-Host ("  Checked:     {0}" -f $sweep.checked)
-    Write-Host ("  ARB imported:{0}" -f $sweep.arbImported)
-    Write-Host ("  eCheck settled / returns: {0} / {1}" -f $sweep.echeckSettled, $sweep.echeckReturnsProcessed)
-    Write-Host ("  Orphans:     {0}" -f $sweep.orphansFound)
-    Write-Host ("  Errored:     {0}" -f $sweep.errored) -ForegroundColor $sweepColor
-    if ($sweep.errorMessage) {
-        Write-Host ("  Error:       {0}" -f $sweep.errorMessage) -ForegroundColor Red
-    }
+Write-Host ""
+Write-Host "Sweep (the daily pass; its digest is folded into the close email)" -ForegroundColor Cyan
+$sweepColor = if ($sweep.succeeded -and $sweep.errored -eq 0) { 'Green' } else { 'Red' }
+Write-Host ("  Succeeded:    {0}" -f $sweep.succeeded) -ForegroundColor $sweepColor
+Write-Host ("  Checked:      {0}" -f $sweep.checked)
+Write-Host ("  ARB imported: {0}" -f $sweep.arbImported)
+Write-Host ("  eCheck settled / returns: {0} / {1}" -f $sweep.echeckSettled, $sweep.echeckReturnsProcessed)
+Write-Host ("  Orphans:      {0}" -f $sweep.orphansFound)
+Write-Host ("  Errored:      {0}" -f $sweep.errored) -ForegroundColor $sweepColor
+if ($sweep.errorMessage) {
+    Write-Host ("  Error:        {0}" -f $sweep.errorMessage) -ForegroundColor Red
+}
 
-    Write-Host ""
-    if ($filesAttached) {
-        Write-Done "Sweep trustworthy -> the .zip WAS attached to the email."
-    }
-    else {
-        Write-Warn2 "Sweep NOT trustworthy -> the .zip was WITHHELD. The email carries the alarm only."
-        Write-Warn2 "That is the gate working: a sweep that did not fully succeed leaves the closing"
-        Write-Warn2 "month's payments unbooked, so the .iif would be short them."
-    }
+if ($sweep.checked -eq 0 -and $sweep.succeeded -and $BaseUrl -notmatch 'claude-api') {
+    Write-Warn2 "Checked=0 is EXPECTED off PHOENIX: the sweep queries the ADN SANDBOX there, so it"
+    Write-Warn2 "sees no production batches. The digest in the email will be empty. Composition and"
+    Write-Warn2 "gate are real; digest contents are only real on PHOENIX."
+}
 
-    if ($response.closeError) {
-        Write-Host ""
-        Write-Err "The close itself failed: $($response.closeError)"
-        Write-Warn2 "The fallback mailed the sweep digest alone. No files were produced."
-        exit 1
-    }
+Write-Host ""
+if ($filesAttached) {
+    Write-Done "Sweep trustworthy -> the .zip WAS attached to the email."
 }
 else {
-    $result = $response
-    $filesAttached = $true
+    Write-Warn2 "Sweep NOT trustworthy -> the .zip was WITHHELD. The email carries the alarm only."
+    Write-Warn2 "That is the gate working: a sweep that did not fully succeed leaves the closing"
+    Write-Warn2 "month's payments unbooked, so the .iif would be short them."
+}
+
+if ($response.closeError) {
+    Write-Host ""
+    Write-Err "The close itself failed: $($response.closeError)"
+    Write-Warn2 "The fallback mailed the sweep digest alone. No files were produced."
+    exit 1
 }
 
 # --- Report ---
@@ -306,25 +288,19 @@ Write-Host "==========================================================" -Foregro
 Write-Host " NOW CHECK YOUR INBOX" -ForegroundColor Magenta
 Write-Host "==========================================================" -ForegroundColor Magenta
 Write-Host ""
-if ($IncludeSweep) {
-    Write-Host "  ONE email - the exact message the 5am job sends on the 1st:" -ForegroundColor White
-    Write-Host "    Subject:  'AdnSweep + MonthEndClose - $monthName'" -ForegroundColor White
-    Write-Host "    Top:      the close verdict (accounting match, IIF parity)" -ForegroundColor Gray
-    Write-Host "    Below:    the day's sweep digest, under a rule" -ForegroundColor Gray
-    if ($filesAttached) {
-        Write-Host "    Attached: $zipName" -ForegroundColor White
-    }
-    else {
-        Write-Host "    Attached: NOTHING - the sweep was not trustworthy" -ForegroundColor Yellow
-    }
+Write-Host "  ONE email - the exact message the 5am job sends on the 1st:" -ForegroundColor White
+Write-Host "    Subject:  'AdnSweep + MonthEndClose - $monthName'" -ForegroundColor White
+Write-Host "    Top:      the close verdict (accounting match, IIF parity)" -ForegroundColor Gray
+Write-Host "    Below:    the day's sweep digest, under a rule" -ForegroundColor Gray
+if ($filesAttached) {
+    Write-Host "    Attached: $zipName" -ForegroundColor White
+    Write-Host "                - reg-consolodated.iif" -ForegroundColor Gray
+    Write-Host "                - merch-consolodated.iif" -ForegroundColor Gray
+    Write-Host "                - Reg / Merch / Summary .xlsx" -ForegroundColor Gray
 }
 else {
-    Write-Host "  Expect: 'AdnMonthEndClose $monthName'  (to support@)" -ForegroundColor White
-    Write-Host "  Attached: $zipName" -ForegroundColor White
+    Write-Host "    Attached: NOTHING - the sweep was not trustworthy" -ForegroundColor Yellow
 }
-Write-Host "    - reg-consolodated.iif" -ForegroundColor Gray
-Write-Host "    - merch-consolodated.iif" -ForegroundColor Gray
-Write-Host "    - Reg / Merch / Summary .xlsx" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  A 200 above does NOT prove the mail was sent. EmailService.SendAsync returns false and" -ForegroundColor Yellow
 Write-Host "  logs on an SES failure - it does not throw, so the endpoint still answers 200." -ForegroundColor Yellow
