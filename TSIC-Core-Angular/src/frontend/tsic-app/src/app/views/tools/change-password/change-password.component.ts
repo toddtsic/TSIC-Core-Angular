@@ -11,12 +11,21 @@ import type {
   MergeCandidateDto
 } from '@core/api';
 
+// Mirrors MaxAccounts in ChangePasswordRepository — the server caps the search at this many
+// login accounts, so hitting it exactly is how we know results were truncated.
+const MAX_ACCOUNTS = 50;
+
 /**
  * View-model for one LOGIN account — the thing whose password we actually reset.
- * The backend search is registration-grained (one row per event a person is in);
- * we collapse those rows to one account per login: UserName for non-players,
- * FamilyUserName for players (the kid logs in under the family account).
- * The underlying rows are kept as `registrations` — pure identity proof.
+ * The backend search is registration-grained (one row per event a person is in).
+ * We rebuild the three levels those flat rows encode:
+ *
+ *   account (the login)  →  player  →  registration
+ *
+ * Each field lands at the level where it actually varies: family credentials and the
+ * parents on the account, the person's own name/username/email on the player, and only
+ * customer + job on the registration. Non-player roles have no middle level — the
+ * account IS the person — so `players` is empty and `registrations` is read directly.
  */
 interface LoginAccount {
   key: string;
@@ -26,8 +35,29 @@ interface LoginAccount {
   email: string | null;
   phone: string | null;
   anyRegId: string;
-  playerCount: number;
+  parents: ParentContact[];
+  players: PlayerRow[];
   registrations: ChangePasswordSearchResultDto[];
+}
+
+/** One child under a family login. Keyed on the player's OWN username — never the display
+ *  name, or two kids sharing a nickname would collapse into one row. */
+interface PlayerRow {
+  key: string;
+  firstName: string;
+  lastName: string;
+  userName: string;
+  email: string | null;
+  phone: string | null;
+  registrations: ChangePasswordSearchResultDto[];
+}
+
+/** Family-level identity proof — often the fastest way to recognize the caller. */
+interface ParentContact {
+  label: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
 }
 
 @Component({
@@ -65,6 +95,9 @@ export class ChangePasswordComponent implements OnInit {
   // ── Expanded account (only one open at a time) ──
   expandedKey = signal<string | null>(null);
 
+  // ── Expanded players within the open account (any number open) ──
+  expandedPlayerKeys = signal<ReadonlySet<string>>(new Set());
+
   // Key of the account whose username was just copied — flips its icon to a check briefly.
   copiedKey = signal<string | null>(null);
 
@@ -85,10 +118,6 @@ export class ChangePasswordComponent implements OnInit {
   showMergeModal = signal(false);
   selectedMergeUserName = signal('');
   isMerging = signal(false);
-
-  // Whether the CURRENT search targets players (branch on login type). Snapshotted
-  // at search time so a later role-dropdown change can't re-key existing results.
-  private searchedAsFamily = false;
 
   isPlayerRole = computed(() => {
     const player = this.roleOptions().find(o => o.roleName === 'Player');
@@ -111,6 +140,7 @@ export class ChangePasswordComponent implements OnInit {
 
   onSearch(): void {
     if (!this.selectedRoleId()) return;
+    // Snapshotted here so a later role-dropdown change can't re-key results already on screen.
     const asFamily = this.isPlayerRole();
     this.isSearching.set(true);
     this.hasSearched.set(true);
@@ -128,9 +158,9 @@ export class ChangePasswordComponent implements OnInit {
       familyUserName: this.familyUserName() || undefined
     }).subscribe({
       next: (rows) => {
-        this.searchedAsFamily = asFamily;
-        this.accounts.set(this.buildAccounts(rows, asFamily));
-        this.resultsCapped.set(rows.length >= 200);
+        const accounts = this.buildAccounts(rows, asFamily);
+        this.accounts.set(accounts);
+        this.resultsCapped.set(accounts.length >= MAX_ACCOUNTS);
         this.isSearching.set(false);
       },
       error: (err) => {
@@ -152,9 +182,10 @@ export class ChangePasswordComponent implements OnInit {
     this.accounts.set([]);
     this.hasSearched.set(false);
     this.expandedKey.set(null);
+    this.expandedPlayerKeys.set(new Set());
   }
 
-  /** Collapse registration rows to one account per login. */
+  /** Collapse registration rows to one account per login, then to one row per player. */
   private buildAccounts(rows: ChangePasswordSearchResultDto[], asFamily: boolean): LoginAccount[] {
     const byLogin = new Map<string, ChangePasswordSearchResultDto[]>();
     for (const r of rows) {
@@ -176,8 +207,9 @@ export class ChangePasswordComponent implements OnInit {
         email: asFamily ? (first.familyEmail ?? first.email ?? null) : (first.email ?? null),
         phone: first.phone ?? null,
         anyRegId: first.registrationId as unknown as string,
-        playerCount: asFamily ? this.distinctPlayers(group).length : 1,
-        registrations: group
+        parents: asFamily ? this.buildParents(first) : [],
+        players: asFamily ? this.buildPlayers(group) : [],
+        registrations: this.sortRegistrations(group)
       });
     }
 
@@ -185,17 +217,58 @@ export class ChangePasswordComponent implements OnInit {
     return accounts.sort((a, b) => a.displayName.localeCompare(b.displayName));
   }
 
-  private personName(r: ChangePasswordSearchResultDto): string {
-    return `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim() || r.userName;
+  /** One row per child under a family login. */
+  private buildPlayers(rows: ChangePasswordSearchResultDto[]): PlayerRow[] {
+    const byPlayer = new Map<string, ChangePasswordSearchResultDto[]>();
+    for (const r of rows) {
+      // A player with no username of their own can't be grouped with anyone — give the row
+      // its own bucket rather than letting every such row merge under the empty key.
+      const key = r.userName || `reg:${r.registrationId}`;
+      const bucket = byPlayer.get(key);
+      if (bucket) bucket.push(r);
+      else byPlayer.set(key, [r]);
+    }
+
+    const players: PlayerRow[] = [];
+    for (const [key, group] of byPlayer) {
+      const first = group[0];
+      players.push({
+        key,
+        firstName: first.firstName ?? '',
+        lastName: first.lastName ?? '',
+        userName: first.userName,
+        email: first.email ?? null,
+        phone: first.phone ?? null,
+        registrations: this.sortRegistrations(group)
+      });
+    }
+
+    return players.sort((a, b) =>
+      a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
   }
 
-  private distinctPlayers(rows: ChangePasswordSearchResultDto[]): string[] {
-    const seen = new Set<string>();
-    for (const r of rows) {
-      const name = this.personName(r);
-      if (name) seen.add(name);
+  /** Mom / Dad, each dropped entirely when the family carries nothing for them. */
+  private buildParents(r: ChangePasswordSearchResultDto): ParentContact[] {
+    const parents: ParentContact[] = [];
+    const mom = `${r.momFirstName ?? ''} ${r.momLastName ?? ''}`.trim();
+    if (mom || r.momEmail || r.momPhone) {
+      parents.push({ label: 'Mom', name: mom, email: r.momEmail ?? null, phone: r.momPhone ?? null });
     }
-    return [...seen];
+    const dad = `${r.dadFirstName ?? ''} ${r.dadLastName ?? ''}`.trim();
+    if (dad || r.dadEmail || r.dadPhone) {
+      parents.push({ label: 'Dad', name: dad, email: r.dadEmail ?? null, phone: r.dadPhone ?? null });
+    }
+    return parents;
+  }
+
+  /** Customer, then job. Job names embed the season (`ISP:2021-2022`), so this reads chronologically. */
+  private sortRegistrations(rows: ChangePasswordSearchResultDto[]): ChangePasswordSearchResultDto[] {
+    return [...rows].sort((a, b) =>
+      a.customerName.localeCompare(b.customerName) || a.jobName.localeCompare(b.jobName));
+  }
+
+  private personName(r: ChangePasswordSearchResultDto): string {
+    return `${r.firstName ?? ''} ${r.lastName ?? ''}`.trim() || r.userName;
   }
 
   private familyDisplayName(rows: ChangePasswordSearchResultDto[]): string {
@@ -218,6 +291,7 @@ export class ChangePasswordComponent implements OnInit {
       return;
     }
     this.expandedKey.set(acct.key);
+    this.expandedPlayerKeys.set(new Set());
     this.newPassword.set('');
     this.closeMerge();
 
@@ -234,9 +308,19 @@ export class ChangePasswordComponent implements OnInit {
     this.prefetchMergeCandidates(acct);
   }
 
-  /** Registrations as identity breadcrumbs. Family rows carry the player name. */
-  proofLabel(r: ChangePasswordSearchResultDto): string {
-    return `${r.customerName} : ${r.jobName}`;
+  isPlayerExpanded(player: PlayerRow): boolean {
+    return this.expandedPlayerKeys().has(player.key);
+  }
+
+  /** Any number of players can be open at once. New Set, never a mutation — signals are immutable. */
+  togglePlayer(player: PlayerRow): void {
+    const next = new Set(this.expandedPlayerKeys());
+    if (!next.delete(player.key)) next.add(player.key);
+    this.expandedPlayerKeys.set(next);
+  }
+
+  playerName(player: PlayerRow): string {
+    return `${player.firstName} ${player.lastName}`.trim() || player.userName;
   }
 
   /** Copy the login username to the clipboard; flip the row's icon to a check for ~2s. */

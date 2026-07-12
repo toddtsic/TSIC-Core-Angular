@@ -8,7 +8,14 @@ namespace TSIC.Infrastructure.Repositories;
 public class ChangePasswordRepository : IChangePasswordRepository
 {
     private readonly SqlDbContext _context;
-    private const int MaxResults = 200;
+
+    // The UI groups registrations into login accounts, so the cap has to bound ACCOUNTS.
+    // Capping raw rows let one prolific family exhaust the budget and silently hide both
+    // other accounts and — worse — some of that family's own players. Search runs in two
+    // passes: find the matching accounts, then return every registration they own.
+    // MaxRows is only a runaway backstop; it should never bite in practice.
+    private const int MaxAccounts = 50;   // keep in sync with MAX_ACCOUNTS (change-password.component.ts)
+    private const int MaxRows = 5000;
 
     public ChangePasswordRepository(SqlDbContext context)
     {
@@ -98,31 +105,51 @@ public class ChangePasswordRepository : IChangePasswordRepository
                     select q;
         }
 
+        // Pass 1 — which FAMILY LOGINS match? Ordered so the cut is stable across runs.
+        var familyUserIds = await query
+            .Select(q => new { q.uF.Id, q.uF.UserName })
+            .Distinct()
+            .OrderBy(a => a.UserName)
+            .Take(MaxAccounts)
+            .Select(a => a.Id)
+            .ToListAsync(ct);
+
+        // Pass 2 — every player registration those families own. The person-level filters are
+        // deliberately NOT re-applied: a search for "Shoulberg" that matched via the mom must
+        // still return a player whose own last name differs, or the family table loses a child.
         return await (
-            from q in query
+            from r in _context.Registrations
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join uP in _context.AspNetUsers on r.UserId equals uP.Id
+            join uF in _context.AspNetUsers on r.FamilyUserId equals uF.Id
+            join f in _context.Families on uF.Id equals f.FamilyUserId
+            where r.RoleId == request.RoleId && familyUserIds.Contains(uF.Id)
+            orderby uF.UserName, uP.LastName, uP.FirstName, c.CustomerName, j.JobName
             select new ChangePasswordSearchResultDto
             {
-                RegistrationId = q.r.RegistrationId,
-                RoleName = q.role.Name ?? "",
-                CustomerName = q.c.CustomerName ?? "",
-                JobName = q.j.JobName ?? "",
-                UserName = q.uP.UserName ?? "",
-                FirstName = q.uP.FirstName,
-                LastName = q.uP.LastName,
-                Email = q.uP.Email,
-                Phone = q.uP.Cellphone,
-                FamilyUserName = q.uF.UserName,
-                FamilyEmail = q.uF.Email,
-                MomFirstName = q.f.MomFirstName,
-                MomLastName = q.f.MomLastName,
-                MomEmail = q.f.MomEmail,
-                MomPhone = q.f.MomCellphone,
-                DadFirstName = q.f.DadFirstName,
-                DadLastName = q.f.DadLastName,
-                DadEmail = q.f.DadEmail,
-                DadPhone = q.f.DadCellphone
+                RegistrationId = r.RegistrationId,
+                RoleName = role.Name ?? "",
+                CustomerName = c.CustomerName ?? "",
+                JobName = j.JobName ?? "",
+                UserName = uP.UserName ?? "",
+                FirstName = uP.FirstName,
+                LastName = uP.LastName,
+                Email = uP.Email,
+                Phone = uP.Cellphone,
+                FamilyUserName = uF.UserName,
+                FamilyEmail = uF.Email,
+                MomFirstName = f.MomFirstName,
+                MomLastName = f.MomLastName,
+                MomEmail = f.MomEmail,
+                MomPhone = f.MomCellphone,
+                DadFirstName = f.DadFirstName,
+                DadLastName = f.DadLastName,
+                DadEmail = f.DadEmail,
+                DadPhone = f.DadCellphone
             }
-        ).AsNoTracking().Take(MaxResults).ToListAsync(ct);
+        ).AsNoTracking().Take(MaxRows).ToListAsync(ct);
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -191,21 +218,37 @@ public class ChangePasswordRepository : IChangePasswordRepository
                     select q;
         }
 
+        // Pass 1 — which LOGINS match? (For non-players the login is the person's own account.)
+        var userIds = await query
+            .Select(q => new { q.u.Id, q.u.UserName })
+            .Distinct()
+            .OrderBy(a => a.UserName)
+            .Take(MaxAccounts)
+            .Select(a => a.Id)
+            .ToListAsync(ct);
+
+        // Pass 2 — every registration those logins own.
         return await (
-            from q in query
+            from r in _context.Registrations
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join u in _context.AspNetUsers on r.UserId equals u.Id
+            where r.RoleId == request.RoleId && userIds.Contains(u.Id)
+            orderby u.UserName, c.CustomerName, j.JobName
             select new ChangePasswordSearchResultDto
             {
-                RegistrationId = q.r.RegistrationId,
-                RoleName = q.role.Name ?? "",
-                CustomerName = q.c.CustomerName ?? "",
-                JobName = q.j.JobName ?? "",
-                UserName = q.u.UserName ?? "",
-                FirstName = q.u.FirstName,
-                LastName = q.u.LastName,
-                Email = q.u.Email,
-                Phone = q.u.Cellphone
+                RegistrationId = r.RegistrationId,
+                RoleName = role.Name ?? "",
+                CustomerName = c.CustomerName ?? "",
+                JobName = j.JobName ?? "",
+                UserName = u.UserName ?? "",
+                FirstName = u.FirstName,
+                LastName = u.LastName,
+                Email = u.Email,
+                Phone = u.Cellphone
             }
-        ).AsNoTracking().Take(MaxResults).ToListAsync(ct);
+        ).AsNoTracking().Take(MaxRows).ToListAsync(ct);
     }
 
     // ═══════════════════════════════════════════════════════════
