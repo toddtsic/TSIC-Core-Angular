@@ -373,7 +373,8 @@ export class ChangePasswordComponent implements OnInit {
     // login, so the password reset that follows must target the SURVIVING username — which is
     // what legacy did too (it reset against the username posted from the dialog, not the old one).
     const ops: Observable<ApiMessage>[] = [];
-    if (email && email !== (player.email ?? '')) {
+    // Empty is a real edit — it clears the address (legacy parity). Compare, don't truthiness-test.
+    if (email !== (player.email ?? '')) {
       ops.push(this.service.updateUserEmail(regId, { email }));
     }
     if (targetUserName && targetUserName !== player.userName) {
@@ -466,10 +467,12 @@ export class ChangePasswordComponent implements OnInit {
     };
 
     if (acct.isFamilyLogin) {
+      // Send the empty string, NOT undefined: an emptied field means "clear this address",
+      // and `|| undefined` dropped it from the payload so a stale address could never be removed.
       this.service.updateFamilyEmails(acct.anyRegId, {
-        familyEmail: this.editingFamilyEmail() || undefined,
-        momEmail: this.editingMomEmail() || undefined,
-        dadEmail: this.editingDadEmail() || undefined
+        familyEmail: this.editingFamilyEmail().trim(),
+        momEmail: this.editingMomEmail().trim(),
+        dadEmail: this.editingDadEmail().trim()
       }).subscribe(done);
     } else {
       this.service.updateUserEmail(acct.anyRegId, {

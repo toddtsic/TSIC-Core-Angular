@@ -91,9 +91,8 @@ public class ChangePasswordController : ControllerBase
         [FromBody] UpdateUserEmailRequest request,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.Email))
-            return BadRequest(new { message = "Email is required." });
-
+        // A blank email is a legitimate edit — it CLEARS the address, as legacy's grid did.
+        // Rejecting it here made a stale address unremovable.
         try
         {
             await _service.UpdateUserEmailAsync(regId, request.Email.Trim(), ct);
