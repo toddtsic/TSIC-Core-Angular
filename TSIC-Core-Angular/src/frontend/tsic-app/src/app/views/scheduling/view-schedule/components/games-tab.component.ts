@@ -521,7 +521,10 @@ import type { ViewGameDto } from '@core/api';
                The pill border already marks it as its own object. */
             font-weight: 400;
             line-height: 1.5;
-            color: inherit;           /* inherits is-won / is-lost from the cell */
+            /* Always muted, for BOTH teams — deliberately not inheriting is-won. The record
+               is a season stat and a control; it says nothing about who won this game, so
+               it stays out of the winner's ink budget. The border keeps the affordance. */
+            color: var(--score-muted);
             white-space: nowrap;
             cursor: pointer;
             transition: background-color 0.15s, border-color 0.15s, color 0.15s;
@@ -665,10 +668,9 @@ import type { ViewGameDto } from '@core/api';
         .cell-score.editable { cursor: pointer; }
         .cell-score.editable:hover { background: var(--bs-primary-bg-subtle); border-radius: var(--radius-sm); }
 
-        /* Detail, not headline. The score gets its presence from SIZE (font-size-lg), not
-           weight — bolding it made it compete with the team name for the same job, and
-           the team name is the one that answers "did we win?". Winner/loser still reads
-           here via color alone (.winner / .loser). */
+        /* Base weight = the LOSING score (and both halves of a tie): light, because it is
+           evidence rather than headline. The winning score takes the weight back below
+           (.winner), so the emphasis lands only on the figure that matters. */
         .score-val {
             font-size: var(--font-size-lg);
             font-weight: 500;
@@ -690,6 +692,7 @@ import type { ViewGameDto } from '@core/api';
            winner would have had LESS contrast than the grey loser beside it. */
         .winner {
             color: var(--score-strong);
+            font-weight: 700;
         }
         /* Loser recedes: normal weight + genuinely muted color. NOTE: do not use
            --bs-secondary-color here — in this design system it is aliased to
