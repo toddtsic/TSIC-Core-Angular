@@ -369,18 +369,18 @@ import type { ViewGameDto } from '@core/api';
         .hdr-status,.cell-status{ text-align: center; }
 
         /* ── Game row ── */
-        /* The surface is composed in TWO layers: --row-surface is the base (zebra, hover),
-           and the age-group tint is mixed INTO it. The zebra and hover rules therefore set
-           only the variable, never the background property itself — an inline
-           [style.background-color] on the row (the obvious way to paint the tint) would have
-           out-specified .game-row:hover and silently killed hover across the whole grid. */
+        /* Zebra and hover set only VARIABLES, never the background property. An inline
+           [style.background-color] on the row (the obvious way to paint the wash) would have
+           out-specified .game-row:hover and silently killed hover across the whole grid.
+           Untinted rows step --row-surface; tinted rows step --ag-wash-l, the lightness of
+           their own wash. Both therefore survive underneath an age-group wash. */
         .game-row {
             /* transparent, NOT --bs-body-bg: odd rows were previously unpainted and let the
                tab panel behind them show through. Naming a concrete color here would have
-               quietly repainted every odd row with the page background. It also makes the
-               mix below composite to a translucent tint over whatever is actually behind. */
+               quietly repainted every odd row with the page background. */
             --row-surface: transparent;
-            --ag-tint-strength: 14%;
+            --ag-wash-l: 0.96;   /* PINNED lightness — see .row-tinted */
+            --ag-wash-c: 0.08;   /* chroma CAP, not a fixed chroma */
             background: var(--row-surface);
             border-bottom: 1px solid var(--bs-border-color);
             padding-top: var(--space-1);
@@ -388,26 +388,37 @@ import type { ViewGameDto } from '@core/api';
             min-height: 36px;
         }
 
-        .row-even       { --row-surface: var(--bs-tertiary-bg); }
-        .game-row:hover { --row-surface: var(--bs-secondary-bg); }
+        .row-even       { --row-surface: var(--bs-tertiary-bg);  --ag-wash-l: 0.925; }
+        .game-row:hover { --row-surface: var(--bs-secondary-bg); --ag-wash-l: 0.88; }
         .row-dimmed     { opacity: 0.5; }
 
-        /* Age-group wash. --ag-tint is the DIRECTOR'S stored color (Leagues.agegroups.color),
-           which is truth — but it is raw director input, overwhelmingly saturated HTML
-           primaries (#FFFF00, #FF0000, #000080). Mixed at 14% it lands as a pale band that
-           groups the age group's games without shouting, and the base surface underneath
-           still carries the zebra and the hover step. Two consequences are deliberate:
-           an age group colored #FFFFFF gets no visible wash (correct — the director chose
-           no emphasis), and a director who paints every age group one color gets a uniformly
-           washed table (also correct — they declined to use color to distinguish them). */
+        /* Age-group wash. --ag-tint is the director's stored hex (Leagues.agegroups.color)
+           and remains the source of truth — but only its HUE is used here. Lightness is
+           pinned and chroma is capped, so every age group's wash lands at the SAME perceived
+           weight and differs only in hue.
+           Mixing the raw hex at a fixed percentage — the obvious approach — does not hold
+           that guarantee, because the stored colors run the whole gamut: at one flat ratio
+           #000000 lands as a solid grey band while #FFFF00 is nearly invisible and #FFFFFF
+           is literally nothing. No single ratio is right for both ends.
+           Pinning L also makes text contrast STRUCTURAL rather than lucky: body text clears
+           4.5:1 on every hue, instead of depending on which color a director happened to pick.
+           Achromatic input (white/black/grey — ~900 age groups) has no chroma, so min(c, cap)
+           resolves to 0 and it washes to a neutral of the same lightness. That is the honest
+           result for a director who never really chose a color. The DOT still carries the raw
+           hex, so their actual choice is never hidden — the wash is a derivative of it. */
         .game-row.row-tinted {
-            background: color-mix(in srgb, var(--ag-tint) var(--ag-tint-strength), var(--row-surface));
+            background: oklch(from var(--ag-tint) var(--ag-wash-l) min(c, var(--ag-wash-c)) h);
         }
 
-        /* Dark mode needs a heavier mix: 14% of any hue into a near-black surface is
-           imperceptible, where the same 14% into near-white already reads as a band. */
+        /* Dark: the wash inverts to a dark tint of the same hue. Same pinning, same
+           guarantees — the lightness targets flip, the structure does not. */
         :host-context([data-bs-theme='dark']) .game-row,
-        :host-context([data-bs-theme='dark']) .game-card { --ag-tint-strength: 24%; }
+        :host-context([data-bs-theme='dark']) .game-card {
+            --ag-wash-l: 0.27;
+            --ag-wash-c: 0.06;
+        }
+        :host-context([data-bs-theme='dark']) .row-even       { --ag-wash-l: 0.31; }
+        :host-context([data-bs-theme='dark']) .game-row:hover { --ag-wash-l: 0.36; }
 
         /* Cell common */
         .cell {
@@ -885,11 +896,12 @@ import type { ViewGameDto } from '@core/api';
             gap: var(--space-2);
         }
 
-        /* Same two-layer surface as the desktop row, so the card carries the identical
-           age-group wash. No hover state here, so --row-surface has only the one base. */
+        /* Same normalized wash as the desktop row, so the two views present identically.
+           No zebra or hover on a card, so the lightness never steps. */
         .game-card {
             --row-surface: var(--bs-card-bg);
-            --ag-tint-strength: 14%;
+            --ag-wash-l: 0.96;
+            --ag-wash-c: 0.08;
             background: var(--row-surface);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-md);
@@ -900,7 +912,7 @@ import type { ViewGameDto } from '@core/api';
         }
 
         .game-card.card-tinted {
-            background: color-mix(in srgb, var(--ag-tint) var(--ag-tint-strength), var(--row-surface));
+            background: oklch(from var(--ag-tint) var(--ag-wash-l) min(c, var(--ag-wash-c)) h);
         }
 
         .card-dimmed { opacity: 0.5; }
