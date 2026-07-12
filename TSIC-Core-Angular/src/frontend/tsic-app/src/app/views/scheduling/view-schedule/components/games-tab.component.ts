@@ -28,8 +28,7 @@ import type { ViewGameDto } from '@core/api';
             </div>
         } @else {
             <!-- ═══════════════════════════════════════════════════════
-                 DESKTOP GRID (≥768px) — div-based, CSS order anti-scrape
-                 DOM order is intentionally scrambled; CSS order restores visual.
+                 DESKTOP GRID (≥768px) — subgrid "table"; DOM order = visual order.
                  ═══════════════════════════════════════════════════════ -->
             <div class="games-grid desktop-view" role="table" aria-label="Games schedule">
                 <!-- Header -->
@@ -60,47 +59,65 @@ import type { ViewGameDto } from '@core/api';
                          [class.row-even]="i % 2 === 1"
                          [class.row-dimmed]="game.gStatusCode === 5">
 
-                        <!-- ▼ Away team (DOM:1 Visual:7) -->
-                        <span class="cell cell-away" role="cell" aria-colindex="7"
-                              [class.is-won]="isT2Winner(game)"
-                              [class.is-lost]="isT1Winner(game)">
-                            <span class="decoy" aria-hidden="true">{{ decoyText(game.gid, 0) }}</span>
-                            @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
-                            @if (game.t2Id) {
+                        <!-- Row number -->
+                        <span class="cell cell-num" role="cell" aria-colindex="1">{{ i + 1 }}</span>
+
+                        <!-- Date/Time — admins: click to open full edit -->
+                        <span class="cell cell-dt" role="cell" aria-colindex="2"
+                              [class.editable]="canScore()"
+                              [attr.tabindex]="canScore() ? 0 : null"
+                              [attr.role]="canScore() ? 'button' : 'cell'"
+                              [attr.aria-label]="canScore() ? 'Edit game #' + game.gid : null"
+                              (click)="canScore() && editGame.emit(game.gid)"
+                              (keydown.enter)="canScore() && editGame.emit(game.gid)"
+                              (keydown.space)="canScore() && editGame.emit(game.gid); canScore() && $event.preventDefault()">
+                            <span class="dt-date">{{ formatDate(game.gDate) }}</span>
+                            <span class="dt-time">{{ formatTime(game.gDate) }}</span>
+                        </span>
+
+                        <!-- Location -->
+                        <span class="cell cell-loc" role="cell" aria-colindex="3">
+                            @if (mapsUrl(game)) {
+                                <a [href]="mapsUrl(game)" target="_blank" rel="noopener"
+                                   class="loc-link" [title]="game.fAddress || game.fName">
+                                    {{ game.fName }} <i class="bi bi-box-arrow-up-right loc-icon"></i>
+                                </a>
+                            } @else {
+                                <span>{{ game.fName }}</span>
+                            }
+                        </span>
+
+                        <!-- Pool badge -->
+                        <span class="cell cell-pool" role="cell" aria-colindex="4">
+                            <span class="ag-badge"
+                                  [style.background-color]="game.color"
+                                  [style.color]="contrastColor(game.color)">{{ game.agDiv }}</span>
+                        </span>
+
+                        <!-- Home team -->
+                        <span class="cell cell-home" role="cell" aria-colindex="5"
+                              [class.is-won]="isT1Winner(game)"
+                              [class.is-lost]="isT2Winner(game)">
+                            @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
+                            @if (game.t1Id) {
                                 <button type="button" class="team-star"
-                                        [class.is-on]="isFollowed(game.t2Id)"
-                                        [attr.aria-label]="(isFollowed(game.t2Id) ? 'Unfollow ' : 'Follow ') + game.t2Name"
-                                        (click)="onStarClick(game.t2Id!)">
-                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
+                                        [class.is-on]="isFollowed(game.t1Id)"
+                                        [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
+                                        (click)="onStarClick(game.t1Id!)">
+                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
                                 </button>
                             }
-                            <span class="team-name">{{ game.t2Name }}</span>
-                            @if (game.t2Record && game.t2Id) {
+                            <span class="team-name">{{ game.t1Name }}</span>
+                            @if (game.t1Record && game.t1Id) {
                                 <button type="button" class="record-btn"
-                                        [attr.title]="'View ' + game.t2Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + game.t2Record"
-                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Record }}</button>
+                                        [attr.title]="'View ' + game.t1Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + game.t1Record"
+                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
                             }
-                            @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
+                            @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
                         </span>
 
-                        <!-- ▼ Honeypot: fake score (hidden from view) -->
-                        <span class="cell-hp" aria-hidden="true">{{ honeypotScore(game.gid) }}</span>
-
-                        <!-- ▼ Status chip (DOM:2 Visual:8) -->
-                        <span class="cell cell-status" role="cell" aria-colindex="8">
-                            @if (showStatusBadge(game)) {
-                                <span class="status-chip"
-                                      [class.st-rescheduled]="game.gStatusCode === 3"
-                                      [class.st-forfeit]="game.gStatusCode === 4"
-                                      [class.st-cancelled]="game.gStatusCode === 5"
-                                      [class.st-final]="game.gStatusCode === 6"
-                                      [attr.title]="game.gStatusText"
-                                      [attr.aria-label]="game.gStatusText">{{ statusLetter(game) }}</span>
-                            }
-                        </span>
-
-                        <!-- ▼ Score (DOM:3 Visual:6) -->
+                        <!-- Score -->
                         <span class="cell cell-score" role="cell" aria-colindex="6"
                               [class.editable]="canScore()"
                               (click)="onScoreCellClick(game)">
@@ -131,65 +148,39 @@ import type { ViewGameDto } from '@core/api';
                             }
                         </span>
 
-                        <!-- ▼ Row number (DOM:4 Visual:1) -->
-                        <span class="cell cell-num" role="cell" aria-colindex="1">{{ i + 1 }}</span>
-
-                        <!-- ▼ Honeypot: fake team (hidden from view) -->
-                        <span class="cell-hp" aria-hidden="true">{{ honeypotTeam(game.gid) }}</span>
-
-                        <!-- ▼ Home team (DOM:6 Visual:5) -->
-                        <span class="cell cell-home" role="cell" aria-colindex="5"
-                              [class.is-won]="isT1Winner(game)"
-                              [class.is-lost]="isT2Winner(game)">
-                            @if (game.t1SlotLabel) { <span class="seed-tag">{{ game.t1SlotLabel }}</span> }
-                            @if (game.t1Id) {
+                        <!-- Away team -->
+                        <span class="cell cell-away" role="cell" aria-colindex="7"
+                              [class.is-won]="isT2Winner(game)"
+                              [class.is-lost]="isT1Winner(game)">
+                            @if (game.t2SlotLabel) { <span class="seed-tag">{{ game.t2SlotLabel }}</span> }
+                            @if (game.t2Id) {
                                 <button type="button" class="team-star"
-                                        [class.is-on]="isFollowed(game.t1Id)"
-                                        [attr.aria-label]="(isFollowed(game.t1Id) ? 'Unfollow ' : 'Follow ') + game.t1Name"
-                                        (click)="onStarClick(game.t1Id!)">
-                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t1Id)" [class.bi-star]="!isFollowed(game.t1Id)"></i>
+                                        [class.is-on]="isFollowed(game.t2Id)"
+                                        [attr.aria-label]="(isFollowed(game.t2Id) ? 'Unfollow ' : 'Follow ') + game.t2Name"
+                                        (click)="onStarClick(game.t2Id!)">
+                                    <i class="bi" [class.bi-star-fill]="isFollowed(game.t2Id)" [class.bi-star]="!isFollowed(game.t2Id)"></i>
                                 </button>
                             }
-                            <span class="team-name">{{ game.t1Name }}</span>
-                            <span class="decoy" aria-hidden="true">{{ decoyText(game.gid, 1) }}</span>
-                            @if (game.t1Record && game.t1Id) {
+                            <span class="team-name">{{ game.t2Name }}</span>
+                            @if (game.t2Record && game.t2Id) {
                                 <button type="button" class="record-btn"
-                                        [attr.title]="'View ' + game.t1Name + ' results'"
-                                        [attr.aria-label]="'View ' + game.t1Name + ' results, record ' + game.t1Record"
-                                        (click)="viewTeamResults.emit(game.t1Id!)">{{ game.t1Record }}</button>
+                                        [attr.title]="'View ' + game.t2Name + ' results'"
+                                        [attr.aria-label]="'View ' + game.t2Name + ' results, record ' + game.t2Record"
+                                        (click)="viewTeamResults.emit(game.t2Id!)">{{ game.t2Record }}</button>
                             }
-                            @if (game.t1Ann) { <span class="annotation"> {{ game.t1Ann }}</span> }
+                            @if (game.t2Ann) { <span class="annotation"> {{ game.t2Ann }}</span> }
                         </span>
 
-                        <!-- ▼ Date/Time (DOM:7 Visual:2) — admins: click to open full edit -->
-                        <span class="cell cell-dt" role="cell" aria-colindex="2"
-                              [class.editable]="canScore()"
-                              [attr.tabindex]="canScore() ? 0 : null"
-                              [attr.role]="canScore() ? 'button' : 'cell'"
-                              [attr.aria-label]="canScore() ? 'Edit game #' + game.gid : null"
-                              (click)="canScore() && editGame.emit(game.gid)"
-                              (keydown.enter)="canScore() && editGame.emit(game.gid)"
-                              (keydown.space)="canScore() && editGame.emit(game.gid); canScore() && $event.preventDefault()">
-                            <span class="dt-date">{{ formatDate(game.gDate) }}</span>
-                            <span class="dt-time">{{ formatTime(game.gDate) }}</span>
-                        </span>
-
-                        <!-- ▼ Pool badge (DOM:8 Visual:4) -->
-                        <span class="cell cell-pool" role="cell" aria-colindex="4">
-                            <span class="ag-badge"
-                                  [style.background-color]="game.color"
-                                  [style.color]="contrastColor(game.color)">{{ game.agDiv }}</span>
-                        </span>
-
-                        <!-- ▼ Location (DOM:9 Visual:3) -->
-                        <span class="cell cell-loc" role="cell" aria-colindex="3">
-                            @if (mapsUrl(game)) {
-                                <a [href]="mapsUrl(game)" target="_blank" rel="noopener"
-                                   class="loc-link" [title]="game.fAddress || game.fName">
-                                    {{ game.fName }} <i class="bi bi-box-arrow-up-right loc-icon"></i>
-                                </a>
-                            } @else {
-                                <span>{{ game.fName }}</span>
+                        <!-- Status chip -->
+                        <span class="cell cell-status" role="cell" aria-colindex="8">
+                            @if (showStatusBadge(game)) {
+                                <span class="status-chip"
+                                      [class.st-rescheduled]="game.gStatusCode === 3"
+                                      [class.st-forfeit]="game.gStatusCode === 4"
+                                      [class.st-cancelled]="game.gStatusCode === 5"
+                                      [class.st-final]="game.gStatusCode === 6"
+                                      [attr.title]="game.gStatusText"
+                                      [attr.aria-label]="game.gStatusText">{{ statusLetter(game) }}</span>
                             }
                         </span>
 
@@ -198,7 +189,7 @@ import type { ViewGameDto } from '@core/api';
             </div>
 
             <!-- ═══════════════════════════════════════════════════════
-                 MOBILE CARDS (<768px) — separate DOM structure (anti-scrape benefit)
+                 MOBILE CARDS (<768px) — card-per-game layout for narrow screens.
                  ═══════════════════════════════════════════════════════ -->
             <div class="games-cards mobile-view">
                 @for (game of games(); track game.gid; let i = $index) {
@@ -315,25 +306,6 @@ import type { ViewGameDto } from '@core/api';
             font-size: var(--font-size-sm);
         }
 
-        /* ═══ Anti-scraping: honeypot & decoy ═══ */
-
-        .cell-hp {
-            display: none;
-            position: absolute;
-            left: -9999px;
-        }
-
-        .decoy {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            opacity: 0;
-            user-select: none;
-            pointer-events: none;
-        }
-
         /* ═══ DESKTOP GRID ═══ */
 
         /* Container grid — columns sized across ALL rows (table-like alignment).
@@ -379,15 +351,12 @@ import type { ViewGameDto } from '@core/api';
             white-space: nowrap;
         }
 
-        /* Anti-scraping: CSS order restores visual column positions */
-        .hdr-num,   .cell-num   { order: 1; }
-        .hdr-dt,    .cell-dt    { order: 2; }
-        .hdr-loc,   .cell-loc   { order: 3; }
-        .hdr-pool,  .cell-pool  { order: 4; text-align: left; }
-        .hdr-home,  .cell-home  { order: 5; text-align: right; }
-        .hdr-score, .cell-score { order: 6; text-align: center; }
-        .hdr-away,  .cell-away  { order: 7; text-align: left; }
-        .hdr-status,.cell-status{ order: 8; text-align: center; }
+        /* Column alignment (DOM order already matches visual order). */
+        .hdr-pool,  .cell-pool  { text-align: left; }
+        .hdr-home,  .cell-home  { text-align: right; }
+        .hdr-score, .cell-score { text-align: center; }
+        .hdr-away,  .cell-away  { text-align: left; }
+        .hdr-status,.cell-status{ text-align: center; }
 
         /* ── Game row ── */
         .game-row {
@@ -407,7 +376,6 @@ import type { ViewGameDto } from '@core/api';
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            position: relative; /* for decoy positioning */
         }
 
         /* Row number */
@@ -1093,28 +1061,5 @@ export class GamesTabComponent {
 
     cancelEdit(): void {
         this.editingGid.set(null);
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // Anti-scraping: honeypot & decoy generators
-    // ══════════════════════════════════════════════════════════════════
-
-    private readonly fakeTeams = [
-        'Eagles FC', 'Thunder SC', 'Lightning', 'Storm United',
-        'Hawks Elite', 'Blazers SC', 'Dynamo FC', 'Rapids United',
-        'Strikers SC', 'Wolves FC', 'Phoenix SC', 'Atlas FC'
-    ];
-
-    honeypotTeam(gid: number): string {
-        return this.fakeTeams[gid % this.fakeTeams.length];
-    }
-
-    honeypotScore(gid: number): string {
-        return `${(gid * 3 + 2) % 7}-${(gid * 2 + 1) % 5}`;
-    }
-
-    decoyText(gid: number, slot: number): string {
-        const base = (gid * 17 + slot * 31) % this.fakeTeams.length;
-        return this.fakeTeams[base];
     }
 }
