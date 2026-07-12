@@ -127,6 +127,26 @@ public class AdnReconciliationController : ControllerBase
     }
 
     /// <summary>
+    /// POST /api/adn-reconciliation/email-close?settlementMonth=N&amp;settlementYear=Y
+    /// Manual trigger for the unattended month-end close the daily sweep runs on the 1st: pulls the
+    /// month, builds the bundle, and EMAILS the .zip to support with the accounting-match verdict and
+    /// IIF parity counts. Mirrors AdnSweepController.Run — the sweep's manual trigger — and is the only
+    /// way to exercise the close off Production, since AdnSweepBackgroundService is IsLiveProduction()-
+    /// gated and never fires on Staging. The send bypasses the sandbox gate (sendInDevelopment: true),
+    /// so this really does transmit from Staging. Defaults to last month.
+    /// </summary>
+    [HttpPost("email-close")]
+    public async Task<ActionResult<AdnReconciliationRunResult>> EmailClose(
+        [FromQuery] int? settlementMonth,
+        [FromQuery] int? settlementYear,
+        CancellationToken cancellationToken)
+    {
+        var (month, year) = ResolveMonthYear(settlementMonth, settlementYear);
+        var result = await _service.EmailMonthlyCloseAsync(month, year, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// GET /api/adn-reconciliation/reconcile?settlementMonth=N&amp;settlementYear=Y
     /// Custodial reconciliation for the month: does every ADN transaction have a matching accounting
     /// row (reg → Registration_Accounting, merch → StoreCartBatchAccounting)? Returns per-stack
