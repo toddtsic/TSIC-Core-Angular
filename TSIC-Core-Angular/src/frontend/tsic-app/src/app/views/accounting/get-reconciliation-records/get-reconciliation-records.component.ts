@@ -169,8 +169,11 @@ export class GetReconciliationRecordsComponent implements OnInit {
 
     // ----- Step navigation -------------------------------------------------
 
+    // Held on Step 1 while the eager build runs: the server treats a missing meta.json as "not built"
+    // and would start a SECOND build (re-running both sprocs, incl. the reg sproc's write) for anyone
+    // who reaches /ledger mid-prepare. Blocking the click is the whole guard — one user, one browser.
     canEnter(step: number): boolean {
-        return step === 1 || this.dataInPlace();
+        return step === 1 || (this.dataInPlace() && !this.isPreparing());
     }
 
     isStepDone(step: number): boolean {

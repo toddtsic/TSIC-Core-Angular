@@ -475,6 +475,12 @@
     font: inherit;
 
     &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
+
+    &:disabled {
+        color: var(--brand-text-muted);
+        text-decoration: none;
+        cursor: default;
+    }
 }
 
 .recon-inline {

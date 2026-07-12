@@ -66,7 +66,8 @@
                                 Settlements through <strong>{{ ts | date:'MMM d, y, h:mm a' }}</strong>.
                             }
                             Re-download only to refresh,
-                            or skip ahead to <button type="button" class="linkish" (click)="goStep(2)">Review</button>.
+                            or skip ahead to
+                            <button type="button" class="linkish" [disabled]="isPreparing()" (click)="goStep(2)">Review</button>.
                         </span>
                     } @else if (!isImporting()) {
                         <br /><span class="action-panel__note">
@@ -225,7 +226,7 @@
 
                 @if (dataInPlace()) {
                     <div class="wiz-next">
-                        <button type="button" class="btn btn-primary" (click)="goStep(2)">
+                        <button type="button" class="btn btn-primary" [disabled]="isPreparing()" (click)="goStep(2)">
                             Review summary <i class="bi bi-arrow-right ms-1"></i>
                         </button>
                     </div>
