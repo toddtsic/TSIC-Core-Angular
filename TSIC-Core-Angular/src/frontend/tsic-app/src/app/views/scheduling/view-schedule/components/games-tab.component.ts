@@ -57,6 +57,8 @@ import type { ViewGameDto } from '@core/api';
                 @for (game of games(); track game.gid; let i = $index) {
                     <div class="game-row" role="row"
                          [class.row-even]="i % 2 === 1"
+                         [class.row-tinted]="!!game.color"
+                         [style.--ag-tint]="game.color"
                          [class.row-dimmed]="game.gStatusCode === 5">
 
                         <!-- Row number -->
@@ -87,11 +89,13 @@ import type { ViewGameDto } from '@core/api';
                             }
                         </span>
 
-                        <!-- Pool badge -->
+                        <!-- Pool — age-group swatch + label. The swatch is decorative (the label
+                             names the age group), so color is never the sole carrier. -->
                         <span class="cell cell-pool" role="cell" aria-colindex="4">
-                            <span class="ag-badge"
-                                  [style.background-color]="game.color"
-                                  [style.color]="contrastColor(game.color)">{{ game.agDiv }}</span>
+                            <span class="ag-dot" aria-hidden="true"
+                                  [style.background]="game.color"
+                                  [class.ag-dot--empty]="!game.color"></span>
+                            <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
 
                         <!-- Home team -->
@@ -193,7 +197,10 @@ import type { ViewGameDto } from '@core/api';
                  ═══════════════════════════════════════════════════════ -->
             <div class="games-cards mobile-view">
                 @for (game of games(); track game.gid; let i = $index) {
-                    <div class="game-card" [class.card-dimmed]="game.gStatusCode === 5">
+                    <div class="game-card"
+                         [class.card-tinted]="!!game.color"
+                         [style.--ag-tint]="game.color"
+                         [class.card-dimmed]="game.gStatusCode === 5">
                         <!-- Header: #, date/time (admin: tap to edit), pool, status -->
                         <div class="card-top">
                             <span class="card-num">{{ i + 1 }}</span>
@@ -206,9 +213,12 @@ import type { ViewGameDto } from '@core/api';
                             } @else {
                                 <span class="card-dt">{{ formatDate(game.gDate) }} &middot; {{ formatTime(game.gDate) }}</span>
                             }
-                            <span class="ag-badge"
-                                  [style.background-color]="game.color"
-                                  [style.color]="contrastColor(game.color)">{{ game.agDiv }}</span>
+                            <span class="ag-chip">
+                                <span class="ag-dot" aria-hidden="true"
+                                      [style.background]="game.color"
+                                      [class.ag-dot--empty]="!game.color"></span>
+                                <span class="ag-label">{{ game.agDiv }}</span>
+                            </span>
                             @if (showStatusBadge(game)) {
                                 <span class="status-badge"
                                       [class.status-rescheduled]="game.gStatusCode === 3"
@@ -359,16 +369,45 @@ import type { ViewGameDto } from '@core/api';
         .hdr-status,.cell-status{ text-align: center; }
 
         /* ── Game row ── */
+        /* The surface is composed in TWO layers: --row-surface is the base (zebra, hover),
+           and the age-group tint is mixed INTO it. The zebra and hover rules therefore set
+           only the variable, never the background property itself — an inline
+           [style.background-color] on the row (the obvious way to paint the tint) would have
+           out-specified .game-row:hover and silently killed hover across the whole grid. */
         .game-row {
+            /* transparent, NOT --bs-body-bg: odd rows were previously unpainted and let the
+               tab panel behind them show through. Naming a concrete color here would have
+               quietly repainted every odd row with the page background. It also makes the
+               mix below composite to a translucent tint over whatever is actually behind. */
+            --row-surface: transparent;
+            --ag-tint-strength: 14%;
+            background: var(--row-surface);
             border-bottom: 1px solid var(--bs-border-color);
             padding-top: var(--space-1);
             padding-bottom: var(--space-1);
             min-height: 36px;
         }
 
-        .row-even { background: var(--bs-tertiary-bg); }
-        .game-row:hover { background: var(--bs-secondary-bg); }
-        .row-dimmed { opacity: 0.5; }
+        .row-even       { --row-surface: var(--bs-tertiary-bg); }
+        .game-row:hover { --row-surface: var(--bs-secondary-bg); }
+        .row-dimmed     { opacity: 0.5; }
+
+        /* Age-group wash. --ag-tint is the DIRECTOR'S stored color (Leagues.agegroups.color),
+           which is truth — but it is raw director input, overwhelmingly saturated HTML
+           primaries (#FFFF00, #FF0000, #000080). Mixed at 14% it lands as a pale band that
+           groups the age group's games without shouting, and the base surface underneath
+           still carries the zebra and the hover step. Two consequences are deliberate:
+           an age group colored #FFFFFF gets no visible wash (correct — the director chose
+           no emphasis), and a director who paints every age group one color gets a uniformly
+           washed table (also correct — they declined to use color to distinguish them). */
+        .game-row.row-tinted {
+            background: color-mix(in srgb, var(--ag-tint) var(--ag-tint-strength), var(--row-surface));
+        }
+
+        /* Dark mode needs a heavier mix: 14% of any hue into a near-black surface is
+           imperceptible, where the same 14% into near-white already reads as a band. */
+        :host-context([data-bs-theme='dark']) .game-row,
+        :host-context([data-bs-theme='dark']) .game-card { --ag-tint-strength: 24%; }
 
         /* Cell common */
         .cell {
@@ -438,15 +477,54 @@ import type { ViewGameDto } from '@core/api';
             opacity: 0.6;
         }
 
-        /* Pool badge */
-        .ag-badge {
+        /* Pool cell — age-group swatch + label. Replaces a solid chip flooded with the
+           director's color: that chip needed a luminance test to pick black-or-white text
+           for an arbitrary hex, and it still failed at the extremes (a #FFFFFF age group
+           rendered a white chip on a white row — invisible; #FFFF00 was unreadable-adjacent
+           at any weight). A dot carries the same color in a spot where contrast is not load
+           bearing, and hands legibility back to plain body text. Same language as the LADT /
+           CADT tree filters (.tree-color-dot) and the roster swapper (.color-dot). */
+        .cell-pool {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            min-width: 0;
+        }
+
+        /* The hairline ring is not ornament: #FFFFFF is the second-most-common stored
+           age-group color, and an unringed white dot on a white row is nothing at all. */
+        .ag-dot {
             display: inline-block;
-            padding: 0 var(--space-1);
-            border-radius: var(--radius-sm, 4px);
-            font-weight: 600;
-            font-size: var(--font-size-xs);
-            line-height: 1.5;
+            box-sizing: border-box;
+            width: 10px;
+            height: 10px;
+            flex-shrink: 0;
+            border-radius: 50%;
+            border: 1px solid var(--bs-border-color);
+        }
+
+        /* No color set on the age group — an empty dashed ring, so "unset" can never
+           masquerade as a deliberate color choice. */
+        .ag-dot--empty {
+            background: transparent;
+            border-style: dashed;
+        }
+
+        .ag-label {
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
             white-space: nowrap;
+            font-size: var(--font-size-xs);
+            font-weight: 600;
+        }
+
+        /* Mobile card: dot + label travel together inside the card's top row. */
+        .ag-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            min-width: 0;
         }
 
         /* Bracket slot marker (e.g. "X1", "Q8") shown before the team name so a seeded or
@@ -807,14 +885,22 @@ import type { ViewGameDto } from '@core/api';
             gap: var(--space-2);
         }
 
+        /* Same two-layer surface as the desktop row, so the card carries the identical
+           age-group wash. No hover state here, so --row-surface has only the one base. */
         .game-card {
-            background: var(--bs-card-bg);
+            --row-surface: var(--bs-card-bg);
+            --ag-tint-strength: 14%;
+            background: var(--row-surface);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-md);
             padding: var(--space-2) var(--space-3);
             display: flex;
             flex-direction: column;
             gap: var(--space-1);
+        }
+
+        .game-card.card-tinted {
+            background: color-mix(in srgb, var(--ag-tint) var(--ag-tint-strength), var(--row-surface));
         }
 
         .card-dimmed { opacity: 0.5; }
@@ -970,30 +1056,6 @@ export class GamesTabComponent {
         const ampm = hours >= 12 ? 'PM' : 'AM';
         hours = hours % 12 || 12;
         return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // Color / contrast helpers
-    // ══════════════════════════════════════════════════════════════════
-
-    private contrastCache = new Map<string, string>();
-
-    contrastColor(cssColor: string | null | undefined): string {
-        if (!cssColor) return 'inherit';
-        const cached = this.contrastCache.get(cssColor);
-        if (cached) return cached;
-
-        const ctx = document.createElement('canvas').getContext('2d')!;
-        ctx.fillStyle = cssColor;
-        const hex = ctx.fillStyle.replace('#', '');
-        const r = parseInt(hex.substring(0, 2), 16);
-        const g = parseInt(hex.substring(2, 4), 16);
-        const b = parseInt(hex.substring(4, 6), 16);
-        const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-        const result = luminance > 150 ? '#000' : '#fff';
-
-        this.contrastCache.set(cssColor, result);
-        return result;
     }
 
     // ══════════════════════════════════════════════════════════════════
