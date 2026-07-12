@@ -142,7 +142,8 @@ public class AdnReconciliationController : ControllerBase
         CancellationToken cancellationToken)
     {
         var (month, year) = ResolveMonthYear(settlementMonth, settlementYear);
-        var result = await _service.EmailMonthlyCloseAsync(month, year, cancellationToken);
+        // No sweep result to gate on — the operator is driving, so the files are always attached.
+        var result = await _service.EmailMonthlyCloseAsync(month, year, sweep: null, cancellationToken);
         return Ok(result);
     }
 

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using TSIC.API.Configuration;
 using TSIC.API.Extensions;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Services.Sweep;
 
@@ -90,31 +91,35 @@ public sealed class AdnSweepBackgroundService : BackgroundService
 #if !DEBUG
     private async Task RunOnceAsync(CancellationToken ct)
     {
+        // On the 1st the sweep's digest is folded into the month-end close email instead of being mailed
+        // on its own — one message, sweep on top, close below. Every other morning it mails itself.
+        var isMonthEnd = DateTime.Now.Day == 1 && _options.EmailMonthEndClose;
+
+        AdnSweepResult? result = null;
         try
         {
             using var scope = _services.CreateScope();
             var sweep = scope.ServiceProvider.GetRequiredService<IAdnSweepService>();
-            var result = await sweep.RunAsync("Scheduled", _options.DaysPriorWindow, ct);
+            result = await sweep.RunAsync("Scheduled", _options.DaysPriorWindow, sendDigest: !isMonthEnd, ct);
             _logger.LogInformation(
-                "Sweep finished: checked={Checked} arbImported={ArbImported} ecReturns={EcReturns} orphansFound={OrphansFound} errored={Errored}",
-                result.Checked, result.ArbImported, result.EcheckReturnsProcessed, result.OrphansFound, result.Errored);
+                "Sweep finished: succeeded={Succeeded} checked={Checked} arbImported={ArbImported} ecReturns={EcReturns} orphansFound={OrphansFound} errored={Errored}",
+                result.Succeeded, result.Checked, result.ArbImported, result.EcheckReturnsProcessed, result.OrphansFound, result.Errored);
         }
         catch (Exception ex)
         {
+            // RunAsync catches its own failures and reports them on the result, so reaching here means
+            // something outside the sweep proper broke (DI, SweepLog). result stays null.
             _logger.LogError(ex, "Sweep tick threw; will retry on next 24h tick");
         }
 
-        // On the 1st, the month just ended is complete — close it and mail the QuickBooks files, so the
-        // operator wakes up to the .iif instead of driving the wizard by hand. Runs AFTER the daily sweep
-        // (which may still be booking ARB/eCheck rows into the closing month) and in its own scope + try,
-        // so a close failure never takes down the sweep loop or the next tick.
-        if (DateTime.Now.Day == 1 && _options.EmailMonthEndClose)
-        {
-            await RunMonthEndCloseAsync(ct);
-        }
+        if (!isMonthEnd) return;
+
+        // The sweep suppressed its digest for us — we now OWN that send. Every path below must mail it,
+        // or the morning goes silent on the one day that matters most.
+        await RunMonthEndCloseAsync(result, ct);
     }
 
-    private async Task RunMonthEndCloseAsync(CancellationToken ct)
+    private async Task RunMonthEndCloseAsync(AdnSweepResult? sweep, CancellationToken ct)
     {
         var lastMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
         try
@@ -123,12 +128,64 @@ public sealed class AdnSweepBackgroundService : BackgroundService
 
             using var scope = _services.CreateScope();
             var reconciliation = scope.ServiceProvider.GetRequiredService<IAdnReconciliationService>();
-            await reconciliation.EmailMonthlyCloseAsync(lastMonth.Month, lastMonth.Year, ct);
+
+            // A null sweep means the sweep didn't even return a result — treat that as untrustworthy, not
+            // as "no sweep ran", so the close withholds the files rather than shipping a ledger built on
+            // books the sweep may never have written.
+            var gate = sweep ?? UnknownSweep();
+            await reconciliation.EmailMonthlyCloseAsync(lastMonth.Month, lastMonth.Year, gate, ct);
         }
         catch (Exception ex)
         {
-            // No retry: the operator can always run the close by hand from Accounting → ADN End-of-Month.
-            _logger.LogError(ex, "Month-end close for {Month:MMMM yyyy} failed; run it by hand from the UI", lastMonth);
+            _logger.LogError(ex, "Month-end close for {Month:MMMM yyyy} failed; falling back to the sweep digest alone", lastMonth);
+
+            // The close blew up but we still hold the day's suppressed digest. Mail it, with the failure
+            // noted — losing the daily sweep report because the monthly close crashed is not acceptable.
+            await SendDigestFallbackAsync(sweep, lastMonth, ex, ct);
+        }
+    }
+
+    /// <summary>Stand-in for a sweep that never reported: fails the trust gate, so no files ship.</summary>
+    private static AdnSweepResult UnknownSweep() => new()
+    {
+        Checked = 0,
+        ArbImported = 0,
+        EcheckSettled = 0,
+        EcheckReturnsProcessed = 0,
+        OrphansFound = 0,
+        Errored = 0,
+        Succeeded = false,
+        ErrorMessage = "The sweep did not return a result — it failed before reporting. Nothing about this "
+            + "morning's booking can be assumed.",
+    };
+
+    private async Task SendDigestFallbackAsync(
+        AdnSweepResult? sweep, DateTime lastMonth, Exception closeFailure, CancellationToken ct)
+    {
+        try
+        {
+            using var scope = _services.CreateScope();
+            var email = scope.ServiceProvider.GetRequiredService<IEmailService>();
+
+            var body =
+                "<p style='font-size:13px;color:#b00;font-weight:bold;'>&#9888; The month-end close for "
+                + $"{lastMonth:MMMM yyyy} failed to run. No QuickBooks files were produced. Run it by hand from "
+                + "Accounting &rarr; ADN End-of-Month / IIF once the cause is fixed.</p>"
+                + $"<p style='font-size:11px;color:#b00;'><b>Close error:</b> {closeFailure.Message}</p>"
+                + "<hr style='margin:20px 0;border:0;border-top:1px solid #ccc;' />"
+                + (sweep?.DigestHtml ?? "<p style='font-size:11px;'>The sweep produced no digest either.</p>");
+
+            await email.SendAsync(new EmailMessageDto
+            {
+                FromName = "TSIC System",
+                ToAddresses = [TsicConstants.SupportEmail],
+                Subject = $"AdnSweep — {lastMonth:MMMM yyyy} MONTH-END CLOSE FAILED",
+                HtmlBody = body,
+            }, sendInDevelopment: true, cancellationToken: ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Month-end fallback digest send failed — the morning report is LOST");
         }
     }
 #endif

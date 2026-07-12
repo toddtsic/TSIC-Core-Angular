@@ -65,14 +65,21 @@ public interface IAdnReconciliationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Unattended month-end close: runs <see cref="RunMonthlyAsync"/> for the month, then emails the
-    /// .zip (QuickBooks .iif + backing .xlsx) to support with a covering summary — the accounting-match
-    /// verdict and the IIF TRNS parity counts — so the close can be triaged before the zip is opened.
-    /// Driven by the daily ADN sweep on the 1st of the month.
+    /// Unattended month-end close: runs <see cref="RunMonthlyAsync"/> for the month, then emails ONE
+    /// message carrying the day's sweep digest, the close summary (accounting-match verdict + IIF TRNS
+    /// parity), and the .zip. Driven by the daily ADN sweep on the 1st of the month.
+    ///
+    /// <para><paramref name="sweep"/> is the sweep that ran minutes earlier, and it is a hard gate: the
+    /// sweep books the closing month's final ARB/eCheck rows into the accounting tables the export sprocs
+    /// read. If it did not fully succeed (<see cref="AdnSweepResult.IsTrustworthy"/> false), the export is
+    /// short those payments — a wrong ledger, not a wrong count — so the mail goes out with the failure
+    /// banner and NO attachment. Re-run the close by hand once the sweep is fixed. Pass null (the manual
+    /// trigger) to skip the gate and always attach.</para>
     /// </summary>
     Task<AdnReconciliationRunResult> EmailMonthlyCloseAsync(
         int settlementMonth,
         int settlementYear,
+        AdnSweepResult? sweep = null,
         CancellationToken cancellationToken = default);
 }
 

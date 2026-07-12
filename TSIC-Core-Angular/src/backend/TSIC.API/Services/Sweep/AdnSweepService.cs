@@ -67,7 +67,11 @@ public sealed class AdnSweepService : IAdnSweepService
         _logger = logger;
     }
 
-    public async Task<AdnSweepResult> RunAsync(string triggeredBy, int daysPrior = 0, CancellationToken ct = default)
+    public async Task<AdnSweepResult> RunAsync(
+        string triggeredBy,
+        int daysPrior = 0,
+        bool sendDigest = true,
+        CancellationToken ct = default)
     {
         if (daysPrior <= 0) daysPrior = _options.DaysPriorWindow;
 
@@ -87,7 +91,9 @@ public sealed class AdnSweepService : IAdnSweepService
             var creds = await _adn.GetJobAdnCredentials_FromCustomerId(_tsicSettings.DefaultCustomerId);
             var env = _adn.GetADNEnvironment();
 
-            // 1) Walk batches, accumulate flat tx list.
+            // 1) Walk batches, accumulate flat tx list. A batch-list error is NOT an empty day — it used
+            // to return [] and sail on, producing a digest of zeros that reads exactly like a quiet
+            // morning. Throw instead, so the failure reaches the catch and is reported as a failure.
             var allTxs = FetchBatchTransactions(env, creds.AdnLoginId!, creds.AdnTransactionKey!, daysPrior);
             counts.Checked = allTxs.Count;
 
@@ -193,14 +199,28 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
-            // 6) Build + send digest email.
-            var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, counts);
-            await SendDigestAsync(html, ct);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ADN sweep run failed");
             errorMessage = ex.Message;
+        }
+
+        // The digest is built and sent OUTSIDE the try — a failed sweep must still mail, and must say so.
+        // It used to be the last statement inside the try, so any throw upstream skipped it entirely and
+        // the only signal was the 5am email not arriving. Silence is not a report.
+        var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, counts, errorMessage);
+        if (sendDigest)
+        {
+            try
+            {
+                await SendDigestAsync(html, errorMessage, counts.Errored, ct);
+            }
+            catch (Exception ex)
+            {
+                // Never let a mail failure mask the sweep's own outcome in SweepLog / the return value.
+                _logger.LogError(ex, "ADN sweep digest send failed");
+            }
         }
 
         await _settleRepo.CompleteSweepLogAsync(
@@ -213,7 +233,10 @@ public sealed class AdnSweepService : IAdnSweepService
             EcheckSettled = counts.EcheckSettled,
             EcheckReturnsProcessed = counts.EcheckReturnsProcessed,
             OrphansFound = counts.OrphansFound,
-            Errored = counts.Errored
+            Errored = counts.Errored,
+            Succeeded = errorMessage == null,
+            ErrorMessage = errorMessage,
+            DigestHtml = html,
         };
     }
 
@@ -226,9 +249,21 @@ public sealed class AdnSweepService : IAdnSweepService
         var last = DateTime.Today;
 
         var batchResp = _adn.GetSettleBatchList_FromDateRange(env, loginId, transactionKey, first, last, true);
-        if (batchResp?.messages?.resultCode != messageTypeEnum.Ok || batchResp.batchList == null)
+
+        // An error response is a FAILED sweep, not an empty one. Authorize.Net signals "no batches in
+        // this window" with an Ok result and a null batchList — that is the legitimate quiet day, and it
+        // returns []. Anything else (credentials rejected, service error) throws: nothing downstream may
+        // conclude "nothing settled" from an answer Authorize.Net never actually gave.
+        if (batchResp?.messages?.resultCode != messageTypeEnum.Ok)
         {
-            _logger.LogWarning("ADN GetSettleBatchList returned no batches for {Days}d window", daysPrior);
+            var reason = batchResp?.messages?.message?[0]?.text ?? "no response from Authorize.Net";
+            throw new InvalidOperationException(
+                $"ADN GetSettleBatchList failed for the {daysPrior}d window: {reason}");
+        }
+
+        if (batchResp.batchList == null)
+        {
+            _logger.LogInformation("ADN GetSettleBatchList: no settled batches in the {Days}d window", daysPrior);
             return [];
         }
 
@@ -850,7 +885,8 @@ public sealed class AdnSweepService : IAdnSweepService
         List<EcheckSettledDigestRow> settledRows,
         List<EcheckReturnDigestRow> ecRows,
         List<OrphanDigestRow> orphanRows,
-        Counts counts)
+        Counts counts,
+        string? errorMessage)
     {
 #if DEBUG
         var envType = "DEV";
@@ -859,6 +895,22 @@ public sealed class AdnSweepService : IAdnSweepService
 #endif
         var sb = new StringBuilder();
         sb.Append($"<h3 style='margin-bottom:4px;'>ADN Sweep ({envType}, TSIC) — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");
+
+        // Lead with the failure. A digest of zeros reads like a quiet morning; only this says otherwise.
+        if (errorMessage != null)
+        {
+            sb.Append("<p style='font-size:13px;color:#b00;font-weight:bold;margin:8px 0;'>"
+                + "&#9888; SWEEP FAILED — this pass did not complete. Payments settled at Authorize.Net may "
+                + "NOT be booked in the accounting tables. The counts below are whatever was reached before "
+                + "the failure, not a picture of the day.</p>");
+            sb.Append($"<p style='font-size:11px;color:#b00;margin:0 0 8px 0;'><b>Error:</b> {errorMessage}</p>");
+        }
+        else if (counts.Errored > 0)
+        {
+            sb.Append($"<p style='font-size:13px;color:#b00;font-weight:bold;margin:8px 0;'>"
+                + $"&#9888; {counts.Errored} transaction(s) errored — the pass completed, but those are not booked.</p>");
+        }
+
         sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Errored: {counts.Errored}</p>");
 
         // ── ARB Activity table ────────────────────────────────────────
@@ -977,13 +1029,16 @@ public sealed class AdnSweepService : IAdnSweepService
         return sb.ToString();
     }
 
-    private async Task SendDigestAsync(string html, CancellationToken ct)
+    private async Task SendDigestAsync(string html, string? errorMessage, int errored, CancellationToken ct)
     {
         await _email.SendAsync(new EmailMessageDto
         {
             FromName = "",
             ToAddresses = [TsicConstants.SupportEmail],
-            Subject = $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}",
+            // The verdict rides the subject — this is read on a phone, and a failed sweep must be
+            // distinguishable from a quiet one without opening the mail.
+            Subject = $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}"
+                + (errorMessage != null ? " — SWEEP FAILED" : errored > 0 ? $" — {errored} ERRORED" : ""),
             HtmlBody = html
         }, sendInDevelopment: true, cancellationToken: ct);
     }

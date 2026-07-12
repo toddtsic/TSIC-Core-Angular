@@ -27,7 +27,8 @@ public class AdnSweepController : ControllerBase
     [HttpPost("run")]
     public async Task<ActionResult<AdnSweepResult>> Run([FromQuery] int daysPrior = 0, CancellationToken ct = default)
     {
-        var result = await _sweep.RunAsync("Manual", daysPrior, ct);
+        // Manual runs mail their own digest, exactly as before.
+        var result = await _sweep.RunAsync("Manual", daysPrior, sendDigest: true, ct);
         return Ok(result);
     }
 }

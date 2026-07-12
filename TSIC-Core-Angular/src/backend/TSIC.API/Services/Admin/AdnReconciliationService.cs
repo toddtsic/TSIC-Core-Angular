@@ -246,6 +246,7 @@ public class AdnReconciliationService : IAdnReconciliationService
     public async Task<AdnReconciliationRunResult> EmailMonthlyCloseAsync(
         int settlementMonth,
         int settlementYear,
+        AdnSweepResult? sweep = null,
         CancellationToken cancellationToken = default)
     {
         // Same close the operator runs by hand from Accounting → ADN End-of-Month / IIF, just unattended:
@@ -259,49 +260,87 @@ public class AdnReconciliationService : IAdnReconciliationService
         var parityOk = run.RegSourceTrnsCount == run.RegConsolidatedTrnsCount
             && run.MerchSourceTrnsCount == run.MerchConsolidatedTrnsCount;
 
-        var sent = await _email.SendAsync(new EmailMessageDto
+        // THE GATE. The sweep books the closing month's last ARB/eCheck rows into the very tables the
+        // export sprocs read. A sweep that did not fully succeed leaves those payments unbooked, so the
+        // .iif is short them — importable, plausible, and wrong. Withhold the file; send the alarm.
+        // A null sweep is the manual trigger: the operator is driving, so attach.
+        var sweepTrustworthy = sweep?.IsTrustworthy ?? true;
+
+        var subject = sweep != null
+            ? $"AdnSweep + MonthEndClose — {monthName}"
+            : $"AdnMonthEndClose {monthName}";
+        if (!sweepTrustworthy) subject += " — SWEEP FAILED, NO FILES";
+        if (unmatched > 0) subject += $" — {unmatched} UNMATCHED";
+        if (!parityOk) subject += " — IIF PARITY MISMATCH";
+
+        var message = new EmailMessageDto
         {
             FromName = "TSIC System",
             ToAddresses = [TsicConstants.SupportEmail],
-            Subject = $"AdnMonthEndClose {monthName}"
-                + (unmatched > 0 ? $" — {unmatched} UNMATCHED" : "")
-                + (parityOk ? "" : " — IIF PARITY MISMATCH"),
-            HtmlBody = BuildCloseEmailHtml(monthName, run, reconciliation, unmatched, parityOk),
-            Attachments =
-            [
-                new EmailAttachmentDto
-                {
-                    FileName = run.Bundle.FileName,
-                    Content = run.Bundle.FileBytes,
-                    ContentType = run.Bundle.ContentType,
-                },
-            ],
-        }, sendInDevelopment: true, cancellationToken: cancellationToken);
+            Subject = subject,
+            HtmlBody = BuildCloseEmailHtml(monthName, run, reconciliation, unmatched, parityOk, sweep, sweepTrustworthy),
+        };
+
+        if (sweepTrustworthy)
+        {
+            message.Attachments.Add(new EmailAttachmentDto
+            {
+                FileName = run.Bundle.FileName,
+                Content = run.Bundle.FileBytes,
+                ContentType = run.Bundle.ContentType,
+            });
+        }
+
+        var sent = await _email.SendAsync(message, sendInDevelopment: true, cancellationToken: cancellationToken);
 
         _logger.LogInformation(
-            "AdnReconciliation: month-end close emailed for {Month} (sent={Sent}, zipBytes={Bytes}, " +
-            "unmatched={Unmatched}, parityOk={ParityOk})",
-            monthName, sent, run.Bundle.FileBytes.Length, unmatched, parityOk);
+            "AdnReconciliation: month-end close emailed for {Month} (sent={Sent}, attached={Attached}, " +
+            "zipBytes={Bytes}, unmatched={Unmatched}, parityOk={ParityOk}, sweepTrustworthy={SweepOk})",
+            monthName, sent, sweepTrustworthy, run.Bundle.FileBytes.Length, unmatched, parityOk, sweepTrustworthy);
 
         return run;
     }
 
     /// <summary>
-    /// Covering note for the close email: the two things that decide whether the .iif can be imported
-    /// as-is — does every ADN dollar map to a client (the custodial match), and did every source TRNS
-    /// survive consolidation (IIF parity). Everything else is in the attached workbook.
+    /// The one email for the 1st: the day's sweep digest on top (when the close is riding the sweep),
+    /// then the close verdict — does every ADN dollar map to a client, did every source TRNS survive
+    /// consolidation, and is the attached export trustworthy at all.
     /// </summary>
     private static string BuildCloseEmailHtml(
         string monthName,
         AdnReconciliationRunResult run,
         MonthEndReconciliationResult reconciliation,
         int unmatched,
-        bool parityOk)
+        bool parityOk,
+        AdnSweepResult? sweep,
+        bool sweepTrustworthy)
     {
         var sb = new StringBuilder();
         sb.Append($"<h3 style='margin-bottom:4px;'>ADN Month-End Close — {monthName}</h3>");
-        sb.Append("<p style='font-size:11px;margin-top:0;'>The attached .zip holds both QuickBooks .iif files "
-            + "(registration + merch), their backing .xlsx, and the human-readable summary.</p>");
+
+        // The headline. Everything below is unreliable if this fired, so it goes first.
+        if (!sweepTrustworthy)
+        {
+            sb.Append("<p style='font-size:13px;color:#b00;font-weight:bold;margin:8px 0;'>"
+                + "&#9888; NO FILES ATTACHED — this morning's sweep did not fully succeed, so the closing "
+                + "month's final payments may not be booked. Any QuickBooks export built now would be short "
+                + "those transactions. Fix the sweep, then re-run the close from "
+                + "Accounting &rarr; ADN End-of-Month / IIF (or POST /api/adn-reconciliation/email-close).</p>");
+            if (sweep?.ErrorMessage != null)
+            {
+                sb.Append($"<p style='font-size:11px;color:#b00;margin:0 0 8px 0;'><b>Sweep error:</b> {sweep.ErrorMessage}</p>");
+            }
+            else if (sweep is { Errored: > 0 })
+            {
+                sb.Append($"<p style='font-size:11px;color:#b00;margin:0 0 8px 0;'>"
+                    + $"<b>Sweep:</b> completed, but {sweep.Errored} transaction(s) errored and are not booked.</p>");
+            }
+        }
+        else
+        {
+            sb.Append("<p style='font-size:11px;margin-top:0;'>The attached .zip holds both QuickBooks .iif files "
+                + "(registration + merch), their backing .xlsx, and the human-readable summary.</p>");
+        }
 
         sb.Append(unmatched == 0
             ? "<p style='font-size:12px;color:#0a0;font-weight:bold;'>&#10003; Accounting match clean — every ADN transaction maps to a client.</p>"
@@ -328,6 +367,15 @@ public class AdnReconciliationService : IAdnReconciliationService
             sb.Append($" Settlements through {reconciliation.LatestSettlementAt.Value:g}.");
         }
         sb.Append("</p>");
+
+        // The day's sweep digest, folded in below the close — one email on the 1st, not two. The sweep
+        // suppressed its own send and handed us the rendered HTML, so this is the identical report you
+        // get on the other 30 mornings, verbatim.
+        if (!string.IsNullOrEmpty(sweep?.DigestHtml))
+        {
+            sb.Append("<hr style='margin:20px 0;border:0;border-top:1px solid #ccc;' />");
+            sb.Append(sweep.DigestHtml);
+        }
 
         return sb.ToString();
     }

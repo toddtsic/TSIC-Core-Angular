@@ -14,11 +14,19 @@ namespace TSIC.Contracts.Services;
 public interface IAdnSweepService
 {
     /// <summary>
-    /// Run one sweep pass.
+    /// Run one sweep pass. Always mails the digest — including on failure, where the digest leads with
+    /// the error — unless <paramref name="sendDigest"/> is false, in which case the caller owns the send
+    /// and gets the rendered HTML back on <see cref="AdnSweepResult.DigestHtml"/> (the 1st-of-month path,
+    /// which folds the digest into the month-end close email).
     /// </summary>
     /// <param name="triggeredBy">"Scheduled" for the BackgroundService, "Manual" for the controller.</param>
     /// <param name="daysPrior">How many days back to query settled batches. Defaults to options value if 0.</param>
-    Task<AdnSweepResult> RunAsync(string triggeredBy, int daysPrior = 0, CancellationToken ct = default);
+    /// <param name="sendDigest">False to suppress the send and hand the digest HTML back to the caller.</param>
+    Task<AdnSweepResult> RunAsync(
+        string triggeredBy,
+        int daysPrior = 0,
+        bool sendDigest = true,
+        CancellationToken ct = default);
 }
 
 public sealed record AdnSweepResult
@@ -35,4 +43,29 @@ public sealed record AdnSweepResult
     /// </summary>
     public required int OrphansFound { get; init; }
     public required int Errored { get; init; }
+
+    /// <summary>
+    /// False when the pass could not complete: an exception was thrown, OR Authorize.Net answered the
+    /// batch-list request with an error. The latter is the dangerous one — it used to collapse into an
+    /// empty transaction list, making a broken sweep indistinguishable from a morning with nothing to
+    /// settle. Nothing downstream may trust the accounting tables for the swept window when this is false.
+    /// </summary>
+    public required bool Succeeded { get; init; }
+
+    /// <summary>What went wrong, when <see cref="Succeeded"/> is false. Null on a clean pass.</summary>
+    public string? ErrorMessage { get; init; }
+
+    /// <summary>
+    /// The rendered digest. Populated on every run; the caller only needs it when it suppressed the send
+    /// via <c>sendDigest: false</c> and intends to mail it itself.
+    /// </summary>
+    public string? DigestHtml { get; init; }
+
+    /// <summary>
+    /// The sweep completed AND every transaction in it was processed. This is the gate the month-end
+    /// close hangs on: the sweep is what books the closing month's final ARB/eCheck rows into the
+    /// accounting tables, so if it did not fully succeed, the QuickBooks export built from those tables
+    /// is short those payments — a wrong ledger, not merely a wrong count.
+    /// </summary>
+    public bool IsTrustworthy => Succeeded && Errored == 0;
 }
