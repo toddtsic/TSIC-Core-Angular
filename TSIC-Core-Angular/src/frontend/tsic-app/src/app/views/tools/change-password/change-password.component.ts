@@ -1,7 +1,9 @@
 import { Component, OnInit, signal, computed, inject, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ChangePasswordService } from './services/change-password.service';
+import { Observable, concat } from 'rxjs';
+import { toArray } from 'rxjs/operators';
+import { ChangePasswordService, type ApiMessage } from './services/change-password.service';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
@@ -35,13 +37,19 @@ interface LoginAccount {
   email: string | null;
   phone: string | null;
   anyRegId: string;
-  parents: ParentContact[];
   players: PlayerRow[];
   registrations: ChangePasswordSearchResultDto[];
 }
 
-/** One child under a family login. Keyed on the player's OWN username — never the display
- *  name, or two kids sharing a nickname would collapse into one row. */
+/**
+ * One child under a family login. Keyed on the player's OWN username — never the display
+ * name, or two kids sharing a nickname would collapse into one row.
+ *
+ * `source` is any one of the player's rows: every column legacy's grid carried (role, family
+ * username/email, Mom/Dad names, emails, phones) is identical across a player's rows, so the
+ * grid reads them straight off it. Name/username/email/phone are lifted out because sorting
+ * and the aria labels need them directly.
+ */
 interface PlayerRow {
   key: string;
   firstName: string;
@@ -49,15 +57,8 @@ interface PlayerRow {
   userName: string;
   email: string | null;
   phone: string | null;
+  source: ChangePasswordSearchResultDto;
   registrations: ChangePasswordSearchResultDto[];
-}
-
-/** Family-level identity proof — often the fastest way to recognize the caller. */
-interface ParentContact {
-  label: string;
-  name: string;
-  email: string | null;
-  phone: string | null;
 }
 
 @Component({
@@ -111,6 +112,18 @@ export class ChangePasswordComponent implements OnInit {
   editingMomEmail = signal('');
   editingDadEmail = signal('');
   isSavingEmail = signal(false);
+
+  // ── Per-player editor (legacy's row-edit dialog) ──
+  // Legacy's grid row WAS a registration, so its dialog could edit that one player's email,
+  // username and password. Our rows are accounts, so the player-level edits need their own
+  // surface. Editable set = exactly what legacy actually persisted; the rest is read-only.
+  editPlayer = signal<PlayerRow | null>(null);
+  editEmail = signal('');
+  editUserName = signal('');
+  editNewPassword = signal('');
+  editMergeCandidates = signal<MergeCandidateDto[]>([]);
+  isLoadingEditCandidates = signal(false);
+  isSavingPlayer = signal(false);
 
   // ── Merge (secondary; auto-hidden when no duplicate exists) ──
   mergeCandidates = signal<MergeCandidateDto[]>([]);
@@ -207,7 +220,6 @@ export class ChangePasswordComponent implements OnInit {
         email: asFamily ? (first.familyEmail ?? first.email ?? null) : (first.email ?? null),
         phone: first.phone ?? null,
         anyRegId: first.registrationId as unknown as string,
-        parents: asFamily ? this.buildParents(first) : [],
         players: asFamily ? this.buildPlayers(group) : [],
         registrations: this.sortRegistrations(group)
       });
@@ -239,26 +251,13 @@ export class ChangePasswordComponent implements OnInit {
         userName: first.userName,
         email: first.email ?? null,
         phone: first.phone ?? null,
+        source: first,
         registrations: this.sortRegistrations(group)
       });
     }
 
     return players.sort((a, b) =>
       a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName));
-  }
-
-  /** Mom / Dad, each dropped entirely when the family carries nothing for them. */
-  private buildParents(r: ChangePasswordSearchResultDto): ParentContact[] {
-    const parents: ParentContact[] = [];
-    const mom = `${r.momFirstName ?? ''} ${r.momLastName ?? ''}`.trim();
-    if (mom || r.momEmail || r.momPhone) {
-      parents.push({ label: 'Mom', name: mom, email: r.momEmail ?? null, phone: r.momPhone ?? null });
-    }
-    const dad = `${r.dadFirstName ?? ''} ${r.dadLastName ?? ''}`.trim();
-    if (dad || r.dadEmail || r.dadPhone) {
-      parents.push({ label: 'Dad', name: dad, email: r.dadEmail ?? null, phone: r.dadPhone ?? null });
-    }
-    return parents;
   }
 
   /** Customer, then job. Job names embed the season (`ISP:2021-2022`), so this reads chronologically. */
@@ -321,6 +320,90 @@ export class ChangePasswordComponent implements OnInit {
 
   playerName(player: PlayerRow): string {
     return `${player.firstName} ${player.lastName}`.trim() || player.userName;
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  //  Per-player edit (email / username / password)
+  // ═══════════════════════════════════════════════════════════
+
+  /** Any of the player's registrations identifies them to the API; they all carry the same UserId. */
+  private playerRegId(player: PlayerRow): string {
+    return player.registrations[0].registrationId as unknown as string;
+  }
+
+  openPlayerEdit(player: PlayerRow): void {
+    this.editPlayer.set(player);
+    this.editEmail.set(player.email ?? '');
+    this.editUserName.set(player.userName);
+    this.editNewPassword.set('');
+    this.editMergeCandidates.set([]);
+    this.isLoadingEditCandidates.set(true);
+
+    this.service.getUserMergeCandidates(this.playerRegId(player)).subscribe({
+      next: (c) => { this.editMergeCandidates.set(c); this.isLoadingEditCandidates.set(false); },
+      error: () => { this.isLoadingEditCandidates.set(false); }
+    });
+  }
+
+  closePlayerEdit(): void {
+    this.editPlayer.set(null);
+  }
+
+  /** True once something in the editor differs from the row it was seeded from. */
+  playerEditDirty = computed(() => {
+    const p = this.editPlayer();
+    if (!p) return false;
+    return this.editEmail().trim() !== (p.email ?? '')
+      || this.editUserName() !== p.userName
+      || this.editNewPassword().length > 0;
+  });
+
+  savePlayerEdit(): void {
+    const player = this.editPlayer();
+    if (!player || this.isSavingPlayer()) return;
+
+    const password = this.editNewPassword();
+    if (password.length > 0 && password.length < 6) return;
+
+    const regId = this.playerRegId(player);
+    const email = this.editEmail().trim();
+    const targetUserName = this.editUserName();
+
+    // Sequenced, not parallel: the merge repoints this player's registrations onto the target
+    // login, so the password reset that follows must target the SURVIVING username — which is
+    // what legacy did too (it reset against the username posted from the dialog, not the old one).
+    const ops: Observable<ApiMessage>[] = [];
+    if (email && email !== (player.email ?? '')) {
+      ops.push(this.service.updateUserEmail(regId, { email }));
+    }
+    if (targetUserName && targetUserName !== player.userName) {
+      ops.push(this.service.mergeUsername(regId, { targetUserName }));
+    }
+    if (password.length >= 6) {
+      ops.push(this.service.resetPassword(regId, {
+        userName: targetUserName || player.userName,
+        newPassword: password
+      }));
+    }
+
+    if (ops.length === 0) {
+      this.closePlayerEdit();
+      return;
+    }
+
+    this.isSavingPlayer.set(true);
+    concat(...ops).pipe(toArray()).subscribe({
+      next: (results) => this.toast.show(results.map(r => r.message).join(' '), 'success'),
+      error: (err) => {
+        this.toast.show(err?.error?.message || 'Update failed.', 'danger');
+        this.isSavingPlayer.set(false);
+      },
+      complete: () => {
+        this.isSavingPlayer.set(false);
+        this.closePlayerEdit();
+        this.onSearch();
+      }
+    });
   }
 
   /** Copy the login username to the clipboard; flip the row's icon to a check for ~2s. */

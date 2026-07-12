@@ -13,7 +13,7 @@ import type {
   MergeUsernameRequest
 } from '@core/api';
 
-interface ApiMessage {
+export interface ApiMessage {
   message: string;
 }
 
