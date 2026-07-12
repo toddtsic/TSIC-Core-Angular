@@ -1109,14 +1109,14 @@ public sealed class ScheduleRepository : IScheduleRepository
         // belongs to + that reg's opt-out flag, so the batch engine can append the per-reg
         // unsubscribe footer and suppress unsubscribers. League addon contacts have no
         // registration (regId = null → no footer, not suppressible — operational notice).
-        var validator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+        // One address rule, shared with the batch engine — see EmailAddressRules. This used to run
+        // EmailAddressAttribute, which only asserts a single non-terminal '@' and so happily passed
+        // `foo@gmail` straight to SES.
         var byEmail = new Dictionary<string, ScheduleEmailRecipient>(StringComparer.OrdinalIgnoreCase);
         void Add(Guid? regId, string? email, bool optedOut)
         {
-            if (string.IsNullOrWhiteSpace(email)) return;
-            var trimmed = email.Trim();
-            if (string.Equals(trimmed, "not@given.com", StringComparison.OrdinalIgnoreCase)) return;
-            if (!validator.IsValid(trimmed)) return;
+            if (!EmailAddressRules.IsSendable(email)) return;
+            var trimmed = email!.Trim();
             if (!byEmail.ContainsKey(trimmed))
                 byEmail[trimmed] = new ScheduleEmailRecipient { RegistrationId = regId, Email = trimmed, OptedOut = optedOut };
         }

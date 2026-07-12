@@ -19,6 +19,7 @@ using TSIC.API.Services.Shared.VerticalInsure;
 using TSIC.API.Services.Auth;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos;
+using TSIC.Domain.Constants;
 
 
 namespace TSIC.API.Controllers;
@@ -118,10 +119,10 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
             var e = email.Trim();
             if (!string.IsNullOrWhiteSpace(e)) recipients.Add(e);
         }
-        // Normalize and filter to valid looking emails
+        // One address rule for every send path — see EmailAddressRules.
         var toList = recipients
             .Select(x => x.Trim())
-            .Where(x => x.Contains('@'))
+            .Where(EmailAddressRules.IsSendable)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
         if (toList.Count == 0)

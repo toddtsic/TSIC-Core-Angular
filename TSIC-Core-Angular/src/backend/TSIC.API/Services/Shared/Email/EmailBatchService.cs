@@ -7,6 +7,7 @@ using TSIC.API.Extensions;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Entities;
+using TSIC.Domain.Constants;
 
 namespace TSIC.API.Services.Shared.Email;
 
@@ -87,7 +88,7 @@ public sealed class EmailBatchService : IEmailBatchService
             var user = await users.GetByIdAsync(recipientUserId, cancellationToken);
             toEmail = user?.Email;
         }
-        if (string.IsNullOrWhiteSpace(toEmail) || !toEmail.Contains('@'))
+        if (!EmailAddressRules.IsSendable(toEmail))
             return EmailBatchSummaryResult.NoRecipientEmail;
 
         var message = new EmailMessageDto

@@ -3,6 +3,7 @@ using TSIC.Contracts.Dtos.RegistrationSearch;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Domain.Constants;
 
 namespace TSIC.Infrastructure.Repositories;
 
@@ -38,7 +39,11 @@ public class FamiliesRepository : IFamiliesRepository
             var norm = e?.Trim();
             if (!string.IsNullOrWhiteSpace(norm)) recipients.Add(norm!);
         }
-        return recipients.Select(x => x.Trim()).Where(x => x.Contains('@')).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return recipients
+            .Select(x => x.Trim())
+            .Where(EmailAddressRules.IsSendable)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     public async Task<List<BatchFamilyEmailsDto>> GetByFamilyUserIdsAsync(

@@ -4,13 +4,17 @@ using TSIC.Domain.Constants;
 namespace TSIC.API.Services.Shared.Email;
 
 /// <summary>
-/// Pure recipient-address rules shared by every batch path (parity with the schedule path):
-/// trims, drops blanks, drops the <c>not@given.com</c> missing-email sentinel, drops obviously
-/// invalid addresses (no '@'), and de-duplicates case-insensitively. No I/O — directly unit-testable.
+/// Recipient resolution for the batch paths: works out WHICH addresses belong to a recipient, then
+/// filters them through <see cref="EmailAddressRules.IsSendable"/> and de-duplicates.
+///
+/// The address rule itself lives in <see cref="EmailAddressRules"/>, not here — the schedule path in
+/// TSIC.Infrastructure needs the same rule and cannot reference TSIC.API. This class used to carry its
+/// own copy, which accepted anything containing an '@'.
 /// </summary>
 public static class BatchEmailRecipientFilter
 {
-    public const string MissingEmailSentinel = "not@given.com";
+    /// <inheritdoc cref="EmailAddressRules.NotGiven"/>
+    public const string MissingEmailSentinel = EmailAddressRules.NotGiven;
 
     /// <summary>
     /// Resolves all sendable addresses for one batch recipient from the bulk-loaded address maps.
@@ -51,12 +55,6 @@ public static class BatchEmailRecipientFilter
         return result;
     }
 
-    /// <summary>True if the address is non-blank, not the sentinel, and looks like an address.</summary>
-    public static bool IsSendable(string? email)
-    {
-        if (string.IsNullOrWhiteSpace(email)) return false;
-        var trimmed = email.Trim();
-        if (string.Equals(trimmed, MissingEmailSentinel, StringComparison.OrdinalIgnoreCase)) return false;
-        return trimmed.Contains('@');
-    }
+    /// <inheritdoc cref="EmailAddressRules.IsSendable"/>
+    public static bool IsSendable(string? email) => EmailAddressRules.IsSendable(email);
 }
