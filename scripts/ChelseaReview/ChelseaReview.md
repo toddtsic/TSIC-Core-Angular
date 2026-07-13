@@ -11,8 +11,10 @@
 | Player Registration | 11 |
 | Accounting / Admin Payments | 13 |
 | LADT / Event Setup | 14 |
-| Admin Search Tools | 8 |
-| **Total** | **55** |
+| Admin Search Tools | 12 |
+| Communications | 7 |
+| Login, Navigation & Bulletins | 13 |
+| **Total** | **79** |
 
 <div style="page-break-before: always;"></div>
 
@@ -333,7 +335,7 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 
 ## Admin Search Tools — differences from the old system
 
-_From a comparison of the old system and the new one (2026-07-12), each checked against the new build. Covers the admin Search Registrations and Search Teams screens; deeper payment detail lives in the Accounting section._
+_From a comparison of the old system and the new one (2026-07-12/13), each checked against the new build. Covers the admin Search Registrations and Search Teams screens plus the SuperUser Change Password / account-repair tool (CR-056–059); deeper payment detail lives in the Accounting section._
 
 #### ☐ CR-048: The admin Team Search screen now handles refunds, charges, and more in one place
 - **Type**: Training-note · **Audience**: SuperUser/Admin
@@ -383,6 +385,186 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **Why it matters**: On a big event, "select all on screen" is NOT the same as "everyone." Email All and Export deliberately act on the full filtered set. Operators should understand this so they don't under-send (thinking one page was everyone) or over-send (thinking they only emailed the visible page).
 - *Dev evidence: server-side paging + cross-page selection (search-registrations.component.ts:235, 707-771); export unpaged (843-869); Email-All server-resolved (884-905).*
 
+#### ☐ CR-056: Merging duplicate logins is now a deliberate, confirmed step — not a side-effect of editing
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: In the old Change Password tool, merging two logins happened as a *side-effect* — you changed a username in the edit dialog and it quietly merged the accounts on save, so you could merge the wrong people by fat-fingering a dropdown. The new tool makes merge its own separate, confirmed dialog that shows exactly which registrations will move before you commit. The matching is also tighter: it lines up accounts by email AND phone AND name together, so it can't accidentally pull in a different family. And it now moves a person's inactive/dropped registrations too, instead of leaving them stranded on the old login.
+- **Why it matters**: The most destructive, irreversible action in the tool can no longer happen by accident, and a merged parent gets their full history (including inactive registrations) rather than losing some of it. Worth knowing since you use this tool.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: dedicated confirmed merge dialog (change-password.component.ts:329-424); merge endpoints (ChangePasswordController.cs:284-368); email+phone+name identity, inactive included (ChangePasswordRepository.cs:526-544, 774-794).*
+
+#### ☐ CR-057: Every password change and merge is now logged — and the log is the only way to undo a merge
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old tool kept no record of who changed whose password or who merged which accounts — just a success message on screen. The new tool logs every change and merge (who did it, their IP, the target account), and for a merge it records exactly which registrations moved and who owned them before. Since a merge can't be undone through the UI, that record is the only way to reverse one.
+- **Why it matters**: There's now a real audit trail for this powerful cross-account tool, and it's the only path back from an accidental merge. (The log lives in Seq, tagged cp_audit.)
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: audit events + reversal payload (ChangePasswordController.cs:54-73, 151-175, 342-347).*
+
+#### ☐ CR-058: Resetting a player's password now resets the FAMILY login, and shows who it signs in for
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: In the old tool, resetting a player's password reset the player's own account — but children don't have a usable login, so "I reset it and it still won't work" was a real trap. The new tool resets the family login instead (the one that actually signs in), labels the button as the family, and shows which children that login covers before you do it.
+- **Why it matters**: The reset now targets the credential the family actually uses, and you can see its blast radius (which kids it covers) before committing. Removes a long-standing footgun.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: player reset targets family login + reset-context blast radius (change-password.component.ts:269; ChangePasswordController.cs:97-125; ChangePasswordRepository.cs:299-400).*
+
+#### ☐ CR-059: The account search is capped at 50 logins and tells you when results were cut
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old search returned everything with no limit. The new one caps at 50 login accounts and flags the results when they were truncated, so a broad search doesn't silently hand you a giant or partial list. It also enforces a 6-character minimum on the new password and gives you a copy-to-clipboard reset dialog.
+- **Why it matters**: You'll know when a search was too broad and got cut (narrow it down) rather than trusting an incomplete list. Minor quality-of-life on top of that.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: 50-account cap + truncation flag (ChangePasswordRepository.cs:23-24, 114-135; change-password.component.ts:28, 93-96); 6-char floor (ChangePasswordController.cs:145).*
+
+<div style="page-break-before: always;"></div>
+
+## Communications — differences from the old system
+
+_From a comparison of the old system and the new one (2026-07-13), each checked against the new build._
+
+#### ☐ CR-060: Emails now come "from" TeamSportsInfo, with the director on Reply-To
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: In the old system, a batch email sent from the admin search screen showed the sending director's own email address as the sender. In the new system, every outgoing email is sent "from" support@teamsportsinfo.com — with the sender's name branded as "[Name] (TEAMSPORTSINFO.COM)" — and the real person (the director or the job's contact) is put on Reply-To. Replies still go to the director.
+- **Why it matters**: Parents and reps now see mail "from TeamSportsInfo," not their club or director — expect "who is this / is this legit / why isn't it from our club?" questions. Replies still reach the right person. One catch: if a recipient had whitelisted the director's address, that no longer matches the sender. This is deliberate — the email service can only send from a verified address.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: NormalizeFromHeader forces From to support@ + branding (EmailService.cs:186-195); real sender on Reply-To (:115-135).*
+
+#### <span style="color:#c00000">☐ CR-061: Two Communications-tab email-list fields do nothing (Always Copy, Reschedule Email List)</span>
+- **Type**: Bug (needs a decision) · **Audience**: SuperUser/Admin
+- **What's new**: On the Communications tab, the "Always Copy Email List" and the job-level "Reschedule Email List" fields are still shown, saved, and copied to new jobs — but nothing actually uses them. No email-sending code reads either one. (Reschedule notices DO send extra copies, but they pull from a different, league-level "Reschedule Emails To" field, not this one.)
+- **Why it matters**: A director who fills in "Always Copy" (say, to copy the league office on every blast) or the job-level "Reschedule Email List" silently gets nothing — the field looks like it works but doesn't. A support trap. Either wire these up or remove them; and point directors to the League-level "Reschedule Emails To" field for reschedule copies.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: verified — Alwayscopyemaillist / Rescheduleemaillist appear only in config save/load and clone (JobConfigService, JobCloneService), never in any send path. Reschedule extra-recipients come from Leagues.RescheduleEmailsToAddon (ScheduleRepository.cs:1164-1184).*
+
+#### ☐ CR-062: Recipients can unsubscribe from an event's emails — and then stop getting them
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: Every batch email now includes an "Unsubscribe from emails for this event" footer with a per-person link. If a parent clicks it, they're opted out and dropped from all future batch emails AND reschedule notices for that event. The old system had no unsubscribe.
+- **Why it matters**: A direct answer to "why didn't this family get the email?" — they may have unsubscribed. It's per-event and per-registration. Note: league-office / operational addresses added as extra recipients aren't registrations, so they can't unsubscribe and always get copies.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: unsubscribe footer + link (EmailBatchService.cs:253-270), opt-out endpoint (EmailController.cs:19-31), opted-out partitioned out before send (:64-65); reschedule footer (ScheduleRepository.cs:1108-1122).*
+
+#### ☐ CR-063: The office is copied on TEAM confirmations but not PLAYER confirmations
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: The Communications-tab CC/BCC email lists still copy the office on team / club-rep confirmation emails (CC/BCC applied, and the job's From goes to Reply-To). But player confirmations ignore those lists — they go only to the family and player (that's the already-noted CR-012). So the two are asymmetric.
+- **Why it matters**: "We get a copy of team registrations but not player registrations" is now expected behavior, not a bug. If a director wants office copies of player confirmations too, that ties to the CR-012 decision.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: team confirmation applies RegFormCcs→CC, RegFormBccs→BCC, RegFormFrom→Reply-To (TeamRegistrationService.cs:1652-1678); player confirmation sets none (PaymentService.cs:2458-2469).*
+
+#### ☐ CR-064: The batch email composer has ready-made templates that appear based on your filter
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old composer was free-form subject/body only. The new one offers ready-made templates grouped by purpose — autopay follow-ups ("update card," "pay balance," "card expiring"), insurance reminders, and waitlist-activation. Which templates show up depends on the job's features and how you filtered the search grid: a template only appears when its conditions are met (e.g. the autopay templates only show on an autopay job filtered to behind-in-payment).
+- **Why it matters**: "The template I expected isn't in the list" is usually because the grid filter or job settings don't match its rule — not a bug. Admins should know the menu is context-driven.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: template rules + availability (email-templates.ts:94-273; batch-email-modal.component.ts:186-197).*
+
+#### ☐ CR-065: The batch composer can draft an email with AI
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: New "draft with AI" action — an admin types what they want to say, and the system generates a subject and body they can edit before sending. Didn't exist before.
+- **Why it matters**: A new capability admins may ask about. The AI output is a starting draft, not auto-sent — the admin reviews and edits.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: draftWithAi (batch-email-modal.component.ts:260-276), AiComposeController.cs:26-40 (admin-only).*
+
+#### ☐ CR-066: New "Invite" batch send with personal magic links that expire
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: A new "Invite" action sends each recipient a personalized invitation link (for players or club reps). The admin picks the target event and how long the link lasts (6 to 72 hours, default 24). Each link is unique to the recipient and can't be forwarded.
+- **Why it matters**: This is how invitation-only events (CR-009 team, CR-014 player) get their links out. Because links expire (24h by default), "my invite link says expired" is expected — the fix is to re-send. Per-recipient links mean a forwarded link won't work for someone else.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: invite templates + per-recipient link/expiry + send guard (batch-email-modal.component.ts:30-63, 142-180, 316-345).*
+
+<div style="page-break-before: always;"></div>
+
+## Login, Navigation & Bulletins — differences from the old system
+
+_From a comparison of the old system and the new one (2026-07-13), each checked against the new build. Grouped: Login/Auth, then Navigation, then Bulletins._
+
+#### <span style="color:#0033cc">☐ CR-067: Password reset works by email only now — not username</span>
+- **Type**: Workflow-change (needs a decision) · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old "forgot password" looked you up by username first, then email, and also matched a parent's family-account email. The new one takes an email address only — no username option, and it doesn't check family emails. It also always replies "if an account with that email exists, a link has been sent" (it won't tell you whether the account was found).
+- **Why it matters**: A user who remembers only their username — common for adult and admin accounts — can't reset their password from the form anymore, and a parent whose login email differs from the one on file may not be found. A real "I can't reset my password" support case. Worth deciding whether to bring back the username path.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: verified — ForgotPassword uses FindByEmailAsync only, generic no-enumeration response (AuthController.cs:470-488); email-only form (forgot-password.component.ts:18-34).*
+
+#### ☐ CR-068: Sessions refresh silently instead of logging you out
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old system used cookie sessions that would expire and force a re-login. The new system uses a token that refreshes itself quietly in the background (it checks every minute and renews a few minutes before expiry), so an open tab keeps working. Logging out revokes the token and returns you to the login page.
+- **Why it matters**: Far fewer "I got logged out" complaints. The whole session/timeout story support fields is different — a tab left open generally just keeps working.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: silent refresh timer (auth.service.ts:242-271, 539-571); token refresh endpoint (AuthController.cs:355-424).*
+
+#### ☐ CR-069: Login no longer blocks or warns about "you're a Director, can't also be a Club Rep"
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old system enforced role separation at login — it would block sign-in with warnings like "this account was used as a Director, it can't also be a Club Rep," and picking a role with no active registrations would sign you out. The new system doesn't do any of that at login: it shows all your active registrations grouped by role, handles role separation when a registration is created instead, and picking an empty role just shows a quiet "no registrations available" without logging you out.
+- **Why it matters**: The old blocking warnings and forced logouts that families and admins saw at login are gone. Support scripts that referenced those messages need updating.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: RoleLookupService returns all active regs by role, separation now at registration-creation time (RoleLookupService.cs:7-13); passive empty-role state (role-selection.component.ts:75-93).*
+
+#### ☐ CR-070: New role-selection screen, plus a "Suggested Events" list
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old role picker was a plain list. The new one shows role cards (or a type-ahead search when you have lots of registrations) and auto-opens your most recent role. It also adds a new "Suggested Events" section — events you have history with (as family or club rep) but haven't registered in yet.
+- **Why it matters**: A different sign-in experience to walk users through, and "Suggested Events" is a net-new thing users may ask about.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: role-selection.component.ts:24-172; suggested-events (AuthController.cs:253-282).*
+
+#### ☐ CR-071: Page URLs changed — every address now includes the event's jobPath
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: In the old system, page URLs looked like /[event]/Search/Index. In the new system every page lives under the event's jobPath and uses the new address style, like /[jobPath]/search/registrations. Old-style bookmarked links generally won't resolve unless there's a specific redirect for them.
+- **Why it matters**: Any bookmarked or documented old URL may not work anymore. Directors or support who saved links from the old system will need to refresh them.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: app.routes.ts:47-48, 635-660; routerLinks (client-menu.component.ts:324-361).*
+
+#### ☐ CR-072: Menus are now shared defaults plus per-event tweaks — editing a default changes every event
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old system gave each event its own complete copy of the menu, edited independently. The new system has one shared set of default menus that all events use, and each event stores only its overrides (hide certain items, add event-specific ones). The Nav Editor shows this as "Defaults" and "This Job" tabs.
+- **Why it matters**: Editing a default menu item now changes it for EVERY event at once — a very different admin mental model. Per-event customization is limited to hiding items and adding new ones. Admins need to be sure which tab they're editing.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: shared defaults + per-job override merge (NavRepository.cs:72-233); Defaults/This-Job tabs (nav-editor.component.ts:121-136, 208-275).*
+
+#### ☐ CR-073: Regular users no longer get a menu — they get a personalized task list
+- **Type**: Workflow-change · **Audience**: Client support
+- **What's new**: In the old system each role (family, player, coach, club rep) got a dropdown menu of items. In the new system non-admin users get no menu rail at all — instead the avatar dropdown shows a short task list built for them from the event's live state (e.g. a club rep sees Edit Profile, Team Registration, Pay Balance Due, Club Rosters). An urgent "Pay Balance Due" gets pushed to the top with a nudge — except for autopay registrants, who don't get the nudge.
+- **Why it matters**: "Where did menu item X go?" now has a completely different answer for regular users — it's a dynamic task list, not a fixed menu, with different wording.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: client-header-bar.component.ts:107-194.*
+
+#### ☐ CR-074: Which menu items appear is now driven by event settings, evaluated on the server
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: In the old system, showing or hiding a menu item based on features (store on, autopay on, job type, etc.) was hardcoded — changing it meant a code change. In the new system each menu item carries visibility rules the server evaluates against the event's flags (store enabled, autopay, mobile, age-range eligibility, etc.) plus sport / job-type / role.
+- **Why it matters**: "Why is this menu item showing / missing?" is now answered by the event's settings and the item's rules, evaluated consistently — not by digging through code. Turning a feature on or off changes the menu accordingly.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: VisibilityRulesEvaluator.cs:34-118; rules on nav items (NavRepository.cs:272-298).*
+
+#### ☐ CR-075: The Nav Editor has new bulk tools, and admins get a persistent nav rail
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old menu admin could only add/edit/delete/activate items and do a single swap within one event's menu. The new Nav Editor adds cloning a branch across roles, cascading a route change to every role that shares an item, exporting the tree as SQL, moving items between groups, and reorder-by-number. Admin users also get dedicated navigation chrome — a collapsible side rail, a horizontal-bar option, hover flyouts, and a mobile off-canvas menu.
+- **Why it matters**: New admin capabilities and a changed admin navigation surface to train on.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: nav-editor.component.ts:466-497, 542-606, 643-727; admin chrome (client-menu.component.ts:31-38, 152-197).*
+
+#### ☐ CR-076: "Smart Bulletins" — a new band of automatic, always-current announcements
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old system's bulletins were 100% hand-typed static text. The new system adds a Smart Bulletins band, pinned above the hand-authored ones, that writes itself from the event's live state — it announces things like "registration opens tomorrow," "registration is closed," "this event has concluded," and shows a live game-day/schedule panel with a game clock, a store card, and a USA Lacrosse notice. Each piece hides itself when it doesn't apply. It shows on the public site and on the admin dashboard, and it's read-only (not directly editable).
+- **Why it matters**: A whole new class of system-written announcements. Expect "where did this box come from / how do I turn it off?" — the answer is it's automatic and reflects the event's current state. (This is the "this event has concluded" banner Todd saw on Taste of the South.)
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: smart-bulletins.component.ts:40-164; event-status.component.ts:33-64.*
+
+#### ☐ CR-077: Hand-written bulletins can now embed live buttons that appear/hide by event state
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: The old bulletins were static text (substitution could inject data values, but not live buttons). The new system lets an author drop in tokens like !REGISTER_PLAYER or !SCHEDULE that turn into live buttons/cards and hide themselves automatically when they don't apply — the register button disappears when registration is closed, the schedule button appears only once the schedule is published, and a token-gated event shows "(invite required)."
+- **Why it matters**: One authored bulletin now behaves differently depending on the event's state, without editing. A new authoring concept for admins, and a reason a bulletin's buttons may look different at different times.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: token registry + resolvers (BulletinTokenRegistry.cs:27-41; Bulletins/TokenResolution/Resolvers/). Note: the !REGISTER_SELFROSTERPLAYERSANDCOACH token currently points at a placeholder route (link target unfinished) — flag if a bulletin uses it.*
+
+#### ☐ CR-078: Old personalized bulletin tokens don't work on the public site anymore
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: In the old system, public bulletins could include personalized/financial tokens like !PERSON, !AMTOWED, !AMTPAID, !TEAMNAME. The new public bulletins deliberately carry no viewer identity, so those tokens aren't supported — only a small public-safe set works (!JOBNAME, the USA Lacrosse date, and the live-button tokens). An unsupported token is left as raw text.
+- **Why it matters**: Any bulletin carried over from the old system that used a personalized or financial token will now show the raw !TOKEN text (or nothing) to the public. Migrated bulletins should be audited and rewritten. (Personalized content now lives in the email channel instead.)
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: verified — TokenContext deliberately has no viewer identity (TokenContext.cs:5-16); only public-safe tokens resolved (BulletinService.cs:234-239).*
+
+#### ☐ CR-079: New bulletin authoring tools — AI drafting, a token palette, and live preview
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old bulletin editor was a plain form (title/text/active/dates). The new one adds "Draft with AI" and "Reformat with AI," a clickable palette of the available tokens, a side-by-side preview showing how the bulletin resolves, and toggles to simulate different event states (registration open, schedule published) so an author can see how the live tokens will behave. The token palette and preview are SuperUser-only.
+- **Why it matters**: A big new authoring surface. The AI and preview features are what directors will ask about. Note that non-SuperUser admins don't see the token palette.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: bulletin-form-modal.component.ts:119-184, 450-566; BulletinsController.cs:46-103.*
+
 <div style="page-break-before: always;"></div>
 
 ## Comparison — looked at but not filed
@@ -392,3 +574,10 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **Automatic recurring billing (autopay/ARB) exists in both systems.** The new app lists one subscription per player and records no money up front, but "no money until the first draft" is true in both — not a support-visible change.
 - **Player "pay a fixed amount / percent of owed" option** — like the sibling discount (CR-013), this is still a saved setting but isn't used in the new charge path (only pay-in-full, deposit, and autopay are). Low confidence it was ever used much; flag if a director relied on it.
 - **Live late-fee recalculation** in the payment preview (so the amount shown matches what will actually be charged) is real but only visible in the rare case where a late-fee window opens after a deposit was already paid. Revisit if it ever causes confusion. (TeamRegistrationService.cs:420-453.)
+- **Batch email is a background job (progress bar, opt-in "email me the summary")** — already noted in CR-049. New detail only: if the server restarts mid-send, the composer shows "Lost track of the batch." Minor.
+- **The eCheck "settlement pending" banner also appears on TEAM confirmations**, not just player (CR-011). Edge case — most team payments aren't eCheck — so not filed separately.
+- **Self-service / admin confirmation resend** — a parent can re-trigger their own confirmation (goes to player + mom + dad, no CC/BCC); an admin can force-resend a team confirmation. Whether this is genuinely new vs the old system wasn't confirmed on the Legacy side — left unfiled.
+- **Email Log admin audit surface and a Push-notification tab** exist under Communications, but a Legacy equivalent wasn't ruled out (push almost certainly existed for the mobile app), so neither is filed as a change.
+- **Role selection may no longer list the STPAdmin role** — flagged during the Login/Nav comparison (medium confidence). Confirm STPAdmin is still active in prod before treating it as a real change.
+- **Bulletins can now be open-ended** — a blank end date shows the bulletin indefinitely; the old system required an end date. Minor.
+- **Admins get inline edit / quick-hide controls on each bulletin** right on the live public page. Minor admin convenience, folds under CR-079.
