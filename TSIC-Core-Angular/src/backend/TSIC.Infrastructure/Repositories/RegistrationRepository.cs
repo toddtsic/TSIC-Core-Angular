@@ -14,6 +14,7 @@ using TSIC.Domain.Adults;
 using TSIC.Domain.Constants;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Infrastructure.Data.SqlDbContext.Helpers;
 using TSIC.Infrastructure.Utilities;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -2536,7 +2537,12 @@ public class RegistrationRepository : IRegistrationRepository
             ?? throw new KeyNotFoundException("User record not found.");
 
         var demo = request.Demographics;
-        user.Email = demo.Email;
+
+        // NOT the UserManager path — this is SqlDbContext.AspNetUsers, so nothing normalizes for us.
+        // `user.Email = …` alone leaves NormalizedEmail stale, and NormalizedEmail is the column
+        // FindByEmailAsync searches for forgot-password. See AspNetUserEmail.
+        AspNetUserEmail.Set(user, demo.Email);
+
         user.Cellphone = demo.Cellphone;
         user.Gender = demo.Gender;
         user.Dob = demo.DateOfBirth;
@@ -2567,7 +2573,11 @@ public class RegistrationRepository : IRegistrationRepository
             ?? throw new KeyNotFoundException("Family account user not found.");
 
         var demo = request.Demographics;
-        user.Email = demo.Email;
+
+        // Same lane, same rule: the family LOGIN is the account a parent signs in with, so a stale
+        // NormalizedEmail here is precisely the account that cannot reset its own password.
+        AspNetUserEmail.Set(user, demo.Email);
+
         user.Cellphone = demo.Cellphone;
         user.StreetAddress = demo.StreetAddress;
         user.City = demo.City;
