@@ -29,6 +29,24 @@ const MAX_ACCOUNTS = 50;
 
 const MIN_PASSWORD_LENGTH = 6;
 
+type ContactFieldKey = 'family' | 'mom' | 'dad' | 'user';
+
+/**
+ * One editable address in the contacts dialog.
+ *
+ * `optedOut` is NOT "there is no address". It is `not@given.com` — the marker legacy's
+ * `EmailOptOutController` stamps on every row carrying a person's address when they ask us to stop
+ * mailing them. So it is a DECISION on file, and this tool treats it as one: shown, never written,
+ * never silently cleared, and replaceable only on a deliberate click. Contract §1.
+ */
+interface ContactField {
+  key: ContactFieldKey;
+  label: string;
+  value: string;
+  optedOut: boolean;
+  replacing: boolean;
+}
+
 /**
  * SuperUser account repair. THREE missions, and the screen is built around them:
  *
@@ -94,6 +112,14 @@ export class ChangePasswordComponent implements OnInit {
     new Set(this.rows().map(r => this.loginOf(r))).size);
 
   readonly truncated = computed(() => this.accountCount() >= MAX_ACCOUNTS);
+
+  /**
+   * Logins in these results that HAVE a duplicate. The server counted them (against the whole database
+   * — the search is an anchor, not a census), so the Merge button only appears where a merge is
+   * actually possible, and nobody opens the dialog to be told it is empty.
+   */
+  readonly mergeableCount = computed(() =>
+    new Set(this.rows().filter(r => r.mergeCandidateCount > 0).map(r => this.loginOf(r))).size);
 
   // ── Mission 1: change a password ─────────────────────────────────────────────
 
@@ -188,17 +214,13 @@ export class ChangePasswordComponent implements OnInit {
   // #13. Bind them for real, or leave them off; do not ship the pretence.
 
   readonly contactsRow = signal<ChangePasswordSearchResultDto | null>(null);
+  readonly contactFields = signal<ContactField[]>([]);
   readonly savingContacts = signal(false);
 
-  readonly cFamilyEmail = signal('');
-  readonly cMomEmail = signal('');
-  readonly cDadEmail = signal('');
-  readonly cUserEmail = signal('');
-
-  readonly cNoFamilyEmail = signal(false);
-  readonly cNoMomEmail = signal(false);
-  readonly cNoDadEmail = signal(false);
-  readonly cNoUserEmail = signal(false);
+  /** Nothing to send when every field is an opt-out the admin has chosen not to replace. */
+  readonly canSaveContacts = computed(() =>
+    !this.savingContacts()
+    && this.contactFields().some(f => this.isSendable(f)));
 
   ngOnInit(): void {
     this.api.getRoleOptions().subscribe({
@@ -369,8 +391,15 @@ export class ChangePasswordComponent implements OnInit {
     this.retireUserName.set(retire.userName);
   }
 
-  /** The two sides can never be the same account: picking one pushes the other out of the way. */
-  onKeepChange(userName: string): void {
+  /**
+   * The two sides can never be the same account: marking one pushes the other out of the way.
+   *
+   * The candidates are a LIST, not two dropdowns. A `<select>` renders plain text, and half the family
+   * usernames here are raw GUIDs — so a dropdown makes the admin pick blind, read the panel, discover
+   * they picked the wrong one, and pick again. The list shows the mother, the counts and the username
+   * on every row, so the CHOICE is informed, not just the confirmation.
+   */
+  pickKeep(userName: string): void {
     this.keepUserName.set(userName);
     if (this.retireUserName() === userName) {
       const other = this.mergeAccounts().find(a => a.userName !== userName);
@@ -378,12 +407,21 @@ export class ChangePasswordComponent implements OnInit {
     }
   }
 
-  onRetireChange(userName: string): void {
+  pickRetire(userName: string): void {
     this.retireUserName.set(userName);
     if (this.keepUserName() === userName) {
       const other = this.mergeAccounts().find(a => a.userName !== userName);
       this.keepUserName.set(other?.userName ?? '');
     }
+  }
+
+  /** The mother, or the adult themselves — whichever this candidate's identity actually is. */
+  ownerOf(account: MergeCandidateDto): string {
+    return account.momName || account.personName || '(no name)';
+  }
+
+  ownerEmailOf(account: MergeCandidateDto): string {
+    return displayEmail(account.momEmail ?? account.email);
   }
 
   closeMerge(): void {
@@ -428,34 +466,48 @@ export class ChangePasswordComponent implements OnInit {
   openContacts(row: ChangePasswordSearchResultDto): void {
     this.contactsRow.set(row);
 
-    this.seedEmail(row.familyEmail, this.cFamilyEmail, this.cNoFamilyEmail);
-    this.seedEmail(row.momEmail, this.cMomEmail, this.cNoMomEmail);
-    this.seedEmail(row.dadEmail, this.cDadEmail, this.cNoDadEmail);
-    this.seedEmail(row.email, this.cUserEmail, this.cNoUserEmail);
+    this.contactFields.set(this.isPlayer(row)
+      ? [
+          this.field('family', 'Family login email', row.familyEmail),
+          this.field('mom', "Mother's email", row.momEmail),
+          this.field('dad', "Father's email", row.dadEmail)
+        ]
+      : [this.field('user', 'Email', row.email)]);
   }
 
   closeContacts(): void {
     this.contactsRow.set(null);
+    this.contactFields.set([]);
+  }
+
+  setContact(key: ContactFieldKey, value: string): void {
+    this.contactFields.update(fields =>
+      fields.map(f => (f.key === key ? { ...f, value } : f)));
+  }
+
+  /**
+   * Un-opt-out somebody. It is a real decision — they asked us to stop mailing them, and typing an
+   * address here puts them back on the list — so it takes a deliberate click, and it can never happen
+   * as a side effect of an admin tabbing through the form.
+   */
+  startReplace(key: ContactFieldKey): void {
+    this.contactFields.update(fields =>
+      fields.map(f => (f.key === key ? { ...f, replacing: true, value: '' } : f)));
   }
 
   saveContacts(): void {
     const row = this.contactsRow();
-    if (!row || this.savingContacts()) return;
+    if (!row || !this.canSaveContacts()) return;
 
     this.savingContacts.set(true);
 
-    // PATCH semantics on the wire: a NULL field means "leave it alone", an EMPTY STRING means "clear
-    // the address". Every box is sent, so every box is authoritative — what is on screen is what is
-    // stored. Collapsing the two is what made a stale address unremovable (5a121a2c).
     const save$ = this.isPlayer(row)
       ? this.api.updateFamilyEmails(row.registrationId, {
-          familyEmail: this.emailToSend(this.cFamilyEmail(), this.cNoFamilyEmail()),
-          momEmail: this.emailToSend(this.cMomEmail(), this.cNoMomEmail()),
-          dadEmail: this.emailToSend(this.cDadEmail(), this.cNoDadEmail())
+          familyEmail: this.toSend('family'),
+          momEmail: this.toSend('mom'),
+          dadEmail: this.toSend('dad')
         })
-      : this.api.updateUserEmail(row.registrationId, {
-          email: this.emailToSend(this.cUserEmail(), this.cNoUserEmail())
-        });
+      : this.api.updateUserEmail(row.registrationId, { email: this.toSend('user') ?? '' });
 
     save$.subscribe({
       next: res => {
@@ -471,25 +523,35 @@ export class ChangePasswordComponent implements OnInit {
     });
   }
 
-  /**
-   * `not@given.com` is a recorded fact — "we asked, there isn't one" — and it is distinct from a blank,
-   * which only says we never captured one. The toggle carries the fact; the box carries the address.
-   *
-   * The marker is written by the toggle and never typed. A marker an admin types is a marker an admin
-   * typos, and a typo'd marker is just a live address that bounces.
-   */
-  private seedEmail(
-    stored: string | null | undefined,
-    box: { set(v: string): void },
-    noEmail: { set(v: boolean): void }
-  ): void {
-    const isMarker = (stored ?? '').trim().toLowerCase() === NO_EMAIL_SENTINEL;
-    noEmail.set(isMarker);
-    box.set(isMarker ? '' : (stored ?? ''));
+  private field(
+    key: ContactFieldKey,
+    label: string,
+    stored: string | null | undefined
+  ): ContactField {
+    // `not@given.com` is an OPT-OUT, written by one place in the system (legacy's EmailOptOutController)
+    // when a person asks to be removed from email. It is a flag, not an address — never shown as one,
+    // and never typed. Contract §1.
+    const optedOut = (stored ?? '').trim().toLowerCase() === NO_EMAIL_SENTINEL;
+    return { key, label, value: optedOut ? '' : (stored ?? ''), optedOut, replacing: false };
   }
 
-  private emailToSend(value: string, noEmail: boolean): string {
-    return noEmail ? NO_EMAIL_SENTINEL : value.trim();
+  /** An opt-out the admin has not chosen to replace has nothing to save. */
+  private isSendable(field: ContactField): boolean {
+    return !field.optedOut || field.replacing;
+  }
+
+  /**
+   * `null` means LEAVE IT ALONE; `''` means CLEAR THE ADDRESS. The server honours both, and collapsing
+   * them is what made a stale address unremovable in the first place (`5a121a2c`).
+   *
+   * An untouched opt-out returns `null`, and that is the load-bearing line in this file: sending `''`
+   * would clear the marker and put somebody who asked to be left alone straight back on the mailing
+   * list — silently, with nobody having decided to.
+   */
+  private toSend(key: ContactFieldKey): string | null {
+    const field = this.contactFields().find(f => f.key === key);
+    if (!field) return null;
+    return this.isSendable(field) ? field.value.trim() : null;
   }
 
   // ── Row helpers ──────────────────────────────────────────────────────────────

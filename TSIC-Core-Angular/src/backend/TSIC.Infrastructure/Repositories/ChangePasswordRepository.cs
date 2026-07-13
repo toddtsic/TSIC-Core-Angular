@@ -123,7 +123,7 @@ public class ChangePasswordRepository : IChangePasswordRepository
         // Pass 2 — every player registration those families own. The person-level filters are
         // deliberately NOT re-applied: a search for "Shoulberg" that matched via the mom must
         // still return a player whose own last name differs, or the family table loses a child.
-        return await (
+        var rows = await (
             from r in _context.Registrations
             join role in _context.AspNetRoles on r.RoleId equals role.Id
             join j in _context.Jobs on r.JobId equals j.JobId
@@ -133,29 +133,41 @@ public class ChangePasswordRepository : IChangePasswordRepository
             join f in _context.Families on uF.Id equals f.FamilyUserId
             where r.RoleId == request.RoleId && familyUserIds.Contains(uF.Id)
             orderby uF.UserName, uP.LastName, uP.FirstName, c.CustomerName, j.JobName
-            select new ChangePasswordSearchResultDto
+            select new
             {
-                RegistrationId = r.RegistrationId,
-                RoleName = role.Name ?? "",
-                CustomerName = c.CustomerName ?? "",
-                JobName = j.JobName ?? "",
-                UserName = uP.UserName ?? "",
-                FirstName = uP.FirstName,
-                LastName = uP.LastName,
-                Email = uP.Email,
-                Phone = uP.Cellphone,
-                FamilyUserName = uF.UserName,
-                FamilyEmail = uF.Email,
-                MomFirstName = f.MomFirstName,
-                MomLastName = f.MomLastName,
-                MomEmail = f.MomEmail,
-                MomPhone = f.MomCellphone,
-                DadFirstName = f.DadFirstName,
-                DadLastName = f.DadLastName,
-                DadEmail = f.DadEmail,
-                DadPhone = f.DadCellphone
+                FamilyUserId = uF.Id,
+                Dto = new ChangePasswordSearchResultDto
+                {
+                    RegistrationId = r.RegistrationId,
+                    RoleName = role.Name ?? "",
+                    CustomerName = c.CustomerName ?? "",
+                    JobName = j.JobName ?? "",
+                    UserName = uP.UserName ?? "",
+                    FirstName = uP.FirstName,
+                    LastName = uP.LastName,
+                    Email = uP.Email,
+                    Phone = uP.Cellphone,
+                    FamilyUserName = uF.UserName,
+                    FamilyEmail = uF.Email,
+                    MomFirstName = f.MomFirstName,
+                    MomLastName = f.MomLastName,
+                    MomEmail = f.MomEmail,
+                    MomPhone = f.MomCellphone,
+                    DadFirstName = f.DadFirstName,
+                    DadLastName = f.DadLastName,
+                    DadEmail = f.DadEmail,
+                    DadPhone = f.DadCellphone,
+                    MergeCandidateCount = 0   // annotated below — it needs the key, which SQL cannot compute
+                }
             }
         ).AsNoTracking().Take(MaxRows).ToListAsync(ct);
+
+        var counts = await CountFamilyMergeCandidatesAsync(familyUserIds, ct);
+
+        return [.. rows.Select(x => x.Dto with
+        {
+            MergeCandidateCount = counts.TryGetValue(x.FamilyUserId, out var n) ? n : 0
+        })];
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -234,7 +246,7 @@ public class ChangePasswordRepository : IChangePasswordRepository
             .ToListAsync(ct);
 
         // Pass 2 — every registration those logins own.
-        return await (
+        var rows = await (
             from r in _context.Registrations
             join role in _context.AspNetRoles on r.RoleId equals role.Id
             join j in _context.Jobs on r.JobId equals j.JobId
@@ -242,19 +254,176 @@ public class ChangePasswordRepository : IChangePasswordRepository
             join u in _context.AspNetUsers on r.UserId equals u.Id
             where r.RoleId == request.RoleId && userIds.Contains(u.Id)
             orderby u.UserName, c.CustomerName, j.JobName
-            select new ChangePasswordSearchResultDto
+            select new
             {
-                RegistrationId = r.RegistrationId,
-                RoleName = role.Name ?? "",
-                CustomerName = c.CustomerName ?? "",
-                JobName = j.JobName ?? "",
-                UserName = u.UserName ?? "",
-                FirstName = u.FirstName,
-                LastName = u.LastName,
-                Email = u.Email,
-                Phone = u.Cellphone
+                UserId = u.Id,
+                Dto = new ChangePasswordSearchResultDto
+                {
+                    RegistrationId = r.RegistrationId,
+                    RoleName = role.Name ?? "",
+                    CustomerName = c.CustomerName ?? "",
+                    JobName = j.JobName ?? "",
+                    UserName = u.UserName ?? "",
+                    FirstName = u.FirstName,
+                    LastName = u.LastName,
+                    Email = u.Email,
+                    Phone = u.Cellphone,
+                    MergeCandidateCount = 0   // annotated below
+                }
             }
         ).AsNoTracking().Take(MaxRows).ToListAsync(ct);
+
+        var counts = await CountAdultMergeCandidatesAsync(userIds, request.RoleId, ct);
+
+        return [.. rows.Select(x => x.Dto with
+        {
+            MergeCandidateCount = counts.TryGetValue(x.UserId, out var n) ? n : 0
+        })];
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  "Is a merge even possible here?" — answered in the SEARCH
+    // ═══════════════════════════════════════════════════════════
+    //
+    //  An admin must never open a merge dialog to be told there is nothing in it. So the search tells
+    //  each row how many OTHER logins key to its account, and the button only appears when that is
+    //  nonzero.
+    //
+    //  This CANNOT be a subquery. The key is email AND phone AND name, and two of those three
+    //  (digits-only, Soundex) have no SQL translation — so the shape is: one query to fetch the keys of
+    //  the logins on screen, ONE query to pull every account sharing any of those emails, one to find
+    //  which of them own registrations, and the AND is finished in memory. Three queries for the whole
+    //  page, not one per row.
+    //
+    //  It applies the SAME rules as the merge itself — placeholders have no key, and an account that
+    //  owns no registrations is not a candidate — so the number on the button IS the number in the
+    //  dialog. If those two ever disagree, this is what drifted.
+
+    /// <summary>Households that key to the same MOTHER as each of these family logins. Excludes itself.</summary>
+    private async Task<Dictionary<string, int>> CountFamilyMergeCandidatesAsync(
+        IReadOnlyCollection<string> familyUserIds,
+        CancellationToken ct)
+    {
+        if (familyUserIds.Count == 0) return [];
+
+        var moms = await _context.Families
+            .AsNoTracking()
+            .Where(f => familyUserIds.Contains(f.FamilyUserId))
+            .Select(f => new { f.FamilyUserId, f.MomFirstName, f.MomLastName, f.MomEmail, f.MomCellphone })
+            .ToListAsync(ct);
+
+        var keyed = new List<(string Id, AccountKey Key)>();
+        foreach (var m in moms)
+        {
+            if (AccountKey.TryCreate(m.MomEmail, m.MomCellphone, m.MomFirstName, m.MomLastName, out var key))
+                keyed.Add((m.FamilyUserId, key));
+        }
+
+        // No key, no candidates — a placeholder is not an identity, so those rows get no merge button
+        // and the reason is the same one the dialog would have given them.
+        if (keyed.Count == 0) return [];
+
+        var emails = keyed.Select(k => k.Key.Email).Distinct().ToList();
+
+        var pool = await _context.Families
+            .AsNoTracking()
+            .Where(f => f.MomEmail != null && emails.Contains(f.MomEmail.Trim().ToLower()))
+            .Select(f => new { f.FamilyUserId, f.MomEmail, f.MomCellphone, f.MomFirstName, f.MomLastName })
+            .ToListAsync(ct);
+
+        var owners = await OwningFamilyLoginsAsync([.. pool.Select(p => p.FamilyUserId).Distinct()], ct);
+
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (id, key) in keyed)
+        {
+            counts[id] = pool.Count(p =>
+                !string.Equals(p.FamilyUserId, id, StringComparison.Ordinal)
+                && owners.Contains(p.FamilyUserId)
+                && key.Matches(p.MomEmail, p.MomCellphone, p.MomFirstName, p.MomLastName));
+        }
+
+        return counts;
+    }
+
+    /// <summary>Adult logins that are the same person as each of these, IN THE SAME ROLE. Excludes itself.</summary>
+    private async Task<Dictionary<string, int>> CountAdultMergeCandidatesAsync(
+        IReadOnlyCollection<string> userIds,
+        string roleId,
+        CancellationToken ct)
+    {
+        if (userIds.Count == 0) return [];
+
+        var people = await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id))
+            .Select(u => new { u.Id, u.FirstName, u.LastName, u.Email, u.Cellphone, u.Phone })
+            .ToListAsync(ct);
+
+        var keyed = new List<(string Id, AccountKey Key)>();
+        foreach (var p in people)
+        {
+            if (AccountKey.TryCreate(p.Email, p.Cellphone ?? p.Phone, p.FirstName, p.LastName, out var key))
+                keyed.Add((p.Id, key));
+        }
+
+        if (keyed.Count == 0) return [];
+
+        var emails = keyed.Select(k => k.Key.Email).Distinct().ToList();
+
+        var pool = await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => u.Email != null && emails.Contains(u.Email.Trim().ToLower()))
+            .Select(u => new { u.Id, u.Email, u.Cellphone, u.Phone, u.FirstName, u.LastName })
+            .ToListAsync(ct);
+
+        var owners = await OwningAdultLoginsAsync([.. pool.Select(p => p.Id).Distinct()], roleId, ct);
+
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var (id, key) in keyed)
+        {
+            counts[id] = pool.Count(p =>
+                !string.Equals(p.Id, id, StringComparison.Ordinal)
+                && owners.Contains(p.Id)
+                && key.Matches(p.Email, p.Cellphone ?? p.Phone, p.FirstName, p.LastName));
+        }
+
+        return counts;
+    }
+
+    /// <summary>Which of these family logins own at least one registration. A login that owns nothing is
+    /// not a candidate — that is what makes a retired one self-hide.</summary>
+    private async Task<HashSet<string>> OwningFamilyLoginsAsync(
+        IReadOnlyCollection<string> familyUserIds,
+        CancellationToken ct)
+    {
+        if (familyUserIds.Count == 0) return [];
+
+        var ids = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.FamilyUserId != null && familyUserIds.Contains(r.FamilyUserId))
+            .Select(r => r.FamilyUserId!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return [.. ids];
+    }
+
+    /// <summary>Which of these adult logins own at least one registration IN THIS ROLE.</summary>
+    private async Task<HashSet<string>> OwningAdultLoginsAsync(
+        IReadOnlyCollection<string> userIds,
+        string roleId,
+        CancellationToken ct)
+    {
+        if (userIds.Count == 0) return [];
+
+        var ids = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.UserId != null && userIds.Contains(r.UserId) && r.RoleId == roleId)
+            .Select(r => r.UserId!)
+            .Distinct()
+            .ToListAsync(ct);
+
+        return [.. ids];
     }
 
     // ═══════════════════════════════════════════════════════════

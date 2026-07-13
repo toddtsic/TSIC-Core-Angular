@@ -40,6 +40,18 @@ public record ChangePasswordSearchResultDto
     public string? DadLastName { get; init; }
     public string? DadEmail { get; init; }
     public string? DadPhone { get; init; }
+
+    /// <summary>
+    /// How many OTHER logins key to this row's account. <b>Zero means no merge is possible</b>, and the
+    /// UI must not offer one — an admin should never open a merge dialog to be told there is nothing in
+    /// it.
+    ///
+    /// Computed against the WHOLE database, not the result set: the search is an anchor, not a census,
+    /// and the duplicate login is routinely one the search never returned (that is the entire point of
+    /// the identity key). Same rule the merge itself uses, so the number on the button is the number in
+    /// the dialog — placeholders excluded, and an account that owns no registrations is not a candidate.
+    /// </summary>
+    public required int MergeCandidateCount { get; init; }
 }
 
 // ── Role options ──

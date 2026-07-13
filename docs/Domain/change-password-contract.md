@@ -184,17 +184,32 @@ Three distinct states, and the tool must express all three:
 | State | Stored | Means |
 |---|---|---|
 | Has an address | `jane@example.com` | Mail them. |
-| **No address exists** | **`not@given.com`** | We asked. There isn't one. *A recorded fact.* |
+| **Opted out** | **`not@given.com`** | *They asked us to stop.* A recorded decision. |
 | Nothing on file | `NULL` | We never captured one. *Absence of a fact.* |
 
-The marker is the house convention (247 rows; legacy's `EmailOptOutController` writes it on opt-out)
-and is canonical in `EmailAddressRules.NotGiven`. It is a *well-formed* address, so format validation
-cannot reject it — it is excluded by name.
+**Read the minting path before you decide what the marker means.** There is exactly one, and it is
+`EmailOptOutController` (legacy, `Admin/EmailOptOutController.cs:110`): a person asks to be removed
+from email, and it **overwrites their address with `not@given.com` on every row that carried it** —
+`AspNetUsers`, `Families.Mom_Email`, `Dad_Email`. 247 rows. Canonical in `EmailAddressRules.NotGiven`.
+It is a *well-formed* address, so format validation cannot reject it — it is excluded by name.
 
-**It is a flag, not an address. Never render it as one.** Legacy stripped it on the way to the screen
-(`MomEmail.Replace("not@given.com", "")`) and so does this tool: the email box shows empty and a
-**"No email" toggle** carries the state. The marker is written by the button, never typed — a marker
-an admin types is a marker an admin typos, and a typo'd marker is just a live address that bounces.
+That makes it an **opt-out**, not a "we asked and there isn't one". The difference is the whole design
+of what this tool may do with it:
+
+- **It is a flag, not an address. Never render it as one.** Legacy stripped it on the way to the screen
+  (`MomEmail.Replace("not@given.com", "")`) and so does this tool.
+- **This tool never WRITES it.** An admin hand-setting the marker on one row would be *impersonating a
+  user's opt-out decision* — and doing it **partially**, because the real opt-out sweeps every record
+  carrying that address and this dialog would touch one. Opting someone out is the opt-out tool's job.
+- **This tool never silently CLEARS it either.** An opted-out field left blank must be sent as
+  "unchanged" (`null`), **not** as "" — clearing the marker puts a person who asked to be left alone
+  back on the mailing list, and it would happen without anyone deciding to.
+- Typing a real address over it *does* un-opt-out them, and that is legitimate — the parent phoned in
+  and gave it. So the contacts dialog makes it **deliberate**: the box is disabled and the state is
+  shown, and there is a `Replace` button. It cannot happen by accident.
+- **It also destroys the merge key** (`HouseholdIdentity.PlaceholderEmails`). A household whose mother
+  is opted out has no identity and gets no merge candidates. That is correct, and it is why the
+  contacts dialog exists at all — see §5 #12.
 
 ---
 

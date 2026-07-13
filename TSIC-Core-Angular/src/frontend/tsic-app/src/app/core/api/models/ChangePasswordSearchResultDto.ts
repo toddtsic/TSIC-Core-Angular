@@ -22,5 +22,6 @@ export type ChangePasswordSearchResultDto = {
     dadLastName?: string | null;
     dadEmail?: string | null;
     dadPhone?: string | null;
+    mergeCandidateCount: number;
 };
 
