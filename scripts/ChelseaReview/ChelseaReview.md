@@ -15,7 +15,10 @@
 | Communications | 7 |
 | Login, Navigation & Bulletins | 13 |
 | Coach/Staff Registration & Roster Management | 18 |
-| **Total** | **97** |
+| Profiles / Profile Editor | 10 |
+| End-of-Month Reconciliation | 8 |
+| Public Site / Landing / Branding | 10 |
+| **Total** | **125** |
 
 <div style="page-break-before: always;"></div>
 
@@ -681,6 +684,192 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **What's new**: A club rep's view of their team rosters still shows only names, uniform numbers and positions — no contact details. New: a rep can now move a player between their **own** teams (the system checks they own both), with the fee re-resolved correctly for the new team; and they can delete a registration, unless it has payment history, in which case it's blocked.
 - **Why it matters**: Club reps can self-serve roster moves that used to need a director, and the money follows the move. "Why can't I delete this registration?" is answered by: they've paid.
 - *Dev evidence: no contact details in the club-roster data (ClubRosterDtos.cs:17-25); move + delete with fee re-resolve and accounting guard (ClubRosterService.cs:33-131).*
+
+<div style="page-break-before: always;"></div>
+
+## Profiles / Profile Editor — differences from the old system
+
+_From a comparison of the old system and the new one (2026-07-13), each checked against the new build._
+
+#### ☐ CR-098: The "Profile Editor" is a form designer — registration form fields are now configurable, not hard-coded
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: In the old system every registration form was a compiled code file — the fields, labels and which ones were required were baked in. Adding "jersey size" to one customer's form meant a developer changing code and redeploying. The old admin screen was a **read-only viewer**. In the new system the fields live as data on the job, and a SuperUser edits them in the Profile Editor: add, remove, reorder, rename, mark required, attach dropdown lists, set conditional display.
+- **Why it matters**: The biggest capability change here. Support can now say "yes, that's configurable" instead of "that needs a code change." Note the Profile Editor is **not** an "edit my profile" screen — it's the form *designer*.
+- *Dev evidence: metadata saved at profile-editor.component.ts:323 → ProfileMetadataMigrationService.cs:1091. Legacy read-only viewer: RegformFieldsController.cs:25-43.*
+
+#### <span style="color:#c00000">☐ CR-099: Saving in the Profile Editor rewrites that form for EVERY job using it — not just yours</span>
+- **Type**: Bug / hazard (needs a decision) · **Audience**: SuperUser/Admin
+- **What's new**: When you save a form in the Profile Editor, it stamps the new field layout onto **every job that uses that profile type** — with no year filter and no active filter, so past events and other customers' events are rewritten too. The screen only tells you afterwards ("N job(s) affected"). The adult side is worse: there are only two adult profiles, so an adult save fans out very widely.
+- **Why it matters**: This is the easiest way to break another customer's registration form from inside your own tool. The safe workflow is **Clone Profile first** (which forks this job onto its own profile), or use **Copy Forms** (CR-105), which really is job-scoped. This needs to be a loud warning in training, not a footnote — and arguably the tool should warn before saving.
+- *Dev evidence: unfiltered fan-out (ProfileMetadataMigrationService.cs:1097-1129 player, :1736-1760 adult; ProfileMetadataRepository.cs:28-33 — a StartsWith query with no filters). Clone-then-repoint at :1976-1984.*
+
+#### <span style="color:#c00000">☐ CR-100: SECURITY — the family-update endpoint has no login check and trusts a username from the request</span>
+- **Type**: Bug (security — escalate) · **Audience**: SuperUser/Admin
+- **What's new**: `PUT /api/Family/update` — used by the "Edit Family Account" screen — has **no authentication requirement at all**, and it identifies the family from a **username sent in the request body** rather than from the logged-in user. So anyone who knows a family's username can rewrite that family's address and phone, both parents' names, emails and cellphones, update the children's details, and even add new children — **without logging in**.
+- **Why it matters**: This is a live security hole, not a training note. The tell that it's an oversight: the sibling endpoints right beside it (add/edit/delete a child) **do** require a login and take the family from the logged-in user — this one skips the exact check its neighbours enforce. **The fix** is to match them: require authentication and derive the family from the logged-in user instead of the request body. (Worth checking first that the edit screen is only used by logged-in families, so the fix doesn't break new-family signup.) It does **not** change the parent's login email, so it isn't a one-step account takeover — but it is unauthenticated tampering with families' and minors' personal data.
+- *Dev evidence: verified — no [Authorize] on the action and none on the controller (FamilyController.cs:101); no fallback policy, so the endpoint is genuinely anonymous (Program.cs:563); service trusts request.Username (FamilyService.cs:519) then overwrites contacts/children (:525-566). Sibling child endpoints DO authorize (FamilyController.cs:124+).*
+
+#### ☐ CR-101: Fields can now be marked public / admin-only / hidden — and it's enforced on the server
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: Every form field now carries a visibility setting. Admin-only and hidden fields are stripped out of the form the registrant sees, skipped by required-field checks, and refused if someone tries to submit them anyway. On the coach form, the background-check fields ship as admin-only, so they're never registrant-visible.
+- **Why it matters**: The usual support question is "I added the field in the editor but it isn't on the form" — the answer is almost always visibility. It's also what keeps sensitive fields off the public form.
+- *Dev evidence: ProfileMetadata.cs:63-70; server enforcement PlayerFormValidationService.cs:85-105, PlayerRegistrationMetadataService.cs:103-133; admin-only defaults adult-allowed-fields.ts:31-32.*
+
+#### ☐ CR-102: The editor can only place fields from a fixed catalogue — it can't invent new ones
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: The "Add Field" picker offers a fixed list — 64 player fields and about 25 adult fields — each mapping to a real column. You can't create a brand-new field from the editor.
+- **Why it matters**: Sets the honest boundary for "can you add field X to my form?" — yes if it's in the catalogue, otherwise it's still a code change. Keeps support from over-promising.
+- *Dev evidence: allowed-fields.ts (64 player entries); adult-allowed-fields.ts:1-61.*
+
+#### ☐ CR-103: Coach, Referee and Recruiter now have separate forms
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: The old system had one coach form. Now the adult form is split by role — Coach/Volunteer (which also covers Staff), Referee, and Recruiter — each with its own field set, edited as separate tabs in the Profile Editor.
+- **Why it matters**: "The referee form and the coach form on the same event are different forms now" is a real new mental model. Also explains why editing the Staff form means editing the *Coach/Volunteer* tab.
+- *Dev evidence: AdultMetadataRoleResolver.cs:20-35; adult-profile-editor-panel.component.ts:32-37.*
+
+#### ☐ CR-104: Dropdown option lists are edited in a proper UI now — and coach sizes are separate from player sizes
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old system edited dropdown options as a raw JSON blob. The new Profile Editor has an Options tab with create/rename/reorder/delete. Separately, coach apparel sizes now use their own lists, deliberately separate from the player size lists.
+- **Why it matters**: No more raw-JSON editing. But a returning director will notice the coach/player size split ("my coach sizes are separate now / came up blank").
+- *Dev evidence: options tab gating profile-editor.component.ts:76-81; coach-namespaced size keys adult-allowed-fields.ts:43-50.*
+
+#### ☐ CR-105: New "Copy Forms" — seed this event's forms from another event (and it's job-scoped)
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: A new action copies another event's player and/or coach form directly onto **this** event. Unlike the main editor (CR-099), this really is scoped to the current job.
+- **Why it matters**: This is the right answer to "make my new event's form look like last year's" — and the safe alternative to the cross-job fan-out.
+- *Dev evidence: copy-forms-card.component.ts:7-14; ProfileMigrationController.cs:880-912.*
+
+#### ☐ CR-106: The event's profile type and team constraint are set in the Profile Editor now
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: Choosing the event's profile type and its team constraint (by grad year / by age group / by age range / by club name / none) has moved out of the Job admin screen and into the Profile Editor, with an Apply/Reset pair and an unsaved-changes warning.
+- **Why it matters**: Form design and profile choice now live in one tool. The discard-confirmation on switching profile is a behavior support will get asked about.
+- *Dev evidence: profile-editor.component.ts:84-107, 375-439; ProfileMigrationController.cs:739-808.*
+
+#### <span style="color:#c00000">☐ CR-107: Latent bug — a future profile named PP100 would collide with PP10</span>
+- **Type**: Bug (latent — not firing yet) · **Audience**: SuperUser/Admin
+- **What's new**: The system finds "which jobs use this profile" with a **starts-with** match, and new profiles created by cloning are named **without zero-padding**. Today's names (PP61, PP62…) are all two digits, so nothing collides. But the first clone past 99 creates **PP100** — and from that moment, editing **PP10** would also match and silently overwrite every PP100 job.
+- **Why it matters**: Not firing today, but it's silent cross-job data loss with a known trigger. Cheap to fix now (match the exact profile name), painful to diagnose later.
+- *Dev evidence: StartsWith match (ProfileMetadataRepository.cs:31); unpadded new names (ProfileMetadataMigrationService.cs:2036-2037).*
+
+<div style="page-break-before: always;"></div>
+
+## End-of-Month Reconciliation — differences from the old system
+
+_From a comparison of the old system and the new one (2026-07-13), each checked against the new build. This is internal SuperUser billing/ops. The ADN month-end close is genuinely better than the old one; the invoice half of the cycle has real gaps._
+
+#### <span style="color:#c00000">☐ CR-108: Clients can no longer get their monthly invoice — the whole delivery pipeline is gone</span>
+- **Type**: Bug / regression · **Audience**: SuperUser/Admin
+- **What's new**: The old system produced **one invoice per job**, stored it, gave the SuperUser a grid to review the month and flip each job's invoice **Active**, and then let that client's own admin log in and download their invoice — but only once it was marked Active. **None of that exists now.** There's no per-job invoice artifact, no publish/release step, and no way for a client to retrieve their invoice from the app. What exists instead is a single consolidated PDF the operator downloads for themselves.
+- **Why it matters**: The customer-facing half of the billing cycle is missing. Clients have no way to get their monthly invoice, and there's no "release the month" control. Needs a decision on what replaces it.
+- *Dev evidence: no invoice routes (app.routes.ts:409-455); reporting endpoints only produce/download a consolidated PDF (ReportingController.cs:544-568); the Jobinvoices / JobInvoiceNumbers tables are mapped but referenced nowhere in the app.*
+
+#### <span style="color:#c00000">☐ CR-109: e-Check money is invisible to the invoice — wrong money</span>
+- **Type**: Bug (money) · **Audience**: SuperUser/Admin
+- **What's new**: e-Check payments are live for both player and team registration. But the invoice only recognises **"Credit Card Payment"** and **"Credit Card Credit"** as card money. An e-Check therefore gets **no processing fee charged**, is left out of "Credit Card Dollars Received," and so drops out of the **Balance Due Client** calculation entirely. (The separate revenue screen *does* see e-Check — so the two disagree.)
+- **Why it matters**: Real money is wrong. Either the client is under-remitted or TSIC never bills the e-Check processing fee it configured. This should be fixed before the next month-end close.
+- *Dev evidence: verified — only the two CC method names count as card (InvoiceReportPdfService.cs:222); non-CC gets zero fee (:228); Balance Due = (ccReceived + ccRefunded) − totalCharges (:201), so e-Check never lands in it.*
+
+#### <span style="color:#c00000">☐ CR-110: Admin charges can't be added or edited any more — only deleted</span>
+- **Type**: Bug · **Audience**: SuperUser/Admin
+- **What's new**: The old system had a full add/edit/delete grid for job admin charges (one-off setup or support fees). In the new system the panel is **read-only with a delete button** — there's no add row and no edit. The "add admin charge" function exists in the code but **nothing calls it**.
+- **Why it matters**: Admin charges are a real billing input that feeds the revenue screen. An operator who needs to bill a one-off fee can't enter one at all, and a mis-keyed charge can only be deleted, not corrected.
+- *Dev evidence: verified — addAdminCharge is defined at job-config.service.ts:182 and called from nowhere (single grep hit, its own definition). Backend has POST/DELETE but no update (JobConfigController.cs:272, 286).*
+
+#### <span style="color:#0033cc">☐ CR-111: The old invoice-producing action still calls Crystal Reports and is wired to nothing</span>
+- **Type**: Question (needs a decision) · **Audience**: SuperUser/Admin
+- **What's new**: The endpoint that used to generate the month's per-job invoices still exists and still calls the Crystal Reports service — but no screen calls it any more. When Crystal is retired, it will silently start failing.
+- **Why it matters**: This is the last thread holding the old invoice pipeline (CR-108) together. Retiring Crystal retires the client invoice with it, and nothing in the new app replaces it. Needs a decision alongside CR-108.
+- *Dev evidence: still calls the Crystal service (ReportingService.cs:860-867; ReportingController.cs:544-550); no frontend caller.*
+
+#### <span style="color:#c00000">☐ CR-112: The invoice prints the customer name twice</span>
+- **Type**: Bug · **Audience**: SuperUser/Admin
+- **What's new**: Every venue heading on the invoice reads like "Acme:Acme:Fall 2026" — the customer name is emitted twice. The old invoice printed it once.
+- **Why it matters**: Cosmetic, but it's at the top of the money document a client may be shown. Trivial to fix and obvious to anyone comparing against an old invoice.
+- *Dev evidence: verified — Title = "{CustomerName}:{CustomerName}:{JobName}" (InvoiceReportPdfService.cs:188).*
+
+#### ☐ CR-113: The month-end stats grid lost the inline QuickBooks-name edit
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old month-end grid let the operator fix a job's QuickBooks (QBP) name right there while reconciling. The new grid shows the customer and job as read-only — to fix a QBP name you have to leave the reconciliation screen and go into that job's General settings.
+- **Why it matters**: Not wrong money, but a real workflow regression at exactly the wrong moment — mid-close, per job.
+- *Dev evidence: the stats row carries only the six counts, no QBP name (LastMonthsJobStatsDtos.cs:3-25); QBP name now only in Configure → Job → General.*
+
+#### <span style="color:#c00000">☐ CR-114: A SuperDirector can open Customer Job Revenue but the API refuses them</span>
+- **Type**: Bug · **Audience**: SuperUser/Admin
+- **What's new**: The screen's route lets a SuperDirector in, but the API behind it is SuperUser-only. So a SuperDirector navigates in successfully and gets a bare "Failed to load revenue data."
+- **Why it matters**: Either the page should be SuperUser-only or the API should admit SuperDirectors — someone has to decide. Today it's a broken page instead of a clean "not allowed."
+- *Dev evidence: route admits SuperDirector (app.routes.ts:344-347); API is SuperUserOnly (CustomerJobRevenueController.cs:13).*
+
+#### ☐ CR-115: The ADN month-end close was rebuilt — and it's better
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old close pulled the month's transactions (with the gateway login hard-coded in the source) and dumped an Excel file. The new one is a guided 3-step wizard: download the transactions, see a **match verdict** (matched/unmatched counts and the latest settlement time), then download a **zip** containing the QuickBooks .iif files, their backing spreadsheets and a summary — with a parity check that warns if a transaction didn't survive consolidation. Credentials now come from the database, not source code. There's also an automated path that **withholds the .iif** if the autopay sweep wasn't trustworthy.
+- **Why it matters**: A genuinely better close, but a different one to learn. Two caveats: every accounting screen is **hard-pinned to last month** (there's no month picker, so you can't re-run a prior month in-app), and a job with no stats row silently bills $0 registrant charges with no warning — same as the old system, but with the old review grid gone (CR-108) there's one fewer place to catch it.
+- *Dev evidence: 3-step wizard + parity check (get-reconciliation-records.component.ts:186-330; AdnReconciliationService.cs:196-238); credentials from DB (:73); month hard-pinned (get-reconciliation-records.component.ts:39-48).*
+
+<div style="page-break-before: always;"></div>
+
+## Public Site / Landing / Branding — differences from the old system
+
+_From a comparison of the old system and the new one (2026-07-13), each checked against the new build. Bulletins are covered separately (CR-072–075)._
+
+#### <span style="color:#c00000">☐ CR-116: A LIVE event can be wrongly declared "concluded" — its page goes dark and registration stops</span>
+- **Type**: Bug (critical) · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The system decides an event is "superseded" purely by checking whether a **later-year event of the same name exists and is live** (not suspended, registration on, not expired). **It never checks whether the current event is actually over.** When it decides an event is superseded, the entire public landing page collapses to *"This event has concluded — Register for [next year]"* — banner, bulletins, everything — for every visitor including logged-in families and admins. It also **blocks all non-admin registration** on that event.
+- **Why it matters**: A director who opens **next season's early-bird registration while this season is still running** — a completely routine thing to do — instantly takes the current event dark and stops it accepting registrations. There's no admin override on the page and no "continue anyway." This is a live-event outage, and it's the most serious item in this review. The fix is to require the current event to actually be over before treating it as superseded.
+- *Dev evidence: verified — the superseding-sibling query checks only the sibling's state, never the current job's (JobRepository.cs:700-717); the create-door is then closed on supersession alone (:732 — `door = !concluded && SupersededByLaterEvent is null`); the landing page collapses entirely (job-landing.component.html:20-34 — the code comment says "entire landing collapses").*
+
+#### <span style="color:#c00000">☐ CR-117: The Widget Editor's "public" settings do nothing</span>
+- **Type**: Bug · **Audience**: SuperUser/Admin
+- **What's new**: The Widget Editor has a **Public** panel with on/off switches for the banner, bulletins, event-contact and job-pulse widgets. **Nothing reads them.** The public landing page hard-codes the banner and bulletins, so toggling a public widget off changes nothing. Two of the widgets (Event Contact, Job Pulse) are never rendered anywhere at all.
+- **Why it matters**: A SuperUser will configure these switches and see no effect whatsoever. Event Contact in particular would be genuinely useful on a public page and simply isn't wired up.
+- *Dev evidence: landing hard-codes the widgets (job-landing.component.html:42, 72); dashboard reads only the dashboard workspace (widget-dashboard.component.ts:77); the two widgets are referenced only in the registry, never rendered.*
+
+#### ☐ CR-118: The admin dashboard shows charts only — no banner, no bulletins
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old system had no admin dashboard — a director landed on the same public page as everyone. The new admin dashboard renders **only chart tiles**. There is a fallback that would show the banner and bulletins, but it only fires when the dashboard is empty, and every admin role ships with chart widgets — so in practice it never runs. The dashboard even fetches the bulletins and then never displays them.
+- **Why it matters**: Directors won't see their own event's bulletins on their dashboard, which surprises people who expect the dashboard to reflect the public page.
+- *Dev evidence: dashboard-only filter (widget-dashboard.component.ts:74-93); bulletins fetched but unrendered (:145); dead fallback (widget-dashboard.component.html:18-27).*
+
+#### ☐ CR-119: Banner images are now cropped to a fixed shape (the old one tiled them)
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old banner laid the image in at its natural size and **tiled** it to fill a fixed-height band. The new banner crops the image to fill a fixed 50:11 frame. The Branding tab tells you to upload at 1920 × 422 so nothing is cropped.
+- **Why it matters**: An event whose old banner was a tiling texture or an odd shape will now render zoomed and cropped. Expect "my banner looks wrong / blurry" tickets from migrated events — the fix is a correctly-sized image.
+- *Dev evidence: aspect-ratio 50/11 with background-size: cover (client-banner.component.scss:18-25); guidance at branding-tab.component.ts:43.*
+
+#### ☐ CR-120: The banner now appears on phones and tablets (it used to be hidden)
+- **Type**: Workflow-change · **Audience**: Client support
+- **What's new**: The old site hid the banner **entirely** on anything smaller than a laptop. The new one always shows it, with a mobile layout that repositions the overlay image and scales the text down.
+- **Why it matters**: Most youth-sports traffic is mobile. Clients who only ever tuned their banner for desktop are now seeing it on phones for the first time — expect "my banner text sits on top of my logo on my phone."
+- *Dev evidence: always rendered with a 768px breakpoint (client-banner.component.scss:11-14, 111-114, 138-145). Legacy hid it below 992px.*
+
+#### ☐ CR-121: Banner overlay text no longer accepts any HTML styling
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old overlay headline rendered whatever markup a director stored — inline colours, italics, spans. The new one strips **all** tags (only line breaks survive), on both the server and the client, and the Branding tab is a plain text box.
+- **Why it matters**: Migrated overlay text that carried styling loses it silently. Safer (no injected markup on the banner), but a visible regression for any event that used it.
+- *Dev evidence: sanitised twice (client-banner.component.ts:79-108; JobConfigService.cs:611-634); plain textarea (branding-tab.component.ts:68-83).*
+
+#### ☐ CR-122: Events with no banner image now get a title card instead of nothing
+- **Type**: Workflow-change · **Audience**: Client support
+- **What's new**: The old page showed no header at all if there was no background image. The new one always presents something: background + overlay if both exist, an overlay stretched full-width if only that exists, or an elevated card showing the event name if there's no image at all.
+- **Why it matters**: Every event now presents *something* at the top, which is generally a win — but it's a visible change for events that previously had a bare page.
+- *Dev evidence: three-way fallback (client-banner.component.html:24-43).*
+
+#### ☐ CR-123: Branding uploads are safer now — but the footer logo is gone
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old upload accepted any file, any size, and saved it as-is. The new one accepts only jpg/png/webp, caps at 5 MB, and resizes server-side, with clear sizing guidance. **Gone:** the **Logo Footer** — the field still exists in the data and is still copied on clone, but there's no upload for it and nothing renders it.
+- **Why it matters**: Upload hygiene is a clear win, but any client who relied on a footer logo has lost it with no replacement.
+- *Dev evidence: allowed types/size/resize (branding-tab.component.ts:38-99; JobImageService.cs); LogoFooter has no UI and no renderer.*
+
+#### ☐ CR-124: The landing page now builds its own registration buttons
+- **Type**: Workflow-change · **Audience**: Client support
+- **What's new**: The old landing page had **no registration buttons at all** — it was banner + bulletins, and directors hand-typed registration links into their bulletin text. The new landing page assembles a panel from the event's live state: registration links for each open role, a Manage column (Pay Balance Due, Change Team or Uniform #, My Registration, add insurance you skipped at checkout), and a Teams column (My Teams, Register a Team, Public Rosters). It hides itself when empty and retitles to "Wrap-Up" once the event ends.
+- **Why it matters**: Directors no longer need to hand-build registration links. Some entries are deliberately gated by event type — Public Rosters and "Change Team" are tournament-only, and Register-a-Team never shows for leagues — so "why doesn't my league show a Rosters link?" is a deliberate gate, not a bug.
+- *Dev evidence: registration-panel.component.ts:98-105, 146-161, 209-213, 291-303.*
+
+#### <span style="color:#c00000">☐ CR-125: The Theme editor only saves to the current browser — nobody else sees the change</span>
+- **Type**: Bug · **Audience**: SuperUser/Admin
+- **What's new**: The Theme editor (Configure → Theme) looks like it sets an event's colours. Its Save button is literally labelled **"Save (LocalStorage)"** — the colours are stored **in that one browser only**. Nothing is saved to the server, so no visitor, no family, and no other admin ever sees the change. On top of that, three of its five theme targets emit styling that is never applied to anything.
+- **Why it matters**: Per-event colours look configurable but aren't. Anyone who "brands" an event this way will believe they've changed it and be the only person who can see it. (Separately: `/brand-preview` — an internal design showcase — is publicly reachable on every event's URL with no login required. Harmless content, but it shouldn't be on a client's public site.)
+- *Dev evidence: Save (LocalStorage) button + localStorage-only persistence (theme-editor.component.ts:78, 274-288; theme-overrides.service.ts:42-68); brand-preview route has no auth guard (app.routes.ts:118-121).*
 
 <div style="page-break-before: always;"></div>
 
