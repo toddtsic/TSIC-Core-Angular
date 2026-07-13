@@ -208,7 +208,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: N/A — future testing reminder
 - **What happened**: N/A — need to circle back and test these accounting functions later
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Complete
 
 ### PL-021: Confirm Sort Age is no longer needed for any functional reasons
 - **Area**: Age Group Settings
@@ -563,7 +563,8 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A Clone AgeGroup action that copies the age group plus all its nested children (divisions, teams, fees, and any other configured features) as one operation
 - **What happened**: No Clone AgeGroup exists today — only Clone Team
 - **Severity**: Feature
-- **Status**: Open
+- **Status**: Fixed — Clone AgeGroup shipped across the full stack: `LadtService.CloneAgegroupAsync` / `LadtController` / `CloneAgegroupRequest` DTO / `ladt.service.ts` / `clone-agegroup-dialog.component.ts`, surfaced from the AgeGroup row and detail view. Copy is flag-gated per section (eligibility, roster settings, visual identity, fees, divisions). Agegroup-scoped JobFees **and** their FeeModifiers are deep-copied with fresh ids (SP-018 lesson applied). Divisions clone as shells, and an Unassigned division is always seeded — matching `CreateAgegroupAsync`.
+- **Scope deviation**: **Teams are deliberately NOT cloned** with the age group (see the in-code comment) — users populate teams manually or via per-team clone. SP-021 as written asked for teams to be deep-copied too. Confirm this is the intended behavior.
 - **Note**: Mirror the Clone Team stack — `LadtService.CloneTeamAsync` / `LadtController` / `CloneTeamRequest` DTO / `ladt.service.ts` / `team-detail.component.ts` — for age groups. Clone must deep-copy: the age group record, all divisions under it, all teams under those divisions, and **all fees** (apply the SP-018 audit up front so AgeGroup clone ships with full feature parity rather than repeating the fees miss). Surface entry points symmetric with Clone Team: row-level clone on the AgeGroup row plus a "Clone AgeGroup" button in the AgeGroup table header area, so job creation stays fast. Confirm naming/suffix convention with Todd (e.g., "(Copy)") and whether cloned teams should start Active or Inactive.
 
 ### SP-022: Bring back the agegroup table on the right when LADT/Editor is selected
@@ -572,7 +573,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The agegroup table to appear on the right side, the way it used to — very helpful as an overview landing view
 - **What happened**: The agegroup table no longer appears on the right when LADT/Editor is selected. Add this feature back.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### SP-023: Team table (ISP 2026-2027) still too wide; columns waste space and headers wrap weirdly
 - **Refs**: SP-006 (right-side grids too wide — default column widths tuned, marked Complete), SP-013 (team column order), PL-028 (Team Details reorder/narrow)

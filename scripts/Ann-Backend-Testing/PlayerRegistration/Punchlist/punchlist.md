@@ -1093,7 +1093,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
      - **(a)** Remove the "Have you Committed to a College?" checkbox entirely and make the **College Committed To** field simply **optional** — blank = no commit, filled = committed-to college.
      - **(b)** Keep the checkbox, but only **show the "College Committed To" field when the checkbox is checked**. Cleaner UI when uncommitted; preserves the explicit yes/no signal when committed.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### SP-053: Coach Registration (tournament) — team-options dropdown covers the Continue button, forcing an outside click before you can proceed
 - **Refs**: SP-050 (Assign Teams dropdown — WAITLIST badge placement), SP-044 (Assign Teams sort), SP-037 (single team per player)
@@ -1121,7 +1121,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Same parity Club Reps already have — upper-right entry points that jump straight to **Player Registration** and **Pay Balance Due**, landing on those screens directly without re-walking the whole flow
 - **What happened**: No dedicated entry points in the upper-right nav for returning families. Once the family has active registrations on a site, surface both options there so they go right to the screens they need.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### SP-050: Showcase Assign Teams dropdown — move WAITLIST badge to the right of the team name so the primary option isn't missed
 - **Refs**: SP-044 (Assign Teams dropdown sort), SP-037 (single team per player)
