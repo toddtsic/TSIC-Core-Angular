@@ -93,7 +93,6 @@ import type { ViewGameDto } from '@core/api';
                              names the age group), so color is never the sole carrier. -->
                         <span class="cell cell-pool" role="cell" aria-colindex="4">
                             <span class="ag-dot" aria-hidden="true"
-                                  [style.background]="game.color"
                                   [class.ag-dot--empty]="!game.color"></span>
                             <span class="ag-label">{{ game.agDiv }}</span>
                         </span>
@@ -215,7 +214,6 @@ import type { ViewGameDto } from '@core/api';
                             }
                             <span class="ag-chip">
                                 <span class="ag-dot" aria-hidden="true"
-                                      [style.background]="game.color"
                                       [class.ag-dot--empty]="!game.color"></span>
                                 <span class="ag-label">{{ game.agDiv }}</span>
                             </span>
@@ -369,18 +367,19 @@ import type { ViewGameDto } from '@core/api';
         .hdr-status,.cell-status{ text-align: center; }
 
         /* ── Game row ── */
-        /* Zebra and hover set only VARIABLES, never the background property. An inline
-           [style.background-color] on the row (the obvious way to paint the wash) would have
-           out-specified .game-row:hover and silently killed hover across the whole grid.
-           Untinted rows step --row-surface; tinted rows step --ag-wash-l, the lightness of
-           their own wash. Both therefore survive underneath an age-group wash. */
+        /* Zebra and hover own the row's BACKGROUND. The age-group color owns a rail down the
+           left edge and never touches the surface behind the data.
+           An earlier pass washed the entire row instead. It grouped correctly, but it drowned
+           the content and it flattened the zebra to nothing — every row in a run became one
+           flat hue, so the alternating step that lets you track a row across eight columns
+           simply vanished. The row-number gutter is the lowest-information real estate in the
+           grid (a pure 1..N counter), so a rail there costs no data and reads just as well:
+           a run of six same-age rows is still an unmissable solid block down the left edge. */
         .game-row {
             /* transparent, NOT --bs-body-bg: odd rows were previously unpainted and let the
                tab panel behind them show through. Naming a concrete color here would have
                quietly repainted every odd row with the page background. */
             --row-surface: transparent;
-            --ag-wash-l: 0.96;   /* PINNED lightness — see .row-tinted */
-            --ag-wash-c: 0.08;   /* chroma CAP, not a fixed chroma */
             background: var(--row-surface);
             border-bottom: 1px solid var(--bs-border-color);
             padding-top: var(--space-1);
@@ -388,37 +387,47 @@ import type { ViewGameDto } from '@core/api';
             min-height: 36px;
         }
 
-        .row-even       { --row-surface: var(--bs-tertiary-bg);  --ag-wash-l: 0.925; }
-        .game-row:hover { --row-surface: var(--bs-secondary-bg); --ag-wash-l: 0.88; }
+        .row-even       { --row-surface: var(--bs-tertiary-bg); }
+        .game-row:hover { --row-surface: var(--bs-secondary-bg); }
         .row-dimmed     { opacity: 0.5; }
 
-        /* Age-group wash. --ag-tint is the director's stored hex (Leagues.agegroups.color)
-           and remains the source of truth — but only its HUE is used here. Lightness is
-           pinned and chroma is capped, so every age group's wash lands at the SAME perceived
-           weight and differs only in hue.
-           Mixing the raw hex at a fixed percentage — the obvious approach — does not hold
-           that guarantee, because the stored colors run the whole gamut: at one flat ratio
-           #000000 lands as a solid grey band while #FFFF00 is nearly invisible and #FFFFFF
-           is literally nothing. No single ratio is right for both ends.
-           Pinning L also makes text contrast STRUCTURAL rather than lucky: body text clears
-           4.5:1 on every hue, instead of depending on which color a director happened to pick.
-           Achromatic input (white/black/grey — ~900 age groups) has no chroma, so min(c, cap)
-           resolves to 0 and it washes to a neutral of the same lightness. That is the honest
-           result for a director who never really chose a color. The DOT still carries the raw
-           hex, so their actual choice is never hidden — the wash is a derivative of it. */
+        /* Age-group rail. An INSET SHADOW, not border-left: the row is a subgrid whose tracks
+           align to the parent grid's, so a real border would inset the row's content box and
+           throw every column out of register with the header. A shadow paints inside the box
+           and costs no layout. */
         .game-row.row-tinted {
-            background: oklch(from var(--ag-tint) var(--ag-wash-l) min(c, var(--ag-wash-c)) h);
+            box-shadow: inset var(--ag-rail-w) 0 0 0 var(--ag-ink);
         }
 
-        /* Dark: the wash inverts to a dark tint of the same hue. Same pinning, same
-           guarantees — the lightness targets flip, the structure does not. */
+        /* --ag-ink is the ONE derived color an age group is drawn with — rail and dot both —
+           so the two can never disagree. --ag-tint is the director's stored hex
+           (Leagues.agegroups.color) and remains the source of truth: hue and chroma pass
+           through UNTOUCHED, at full saturation. Only LIGHTNESS is clamped, and only far
+           enough to guarantee the color is visible against the row at all.
+           That clamp is load bearing, not cosmetic: the stored palette is dominated by
+           near-white. #FFFFFF is the second most common value (787 age groups) and #F0F8FF
+           another 438 — left raw, those paint an invisible rail beside an invisible dot.
+           For the mid-range colors most directors actually pick the clamp is a no-op —
+           #FF0000, #808080, #1E90FF all pass straight through untouched.
+           Achromatic input carries no chroma, so white and black come out as greys of a
+           legible lightness rather than being handed a fake hue (oklch reads hue 0 — red —
+           off a colorless input, so a fixed chroma would have painted every white age group
+           pink). */
+        .game-row,
+        .game-card {
+            --ag-rail-w: 4px;
+            --ag-ink-lo: 0.35;
+            --ag-ink-hi: 0.75;
+            --ag-ink: oklch(from var(--ag-tint) clamp(var(--ag-ink-lo), l, var(--ag-ink-hi)) c h);
+        }
+
+        /* Dark: the legible band shifts UP, because the surface the color must read against
+           is now near-black rather than near-white. Same structure, different window. */
         :host-context([data-bs-theme='dark']) .game-row,
         :host-context([data-bs-theme='dark']) .game-card {
-            --ag-wash-l: 0.27;
-            --ag-wash-c: 0.06;
+            --ag-ink-lo: 0.45;
+            --ag-ink-hi: 0.85;
         }
-        :host-context([data-bs-theme='dark']) .row-even       { --ag-wash-l: 0.31; }
-        :host-context([data-bs-theme='dark']) .game-row:hover { --ag-wash-l: 0.36; }
 
         /* Cell common */
         .cell {
@@ -502,8 +511,8 @@ import type { ViewGameDto } from '@core/api';
             min-width: 0;
         }
 
-        /* The hairline ring is not ornament: #FFFFFF is the second-most-common stored
-           age-group color, and an unringed white dot on a white row is nothing at all. */
+        /* Drawn from --ag-ink, the same derived color as the row's rail, so the dot beside the
+           label and the rail in the gutter are always the identical color for an age group. */
         .ag-dot {
             display: inline-block;
             box-sizing: border-box;
@@ -512,6 +521,7 @@ import type { ViewGameDto } from '@core/api';
             flex-shrink: 0;
             border-radius: 50%;
             border: 1px solid var(--bs-border-color);
+            background: var(--ag-ink);
         }
 
         /* No color set on the age group — an empty dashed ring, so "unset" can never
@@ -896,12 +906,8 @@ import type { ViewGameDto } from '@core/api';
             gap: var(--space-2);
         }
 
-        /* Same normalized wash as the desktop row, so the two views present identically.
-           No zebra or hover on a card, so the lightness never steps. */
         .game-card {
             --row-surface: var(--bs-card-bg);
-            --ag-wash-l: 0.96;
-            --ag-wash-c: 0.08;
             background: var(--row-surface);
             border: 1px solid var(--bs-border-color);
             border-radius: var(--radius-md);
@@ -911,8 +917,10 @@ import type { ViewGameDto } from '@core/api';
             gap: var(--space-1);
         }
 
+        /* Same rail as the desktop row, so the two views present identically. The inset shadow
+           follows the card's border-radius, which reads as a spine rather than a stripe. */
         .game-card.card-tinted {
-            background: oklch(from var(--ag-tint) var(--ag-wash-l) min(c, var(--ag-wash-c)) h);
+            box-shadow: inset var(--ag-rail-w) 0 0 0 var(--ag-ink);
         }
 
         .card-dimmed { opacity: 0.5; }
