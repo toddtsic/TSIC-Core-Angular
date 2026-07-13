@@ -341,6 +341,11 @@ Write-Host ""
 Write-Host "  Roll back with: .\Rollback-Local.ps1" -ForegroundColor DarkGray
 Write-Host ""
 
+# Explicit. robocopy exits 1/2/3 on SUCCESS (copied / extras deleted / both), and
+# a script that runs off the end inherits the last native command's exit code --
+# so without this, a clean deploy could report failure to anything checking it.
+exit 0
+
 } finally {
     try { Stop-Transcript | Out-Null } catch { }
     try { Set-Location -Path $PSScriptRoot } catch { }

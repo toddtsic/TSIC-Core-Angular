@@ -176,6 +176,30 @@ function Assert-TsicSafeTarget {
 }
 
 # ---------------------------------------------------------------------------
+# Staging lives next to live, and the build script mirrors into it over SMB from
+# another box - so Assert-TsicSafeTarget's IIS check cannot run there. This is
+# the weaker guard that still holds: the destination leaf must literally be
+# "<site>-STAGING". A staging folder is not an IIS site and carries no
+# fingerprint, so leaf identity is all there is to check - but it is enough to
+# make a /MIR at \\PHOENIX\Websites\TSICUnify-2024 impossible.
+# ---------------------------------------------------------------------------
+function Assert-TsicSafeStaging {
+    param(
+        [Parameter(Mandatory)] [string] $Site,
+        [Parameter(Mandatory)] [string] $Path
+    )
+
+    Get-TsicSiteInfo -Site $Site | Out-Null       # site must be a known name
+
+    $expectedLeaf = "$Site-STAGING"
+    $leaf = Split-Path (Get-TsicFullPath $Path) -Leaf
+    if ($leaf -ine $expectedLeaf) {
+        throw "REFUSING to mirror into '$Path' - staging for '$Site' must end in '$expectedLeaf', not '$leaf'."
+    }
+    return $true
+}
+
+# ---------------------------------------------------------------------------
 # The Backups root also holds legacy's TSICUnify-2024-* and TSICUnify-Api-*
 # backups. An anchored pattern is the only thing standing between us and
 # deleting THEIR recovery path.
@@ -277,9 +301,46 @@ function Get-TsicRoboPreview {
 # the partial copy happens to lack.
 # ---------------------------------------------------------------------------
 function Get-TsicFileCount {
-    param([Parameter(Mandatory)] [string] $Path)
-    return @(Get-ChildItem -LiteralPath $Path -Recurse -File -Force -ErrorAction SilentlyContinue |
-             Where-Object { $_.Name -ne $TsicManifestName -and $_.Name -ne 'Go.ps1' }).Count
+    <#
+        Counts ONLY the files a copy of this payload would actually carry - i.e.
+        under the site's own exclusion list, matching robocopy's semantics (a
+        bare /XD name excludes a directory of that name at any depth).
+
+        This has to agree with the exclusions or the check eats itself: a dirty
+        publish carrying App_Data would be counted here, excluded by the mirror,
+        and the staging folder would then "fail" a file-count check for being
+        exactly right.
+
+        deploy-manifest.json is excluded because it is written after the count.
+    #>
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string] $Site
+    )
+
+    $ex   = Get-TsicExclusions -Site $Site
+    $root = Get-TsicFullPath $Path
+    $skipPatterns = @($TsicManifestName) + @($ex.Files)
+
+    $count = 0
+    foreach ($f in Get-ChildItem -LiteralPath $root -Recurse -File -Force -ErrorAction SilentlyContinue) {
+        $rel  = $f.FullName.Substring($root.Length).TrimStart('\')
+        $segs = $rel.Split('\')
+
+        $skip = $false
+        if ($segs.Length -gt 1) {
+            foreach ($d in $ex.Dirs) {
+                if ($segs[0..($segs.Length - 2)] -contains $d) { $skip = $true; break }
+            }
+        }
+        if (-not $skip) {
+            foreach ($pat in $skipPatterns) {
+                if ($f.Name -like $pat) { $skip = $true; break }
+            }
+        }
+        if (-not $skip) { $count++ }
+    }
+    return $count
 }
 
 function New-TsicManifest {
@@ -299,7 +360,7 @@ function New-TsicManifest {
         buildStamp  = $BuildStamp
         builtUtc    = (Get-Date).ToUniversalTime().ToString('o')
         builtOn     = $BuiltOn
-        fileCount   = (Get-TsicFileCount -Path $Path)
+        fileCount   = (Get-TsicFileCount -Path $Path -Site $Site)
     }
     $dest = Join-Path $Path $TsicManifestName
     $manifest | ConvertTo-Json | Set-Content -Path $dest -Encoding UTF8
@@ -337,7 +398,7 @@ function Test-TsicPayload {
     if (-not $manifest) { return "no readable $TsicManifestName - build it with the current deploy script" }
     if ($manifest.site -ne $Site) { return "manifest says site='$($manifest.site)', expected '$Site'" }
 
-    $actual = Get-TsicFileCount -Path $Path
+    $actual = Get-TsicFileCount -Path $Path -Site $Site
     if ($actual -ne $manifest.fileCount) {
         return "file count mismatch - manifest says $($manifest.fileCount), found $actual (incomplete copy?)"
     }

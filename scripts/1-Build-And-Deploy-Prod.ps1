@@ -1,13 +1,13 @@
 # ============================================================================
-# 1-Build-And-Deploy-Prod.ps1 — Build on Sedona, stage to TSIC-PHOENIX
+# 1-Build-And-Deploy-Prod.ps1 - Build on Sedona, stage to TSIC-PHOENIX
 # ============================================================================
 # Builds .NET API + Angular (with prod URL patching), deploys to STAGING
 # folders on \\204.17.37.202\Websites via SMB share, drops a Go.ps1 wrapper
 # in each staging folder.
 #
 # After this script completes, RDP to TSIC-PHOENIX and run Go.ps1 from each
-# staging folder — that calls Recycle-After-Deploy.ps1 to stop app pools,
-# swap staging → live, restart.
+# staging folder - that calls Recycle-After-Deploy.ps1 to stop app pools,
+# swap staging -> live, restart.
 #
 # Usage:
 #   .\1-Build-And-Deploy-Prod.ps1              # Build + stage both
@@ -28,15 +28,26 @@ $ErrorActionPreference = "Stop"
 # Configuration (from shared _config.ps1)
 # ---------------------------------------------------------------------------
 . "$PSScriptRoot\IIS-Config-Prod\_config.ps1" -Environment Prod
+. "$PSScriptRoot\_deploy-common.ps1"
 
 $ProdServer      = $Config.ProdServer
 $ApiStaging      = $Config.DeployApiStagingPath
 $AngularStaging  = $Config.DeployAngularStagingPath
 $ApiHostname     = $Config.ApiHostname
 $AngularHostname = $Config.AngularHostname
+$ApiSite         = $Config.ApiSiteName        # claude-api
+$AngularSite     = $Config.AngularSiteName    # claude-app
+$AspNetEnv       = $Config.AspNetEnv          # Production
+
+# ONE stamp for this build. It goes into the Angular footer AND into
+# deploy-manifest.json, and they must agree -- computing it twice can straddle a
+# minute boundary and produce a manifest that quietly disagrees with the app.
+try { $GitHash = (git rev-parse --short HEAD 2>$null) } catch { $GitHash = "unknown" }
+if (-not $GitHash) { $GitHash = "unknown" }
+$BuildStamp = "v$(Get-Date -Format 'yyMMdd.HHmm').$GitHash"
 
 # Angular environment overlay is handled by `fileReplacements` in angular.json
-# (`--configuration production` substitutes environment.ts → environment.production.ts
+# (`--configuration production` substitutes environment.ts -> environment.production.ts
 # at compile time). Backend env overlay is handled by appsettings.Production.json.
 # No regex-patching of source or output files anywhere in this script.
 
@@ -138,16 +149,13 @@ if (!$SkipAngular) {
             if ($LASTEXITCODE -ne 0) { Write-Error "npm install failed!"; exit 1 }
         }
 
-        # Stamp build version
-        try { $gitHash = (git rev-parse --short HEAD 2>$null) } catch { $gitHash = "unknown" }
-        if (-not $gitHash) { $gitHash = "unknown" }
-        $buildStamp = "v$(Get-Date -Format 'yyMMdd.HHmm').$gitHash"
-        Write-Host "  Build version: $buildStamp" -ForegroundColor White
+        # Stamp the build version computed once at the top of this script.
+        Write-Host "  Build version: $BuildStamp" -ForegroundColor White
 
         $envDir = Join-Path $AngularPath "src\environments"
         Get-ChildItem $envDir -Filter "environment*.ts" | ForEach-Object {
             $content = Get-Content $_.FullName -Raw
-            $content = $content -replace "buildVersion:\s*'[^']*'", "buildVersion: '$buildStamp'"
+            $content = $content -replace "buildVersion:\s*'[^']*'", "buildVersion: '$BuildStamp'"
             Set-Content -Path $_.FullName -Value $content -NoNewline -Encoding UTF8
         }
 
@@ -155,13 +163,13 @@ if (!$SkipAngular) {
         # the prod URLs; angular.json fileReplacements swaps it in at compile time
         # under `--configuration production`. (The previous regex-patch + reset
         # loop was clobbering environment.production.ts back to devapi on every
-        # run because the reset blanket-swapped claude-api → devapi across ALL
+        # run because the reset blanket-swapped claude-api -> devapi across ALL
         # files, not just the temporarily-patched ones.)
         $env:NO_COLOR = '1'
         npm run build -- --configuration production
         if ($LASTEXITCODE -ne 0) { Write-Error "Angular build failed!"; exit 1 }
     } finally {
-        # Reset only the buildVersion stamp — leave URLs alone (they were never
+        # Reset only the buildVersion stamp - leave URLs alone (they were never
         # patched in the first place under the new model).
         $envDir = Join-Path $AngularPath "src\environments"
         Get-ChildItem $envDir -Filter "environment*.ts" | ForEach-Object {
@@ -201,67 +209,102 @@ if (!$SkipAngular) {
     Write-Host ""
 }
 
-# ── Step 3: Deploy to STAGING folders on TSIC-PHOENIX ────────────────
-Write-Host "Step 3: Deploying to STAGING folders..." -ForegroundColor Yellow
+# ── Step 3: Stage to TSIC-PHOENIX over SMB ───────────────────────────
+# The old push was Copy-Item -Recurse over the public-IP SMB link with no retry
+# and no verification. An interrupted copy left a plausible-looking staging
+# folder, and Recycle-After-Deploy's only preflight was "is it non-empty" -- so a
+# partial payload would /MIR into live and DELETE from production every file the
+# partial copy happened to lack.
+#
+# Now: robocopy (retries, real exit code), the ONE shared exclusion list, a
+# deploy-manifest.json pinning the file count, and a payload check that re-reads
+# what actually landed on PHOENIX. A bad push fails HERE, on this box, before you
+# ever RDP over there.
+#
+# No App_Data strip. The exclusion list keeps it out of every copy, so a dirty
+# publish simply never reaches staging -- and, on the far end, the live App_Data
+# is no longer purged by the mirror. It persists, pool-owned, untouched.
+#
+# No web.config or appsettings patching: the template is env-agnostic and the
+# prod pool's ASPNETCORE_ENVIRONMENT=Production is the single source of truth.
+# Program.cs throws at startup if it is missing -- drift surfaces loud.
+Write-Host "Step 3: Staging to TSIC-PHOENIX..." -ForegroundColor Yellow
 
-if (!$SkipApi) {
-    if (!(Test-Path $ApiStaging)) { New-Item -ItemType Directory -Path $ApiStaging -Force | Out-Null }
-    Write-Host "  Clearing $ApiStaging..." -ForegroundColor White
-    Get-ChildItem $ApiStaging -Force -ErrorAction SilentlyContinue |
-        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item "$ApiPublish\*" $ApiStaging -Recurse -Force
+foreach ($s in @(
+    if (!$SkipApi)     { @{ Site = $ApiSite;     Publish = $ApiPublish; Staging = $ApiStaging } }
+    if (!$SkipAngular) { @{ Site = $AngularSite; Publish = $AngPublish; Staging = $AngularStaging } }
+)) {
+    # The destination leaf must literally be "<site>-STAGING". \\PHOENIX\Websites
+    # also holds TSICUnify-2024 (legacy, live). A /MIR at the wrong UNC path does
+    # not corrupt a folder, it empties it.
+    Assert-TsicSafeStaging -Site $s.Site -Path $s.Staging | Out-Null
 
-    # Nothing under App_Data should ship: AdnMonthEnd is a runtime cache the API regenerates on
-    # demand, and Help is retired backend content (migrated to frontend static assets, f94e80eb).
-    # A dirty publish carries these, and this admin-run Copy-Item seeds admin-owned files the app
-    # pool cannot delete/overwrite — which 500s the ADN month-end import. Strip the whole folder
-    # from staging so the pool recreates its cache (pool-owned) at runtime. Setup grants the pool
-    # Modify on App_Data\AdnMonthEnd (03-Create-Directories.ps1).
-    $apiAppData = Join-Path $ApiStaging "App_Data"
-    if (Test-Path $apiAppData) {
-        Remove-Item $apiAppData -Recurse -Force -ErrorAction SilentlyContinue
-        Write-Host "  Stripped non-shipping App_Data (runtime cache + retired Help)" -ForegroundColor White
+    $ex = Get-TsicExclusions -Site $s.Site
+
+    # Stamp BEFORE the push so the manifest rides along and pins what should land.
+    $manifest = New-TsicManifest -Path $s.Publish -Site $s.Site -Environment $AspNetEnv `
+                    -GitHash $GitHash -BuildStamp $BuildStamp
+    Write-Host "  $($s.Site): $($manifest.fileCount) files -> $($s.Staging)" -ForegroundColor White
+
+    if (!(Test-Path $s.Staging)) { New-Item -ItemType Directory -Path $s.Staging -Force | Out-Null }
+
+    $exit = Invoke-TsicRobocopy -Source $s.Publish -Dest $s.Staging `
+                -ExcludeDirs $ex.Dirs -ExcludeFiles $ex.Files -Quiet
+    if ($exit -ge 8) {
+        Write-Host "  ERROR: staging $($s.Site) failed (robocopy exit $exit)." -ForegroundColor Red
+        Write-Host "  Nothing on TSIC-PHOENIX is live yet - the live folders are untouched." -ForegroundColor Yellow
+        exit 1
     }
 
-    # No web.config patching: the template is env-agnostic and the prod app pool's
-    # ASPNETCORE_ENVIRONMENT=Production env var is the single source of truth.
-    # No appsettings patching either: appsettings.Production.json overlay supplies
-    # E:\Websites paths, claude-app hostname, and prod Seq URL. Program.cs throws
-    # at startup if the env var is missing — surfaces drift loud instead of silent.
-
-    Write-Host "  API staged." -ForegroundColor Green
-}
-
-if (!$SkipAngular) {
-    if (!(Test-Path $AngularStaging)) { New-Item -ItemType Directory -Path $AngularStaging -Force | Out-Null }
-    Write-Host "  Clearing $AngularStaging..." -ForegroundColor White
-    Get-ChildItem $AngularStaging -Force -ErrorAction SilentlyContinue |
-        Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item "$AngPublish\*" $AngularStaging -Recurse -Force
-
-    # Flatten browser/ subfolder if needed (Angular 17+)
-    $angIdx = Join-Path $AngularStaging "index.html"
-    $angBrowser = Join-Path $AngularStaging "browser"
-    if (!(Test-Path $angIdx) -and (Test-Path (Join-Path $angBrowser "index.html"))) {
-        Write-Host "  Flattening Angular 'browser' subfolder..." -ForegroundColor White
-        Copy-Item (Join-Path $angBrowser "*") $AngularStaging -Recurse -Force
-        Remove-Item $angBrowser -Recurse -Force -ErrorAction SilentlyContinue
+    # Re-read what actually landed on the far end. This is the check that catches
+    # a truncated SMB push.
+    $bad = Test-TsicPayload -Path $s.Staging -Site $s.Site
+    if ($bad) {
+        Write-Host "  ERROR: $($s.Site) staging payload is not deployable - $bad" -ForegroundColor Red
+        Write-Host "  The SMB push did not land intact. Re-run this script." -ForegroundColor Red
+        Write-Host "  Live folders on TSIC-PHOENIX are untouched." -ForegroundColor Yellow
+        exit 1
     }
 
-    Write-Host "  Angular staged." -ForegroundColor Green
+    Write-Host "  $($s.Site) staged and verified ($BuildStamp)." -ForegroundColor Green
 }
 
 Write-Host ""
 
 # ── Step 4: Update deployment scripts on TSIC-PHOENIX ────────────────
+# Rollback-Deploy.ps1 ships WITH the deploy, so the recovery path is already on
+# the box before anything can go wrong -- not typed under pressure during an
+# outage. _deploy-common.ps1 goes next to _config.ps1 because Recycle and
+# Rollback both dot-source it from there; if it does not land, they will not run.
 Write-Host "Step 4: Updating deployment scripts on TSIC-PHOENIX..." -ForegroundColor Yellow
 $remoteDeployment = "\\$ProdServer\Websites\IIS-Config-Prod\Deployment"
 $remoteConfig     = "\\$ProdServer\Websites\IIS-Config-Prod"
-Copy-Item (Join-Path $PSScriptRoot "IIS-Config-Prod\Deployment\Recycle-After-Deploy.ps1") "$remoteDeployment\" -Force
-Copy-Item (Join-Path $PSScriptRoot "IIS-Config-Prod\_config.ps1") "$remoteConfig\" -Force
-Write-Host "  Updated Recycle-After-Deploy.ps1 and _config.ps1" -ForegroundColor Green
+if (!(Test-Path $remoteDeployment)) { New-Item -ItemType Directory -Path $remoteDeployment -Force | Out-Null }
 
-# Drop Go.ps1 wrappers in staging folders — each one only deploys its own site
+$scriptPushes = @(
+    @{ From = (Join-Path $PSScriptRoot "IIS-Config-Prod\Deployment\Recycle-After-Deploy.ps1"); To = $remoteDeployment }
+    @{ From = (Join-Path $PSScriptRoot "IIS-Config-Prod\Deployment\Rollback-Deploy.ps1");      To = $remoteDeployment }
+    @{ From = (Join-Path $PSScriptRoot "IIS-Config-Prod\_config.ps1");                         To = $remoteConfig }
+    @{ From = (Join-Path $PSScriptRoot "_deploy-common.ps1");                                  To = $remoteConfig }
+)
+foreach ($push in $scriptPushes) {
+    $name = Split-Path $push.From -Leaf
+    if (!(Test-Path $push.From)) {
+        Write-Host "  ERROR: $name not found at $($push.From)" -ForegroundColor Red
+        exit 1
+    }
+    Copy-Item $push.From "$($push.To)\" -Force
+    $landed = Join-Path $push.To $name
+    if (!(Test-Path $landed) -or
+        (Get-Item $landed).Length -ne (Get-Item $push.From).Length) {
+        Write-Host "  ERROR: $name did not land intact on TSIC-PHOENIX." -ForegroundColor Red
+        Write-Host "  Recycle-After-Deploy.ps1 will not run without it. Re-run this script." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "  Pushed: $name" -ForegroundColor Green
+}
+
+# Drop Go.ps1 wrappers in staging folders - each one only deploys its own site
 $recycleScript = 'E:\Websites\IIS-Config-Prod\Deployment\Recycle-After-Deploy.ps1'
 
 if (!$SkipApi) {
@@ -276,11 +319,14 @@ if (!$SkipAngular) {
 Write-Host ""
 
 # ── Done ─────────────────────────────────────────────────────────────
+# Nothing on TSIC-PHOENIX is live yet. This script only builds and stages; the
+# live folders are untouched until Go.ps1 runs over there.
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "SUCCESS! Staged to TSIC-PHOENIX." -ForegroundColor Green
+Write-Host "STAGED to TSIC-PHOENIX - nothing is live yet." -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  Staging ready:" -ForegroundColor Green
+Write-Host "  Build: $BuildStamp" -ForegroundColor Green
+Write-Host "  Staged and payload-verified:" -ForegroundColor Green
 if (!$SkipApi)     { Write-Host "    API:     $ApiStaging" -ForegroundColor Green }
 if (!$SkipAngular) { Write-Host "    Angular: $AngularStaging" -ForegroundColor Green }
 Write-Host ""
@@ -288,6 +334,11 @@ Write-Host "  NEXT: RDP to TSIC-PHOENIX and run Go.ps1 from each staging folder:
 if (!$SkipApi)     { Write-Host "    $ApiStaging\Go.ps1" -ForegroundColor White }
 if (!$SkipAngular) { Write-Host "    $AngularStaging\Go.ps1" -ForegroundColor White }
 Write-Host ""
+
+# Explicit. robocopy exits 1/2/3 on SUCCESS (copied / extras deleted / both), and
+# a script that runs off the end inherits the last native command's exit code --
+# so without this, a clean stage would report failure to anything checking it.
+exit 0
 
 } finally {
     if ($transcriptStarted) {
