@@ -14,7 +14,8 @@
 | Admin Search Tools | 12 |
 | Communications | 7 |
 | Login, Navigation & Bulletins | 13 |
-| **Total** | **79** |
+| Coach/Staff Registration & Roster Management | 18 |
+| **Total** | **97** |
 
 <div style="page-break-before: always;"></div>
 
@@ -567,6 +568,122 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 
 <div style="page-break-before: always;"></div>
 
+## Coach/Staff Registration & Roster Management — differences from the old system
+
+_From a comparison of the old system and the new one (2026-07-13), each checked against the new build. Grouped: Coach/Staff Registration, Coach Approvals, Roster Swapper, then Roster Visibility._
+
+#### ☐ CR-080: Coaches can no longer put themselves on a team — every coach goes through an approval queue
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: In the old system a coach registering for a tournament picked their teams and was rostered **immediately** — nobody had to approve them. (On club/league events they landed unassigned and a director dragged them onto a team.) In the new system every coach, on every event type, registers as an unassigned adult. The teams they pick are only a **request**. A director must approve them in the new Coach Approvals queue before they're actually on a roster.
+- **Why it matters**: The single biggest change in the coach lifecycle, and the answer to "why isn't my coach on the roster yet?" Tournament directors who relied on coaches self-rostering must now work the approvals queue — otherwise no coach lands on a roster (and no coach can see one).
+- **Say to clients**: "Coaches request the teams they want; a director approves them. Until that happens they're not on the roster."
+- *Dev evidence: every team job type resolves to UnassignedAdult (AdultRegistrationService.cs:1332-1367); team picks stored as a request (:1051-1085); role keys can't resolve to Staff (AdultRegRoleKeys.cs:34-40).*
+
+#### ☐ CR-081: Coach registration has its own on/off switch, and needs teams to exist first
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old staff-registration link worked whenever it was shared. Now each adult role (coach/staff, referee, recruiter) has its own "allow registration" switch, and the event must also have teams and not be concluded. If the switch is off — or there are no teams yet — the coach gets "coach/staff registration is not currently open for this event."
+- **Why it matters**: A brand-new failure mode. If a coach says registration won't open, check the Allow Staff Registration switch and that the event actually has teams.
+- **Status**: Open — pending review with Chelsea.
+- *Dev evidence: per-role door + teams-exist/concluded check (AdultRegistrationService.cs:81-95, 1315-1322).*
+
+#### ☐ CR-082: USA Lacrosse numbers are now really validated, with an email code to prove it's you
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old system pinged USA Lacrosse and just stored the expiry — an expired or non-coach membership wasn't rejected, and nothing proved the person owned the number. The new system **rejects** the registration if the membership isn't an active *coach* membership. It also offers a two-step identity check: it emails a 6-digit code to the address USA Lacrosse has on file, and confirming it marks the coach "Verified" in the approval queue. A coach who can't reach that email can skip it and continue — they just show as "Unverified."
+- **Why it matters**: Two new hard stops ("this USA Lacrosse number is not an active coach membership"), a new code-by-email support path, and a Verified/Unverified badge directors are meant to read before granting roster access.
+- *Dev evidence: rejects non-active-coach memberships (AdultRegistrationService.cs:1096-1154); OTP begin/confirm (AdultRegistrationController.cs:127-165); badge (coach-approval-queue.component.html:110-117).*
+
+#### ☐ CR-083: Coach/staff registrations can now carry a fee (in practice they're still free)
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: In the old system adult registrations were always free — there was no payment step at all. The new coach wizard has a payment step that appears only if a fee is actually owed. Today no adult fee is configured (and there's no UI to set one), so coaches still pay $0 and never see the step — but the plumbing exists, and adding a fee for a role would quietly switch a payment step on.
+- **Why it matters**: Coaches are free today. If a coach is ever asked to pay, that's a fee-configuration problem, not a broken wizard.
+- *Dev evidence: payment step gated on owed > 0 (adult.component.ts:60-66; adult-wizard-state.service.ts:165); adult fee defaults to $0 (FeeResolutionService.cs:136-141).*
+
+#### <span style="color:#c00000">☐ CR-084: The confirmation screen says an email is on its way — but it never sends</span>
+- **Type**: Bug · **Audience**: Client support + SuperUser/Admin
+- **What's new**: The old system emailed a coach a confirmation as soon as they registered. The new system shows "a confirmation email is on its way" on the final screen — but **nothing actually sends it**. The only way a coach gets one is if they notice and click "Resend Confirmation Email" themselves.
+- **Why it matters**: Coaches will report "I never got a confirmation," and the screen told them one was coming. A real regression plus a false statement in the UI. (The team-registration flow does send its confirmation, so this is specific to the coach/adult path.)
+- *Dev evidence: verified — the adult SendConfirmationEmailAsync has exactly one caller, the manual resend endpoint (AdultRegistrationController.cs:323); nothing in the submit or payment paths calls it. Compare TeamRegistrationController.cs:740, which does.*
+
+#### ☐ CR-085: One coach wizard replaced five, and the profile questions are configurable per event
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old system had five separate staff-registration paths with hard-coded question sets. Now there's a single wizard, and the profile questions come from the event's configuration per role. If nothing is configured, a coach just gets an optional free-text "anything else the director should know?" — because the team picks are now the main thing they're telling you.
+- **Why it matters**: Question sets are a settings concern now, not a code change. Don't expect the old required "Special Requests" prompt.
+- *Dev evidence: AdultRegistrationService.cs:132-177, 1465-1500.*
+
+#### ☐ CR-086: There's a new director approval queue for coaches — nothing like it existed before
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: A new screen (LADT → Coach Approvals) lists every coach awaiting approval. Each row shows who they are, the teams they **requested** (their own pick) vs teams a director **granted**, their USA Lacrosse Verified/Unverified badge and membership expiry, whether they've been staff on other events or seasons before, and any of their own children registered in this event — all as recognition signals. Ticking a team grants them onto it. The old system had no approval concept at all.
+- **Why it matters**: A brand-new admin workflow with no old equivalent — pure training. A director who doesn't know this screen exists will have zero coaches on rosters.
+- *Dev evidence: queue + signals (RosterSwapperService.cs:452-483; RegistrationRepository.cs:2814-2984); admin-only route (app.routes.ts:266-269).*
+
+#### ☐ CR-087: "Unassigned Adults" is gone from the Roster Swapper — coaches are approved in the new queue instead
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: In the old system you promoted a coach by dragging them out of the "Unassigned Adults" pool in the Roster Swapper. That pool has been deliberately removed from the swapper's picker — the flow now lives in Coach Approvals.
+- **Why it matters**: A director going by old muscle memory will open the Roster Swapper, not find Unassigned Adults, and conclude it's broken. Point them at Coach Approvals.
+- *Dev evidence: pool intentionally excluded from the picker (roster-swapper.component.ts:389-393).*
+
+#### ☐ CR-088: Un-ticking one team and "Deny" are very different — Deny revokes everything at once
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: Two different actions in the queue. Un-ticking a granted team removes the coach from **just that team**. "Deny" removes them from **every** team in the event and drops them off the queue entirely — and there's no undo from the screen (their request history is kept, but they're gone from the list). Nothing expires on its own; Deny is the only exit.
+- **Why it matters**: Directors and support must know the difference. Deny is a bigger hammer than it looks, and it isn't reversible from the screen.
+- *Dev evidence: revoke-one-team (RosterSwapperService.cs:309-342) vs deny-all + deactivate (RegistrationRepository.cs:3164-3209).*
+
+#### <span style="color:#0033cc">☐ CR-089: Approving or denying a coach doesn't tell the coach anything</span>
+- **Type**: Workflow-change (needs a decision) · **Audience**: Client support + SuperUser/Admin
+- **What's new**: Neither approving a coach onto teams nor denying them sends the coach any notification. They find out by logging in — if they think to. (The old system didn't notify either, but it also had no approval step.)
+- **Why it matters**: Combined with the missing registration confirmation (CR-084), a coach registers, is told an email is coming, gets nothing, and is then approved or denied in silence. Worth deciding whether approval/denial should email the coach.
+- *Dev evidence: RosterSwapperService has no email service injected; neither approve nor deny sends mail (RosterSwapperService.cs:20-44, 461-483).*
+
+#### ☐ CR-090: Coaches rostered the old way show up in the queue automatically
+- **Type**: Training-note · **Audience**: SuperUser/Admin
+- **What's new**: When the Coach Approvals queue loads, it back-fills itself: any coach already holding a team the old way is added to the queue with their current teams marked as director-granted. It's safe to re-run, and it won't resurrect a denied coach or downgrade a coach's own pick.
+- **Why it matters**: Explains why an existing or migrated event's Coach Approvals screen already has coaches in it showing granted teams — that's correct, not phantom data.
+- *Dev evidence: seed-on-load (RosterSwapperService.cs:452-459; RegistrationRepository.cs:3035-3130).*
+
+#### ☐ CR-091: Moving someone between teams no longer wipes out their fees
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin + Client support
+- **What's new**: In the old system a roster move zeroed the person's fees and payments and then recomputed — and that recompute only ran for **players**, so moving a **coach** between teams permanently zeroed their money columns. The new swapper never zeroes anything: a player's fee is re-resolved from the new team's fee cascade (keeping discounts, late fees and donations), amounts owed/paid come from the payment ledger, and a coach move doesn't touch their money at all.
+- **Why it matters**: The old behavior was a genuine bug that destroyed payment history on a coach's row. If anyone says "the old system zeroed fees on a swap" — they're right, and it's fixed.
+- *Dev evidence: canonical re-resolve, nothing zeroed (FeeResolutionService.cs:255-301); staff moves skip fee recalc (RosterSwapperService.cs:376-381).*
+
+#### ☐ CR-092: You see the fee change before you commit a transfer
+- **Type**: Workflow-change · **Audience**: SuperUser/Admin
+- **What's new**: The old drag executed immediately. The new swapper previews first: for each person it shows what kind of move it is, the current vs new fee, the difference, and warnings ("already on this team — will be skipped"). Committing is a separate step.
+- **Why it matters**: A director can see a cross-age-group move's price change before doing it — and it's where to look when someone asks "why did this player's balance change after a swap?"
+- *Dev evidence: preview endpoint (RosterSwapperService.cs:63-195; RosterSwapperController.cs:56-73).*
+
+#### ☐ CR-093: Admins can overfill a team from the swapper — the roster max only blocks self-registration
+- **Type**: Training-note · **Audience**: SuperUser/Admin
+- **What's new**: The roster maximum stops a parent or player self-registering onto a full team, but it deliberately does **not** stop an admin moving someone onto it from the swapper. If a transfer brings a team up to its max, the waitlist mirror team is created at that moment, same as during registration.
+- **Why it matters**: Directors can intentionally overfill from the swapper while a family is blocked from the same team. That asymmetry is on purpose — otherwise it reads as a bug report.
+- *Dev evidence: no capacity check for admin transfers, by design (RosterSwapperService.cs:232-233, 356-358); waitlist minted at max (:414-419).*
+
+#### <span style="color:#0033cc">☐ CR-094: A logged-in parent sees every family's contact details and every child's birthdate — and can now download it</span>
+- **Type**: Workflow-change (privacy — needs a decision) · **Audience**: Client support + SuperUser/Admin
+- **What's new**: When "Allow Roster View — Player" is on, a logged-in player/parent can see the team roster — and that roster includes each person's email, phone, **date of birth**, and **both parents' names, emails and phone numbers**. That was true in the old system too (a parent saw exactly what a coach saw). What's new is that the same parent can now **download the whole thing as a PDF**, parent-contact columns included.
+- **Why it matters**: Turning on roster view for players hands every parent on the team an offline, bulk copy of every other family's contact details and every child's birthdate. The old system showed it on screen; it didn't hand out a file. Worth a deliberate decision — e.g. redact the contact/DOB fields for the player audience, or make the PDF admin-only.
+- *Dev evidence: verified — roster data carries DOB + Mom/Dad email/phone with no role filter (MyRosterDtos.cs:34-52; RegistrationRepository.cs:2639-2699); the PDF endpoint uses the same visibility gate as the on-screen roster (MyRosterController.cs:36-52; MyRosterPdfService.cs:95-100).*
+
+#### <span style="color:#c00000">☐ CR-095: The per-team "Hide Roster" setting no longer does anything</span>
+- **Type**: Bug · **Audience**: Client support + SuperUser/Admin
+- **What's new**: In the old system, ticking "Hide Roster" on a team hid the roster from that team's members even when the event-level roster setting was on. In the new system the checkbox is still in the team editor, still saved, still copied on clone — but **nothing reads it**. It has no effect.
+- **Why it matters**: A director who ticks "Hide Roster" gets no result and isn't told. Because it's a *visibility* setting, the failure mode is over-exposure. Note too: auto-created waitlist teams are actually created with Hide Roster set to true — so a waitlisted player is offered "view roster" for a team the old system would have hidden.
+- *Dev evidence: verified — every reference to BHideRoster is create/update/clone/DTO/grid/checkbox; nothing reads it to gate a roster. It IS set true on waitlist teams (TeamPlacementService.cs:320), with no effect.*
+
+#### <span style="color:#0033cc">☐ CR-096: Public rosters now work on Club and League events too, and they're on by default</span>
+- **Type**: Workflow-change (needs a decision) · **Audience**: Client support + SuperUser/Admin
+- **What's new**: In the old system the anonymous public roster lookup was a tournament-only page, always on, with no way to turn it off. In the new system the public roster works for **any** event type — including Club and League, which never had one — reachable by anyone who knows the event's link. There's a new "Show Public Rosters" switch to turn it off, but it defaults to **on**.
+- **Why it matters**: Directors of club/league events may not realize their team rosters are now publicly reachable. The contents are still contact-free (name, uniform number, position, club, team — no emails, phones or birthdates), so this is about how widely rosters are exposed, not a leak of personal details. Worth deciding whether it should default to off for non-tournament events.
+- *Dev evidence: public endpoint works for any job type + new kill switch (PublicRosterController.cs:16-17, 70-93); "Show Public Rosters" = not restricted (JobVisibilityService.cs:45-48). No equivalent switch exists in the old codebase.*
+
+#### ☐ CR-097: Club Rep rosters stay contact-free, and reps can now move and delete players themselves
+- **Type**: Workflow-change · **Audience**: Client support + SuperUser/Admin
+- **What's new**: A club rep's view of their team rosters still shows only names, uniform numbers and positions — no contact details. New: a rep can now move a player between their **own** teams (the system checks they own both), with the fee re-resolved correctly for the new team; and they can delete a registration, unless it has payment history, in which case it's blocked.
+- **Why it matters**: Club reps can self-serve roster moves that used to need a director, and the money follows the move. "Why can't I delete this registration?" is answered by: they've paid.
+- *Dev evidence: no contact details in the club-roster data (ClubRosterDtos.cs:17-25); move + delete with fee re-resolve and accounting guard (ClubRosterService.cs:33-131).*
+
+<div style="page-break-before: always;"></div>
+
 ## Comparison — looked at but not filed
 - **Change Club / Transfer All Teams, and the "autopay failed" reminder queue on Team Search** — real and useful, but already captured in CR-048 (the Team Search console's club moves and autopay resend). Not re-filed.
 - **Processing-fee ceiling — unresolved.** The new system clamps the card processing rate to 3.5–4.0% and e-check to 1.5–2.0%. The comparison suggested the old system had only a 3.5% floor with no ceiling (so a job set above 4% would now charge less) — but the new code's own comment says it "mirrors the legacy clamps (CC 3.5–4.0%)," which contradicts that. The new clamp is certain; whether it's a *change* from the old system is not. Left unfiled until the old ceiling is confirmed either way. (New: ProcessingRateMath.cs:13-24, FeeConstants.cs.)
@@ -581,3 +698,4 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Role selection may no longer list the STPAdmin role** — flagged during the Login/Nav comparison (medium confidence). Confirm STPAdmin is still active in prod before treating it as a real change.
 - **Bulletins can now be open-ended** — a blank end date shows the bulletin indefinitely; the old system required an end date. Minor.
 - **Admins get inline edit / quick-hide controls on each bulletin** right on the live public page. Minor admin convenience, folds under CR-079.
+- **Public roster CONTENTS are unchanged** (so not filed as a difference). A player still only appears on the public roster once they've signed the waiver; staff always appear; waitlist/dropped age groups and inactive teams are excluded; and no contact details are shown. The standing support answer — "a player missing from the public roster hasn't signed the waiver" — is still correct. (What *did* change is scope + the new off-switch: see CR-096.)
