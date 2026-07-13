@@ -104,22 +104,24 @@ public class ChangePasswordService : IChangePasswordService
         return await _repo.GetResetContextAsync(registrationId, target, ct);
     }
 
-    public async Task UpdateUserEmailAsync(
+    public async Task UpdateUserContactAsync(
         Guid registrationId,
-        string? newEmail,
+        string? email,
+        string? cellphone,
         CancellationToken ct = default)
     {
-        await _repo.UpdateUserEmailAsync(registrationId, newEmail, ct);
+        await _repo.UpdateUserContactAsync(registrationId, email, cellphone, ct);
     }
 
-    public async Task UpdateFamilyEmailsAsync(
+    public async Task UpdateFamilyContactsAsync(
         Guid registrationId,
-        string? familyEmail,
         string? momEmail,
+        string? momCellphone,
         string? dadEmail,
+        string? dadCellphone,
         CancellationToken ct = default)
     {
-        await _repo.UpdateFamilyEmailsAsync(registrationId, familyEmail, momEmail, dadEmail, ct);
+        await _repo.UpdateFamilyContactsAsync(registrationId, momEmail, momCellphone, dadEmail, dadCellphone, ct);
     }
 
     public async Task<MergeCandidatesResponse> GetUserMergeCandidatesAsync(

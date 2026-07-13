@@ -3,6 +3,7 @@ using TSIC.Contracts.Dtos.ChangePassword;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
 using TSIC.Infrastructure.Data.SqlDbContext;
+using TSIC.Infrastructure.Data.SqlDbContext.Helpers;
 
 namespace TSIC.Infrastructure.Repositories;
 
@@ -582,9 +583,11 @@ public class ChangePasswordRepository : IChangePasswordRepository
     private static string? BlankToNull(string? email)
         => string.IsNullOrWhiteSpace(email) ? null : email.Trim();
 
-    public async Task UpdateUserEmailAsync(
+    /// <summary>An adult IS their own account — email and phone go straight to their AspNetUsers row.</summary>
+    public async Task UpdateUserContactAsync(
         Guid registrationId,
-        string? newEmail,
+        string? email,
+        string? cellphone,
         CancellationToken ct = default)
     {
         var reg = await _context.Registrations
@@ -595,20 +598,38 @@ public class ChangePasswordRepository : IChangePasswordRepository
             .FirstOrDefaultAsync(u => u.Id == reg.UserId, ct)
             ?? throw new InvalidOperationException($"User for registration {registrationId} not found.");
 
-        var email = BlankToNull(newEmail);
-        if (string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase)) return;
-
-        user.Email = email;
-        user.NormalizedEmail = email?.ToUpperInvariant();
+        // Not the UserManager path — see AspNetUserEmail. Email alone would leave NormalizedEmail stale,
+        // and NormalizedEmail is the column forgot-password searches.
+        if (email != null) AspNetUserEmail.Set(user, email);
+        if (cellphone != null) user.Cellphone = BlankToNull(cellphone);
 
         await _context.SaveChangesAsync(ct);
     }
 
-    public async Task UpdateFamilyEmailsAsync(
+    /// <summary>
+    /// A player's contacts are the HOUSEHOLD's. Ann edits the <c>Families</c> row — mother and father,
+    /// email and phone — and nothing else.
+    ///
+    /// ── THE MIRROR ──
+    ///
+    /// The family login IS the mother (contract §1). Its <c>AspNetUsers</c> row is not a second, separate
+    /// set of contact details you may type into; it is HER details, and the server keeps it at parity.
+    /// Measured: 111,392 of 135,441 family logins already hold exactly <c>Mom_Email</c>, and 134,051 of
+    /// them — 99% — hold no phone at all. That phone gap is why <c>Mom_Cellphone</c> is mirrored too.
+    ///
+    /// The mirror is PATCH-scoped, and that is deliberate: it copies only the mom fields this call
+    /// actually changed. 23,916 logins currently hold an email that differs from <c>Mom_Email</c>, and an
+    /// unconditional mirror would re-point every one of those families' password-reset address as a side
+    /// effect of Ann fixing, say, the FATHER's phone. An edit does what it says and nothing else.
+    ///
+    /// The father is never mirrored. He is on the household record; he is not the login.
+    /// </summary>
+    public async Task UpdateFamilyContactsAsync(
         Guid registrationId,
-        string? familyEmail,
         string? momEmail,
+        string? momCellphone,
         string? dadEmail,
+        string? dadCellphone,
         CancellationToken ct = default)
     {
         var reg = await _context.Registrations
@@ -618,30 +639,29 @@ public class ChangePasswordRepository : IChangePasswordRepository
         if (string.IsNullOrWhiteSpace(reg.FamilyUserId))
             throw new InvalidOperationException("Registration has no family account.");
 
-        // PATCH semantics, established by 5a121a2c: an OMITTED field (null) means "leave it alone";
-        // an EMPTY field ("") means "clear the address". Do not collapse the two — collapsing them
-        // is what made a stale address unremovable in the first place.
-        if (familyEmail != null)
+        if (momEmail is null && momCellphone is null && dadEmail is null && dadCellphone is null)
+            return;
+
+        // Fail loud. Silently no-op'ing here returned a success message for a write that never
+        // happened. (Measured: 0 player registrations have a family login with no Families row.)
+        var family = await _context.Families
+            .FirstOrDefaultAsync(f => f.FamilyUserId == reg.FamilyUserId, ct)
+            ?? throw new InvalidOperationException("Family record not found.");
+
+        if (momEmail != null) family.MomEmail = BlankToNull(momEmail);
+        if (momCellphone != null) family.MomCellphone = BlankToNull(momCellphone);
+        if (dadEmail != null) family.DadEmail = BlankToNull(dadEmail);
+        if (dadCellphone != null) family.DadCellphone = BlankToNull(dadCellphone);
+
+        // Bring the login to parity with the mother — but only on what she actually changed.
+        if (momEmail != null || momCellphone != null)
         {
-            var familyUser = await _context.AspNetUsers
+            var login = await _context.AspNetUsers
                 .FirstOrDefaultAsync(u => u.Id == reg.FamilyUserId, ct)
-                ?? throw new InvalidOperationException("Family user not found.");
+                ?? throw new InvalidOperationException("Family login not found.");
 
-            var normalized = BlankToNull(familyEmail);
-            familyUser.Email = normalized;
-            familyUser.NormalizedEmail = normalized?.ToUpperInvariant();
-        }
-
-        if (momEmail != null || dadEmail != null)
-        {
-            // Fail loud. Silently no-op'ing here returned a success message for a write that never
-            // happened. (Measured: 0 player registrations have a family login with no Families row.)
-            var family = await _context.Families
-                .FirstOrDefaultAsync(f => f.FamilyUserId == reg.FamilyUserId, ct)
-                ?? throw new InvalidOperationException("Family record not found.");
-
-            if (momEmail != null) family.MomEmail = BlankToNull(momEmail);
-            if (dadEmail != null) family.DadEmail = BlankToNull(dadEmail);
+            if (momEmail != null) AspNetUserEmail.Set(login, family.MomEmail);
+            if (momCellphone != null) login.Cellphone = family.MomCellphone;
         }
 
         await _context.SaveChangesAsync(ct);

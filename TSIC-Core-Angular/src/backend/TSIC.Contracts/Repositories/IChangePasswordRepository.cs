@@ -42,18 +42,23 @@ public interface IChangePasswordRepository
         ResetPasswordTarget target,
         CancellationToken ct = default);
 
-    // ── Email updates ──
+    // ── Contact updates ──
+    //
+    // PATCH throughout: null = leave alone, "" = clear. There is no family-login field — the login IS
+    // the mother, and the repository brings it to parity with her.
 
-    Task UpdateUserEmailAsync(
+    Task UpdateUserContactAsync(
         Guid registrationId,
-        string? newEmail,
+        string? email,
+        string? cellphone,
         CancellationToken ct = default);
 
-    Task UpdateFamilyEmailsAsync(
+    Task UpdateFamilyContactsAsync(
         Guid registrationId,
-        string? familyEmail,
         string? momEmail,
+        string? momCellphone,
         string? dadEmail,
+        string? dadCellphone,
         CancellationToken ct = default);
 
     // ── Merge ──

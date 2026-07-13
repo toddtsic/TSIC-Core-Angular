@@ -29,7 +29,17 @@ const MAX_ACCOUNTS = 50;
 
 const MIN_PASSWORD_LENGTH = 6;
 
-type ContactFieldKey = 'family' | 'mom' | 'dad' | 'user';
+/**
+ * The contacts a PLAYER row can edit are the household's — mother and father, on the `Families` row.
+ * There is deliberately no family-login field: the family login IS the mother, so the server brings it
+ * to parity with her rather than letting an admin type into it separately and drift the two apart.
+ *
+ * An ADULT is their own account, so `user*` writes straight to their `AspNetUsers` row.
+ */
+type ContactFieldKey =
+  | 'momEmail' | 'momPhone'
+  | 'dadEmail' | 'dadPhone'
+  | 'userEmail' | 'userPhone';
 
 /**
  * One editable address in the contacts dialog.
@@ -41,8 +51,22 @@ type ContactFieldKey = 'family' | 'mom' | 'dad' | 'user';
  */
 interface ContactField {
   key: ContactFieldKey;
+
+  /** Phones have no opt-out — `not@given.com` is an EMAIL marker and there is no phone equivalent. */
+  kind: 'email' | 'phone';
+
   label: string;
   value: string;
+
+  /**
+   * What was on file when the dialog opened. An UNTOUCHED field sends `null` — "leave it alone" — and
+   * that is load-bearing, not tidiness: saving Mom's email is what mirrors the family LOGIN's address.
+   * Without this, Ann fixing the FATHER's phone would re-send Mom's email unchanged, fire the mirror,
+   * and silently re-point the password-reset address of the 23,916 households whose login has drifted
+   * from `Mom_Email`. An edit does what it says and nothing else.
+   */
+  original: string;
+
   optedOut: boolean;
   replacing: boolean;
 }
@@ -120,6 +144,26 @@ export class ChangePasswordComponent implements OnInit {
    */
   readonly mergeableCount = computed(() =>
     new Set(this.rows().filter(r => r.mergeCandidateCount > 0).map(r => this.loginOf(r))).size);
+
+  /**
+   * Family login, Mother and Father are a PLAYER's columns. The family signs in and selects the child,
+   * and the parents live on the household record; an adult signs in as themselves and has none of it —
+   * the adult projection in `ChangePasswordRepository` never populates those ten fields, so a Club Rep
+   * search renders ten columns of em-dashes across a table that already has to fit on one screen.
+   *
+   * Gated on "is there a player in these results", NOT on "is this cell empty". The difference matters:
+   * a single-mother household has no Father, and Ann must still see the Father columns standing empty —
+   * that emptiness is DATA ("no father on file"). It is only when nothing on screen is a household at
+   * all that the columns are structurally N/A and come off.
+   */
+  readonly showHousehold = computed(() => this.rows().some(r => this.isHousehold(r)));
+
+  /** Household-shaped = carries family or parent data at all, which only a player's registration does. */
+  private isHousehold(r: ChangePasswordSearchResultDto): boolean {
+    return !!(r.familyUserName || r.familyEmail
+      || r.momFirstName || r.momLastName || r.momEmail || r.momPhone
+      || r.dadFirstName || r.dadLastName || r.dadEmail || r.dadPhone);
+  }
 
   // ── Mission 1: change a password ─────────────────────────────────────────────
 
@@ -217,10 +261,19 @@ export class ChangePasswordComponent implements OnInit {
   readonly contactFields = signal<ContactField[]>([]);
   readonly savingContacts = signal(false);
 
-  /** Nothing to send when every field is an opt-out the admin has chosen not to replace. */
+  /** Save is live only when something actually changed. See `pending`. */
   readonly canSaveContacts = computed(() =>
     !this.savingContacts()
-    && this.contactFields().some(f => this.isSendable(f)));
+    && this.contactFields().some(f => this.pending(f) !== null));
+
+  /**
+   * True when this save will also move the FAMILY LOGIN. The login is the mother, so changing her email
+   * or phone changes the address her password reset goes to — and the dialog says so before she saves,
+   * rather than letting her find out afterwards.
+   */
+  readonly mirroringLogin = computed(() =>
+    this.contactFields().some(f =>
+      (f.key === 'momEmail' || f.key === 'momPhone') && this.pending(f) !== null));
 
   ngOnInit(): void {
     this.api.getRoleOptions().subscribe({
@@ -468,11 +521,15 @@ export class ChangePasswordComponent implements OnInit {
 
     this.contactFields.set(this.isPlayer(row)
       ? [
-          this.field('family', 'Family login email', row.familyEmail),
-          this.field('mom', "Mother's email", row.momEmail),
-          this.field('dad', "Father's email", row.dadEmail)
+          this.emailField('momEmail', "Mother's email", row.momEmail),
+          this.phoneField('momPhone', "Mother's phone", row.momPhone),
+          this.emailField('dadEmail', "Father's email", row.dadEmail),
+          this.phoneField('dadPhone', "Father's phone", row.dadPhone)
         ]
-      : [this.field('user', 'Email', row.email)]);
+      : [
+          this.emailField('userEmail', 'Email', row.email),
+          this.phoneField('userPhone', 'Phone', row.phone)
+        ]);
   }
 
   closeContacts(): void {
@@ -480,9 +537,16 @@ export class ChangePasswordComponent implements OnInit {
     this.contactFields.set([]);
   }
 
+  /**
+   * A phone field holds DIGITS and nothing else. That is why the input can be dumb and the display can
+   * be pretty: what is stored is the number, and `PhonePipe` renders it `973-876-3216`. No parsing a
+   * format back out, no half-typed punctuation reaching the database.
+   */
   setContact(key: ContactFieldKey, value: string): void {
     this.contactFields.update(fields =>
-      fields.map(f => (f.key === key ? { ...f, value } : f)));
+      fields.map(f => (f.key === key
+        ? { ...f, value: f.kind === 'phone' ? value.replace(/\D/g, '') : value }
+        : f)));
   }
 
   /**
@@ -502,12 +566,16 @@ export class ChangePasswordComponent implements OnInit {
     this.savingContacts.set(true);
 
     const save$ = this.isPlayer(row)
-      ? this.api.updateFamilyEmails(row.registrationId, {
-          familyEmail: this.toSend('family'),
-          momEmail: this.toSend('mom'),
-          dadEmail: this.toSend('dad')
+      ? this.api.updateFamilyContacts(row.registrationId, {
+          momEmail: this.toSend('momEmail'),
+          momCellphone: this.toSend('momPhone'),
+          dadEmail: this.toSend('dadEmail'),
+          dadCellphone: this.toSend('dadPhone')
         })
-      : this.api.updateUserEmail(row.registrationId, { email: this.toSend('user') ?? '' });
+      : this.api.updateUserContact(row.registrationId, {
+          email: this.toSend('userEmail'),
+          cellphone: this.toSend('userPhone')
+        });
 
     save$.subscribe({
       next: res => {
@@ -523,7 +591,7 @@ export class ChangePasswordComponent implements OnInit {
     });
   }
 
-  private field(
+  private emailField(
     key: ContactFieldKey,
     label: string,
     stored: string | null | undefined
@@ -532,26 +600,53 @@ export class ChangePasswordComponent implements OnInit {
     // when a person asks to be removed from email. It is a flag, not an address — never shown as one,
     // and never typed. Contract §1.
     const optedOut = (stored ?? '').trim().toLowerCase() === NO_EMAIL_SENTINEL;
-    return { key, label, value: optedOut ? '' : (stored ?? ''), optedOut, replacing: false };
-  }
-
-  /** An opt-out the admin has not chosen to replace has nothing to save. */
-  private isSendable(field: ContactField): boolean {
-    return !field.optedOut || field.replacing;
+    const value = optedOut ? '' : (stored ?? '').trim();
+    return { key, kind: 'email', label, value, original: value, optedOut, replacing: false };
   }
 
   /**
-   * `null` means LEAVE IT ALONE; `''` means CLEAR THE ADDRESS. The server honours both, and collapsing
-   * them is what made a stale address unremovable in the first place (`5a121a2c`).
-   *
-   * An untouched opt-out returns `null`, and that is the load-bearing line in this file: sending `''`
-   * would clear the marker and put somebody who asked to be left alone straight back on the mailing
-   * list — silently, with nobody having decided to.
+   * Phones are held as DIGITS. The stored value may be `973-876-3216` or `1 (516) 551-1969`; both reduce
+   * to the same digits, and `original` is the reduced form — so a field the admin never touched compares
+   * equal and sends nothing. Opening the dialog can never silently reformat a number.
    */
+  private phoneField(
+    key: ContactFieldKey,
+    label: string,
+    stored: string | null | undefined
+  ): ContactField {
+    const value = (stored ?? '').replace(/\D/g, '');
+    return { key, kind: 'phone', label, value, original: value, optedOut: false, replacing: false };
+  }
+
+  /** An opt-out the admin has not chosen to replace has nothing to save. Phones have no opt-out. */
+  private isSendable(field: ContactField): boolean {
+    return field.kind === 'phone' || !field.optedOut || field.replacing;
+  }
+
+  /**
+   * What this field will actually send. `null` means LEAVE IT ALONE; `''` means CLEAR IT. The server
+   * honours both, and collapsing them is what made a stale address unremovable (`5a121a2c`).
+   *
+   * Two things return `null`, and both are load-bearing:
+   *
+   *   AN UNTOUCHED OPT-OUT. Sending `''` would clear the `not@given.com` marker and put somebody who
+   *   asked to be left alone straight back on the mailing list — silently, with nobody deciding to.
+   *
+   *   AN UNTOUCHED FIELD. Saving Mom's email is what mirrors the family LOGIN's address. If an
+   *   unchanged Mom email were re-sent every time Ann fixed the FATHER's phone, the mirror would fire
+   *   and re-point the password-reset address for the 23,916 households whose login has drifted from
+   *   `Mom_Email` — as a side effect of an edit that had nothing to do with her.
+   */
+  private pending(field: ContactField): string | null {
+    if (!this.isSendable(field)) return null;
+
+    const value = field.value.trim();
+    return value === field.original ? null : value;
+  }
+
   private toSend(key: ContactFieldKey): string | null {
     const field = this.contactFields().find(f => f.key === key);
-    if (!field) return null;
-    return this.isSendable(field) ? field.value.trim() : null;
+    return field ? this.pending(field) : null;
   }
 
   // ── Row helpers ──────────────────────────────────────────────────────────────
@@ -571,6 +666,28 @@ export class ChangePasswordComponent implements OnInit {
 
   personOf(row: ChangePasswordSearchResultDto): string {
     return `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() || '(no name)';
+  }
+
+  /**
+   * Job names are STORED as `{Customer}:{Event}` — `Lax For The Cure:Fall Showcase 2024`. The Job cell
+   * printed that whole string AND `customerName` underneath, so it said the customer twice and stood
+   * three lines tall, which cost roughly 40% of the rows that fit on screen. Show the EVENT: down a
+   * column of one family's 244 registrations it is the only part that changes.
+   *
+   * The prefix is only stripped when it demonstrably IS the customer (`ISP Event Center` covers the
+   * `ISP:` prefix). A job whose name merely happens to contain a colon is left whole.
+   */
+  eventLabel(row: ChangePasswordSearchResultDto): string {
+    const name = (row.jobName ?? '').trim();
+    const customer = (row.customerName ?? '').trim();
+    const colon = name.indexOf(':');
+    if (colon <= 0 || !customer) return name;
+
+    const prefix = name.slice(0, colon).trim();
+    const isCustomer = customer.localeCompare(prefix, undefined, { sensitivity: 'accent' }) === 0
+      || customer.toLowerCase().startsWith(prefix.toLowerCase());
+
+    return isCustomer ? name.slice(colon + 1).trim() || name : name;
   }
 
   /** `not@given.com` is a flag, not an address — never rendered as one. See the service. */

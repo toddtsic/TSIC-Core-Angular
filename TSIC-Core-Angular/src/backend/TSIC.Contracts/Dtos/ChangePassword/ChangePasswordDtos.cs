@@ -149,18 +149,34 @@ public record AccountReachDto
     public string? Where { get; init; }
 }
 
-// ── Email updates ──
+// ── Contact updates ──
+//
+// PATCH semantics throughout, established by 5a121a2c: an OMITTED field (null) means "leave it alone";
+// an EMPTY field ("") means "clear it". Do not collapse the two — collapsing them is what made a stale
+// address unremovable, and it is also what would silently clear somebody's `not@given.com` opt-out.
 
-public record UpdateUserEmailRequest
+/// <summary>An adult IS their own account, so their email and phone are their own AspNetUsers row.</summary>
+public record UpdateUserContactRequest
 {
-    public required string Email { get; init; }
+    public string? Email { get; init; }
+    public string? Cellphone { get; init; }
 }
 
-public record UpdateFamilyEmailsRequest
+/// <summary>
+/// A player's contacts belong to the HOUSEHOLD, not the child — so Ann edits the <c>Families</c> row,
+/// and only that: mother and father, email and phone.
+///
+/// There is deliberately no "family login email" field. The family login IS the mother (contract §1),
+/// so its <c>AspNetUsers</c> row is not an independent thing to type into — it is brought to PARITY with
+/// her by the server. Letting an admin edit it separately is how the two drift apart, and when they
+/// drift the mother's password reset goes to whichever address the login happens to hold.
+/// </summary>
+public record UpdateFamilyContactsRequest
 {
-    public string? FamilyEmail { get; init; }
     public string? MomEmail { get; init; }
+    public string? MomCellphone { get; init; }
     public string? DadEmail { get; init; }
+    public string? DadCellphone { get; init; }
 }
 
 // ── Merge ──

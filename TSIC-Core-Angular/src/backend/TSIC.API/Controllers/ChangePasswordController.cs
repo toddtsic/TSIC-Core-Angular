@@ -175,79 +175,97 @@ public class ChangePasswordController : ControllerBase
     }
 
     /// <summary>
-    /// Update the registrant's own email. A BLANK email is a legitimate edit — it CLEARS the address,
-    /// as legacy's grid did. Rejecting it made a stale address unremovable (`5a121a2c`).
+    /// Update an ADULT registrant's own email and/or phone — an adult IS their own account.
+    /// PATCH semantics: an OMITTED field is left alone; an EMPTY field CLEARS it, which is a legitimate
+    /// edit that legacy's grid allowed and rejecting it made a stale address unremovable (`5a121a2c`).
     /// </summary>
-    [HttpPut("{regId:guid}/user-email")]
+    [HttpPut("{regId:guid}/user-contact")]
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]
-    public async Task<IActionResult> UpdateUserEmail(
+    public async Task<IActionResult> UpdateUserContact(
         Guid regId,
-        [FromBody] UpdateUserEmailRequest request,
+        [FromBody] UpdateUserContactRequest request,
         CancellationToken ct)
     {
-        using var scope = AuditScope("UpdateUserEmail");
+        using var scope = AuditScope("UpdateUserContact");
 
         try
         {
-            await _service.UpdateUserEmailAsync(regId, request.Email, ct);
+            await _service.UpdateUserContactAsync(regId, request.Email, request.Cellphone, ct);
 
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} set the user email on registration {RegistrationId} to {Email} — {Outcome}",
-                Actor, regId, string.IsNullOrWhiteSpace(request.Email) ? "(cleared)" : request.Email, "OK");
+                "CHANGE-PASSWORD AUDIT: {Actor} set the user contact on registration {RegistrationId} — email={Email} phone={Cellphone} — {Outcome}",
+                Actor, regId, Audit(request.Email), Audit(request.Cellphone), "OK");
 
-            return Ok(new { message = "Email updated successfully." });
+            return Ok(new { message = "Contact details updated successfully." });
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to set the user email on registration {RegistrationId} — {Outcome}: {Reason}",
+                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to set the user contact on registration {RegistrationId} — {Outcome}: {Reason}",
                 Actor, regId, "FAILED", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
 
     /// <summary>
-    /// Update the family login's email and/or the mom/dad addresses.
-    /// PATCH semantics: an OMITTED field is left alone; an EMPTY field clears the address.
+    /// Update a PLAYER's household contacts — the mother and father, email and phone, on the
+    /// <c>Families</c> row. PATCH semantics: an OMITTED field is left alone; an EMPTY field clears it.
+    ///
+    /// There is no family-login field, by design. The family login IS the mother, so the server brings
+    /// its <c>AspNetUsers</c> row to parity with her rather than letting an admin type into it separately
+    /// and drift the two apart. See <c>UpdateFamilyContactsAsync</c>.
     /// </summary>
-    [HttpPut("{regId:guid}/family-emails")]
+    [HttpPut("{regId:guid}/family-contacts")]
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]
-    public async Task<IActionResult> UpdateFamilyEmails(
+    public async Task<IActionResult> UpdateFamilyContacts(
         Guid regId,
-        [FromBody] UpdateFamilyEmailsRequest request,
+        [FromBody] UpdateFamilyContactsRequest request,
         CancellationToken ct)
     {
-        using var scope = AuditScope("UpdateFamilyEmails");
+        using var scope = AuditScope("UpdateFamilyContacts");
 
         try
         {
-            await _service.UpdateFamilyEmailsAsync(
+            await _service.UpdateFamilyContactsAsync(
                 regId,
-                request.FamilyEmail,
                 request.MomEmail,
+                request.MomCellphone,
                 request.DadEmail,
+                request.DadCellphone,
                 ct);
 
+            // Mom's line is the one that also moved the login, so the audit says so: a reader six months
+            // from now must be able to see WHY the family's password-reset address changed.
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} set family emails on registration {RegistrationId} — family={FamilyEmail} mom={MomEmail} dad={DadEmail} — {Outcome}",
+                "CHANGE-PASSWORD AUDIT: {Actor} set household contacts on registration {RegistrationId} — "
+                + "mom.email={MomEmail} mom.phone={MomCellphone} dad.email={DadEmail} dad.phone={DadCellphone}; "
+                + "family login mirrored on mom = {Mirrored} — {Outcome}",
                 Actor, regId,
-                request.FamilyEmail ?? "(unchanged)",
-                request.MomEmail ?? "(unchanged)",
-                request.DadEmail ?? "(unchanged)",
+                Audit(request.MomEmail), Audit(request.MomCellphone),
+                Audit(request.DadEmail), Audit(request.DadCellphone),
+                request.MomEmail != null || request.MomCellphone != null,
                 "OK");
 
-            return Ok(new { message = "Family emails updated successfully." });
+            return Ok(new { message = "Contact details updated successfully." });
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to set family emails on registration {RegistrationId} — {Outcome}: {Reason}",
+                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to set household contacts on registration {RegistrationId} — {Outcome}: {Reason}",
                 Actor, regId, "FAILED", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    /// <summary>PATCH semantics, rendered for the audit log: null is not the same event as "".</summary>
+    private static string Audit(string? value) => value switch
+    {
+        null => "(unchanged)",
+        "" => "(cleared)",
+        _ => value
+    };
 
     /// <summary>
     /// Adult logins that are the same person IN THE SAME ROLE. Empty for a player — a child has no

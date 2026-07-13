@@ -8,8 +8,8 @@ import type {
   ChangePasswordRoleOptionDto,
   AdminResetPasswordRequest,
   ResetContextDto,
-  UpdateUserEmailRequest,
-  UpdateFamilyEmailsRequest,
+  UpdateUserContactRequest,
+  UpdateFamilyContactsRequest,
   MergeCandidatesResponse,
   MergeUsernameRequest
 } from '@core/api';
@@ -95,12 +95,18 @@ export class ChangePasswordService {
     return this.http.post<ApiMessage>(`${this.apiUrl}/${regId}/reset-password`, request);
   }
 
-  updateUserEmail(regId: string, request: UpdateUserEmailRequest): Observable<ApiMessage> {
-    return this.http.put<ApiMessage>(`${this.apiUrl}/${regId}/user-email`, request);
+  /** An adult IS their own account — email and phone go to their AspNetUsers row. */
+  updateUserContact(regId: string, request: UpdateUserContactRequest): Observable<ApiMessage> {
+    return this.http.put<ApiMessage>(`${this.apiUrl}/${regId}/user-contact`, request);
   }
 
-  updateFamilyEmails(regId: string, request: UpdateFamilyEmailsRequest): Observable<ApiMessage> {
-    return this.http.put<ApiMessage>(`${this.apiUrl}/${regId}/family-emails`, request);
+  /**
+   * A player's contacts belong to the HOUSEHOLD. There is no family-login field: the login IS the
+   * mother, so the server mirrors Mom's email and phone onto it rather than letting anyone type into
+   * it separately and drift the two apart.
+   */
+  updateFamilyContacts(regId: string, request: UpdateFamilyContactsRequest): Observable<ApiMessage> {
+    return this.http.put<ApiMessage>(`${this.apiUrl}/${regId}/family-contacts`, request);
   }
 
   /** Adult logins that are the same person IN THE SAME ROLE. Empty for a player. */

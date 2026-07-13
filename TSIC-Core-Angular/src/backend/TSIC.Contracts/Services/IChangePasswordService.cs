@@ -41,16 +41,18 @@ public interface IChangePasswordService
         ResetPasswordTarget target,
         CancellationToken ct = default);
 
-    Task UpdateUserEmailAsync(
+    Task UpdateUserContactAsync(
         Guid registrationId,
-        string? newEmail,
+        string? email,
+        string? cellphone,
         CancellationToken ct = default);
 
-    Task UpdateFamilyEmailsAsync(
+    Task UpdateFamilyContactsAsync(
         Guid registrationId,
-        string? familyEmail,
         string? momEmail,
+        string? momCellphone,
         string? dadEmail,
+        string? dadCellphone,
         CancellationToken ct = default);
 
     Task<MergeCandidatesResponse> GetUserMergeCandidatesAsync(
