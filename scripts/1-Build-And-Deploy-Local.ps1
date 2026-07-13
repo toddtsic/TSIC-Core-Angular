@@ -9,6 +9,11 @@ param(
     [string]$AngularSiteName = "dev-app"
 )
 
+# Backup location + the canonical exclusion list, shared with Rollback-Local.ps1.
+. "$PSScriptRoot\IIS-Config-Dev\_config.ps1"
+. "$PSScriptRoot\_backup-common.ps1"
+$BackupsPath = $Config.BackupsPath
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "TSIC Build and Deploy (Local IIS)" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
@@ -83,6 +88,49 @@ if (Get-Module WebAdministration) {
 } else {
     Write-Host "  WebAdministration module not available - stop sites manually" -ForegroundColor Yellow
 }
+Write-Host ""
+
+# ── Step 3.5: Backup live folders ───────────────────────────────────
+# Runs with the pools stopped and BEFORE Step 4 clears the targets — this is the
+# only moment the pre-deploy state still exists on disk. A failed backup ABORTS
+# the deploy: a mirrored deploy with nothing to roll back to is strictly worse
+# than not deploying. Live is untouched at this point, so aborting is free.
+Write-Host "Step 3.5: Backing up live folders..." -ForegroundColor Yellow
+
+$Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$backupOk = $true
+
+if (!(Test-TsicBackupSpace -Source $ApiTarget     -BackupsPath $BackupsPath)) { $backupOk = $false }
+if ($backupOk -and
+    !(Test-TsicBackupSpace -Source $AngularTarget -BackupsPath $BackupsPath)) { $backupOk = $false }
+
+if ($backupOk) {
+    $apiBackup = New-TsicBackup -Source $ApiTarget -BackupsPath $BackupsPath `
+        -Prefix $ApiSiteName -Timestamp $Timestamp `
+        -ExcludeDirs $TsicApiXD -ExcludeFiles $TsicApiXF
+    if ($null -eq $apiBackup) { $backupOk = $false }
+}
+
+if ($backupOk) {
+    $angBackup = New-TsicBackup -Source $AngularTarget -BackupsPath $BackupsPath `
+        -Prefix $AngularSiteName -Timestamp $Timestamp `
+        -ExcludeDirs $TsicAngularXD -ExcludeFiles $TsicAngularXF
+    if ($null -eq $angBackup) { $backupOk = $false }
+}
+
+if (!$backupOk) {
+    Write-Host ""
+    Write-Host "  BACKUP FAILED - aborting deploy. Live folders are UNTOUCHED." -ForegroundColor Red
+    Write-Host "  Restarting sites so the box is left serving the current build..." -ForegroundColor Yellow
+    if (Get-Module WebAdministration) {
+        foreach ($n in @($ApiSiteName, $AngularSiteName)) {
+            Start-WebAppPool -Name $n -ErrorAction SilentlyContinue
+            Start-Website   -Name $n -ErrorAction SilentlyContinue
+        }
+    }
+    exit 1
+}
+
 Write-Host ""
 
 # ── Step 4: Deploy files ────────────────────────────────────────────
