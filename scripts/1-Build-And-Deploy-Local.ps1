@@ -1,318 +1,347 @@
-# Build and deploy to local IIS
-# Runs 1a (API) + 1b (Angular) then deploys directly to C:\Websites
-# Skips iDrive packaging - use 1-Build-And-Package.ps1 for remote deployment
+# ============================================================================
+# 1-Build-And-Deploy-Local.ps1 - Build and deploy to local IIS (dev-api/dev-app)
+# ============================================================================
+# Builds the API + Angular, mirrors them into C:\Websites, restarts the pools.
+#
+# This is the REHEARSAL for the production deploy. Every guard here exists in
+# IIS-Config-Prod\Deployment\Recycle-After-Deploy.ps1, and both call the same
+# shared primitives in _deploy-common.ps1 - so what you exercise here is what
+# runs on PHOENIX.
+#
+# NOTE: dev-api / dev-app serve client-facing dev.teamsportsinfo.com. This
+# bounces them.
+#
+# Rollback:  .\Rollback-Local.ps1
+# ============================================================================
 
-param(
-    [string]$ApiTarget = "C:\Websites\dev-api",
-    [string]$AngularTarget = "C:\Websites\dev-app",
-    [string]$ApiSiteName = "dev-api",
-    [string]$AngularSiteName = "dev-app"
-)
+#Requires -RunAsAdministrator
 
-# Backup location + the canonical exclusion list, shared with Rollback-Local.ps1.
+# No path parameters. A deploy target is a SITE NAME that resolves to exactly
+# one literal directory (see Assert-TsicSafeTarget) - never a free-form path an
+# operator can point somewhere else.
+
+$ErrorActionPreference = "Stop"
+
 . "$PSScriptRoot\IIS-Config-Dev\_config.ps1"
-. "$PSScriptRoot\_backup-common.ps1"
+. "$PSScriptRoot\_deploy-common.ps1"
+
+$ApiSite     = $Config.ApiSiteName        # dev-api  (pool has the same name)
+$AngularSite = $Config.AngularSiteName    # dev-app
+$ApiLive     = $Config.ApiPath            # C:\Websites\dev-api
+$AngularLive = $Config.AngularPath        # C:\Websites\dev-app
+$BasePath    = $Config.BasePath           # C:\Websites
 $BackupsPath = $Config.BackupsPath
+$AspNetEnv   = $Config.AspNetEnv          # Staging
+$ApiHost     = $Config.ApiHostname
+$AngularHost = $Config.AngularHostname
 
+$PublishRoot = Join-Path $PSScriptRoot "..\publish"
+$ApiPublish  = Join-Path $PublishRoot "api"
+$AngPublish  = Join-Path $PublishRoot "angular"
+
+$ApiEx = Get-TsicExclusions -Site $ApiSite
+$AngEx = Get-TsicExclusions -Site $AngularSite
+
+$StartedAt = Get-Date
+$Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+$SeqUrl    = $null
+$ApiBackup = ''
+$AngBackup = ''
+
+Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "TSIC Build and Deploy (Local IIS)" -ForegroundColor Cyan
+Write-Host "  TSIC Build and Deploy - LOCAL IIS" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "API target:     $ApiTarget" -ForegroundColor Yellow
-Write-Host "Angular target: $AngularTarget" -ForegroundColor Yellow
-Write-Host ""
 
-# Transcript logging
-$transcriptStarted = $false
+# ── Transcript ───────────────────────────────────────────────────────
+# A deploy with no record is not worth having. If the transcript cannot start,
+# refuse to deploy.
+$logDir  = Join-Path $PublishRoot "build-logs"
+if (!(Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+$logPath = Join-Path $logDir ("deploy-local-$Timestamp.log")
 try {
-    $logDir = Join-Path $PSScriptRoot "..\publish\build-logs"
-    if (!(Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
-    $logPath = Join-Path $logDir ("deploy-local-" + (Get-Date -Format "yyyyMMdd-HHmmss") + ".log")
-    Start-Transcript -Path $logPath -Append | Out-Null
-    Write-Host ("Logging to: {0}" -f $logPath) -ForegroundColor DarkGray
-    $transcriptStarted = $true
+    Start-Transcript -Path $logPath | Out-Null
 } catch {
-    Write-Host "Transcript could not be started; continuing without file logging." -ForegroundColor Yellow
+    Write-Host "  ERROR: could not start transcript at $logPath" -ForegroundColor Red
+    Write-Host "  $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  REFUSING to deploy without a record. Nothing was touched." -ForegroundColor Red
+    exit 1
+}
+Write-Host "  Log: $logPath" -ForegroundColor DarkGray
+Write-Host ""
+
+# ---------------------------------------------------------------------------
+# Any failure lands here: red banner naming the step, a Seq event, the rollback
+# command already typed out, exit 1. The success banner at the bottom is only
+# reached when nothing calls this.
+# ---------------------------------------------------------------------------
+function Stop-DeployWithFailure {
+    param(
+        [Parameter(Mandatory)] [string] $Step,
+        [string] $Detail = '',
+        [switch] $LiveUntouched
+    )
+
+    Write-Host ""
+    Write-Host "========================================" -ForegroundColor Red
+    Write-Host "  DEPLOY FAILED - $Step" -ForegroundColor Red
+    Write-Host "========================================" -ForegroundColor Red
+    if ($Detail) { Write-Host "  $Detail" -ForegroundColor Red }
+    Write-Host ""
+    if ($LiveUntouched) {
+        Write-Host "  Live folders were NOT modified. The box is still serving the previous build." -ForegroundColor Yellow
+    } else {
+        Write-Host "  THE SITE MAY BE DOWN. Live folders were modified." -ForegroundColor Red
+        Write-Host "  Roll back with:" -ForegroundColor Yellow
+        if ($ApiBackup -or $AngBackup) {
+            Write-Host "    $PSScriptRoot\Rollback-Local.ps1 -Timestamp $Timestamp" -ForegroundColor White
+        } else {
+            Write-Host "    $PSScriptRoot\Rollback-Local.ps1" -ForegroundColor White
+        }
+    }
+    Write-Host ""
+    Write-Host "  Transcript: $logPath" -ForegroundColor Yellow
+    Write-Host ""
+
+    Send-TsicDeployEvent -SeqUrl $SeqUrl -Site "$ApiSite + $AngularSite" -Outcome Failed `
+        -Environment $AspNetEnv -FailedStep $Step -BuildStamp $BuildStamp -GitHash $GitHash `
+        -BackupName "$ApiBackup" -LogPath $logPath `
+        -DurationSec ([int]((Get-Date) - $StartedAt).TotalSeconds)
+
+    exit 1
 }
 
 try {
+
+# ── Step 0: Preflight - prove the targets BEFORE anything is touched ─
+Write-Host "Step 0: Preflight..." -ForegroundColor Yellow
+
+# Seq and the build stamp are resolved FIRST, from pure file reads, so that even
+# a preflight abort below is reportable and carries the build it was attempting.
+$SeqUrl = Get-TsicSeqUrl -AppRoot $ApiLive -AspNetEnv $AspNetEnv
+if ($SeqUrl) { Write-Host "  Seq: $SeqUrl" -ForegroundColor DarkGray }
+else         { Write-Host "  Seq: not configured - deploy events will not be logged." -ForegroundColor DarkGray }
+
+# One stamp for this deploy: the Angular footer and deploy-manifest.json must
+# agree, so it is computed ONCE here and passed down to the Angular build.
+try { $GitHash = (git rev-parse --short HEAD 2>$null) } catch { $GitHash = "unknown" }
+if (-not $GitHash) { $GitHash = "unknown" }
+$BuildStamp = "v$(Get-Date -Format 'yyMMdd.HHmm').$GitHash"
+Write-Host "  Build: $BuildStamp" -ForegroundColor DarkGray
+
+Send-TsicDeployEvent -SeqUrl $SeqUrl -Site "$ApiSite + $AngularSite" -Outcome Started `
+    -Environment $AspNetEnv -BuildStamp $BuildStamp -GitHash $GitHash -LogPath $logPath
+
+Import-Module WebAdministration -ErrorAction SilentlyContinue
+if (-not (Get-Module WebAdministration)) {
+    # The old script printed a yellow warning here and carried on to CLEAR the
+    # live folders while the sites were still serving. Never again.
+    Stop-DeployWithFailure -Step "Preflight (WebAdministration unavailable)" -LiveUntouched `
+        -Detail "Cannot manage IIS, so the pools cannot be stopped. Deploying now would rewrite live folders under a running worker."
+}
+
+try {
+    Assert-TsicSafeTarget -Site $ApiSite     -Path $ApiLive     -BasePath $BasePath | Out-Null
+    Assert-TsicSafeTarget -Site $AngularSite -Path $AngularLive -BasePath $BasePath | Out-Null
+} catch {
+    Stop-DeployWithFailure -Step "Preflight (unsafe target)" -Detail $_.Exception.Message -LiveUntouched
+}
+Write-Host "  Targets verified: $ApiLive, $AngularLive" -ForegroundColor Green
+
+if (-not (Test-TsicBackupSpace -Source $ApiLive     -BackupsPath $BackupsPath)) {
+    Stop-DeployWithFailure -Step "Preflight (disk space)" -LiveUntouched
+}
+if (-not (Test-TsicBackupSpace -Source $AngularLive -BackupsPath $BackupsPath)) {
+    Stop-DeployWithFailure -Step "Preflight (disk space)" -LiveUntouched
+}
+Write-Host ""
 
 # ── Step 1: Build .NET API ──────────────────────────────────────────
 Write-Host "Step 1: Building .NET API..." -ForegroundColor Yellow
-$scriptPath = Join-Path $PSScriptRoot "1a-Build-DotNet-API.ps1"
-& $scriptPath
+& (Join-Path $PSScriptRoot "1a-Build-DotNet-API.ps1")
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "API build failed!" -ForegroundColor Red
-    exit 1
-}
-Write-Host "API build complete!" -ForegroundColor Green
-Write-Host ""
-
-# ── Step 2: Build Angular (Staging configuration) ──────────────────
-Write-Host "Step 2: Building Angular (configuration=staging)..." -ForegroundColor Yellow
-$scriptPath = Join-Path $PSScriptRoot "1b-Build-Angular.ps1"
-& $scriptPath -Configuration staging
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Angular build failed!" -ForegroundColor Red
-    exit 1
-}
-Write-Host "Angular build complete!" -ForegroundColor Green
-Write-Host ""
-
-# ── Step 3: Stop IIS sites ──────────────────────────────────────────
-Write-Host "Step 3: Stopping IIS sites..." -ForegroundColor Yellow
-Import-Module WebAdministration -ErrorAction SilentlyContinue
-if (Get-Module WebAdministration) {
-    try {
-        if (Get-Website -Name $ApiSiteName -ErrorAction SilentlyContinue) {
-            Stop-Website -Name $ApiSiteName
-            Write-Host "  Stopped website: $ApiSiteName" -ForegroundColor White
-        }
-        if (Get-Website -Name $AngularSiteName -ErrorAction SilentlyContinue) {
-            Stop-Website -Name $AngularSiteName
-            Write-Host "  Stopped website: $AngularSiteName" -ForegroundColor White
-        }
-        # Stop app pools (same name as sites)
-        if (Get-WebAppPoolState -Name $ApiSiteName -ErrorAction SilentlyContinue) {
-            Stop-WebAppPool -Name $ApiSiteName -ErrorAction SilentlyContinue
-            Write-Host "  Stopped app pool: $ApiSiteName" -ForegroundColor White
-        }
-        if (Get-WebAppPoolState -Name $AngularSiteName -ErrorAction SilentlyContinue) {
-            Stop-WebAppPool -Name $AngularSiteName -ErrorAction SilentlyContinue
-            Write-Host "  Stopped app pool: $AngularSiteName" -ForegroundColor White
-        }
-    } catch {
-        Write-Host "  Could not stop sites/pools: $_" -ForegroundColor Yellow
-    }
-    Start-Sleep -Seconds 2
-} else {
-    Write-Host "  WebAdministration module not available - stop sites manually" -ForegroundColor Yellow
-}
-Write-Host ""
-
-# ── Step 3.5: Backup live folders ───────────────────────────────────
-# Runs with the pools stopped and BEFORE Step 4 clears the targets — this is the
-# only moment the pre-deploy state still exists on disk. A failed backup ABORTS
-# the deploy: a mirrored deploy with nothing to roll back to is strictly worse
-# than not deploying. Live is untouched at this point, so aborting is free.
-Write-Host "Step 3.5: Backing up live folders..." -ForegroundColor Yellow
-
-$Timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
-$backupOk = $true
-
-if (!(Test-TsicBackupSpace -Source $ApiTarget     -BackupsPath $BackupsPath)) { $backupOk = $false }
-if ($backupOk -and
-    !(Test-TsicBackupSpace -Source $AngularTarget -BackupsPath $BackupsPath)) { $backupOk = $false }
-
-if ($backupOk) {
-    $apiBackup = New-TsicBackup -Source $ApiTarget -BackupsPath $BackupsPath `
-        -Prefix $ApiSiteName -Timestamp $Timestamp `
-        -ExcludeDirs $TsicApiXD -ExcludeFiles $TsicApiXF
-    if ($null -eq $apiBackup) { $backupOk = $false }
+    Stop-DeployWithFailure -Step "Step 1 (API build)" -LiveUntouched
 }
 
-if ($backupOk) {
-    $angBackup = New-TsicBackup -Source $AngularTarget -BackupsPath $BackupsPath `
-        -Prefix $AngularSiteName -Timestamp $Timestamp `
-        -ExcludeDirs $TsicAngularXD -ExcludeFiles $TsicAngularXF
-    if ($null -eq $angBackup) { $backupOk = $false }
-}
-
-if (!$backupOk) {
-    Write-Host ""
-    Write-Host "  BACKUP FAILED - aborting deploy. Live folders are UNTOUCHED." -ForegroundColor Red
-    Write-Host "  Restarting sites so the box is left serving the current build..." -ForegroundColor Yellow
-    if (Get-Module WebAdministration) {
-        foreach ($n in @($ApiSiteName, $AngularSiteName)) {
-            Start-WebAppPool -Name $n -ErrorAction SilentlyContinue
-            Start-Website   -Name $n -ErrorAction SilentlyContinue
-        }
-    }
-    exit 1
-}
-
-Write-Host ""
-
-# ── Step 4: Deploy files ────────────────────────────────────────────
-$PublishRoot = Join-Path $PSScriptRoot "..\publish"
-$ApiSource = Join-Path $PublishRoot "api"
-$AngularSource = Join-Path $PublishRoot "angular"
-
-# Deploy API
-Write-Host "Step 4: Deploying files..." -ForegroundColor Yellow
-if (!(Test-Path $ApiSource)) {
-    Write-Host "  API build output not found: $ApiSource" -ForegroundColor Red
-    exit 1
-}
-if (!(Test-Path $ApiTarget)) {
-    New-Item -ItemType Directory -Path $ApiTarget -Force | Out-Null
-}
-Write-Host "  Clearing $ApiTarget (preserving logs/, keys/, FirebaseAuth_*)..." -ForegroundColor White
-Get-ChildItem $ApiTarget -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -notin @('logs', 'keys') -and $_.Name -notlike 'FirebaseAuth_*.json' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-Write-Host "  Copying API files..." -ForegroundColor White
-Copy-Item "$ApiSource\*" $ApiTarget -Recurse -Force
-
-# Nothing under App_Data should ship: AdnMonthEnd is a runtime cache the API regenerates on
-# demand, and Help is retired backend content (migrated to frontend static assets, f94e80eb).
-# A dirty publish carries these, and this admin-run Copy-Item seeds admin-owned files the app
-# pool cannot delete/overwrite — which 500s the ADN month-end import. Strip the whole folder so
-# the pool recreates its cache (pool-owned) at runtime. Setup grants the pool Modify on
-# App_Data\AdnMonthEnd (03-Create-Directories.ps1).
-$apiAppData = Join-Path $ApiTarget "App_Data"
-if (Test-Path $apiAppData) {
-    Remove-Item $apiAppData -Recurse -Force -ErrorAction SilentlyContinue
-    Write-Host "  Stripped non-shipping App_Data (runtime cache + retired Help)" -ForegroundColor White
-}
-
-# Copy canonical web.config template (env-agnostic; ASPNETCORE_ENVIRONMENT lives
-# on the dev-api app pool, set during setup by IIS-Config-Dev/Setup/07-Apply-Secrets.ps1).
+# Apply the canonical web.config to the PUBLISH folder, not the live folder, so
+# what we validate and mirror is exactly what will be served. (Env-agnostic:
+# ASPNETCORE_ENVIRONMENT lives on the dev-api app pool, set by
+# IIS-Config-Dev/Setup/07-Apply-Secrets.ps1.)
 $apiConfigSrc = Join-Path $PSScriptRoot "web.config.api"
-if (Test-Path $apiConfigSrc) {
-    Copy-Item $apiConfigSrc (Join-Path $ApiTarget "web.config") -Force
-} else {
-    Write-Host "  web.config.api template not found at $apiConfigSrc" -ForegroundColor Red
-    exit 1
+if (-not (Test-Path $apiConfigSrc)) {
+    Stop-DeployWithFailure -Step "Step 1 (web.config.api missing)" -Detail "Not found: $apiConfigSrc" -LiveUntouched
 }
-
-# Deploy Angular
-if (!(Test-Path $AngularSource)) {
-    Write-Host "  Angular build output not found: $AngularSource" -ForegroundColor Red
-    exit 1
-}
-if (!(Test-Path $AngularTarget)) {
-    New-Item -ItemType Directory -Path $AngularTarget -Force | Out-Null
-}
-Write-Host "  Clearing $AngularTarget..." -ForegroundColor White
-Get-ChildItem $AngularTarget -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
-Write-Host "  Copying Angular files..." -ForegroundColor White
-Copy-Item "$AngularSource\*" $AngularTarget -Recurse -Force
-
-# Flatten browser/ subfolder if needed (Angular 17+)
-$angularIndex = Join-Path $AngularTarget "index.html"
-$angularBrowser = Join-Path $AngularTarget "browser"
-if (!(Test-Path $angularIndex) -and (Test-Path (Join-Path $angularBrowser "index.html"))) {
-    Write-Host "  Flattening Angular 'browser' subfolder..." -ForegroundColor White
-    Copy-Item (Join-Path $angularBrowser "*") $AngularTarget -Recurse -Force
-    Remove-Item $angularBrowser -Recurse -Force -ErrorAction SilentlyContinue
-}
-
-# Copy web.config template if available
-$angularConfigSrc = Join-Path $PSScriptRoot "web.config.angular"
-if (Test-Path $angularConfigSrc) {
-    Copy-Item $angularConfigSrc (Join-Path $AngularTarget "web.config") -Force
-}
-
-Write-Host "  Files deployed!" -ForegroundColor Green
+Copy-Item $apiConfigSrc (Join-Path $ApiPublish "web.config") -Force
+Write-Host "  API build complete." -ForegroundColor Green
 Write-Host ""
 
-# ── Step 5: Start IIS sites ─────────────────────────────────────────
-# HARDENED: existence-test via Test-Path on IIS:\ drive (reliable across
-# PS sessions); always attempt Start, verify final state, retry once on
-# transient failure, and FAIL THE BUILD if a target site/pool ends up
-# anything other than Started. Previous version used Get-WebAppPoolState
-# as a truthy guard and skipped Start when it returned null — leaving
-# both sites stopped after a successful deploy.
-Write-Host "Step 5: Starting IIS sites..." -ForegroundColor Yellow
-if (Get-Module WebAdministration) {
-    function Start-IISTarget {
-        param(
-            [Parameter(Mandatory)] [ValidateSet('AppPool','Site')] [string] $Kind,
-            [Parameter(Mandatory)] [string] $Name
-        )
-        $iisPath = if ($Kind -eq 'AppPool') { "IIS:\AppPools\$Name" } else { "IIS:\Sites\$Name" }
-        if (-not (Test-Path $iisPath)) {
-            Write-Host "  $Kind '$Name' does not exist - skipping" -ForegroundColor Yellow
-            return $true
-        }
-        for ($attempt = 1; $attempt -le 2; $attempt++) {
-            try {
-                if ($Kind -eq 'AppPool') { Start-WebAppPool -Name $Name -ErrorAction Stop }
-                else                     { Start-Website   -Name $Name -ErrorAction Stop }
-            } catch {
-                # Already-running raises an error on some PS hosts; tolerate it
-                if ($_.Exception.Message -notmatch 'already started|already running') {
-                    Write-Host "  Start $Kind '$Name' attempt ${attempt}: $($_.Exception.Message)" -ForegroundColor Yellow
-                }
-            }
-            Start-Sleep -Milliseconds 500
-            $state = if ($Kind -eq 'AppPool') {
-                (Get-Item $iisPath -ErrorAction SilentlyContinue).State
-            } else {
-                (Get-Website -Name $Name -ErrorAction SilentlyContinue).State
-            }
-            if ($state -eq 'Started') {
-                Write-Host "  Started ${Kind}: $Name" -ForegroundColor White
-                return $true
-            }
-            Write-Host "  $Kind '$Name' state after attempt ${attempt}: $state" -ForegroundColor Yellow
-        }
-        Write-Host "  FAILED to start ${Kind}: $Name" -ForegroundColor Red
-        return $false
-    }
+# ── Step 2: Build Angular (staging configuration) ───────────────────
+Write-Host "Step 2: Building Angular (configuration=staging)..." -ForegroundColor Yellow
+& (Join-Path $PSScriptRoot "1b-Build-Angular.ps1") -Configuration staging -BuildStamp $BuildStamp
+if ($LASTEXITCODE -ne 0) {
+    Stop-DeployWithFailure -Step "Step 2 (Angular build)" -LiveUntouched
+}
+Write-Host "  Angular build complete." -ForegroundColor Green
+Write-Host ""
 
-    $ok = $true
-    # Pools first, then sites that depend on them
-    $ok = (Start-IISTarget -Kind AppPool -Name $ApiSiteName)     -and $ok
-    $ok = (Start-IISTarget -Kind AppPool -Name $AngularSiteName) -and $ok
-    $ok = (Start-IISTarget -Kind Site    -Name $ApiSiteName)     -and $ok
-    $ok = (Start-IISTarget -Kind Site    -Name $AngularSiteName) -and $ok
-    if (-not $ok) {
-        Write-Host "  One or more IIS targets failed to start - investigate before declaring deploy successful" -ForegroundColor Red
-        exit 1
+# ── Step 3: Stamp and validate the payloads ─────────────────────────
+# "Get-ChildItem returned something" is not "this is a deployable build". The
+# manifest pins the file count, so a half-written publish folder is caught HERE
+# - before the pools stop and before /MIR deletes from live everything the
+# partial payload happens to lack.
+Write-Host "Step 3: Stamping and validating payloads..." -ForegroundColor Yellow
+
+New-TsicManifest -Path $ApiPublish -Site $ApiSite     -Environment $AspNetEnv `
+    -GitHash $GitHash -BuildStamp $BuildStamp | Out-Null
+New-TsicManifest -Path $AngPublish -Site $AngularSite -Environment $AspNetEnv `
+    -GitHash $GitHash -BuildStamp $BuildStamp | Out-Null
+
+$bad = Test-TsicPayload -Path $ApiPublish -Site $ApiSite
+if ($bad) { Stop-DeployWithFailure -Step "Step 3 (API payload)" -Detail $bad -LiveUntouched }
+
+$bad = Test-TsicPayload -Path $AngPublish -Site $AngularSite
+if ($bad) { Stop-DeployWithFailure -Step "Step 3 (Angular payload)" -Detail $bad -LiveUntouched }
+
+Write-Host "  Payloads valid ($BuildStamp)." -ForegroundColor Green
+Write-Host ""
+
+# ── Step 4: Stop app pools ──────────────────────────────────────────
+# Stop-TsicPool polls until the pool actually reports 'Stopped'. The old script
+# slept 2 seconds and hoped; a pool still running holds file locks on
+# TSIC.API.dll, and mirroring into a locked folder yields a half-swapped site.
+Write-Host "Step 4: Stopping app pools..." -ForegroundColor Yellow
+$stopped = @()
+foreach ($pool in @($ApiSite, $AngularSite)) {
+    if (-not (Stop-TsicPool -Pool $pool)) {
+        foreach ($s in $stopped) { Start-TsicPool -Pool $s | Out-Null }
+        Stop-DeployWithFailure -Step "Step 4 (pool '$pool' would not stop)" -LiveUntouched
     }
-} else {
-    Write-Host "  WebAdministration module not available - start sites manually" -ForegroundColor Yellow
-    exit 1
+    $stopped += $pool
 }
 Write-Host ""
 
-# ── Step 6: Ensure IIS app pool has DB access ─────────────────────────
-# After a database restore, the IIS app pool login gets orphaned.
-# This idempotently ensures the login + user mapping exists.
-Write-Host "Step 6: Ensuring IIS app pool DB login..." -ForegroundColor Yellow
+# ── Step 5: Back up the live folders ────────────────────────────────
+# The pools are stopped and Step 6 has not run: this is the last moment the
+# pre-deploy state exists on disk. A failed backup ABORTS - a mirrored deploy
+# with nothing to roll back to is strictly worse than not deploying, and live is
+# still intact here, so aborting costs nothing.
+Write-Host "Step 5: Backing up live folders..." -ForegroundColor Yellow
+
+$ApiBackup = New-TsicBackup -Source $ApiLive -BackupsPath $BackupsPath -Site $ApiSite -Timestamp $Timestamp
+if ($null -eq $ApiBackup) {
+    foreach ($s in $stopped) { Start-TsicPool -Pool $s | Out-Null }
+    Stop-DeployWithFailure -Step "Step 5 (API backup failed)" -LiveUntouched
+}
+
+$AngBackup = New-TsicBackup -Source $AngularLive -BackupsPath $BackupsPath -Site $AngularSite -Timestamp $Timestamp
+if ($null -eq $AngBackup) {
+    foreach ($s in $stopped) { Start-TsicPool -Pool $s | Out-Null }
+    Stop-DeployWithFailure -Step "Step 5 (Angular backup failed)" -LiveUntouched
+}
+Write-Host ""
+
+# ── Step 6: Mirror publish -> live ───────────────────────────────────
+# Same mechanism as prod: robocopy /MIR with the ONE shared exclusion list.
+# App_Data and FirebaseAuth_*.json are excluded, so they are neither copied nor
+# purged - they simply persist, pool-owned, exactly as the app left them.
+Write-Host "Step 6: Deploying files..." -ForegroundColor Yellow
+
+foreach ($m in @(
+    @{ Name = $ApiSite;     Src = $ApiPublish; Dst = $ApiLive;     Ex = $ApiEx },
+    @{ Name = $AngularSite; Src = $AngPublish; Dst = $AngularLive; Ex = $AngEx }
+)) {
+    $p = Get-TsicRoboPreview -Source $m.Src -Dest $m.Dst -ExcludeDirs $m.Ex.Dirs -ExcludeFiles $m.Ex.Files
+    Write-Host "  $($m.Name): $($p.Copy) to copy, $($p.Delete) to remove" -ForegroundColor White
+
+    $exit = Invoke-TsicRobocopy -Source $m.Src -Dest $m.Dst `
+                -ExcludeDirs $m.Ex.Dirs -ExcludeFiles $m.Ex.Files -Quiet
+    if ($exit -ge 8) {
+        Stop-DeployWithFailure -Step "Step 6 ($($m.Name) sync failed, robocopy exit $exit)" `
+            -Detail "$($m.Dst) may be PARTIALLY updated."
+    }
+    Write-Host "  Deployed: $($m.Name)" -ForegroundColor Green
+}
+Write-Host ""
+
+# ── Step 7: Start app pools and sites ───────────────────────────────
+Write-Host "Step 7: Starting IIS..." -ForegroundColor Yellow
+foreach ($pool in @($ApiSite, $AngularSite)) {
+    if (-not (Start-TsicPool -Pool $pool)) {
+        Stop-DeployWithFailure -Step "Step 7 (pool '$pool' would not start)"
+    }
+}
+foreach ($site in @($ApiSite, $AngularSite)) {
+    try {
+        Start-Website -Name $site -ErrorAction Stop
+        Write-Host "  Started site: $site" -ForegroundColor Green
+    } catch {
+        if ((Get-Website -Name $site).State -ne 'Started') {
+            Stop-DeployWithFailure -Step "Step 7 (site '$site' would not start)" -Detail $_.Exception.Message
+        }
+    }
+}
+Write-Host ""
+
+# ── Step 8: Ensure the app pool still has a DB login ────────────────
+# After a database restore the IIS app pool login is orphaned. Idempotent.
+# A failure here is not fatal on its own - Step 9 is the oracle: a broken login
+# surfaces as a non-200 from the API and fails the deploy there.
+Write-Host "Step 8: Verifying IIS app pool DB login..." -ForegroundColor Yellow
 $fixLoginSql = Join-Path $PSScriptRoot "00-postdev-db-restore-apppooluser.sql"
 if (Test-Path $fixLoginSql) {
     try {
-        sqlcmd -S ".\SS2016" -E -i $fixLoginSql -b
+        sqlcmd -S $Config.SqlInstance -E -i $fixLoginSql -b
         if ($LASTEXITCODE -eq 0) {
-            Write-Host "  DB login verified for IIS APPPOOL\$ApiSiteName" -ForegroundColor Green
+            Write-Host "  DB login verified for IIS APPPOOL\$ApiSite" -ForegroundColor Green
         } else {
-            Write-Host "  sqlcmd returned exit code $LASTEXITCODE - check SQL output above" -ForegroundColor Yellow
+            Write-Host "  sqlcmd exit $LASTEXITCODE - see SQL output above. Step 9 will catch a real breakage." -ForegroundColor Yellow
         }
     } catch {
-        Write-Host "  Could not run 00-postdev-db-restore-apppooluser.sql: $_" -ForegroundColor Yellow
-        Write-Host "  If login fails after deploy, run scripts\00-postdev-db-restore-apppooluser.sql manually in SSMS" -ForegroundColor Yellow
+        Write-Host "  Could not run 00-postdev-db-restore-apppooluser.sql: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 } else {
-    Write-Host "  00-postdev-db-restore-apppooluser.sql not found - skipping DB login check" -ForegroundColor Yellow
+    Write-Host "  00-postdev-db-restore-apppooluser.sql not found - skipped." -ForegroundColor Yellow
 }
 Write-Host ""
 
-# ── Step 7: Warmup request ────────────────────────────────────────────
-Write-Host "Step 7: Warming up API (triggers JIT compilation)..." -ForegroundColor Yellow
-Start-Sleep -Seconds 3  # Give IIS a moment to spin up the worker process
-try {
-    # Hit API root to trigger ASP.NET startup + JIT (Swagger is dev-only, won't exist in IIS)
-    $null = Invoke-WebRequest -Uri "https://devapi.teamsportsinfo.com/api/jobs/tsic" -UseBasicParsing -TimeoutSec 60 -ErrorAction Stop
-    Write-Host "  API warmed up!" -ForegroundColor Green
-} catch {
-    Write-Host "  Warmup request failed (app may still be starting): $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "  First manual request will be slow while JIT compiles." -ForegroundColor Yellow
+# ── Step 9: Verify the sites are actually up ────────────────────────
+# A 200 here proves the NEW worker booted (Program.cs throws without
+# ASPNETCORE_ENVIRONMENT) and reached the database. This is the success oracle -
+# the banner below is not printed unless this passes.
+Write-Host "Step 9: Verifying sites are serving..." -ForegroundColor Yellow
+Start-Sleep -Seconds 3
+
+if (-not (Test-TsicEndpoint -Url "https://$ApiHost/api/jobs/tsic")) {
+    Stop-DeployWithFailure -Step "Step 9 (API is not serving)" `
+        -Detail "The API did not return a success response after the deploy."
+}
+if (-not (Test-TsicEndpoint -Url "https://$AngularHost/" -Retries 3)) {
+    Stop-DeployWithFailure -Step "Step 9 (Angular is not serving)" `
+        -Detail "The frontend did not return a success response after the deploy."
 }
 Write-Host ""
 
-# ── Done ─────────────────────────────────────────────────────────────
+# ── Done - earned, not printed ──────────────────────────────────────
+$elapsed = [int]((Get-Date) - $StartedAt).TotalSeconds
+
+Send-TsicDeployEvent -SeqUrl $SeqUrl -Site "$ApiSite + $AngularSite" -Outcome Completed `
+    -Environment $AspNetEnv -BuildStamp $BuildStamp -GitHash $GitHash `
+    -BackupName "$ApiBackup" -LogPath $logPath -DurationSec $elapsed
+
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "SUCCESS! Deployed to local IIS." -ForegroundColor Green
+Write-Host "  DEPLOYED - both sites verified serving." -ForegroundColor Green
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "  API:     https://devapi.teamsportsinfo.com" -ForegroundColor Green
-Write-Host "  Angular: https://dev.teamsportsinfo.com" -ForegroundColor Green
+Write-Host "  Build:    $BuildStamp" -ForegroundColor Green
+Write-Host "  API:      https://$ApiHost" -ForegroundColor Green
+Write-Host "  Angular:  https://$AngularHost" -ForegroundColor Green
+Write-Host "  Took:     ${elapsed}s" -ForegroundColor DarkGray
+Write-Host ""
+Write-Host "  Roll back with: .\Rollback-Local.ps1" -ForegroundColor DarkGray
+Write-Host ""
 
 } finally {
-    if ($transcriptStarted) {
-        try { Stop-Transcript | Out-Null } catch {}
-    }
-    try { Set-Location -Path $PSScriptRoot } catch {}
-    Write-Host ("Returned to: {0}" -f (Get-Location)) -ForegroundColor DarkGray
+    try { Stop-Transcript | Out-Null } catch { }
+    try { Set-Location -Path $PSScriptRoot } catch { }
 }

@@ -5,7 +5,11 @@ param(
     [string]$AngularPath = "$PSScriptRoot\..\TSIC-Core-Angular\src\frontend\tsic-app",
     [string]$OutputPath = "$PSScriptRoot\..\publish\angular",
     [ValidateSet("staging", "production")]
-    [string]$Configuration = "staging"
+    [string]$Configuration = "staging",
+    # The deploy script owns the stamp so deploy-manifest.json and the footer
+    # cannot disagree (computing it twice can straddle a minute boundary).
+    # Left empty for standalone runs, which compute their own below.
+    [string]$BuildStamp = ""
 )
 
 # Force UTF-8 console encoding so ng/npm/Node output (em-dashes, box-drawing
@@ -48,11 +52,15 @@ if (!(Test-Path "node_modules")) {
 
 # Stamp build version into environment files
 Write-Host "Stamping build version..." -ForegroundColor Cyan
-try {
-    $gitHash = (git rev-parse --short HEAD 2>$null)
-    if (-not $gitHash) { $gitHash = "unknown" }
-} catch { $gitHash = "unknown" }
-$buildStamp = "v$(Get-Date -Format 'yyMMdd.HHmm').$gitHash"
+if ($BuildStamp) {
+    $buildStamp = $BuildStamp
+} else {
+    try {
+        $gitHash = (git rev-parse --short HEAD 2>$null)
+        if (-not $gitHash) { $gitHash = "unknown" }
+    } catch { $gitHash = "unknown" }
+    $buildStamp = "v$(Get-Date -Format 'yyMMdd.HHmm').$gitHash"
+}
 Write-Host "  Build version: $buildStamp" -ForegroundColor White
 
 # Update all environment files with the build stamp
