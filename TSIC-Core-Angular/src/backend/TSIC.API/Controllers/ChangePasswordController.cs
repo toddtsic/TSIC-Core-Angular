@@ -220,9 +220,8 @@ public class ChangePasswordController : ControllerBase
     }
 
     /// <summary>
-    /// Accounts this registrant's registrations could be merged onto, plus the blast radius.
-    /// The candidates carry the household, the children and the job history because the usernames
-    /// alone are frequently raw GUIDs and tell the admin nothing.
+    /// Other logins that are the same ADULT. Empty for a player — a child has no login, and is
+    /// collapsed only inside their household's merge.
     /// </summary>
     [HttpGet("{regId:guid}/merge-candidates")]
     [ProducesResponseType(typeof(MergeCandidatesResponse), 200)]
@@ -234,7 +233,10 @@ public class ChangePasswordController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Family logins this household could be merged onto. Keyed on the CHILD — contract §2.</summary>
+    /// <summary>
+    /// Family logins that are the same HOUSEHOLD — the mother's email, phone and name all agree.
+    /// Not keyed on the child: sharing a child means two households OVERLAP, not that they are one.
+    /// </summary>
     [HttpGet("{regId:guid}/family-merge-candidates")]
     [ProducesResponseType(typeof(MergeCandidatesResponse), 200)]
     public async Task<ActionResult<MergeCandidatesResponse>> GetFamilyMergeCandidates(
@@ -245,6 +247,7 @@ public class ChangePasswordController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Fold duplicate adult logins into the one the person asked for.</summary>
     [HttpPost("{regId:guid}/merge-username")]
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]
@@ -256,18 +259,24 @@ public class ChangePasswordController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.TargetUserName))
             return BadRequest(new { message = "Target username is required." });
 
+        if (request.SourceUserNames.Count == 0)
+            return BadRequest(new { message = "Select at least one account to merge." });
+
         using var scope = AuditScope("MergeUser");
 
         try
         {
-            var result = await _service.MergeUsernameAsync(regId, request.TargetUserName, ct);
+            var result = await _service.MergeUsernameAsync(
+                regId, request.TargetUserName, request.SourceUserNames, ct);
 
             // Irreversible. This event is the ONLY record that it happened AND the only way back:
             // ReversalPayload carries each moved RegistrationId with the UserId it was moved off.
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} MERGED registration {RegistrationId} onto user '{TargetUserName}' ({TargetUserId}) — "
-                + "{MovedCount} registration(s) re-pointed — {Outcome}. Reversal: {ReversalPayload}",
-                Actor, regId, result.TargetUserName, result.TargetUserId,
+                "CHANGE-PASSWORD AUDIT: {Actor} MERGED {SourceCount} account(s) [{SourceUserNames}] onto user "
+                + "'{TargetUserName}' ({TargetUserId}) from registration {RegistrationId} — {MovedCount} registration(s) "
+                + "re-pointed — {Outcome}. Reversal: {ReversalPayload}",
+                Actor, request.SourceUserNames.Count, string.Join(", ", request.SourceUserNames),
+                result.TargetUserName, result.TargetUserId, regId,
                 result.Moved.Count, "OK", ReversalPayload(result));
 
             return Ok(new { message = $"Merged {result.Moved.Count} registration(s) to '{result.TargetUserName}'." });
@@ -275,12 +284,19 @@ public class ChangePasswordController : ControllerBase
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to merge registration {RegistrationId} onto '{TargetUserName}' — {Outcome}: {Reason}",
-                Actor, regId, request.TargetUserName, "FAILED", ex.Message);
+                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to merge [{SourceUserNames}] onto '{TargetUserName}' "
+                + "from registration {RegistrationId} — {Outcome}: {Reason}",
+                Actor, string.Join(", ", request.SourceUserNames), request.TargetUserName, regId,
+                "FAILED", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }
 
+    /// <summary>
+    /// Fold duplicate family logins into the one the parent asked for — the whole reason this tool
+    /// exists. Moves the registrations AND collapses each child, so the parent does not sign in to find
+    /// every child listed twice.
+    /// </summary>
     [HttpPost("{regId:guid}/merge-family-username")]
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]
@@ -292,18 +308,24 @@ public class ChangePasswordController : ControllerBase
         if (string.IsNullOrWhiteSpace(request.TargetUserName))
             return BadRequest(new { message = "Target family username is required." });
 
+        if (request.SourceUserNames.Count == 0)
+            return BadRequest(new { message = "Select at least one account to merge." });
+
         using var scope = AuditScope("MergeFamily");
 
         try
         {
-            var result = await _service.MergeFamilyUsernameAsync(regId, request.TargetUserName, ct);
+            var result = await _service.MergeFamilyUsernameAsync(
+                regId, request.TargetUserName, request.SourceUserNames, ct);
 
-            // Two households can legitimately share a child (divorced parents), so this is the merge
-            // most likely to be made in error — and the one whose Reversal payload will be needed.
+            // The merge this tool exists for, and the one whose Reversal payload will be needed if it
+            // is ever wrong. It moves children between households.
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} MERGED the household of registration {RegistrationId} onto family login "
-                + "'{TargetUserName}' ({TargetUserId}) — {MovedCount} registration(s) re-pointed — {Outcome}. Reversal: {ReversalPayload}",
-                Actor, regId, result.TargetUserName, result.TargetUserId,
+                "CHANGE-PASSWORD AUDIT: {Actor} MERGED {SourceCount} family login(s) [{SourceUserNames}] onto "
+                + "'{TargetUserName}' ({TargetUserId}) from registration {RegistrationId} — {MovedCount} registration(s) "
+                + "re-pointed — {Outcome}. Reversal: {ReversalPayload}",
+                Actor, request.SourceUserNames.Count, string.Join(", ", request.SourceUserNames),
+                result.TargetUserName, result.TargetUserId, regId,
                 result.Moved.Count, "OK", ReversalPayload(result));
 
             return Ok(new { message = $"Merged {result.Moved.Count} registration(s) to family '{result.TargetUserName}'." });
@@ -311,8 +333,10 @@ public class ChangePasswordController : ControllerBase
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to merge the household of registration {RegistrationId} onto '{TargetUserName}' — {Outcome}: {Reason}",
-                Actor, regId, request.TargetUserName, "FAILED", ex.Message);
+                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to merge family login(s) [{SourceUserNames}] onto "
+                + "'{TargetUserName}' from registration {RegistrationId} — {Outcome}: {Reason}",
+                Actor, string.Join(", ", request.SourceUserNames), request.TargetUserName, regId,
+                "FAILED", ex.Message);
             return BadRequest(new { message = ex.Message });
         }
     }

@@ -15,7 +15,9 @@ import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
 import type {
   ChangePasswordSearchResultDto,
   ChangePasswordRoleOptionDto,
-  MergeCandidatesResponse
+  MergeCandidateDto,
+  MergeCandidatesResponse,
+  MergeUsernameRequest
 } from '@core/api';
 
 // Mirrors MaxAccounts in ChangePasswordRepository — the server caps the search at this many
@@ -151,31 +153,63 @@ export class ChangePasswordComponent implements OnInit {
   }
 
   // ── Per-player editor ──
-  // Editable: R-Email and R-UserName (a merge). NOT the password: a player has no usable login —
-  // the family signs in and picks the child, so a player's own credentials are vestigial (half of
-  // them are raw GUIDs). Contract §1.
+  // Editable: R-Email. NOTHING else.
+  //
+  // No password: a player has no usable login — the family signs in and picks the child, so a
+  // player's own credentials are vestigial (half of them are raw GUIDs).
+  //
+  // No username-as-merge either, which USED to be here. A child is not an account you merge; a child
+  // is collapsed as part of their household's merge, inside that boundary. The old dropdown ran on a
+  // global name+DOB+role sweep that reached across every customer in the system.
   editPlayer = signal<PlayerRow | null>(null);
   editEmail = signal('');
-  editUserName = signal('');
-  editMergePreview = signal<MergeCandidatesResponse | null>(null);
-  isLoadingEditCandidates = signal(false);
   isSavingPlayer = signal(false);
 
   // ── Merge ──
-  // The preview carries the candidates AND the blast radius. Both are shown before the confirm
-  // button goes live: the merge is irreversible, and picking between two raw GUID usernames with
-  // no other information is how you fuse two people by accident.
+  //
+  // The parent phones in, says "put everything on <username>", and the SuperUser finds that account
+  // in this list and picks it. So the modal is NOT "choose a target for the source" — it is:
+  //
+  //     pick the SURVIVOR   (radio — the account the parent named)
+  //     check what FOLDS IN (checkbox — every other login that keys to the same person)
+  //
+  // Every account here already passed the identity key server-side (email AND phone AND name), so
+  // they are all the same person and folding them all in is the normal case. The checkboxes exist so
+  // the SuperUser can *withhold* one, not so they have to hunt for the right one.
   mergePreview = signal<MergeCandidatesResponse | null>(null);
   isCheckingMerge = signal(false);
   showMergeModal = signal(false);
-  selectedMergeUserName = signal('');
   isMerging = signal(false);
 
-  mergeCandidates = computed(() => this.mergePreview()?.candidates ?? []);
-  editMergeCandidates = computed(() => this.editMergePreview()?.candidates ?? []);
+  /** The survivor's username. Everything lands here. */
+  mergeTarget = signal('');
 
-  selectedCandidate = computed(() =>
-    this.mergeCandidates().find(c => c.userName === this.selectedMergeUserName()) ?? null);
+  /** Usernames of the accounts to fold in. */
+  mergeSources = signal<string[]>([]);
+
+  mergeCandidates = computed(() => this.mergePreview()?.candidates ?? []);
+
+  /**
+   * Every account in play — the one the SuperUser searched their way to, plus every other login that
+   * keys to the same person. ANY of them can be the survivor: the parent may well name the old
+   * account rather than the new one.
+   */
+  mergeAccounts = computed<MergeCandidateDto[]>(() => {
+    const preview = this.mergePreview();
+    return preview ? [preview.source, ...preview.candidates] : [];
+  });
+
+  isMergeSource = (userName: string): boolean => this.mergeSources().includes(userName);
+
+  /** Registrations that will actually move — the blast radius, from what is CHECKED right now. */
+  mergeMovingRegs = computed(() => {
+    const selected = new Set(this.mergeSources());
+    return this.mergeAccounts()
+      .filter(a => selected.has(a.userName))
+      .reduce((n, a) => n + a.registrationCount, 0);
+  });
+
+  canMerge = computed(() => !!this.mergeTarget() && this.mergeSources().length > 0);
 
   isPlayerRole = computed(() => {
     const player = this.roleOptions().find(o => o.roleName === 'Player');
@@ -458,7 +492,7 @@ export class ChangePasswordComponent implements OnInit {
   }
 
   // ═══════════════════════════════════════════════════════════
-  //  Per-player edit (email / username-as-merge)
+  //  Per-player edit (email only)
   // ═══════════════════════════════════════════════════════════
 
   /** Any of the player's registrations identifies them to the API; they all carry the same UserId. */
@@ -469,92 +503,35 @@ export class ChangePasswordComponent implements OnInit {
   openPlayerEdit(player: PlayerRow): void {
     this.editPlayer.set(player);
     this.editEmail.set(player.email ?? '');
-    this.editUserName.set(player.userName);
-    this.editMergePreview.set(null);
-    this.isLoadingEditCandidates.set(true);
-
-    this.service.getUserMergeCandidates(this.playerRegId(player)).subscribe({
-      next: (p) => { this.editMergePreview.set(p); this.isLoadingEditCandidates.set(false); },
-      error: () => { this.isLoadingEditCandidates.set(false); }
-    });
   }
 
   closePlayerEdit(): void {
     this.editPlayer.set(null);
   }
 
-  /** True once something in the editor differs from the row it was seeded from. */
   playerEditDirty = computed(() => {
     const p = this.editPlayer();
-    if (!p) return false;
-    return this.editEmail().trim() !== (p.email ?? '')
-      || this.editUserName() !== p.userName;
-  });
-
-  /** The candidate the player editor's username dropdown currently points at. */
-  editSelectedCandidate = computed(() => {
-    const p = this.editPlayer();
-    if (!p || this.editUserName() === p.userName) return null;
-    return this.editMergeCandidates().find(c => c.userName === this.editUserName()) ?? null;
+    return !!p && this.editEmail().trim() !== (p.email ?? '');
   });
 
   savePlayerEdit(): void {
     const player = this.editPlayer();
-    if (!player || this.isSavingPlayer()) return;
-
-    const regId = this.playerRegId(player);
-    const email = this.editEmail().trim();
-    const targetUserName = this.editUserName();
-    const isMerge = !!targetUserName && targetUserName !== player.userName;
+    if (!player || this.isSavingPlayer() || !this.playerEditDirty()) return;
 
     this.isSavingPlayer.set(true);
 
-    // Sequenced, never parallel: a merge re-points the registrations, so the email edit has to land
-    // on the source account FIRST — after the merge this regId belongs to the target.
-    //
-    // And they are chained, not fire-and-forget: if the merge fails, we do NOT want to have quietly
-    // committed the email change and reported success.
-    const emailChanged = email !== (player.email ?? '');
-
-    const run = (after: () => void) => {
-      if (!emailChanged) { after(); return; }
-      this.service.updateUserEmail(regId, { email }).subscribe({
-        next: () => after(),
-        error: (err) => {
-          this.toast.show(err?.error?.message || 'Failed to update the email; nothing was changed.', 'danger');
-          this.isSavingPlayer.set(false);
-        }
-      });
-    };
-
-    run(() => {
-      if (!isMerge) {
+    this.service.updateUserEmail(this.playerRegId(player), { email: this.editEmail().trim() }).subscribe({
+      next: () => {
         this.toast.show('Email updated.', 'success');
-        this.finishPlayerEdit();
-        return;
+        this.isSavingPlayer.set(false);
+        this.closePlayerEdit();
+        this.onSearch();
+      },
+      error: (err) => {
+        this.toast.show(err?.error?.message || 'Failed to update the email; nothing was changed.', 'danger');
+        this.isSavingPlayer.set(false);
       }
-      this.service.mergeUsername(regId, { targetUserName }).subscribe({
-        next: (res) => {
-          this.toast.show(res.message, 'success');
-          this.finishPlayerEdit();
-        },
-        error: (err) => {
-          this.toast.show(
-            err?.error?.message
-            ?? (emailChanged
-              ? 'The merge failed. The email change WAS saved.'
-              : 'The merge failed.'),
-            'danger');
-          this.isSavingPlayer.set(false);
-        }
-      });
     });
-  }
-
-  private finishPlayerEdit(): void {
-    this.isSavingPlayer.set(false);
-    this.closePlayerEdit();
-    this.onSearch();
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -574,21 +551,52 @@ export class ChangePasswordComponent implements OnInit {
   }
 
   openMerge(): void {
-    // Nothing preselected. This is irreversible — the admin picks deliberately.
-    this.selectedMergeUserName.set('');
+    // Nothing preselected. This is irreversible, and the survivor is the account the PARENT named —
+    // not something for the tool to guess at.
+    this.mergeTarget.set('');
+    this.mergeSources.set([]);
     this.showMergeModal.set(true);
   }
 
   closeMerge(): void {
     this.showMergeModal.set(false);
-    this.selectedMergeUserName.set('');
+    this.mergeTarget.set('');
+    this.mergeSources.set([]);
+  }
+
+  /**
+   * Choosing the survivor checks everything else by default. They all key to the same person, so
+   * folding them all in is the normal case — and a parent who has forgotten their password twice has
+   * three logins, not two. Unchecking is the exception, and it stays available.
+   */
+  setMergeTarget(userName: string): void {
+    this.mergeTarget.set(userName);
+    this.mergeSources.set(
+      this.mergeAccounts().map(a => a.userName).filter(u => u !== userName)
+    );
+  }
+
+  toggleMergeSource(userName: string): void {
+    const current = this.mergeSources();
+    this.mergeSources.set(
+      current.includes(userName)
+        ? current.filter(u => u !== userName)
+        : [...current, userName]
+    );
   }
 
   confirmMerge(acct: LoginAccount): void {
-    const target = this.selectedMergeUserName();
-    if (!target || this.isMerging()) return;
+    if (!this.canMerge() || this.isMerging()) return;
+
     this.isMerging.set(true);
-    const req = { targetUserName: target };
+
+    // Both halves are explicit. The server re-derives the candidate set from the identity key and
+    // rejects any username that is not in it, so nothing the browser sends can widen the write.
+    const req: MergeUsernameRequest = {
+      targetUserName: this.mergeTarget(),
+      sourceUserNames: this.mergeSources()
+    };
+
     const call = acct.isFamilyLogin
       ? this.service.mergeFamilyUsername(acct.anyRegId, req)
       : this.service.mergeUsername(acct.anyRegId, req);

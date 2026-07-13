@@ -139,7 +139,7 @@ public record MergeCandidateDto
     public string? DadEmail { get; init; }
 
     /// <summary>The children this family login owns — the evidence that it is the same household.
-    /// Empty for a player candidate.</summary>
+    /// Empty for an adult candidate.</summary>
     public required IReadOnlyList<MergeCandidateChildDto> Children { get; init; }
 
     /// <summary>Where this account has been used. Identity breadcrumbs; capped.</summary>
@@ -152,54 +152,70 @@ public record MergeCandidateChildDto
     public required string Name { get; init; }
     public DateTime? Dob { get; init; }
 
-    /// <summary>True when this child also appears under the SOURCE account. This is the match that
-    /// made the candidate a candidate — it is the thing the admin is being asked to confirm.</summary>
+    /// <summary>
+    /// True when this child also appears under the SOURCE account.
+    ///
+    /// It is NOT why the candidate is a candidate — the key is the mother, never the child. It is shown
+    /// because it is the fastest way for the SuperUser to confirm, with the parent on the phone, that
+    /// the two logins really are one household.
+    /// </summary>
     public required bool MatchesSource { get; init; }
 }
 
 /// <summary>
-/// Everything the admin needs before an irreversible merge: who they are merging FROM, what they can
-/// merge INTO, and — the part legacy never showed — how much the merge will actually move.
+/// Everything the SuperUser needs before an irreversible merge: who is being merged, what they can be
+/// merged into, and — the part legacy never showed — how much will actually move.
 /// </summary>
 public record MergeCandidatesResponse
 {
-    /// <summary>The account being merged away.</summary>
+    /// <summary>The account the SuperUser searched their way to. It may itself be the survivor.</summary>
     public required MergeCandidateDto Source { get; init; }
 
-    /// <summary>Accounts it could be merged into.</summary>
+    /// <summary>
+    /// Every other account that keys to the same identity. More than one is normal — a parent who has
+    /// forgotten their password twice has three logins, and they all key to the same mother.
+    ///
+    /// The SuperUser picks the survivor from this list plus the source (the parent named it on the
+    /// phone) and selects which of the rest to fold into it.
+    /// </summary>
     public required IReadOnlyList<MergeCandidateDto> Candidates { get; init; }
 
-    /// <summary>
-    /// Registrations the merge will re-point — across EVERY account matching the identity key, not
-    /// just the source's.
-    ///
-    /// The wide net is deliberate and correct: a child accumulates one account per season, so this
-    /// consolidates all of them in a single action instead of forcing the admin to repeat it six
-    /// times. It is surfaced here because a blast radius that large must be SEEN, not implied.
-    /// </summary>
+    /// <summary>Registrations sitting on all of these accounts today — the maximum blast radius.</summary>
     public required int RegistrationsAffected { get; init; }
 
-    /// <summary>How many distinct accounts those registrations sit on today (including the source).</summary>
+    /// <summary>How many accounts could be folded in, besides the source.</summary>
     public required int AccountsAffected { get; init; }
 }
 
+/// <summary>
+/// A merge, as the SuperUser expressed it: the survivor the parent asked for, and the accounts to fold
+/// into it.
+///
+/// The sources are EXPLICIT, and that is the point. Legacy derived its own work-set from field equality
+/// and swept the whole system; the admin saw a list that had no bearing on what the write did. Here the
+/// server re-derives the candidate set and rejects any name that is not in it, so the write can only
+/// ever touch accounts the identity key already approved AND the SuperUser explicitly chose.
+/// </summary>
 public record MergeUsernameRequest
 {
+    /// <summary>The survivor. Everything lands here.</summary>
     public required string TargetUserName { get; init; }
+
+    /// <summary>The accounts to fold in. Must all be merge candidates for this registration.</summary>
+    public required IReadOnlyList<string> SourceUserNames { get; init; }
 }
 
 /// <summary>
 /// One registration a merge re-pointed, and the account it was re-pointed AWAY from.
 ///
-/// <c>PreviousUserId</c> is per-registration and not redundant: the person merge SWEEPS every account
-/// matching the identity key, so a single merge can pull registrations off half a dozen different
-/// seasonal accounts at once. There is no one "old owner" to record.
+/// <c>PreviousUserId</c> is per-registration and not redundant: a merge can fold several accounts in at
+/// once, so there is no single "old owner" to record.
 /// </summary>
 public record MergedRegistrationDto
 {
     public required Guid RegistrationId { get; init; }
 
-    /// <summary>The <c>UserId</c> (person merge) or <c>Family_UserId</c> (family merge) this
+    /// <summary>The <c>UserId</c> (adult merge) or <c>Family_UserId</c> (family merge) this
     /// registration carried before the merge. Restoring this value is the undo.</summary>
     public required string PreviousUserId { get; init; }
 }

@@ -47,53 +47,67 @@ public interface IChangePasswordRepository
         CancellationToken ct = default);
 
     // ── Merge ──
+    //
+    // ONE identity key, defined in TSIC.Domain/Constants/HouseholdIdentity.cs:
+    //
+    //     email  AND  phone  AND  name       all three, normalized. A placeholder is not an identity.
+    //
+    // It is a SECURITY control. A merge hands one account's children and history to another, across
+    // customers, irreversibly — and the SuperUser pulls the trigger on a list THIS CODE produced, so
+    // the candidate list is the security boundary. A miss costs nothing (the parent uses their new
+    // account); a false match is a breach. Read that file before widening anything.
 
     /// <summary>
-    /// Candidate accounts a PLAYER's registrations could be merged onto.
-    /// Key: first name + last name + DOB + role. Sound because a player's DOB is never null
-    /// (measured 0 of 130,831 — contract §2).
+    /// Other logins that are the SAME ADULT — their own email + phone + name.
+    /// <b>Returns empty for a player</b>: a player has no login, and a child is collapsed only inside
+    /// their household's merge. See <see cref="MergeFamilyRegistrationsAsync"/>.
     /// </summary>
     Task<MergeCandidatesResponse> GetUserMergeCandidatesAsync(
         Guid registrationId,
         CancellationToken ct = default);
 
     /// <summary>
-    /// Candidate FAMILY logins this registration's family could be merged onto.
+    /// Family logins that are the SAME HOUSEHOLD as this registration's — the mother's email, phone and
+    /// name all agree. The family account IS her data.
     ///
-    /// Key: <b>the child</b> — another family login that owns a player with the same
-    /// (first name, last name, DOB). NOT the parents.
+    /// Not keyed on the child: "owns the same child" says two households OVERLAP (divorced parents
+    /// legitimately share one), not that they ARE one.
     ///
-    /// Legacy keyed this on an exact match of all six parent fields plus postal code, and that finds
-    /// only 47% of the real duplicates: households re-register from scratch each season and type mom
-    /// and dad into swapped slots, with typos and nicknames ("Su Kang / Jesse Abraham" vs
-    /// "Jesse Abraham / Su Kang"). The child is the stable key. Contract §2.
+    /// More than one candidate is normal — a parent who has forgotten their password twice has three
+    /// logins, and they all key to the same mother.
     /// </summary>
     Task<MergeCandidatesResponse> GetFamilyMergeCandidatesAsync(
         Guid registrationId,
         CancellationToken ct = default);
 
     /// <summary>
-    /// Re-point <c>Registrations.UserId</c> onto <paramref name="targetUserName"/>.
-    /// The target MUST be one of the accounts <see cref="GetUserMergeCandidatesAsync"/> returned;
-    /// anything else throws.
+    /// Re-point every registration under <paramref name="sourceUserNames"/> onto
+    /// <paramref name="targetUserName"/>. Every name given MUST be one
+    /// <see cref="GetUserMergeCandidatesAsync"/> returned; anything else throws.
     ///
-    /// Returns every registration moved AND the account it moved off — not a count. There is no undo
-    /// for a merge, and a count cannot be undone: see <see cref="MergeResultDto"/>.
+    /// Returns every registration moved AND the account it moved off — not a count. A count cannot
+    /// reverse a merge: afterwards the target owns rows that used to belong to several accounts and
+    /// nothing on the row says which. See <see cref="MergeResultDto"/>.
     /// </summary>
     Task<MergeResultDto> MergeUserRegistrationsAsync(
         Guid registrationId,
         string targetUserName,
+        IReadOnlyList<string> sourceUserNames,
         CancellationToken ct = default);
 
     /// <summary>
-    /// Re-point <c>Registrations.Family_UserId</c> onto <paramref name="targetFamilyUserName"/>.
-    /// The target MUST be one of the accounts <see cref="GetFamilyMergeCandidatesAsync"/> returned;
-    /// anything else throws.
+    /// Collapse the family logins named in <paramref name="sourceFamilyUserNames"/> onto
+    /// <paramref name="targetFamilyUserName"/> — the account the parent asked for. Every name given
+    /// MUST be one <see cref="GetFamilyMergeCandidatesAsync"/> returned; anything else throws.
     ///
-    /// Returns every registration moved AND the account it moved off — see <see cref="MergeResultDto"/>.
+    /// Moves BOTH FKs: <c>Family_UserId</c> for every registration under a losing login (including
+    /// inactive ones — orphaning a parent's dropped registrations on a dead login is how they lose
+    /// their history), and <c>UserId</c> for each child that exists unambiguously on both sides, so the
+    /// parent does not end up seeing every child twice.
     /// </summary>
     Task<MergeResultDto> MergeFamilyRegistrationsAsync(
         Guid registrationId,
         string targetFamilyUserName,
+        IReadOnlyList<string> sourceFamilyUserNames,
         CancellationToken ct = default);
 }

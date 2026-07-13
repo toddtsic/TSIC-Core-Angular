@@ -4,5 +4,6 @@
 /* eslint-disable */
 export type MergeUsernameRequest = {
     targetUserName: string;
+    sourceUserNames: Array<string>;
 };
 

@@ -55,11 +55,13 @@ public interface IChangePasswordService
     Task<MergeResultDto> MergeUsernameAsync(
         Guid registrationId,
         string targetUserName,
+        IReadOnlyList<string> sourceUserNames,
         CancellationToken ct = default);
 
     /// <summary>Irreversible. Returns what moved and where from — the audit payload, not a count.</summary>
     Task<MergeResultDto> MergeFamilyUsernameAsync(
         Guid registrationId,
         string targetFamilyUserName,
+        IReadOnlyList<string> sourceFamilyUserNames,
         CancellationToken ct = default);
 }

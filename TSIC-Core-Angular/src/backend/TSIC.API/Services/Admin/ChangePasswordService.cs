@@ -131,16 +131,19 @@ public class ChangePasswordService : IChangePasswordService
     public async Task<MergeResultDto> MergeUsernameAsync(
         Guid registrationId,
         string targetUserName,
+        IReadOnlyList<string> sourceUserNames,
         CancellationToken ct = default)
     {
-        return await _repo.MergeUserRegistrationsAsync(registrationId, targetUserName, ct);
+        return await _repo.MergeUserRegistrationsAsync(registrationId, targetUserName, sourceUserNames, ct);
     }
 
     public async Task<MergeResultDto> MergeFamilyUsernameAsync(
         Guid registrationId,
         string targetFamilyUserName,
+        IReadOnlyList<string> sourceFamilyUserNames,
         CancellationToken ct = default)
     {
-        return await _repo.MergeFamilyRegistrationsAsync(registrationId, targetFamilyUserName, ct);
+        return await _repo.MergeFamilyRegistrationsAsync(
+            registrationId, targetFamilyUserName, sourceFamilyUserNames, ct);
     }
 }
