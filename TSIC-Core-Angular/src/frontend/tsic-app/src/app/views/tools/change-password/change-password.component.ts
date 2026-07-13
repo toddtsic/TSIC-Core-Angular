@@ -15,6 +15,7 @@ import { MergePanelComponent } from './components/merge-panel.component';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { PhonePipe } from '@infrastructure/pipes/phone.pipe';
+import { RoleIds } from '@infrastructure/constants/roles.constants';
 import type {
   ChangePasswordSearchResultDto,
   ChangePasswordRoleOptionDto,
@@ -130,6 +131,17 @@ export class ChangePasswordComponent implements OnInit {
   readonly searched = signal(false);
 
   readonly canSearch = computed(() => !!this.roleId() && !this.searching());
+
+  /**
+   * Is the SELECTED role Player? Family username is the one criterion that only a player has — a player
+   * owns no login, so the account they sign in with is a parent's. Every other role signs in as
+   * themselves and has no family login to be searched by.
+   *
+   * Keyed on the role GUID, never the display name, and compared case-insensitively: the backend's GUID
+   * casing varies (see roles.constants.ts). The role list this tool serves is real role IDs only — no
+   * synthetic filter sentinels — so a straight equality check is the whole test.
+   */
+  readonly isPlayerRole = computed(() => this.roleId().toUpperCase() === RoleIds.Player);
 
   /** Distinct logins in the result set — what the server's cap actually bounds. */
   readonly accountCount = computed(() =>
@@ -279,13 +291,24 @@ export class ChangePasswordComponent implements OnInit {
     this.api.getRoleOptions().subscribe({
       next: options => {
         this.roleOptions.set(options);
-        if (!this.roleId() && options.length) this.roleId.set(options[0].roleId);
+        if (!this.roleId() && options.length) this.setRole(options[0].roleId);
       },
       error: () => this.toast.show('Could not load the role list.', 'danger')
     });
   }
 
   // ── Search ───────────────────────────────────────────────────────────────────
+
+  /**
+   * Changing the role away from Player takes the Family-username box off the panel — so it also has to
+   * take the VALUE with it. A criterion that is still in the request but no longer on screen is a filter
+   * nobody can see: Ann types a family username, switches to Club Rep, searches, and gets nothing, with
+   * no field on the panel to explain why.
+   */
+  setRole(roleId: string): void {
+    this.roleId.set(roleId);
+    if (!this.isPlayerRole()) this.familyUserName.set('');
+  }
 
   search(): void {
     if (!this.canSearch()) return;
