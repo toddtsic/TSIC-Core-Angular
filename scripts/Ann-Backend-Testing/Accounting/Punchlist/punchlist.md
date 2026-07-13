@@ -92,7 +92,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Check Owed and CC Owed to recompute correctly after a base-fee-only refund (processing fees handled separately/retained)
 - **What happened**: Suspected an error in the resulting Check/CC owed amounts — needs re-review. Re-verify the accounting math on the Admin Player Accounting popup for a base-fee-only refund and confirm Check Owed and CC Owed are correct.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Ann flagged a possible error worked through on YJS Camps and Clinics. Confirm how a base-fee-only refund (proc fees excluded) should flow into Check Owed vs CC Owed before changing anything.
 
 ### PL-028: STEPS Girls — 50% discount code produces fractional cents in the confirmation email "total amount due"
@@ -184,7 +184,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
   2. **Tighten the void copy in general** — the body reads as one long inline paragraph ("CC was not yet settled at Authorize.Net, so the original $201.83 charge was VOIDED (not refunded). ADN void tx 12008414516."). Shorter, cleaner sentence; lead with the action, drop the explanatory clause unless it changes the Admin's next step.
   3. **Add the same treatment to Refund rows** — when an actual ADN refund (not a void) is issued, the Payment Ledger row should similarly show the refund transaction with the ADN refund tx number. Right now nothing equivalent is rendered; Admin needs a refund tx in the ledger to reconcile against the ADN dashboard.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Done
 
 ### PL-020: Accounting tables — Late Fee adjustments in Fee-Adj should render in red (parity with EBD shown in green)
 - **Refs**: PL-004 (EBD / Late Fee "apply to all age groups"), PL-006 (Late Fee behavior), PL-011 (Early Bird → "Early Bird Discount" label), PL-015 (cross-level guidance), PL-016 ("Most-specific wins" wording), PL-008 (Player vs Team Payment screen alignment), PL-009 (Family Players Breakdown column order)
@@ -272,7 +272,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The view to **scroll back to the top of the Accounting table** so the user can immediately see how the discount changed the columns (Owed, Proc Fee, CC Owed, Check Owed, etc.) without having to manually scroll
 - **What happened**: The view stays where it is (typically near the DC input / CC form), leaving the Accounting table out of sight at the moment the numbers actually changed. After a successful apply, auto-scroll to the top of the Accounting table so the change is the first thing the user sees.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-012: Family Players Breakdown — drop redundant "Owed" heading, kill horizontal scroll (widen popup + narrow columns)
 - **Refs**: PL-009 (Family Players Breakdown column order: Total Fee → Proc Fee → Paid → Owes), PL-007 (Club Teams Breakdown + Team Payment horizontal-scroll consolidation), PL-010 (Family Account ledger improvements)

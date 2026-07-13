@@ -45,7 +45,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A clean, job-appropriate headline, and a sensible banner presentation even when no Banner Background image has been set yet
 - **What happened**: Overlay Headline carries the stale "CLONE 2022" text from the source job. Raises a broader question: as jobs are cloned/brought over, how do we make sure they display appropriately when they don't have a Banner Background image?
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Two parts: (1) cloned jobs shouldn't inherit a stale Overlay Headline like "CLONE 2022" — decide whether clone clears/templatizes the headline or flags it for the Director to set. (2) Define the fallback banner display (placeholder background, solid brand color, or hide the overlay) when a job has no Banner Background image so cloned jobs render cleanly before branding assets are uploaded.
 
 ### PL-072: Configure / Discount Codes — Start Date should default to today (date of creation), not tomorrow
@@ -54,7 +54,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Start Date to default to **today** (the day the code is created) — that's almost always when the Director wants it to begin
 - **What happened**: Start Date defaults to the **next day**, forcing the Director to back it up by one day every time. Change the default to today so the code is usable immediately on creation.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 
 ### PL-071: Configure / Payment (and likely other tabs) — add a Save button to the upper Right so it isn't forgotten
 - **Area**: Job Settings → Configure / Payment tab (and probably other tabs)
@@ -71,7 +71,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Save to succeed and the checkbox state to persist
 - **What happened**: Error: "Exception has occurred." Save button continues to spin indefinitely — never resolves. User has no way to recover except reload.
 - **Severity**: Bug
-- **Status**: Open
+- **Status**: Fixed — addressed by moving the Payment Phase to LADT agegroups; the throwing Team Full Payment Required toggle on Configure / Payment is no longer the control path.
 - **Note**: Likely tied to the recent ARB-ownership gating logic. Capture browser console + network response when reproducing — backend exception details and the gating predicate (does LBTS Summer 2027 have ARB owning the schedule?) will pinpoint whether the gate is throwing instead of cleanly preventing the toggle, or whether this is unrelated to the gate. Either way the spinner needs to stop on error.
 
 ### PL-069: Job Settings / Mobile — confirm Store Contact Email is single-recipient; rename + tip if multi
@@ -81,7 +81,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Confirmation, then either keep single or rename "Store Contact Email List" with the Comms tip
 - **What happened**: Currently single-email by both technique and intent — but worth confirming the desired behavior
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix — Todd confirmed Path A (keep single-recipient). Label stays "Store Contact Email" with `type="email"` validation; no rename, no multi-email handling. Customers needing multiple recipients point the field at an external distribution-list address.
 - **Note**: Findings:
   - **HTML technique**: `<input type="email">` ([mobile-store-tab.component.html:109](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/mobile-store-tab.component.html#L109)) — browser validator rejects semicolon-separated lists; only accepts a single valid email.
   - **Legacy usage**: stored as `ViewBag.cStoreContactEmail` in `StoreFamilyController.cs:193` and shown to customers as the "contact us" display value — not used as an email recipient list.
@@ -153,7 +153,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Settings consumed by schedule rendering to live on the Scheduling tab where Directors naturally configure schedule appearance
 - **What happened**: Currently lives on Teams tab; in Legacy it was under Scheduling
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Three reasons to move:
   1. **Behavior consumption point**: the flag drives schedule rendering at [ScheduleRepository.cs:42-47](TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/ScheduleRepository.cs#L42-L47) — the visible effect happens when schedules render, not when teams are managed.
   2. **Legacy parity**: Directors who learned the old layout will look in Scheduling first.
@@ -240,7 +240,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Each toggle to either drive real behavior or be removed; placement to match where the behavior actually fires
 - **What happened**: Two are vestigial, one is misplaced (lives on Teams tab but only affects Players), one is functional but needs Director-facing copy
 - **Severity**: Bug (zombie settings) + UX
-- **Status**: Open
+- **Status**: Done — Todd's per-toggle calls: (1) `bRestrictPlayerTeamsToAgerange` **keep for now** — not removed; (2) `bUseWaitlists` **already removed** from the Teams tab; (3) `bTeamPushDirectors` **keep for now** — not removed (see PL-066); (4) `bShowTeamNameOnlyInSchedules` **fixed** via PL-065 (moved to Scheduling). No further action pending.
 - **Note**: Per-toggle findings:
   - **`bRestrictPlayerTeamsToAgerange`** ("Restrict Players to Age Range") — **vestigial**. Only appears in CRUD plumbing (DTO, service, clone, entity); no runtime consumer in the new codebase. Legacy uses it in `PlayerBaseController.cs`. Plus: per Ann's note, this is a Player-tab concern conceptually — and tied to PL-008 (Age Ranges menu visibility, which is gated by the `teamEligibilityByAge` flag derived from `CoreRegformPlayer == 'BYAGERANGE'`). **Recommendation**: remove from UI/DTOs (keep DB column for legacy data). If revived in the future, it belongs on the Player tab and should ride the same `teamEligibilityByAge` flag as the Age Ranges menu.
   - **`bUseWaitlists`** ("Use Waitlists") — **misplaced + likely vestigial for both flows**. Code at [TeamPlacementService.cs:71](TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamPlacementService.cs#L71) explicitly comments: *"BUseWaitlists is a player-registration-only flag and is NOT checked here. Team registration always supports waitlists (driven by MaxTeams per agegroup)."* So for **teams**, the flag is irrelevant — waitlists are always created when agegroup hits max (test "BUseWaitlists OFF → still creates waitlist (teams always waitlist)" confirms). For **players**, I couldn't find any consumer either — likely also vestigial, needs deeper grep against the player registration flow. **Recommendation**: remove from Teams tab regardless. If a player consumer is found, move to Player tab; if not, full removal (keep DB column).
@@ -380,7 +380,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Platform-level fields (form selection, multi-player discount math, insurance offer) gated to SuperUser; Director-level fields (waivers, confirmation copy) stay open
 - **What happened**: Three platform-level fields render for all roles today — only RegSaver Insurance + Mom/Dad Label are correctly SuperUser-gated
 - **Severity**: Bug (role visibility) + Question (function review)
-- **Status**: Open
+- **Status**: Fixed
 - **Note**:
   - **Move into existing SuperUser block** ([player-tab.component.html:138-152](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L138-L152)):
     1. **Registration Form** (`coreRegformPlayer`) at [lines 46-50](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/player-tab.component.html#L46-L50) — Directors shouldn't pick which regform their job uses; that's a platform/profile decision.
@@ -481,7 +481,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Each to be either actively used or removed; clear Director-facing explanation of what each does
 - **What happened**: TFPR's placement is superseded by PL-042's restructure. The other two (`BAllowRefundsInPriorMonths`, `BAllowCreditAll`) appear to be **vestigial** — stored and edited, never consulted by runtime code
 - **Severity**: Bug (zombie settings) + UX cleanup
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Findings from walkthrough on 2026-04-24:
   - **Teams Full Payment Required (TFPR)** — move per PL-042. Reference only; no separate action here.
   - **Refunds in Prior Months (`BAllowRefundsInPriorMonths`)** — no consumer found. Grep confirms the field lives only in: `Jobs` entity, `JobConfigDtos`, `JobConfigService` (CRUD), `JobCloneService` (carry-forward), `PaymentFeeRecalcTests` (pass-through property), and the Payment tab UI. Nothing in the new backend branches on it. **Legacy has real consumers** in `JobController.cs` / `Job_ViewModels.cs` — so the feature existed in Legacy but wasn't wired into the new system.
@@ -551,7 +551,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: The whole Processing Fee block to be absent for non-SuperUsers — platform-level pricing decisions shouldn't even be visible to Directors
 - **What happened**: The fieldset renders for everyone with a lock icon on the legend and `[disabled]="!svc.isSuperUser()"` on every input ([payment-tab.component.html:32-66](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/payment-tab.component.html#L32-L66)) — Directors see "Processing Fee: Add Fee, %, Apply to Team Deposit" greyed out but readable
 - **Severity**: UX / role visibility
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Today's lock+disabled approach gives Directors visibility into platform pricing levers without edit access — Ann prefers they don't see it at all. Two ways to land the change:
   - **A. Wrap the Processing Fee fieldset** in `@if (svc.isSuperUser()) { ... }`. Non-SuperUsers see only Allowed Methods on that row. Simplest.
   - **B. Move Processing Fee into a dedicated "SuperUser Only" subsection** at the bottom of the Payment tab alongside Per-Unit Charges (per PL-041). Clusters SuperUser-only Payment controls in one place.
@@ -565,7 +565,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: A **Teams** subheading under **Payment & Processing** presenting the full/deposit/balance options as a clear two-way choice instead of a single binary checkbox
 - **What happened**: Today it's a single checkbox ([payment-tab.component.html:128-131](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/payment-tab.component.html#L128-L131)) — `bTeamsFullPaymentRequired` true → full pay at reg; false → deposit-only + later balance. A radio pair expresses the either/or choice more clearly than a checkbox whose "off" state isn't self-explanatory.
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Proposed structure:
   - New subheading **Teams** inside the existing **Payment & Processing** section.
   - **Two radio options** (mutually exclusive):
@@ -582,7 +582,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Per-Unit Charges (Per Player / Per Team / Per Month) to be SuperUser-only — these are platform-level pricing inputs Directors shouldn't see or edit
 - **What happened**: Section renders unconditionally for all roles ([payment-tab.component.html:70-93](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/payment-tab.component.html#L70-L93)) — no role gate at all, even though sibling fields on the same tab already use `[disabled]="!svc.isSuperUser()"` on line 61
 - **Severity**: Bug (role visibility + edit access)
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Two-layer fix required:
   - **Frontend options**:
     - **A. Hide the section from non-SuperUsers** — wrap the `<!-- Per-Unit Charges -->` block in `@if (svc.isSuperUser()) { ... }`. Matches the ask literally, one-line diff.
@@ -599,7 +599,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Full banner image visible to users; clear separation of responsibilities between Branding (current Job Configuration tab) and Widget Editor (separate Configure menu item that manages home/dashboard widgets)
 - **What happened**: Banner image is being clipped / cropped — users don't see the entire image. Broader question: how do Branding and Widget Editor fit together conceptually, and should their responsibilities be reorganized?
 - **Severity**: Bug (clipping) + Question (architecture)
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Three threads to work through with Todd:
   1. **Banner display bug** — Branding tab captures Banner Background (max 1920px wide) and Banner Overlay (max 800px wide) separately ([branding-tab.component.ts:43, 57](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/tabs/branding-tab.component.ts#L43)). Rendering on public pages likely uses `background-size: cover` or `object-fit: cover` which crops to fit the container aspect ratio — that's why the whole image isn't showing. Options: switch to `contain` (shows full image with letterboxing), pick a fixed display aspect and document the crop expectation in the upload UI, or support multiple banner variants (desktop/mobile/tablet) so the right aspect ratio is delivered per viewport. Needs a look at the rendering component (likely header/hero on public job landing pages), not just the config tab.
   2. **Branding vs Widget Editor responsibilities** — both live under Configure, both affect what public users see. Today they're separate: Branding owns banner + color/brand assets; Widget Editor owns home/dashboard widgets. Question for Todd: is that split intuitive to Directors, or should some overlap be consolidated? (E.g., if banner is actually a "widget," does it belong in Widget Editor? Or should Widget Editor stay focused on data widgets and Branding stay focused on chrome?)
@@ -612,7 +612,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Branding to appear only for SuperUsers — Directors and other roles shouldn't see or access it
 - **What happened**: Branding is unconditionally included in the tabs array ([job-config.component.ts:50](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.component.ts#L50)) — every user with Job Configuration access sees it
 - **Severity**: Bug (role visibility)
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Two-layer fix required — hiding the tab without server-side gates leaves the API reachable via URL by anyone who knows the path:
   - **Frontend** — filter the `tabs` array so Branding is only emitted when `svc.isSuperUser()` is true. The service already exposes `isSuperUser` ([job-config.service.ts:57](TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/configure/job/job-config.service.ts#L57)), so it's a one-line conditional during `tabs` construction (or a computed signal that includes/excludes `branding` based on role).
   - **Backend** — audit and harden the three Branding endpoints currently consumed by the frontend:
@@ -649,7 +649,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Once the workspace is narrowed (PL-022), the two expiry fields read as a pair — Admin Expiry directly beneath User Expiry visually
 - **What happened**: Today they're in two separate sections with unrelated grids, so at any width Admin Expiry doesn't align below User Expiry even though they're semantically the same concept split by role
 - **Severity**: UX
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Possible implementations (decide during the PL-022 workspace pass):
   - **A. Group both into one "Expiry" micro-section** at the end of Job Properties — User Expiry always visible, Admin Expiry rendered inside the same section behind an `@if (svc.isSuperUser())` guard. Always paired regardless of viewport width. Cleanest; drops the one-field-only SuperUser section.
   - **B. Keep the SuperUser Only section** but position Admin Expiry in the same grid column as User Expiry above. Requires matching column layouts between the two sections so they align at every breakpoint — brittle if either row changes.
