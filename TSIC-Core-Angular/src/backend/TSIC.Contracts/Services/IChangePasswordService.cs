@@ -31,6 +31,16 @@ public interface IChangePasswordService
         AdminResetPasswordRequest request,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// What the reset dialog shows before anyone types: the account this registration resolves to, whose
+    /// it is, and what it signs in for. For a player that is the FAMILY login and the children it selects
+    /// between — the line that stops an admin from thinking they are changing the child's password.
+    /// </summary>
+    Task<ResetContextDto?> GetResetContextAsync(
+        Guid registrationId,
+        ResetPasswordTarget target,
+        CancellationToken ct = default);
+
     Task UpdateUserEmailAsync(
         Guid registrationId,
         string? newEmail,
@@ -51,17 +61,23 @@ public interface IChangePasswordService
         Guid registrationId,
         CancellationToken ct = default);
 
-    /// <summary>Irreversible. Returns what moved and where from — the audit payload, not a count.</summary>
+    /// <summary>
+    /// Retire ONE adult login onto another, within the same role. Irreversible.
+    /// Returns what moved and where from — the audit payload, not a count.
+    /// </summary>
     Task<MergeResultDto> MergeUsernameAsync(
         Guid registrationId,
-        string targetUserName,
-        IReadOnlyList<string> sourceUserNames,
+        string keepUserName,
+        string retireUserName,
         CancellationToken ct = default);
 
-    /// <summary>Irreversible. Returns what moved and where from — the audit payload, not a count.</summary>
+    /// <summary>
+    /// Retire ONE family login onto another. Irreversible — it moves a household's children.
+    /// Returns what moved and where from — the audit payload, not a count.
+    /// </summary>
     Task<MergeResultDto> MergeFamilyUsernameAsync(
         Guid registrationId,
-        string targetFamilyUserName,
-        IReadOnlyList<string> sourceFamilyUserNames,
+        string keepUserName,
+        string retireUserName,
         CancellationToken ct = default);
 }

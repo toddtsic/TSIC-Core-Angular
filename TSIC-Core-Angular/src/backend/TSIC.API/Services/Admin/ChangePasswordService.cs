@@ -96,6 +96,14 @@ public class ChangePasswordService : IChangePasswordService
         return $"Password for '{target.UserName}' reset successfully.";
     }
 
+    public async Task<ResetContextDto?> GetResetContextAsync(
+        Guid registrationId,
+        ResetPasswordTarget target,
+        CancellationToken ct = default)
+    {
+        return await _repo.GetResetContextAsync(registrationId, target, ct);
+    }
+
     public async Task UpdateUserEmailAsync(
         Guid registrationId,
         string? newEmail,
@@ -130,20 +138,19 @@ public class ChangePasswordService : IChangePasswordService
 
     public async Task<MergeResultDto> MergeUsernameAsync(
         Guid registrationId,
-        string targetUserName,
-        IReadOnlyList<string> sourceUserNames,
+        string keepUserName,
+        string retireUserName,
         CancellationToken ct = default)
     {
-        return await _repo.MergeUserRegistrationsAsync(registrationId, targetUserName, sourceUserNames, ct);
+        return await _repo.MergeUserRegistrationsAsync(registrationId, keepUserName, retireUserName, ct);
     }
 
     public async Task<MergeResultDto> MergeFamilyUsernameAsync(
         Guid registrationId,
-        string targetFamilyUserName,
-        IReadOnlyList<string> sourceFamilyUserNames,
+        string keepUserName,
+        string retireUserName,
         CancellationToken ct = default)
     {
-        return await _repo.MergeFamilyRegistrationsAsync(
-            registrationId, targetFamilyUserName, sourceFamilyUserNames, ct);
+        return await _repo.MergeFamilyRegistrationsAsync(registrationId, keepUserName, retireUserName, ct);
     }
 }

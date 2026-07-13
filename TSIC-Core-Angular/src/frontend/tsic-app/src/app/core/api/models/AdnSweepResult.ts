@@ -9,5 +9,9 @@ export type AdnSweepResult = {
     echeckReturnsProcessed: number;
     orphansFound: number;
     errored: number;
+    succeeded: boolean;
+    errorMessage?: string | null;
+    digestHtml?: string | null;
+    isTrustworthy?: boolean;
 };
 

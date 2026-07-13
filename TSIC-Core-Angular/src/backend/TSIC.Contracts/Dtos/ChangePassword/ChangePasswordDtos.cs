@@ -91,6 +91,52 @@ public record ResetTargetDto
     public required string UserName { get; init; }
 }
 
+/// <summary>
+/// Everything the reset dialog must show BEFORE anyone types a password.
+///
+/// The row the admin clicked is a REGISTRATION — for a player, that is the child. The account being
+/// reset is a different row entirely: a player has no usable login, so the credential that matters is
+/// the FAMILY's. Legacy shipped a <c>NewUserPassword</c> field on player rows that reset a password
+/// nobody can sign in with.
+///
+/// So the dialog says, in this order: the row you clicked → the account you are changing → what that
+/// account signs in for. The last one is what stops the mistake.
+/// </summary>
+public record ResetContextDto
+{
+    public required ResetPasswordTarget Target { get; init; }
+
+    /// <summary>The login being changed.</summary>
+    public required string UserName { get; init; }
+    public string? Email { get; init; }
+
+    /// <summary>Whose login it is — the MOTHER for a family login, the person themselves for an adult.</summary>
+    public string? OwnerName { get; init; }
+    public string? OwnerPhone { get; init; }
+
+    /// <summary>True when this is a family login, i.e. the row the admin clicked was a player.</summary>
+    public required bool IsFamilyLogin { get; init; }
+
+    /// <summary>
+    /// What signing in with this account actually reaches. For a family login: the children it can
+    /// select. For an adult: the roles and events they hold — which is what says WHICH John Smith.
+    /// </summary>
+    public required IReadOnlyList<AccountReachDto> SignsInFor { get; init; }
+}
+
+/// <summary>One line of "what this login reaches".</summary>
+public record AccountReachDto
+{
+    /// <summary>A child's name (family login), or a role name (adult).</summary>
+    public required string Label { get; init; }
+
+    /// <summary>The child's date of birth. Null for an adult line.</summary>
+    public DateTime? Dob { get; init; }
+
+    /// <summary><c>Steps Lacrosse — Fall League 2025</c>. Null for a family login's child line.</summary>
+    public string? Where { get; init; }
+}
+
 // ── Email updates ──
 
 public record UpdateUserEmailRequest
@@ -108,123 +154,141 @@ public record UpdateFamilyEmailsRequest
 // ── Merge ──
 
 /// <summary>
-/// One login account a merge could re-point registrations onto.
+/// One login that keys to the identity — a candidate for either side of the merge.
 ///
-/// A merge is NOT a rename. It abandons the source account and moves registrations onto this one,
-/// irreversibly. So the admin has to be able to answer "is this really the same person?" — and the
+/// A merge is NOT a rename. It moves one login's registrations onto another and leaves the first owning
+/// nothing, irreversibly. So the admin has to answer "is this really the same person?" — and the
 /// username cannot tell them, because half the player usernames in the system are raw GUIDs
-/// (<c>76da3519-7842-400e-84ed-4ea6005e974c</c>). Every field below exists to answer that question.
+/// (<c>76da3519-7842-400e-84ed-4ea6005e974c</c>).
+///
+/// Two dropdowns of GUIDs is not enough, and that is what every field below is for. The merge moves
+/// REGISTRATIONS, so the admin gets to look at the registrations before they move.
 /// </summary>
 public record MergeCandidateDto
 {
     public required string UserName { get; init; }
     public required string UserId { get; init; }
 
-    /// <summary>Registrations already sitting on this account.</summary>
-    public required int RegistrationCount { get; init; }
+    // ── The identity block. THIS IS THE KEY, SHOWN. ──
+    // The admin compares it across the two panels: if these do not look like the same person, they
+    // stop. Recorded as typed — mom and dad are routinely in swapped slots.
 
-    /// <summary>This account's own email — F-Email for a family login, R-Email for a person.</summary>
-    public string? Email { get; init; }
-
-    /// <summary>The person this account is about. Null for a family login: it has no person of its
-    /// own, only the household below.</summary>
-    public string? PersonName { get; init; }
-    public DateTime? Dob { get; init; }
-
-    /// <summary>The household. For a family candidate, its own parents; for a player candidate, the
-    /// family it sits under. Recorded as typed — mom and dad are routinely in swapped slots.</summary>
+    /// <summary>The mother. A family account IS her data. Null for an adult.</summary>
     public string? MomName { get; init; }
     public string? MomEmail { get; init; }
+    public string? MomPhone { get; init; }
     public string? DadName { get; init; }
     public string? DadEmail { get; init; }
 
-    /// <summary>The children this family login owns — the evidence that it is the same household.
-    /// Empty for an adult candidate.</summary>
+    /// <summary>The adult themselves — they sign in as themselves. Null for a family login.</summary>
+    public string? PersonName { get; init; }
+    public string? Email { get; init; }
+    public string? Phone { get; init; }
+
+    /// <summary>The children this family login owns. Empty for an adult.</summary>
     public required IReadOnlyList<MergeCandidateChildDto> Children { get; init; }
 
-    /// <summary>Where this account has been used. Identity breadcrumbs; capped.</summary>
-    public required IReadOnlyList<string> Jobs { get; init; }
+    /// <summary>
+    /// EVERY registration on this account — not a count.
+    ///
+    /// If this account is retired, all of these move. The admin is about to relocate a family's entire
+    /// history, so they see it first. Legacy told them a number, or nothing.
+    /// </summary>
+    public required IReadOnlyList<MergeCandidateRegistrationDto> Registrations { get; init; }
 }
 
-/// <summary>A child under a candidate family login.</summary>
+/// <summary>A child under a candidate family login. Whether it MATCHES the other panel is derived in
+/// the browser — it depends on which pair the admin has selected, which the server does not know.</summary>
 public record MergeCandidateChildDto
 {
+    public required string UserId { get; init; }
     public required string Name { get; init; }
     public DateTime? Dob { get; init; }
+}
 
-    /// <summary>
-    /// True when this child also appears under the SOURCE account.
-    ///
-    /// It is NOT why the candidate is a candidate — the key is the mother, never the child. It is shown
-    /// because it is the fastest way for the SuperUser to confirm, with the parent on the phone, that
-    /// the two logins really are one household.
-    /// </summary>
-    public required bool MatchesSource { get; init; }
+/// <summary>One registration a merge would move.</summary>
+public record MergeCandidateRegistrationDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required string CustomerName { get; init; }
+    public required string JobName { get; init; }
+    public required string RoleName { get; init; }
+
+    /// <summary>Who it is about — the child, under a family login.</summary>
+    public string? PersonName { get; init; }
+}
+
+/// <summary>The identity every candidate keys to. Shown as the dialog's header.</summary>
+public record MergeIdentityDto
+{
+    public required string Name { get; init; }
+    public required string Email { get; init; }
+    public required string Phone { get; init; }
 }
 
 /// <summary>
-/// Everything the SuperUser needs before an irreversible merge: who is being merged, what they can be
-/// merged into, and — the part legacy never showed — how much will actually move.
+/// The logins that key to one identity — the input to the merge dialog.
+///
+/// There is no "source" and no "target" here. The admin picks BOTH from this one list: the parent named
+/// the survivor on the phone, and the admin retires one other login at a time.
 /// </summary>
 public record MergeCandidatesResponse
 {
-    /// <summary>The account the SuperUser searched their way to. It may itself be the survivor.</summary>
-    public required MergeCandidateDto Source { get; init; }
+    /// <summary>
+    /// What they all key to. <b>Null means the account has no identity</b> — a blank, malformed or
+    /// placeholder contact block — in which case <see cref="Accounts"/> is empty and no merge is
+    /// possible. That is the correct, safe outcome.
+    /// </summary>
+    public MergeIdentityDto? Identity { get; init; }
 
     /// <summary>
-    /// Every other account that keys to the same identity. More than one is normal — a parent who has
-    /// forgotten their password twice has three logins, and they all key to the same mother.
+    /// Every login keying to that identity, INCLUDING the one the search landed on. Two or more means
+    /// a merge is possible; fewer means there is nothing to merge.
     ///
-    /// The SuperUser picks the survivor from this list plus the source (the parent named it on the
-    /// phone) and selects which of the rest to fold into it.
+    /// More than two is normal: a parent who has forgotten their password twice has three logins, and
+    /// the worst real household on file has eleven.
     /// </summary>
-    public required IReadOnlyList<MergeCandidateDto> Candidates { get; init; }
+    public required IReadOnlyList<MergeCandidateDto> Accounts { get; init; }
 
-    /// <summary>Registrations sitting on all of these accounts today — the maximum blast radius.</summary>
-    public required int RegistrationsAffected { get; init; }
-
-    /// <summary>How many accounts could be folded in, besides the source.</summary>
-    public required int AccountsAffected { get; init; }
+    /// <summary>Adult merges only — the role the candidates are constrained to. Adults merge WITHIN a
+    /// role: a Club Rep never merges with their own Staff account.</summary>
+    public string? RoleName { get; init; }
 }
 
 /// <summary>
-/// A merge, as the SuperUser expressed it: the survivor the parent asked for, and the accounts to fold
-/// into it.
+/// One merge: keep this login, retire that one.
 ///
-/// The sources are EXPLICIT, and that is the point. Legacy derived its own work-set from field equality
-/// and swept the whole system; the admin saw a list that had no bearing on what the write did. Here the
-/// server re-derives the candidate set and rejects any name that is not in it, so the write can only
-/// ever touch accounts the identity key already approved AND the SuperUser explicitly chose.
+/// <b>Exactly one retirement per act, never a list.</b> A parent with four logins is three deliberate
+/// merges — three confirmations, three audit lines, three independently reversible operations. A
+/// multi-select would put a dozen irreversible cross-tenant writes behind one button.
+///
+/// Both names are re-validated server-side against the candidate set the identity key produces, so the
+/// browser cannot introduce an account the key never approved.
 /// </summary>
 public record MergeUsernameRequest
 {
-    /// <summary>The survivor. Everything lands here.</summary>
-    public required string TargetUserName { get; init; }
+    /// <summary>The survivor — the login the parent asked us to keep. Everything lands here.</summary>
+    public required string KeepUserName { get; init; }
 
-    /// <summary>The accounts to fold in. Must all be merge candidates for this registration.</summary>
-    public required IReadOnlyList<string> SourceUserNames { get; init; }
+    /// <summary>The ONE login being retired. Its registrations move; afterwards it owns nothing.</summary>
+    public required string RetireUserName { get; init; }
 }
 
 /// <summary>
 /// One registration a merge re-pointed, and the account it was re-pointed AWAY from.
-///
-/// <c>PreviousUserId</c> is per-registration and not redundant: a merge can fold several accounts in at
-/// once, so there is no single "old owner" to record.
+/// Restoring <c>PreviousUserId</c> is the undo.
 /// </summary>
 public record MergedRegistrationDto
 {
     public required Guid RegistrationId { get; init; }
-
-    /// <summary>The <c>UserId</c> (adult merge) or <c>Family_UserId</c> (family merge) this
-    /// registration carried before the merge. Restoring this value is the undo.</summary>
     public required string PreviousUserId { get; init; }
 }
 
 /// <summary>
 /// What a merge actually did — the audit payload.
 ///
-/// The count is NOT enough to reverse a merge, which is the whole reason this type exists. The target
-/// account normally already owns registrations of its own, so afterwards "12 rows moved onto B" leaves
+/// The count is NOT enough to reverse a merge, which is the whole reason this type exists. The surviving
+/// account normally already owns registrations of its own, so afterwards "9 rows moved onto B" leaves
 /// you unable to say WHICH of B's rows used to be someone else's. <see cref="Moved"/> is the reversal
 /// key, and it is logged in full.
 ///
@@ -233,7 +297,12 @@ public record MergedRegistrationDto
 /// </summary>
 public record MergeResultDto
 {
-    public required string TargetUserId { get; init; }
-    public required string TargetUserName { get; init; }
+    public required string KeepUserId { get; init; }
+    public required string KeepUserName { get; init; }
+    public required string RetireUserName { get; init; }
     public required IReadOnlyList<MergedRegistrationDto> Moved { get; init; }
+
+    /// <summary>Children collapsed onto the surviving account's record, so the parent does not end up
+    /// seeing every child twice.</summary>
+    public required int ChildrenCollapsed { get; init; }
 }

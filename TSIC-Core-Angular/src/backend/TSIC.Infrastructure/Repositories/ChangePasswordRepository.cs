@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos.ChangePassword;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
-using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
 
 namespace TSIC.Infrastructure.Repositories;
@@ -289,6 +288,117 @@ public class ChangePasswordRepository : IChangePasswordRepository
             .FirstOrDefaultAsync(ct);
     }
 
+    /// <summary>
+    /// Everything the reset dialog shows BEFORE anyone types a password.
+    ///
+    /// The row the admin clicked is a REGISTRATION — for a player, that is the CHILD. The account being
+    /// changed is a different row entirely, because a player has no usable login. So the dialog reads:
+    /// the row you clicked → the account you are changing → what that account signs in for. The last one
+    /// is what stops the mistake, and it is why this is a server call rather than the grid's own cells.
+    /// </summary>
+    public async Task<ResetContextDto?> GetResetContextAsync(
+        Guid registrationId,
+        ResetPasswordTarget target,
+        CancellationToken ct = default)
+    {
+        var reg = await _context.Registrations
+            .AsNoTracking()
+            .Where(r => r.RegistrationId == registrationId)
+            .Select(r => new { r.UserId, r.FamilyUserId })
+            .FirstOrDefaultAsync(ct);
+
+        if (reg is null) return null;
+
+        var accountId = target == ResetPasswordTarget.Family ? reg.FamilyUserId : reg.UserId;
+        if (string.IsNullOrWhiteSpace(accountId)) return null;
+
+        var account = await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => u.Id == accountId && u.UserName != null)
+            .Select(u => new
+            {
+                u.Id,
+                UserName = u.UserName!,
+                u.Email,
+                u.FirstName,
+                u.LastName,
+                u.Cellphone,
+                u.Phone
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (account is null) return null;
+
+        if (target == ResetPasswordTarget.Family)
+        {
+            var mom = await LoadMomAsync(account.Id, ct);
+
+            // The children this login selects between once it is signed in. This is THE line that tells
+            // the admin they are holding the whole household's credential, not one child's.
+            var childRows = await (
+                from r in _context.Registrations
+                join u in _context.AspNetUsers on r.UserId equals u.Id
+                where r.FamilyUserId == account.Id
+                select new { u.FirstName, u.LastName, u.Dob }
+            ).AsNoTracking().ToListAsync(ct);
+
+            var children = childRows
+                .GroupBy(c => (Fold(c.FirstName), Fold(c.LastName), c.Dob))
+                .Select(g => new AccountReachDto
+                {
+                    Label = NameOrNull(g.First().FirstName, g.First().LastName) ?? "(no name)",
+                    Dob = g.Key.Item3
+                })
+                .OrderBy(c => c.Label, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            return new ResetContextDto
+            {
+                Target = target,
+                UserName = account.UserName,
+                // The LOGIN's address — that is the account being changed, and it is what the public
+                // forgot-password flow looks up. Fall back to the mother's only so the line is not blank.
+                Email = account.Email ?? mom?.Email,
+                OwnerName = NameOrNull(mom?.FirstName, mom?.LastName),
+                OwnerPhone = mom?.Phone,
+                IsFamilyLogin = true,
+                SignsInFor = children
+            };
+        }
+
+        // An adult signs in as themselves. What tells the admin WHICH John Smith is the role and the
+        // events he holds — so that is what "signs in for" means on this side.
+        var heldRows = await (
+            from r in _context.Registrations
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            where r.UserId == account.Id
+            select new { RoleName = role.Name, c.CustomerName, j.JobName }
+        ).AsNoTracking().ToListAsync(ct);
+
+        var held = heldRows
+            .Select(x => new AccountReachDto
+            {
+                Label = x.RoleName ?? "(no role)",
+                Where = Where(x.CustomerName, x.JobName)
+            })
+            .OrderBy(x => x.Label, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(x => x.Where, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new ResetContextDto
+        {
+            Target = target,
+            UserName = account.UserName,
+            Email = account.Email,
+            OwnerName = NameOrNull(account.FirstName, account.LastName),
+            OwnerPhone = account.Cellphone ?? account.Phone,
+            IsFamilyLogin = false,
+            SignsInFor = held
+        };
+    }
+
     // ═══════════════════════════════════════════════════════════
     //  Email updates
     // ═══════════════════════════════════════════════════════════
@@ -384,8 +494,15 @@ public class ChangePasswordRepository : IChangePasswordRepository
     //  registration IN THE SYSTEM whose user matched (FirstName, LastName, RoleId) — with DOB and email
     //  branches that treated NULL as "matches anything". The candidate list was decoration; the write
     //  re-computed its own set from field equality and could reach any household in any customer. Both
-    //  sweeps are gone. The write below is bounded by the accounts the SuperUser actually selected,
-    //  re-read server-side by their FK.
+    //  sweeps are gone. The write below is bounded by the two accounts the SuperUser named, re-validated
+    //  against the candidate list the key produced, and re-read server-side by FK.
+    //
+    //  ONE RETIREMENT PER ACT. Never a list. A parent with four logins is three deliberate merges —
+    //  three confirmations, three audit lines, three independently reversible operations. A multi-select
+    //  puts a dozen irreversible cross-tenant writes behind one button.
+    //
+    //  AND A RETIRED LOGIN SELF-HIDES. Candidates are the accounts that OWN registrations; a merge
+    //  leaves the retiree owning none, so it can never be offered again. No flag, no column, no schema.
 
     private sealed record Mom(string? FirstName, string? LastName, string? Email, string? Phone);
 
@@ -397,118 +514,147 @@ public class ChangePasswordRepository : IChangePasswordRepository
             .Select(f => new Mom(f.MomFirstName, f.MomLastName, f.MomEmail, f.MomCellphone))
             .FirstOrDefaultAsync(ct);
 
+    /// <summary>One resolved merge: the identity, and every login that keys to it.</summary>
+    private sealed record AdultMerge(AccountKey Key, string RoleId, string RoleName, List<MergeCandidateDto> Accounts);
+    private sealed record FamilyMerge(AccountKey Key, List<MergeCandidateDto> Accounts);
+
+    /// <summary>
+    /// The security boundary, enforced. Both names must be accounts the identity key actually produced —
+    /// so a stale, hand-edited or forged body cannot introduce a login the key never approved — and they
+    /// must be two different accounts.
+    /// </summary>
+    private static (MergeCandidateDto Keep, MergeCandidateDto Retire) ResolvePair(
+        IReadOnlyList<MergeCandidateDto> offered,
+        string keepUserName,
+        string retireUserName,
+        string requirement)
+    {
+        var byName = offered.ToDictionary(a => a.UserName, StringComparer.OrdinalIgnoreCase);
+
+        if (!byName.TryGetValue(keepUserName, out var keep))
+            throw new InvalidOperationException($"'{keepUserName}' is not a merge candidate here. {requirement}");
+
+        if (!byName.TryGetValue(retireUserName, out var retire))
+            throw new InvalidOperationException($"'{retireUserName}' is not a merge candidate here. {requirement}");
+
+        if (string.Equals(keep.UserId, retire.UserId, StringComparison.Ordinal))
+            throw new InvalidOperationException("The login to keep and the login to retire are the same account.");
+
+        return (keep, retire);
+    }
+
     // ═══════════════════════════════════════════════════════════
-    //  Adult merge — one human, two logins
+    //  Adult merge — one human, two logins, ONE role
     // ═══════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Other logins that are the SAME ADULT. An adult signs in as themselves, so their account and
-    /// their identity are one record: the key is their own email + phone + name.
+    /// ADULTS MERGE WITHIN A ROLE. A Club Rep collapses onto a Club Rep and never onto the same person's
+    /// Staff login: those two accounts carry different permissions and are deliberately separate records
+    /// of the same human. Legacy had this (<c>r.RoleId == registrantKeys.RoleId</c>); it is the one part
+    /// of its sweep that was right, and it constrains BOTH the candidate list and the rows that move.
     ///
-    /// PLAYERS ARE REFUSED HERE, deliberately. A player has no login and no independent existence — they
-    /// are a child inside a household. Legacy merged them on a global (name + DOB + role) sweep, which
-    /// reached across every customer in the system and would happily fuse two unrelated children who
-    /// share a birthday, or re-fuse a deliberate double-registration (two player rows for one child,
-    /// created to get a second registration past an event's one-per-player rule). A child is collapsed
-    /// as part of their household's merge, inside that boundary, and nowhere else.
+    /// Returns null when the registration is a player, or when the account has no identity — a blank,
+    /// malformed or placeholder contact block. No key, no candidates. That is the safe outcome.
     /// </summary>
-    public async Task<MergeCandidatesResponse> GetUserMergeCandidatesAsync(
-        Guid registrationId,
-        CancellationToken ct = default)
+    private async Task<AdultMerge?> LoadAdultMergeAsync(Guid registrationId, CancellationToken ct)
     {
         var source = await (
             from r in _context.Registrations
             join u in _context.AspNetUsers on r.UserId equals u.Id
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
             where r.RegistrationId == registrationId
-            select new { u.Id, u.FirstName, u.LastName, u.Email, u.Cellphone, u.Phone, r.RoleId }
+            select new
+            {
+                u.Id,
+                u.FirstName,
+                u.LastName,
+                u.Email,
+                u.Cellphone,
+                u.Phone,
+                r.RoleId,
+                RoleName = role.Name
+            }
         ).AsNoTracking().SingleOrDefaultAsync(ct);
 
-        if (source is null) return EmptyCandidates();
+        if (source is null) return null;
 
+        // PLAYERS ARE REFUSED HERE, deliberately. A player has no login and no independent existence —
+        // they are a child inside a household, and a child is collapsed only as part of that household's
+        // merge, inside that boundary. Legacy's global (name + DOB + role) player sweep reached every
+        // customer in the system: 33,214 clusters of player accounts share a name and a birthday.
         if (string.Equals(source.RoleId, RoleConstants.Player, StringComparison.OrdinalIgnoreCase))
-            return EmptyCandidates();
+            return null;
 
         if (!AccountKey.TryCreate(
                 source.Email, source.Cellphone ?? source.Phone, source.FirstName, source.LastName, out var key))
         {
-            return EmptyCandidates();
+            return null;
         }
 
+        // The email half of the AND runs in SQL, because one exact address is highly selective. The phone
+        // and name halves run in memory, because digits-only and Soundex have no SQL translation — and
+        // what reaches memory is the handful of accounts sharing that one address.
         var sameEmail = await _context.AspNetUsers
             .AsNoTracking()
-            .Where(u => u.Id != source.Id && u.Email != null && u.Email.Trim().ToLower() == key.Email)
+            .Where(u => u.Email != null && u.Email.Trim().ToLower() == key.Email)
             .Select(u => new { u.Id, u.Email, u.Cellphone, u.Phone, u.FirstName, u.LastName })
             .ToListAsync(ct);
 
-        var candidateIds = sameEmail
+        var matchedIds = sameEmail
             .Where(u => key.Matches(u.Email, u.Cellphone ?? u.Phone, u.FirstName, u.LastName))
             .Select(u => u.Id)
+            .Distinct()
             .ToList();
 
-        if (candidateIds.Count == 0) return EmptyCandidates();
+        var accounts = await HydrateAdultAccountsAsync(matchedIds, source.RoleId, ct);
 
-        var accounts = await HydratePersonAccountsAsync([.. candidateIds, source.Id], ct);
+        return new AdultMerge(key, source.RoleId, source.RoleName ?? "", accounts);
+    }
 
-        if (!accounts.TryGetValue(source.Id, out var sourceDto)) return EmptyCandidates();
+    public async Task<MergeCandidatesResponse> GetUserMergeCandidatesAsync(
+        Guid registrationId,
+        CancellationToken ct = default)
+    {
+        var merge = await LoadAdultMergeAsync(registrationId, ct);
 
-        var candidates = accounts.Values
-            .Where(a => a.UserId != source.Id)
-            .OrderByDescending(a => a.RegistrationCount)
-            .ThenBy(a => a.UserName)
-            .ToList();
-
-        return new MergeCandidatesResponse
-        {
-            Source = sourceDto,
-            Candidates = candidates,
-            RegistrationsAffected = sourceDto.RegistrationCount + candidates.Sum(c => c.RegistrationCount),
-            AccountsAffected = candidates.Count
-        };
+        return merge is null
+            ? NoCandidates()
+            : new MergeCandidatesResponse
+            {
+                Identity = Identity(merge.Key),
+                Accounts = merge.Accounts,
+                RoleName = merge.RoleName
+            };
     }
 
     /// <summary>
-    /// Collapse duplicate ADULT logins onto the one the person asked for. Every registration under a
-    /// losing account moves — bounded by the accounts the SuperUser selected, re-validated here against
-    /// the candidate set.
+    /// Retire one duplicate ADULT login onto the one the person asked for. Only their registrations
+    /// IN THIS ROLE move — see <see cref="LoadAdultMergeAsync"/>. If the same person also has a duplicate
+    /// Coach login, that is a second, separate merge.
     /// </summary>
     public async Task<MergeResultDto> MergeUserRegistrationsAsync(
         Guid registrationId,
-        string targetUserName,
-        IReadOnlyList<string> sourceUserNames,
+        string keepUserName,
+        string retireUserName,
         CancellationToken ct = default)
     {
-        var preview = await GetUserMergeCandidatesAsync(registrationId, ct);
+        var merge = await LoadAdultMergeAsync(registrationId, ct)
+            ?? throw new InvalidOperationException(
+                "This registration has no merge identity. An account can only be merged when its email, "
+                + "phone and name are all present and real — a placeholder is not an identity.");
 
-        var offered = preview.Candidates
-            .Append(preview.Source)
-            .ToDictionary(c => c.UserName, StringComparer.OrdinalIgnoreCase);
+        var (keep, retire) = ResolvePair(merge.Accounts, keepUserName, retireUserName,
+            "Both logins must key to the same person — same email, same phone, same name — and both must "
+            + "hold a registration in this role.");
 
-        if (!offered.TryGetValue(targetUserName, out var target))
-        {
-            throw new InvalidOperationException(
-                $"'{targetUserName}' is not a merge candidate for this registration. The target must be " +
-                "a login whose email, phone and name all match.");
-        }
-
-        var sourceIds = new List<string>();
-        foreach (var name in sourceUserNames)
-        {
-            if (!offered.TryGetValue(name, out var src))
-                throw new InvalidOperationException($"'{name}' is not a merge candidate for this registration.");
-
-            if (!string.Equals(src.UserId, target.UserId, StringComparison.Ordinal))
-                sourceIds.Add(src.UserId);
-        }
-
-        if (sourceIds.Count == 0)
-            throw new InvalidOperationException("Select at least one account to merge into the target.");
-
-        // Re-read by FK, not by name. Includes inactive registrations: leaving them on a login nobody
-        // can sign into again is how a person loses their own history.
+        // Re-read by FK, and CONSTRAINED TO THE ROLE. Never by name: the write must not be able to reach
+        // a row the candidate list did not account for.
         var regs = await _context.Registrations
-            .Where(r => r.UserId != null && sourceIds.Contains(r.UserId))
+            .Where(r => r.UserId == retire.UserId && r.RoleId == merge.RoleId)
             .ToListAsync(ct);
 
+        // Snapshot the previous owner BEFORE the write — the only way back. Afterwards the surviving
+        // account owns rows that used to be someone else's and nothing on the row says which.
         var moved = regs
             .Select(r => new MergedRegistrationDto
             {
@@ -519,33 +665,37 @@ public class ChangePasswordRepository : IChangePasswordRepository
 
         foreach (var reg in regs)
         {
-            reg.UserId = target.UserId;
+            reg.UserId = keep.UserId;
         }
 
         await _context.SaveChangesAsync(ct);
 
         return new MergeResultDto
         {
-            TargetUserId = target.UserId,
-            TargetUserName = target.UserName,
-            Moved = moved
+            KeepUserId = keep.UserId,
+            KeepUserName = keep.UserName,
+            RetireUserName = retire.UserName,
+            Moved = moved,
+            ChildrenCollapsed = 0
         };
     }
+
+    // ═══════════════════════════════════════════════════════════
+    //  Family merge — the one this tool exists for
+    // ═══════════════════════════════════════════════════════════
 
     /// <summary>
     /// Family logins that are the SAME HOUSEHOLD as this registration's.
     ///
-    /// The scenario this exists for: a parent forgets their credentials, creates a brand new family
-    /// account, re-registers their children under it, and then calls and asks us to put everything back
-    /// on one login they can actually get into. Two family logins, two copies of every child.
+    /// The scenario: a parent forgets their credentials, creates a brand new family account, re-registers
+    /// their children under it, and then calls and asks us to put everything back on one login they can
+    /// actually get into. Two family logins, two copies of every child.
     ///
     /// NOT keyed on the child, tempting as the coverage is. "Owns the same child" says two households
-    /// OVERLAP — divorced parents legitimately share a child — and merging on that basis hands one
-    /// parent the other's household. Identity, not overlap.
+    /// OVERLAP — divorced parents legitimately share one — not that they ARE one. Keyed on the child,
+    /// merging the father's login would land the mother's new husband's son in it. Identity, not overlap.
     /// </summary>
-    public async Task<MergeCandidatesResponse> GetFamilyMergeCandidatesAsync(
-        Guid registrationId,
-        CancellationToken ct = default)
+    private async Task<FamilyMerge?> LoadFamilyMergeAsync(Guid registrationId, CancellationToken ct)
     {
         var sourceFamilyUserId = await _context.Registrations
             .AsNoTracking()
@@ -553,149 +703,98 @@ public class ChangePasswordRepository : IChangePasswordRepository
             .Select(r => r.FamilyUserId)
             .FirstOrDefaultAsync(ct);
 
-        if (string.IsNullOrWhiteSpace(sourceFamilyUserId)) return EmptyCandidates();
+        if (string.IsNullOrWhiteSpace(sourceFamilyUserId)) return null;
 
         var mom = await LoadMomAsync(sourceFamilyUserId, ct);
 
         // NO KEY → NO CANDIDATES. A household whose contact block is blank, malformed, or a placeholder
-        // cannot be identified — so we will not claim that anybody else is it. The SuperUser gets an
-        // empty list, and the parent is told to use their new account. That is a fine outcome.
+        // (0000000000 sits on 106 of them) cannot be identified — so we will not claim that anybody else
+        // is it. The SuperUser gets nothing, and the parent is told to use their new account. Fine outcome.
         if (mom is null ||
             !AccountKey.TryCreate(mom.Email, mom.Phone, mom.FirstName, mom.LastName, out var key))
         {
-            return EmptyCandidates();
+            return null;
         }
 
-        // The email half of the AND runs in SQL, because one exact address is highly selective. The
-        // phone and name halves run in memory, because digits-only and Soundex have no SQL translation
-        // — and the set reaching memory is the handful of households sharing that one address.
         var sameEmail = await _context.Families
             .AsNoTracking()
-            .Where(f => f.FamilyUserId != sourceFamilyUserId
-                     && f.MomEmail != null
-                     && f.MomEmail.Trim().ToLower() == key.Email)
+            .Where(f => f.MomEmail != null && f.MomEmail.Trim().ToLower() == key.Email)
             .Select(f => new { f.FamilyUserId, f.MomEmail, f.MomCellphone, f.MomFirstName, f.MomLastName })
             .ToListAsync(ct);
 
-        var candidateFamilyIds = sameEmail
+        // MORE THAN TWO CANDIDATES IS NORMAL AND IS NOT A RED FLAG. A parent who has forgotten their
+        // password twice has three logins; the worst real household on file has eleven. They all key to
+        // the same mother, so they are all the same household — and each is retired one at a time.
+        var matchedIds = sameEmail
             .Where(f => key.Matches(f.MomEmail, f.MomCellphone, f.MomFirstName, f.MomLastName))
             .Select(f => f.FamilyUserId)
             .Distinct()
             .ToList();
 
-        if (candidateFamilyIds.Count == 0) return EmptyCandidates();
+        var accounts = await HydrateFamilyAccountsAsync(matchedIds, ct);
 
-        // MORE THAN ONE CANDIDATE IS NORMAL AND IS NOT A RED FLAG. A parent who has forgotten their
-        // password twice has three logins; the worst real household on file has eleven. They all key to
-        // the same mother, so they are all the same household, and the SuperUser can collapse them in
-        // one action instead of eleven.
-        var sourceChildKeys = await ChildKeysAsync([sourceFamilyUserId], ct);
-        var allFamilyIds = candidateFamilyIds.Append(sourceFamilyUserId).ToList();
-        var accounts = await HydrateFamilyAccountsAsync(allFamilyIds, sourceChildKeys, ct);
-
-        if (!accounts.TryGetValue(sourceFamilyUserId, out var sourceDto)) return EmptyCandidates();
-
-        var candidates = accounts.Values
-            .Where(a => a.UserId != sourceFamilyUserId)
-            .OrderByDescending(a => a.RegistrationCount)
-            .ThenBy(a => a.UserName)
-            .ToList();
-
-        return new MergeCandidatesResponse
-        {
-            Source = sourceDto,
-            Candidates = candidates,
-            RegistrationsAffected = sourceDto.RegistrationCount + candidates.Sum(c => c.RegistrationCount),
-            AccountsAffected = candidates.Count
-        };
+        return new FamilyMerge(key, accounts);
     }
 
-    /// <summary>The distinct children a set of family logins owns, folded to a comparable key.</summary>
-    private async Task<HashSet<(string, string, DateTime?)>> ChildKeysAsync(
-        IReadOnlyCollection<string> familyUserIds,
-        CancellationToken ct)
+    public async Task<MergeCandidatesResponse> GetFamilyMergeCandidatesAsync(
+        Guid registrationId,
+        CancellationToken ct = default)
     {
-        var rows = await (
-            from r in _context.Registrations
-            join u in _context.AspNetUsers on r.UserId equals u.Id
-            where r.FamilyUserId != null && familyUserIds.Contains(r.FamilyUserId)
-            select new { u.FirstName, u.LastName, u.Dob }
-        ).AsNoTracking().Distinct().ToListAsync(ct);
+        var merge = await LoadFamilyMergeAsync(registrationId, ct);
 
-        return rows.Select(c => (Fold(c.FirstName), Fold(c.LastName), c.Dob)).ToHashSet();
+        return merge is null
+            ? NoCandidates()
+            : new MergeCandidatesResponse
+            {
+                Identity = Identity(merge.Key),
+                Accounts = merge.Accounts,
+                // A family login owns players and nothing else, so there is no role to constrain.
+                RoleName = null
+            };
     }
-
-    // ═══════════════════════════════════════════════════════════
-    //  The merge itself
-    // ═══════════════════════════════════════════════════════════
 
     /// <summary>
-    /// Collapse one or more duplicate family logins onto the one the parent asked for.
+    /// Retire one duplicate family login onto the one the parent asked for. Two writes, both bounded by
+    /// the pair the SuperUser named and re-validated against the candidate list:
     ///
-    /// Two writes, both bounded by <paramref name="sourceFamilyUserNames"/> — the accounts the
-    /// SuperUser selected, re-validated here against the candidate set so a stale or forged body cannot
-    /// name an account we never offered:
+    ///   1. FAMILY. Every registration under the retiring login is re-pointed. EVERY one — including
+    ///      inactive ones. Legacy filtered on BActive, which orphaned a parent's dropped and pending
+    ///      registrations on a login nobody can sign into again. The whole point of the operation is that
+    ///      the parent gets their history back.
     ///
-    ///   1. FAMILY. Every registration under a losing login is re-pointed to the target. EVERY one —
-    ///      including inactive ones. Legacy filtered on BActive, which orphaned a parent's dropped and
-    ///      pending registrations on a login nobody can sign into again. The whole point of the
-    ///      operation is that the parent gets their history back.
+    ///   2. CHILDREN. Without this the parent signs into the account they asked for and sees Maya twice
+    ///      and Ethan twice — one player row from each login that was just fused. So each child is
+    ///      collapsed onto the surviving login's row for that child.
     ///
-    ///   2. CHILDREN. Without this, the parent signs into the account they asked for and sees Maya
-    ///      twice and Ethan twice — one player row from each login that was just fused. So each child
-    ///      is collapsed onto the target's row for that child.
-    ///
-    /// The child collapse is UNAMBIGUOUS-ONLY, and that is a load-bearing restriction: a family may
+    /// The child collapse is UNAMBIGUOUS-ONLY, and that restriction is load-bearing: a family may
     /// deliberately hold two player rows for one child, created to get a second registration past an
-    /// event's one-per-player rule. If either side has two rows for the same (name, DOB), we do not
-    /// know which is which, so we leave BOTH alone rather than silently fuse a workaround back together.
+    /// event's one-per-player rule. If either side has two rows for the same (name, DOB) we do not know
+    /// which is which, so we leave BOTH alone rather than silently fuse a workaround back together.
     /// </summary>
     public async Task<MergeResultDto> MergeFamilyRegistrationsAsync(
         Guid registrationId,
-        string targetFamilyUserName,
-        IReadOnlyList<string> sourceFamilyUserNames,
+        string keepUserName,
+        string retireUserName,
         CancellationToken ct = default)
     {
-        var preview = await GetFamilyMergeCandidatesAsync(registrationId, ct);
+        var merge = await LoadFamilyMergeAsync(registrationId, ct)
+            ?? throw new InvalidOperationException(
+                "This household has no merge identity. A family login can only be merged when the mother's "
+                + "email, phone and name are all present and real — a placeholder is not an identity.");
 
-        var offered = preview.Candidates
-            .Append(preview.Source)
-            .ToDictionary(c => c.UserName, StringComparer.OrdinalIgnoreCase);
-
-        if (!offered.TryGetValue(targetFamilyUserName, out var target))
-        {
-            throw new InvalidOperationException(
-                $"'{targetFamilyUserName}' is not a merge candidate for this household. The target must " +
-                "be a login whose mother's email, phone and name all match.");
-        }
-
-        // Every account the SuperUser asked to move must be one we offered. This is the security
-        // boundary: the browser cannot introduce an account the key never approved.
-        var sources = new List<MergeCandidateDto>();
-        foreach (var name in sourceFamilyUserNames)
-        {
-            if (!offered.TryGetValue(name, out var src))
-                throw new InvalidOperationException($"'{name}' is not a merge candidate for this household.");
-
-            if (!string.Equals(src.UserId, target.UserId, StringComparison.Ordinal))
-                sources.Add(src);
-        }
-
-        if (sources.Count == 0)
-            throw new InvalidOperationException("Select at least one account to merge into the target.");
-
-        var sourceIds = sources.Select(s => s.UserId).Distinct().ToList();
+        var (keep, retire) = ResolvePair(merge.Accounts, keepUserName, retireUserName,
+            "Both logins must key to the same mother — same email, same phone, same name.");
 
         // ── 1. the registrations ──────────────────────────────────────────────
         // Re-read by FK. NOT by name, and NOT from what the search happened to return: a search for
-        // "Abell" will not return a sibling named Shimizu, and that sibling's registrations still have
-        // to move.
+        // "Abell" will not return a sibling retyped "Shimizu", and that sibling's registrations still
+        // have to move.
         var regs = await _context.Registrations
-            .Where(r => r.FamilyUserId != null && sourceIds.Contains(r.FamilyUserId))
+            .Where(r => r.FamilyUserId == retire.UserId)
             .ToListAsync(ct);
 
         // Snapshot the previous owner BEFORE the write. This is the ONLY way back — afterwards the
-        // target owns registrations that used to be several other accounts', and nothing on the row
+        // surviving login owns registrations that used to be another account's, and nothing on the row
         // says which.
         var moved = regs
             .Select(r => new MergedRegistrationDto
@@ -706,11 +805,11 @@ public class ChangePasswordRepository : IChangePasswordRepository
             .ToList();
 
         // ── 2. the children ───────────────────────────────────────────────────
-        var childMap = await BuildChildCollapseAsync(sourceIds, target.UserId, ct);
+        var childMap = await BuildChildCollapseAsync(retire.UserId, keep.UserId, ct);
 
         foreach (var reg in regs)
         {
-            reg.FamilyUserId = target.UserId;
+            reg.FamilyUserId = keep.UserId;
 
             if (reg.UserId != null && childMap.TryGetValue(reg.UserId, out var survivingChildId))
                 reg.UserId = survivingChildId;
@@ -720,34 +819,34 @@ public class ChangePasswordRepository : IChangePasswordRepository
 
         return new MergeResultDto
         {
-            TargetUserId = target.UserId,
-            TargetUserName = target.UserName,
-            Moved = moved
+            KeepUserId = keep.UserId,
+            KeepUserName = keep.UserName,
+            RetireUserName = retire.UserName,
+            Moved = moved,
+            ChildrenCollapsed = childMap.Count
         };
     }
 
     /// <summary>
-    /// Maps each losing player row to the target household's row for the same child:
-    /// <c>{ Maya_old → Maya_target, Ethan_old → Ethan_target }</c>.
+    /// Maps each retiring player row to the surviving household's row for the same child:
+    /// <c>{ Maya_old → Maya_keep, Ethan_old → Ethan_keep }</c>.
     ///
-    /// Scoped to the accounts being merged. It cannot reach an unrelated household, and it cannot touch
-    /// a deliberate double-registration in a family that is not part of this merge.
+    /// Scoped to the two accounts being merged. It cannot reach an unrelated household, and it cannot
+    /// touch a deliberate double-registration in a family that is not part of this merge.
     ///
-    /// A child is only collapsed when BOTH sides hold exactly one row for that (name, DOB). Two rows on
+    /// A child is collapsed only when BOTH sides hold exactly one row for that (name, DOB). Two rows on
     /// either side is ambiguous — it is what a deliberate double-registration looks like — so that child
-    /// is left as it is.
+    /// is left exactly as it is, and both rows come across still separate.
     /// </summary>
     private async Task<Dictionary<string, string>> BuildChildCollapseAsync(
-        IReadOnlyCollection<string> sourceFamilyUserIds,
-        string targetFamilyUserId,
+        string retireFamilyUserId,
+        string keepFamilyUserId,
         CancellationToken ct)
     {
-        var all = sourceFamilyUserIds.Append(targetFamilyUserId).ToList();
-
         var rows = await (
             from r in _context.Registrations
             join u in _context.AspNetUsers on r.UserId equals u.Id
-            where r.FamilyUserId != null && all.Contains(r.FamilyUserId)
+            where r.FamilyUserId == retireFamilyUserId || r.FamilyUserId == keepFamilyUserId
             select new { FamilyUserId = r.FamilyUserId!, UserId = u.Id, u.FirstName, u.LastName, u.Dob }
         ).AsNoTracking().Distinct().ToListAsync(ct);
 
@@ -755,19 +854,19 @@ public class ChangePasswordRepository : IChangePasswordRepository
 
         foreach (var child in rows.GroupBy(x => (Fold(x.FirstName), Fold(x.LastName), x.Dob)))
         {
-            var onTarget = child.Where(x => x.FamilyUserId == targetFamilyUserId)
+            var onKeep = child.Where(x => x.FamilyUserId == keepFamilyUserId)
+                              .Select(x => x.UserId).Distinct().ToList();
+
+            var onRetire = child.Where(x => x.FamilyUserId == retireFamilyUserId)
                                 .Select(x => x.UserId).Distinct().ToList();
 
-            var onSources = child.Where(x => x.FamilyUserId != targetFamilyUserId)
-                                 .Select(x => x.UserId).Distinct().ToList();
+            // The survivor does not have this child at all — their row comes across untouched, still
+            // pointing at itself. (And if the retiring login holds two rows for them, both come across,
+            // still separate: whatever made them two rows is not ours to undo.)
+            if (onKeep.Count != 1) continue;
+            if (onRetire.Count != 1) continue;
 
-            // The target does not have this child at all — their row comes across untouched, still
-            // pointing at itself. (And if a SOURCE holds two rows for them, both come across, still
-            // separate: whatever made them two rows is not ours to undo.)
-            if (onTarget.Count != 1) continue;
-            if (onSources.Count != 1) continue;
-
-            map[onSources[0]] = onTarget[0];
+            map[onRetire[0]] = onKeep[0];
         }
 
         return map;
@@ -776,9 +875,11 @@ public class ChangePasswordRepository : IChangePasswordRepository
     // ═══════════════════════════════════════════════════════════
     //  Hydration — turning account ids into something an admin can actually judge
     // ═══════════════════════════════════════════════════════════
-
-    private const int MaxJobsShown = 6;
-    private const int MaxChildrenShown = 12;
+    //
+    //  Half the family usernames in this system are raw GUIDs. Two dropdowns of
+    //  76da3519-7842-400e-84ed-4ea6005e974c are not a decision, they are a coin flip — so a candidate
+    //  carries its identity block, its children, and EVERY registration a merge would move. The admin is
+    //  about to relocate a family's whole history; they get to look at it first.
 
     /// <summary>Case-folded key component. The same child is on file as both "Maya Abell" and "maya abell".</summary>
     private static string Fold(string? s) => (s ?? "").Trim().ToLowerInvariant();
@@ -789,15 +890,36 @@ public class ChangePasswordRepository : IChangePasswordRepository
         return s.Length == 0 ? null : s;
     }
 
-    private static MergeCandidatesResponse EmptyCandidates() => new()
+    /// <summary><c>Steps Lacrosse — Fall League 2025</c>. Customer is the disambiguator on a phone call.</summary>
+    private static string Where(string? customerName, string? jobName)
     {
-        Source = new MergeCandidateDto { UserName = "", UserId = "", RegistrationCount = 0, Children = [], Jobs = [] },
-        Candidates = [],
-        RegistrationsAffected = 0,
-        AccountsAffected = 0
+        var c = (customerName ?? "").Trim();
+        var j = (jobName ?? "").Trim();
+
+        if (c.Length == 0) return j;
+        if (j.Length == 0) return c;
+        return $"{c} — {j}";
+    }
+
+    /// <summary>No identity → no accounts → no merge. The contact block was blank, malformed, or a
+    /// placeholder, and absence must never match absence.</summary>
+    private static MergeCandidatesResponse NoCandidates() => new()
+    {
+        Identity = null,
+        Accounts = [],
+        RoleName = null
     };
 
-    private sealed record Household(string? MomName, string? MomEmail, string? DadName, string? DadEmail);
+    private static MergeIdentityDto Identity(AccountKey key) => new()
+    {
+        Name = $"{key.FirstName} {key.LastName}".Trim(),
+        Email = key.Email,
+        Phone = key.Phone
+    };
+
+    private sealed record Household(
+        string? MomFirstName, string? MomLastName, string? MomEmail, string? MomPhone,
+        string? DadFirstName, string? DadLastName, string? DadEmail);
 
     private async Task<Dictionary<string, Household>> LoadHouseholdsAsync(
         IReadOnlyCollection<string> familyUserIds,
@@ -806,6 +928,7 @@ public class ChangePasswordRepository : IChangePasswordRepository
         if (familyUserIds.Count == 0) return [];
 
         var rows = await _context.Families
+            .AsNoTracking()
             .Where(f => familyUserIds.Contains(f.FamilyUserId))
             .Select(f => new
             {
@@ -813,152 +936,202 @@ public class ChangePasswordRepository : IChangePasswordRepository
                 f.MomFirstName,
                 f.MomLastName,
                 f.MomEmail,
+                f.MomCellphone,
                 f.DadFirstName,
                 f.DadLastName,
                 f.DadEmail
             })
-            .AsNoTracking()
             .ToListAsync(ct);
 
         return rows.ToDictionary(
             f => f.FamilyUserId,
             f => new Household(
-                NameOrNull(f.MomFirstName, f.MomLastName), f.MomEmail,
-                NameOrNull(f.DadFirstName, f.DadLastName), f.DadEmail));
+                f.MomFirstName, f.MomLastName, f.MomEmail, f.MomCellphone,
+                f.DadFirstName, f.DadLastName, f.DadEmail));
     }
 
-    /// <summary>Hydrate PERSON accounts (a player, or an adult) — the merge candidates for a person.</summary>
-    private async Task<Dictionary<string, MergeCandidateDto>> HydratePersonAccountsAsync(
+    /// <summary>
+    /// Hydrate ADULT logins — one human, one role. Registrations are scoped to that role, because that is
+    /// the set a merge would move; a candidate's list must be the truth about what happens if it is retired.
+    ///
+    /// A login that owns nothing IN THIS ROLE is not offered. That is what makes a retired account
+    /// self-hide, and it is why this tool needs no deactivation flag.
+    /// </summary>
+    private async Task<List<MergeCandidateDto>> HydrateAdultAccountsAsync(
         IReadOnlyCollection<string> userIds,
+        string roleId,
         CancellationToken ct)
     {
         if (userIds.Count == 0) return [];
 
-        var rows = await (
-            from r in _context.Registrations
-            join u in _context.AspNetUsers on r.UserId equals u.Id
-            join j in _context.Jobs on r.JobId equals j.JobId
-            // Every registration, not just the active ones. This count IS the blast radius the
-            // SuperUser is shown, and the merge moves everything — an inactive count here would make
-            // the number on screen smaller than what actually moves.
-            where userIds.Contains(u.Id)
-            select new
+        var logins = await _context.AspNetUsers
+            .AsNoTracking()
+            .Where(u => userIds.Contains(u.Id) && u.UserName != null)
+            .Select(u => new
             {
                 u.Id,
-                u.UserName,
+                UserName = u.UserName!,
                 u.Email,
                 u.FirstName,
                 u.LastName,
-                u.Dob,
+                u.Cellphone,
+                u.Phone
+            })
+            .ToListAsync(ct);
+
+        // Every registration, not just the active ones — the merge moves them all, so a list that
+        // omitted the inactive ones would understate what the admin is about to do.
+        var rows = await (
+            from r in _context.Registrations
+            join j in _context.Jobs on r.JobId equals j.JobId
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
+            where r.UserId != null && userIds.Contains(r.UserId) && r.RoleId == roleId
+            select new
+            {
+                UserId = r.UserId!,
+                r.RegistrationId,
+                c.CustomerName,
                 j.JobName,
-                r.FamilyUserId
+                RoleName = role.Name
             }
         ).AsNoTracking().ToListAsync(ct);
 
-        var familyIds = rows
-            .Select(x => x.FamilyUserId)
-            .Where(id => !string.IsNullOrEmpty(id))
-            .Select(id => id!)
-            .Distinct()
-            .ToList();
+        var byUser = rows.GroupBy(x => x.UserId).ToDictionary(g => g.Key, g => g.ToList());
 
-        var households = await LoadHouseholdsAsync(familyIds, ct);
+        var accounts = new List<MergeCandidateDto>();
 
-        return rows.GroupBy(x => x.Id).ToDictionary(g => g.Key, g =>
+        foreach (var login in logins)
         {
-            var first = g.First();
-            var famId = g.Select(x => x.FamilyUserId).FirstOrDefault(id => !string.IsNullOrEmpty(id));
-            var hh = famId != null && households.TryGetValue(famId, out var h) ? h : null;
+            if (!byUser.TryGetValue(login.Id, out var mine)) continue;
 
-            return new MergeCandidateDto
+            accounts.Add(new MergeCandidateDto
             {
-                UserId = first.Id,
-                UserName = first.UserName ?? "",
-                Email = first.Email,
-                PersonName = NameOrNull(first.FirstName, first.LastName),
-                Dob = first.Dob,
-                MomName = hh?.MomName,
-                MomEmail = hh?.MomEmail,
-                DadName = hh?.DadName,
-                DadEmail = hh?.DadEmail,
+                UserId = login.Id,
+                UserName = login.UserName,
+                // An adult signs in as themselves — their account and their identity are one record.
+                PersonName = NameOrNull(login.FirstName, login.LastName),
+                Email = login.Email,
+                Phone = login.Cellphone ?? login.Phone,
                 Children = [],
-                RegistrationCount = g.Count(),
-                Jobs = [.. g.Select(x => x.JobName).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!)
-                            .Distinct().OrderBy(n => n).Take(MaxJobsShown)]
-            };
-        });
+                Registrations = [.. mine
+                    .Select(x => new MergeCandidateRegistrationDto
+                    {
+                        RegistrationId = x.RegistrationId,
+                        CustomerName = x.CustomerName ?? "",
+                        JobName = x.JobName ?? "",
+                        RoleName = x.RoleName ?? "",
+                        PersonName = null
+                    })
+                    .OrderBy(x => x.CustomerName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.JobName, StringComparer.OrdinalIgnoreCase)]
+            });
+        }
+
+        return [.. accounts
+            .OrderByDescending(a => a.Registrations.Count)
+            .ThenBy(a => a.UserName, StringComparer.OrdinalIgnoreCase)];
     }
 
     /// <summary>
-    /// Hydrate FAMILY LOGINS, each with the children it owns. The children ARE the evidence: a family
-    /// username is frequently unrecognisable, and the parents' names are typed inconsistently, so the
-    /// only way an admin can confirm "this is the same household" is to see the same kids.
+    /// Hydrate FAMILY LOGINS. The mother's block is the identity key, SHOWN — the admin compares it
+    /// across the two panels, and if those are not the same woman they stop. The children are the second
+    /// check: a family username is frequently unrecognisable and the parents' names are typed
+    /// inconsistently, so seeing the same kids is what confirms the same household.
+    ///
+    /// A login that owns no registrations is not offered — nothing to move off it, and nothing the parent
+    /// could not reach by resetting the password on the login that DOES hold their history. It is also
+    /// what makes a retired login self-hide.
     /// </summary>
-    private async Task<Dictionary<string, MergeCandidateDto>> HydrateFamilyAccountsAsync(
+    private async Task<List<MergeCandidateDto>> HydrateFamilyAccountsAsync(
         IReadOnlyCollection<string> familyUserIds,
-        IReadOnlySet<(string, string, DateTime?)> sourceChildKeys,
         CancellationToken ct)
     {
         if (familyUserIds.Count == 0) return [];
 
         var logins = await _context.AspNetUsers
-            .Where(u => familyUserIds.Contains(u.Id))
-            .Select(u => new { u.Id, u.UserName, u.Email })
             .AsNoTracking()
+            .Where(u => familyUserIds.Contains(u.Id) && u.UserName != null)
+            .Select(u => new { u.Id, UserName = u.UserName! })
             .ToListAsync(ct);
 
         var households = await LoadHouseholdsAsync(familyUserIds, ct);
 
-        var childRows = await (
+        // Every registration — see HydrateAdultAccountsAsync.
+        var rows = await (
             from r in _context.Registrations
             join u in _context.AspNetUsers on r.UserId equals u.Id
             join j in _context.Jobs on r.JobId equals j.JobId
-            // Every registration — see HydratePersonAccountsAsync. The count on the card has to be the
-            // count the merge will move, or the blast radius is a lie.
+            join c in _context.Customers on j.CustomerId equals c.CustomerId
+            join role in _context.AspNetRoles on r.RoleId equals role.Id
             where r.FamilyUserId != null && familyUserIds.Contains(r.FamilyUserId)
-            select new { FamilyUserId = r.FamilyUserId!, u.FirstName, u.LastName, u.Dob, j.JobName }
+            select new
+            {
+                FamilyUserId = r.FamilyUserId!,
+                r.RegistrationId,
+                ChildUserId = u.Id,
+                u.FirstName,
+                u.LastName,
+                u.Dob,
+                c.CustomerName,
+                j.JobName,
+                RoleName = role.Name
+            }
         ).AsNoTracking().ToListAsync(ct);
 
-        var byFamily = childRows
-            .GroupBy(x => x.FamilyUserId)
-            .ToDictionary(g => g.Key, g => g.ToList());
+        var byFamily = rows.GroupBy(x => x.FamilyUserId).ToDictionary(g => g.Key, g => g.ToList());
 
-        return logins.ToDictionary(login => login.Id, login =>
+        var accounts = new List<MergeCandidateDto>();
+
+        foreach (var login in logins)
         {
-            var rows = byFamily.TryGetValue(login.Id, out var r) ? r : [];
+            if (!byFamily.TryGetValue(login.Id, out var mine)) continue;
+
             var hh = households.TryGetValue(login.Id, out var h) ? h : null;
 
-            var children = rows
-                .GroupBy(x => (Fold(x.FirstName), Fold(x.LastName), x.Dob))
+            // Grouped by the PLAYER ROW, not by (name, DOB) — so a household that deliberately holds two
+            // rows for one child shows two rows. Collapsing them here would hide the exact ambiguity that
+            // makes BuildChildCollapseAsync refuse to touch them.
+            var children = mine
+                .GroupBy(x => x.ChildUserId)
                 .Select(g => new MergeCandidateChildDto
                 {
+                    UserId = g.Key,
                     Name = NameOrNull(g.First().FirstName, g.First().LastName) ?? "(no name)",
-                    Dob = g.Key.Item3,
-                    MatchesSource = sourceChildKeys.Contains(g.Key)
+                    Dob = g.First().Dob
                 })
-                .OrderByDescending(c => c.MatchesSource)
-                .ThenBy(c => c.Name)
-                .Take(MaxChildrenShown)
+                .OrderBy(c => c.Name, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            return new MergeCandidateDto
+            accounts.Add(new MergeCandidateDto
             {
                 UserId = login.Id,
-                UserName = login.UserName ?? "",
-                Email = login.Email,
-                // A family login is not a person — it is a household. The people are the parents
-                // and the children below.
-                PersonName = null,
-                Dob = null,
-                MomName = hh?.MomName,
+                UserName = login.UserName,
+                // A family login is not a person — it is a household. The people are the parents in the
+                // identity block and the children below it.
+                MomName = NameOrNull(hh?.MomFirstName, hh?.MomLastName),
                 MomEmail = hh?.MomEmail,
-                DadName = hh?.DadName,
+                MomPhone = hh?.MomPhone,
+                DadName = NameOrNull(hh?.DadFirstName, hh?.DadLastName),
                 DadEmail = hh?.DadEmail,
                 Children = children,
-                RegistrationCount = rows.Count,
-                Jobs = [.. rows.Select(x => x.JobName).Where(n => !string.IsNullOrWhiteSpace(n)).Select(n => n!)
-                             .Distinct().OrderBy(n => n).Take(MaxJobsShown)]
-            };
-        });
+                Registrations = [.. mine
+                    .Select(x => new MergeCandidateRegistrationDto
+                    {
+                        RegistrationId = x.RegistrationId,
+                        CustomerName = x.CustomerName ?? "",
+                        JobName = x.JobName ?? "",
+                        RoleName = x.RoleName ?? "",
+                        PersonName = NameOrNull(x.FirstName, x.LastName)
+                    })
+                    .OrderBy(x => x.CustomerName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.JobName, StringComparer.OrdinalIgnoreCase)
+                    .ThenBy(x => x.PersonName, StringComparer.OrdinalIgnoreCase)]
+            });
+        }
+
+        return [.. accounts
+            .OrderByDescending(a => a.Registrations.Count)
+            .ThenBy(a => a.UserName, StringComparer.OrdinalIgnoreCase)];
     }
 }

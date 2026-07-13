@@ -95,6 +95,36 @@ public class ChangePasswordController : ControllerBase
     }
 
     /// <summary>
+    /// What the reset dialog shows BEFORE anyone types a password: the account this registration resolves
+    /// to, whose login it is, and what it signs in for.
+    ///
+    /// For a player row that account is the FAMILY's — the child has no usable login — and "signs in for"
+    /// lists the children. That line is the whole reason this is a server call and not a grid cell.
+    /// </summary>
+    [HttpGet("{regId:guid}/reset-context")]
+    [ProducesResponseType(typeof(ResetContextDto), 200)]
+    [ProducesResponseType(404)]
+    public async Task<ActionResult<ResetContextDto>> GetResetContext(
+        Guid regId,
+        [FromQuery] ResetPasswordTarget target,
+        CancellationToken ct)
+    {
+        var context = await _service.GetResetContextAsync(regId, target, ct);
+
+        if (context is null)
+        {
+            return NotFound(new
+            {
+                message = target == ResetPasswordTarget.Family
+                    ? "This registration has no family login."
+                    : "This registration has no user account."
+            });
+        }
+
+        return Ok(context);
+    }
+
+    /// <summary>
     /// Reset the password on one of this REGISTRATION's two accounts — its own login, or the family
     /// login that owns it. Which one is <c>request.Target</c>; the account itself is resolved from the
     /// registration's FK, server-side.
@@ -220,8 +250,8 @@ public class ChangePasswordController : ControllerBase
     }
 
     /// <summary>
-    /// Other logins that are the same ADULT. Empty for a player — a child has no login, and is
-    /// collapsed only inside their household's merge.
+    /// Adult logins that are the same person IN THE SAME ROLE. Empty for a player — a child has no
+    /// login, and is collapsed only inside their household's merge.
     /// </summary>
     [HttpGet("{regId:guid}/merge-candidates")]
     [ProducesResponseType(typeof(MergeCandidatesResponse), 200)]
@@ -247,7 +277,10 @@ public class ChangePasswordController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Fold duplicate adult logins into the one the person asked for.</summary>
+    /// <summary>
+    /// Retire ONE duplicate adult login onto the one the person asked for. Only their registrations in
+    /// this registration's role move — a Club Rep never merges with their own Staff login.
+    /// </summary>
     [HttpPost("{regId:guid}/merge-username")]
     [ProducesResponseType(200)]
     [ProducesResponseType(400)]
@@ -255,45 +288,10 @@ public class ChangePasswordController : ControllerBase
         Guid regId,
         [FromBody] MergeUsernameRequest request,
         CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(request.TargetUserName))
-            return BadRequest(new { message = "Target username is required." });
-
-        if (request.SourceUserNames.Count == 0)
-            return BadRequest(new { message = "Select at least one account to merge." });
-
-        using var scope = AuditScope("MergeUser");
-
-        try
-        {
-            var result = await _service.MergeUsernameAsync(
-                regId, request.TargetUserName, request.SourceUserNames, ct);
-
-            // Irreversible. This event is the ONLY record that it happened AND the only way back:
-            // ReversalPayload carries each moved RegistrationId with the UserId it was moved off.
-            _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} MERGED {SourceCount} account(s) [{SourceUserNames}] onto user "
-                + "'{TargetUserName}' ({TargetUserId}) from registration {RegistrationId} — {MovedCount} registration(s) "
-                + "re-pointed — {Outcome}. Reversal: {ReversalPayload}",
-                Actor, request.SourceUserNames.Count, string.Join(", ", request.SourceUserNames),
-                result.TargetUserName, result.TargetUserId, regId,
-                result.Moved.Count, "OK", ReversalPayload(result));
-
-            return Ok(new { message = $"Merged {result.Moved.Count} registration(s) to '{result.TargetUserName}'." });
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to merge [{SourceUserNames}] onto '{TargetUserName}' "
-                + "from registration {RegistrationId} — {Outcome}: {Reason}",
-                Actor, string.Join(", ", request.SourceUserNames), request.TargetUserName, regId,
-                "FAILED", ex.Message);
-            return BadRequest(new { message = ex.Message });
-        }
-    }
+        => await Merge(regId, request, isFamily: false, ct);
 
     /// <summary>
-    /// Fold duplicate family logins into the one the parent asked for — the whole reason this tool
+    /// Retire ONE duplicate family login onto the one the parent asked for — the whole reason this tool
     /// exists. Moves the registrations AND collapses each child, so the parent does not sign in to find
     /// every child listed twice.
     /// </summary>
@@ -304,39 +302,67 @@ public class ChangePasswordController : ControllerBase
         Guid regId,
         [FromBody] MergeUsernameRequest request,
         CancellationToken ct)
+        => await Merge(regId, request, isFamily: true, ct);
+
+    /// <summary>
+    /// Both merges, one body. They differ only in which FK moves and whether children come with it —
+    /// the validation, the audit line and the reversal payload are the same obligation, and writing them
+    /// twice is how the two halves of this tool drifted apart in the first place.
+    /// </summary>
+    private async Task<IActionResult> Merge(
+        Guid regId,
+        MergeUsernameRequest request,
+        bool isFamily,
+        CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(request.TargetUserName))
-            return BadRequest(new { message = "Target family username is required." });
+        var what = isFamily ? "family login" : "login";
 
-        if (request.SourceUserNames.Count == 0)
-            return BadRequest(new { message = "Select at least one account to merge." });
+        if (string.IsNullOrWhiteSpace(request.KeepUserName))
+            return BadRequest(new { message = $"The {what} to keep is required." });
 
-        using var scope = AuditScope("MergeFamily");
+        if (string.IsNullOrWhiteSpace(request.RetireUserName))
+            return BadRequest(new { message = $"The {what} to retire is required." });
+
+        using var scope = AuditScope(isFamily ? "MergeFamily" : "MergeUser");
 
         try
         {
-            var result = await _service.MergeFamilyUsernameAsync(
-                regId, request.TargetUserName, request.SourceUserNames, ct);
+            var result = isFamily
+                ? await _service.MergeFamilyUsernameAsync(regId, request.KeepUserName, request.RetireUserName, ct)
+                : await _service.MergeUsernameAsync(regId, request.KeepUserName, request.RetireUserName, ct);
 
-            // The merge this tool exists for, and the one whose Reversal payload will be needed if it
-            // is ever wrong. It moves children between households.
+            // Irreversible. This event is the ONLY record that it happened AND the only way back:
+            // ReversalPayload carries each moved RegistrationId with the account it was moved off.
+            //
+            // The retiree is logged as {TargetUserName} — the SAME property the reset events use — so
+            // that `TargetUserName = 'jsmith'` in Seq still means "everything ever done TO this
+            // account". A merge-only property here would make that query silently miss the single most
+            // destructive thing this tool does. {KeepUserName} answers the other direction: what landed
+            // ON an account.
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} MERGED {SourceCount} family login(s) [{SourceUserNames}] onto "
-                + "'{TargetUserName}' ({TargetUserId}) from registration {RegistrationId} — {MovedCount} registration(s) "
-                + "re-pointed — {Outcome}. Reversal: {ReversalPayload}",
-                Actor, request.SourceUserNames.Count, string.Join(", ", request.SourceUserNames),
-                result.TargetUserName, result.TargetUserId, regId,
-                result.Moved.Count, "OK", ReversalPayload(result));
+                "CHANGE-PASSWORD AUDIT: {Actor} RETIRED {What} '{TargetUserName}' onto '{KeepUserName}' "
+                + "({KeepUserId}) from registration {RegistrationId} — {MovedCount} registration(s) re-pointed, "
+                + "{ChildrenCollapsed} child(ren) collapsed — {Outcome}. Reversal: {ReversalPayload}",
+                Actor, what, result.RetireUserName, result.KeepUserName, result.KeepUserId, regId,
+                result.Moved.Count, result.ChildrenCollapsed, "OK", ReversalPayload(result));
 
-            return Ok(new { message = $"Merged {result.Moved.Count} registration(s) to family '{result.TargetUserName}'." });
+            var children = result.ChildrenCollapsed > 0
+                ? $", and merged {result.ChildrenCollapsed} child record(s)"
+                : "";
+
+            return Ok(new
+            {
+                message = $"Retired '{result.RetireUserName}' — moved {result.Moved.Count} registration(s) "
+                          + $"to '{result.KeepUserName}'{children}."
+            });
         }
         catch (InvalidOperationException ex)
         {
             _logger.LogWarning(
-                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to merge family login(s) [{SourceUserNames}] onto "
-                + "'{TargetUserName}' from registration {RegistrationId} — {Outcome}: {Reason}",
-                Actor, string.Join(", ", request.SourceUserNames), request.TargetUserName, regId,
-                "FAILED", ex.Message);
+                "CHANGE-PASSWORD AUDIT: {Actor} FAILED to retire {What} '{TargetUserName}' onto "
+                + "'{KeepUserName}' from registration {RegistrationId} — {Outcome}: {Reason}",
+                Actor, what, request.RetireUserName, request.KeepUserName, regId, "FAILED", ex.Message);
+
             return BadRequest(new { message = ex.Message });
         }
     }

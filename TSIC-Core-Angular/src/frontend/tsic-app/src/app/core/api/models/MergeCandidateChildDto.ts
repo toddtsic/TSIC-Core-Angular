@@ -3,8 +3,8 @@
 /* tslint:disable */
 /* eslint-disable */
 export type MergeCandidateChildDto = {
+    userId: string;
     name: string;
     dob?: string | null;
-    matchesSource: boolean;
 };
 

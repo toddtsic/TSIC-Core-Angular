@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '@environments/environment';
 import type {
@@ -7,6 +7,7 @@ import type {
   ChangePasswordSearchResultDto,
   ChangePasswordRoleOptionDto,
   AdminResetPasswordRequest,
+  ResetContextDto,
   UpdateUserEmailRequest,
   UpdateFamilyEmailsRequest,
   MergeCandidatesResponse,
@@ -32,12 +33,36 @@ export const ResetTarget = {
 
 /**
  * "This person has no email address" — a recorded fact, as opposed to a blank, which only says we
- * never captured one. Both are excluded from every send.
- *
- * The button writes it so nobody types it; a typo'd marker is just a live address that bounces.
+ * never captured one. It is a flag, not an address, so it is never DISPLAYED as one.
  * Mirrors `EmailAddressRules.NotGiven` (C#).
  */
 export const NO_EMAIL_SENTINEL = 'not@given.com';
+
+/**
+ * `not@given.com` is a FLAG — "we asked, there isn't one" — not an address. Legacy stripped it on the
+ * way to the screen and so do we: rendered as an address, it invites someone to try to mail it.
+ */
+export function displayEmail(email: string | null | undefined): string {
+  if (!email) return '—';
+  return email.trim().toLowerCase() === NO_EMAIL_SENTINEL ? '—' : email;
+}
+
+/**
+ * `2008-03-28`, straight off the wire. Deliberately NOT the date pipe: a DOB is a calendar fact with
+ * no timezone, and the pipe renders it in the browser's, which moves it a day for anyone west of UTC.
+ * It is on screen to tell two children apart, so a day matters.
+ */
+export function dobLabel(value: string | null | undefined): string {
+  return value ? value.slice(0, 10) : '—';
+}
+
+/**
+ * How the server keys a child — case-folded name + exact DOB
+ * (`ChangePasswordRepository.BuildChildCollapseAsync`). Keep the two in step.
+ */
+export function childKey(name: string, dob: string | null | undefined): string {
+  return `${name.trim().toLowerCase()}|${dob ? dob.slice(0, 10) : ''}`;
+}
 
 @Injectable({ providedIn: 'root' })
 export class ChangePasswordService {
@@ -50,6 +75,15 @@ export class ChangePasswordService {
 
   search(request: ChangePasswordSearchRequest): Observable<ChangePasswordSearchResultDto[]> {
     return this.http.post<ChangePasswordSearchResultDto[]>(`${this.apiUrl}/search`, request);
+  }
+
+  /**
+   * What the reset dialog shows BEFORE anyone types: the account this registration actually resolves
+   * to, whose it is, and what it signs in for. For a player row that account is the FAMILY's.
+   */
+  getResetContext(regId: string, target: number): Observable<ResetContextDto> {
+    const params = new HttpParams().set('target', target);
+    return this.http.get<ResetContextDto>(`${this.apiUrl}/${regId}/reset-context`, { params });
   }
 
   /**
@@ -69,18 +103,22 @@ export class ChangePasswordService {
     return this.http.put<ApiMessage>(`${this.apiUrl}/${regId}/family-emails`, request);
   }
 
+  /** Adult logins that are the same person IN THE SAME ROLE. Empty for a player. */
   getUserMergeCandidates(regId: string): Observable<MergeCandidatesResponse> {
     return this.http.get<MergeCandidatesResponse>(`${this.apiUrl}/${regId}/merge-candidates`);
   }
 
+  /** Family logins that are the same household — the mother's email, phone and name all agree. */
   getFamilyMergeCandidates(regId: string): Observable<MergeCandidatesResponse> {
     return this.http.get<MergeCandidatesResponse>(`${this.apiUrl}/${regId}/family-merge-candidates`);
   }
 
+  /** Retire ONE adult login onto another. Irreversible. */
   mergeUsername(regId: string, request: MergeUsernameRequest): Observable<ApiMessage> {
     return this.http.post<ApiMessage>(`${this.apiUrl}/${regId}/merge-username`, request);
   }
 
+  /** Retire ONE family login onto another. Irreversible — it moves a household's children. */
   mergeFamilyUsername(regId: string, request: MergeUsernameRequest): Observable<ApiMessage> {
     return this.http.post<ApiMessage>(`${this.apiUrl}/${regId}/merge-family-username`, request);
   }

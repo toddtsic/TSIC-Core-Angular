@@ -2,8 +2,9 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type MergeUsernameRequest = {
-    keepUserName: string;
-    retireUserName: string;
+export type AccountReachDto = {
+    label: string;
+    dob?: string | null;
+    where?: string | null;
 };
 

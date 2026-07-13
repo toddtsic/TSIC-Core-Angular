@@ -4,6 +4,7 @@
 /* eslint-disable */
 
 export type { AccountingRecordDto } from './models/AccountingRecordDto';
+export type { AccountReachDto } from './models/AccountReachDto';
 export type { AddAdministratorRequest } from './models/AddAdministratorRequest';
 export type { AddClubRequest } from './models/AddClubRequest';
 export type { AddClubResponse } from './models/AddClubResponse';
@@ -409,7 +410,9 @@ export type { MenuItemAdminDto } from './models/MenuItemAdminDto';
 export type { MenuItemDto } from './models/MenuItemDto';
 export type { MergeCandidateChildDto } from './models/MergeCandidateChildDto';
 export type { MergeCandidateDto } from './models/MergeCandidateDto';
+export type { MergeCandidateRegistrationDto } from './models/MergeCandidateRegistrationDto';
 export type { MergeCandidatesResponse } from './models/MergeCandidatesResponse';
+export type { MergeIdentityDto } from './models/MergeIdentityDto';
 export type { MergeUsernameRequest } from './models/MergeUsernameRequest';
 export type { MigrateAllRequest } from './models/MigrateAllRequest';
 export type { MigrateProfilesRequest } from './models/MigrateProfilesRequest';
@@ -573,6 +576,7 @@ export type { ReorderNavItemsRequest } from './models/ReorderNavItemsRequest';
 export type { ReschedulerGridRequest } from './models/ReschedulerGridRequest';
 export type { ResendInvoicesRequest } from './models/ResendInvoicesRequest';
 export type { ResendInvoicesResponse } from './models/ResendInvoicesResponse';
+export type { ResetContextDto } from './models/ResetContextDto';
 export type { ResetPasswordRequest } from './models/ResetPasswordRequest';
 export type { ResetPasswordTarget } from './models/ResetPasswordTarget';
 export type { RevalidateUsLaxRequestDto } from './models/RevalidateUsLaxRequestDto';

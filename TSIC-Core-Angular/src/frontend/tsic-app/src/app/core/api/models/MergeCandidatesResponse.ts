@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { MergeCandidateDto } from './MergeCandidateDto';
+import type { MergeIdentityDto } from './MergeIdentityDto';
 export type MergeCandidatesResponse = {
-    source: MergeCandidateDto;
-    candidates: Array<MergeCandidateDto>;
-    registrationsAffected: number;
-    accountsAffected: number;
+    identity?: (null | MergeIdentityDto);
+    accounts: Array<MergeCandidateDto>;
+    roleName?: string | null;
 };
 

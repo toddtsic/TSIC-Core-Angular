@@ -32,6 +32,16 @@ public interface IChangePasswordRepository
         ResetPasswordTarget target,
         CancellationToken ct = default);
 
+    /// <summary>
+    /// Everything the reset dialog must show BEFORE anyone types a password: the account the registration
+    /// resolves to, whose it is, and — the line that stops the mistake — what it signs in for.
+    /// Returns null when the registration does not exist or has no account on that side.
+    /// </summary>
+    Task<ResetContextDto?> GetResetContextAsync(
+        Guid registrationId,
+        ResetPasswordTarget target,
+        CancellationToken ct = default);
+
     // ── Email updates ──
 
     Task UpdateUserEmailAsync(
@@ -56,11 +66,15 @@ public interface IChangePasswordRepository
     // customers, irreversibly — and the SuperUser pulls the trigger on a list THIS CODE produced, so
     // the candidate list is the security boundary. A miss costs nothing (the parent uses their new
     // account); a false match is a breach. Read that file before widening anything.
+    //
+    // ONE RETIREMENT PER CALL. Never a list. A parent with four logins is three deliberate merges.
 
     /// <summary>
-    /// Other logins that are the SAME ADULT — their own email + phone + name.
-    /// <b>Returns empty for a player</b>: a player has no login, and a child is collapsed only inside
-    /// their household's merge. See <see cref="MergeFamilyRegistrationsAsync"/>.
+    /// Other logins that are the SAME ADULT, IN THE SAME ROLE — their own email + phone + name, and a
+    /// registration in this registration's role. A Club Rep never merges with their own Staff login.
+    ///
+    /// <b>Empty for a player</b>: a player has no login, and a child is collapsed only inside their
+    /// household's merge. See <see cref="MergeFamilyRegistrationsAsync"/>.
     /// </summary>
     Task<MergeCandidatesResponse> GetUserMergeCandidatesAsync(
         Guid registrationId,
@@ -73,7 +87,7 @@ public interface IChangePasswordRepository
     /// Not keyed on the child: "owns the same child" says two households OVERLAP (divorced parents
     /// legitimately share one), not that they ARE one.
     ///
-    /// More than one candidate is normal — a parent who has forgotten their password twice has three
+    /// More than two candidates is normal — a parent who has forgotten their password twice has three
     /// logins, and they all key to the same mother.
     /// </summary>
     Task<MergeCandidatesResponse> GetFamilyMergeCandidatesAsync(
@@ -81,33 +95,33 @@ public interface IChangePasswordRepository
         CancellationToken ct = default);
 
     /// <summary>
-    /// Re-point every registration under <paramref name="sourceUserNames"/> onto
-    /// <paramref name="targetUserName"/>. Every name given MUST be one
-    /// <see cref="GetUserMergeCandidatesAsync"/> returned; anything else throws.
+    /// Retire ONE adult login onto <paramref name="keepUserName"/>. Both names MUST be accounts
+    /// <see cref="GetUserMergeCandidatesAsync"/> returned; anything else throws. Only the retiree's
+    /// registrations IN THIS REGISTRATION'S ROLE move.
     ///
     /// Returns every registration moved AND the account it moved off — not a count. A count cannot
-    /// reverse a merge: afterwards the target owns rows that used to belong to several accounts and
-    /// nothing on the row says which. See <see cref="MergeResultDto"/>.
+    /// reverse a merge: afterwards the surviving login owns rows that used to belong to another account
+    /// and nothing on the row says which. See <see cref="MergeResultDto"/>.
     /// </summary>
     Task<MergeResultDto> MergeUserRegistrationsAsync(
         Guid registrationId,
-        string targetUserName,
-        IReadOnlyList<string> sourceUserNames,
+        string keepUserName,
+        string retireUserName,
         CancellationToken ct = default);
 
     /// <summary>
-    /// Collapse the family logins named in <paramref name="sourceFamilyUserNames"/> onto
-    /// <paramref name="targetFamilyUserName"/> — the account the parent asked for. Every name given
-    /// MUST be one <see cref="GetFamilyMergeCandidatesAsync"/> returned; anything else throws.
+    /// Retire ONE family login onto <paramref name="keepUserName"/> — the account the parent asked for.
+    /// Both names MUST be accounts <see cref="GetFamilyMergeCandidatesAsync"/> returned; anything else
+    /// throws.
     ///
-    /// Moves BOTH FKs: <c>Family_UserId</c> for every registration under a losing login (including
-    /// inactive ones — orphaning a parent's dropped registrations on a dead login is how they lose
-    /// their history), and <c>UserId</c> for each child that exists unambiguously on both sides, so the
-    /// parent does not end up seeing every child twice.
+    /// Moves BOTH FKs: <c>Family_UserId</c> for every registration under the retiring login (including
+    /// inactive ones — orphaning a parent's dropped registrations on a dead login is how they lose their
+    /// history), and <c>UserId</c> for each child that exists unambiguously on both sides, so the parent
+    /// does not sign in to find every child listed twice.
     /// </summary>
     Task<MergeResultDto> MergeFamilyRegistrationsAsync(
         Guid registrationId,
-        string targetFamilyUserName,
-        IReadOnlyList<string> sourceFamilyUserNames,
+        string keepUserName,
+        string retireUserName,
         CancellationToken ct = default);
 }

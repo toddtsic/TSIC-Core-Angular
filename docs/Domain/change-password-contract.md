@@ -98,13 +98,39 @@ Everything about the merge follows from that sentence:
 - The unit is the **household**, not the child. The children collapse *because* the households do.
 - The **survivor is an input**, not a deduction. The parent said `mabell2025`; the SuperUser finds
   that account in the list and picks it. The tool never guesses.
-- The merge is therefore **two writes in one action**: `Family_UserId` for every registration under a
-  losing login, and `UserId` for each duplicate child — because a parent who signs into the account
+- The merge is therefore **two writes in one action**: `Family_UserId` for every registration under the
+  retiring login, and `UserId` for each duplicate child — because a parent who signs into the account
   they asked for and sees **Maya twice and Ethan twice** has not been helped.
 
 > A duplicate player row inside **one** family login is a different thing entirely, and is often
 > **deliberate** — it is how you get a second registration past an event's one-per-player rule. The
 > merge must not fuse those. See §5.
+
+### One retirement per act. Never a list.
+
+`MergeUsernameRequest` is `{ keepUserName, retireUserName }` — **two names, one of each.** It was a
+target plus a `string[]` of sources, and that was wrong: a parent with four logins is **three
+deliberate merges** — three confirmations, three audit lines, three independently reversible
+operations — not a dozen irreversible cross-tenant writes behind one button.
+
+More than two candidates is normal (a parent who has forgotten their password twice has three logins;
+the worst real household on file has **eleven**). They are retired one at a time.
+
+### The retired login hides itself. There is no deactivation flag.
+
+Candidates are derived from the accounts that **own registrations**. A merge leaves the retiree owning
+none — so it can never be offered again, and nothing needs to remember that it was retired. No column,
+no flag, no schema change. *Do not add one; the problem it would solve cannot occur.*
+
+### Adults merge WITHIN A ROLE
+
+A Club Rep collapses onto a Club Rep and **never** onto the same person's Staff login. Those two
+accounts carry different permissions and are deliberately separate records of the same human.
+
+The role constrains **both** the candidate list *and* the registrations that move
+(`r.RoleId == source.RoleId`). Legacy had this and it is the one part of its sweep that was right; the
+first migration dropped it. If the same person also has a duplicate Coach login, that is a **second,
+separate merge**.
 
 ### The identity key is a security control
 
@@ -251,9 +277,9 @@ Legacy = `reference/TSIC-Unify-2024/TSIC-Unify/Controllers/Search/ChangePassword
 | 8 | Edit `Families.Mom_Email` / `Dad_Email` | **PORT** | |
 | 9 | **Clear** an email (blank = delete the address) | **PORT-WITH-FIX** | Legacy could clear Mom/Dad but **NRE'd** on clearing the user/family email (`email.ToUpper()` on null). Restored in `5a121a2c`; must write `NULL`, not `""`. |
 | 10 | Merge **player** username (re-point `UserId`), on a global `name + DOB + role` sweep | **DROP** | A child is not an account you merge. The sweep reached **every customer in the system**, could fuse two children who share a birthday (33,214 name+DOB clusters; 175 disagree on gender), and would re-fuse a deliberate double-registration. A duplicate child is now collapsed **inside their household's merge**, unambiguously or not at all. |
-| 11 | Merge **family** username (re-point `Family_UserId`), on 6 exact parent fields + postal | **PORT-WITH-FIX** | Re-keyed on **the mother** — email AND phone AND name, normalized, placeholders excluded. §2. Legacy also derived its own work-set from field equality *at write time*, so the candidate list had no bearing on what moved; the write is now bounded by the accounts the SuperUser explicitly selected. |
-| 11a | Merge **adult** logins | **PORT-WITH-FIX** | Same key, on the adult's own row. An adult signs in as themselves. |
-| 12 | Username cells are **dropdowns of existing duplicates**, never free text | **PORT** | You cannot invent a username. You can only merge into one that exists — and the server re-validates every name against the key. |
+| 11 | Merge **family** username (re-point `Family_UserId`), on 6 exact parent fields + postal | **PORT-WITH-FIX** | Re-keyed on **the mother** — email AND phone AND name, normalized, placeholders excluded. §2. Legacy also derived its own work-set from field equality *at write time*, so the candidate list had no bearing on what moved; the write is now bounded by the two accounts the SuperUser named, and re-read by FK. |
+| 11a | Merge **adult** logins, `r.RoleId == registrantKeys.RoleId` | **PORT-WITH-FIX** | Same key, on the adult's own row — an adult signs in as themselves. **The role constraint is kept**: a Club Rep never merges with their own Staff login. The first migration dropped it; §1. |
+| 12 | Username cells are **dropdowns of existing duplicates**, never free text | **PORT** | You cannot invent a username. You can only merge into one that exists — and the server re-validates **both** names against the key. Legacy put those dropdowns *in the grid* (inline, per row): that was the sweep's entry point, and the merge is now a deliberate dialog instead. |
 | 13 | Edit player / Mom / Dad **phone** | **DROP** | Legacy's grid marked them editable, but `ChangeUserPassword` never bound them — **posted and silently discarded. It never worked.** Documented in `c492b303`. |
 | 14 | One monolithic POST doing all of the above | **DROP** | Split into discrete endpoints. See §5. |
 | 15 | No result cap | **DROP** | Cap **accounts** (50), never rows — see §5. |
@@ -307,8 +333,12 @@ Ordered by value. All **FIXED** unless marked otherwise.
    tool.
 5. **Merge candidates were unidentifiable.** `MergeCandidateDto` was `{ UserName, UserId }` — the
    admin picked between two raw GUIDs with nothing to tell them apart, on an irreversible operation.
-   **FIXED** — it now carries the household, the children, the jobs, and the registration count. The
-   **blast radius** is computed from what is *checked*, and shown before the confirm button goes live.
+   **FIXED** — a candidate now carries the identity block (the mother, or the adult), the children,
+   and **every registration a merge would move — the rows themselves, not a count.** The merge moves
+   registrations, so the admin looks at the registrations before they move. The dialog puts the two
+   candidates side by side: same mother on both sides *is* the key, shown; the children align, with the
+   ones that will actually be fused marked; and the consequence sentence is generated from the two
+   picks, not boilerplate.
 6. **The merge left inactive registrations behind** on a login nobody can sign into again. Legacy
    filtered on `BActive`. **FIXED** — everything moves. The whole point is that the parent gets their
    history back, and a dropped or pending registration is still theirs.
@@ -320,15 +350,28 @@ Ordered by value. All **FIXED** unless marked otherwise.
    not the targeting mechanism.
 8. **No audit trail, no log line, no notification.** A cross-tenant tool that changes credentials kept
    no record of who did what to whom. **FIXED** — see §6.
-9. **The players grid carried 11 columns that are constant on every row** (`Role`, `F-UserName`,
-   `F-Email`, all four `Mom*`, all four `Dad*`) — family-level facts stamped onto every child inside
-   that family's own card, three of them rendered twice. This is why it needed a horizontal scroll and
-   three frozen columns. Cause: `6dd00c3a` adopted legacy's `colModel` labels for auditability and the
-   **parity checklist got promoted into a layout constraint.** **FIXED** — hoisted to the account card
-   as a `Household` block; the grid is six columns and fits.
+9. **The grid dropped `Job`, and grouped registrations into account cards.** ~~Fixed by hoisting 11
+   "redundant" columns out of the grid.~~ **That was the ninth hand-correction, and it was itself the
+   defect.** The 11 columns are not redundant — they are a **scannable spreadsheet**, and Ann reads
+   across them. Worse, collapsing rows into per-account cards replaced `Job` with a *registration
+   count*, and `Job` is the **widest column on legacy's screen (240px)**: "which club, which event" is
+   how you find the person a caller is describing. **FIXED, properly** — the table is
+   **registration-grained** again, exactly as legacy's was (`jsonReader: { id: 'registrationId' }`),
+   every column in legacy's `colModel` is on it, and **`Job` leads and is frozen**. That table *is*
+   mission 3; there is no separate history view because the result set is the history.
+   *The lesson: a parity checklist is not a layout constraint, but neither is it noise you may
+   optimize away. Ann uses this tool.*
 10. **Clearing an email wrote `""`, not `NULL`** — including `NormalizedEmail`. **FIXED** (`BlankToNull`).
     *There are 2 pre-existing `Email = ''` rows in `AspNetUsers` from before this fix; they are
     cosmetic, and cleaning them up is a separate authorized `UPDATE`.*
+11. **The tool had no shape.** One grid served three unrelated missions with actions bolted onto the
+    side, so every correction rippled through all of it — and it took **eight** hand-corrections, each
+    found by Todd, one at a time. **FIXED** — the screen is now built around the three missions Todd
+    named, and they are the whole design:
+    **(1)** change a password · **(2)** merge duplicate logins — a household, or an adult in the same
+    role · **(3)** see where a person is registered.
+    Mission 3 is not a third screen. It is the **evidence the other two consume**, and it is the table.
+    *One table. Three dialogs, each doing exactly one thing.*
 
 ---
 
@@ -342,10 +385,16 @@ cp_audit = true                            -- everything this tool has ever done
 cp_audit = true and Outcome = 'FAILED'     -- everything it refused to do, and why
 cp_audit = true and AuditAction like 'Merge%'
 TargetUserName = 'jsmith'                  -- everything ever done TO one account
+KeepUserName   = 'jsmith'                  -- what has ever been merged ONTO one account
 ```
 
 Each event carries `Actor` (the `username` claim — **not** remapped), `ActorUserId`, `ClientIp`,
 `AuditAction`, `RegistrationId`, `TargetUserName`, and `Outcome`.
+
+`TargetUserName` is **one property across every event type** — the account that was *acted on*. For a
+reset that is the account reset; for a merge it is the account **retired**. That is deliberate: a
+merge-only property name would make `TargetUserName = 'jsmith'` silently miss the single most
+destructive thing this tool does. `KeepUserName` answers the other direction.
 
 **The password is never logged** — not the plaintext, not the hash, not a fragment. That the reset
 happened, by whom, to whom, is the whole fact.
