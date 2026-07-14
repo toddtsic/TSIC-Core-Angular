@@ -7,12 +7,14 @@ namespace TSIC.Tests.Payments;
 
 /// <summary>
 /// Pins the entity RecalcTotals helpers (Registrations + Teams) to the single FeeMath
-/// formula: they set FeeTotal/OwedTotal from components, exclude the retired FeeDiscountMp
-/// stub, keep OwedTotal signed, and coalesce Teams' nullable columns to zero.
+/// formula: they set FeeTotal/OwedTotal from components, SUBTRACT both discount buckets
+/// (FeeDiscount and FeeDiscountMp), keep OwedTotal signed, and coalesce Teams' nullable
+/// columns to zero. Also pins TotalDiscount() — the one expression every charge/owed/rating
+/// basis must net off, so no call site can drift back to FeeDiscount alone.
 /// </summary>
 public class RecalcTotalsTests
 {
-    [Fact(DisplayName = "Registration.RecalcTotals: FeeTotal=base+proc-disc+don+late, OwedTotal=fee-paid")]
+    [Fact(DisplayName = "Registration.RecalcTotals: FeeTotal=base+proc-disc-discMp+don+late, OwedTotal=fee-paid")]
     public void Registration_RecalcTotals_DerivesBothTotals()
     {
         var reg = new Registrations
@@ -31,8 +33,8 @@ public class RecalcTotalsTests
         reg.OwedTotal.Should().Be(309m);
     }
 
-    [Fact(DisplayName = "Registration.RecalcTotals: FeeDiscountMp is a stub and does NOT affect totals")]
-    public void Registration_RecalcTotals_IgnoresFeeDiscountMp()
+    [Fact(DisplayName = "Registration.RecalcTotals: FeeDiscountMp SUBTRACTS from the total")]
+    public void Registration_RecalcTotals_SubtractsFeeDiscountMp()
     {
         var reg = new Registrations
         {
@@ -41,14 +43,30 @@ public class RecalcTotalsTests
             FeeDiscount = 50m,
             FeeDonation = 25m,
             FeeLatefee = 15m,
-            FeeDiscountMp = 999m, // retired concept — must be ignored
+            FeeDiscountMp = 100m, // multi-player/sibling bucket — a real discount
             PaidTotal = 200m,
         };
 
         reg.RecalcTotals();
 
-        reg.FeeTotal.Should().Be(509m); // unchanged by the 999 Mp value
-        reg.OwedTotal.Should().Be(309m);
+        reg.FeeTotal.Should().Be(409m);  // 509 − 100
+        reg.OwedTotal.Should().Be(209m);
+    }
+
+    [Fact(DisplayName = "Registration.TotalDiscount: both buckets sum — the amount FeeMath subtracts")]
+    public void Registration_TotalDiscount_SumsBothBuckets()
+    {
+        var reg = new Registrations { FeeDiscount = 50m, FeeDiscountMp = 100m };
+
+        reg.TotalDiscount().Should().Be(150m);
+
+        // The contract that matters: FeeTotal must move by exactly TotalDiscount().
+        var undiscounted = new Registrations { FeeBase = 500m };
+        undiscounted.RecalcTotals();
+        var discounted = new Registrations { FeeBase = 500m, FeeDiscount = 50m, FeeDiscountMp = 100m };
+        discounted.RecalcTotals();
+
+        (undiscounted.FeeTotal - discounted.FeeTotal).Should().Be(discounted.TotalDiscount());
     }
 
     [Fact(DisplayName = "Registration.RecalcTotals: overpayment leaves OwedTotal signed (negative)")]
@@ -73,8 +91,8 @@ public class RecalcTotalsTests
         team.OwedTotal.Should().Be(0m);
     }
 
-    [Fact(DisplayName = "Team.RecalcTotals: derives totals and ignores the FeeDiscountMp stub")]
-    public void Team_RecalcTotals_DerivesTotalsAndIgnoresMp()
+    [Fact(DisplayName = "Team.RecalcTotals: FeeDiscountMp SUBTRACTS from the total")]
+    public void Team_RecalcTotals_SubtractsFeeDiscountMp()
     {
         var team = new Teams
         {
@@ -83,13 +101,21 @@ public class RecalcTotalsTests
             FeeDiscount = 50m,
             FeeDonation = 25m,
             FeeLatefee = 15m,
-            FeeDiscountMp = 999m, // retired concept — must be ignored
+            FeeDiscountMp = 100m,
             PaidTotal = 200m,
         };
 
         team.RecalcTotals();
 
-        team.FeeTotal.Should().Be(509m);
-        team.OwedTotal.Should().Be(309m);
+        team.FeeTotal.Should().Be(409m);  // 509 − 100
+        team.OwedTotal.Should().Be(209m);
+    }
+
+    [Fact(DisplayName = "Team.TotalDiscount: both buckets sum, nulls coalesce to zero")]
+    public void Team_TotalDiscount_SumsBothBucketsAndCoalesces()
+    {
+        new Teams { FeeDiscount = 50m, FeeDiscountMp = 100m }.TotalDiscount().Should().Be(150m);
+        new Teams { FeeDiscount = 50m, FeeDiscountMp = null }.TotalDiscount().Should().Be(50m);
+        new Teams().TotalDiscount().Should().Be(0m);
     }
 }

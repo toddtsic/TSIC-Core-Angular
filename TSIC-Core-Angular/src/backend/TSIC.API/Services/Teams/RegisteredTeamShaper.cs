@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -129,13 +130,17 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
             // Proportional splitting is reserved for the team ARB-trial payment OPTION (ArbTrialFeeSplitter
             // must split the discount pro-rata so a discount ≥ deposit can't zero the trial leg); that
             // option computes its own breakdown when selected and does not drive this default grid.
+            // TotalDiscount() — both buckets, exactly what FeeMath subtracted from FeeTotal. Netting
+            // only FeeDiscount here would overstate principal-remaining and drift these columns from
+            // the stored OwedTotal.
+            var discount = t.TotalDiscount();
             var depositDue = teamFullPayment
                 ? 0m
-                : state.DepositPrincipalRemaining(deposit, t.FeeDiscount, t.FeeLatefee, donation: 0m);
+                : state.DepositPrincipalRemaining(deposit, discount, t.FeeLatefee, donation: 0m);
             var additionalDue = teamFullPayment
-                ? state.PrincipalRemaining(t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m)
+                ? state.PrincipalRemaining(t.FeeBase, discount, t.FeeLatefee, donation: 0m)
                 : balanceDue;
-            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
+            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, discount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
             var ccOwedTotal = owed.Cc;
             var ckOwedTotal = owed.Check;
             var ekOwedTotal = owed.Echeck;
@@ -156,7 +161,7 @@ public sealed class RegisteredTeamShaper : IRegisteredTeamShaper
                 FeeTotal = t.FeeTotal,
                 PaidTotal = t.PaidTotal,
                 OwedTotal = t.OwedTotal,
-                FeeAdj = state.FeeAdjustment(t.FeeDiscount, t.FeeLatefee),
+                FeeAdj = state.FeeAdjustment(discount, t.FeeLatefee),
                 TenderPaid = state.TenderPaid,
                 Deposit = deposit,
                 BalanceDue = balanceDue,

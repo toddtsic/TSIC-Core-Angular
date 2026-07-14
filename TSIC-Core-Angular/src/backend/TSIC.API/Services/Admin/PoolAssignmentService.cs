@@ -1,4 +1,5 @@
 using TSIC.Contracts.Dtos.PoolAssignment;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -116,7 +117,15 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
                 newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved, job.BTeamsFullPaymentRequired ?? false)
                     ? (resolved?.FullPrice ?? 0m) : deposit;
-                newFeeTotal = newFeeBase; // preview estimate (excludes processing for simplicity)
+                // Derived through FeeMath — the SAME formula RecalcTotals stamps on execute
+                // (ApplyTeamSwapFeesAsync) — so the director approves the number the move produces.
+                // The move freezes the team's modifiers, so they carry forward onto the new base;
+                // FeeProcessing carries forward too (execute re-derives it, so proc is the one term
+                // still estimated). Previously this was `newFeeTotal = newFeeBase`, which silently
+                // dropped processing, BOTH discounts, the late fee and the donation.
+                newFeeTotal = FeeMath.ComputeFeeTotal(
+                    newFeeBase, team.FeeProcessing ?? 0m, team.FeeDiscount ?? 0m, team.FeeDiscountMp ?? 0m,
+                    team.FeeDonation ?? 0m, team.FeeLatefee ?? 0m);
                 feeDelta = newFeeTotal - (team.FeeTotal ?? 0m);
             }
 
@@ -160,7 +169,10 @@ public sealed class PoolAssignmentService : IPoolAssignmentService
                 var deposit = resolved?.EffectiveDeposit ?? 0m;
                 newFeeBase = ResolvedFee.ResolveFullPaymentPhase(resolved, job.BTeamsFullPaymentRequired ?? false)
                     ? (resolved?.FullPrice ?? 0m) : deposit;
-                newFeeTotal = newFeeBase;
+                // Same FeeMath derivation as the source-to-target leg above.
+                newFeeTotal = FeeMath.ComputeFeeTotal(
+                    newFeeBase, team.FeeProcessing ?? 0m, team.FeeDiscount ?? 0m, team.FeeDiscountMp ?? 0m,
+                    team.FeeDonation ?? 0m, team.FeeLatefee ?? 0m);
                 feeDelta = newFeeTotal - (team.FeeTotal ?? 0m);
             }
 

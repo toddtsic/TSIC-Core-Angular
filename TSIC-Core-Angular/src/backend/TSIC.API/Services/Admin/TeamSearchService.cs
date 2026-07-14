@@ -128,7 +128,7 @@ public sealed class TeamSearchService : ITeamSearchService
             // recording a check will settle. CC owed is OwedTotal itself.
             // donation: 0m — ClubTeamSummaryDto display; a paid-in-full donation nets out of the
             // resolver's principal-remaining (it lands in both base and PrincipalPaid).
-            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.FeeDiscount, t.FeeLatefee, donation: 0m, t.FeeProcessing);
+            var owed = state.ResolveOwed(t.OwedTotal, t.FeeBase, t.TotalDiscount(), t.FeeLatefee, donation: 0m, t.FeeProcessing);
             return t with
             {
                 CkOwedTotal = owed.Check
@@ -632,7 +632,7 @@ public sealed class TeamSearchService : ITeamSearchService
                     var capOwed = capState.ResolveOwed(
                         capTeam.OwedTotal ?? 0m,
                         capTeam.FeeBase ?? 0m,
-                        capTeam.FeeDiscount ?? 0m,
+                        capTeam.TotalDiscount(),
                         capTeam.FeeLatefee ?? 0m,
                         capTeam.FeeDonation ?? 0m,
                         capTeam.FeeProcessing ?? 0m);
@@ -673,7 +673,7 @@ public sealed class TeamSearchService : ITeamSearchService
                 // OwedTotal/(1+rate) breaks once any CC payment hits.
                 var state = teamPaymentStates.GetValueOrDefault(team.TeamId, emptyTeamState);
                 var feeBase = team.FeeBase ?? 0m;
-                var feeDiscount = team.FeeDiscount ?? 0m;
+                var feeDiscount = team.TotalDiscount();
                 var feeLatefee = team.FeeLatefee ?? 0m;
                 var feeDonation = team.FeeDonation ?? 0m;
                 var baseOwed = state.PrincipalRemaining(feeBase, feeDiscount, feeLatefee, feeDonation);

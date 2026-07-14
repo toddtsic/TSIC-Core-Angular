@@ -44,7 +44,7 @@ public record FamilyAccountingDto
 /// through the canonical payment-state path (IPaymentStateService + IFeeResolutionService),
 /// exactly like the team shaper.
 /// </summary>
-public record RegisteredPlayerInfo
+public record RegisteredPlayerInfo : TSIC.Contracts.Payments.IFeeDiscountBuckets
 {
     public required Guid RegistrationId { get; init; }
     public required string PlayerName { get; init; }
@@ -66,6 +66,9 @@ public record RegisteredPlayerInfo
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeDiscount { get; init; }
+    // Both discount buckets travel together — the shaper re-derives owed/deposit-due/proc from these
+    // components and must net the same total FeeMath did. See IFeeDiscountBuckets.
+    public required decimal FeeDiscountMp { get; init; }
     public required decimal FeeLatefee { get; init; }
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }

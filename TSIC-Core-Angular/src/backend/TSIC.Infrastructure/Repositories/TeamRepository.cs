@@ -239,6 +239,7 @@ public class TeamRepository : ITeamRepository
                 FeeBase = t.FeeBase ?? 0,
                 FeeProcessing = t.FeeProcessing ?? 0,
                 FeeDiscount = t.FeeDiscount ?? 0,
+                FeeDiscountMp = t.FeeDiscountMp ?? 0,
                 FeeLatefee = t.FeeLatefee ?? 0,
                 FeeTotal = t.FeeTotal ?? 0,
                 PaidTotal = t.PaidTotal ?? 0,
@@ -331,6 +332,7 @@ public class TeamRepository : ITeamRepository
                                   FeeBase = t.FeeBase ?? 0,
                                   FeeProcessing = t.FeeProcessing ?? 0,
                                   FeeDiscount = t.FeeDiscount ?? 0,
+                                  FeeDiscountMp = t.FeeDiscountMp ?? 0,
                                   FeeLatefee = t.FeeLatefee ?? 0,
                                   // Use stored totals — RecalcTotals keeps them in sync across every fee mutation.
                                   FeeTotal = t.FeeTotal ?? 0,
@@ -1348,6 +1350,7 @@ public class TeamRepository : ITeamRepository
                     AgegroupName = x.ag.AgegroupName ?? "",
                     FeeBase = x.t.FeeBase ?? 0,
                     FeeDiscount = x.t.FeeDiscount ?? 0,
+                    FeeDiscountMp = x.t.FeeDiscountMp ?? 0,
                     FeeLatefee = x.t.FeeLatefee ?? 0,
                     FeeTotal = x.t.FeeTotal ?? 0,
                     PaidTotal = x.t.PaidTotal ?? 0,

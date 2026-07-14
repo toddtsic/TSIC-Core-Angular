@@ -9,7 +9,7 @@ using TSIC.Domain.Entities;
 
 namespace TSIC.Contracts.Repositories;
 
-public record RegisteredTeamInfo
+public record RegisteredTeamInfo : TSIC.Contracts.Payments.IFeeDiscountBuckets
 {
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
@@ -19,6 +19,9 @@ public record RegisteredTeamInfo
     public required decimal FeeBase { get; init; }
     public required decimal FeeProcessing { get; init; }
     public required decimal FeeDiscount { get; init; }
+    // Both discount buckets travel together — the shaper and the RegSaver offer re-derive money from
+    // these components and must net the same total FeeMath did. See IFeeDiscountBuckets.
+    public required decimal FeeDiscountMp { get; init; }
     public required decimal FeeLatefee { get; init; }
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }

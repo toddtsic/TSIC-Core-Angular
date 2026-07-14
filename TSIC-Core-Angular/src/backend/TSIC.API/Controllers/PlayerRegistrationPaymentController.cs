@@ -258,14 +258,17 @@ public class PlayerRegistrationPaymentController : ControllerBase
 
             // Discount base is the server-side bill, never the client-submitted (proc-inclusive)
             // amount. The code is the LAST modifier, rated against what is owed AT CHECKOUT: base net
-            // of any early-bird discount in FeeDiscount, plus any late fee, MINUS principal already
+            // of every discount ALREADY stamped (TotalDiscount() = early-bird + any multi-player
+            // discount — the same total FeeMath subtracts), plus any late fee, MINUS principal already
             // paid — not raw FeeBase (which would discount the full pre-adjustment price, the way VI
             // rates against the total potential bill, and over-discount the paid portion of a reg
-            // whose deposit was already settled). Voluntary donations are excluded. The discount
-            // stacks onto any existing FeeDiscount (early-bird) below. PrincipalPaid (not gross
-            // PaidTotal) so proc already collected on a deposit doesn't eat into discountable principal.
+            // whose deposit was already settled). Netting only FeeDiscount would rate the code against
+            // a bill that ignores the sibling discount and OVER-discount by a share of it. Voluntary
+            // donations are excluded. The code's dollars stack onto FeeDiscount (never FeeDiscountMp —
+            // provenance) below. PrincipalPaid (not gross PaidTotal) so proc already collected on a
+            // deposit doesn't eat into discountable principal.
             var regState = regStates.GetValueOrDefault(reg.RegistrationId, echeckState);
-            var netBill = reg.FeeBase - reg.FeeDiscount + reg.FeeLatefee;
+            var netBill = reg.FeeBase - reg.TotalDiscount() + reg.FeeLatefee;
             var owedBasis = Math.Max(0m, netBill - regState.PrincipalPaid);
             var d = DiscountCalculator.Calculate(owedBasis, amount, bAsPercent ?? false);
             if (d <= 0m)
@@ -325,10 +328,10 @@ public class PlayerRegistrationPaymentController : ControllerBase
                 FeeTotal = reg.FeeTotal,
                 OwedTotal = reg.OwedTotal,
                 PaidTotal = reg.PaidTotal,
-                EcheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing).Echeck,
-                CheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing).Check,
+                EcheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.TotalDiscount(), reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing).Echeck,
+                CheckOwedTotal = echeckState.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.TotalDiscount(), reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing).Check,
                 // Canonical Fee-Adj / TenderPaid (job-level state → no corrections in this path).
-                FeeAdj = echeckState.FeeAdjustment(reg.FeeDiscount, reg.FeeLatefee),
+                FeeAdj = echeckState.FeeAdjustment(reg.TotalDiscount(), reg.FeeLatefee),
                 TenderPaid = reg.PaidTotal - echeckState.CorrectionApplied
             };
 

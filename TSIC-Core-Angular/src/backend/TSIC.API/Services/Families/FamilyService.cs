@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Transactions;
 using System.Text.Json;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Extensions;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared.Utilities;
 using TSIC.Contracts.Services;
@@ -818,8 +819,9 @@ public sealed class FamilyService : IFamilyService
 
         // Per-method owed from the single canonical resolver (== OwedTotal when proc fees
         // are off or no job state is available). Resolve once, read both methods.
+        var discount = r.TotalDiscount();
         var owedByMethod = echeckState?.ResolveOwed(
-            r.OwedTotal, r.FeeBase, r.FeeDiscount, r.FeeLatefee, r.FeeDonation, r.FeeProcessing);
+            r.OwedTotal, r.FeeBase, discount, r.FeeLatefee, r.FeeDonation, r.FeeProcessing);
         var echeckOwedTotal = owedByMethod?.Echeck ?? r.OwedTotal;
         var checkOwedTotal = owedByMethod?.Check ?? r.OwedTotal;
 
@@ -844,8 +846,8 @@ public sealed class FamilyService : IFamilyService
                 // per-registration corrections (admin-only, post-registration), so these reduce
                 // to lateFee − discount and the full PaidTotal — correct for the wizard context.
                 FeeAdj = echeckState != null
-                    ? echeckState.FeeAdjustment(r.FeeDiscount, r.FeeLatefee)
-                    : r.FeeLatefee - r.FeeDiscount,
+                    ? echeckState.FeeAdjustment(discount, r.FeeLatefee)
+                    : r.FeeLatefee - discount,
                 TenderPaid = r.PaidTotal - (echeckState?.CorrectionApplied ?? 0m)
             },
             AssignedTeamId = r.AssignedTeamId,

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using TSIC.API.Services.Metadata;
 using TSIC.Application.Services.Shared.Html;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.API.Services.Shared.Utilities;
@@ -617,6 +618,13 @@ public class AdultRegistrationService : IAdultRegistrationService
             HtmlBody = emailHtml,
             ToAddresses = { userEmail }
         };
+
+        JobConfirmationCopies.Apply(
+            message,
+            reg.Job.RegFormFrom,
+            reg.Job.RegFormCcs,
+            reg.Job.RegFormBccs,
+            reg.Job.BDisallowCcplayerConfirmations);
 
         var sent = await _emailService.SendAsync(message, cancellationToken: cancellationToken);
         if (!sent)
@@ -1302,7 +1310,12 @@ public class AdultRegistrationService : IAdultRegistrationService
         }
     }
 
-    /// <summary>Sum OwedTotal across a list of registrations.</summary>
+    /// <summary>
+    /// Sum the fee components across a list of registrations. The discount line sums TotalDiscount()
+    /// (every bucket FeeMath subtracts), so the breakdown FOOTS to the FeeTotal summed alongside it:
+    /// base + processing − discount + late == feeTotal. Summing FeeDiscount alone would show a
+    /// breakdown that doesn't add up to its own total.
+    /// </summary>
     private static AdultFeeBreakdownDto SummarizeFees(List<Registrations> registrations)
     {
         decimal baseTotal = 0, processingTotal = 0, discountTotal = 0, lateTotal = 0, feeTotal = 0, owedTotal = 0;
@@ -1310,7 +1323,7 @@ public class AdultRegistrationService : IAdultRegistrationService
         {
             baseTotal       += r.FeeBase;
             processingTotal += r.FeeProcessing;
-            discountTotal   += r.FeeDiscount;
+            discountTotal   += r.TotalDiscount();
             lateTotal       += r.FeeLatefee;
             feeTotal        += r.FeeTotal;
             owedTotal       += r.OwedTotal;

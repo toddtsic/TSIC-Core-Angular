@@ -1,5 +1,6 @@
 using TSIC.API.Services.Shared.UsLax;
 using TSIC.Contracts.Dtos.RosterSwapper;
+using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
 using TSIC.Domain.Constants;
@@ -172,10 +173,19 @@ public sealed class RosterSwapperService : IRosterSwapperService
                 var resolved = await _feeService.ResolveFeeAsync(
                     targetTeam.JobId, RoleConstants.Player, targetTeam.AgegroupId, targetTeam.TeamId, ct);
                 var newFeeBase = resolved?.EffectiveBalanceDue ?? 0m;
-                // Preview estimate: modifiers preserved from original registration
-                var previewDiscount = newFeeBase > 0m ? reg.FeeDiscount : 0m;
-                var previewLatefee = newFeeBase > 0m ? reg.FeeLatefee : 0m;
-                var newTotal = newFeeBase - previewDiscount + reg.FeeDonation + previewLatefee;
+                // Preview estimate: modifiers preserved from the original registration (the execute
+                // path freezes discount/donation and only re-derives the late fee when asked).
+                // Derived through FeeMath — the SAME formula RecalcTotals stamps on execute — so the
+                // number the director approves is the number the swap produces. Both discount buckets
+                // net off; FeeProcessing carries forward (the execute path re-derives it from the new
+                // base, so proc is the one term this preview still estimates).
+                var isFree = newFeeBase <= 0m;
+                var previewDiscount = isFree ? 0m : reg.FeeDiscount;
+                var previewDiscountMp = isFree ? 0m : reg.FeeDiscountMp;
+                var previewLatefee = isFree ? 0m : reg.FeeLatefee;
+                var newTotal = FeeMath.ComputeFeeTotal(
+                    newFeeBase, reg.FeeProcessing, previewDiscount, previewDiscountMp,
+                    reg.FeeDonation, previewLatefee);
 
                 previews.Add(new RosterTransferFeePreviewDto
                 {

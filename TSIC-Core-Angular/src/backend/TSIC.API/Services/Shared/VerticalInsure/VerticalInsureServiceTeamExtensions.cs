@@ -7,6 +7,7 @@ using System.Text.Json;
 using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.VerticalInsure;
+using TSIC.Contracts.Extensions;
 using TSIC.Domain.Entities;
 using TSIC.Domain.Constants;
 using TSIC.Application.Services.Shared.Insurance;
@@ -329,10 +330,11 @@ public partial class VerticalInsureService
                         new VITeamDto
                         {
                             team_name = team.TeamName,
-                            // Reflect the per-team modifiers: minus early-bird/discount-code
-                            // discounts, plus late fees (processing surcharge and donation excluded).
+                            // Reflect the per-team modifiers: minus EVERY stamped discount
+                            // (TotalDiscount() = early-bird/discount-code + multi-player), plus late
+                            // fees (processing surcharge and donation excluded).
                             insurable_amount = InsurableAmountCalculator.ComputeNetInsurableAmount(
-                                baseFee, team.FeeDiscount, team.FeeLatefee)
+                                baseFee, team.TotalDiscount(), team.FeeLatefee)
                         }
                     },
                     job_event = new VIEventDto

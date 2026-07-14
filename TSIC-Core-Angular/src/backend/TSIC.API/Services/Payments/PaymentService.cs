@@ -203,7 +203,7 @@ public class PaymentService : IPaymentService
             // drift would re-trip the AMOUNT_MISMATCH tripwire below). CC charges the full
             // owed (credit 0); eCheck charges the lower eCheck-rate gross.
             var owed = state.ResolveOwed(
-                owedTotal, team.FeeBase ?? 0m, team.FeeDiscount ?? 0m, team.FeeLatefee ?? 0m, team.FeeDonation ?? 0m, team.FeeProcessing ?? 0m);
+                owedTotal, team.FeeBase ?? 0m, team.TotalDiscount(), team.FeeLatefee ?? 0m, team.FeeDonation ?? 0m, team.FeeProcessing ?? 0m);
             var charge = kind == TeamChargeKind.Cc ? owed.Cc : owed.Echeck;
             var credit = owedTotal - charge; // proc backed out for this method (0 for CC)
             if (charge <= 0m) continue;
@@ -554,8 +554,9 @@ public class PaymentService : IPaymentService
             var rawBalance = resolved?.EffectiveBalanceDue ?? 0m;
 
             // Modifiers are frozen on the team row from registration time. teamDonation reads
-            // back the gift stamped above on the first team (0 on the rest).
-            var discount = (team.FeeDiscount ?? 0m) + (team.FeeDiscountMp ?? 0m);
+            // back the gift stamped above on the first team (0 on the rest). TotalDiscount() is the
+            // same total FeeMath subtracts from FeeTotal, so the two ARB legs foot to it exactly.
+            var discount = team.TotalDiscount();
             var lateFee = team.FeeLatefee ?? 0m;
             var teamDonation = team.FeeDonation ?? 0m;
 
@@ -655,10 +656,10 @@ public class PaymentService : IPaymentService
             // donation too, since the splitter folds donation into netBase).
             team.FeeBase = rawDeposit + rawBalance;
             team.FeeProcessing = split.TotalProcessing;
-            // RecalcTotals derives FeeTotal from the frozen components (base + proc - discount
-            // + donation + latefee), which == split.DepositCharge + split.BalanceCharge.
-            // The only residual divergence is the retired FeeDiscountMp (FeeMath excludes it;
-            // the splitter still subtracts it in `discount` — both are 0 for active clients).
+            // RecalcTotals derives FeeTotal from the frozen components (base + proc − discount
+            // − discountMp + donation + latefee), which == split.DepositCharge + split.BalanceCharge.
+            // Both sides now net the SAME discount (TotalDiscount() above == what FeeMath subtracts),
+            // so the two scheduled ADN charges foot exactly to FeeTotal — no residual divergence.
             team.RecalcTotals();
 
             team.AdnSubscriptionId = arbResult.SubscriptionId;
@@ -760,7 +761,9 @@ public class PaymentService : IPaymentService
                 jobId, RoleConstants.ClubRep, team.AgegroupId, team.TeamId);
             var rawDeposit = resolved?.EffectiveDeposit ?? 0m;
             var rawBalance = resolved?.EffectiveBalanceDue ?? 0m;
-            var discount = (team.FeeDiscount ?? 0m) + (team.FeeDiscountMp ?? 0m);
+            // TotalDiscount() is the same total FeeMath subtracts from FeeTotal, so the split legs
+            // foot to it exactly.
+            var discount = team.TotalDiscount();
             var lateFee = team.FeeLatefee ?? 0m;
             var donation = team.FeeDonation ?? 0m;
 
@@ -789,10 +792,9 @@ public class PaymentService : IPaymentService
             // Stamp full CC schedule on the team.
             team.FeeBase = rawDeposit + rawBalance;
             team.FeeProcessing = split.TotalProcessing;
-            // RecalcTotals derives FeeTotal from the frozen components (base + proc - discount
-            // + donation + latefee), which == ccFullCharge. The only residual divergence is the
-            // retired FeeDiscountMp (FeeMath excludes it; the splitter still subtracts it in
-            // `discount` — both are 0 for active clients).
+            // RecalcTotals derives FeeTotal from the frozen components (base + proc − discount
+            // − discountMp + donation + latefee), which == ccFullCharge. Both sides now net the SAME
+            // discount (TotalDiscount() above == what FeeMath subtracts), so there is no divergence.
             team.RecalcTotals();
             team.Modified = DateTime.Now;
             team.LebUserId = userId;
@@ -1617,7 +1619,8 @@ public class PaymentService : IPaymentService
         {
             var reg = regsById[item.RegistrationId];
             var state = states.GetValueOrDefault(item.RegistrationId) ?? emptyState;
-            var owed = state.ResolveOwed(reg.OwedTotal, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing);
+            var regDiscount = reg.TotalDiscount();
+            var owed = state.ResolveOwed(reg.OwedTotal, reg.FeeBase, regDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing);
             // Tripwire: never charge more than the resolver currently shows for the CC bucket
             // (item.Amount is always the CC-basis charge). Penny tolerance covers rounding
             // between the display path and here.
@@ -1627,7 +1630,7 @@ public class PaymentService : IPaymentService
                     $"Payment amount is out of date (requested {item.Amount:C}, now {owed.Cc:C}). Please refresh and try again.",
                     regIds);
             var credit = kind == RegistrationChargeKind.Echeck
-                ? state.ProcCreditForCharge(item.Amount, reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing, state.EcheckRate)
+                ? state.ProcCreditForCharge(item.Amount, reg.FeeBase, regDiscount, reg.FeeLatefee, reg.FeeDonation, reg.FeeProcessing, state.EcheckRate)
                 : 0m;
             plan[item.RegistrationId] = (item.Amount - credit, credit);
         }

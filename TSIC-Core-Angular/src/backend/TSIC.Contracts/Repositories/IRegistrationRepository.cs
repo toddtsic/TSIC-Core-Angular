@@ -666,7 +666,7 @@ public record RegistrationWithInvoiceData
     public required int RegistrationAi { get; init; }
 }
 
-public record EligibleInsuranceRegistration
+public record EligibleInsuranceRegistration : TSIC.Contracts.Payments.IFeeDiscountBuckets
 {
     public required Guid RegistrationId { get; init; }
     public required Guid AssignedTeamId { get; init; }
@@ -676,8 +676,11 @@ public record EligibleInsuranceRegistration
     public decimal? PerRegistrantFee { get; init; }
     public required decimal FeeTotal { get; init; }
     // Stamped per-registration fee modifiers, so the insurable amount can reflect them
-    // (early bird + discount codes → FeeDiscount; late fees → FeeLatefee).
+    // (early bird + discount codes → FeeDiscount; multi-player/sibling → FeeDiscountMp; late fees →
+    // FeeLatefee). Both discount buckets travel together — the premium is rated on a basis that must
+    // net the same total FeeMath did, or the family insures more than it can forfeit.
     public decimal FeeDiscount { get; init; }
+    public decimal FeeDiscountMp { get; init; }
     public decimal FeeLatefee { get; init; }
 }
 

@@ -274,7 +274,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         // reused for the totals recompute below (one ledger read, not two).
         const decimal depositPaidTolerance = 0.01m;
         var state = await _paymentState.ForRegistrationAsync(reg.RegistrationId, jobId, ct);
-        var effectiveDeposit = Math.Max(0m, deposit - reg.FeeDiscount + reg.FeeLatefee + reg.FeeDonation);
+        var effectiveDeposit = Math.Max(0m, deposit - reg.TotalDiscount() + reg.FeeLatefee + reg.FeeDonation);
         var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
 
         var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
@@ -294,7 +294,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
             reg.FeeLatefee = await ResolveEffectiveLateFeeAsync(
                 jobId, RoleConstants.Player, targetAgegroupId, targetTeamId,
                 state, resolved?.FullPrice ?? 0m, resolved?.EffectiveDeposit ?? 0m,
-                reg.FeeDiscount, reg.FeeDonation, ct);
+                reg.TotalDiscount(), reg.FeeDonation, ct);
         }
 
         await ApplyRegistrationProcessingAndTotalsAsync(reg, jobId, isNew: false, ct, state);
@@ -356,7 +356,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
         const decimal depositPaidTolerance = 0.01m;
         var state = await _paymentState.ForTeamAsync(team.TeamId, jobId, ct);
         var effectiveDeposit = Math.Max(
-            0m, deposit - (team.FeeDiscount ?? 0m) + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
+            0m, deposit - team.TotalDiscount() + (team.FeeLatefee ?? 0m) + (team.FeeDonation ?? 0m));
         var paidPastDeposit = state.PrincipalPaid > effectiveDeposit + depositPaidTolerance;
 
         var fullPayment = ResolvedFee.ResolveFullPaymentPhase(resolved, ctx.IsFullPaymentRequired) || paidPastDeposit;
@@ -376,7 +376,7 @@ public sealed class FeeResolutionService : IFeeResolutionService
             team.FeeLatefee = await ResolveEffectiveLateFeeAsync(
                 jobId, RoleConstants.ClubRep, targetAgegroupId, team.TeamId,
                 state, resolved?.FullPrice ?? 0m, resolved?.EffectiveDeposit ?? 0m,
-                team.FeeDiscount ?? 0m, team.FeeDonation ?? 0m, ct);
+                team.TotalDiscount(), team.FeeDonation ?? 0m, ct);
         }
 
         await ApplyTeamProcessingAndTotalsAsync(team, jobId, deposit, balanceDue, ctx, fullPayment, isNew: false, ct, state);
@@ -449,8 +449,10 @@ public sealed class FeeResolutionService : IFeeResolutionService
                 await GetEffectiveEcheckProcessingRateAsync(jobId, ct))
             : await _paymentState.ForRegistrationAsync(reg.RegistrationId, jobId, ct);
 
+        // TotalDiscount() — the proc basis must net the same discount FeeMath subtracts from FeeTotal,
+        // or the proc target disagrees with the total it is a component of.
         reg.FeeProcessing = reg.FeeBase > 0m
-            ? Math.Round(state.FeeProcessingTarget(reg.FeeBase, reg.FeeDiscount, reg.FeeLatefee, reg.FeeDonation),
+            ? Math.Round(state.FeeProcessingTarget(reg.FeeBase, reg.TotalDiscount(), reg.FeeLatefee, reg.FeeDonation),
                 2, MidpointRounding.AwayFromZero)
             : 0m;
 
@@ -463,7 +465,9 @@ public sealed class FeeResolutionService : IFeeResolutionService
         PaymentState? state = null)
     {
         var feeBase = team.FeeBase ?? 0m;
-        var discount = team.FeeDiscount ?? 0m;
+        // TotalDiscount() — the proc basis must net the same discount FeeMath subtracts from FeeTotal,
+        // or the proc target disagrees with the total it is a component of.
+        var discount = team.TotalDiscount();
         var lateFee = team.FeeLatefee ?? 0m;
         var donation = team.FeeDonation ?? 0m;
 

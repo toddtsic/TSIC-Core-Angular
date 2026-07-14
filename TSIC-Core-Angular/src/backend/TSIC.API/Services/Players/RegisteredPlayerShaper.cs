@@ -1,5 +1,6 @@
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.RegistrationSearch;
+using TSIC.Contracts.Extensions;
 using TSIC.Contracts.Payments;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
@@ -84,7 +85,11 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
             // BOTH the principal base and PrincipalPaid and nets out of these post-payment display
             // columns. RegisteredPlayerInfo doesn't carry FeeDonation; threading it would change
             // nothing here. (The charge/stamp paths pass the real FeeDonation.)
-            var depositDue = state.DepositPrincipalRemaining(deposit, p.FeeDiscount, p.FeeLatefee, donation: 0m);
+            // TotalDiscount() — both buckets, exactly what FeeMath subtracted from FeeTotal. Netting
+            // only FeeDiscount here would overstate principal-remaining and drift these columns from
+            // the stored OwedTotal.
+            var discount = p.TotalDiscount();
+            var depositDue = state.DepositPrincipalRemaining(deposit, discount, p.FeeLatefee, donation: 0m);
 
             // Per-player phase: deposit phase (FeeBase == Deposit) shows the structural balance
             // forward; once upgraded to pay-in-full (FeeBase covers deposit + balance) the
@@ -92,10 +97,10 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
             // flag — family siblings can be on different phases.
             var bFull = p.FeeBase >= (resolved?.FullPrice ?? 0m) - 0.005m;
             var additionalDue = bFull
-                ? state.BalancePrincipalRemaining(p.FeeBase, deposit, p.FeeDiscount, p.FeeLatefee, donation: 0m)
+                ? state.BalancePrincipalRemaining(p.FeeBase, deposit, discount, p.FeeLatefee, donation: 0m)
                 : balanceDue;
 
-            var owed = state.ResolveOwed(p.OwedTotal, p.FeeBase, p.FeeDiscount, p.FeeLatefee, donation: 0m, p.FeeProcessing);
+            var owed = state.ResolveOwed(p.OwedTotal, p.FeeBase, discount, p.FeeLatefee, donation: 0m, p.FeeProcessing);
 
             return new RegisteredTeamDto
             {
@@ -114,7 +119,7 @@ public sealed class RegisteredPlayerShaper : IRegisteredPlayerShaper
                 FeeTotal = p.FeeTotal,
                 PaidTotal = p.PaidTotal,
                 OwedTotal = p.OwedTotal,
-                FeeAdj = state.FeeAdjustment(p.FeeDiscount, p.FeeLatefee),
+                FeeAdj = state.FeeAdjustment(discount, p.FeeLatefee),
                 TenderPaid = state.TenderPaid,
                 Deposit = deposit,
                 BalanceDue = balanceDue,

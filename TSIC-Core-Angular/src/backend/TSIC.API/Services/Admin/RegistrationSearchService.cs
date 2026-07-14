@@ -517,7 +517,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             var owed = state.ResolveOwed(
                 regForValidation.OwedTotal,
                 regForValidation.FeeBase,
-                regForValidation.FeeDiscount,
+                regForValidation.TotalDiscount(),
                 regForValidation.FeeLatefee,
                 regForValidation.FeeDonation,
                 regForValidation.FeeProcessing);

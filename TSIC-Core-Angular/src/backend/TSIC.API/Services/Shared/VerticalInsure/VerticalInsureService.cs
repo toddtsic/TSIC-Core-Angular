@@ -7,6 +7,7 @@ using System.Text.Json;
 using TSIC.API.Extensions;
 using TSIC.Contracts.Dtos;
 using TSIC.Contracts.Dtos.VerticalInsure;
+using TSIC.Contracts.Extensions;
 using TSIC.Domain.Entities;
 using TSIC.Domain.Constants;
 using TSIC.Contracts.Repositories;
@@ -319,9 +320,10 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
                 continue;
             }
 
-            // Reflect the per-registration modifiers: minus early-bird/discount-code discounts,
-            // plus late fees (processing surcharge and donation excluded).
-            var insurable = InsurableAmountCalculator.ComputeNetInsurableAmount(configuredTeamFee, r.FeeDiscount, r.FeeLatefee);
+            // Reflect the per-registration modifiers: minus EVERY stamped discount (TotalDiscount() =
+            // early-bird/discount-code + multi-player), plus late fees (processing surcharge and
+            // donation excluded).
+            var insurable = InsurableAmountCalculator.ComputeNetInsurableAmount(configuredTeamFee, r.TotalDiscount(), r.FeeLatefee);
             var product = new VIPlayerProductDto
             {
                 Customer = new VICustomerDto

@@ -533,6 +533,7 @@ public class RegistrationRepository : IRegistrationRepository
                 FeeBase = r.FeeBase,
                 FeeProcessing = r.FeeProcessing,
                 FeeDiscount = r.FeeDiscount,
+                FeeDiscountMp = r.FeeDiscountMp,
                 FeeLatefee = r.FeeLatefee,
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
@@ -772,6 +773,7 @@ public class RegistrationRepository : IRegistrationRepository
                 PerRegistrantFee = r.AssignedTeam != null ? r.AssignedTeam.PerRegistrantFee : null,
                 FeeTotal = r.FeeTotal,
                 FeeDiscount = r.FeeDiscount,
+                FeeDiscountMp = r.FeeDiscountMp,
                 FeeLatefee = r.FeeLatefee
             })
             .ToListAsync(cancellationToken);

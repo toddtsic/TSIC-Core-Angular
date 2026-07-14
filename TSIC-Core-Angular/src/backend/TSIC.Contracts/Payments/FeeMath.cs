@@ -5,20 +5,32 @@ namespace TSIC.Contracts.Payments;
 /// Every write path derives FeeTotal/OwedTotal from this — directly or via the
 /// RecalcTotals entity helpers — so the arithmetic cannot drift across the codebase.
 ///
-///   FeeTotal  = FeeBase + FeeProcessing − FeeDiscount + FeeDonation + FeeLatefee
+///   FeeTotal  = FeeBase + FeeProcessing − FeeDiscount − FeeDiscountMp + FeeDonation + FeeLatefee
 ///   OwedTotal = FeeTotal − PaidTotal
 ///
 /// OwedTotal is signed: overpayment is negative and stays auditable. Clamping to ≥0 is a
 /// display/charge concern owned by <see cref="PaymentState.ResolveOwed"/>, not this formula.
 ///
 /// <para>
-/// <b>FeeDiscountMp is intentionally NOT part of this formula.</b> It is a retired
-/// "multi-player" discount used only by clients who have since left; the column is kept on
-/// the Registrations/Teams entities as a reserved stub so it can be revived later, but no
-/// active client relies on it (it is 0 for current registrations). To re-enable it, add a
-/// <c>feeDiscountMp</c> parameter here and subtract it — <b>this method is the single place
-/// that decision is made.</b> Legacy ARB/sweep paths that still subtract it are reconciled to
-/// this formula during migration; behavior is unchanged for active clients where it is 0.
+/// <b>There are two discount buckets, and BOTH are subtracted, always.</b>
+/// <list type="bullet">
+///   <item><c>FeeDiscount</c> — early-bird (a FeeModifier) plus any redeemed discount code.</item>
+///   <item><c>FeeDiscountMp</c> — reserved for a multi-player / sibling discount. It is currently
+///     <b>0.00 on every row</b> (no code writes it), but it is wired through every calculation so
+///     that building the feature later means computing a value, not re-opening this formula and
+///     re-auditing every money path.</item>
+/// </list>
+/// The two exist separately because provenance matters: <c>FeeDiscount</c> is blind-overwritten by
+/// <c>FeeResolutionService.ApplyNewRegistrationFeesAsync</c> when fees are re-stamped, so anything
+/// stacked into it can be silently destroyed. Keep a sibling discount in its own column.
+/// </para>
+///
+/// <para>
+/// <b>Any code that subtracts a discount MUST subtract the same total this formula does</b> — use
+/// <c>RegistrationFeeExtensions.TotalDiscount()</c> / <c>TeamFeeExtensions.TotalDiscount()</c>, never
+/// <c>FeeDiscount</c> alone. A charge path that nets a different discount than FeeTotal bills an amount
+/// that disagrees with what is owed, and OwedTotal can never reconcile. (CR-013: the ARB splitter
+/// subtracted FeeDiscountMp while this formula ignored it — harmless only because the column was zero.)
 /// </para>
 ///
 /// Pure, no I/O, decimal-only — trivially testable and shared by Registrations (non-nullable
@@ -28,16 +40,17 @@ public static class FeeMath
 {
     /// <summary>
     /// FeeTotal from its components:
-    /// <c>FeeBase + FeeProcessing − FeeDiscount + FeeDonation + FeeLatefee</c>.
-    /// (FeeDiscountMp is intentionally excluded — see the type remarks.)
+    /// <c>FeeBase + FeeProcessing − FeeDiscount − FeeDiscountMp + FeeDonation + FeeLatefee</c>.
+    /// Both discount buckets are subtracted — see the type remarks.
     /// </summary>
     public static decimal ComputeFeeTotal(
         decimal feeBase,
         decimal feeProcessing,
         decimal feeDiscount,
+        decimal feeDiscountMp,
         decimal feeDonation,
         decimal feeLatefee)
-        => feeBase + feeProcessing - feeDiscount + feeDonation + feeLatefee;
+        => feeBase + feeProcessing - feeDiscount - feeDiscountMp + feeDonation + feeLatefee;
 
     /// <summary>OwedTotal = FeeTotal − PaidTotal. Signed: a negative result means overpayment.</summary>
     public static decimal ComputeOwed(decimal feeTotal, decimal paidTotal)

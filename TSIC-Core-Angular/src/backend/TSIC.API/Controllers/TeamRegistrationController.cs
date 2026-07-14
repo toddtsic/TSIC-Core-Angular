@@ -935,17 +935,19 @@ public class TeamRegistrationController : ControllerBase
         }
 
         // The discount code is the LAST modifier, rated against what is owed AT CHECKOUT — not the
-        // full team burden. "The bill" = base net of the early-bird discount already stamped in
-        // FeeDiscount, plus any late fee, MINUS the principal already paid (e.g. a deposit settled in
-        // an earlier session). Rating against the full FeeBase would discount the whole pre-adjustment
-        // price (the way VerticalInsure rates against the total potential bill) — so a 50% code on a
-        // team that already paid its deposit would take 50% of deposit+balance instead of 50% of the
-        // balance still due, over-discounting the paid portion. Voluntary donations (FeeDonation) are
-        // intentionally excluded: a code never discounts a charitable add-on. The DC then stacks onto
-        // the existing FeeDiscount below. PrincipalPaid (not gross PaidTotal) so proc already collected
-        // on the deposit does not eat into the discountable principal.
+        // full team burden. "The bill" = base net of every discount ALREADY stamped (TotalDiscount() =
+        // early-bird + any multi-player discount — the same total FeeMath subtracts), plus any late
+        // fee, MINUS the principal already paid (e.g. a deposit settled in an earlier session). Rating
+        // against the full FeeBase would discount the whole pre-adjustment price (the way VerticalInsure
+        // rates against the total potential bill) — so a 50% code on a team that already paid its
+        // deposit would take 50% of deposit+balance instead of 50% of the balance still due,
+        // over-discounting the paid portion. Netting only FeeDiscount would likewise over-discount by a
+        // share of the sibling discount. Voluntary donations (FeeDonation) are intentionally excluded:
+        // a code never discounts a charitable add-on. The code's dollars stack onto FeeDiscount (never
+        // FeeDiscountMp — provenance) below. PrincipalPaid (not gross PaidTotal) so proc already
+        // collected on the deposit does not eat into the discountable principal.
         var state = await _paymentState.ForTeamAsync(teamId, jobId);
-        var netBill = (team.FeeBase ?? 0m) - (team.FeeDiscount ?? 0m) + (team.FeeLatefee ?? 0m);
+        var netBill = (team.FeeBase ?? 0m) - team.TotalDiscount() + (team.FeeLatefee ?? 0m);
         var owedBasis = Math.Max(0m, netBill - state.PrincipalPaid);
         var discountAmount = DiscountCalculator.Calculate(owedBasis, amount, bAsPercent);
 

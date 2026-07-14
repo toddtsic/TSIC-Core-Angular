@@ -40,7 +40,10 @@ public static class ArbTrialFeeSplitter
     /// </summary>
     /// <param name="rawDeposit">EffectiveDeposit from the JobFees cascade.</param>
     /// <param name="rawBalance">EffectiveBalanceDue from the JobFees cascade.</param>
-    /// <param name="discount">Resolved discount (FeeDiscount + FeeDiscountMp). Reduces netBase.</param>
+    /// <param name="discount">Total resolved discount — pass <c>TotalDiscount()</c> (FeeDiscount +
+    /// FeeDiscountMp), the SAME total <c>FeeMath</c> subtracts from FeeTotal. Reduces netBase, so the
+    /// two ADN charges foot exactly to the team's stored FeeTotal. Passing a smaller discount here
+    /// would schedule charges that exceed what the team owes.</param>
     /// <param name="lateFee">Resolved late fee. Increases netBase.</param>
     /// <param name="donation">Resolved donation add-on. Increases netBase like a late fee, so the
     /// donation principal is charged and processing is levied on it.</param>

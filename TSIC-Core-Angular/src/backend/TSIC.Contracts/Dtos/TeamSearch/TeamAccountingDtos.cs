@@ -77,13 +77,16 @@ public record TeamSearchDetailDto
 /// <summary>
 /// Summary of a single team within the club (for club-wide scope selector).
 /// </summary>
-public record ClubTeamSummaryDto
+public record ClubTeamSummaryDto : TSIC.Contracts.Payments.IFeeDiscountBuckets
 {
     public required Guid TeamId { get; init; }
     public required string TeamName { get; init; }
     public required string AgegroupName { get; init; }
     public required decimal FeeBase { get; init; }
     public required decimal FeeDiscount { get; init; }
+    // Both discount buckets travel together — CkOwedTotal below is re-derived from these components
+    // and must net the same total FeeMath did. See IFeeDiscountBuckets.
+    public required decimal FeeDiscountMp { get; init; }
     public required decimal FeeLatefee { get; init; }
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
