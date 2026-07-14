@@ -182,14 +182,17 @@ Write-Host ""
 
 # ── Step 2: Mirror backup -> live ───────────────────────────────────
 # Same exclusion list the backup was taken with. Without it, /MIR would delete
-# App_Data and FirebaseAuth_*.json from live as "extras" -- they are absent from
-# the backup precisely because they were excluded going in, and no redeploy
-# recreates the Firebase credentials.
+# App_Data, logs and keys from live as "extras" -- they are absent from the
+# backup precisely because they were excluded going in.
 #
 # This also runs as ADMIN. Were it to write App_Data back, CREATOR OWNER would
 # resolve to Administrators, the cache would land admin-owned, the app pool could
 # no longer rewrite it, and the ADN month-end import would 500 -- the bug
 # 993e15be fixed. Excluding it is not an optimisation; it is the fix.
+#
+# FirebaseAuth_*.json IS in the backup and IS restored -- it is a build artifact,
+# so a backup is a complete site. Restoring it as admin is safe: the file is only
+# ever read, and it inherits the site root's IIS_IUSRS ReadAndExecute ACE.
 Write-Host "Step 2: Restoring..." -ForegroundColor Yellow
 $failed = $false
 foreach ($p in $plan) {

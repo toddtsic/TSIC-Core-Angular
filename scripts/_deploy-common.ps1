@@ -42,11 +42,6 @@ $TsicSites = @{
 #               Administrators); the pool then cannot rewrite it and the
 #               month-end import 500s. That is bug 993e15be. Excluded
 #               everywhere, so it simply persists, pool-owned, untouched.
-#   FirebaseAuth_*.json
-#             - the two Google service-account files. They live only in the live
-#               folders and are in no backup. The deploy excludes them, so a
-#               redeploy does NOT recreate them: mirror them away and Firebase
-#               push stays dead until someone hand-copies them back.
 #   logs      - runtime log output.
 #   keys      - the Data Protection key ring (Program.cs AddDataProtection ->
 #               PersistKeysToFileSystem). It seals the token in every emailed
@@ -59,11 +54,27 @@ $TsicSites = @{
 # deploy-manifest.json is deliberately NOT excluded: it rides into live so the
 # box can answer "what is live?", and into each backup so the rollback can say
 # which build it is about to restore.
+#
+# FirebaseAuth_*.json is deliberately NOT excluded either -- and every earlier
+# script was wrong to exclude it. It is not runtime state. The two Google
+# service-account files sit in the TSIC.API project directory (gitignored), and
+# TSIC.API.csproj copies them to output, so every build reproduces them. They
+# have been riding to PHOENIX's staging folder for months. Verified 2026-07-13
+# by SHA-256: source tree, publish\api, dev-api live, claude-api-STAGING and
+# claude-api live are all the SAME file. There is no separate production
+# Firebase project, so the old "/XF FirebaseAuth_*.json" on the staging->live
+# mirror was protecting nothing -- while keeping the credential out of every
+# backup, so no backup was a complete site and a restore that ever forgot the
+# exclusion would have deleted the credential outright.
+#
+# Treated as the ordinary build artifact it is, it ships like a DLL: a fresh box
+# works, a deleted file heals on the next deploy, and a backup is a whole site.
+# Do not re-add it to this list.
 # ---------------------------------------------------------------------------
 $TsicExclusions = @{
     api     = @{
         Dirs  = @('logs', 'App_Data', 'keys')
-        Files = @('FirebaseAuth_*.json', 'Go.ps1')
+        Files = @('Go.ps1')
     }
     angular = @{
         Dirs  = @()                      # pure build output; no runtime state

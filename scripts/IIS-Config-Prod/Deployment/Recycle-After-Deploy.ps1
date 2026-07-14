@@ -245,11 +245,15 @@ if ($doAngular) {
 Write-Host ""
 
 # ── Step 3: Mirror staging -> live ──────────────────────────────────
-# The ONE shared exclusion list. App_Data and FirebaseAuth_*.json are excluded,
-# so they are neither copied nor purged -- they persist, pool-owned, exactly as
-# the app left them. (The old sync excluded logs and keys but NOT App_Data, and
-# staging never had App_Data, so /MIR deleted the pool's month-end cache from
-# production on every single deploy.)
+# The ONE shared exclusion list. App_Data, logs and keys are excluded, so they
+# are neither copied nor purged -- they persist, pool-owned, exactly as the app
+# left them. (The old sync excluded logs and keys but NOT App_Data, and staging
+# never had App_Data, so /MIR deleted the pool's month-end cache from production
+# on every single deploy.)
+#
+# The old sync also carried "/XF FirebaseAuth_*.json". That is gone: the file is
+# a build artifact identical on both boxes, and excluding it only kept the
+# credential out of every backup. See _deploy-common.ps1.
 Write-Host "Step 3: Syncing staging into live..." -ForegroundColor Yellow
 
 foreach ($m in @(

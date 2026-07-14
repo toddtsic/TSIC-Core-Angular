@@ -290,8 +290,10 @@ Write-Host ""
 
 # ── Step 6: Mirror publish -> live ───────────────────────────────────
 # Same mechanism as prod: robocopy /MIR with the ONE shared exclusion list.
-# App_Data and FirebaseAuth_*.json are excluded, so they are neither copied nor
-# purged - they simply persist, pool-owned, exactly as the app left them.
+# App_Data, logs and keys are excluded, so they are neither copied nor purged -
+# they simply persist, pool-owned, exactly as the app left them. Everything else
+# in the build output ships, FirebaseAuth_*.json included: it is a build
+# artifact, not runtime state (see _deploy-common.ps1).
 Write-Host "Step 6: Deploying files..." -ForegroundColor Yellow
 foreach ($t in $targets) {
     $p = Get-TsicRoboPreview -Source $t.Publish -Dest $t.Live -ExcludeDirs $t.Ex.Dirs -ExcludeFiles $t.Ex.Files
