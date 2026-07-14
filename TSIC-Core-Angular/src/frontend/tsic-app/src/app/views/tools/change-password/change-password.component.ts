@@ -130,7 +130,21 @@ export class ChangePasswordComponent implements OnInit {
   readonly searching = signal(false);
   readonly searched = signal(false);
 
-  readonly canSearch = computed(() => !!this.roleId() && !this.searching());
+  /**
+   * At least one of the eight text criteria is typed. The ROLE does not count: it is preselected the
+   * moment the role list lands (ngOnInit), so a gate that accepted it would never close.
+   *
+   * Every criterion is optional on the server — it applies the ones it is given and caps the rest — so a
+   * role-only search is not a narrow query, it is the first MaxRows registrations of that role ACROSS
+   * EVERY CUSTOMER AND JOB. That is not a result Ann can use: the caller's name is somewhere in it, or
+   * it is not, and there is no way to tell which. The search is an anchor. Make it anchor to something.
+   */
+  readonly hasCriteria = computed(() =>
+    [this.firstName(), this.lastName(), this.customerName(), this.jobName(),
+     this.email(), this.phone(), this.familyUserName(), this.userName()]
+      .some(v => v.trim().length > 0));
+
+  readonly canSearch = computed(() => !!this.roleId() && this.hasCriteria() && !this.searching());
 
   /**
    * Is the SELECTED role Player? Family username is the one criterion that only a player has — a player
