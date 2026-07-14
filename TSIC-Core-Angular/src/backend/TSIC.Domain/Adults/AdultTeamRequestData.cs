@@ -59,14 +59,14 @@ public sealed class AdultTeamRequestData
     [JsonIgnore]
     public bool IsStructured { get; set; }
 
-    /// <summary>Team ids the coach requested themselves (the intent signal). Back-compat accessor.</summary>
-    [JsonIgnore]
-    public IReadOnlyList<Guid> RequestedTeamIds =>
+    /// <summary>Team ids the coach requested themselves (the intent signal). Back-compat accessor.
+    /// A method, not a property: each call projects a fresh list off <see cref="Teams"/>.</summary>
+    public IReadOnlyList<Guid> GetRequestedTeamIds() =>
         Teams.Where(t => t.Src == AdultTeamRequestSource.Self).Select(t => t.TeamId).ToList();
 
-    /// <summary>Every team in the record, regardless of origin.</summary>
-    [JsonIgnore]
-    public IReadOnlyList<Guid> AllTeamIds => Teams.Select(t => t.TeamId).ToList();
+    /// <summary>Every team in the record, regardless of origin. See <see cref="GetRequestedTeamIds"/>
+    /// on why this is a method.</summary>
+    public IReadOnlyList<Guid> GetAllTeamIds() => Teams.Select(t => t.TeamId).ToList();
 
     /// <summary>
     /// Append a team to the record if not already present (dedup by team id; an existing

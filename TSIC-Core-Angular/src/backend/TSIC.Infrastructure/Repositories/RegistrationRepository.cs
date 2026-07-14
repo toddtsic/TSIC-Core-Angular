@@ -673,7 +673,8 @@ public class RegistrationRepository : IRegistrationRepository
             .Select(t => t.MaxCount)
             .FirstOrDefaultAsync(cancellationToken);
 
-        for (var attempt = 0; ; attempt++)
+        var retried = false;
+        while (true)
         {
             try
             {
@@ -704,9 +705,10 @@ public class RegistrationRepository : IRegistrationRepository
                 await tx.CommitAsync(cancellationToken);
                 return true;
             }
-            catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 1205 && attempt == 0)
+            catch (Microsoft.Data.SqlClient.SqlException ex) when (ex.Number == 1205 && !retried)
             {
                 // Deadlock victim on a contended seat — retry once; the re-count resolves it.
+                retried = true;
             }
         }
     }
@@ -2768,8 +2770,9 @@ public class RegistrationRepository : IRegistrationRepository
             {
                 var req = AdultTeamRequestData.Parse(p.Requests);
                 var parts = new List<string>();
-                if (req.RequestedTeamIds.Count > 0)
-                    parts.Add($"Requested {req.RequestedTeamIds.Count} team(s)");
+                var requestedCount = req.GetRequestedTeamIds().Count;
+                if (requestedCount > 0)
+                    parts.Add($"Requested {requestedCount} team(s)");
                 if (!string.IsNullOrWhiteSpace(req.Note))
                     parts.Add(req.Note!.Trim());
                 return p with { Requests = parts.Count > 0 ? string.Join(" — ", parts) : null };
@@ -2856,7 +2859,7 @@ public class RegistrationRepository : IRegistrationRepository
 
         // Every team in any coach's record (asks ∪ grants), for label resolution.
         var allRecordedTeamIds = parsed
-            .SelectMany(p => p.Req.AllTeamIds)
+            .SelectMany(p => p.Req.GetAllTeamIds())
             .Distinct()
             .ToList();
 

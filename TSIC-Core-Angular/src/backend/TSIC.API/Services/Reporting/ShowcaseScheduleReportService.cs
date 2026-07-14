@@ -408,26 +408,6 @@ public sealed class ShowcaseScheduleReportService : IShowcaseScheduleReportServi
         return when.ToString(fmt, CultureInfo.InvariantCulture).Replace(" AM", " am").Replace(" PM", " pm");
     }
 
-    private static string ComposeTeamName(Guid? id, string? name, string? type, int? no, string? ann)
-    {
-        if (id != null && !string.IsNullOrWhiteSpace(name))
-        {
-            var t = (type ?? "").Trim();
-            return BracketTypes.Contains(t) && no != null ? $"{name!.Trim()} ({t}{no})" : name!.Trim();
-        }
-        var round = type switch
-        {
-            "F" => "Finals",
-            "S" => "Semis",
-            "Q" => "Quarters",
-            "X" => "R16",
-            "Y" => "R32",
-            "Z" => "R64",
-            _ => type ?? "",
-        };
-        return $"{round} {ann}".Trim();
-    }
-
     private sealed class Pens
     {
         public PdfPen Divider { get; } = new(new PdfColor(150, 150, 150), 0.5f);
@@ -470,5 +450,25 @@ public sealed class ShowcaseScheduleReportService : IShowcaseScheduleReportServi
             T2Name = ComposeTeamName(d.T2Id, d.T2Name, d.T2Type, d.T2No, d.T2Ann),
             T2Score = d.T2Score?.ToString(CultureInfo.InvariantCulture) ?? "",
         };
+
+        private static string ComposeTeamName(Guid? id, string? name, string? type, int? no, string? ann)
+        {
+            if (id != null && !string.IsNullOrWhiteSpace(name))
+            {
+                var t = (type ?? "").Trim();
+                return BracketTypes.Contains(t) && no != null ? $"{name!.Trim()} ({t}{no})" : name!.Trim();
+            }
+            var round = type switch
+            {
+                "F" => "Finals",
+                "S" => "Semis",
+                "Q" => "Quarters",
+                "X" => "R16",
+                "Y" => "R32",
+                "Z" => "R64",
+                _ => type ?? "",
+            };
+            return $"{round} {ann}".Trim();
+        }
     }
 }

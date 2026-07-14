@@ -171,15 +171,15 @@ public class AdnReconciliationRepository : IAdnReconciliationRepository
                 list.Add(new ReconciliationUnmatched
                 {
                     TransactionId = reader.GetString(1),
-                    InvoiceNumber = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                    InvoiceNumber = await reader.IsDBNullAsync(2, cancellationToken) ? string.Empty : reader.GetString(2),
                     Amount = reader.GetDecimal(3),
-                    Status = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                    Status = await reader.IsDBNullAsync(4, cancellationToken) ? string.Empty : reader.GetString(4),
                 });
             }
 
             await reader.NextResultAsync(cancellationToken);
 
-            if (await reader.ReadAsync(cancellationToken) && !reader.IsDBNull(0))
+            if (await reader.ReadAsync(cancellationToken) && !await reader.IsDBNullAsync(0, cancellationToken))
             {
                 latestSettlementAt = reader.GetDateTime(0);
             }

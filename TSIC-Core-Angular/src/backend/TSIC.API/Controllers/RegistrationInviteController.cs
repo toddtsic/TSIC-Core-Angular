@@ -18,6 +18,7 @@ namespace TSIC.API.Controllers;
 /// </summary>
 [ApiController]
 [Authorize] // Phase-1 minimum: the invite is bound to a specific user, so we need to know who is asking.
+[Route("api")] // Prefix only — the two actions keep their original, unrelated route tails.
 public class RegistrationInviteController : ControllerBase
 {
     private readonly IJobRepository _jobRepo;
@@ -34,7 +35,7 @@ public class RegistrationInviteController : ControllerBase
     private enum InviteKind { Player, Team }
 
     /// <summary>Player invite pre-check. Gates on BRegistrationAllowPlayer, then BPlayerRegRequiresToken.</summary>
-    [HttpGet("api/player-invite/validate")]
+    [HttpGet("player-invite/validate")]
     public Task<ActionResult<InviteValidationResult>> ValidatePlayer(
         [FromQuery] string targetJobPath,
         [FromQuery] string? token,
@@ -42,7 +43,7 @@ public class RegistrationInviteController : ControllerBase
         => ValidateAsync(InviteKind.Player, targetJobPath, token, ct);
 
     /// <summary>Team invite pre-check. Gates on BRegistrationAllowTeam, then BTeamRegRequiresToken.</summary>
-    [HttpGet("api/team-invite/validate")]
+    [HttpGet("team-invite/validate")]
     public Task<ActionResult<InviteValidationResult>> ValidateTeam(
         [FromQuery] string targetJobPath,
         [FromQuery] string? token,

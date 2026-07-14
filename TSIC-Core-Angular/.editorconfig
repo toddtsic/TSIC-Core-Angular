@@ -40,5 +40,6 @@ dotnet_diagnostic.S1862.severity = none   # Duplicate branch
 dotnet_diagnostic.S2139.severity = none   # Log and rethrow
 dotnet_diagnostic.S4487.severity = none   # Unread private field
 dotnet_diagnostic.S4581.severity = none   # Guid instantiation
+dotnet_diagnostic.S6561.severity = none   # DateTime.Now in timespan math — this app stores and compares LOCAL (AZ) times; UtcNow would shift every window by the offset
 dotnet_diagnostic.S6562.severity = none   # DateTimeKind on new DateTime
 dotnet_diagnostic.S6610.severity = none   # StartsWith char overload

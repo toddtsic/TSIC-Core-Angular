@@ -167,7 +167,7 @@ public class ChangePasswordController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(
+            _logger.LogWarning(ex,
                 "CHANGE-PASSWORD AUDIT: {Actor} FAILED to reset the {Target} password for registration {RegistrationId} (account {TargetUserName}) — {Outcome}: {Reason}",
                 Actor, request.Target, regId, request.ExpectedUserName, "FAILED", ex.Message);
             return BadRequest(new { message = ex.Message });
@@ -201,7 +201,7 @@ public class ChangePasswordController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(
+            _logger.LogWarning(ex,
                 "CHANGE-PASSWORD AUDIT: {Actor} FAILED to set the user contact on registration {RegistrationId} — {Outcome}: {Reason}",
                 Actor, regId, "FAILED", ex.Message);
             return BadRequest(new { message = ex.Message });
@@ -252,7 +252,7 @@ public class ChangePasswordController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(
+            _logger.LogWarning(ex,
                 "CHANGE-PASSWORD AUDIT: {Actor} FAILED to set household contacts on registration {RegistrationId} — {Outcome}: {Reason}",
                 Actor, regId, "FAILED", ex.Message);
             return BadRequest(new { message = ex.Message });
@@ -376,7 +376,7 @@ public class ChangePasswordController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            _logger.LogWarning(
+            _logger.LogWarning(ex,
                 "CHANGE-PASSWORD AUDIT: {Actor} FAILED to retire {What} '{TargetUserName}' onto "
                 + "'{KeepUserName}' from registration {RegistrationId} — {Outcome}: {Reason}",
                 Actor, what, request.RetireUserName, request.KeepUserName, regId, "FAILED", ex.Message);

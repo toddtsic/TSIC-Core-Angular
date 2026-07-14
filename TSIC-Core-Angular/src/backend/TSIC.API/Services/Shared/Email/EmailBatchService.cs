@@ -177,8 +177,12 @@ public sealed class EmailBatchService : IEmailBatchService
             await renderCompletion;
             await Task.WhenAll(sendTasks);
 
-            flushCts.Cancel();
-            try { await flushTask; } catch (OperationCanceledException) { }
+            await flushCts.CancelAsync();
+            try { await flushTask; }
+            catch (OperationCanceledException)
+            {
+                // Expected: we just cancelled the flush loop ourselves.
+            }
         }
         catch (Exception ex)
         {

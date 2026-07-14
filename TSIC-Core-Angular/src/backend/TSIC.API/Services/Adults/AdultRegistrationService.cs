@@ -398,10 +398,11 @@ public class AdultRegistrationService : IAdultRegistrationService
 
         // Unassigned Adult coaches are never rostered (no AssignedTeamId) — their requested
         // teams live as Self ids in the JSON record, so seed the picker from those. (For other
-        // roles RequestedTeamIds is empty, so this is a no-op; AssignedTeamId drives Staff.)
-        if (roleType == AdultRoleType.UnassignedAdult && requestRecord.RequestedTeamIds.Count > 0)
+        // roles the requested-team list is empty, so this is a no-op; AssignedTeamId drives Staff.)
+        var requestedTeamIds = requestRecord.GetRequestedTeamIds();
+        if (roleType == AdultRoleType.UnassignedAdult && requestedTeamIds.Count > 0)
         {
-            teamIds = requestRecord.RequestedTeamIds.Concat(teamIds).Distinct().ToList();
+            teamIds = requestedTeamIds.Concat(teamIds).Distinct().ToList();
         }
 
         // Reverse-map stored columns back to form field values. We look up the role's metadata

@@ -17,6 +17,9 @@
     <PackageVersion Include="Microsoft.AspNetCore.Cryptography.KeyDerivation" Version="10.0.6" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.6" />
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.6" />
+    <!-- Transitive pin: AspNetCore.OpenApi 10.0.6 drags in Microsoft.OpenApi 2.0.0, which carries
+         GHSA-v5pm-xwqc-g5wc (circular schema refs can hang the parser). Patched in 2.7.5. -->
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" />
     <!-- Roslyn (aligned to 5.0.0 to satisfy EF Tools 10.0.6 requirements; avoids NU1608) -->
     <PackageVersion Include="Microsoft.CodeAnalysis" Version="5.0.0" />
     <PackageVersion Include="Microsoft.CodeAnalysis.Common" Version="5.0.0" />

@@ -799,8 +799,10 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             .GroupBy(f => f.FamilyUserId)
             .ToDictionary(g => g.Key, g => g.First());
 
-        var subject = request.Subject;
-        var body = request.BodyTemplate;
+        // `required` guarantees the property is PRESENT, not non-null — an explicit JSON null still
+        // binds. Coalesce once here so the audit row and every render see a real string.
+        var subject = request.Subject ?? "";
+        var body = request.BodyTemplate ?? "";
         // From display = the public job/org label (Jobs.DisplayName, falling back to JobName). The From
         // ADDRESS is forced to the SES-verified identity downstream; this is only what recipients see.
         var fromName = jobConfirmation?.DisplayName ?? jobConfirmation?.JobName;
@@ -818,8 +820,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         // them, pass familyUserId="" so the load is a registrationId PK seek (~0ms) — same per-recipient
         // tokens, no scan. Computed once for the whole batch (the template is job-invariant).
         var templateNeedsFamily =
-            (subject ?? "").Contains("!F-", StringComparison.OrdinalIgnoreCase) ||
-            (body ?? "").Contains("!F-", StringComparison.OrdinalIgnoreCase);
+            subject.Contains("!F-", StringComparison.OrdinalIgnoreCase) ||
+            body.Contains("!F-", StringComparison.OrdinalIgnoreCase);
 
         var plan = new EmailBatchPlan<BatchEmailItem>
         {

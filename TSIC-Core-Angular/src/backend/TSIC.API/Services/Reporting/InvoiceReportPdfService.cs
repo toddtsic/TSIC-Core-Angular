@@ -457,7 +457,7 @@ public sealed class InvoiceReportPdfService : IInvoiceReportPdfService
 
         if (drawTitle)
         {
-            g.DrawString(v.Title, fonts.TitleBlue, new PdfSolidBrush(TitleBlue),
+            g.DrawString(v.Title, fonts.Title, new PdfSolidBrush(TitleBlue),
                 new RectangleF(0, y, ContentW, 18f), center);
             y += 20f;
         }
@@ -586,7 +586,6 @@ public sealed class InvoiceReportPdfService : IInvoiceReportPdfService
     private sealed class Fonts
     {
         public PdfStandardFont Title { get; } = new(PdfFontFamily.Helvetica, 12, PdfFontStyle.Bold);
-        public PdfStandardFont TitleBlue { get; } = new(PdfFontFamily.Helvetica, 12, PdfFontStyle.Bold);
         public PdfStandardFont SummaryHeader { get; } = new(PdfFontFamily.Helvetica, 9, PdfFontStyle.Bold);
         public PdfStandardFont BandTitle { get; } = new(PdfFontFamily.Helvetica, 9, PdfFontStyle.Bold);
         public PdfStandardFont Section { get; } = new(PdfFontFamily.Helvetica, 8, PdfFontStyle.Bold);

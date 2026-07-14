@@ -909,7 +909,7 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
         if (info == null) return string.Empty;
 
         var record = AdultTeamRequestData.Parse(info.SpecialRequests);
-        var requestedIds = record.RequestedTeamIds;
+        var requestedIds = record.GetRequestedTeamIds();
         if (requestedIds.Count == 0) return string.Empty;
 
         var teams = await _repo.GetTeamLabelsByIdsAsync(requestedIds);

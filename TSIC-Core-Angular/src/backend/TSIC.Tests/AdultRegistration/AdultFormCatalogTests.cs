@@ -218,7 +218,7 @@ public class AdultFormCatalogTests
     public void ApparelOptionSets_FourSets()
     {
         var sets = AdultFormCatalog.ApparelOptionSets;
-        sets.Keys.Should().BeEquivalentTo(new[] { "ListSizes_CoachJersey", "ListSizes_CoachShorts", "ListSizes_CoachWaist", "ListSizes_CoachShoes" });
+        sets.Keys.Should().BeEquivalentTo("ListSizes_CoachJersey", "ListSizes_CoachShorts", "ListSizes_CoachWaist", "ListSizes_CoachShoes");
         sets["ListSizes_CoachJersey"].Select(o => o.Value).Should().Equal("SM", "MD", "LG", "XL", "XXL", "XXXL");
         sets["ListSizes_CoachWaist"].Should().HaveCount(10);  // 28..46
         sets["ListSizes_CoachShoes"].Should().HaveCount(23);  // 5..16 half-steps
