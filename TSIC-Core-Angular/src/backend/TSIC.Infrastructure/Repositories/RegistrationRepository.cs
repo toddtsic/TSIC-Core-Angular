@@ -2226,6 +2226,15 @@ public class RegistrationRepository : IRegistrationRepository
             }
         }
 
+        // For a coach (UnassignedAdult) the SpecialRequests column holds the codified
+        // team-request JSON blob, not a free-text answer — surfacing it here leaked the
+        // raw "{"teams":[...]}" into the panel's "Special Requests" row. The human note is
+        // already decoded into CoachRequestNote (its own read-only section), so drop the raw
+        // value. Mirrors SliceAdultRoleTemplate, which drops the same field from the editable
+        // metadata for this role.
+        if (adultRoleKey == AdultMetadataRoleResolver.UnassignedAdult)
+            profileValues.Remove(nameof(Registrations.SpecialRequests));
+
         // Build accounting records
         var accountingRecords = reg.RegistrationAccounting
             .OrderByDescending(a => a.Createdate)

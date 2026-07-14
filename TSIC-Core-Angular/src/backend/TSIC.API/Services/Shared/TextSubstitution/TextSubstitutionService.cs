@@ -976,8 +976,33 @@ public sealed class TextSubstitutionService : ITextSubstitutionService
     {
         var keys = await _repo.GetStaffInfoAsync(registrationId);
         if (keys == null) return string.Empty;
-        var li = $"<li>Coaching Requests: {WebUtility.HtmlEncode(keys.SpecialRequests ?? string.Empty)}</li>";
-        return HtmlTableBuilder.RenderChoicesList(li, emailMode);
+
+        // SpecialRequests holds the codified team-request JSON, NOT free text — dumping it
+        // raw leaked "{"teams":[{"teamId":"…","src":"Self"}]}" into the confirmation. Parse
+        // it and resolve each requested team id to its CURRENT Club / Age Group / Team label
+        // (rename-proof), mirroring the !F-TEAMS resolver (BuildRequestedTeamsHtmlAsync).
+        var record = AdultTeamRequestData.Parse(keys.SpecialRequests);
+        var requestedIds = record.GetRequestedTeamIds();
+
+        var sb = new StringBuilder();
+        if (requestedIds.Count > 0)
+        {
+            var teams = await _repo.GetTeamLabelsByIdsAsync(requestedIds);
+            foreach (var c in teams)
+            {
+                var label = string.IsNullOrWhiteSpace(c.Club)
+                    ? $"{c.Age}: {c.Team}"
+                    : $"{c.Club}: {c.Age}: {c.Team}";
+                sb.Append($"<li>{WebUtility.HtmlEncode(label)}</li>");
+            }
+        }
+
+        // Preserve any human note (legacy free-text SpecialRequests, or a coach's remark).
+        if (!string.IsNullOrWhiteSpace(record.Note))
+            sb.Append($"<li>{WebUtility.HtmlEncode(record.Note.Trim())}</li>");
+
+        if (sb.Length == 0) return string.Empty;
+        return HtmlTableBuilder.RenderChoicesList(sb.ToString(), emailMode);
     }
 
     private async Task<string> BuildCoachFullTeamNameChoicesAsync(Guid registrationId, bool emailMode)
