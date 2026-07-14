@@ -136,16 +136,9 @@ export class ChangePasswordComponent implements OnInit {
   // Sorting, freezing, column widths and the sort's a11y are the GRID's job now. What is left here is
   // the one thing it cannot do for us: give it a row shape it can sort.
   //
-  // Three fields are stamped on, and each of them exists because a grid sorts on a FIELD:
-  //
-  //   rowNo       The row number, and it SURVIVES THE SORT — stamped in the server's order, then it
-  //               travels with the row. Sort by phone and #4 is still #4, four rows down. Not the
-  //               in-house `refreshRowNumbers` helper, which writes 1..N into the RENDERED rows on
-  //               every dataBound and therefore renumbers on every sort: Ann is on the phone, and
-  //               "row 12" has to mean a registration, not a slot. Sorting BY it is also the way back
-  //               to the server's grouping — `UserName, LastName, FirstName, CustomerName, JobName`,
-  //               which is what puts every row of one login together, and it is how you see at a
-  //               glance that a household has four logins.
+  // Two fields are stamped on, and each of them exists because a grid sorts on a FIELD. The row
+  // NUMBER is not among them — it is an unbound column stamped over the rendered rows by
+  // `refreshRowNumbers` below, so it counts what is on screen and renumbers on every sort.
   //
   //   jobLabel    What the Job cell READS — customer then event — so the sort follows the cell.
   //
@@ -156,9 +149,8 @@ export class ChangePasswordComponent implements OnInit {
   //
   // `rows` stays exactly what the server said. This is a view of it.
   readonly gridRows = computed(() =>
-    this.rows().map((row, i) => ({
+    this.rows().map(row => ({
       ...row,
-      rowNo: i + 1,
       eventLabel: this.eventLabel(row),
       jobLabel: `${row.customerName ?? ''} ${this.eventLabel(row)}`,
       loginUserName: row.familyUserName || row.userName,
@@ -180,11 +172,31 @@ export class ChangePasswordComponent implements OnInit {
   private lastHousehold: boolean | null = null;
 
   onGridDataBound(grid: GridComponent): void {
+    this.refreshRowNumbers(grid);
+
     const household = this.showHousehold();
     if (household === this.lastHousehold) return;
 
     this.lastHousehold = household;
     grid.refreshColumns();
+  }
+
+  /**
+   * Stamp 1-based row numbers into the unbound `#` column. `dataBound` covers the render; sorting
+   * re-renders the rows WITHOUT one, so `actionComplete` covers that — miss it and the column keeps
+   * whatever numbers the previous order left in those cells.
+   */
+  private refreshRowNumbers(grid: GridComponent): void {
+    grid.getRows()?.forEach((row, i) => {
+      const cell = row.querySelector('td.row-number-cell');
+      if (cell) cell.textContent = String(i + 1);
+    });
+  }
+
+  onGridActionComplete(args: { requestType?: string }, grid: GridComponent): void {
+    if (args.requestType === 'sorting' || args.requestType === 'refresh') {
+      this.refreshRowNumbers(grid);
+    }
   }
 
   /**
