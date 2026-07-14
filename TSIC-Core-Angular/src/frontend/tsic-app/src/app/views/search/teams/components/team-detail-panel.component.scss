@@ -288,7 +288,8 @@
 
 .info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  // Name · Username · Phone share the first row; Email spans full width below.
+  grid-template-columns: 1fr 1fr 1fr;
   gap: var(--space-2) var(--space-4);
 }
 

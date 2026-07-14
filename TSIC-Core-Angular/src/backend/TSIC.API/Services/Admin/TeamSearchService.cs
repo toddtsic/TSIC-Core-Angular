@@ -157,6 +157,7 @@ public sealed class TeamSearchService : ITeamSearchService
             JobDistinctClubCount = distinctClubCount,
             ClubRepRegistrationId = detail.ClubRepRegistrationId,
             ClubRepName = detail.ClubRepName,
+            ClubRepUsername = detail.ClubRepUsername,
             ClubRepEmail = detail.ClubRepEmail,
             ClubRepCellphone = detail.ClubRepCellphone,
             ClubRepStreetAddress = detail.ClubRepStreetAddress,

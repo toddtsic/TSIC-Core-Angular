@@ -23,6 +23,7 @@ export type TeamSearchDetailDto = {
     jobDistinctClubCount?: number;
     clubRepRegistrationId?: string | null;
     clubRepName?: string | null;
+    clubRepUsername?: string | null;
     clubRepEmail?: string | null;
     clubRepCellphone?: string | null;
     clubRepStreetAddress?: string | null;

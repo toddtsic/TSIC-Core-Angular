@@ -88,9 +88,13 @@
       <!-- Waitlisted / Dropped / Inactive — reference-only, excluded from totals,
            collapsed by default. Trimmed columns (name / agegroup / paid / owed). -->
       @if (scope() === 'club' && otherTeams().length) {
-        <button type="button" class="other-teams-toggle" (click)="showOtherTeams.set(!showOtherTeams())">
-          <i class="bi" [class.bi-chevron-right]="!showOtherTeams()" [class.bi-chevron-down]="showOtherTeams()"></i>
-          {{ otherTeams().length }} waitlisted / dropped / inactive
+        <button type="button" class="other-teams-toggle" [class.is-open]="showOtherTeams()"
+                (click)="showOtherTeams.set(!showOtherTeams())"
+                [attr.aria-expanded]="showOtherTeams()">
+          <span class="other-teams-toggle__count">{{ otherTeams().length }}</span>
+          <span class="other-teams-toggle__label">Waitlisted / Dropped / Inactive</span>
+          <i class="bi other-teams-toggle__chevron"
+             [class.bi-chevron-right]="!showOtherTeams()" [class.bi-chevron-down]="showOtherTeams()"></i>
         </button>
         @if (showOtherTeams()) {
           <div class="other-teams-grid">

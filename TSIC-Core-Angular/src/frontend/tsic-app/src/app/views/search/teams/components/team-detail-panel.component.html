@@ -112,6 +112,12 @@
                   <span class="info-label">Name</span>
                   <span class="info-value">{{ team.clubRepName }}</span>
                 </div>
+                @if (team.clubRepUsername) {
+                  <div class="info-item">
+                    <span class="info-label">Username</span>
+                    <span class="info-value">{{ team.clubRepUsername }}</span>
+                  </div>
+                }
                 @if (team.clubRepCellphone) {
                   <div class="info-item">
                     <span class="info-label">Phone</span>

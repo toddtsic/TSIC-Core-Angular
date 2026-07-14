@@ -73,24 +73,51 @@
 // ═══════════════════════════════════════════
 
 .other-teams-toggle {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
+  width: 100%;
   margin-top: var(--space-3);
-  padding: var(--space-1) var(--space-2);
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--bs-warning-border-subtle);
+  border-left: 3px solid var(--bs-warning);
+  background: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+  text-align: left;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: color 0.1s ease, background-color 0.1s ease;
+  border-radius: var(--radius-md);
+  transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 
-  &:hover { color: var(--bs-body-color); background: var(--bs-tertiary-bg); }
+  &:hover {
+    background: var(--bs-warning-border-subtle);
+    box-shadow: var(--shadow-sm);
+  }
   &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
 
-  .bi { font-size: 0.85em; }
+  // Count badge — the punch. Reads as "how many are hidden".
+  &__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.6em;
+    height: 1.6em;
+    padding: 0 var(--space-1);
+    border-radius: var(--radius-full);
+    background: var(--bs-warning);
+    color: var(--bs-warning-text-emphasis);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+  }
+
+  &__label { flex: 1 1 auto; text-transform: uppercase; }
+
+  &__chevron { font-size: 0.9em; opacity: 0.8; }
+
+  @media (prefers-reduced-motion: reduce) { transition: none; }
 }
 
 .other-teams-grid {

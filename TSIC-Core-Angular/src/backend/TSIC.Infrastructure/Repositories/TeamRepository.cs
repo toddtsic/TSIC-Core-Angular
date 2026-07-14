@@ -1243,6 +1243,7 @@ public class TeamRepository : ITeamRepository
                     TeamComments = x.t.TeamComments,
                     ClubRepRegistrationId = x.t.ClubrepRegistrationid,
                     ClubRepName = x.u != null ? (x.u.LastName + ", " + x.u.FirstName) : null,
+                    ClubRepUsername = x.u != null ? x.u.UserName : null,
                     ClubRepEmail = x.u != null ? x.u.Email : null,
                     ClubRepCellphone = x.u != null ? x.u.Cellphone.FormatPhone() : null,
                     ClubRepStreetAddress = x.u != null ? x.u.StreetAddress : null,

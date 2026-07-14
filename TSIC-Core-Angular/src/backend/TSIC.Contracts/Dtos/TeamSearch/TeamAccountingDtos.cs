@@ -34,6 +34,7 @@ public record TeamSearchDetailDto
     // Club rep info
     public Guid? ClubRepRegistrationId { get; init; }
     public string? ClubRepName { get; init; }
+    public string? ClubRepUsername { get; init; }
     public string? ClubRepEmail { get; init; }
     public string? ClubRepCellphone { get; init; }
     public string? ClubRepStreetAddress { get; init; }
