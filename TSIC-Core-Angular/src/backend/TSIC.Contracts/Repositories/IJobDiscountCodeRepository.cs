@@ -36,9 +36,9 @@ public interface IJobDiscountCodeRepository
     // === ADMIN MANAGEMENT METHODS (for discount code CRUD operations) ===
 
     /// <summary>
-    /// Get all discount codes for a job with usage counts.
+    /// Get all discount codes for a job, each with its redemption count, in a single query.
     /// </summary>
-    Task<List<JobDiscountCodes>> GetAllByJobIdAsync(
+    Task<List<(JobDiscountCodes Code, int UsageCount)>> GetAllByJobIdWithUsageAsync(
         Guid jobId,
         CancellationToken cancellationToken = default);
 
@@ -58,7 +58,9 @@ public interface IJobDiscountCodeRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Get the count of registrations using a specific discount code.
+    /// Count the redemptions of a discount code across every table that can reference it —
+    /// registrations, teams, the accounting ledger and store carts. Backs both the edit lock
+    /// and the delete guard.
     /// </summary>
     Task<int> GetUsageCountAsync(
         int ai,

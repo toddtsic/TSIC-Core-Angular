@@ -23,14 +23,15 @@ public interface IDiscountCodeService
     Task<List<DiscountCodeDto>> BulkAddDiscountCodesAsync(Guid jobId, string userId, BulkAddDiscountCodeRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Update an existing discount code.
+    /// Update an existing discount code owned by <paramref name="jobId"/>.
+    /// Once the code has been redeemed its amount, type and dates are locked; only Active may change.
     /// </summary>
-    Task<DiscountCodeDto> UpdateDiscountCodeAsync(int ai, UpdateDiscountCodeRequest request, CancellationToken cancellationToken = default);
+    Task<DiscountCodeDto> UpdateDiscountCodeAsync(Guid jobId, int ai, string userId, UpdateDiscountCodeRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Delete a discount code (only if not used).
+    /// Delete a discount code owned by <paramref name="jobId"/> (only if not used).
     /// </summary>
-    Task<bool> DeleteDiscountCodeAsync(int ai, CancellationToken cancellationToken = default);
+    Task<bool> DeleteDiscountCodeAsync(Guid jobId, int ai, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Batch update status (activate/deactivate) for multiple codes.

@@ -121,9 +121,23 @@ public class DiscountCodesController : ControllerBase
         [FromBody] UpdateDiscountCodeRequest request,
         CancellationToken cancellationToken)
     {
+        // Scope the code to the caller's job. Without this, {ai} — a sequential int — let any
+        // admin edit any other job's discount codes.
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId))
+        {
+            return Unauthorized();
+        }
+
         try
         {
-            var code = await _discountCodeService.UpdateDiscountCodeAsync(ai, request, cancellationToken);
+            var code = await _discountCodeService.UpdateDiscountCodeAsync(jobId.Value, ai, userId, request, cancellationToken);
             return Ok(code);
         }
         catch (InvalidOperationException ex)
@@ -143,9 +157,16 @@ public class DiscountCodesController : ControllerBase
         int ai,
         CancellationToken cancellationToken)
     {
+        // Scope the code to the caller's job — see UpdateDiscountCode.
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookupService);
+        if (jobId == null)
+        {
+            return BadRequest(new { message = "Registration context required" });
+        }
+
         try
         {
-            var deleted = await _discountCodeService.DeleteDiscountCodeAsync(ai, cancellationToken);
+            var deleted = await _discountCodeService.DeleteDiscountCodeAsync(jobId.Value, ai, cancellationToken);
             if (!deleted)
             {
                 return NotFound(new { message = $"Discount code with ID {ai} not found" });

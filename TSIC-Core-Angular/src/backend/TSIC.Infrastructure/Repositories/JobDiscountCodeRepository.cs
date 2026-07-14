@@ -64,15 +64,54 @@ public class JobDiscountCodeRepository : IJobDiscountCodeRepository
 
     // === ADMIN MANAGEMENT METHODS ===
 
-    public async Task<List<JobDiscountCodes>> GetAllByJobIdAsync(
+    public async Task<List<(JobDiscountCodes Code, int UsageCount)>> GetAllByJobIdWithUsageAsync(
         Guid jobId,
         CancellationToken cancellationToken = default)
     {
-        return await _context.JobDiscountCodes
-            .AsNoTracking()
-            .Where(d => d.JobId == jobId)
-            .OrderByDescending(d => d.Modified)
+        var rows = await ProjectWithUsage(
+                _context.JobDiscountCodes
+                    .AsNoTracking()
+                    .Where(d => d.JobId == jobId)
+                    .OrderByDescending(d => d.Modified))
             .ToListAsync(cancellationToken);
+
+        return rows.Select(r => (r.Code, r.UsageCount)).ToList();
+    }
+
+    /// <summary>
+    /// THE definition of "this code has been redeemed", in one place.
+    ///
+    /// A redemption is a foreign key pointed at the code — and four things point at one:
+    /// player registrations, club-rep teams, the accounting ledger, and store carts. Counting
+    /// only Registrations (as this repo once did) reports zero usage for a code redeemed solely
+    /// by a team, which both unlocks its terms and lets the delete guard wave it through into an
+    /// FK violation. Both the edit lock and the delete guard read this projection, so they can
+    /// never disagree about what "used" means.
+    ///
+    /// Each Count() becomes a correlated subquery — one round trip for the whole list.
+    /// </summary>
+    private static IQueryable<UsageRow> ProjectWithUsage(IQueryable<JobDiscountCodes> source)
+    {
+        // S2971 (prefer the .Count property) does not apply inside an expression tree: this
+        // projection is translated to SQL, where the Count() *method* is what becomes the
+        // correlated subquery. Reading the .Count property would enumerate a navigation
+        // collection that was never loaded.
+#pragma warning disable S2971
+        return source.Select(d => new UsageRow
+        {
+            Code = d,
+            UsageCount = d.Registrations.Count()
+                       + d.Teams.Count()
+                       + d.RegistrationAccounting.Count()
+                       + d.StoreCartBatchAccounting.Count()
+        });
+#pragma warning restore S2971
+    }
+
+    private sealed record UsageRow
+    {
+        public required JobDiscountCodes Code { get; init; }
+        public required int UsageCount { get; init; }
     }
 
     public async Task<JobDiscountCodes?> GetByIdAsync(
@@ -97,9 +136,13 @@ public class JobDiscountCodeRepository : IJobDiscountCodeRepository
         int ai,
         CancellationToken cancellationToken = default)
     {
-        return await _context.Registrations
-            .AsNoTracking()
-            .CountAsync(r => r.DiscountCodeId == ai, cancellationToken);
+        var row = await ProjectWithUsage(
+                _context.JobDiscountCodes
+                    .AsNoTracking()
+                    .Where(d => d.Ai == ai))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return row?.UsageCount ?? 0;
     }
 
     public void Add(JobDiscountCodes code)

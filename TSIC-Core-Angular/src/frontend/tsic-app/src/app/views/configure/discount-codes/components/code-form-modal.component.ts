@@ -45,12 +45,14 @@ export type ModalMode = 'add' | 'edit';
                             <div class="btn-group d-flex" role="group">
                                 <input type="radio" class="btn-check" id="typeDollar" value="DollarAmount"
                                        [checked]="discountType() === 'DollarAmount'"
+                                       [disabled]="isLocked"
                                        (change)="discountType.set('DollarAmount')" />
                                 <label class="btn btn-outline-success btn-sm" for="typeDollar">
                                     <i class="bi bi-currency-dollar me-1"></i>Dollar
                                 </label>
                                 <input type="radio" class="btn-check" id="typePercent" value="Percentage"
                                        [checked]="discountType() === 'Percentage'"
+                                       [disabled]="isLocked"
                                        (change)="discountType.set('Percentage')" />
                                 <label class="btn btn-outline-info btn-sm" for="typePercent">
                                     <i class="bi bi-percent me-1"></i>Percent
@@ -76,6 +78,7 @@ export type ModalMode = 'add' | 'edit';
                                     [class.has-suffix]="discountType() === 'Percentage'"
                                     [value]="amount()"
                                     (input)="amount.set(+($any($event.target).value))"
+                                    [disabled]="isLocked"
                                     [step]="discountType() === 'Percentage' ? 0.01 : 1"
                                     [min]="discountType() === 'Percentage' ? 0.01 : 0"
                                     [max]="discountType() === 'Percentage' ? 100 : 999999" />
@@ -91,6 +94,7 @@ export type ModalMode = 'add' | 'edit';
                                 type="date"
                                 class="field-input"
                                 [value]="startDate()"
+                                [disabled]="isLocked"
                                 (input)="startDate.set(($any($event.target).value))" />
                         </div>
                         <div class="col-md-4">
@@ -100,12 +104,26 @@ export type ModalMode = 'add' | 'edit';
                                 type="date"
                                 class="field-input"
                                 [value]="endDate()"
+                                [disabled]="isLocked"
                                 (input)="endDate.set(($any($event.target).value))"
-                                [class.is-invalid]="endDate() <= startDate()" />
-                            @if (endDate() <= startDate()) {
+                                [class.is-invalid]="!isLocked && endDate() <= startDate()" />
+                            @if (!isLocked && endDate() <= startDate()) {
                                 <div class="field-error">End date must be after start date.</div>
                             }
                         </div>
+
+                        @if (isLocked) {
+                            <div class="col-12">
+                                <div class="locked-note">
+                                    <i class="bi bi-lock-fill" aria-hidden="true"></i>
+                                    <span>
+                                        This code has been redeemed, so its amount, type and dates are locked —
+                                        they are the only record of what those registrants were given.
+                                        Create a new code to offer different terms.
+                                    </span>
+                                </div>
+                            </div>
+                        }
 
                         @if (mode() === 'edit') {
                             <div class="col-md-6">
@@ -161,6 +179,18 @@ export type ModalMode = 'add' | 'edit';
         .amount-suffix { right: var(--space-2); }
         .field-input.has-prefix { padding-left: var(--space-5); }
         .field-input.has-suffix { padding-right: var(--space-5); }
+        .locked-note {
+            display: flex;
+            align-items: flex-start;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-3);
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-md);
+            background: var(--bs-tertiary-bg);
+            color: var(--bs-secondary-color);
+            font-size: var(--font-size-sm);
+        }
+        .locked-note i { margin-top: 0.15em; }
     `],
     changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -186,6 +216,19 @@ export class CodeFormModalComponent implements OnInit, AfterViewInit {
     // Validation
     codeExists = signal(false);
     isSaving = signal(false);
+
+    /**
+     * A redeemed code's terms are frozen: its row is the only record of what those registrants
+     * were actually given (the discount is stacked into the registration's FeeDiscount alongside
+     * early-bird, so it cannot be recovered from there). Active stays editable — it is the kill
+     * switch, not a term. The server enforces this too; this only keeps the form honest.
+     *
+     * A plain getter, not a computed: `code` is a static @Input on a modal that @if creates fresh
+     * per open, so there is nothing to react to.
+     */
+    get isLocked(): boolean {
+        return (this.code?.usageCount ?? 0) > 0;
+    }
 
     /** Keystrokes from the code-name field. Debounced here, at the source. */
     private readonly codeNameInput$ = new Subject<string>();
@@ -239,6 +282,10 @@ export class CodeFormModalComponent implements OnInit, AfterViewInit {
     }
 
     isValid(): boolean {
+        // A locked code submits its stored terms untouched, so validating them here would only
+        // let odd historical data (an equal start/end, say) block the one edit still permitted.
+        if (this.isLocked) return true;
+
         return this.codeName().length > 0 &&
                this.amount() > 0 &&
                this.startDate().length > 0 &&
