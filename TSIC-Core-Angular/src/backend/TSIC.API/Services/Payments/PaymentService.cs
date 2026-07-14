@@ -8,6 +8,7 @@ using TSIC.Contracts.Services;
 using TSIC.API.Services.Fees;
 using TSIC.API.Services.Shared;
 using TSIC.API.Services.Shared.Adn;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Teams;
 using TSIC.API.Services.Players;
 using TSIC.Domain.Constants;
@@ -2468,6 +2469,12 @@ public class PaymentService : IPaymentService
             HtmlBody = html
         };
         dto.ToAddresses.AddRange(toList);
+
+        // Player confirmations carry the job's CC/BCC and Reply-To, same as every other confirmation.
+        // This is the chokepoint for all three player flows — initial submit, ARB, and eCheck-pending.
+        var jobInfo = await _jobs.GetConfirmationEmailInfoAsync(jobId);
+        if (jobInfo != null) JobConfirmationCopies.Apply(dto, jobInfo);
+
         return dto;
     }
 

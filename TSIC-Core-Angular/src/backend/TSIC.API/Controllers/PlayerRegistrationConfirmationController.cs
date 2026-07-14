@@ -14,6 +14,7 @@ using TSIC.API.Services.Clubs;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Metadata;
 using TSIC.API.Services.Shared;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.VerticalInsure;
 
 using TSIC.API.Services.Auth;
@@ -32,17 +33,20 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
     private readonly ILogger<PlayerRegistrationConfirmationController> _logger;
     private readonly IEmailService _email;
     private readonly IFamilyRepository _familyRepo;
+    private readonly IJobRepository _jobRepo;
 
     public PlayerRegistrationConfirmationController(
         IPlayerRegConfirmationService service,
         ILogger<PlayerRegistrationConfirmationController> logger,
         IEmailService email,
-        IFamilyRepository familyRepo)
+        IFamilyRepository familyRepo,
+        IJobRepository jobRepo)
     {
         _service = service;
         _logger = logger;
         _email = email;
         _familyRepo = familyRepo;
+        _jobRepo = jobRepo;
     }
 
     [HttpGet("confirmation")]
@@ -142,6 +146,14 @@ public sealed class PlayerRegistrationConfirmationController : ControllerBase
             HtmlBody = html
         };
         dto.ToAddresses.AddRange(toList);
+
+        // A resent confirmation is the same message as the original, so it carries the same copies.
+        var jobId = await _jobRepo.GetJobIdByPathAsync(jobPath, ct);
+        if (jobId != null)
+        {
+            var jobInfo = await _jobRepo.GetConfirmationEmailInfoAsync(jobId.Value, ct);
+            if (jobInfo != null) JobConfirmationCopies.Apply(dto, jobInfo);
+        }
 
         var ok = await _email.SendAsync(dto, sendInDevelopment: false, cancellationToken: ct);
         if (!ok) return StatusCode(502, new { message = "Email send failed" });

@@ -248,7 +248,7 @@ public class JobRepository : IJobRepository
         var result = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobName, j.DisplayName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationEmail, j.UslaxNumberValidThroughDate })
+            .Select(j => new { j.JobId, j.JobName, j.DisplayName, j.JobPath, j.AdnArb, j.PlayerRegConfirmationEmail, j.UslaxNumberValidThroughDate, j.RegFormFrom, j.RegFormCcs, j.RegFormBccs, j.BDisallowCcplayerConfirmations })
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null
@@ -260,9 +260,22 @@ public class JobRepository : IJobRepository
                 JobPath = result.JobPath!,
                 AdnArb = result.AdnArb,
                 PlayerRegConfirmationEmail = result.PlayerRegConfirmationEmail,
-                UsLaxNumberValidThroughDate = result.UslaxNumberValidThroughDate
+                UsLaxNumberValidThroughDate = result.UslaxNumberValidThroughDate,
+                RegFormFrom = result.RegFormFrom,
+                RegFormCcs = result.RegFormCcs,
+                RegFormBccs = result.RegFormBccs,
+                BDisallowCcplayerConfirmations = result.BDisallowCcplayerConfirmations
             }
             : null;
+    }
+
+    public async Task<string?> GetAlwaysCopyEmailsAsync(Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.Alwayscopyemaillist)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<AdultConfirmationInfo?> GetAdultConfirmationInfoAsync(Guid jobId, CancellationToken cancellationToken = default)
@@ -292,7 +305,7 @@ public class JobRepository : IJobRepository
         var result = await _context.Jobs
             .AsNoTracking()
             .Where(j => j.JobId == jobId)
-            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdultRegConfirmationEmail, j.RegFormFrom, j.RegFormCcs, j.RegFormBccs })
+            .Select(j => new { j.JobId, j.JobName, j.JobPath, j.AdultRegConfirmationEmail, j.RegFormFrom, j.RegFormCcs, j.RegFormBccs, j.BDisallowCcplayerConfirmations })
             .FirstOrDefaultAsync(cancellationToken);
 
         return result != null
@@ -304,7 +317,8 @@ public class JobRepository : IJobRepository
                 AdultRegConfirmationEmail = result.AdultRegConfirmationEmail,
                 RegFormFrom = result.RegFormFrom,
                 RegFormCcs = result.RegFormCcs,
-                RegFormBccs = result.RegFormBccs
+                RegFormBccs = result.RegFormBccs,
+                BDisallowCcplayerConfirmations = result.BDisallowCcplayerConfirmations
             }
             : null;
     }

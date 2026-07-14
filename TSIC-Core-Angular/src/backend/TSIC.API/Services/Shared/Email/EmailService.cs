@@ -141,18 +141,25 @@ public sealed class EmailService : IEmailService
                 message.To.Add(MailboxAddress.Parse(to));
             }
         }
+        // Cc/Bcc come from operator-typed job config, so they get the same TryParse guard as Reply-To
+        // above rather than the throwing Parse used for To. A copy address is an addition to the
+        // message, never its purpose: one malformed entry must be skipped, not allowed to throw and
+        // deprive the actual registrant of their confirmation. (It did exactly that — every job whose
+        // CC/BCC held more than one address was failing its whole send.)
         if (dto.CcAddresses != null)
         {
             foreach (var cc in dto.CcAddresses.Where(a => !string.IsNullOrWhiteSpace(a)))
             {
-                message.Cc.Add(MailboxAddress.Parse(cc));
+                if (MailboxAddress.TryParse(cc, out var ccMailbox)) message.Cc.Add(ccMailbox);
+                else _logger.LogWarning("Skipping unparseable CC address {Address}", cc);
             }
         }
         if (dto.BccAddresses != null)
         {
             foreach (var bcc in dto.BccAddresses.Where(a => !string.IsNullOrWhiteSpace(a)))
             {
-                message.Bcc.Add(MailboxAddress.Parse(bcc));
+                if (MailboxAddress.TryParse(bcc, out var bccMailbox)) message.Bcc.Add(bccMailbox);
+                else _logger.LogWarning("Skipping unparseable BCC address {Address}", bcc);
             }
         }
 

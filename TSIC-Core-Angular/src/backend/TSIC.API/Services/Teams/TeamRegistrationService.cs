@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using TSIC.API.Services.Auth;
 using Microsoft.AspNetCore.Identity;
 using TSIC.Infrastructure.Data.Identity;
+using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.TextSubstitution;
 using TSIC.Contracts.Services;
 
@@ -1656,24 +1657,7 @@ public class TeamRegistrationService : ITeamRegistrationService
                 HtmlBody = emailHtml
             };
 
-            // Route replies to the job's configured contact when set. From stays the SES-verified
-            // identity (forced at the send chokepoint); an unparseable RegFormFrom (e.g. a bare name)
-            // is safely ignored there and Reply-To falls back to the From identity.
-            if (!string.IsNullOrWhiteSpace(jobInfo.RegFormFrom))
-            {
-                emailMessage.ReplyToAddress = jobInfo.RegFormFrom;
-            }
-
-            // Add CCs/BCCs if configured
-            if (!string.IsNullOrWhiteSpace(jobInfo.RegFormCcs))
-            {
-                emailMessage.CcAddresses = jobInfo.RegFormCcs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-            }
-
-            if (!string.IsNullOrWhiteSpace(jobInfo.RegFormBccs))
-            {
-                emailMessage.BccAddresses = jobInfo.RegFormBccs.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
-            }
+            JobConfirmationCopies.Apply(emailMessage, jobInfo);
 
             bool emailSent = await _emailService.SendAsync(emailMessage);
 

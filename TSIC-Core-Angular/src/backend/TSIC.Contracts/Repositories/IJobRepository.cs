@@ -233,6 +233,12 @@ public interface IJobRepository
     Task<JobConfirmationEmailInfo?> GetConfirmationEmailInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The job's "always copy" list (raw, delimited) — the addresses a director wants copied on the
+    /// receipt for every mass email the job sends. Parse with <c>EmailAddressRules.ParseDelimitedList</c>.
+    /// </summary>
+    Task<string?> GetAlwaysCopyEmailsAsync(Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get job basic info for team registration initialization (JobId, JobPath, LogoHeader).
     /// </summary>
     Task<JobAuthInfo?> GetJobAuthInfoAsync(Guid jobId, CancellationToken cancellationToken = default);
@@ -476,7 +482,26 @@ public record JobConfirmationInfo
     public string? PlayerRegConfirmationOnScreen { get; init; }
 }
 
-public record JobConfirmationEmailInfo
+/// <summary>
+/// The job's copy configuration for a registration confirmation: who gets CC'd/BCC'd, where replies go,
+/// and whether the director has switched copies off entirely.
+///
+/// Every confirmation send path carries this, so they can all be stamped by one applier instead of each
+/// re-deriving the rules. They did not, and it showed: only the team path ever applied copies (with the
+/// wrong delimiter), player confirmations copied nobody at all, and the "turn off CC &amp; BCC" flag was
+/// read by no send path in the app — 110 jobs had ticked it and were still being copied.
+/// </summary>
+public interface IJobConfirmationCopyConfig
+{
+    /// <summary>Job's contact address. Rides Reply-To; the From address is always the SES-verified identity.</summary>
+    string? RegFormFrom { get; }
+    string? RegFormCcs { get; }
+    string? RegFormBccs { get; }
+    /// <summary>When true, suppresses CC and BCC on every registration confirmation. Null = allow.</summary>
+    bool? BDisallowCcplayerConfirmations { get; }
+}
+
+public record JobConfirmationEmailInfo : IJobConfirmationCopyConfig
 {
     public required Guid JobId { get; init; }
     public string? JobName { get; init; }
@@ -490,6 +515,10 @@ public record JobConfirmationEmailInfo
     /// Used by the USLax reconciliation tool to decide whether a given row needs action.
     /// </summary>
     public DateTime? UsLaxNumberValidThroughDate { get; init; }
+    public string? RegFormFrom { get; init; }
+    public string? RegFormCcs { get; init; }
+    public string? RegFormBccs { get; init; }
+    public bool? BDisallowCcplayerConfirmations { get; init; }
 }
 
 public record AdultConfirmationInfo
@@ -503,7 +532,7 @@ public record AdultConfirmationInfo
     public string? RegFormBccs { get; init; }
 }
 
-public record AdultConfirmationEmailInfo
+public record AdultConfirmationEmailInfo : IJobConfirmationCopyConfig
 {
     public required Guid JobId { get; init; }
     public string? JobName { get; init; }
@@ -512,6 +541,7 @@ public record AdultConfirmationEmailInfo
     public string? RegFormFrom { get; init; }
     public string? RegFormCcs { get; init; }
     public string? RegFormBccs { get; init; }
+    public bool? BDisallowCcplayerConfirmations { get; init; }
 }
 
 public record JobSeasonYear

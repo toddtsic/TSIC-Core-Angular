@@ -871,7 +871,12 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
                     },
                     UnsubscribeRegId = item.RegistrationId // engine appends the standard footer
                 };
-            }
+            },
+            // The sender's receipt, copied to the job's "always copy" list. Both blast surfaces reach
+            // this plan (My Roster delegates here), which is exactly how legacy worked — its two mass-email
+            // controllers shared one receipt. Capture plain data only; the hook runs on a fresh scope.
+            OnCompleteAsync = (status, sp, token) => BatchCompletionReceipt.SendAsync(
+                status, sp, jobId, replyToAddress, fromName, subject, body, token)
         };
 
         var simulating = request.SimulatedPerUnitDelayMs.HasValue;

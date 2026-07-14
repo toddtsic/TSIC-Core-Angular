@@ -56,4 +56,26 @@ public static class EmailAddressRules
     public static bool IsSendable([NotNullWhen(true)] string? email)
         => IsWellFormed(email)
            && !string.Equals(email.Trim(), NotGiven, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Parses an operator-typed address list (a job's CC/BCC, always-copy, or reschedule list) into the
+    /// addresses we may actually mail.
+    ///
+    /// Splits on BOTH ';' and ',' deliberately. The stored data is semicolon-delimited — the config UI
+    /// has always instructed "semi-colon between emails", and a census of Jobs found 288 multi-address
+    /// values, every one semicolon-separated and not one comma-separated. A comma-only split therefore
+    /// yielded the whole string as a single token, which then threw inside MimeKit and took the entire
+    /// confirmation email down with it. Accepting both means a director who types the wrong separator
+    /// still gets the copies they asked for, instead of silence.
+    /// </summary>
+    public static List<string> ParseDelimitedList(string? delimited)
+    {
+        if (string.IsNullOrWhiteSpace(delimited)) return new List<string>();
+
+        return delimited
+            .Split(new[] { ';', ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(IsSendable)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
 }

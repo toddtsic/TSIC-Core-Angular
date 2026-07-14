@@ -1161,27 +1161,41 @@ public sealed class ScheduleRepository : IScheduleRepository
         foreach (var rep in clubReps)
             Add(rep.RegistrationId, rep.Email, rep.BemailOptOut);
 
-        // 5. League-wide reschedule addon emails — operational contacts, no registration
-        var leagueId = await _context.Schedule
-            .AsNoTracking()
-            .Where(s => s.JobId == jobId)
+        // 5. League-wide reschedule addon emails — operational contacts, no registration.
+        // Leagues are taken from the games actually in range, not from the job's first schedule row:
+        // the latter answers "some league in this job", which is the wrong league the moment a job has
+        // more than one.
+        var leagueIds = await gameQuery
             .Select(s => s.LeagueId)
+            .Distinct()
+            .ToListAsync(ct);
+
+        if (leagueIds.Count > 0)
+        {
+            var addons = await _context.Leagues
+                .AsNoTracking()
+                .Where(l => leagueIds.Contains(l.LeagueId))
+                .Select(l => l.RescheduleEmailsToAddon)
+                .ToListAsync(ct);
+
+            foreach (var addonStr in addons)
+                foreach (var email in EmailAddressRules.ParseDelimitedList(addonStr))
+                    Add(null, email, false);
+        }
+
+        // 6. Job-level reschedule list — the same operational role as the league addon, set once on the
+        // Communications tab where a director looks for email settings rather than per-league in LADT.
+        // Purely additive: legacy also treated an EMPTY value as "send no reschedule mail to anyone",
+        // but that gate belonged to the automatic on-game-move email, which no longer exists. This blast
+        // is composed and sent by hand, so a blank config box must never silently swallow it.
+        var jobRescheduleList = await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => j.Rescheduleemaillist)
             .FirstOrDefaultAsync(ct);
 
-        if (leagueId != default)
-        {
-            var addonStr = await _context.Leagues
-                .AsNoTracking()
-                .Where(l => l.LeagueId == leagueId)
-                .Select(l => l.RescheduleEmailsToAddon)
-                .FirstOrDefaultAsync(ct);
-
-            if (!string.IsNullOrEmpty(addonStr))
-            {
-                foreach (var email in addonStr.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                    Add(null, email, false);
-            }
-        }
+        foreach (var email in EmailAddressRules.ParseDelimitedList(jobRescheduleList))
+            Add(null, email, false);
 
         return byEmail.Values.ToList();
     }
