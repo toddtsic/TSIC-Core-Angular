@@ -329,9 +329,18 @@ if     ($SkipApi)     { $goArgs = ' -SkipApi' }
 elseif ($SkipAngular) { $goArgs = ' -SkipAngular' }
 $goBody = "& '$recycleScript'$goArgs"
 
-if (!$SkipApi)     { Set-Content (Join-Path $ApiStaging 'Go.ps1')     $goBody -Encoding UTF8 }
-if (!$SkipAngular) { Set-Content (Join-Path $AngularStaging 'Go.ps1') $goBody -Encoding UTF8 }
-Write-Host "  Go.ps1 runs: $goBody" -ForegroundColor Green
+# Written to BOTH staging folders, always - including the one this build did not
+# stage. A scoped build would otherwise leave the PREVIOUS build's wrapper behind
+# in the other folder: run "-SkipApi", then stand in claude-api-STAGING on PHOENIX
+# out of habit, and its stale Go.ps1 would swap the API you just told the build to
+# leave alone. Both wrappers always carry THIS build's scope, so the folder you
+# happen to be standing in cannot change what gets deployed.
+foreach ($stagingDir in @($ApiStaging, $AngularStaging)) {
+    if (Test-Path $stagingDir) {
+        Set-Content (Join-Path $stagingDir 'Go.ps1') $goBody -Encoding UTF8
+    }
+}
+Write-Host "  Go.ps1 (in both staging folders) runs: $goBody" -ForegroundColor Green
 
 Write-Host ""
 
@@ -347,9 +356,31 @@ Write-Host "  Staged and payload-verified:" -ForegroundColor Green
 if (!$SkipApi)     { Write-Host "    API:     $ApiStaging" -ForegroundColor Green }
 if (!$SkipAngular) { Write-Host "    Angular: $AngularStaging" -ForegroundColor Green }
 Write-Host ""
-Write-Host "  NEXT: RDP to TSIC-PHOENIX and run Go.ps1 from each staging folder:" -ForegroundColor Yellow
-if (!$SkipApi)     { Write-Host "    $ApiStaging\Go.ps1" -ForegroundColor White }
-if (!$SkipAngular) { Write-Host "    $AngularStaging\Go.ps1" -ForegroundColor White }
+
+# ONE run. Both staging folders carry the SAME wrapper - this build's scope - so it
+# does not matter which one you are standing in. The old banner said "run Go.ps1 from
+# each staging folder", and that was the bug: two runs meant production served the new
+# API under the old frontend in the gap between them.
+#
+# The path printed is the LOCAL path on PHOENIX (E:\...), not the UNC share we staged
+# over, because that is what you will actually be typing on the box.
+$scopeText = 'API + Angular'
+if     ($SkipApi)     { $scopeText = 'Angular only' }
+elseif ($SkipAngular) { $scopeText = 'API only' }
+
+$goFolder = $Config.ApiStagingPath
+if ($SkipApi) { $goFolder = $Config.AngularStagingPath }
+
+Write-Host "  NEXT: RDP to TSIC-PHOENIX, open an ELEVATED PowerShell, and run it ONCE:" -ForegroundColor Yellow
+Write-Host ""
+Write-Host "    cd $goFolder" -ForegroundColor White
+Write-Host "    .\Go.ps1" -ForegroundColor White
+Write-Host ""
+Write-Host "  That ONE run deploys everything this build staged ($scopeText)." -ForegroundColor Yellow
+Write-Host "  Do NOT also run Go.ps1 from the other staging folder." -ForegroundColor Yellow
+Write-Host ""
+Write-Host "  If it fails, the rollback is already on the box:" -ForegroundColor DarkGray
+Write-Host "    E:\Websites\IIS-Config-Prod\Deployment\Rollback-Deploy.ps1 -List" -ForegroundColor DarkGray
 Write-Host ""
 
 # Explicit. robocopy exits 1/2/3 on SUCCESS (copied / extras deleted / both), and
