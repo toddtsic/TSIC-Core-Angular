@@ -26,6 +26,7 @@ export type RegistrationDetailDto = {
     profileValues: Record<string, string>;
     profileMetadataJson?: string | null;
     coachRequestNote?: string | null;
+    coachRequestedTeams?: any[] | null;
     accountUsername?: string | null;
     familyUserId?: string | null;
     sportName?: string | null;

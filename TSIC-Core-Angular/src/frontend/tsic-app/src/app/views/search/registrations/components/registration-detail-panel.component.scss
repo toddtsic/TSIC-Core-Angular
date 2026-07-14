@@ -1093,3 +1093,13 @@
   white-space: pre-wrap;   // preserve the coach's line breaks
   word-break: break-word;
 }
+
+.coach-requested-teams {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-5);
+
+  li {
+    margin-bottom: var(--space-1);
+    word-break: break-word;
+  }
+}

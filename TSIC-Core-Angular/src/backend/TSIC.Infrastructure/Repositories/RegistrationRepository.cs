@@ -2172,13 +2172,39 @@ public class RegistrationRepository : IRegistrationRepository
             templateDbColumns = new List<string>();
         }
 
-        // Coach/Staff: decode the human note out of the codified SpecialRequests team-request blob so
-        // the panel can show it read-only. Never the raw JSON (that stays owned by the approval queue).
+        // Coach/Staff: decode the codified SpecialRequests team-request blob so the panel can show it
+        // read-only. Never the raw JSON. The human note and the requested-team labels are surfaced as
+        // separate, resolved fields (the raw blob stays owned by the approval queue).
         string? coachRequestNote = null;
+        List<string>? coachRequestedTeams = null;
         if (adultRoleKey == AdultMetadataRoleResolver.UnassignedAdult)
         {
-            var note = AdultTeamRequestData.Parse(reg.SpecialRequests).Note;
-            coachRequestNote = string.IsNullOrWhiteSpace(note) ? null : note;
+            var record = AdultTeamRequestData.Parse(reg.SpecialRequests);
+            coachRequestNote = string.IsNullOrWhiteSpace(record.Note) ? null : record.Note;
+
+            var requestedIds = record.GetRequestedTeamIds().ToList();
+            if (requestedIds.Count > 0)
+            {
+                // Resolve ids to CURRENT labels (rename-proof). Club via the canonical
+                // Teams.ClubrepRegistrationid -> Registrations.ClubName route, left-joined
+                // because that FK is nullable (club/league teams may carry no club rep).
+                var labelParts = await (
+                    from t in _context.Teams
+                    join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
+                    join rCR in _context.Registrations on t.ClubrepRegistrationid equals rCR.RegistrationId into crj
+                    from rCR in crj.DefaultIfEmpty()
+                    where requestedIds.Contains(t.TeamId)
+                    orderby ag.AgegroupName, t.TeamName
+                    select new { Club = rCR != null ? rCR.ClubName : null, Age = ag.AgegroupName, Team = t.TeamName })
+                    .AsNoTracking()
+                    .ToListAsync(ct);
+
+                coachRequestedTeams = labelParts
+                    .Select(p => string.IsNullOrWhiteSpace(p.Club)
+                        ? $"{p.Age}: {p.Team}"
+                        : $"{p.Club}: {p.Age}: {p.Team}")
+                    .ToList();
+            }
         }
 
         // Build profile values from entity columns using reflection
@@ -2318,6 +2344,7 @@ public class RegistrationRepository : IRegistrationRepository
             FamilyUserId = reg.FamilyUserId,
             ProfileMetadataJson = resolvedMetadataJson,
             CoachRequestNote = coachRequestNote,
+            CoachRequestedTeams = coachRequestedTeams,
             SportName = reg.Job?.Sport?.SportName,
             JsonOptions = reg.Job?.JsonOptions,
             MomLabel = !string.IsNullOrWhiteSpace(reg.Job?.MomLabel) ? reg.Job.MomLabel : "Mom",

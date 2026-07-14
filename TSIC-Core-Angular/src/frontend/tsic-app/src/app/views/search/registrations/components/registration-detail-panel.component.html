@@ -368,6 +368,19 @@
             }
           }
 
+          <!-- ── Read-Only: Coach/Staff requested teams (decoded from the codified SpecialRequests blob) ── -->
+          @if (coachRequestedTeams().length > 0) {
+            <div class="info-section">
+              <h5 class="info-section-title">Special Requests</h5>
+              <p class="info-label">Requested teams (pending director approval)</p>
+              <ul class="coach-requested-teams">
+                @for (team of coachRequestedTeams(); track team) {
+                  <li class="info-value">{{ team }}</li>
+                }
+              </ul>
+            </div>
+          }
+
           <!-- ── Read-Only: Coach/Staff request note (decoded from the codified SpecialRequests blob) ── -->
           @if (coachRequestNote(); as note) {
             <div class="info-section">

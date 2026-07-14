@@ -202,6 +202,9 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   /** Coach/Staff decoded team-request note (read-only), surfaced by the backend from the codified blob. */
   readonly coachRequestNote = computed(() => this.detail()?.coachRequestNote ?? null);
 
+  /** Coach/Staff requested teams, resolved to "Club: Age: Team" labels by the backend (read-only). */
+  readonly coachRequestedTeams = computed<string[]>(() => this.detail()?.coachRequestedTeams ?? []);
+
   // Profile save state
   isSavingProfile = signal<boolean>(false);
 

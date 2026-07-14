@@ -43,6 +43,11 @@ public record RegistrationDetailDto
     // (AdultTeamRequestData). Never the raw JSON — surfaced read-only in the panel. Null otherwise.
     public string? CoachRequestNote { get; init; }
 
+    // Coach/Staff only: the coach's REQUESTED teams, each resolved to its current
+    // "Club: Age Group: Team" label (rename-proof) from the codified SpecialRequests blob.
+    // Read-only, pending director approval — NOT roster assignments. Empty/null otherwise.
+    public IReadOnlyList<string>? CoachRequestedTeams { get; init; }
+
     // Account username: for players = family account username, for non-players = registrant username
     public string? AccountUsername { get; init; }
 
