@@ -399,11 +399,17 @@ export class ProfileStepComponent implements OnInit {
      */
     readonly teamsDataSource = computed(() =>
         this.state.availableTeams()
-            .map(t => ({
-                teamId: t.teamId,
-                clubName: t.clubName,
-                label: `${t.clubName} — ${t.agegroupName}:${t.divName}:${t.teamName}`,
-            }))
+            .map(t => {
+                const detail = `${t.agegroupName}:${t.divName}:${t.teamName}`;
+                return {
+                    teamId: t.teamId,
+                    clubName: t.clubName,
+                    // Club-less sites (direct club-player registration) have no owning
+                    // club rep, so clubName is empty — omit the "{club} — " prefix
+                    // rather than render an orphan leading dash.
+                    label: t.clubName ? `${t.clubName} — ${detail}` : detail,
+                };
+            })
             .sort((a, b) => a.label.localeCompare(b.label)),
     );
 

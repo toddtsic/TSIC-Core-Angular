@@ -67,9 +67,6 @@ const US_STATES: ReadonlyArray<{ value: string; label: string }> = [
                                 <i class="bi bi-person-gear"></i>
                                 Edit Your Info
                             </h5>
-                            <p class="wizard-tip">
-                                Update your contact and address details. To change your name, contact the tournament director.
-                            </p>
                         </div>
 
                         <div class="text-end mb-3">
