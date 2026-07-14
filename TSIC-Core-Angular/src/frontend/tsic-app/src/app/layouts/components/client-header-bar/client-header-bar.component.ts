@@ -139,7 +139,10 @@ export class ClientHeaderBarComponent {
             if ((pulse.myRegistrationOwedTotal ?? 0) > 0 && !pulse.myAdnSubscriptionId) {
                 items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/player?step=payment' });
             }
-            if (pulse.allowRosterViewPlayer && pulse.myAssignedTeamId) {
+            // myTeamHidesRoster = my team sits in a WAITLIST/Dropped/Registration holding agegroup.
+            // Don't offer a roster the server will only deny — a waitlisted family must not be handed
+            // the list of everyone else on the waitlist. Mirrors MyRosterService's gate.
+            if (pulse.allowRosterViewPlayer && pulse.myAssignedTeamId && !pulse.myTeamHidesRoster) {
                 items.push({ icon: 'bi-people', label: 'View Roster', route: 'rosters/view-rosters' });
             }
             if (pulse.offerPlayerRegsaverInsurance && pulse.myHasPurchasedPlayerRegsaver === false) {
@@ -158,7 +161,8 @@ export class ClientHeaderBarComponent {
             if ((pulse.myRegistrationOwedTotal ?? 0) > 0 && !pulse.myAdnSubscriptionId) {
                 items.push({ icon: 'bi-cash-stack', label: 'Pay Balance Due', route: 'registration/adult?role=coach&step=payment' });
             }
-            if (pulse.allowRosterViewAdult && pulse.myAssignedTeamId) {
+            // Same holding-agegroup suppression as the player branch above.
+            if (pulse.allowRosterViewAdult && pulse.myAssignedTeamId && !pulse.myTeamHidesRoster) {
                 items.push({ icon: 'bi-people', label: 'View Roster', route: 'rosters/view-rosters' });
             }
         }

@@ -133,14 +133,15 @@ const JOB_TYPE_TOURNAMENT = 2;
             <label class="fee-label">Max Roster</label>
             <input class="form-control form-control-sm" type="number" [(ngModel)]="form.maxCount" name="maxCount" style="width: 80px;" (ngModelChange)="onSettingsChange()">
           </div>
+          <!-- No "Hide Roster" switch here by design. Roster visibility is an EVENT-level policy
+               (Configure | Job → "Allow RosterView: PLAYERS / STAFF"). A team's roster is additionally
+               hidden when the team sits in a WAITLIST/Dropped/Registration holding agegroup, which the
+               server derives from the agegroup itself (AgegroupConstants) — there is nothing per-team
+               for a director to set. See CR-095. -->
           <div class="settings-grid">
             <div class="form-check form-switch">
               <input class="form-check-input" type="checkbox" [(ngModel)]="form.bAllowSelfRostering" name="bAllowSelfRostering" (ngModelChange)="onSettingsChange()">
               <label class="form-check-label">Self Rostering</label>
-            </div>
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" [(ngModel)]="form.bHideRoster" name="bHideRoster" (ngModelChange)="onSettingsChange()">
-              <label class="form-check-label">Hide Roster</label>
             </div>
           </div>
         </div>
@@ -601,7 +602,10 @@ export class TeamDetailComponent implements OnChanges, OnInit, OnDestroy {
       color: this.form.color,
       maxCount: this.form.maxCount,
       bAllowSelfRostering: this.form.bAllowSelfRostering,
-      bHideRoster: this.form.bHideRoster,
+      // bHideRoster deliberately NOT sent. UpdateTeamRequest.bHideRoster is nullable and the server
+      // skips nulls (LadtService `if (request.BHideRoster.HasValue)`), so omitting it PRESERVES the
+      // stored value — this editor can never clobber the flag on a system-minted team. The column is
+      // dead (nothing reads it); the DTO field is retained in case we ever restore a per-team control.
       startdate: this.form.startdate,
       enddate: this.form.enddate,
       effectiveasofdate: this.form.effectiveasofdate,

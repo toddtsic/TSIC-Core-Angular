@@ -1648,7 +1648,7 @@ public class TeamRepository : ITeamRepository
     public async Task<List<CadtClubNode>> GetPublicRosterTreeAsync(
         Guid jobId, CancellationToken ct = default)
     {
-        // Flat projection: all active teams excluding WAITLIST/DROPPED agegroups
+        // Flat projection: all active teams excluding the system holding agegroups (AgegroupConstants).
         var rows = await (
             from t in _context.Teams
             join ag in _context.Agegroups on t.AgegroupId equals ag.AgegroupId
@@ -1658,8 +1658,9 @@ public class TeamRepository : ITeamRepository
             from clubReg in clubJoin.DefaultIfEmpty()
             where t.JobId == jobId
                   && t.Active == true
-                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains("WAITLIST"))
-                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains("DROPPED"))
+                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains(AgegroupConstants.WaitlistPrefix))
+                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains(AgegroupConstants.DroppedTeams))
+                  && (ag.AgegroupName == null || !ag.AgegroupName!.Contains(AgegroupConstants.Registration))
             select new
             {
                 ClubName = clubReg != null ? clubReg.ClubName : null,
@@ -1725,12 +1726,19 @@ public class TeamRepository : ITeamRepository
             from r in _context.Registrations
             join u in _context.AspNetUsers on r.UserId equals u.Id
             join t in _context.Teams on r.AssignedTeamId equals t.TeamId
+            join tag in _context.Agegroups on t.AgegroupId equals tag.AgegroupId
             join clubReg in _context.Registrations on t.ClubrepRegistrationid equals clubReg.RegistrationId into clubJoin
             from clubReg in clubJoin.DefaultIfEmpty()
             join role in _context.AspNetRoles on r.RoleId equals role.Id
             where r.AssignedTeamId == teamId
                   && r.JobId == jobId
                   && r.BActive == true
+                  // Same holding-bucket exclusion GetPublicRosterTreeAsync applies (AgegroupConstants).
+                  // The tree already omits these teams, but this endpoint takes a caller-supplied teamId,
+                  // so without the filter a known GUID would serve a waitlist roster anonymously.
+                  && !tag.AgegroupName!.Contains(AgegroupConstants.WaitlistPrefix)
+                  && !tag.AgegroupName!.Contains(AgegroupConstants.DroppedTeams)
+                  && !tag.AgegroupName!.Contains(AgegroupConstants.Registration)
                   && (
                       (r.RoleId == RoleConstants.Player && r.BWaiverSigned1 == true)
                       || r.RoleId == RoleConstants.Staff

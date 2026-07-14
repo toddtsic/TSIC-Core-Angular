@@ -42,6 +42,7 @@ export type JobPulseDto = {
     eventYear?: number | null;
     supersededByLaterEvent?: (null | SupersedingEventInfoDto);
     myAssignedTeamId?: string | null;
+    myTeamHidesRoster?: boolean | null;
     myRegistrationOwedTotal?: number | null;
     myHasPurchasedPlayerRegsaver?: boolean | null;
     myAdnSubscriptionId?: string | null;

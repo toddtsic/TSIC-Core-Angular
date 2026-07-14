@@ -304,6 +304,7 @@ public class JobsController : ControllerBase
                     pulse = pulse with
                     {
                         MyAssignedTeamId = ctx.AssignedTeamId,
+                        MyTeamHidesRoster = ctx.AssignedTeamHidesRoster,
                         MyRegistrationOwedTotal = ctx.RegistrationOwedTotal,
                         MyHasPurchasedPlayerRegsaver = ctx.HasPurchasedPlayerRegsaver,
                         MyAdnSubscriptionId = ctx.AdnSubscriptionId,

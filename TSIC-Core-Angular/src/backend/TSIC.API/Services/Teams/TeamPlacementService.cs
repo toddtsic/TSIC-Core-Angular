@@ -317,6 +317,10 @@ public class TeamPlacementService : ITeamPlacementService
             DivId = waitlistDiv.DivId,
             TeamName = waitlistTeamName,
             MaxCount = 100000,
+            // Vestigial: nothing reads BHideRoster. The waitlist roster is hidden by the team's
+            // WAITLIST agegroup instead (AgegroupConstants), which MyRosterService, the JobPulse nav
+            // gate, and the public-roster queries all key on. Kept only so the column stays consistent
+            // with the legacy rows. Do not build new behavior on it. See CR-095.
             BHideRoster = true,
             BAllowSelfRostering = true,
             Active = true,

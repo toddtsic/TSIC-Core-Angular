@@ -860,7 +860,17 @@ public class JobRepository : IJobRepository
         var reg = await _context.Registrations
             .AsNoTracking()
             .Where(r => r.RegistrationId == regId)
-            .Select(r => new { r.AssignedTeamId, r.OwedTotal, r.RegsaverPolicyId, r.AdnSubscriptionId })
+            .Select(r => new
+            {
+                r.AssignedTeamId,
+                r.OwedTotal,
+                r.RegsaverPolicyId,
+                r.AdnSubscriptionId,
+                // One nav hop (Registrations.AssignedTeam → Teams.Agegroup) so the header bar can
+                // suppress "View Roster" for a holding-bucket team instead of offering a link that
+                // MyRosterService will only deny.
+                AssignedAgegroupName = r.AssignedTeam != null ? r.AssignedTeam.Agegroup.AgegroupName : null
+            })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (reg == null)
@@ -875,6 +885,7 @@ public class JobRepository : IJobRepository
         return new Contracts.Dtos.JobPulseUserContext
         {
             AssignedTeamId = reg.AssignedTeamId,
+            AssignedTeamHidesRoster = AgegroupConstants.IsSystemBucket(reg.AssignedAgegroupName),
             RegistrationOwedTotal = reg.OwedTotal,
             HasPurchasedPlayerRegsaver = reg.RegsaverPolicyId != null,
             AdnSubscriptionId = reg.AdnSubscriptionId,

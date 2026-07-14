@@ -515,8 +515,10 @@ public interface IRegistrationRepository
 
     /// <summary>
     /// Returns the TeamName for a given team, scoped to a job. Null if not found.
+    /// IsSystemBucket flags a WAITLIST/Dropped/Registration holding agegroup — see AgegroupConstants;
+    /// the roster gate in MyRosterService denies on it.
     /// </summary>
-    Task<(string? TeamName, string? AgegroupName)?> GetTeamHeaderAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
+    Task<(string? TeamName, string? AgegroupName, bool IsSystemBucket)?> GetTeamHeaderAsync(Guid teamId, Guid jobId, CancellationToken ct = default);
 
     /// <summary>
     /// Get all Unassigned Adult registrations for a job.

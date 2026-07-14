@@ -75,9 +75,10 @@ export const TEAM_COLUMNS: LadtColumnDef[] = [
   { field: 'divisionRequested', header: 'Div Requested', type: 'string', width: '140px' },
   { field: 'lastLeagueRecord', header: 'Last Record', type: 'string', width: '90px' },
   { field: 'levelOfPlay', header: 'LOP', type: 'string', width: '90px' },
-  // Roster
+  // Roster — no 'bHideRoster' column by design: it was never a director setting (legacy exposed no UI
+  // for it and its stored values are noise). Roster visibility is the event-level "Allow RosterView"
+  // toggles, plus a server-side hide for WAITLIST/Dropped/Registration holding agegroups. See CR-095.
   { field: 'bAllowSelfRostering', header: 'Self Roster', type: 'boolean', group: 'Roster', width: '70px' },
-  { field: 'bHideRoster', header: 'Hide Roster', type: 'boolean', group: 'Roster', width: '70px' },
   // Eligibility
   { field: 'gender', header: 'Gender', type: 'string', group: 'Eligibility', width: '60px' },
   // Advanced

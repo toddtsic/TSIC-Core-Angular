@@ -170,6 +170,12 @@ public record JobPulseDto
 
     // Registrant context (Player / Family / Staff). Null when user is not a registrant in this job.
     public Guid? MyAssignedTeamId { get; init; }
+    /// <summary>
+    /// True when my assigned team sits in a system holding agegroup (WAITLIST / Dropped / Registration).
+    /// Suppresses the "View Roster" nav item — a waitlisted family must not be offered the roster of
+    /// everyone else on the waitlist. Mirrors the server-side gate in MyRosterService; see AgegroupConstants.
+    /// </summary>
+    public bool? MyTeamHidesRoster { get; init; }
     public decimal? MyRegistrationOwedTotal { get; init; }
     public bool? MyHasPurchasedPlayerRegsaver { get; init; }
     /// <summary>
@@ -220,6 +226,8 @@ public record JobPulseUserContext
 {
     // Registrant (Player / Family-acting-as-player / Staff)
     public Guid? AssignedTeamId { get; init; }
+    /// <summary>Assigned team sits in a WAITLIST / Dropped / Registration holding agegroup — see AgegroupConstants.</summary>
+    public bool? AssignedTeamHidesRoster { get; init; }
     public decimal? RegistrationOwedTotal { get; init; }
     public bool? HasPurchasedPlayerRegsaver { get; init; }
     public string? AdnSubscriptionId { get; init; }

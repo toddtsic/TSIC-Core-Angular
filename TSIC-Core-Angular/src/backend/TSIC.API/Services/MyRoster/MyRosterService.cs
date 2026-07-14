@@ -52,14 +52,24 @@ public sealed class MyRosterService : IMyRosterService
 
         var teamId = caller.AssignedTeamId.Value;
         var header = await _registrationRepo.GetTeamHeaderAsync(teamId, caller.JobId, ct);
+        if (header == null)
+            return Denied("Team not found.");
+
+        // A team parked in a system holding agegroup (WAITLIST / Dropped / Registration) has no roster
+        // its members may browse — a waitlisted family must not be handed the list of everyone else on
+        // the waitlist. This overrides the event-level flag above; it is not a director-tunable setting.
+        // (Teams.bHideRoster once carried this and is dead — see AgegroupConstants.)
+        if (header.Value.IsSystemBucket)
+            return Denied("This team's roster is not available.");
+
         var players = await _registrationRepo.GetMyRosterByTeamIdAsync(teamId, caller.JobId, ct);
 
         return new MyRosterResponseDto
         {
             Allowed = true,
             TeamId = teamId,
-            TeamName = header?.TeamName,
-            AgegroupName = header?.AgegroupName,
+            TeamName = header.Value.TeamName,
+            AgegroupName = header.Value.AgegroupName,
             Players = players,
         };
     }

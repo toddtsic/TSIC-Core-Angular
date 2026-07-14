@@ -2723,7 +2723,7 @@ public class RegistrationRepository : IRegistrationRepository
         return row == null ? null : (row.BAllowRosterViewPlayer, row.BAllowRosterViewAdult);
     }
 
-    public async Task<(string? TeamName, string? AgegroupName)?> GetTeamHeaderAsync(
+    public async Task<(string? TeamName, string? AgegroupName, bool IsSystemBucket)?> GetTeamHeaderAsync(
         Guid teamId, Guid jobId, CancellationToken ct = default)
     {
         var row = await _context.Teams
@@ -2731,7 +2731,11 @@ public class RegistrationRepository : IRegistrationRepository
             .Where(t => t.TeamId == teamId && t.JobId == jobId)
             .Select(t => new { t.TeamName, AgegroupName = t.Agegroup.AgegroupName })
             .FirstOrDefaultAsync(ct);
-        return row == null ? null : (row.TeamName, row.AgegroupName);
+
+        // The agegroup name is already projected, so the roster gate rides along for free.
+        return row == null
+            ? null
+            : (row.TeamName, row.AgegroupName, AgegroupConstants.IsSystemBucket(row.AgegroupName));
     }
 
     public async Task<List<SwapperPlayerDto>> GetUnassignedAdultsAsync(Guid jobId, CancellationToken ct = default)
