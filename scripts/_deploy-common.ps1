@@ -48,9 +48,12 @@ $TsicSites = @{
 #               redeploy does NOT recreate them: mirror them away and Firebase
 #               push stays dead until someone hand-copies them back.
 #   logs      - runtime log output.
-#   keys      - empty on every box today and nothing persists a key ring there
-#               (no PersistKeysToFileSystem anywhere in the app). Kept as a
-#               no-op guard in case that changes. Do not rely on it.
+#   keys      - the Data Protection key ring (Program.cs AddDataProtection ->
+#               PersistKeysToFileSystem). It seals the token in every emailed
+#               password-reset link. Lose it and every link already sitting in a
+#               user's inbox dies -- and they just see "expired link", so nobody
+#               reports it. This exclusion is what lets the ring survive a deploy
+#               AND a rollback. It is load-bearing; do not remove it.
 #   Go.ps1    - the deploy wrapper; belongs in staging, never in a live folder.
 #
 # deploy-manifest.json is deliberately NOT excluded: it rides into live so the

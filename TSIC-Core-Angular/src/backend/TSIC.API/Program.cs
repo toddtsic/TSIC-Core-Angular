@@ -4,6 +4,7 @@ using TSIC.Infrastructure.Repositories;
 using TSIC.Domain.Constants;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.DataProtection;
 using TSIC.Application.Services.Auth;
 using TSIC.Application.Services.Users;
 using TSIC.Application.Services.Shared.Html;
@@ -517,6 +518,33 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options => options.U
 builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
     options.TokenLifespan = TimeSpan.FromHours(1));
 
+// The key ring that seals the token above MUST outlive a restart, or the 1-hour lifespan is a lie.
+//
+// Under IIS the app pool has no user profile, so Data Protection's default discovery finds nowhere
+// to persist keys, falls back to an in-memory ring, and says so only in a startup warning. That ring
+// is regenerated on every pool recycle -- i.e. on every deploy, and on every IIS idle timeout. Each
+// recycle silently invalidates every password-reset link already sitting in a user's inbox: they
+// click it and get "Invalid or expired reset link", which is indistinguishable from a real expiry,
+// so it never gets reported as a bug. (AuthController.ForgotPassword mints the token and emails the
+// link; AuthController.ResetPassword validates it in a LATER request, which is why the key has to
+// survive in between. The admin reset in ChangePasswordService is unaffected -- it mints and
+// consumes the token in one request, so nothing has to persist.)
+//
+// keys\ sits beside the app, is granted Modify to the pool by IIS-Config-{Dev,Prod}/Setup/
+// 03-Create-Directories.ps1, and is excluded from every deploy, backup and rollback copy by
+// scripts/_deploy-common.ps1 -- so the ring survives a deploy and a restore.
+//
+// Development is deliberately left on the framework default: dotnet run has a user profile and
+// already persists to %LOCALAPPDATA%\ASP.NET\DataProtection-Keys, and here ContentRoot IS the source
+// tree -- pointing it at ContentRoot/keys would drop private key XML into the repo.
+if (!builder.Environment.IsDevelopment())
+{
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo(
+            Path.Combine(builder.Environment.ContentRootPath, "keys")))
+        .SetApplicationName("TSIC");
+}
+
 // Frontend URL for building email links (password reset, etc.)
 builder.Services.Configure<FrontendSettings>(builder.Configuration.GetSection("FrontendSettings"));
 
@@ -790,6 +818,22 @@ builder.Host.UseSerilog();
         cfg["JwtSettings:Issuer"] ?? "(unset)",
         cfg["JwtSettings:Audience"] ?? "(unset)",
         Fp4(cfg["JwtSettings:SecretKey"]));
+
+    // Where the Data Protection key ring lives. This is audited because the failure it replaces was
+    // SILENT: an in-memory ring is rebuilt on every pool recycle, invalidating every password-reset
+    // link already in a user's inbox, and the victim just sees "expired link" -- so nothing ever gets
+    // reported. persistedKeys>0 on a later boot is the proof the ring survived a restart. If this ever
+    // reads keyRing=(ephemeral), password reset is quietly broken again.
+    var keyRingDir = hostEnv.IsDevelopment()
+        ? null
+        : Path.Combine(hostEnv.ContentRootPath, "keys");
+    bootLog.Information(
+        "[STARTUP-CONFIG] dataProtection: keyRing={KeyRing} persistedKeys={KeyCount} resetTokenLifespan={Lifespan}",
+        keyRingDir ?? "(dev default: %LOCALAPPDATA%)",
+        keyRingDir is not null && Directory.Exists(keyRingDir)
+            ? Directory.GetFiles(keyRingDir, "key-*.xml").Length
+            : 0,
+        "1h");
 
     bootLog.Information(
         "[STARTUP-CONFIG] adn: defaultMode={Mode} sandboxLoginIdFp={SandboxFp} sandboxTransactionKeyFp={SandboxTxFp} prodCredsSource=customer.AdnLoginId(per-job)",
