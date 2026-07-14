@@ -14,8 +14,6 @@ export type JobConfigPlayerDto = {
     playerRegCovid19Waiver: string | null;
     uslaxNumberValidThroughDate: string | null;
     coreRegformPlayer?: string | null;
-    playerRegMultiPlayerDiscountMin?: number | null;
-    playerRegMultiPlayerDiscountPercent?: number | null;
     bOfferPlayerRegsaverInsurance?: boolean | null;
     momLabel?: string | null;
     dadLabel?: string | null;

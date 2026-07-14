@@ -8,6 +8,7 @@ export type ClubTeamSummaryDto = {
     agegroupName: string;
     feeBase: number;
     feeDiscount: number;
+    feeDiscountMp: number;
     feeLatefee: number;
     feeTotal: number;
     paidTotal: number;

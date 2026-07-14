@@ -231,8 +231,6 @@ public record JobConfigPlayerDto
 
     // SuperUser-only
     public string? CoreRegformPlayer { get; init; }
-    public int? PlayerRegMultiPlayerDiscountMin { get; init; }
-    public int? PlayerRegMultiPlayerDiscountPercent { get; init; }
     public bool? BOfferPlayerRegsaverInsurance { get; init; }
     public string? MomLabel { get; init; }
     public string? DadLabel { get; init; }
@@ -254,8 +252,6 @@ public record UpdateJobConfigPlayerRequest
 
     // SuperUser-only (ignored for non-super callers)
     public string? CoreRegformPlayer { get; init; }
-    public int? PlayerRegMultiPlayerDiscountMin { get; init; }
-    public int? PlayerRegMultiPlayerDiscountPercent { get; init; }
     public bool? BOfferPlayerRegsaverInsurance { get; init; }
     public string? MomLabel { get; init; }
     public string? DadLabel { get; init; }

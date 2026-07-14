@@ -32,8 +32,6 @@ export class PlayerTabComponent implements OnInit {
 
   // SuperUser-only
   coreRegformPlayer = linkedSignal(() => this.svc.player()?.coreRegformPlayer ?? null);
-  playerRegMultiPlayerDiscountMin = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountMin ?? null);
-  playerRegMultiPlayerDiscountPercent = linkedSignal(() => this.svc.player()?.playerRegMultiPlayerDiscountPercent ?? null);
   bOfferPlayerRegsaverInsurance = linkedSignal(() => this.svc.player()?.bOfferPlayerRegsaverInsurance ?? null);
   momLabel = linkedSignal(() => this.svc.player()?.momLabel ?? null);
   dadLabel = linkedSignal(() => this.svc.player()?.dadLabel ?? null);
@@ -55,8 +53,6 @@ export class PlayerTabComponent implements OnInit {
     };
     if (this.svc.isSuperUser()) {
       req.coreRegformPlayer = p.coreRegformPlayer ?? null;
-      req.playerRegMultiPlayerDiscountMin = p.playerRegMultiPlayerDiscountMin ?? null;
-      req.playerRegMultiPlayerDiscountPercent = p.playerRegMultiPlayerDiscountPercent ?? null;
       req.bOfferPlayerRegsaverInsurance = p.bOfferPlayerRegsaverInsurance ?? null;
       req.momLabel = p.momLabel ?? null;
       req.dadLabel = p.dadLabel ?? null;
@@ -101,8 +97,6 @@ export class PlayerTabComponent implements OnInit {
     };
     if (this.svc.isSuperUser()) {
       req.coreRegformPlayer = this.coreRegformPlayer();
-      req.playerRegMultiPlayerDiscountMin = this.playerRegMultiPlayerDiscountMin();
-      req.playerRegMultiPlayerDiscountPercent = this.playerRegMultiPlayerDiscountPercent();
       req.bOfferPlayerRegsaverInsurance = this.bOfferPlayerRegsaverInsurance();
       req.momLabel = this.momLabel();
       req.dadLabel = this.dadLabel();

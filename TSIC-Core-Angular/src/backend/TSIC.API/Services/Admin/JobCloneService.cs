@@ -936,8 +936,9 @@ public sealed class JobCloneService : IJobCloneService
             PlayerRegRefundPolicy = source.PlayerRegRefundPolicy,
             PlayerRegReleaseOfLiability = source.PlayerRegReleaseOfLiability,
             PlayerRegCodeOfConduct = source.PlayerRegCodeOfConduct,
-            PlayerRegMultiPlayerDiscountMin = source.PlayerRegMultiPlayerDiscountMin,
-            PlayerRegMultiPlayerDiscountPercent = source.PlayerRegMultiPlayerDiscountPercent,
+            // PlayerReg_MultiPlayerDiscount_{Min,Percent} deliberately NOT cloned — the setting was
+            // retired (CR-013). Carrying a value nothing consumes into every new season is how it
+            // survived unnoticed for years. The columns stay on Jobs; the setting does not come back.
             AdultRegConfirmationEmail = source.AdultRegConfirmationEmail,
             AdultRegConfirmationOnScreen = source.AdultRegConfirmationOnScreen,
             AdultRegRefundPolicy = source.AdultRegRefundPolicy,

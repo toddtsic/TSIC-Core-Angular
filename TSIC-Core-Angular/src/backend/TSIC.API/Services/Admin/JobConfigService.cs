@@ -276,9 +276,14 @@ public class JobConfigService : IJobConfigService
         // SuperUser-only
         if (isSuperUser)
         {
+            // NOTE: PlayerReg_MultiPlayerDiscount_{Min,Percent} are deliberately NOT written here.
+            // The setting was retired (CR-013): it saved, displayed and cloned but no charge path ever
+            // read it, so a director could configure a sibling discount and watch it never get applied.
+            // The columns remain on Jobs (untouched, no DDL) and the fee component FeeDiscountMp is a
+            // live, always-subtracted term in FeeMath — so a real multi-player discount can be built
+            // later without re-opening the fee formula. What must NOT come back is a config field that
+            // nothing consumes.
             job.CoreRegformPlayer = req.CoreRegformPlayer;
-            job.PlayerRegMultiPlayerDiscountMin = req.PlayerRegMultiPlayerDiscountMin;
-            job.PlayerRegMultiPlayerDiscountPercent = req.PlayerRegMultiPlayerDiscountPercent;
             if (req.BOfferPlayerRegsaverInsurance.HasValue)
                 job.BOfferPlayerRegsaverInsurance = req.BOfferPlayerRegsaverInsurance.Value;
             job.MomLabel = req.MomLabel;
@@ -744,8 +749,6 @@ public class JobConfigService : IJobConfigService
         UslaxNumberValidThroughDate = job.UslaxNumberValidThroughDate,
         // SuperUser-only
         CoreRegformPlayer = isSuperUser ? job.CoreRegformPlayer : null,
-        PlayerRegMultiPlayerDiscountMin = isSuperUser ? job.PlayerRegMultiPlayerDiscountMin : null,
-        PlayerRegMultiPlayerDiscountPercent = isSuperUser ? job.PlayerRegMultiPlayerDiscountPercent : null,
         BOfferPlayerRegsaverInsurance = isSuperUser ? job.BOfferPlayerRegsaverInsurance : null,
         MomLabel = isSuperUser ? job.MomLabel : null,
         DadLabel = isSuperUser ? job.DadLabel : null,

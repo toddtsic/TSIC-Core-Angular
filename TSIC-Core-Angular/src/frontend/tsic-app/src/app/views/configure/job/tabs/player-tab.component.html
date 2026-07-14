@@ -131,18 +131,6 @@
               [ngModel]="coreRegformPlayer()"
               (ngModelChange)="coreRegformPlayer.set($event); onFieldChange()" />
           </div>
-          <div class="col-md-3">
-            <label class="field-label">Multi-Player Min</label>
-            <input type="number" class="field-input"
-              [ngModel]="playerRegMultiPlayerDiscountMin()"
-              (ngModelChange)="playerRegMultiPlayerDiscountMin.set($event); onFieldChange()" />
-          </div>
-          <div class="col-md-3">
-            <label class="field-label">Discount %</label>
-            <input type="number" class="field-input" step="0.01"
-              [ngModel]="playerRegMultiPlayerDiscountPercent()"
-              (ngModelChange)="playerRegMultiPlayerDiscountPercent.set($event); onFieldChange()" />
-          </div>
         </div>
         <div class="row g-2">
           <div class="col-md-4">
