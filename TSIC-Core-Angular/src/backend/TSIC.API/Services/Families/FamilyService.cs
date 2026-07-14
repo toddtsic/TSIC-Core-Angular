@@ -509,31 +509,29 @@ public sealed class FamilyService : IFamilyService
         return new FamilyRegistrationResponse { Success = true, FamilyUserId = user.Id, FamilyId = Guid.Empty, Message = null };
     }
 
-    public async Task<FamilyRegistrationResponse> UpdateAsync(FamilyUpdateRequest request)
+    // familyUserId comes from the caller's JWT (ClaimTypes.NameIdentifier), never from the request body —
+    // it is the only thing that decides which family gets rewritten.
+    public async Task<FamilyRegistrationResponse> UpdateAsync(string familyUserId, FamilyUpdateRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Username))
+        if (string.IsNullOrWhiteSpace(familyUserId))
         {
-            return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "Username is required" };
+            return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "User not found" };
         }
 
         using var scope = new TransactionScope(TransactionScopeAsyncFlowOption.Enabled);
-        var user = await _userManager.FindByNameAsync(request.Username);
-        if (user == null) return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "User not found" };
+        var appUser = await _userManager.FindByIdAsync(familyUserId);
+        if (appUser == null) return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "User not found" };
 
-        var appUser = await _userManager.FindByIdAsync(user.Id);
-        if (appUser != null)
-        {
-            appUser.StreetAddress = request.Address.StreetAddress;
-            appUser.City = request.Address.City;
-            appUser.State = request.Address.State;
-            appUser.PostalCode = request.Address.PostalCode;
-            appUser.Cellphone = request.Primary.Cellphone;
-            appUser.Phone = request.Primary.Cellphone;
-            if (string.IsNullOrWhiteSpace(appUser.LebUserId)) appUser.LebUserId = TsicConstants.SuperUserId;
-            await _userManager.UpdateAsync(appUser);
-        }
+        appUser.StreetAddress = request.Address.StreetAddress;
+        appUser.City = request.Address.City;
+        appUser.State = request.Address.State;
+        appUser.PostalCode = request.Address.PostalCode;
+        appUser.Cellphone = request.Primary.Cellphone;
+        appUser.Phone = request.Primary.Cellphone;
+        if (string.IsNullOrWhiteSpace(appUser.LebUserId)) appUser.LebUserId = TsicConstants.SuperUserId;
+        await _userManager.UpdateAsync(appUser);
 
-        var fam = await _familiesRepo.GetByFamilyUserIdAsync(user.Id);
+        var fam = await _familiesRepo.GetByFamilyUserIdAsync(familyUserId);
         if (fam == null) return new FamilyRegistrationResponse { Success = false, FamilyUserId = null, FamilyId = null, Message = "Family record not found" };
 
         fam.MomFirstName = request.Primary.FirstName;
@@ -568,7 +566,7 @@ public sealed class FamilyService : IFamilyService
         await _familyMemberRepo.SaveChangesAsync();
 
         scope.Complete();
-        return new FamilyRegistrationResponse { Success = true, FamilyUserId = user.Id, FamilyId = Guid.Empty, Message = null };
+        return new FamilyRegistrationResponse { Success = true, FamilyUserId = familyUserId, FamilyId = Guid.Empty, Message = null };
     }
 
     public async Task<ChildOperationResponse> AddChildAsync(string familyUserId, ChildDto request)

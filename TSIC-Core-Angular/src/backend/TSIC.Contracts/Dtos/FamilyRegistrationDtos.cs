@@ -46,9 +46,9 @@ public record FamilyRegistrationResponse
     public string? Message { get; init; }
 }
 
+// No Username: the family being updated is resolved from the caller's JWT, not the request body.
 public record FamilyUpdateRequest
 {
-    public required string Username { get; init; }
     public required PersonDto Primary { get; init; }
     public required PersonDto Secondary { get; init; }
     public required AddressDto Address { get; init; }

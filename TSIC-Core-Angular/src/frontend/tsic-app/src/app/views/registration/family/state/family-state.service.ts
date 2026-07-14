@@ -1,6 +1,5 @@
 import { Injectable, inject, signal, computed, DestroyRef } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { AuthService } from '@infrastructure/services/auth.service';
 import { FamilyService } from '@infrastructure/services/family.service';
 import type { FamilyRegistrationRequest, FamilyUpdateRequest, FamilyProfileResponse } from '@core/api';
 import { formatHttpError } from '../../shared/utils/error-utils';
@@ -46,7 +45,6 @@ const EMPTY_ADDRESS: FamilyAddress = { address1: '', city: '', state: '', postal
 @Injectable({ providedIn: 'root' })
 export class FamilyStateService {
     private readonly familyService = inject(FamilyService);
-    private readonly authService = inject(AuthService);
     private readonly destroyRef = inject(DestroyRef);
 
     // ── Mode ────────────────────────────────────────────────────────
@@ -277,9 +275,7 @@ export class FamilyStateService {
         if (this._mode() !== 'edit') return;
         this._profileSaving.set(true);
         this._profileSaved.set(false);
-        const username = this._username() || this.authService.getCurrentUser()?.username || '';
         this.familyService.updateFamily({
-            username,
             primary: { firstName: this._parent1().firstName, lastName: this._parent1().lastName, cellphone: this._parent1().phone, email: this._parent1().email },
             secondary: { firstName: this._parent2().firstName, lastName: this._parent2().lastName, cellphone: this._parent2().phone, email: this._parent2().email },
             address: { streetAddress: this._address().address1, city: this._address().city, state: this._address().state, postalCode: this._address().postalCode },
@@ -336,8 +332,7 @@ export class FamilyStateService {
         };
 
         if (this._mode() === 'edit') {
-            const username = this._username() || this.authService.getCurrentUser()?.username || '';
-            const req: FamilyUpdateRequest = { username, primary, secondary, address, children };
+            const req: FamilyUpdateRequest = { primary, secondary, address, children };
             this.familyService.updateFamily(req)
                 .pipe(takeUntilDestroyed(this.destroyRef))
                 .subscribe({

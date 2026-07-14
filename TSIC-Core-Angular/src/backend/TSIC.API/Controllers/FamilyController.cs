@@ -99,12 +99,17 @@ public class FamilyController : ControllerBase
     }
 
     [HttpPut("update")]
+    [Authorize]
     [ProducesResponseType(typeof(FamilyRegistrationResponse), 200)]
     [ProducesResponseType(typeof(FamilyRegistrationResponse), 400)]
+    [ProducesResponseType(401)]
     [ProducesResponseType(typeof(FamilyRegistrationResponse), 404)]
     public async Task<IActionResult> Update([FromBody] FamilyUpdateRequest request)
     {
-        var result = await _familyService.UpdateAsync(request);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var result = await _familyService.UpdateAsync(userId, request);
         if (!result.Success)
         {
             // Decide NotFound vs BadRequest based on message patterns

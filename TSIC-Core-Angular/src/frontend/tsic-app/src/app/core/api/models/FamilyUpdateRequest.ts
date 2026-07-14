@@ -6,7 +6,6 @@ import type { AddressDto } from './AddressDto';
 import type { ChildDto } from './ChildDto';
 import type { PersonDto } from './PersonDto';
 export type FamilyUpdateRequest = {
-    username: string;
     primary: PersonDto;
     secondary: PersonDto;
     address: AddressDto;
