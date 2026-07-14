@@ -95,8 +95,12 @@ import { JobService } from '@infrastructure/services/job.service';
                 }
               } @else {
                 <div class="review-player-teams">
-                  @for (t of getTeamsForPlayer(player.userId); track t) {
-                    <span class="review-team-pill">{{ t }}</span>
+                  @for (t of getTeamEntriesForPlayer(player.userId); track t.teamId) {
+                    <span class="review-team-pill">
+                      @if (t.club) { <span class="team-seg team-club">{{ t.club }}</span> }
+                      @if (t.showAgegroup) { <span class="team-seg team-age">{{ t.agegroup }}</span> }
+                      <span class="team-seg team-name">{{ t.team }}</span>
+                    </span>
                   }
                 </div>
               }
@@ -254,15 +258,28 @@ import { JobService } from '@infrastructure/services/job.service';
       }
 
       .review-team-pill {
+        display: inline-flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: var(--space-1);
         font-size: var(--font-size-sm);
-        font-weight: var(--font-weight-semibold);
         padding: 2px var(--space-2);
         border-radius: var(--radius-full);
         background: rgba(var(--bs-primary-rgb), 0.1);
         color: var(--bs-primary);
         border: 1px solid rgba(var(--bs-primary-rgb), 0.2);
-        white-space: nowrap;
       }
+
+      /* Segment separators: a middot before every segment after the first. */
+      .team-seg + .team-seg::before {
+        content: '·';
+        margin-right: var(--space-1);
+        opacity: 0.55;
+      }
+
+      .team-club { font-weight: var(--font-weight-bold); }
+      .team-age { opacity: 0.85; }
+      .team-name { font-weight: var(--font-weight-semibold); }
 
       .review-events-list {
         list-style: none;
@@ -428,11 +445,29 @@ export class ReviewStepComponent {
             }));
     }
 
-    getTeamsForPlayer(playerId: string): string[] {
-        // Shows the team's real name; a player actually waitlisted at payment lands on the
-        // twin team (whose stored name already is "WAITLIST - {name}").
+    /**
+     * Composed team lines for the review summary: club, age group, and team name.
+     *
+     * The club segment comes from the team's ClubrepRegistrationid → Registrations.ClubName
+     * route (surfaced on the DTO as clubName). A team with no ClubrepRegistrationid has no
+     * club name, so the segment is simply omitted — clubless events show age group + team only.
+     *
+     * Team name uses getTeamDisplayName (the real stored name; a player waitlisted at payment
+     * lands on the twin team whose name already is "WAITLIST - {name}"). The age-group segment
+     * is dropped when it would just repeat the team name (e.g. a team literally named "2029").
+     */
+    getTeamEntriesForPlayer(
+        playerId: string
+    ): { teamId: string; club: string | null; agegroup: string | null; team: string; showAgegroup: boolean }[] {
         const teams = this.state.eligibility.selectedTeams()[playerId] ?? [];
-        return teams.map(tid => this.teamService.getTeamDisplayName(tid));
+        return teams.map(tid => {
+            const t = this.teamService.getTeamById(tid);
+            const team = this.teamService.getTeamDisplayName(tid);
+            const club = (t?.clubName || '').trim() || null;
+            const agegroup = (t?.agegroupName || '').trim() || null;
+            const showAgegroup = !!agegroup && agegroup.toLowerCase() !== team.trim().toLowerCase();
+            return { teamId: tid, club, agegroup, team, showAgegroup };
+        });
     }
 
     getBaseFeeForPlayer(playerId: string): number | null {
