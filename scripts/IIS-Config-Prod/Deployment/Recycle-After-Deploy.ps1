@@ -284,16 +284,26 @@ Write-Host ""
 Write-Host "Step 5: Verifying sites are serving..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3
 
+# A failure HERE is not the same as a failure in Step 3. The swap completed and
+# the pools started; it is the HTTP check that came back unhappy. That is usually
+# a genuinely broken site -- but it can also be the check itself (this box
+# resolving its own public hostname back through NAT). So say precisely what is
+# known, and do not stampede an operator into rolling back a healthy site.
+$verifyNote = @(
+    "The swap COMPLETED and the pools started - this is the verification step."
+    "Check by hand before rolling back: open the URL from another machine."
+    "  - Site genuinely down    -> roll back with the command below."
+    "  - Site loads fine        -> the deploy is good and this check is wrong."
+) -join "`n  "
+
 if ($doApi) {
     if (-not (Test-TsicEndpoint -Url "https://$ApiHost/api/jobs/tsic")) {
-        Stop-DeployWithFailure -Step "Step 5 (API is not serving)" `
-            -Detail "The API did not answer after the swap. The new build is live and not responding."
+        Stop-DeployWithFailure -Step "Step 5 (API did not answer)" -Detail $verifyNote
     }
 }
 if ($doAngular) {
     if (-not (Test-TsicEndpoint -Url "https://$AngularHost/" -Retries 3)) {
-        Stop-DeployWithFailure -Step "Step 5 (Angular is not serving)" `
-            -Detail "The frontend did not answer after the swap."
+        Stop-DeployWithFailure -Step "Step 5 (Angular did not answer)" -Detail $verifyNote
     }
 }
 Write-Host ""

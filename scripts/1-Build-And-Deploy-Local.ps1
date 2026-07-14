@@ -312,13 +312,23 @@ Write-Host ""
 Write-Host "Step 9: Verifying sites are serving..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3
 
+# A failure HERE is not a failure of the deploy itself: the files synced and the
+# pools started, and it is the HTTP check that came back unhappy. Usually that
+# means a genuinely broken site -- but it can also be the check (this box
+# resolving its own public hostname). Say what is known; don't stampede a
+# rollback of a healthy site.
+$verifyNote = @(
+    "The deploy COMPLETED and the pools started - this is the verification step."
+    "Check by hand before rolling back: open the URL in a browser."
+    "  - Site genuinely down -> roll back with the command below."
+    "  - Site loads fine     -> the deploy is good and this check is wrong."
+) -join "`n  "
+
 if (-not (Test-TsicEndpoint -Url "https://$ApiHost/api/jobs/tsic")) {
-    Stop-DeployWithFailure -Step "Step 9 (API is not serving)" `
-        -Detail "The API did not return a success response after the deploy."
+    Stop-DeployWithFailure -Step "Step 9 (API did not answer)" -Detail $verifyNote
 }
 if (-not (Test-TsicEndpoint -Url "https://$AngularHost/" -Retries 3)) {
-    Stop-DeployWithFailure -Step "Step 9 (Angular is not serving)" `
-        -Detail "The frontend did not return a success response after the deploy."
+    Stop-DeployWithFailure -Step "Step 9 (Angular did not answer)" -Detail $verifyNote
 }
 Write-Host ""
 
