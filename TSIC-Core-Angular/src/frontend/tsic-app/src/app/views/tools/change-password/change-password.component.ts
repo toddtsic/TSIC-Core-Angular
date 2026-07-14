@@ -31,6 +31,23 @@ const MAX_ACCOUNTS = 50;
 const MIN_PASSWORD_LENGTH = 6;
 
 /**
+ * Every sortable column. `job` sorts on Customer then Event, which is the order the cell reads in and
+ * the order a caller names them in. `rowNo` is the SERVER's order, and it is on the list because a
+ * sorted table needs a way back to the grouping it destroyed.
+ */
+type SortKey =
+  | 'rowNo' | 'job'
+  | 'familyUserName' | 'familyEmail'
+  | 'lastName' | 'firstName' | 'roleName' | 'userName' | 'email' | 'phone'
+  | 'momLastName' | 'momFirstName' | 'momEmail' | 'momPhone'
+  | 'dadLastName' | 'dadFirstName' | 'dadEmail' | 'dadPhone';
+
+/** Phones compare as digits: `(845) 674-7573` and `845-674-7573` are the same number. */
+function digits(value: string | null | undefined): string {
+  return (value ?? '').replace(/\D/g, '');
+}
+
+/**
  * The contacts a PLAYER row can edit are the household's — mother and father, on the `Families` row.
  * There is deliberately no family-login field: the family login IS the mother, so the server brings it
  * to parity with her rather than letting an admin type into it separately and drift the two apart.
@@ -129,6 +146,116 @@ export class ChangePasswordComponent implements OnInit {
   readonly rows = signal<ChangePasswordSearchResultDto[]>([]);
   readonly searching = signal(false);
   readonly searched = signal(false);
+
+  // ── Sorting ──────────────────────────────────────────────────────────────────
+  //
+  // Client-side, over the rows already in hand. The server has ALREADY capped the result set, so there
+  // is nothing below the fold for a sort to reach — sorting on the server would re-order the same rows
+  // at the cost of a round trip and a spinner.
+  //
+  // The DEFAULT order is not "unsorted", and it is not an accident: the server returns
+  // `UserName, LastName, FirstName, CustomerName, JobName`, which is what puts every row of one login
+  // TOGETHER. That grouping is how you see, at a glance, that a household has four logins. Any sort
+  // destroys it — legitimately, that is what a sort is for — so the cycle is asc → desc → BACK TO THE
+  // SERVER'S ORDER. A third click returns the grouping instead of stranding Ann in a shuffled table
+  // with no way home.
+
+  readonly sortKey = signal<SortKey | null>(null);
+  readonly sortDir = signal<'asc' | 'desc'>('asc');
+
+  /**
+   * The row number, and it SURVIVES THE SORT — it is stamped in the server's order when the results
+   * land, and from then on it belongs to the ROW, not to the row's current position. Sort by phone and
+   * #4 is still #4, four rows down.
+   *
+   * That is the only version of this worth having. A number that renumbers on every sort is just the
+   * position restated, and it cannot do the one job a row number has here: Ann is on the phone. She
+   * says "row 12" and means a registration, not a slot — and by the time anyone looks, the table may
+   * have been sorted twice.
+   *
+   * Keyed on `registrationId`, the same identity `trackRow` uses.
+   */
+  private readonly rowNumbers = computed(() => {
+    const numbers = new Map<string, number>();
+    this.rows().forEach((row, i) => numbers.set(row.registrationId, i + 1));
+    return numbers;
+  });
+
+  rowNo(row: ChangePasswordSearchResultDto): number {
+    return this.rowNumbers().get(row.registrationId) ?? 0;
+  }
+
+  /** How each sortable column reads its value. Phones compare as DIGITS — punctuation is not data. */
+  private readonly sortValueOf: Record<SortKey, (r: ChangePasswordSearchResultDto) => string> = {
+    // Sorting by # is how you get the server's grouping back — every login's rows together — without
+    // remembering that a third click on some other column would also have done it.
+    rowNo: r => String(this.rowNo(r)).padStart(6, '0'),
+    job: r => `${r.customerName ?? ''} ${r.jobName ?? ''}`,
+    familyUserName: r => r.familyUserName ?? '',
+    familyEmail: r => r.familyEmail ?? '',
+    lastName: r => r.lastName ?? '',
+    firstName: r => r.firstName ?? '',
+    roleName: r => r.roleName ?? '',
+    userName: r => r.userName ?? '',
+    email: r => r.email ?? '',
+    phone: r => digits(r.phone),
+    momLastName: r => r.momLastName ?? '',
+    momFirstName: r => r.momFirstName ?? '',
+    momEmail: r => r.momEmail ?? '',
+    momPhone: r => digits(r.momPhone),
+    dadLastName: r => r.dadLastName ?? '',
+    dadFirstName: r => r.dadFirstName ?? '',
+    dadEmail: r => r.dadEmail ?? '',
+    dadPhone: r => digits(r.dadPhone)
+  };
+
+  /** What the table renders. `rows` stays the server's answer, untouched — the sort is a VIEW of it. */
+  readonly sortedRows = computed(() => {
+    const key = this.sortKey();
+    const rows = this.rows();
+    if (!key) return rows;
+
+    const read = this.sortValueOf[key];
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
+
+    return [...rows].sort((a, b) => {
+      const av = read(a);
+      const bv = read(b);
+
+      // Blank sorts LAST in both directions. A column of em-dashes at the top of a descending sort is
+      // the emptiest possible answer to "show me the biggest" — and "no father on file" is data, not a
+      // value that belongs at either extreme.
+      if (!av && !bv) return 0;
+      if (!av) return 1;
+      if (!bv) return -1;
+
+      return av.localeCompare(bv, undefined, { numeric: true, sensitivity: 'base' }) * dir;
+    });
+  });
+
+  /** asc → desc → back to the server's order. */
+  sortBy(key: SortKey): void {
+    if (this.sortKey() !== key) {
+      this.sortKey.set(key);
+      this.sortDir.set('asc');
+    } else if (this.sortDir() === 'asc') {
+      this.sortDir.set('desc');
+    } else {
+      this.sortKey.set(null);
+      this.sortDir.set('asc');
+    }
+  }
+
+  /** For `aria-sort` — a screen reader has no chevron to look at. */
+  ariaSort(key: SortKey): 'ascending' | 'descending' | 'none' {
+    if (this.sortKey() !== key) return 'none';
+    return this.sortDir() === 'asc' ? 'ascending' : 'descending';
+  }
+
+  sortIcon(key: SortKey): string {
+    if (this.sortKey() !== key) return 'bi-arrow-down-up cp-sort-idle';
+    return this.sortDir() === 'asc' ? 'bi-sort-down-alt' : 'bi-sort-up-alt';
+  }
 
   /**
    * At least one of the eight text criteria is typed. The ROLE does not count: it is preselected the
