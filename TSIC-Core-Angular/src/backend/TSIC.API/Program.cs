@@ -730,19 +730,31 @@ builder.Services.AddHsts(options =>
     options.IncludeSubDomains = true;
 });
 
-// CORS for Angular
+// CORS. Origins are topology, so they live in appsettings.{Environment}.json — the Ionic
+// dev-server origin belongs in Development/Staging and must never reach the Production binary.
+// Each overlay carries the FULL list: .NET merges configuration arrays by index, so a partial
+// overlay silently leaves the base file's trailing entries in place.
+//
+// Wildcard patterns need SetIsOriginAllowedToAllowWildcardSubdomains() to take effect, and the
+// bare domain is listed separately because *.teamsportsinfo.com does not match it. Customer-
+// branded subdomains (mylaxclub.teamsportsinfo.com) hit the catchall site post-cutover.
+//
+// The mobile app's device origins (capacitor://localhost on iOS, https://localhost on Android)
+// appear in every environment: it runs with CapacitorHttp disabled, so its requests leave the
+// WebView as ordinary CORS-checked XHR even on a real handset, not just under `ionic serve`.
+var corsOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+if (corsOrigins.Length == 0)
+{
+    throw new InvalidOperationException(
+        "Cors:AllowedOrigins is missing or empty. Every appsettings.{Environment}.json must "
+        + "declare the complete origin list.");
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularApp", policy =>
     {
-        // HTTPS-only. Allow any *.teamsportsinfo.com subdomain (customer-branded subdomains
-        // like mylaxclub.teamsportsinfo.com hit the catchall site post-cutover). Wildcard
-        // pattern needs SetIsOriginAllowedToAllowWildcardSubdomains() to take effect; bare
-        // domain listed separately because *.teamsportsinfo.com does not match it.
-        policy.WithOrigins(
-                  "https://localhost:4200",
-                  "https://*.teamsportsinfo.com",
-                  "https://teamsportsinfo.com")
+        policy.WithOrigins(corsOrigins)
               .SetIsOriginAllowedToAllowWildcardSubdomains()
               .AllowAnyHeader()
               .AllowAnyMethod()
