@@ -89,10 +89,16 @@ export class ConfirmationStepComponent {
         this.emailMessage.set(null);
 
         this.api.resendConfirmationEmail(regId).subscribe({
-            next: () => {
+            // A 200 does not mean mail went out — the server reports `sent` so a send that
+            // reached nobody is not dressed up as a success.
+            next: (resp) => {
                 this.emailSending.set(false);
-                this.emailError.set(false);
-                this.emailMessage.set('Confirmation email sent successfully.');
+                this.emailError.set(!resp.sent);
+                this.emailMessage.set(
+                    resp.message ?? (resp.sent
+                        ? 'Confirmation email sent successfully.'
+                        : 'No confirmation email could be sent.'),
+                );
             },
             error: () => {
                 this.emailSending.set(false);

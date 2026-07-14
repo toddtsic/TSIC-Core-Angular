@@ -63,15 +63,22 @@ export class AdultRegistrationService {
         return this.http.post<AdultRegistrationResponse>(`${this.apiUrl}/register-existing`, request);
     }
 
+    /**
+     * Completes the registration: fetches the confirmation content AND triggers the registrant's
+     * confirmation email server-side. POST because it is the wizard's terminal action with a side
+     * effect, not a cacheable read. Idempotent — the server guards on BConfirmationSent.
+     */
     getConfirmation(registrationId: string, context?: HttpContext) {
-        return this.http.get<AdultConfirmationResponse>(
+        return this.http.post<AdultConfirmationResponse>(
             `${this.apiUrl}/confirmation/${registrationId}`,
+            {},
             context ? { context } : undefined,
         );
     }
 
     resendConfirmationEmail(registrationId: string) {
-        return this.http.post<{ message: string }>(`${this.apiUrl}/confirmation/${registrationId}/resend`, {});
+        return this.http.post<{ sent: boolean; message: string }>(
+            `${this.apiUrl}/confirmation/${registrationId}/resend`, {});
     }
 
     preSubmit(jobPath: string, request: PreSubmitAdultRegRequestDto) {

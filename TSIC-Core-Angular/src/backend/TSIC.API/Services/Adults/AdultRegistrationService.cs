@@ -35,6 +35,7 @@ public class AdultRegistrationService : IAdultRegistrationService
     private readonly IUsLaxService _usLax;
     private readonly IUsLaxIdentityVerificationService _usLaxVerify;
     private readonly IJobPaymentFeaturesService _paymentFeatures;
+    private readonly ILogger<AdultRegistrationService> _logger;
 
     private static readonly Guid CreditCardPaymentMethodId =
         Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
@@ -53,7 +54,8 @@ public class AdultRegistrationService : IAdultRegistrationService
         IJobRegistrationCapabilities capabilities,
         IUsLaxService usLax,
         IUsLaxIdentityVerificationService usLaxVerify,
-        IJobPaymentFeaturesService paymentFeatures)
+        IJobPaymentFeaturesService paymentFeatures,
+        ILogger<AdultRegistrationService> logger)
     {
         _repo = repo;
         _metadataService = metadataService;
@@ -69,6 +71,7 @@ public class AdultRegistrationService : IAdultRegistrationService
         _usLax = usLax;
         _usLaxVerify = usLaxVerify;
         _paymentFeatures = paymentFeatures;
+        _logger = logger;
     }
 
     /// <summary>
@@ -511,6 +514,22 @@ public class AdultRegistrationService : IAdultRegistrationService
         };
     }
 
+    /// <summary>
+    /// Renders the wizard's "Registration Complete!" content — and sends the confirmation email
+    /// off the same load.
+    ///
+    /// This is the single chokepoint for the adult confirmation email, because it is exactly 1:1
+    /// with the claim the screen makes. Every completion path reaches it (new account or signed-in,
+    /// crossed with owes-a-fee or owes-nothing) and no failure path does: a declined card diverts to
+    /// the "payment not completed" state and never calls here. So the screen cannot promise an email
+    /// that was not sent — the promise and the send are one event, by construction.
+    ///
+    /// Hanging the send off payment success instead would miss the free coach, which is both the
+    /// common case and the one legacy always mailed (it sent inline in the registration POST, with
+    /// no payment involved at all). Payment state rides in the BODY, not in whether we send: paid,
+    /// $0, and check-in-transit are all accepted registrations, and !F-ACCOUNTING states where the
+    /// money stands.
+    /// </summary>
     public async Task<AdultConfirmationResponse> GetConfirmationAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         var reg = await _repo.GetRegistrationWithJobAsync(registrationId, cancellationToken)
@@ -525,6 +544,19 @@ public class AdultRegistrationService : IAdultRegistrationService
         // are resolved to real content (same pattern as team + player wizards).
         var confirmationHtml = await SubstituteConfirmationAsync(reg, template, emailMode: false);
 
+        // BConfirmationSent guards this, so a refresh, a re-render, or the back button never resends.
+        // A mail failure must never cost the registrant their confirmation screen.
+        try
+        {
+            await SendConfirmationEmailInternalAsync(reg, roleType, forceResend: false, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "[AdultConfirmation] Send threw for registration {RegistrationId}; confirmation screen still served.",
+                registrationId);
+        }
+
         return new AdultConfirmationResponse
         {
             RegistrationId = registrationId,
@@ -533,21 +565,50 @@ public class AdultRegistrationService : IAdultRegistrationService
         };
     }
 
-    public async Task SendConfirmationEmailAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Manual resend. Always sends — the registrant explicitly asked — so it bypasses the
+    /// BConfirmationSent guard. Returns false when nothing actually went out, so the endpoint can
+    /// say so rather than report a success that never happened.
+    /// </summary>
+    public async Task<bool> SendConfirmationEmailAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         var reg = await _repo.GetRegistrationWithJobAsync(registrationId, cancellationToken)
             ?? throw new KeyNotFoundException($"Registration {registrationId} not found.");
 
-        var roleType = ResolveRoleTypeFromId(reg.RoleId);
-        var template = GetConfirmationEmail(reg.Job, roleType);
-        if (string.IsNullOrWhiteSpace(template)) return;
+        return await SendConfirmationEmailInternalAsync(
+            reg, ResolveRoleTypeFromId(reg.RoleId), forceResend: true, cancellationToken);
+    }
+
+    /// <summary>
+    /// Builds and sends the confirmation, then stamps BConfirmationSent across the registrant's whole
+    /// (user, job, role) group — a multi-team coach is N rows but ONE email, whose !F-TEAMS block
+    /// already lists every team. Returns true iff mail actually went out.
+    /// </summary>
+    private async Task<bool> SendConfirmationEmailInternalAsync(
+        Registrations reg, AdultRoleType roleType, bool forceResend, CancellationToken cancellationToken)
+    {
+        if (!forceResend && reg.BConfirmationSent) return false;
 
         var userEmail = reg.User?.Email;
-        if (string.IsNullOrWhiteSpace(userEmail)) return;
+        if (string.IsNullOrWhiteSpace(userEmail))
+        {
+            _logger.LogWarning(
+                "[AdultConfirmation] No email on user {UserId}; registration {RegistrationId} not notified.",
+                reg.UserId, reg.RegistrationId);
+            return false;
+        }
 
-        // Resolve tokens before sending.
+        // A blank job template used to mean "send nothing", silently. Legacy had no such hole: it
+        // ignored the DB template for staff and used a hard-coded body. Fall back to the same, so the
+        // jobs whose adult template was never configured still notify their coaches.
+        var template = GetConfirmationEmail(reg.Job, roleType);
+        if (string.IsNullOrWhiteSpace(template))
+        {
+            template = DefaultConfirmationEmailBody(roleType);
+        }
+
         var emailHtml = await SubstituteConfirmationAsync(reg, template, emailMode: true);
-        if (string.IsNullOrWhiteSpace(emailHtml)) return;
+        if (string.IsNullOrWhiteSpace(emailHtml)) return false;
 
         var roleDisplayName = GetRoleDisplayName(roleType);
         var message = new EmailMessageDto
@@ -557,8 +618,53 @@ public class AdultRegistrationService : IAdultRegistrationService
             ToAddresses = { userEmail }
         };
 
-        await _emailService.SendAsync(message, cancellationToken: cancellationToken);
+        var sent = await _emailService.SendAsync(message, cancellationToken: cancellationToken);
+        if (!sent)
+        {
+            _logger.LogWarning(
+                "[AdultConfirmation] Email service declined the send for registration {RegistrationId}.",
+                reg.RegistrationId);
+            return false;
+        }
+
+        await FlagConfirmationSentAsync(reg, cancellationToken);
+        return true;
     }
+
+    /// <summary>
+    /// Stamps BConfirmationSent on every active row in the registrant's (user, job, role) group.
+    /// One email covers the group, so one send flags the group.
+    /// </summary>
+    private async Task FlagConfirmationSentAsync(Registrations reg, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(reg.UserId) || string.IsNullOrWhiteSpace(reg.RoleId)) return;
+
+        var group = await _repo.GetTrackedActiveByRoleAsync(reg.UserId, reg.JobId, reg.RoleId, cancellationToken);
+        var unflagged = group.Where(r => !r.BConfirmationSent).ToList();
+        if (unflagged.Count == 0) return;
+
+        foreach (var r in unflagged)
+        {
+            r.BConfirmationSent = true;
+            r.Modified = DateTime.Now;
+            r.LebUserId = reg.UserId;
+        }
+        await _repo.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Fallback body for jobs whose adult confirmation template was never configured. Mirrors the
+    /// legacy hard-coded staff body; the tokens resolve through the shared substitution service, so
+    /// !F-ACCOUNTING still states where the money stands.
+    /// </summary>
+    private static string DefaultConfirmationEmailBody(AdultRoleType roleType) => $"""
+        <h3>!PERSON</h3>
+        <p>Congratulations, you have successfully registered as <strong>{GetRoleDisplayName(roleType)}</strong> for <strong>!JOBNAME</strong>.</p>
+        <p>!F-TEAMS</p>
+        <p>!F-ACCOUNTING</p>
+        <p>!J-CONTACTBLOCK</p>
+        <p>!F-WAIVER-ADULT</p>
+        """;
 
     /// <summary>
     /// Run an adult-registration confirmation template through the shared

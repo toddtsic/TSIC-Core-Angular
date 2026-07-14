@@ -293,10 +293,15 @@ public class AdultRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Get confirmation content after registration (authenticated).
+    /// Completes the registration: returns the wizard's confirmation content and sends the
+    /// registrant their confirmation email.
+    ///
+    /// POST, not GET — this is the terminal action of the wizard, not a cacheable resource, and it
+    /// has a side effect (the email). Sending is idempotent regardless: the service guards on
+    /// BConfirmationSent, so a retry or a double-submit mails once.
     /// </summary>
     [Authorize]
-    [HttpGet("confirmation/{registrationId:guid}")]
+    [HttpPost("confirmation/{registrationId:guid}")]
     [ProducesResponseType(typeof(AdultConfirmationResponse), 200)]
     public async Task<IActionResult> GetConfirmation(Guid registrationId, CancellationToken ct)
     {
@@ -312,7 +317,8 @@ public class AdultRegistrationController : ControllerBase
     }
 
     /// <summary>
-    /// Resend confirmation email (authenticated).
+    /// Resend confirmation email (authenticated). Reports what actually happened — a send that
+    /// went nowhere used to return "sent successfully" all the same.
     /// </summary>
     [Authorize]
     [HttpPost("confirmation/{registrationId:guid}/resend")]
@@ -320,8 +326,10 @@ public class AdultRegistrationController : ControllerBase
     {
         try
         {
-            await _service.SendConfirmationEmailAsync(registrationId, ct);
-            return Ok(new { message = "Confirmation email sent." });
+            var sent = await _service.SendConfirmationEmailAsync(registrationId, ct);
+            return sent
+                ? Ok(new { sent = true, message = "Confirmation email sent." })
+                : Ok(new { sent = false, message = "No confirmation email could be sent — no email address is on file for this account." });
         }
         catch (KeyNotFoundException ex)
         {
