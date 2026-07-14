@@ -21,7 +21,12 @@ public static class BatchCompletionReceipt
     /// <summary>
     /// Mails the completion receipt: To the sending admin, CC the job's always-copy addresses, body
     /// carrying the outcome counts, any failures, and the blast content itself.
-    /// Never throws — the engine treats a failed hook as non-fatal, and a receipt must never be able to
+    ///
+    /// The sender's receipt is unconditional — an admin who fires a blast gets told how it went, the same
+    /// way ARB Defensive already reports on completion. The always-copy list is a separate concern layered
+    /// on top: when a job has one, those addresses ride the same receipt as CC.
+    ///
+    /// Exceptions propagate to the engine, which logs and swallows them: a receipt must never be able to
     /// retroactively "fail" a batch whose messages have already gone out.
     /// </summary>
     public static async Task SendAsync(
@@ -44,8 +49,8 @@ public static class BatchCompletionReceipt
             alwaysCopy.RemoveAll(a => string.Equals(a, senderEmail, StringComparison.OrdinalIgnoreCase));
         }
 
-        // Fall back to addressing the always-copy list directly when there is no sender to receive it,
-        // so a configured oversight list still gets its copy rather than the receipt being dropped.
+        // Address the list directly when there is no sender to carry the receipt, so a configured
+        // oversight list still gets its copy rather than the receipt being dropped on the floor.
         var hasSender = EmailAddressRules.IsSendable(senderEmail);
         var to = hasSender ? new List<string> { senderEmail!.Trim() } : alwaysCopy;
         var cc = hasSender ? alwaysCopy : new List<string>();
