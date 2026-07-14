@@ -5,9 +5,14 @@
 # folders on \\204.17.37.202\Websites via SMB share, drops a Go.ps1 wrapper
 # in each staging folder.
 #
-# After this script completes, RDP to TSIC-PHOENIX and run Go.ps1 from each
-# staging folder - that calls Recycle-After-Deploy.ps1 to stop app pools,
-# swap staging -> live, restart.
+# After this script completes, RDP to TSIC-PHOENIX and run Go.ps1 ONCE, from
+# either staging folder. Both wrappers are identical and carry the scope of this
+# build, so one run swaps everything that was staged: stop pools, back up live,
+# mirror staging -> live, restart, verify.
+#
+# Run it once. Do NOT run it from both folders expecting two halves - that was
+# the old flow, and it left production serving a new API under an old frontend
+# in between.
 #
 # Usage:
 #   .\1-Build-And-Deploy-Prod.ps1              # Build + stage both
@@ -304,17 +309,29 @@ foreach ($push in $scriptPushes) {
     Write-Host "  Pushed: $name" -ForegroundColor Green
 }
 
-# Drop Go.ps1 wrappers in staging folders - each one only deploys its own site
+# Drop Go.ps1 wrappers in staging folders. Go.ps1 mirrors the SCOPE OF THIS BUILD,
+# and both folders get the SAME wrapper, so it does not matter which one you are
+# standing in on PHOENIX.
+#
+# The wrappers used to hardcode a half-deploy each (-SkipAngular in the API folder,
+# -SkipApi in the Angular folder). Running both, as the runbook said to, meant TWO
+# Recycle runs -- and between them production served a new API under the old
+# frontend. Recycle refuses to create that skew within a single run; the wrappers
+# were creating it across two. A normal deploy is now ONE run: both sites, one
+# backup pair, one pool bounce, no window.
+#
+# Recycle is idempotent, so running Go.ps1 from the second folder out of habit is
+# harmless (identical bytes, 0 copied, 0 deleted) - it just costs a spare backup.
 $recycleScript = 'E:\Websites\IIS-Config-Prod\Deployment\Recycle-After-Deploy.ps1'
 
-if (!$SkipApi) {
-    Set-Content (Join-Path $ApiStaging 'Go.ps1') "& '$recycleScript' -SkipAngular" -Encoding UTF8
-    Write-Host "  Go.ps1 -> API staging (API only)" -ForegroundColor Green
-}
-if (!$SkipAngular) {
-    Set-Content (Join-Path $AngularStaging 'Go.ps1') "& '$recycleScript' -SkipApi" -Encoding UTF8
-    Write-Host "  Go.ps1 -> Angular staging (Angular only)" -ForegroundColor Green
-}
+$goArgs = ''
+if     ($SkipApi)     { $goArgs = ' -SkipApi' }
+elseif ($SkipAngular) { $goArgs = ' -SkipAngular' }
+$goBody = "& '$recycleScript'$goArgs"
+
+if (!$SkipApi)     { Set-Content (Join-Path $ApiStaging 'Go.ps1')     $goBody -Encoding UTF8 }
+if (!$SkipAngular) { Set-Content (Join-Path $AngularStaging 'Go.ps1') $goBody -Encoding UTF8 }
+Write-Host "  Go.ps1 runs: $goBody" -ForegroundColor Green
 
 Write-Host ""
 
