@@ -10,7 +10,7 @@ namespace TSIC.API.Controllers;
 
 [ApiController]
 [Route("api/customer-job-revenue")]
-[Authorize(Policy = "SuperUserOnly")]
+[Authorize(Policy = "CanCrossCustomerJobs")]
 public class CustomerJobRevenueController : ControllerBase
 {
     private readonly ICustomerJobRevenueService _revenueService;
@@ -51,6 +51,7 @@ public class CustomerJobRevenueController : ControllerBase
     /// Inline-edit a single MonthlyJobStats row (Player/Team Counts grid).
     /// </summary>
     [HttpPut("monthly-counts/{aid:int}")]
+    [Authorize(Policy = "SuperUserOnly")]
     public async Task<IActionResult> UpdateMonthlyCount(
         int aid,
         [FromBody] UpdateMonthlyCountRequest request,
