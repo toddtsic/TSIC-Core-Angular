@@ -27,8 +27,15 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
 
     public async Task<List<Jobs>> GetJobsByProfileTypeAsync(string profileType)
     {
+        // Exact profile-type match, segment-aware for pipe-delimited CoreRegformPlayer values.
+        // A plain StartsWith(profileType) would let PP10 also match PP100/PP101 once clone names
+        // pass 99 (new names are unpadded), silently overwriting those jobs on the write paths. CR-107.
         return await _context.Jobs
-            .Where(j => j.CoreRegformPlayer != null && (j.CoreRegformPlayer.StartsWith(profileType) || j.CoreRegformPlayer == profileType))
+            .Where(j => j.CoreRegformPlayer != null && (
+                j.CoreRegformPlayer == profileType
+                || j.CoreRegformPlayer.StartsWith(profileType + "|")
+                || j.CoreRegformPlayer.EndsWith("|" + profileType)
+                || j.CoreRegformPlayer.Contains("|" + profileType + "|")))
             .ToListAsync();
     }
 
@@ -95,9 +102,17 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
 
     public async Task<JobWithPlayerMetadata?> GetJobWithPlayerMetadataAsync(string profileType)
     {
+        // Exact profile-type match, segment-aware for pipe-delimited CoreRegformPlayer values.
+        // Same collision as GetJobsByProfileTypeAsync: a plain StartsWith(profileType) would let
+        // PP10 also match PP100/PP101 once clone names pass 99, returning the wrong job's
+        // metadata on this read path. CR-107.
         return await _context.Jobs
             .AsNoTracking()
-            .Where(j => j.CoreRegformPlayer != null && (j.CoreRegformPlayer.StartsWith(profileType) || j.CoreRegformPlayer == profileType)
+            .Where(j => j.CoreRegformPlayer != null && (
+                    j.CoreRegformPlayer == profileType
+                    || j.CoreRegformPlayer.StartsWith(profileType + "|")
+                    || j.CoreRegformPlayer.EndsWith("|" + profileType)
+                    || j.CoreRegformPlayer.Contains("|" + profileType + "|"))
                 && j.CoreRegformPlayer != CoreRegformExcludeMarker
                 && !string.IsNullOrEmpty(j.PlayerProfileMetadataJson))
             .Select(j => new JobWithPlayerMetadata
