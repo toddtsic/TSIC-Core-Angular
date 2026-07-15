@@ -61,6 +61,45 @@ public class RegistrationAccountingRepository : IRegistrationAccountingRepositor
         }
     }
 
+    public async Task RecomputeForRowAsync(
+        RegistrationAccounting row, string userId, CancellationToken cancellationToken = default)
+    {
+        // Same contract as RecordPaymentAndRecomputeAsync, but the row already exists — the caller
+        // mutated it (e.g. a pending eCheck settling: Active false→true) and needs the keyed
+        // entity's total re-derived. Flush the caller's tracked mutation first so the re-sum below
+        // sees it, then recompute. One transaction (joined to the caller's if open) so the flag
+        // flip and the recomputed total can never commit apart.
+        var ownsTransaction = _context.Database.CurrentTransaction is null;
+        var transaction = ownsTransaction
+            ? await _context.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken); // flush the mutation; re-sum must see it
+
+            if (row.TeamId.HasValue)
+                await RecomputeTeamPaidTotalAsync(row.TeamId.Value, userId, cancellationToken);
+            else if (row.RegistrationId.HasValue)
+                await RecomputeRegistrationPaidTotalAsync(row.RegistrationId.Value, userId, cancellationToken);
+
+            await _context.SaveChangesAsync(cancellationToken);
+
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            if (transaction is not null)
+                await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
+        finally
+        {
+            if (transaction is not null)
+                await transaction.DisposeAsync();
+        }
+    }
+
     /// <summary>
     /// Re-derives one registration's PaidTotal from the ledger (sum of the five payment
     /// buckets) and recomputes OwedTotal. Does NOT save — the caller owns the transaction.

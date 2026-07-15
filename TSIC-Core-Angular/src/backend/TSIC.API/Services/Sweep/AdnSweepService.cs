@@ -121,10 +121,12 @@ public sealed class AdnSweepService : IAdnSweepService
             // 3) Process eCheck Pending → Settled transitions.
             // Walk batch txs that settled successfully and match against our pending Settlement
             // rows. No per-tx API call is needed — presence in a settled batch is the proof of
-            // settlement. Settlement.Status flips to "Settled"; money movement already happened
-            // at submission time (optimistic credit), so no RegistrationAccounting changes here.
+            // settlement. This is the MONEY EVENT under pessimistic eCheck: MarkEcheckSettled flips
+            // the submit-time RA (born Active=false) to Active=true and re-derives PaidTotal from
+            // the ledger, atomically per settlement. subscription == null excludes ARB drafts, which
+            // book their RA in step 2 (ImportArbTransactionAsync) — see the ARB/eCheck split there.
             var settledTxIds = allTxs
-                .Where(t => t.transactionStatus == "settledSuccessfully" && !string.IsNullOrEmpty(t.transId))
+                .Where(t => t.transactionStatus == "settledSuccessfully" && t.subscription == null && !string.IsNullOrEmpty(t.transId))
                 .Select(t => t.transId)
                 .Distinct()
                 .ToList();
@@ -138,7 +140,10 @@ public sealed class AdnSweepService : IAdnSweepService
                     ct.ThrowIfCancellationRequested();
                     try
                     {
-                        var row = MarkEcheckSettled(settlement);
+                        // Each call owns its transaction (status flip + RA Active flip + recompute
+                        // commit together), so there is no batch save after the loop — a batch
+                        // re-save could re-commit a rolled-back in-memory status without its money.
+                        var row = await MarkEcheckSettled(settlement, ct);
                         if (row != null)
                         {
                             counts.EcheckSettled++;
@@ -152,8 +157,6 @@ public sealed class AdnSweepService : IAdnSweepService
                         counts.Errored++;
                     }
                 }
-                if (counts.EcheckSettled > 0)
-                    await _settleRepo.SaveChangesAsync(ct);
             }
 
             // 4) Process eCheck returns.
@@ -547,7 +550,7 @@ public sealed class AdnSweepService : IAdnSweepService
 
     // ── eCheck Pending → Settled ─────────────────────────────────────
 
-    private EcheckSettledDigestRow? MarkEcheckSettled(Settlement settlement)
+    private async Task<EcheckSettledDigestRow?> MarkEcheckSettled(Settlement settlement, CancellationToken ct)
     {
         var ra = settlement.RegistrationAccounting;
         var reg = ra.Registration;
@@ -563,6 +566,23 @@ public sealed class AdnSweepService : IAdnSweepService
         settlement.SettledAt = now;
         settlement.LastCheckedAt = now;
         settlement.Modified = now;
+
+        // Pessimistic booking: the submit-time RA was born Active=false (excluded from the PaidTotal
+        // ledger sum). Settlement is the money event — flip it Active=true and re-derive the keyed
+        // entity's total from the ledger. RecomputeForRowAsync flushes this flip AND the settlement
+        // status change (both tracked on the shared sweep context) inside one transaction, so the
+        // row and the total it implies commit together. ra.TeamId routes team vs registration.
+        ra.Active = true;
+        ra.Modified = now;
+        await _accountingRepo.RecomputeForRowAsync(ra, SystemUserId, ct);
+
+        // Team eCheck: roll the team's freshly-credited total onto the rep's Registration aggregate,
+        // mirroring the NSF path (SynchronizeClubRepFinancialsAsync). Player eCheck (TeamId null)
+        // reconciles the registration directly in the recompute above and needs no roll-up.
+        if (ra.TeamId.HasValue && ra.RegistrationId.HasValue && ra.RegistrationId.Value != Guid.Empty)
+        {
+            await _registrations_SyncRep(ra.RegistrationId.Value, ct);
+        }
 
         return new EcheckSettledDigestRow
         {
@@ -630,6 +650,13 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
+        // Capture BEFORE flipping the status below. Under pessimistic eCheck the money was booked
+        // at SETTLEMENT (Status→"Settled" + RA Active→true), not at submit. A return can arrive for
+        // a settlement we never marked Settled (the item bounced before our sweep saw it clear): its
+        // RA is still Active=false and was never counted in PaidTotal, so there is nothing to
+        // reverse. Only a previously-settled item needs the reversal row + fee restore below.
+        var wasCounted = settlement.Status == "Settled";
+
         var now = DateTime.Now;
 
         // Mark Settlement returned.
@@ -638,6 +665,40 @@ public sealed class AdnSweepService : IAdnSweepService
         settlement.ReturnReasonText = detail.transaction.responseReasonDescription;
         settlement.LastCheckedAt = now;
         settlement.Modified = now;
+
+        if (!wasCounted)
+        {
+            // Never credited — persist the Returned status only (RA stays Active=false, PaidTotal
+            // untouched). Reg stays active; the director alert below carries the decision to
+            // inactivate. Save here because the reversal chokepoint that would normally flush the
+            // status is skipped in this branch.
+            _logger.LogInformation(
+                "eCheck return {TxId}: settlement {Id} never settled (still Pending) — status→Returned, no reversal (never credited)",
+                returnTx.transId, settlement.SettlementId);
+            await _settleRepo.SaveChangesAsync(ct);
+
+            bool notified;
+            try
+            {
+                notified = await SendDirectorAlertAsync(reg.JobId, ra, settlement, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "NSF director alert failed for settlement {Id}", settlement.SettlementId);
+                notified = false;
+            }
+
+            return new EcheckReturnDigestRow
+            {
+                JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+                ReturnTxId = returnTx.transId,
+                OriginalTxId = originalTxId,
+                Reason = $"{settlement.ReturnReasonText} ({settlement.ReturnReasonCode})",
+                AmountReversed = 0m,
+                Registrant = reg.UserId,
+                DirectorNotified = notified
+            };
+        }
 
         // Two NSF flavors share this method:
         //   - Player eCheck:    RA.TeamId is null → reverse on the player Registration directly.

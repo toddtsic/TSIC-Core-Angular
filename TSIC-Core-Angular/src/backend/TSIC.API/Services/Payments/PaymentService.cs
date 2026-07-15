@@ -296,7 +296,10 @@ public class PaymentService : IPaymentService
                         ? $"paid by cc: {charge:C} on {DateTime.Now:G} txID: {transId}"
                         : $"eCheck pending settlement: {charge:C} of {serverTotal:C} on {DateTime.Now:G} txID: {transId}",
                     PaymentMethodId = kind == TeamChargeKind.Cc ? CcPaymentMethodId : EcheckPaymentMethodId,
-                    Active = true,
+                    // Pessimistic eCheck: born Active=false (excluded from the PaidTotal sum) until
+                    // the sweep confirms settlement; CC born Active=true. Payamt carries the amount
+                    // for the settle-time credit either way.
+                    Active = kind == TeamChargeKind.Cc,
                     Createdate = DateTime.Now,
                     Modified = DateTime.Now,
                     LebUserId = userId,
@@ -310,13 +313,18 @@ public class PaymentService : IPaymentService
                 if (kind == TeamChargeKind.Echeck) pendingSettlements.Add((ra, transId));
 
                 // Convert the CC-rate proc embedded in the balance to the method's rate
-                // (no-op for CC), book the gross, drive the balance to 0 on a full pay.
+                // (no-op for CC), then book the gross for CC only. Pessimistic eCheck defers the
+                // credit to settlement (sweep), so the balance stays owed-until-cleared; the proc
+                // adjustment and RecalcTotals still run so OwedTotal reflects the eCheck rate.
                 if (credit > 0m)
                 {
                     team.FeeProcessing = (team.FeeProcessing ?? 0m) - credit;
                     team.RecalcTotals();
                 }
-                team.PaidTotal = (team.PaidTotal ?? 0m) + charge;
+                if (kind == TeamChargeKind.Cc)
+                {
+                    team.PaidTotal = (team.PaidTotal ?? 0m) + charge;
+                }
                 team.RecalcTotals();
                 team.Modified = DateTime.Now;
                 team.LebUserId = userId;
@@ -878,14 +886,16 @@ public class PaymentService : IPaymentService
 
             var transId = chargeResult.TransactionId!;
 
-            // Optimistic credit at submit (mirrors ProcessTeamEcheckPaymentAsync): for
-            // eCheck the actual settlement clears days later but the rep's UI shows the
-            // payment immediately. NSF reversal in the sweep undoes both PaidTotal and
-            // the processing-fee credit if the bank returns the item.
-            team.PaidTotal = (team.PaidTotal ?? 0m) + chargeAmount;
-            team.RecalcTotals();
-            team.Modified = DateTime.Now;
-            team.LebUserId = userId;
+            // CC books at submit (clears synchronously). Pessimistic eCheck defers the credit to
+            // settlement: the RA below is born Active=false and the sweep credits it when the ACH
+            // draft clears (MarkEcheckSettled), reversing via the NSF path if the bank returns it.
+            if (creditCard != null)
+            {
+                team.PaidTotal = (team.PaidTotal ?? 0m) + chargeAmount;
+                team.RecalcTotals();
+                team.Modified = DateTime.Now;
+                team.LebUserId = userId;
+            }
 
             var fullCharge = chargeAmount;
 
@@ -904,7 +914,9 @@ public class PaymentService : IPaymentService
                 Dueamt = fullCharge,
                 Paymeth = paymeth,
                 PaymentMethodId = pmId,
-                Active = true,
+                // Pessimistic eCheck: born Active=false (excluded from PaidTotal) until the sweep
+                // settles it; CC born Active=true. Payamt carries the amount for the settle credit.
+                Active = creditCard != null,
                 Createdate = DateTime.Now,
                 Modified = DateTime.Now,
                 LebUserId = userId,
@@ -1667,6 +1679,10 @@ public class PaymentService : IPaymentService
         // Audit trail: placeholder RA rows exist in the DB BEFORE the gateway hit so a
         // declined card leaves a row with Active=false + Comment="FAILED: …" instead of
         // vanishing without record.
+        // Active semantics diverge by tender: CC is born Active=true (credited at submit).
+        // eCheck is born Active=false — PESSIMISTIC: the row carries the real Payamt but is
+        // EXCLUDED from the PaidTotal ledger sum (GetPaymentTotalsByEntityAsync sums Active==true)
+        // until the daily sweep confirms settlement and flips it Active=true (MarkEcheckSettled).
         var methodId = kind == RegistrationChargeKind.Cc ? CcPaymentMethodId : EcheckPaymentMethodId;
         var rasByRegId = new Dictionary<Guid, RegistrationAccounting>(items.Count);
         foreach (var item in items)
@@ -1677,7 +1693,7 @@ public class PaymentService : IPaymentService
                 PaymentMethodId = methodId,
                 Dueamt = plan[item.RegistrationId].Charge,
                 Payamt = 0m,
-                Active = true,
+                Active = kind == RegistrationChargeKind.Cc,
                 Createdate = DateTime.Now,
                 Modified = DateTime.Now,
                 LebUserId = userId
@@ -1800,7 +1816,15 @@ public class PaymentService : IPaymentService
             {
                 reg.FeeProcessing -= credit;
             }
-            reg.PaidTotal += charge;
+            // Pessimistic eCheck: DO NOT credit PaidTotal at submit — the ACH draft has not
+            // cleared. The pending RA above (Active=false) carries the amount; the sweep credits
+            // it at settlement (MarkEcheckSettled flips Active=true + recomputes). CC clears
+            // synchronously, so it books here exactly as before. RecalcTotals still runs for both:
+            // eCheck's OwedTotal reflects the reduced proc fee while the charge stays owed-until-settled.
+            if (kind == RegistrationChargeKind.Cc)
+            {
+                reg.PaidTotal += charge;
+            }
             reg.RecalcTotals();
             // Flip the registration active. Pre-refactor parent CC went through
             // UpdateRegistrationsForCharge which set this; the canonical engine
