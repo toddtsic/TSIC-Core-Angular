@@ -747,13 +747,13 @@ public async Task<ActionResult<object>> GetCurrentJobProfileConfig()
             return BadRequest(new { error = MissingRegIdMsg });
         }
 
-        var (profileType, teamConstraint, raw, metadata) = await _migrationService.GetCurrentJobProfileConfigAsync(regId);
+        var (profileType, teamConstraint, raw, jobId, metadata) = await _migrationService.GetCurrentJobProfileConfigAsync(regId);
         if (string.IsNullOrEmpty(profileType))
         {
             return NotFound(new { error = "Current job profile configuration not found" });
         }
 
-        return Ok(new { profileType, teamConstraint, coreRegform = raw, metadata });
+        return Ok(new { profileType, teamConstraint, coreRegform = raw, jobId, metadata });
     }
     catch (Exception ex)
     {
@@ -929,6 +929,126 @@ public async Task<ActionResult<List<CopyFormSourceDto>>> GetCopyFormSources()
     {
         _logger.LogError(ex, "Failed to list copy-form sources");
         return StatusCode(500, new { error = "Failed to list copy-form sources", details = ex.Message });
+    }
+}
+
+// ============================================================================
+// PER-JOB PLAYER FORM EDITING (steady-state model). These target ONE job (by JobId, SuperUser),
+// never a fan-out. The job picker + the "This job" / "A specific job" editor scopes call these.
+// ============================================================================
+
+/// <summary>
+/// List jobs that carry a player form, for the editor's job picker. Each is flagged with its
+/// profile type and whether its field set has drifted from that type's canonical.
+/// </summary>
+[HttpGet("profiles/jobs")]
+public async Task<ActionResult<List<EditableJobDto>>> ListEditableJobs()
+{
+    try
+    {
+        var jobs = await _migrationService.ListEditableJobsAsync();
+        return Ok(jobs);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to list editable jobs");
+        return StatusCode(500, new { error = "Failed to list editable jobs", details = ex.Message });
+    }
+}
+
+/// <summary>Read one job's player form (by JobId).</summary>
+[HttpGet("profiles/job/{jobId:guid}/metadata")]
+public async Task<ActionResult<ProfileMetadata>> GetJobPlayerForm(Guid jobId)
+{
+    try
+    {
+        var metadata = await _migrationService.GetJobPlayerFormAsync(jobId);
+        if (metadata == null)
+        {
+            return NotFound(new { error = $"Job {jobId} has no player form." });
+        }
+        return Ok(metadata);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to get player form for job {JobId}", jobId);
+        return StatusCode(500, new { error = "Failed to get job player form", details = ex.Message });
+    }
+}
+
+/// <summary>
+/// Update ONE job's player form (by JobId) — per-job, never a fan-out. This is the default,
+/// safe save path for the editor's "This job" / "A specific job" scopes.
+/// </summary>
+[HttpPut("profiles/job/{jobId:guid}/metadata")]
+public async Task<ActionResult<object>> UpdateJobPlayerForm(Guid jobId, [FromBody] ProfileMetadata metadata)
+{
+    try
+    {
+        var ok = await _migrationService.UpdateJobPlayerFormAsync(jobId, metadata);
+        if (!ok)
+        {
+            return NotFound(new { error = $"Job {jobId} not found." });
+        }
+        return Ok(new { jobId, fieldCount = metadata.Fields.Count });
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to update player form for job {JobId}", jobId);
+        return StatusCode(500, new { error = "Failed to update job player form", details = ex.Message });
+    }
+}
+
+/// <summary>
+/// Preview which jobs a template-wide write to <paramref name="profileType"/> would overwrite, with
+/// the customized ones flagged. Feeds the red template-scope confirm modal.
+/// </summary>
+[HttpGet("profiles/{profileType}/affected-jobs")]
+public async Task<ActionResult<AffectedJobsResult>> GetAffectedJobs(string profileType)
+{
+    try
+    {
+        var result = await _migrationService.GetAffectedJobsAsync(profileType);
+        return Ok(result);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to get affected jobs for profile {ProfileType}", profileType);
+        return StatusCode(500, new { error = "Failed to get affected jobs", details = ex.Message });
+    }
+}
+
+/// <summary>
+/// Copy a source job's form(s) INTO an explicit target job (or the caller's current job when
+/// targetJobId is omitted). Optionally carries the profile-type pointer and option sets. All-or-nothing.
+/// </summary>
+[HttpPost("profiles/copy-forms")]
+public async Task<ActionResult<CopyJobFormsResult>> CopyForms([FromBody] CopyJobFormsRequest request)
+{
+    try
+    {
+        var regIdClaim = User.FindFirst(RegIdClaim)?.Value;
+        if (string.IsNullOrEmpty(regIdClaim) || !Guid.TryParse(regIdClaim, out var regId))
+        {
+            return BadRequest(new { error = MissingRegIdMsg });
+        }
+
+        if (request.SourceJobId == Guid.Empty)
+        {
+            return BadRequest(new { error = "sourceJobId is required" });
+        }
+
+        var result = await _migrationService.CopyFormsAsync(regId, request);
+        if (!result.Success)
+        {
+            return BadRequest(result);
+        }
+        return Ok(result);
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Failed to copy forms");
+        return StatusCode(500, new { error = "Failed to copy forms", details = ex.Message });
     }
 }
 

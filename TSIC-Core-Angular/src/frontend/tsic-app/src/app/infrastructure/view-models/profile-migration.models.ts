@@ -131,6 +131,7 @@ export interface CurrentJobProfileConfigResponse {
     profileType: string;
     teamConstraint: string | null;
     coreRegform: string;
+    jobId: string | null;
     metadata: ProfileMetadata | null;
 }
 

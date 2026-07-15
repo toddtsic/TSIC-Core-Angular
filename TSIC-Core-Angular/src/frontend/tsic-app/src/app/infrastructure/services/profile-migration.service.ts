@@ -19,7 +19,7 @@ import {
     OptionSetUpdateRequest,
     RenameOptionSetRequest
 } from '../view-models/profile-migration.models';
-import type { CopyFormSourceDto, CopyJobFormsRequest, CopyJobFormsResult } from '@core/api';
+import type { CopyFormSourceDto, CopyJobFormsRequest, CopyJobFormsResult, EditableJobDto, AffectedJobsResult } from '@core/api';
 
 @Injectable({
     providedIn: 'root'
@@ -334,6 +334,63 @@ export class ProfileMigrationService {
         this.runCall<CopyJobFormsResult>(
             this.http.post<CopyJobFormsResult>(`${this.apiUrl}/profiles/current/copy-forms`, request),
             { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to copy forms' },
+            result => onSuccess(result),
+            onError
+        );
+    }
+
+    /**
+     * Copy a source job's form(s) INTO an explicit target job (request.targetJobId), or the current
+     * job when targetJobId is omitted. Also carries the profile-type pointer / option sets when asked.
+     */
+    copyForms(request: CopyJobFormsRequest, onSuccess: (result: CopyJobFormsResult) => void, onError?: (error: any) => void): void {
+        this.runCall<CopyJobFormsResult>(
+            this.http.post<CopyJobFormsResult>(`${this.apiUrl}/profiles/copy-forms`, request),
+            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to copy forms' },
+            result => onSuccess(result),
+            onError
+        );
+    }
+
+    // ============================================================================
+    // PER-JOB PLAYER FORM EDITING (steady-state: the job is the unit of truth)
+    // ============================================================================
+
+    /** List jobs carrying a player form, for the editor's job picker (each flagged type + customized). */
+    listEditableJobs(onSuccess: (jobs: EditableJobDto[]) => void, onError?: (error: any) => void): void {
+        this.runCall<EditableJobDto[]>(
+            this.http.get<EditableJobDto[]>(`${this.apiUrl}/profiles/jobs`),
+            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load jobs' },
+            jobs => onSuccess(jobs),
+            onError
+        );
+    }
+
+    /** Read one job's player form by JobId. */
+    getJobPlayerForm(jobId: string, onSuccess: (metadata: ProfileMetadata) => void, onError?: (error: any) => void): void {
+        this.runCall<ProfileMetadata>(
+            this.http.get<ProfileMetadata>(`${this.apiUrl}/profiles/job/${jobId}/metadata`),
+            { setLoading: v => this._isLoading.set(v), setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load job form' },
+            metadata => { this._currentMetadata.set(metadata); onSuccess(metadata); },
+            onError
+        );
+    }
+
+    /** Write ONE job's player form by JobId — per-job, never a fan-out. */
+    updateJobPlayerForm(jobId: string, metadata: ProfileMetadata, onSuccess: (result: { jobId: string; fieldCount: number }) => void, onError?: (error: any) => void): void {
+        this.runCall<{ jobId: string; fieldCount: number }>(
+            this.http.put<{ jobId: string; fieldCount: number }>(`${this.apiUrl}/profiles/job/${jobId}/metadata`, metadata),
+            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to update job form' },
+            result => onSuccess(result),
+            onError
+        );
+    }
+
+    /** Preview which jobs a template-wide write would overwrite (customized ones flagged). */
+    getAffectedJobs(profileType: string, onSuccess: (result: AffectedJobsResult) => void, onError?: (error: any) => void): void {
+        this.runCall<AffectedJobsResult>(
+            this.http.get<AffectedJobsResult>(`${this.apiUrl}/profiles/${profileType}/affected-jobs`),
+            { setError: m => this._errorMessage.set(m), errorMessage: 'Failed to load affected jobs' },
             result => onSuccess(result),
             onError
         );

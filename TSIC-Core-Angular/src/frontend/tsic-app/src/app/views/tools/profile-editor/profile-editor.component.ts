@@ -4,19 +4,24 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ProfileMigrationService } from '@infrastructure/services/profile-migration.service';
 import { ProfileMetadata, ProfileMetadataField, ValidationTestResult, CurrentJobProfileConfigResponse } from '@infrastructure/view-models/profile-migration.models';
+import type { EditableJobDto, AffectedJobsResult } from '@core/api';
 import { ToastService } from '@shared-ui/toast.service';
 import { TsicDialogComponent } from '@shared-ui/components/tsic-dialog/tsic-dialog.component';
 import { OptionsPanelComponent } from './options-panel/options-panel.component';
 import { FieldSetEditorComponent } from './field-set-editor/field-set-editor.component';
+import { JobPickerComponent } from './job-picker/job-picker.component';
 import { ALLOWED_PROFILE_FIELDS } from './allowed-fields';
 import { AuthService } from '@infrastructure/services/auth.service';
 import { AdultProfileEditorPanelComponent } from './adult-profile-editor-panel/adult-profile-editor-panel.component';
 import { CopyFormsCardComponent } from './copy-forms-card/copy-forms-card.component';
 
+/** Edit scope — the safe default is a single job; template edits every job of a type. */
+export type EditScope = 'thisJob' | 'otherJob' | 'template';
+
 @Component({
     selector: 'app-profile-editor',
     standalone: true,
-    imports: [CommonModule, FormsModule, RouterLink, TsicDialogComponent, OptionsPanelComponent, FieldSetEditorComponent, AdultProfileEditorPanelComponent, CopyFormsCardComponent],
+    imports: [CommonModule, FormsModule, RouterLink, TsicDialogComponent, OptionsPanelComponent, FieldSetEditorComponent, JobPickerComponent, AdultProfileEditorPanelComponent, CopyFormsCardComponent],
     templateUrl: './profile-editor.component.html',
     styleUrl: './profile-editor.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush
@@ -42,13 +47,47 @@ export class ProfileEditorComponent implements OnInit {
     errorMessage = signal<string | null>(null);
     successMessage = signal<string | null>(null);
 
-    // Available profile types (seeded dynamically)
+    // Available profile types (seeded dynamically) — used by the template-scope picker & clone modal.
     availableProfiles = signal<Array<{ type: string; display: string }>>([]);
 
-    selectedProfileType = signal<string | null>(null);
-    // The profile type currently employed by the active job (authoritative from server)
-    activeJobProfileType = signal<string | null>(null);
+    // The metadata currently being edited (whatever the active scope points at).
     currentMetadata = signal<ProfileMetadata | null>(null);
+
+    // ============ EDIT SCOPE ============
+    editScope = signal<EditScope>('thisJob');
+
+    // Current job (resolved from JWT) — id lets us do per-job writes and exclude it from pickers.
+    currentJobId = signal<string | null>(null);
+    activeJobProfileType = signal<string | null>(null);
+
+    // Editable jobs (for the "A specific job" picker) + the picked job.
+    editableJobs = signal<EditableJobDto[]>([]);
+    otherJob = signal<EditableJobDto | null>(null);
+
+    // Template scope: which profile type's shared definition is being edited.
+    selectedProfileType = signal<string | null>(null);
+    // Template edits are deferred (no auto-save) until an explicit "Apply to all jobs".
+    templateDirty = signal(false);
+    affectedJobs = signal<AffectedJobsResult | null>(null);
+
+    // Friendly name of the current job (looked up from the editable list; falls back to jobPath).
+    currentJobName = computed(() => {
+        const id = this.currentJobId();
+        const found = id ? this.editableJobs().find(j => j.jobId === id)?.jobName : null;
+        return found ?? this.jobPath();
+    });
+
+    // The named target of the active scope, for the banner and toasts.
+    scopeTargetLabel = computed(() => {
+        switch (this.editScope()) {
+            case 'thisJob': return this.currentJobName();
+            case 'otherJob': return this.otherJob()?.jobName ?? '(no job chosen)';
+            case 'template': return this.selectedProfileType() ? `${this.selectedProfileType()} template` : '(no template chosen)';
+        }
+    });
+
+    isTemplateScope = computed(() => this.editScope() === 'template');
+    isPerJobScope = computed(() => this.editScope() !== 'template');
 
     // Display label for the currently selected profile
     selectedProfileDisplay = computed(() => {
@@ -70,15 +109,9 @@ export class ProfileEditorComponent implements OnInit {
 
     fieldCount = computed(() => this.currentMetadata()?.fields?.length ?? 0);
 
-    // Job Options (Jobs.JsonOptions)
+    // Job Options (Jobs.JsonOptions) — current-job only, so only meaningful in the This-job scope.
     activeTab = signal<'fields' | 'options'>('fields');
-    // Show Job Options only when editing the active job's profile
-    showJobOptionsTab = computed(() => {
-        const selected = this.selectedProfileType();
-        const active = this.activeJobProfileType();
-        if (!selected || !active) return false;
-        return selected.toLowerCase() === active.toLowerCase();
-    });
+    showJobOptionsTab = computed(() => this.editScope() === 'thisJob' && !!this.currentMetadata());
 
     // ========= This Job's Player Profile (CoreRegformPlayer parts) =========
     jobProfileType = signal<string>('');
@@ -106,11 +139,19 @@ export class ProfileEditorComponent implements OnInit {
             || (appliedTeam.toLowerCase() !== uiTeam.toLowerCase());
     });
 
-    // Confirm modal state (Bootstrap-styled, not browser confirm) — used for profile-switch discard.
+    // Confirm modal state (Bootstrap-styled, not browser confirm) — used for scope-switch discard.
     showConfirmModal = signal(false);
     confirmModalTitle = signal('Confirm Action');
     confirmModalMessage = signal('');
     confirmModalAction = signal<(() => void) | null>(null);
+
+    // Template-apply confirmation (typed profile-type gate).
+    showTemplateConfirm = signal(false);
+    templateConfirmText = signal('');
+    canApplyTemplate = computed(() => {
+        const t = (this.selectedProfileType() || '').trim().toUpperCase();
+        return t.length > 0 && this.templateConfirmText().trim().toUpperCase() === t;
+    });
 
     ngOnInit() {
         // Prefer server-known types based on Jobs.PlayerProfileMetadataJson (prod-safe)
@@ -122,53 +163,49 @@ export class ProfileEditorComponent implements OnInit {
             if (mapped.length > 0) {
                 this.availableProfiles.set(mapped);
             } else {
-                // Fallback to summaries if none are known yet
                 this.migrationService.loadProfileSummaries();
             }
         }, () => {
-            // On error, fallback to summaries
             this.migrationService.loadProfileSummaries();
         });
 
-        // Attempt to auto-load the current job's employed profile for editing
+        // Editable jobs power the "A specific job" picker and the current-job name lookup.
+        this.migrationService.listEditableJobs(
+            (jobs) => this.editableJobs.set(jobs),
+            () => { /* silent; picker will be empty */ }
+        );
+
+        // Seed the profile list + active type from the current job's employed profile. NOTE: this
+        // returns the profile TYPE's representative metadata — not necessarily this job's actual form —
+        // so it is used only for seeding, never as the edited metadata.
         this.migrationService.getCurrentJobProfileMetadata(
             (resp) => {
                 const displayName = this.formatProfileDisplayType(resp.profileType);
-                // Ensure list contains the current profile
                 this.availableProfiles.update(list => {
                     const exists = list.some(p => p.type === resp.profileType);
                     return exists ? list : [{ type: resp.profileType, display: displayName }, ...list];
                 });
-
-                // Select and set metadata
-                this.selectedProfileType.set(resp.profileType);
                 this.activeJobProfileType.set(resp.profileType);
-                this.currentMetadata.set(resp.metadata);
-
-                // Load current job option sets in background (service mirrors via signals)
-                this.migrationService.getCurrentJobOptionSets(
-                    _ => { },
-                    _ => { }
-                );
-
-                // Initialize last-selected tracker for the profile selector
+                this.migrationService.getCurrentJobOptionSets(_ => { }, _ => { });
                 this.lastSelectedProfileType.set(resp.profileType);
             },
-            (_err) => {
-                // If not available, leave selector and allow manual choice
-            }
+            (_err) => { /* leave editor empty; user can still pick another scope */ }
         );
 
-        // Load the current job's CoreRegformPlayer parts for the left panel
+        // Current job's CoreRegformPlayer parts + JobId (for per-job writes). Once we know the JobId,
+        // load THIS job's ACTUAL form (not the type canonical) for the default This-job scope.
         this.migrationService.getCurrentJobProfileConfig(
             (resp: CurrentJobProfileConfigResponse) => {
                 this.jobProfileType.set(resp.profileType || '');
                 this.jobTeamConstraint.set(resp.teamConstraint || '');
                 this.jobCoreRegformRaw.set(resp.coreRegform || '');
+                this.currentJobId.set(resp.jobId || null);
                 this.lastAppliedTeamConstraint.set(resp.teamConstraint || '');
-                // Also ensure active job type is synced
                 if (resp.profileType) {
                     this.activeJobProfileType.set(resp.profileType);
+                }
+                if (this.editScope() === 'thisJob' && resp.jobId) {
+                    this.loadJobForm(resp.jobId);
                 }
             },
             () => { /* silent; panel will still render with defaults */ }
@@ -178,66 +215,235 @@ export class ProfileEditorComponent implements OnInit {
     // Warn on browser/tab close if there are unapplied changes
     @HostListener('window:beforeunload', ['$event'])
     onBeforeUnload(event: BeforeUnloadEvent) {
-        if (this.jobConfigDirty()) {
+        if (this.jobConfigDirty() || this.templateDirty()) {
             event.preventDefault();
-            // Use any-cast to avoid TS deprecation diagnostic while preserving cross-browser behavior
             (event as any).returnValue = '';
         }
     }
 
-    // Fallback derivation of availableProfiles from summaries (pure derivation without effect)
-    private readonly derivedProfiles = computed(() => {
-        if (this.availableProfiles().length > 0) return this.availableProfiles();
-        const summaries = this.migrationService.profileSummaries();
-        if (!summaries || summaries.length === 0) return [];
-        const all = summaries
-            .map(s => s.profileType)
-            .filter(t => t && (t.startsWith('PP') || t.startsWith('CAC')))
-            .sort((a, b) => a.localeCompare(b));
-        return all.map(t => ({ type: t, display: this.formatProfileDisplayType(t) }));
-    });
-    // Exposed getter to use in template if needed
-    get effectiveAvailableProfiles() { return this.derivedProfiles(); }
-
     private formatProfileDisplayType(type: string): string {
         return type
             .replaceAll('_', ' ')
-            // Insert space before numbers only when preceded by a lowercase letter: player3 -> player 3; PP47 stays PP47
             .replaceAll(/([a-z])(\d)/g, '$1 $2')
-            // Insert space between lower->upper transitions: playerProfile -> player Profile
             .replaceAll(/([a-z])([A-Z])/g, '$1 $2')
             .replaceAll(/\s+/g, ' ')
             .trim();
     }
 
-    // Helper to normalize activeTab without side-effecting via an effect
-    get effectiveActiveTab(): 'fields' | 'options' {
-        const tab = this.activeTab();
-        return (tab === 'options' && !this.showJobOptionsTab()) ? 'fields' : tab;
+    // ============================================================================
+    // SCOPE SWITCHING
+    // ============================================================================
+
+    setScope(scope: EditScope): void {
+        if (scope === this.editScope()) return;
+
+        const doSwitch = () => {
+            this.templateDirty.set(false);
+            this.templateConfirmText.set('');
+            this.errorMessage.set(null);
+            this.successMessage.set(null);
+            this.activeTab.set('fields');
+            this.editScope.set(scope);
+
+            switch (scope) {
+                case 'thisJob':
+                    this.loadThisJobForm();
+                    break;
+                case 'otherJob':
+                    // Wait for a job to be picked; keep any existing pick's metadata.
+                    if (this.otherJob()) {
+                        this.loadJobForm(this.otherJob()!.jobId);
+                    } else {
+                        this.currentMetadata.set(null);
+                    }
+                    break;
+                case 'template':
+                    if (this.selectedProfileType()) {
+                        this.loadTemplate(this.selectedProfileType()!);
+                    } else {
+                        this.currentMetadata.set(null);
+                    }
+                    break;
+            }
+        };
+
+        // Guard against silently discarding staged template edits.
+        if (this.templateDirty()) {
+            this.openConfirm(
+                'Discard template changes?',
+                `You have unsaved changes to the ${this.selectedProfileType()} template that have not been applied to any job. Switch scope and discard them?`,
+                doSwitch
+            );
+            return;
+        }
+        doSwitch();
     }
 
-    loadProfile(profileType: string) {
-        // Handle CREATE NEW special case
-        if (profileType === 'CREATE_NEW') {
+    private loadThisJobForm(): void {
+        const id = this.currentJobId();
+        if (!id) return; // metadata may already be loaded from getCurrentJobProfileMetadata
+        this.loadJobForm(id);
+    }
+
+    private loadJobForm(jobId: string): void {
+        this.isLoading.set(true);
+        this.migrationService.getJobPlayerForm(
+            jobId,
+            (metadata) => { this.currentMetadata.set(metadata); this.isLoading.set(false); },
+            (error) => {
+                this.errorMessage.set(`Failed to load job form: ${error?.error?.error || 'Unknown error'}`);
+                this.currentMetadata.set(null);
+                this.isLoading.set(false);
+            }
+        );
+    }
+
+    onOtherJobSelected(job: EditableJobDto | null): void {
+        this.otherJob.set(job);
+        if (job) {
+            this.loadJobForm(job.jobId);
+        } else {
+            this.currentMetadata.set(null);
+        }
+    }
+
+    onTemplateTypeChange(nextType: string | null): void {
+        if (nextType === 'CREATE_NEW') {
             this.openCreateModal();
             return;
         }
+        this.selectedProfileType.set(nextType);
+        this.templateDirty.set(false);
+        this.affectedJobs.set(null);
+        if (nextType) {
+            this.loadTemplate(nextType);
+            this.loadAffectedJobs(nextType);
+        } else {
+            this.currentMetadata.set(null);
+        }
+    }
 
+    private loadTemplate(profileType: string): void {
         this.isLoading.set(true);
-        this.errorMessage.set(null);
-        this.successMessage.set(null);
-        this.selectedProfileType.set(profileType);
-
         this.migrationService.getProfileMetadata(
             profileType,
-            (metadata) => {
-                this.currentMetadata.set(metadata);
+            (metadata) => { this.currentMetadata.set(metadata); this.isLoading.set(false); },
+            (error) => {
+                this.errorMessage.set(`Failed to load template: ${error || 'Unknown error'}`);
+                this.currentMetadata.set(null);
                 this.isLoading.set(false);
+            }
+        );
+    }
+
+    private loadAffectedJobs(profileType: string): void {
+        this.migrationService.getAffectedJobs(
+            profileType,
+            (result) => this.affectedJobs.set(result),
+            () => this.affectedJobs.set(null)
+        );
+    }
+
+    // ============================================================================
+    // FIELD EDITING (delegated to <app-field-set-editor>)
+    // ============================================================================
+
+    // Every field mutation emits the full new array. Per-job scopes save immediately (safe, one job);
+    // template scope stages the change and defers to an explicit, confirmed "Apply to all".
+    onFieldsChange(newFields: ProfileMetadataField[]) {
+        const metadata = this.currentMetadata();
+        if (!metadata) return;
+        const next = { ...metadata, fields: newFields };
+        this.currentMetadata.set(next);
+
+        if (this.isPerJobScope()) {
+            this.savePerJob(next);
+        } else {
+            this.templateDirty.set(true);
+        }
+    }
+
+    private savePerJob(metadata: ProfileMetadata) {
+        const jobId = this.editScope() === 'thisJob' ? this.currentJobId() : this.otherJob()?.jobId;
+        if (!jobId) {
+            this.errorMessage.set('No target job resolved — cannot save.');
+            return;
+        }
+        const targetName = this.scopeTargetLabel();
+        this.isSaving.set(true);
+        this.errorMessage.set(null);
+        this.migrationService.updateJobPlayerForm(
+            jobId,
+            metadata,
+            () => {
+                this.isSaving.set(false);
+                this.toast.show(`Saved — ${targetName} only.`, 'success');
             },
             (error) => {
-                this.errorMessage.set(`Failed to load profile: ${error || 'Unknown error'}`);
-                this.isLoading.set(false);
-                this.currentMetadata.set(null);
+                this.isSaving.set(false);
+                this.errorMessage.set(`Failed to save: ${error?.error?.error || error?.error?.message || 'Unknown error'}`);
+            }
+        );
+    }
+
+    // ---- Template apply (deliberate, guarded fan-out) ----
+
+    openTemplateApply(): void {
+        const type = this.selectedProfileType();
+        if (!type) return;
+        this.templateConfirmText.set('');
+        if (!this.affectedJobs()) {
+            this.loadAffectedJobs(type);
+        }
+        this.showTemplateConfirm.set(true);
+    }
+
+    cancelTemplateApply(): void {
+        this.showTemplateConfirm.set(false);
+        this.templateConfirmText.set('');
+    }
+
+    confirmTemplateApply(): void {
+        const type = this.selectedProfileType();
+        const metadata = this.currentMetadata();
+        if (!type || !metadata || !this.canApplyTemplate()) return;
+
+        this.isSaving.set(true);
+        this.errorMessage.set(null);
+        this.migrationService.updateProfileMetadata(
+            type,
+            metadata,
+            (result) => {
+                this.isSaving.set(false);
+                this.templateDirty.set(false);
+                this.showTemplateConfirm.set(false);
+                this.templateConfirmText.set('');
+                this.loadAffectedJobs(type);
+                this.toast.show(`Template ${type} updated — ${result.jobsAffected} job(s) rewritten.`, 'success');
+            },
+            (error) => {
+                this.isSaving.set(false);
+                this.errorMessage.set(`Failed to apply template: ${error?.error?.message || 'Unknown error'}`);
+            }
+        );
+    }
+
+    // Field editor requests a validation test; run it and push the result back down.
+    onValidationTest(e: { field: ProfileMetadataField; testValue: string }) {
+        this.isTesting.set(true);
+        this.testResult.set(null);
+        this.migrationService.testValidation(
+            e.field,
+            e.testValue,
+            (result) => { this.testResult.set(result); this.isTesting.set(false); },
+            (error) => {
+                this.testResult.set({
+                    isValid: false,
+                    messages: [`Test failed: ${error || 'Unknown error'}`],
+                    testValue: e.testValue,
+                    fieldName: e.field.name
+                });
+                this.isTesting.set(false);
             }
         );
     }
@@ -250,7 +456,6 @@ export class ProfileEditorComponent implements OnInit {
         this.selectedCloneSource.set(null);
         this.newProfileName.set('');
         this.isCreateModalOpen.set(true);
-        // Reset selected profile since they're creating new
         this.selectedProfileType.set(null);
     }
 
@@ -262,12 +467,10 @@ export class ProfileEditorComponent implements OnInit {
 
     onCloneSourceSelected(sourceProfile: string) {
         this.selectedCloneSource.set(sourceProfile);
-        // Auto-generate the new profile name preview
         this.generateNewProfileName(sourceProfile);
     }
 
     generateNewProfileName(sourceProfile: string) {
-        // Ask the server for the authoritative next profile type for this family
         this.migrationService.getNextProfileType(
             sourceProfile,
             (resp) => this.newProfileName.set(resp.newProfileType),
@@ -290,19 +493,18 @@ export class ProfileEditorComponent implements OnInit {
             (result) => {
                 if (result.success) {
                     this.successMessage.set(`Successfully created new profile: ${result.newProfileType}`);
-                    // Auto-dismiss success after a brief delay (polish)
                     setTimeout(() => this.successMessage.set(null), 4000);
 
-                    // Add to available profiles list
                     const displayName = this.formatProfileDisplayType(result.newProfileType);
                     this.availableProfiles.update(profiles => [
                         ...profiles,
                         { type: result.newProfileType, display: displayName }
                     ]);
 
-                    // Close modal and load the new profile
                     this.closeCreateModal();
-                    this.loadProfile(result.newProfileType);
+                    // Cloning targets the current job; land the user in template scope on the new type.
+                    this.editScope.set('template');
+                    this.onTemplateTypeChange(result.newProfileType);
                 } else {
                     this.errorMessage.set(result.errorMessage || 'Failed to create profile');
                 }
@@ -316,61 +518,8 @@ export class ProfileEditorComponent implements OnInit {
     }
 
     // ============================================================================
-    // FIELD EDITING (delegated to <app-field-set-editor>)
+    // THIS JOB'S PROFILE ASSIGNMENT (CoreRegformPlayer) — current job only
     // ============================================================================
-
-    // Every field mutation (reorder/add/edit/remove) emits the full new array; persist it.
-    onFieldsChange(newFields: ProfileMetadataField[]) {
-        const metadata = this.currentMetadata();
-        if (!metadata) return;
-        this.saveMetadata({ ...metadata, fields: newFields });
-    }
-
-    // Field editor requests a validation test; run it and push the result back down.
-    onValidationTest(e: { field: ProfileMetadataField; testValue: string }) {
-        this.isTesting.set(true);
-        this.testResult.set(null);
-        this.migrationService.testValidation(
-            e.field,
-            e.testValue,
-            (result) => {
-                this.testResult.set(result);
-                this.isTesting.set(false);
-            },
-            (error) => {
-                this.testResult.set({
-                    isValid: false,
-                    messages: [`Test failed: ${error || 'Unknown error'}`],
-                    testValue: e.testValue,
-                    fieldName: e.field.name
-                });
-                this.isTesting.set(false);
-            }
-        );
-    }
-
-    saveMetadata(metadata: ProfileMetadata) {
-        const profileType = this.selectedProfileType();
-        if (!profileType) return;
-
-        this.isSaving.set(true);
-        this.errorMessage.set(null);
-        this.successMessage.set(null);
-
-        this.migrationService.updateProfileMetadata(
-            profileType,
-            metadata,
-            (result) => {
-                this.currentMetadata.set(metadata);
-                this.successMessage.set(`Profile updated successfully. ${result.jobsAffected} job(s) affected.`);
-                this.isSaving.set(false);
-            },
-            (error) => {
-                this.errorMessage.set(`Failed to save profile: ${error || 'Unknown error'}`);
-                this.isSaving.set(false);
-            }
-        );
-    }
 
     applyJobProfileConfig() {
         const newType = (this.jobProfileType() || '').trim();
@@ -385,24 +534,16 @@ export class ProfileEditorComponent implements OnInit {
             newType,
             team,
             (resp) => {
-                // Update active job profile type and selected profile to stay in sync
                 this.activeJobProfileType.set(resp.profileType);
-                this.selectedProfileType.set(resp.profileType);
-                if (resp.metadata) {
-                    this.currentMetadata.set(resp.metadata);
-                }
                 this.jobCoreRegformRaw.set(resp.coreRegform || '');
-                // Commit last-applied values so dirty state clears
                 this.lastAppliedTeamConstraint.set(team);
                 this.lastSelectedProfileType.set(resp.profileType);
-                // Refresh options for the active job via service (mirrored by OptionsPanel)
-                this.migrationService.getCurrentJobOptionSets(
-                    _ => { },
-                    _ => { }
-                );
-                // Positive feedback
-                this.successMessage.set('Job profile configuration updated.');
-                setTimeout(() => this.successMessage.set(null), 3000);
+                // Re-stamped this job's form from the new type — reload the actual stored form.
+                if (this.editScope() === 'thisJob') {
+                    this.loadThisJobForm();
+                }
+                this.migrationService.getCurrentJobOptionSets(_ => { }, _ => { });
+                this.toast.show(`Profile assignment updated — ${this.currentJobName()}.`, 'success');
                 this.isSaving.set(false);
             },
             (err) => {
@@ -413,33 +554,12 @@ export class ProfileEditorComponent implements OnInit {
     }
 
     onResetJobProfileConfig() {
-        // Revert UI values back to last-applied
         this.jobProfileType.set(this.activeJobProfileType() || '');
         this.jobTeamConstraint.set(this.lastAppliedTeamConstraint() || '');
     }
 
-    onSelectedProfileTypeChange(nextType: string | null) {
-        // If there are unapplied changes to job config, confirm before switching profile
-        if (this.jobConfigDirty()) {
-            const previous = this.lastSelectedProfileType();
-            this.openConfirm(
-                'Discard Unapplied Changes?',
-                'You have changes to Team Constraint or Allow Pay In Full that are not applied. Switch profile and discard these changes?',
-                () => {
-                    this.loadProfile(nextType || '');
-                    this.lastSelectedProfileType.set(nextType || null);
-                }
-            );
-            // Revert the selector immediately; if user confirms we'll set it again in action
-            this.selectedProfileType.set(previous || null);
-            return;
-        }
-        this.loadProfile(nextType || '');
-        this.lastSelectedProfileType.set(nextType || null);
-    }
-
     // ============================================================================
-    // Confirm modal helpers (profile-switch discard)
+    // Confirm modal helpers (scope-switch discard)
     // ============================================================================
     openConfirm(title: string, message: string, action: () => void) {
         this.confirmModalTitle.set(title);
@@ -450,9 +570,7 @@ export class ProfileEditorComponent implements OnInit {
 
     confirmAction() {
         const action = this.confirmModalAction();
-        if (action) {
-            action();
-        }
+        if (action) action();
         this.closeConfirm();
     }
 
@@ -462,5 +580,4 @@ export class ProfileEditorComponent implements OnInit {
         this.confirmModalMessage.set('');
         this.confirmModalAction.set(null);
     }
-
 }

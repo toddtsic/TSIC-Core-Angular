@@ -97,6 +97,70 @@ code {
     gap: var(--space-2);
 }
 
+/* ── Edit scope: banner + danger chrome ── */
+.scope-toggle .btn {
+    font-weight: var(--font-weight-medium);
+}
+
+/* Wrap the field editor; template scope frames the whole surface in danger. */
+.editor-chrome {
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+    border: 1px solid var(--bs-border-color-translucent);
+    background: var(--bs-body-bg);
+}
+
+.editor-chrome--danger {
+    border: 2px solid var(--bs-danger);
+    box-shadow: 0 0 0 4px rgba(var(--bs-danger-rgb), 0.12);
+}
+
+/* Always-visible scope banner: colour + icon + words (never colour alone). */
+.scope-banner {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+    border: 1px solid transparent;
+
+    i {
+        font-size: var(--font-size-lg);
+        flex: 0 0 auto;
+    }
+}
+
+.scope-banner--job {
+    background: rgba(var(--bs-success-rgb), 0.12);
+    color: var(--bs-success-text-emphasis, var(--bs-success));
+    border-color: rgba(var(--bs-success-rgb), 0.35);
+}
+
+.scope-banner--other {
+    background: rgba(var(--bs-primary-rgb), 0.12);
+    color: var(--bs-primary-text-emphasis, var(--bs-primary));
+    border-color: rgba(var(--bs-primary-rgb), 0.35);
+}
+
+.scope-banner--template {
+    background: rgba(var(--bs-danger-rgb), 0.15);
+    color: var(--bs-danger-text-emphasis, var(--bs-danger));
+    border-color: var(--bs-danger);
+    font-weight: var(--font-weight-semibold);
+}
+
+.template-apply-bar {
+    border: 1px dashed rgba(var(--bs-danger-rgb), 0.4);
+    border-radius: var(--radius-sm);
+    margin-top: var(--space-2);
+}
+
+.affected-list {
+    max-height: 40vh;
+    overflow: auto;
+}
+
 /* ── Edit Field Modal ── */
 .edit-field-modal {
 

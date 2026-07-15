@@ -1371,6 +1371,250 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             .ToList();
     }
 
+    // ============================================================================
+    // PER-JOB PLAYER FORM EDITING (the steady-state model: the job is the unit of truth).
+    // These write ONE job's PlayerProfileMetadataJson — never a fan-out. The template fan-out
+    // (UpdateProfileMetadataAsync) is now reached only from the deliberate, guarded template mode.
+    // ============================================================================
+
+    /// <summary>
+    /// List every job that carries a player form, for the editor's job picker. Each row is flagged
+    /// <see cref="EditableJobDto.IsCustomized"/> when its field set has drifted from its profile
+    /// type's representative canonical (best-effort; see <see cref="PlayerFieldSignature"/>).
+    /// </summary>
+    public async Task<List<EditableJobDto>> ListEditableJobsAsync()
+    {
+        // Sequential awaits — both reads share the same scoped DbContext (never Task.WhenAll).
+        var players = await _repo.GetJobsForProfileSummaryAsync();
+        var adults = await _repo.GetJobsForAdultProfileSummaryAsync();
+        var yearByJob = adults
+            .GroupBy(a => a.JobId)
+            .ToDictionary(g => g.Key, g => g.First().Year);
+
+        // Canonical field signature per profile type, computed once and reused across jobs.
+        var canonicalCache = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<EditableJobDto>(players.Count);
+        foreach (var p in players)
+        {
+            var hasForm = !string.IsNullOrWhiteSpace(p.PlayerProfileMetadataJson);
+            var profileType = ExtractProfileType(p.CoreRegformPlayer);
+            var customized = false;
+            if (hasForm && !string.IsNullOrEmpty(profileType))
+            {
+                var canon = await GetCanonicalSignatureAsync(profileType, canonicalCache);
+                customized = IsPlayerJsonCustomized(p.PlayerProfileMetadataJson!, canon);
+            }
+
+            result.Add(new EditableJobDto
+            {
+                JobId = p.JobId,
+                JobName = p.JobName,
+                Year = yearByJob.TryGetValue(p.JobId, out var y) ? y : null,
+                ProfileType = profileType,
+                HasPlayerForm = hasForm,
+                IsCustomized = customized
+            });
+        }
+
+        return result
+            .OrderBy(j => j.JobName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(j => j.Year)
+            .ToList();
+    }
+
+    /// <summary>Read a single job's player form (by JobId), or null when the job has no form.</summary>
+    public async Task<ProfileMetadata?> GetJobPlayerFormAsync(Guid jobId)
+    {
+        var snap = await _repo.GetJobFormSnapshotAsync(jobId);
+        if (string.IsNullOrWhiteSpace(snap?.PlayerProfileMetadataJson))
+            return null;
+        return JsonSerializer.Deserialize<ProfileMetadata>(snap.PlayerProfileMetadataJson, s_CaseInsensitive);
+    }
+
+    /// <summary>
+    /// Write a single job's player form (by JobId). Normalizes exactly like the template save so the
+    /// stored shape matches, but touches ONLY this job. Returns false when the job does not exist.
+    /// </summary>
+    public async Task<bool> UpdateJobPlayerFormAsync(Guid jobId, ProfileMetadata metadata)
+    {
+        var snap = await _repo.GetJobFormSnapshotAsync(jobId);
+        if (snap == null) return false;
+
+        NormalizeMetadataInPlace(metadata);
+        var json = JsonSerializer.Serialize(metadata, s_IndentedCamelCase);
+        await _repo.UpdateJobPlayerMetadataAsync(jobId, json);
+
+        _logger.LogInformation("Updated player form for job {JobId} ({FieldCount} fields, this job only)",
+            jobId, metadata.Fields.Count);
+        return true;
+    }
+
+    /// <summary>
+    /// Preview the blast radius of a template-wide (fan-out) write for a profile type: every job it
+    /// would overwrite, with the customized ones flagged so the confirm modal can warn what is lost.
+    /// </summary>
+    public async Task<AffectedJobsResult> GetAffectedJobsAsync(string profileType)
+    {
+        var jobs = await _repo.GetJobsByProfileTypeAsync(profileType);
+        var canon = await GetCanonicalSignatureAsync(profileType, new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase));
+
+        var list = jobs
+            .Select(j => new AffectedJobDto
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? "Unnamed Job",
+                Year = j.Year,
+                IsCustomized = !string.IsNullOrWhiteSpace(j.PlayerProfileMetadataJson)
+                               && IsPlayerJsonCustomized(j.PlayerProfileMetadataJson!, canon)
+            })
+            .OrderByDescending(x => x.IsCustomized)
+            .ThenBy(x => x.JobName, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return new AffectedJobsResult
+        {
+            ProfileType = profileType,
+            TotalCount = list.Count,
+            CustomizedCount = list.Count(x => x.IsCustomized),
+            Jobs = list
+        };
+    }
+
+    /// <summary>
+    /// Copy a source job's form definition(s) INTO an explicit target job (or the caller's current
+    /// job when <see cref="CopyJobFormsRequest.TargetJobId"/> is null). Optionally carries the
+    /// profile-type pointer and per-job option sets too. Validates everything BEFORE writing —
+    /// never a partial copy.
+    /// </summary>
+    public async Task<CopyJobFormsResult> CopyFormsAsync(Guid callerRegId, CopyJobFormsRequest request)
+    {
+        if (!request.IncludePlayer && !request.IncludeCoach && !request.IncludeOptions && !request.IncludePointer)
+            return Fail("Select at least one thing to copy.");
+        if (request.IncludePointer && !request.IncludePlayer)
+            return Fail("Copying the profile-type pointer requires copying the player form too.");
+        if (request.SourceJobId == Guid.Empty)
+            return Fail("Source job is required.");
+
+        // Resolve the target: explicit job, else the caller's current job (JWT regId).
+        Guid targetJobId;
+        string targetJobName;
+        if (request.TargetJobId is Guid tj && tj != Guid.Empty)
+        {
+            var t = await _repo.GetJobFormSnapshotAsync(tj);
+            if (t == null) return Fail("Target job not found.");
+            targetJobId = t.JobId;
+            targetJobName = t.JobName;
+        }
+        else
+        {
+            var current = await _repo.GetJobDataForRegistrationAsync(callerRegId);
+            if (current == null) return Fail("Current job could not be resolved.");
+            targetJobId = current.JobId;
+            targetJobName = current.JobName ?? "Current job";
+        }
+
+        if (request.SourceJobId == targetJobId)
+            return Fail("The source and target jobs are the same.");
+
+        var source = await _repo.GetJobFormSnapshotAsync(request.SourceJobId);
+        if (source == null) return Fail("Source job not found.");
+
+        if (request.IncludePlayer && string.IsNullOrWhiteSpace(source.PlayerProfileMetadataJson))
+            return Fail($"'{source.JobName}' has no player form to copy.");
+        if (request.IncludeCoach && string.IsNullOrWhiteSpace(source.AdultProfileMetadataJson))
+            return Fail($"'{source.JobName}' has no coach/adult form to copy.");
+        if (request.IncludePointer && string.IsNullOrWhiteSpace(source.CoreRegformPlayer))
+            return Fail($"'{source.JobName}' has no profile-type pointer to copy.");
+
+        bool playerCopied = false, coachCopied = false, pointerCopied = false, optionsCopied = false;
+
+        if (request.IncludePlayer)
+        {
+            await _repo.UpdateJobPlayerMetadataAsync(targetJobId, source.PlayerProfileMetadataJson!);
+            playerCopied = true;
+            if (request.IncludePointer)
+            {
+                await _repo.UpdateJobCoreRegformPlayerByJobIdAsync(targetJobId, source.CoreRegformPlayer!);
+                pointerCopied = true;
+            }
+        }
+
+        if (request.IncludeCoach)
+        {
+            await _repo.UpdateJobAdultMetadataAsync(targetJobId, source.AdultProfileMetadataJson!);
+            coachCopied = true;
+        }
+
+        if (request.IncludeOptions)
+        {
+            await _repo.UpdateJobJsonOptionsAsync(targetJobId, source.JsonOptions ?? string.Empty);
+            optionsCopied = true;
+        }
+
+        _logger.LogInformation(
+            "Copied forms from job {SourceJobId} INTO job {TargetJobId} (player={Player}, coach={Coach}, pointer={Pointer}, options={Options})",
+            request.SourceJobId, targetJobId, playerCopied, coachCopied, pointerCopied, optionsCopied);
+
+        return new CopyJobFormsResult
+        {
+            Success = true,
+            PlayerCopied = playerCopied,
+            CoachCopied = coachCopied,
+            PointerCopied = pointerCopied,
+            OptionsCopied = optionsCopied,
+            SourceJobName = source.JobName,
+            TargetJobName = targetJobName,
+            ErrorMessage = null
+        };
+
+        static CopyJobFormsResult Fail(string message) => new()
+        {
+            Success = false,
+            PlayerCopied = false,
+            CoachCopied = false,
+            SourceJobName = string.Empty,
+            TargetJobName = null,
+            ErrorMessage = message
+        };
+    }
+
+    // ---- Customization detection (best-effort drift vs the type's representative canonical) --------
+
+    /// <summary>
+    /// Deterministic field-set signature: normalizes field order/visibility exactly like the save path,
+    /// then serializes with the volatile migration <c>Source</c> stamp removed (it carries a timestamp
+    /// that would otherwise make every comparison unequal). Two jobs with the same fields → same string.
+    /// </summary>
+    private static string PlayerFieldSignature(ProfileMetadata metadata)
+    {
+        NormalizeMetadataInPlace(metadata);
+        metadata.Source = null;
+        return JsonSerializer.Serialize(metadata, s_IndentedCamelCase);
+    }
+
+    /// <summary>Canonical signature for a profile type (its representative job), cached per call.</summary>
+    private async Task<string?> GetCanonicalSignatureAsync(string profileType, Dictionary<string, string?> cache)
+    {
+        if (cache.TryGetValue(profileType, out var cached))
+            return cached;
+        var canonical = await GetProfileMetadataAsync(profileType);
+        var signature = canonical == null ? null : PlayerFieldSignature(canonical);
+        cache[profileType] = signature;
+        return signature;
+    }
+
+    /// <summary>True when a job's stored player JSON differs from the type canonical. Unknown → false.</summary>
+    private static bool IsPlayerJsonCustomized(string jobJson, string? canonicalSignature)
+    {
+        if (canonicalSignature == null) return false;
+        ProfileMetadata? meta;
+        try { meta = JsonSerializer.Deserialize<ProfileMetadata>(jobJson, s_CaseInsensitive); }
+        catch { return false; }
+        if (meta == null) return false;
+        return !string.Equals(PlayerFieldSignature(meta), canonicalSignature, StringComparison.Ordinal);
+    }
+
     private static ProfileMetadata ParseAdultRoleOrEmpty(string? rootJson, string roleKey)
     {
         if (!string.IsNullOrWhiteSpace(rootJson))
@@ -2124,12 +2368,12 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         return string.Join('|', list);
     }
 
-    public async Task<(string? ProfileType, string? TeamConstraint, string Raw, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
+    public async Task<(string? ProfileType, string? TeamConstraint, string Raw, Guid? JobId, ProfileMetadata? Metadata)> GetCurrentJobProfileConfigAsync(Guid regId)
     {
         var jobData = await _repo.GetJobDataForRegistrationAsync(regId);
         if (jobData == null)
         {
-            return (null, null, string.Empty, null);
+            return (null, null, string.Empty, null, null);
         }
 
         var raw = jobData.CoreRegformPlayer ?? string.Empty;
@@ -2139,7 +2383,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
         {
             metadata = await GetProfileMetadataAsync(pt);
         }
-        return (pt, constraint, raw, metadata);
+        return (pt, constraint, raw, jobData.JobId, metadata);
     }
 
     public async Task<(string ProfileType, string TeamConstraint, string Raw, ProfileMetadata? Metadata)>

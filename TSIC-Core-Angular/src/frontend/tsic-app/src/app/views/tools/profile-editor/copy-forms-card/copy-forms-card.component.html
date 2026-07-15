@@ -1,9 +1,10 @@
 <section class="copy-forms-card">
     <header class="cfc-header">
-        <h3 class="cfc-title">Copy forms from another job</h3>
+        <h3 class="cfc-title">Copy forms between jobs</h3>
         <p class="cfc-subtitle">
-            Seed this job&rsquo;s registration forms from an existing job. The selected form(s) are copied
-            straight onto this job &mdash; verify by previewing the registration form.
+            Copy a job&rsquo;s registration form(s) from one job into another. The target defaults to
+            <strong>this job</strong> but you can point it at any job &mdash; handy for a brand-new job.
+            Verify by previewing the target&rsquo;s registration form afterward.
         </p>
     </header>
 
@@ -13,40 +14,58 @@
 
     @if (lastResult(); as res) {
         <div class="cfc-alert cfc-alert--success" role="status">
-            Copied
-            @if (res.playerCopied && res.coachCopied) { player + coach forms }
-            @else if (res.playerCopied) { player form }
-            @else { coach form }
-            from &ldquo;{{ res.sourceJobName }}&rdquo;.
+            Copied from &ldquo;{{ res.sourceJobName }}&rdquo; into &ldquo;{{ res.targetJobName || 'this job' }}&rdquo;.
         </div>
     }
 
     <div class="cfc-body">
-        <label class="cfc-field">
-            <span class="cfc-label">Source job</span>
-            <select class="cfc-select"
-                    [disabled]="isLoadingSources() || isCopying()"
-                    (change)="onSourceChange($any($event.target).value || null)">
-                <option value="" [selected]="!selectedJobId()">
-                    {{ isLoadingSources() ? 'Loading jobs…' : 'Choose a job…' }}
-                </option>
-                @for (s of sources(); track s.jobId) {
-                    <option [value]="s.jobId" [selected]="s.jobId === selectedJobId()">{{ sourceLabel(s) }}</option>
-                }
-            </select>
-        </label>
+        <div class="cfc-row">
+            <label class="cfc-field">
+                <span class="cfc-label">FROM (source job)</span>
+                <select class="cfc-select"
+                        [disabled]="isLoadingSources() || isCopying()"
+                        (change)="onSourceChange($any($event.target).value || null)">
+                    <option value="" [selected]="!selectedSourceId()">
+                        {{ isLoadingSources() ? 'Loading jobs…' : 'Choose a source job…' }}
+                    </option>
+                    @for (s of sources(); track s.jobId) {
+                        <option [value]="s.jobId" [selected]="s.jobId === selectedSourceId()">{{ sourceLabel(s) }}</option>
+                    }
+                </select>
+            </label>
+
+            <label class="cfc-field">
+                <span class="cfc-label">INTO (target job)</span>
+                <select class="cfc-select"
+                        [disabled]="isCopying()"
+                        (change)="onTargetChange($any($event.target).value || null)">
+                    <option value="" [selected]="!selectedTargetId()">This job (current)</option>
+                    @for (t of targets(); track t.jobId) {
+                        <option [value]="t.jobId" [selected]="t.jobId === selectedTargetId()">{{ targetLabel(t) }}</option>
+                    }
+                </select>
+            </label>
+        </div>
 
         @if (selectedSource(); as src) {
             <fieldset class="cfc-forms" [disabled]="isCopying()">
-                <legend class="cfc-label">Forms to copy</legend>
+                <legend class="cfc-label">What to copy</legend>
 
                 <label class="cfc-check" [class.cfc-check--disabled]="!src.hasPlayerForm">
                     <input type="checkbox"
                            [checked]="includePlayer()"
                            [disabled]="!src.hasPlayerForm || isCopying()"
-                           (change)="includePlayer.set($any($event.target).checked)">
+                           (change)="onIncludePlayerChange($any($event.target).checked)">
                     <span>Player form</span>
-                    @if (!src.hasPlayerForm) { <span class="cfc-none">(none on this job)</span> }
+                    @if (!src.hasPlayerForm) { <span class="cfc-none">(none on source)</span> }
+                </label>
+
+                <label class="cfc-check cfc-check--sub" [class.cfc-check--disabled]="!includePlayer()">
+                    <input type="checkbox"
+                           [checked]="includePointer()"
+                           [disabled]="!includePlayer() || isCopying()"
+                           (change)="includePointer.set($any($event.target).checked)">
+                    <span>Profile type (which template the job uses)</span>
                 </label>
 
                 <label class="cfc-check" [class.cfc-check--disabled]="!src.hasCoachForm">
@@ -55,14 +74,35 @@
                            [disabled]="!src.hasCoachForm || isCopying()"
                            (change)="includeCoach.set($any($event.target).checked)">
                     <span>Coach / adult form</span>
-                    @if (!src.hasCoachForm) { <span class="cfc-none">(none on this job)</span> }
+                    @if (!src.hasCoachForm) { <span class="cfc-none">(none on source)</span> }
+                </label>
+
+                <label class="cfc-check">
+                    <input type="checkbox"
+                           [checked]="includeOptions()"
+                           [disabled]="isCopying()"
+                           (change)="includeOptions.set($any($event.target).checked)">
+                    <span>Dropdown option sets</span>
                 </label>
             </fieldset>
+
+            <!-- Read-back sentence + guards -->
+            <p class="cfc-readback">{{ readBack() }}</p>
+
+            @if (sourceEqualsTarget()) {
+                <div class="cfc-alert cfc-alert--error" role="alert">
+                    Source and target are the same job. Choose a different target.
+                </div>
+            } @else if (targetHasForm() && includePlayer()) {
+                <div class="cfc-alert cfc-alert--warn" role="alert">
+                    &ldquo;{{ targetName() }}&rdquo; already has a player form — copying will <strong>replace</strong> it, not merge.
+                </div>
+            }
         }
 
         <div class="cfc-actions">
             <button type="button" class="cfc-btn" [disabled]="!canCopy()" (click)="copy()">
-                {{ isCopying() ? 'Copying…' : 'Copy onto this job' }}
+                {{ isCopying() ? 'Copying…' : 'Copy' }}
             </button>
         </div>
     </div>

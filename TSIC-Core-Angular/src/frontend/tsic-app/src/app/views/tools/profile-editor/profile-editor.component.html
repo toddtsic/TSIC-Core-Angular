@@ -10,8 +10,7 @@
                         <a [routerLink]="['/', jobPath(), 'home']" class="btn btn-outline-secondary"
                             title="Go to job home" aria-label="Go to job home">
                             <i class="bi bi-house-door me-1"></i>
-                            <span class="d-none d-sm-inline">Home</span>
-                            <span class="d-inline d-sm-none">Home</span>
+                            <span>Home</span>
                         </a>
                         @if (mode() === 'player') {
                         <button class="btn btn-success" type="button" title="Create new profile"
@@ -29,11 +28,10 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
-    <!-- Seed this job's forms from another job (job-scoped; independent of the type editors below). -->
+    <!-- Seed this job's forms from another job (job-scoped; independent of the editors below). -->
     <app-copy-forms-card />
 
     <!-- Player / Adult segment -->
@@ -57,7 +55,6 @@
         <button type="button" class="btn-close" (click)="errorMessage.set(null)"></button>
     </div>
     }
-
     @if (successMessage()) {
     <div class="alert alert-success alert-dismissible fade show" role="alert">
         <i class="bi bi-check-circle-fill me-2"></i>
@@ -66,130 +63,201 @@
     </div>
     }
 
-    <!-- Profile Selector + Job Profile Panel -->
-    <div class="row mb-4 g-3">
-        <div class="col-md-6">
-            <div class="card h-100 allow-overflow">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0 d-flex align-items-center gap-2">
-                            <span>This Job's Player Profile</span>
-                            @if (jobCoreRegformRaw()) {
-                            <span class="badge bg-warning text-dark">{{ jobCoreRegformRaw() }}</span>
-                            }
-                        </h5>
-                    </div>
-                    <div class="mt-2">
-                        <label class="form-label" for="job-profile-type">Profile Type</label>
-                        <select id="job-profile-type" class="form-select" [(ngModel)]="jobProfileType">
-                            <option [ngValue]="''">-- Choose a profile --</option>
-                            @for (profile of availableProfiles(); track profile.type) {
-                            <option [ngValue]="profile.type">{{ profile.display }}</option>
-                            }
-                        </select>
-                    </div>
-                    <div class="mt-3">
-                        <label class="form-label" for="job-team-constraint">Team Constraint</label>
-                        <select id="job-team-constraint" class="form-select" [(ngModel)]="jobTeamConstraint">
-                            @for (opt of teamConstraintOptions; track opt.value) {
-                            <option [ngValue]="opt.value">{{ opt.label }}</option>
-                            }
-                        </select>
-                    </div>
-                    <!-- Allow Pay In Full removed: scenarios derive payment options -->
-                    <div class="d-flex justify-content-between align-items-center mt-3">
-                        <div>
-                            @if (jobConfigDirty()) { <span class="badge bg-warning text-dark">Unsaved changes</span> }
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-outline-secondary" (click)="onResetJobProfileConfig()"
-                                [disabled]="!jobConfigDirty()">Reset</button>
-                            <button class="btn apply-button" [ngClass]="{
-                                    'btn-primary': jobConfigDirty() && !isSaving(),
-                                    'pulsing-button': jobConfigDirty() && !isSaving(),
-                                    'apply-pulse': jobConfigDirty() && !isSaving(),
-                                    'btn-secondary': !jobConfigDirty() || isSaving()
-                                }" (click)="applyJobProfileConfig()"
-                                [disabled]="isSaving() || !jobProfileType() || !jobConfigDirty()">
-                                @if (isSaving()) {<span class="spinner-border spinner-border-sm me-1"></span>}Apply
-                            </button>
-                        </div>
-                    </div>
+    <!-- ============ EDIT SCOPE SELECTOR ============ -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <h5 class="card-title d-flex align-items-center gap-2">
+                <i class="bi bi-bullseye"></i> What are you editing?
+            </h5>
+            <div class="btn-group scope-toggle" role="group" aria-label="Edit scope">
+                <button type="button" class="btn"
+                    [class.btn-success]="editScope() === 'thisJob'"
+                    [class.btn-outline-success]="editScope() !== 'thisJob'"
+                    (click)="setScope('thisJob')">
+                    <i class="bi bi-person-badge me-1"></i> This job
+                </button>
+                <button type="button" class="btn"
+                    [class.btn-primary]="editScope() === 'otherJob'"
+                    [class.btn-outline-primary]="editScope() !== 'otherJob'"
+                    (click)="setScope('otherJob')">
+                    <i class="bi bi-building me-1"></i> A specific job
+                </button>
+                <button type="button" class="btn"
+                    [class.btn-danger]="editScope() === 'template'"
+                    [class.btn-outline-danger]="editScope() !== 'template'"
+                    (click)="setScope('template')">
+                    <i class="bi bi-diagram-3 me-1"></i> This template (all jobs)
+                </button>
+            </div>
+
+            <!-- Scope-specific target chooser -->
+            <div class="mt-3">
+                @switch (editScope()) {
+                @case ('thisJob') {
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted">Editing your current job:</span>
+                    <span class="badge bg-success-subtle text-success-emphasis border border-success-subtle">
+                        {{ currentJobName() }}</span>
                 </div>
+                }
+                @case ('otherJob') {
+                <label class="form-label">Choose the job to edit</label>
+                <app-job-picker [jobs]="editableJobs()" [selectedJobId]="otherJob()?.jobId ?? null"
+                    [excludeJobId]="currentJobId()" placeholder="Choose a job to edit…"
+                    (jobSelected)="onOtherJobSelected($event)"></app-job-picker>
+                }
+                @case ('template') {
+                <label class="form-label" for="template-type">Choose the template (profile type)</label>
+                <select id="template-type" class="form-select" [ngModel]="selectedProfileType()"
+                    (ngModelChange)="onTemplateTypeChange($event)" [disabled]="isLoading() || isSaving()">
+                    <option [ngValue]="null">-- Choose a template --</option>
+                    <option value="CREATE_NEW" class="text-success fw-bold">➕ CREATE NEW</option>
+                    @for (profile of availableProfiles(); track profile.type) {
+                    <option [ngValue]="profile.type">{{ profile.display }}</option>
+                    }
+                </select>
+                }
+                }
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Select Profile Type</h5>
-                    </div>
-                    <select class="form-select mt-2" [(ngModel)]="selectedProfileType"
-                        (ngModelChange)="onSelectedProfileTypeChange($event)" [disabled]="isLoading() || isSaving()">
-                        <option [ngValue]="null">-- Choose a profile --</option>
-                        <option value="CREATE_NEW" class="text-success fw-bold">➕ CREATE NEW</option>
+    </div>
+
+    <!-- This job's profile ASSIGNMENT (which profile type + team constraint the current job uses) -->
+    @if (editScope() === 'thisJob') {
+    <div class="card mb-3 allow-overflow">
+        <div class="card-body">
+            <h6 class="card-title d-flex align-items-center gap-2">
+                <span>This Job's Profile Assignment</span>
+                @if (jobCoreRegformRaw()) {
+                <span class="badge bg-warning text-dark">{{ jobCoreRegformRaw() }}</span>
+                }
+            </h6>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="job-profile-type">Profile Type</label>
+                    <select id="job-profile-type" class="form-select" [(ngModel)]="jobProfileType">
+                        <option [ngValue]="''">-- Choose a profile --</option>
                         @for (profile of availableProfiles(); track profile.type) {
                         <option [ngValue]="profile.type">{{ profile.display }}</option>
                         }
                     </select>
-                    @if (selectedProfileType() && currentMetadata()) {
-                    <div class="mt-3">
-                        <small class="text-muted">
-                            <strong>Fields:</strong> {{ fieldCount() }}
-                        </small>
-                    </div>
-                    }
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="job-team-constraint">Team Constraint</label>
+                    <select id="job-team-constraint" class="form-select" [(ngModel)]="jobTeamConstraint">
+                        @for (opt of teamConstraintOptions; track opt.value) {
+                        <option [ngValue]="opt.value">{{ opt.label }}</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                    @if (jobConfigDirty()) { <span class="badge bg-warning text-dark">Unsaved changes</span> }
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" (click)="onResetJobProfileConfig()"
+                        [disabled]="!jobConfigDirty()">Reset</button>
+                    <button class="btn btn-primary" (click)="applyJobProfileConfig()"
+                        [disabled]="isSaving() || !jobProfileType() || !jobConfigDirty()">
+                        @if (isSaving()) {<span class="spinner-border spinner-border-sm me-1"></span>}Apply
+                    </button>
                 </div>
             </div>
         </div>
     </div>
+    }
 
-    <!-- Loading Spinner -->
+    <!-- Loading -->
     @if (isLoading()) {
     <div class="text-center py-5">
-        <div class="spinner-border text-primary">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p class="mt-2">Loading profile metadata...</p>
+        <div class="spinner-border text-primary"><span class="visually-hidden">Loading...</span></div>
+        <p class="mt-2">Loading form…</p>
     </div>
     }
 
-    <!-- Fields + Job Options Tabs -->
+    <!-- ============ SCOPE BANNER + FIELD EDITOR ============ -->
     @if (currentMetadata() && !isLoading()) {
-    <div class="row">
-        <div class="col-12">
-            <ul class="nav nav-tabs mb-3">
-                <li class="nav-item">
-                    <button class="nav-link" [class.active]="activeTab() === 'fields'"
-                        (click)="activeTab.set('fields')">
-                        <i class="bi bi-list-columns me-1"></i> Fields
-                    </button>
-                </li>
-                @if (showJobOptionsTab()) {
-                <li class="nav-item">
-                    <button class="nav-link" [class.active]="activeTab() === 'options'"
-                        (click)="activeTab.set('options')">
-                        <i class="bi bi-ui-checks-grid me-1"></i> Job Options
-                    </button>
-                </li>
-                }
-            </ul>
+    <div class="editor-chrome" [class.editor-chrome--danger]="isTemplateScope()">
 
-            <!-- Fields Tab -->
-            @if (activeTab() === 'fields') {
-            <app-field-set-editor [fields]="currentMetadata()!.fields" [allowedFields]="playerAllowedFields"
-                [disabled]="isSaving()" [scopeLabel]="selectedProfileType() ? selectedProfileDisplay() : ''"
-                [headerNote]="'Edits here affect all jobs using the selected profile type. For this job only overrides, use Job Options.'"
-                [removeWarning]="'Are you sure you want to remove this field? This will update all jobs using this profile. The Jobs.PlayerProfileMetadataJson property will be updated for each job.'"
-                [testResult]="testResult()" [testing]="isTesting()" (fieldsChange)="onFieldsChange($event)"
-                (validationTest)="onValidationTest($event)"></app-field-set-editor>
+        <!-- Always-visible, color+icon+text scope banner -->
+        <div class="scope-banner"
+            [class.scope-banner--job]="editScope() === 'thisJob'"
+            [class.scope-banner--other]="editScope() === 'otherJob'"
+            [class.scope-banner--template]="editScope() === 'template'"
+            role="status">
+            @switch (editScope()) {
+            @case ('thisJob') {
+            <i class="bi bi-person-badge"></i>
+            <span><strong>Editing THIS JOB ONLY</strong> · {{ currentJobName() }}</span>
             }
-
-            <!-- Job Options Tab -->
-            @if (activeTab() === 'options' && showJobOptionsTab()) {
-            <app-options-panel [metadata]="currentMetadata()"></app-options-panel>
+            @case ('otherJob') {
+            <i class="bi bi-building"></i>
+            <span><strong>Editing ONE JOB ONLY</strong> · {{ scopeTargetLabel() }}</span>
+            }
+            @case ('template') {
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            <span>
+                <strong>EDITING THE {{ selectedProfileType() }} TEMPLATE</strong> —
+                @if (affectedJobs()) { {{ affectedJobs()!.totalCount }} JOB(S) WILL BE OVERWRITTEN }
+                @else { affects every job using this template }
+            </span>
+            }
             }
         </div>
+
+        <!-- Template scope: staged changes + explicit, guarded Apply -->
+        @if (isTemplateScope()) {
+        <div class="d-flex justify-content-between align-items-center px-3 py-2 template-apply-bar">
+            <div>
+                @if (templateDirty()) {
+                <span class="badge bg-danger">Unsaved template changes — not yet applied to any job</span>
+                } @else {
+                <span class="text-muted small">Edits are staged. Nothing is written until you Apply.</span>
+                }
+            </div>
+            <button class="btn btn-danger" (click)="openTemplateApply()"
+                [disabled]="!templateDirty() || isSaving() || !selectedProfileType()">
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                Apply to all jobs@if (affectedJobs()) { ({{ affectedJobs()!.totalCount }}) }
+            </button>
+        </div>
+        }
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mt-3 mb-3">
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab() === 'fields'"
+                    (click)="activeTab.set('fields')">
+                    <i class="bi bi-list-columns me-1"></i> Fields
+                </button>
+            </li>
+            @if (showJobOptionsTab()) {
+            <li class="nav-item">
+                <button class="nav-link" [class.active]="activeTab() === 'options'"
+                    (click)="activeTab.set('options')">
+                    <i class="bi bi-ui-checks-grid me-1"></i> Job Options
+                </button>
+            </li>
+            }
+        </ul>
+
+        @if (activeTab() === 'fields') {
+        <app-field-set-editor [fields]="currentMetadata()!.fields" [allowedFields]="playerAllowedFields"
+            [disabled]="isSaving()" [scopeLabel]="scopeTargetLabel()"
+            [headerNote]="isTemplateScope()
+                ? 'Staged for the ' + selectedProfileType() + ' template. Nothing is written until you press Apply to all jobs.'
+                : 'Edits here affect ' + scopeTargetLabel() + ' ONLY, and save immediately.'"
+            [removeWarning]="isTemplateScope()
+                ? 'Remove this field from the ' + selectedProfileType() + ' template? It will be removed from every job using it when you Apply.'
+                : 'Remove this field from ' + scopeTargetLabel() + '\'s form? This affects only this job.'"
+            [testResult]="testResult()" [testing]="isTesting()" (fieldsChange)="onFieldsChange($event)"
+            (validationTest)="onValidationTest($event)"></app-field-set-editor>
+        }
+
+        @if (activeTab() === 'options' && showJobOptionsTab()) {
+        <app-options-panel [metadata]="currentMetadata()"></app-options-panel>
+        }
     </div>
     }
     } @else {
@@ -197,7 +265,7 @@
     }
 </div>
 
-<!-- Confirm Dialog -->
+<!-- Scope-switch discard confirm -->
 @if (showConfirmModal()) {
 <tsic-dialog [open]="true" [closeOnBackdrop]="true" (requestClose)="closeConfirm()">
     <div class="modal-content">
@@ -210,56 +278,111 @@
             <p class="mb-0">{{ confirmModalMessage() }}</p>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeConfirm()">Cancel</button>
-            <button type="button" class="btn btn-primary" (click)="confirmAction()">OK</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="closeConfirm()">Cancel</button>
+            <button type="button" class="btn btn-warning" (click)="confirmAction()">Discard &amp; switch</button>
         </div>
     </div>
 </tsic-dialog>
 }
 
-<!-- Create New Profile Dialog -->
+<!-- Template APPLY confirmation — typed profile-type gate + affected-jobs list -->
+@if (showTemplateConfirm()) {
+<tsic-dialog [open]="true" [closeOnBackdrop]="false" (requestClose)="cancelTemplateApply()">
+    <div class="modal-content">
+        <div class="modal-header bg-danger-subtle">
+            <h5 class="modal-title text-danger-emphasis">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Apply {{ selectedProfileType() }} to ALL jobs
+            </h5>
+            <button type="button" class="btn-close" (click)="cancelTemplateApply()" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            @if (affectedJobs(); as aj) {
+            <p>
+                This will overwrite the player form on <strong>{{ aj.totalCount }} job(s)</strong> using
+                <strong>{{ selectedProfileType() }}</strong>.
+                @if (aj.customizedCount > 0) {
+                <span class="text-danger d-block mt-1">
+                    <i class="bi bi-exclamation-octagon-fill me-1"></i>
+                    <strong>{{ aj.customizedCount }}</strong> of these have per-job customizations that will be
+                    <strong>lost</strong>.
+                </span>
+                }
+            </p>
+            <div class="affected-list border rounded mb-3">
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Job</th>
+                            <th>Year</th>
+                            <th class="text-end">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (j of aj.jobs; track j.jobId) {
+                        <tr [class.table-danger]="j.isCustomized">
+                            <td>{{ j.jobName }}</td>
+                            <td>{{ j.year || '—' }}</td>
+                            <td class="text-end">
+                                @if (j.isCustomized) {
+                                <span class="badge bg-danger">customized — will be lost</span>
+                                } @else {
+                                <span class="badge bg-secondary">matches template</span>
+                                }
+                            </td>
+                        </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            } @else {
+            <p class="text-muted">Loading affected jobs…</p>
+            }
+
+            <label class="form-label">
+                Type <code>{{ selectedProfileType() }}</code> to confirm you intend to change every job:
+            </label>
+            <input type="text" class="form-control" [ngModel]="templateConfirmText()"
+                (ngModelChange)="templateConfirmText.set($event)"
+                [placeholder]="selectedProfileType() || ''" aria-label="Type the profile type to confirm" />
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" (click)="cancelTemplateApply()">Cancel</button>
+            <button type="button" class="btn btn-danger" (click)="confirmTemplateApply()"
+                [disabled]="!canApplyTemplate() || isSaving()">
+                @if (isSaving()) {<span class="spinner-border spinner-border-sm me-1"></span>}
+                Overwrite all jobs
+            </button>
+        </div>
+    </div>
+</tsic-dialog>
+}
+
+<!-- Create new profile modal -->
 @if (isCreateModalOpen()) {
 <tsic-dialog [open]="true" [closeOnBackdrop]="true" (requestClose)="closeCreateModal()">
     <div class="modal-content">
         <div class="modal-header">
-            <h5 class="modal-title">Create New Profile</h5>
+            <h5 class="modal-title"><i class="bi bi-plus-lg me-2"></i>Create New Profile</h5>
             <button type="button" class="btn-close" (click)="closeCreateModal()" aria-label="Close"></button>
         </div>
         <div class="modal-body">
-            <div class="mb-3">
-                <label class="form-label fw-bold" for="clone-from">Clone From:</label>
-                <select id="clone-from" class="form-select" [(ngModel)]="selectedCloneSource"
-                    (ngModelChange)="onCloneSourceSelected($event)" [disabled]="isCloning()">
-                    <option [ngValue]="null">-- Select a profile to clone --</option>
-                    @for (profile of availableProfiles(); track profile.type) {
-                    <option [ngValue]="profile.type">{{ profile.display }}</option>
-                    }
-                </select>
-                <small class="text-muted">Select an existing profile to use as a template</small>
-            </div>
-
-            @if (selectedCloneSource() && newProfileName()) {
-            <div class="alert alert-info">
-                <i class="bi bi-info-circle me-2"></i>
-                <strong>Will prepare:</strong> <code>{{ newProfileName() }}</code>
-                <br>
-                <small>This will create a new profile based on <strong>{{ selectedCloneSource() }}</strong> with an
-                    auto-incremented name.</small>
-            </div>
+            <label class="form-label" for="clone-source">Clone from</label>
+            <select id="clone-source" class="form-select" [ngModel]="selectedCloneSource()"
+                (ngModelChange)="onCloneSourceSelected($event)">
+                <option [ngValue]="null">-- Choose a source profile --</option>
+                @for (profile of availableProfiles(); track profile.type) {
+                <option [ngValue]="profile.type">{{ profile.display }}</option>
+                }
+            </select>
+            @if (newProfileName()) {
+            <p class="mt-3 mb-0">New profile: <strong>{{ newProfileName() }}</strong></p>
             }
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" (click)="closeCreateModal()"
-                [disabled]="isCloning()">Cancel</button>
+            <button type="button" class="btn btn-outline-secondary" (click)="closeCreateModal()">Cancel</button>
             <button type="button" class="btn btn-success" (click)="createNewProfile()"
                 [disabled]="!selectedCloneSource() || isCloning()">
-                @if (isCloning()) {
-                <span class="spinner-border spinner-border-sm me-1"></span>
-                Creating...
-                } @else {
-                <i class="bi bi-plus-circle me-1"></i>
-                Create Profile
-                }
+                @if (isCloning()) {<span class="spinner-border spinner-border-sm me-1"></span>}Create
             </button>
         </div>
     </div>

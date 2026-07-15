@@ -55,6 +55,24 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
             .SingleOrDefaultAsync();
     }
 
+    public async Task<JobFormSnapshot?> GetJobFormSnapshotAsync(Guid jobId)
+    {
+        return await _context.Jobs
+            .AsNoTracking()
+            .Where(j => j.JobId == jobId)
+            .Select(j => new JobFormSnapshot
+            {
+                JobId = j.JobId,
+                JobName = j.JobName ?? string.Empty,
+                Year = j.Year,
+                CoreRegformPlayer = j.CoreRegformPlayer,
+                JsonOptions = j.JsonOptions,
+                PlayerProfileMetadataJson = j.PlayerProfileMetadataJson,
+                AdultProfileMetadataJson = j.AdultProfileMetadataJson
+            })
+            .SingleOrDefaultAsync();
+    }
+
     public async Task<JobWithJsonOptions?> GetJobWithJsonOptionsAsync(Guid jobId)
     {
         return await _context.Jobs
@@ -203,6 +221,16 @@ public class ProfileMetadataRepository : IProfileMetadataRepository
         {
             job.CoreRegformPlayer = coreRegformPlayer;
             job.PlayerProfileMetadataJson = metadataJson;
+            await _context.SaveChangesAsync();
+        }
+    }
+
+    public async Task UpdateJobCoreRegformPlayerByJobIdAsync(Guid jobId, string coreRegformPlayer)
+    {
+        var job = await _context.Jobs.FindAsync(jobId);
+        if (job != null)
+        {
+            job.CoreRegformPlayer = coreRegformPlayer;
             await _context.SaveChangesAsync();
         }
     }

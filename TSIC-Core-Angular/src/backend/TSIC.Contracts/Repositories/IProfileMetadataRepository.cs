@@ -25,6 +25,13 @@ public interface IProfileMetadataRepository
     Task<JobBasicInfo?> GetJobBasicInfoAsync(Guid jobId);
 
     /// <summary>
+    /// Get a job's form-relevant columns by JobId, reading the ACTUAL columns
+    /// (CoreRegformPlayer, JsonOptions, both metadata blobs). Unlike GetJobBasicInfoAsync — whose
+    /// CoreRegformPlayer field actually projects RegformNamePlayer — this is safe for copy/pointer work.
+    /// </summary>
+    Task<JobFormSnapshot?> GetJobFormSnapshotAsync(Guid jobId);
+
+    /// <summary>
     /// Get job with JsonOptions (for profile editor)
     /// </summary>
     Task<JobWithJsonOptions?> GetJobWithJsonOptionsAsync(Guid jobId);
@@ -86,9 +93,16 @@ public interface IProfileMetadataRepository
     Task UpdateMultipleJobsPlayerMetadataAsync(List<Jobs> jobs);
 
     /// <summary>
-    /// Update CoreRegformPlayer and PlayerProfileMetadataJson atomically
+    /// Update CoreRegformPlayer and PlayerProfileMetadataJson atomically.
+    /// WARNING: resolves the job via Registrations.RegistrationId — the parameter is a regId, NOT a JobId.
+    /// For a by-JobId pointer write use <see cref="UpdateJobCoreRegformPlayerByJobIdAsync"/>.
     /// </summary>
     Task UpdateJobCoreRegformAndMetadataAsync(Guid jobId, string coreRegformPlayer, string metadataJson);
+
+    /// <summary>
+    /// Set CoreRegformPlayer (profile-type pointer) for a single job, keyed by JobId.
+    /// </summary>
+    Task UpdateJobCoreRegformPlayerByJobIdAsync(Guid jobId, string coreRegformPlayer);
 
     /// <summary>
     /// Update JsonOptions for a job
@@ -131,6 +145,17 @@ public record JobBasicInfo
     public required string JobName { get; init; }
     public string? CustomerName { get; init; }
     public string? CoreRegformPlayer { get; init; }
+    public string? PlayerProfileMetadataJson { get; init; }
+    public string? AdultProfileMetadataJson { get; init; }
+}
+
+public record JobFormSnapshot
+{
+    public required Guid JobId { get; init; }
+    public required string JobName { get; init; }
+    public string? Year { get; init; }
+    public string? CoreRegformPlayer { get; init; }
+    public string? JsonOptions { get; init; }
     public string? PlayerProfileMetadataJson { get; init; }
     public string? AdultProfileMetadataJson { get; init; }
 }
