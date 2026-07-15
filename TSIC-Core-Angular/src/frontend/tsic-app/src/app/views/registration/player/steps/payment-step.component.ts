@@ -637,6 +637,8 @@ import type { LineItem } from '../state/payment-v2.service';
                     [disabled]="!canSubmitEcheck() || submitting()">
               @if (submitting()) {
                 <span class="spinner-border spinner-border-sm me-2"></span>Processing...
+              } @else if (paymentState.paymentOption() === 'ARB') {
+                <i class="bi bi-bank me-2"></i>Start Recurring Billing by eCheck &middot; {{ paySvc.arbOccurrences() }} × {{ paySvc.arbInstallmentTotal() | currency }}
               } @else {
                 <i class="bi bi-bank me-2"></i>Pay {{ echeckTotal() | currency }} by eCheck
               }
