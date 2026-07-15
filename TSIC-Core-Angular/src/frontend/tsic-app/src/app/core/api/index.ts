@@ -732,6 +732,7 @@ export type { UndoGamesRequest } from './models/UndoGamesRequest';
 export type { UniformUploadResultDto } from './models/UniformUploadResultDto';
 export type { UniformUploadRowError } from './models/UniformUploadRowError';
 export type { UnplacedGameDto } from './models/UnplacedGameDto';
+export type { UpdateAdminChargeRequest } from './models/UpdateAdminChargeRequest';
 export type { UpdateAdministratorRequest } from './models/UpdateAdministratorRequest';
 export type { UpdateAdultProfileRoleRequest } from './models/UpdateAdultProfileRoleRequest';
 export type { UpdateAdultRoleMetadataRequest } from './models/UpdateAdultRoleMetadataRequest';

@@ -17,6 +17,7 @@ import type {
   UpdateJobConfigMobileStoreRequest,
   UpdateJobConfigBrandingRequest,
   CreateAdminChargeRequest,
+  UpdateAdminChargeRequest,
   JobAdminChargeDto,
   JobImageUploadResultDto,
 } from '@core/api';
@@ -189,6 +190,21 @@ export class JobConfigService {
       },
       error: () => {
         this.toast.show('Failed to add admin charge.', 'danger');
+        this.isSaving.set(false);
+      },
+    });
+  }
+
+  updateAdminCharge(chargeId: number, req: UpdateAdminChargeRequest): void {
+    this.isSaving.set(true);
+    this.http.put<JobAdminChargeDto>(`${this.baseUrl}/admin-charges/${chargeId}`, req).subscribe({
+      next: () => {
+        this.toast.show('Admin charge updated.', 'success');
+        this.isSaving.set(false);
+        this.loadConfig(); // refresh to pick up updated charge + type name
+      },
+      error: () => {
+        this.toast.show('Failed to update admin charge.', 'danger');
         this.isSaving.set(false);
       },
     });

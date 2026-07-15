@@ -186,6 +186,15 @@ public record CreateAdminChargeRequest
     public required int Month { get; init; }
 }
 
+public record UpdateAdminChargeRequest
+{
+    public required int ChargeTypeId { get; init; }
+    public required decimal ChargeAmount { get; init; }
+    public string? Comment { get; init; }
+    public required int Year { get; init; }
+    public required int Month { get; init; }
+}
+
 // ════════════════════════════════════════════════════════════════
 // 3. Communications
 // ════════════════════════════════════════════════════════════════

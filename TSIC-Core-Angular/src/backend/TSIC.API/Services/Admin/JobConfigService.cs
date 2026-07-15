@@ -533,6 +533,32 @@ public class JobConfigService : IJobConfigService
         };
     }
 
+    public async Task<JobAdminChargeDto> UpdateAdminChargeAsync(Guid jobId, int chargeId, UpdateAdminChargeRequest req, CancellationToken ct = default)
+    {
+        var charge = await _repo.GetAdminChargeByIdAsync(chargeId, jobId, ct)
+            ?? throw new KeyNotFoundException($"Admin charge {chargeId} not found for job {jobId}.");
+
+        charge.ChargeTypeId = req.ChargeTypeId;
+        charge.ChargeAmount = req.ChargeAmount;
+        charge.Comment      = req.Comment;
+        charge.Year         = req.Year;
+        charge.Month        = req.Month;
+        // JobId + CreateDate deliberately untouched — server-scoped / not surfaced.
+
+        await _repo.SaveChangesAsync(ct);
+
+        return new JobAdminChargeDto
+        {
+            Id = charge.Id,
+            ChargeTypeId = charge.ChargeTypeId,
+            ChargeTypeName = null, // caller can refresh full config to get names
+            ChargeAmount = charge.ChargeAmount,
+            Comment = charge.Comment,
+            Year = charge.Year,
+            Month = charge.Month,
+        };
+    }
+
     public async Task DeleteAdminChargeAsync(Guid jobId, int chargeId, CancellationToken ct = default)
     {
         var charge = await _repo.GetAdminChargeByIdAsync(chargeId, jobId, ct)

@@ -30,5 +30,6 @@ public interface IJobConfigService
 
     // Admin charges CRUD (SuperUser only — enforced at controller level)
     Task<JobAdminChargeDto> AddAdminChargeAsync(Guid jobId, CreateAdminChargeRequest req, CancellationToken ct = default);
+    Task<JobAdminChargeDto> UpdateAdminChargeAsync(Guid jobId, int chargeId, UpdateAdminChargeRequest req, CancellationToken ct = default);
     Task DeleteAdminChargeAsync(Guid jobId, int chargeId, CancellationToken ct = default);
 }

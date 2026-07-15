@@ -281,6 +281,20 @@ public class JobConfigController : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>Update an existing admin charge on the job.</summary>
+    [HttpPut("admin-charges/{chargeId:int}")]
+    [Authorize(Policy = "SuperUserOnly")]
+    public async Task<ActionResult<JobAdminChargeDto>> UpdateAdminCharge(
+        int chargeId, [FromBody] UpdateAdminChargeRequest request, CancellationToken ct)
+    {
+        var jobId = await GetJobIdAsync();
+        if (jobId is null)
+            return NotFound(new { message = "Job not found for current user." });
+
+        var result = await _configService.UpdateAdminChargeAsync(jobId.Value, chargeId, request, ct);
+        return Ok(result);
+    }
+
     /// <summary>Delete an admin charge from the job.</summary>
     [HttpDelete("admin-charges/{chargeId:int}")]
     [Authorize(Policy = "SuperUserOnly")]
