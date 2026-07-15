@@ -29,6 +29,21 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# ── Host guard ───────────────────────────────────────────────────────
+# The prod deploy BUILDS on TSIC-SEDONA and stages over SMB to TSIC-PHOENIX.
+# The share check below would catch a box that cannot reach PHOENIX, but any
+# other dev box with the share mapped could otherwise build and push a prod
+# payload. Pin the build host explicitly - fail loud, first, before any build.
+$ExpectedHost = 'TSIC-SEDONA'
+if ($env:COMPUTERNAME -ne $ExpectedHost) {
+    Write-Host ""
+    Write-Host "REFUSING to run: the prod build/stage runs only on $ExpectedHost." -ForegroundColor Red
+    Write-Host "  Current host: $env:COMPUTERNAME" -ForegroundColor Red
+    Write-Host "  Nothing was built or staged." -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+
 # ---------------------------------------------------------------------------
 # Configuration (from shared _config.ps1)
 # ---------------------------------------------------------------------------
@@ -117,7 +132,10 @@ if (!$SkipApi) {
         dotnet build --configuration Release --no-restore
         if ($LASTEXITCODE -ne 0) { Write-Error "Build failed!"; exit 1 }
 
-        dotnet publish $ProjectPath --configuration Release --output $ApiPublish
+        # Scope native assets to Windows (framework-dependent). A RID-less publish
+        # also drags in SkiaSharp's linux/osx natives, which never load on IIS - pure
+        # bloat. Parity with the local build (1a-Build-DotNet-API.ps1 -Runtime win-x64).
+        dotnet publish $ProjectPath --configuration Release --output $ApiPublish -r win-x64 --self-contained false
         if ($LASTEXITCODE -ne 0) { Write-Error "Publish failed!"; exit 1 }
     } finally {
         Pop-Location

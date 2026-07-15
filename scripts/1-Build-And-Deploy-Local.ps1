@@ -35,6 +35,22 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# ── Host guard ───────────────────────────────────────────────────────
+# This deploys to the dev-api/dev-app IIS sites that live ONLY on TSIC-SEDONA
+# (client-facing dev.teamsportsinfo.com). The preflight topology checks would
+# eventually refuse a wrong box, but not before building - and on another dev
+# box with same-named sites they would not refuse at all. Fail loud, first,
+# before anything is built or touched.
+$ExpectedHost = 'TSIC-SEDONA'
+if ($env:COMPUTERNAME -ne $ExpectedHost) {
+    Write-Host ""
+    Write-Host "REFUSING to run: this script only runs on $ExpectedHost." -ForegroundColor Red
+    Write-Host "  Current host: $env:COMPUTERNAME" -ForegroundColor Red
+    Write-Host "  Nothing was built or touched." -ForegroundColor Yellow
+    Write-Host ""
+    exit 1
+}
+
 . "$PSScriptRoot\IIS-Config-Dev\_config.ps1"
 . "$PSScriptRoot\_deploy-common.ps1"
 
@@ -205,7 +221,10 @@ Write-Host ""
 # ── Step 1: Build .NET API ──────────────────────────────────────────
 if ($doApi) {
     Write-Host "Step 1: Building .NET API..." -ForegroundColor Yellow
-    & (Join-Path $PSScriptRoot "1a-Build-DotNet-API.ps1")
+    # Scope native assets to Windows: a RID-less publish drags in SkiaSharp's
+    # linux/osx natives too (unused here) - bloat, and a scan-on-write target for
+    # Defender during the backup copy. Framework-dependent, so no self-contained.
+    & (Join-Path $PSScriptRoot "1a-Build-DotNet-API.ps1") -Runtime win-x64
     if ($LASTEXITCODE -ne 0) {
         Stop-DeployWithFailure -Step "Step 1 (API build)" -LiveUntouched
     }

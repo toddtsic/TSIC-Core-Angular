@@ -110,7 +110,28 @@ if (Test-Path $OutputPath) {
         $tempStaging = Join-Path $env:TEMP "TSIC-Api-Staging-$(Get-Date -Format 'yyyyMMddHHmmss')"
         $projectFolder = Join-Path $tempStaging "TSIC.Api"
         New-Item -ItemType Directory -Path $projectFolder -Force | Out-Null
-        Copy-Item -Path "$OutputPath\*" -Destination $projectFolder -Recurse -Force
+
+        # The publish already succeeded; this archive is a nice-to-have. Do NOT let
+        # a transient lock abort the run. Windows Defender scans each freshly-written
+        # binary on close, and a multi-MB native (e.g. libSkiaSharp) can still be open
+        # for scan when Copy-Item reaches it -> "used by another process". Retry a few
+        # times with a short backoff; the AV handle clears in well under a second.
+        $copied = $false
+        for ($attempt = 1; $attempt -le 5; $attempt++) {
+            try {
+                Copy-Item -Path "$OutputPath\*" -Destination $projectFolder -Recurse -Force -ErrorAction Stop
+                $copied = $true
+                break
+            } catch {
+                Write-Warning ("Backup copy attempt {0}/5 failed: {1}" -f $attempt, $_.Exception.Message)
+                Start-Sleep -Milliseconds (500 * $attempt)
+            }
+        }
+        if (-not $copied) {
+            Write-Warning "Backup archive skipped: staging copy could not complete after retries. Publish output is intact."
+            Remove-Item $tempStaging -Recurse -Force -ErrorAction SilentlyContinue
+            return
+        }
 
         # Create zip archive from staging folder
         Compress-Archive -Path "$tempStaging\*" -DestinationPath $zipPath -CompressionLevel Optimal
