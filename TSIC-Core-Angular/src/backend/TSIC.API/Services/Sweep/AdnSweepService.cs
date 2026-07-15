@@ -24,6 +24,8 @@ public sealed class AdnSweepService : IAdnSweepService
 {
     // Match legacy hard-coded GUIDs (canonical reference.Accounting_PaymentMethods rows).
     private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
+    // "E-Check Payment" — used for settled eCheck / ACH-ARB draft RA rows.
+    private static readonly Guid EcheckPaymentMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
     // "Failed E-Check Payment" — used for NSF reversal RA rows.
     private static readonly Guid FailedEcheckPaymentMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
     // Stamp system-written rows with TSICSuperUser (FK to dbo.AspNetUsers). Legacy
@@ -371,12 +373,19 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
-        string? cc4 = null, ccExp = null;
-        if (txDetail.transaction.payment?.Item is creditCardMaskedType cc)
+        // Player ARB subs can be CC or (now) eCheck. Pull last-4 from whichever payment shape applies.
+        string? cc4 = null, ccExp = null, acctLast4 = null;
+        switch (txDetail.transaction.payment?.Item)
         {
-            cc4 = cc.cardNumber?.Length >= 4 ? cc.cardNumber[^4..] : null;
-            ccExp = cc.expirationDate;
+            case creditCardMaskedType cc:
+                cc4 = cc.cardNumber?.Length >= 4 ? cc.cardNumber[^4..] : null;
+                ccExp = cc.expirationDate;
+                break;
+            case bankAccountMaskedType ba:
+                acctLast4 = ba.accountNumber?.Length >= 4 ? ba.accountNumber[^4..] : null;
+                break;
         }
+        var isEcheck = txDetail.transaction.payment?.Item is bankAccountMaskedType;
 
         var settleAmount = tx.transactionStatus == "settledSuccessfully" ? tx.settleAmount : 0;
 
@@ -390,8 +399,10 @@ public sealed class AdnSweepService : IAdnSweepService
             AdnTransactionId = tx.transId,
             Dueamt = settleAmount,
             Payamt = settleAmount,
-            Paymeth = $"paid by cc: {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}",
-            PaymentMethodId = CcPaymentMethodId,
+            Paymeth = isEcheck
+                ? $"paid by eCheck (****{acctLast4}): {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}"
+                : $"paid by cc: {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}",
+            PaymentMethodId = isEcheck ? EcheckPaymentMethodId : CcPaymentMethodId,
             Comment = $"{tx.transactionStatus} (subscriptionId: {tx.subscription.id} {txDetail.transaction.responseReasonDescription})",
             Createdate = DateTime.Now,
             Modified = DateTime.Now,
@@ -405,6 +416,34 @@ public sealed class AdnSweepService : IAdnSweepService
             // stamped with the system superuser (matches the audit row and the team-side
             // settle) — NOT the registrant's FamilyUserId.
             await _accountingRepo.RecordPaymentAndRecomputeAsync(raRow, SystemUserId, ct);
+
+            // eCheck ARB draft: create a Settlement row — already "Settled" (the money was just
+            // booked above). An ACH draft can still be returned days later; ProcessEcheckReturnAsync
+            // matches the return to its original via the Settlement table, so without this row an NSF
+            // on a plan installment would be logged "not ours, skipping" and never reversed. The
+            // subscription drafts autonomously (no submit-time Pending row), so THIS is the only place
+            // a plan installment's Settlement key is created. Step-3's subscription==null filter keeps
+            // this Settled row out of the Pending→Settled path (no double-pull). RA.AId is populated by
+            // the RecordPayment save above.
+            if (isEcheck)
+            {
+                var settledNow = DateTime.Now;
+                _settleRepo.Add(new Settlement
+                {
+                    SettlementId = Guid.NewGuid(),
+                    RegistrationAccountingId = raRow.AId,
+                    AdnTransactionId = tx.transId,
+                    Status = "Settled",
+                    SubmittedAt = settledNow,
+                    NextCheckAt = settledNow,
+                    SettledAt = settledNow,
+                    LastCheckedAt = settledNow,
+                    AccountLast4 = acctLast4,
+                    Modified = settledNow,
+                    LebUserId = SystemUserId
+                });
+                await _settleRepo.SaveChangesAsync(ct);
+            }
         }
         else
         {

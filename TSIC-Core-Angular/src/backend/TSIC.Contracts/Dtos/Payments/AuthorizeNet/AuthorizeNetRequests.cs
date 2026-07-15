@@ -28,6 +28,38 @@ public record AdnArbCreateRequest
     public required short IntervalLength { get; init; }
 }
 
+// ARB monthly subscription create — eCheck (ACH bankAccount) path.
+// Mirror of AdnArbCreateRequest with bankAccount fields swapped in for credit-card fields.
+// Recurring monthly draft: BillingOccurrences occurrences at PerIntervalCharge, no trial.
+public record AdnArbCreateBankAccountRequest
+{
+    public required AuthorizeNet.Environment Env { get; init; }
+    public required string LoginId { get; init; }
+    public required string TransactionKey { get; init; }
+
+    /// <summary>"checking" | "savings" | "businessChecking" (per ADN bankAccountTypeEnum).</summary>
+    public required string AccountType { get; init; }
+    /// <summary>9-digit ABA routing number.</summary>
+    public required string RoutingNumber { get; init; }
+    /// <summary>Up to 17 chars per ADN schema.</summary>
+    public required string AccountNumber { get; init; }
+    /// <summary>Up to 22 chars per ADN schema.</summary>
+    public required string NameOnAccount { get; init; }
+
+    public required string FirstName { get; init; }
+    public required string LastName { get; init; }
+    public required string Address { get; init; }
+    public required string Zip { get; init; }
+    public required string Email { get; init; }
+    public required string Phone { get; init; }
+    public required string InvoiceNumber { get; init; }
+    public required string Description { get; init; }
+    public required decimal PerIntervalCharge { get; init; }
+    public DateTime? StartDate { get; init; }
+    public required short BillingOccurrences { get; init; }
+    public required short IntervalLength { get; init; }
+}
+
 public record AdnAuthorizeRequest
 {
     public required AuthorizeNet.Environment Env { get; init; }

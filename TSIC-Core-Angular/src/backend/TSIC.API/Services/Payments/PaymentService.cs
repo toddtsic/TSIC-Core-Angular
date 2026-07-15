@@ -1192,25 +1192,32 @@ public class PaymentService : IPaymentService
     /// eCheck (ACH) sibling of <see cref="ProcessPaymentAsync"/>. Same fee/charge math,
     /// swaps CC validation + charge for bank-account validation + ADN_ChargeBankAccount,
     /// and writes a Settlement row per RA so the daily sweep can detect both clearance
-    /// and NSF returns. ARB is rejected — eCheck-on-ARB is a separate ADN feature.
+    /// and NSF returns. ARB (payment plans) route to <see cref="ProcessEcheckArbAsync"/>,
+    /// which creates ACH recurring subscriptions instead of a one-shot debit.
     /// </summary>
     public async Task<PaymentResponseDto> ProcessEcheckPaymentAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId)
     {
         if (request == null)
             return Fail("Invalid request", "INVALID_REQUEST");
-        if (request.PaymentOption == PaymentOption.ARB)
-            return Fail("Recurring billing (ARB) is not available for eCheck payments.", "ARB_NOT_ECHECK");
         var v = await ValidateEcheckPaymentRequestAsync(jobId, familyUserId, request);
         if (v.Response != null) return v.Response;
+        var job = v.Job!;
         var bank = v.Bank!;
         var effective = v.Effective;
 
         // An ARB job that also allows PIF can reach this path: debiting a financed registration's
-        // balance by ACH while its subscription keeps drafting the card bills the family twice.
+        // balance by ACH while its subscription keeps drafting bills the family twice.
         var (registrations, enrolled) = PartitionArbEnrolled(v.Registrations!);
         if (registrations.Count == 0) return ArbAlreadyActive(enrolled);
 
         await NormalizeFeesAsync(registrations, jobId);
+
+        // eCheck payment plan → ACH recurring subscriptions (bank draft, N monthly occurrences).
+        // This is the path that surfaced the whole feature: an ARB + eCheck-enabled job offering
+        // the eCheck tender for a plan. Job flags gate it — BEnableEcheck (checked in validation)
+        // AND AdnArb (checked in ProcessEcheckArbAsync).
+        if (effective == PaymentOption.ARB)
+            return await ProcessEcheckArbAsync(jobId, familyUserId, request, userId, registrations, job, bank);
 
         // Split the cart: players whose team filled up are moved to the waitlist twin at $0 (not
         // charged); the seatable players continue to the eCheck debit below.
@@ -1525,6 +1532,45 @@ public class PaymentService : IPaymentService
         var response = BuildArbResponse(subs, failed, activatedNoCharge);
         // Attempt confirmation email after any successful completion — whether a subscription was
         // created or the registrant was activated with nothing left to finance.
+        if (response.Success && (subs.Count > 0 || activatedNoCharge.Count > 0))
+        {
+            await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
+        }
+        return response;
+    }
+
+    /// <summary>
+    /// eCheck (ACH) sibling of <see cref="ProcessArbAsync"/>. Creates one ACH recurring subscription
+    /// per registration (monthly bank draft) instead of billing a card. No penny-verify — ACH has no
+    /// synchronous authorization; a bad/closed account surfaces as a returnedItem at the first draft
+    /// and is handled by the sweep's NSF path. Enrollment moves no money; only the schedule is created.
+    /// Each monthly draft is booked pessimistically at settlement by the sweep's ARB import (step 2),
+    /// consistent with the one-shot eCheck model.
+    /// </summary>
+    private async Task<PaymentResponseDto> ProcessEcheckArbAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, JobInfo job, BankAccountInfo bank)
+    {
+        // Both flags gate an eCheck plan: BEnableEcheck (already checked in ValidateEcheckPaymentRequestAsync)
+        // AND AdnArb (here) — mirrors the CC ARB gate in ValidatePaymentRequestInternalAsync.
+        if (job.AdnArb != true)
+            return Fail("Recurring billing (ARB) not enabled", "ARB_NOT_ENABLED");
+
+        // Callers hand us a set already stripped of live-subscription registrations (PartitionArbEnrolled),
+        // so every reg here still needs financing.
+        var credentials = await _adnApiService.GetJobAdnCredentials_FromJobId(jobId);
+        if (credentials == null || string.IsNullOrWhiteSpace(credentials.AdnLoginId) || string.IsNullOrWhiteSpace(credentials.AdnTransactionKey))
+        {
+            return new PaymentResponseDto { Success = false, Message = "Missing payment gateway credentials (Authorize.Net).", ErrorCode = "MISSING_GATEWAY_CREDS" };
+        }
+        var env = _adnApiService.GetADNEnvironment();
+
+        var schedule = BuildArbSchedule(job.AdnArbbillingOccurences, job.AdnArbintervalLength, job.AdnArbstartDate);
+        var (occur, intervalLen, start) = schedule;
+        NormalizeProcessingFees(registrations, jobId, userId);
+        await _registrations.SaveChangesAsync();
+        var args = new ArbBankSubArgs(env, credentials.AdnLoginId!, credentials.AdnTransactionKey!, occur, intervalLen, start, bank, userId);
+        var (subs, failed, activatedNoCharge) = await CreateEcheckArbSubscriptionsAsync(registrations, args);
+        await _registrations.SaveChangesAsync();
+        var response = BuildArbResponse(subs, failed, activatedNoCharge);
         if (response.Success && (subs.Count > 0 || activatedNoCharge.Count > 0))
         {
             await TrySendConfirmationEmailAsync(jobId, familyUserId, userId);
@@ -2111,37 +2157,11 @@ public class PaymentService : IPaymentService
     };
 
     private sealed record ArbSubArgs(AuthorizeNet.Environment Env, string LoginId, string TransactionKey, short Occur, short IntervalLen, DateTime StartDate, CreditCardInfo Card, string UserId);
+    private sealed record ArbBankSubArgs(AuthorizeNet.Environment Env, string LoginId, string TransactionKey, short Occur, short IntervalLen, DateTime StartDate, BankAccountInfo Bank, string UserId);
 
     private async Task<(Dictionary<Guid, string> Subs, List<Guid> Failed, List<Guid> ActivatedNoCharge)> CreateArbSubscriptionsAsync(IEnumerable<Registrations> registrations, ArbSubArgs args)
-    {
-        var subs = new Dictionary<Guid, string>();
-        var failed = new List<Guid>();
-        var activatedNoCharge = new List<Guid>();
-        foreach (var reg in registrations)
-        {
-            var basis = reg.OwedTotal < 0m ? 0m : reg.OwedTotal;
-            var perOccur = Math.Round(basis / args.Occur, 2, MidpointRounding.AwayFromZero);
-            // Zero-basis chokepoint. Every fee modifier (discount code, early-bird, scholarship,
-            // late fee, prior payment) has already netted into OwedTotal via FeeMath before we get
-            // here, so this single test is modifier-agnostic by construction. When nothing is left
-            // to finance (perOccur <= 0) there is no subscription to create — Authorize.Net rejects
-            // a $0 recurring charge, which would drop the reg into the failed branch below and leave
-            // it bActive=0 with no subscription id. The registrant owes nothing, so activate it
-            // directly, mirroring the "owes nothing -> active" rule already used by the discount
-            // endpoint (PlayerRegistrationPaymentController.ApplyDiscount) and the immediate path.
-            if (perOccur <= 0m)
-            {
-                reg.BActive = true;
-                reg.Modified = DateTime.Now;
-                reg.LebUserId = args.UserId;
-                activatedNoCharge.Add(reg.RegistrationId);
-                _logger.LogInformation("ARB: registration {RegistrationId} owes nothing after modifiers (basis={Basis}); activated without a subscription.", reg.RegistrationId, basis);
-                continue;
-            }
-            _logger.LogInformation("Creating ARB subscription for registration {RegistrationId}: perOccurrence={PerOccur} occur={Occur} start={StartDate} basis={Basis}.", reg.RegistrationId, perOccur, args.Occur, args.StartDate, basis);
-            var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(reg.JobId, reg.RegistrationId);
-            var description = await BuildArbSubscriptionDescriptionAsync(reg);
-            var resp = _adnApiService.ADN_ARB_CreateMonthlySubscription(new AdnArbCreateRequest
+        => await CreateArbSubscriptionsCoreAsync(registrations, args.Occur, args.IntervalLen, args.StartDate, args.UserId,
+            (perOccur, invoiceNumber, description) => _adnApiService.ADN_ARB_CreateMonthlySubscription(new AdnArbCreateRequest
             {
                 Env = args.Env,
                 LoginId = args.LoginId,
@@ -2161,11 +2181,75 @@ public class PaymentService : IPaymentService
                 StartDate = args.StartDate,
                 BillingOccurrences = args.Occur,
                 IntervalLength = args.IntervalLen
-            });
+            }));
+
+    // eCheck (ACH) sibling of CreateArbSubscriptionsAsync — identical per-reg loop (shared core),
+    // only the gateway call differs: a bank-account monthly subscription instead of a card one.
+    private async Task<(Dictionary<Guid, string> Subs, List<Guid> Failed, List<Guid> ActivatedNoCharge)> CreateEcheckArbSubscriptionsAsync(IEnumerable<Registrations> registrations, ArbBankSubArgs args)
+        => await CreateArbSubscriptionsCoreAsync(registrations, args.Occur, args.IntervalLen, args.StartDate, args.UserId,
+            (perOccur, invoiceNumber, description) => _adnApiService.ADN_ARB_CreateMonthlySubscription_Bank(new AdnArbCreateBankAccountRequest
+            {
+                Env = args.Env,
+                LoginId = args.LoginId,
+                TransactionKey = args.TransactionKey,
+                AccountType = args.Bank.AccountType!,
+                RoutingNumber = args.Bank.RoutingNumber!,
+                AccountNumber = args.Bank.AccountNumber!,
+                NameOnAccount = args.Bank.NameOnAccount!.Trim(),
+                FirstName = args.Bank.FirstName!,
+                LastName = args.Bank.LastName!,
+                Address = args.Bank.Address!,
+                Zip = args.Bank.Zip!,
+                Email = args.Bank.Email!,
+                Phone = args.Bank.Phone!,
+                InvoiceNumber = invoiceNumber,
+                Description = description,
+                PerIntervalCharge = perOccur,
+                StartDate = args.StartDate,
+                BillingOccurrences = args.Occur,
+                IntervalLength = args.IntervalLen
+            }));
+
+    // Shared ARB create loop (CC + eCheck). Per registration: a zero-basis reg is activated with no
+    // subscription (Authorize.Net rejects a $0 recurring charge); the rest get one subscription at
+    // OwedTotal/occurrences. The gateway create is INJECTED — the only thing that differs by tender —
+    // so the zero-basis rule, invoice/description build, apply-success and fail handling stay DRY.
+    private async Task<(Dictionary<Guid, string> Subs, List<Guid> Failed, List<Guid> ActivatedNoCharge)> CreateArbSubscriptionsCoreAsync(
+        IEnumerable<Registrations> registrations, short occur, short intervalLen, DateTime startDate, string userId,
+        Func<decimal, string, string, ARBCreateSubscriptionResponse> createSubscription)
+    {
+        var subs = new Dictionary<Guid, string>();
+        var failed = new List<Guid>();
+        var activatedNoCharge = new List<Guid>();
+        foreach (var reg in registrations)
+        {
+            var basis = reg.OwedTotal < 0m ? 0m : reg.OwedTotal;
+            var perOccur = Math.Round(basis / occur, 2, MidpointRounding.AwayFromZero);
+            // Zero-basis chokepoint. Every fee modifier (discount code, early-bird, scholarship,
+            // late fee, prior payment) has already netted into OwedTotal via FeeMath before we get
+            // here, so this single test is modifier-agnostic by construction. When nothing is left
+            // to finance (perOccur <= 0) there is no subscription to create — Authorize.Net rejects
+            // a $0 recurring charge, which would drop the reg into the failed branch below and leave
+            // it bActive=0 with no subscription id. The registrant owes nothing, so activate it
+            // directly, mirroring the "owes nothing -> active" rule already used by the discount
+            // endpoint (PlayerRegistrationPaymentController.ApplyDiscount) and the immediate path.
+            if (perOccur <= 0m)
+            {
+                reg.BActive = true;
+                reg.Modified = DateTime.Now;
+                reg.LebUserId = userId;
+                activatedNoCharge.Add(reg.RegistrationId);
+                _logger.LogInformation("ARB: registration {RegistrationId} owes nothing after modifiers (basis={Basis}); activated without a subscription.", reg.RegistrationId, basis);
+                continue;
+            }
+            _logger.LogInformation("Creating ARB subscription for registration {RegistrationId}: perOccurrence={PerOccur} occur={Occur} start={StartDate} basis={Basis}.", reg.RegistrationId, perOccur, occur, startDate, basis);
+            var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(reg.JobId, reg.RegistrationId);
+            var description = await BuildArbSubscriptionDescriptionAsync(reg);
+            var resp = createSubscription(perOccur, invoiceNumber, description);
             if (resp?.messages?.resultCode == messageTypeEnum.Ok && !string.IsNullOrWhiteSpace(resp.subscriptionId))
             {
                 subs[reg.RegistrationId] = resp.subscriptionId;
-                ApplyArbSuccessToRegistration(reg, resp.subscriptionId, perOccur, args.Occur, args.IntervalLen, args.StartDate, args.UserId);
+                ApplyArbSuccessToRegistration(reg, resp.subscriptionId, perOccur, occur, intervalLen, startDate, userId);
             }
             else
             {

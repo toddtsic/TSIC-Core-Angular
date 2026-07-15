@@ -52,6 +52,7 @@ public interface IAdnApiService
 
     ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription(AdnArbCreateRequest request);
     AdnArbCreateResult ADN_ARB_CreateMonthlySubscription_Result(AdnArbCreateRequest request);
+    ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription_Bank(AdnArbCreateBankAccountRequest request);
 
     // ARB-Trial: deposit (trial) + balance (post-trial) — interval expressed in days.
     // CC variant. Use ADN_VerifyCardWithPennyAuth before this for card validity.

@@ -812,6 +812,42 @@ public class AdnApiService : IAdnApiService
         return ParseArbCreateResponse(raw, request.CardNumber);
     }
 
+    // eCheck (ACH) sibling of ADN_ARB_CreateMonthlySubscription: same monthly schedule
+    // (BillingOccurrences occurrences, months interval, no trial) but the payment is a bank
+    // account instead of a credit card — the bankAccount block mirrors ADN_ARB_CreateTrialSubscription_Bank.
+    // Returns the raw ARB response so the caller reads subscriptionId/resultCode exactly as the CC path.
+    public ARBCreateSubscriptionResponse ADN_ARB_CreateMonthlySubscription_Bank(AdnArbCreateBankAccountRequest request)
+    {
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = request.Env;
+        ApiOperationBase<ANetApiRequest, ANetApiResponse>.MerchantAuthentication = new merchantAuthenticationType()
+        {
+            name = request.LoginId,
+            ItemElementName = ItemChoiceType.transactionKey,
+            Item = request.TransactionKey,
+        };
+        var interval = new paymentScheduleTypeInterval { length = request.IntervalLength, unit = ARBSubscriptionUnitEnum.months };
+        var schedule = new paymentScheduleType { interval = interval, startDate = request.StartDate ?? DateTime.Now.AddDays(1), totalOccurrences = request.BillingOccurrences, trialOccurrences = 0 };
+
+        var bankAccountType = ParseBankAccountType(request.AccountType);
+        var bankAccount = new bankAccountType
+        {
+            accountType = bankAccountType,
+            routingNumber = request.RoutingNumber,
+            accountNumber = request.AccountNumber,
+            nameOnAccount = request.NameOnAccount,
+            echeckType = echeckTypeEnum.WEB,
+        };
+        var payment = new paymentType { Item = bankAccount };
+        var customerInfo = new customerType { email = request.Email };
+        var addressInfo = new nameAndAddressType { firstName = request.FirstName, lastName = request.LastName, address = request.Address, zip = request.Zip };
+        var safeInvoice = (request.InvoiceNumber ?? string.Empty).Trim();
+        if (safeInvoice.Length > 20) safeInvoice = safeInvoice.Substring(0, 20);
+        var orderInfo = new orderType { invoiceNumber = safeInvoice, description = request.Description };
+        var subscriptionType = new ARBSubscriptionType { amount = ToGatewayAmount(request.PerIntervalCharge), trialAmount = 0.00m, paymentSchedule = schedule, billTo = addressInfo, payment = payment, order = orderInfo, customer = customerInfo };
+        var apiReq = new ARBCreateSubscriptionRequest { subscription = subscriptionType };
+        return ExecuteArbCreate(apiReq);
+    }
+
     public AdnArbCreateResult ADN_ARB_CreateTrialSubscription_Cc(AdnArbCreateTrialRequest request)
     {
         ApiOperationBase<ANetApiRequest, ANetApiResponse>.RunEnvironment = request.Env;
