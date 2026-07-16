@@ -4,7 +4,7 @@ import {
   viewChild
 } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
-import { filter } from 'rxjs';
+import { distinctUntilChanged, filter, map } from 'rxjs';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -399,7 +399,7 @@ import type { LineItem } from '../state/payment-v2.service';
             [quotedPlayers]="viQuotedPlayers()"
             [premiumTotal]="viPremiumTotal()"
             [email]="viCcEmail()"
-            [viCcOnlyFlow]="isViCcOnlyFlow() || isViCheckHybridFlow()"
+            [viCcOnlyFlow]="isViCcOnlyFlow()"
             (cancelled)="cancelViConfirm()"
             (confirmed)="confirmViAndContinue()" />
         }
@@ -509,14 +509,17 @@ import type { LineItem } from '../state/payment-v2.service';
                   <i class="bi bi-credit-card me-2"></i>Credit Card
                 </button>
               }
-              @if (paySvc.showEcheckButton()) {
+              <!-- VI premiums are card-only: while coverage is accepted (quotes exist), the
+                   non-card methods are withdrawn so exactly ONE payment instrument is ever
+                   collected. Declining coverage in the widget restores them. -->
+              @if (paySvc.showEcheckButton() && !viLocksMethods()) {
                 <button type="button" class="method-btn"
                         [class.active]="isEcheck()"
                         (click)="selectMethod('Echeck')">
                   <i class="bi bi-bank me-2"></i>eCheck (ACH)
                 </button>
               }
-              @if (paySvc.showCheckButton()) {
+              @if (paySvc.showCheckButton() && !viLocksMethods()) {
                 <button type="button" class="method-btn"
                         [class.active]="isCheck()"
                         (click)="selectMethod('Check')">
@@ -524,6 +527,11 @@ import type { LineItem } from '../state/payment-v2.service';
                 </button>
               }
             </div>
+            @if (viLocksMethods()) {
+              <div class="text-muted small mt-2">
+                <i class="bi bi-info-circle me-1"></i>Insurance premiums require a credit card — other payment methods are unavailable while coverage is selected.
+              </div>
+            }
           </div>
         }
 
@@ -536,17 +544,10 @@ import type { LineItem } from '../state/payment-v2.service';
               <strong>Proceed with Insurance Processing</strong>.
             </div>
           }
-          @if (isViCheckHybridFlow()) {
-            <div class="alert alert-info border-0 mb-3" role="status">
-              <span class="badge bg-info-subtle text-info-emphasis border me-1">Insurance Premium</span>
-              Your registration will be paid by check. The credit card below is <strong>only</strong> for your
-              insurance premium ({{ viPremiumTotal() | currency }}) charged by Vertical Insure.
-            </div>
-          }
           <app-credit-card-form
             (validChange)="onCcValidChange($event)"
             (valueChange)="onCcValueChange($event)"
-            [viOnly]="isViCcOnlyFlow() || isViCheckHybridFlow()"
+            [viOnly]="isViCcOnlyFlow()"
             [allowAmex]="jobCtx.jobUsesAmex()"
             [defaultFirstName]="familyUser()?.firstName ?? familyUser()?.ccInfo?.firstName ?? null"
             [defaultLastName]="familyUser()?.lastName ?? familyUser()?.ccInfo?.lastName ?? null"
@@ -647,11 +648,9 @@ import type { LineItem } from '../state/payment-v2.service';
           @if (showCheckSection()) {
             <button type="button" class="btn btn-primary"
                     (click)="submitCheck()"
-                    [disabled]="submitting() || (isViCheckHybridFlow() && !ccValid())">
+                    [disabled]="submitting()">
               @if (submitting()) {
                 <span class="spinner-border spinner-border-sm me-2"></span>Processing...
-              } @else if (isViCheckHybridFlow()) {
-                <i class="bi bi-envelope-paper me-2"></i>Complete Registration &amp; Process Insurance
               } @else {
                 <i class="bi bi-envelope-paper me-2"></i>Complete Registration
               }
@@ -1039,7 +1038,6 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
 
     private lastIdemKey: string | null = null;
     private pendingSubmitAfterViConfirm = false;
-    private pendingCheckSubmit = false;
     private viInitRetries = 0;
     private viInitTimeout?: ReturnType<typeof setTimeout>;
     private readonly viScrollTimers: ReturnType<typeof setTimeout>[] = [];
@@ -1064,6 +1062,22 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             // embed's own delayed focus/scroll.
             this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 50));
             this.viScrollTimers.push(setTimeout(() => scrollWizardToTop(), 300));
+        });
+
+        // VI premiums are card-only. The widget mounts regardless of the selected method, so a
+        // family on eCheck/Check can accept coverage — the moment quotes appear, force the method
+        // back to CC (the eCheck/Check buttons un-render via viLocksMethods) and say why.
+        toObservable(this.insuranceSvc.quotes).pipe(
+            map(q => q.length > 0),
+            distinctUntilChanged(),
+            filter(Boolean),
+            takeUntilDestroyed(),
+        ).subscribe(() => {
+            if (!this.paySvc.isCcPayment()) {
+                this.paySvc.selectPaymentMethod('CC');
+                this.toast.show('Insurance premiums can only be charged to a credit card — payment method switched to Credit Card.', 'info', 6000);
+                setTimeout(() => scrollWizardToTop(), 0);
+            }
         });
     }
 
@@ -1099,20 +1113,21 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         && this.insuranceSvc.quotes().length > 0,
     );
 
-    /** Check payment selected + VI insurance confirmed — hybrid: check for reg, CC for insurance. */
-    readonly isViCheckHybridFlow = computed(() =>
-        this.tsicChargeDueNow()
-        && this.paySvc.isCheckPayment()
-        && this.insuranceState.offerPlayerRegSaver()
-        && this.insuranceState.verticalInsureConfirmed()
-        && this.insuranceSvc.quotes().length > 0,
-    );
+    /** VI premiums are card-only — accepted coverage (quotes exist) locks the method to CC.
+     *  eCheck/Check buttons un-render while locked; the lock releases the moment quotes clear
+     *  (widget decline, discount remount, reset). The constructor subscription below handles the
+     *  one imperative half: switching an already-selected eCheck/Check back to CC. */
+    readonly viLocksMethods = computed(() =>
+        this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0);
 
     readonly showPayNowButton = computed(() => this.tsicChargeDueNow() && this.paySvc.isCcPayment());
     readonly showEcheckSubmitButton = computed(() => this.tsicChargeDueNow() && this.paySvc.isEcheckPayment());
+    /** CC form shows for a CC-method charge, or for the zero-balance premium-only flow. Accepted
+     *  coverage with a charge due implies method === CC (viLocksMethods), so no VI OR-branch —
+     *  the old one leaked a second full CC form onto the eCheck/Check methods. */
     readonly showCcSection = computed(() =>
         (this.tsicChargeDueNow() && this.paySvc.isCcPayment())
-        || (this.insuranceState.offerPlayerRegSaver() && this.insuranceSvc.quotes().length > 0),
+        || this.isViCcOnlyFlow(),
     );
     readonly showEcheckSection = computed(() => this.tsicChargeDueNow() && this.paySvc.isEcheckPayment());
     readonly showCheckSection = computed(() => this.tsicChargeDueNow() && this.paySvc.isCheckPayment());
@@ -1237,22 +1252,10 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         setTimeout(() => scrollWizardToTop(), 0);
     }
 
-    /** Check payment — record intent (and process insurance if hybrid flow). */
+    /** Check payment — record intent. Unreachable with accepted VI coverage: viLocksMethods
+     *  forces the CC method the moment quotes exist, so check never carries a premium. */
     submitCheck(): void {
         if (this.submitting()) return;
-
-        // Hybrid flow: check + VI insurance — show charge confirmation first
-        if (this.isViCheckHybridFlow() && this.insuranceSvc.quotes().length > 0) {
-            this.pendingSubmitAfterViConfirm = true;
-            this.pendingCheckSubmit = true;
-            this.showViChargeConfirm.set(true);
-            return;
-        }
-
-        this.finalizeCheckSubmit();
-    }
-
-    private finalizeCheckSubmit(): void {
         this.submitting.set(true);
 
         // Backend stamp first \u2014 flips PaymentMethodChosen=3 + BActive=true so the roster
@@ -1267,32 +1270,14 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
                     return;
                 }
 
-                if (this.isViCheckHybridFlow()) {
-                    // Check for registration + CC for insurance premium
-                    this.insuranceSvc.purchaseInsurance(this._creditCard(), (vimsg) => {
-                        try {
-                            this.paymentState.setLastPayment({
-                                option: this.paymentState.paymentOption(),
-                                amount: this.checkTotal(),
-                                message: 'Payment by check \u2014 pending receipt. ' + (vimsg || ''),
-                                paymentMethod: 'Check',
-                                viPolicyNumber: this.insuranceState.viConsent()?.policyNumber ?? null,
-                                viPolicyCreateDate: this.insuranceState.viConsent()?.policyCreateDate ?? null,
-                            });
-                        } catch (e) { console.warn('[Payment] setLastPayment (check+VI) failed', e); }
-                        this.submitting.set(false);
-                        this.advance.emit();
-                    });
-                } else {
-                    this.paymentState.setLastPayment({
-                        option: this.paymentState.paymentOption(),
-                        amount: this.checkTotal(),
-                        message: 'Payment by check \u2014 pending receipt',
-                        paymentMethod: 'Check',
-                    });
-                    this.submitting.set(false);
-                    this.advance.emit();
-                }
+                this.paymentState.setLastPayment({
+                    option: this.paymentState.paymentOption(),
+                    amount: this.checkTotal(),
+                    message: 'Payment by check \u2014 pending receipt',
+                    paymentMethod: 'Check',
+                });
+                this.submitting.set(false);
+                this.advance.emit();
             },
             error: (err: HttpErrorResponse) => {
                 this.submitting.set(false);
@@ -1453,7 +1438,6 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     cancelViConfirm(): void {
         this.showViChargeConfirm.set(false);
         this.pendingSubmitAfterViConfirm = false;
-        this.pendingCheckSubmit = false;
     }
 
     confirmViAndContinue(): void {
@@ -1461,11 +1445,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
         if (!this.pendingSubmitAfterViConfirm) return;
         this.pendingSubmitAfterViConfirm = false;
 
-        if (this.pendingCheckSubmit) {
-            // Hybrid flow: check registration + CC insurance
-            this.pendingCheckSubmit = false;
-            this.finalizeCheckSubmit();
-        } else if (this.isViCcOnlyFlow()) {
+        if (this.isViCcOnlyFlow()) {
             this.insuranceSvc.purchaseInsurance(this._creditCard(), msg => {
                 try {
                     this.paymentState.setLastPayment({
@@ -1486,11 +1466,9 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     /**
-     * eCheck (ACH) submit — single path, no VI hybrid yet.
-     * If VI insurance is offered, it still purchases via the CC form (which is
-     * displayed separately when quotes > 0). For now, eCheck + insurance both
-     * run; future enhancement could prompt the user to confirm insurance via CC
-     * via the same modal pattern used for check+VI hybrid.
+     * eCheck (ACH) submit. Unreachable with accepted VI coverage: premiums are card-only, so
+     * viLocksMethods forces the CC method the moment quotes exist — an eCheck submit therefore
+     * never has a premium to purchase.
      */
     submitEcheck(): void {
         if (this.submitting()) return;
