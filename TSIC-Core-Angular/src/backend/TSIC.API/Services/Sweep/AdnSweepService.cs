@@ -70,11 +70,54 @@ public sealed class AdnSweepService : IAdnSweepService
         _logger = logger;
     }
 
+    // One sweep at a time, process-wide. Every idempotency guard in the sweep is unlocked
+    // read-then-write ("already imported? no → book it"), so two concurrent passes could both
+    // clear the same guard and double-book an ARB import or double-write an NSF reversal. The
+    // triggers (5 AM background service + the manual SuperUser endpoint) share this API process,
+    // so an in-process lock covers every real entry path. Static: the service is resolved per
+    // scope; the lock must span instances.
+    private static readonly SemaphoreSlim RunLock = new(1, 1);
+
     public async Task<AdnSweepResult> RunAsync(
         string triggeredBy,
         int daysPrior = 0,
         bool sendDigest = true,
         CancellationToken ct = default)
+    {
+        // Refuse, don't queue: a second run would re-scan the same trailing window anyway,
+        // so the right behavior for an overlapping request is to not start.
+        if (!await RunLock.WaitAsync(0, ct))
+        {
+            _logger.LogWarning("ADN sweep already running — {TriggeredBy} request refused", triggeredBy);
+            return new AdnSweepResult
+            {
+                Checked = 0,
+                ArbImported = 0,
+                EcheckSettled = 0,
+                EcheckReturnsProcessed = 0,
+                OrphansFound = 0,
+                Errored = 0,
+                Succeeded = false,
+                ErrorMessage = "Sweep already running — request refused.",
+                DigestHtml = null
+            };
+        }
+
+        try
+        {
+            return await RunCoreAsync(triggeredBy, daysPrior, sendDigest, ct);
+        }
+        finally
+        {
+            RunLock.Release();
+        }
+    }
+
+    private async Task<AdnSweepResult> RunCoreAsync(
+        string triggeredBy,
+        int daysPrior,
+        bool sendDigest,
+        CancellationToken ct)
     {
         if (daysPrior <= 0) daysPrior = _options.DaysPriorWindow;
 
@@ -85,6 +128,8 @@ public sealed class AdnSweepService : IAdnSweepService
         var ecRows = new List<EcheckReturnDigestRow>();
         var settledRows = new List<EcheckSettledDigestRow>();
         var orphanRows = new List<OrphanDigestRow>();
+        var watchdogRows = new List<WatchdogDigestRow>();
+        var untrackedRows = new List<UntrackedEcheckRaDto>();
 
         try
         {
@@ -123,10 +168,10 @@ public sealed class AdnSweepService : IAdnSweepService
             // 3) Process eCheck Pending → Settled transitions.
             // Walk batch txs that settled successfully and match against our pending Settlement
             // rows. No per-tx API call is needed — presence in a settled batch is the proof of
-            // settlement. This is the MONEY EVENT under pessimistic eCheck: MarkEcheckSettled flips
-            // the submit-time RA (born Active=false) to Active=true and re-derives PaidTotal from
-            // the ledger, atomically per settlement. subscription == null excludes ARB drafts, which
-            // book their RA in step 2 (ImportArbTransactionAsync) — see the ARB/eCheck split there.
+            // settlement. Status-only: the money booked at submit (optimistic); this stamp records
+            // that the draft entered the banking network, which the return handler and watchdog
+            // key on. subscription == null excludes ARB drafts, which book their RA in step 2
+            // (ImportArbTransactionAsync) — see the ARB/eCheck split there.
             var settledTxIds = allTxs
                 .Where(t => t.transactionStatus == "settledSuccessfully" && t.subscription == null && !string.IsNullOrEmpty(t.transId))
                 .Select(t => t.transId)
@@ -205,6 +250,38 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
+            // 6) Stale-Pending watchdog: drafts that went silent. Healthy drafts settle in 1–2
+            // business days; a Settlement still Pending past the threshold gets its status
+            // queried at ADN directly and is settled, reversed, or flagged. This is the only
+            // detector for a draft that died before origination — that failure produces no
+            // batch transaction and no return, ever.
+            var staleCutoff = DateTime.Now.AddDays(-_options.WatchdogStalePendingDays);
+            foreach (var stale in await _settleRepo.GetStalePendingAsync(staleCutoff, ct))
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    var row = await ProcessStalePendingAsync(stale, env, creds, ct);
+                    if (row != null) watchdogRows.Add(row);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Watchdog processing failed for settlement {Id}", stale.SettlementId);
+                    counts.Errored++;
+                }
+            }
+
+            // 7) Integrity net: booked eCheck money with no Settlement return-watcher. The atomic
+            // mint makes this unreachable going forward; expected count every run is 0. REPORT-ONLY.
+            try
+            {
+                untrackedRows = await _settleRepo.GetUntrackedEcheckAccountingAsync(EcheckPaymentMethodId, ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Untracked-eCheck integrity query failed");
+                counts.Errored++;
+            }
         }
         catch (Exception ex)
         {
@@ -217,7 +294,7 @@ public sealed class AdnSweepService : IAdnSweepService
         // The digest is built and sent OUTSIDE the try — a failed sweep must still mail, and must say so.
         // It used to be the last statement inside the try, so any throw upstream skipped it entirely and
         // the only signal was the 5am email not arriving. Silence is not a report.
-        var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, counts, errorMessage);
+        var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, watchdogRows, untrackedRows, counts, errorMessage);
         if (sendDigest)
         {
             try
@@ -411,27 +488,23 @@ public sealed class AdnSweepService : IAdnSweepService
 
         if (tx.transactionStatus == "settledSuccessfully")
         {
-            // Record the settled installment and re-derive the registration's totals from
-            // the ledger in one transaction. The sweep is the actor, so the registration is
-            // stamped with the system superuser (matches the audit row and the team-side
-            // settle) — NOT the registrant's FamilyUserId.
-            await _accountingRepo.RecordPaymentAndRecomputeAsync(raRow, SystemUserId, ct);
-
-            // eCheck ARB draft: create a Settlement row — already "Settled" (the money was just
-            // booked above). An ACH draft can still be returned days later; ProcessEcheckReturnAsync
-            // matches the return to its original via the Settlement table, so without this row an NSF
-            // on a plan installment would be logged "not ours, skipping" and never reversed. The
-            // subscription drafts autonomously (no submit-time Pending row), so THIS is the only place
-            // a plan installment's Settlement key is created. Step-3's subscription==null filter keeps
-            // this Settled row out of the Pending→Settled path (no double-pull). RA.AId is populated by
-            // the RecordPayment save above.
+            // eCheck ARB draft: pair the RA with a Settlement row born "Settled" (the money books
+            // below). An ACH draft can still be returned days later; ProcessEcheckReturnAsync
+            // matches the return to its original via the Settlement table, so without this row an
+            // NSF on a plan installment would be logged "not ours, skipping" and never reversed.
+            // The subscription drafts autonomously (no submit-time Pending row), so THIS is the
+            // only place a plan installment's Settlement key is created. Step-3's
+            // subscription==null filter keeps this Settled row out of the Pending→Settled path.
+            // Attached via the navigation property BEFORE the booking save so RA + return-watcher
+            // commit in ONE transaction — a crash between separate saves would book money no
+            // return could ever find.
             if (isEcheck)
             {
                 var settledNow = DateTime.Now;
                 _settleRepo.Add(new Settlement
                 {
                     SettlementId = Guid.NewGuid(),
-                    RegistrationAccountingId = raRow.AId,
+                    RegistrationAccounting = raRow,
                     AdnTransactionId = tx.transId,
                     Status = "Settled",
                     SubmittedAt = settledNow,
@@ -442,8 +515,13 @@ public sealed class AdnSweepService : IAdnSweepService
                     Modified = settledNow,
                     LebUserId = SystemUserId
                 });
-                await _settleRepo.SaveChangesAsync(ct);
             }
+
+            // Record the settled installment and re-derive the registration's totals from
+            // the ledger in one transaction (the tracked Settlement above flushes with it).
+            // The sweep is the actor, so the registration is stamped with the system superuser
+            // (matches the audit row and the team-side settle) — NOT the registrant's FamilyUserId.
+            await _accountingRepo.RecordPaymentAndRecomputeAsync(raRow, SystemUserId, ct);
         }
         else
         {
@@ -511,6 +589,7 @@ public sealed class AdnSweepService : IAdnSweepService
                 acctLast4 = ba.accountNumber?.Length >= 4 ? ba.accountNumber[^4..] : null;
                 break;
         }
+        var isEcheck = txDetail.transaction.payment?.Item is bankAccountMaskedType;
 
         var settleAmount = tx.transactionStatus == "settledSuccessfully" ? tx.settleAmount : 0;
         var clubRepRegId = team.ClubrepRegistrationid;
@@ -529,10 +608,12 @@ public sealed class AdnSweepService : IAdnSweepService
             AdnTransactionId = tx.transId,
             Dueamt = settleAmount,
             Payamt = settleAmount,
-            Paymeth = cc4 != null
-                ? $"paid by cc: {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}"
-                : $"paid by eCheck (****{acctLast4}): {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}",
-            PaymentMethodId = CcPaymentMethodId,
+            Paymeth = isEcheck
+                ? $"paid by eCheck (****{acctLast4}): {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}"
+                : $"paid by cc: {settleAmount:C} on subscriptionId: {tx.subscription.id} on {tx.submitTimeLocal:G} txID: {tx.transId}",
+            // Method-correct bucket: eCheck drafts must land in the eCheck column of the
+            // payment-method totals (was hard-coded CC, mis-bucketing team ACH installments).
+            PaymentMethodId = isEcheck ? EcheckPaymentMethodId : CcPaymentMethodId,
             Comment = $"{tx.transactionStatus} (team subscriptionId: {tx.subscription.id} {txDetail.transaction.responseReasonDescription})",
             Createdate = DateTime.Now,
             Modified = DateTime.Now,
@@ -541,9 +622,33 @@ public sealed class AdnSweepService : IAdnSweepService
 
         if (tx.transactionStatus == "settledSuccessfully")
         {
+            // eCheck team-ARB draft: pair the RA with a Settlement row born "Settled", exactly
+            // like the registration-ARB path — without it, an NSF on a team installment hits
+            // "not ours, skipping" in ProcessEcheckReturnAsync and the money stays booked
+            // forever. Attached via the navigation property so RA + return-watcher commit in
+            // ONE transaction with the booking save below.
+            if (isEcheck)
+            {
+                var settledNow = DateTime.Now;
+                _settleRepo.Add(new Settlement
+                {
+                    SettlementId = Guid.NewGuid(),
+                    RegistrationAccounting = raRow,
+                    AdnTransactionId = tx.transId,
+                    Status = "Settled",
+                    SubmittedAt = settledNow,
+                    NextCheckAt = settledNow,
+                    SettledAt = settledNow,
+                    LastCheckedAt = settledNow,
+                    AccountLast4 = acctLast4,
+                    Modified = settledNow,
+                    LebUserId = SystemUserId
+                });
+            }
+
             // Record the settled installment and re-derive the team's totals from the ledger
-            // in one transaction. Other tracked edits on the shared sweep context (e.g. the
-            // subscription-status sync above) flush with it.
+            // in one transaction. Other tracked edits on the shared sweep context (the
+            // subscription-status sync above, the Settlement row) flush with it.
             await _accountingRepo.RecordPaymentAndRecomputeAsync(raRow, SystemUserId, ct);
         }
         else
@@ -600,28 +705,16 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
+        // Status-only bookkeeping: the money booked at SUBMIT (optimistic — the RA was born
+        // Active=true and PaidTotal moved with it). Presence in a settled batch just means the
+        // draft entered the banking network; from here the only possible failure is a future
+        // return (handled by ProcessEcheckReturnAsync). No Active flip, no recompute, no rep sync.
         var now = DateTime.Now;
         settlement.Status = "Settled";
         settlement.SettledAt = now;
         settlement.LastCheckedAt = now;
         settlement.Modified = now;
-
-        // Pessimistic booking: the submit-time RA was born Active=false (excluded from the PaidTotal
-        // ledger sum). Settlement is the money event — flip it Active=true and re-derive the keyed
-        // entity's total from the ledger. RecomputeForRowAsync flushes this flip AND the settlement
-        // status change (both tracked on the shared sweep context) inside one transaction, so the
-        // row and the total it implies commit together. ra.TeamId routes team vs registration.
-        ra.Active = true;
-        ra.Modified = now;
-        await _accountingRepo.RecomputeForRowAsync(ra, SystemUserId, ct);
-
-        // Team eCheck: roll the team's freshly-credited total onto the rep's Registration aggregate,
-        // mirroring the NSF path (SynchronizeClubRepFinancialsAsync). Player eCheck (TeamId null)
-        // reconciles the registration directly in the recompute above and needs no roll-up.
-        if (ra.TeamId.HasValue && ra.RegistrationId.HasValue && ra.RegistrationId.Value != Guid.Empty)
-        {
-            await _registrations_SyncRep(ra.RegistrationId.Value, ct);
-        }
+        await _settleRepo.SaveChangesAsync(ct);
 
         return new EcheckSettledDigestRow
         {
@@ -672,6 +765,16 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
+        // Terminal guard: "Returned" is a final state. The sweep re-reads a trailing window of
+        // batches, so the same returnedItem tx is re-seen on 2–3 consecutive runs — without this
+        // guard the digest re-counted the return (and re-alerted) every run until it aged out.
+        if (settlement.Status == "Returned")
+        {
+            _logger.LogDebug("eCheck return {TxId}: settlement {Id} already Returned, skipping",
+                returnTx.transId, settlement.SettlementId);
+            return null;
+        }
+
         var ra = settlement.RegistrationAccounting;
         var reg = ra.Registration;
         if (reg == null)
@@ -689,63 +792,60 @@ public sealed class AdnSweepService : IAdnSweepService
             return null;
         }
 
-        // Capture BEFORE flipping the status below. Under pessimistic eCheck the money was booked
-        // at SETTLEMENT (Status→"Settled" + RA Active→true), not at submit. A return can arrive for
-        // a settlement we never marked Settled (the item bounced before our sweep saw it clear): its
-        // RA is still Active=false and was never counted in PaidTotal, so there is nothing to
-        // reverse. Only a previously-settled item needs the reversal row + fee restore below.
-        var wasCounted = settlement.Status == "Settled";
-
+        // One rule under optimistic booking: the money counted at SUBMIT, so EVERY return
+        // reverses — including originals still "Pending" (bounced before our sweep ever saw
+        // them settle). Idempotency is the two guards above: a reversal RA carrying the
+        // return's transId, and the terminal "Returned" status. The Kind distinction is
+        // digest-facing only — the money handling is identical.
+        var kind = settlement.Status == "Settled" ? "NSF after settlement" : "returned before settlement recorded";
         var now = DateTime.Now;
 
-        // Mark Settlement returned.
+        // Mark Settlement returned; flushes with the reversal transaction inside the core.
         settlement.Status = "Returned";
         settlement.ReturnReasonCode = detail.transaction.responseReasonCode.ToString();
         settlement.ReturnReasonText = detail.transaction.responseReasonDescription;
         settlement.LastCheckedAt = now;
         settlement.Modified = now;
 
-        if (!wasCounted)
+        await ReverseEcheckMoneyAsync(settlement, ra, reg, amount,
+            reversalTxId: returnTx.transId,
+            reversalComment: $"NSF return — original aID {ra.AId}, reason: {settlement.ReturnReasonCode} {settlement.ReturnReasonText}",
+            ct);
+
+        return new EcheckReturnDigestRow
         {
-            // Never credited — persist the Returned status only (RA stays Active=false, PaidTotal
-            // untouched). Reg stays active; the director alert below carries the decision to
-            // inactivate. Save here because the reversal chokepoint that would normally flush the
-            // status is skipped in this branch.
-            _logger.LogInformation(
-                "eCheck return {TxId}: settlement {Id} never settled (still Pending) — status→Returned, no reversal (never credited)",
-                returnTx.transId, settlement.SettlementId);
-            await _settleRepo.SaveChangesAsync(ct);
+            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+            ReturnTxId = returnTx.transId,
+            OriginalTxId = originalTxId,
+            Kind = kind,
+            Reason = $"{settlement.ReturnReasonText} ({settlement.ReturnReasonCode})",
+            AmountReversed = amount,
+            Registrant = reg.UserId
+        };
+    }
 
-            bool notified;
-            try
-            {
-                notified = await SendDirectorAlertAsync(reg.JobId, ra, settlement, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "NSF director alert failed for settlement {Id}", settlement.SettlementId);
-                notified = false;
-            }
-
-            return new EcheckReturnDigestRow
-            {
-                JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
-                ReturnTxId = returnTx.transId,
-                OriginalTxId = originalTxId,
-                Reason = $"{settlement.ReturnReasonText} ({settlement.ReturnReasonCode})",
-                AmountReversed = 0m,
-                Registrant = reg.UserId,
-                DirectorNotified = notified
-            };
-        }
-
-        // Two NSF flavors share this method:
+    /// <summary>
+    /// Shared reversal core — the money-undo for a booked eCheck, used by the return handler
+    /// (NSF) and the stale-Pending watchdog (draft died / return aged out of the window).
+    /// Restores the (CC−EC) processing-fee credit on the keyed entity, writes the negative
+    /// "Failed E-Check Payment" RA row, and re-derives totals — one transaction (the caller's
+    /// tracked Settlement status flip flushes with it). Team-side rows also roll the delta
+    /// onto the rep aggregate. The caller owns idempotency (terminal Settlement status /
+    /// reversal-txId guard) and the digest row.
+    /// </summary>
+    private async Task ReverseEcheckMoneyAsync(
+        Settlement settlement,
+        RegistrationAccounting ra,
+        Registrations reg,
+        decimal amount,
+        string? reversalTxId,
+        string reversalComment,
+        CancellationToken ct)
+    {
+        // Two flavors share this core:
         //   - Player eCheck:    RA.TeamId is null → reverse on the player Registration directly.
-        //   - Team eCheck/ARB-Trial fallback: RA.TeamId is set → reverse on the Teams row,
+        //   - Team eCheck (incl. team-ARB drafts): RA.TeamId is set → reverse on the Teams row,
         //     then re-aggregate onto the rep's Registration via SynchronizeClubRepFinancialsAsync.
-        // The earlier ReduceTeamProcessingFeeForEcheckAsync (applied at submit) is mirrored
-        // here by ReverseTeamProcessingFeeForEcheckAsync. ARB-Trial fallback follows the same
-        // pattern, so this single branch covers both.
         // Restore the processing-fee credit on the reversed entity (save-free; the chokepoint
         // below re-derives FeeTotal/OwedTotal). PaidTotal is recomputed from the ledger once the
         // reversal row lands, so there is no hand-decrement here.
@@ -767,11 +867,13 @@ public sealed class AdnSweepService : IAdnSweepService
             await _feeAdj.ReverseProcessingFeeForEcheckAsync(reg, amount, reg.JobId, SystemUserId);
         }
 
+        var now = DateTime.Now;
+
         // Record the reversal row and re-derive the keyed entity's totals from the ledger in one
         // transaction. row.TeamId routes the recompute to the team (else the registration),
         // mirroring the branch above; a missing team is a no-op recompute (the row is still
         // written). Pending edits on the shared sweep context (settlement status, fee restore)
-        // flush with it, so the separate settlement save is no longer needed.
+        // flush with it.
         await _accountingRepo.RecordPaymentAndRecomputeAsync(new RegistrationAccounting
         {
             RegistrationId = ra.RegistrationId,
@@ -779,8 +881,8 @@ public sealed class AdnSweepService : IAdnSweepService
             PaymentMethodId = FailedEcheckPaymentMethodId,
             Payamt = -amount,
             Dueamt = 0,
-            Comment = $"NSF return — original aID {ra.AId}, reason: {settlement.ReturnReasonCode} {settlement.ReturnReasonText}",
-            AdnTransactionId = returnTx.transId,
+            Comment = reversalComment,
+            AdnTransactionId = reversalTxId,
             Active = true,
             Createdate = now,
             Modified = now,
@@ -794,58 +896,123 @@ public sealed class AdnSweepService : IAdnSweepService
         {
             await _registrations_SyncRep(ra.RegistrationId.Value, ct);
         }
-
-        // Best-effort director email — capture success for the digest.
-        bool directorNotified;
-        try
-        {
-            directorNotified = await SendDirectorAlertAsync(reg.JobId, ra, settlement, ct);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "NSF director alert failed for settlement {Id}", settlement.SettlementId);
-            directorNotified = false;
-        }
-
-        return new EcheckReturnDigestRow
-        {
-            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
-            ReturnTxId = returnTx.transId,
-            OriginalTxId = originalTxId,
-            Reason = $"{settlement.ReturnReasonText} ({settlement.ReturnReasonCode})",
-            AmountReversed = amount,
-            Registrant = reg.UserId,
-            DirectorNotified = directorNotified
-        };
     }
 
-    private async Task<bool> SendDirectorAlertAsync(
-        Guid jobId, RegistrationAccounting originalRa, Settlement settlement, CancellationToken ct)
+    // ── Stale-Pending watchdog ────────────────────────────────────────
+    //
+    // The one failure mode with NO signal of its own: a draft the gateway accepted that died
+    // before entering the banking network (voided / gateway error at batch time). No settlement
+    // will ever come, no return will ever come — under optimistic booking, silence means "money
+    // is good", so somebody has to check. A healthy draft goes Pending → Settled in 1–2 business
+    // days; Pending beyond the configured threshold is an anomaly by definition, and the tx id
+    // lets us ask ADN point-blank what became of it. (Director notification is deliberately
+    // absent — everything lands in the support digest; the director-facing NSF alert + inactivate
+    // action are one future feature, designed together.)
+
+    // ADN transaction statuses that mean the draft is dead without ever having originated —
+    // reverse the booked money. Unknown statuses are deliberately NOT here: report-only, a
+    // human decides (a wrong reversal is worse than a flagged oddity).
+    private static readonly HashSet<string> DeadTransactionStatuses = new(StringComparer.OrdinalIgnoreCase)
     {
-        var director = await _regRepo.GetDirectorContactForJobAsync(jobId, ct);
-        if (director == null || string.IsNullOrEmpty(director.Email))
+        "voided", "declined", "generalError", "failedReview", "settlementError", "expired"
+    };
+
+    private async Task<WatchdogDigestRow?> ProcessStalePendingAsync(
+        Settlement settlement, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
+    {
+        var ra = settlement.RegistrationAccounting;
+        var reg = ra.Registration;
+        if (reg == null)
         {
-            _logger.LogWarning("No director contact for job {JobId}; NSF alert not sent", jobId);
-            return false;
+            _logger.LogWarning("Watchdog: settlement {Id} has no Registration loaded — corrupt state, skipping",
+                settlement.SettlementId);
+            return null;
         }
 
-        var amountStr = (originalRa.Payamt ?? 0m).ToString("F2");
-        var body = $@"<p>An eCheck has been returned by the bank and the registration's balance was automatically restored.</p>
-<ul>
-<li><b>Amount:</b> ${amountStr}</li>
-<li><b>Reason:</b> {settlement.ReturnReasonText} (code {settlement.ReturnReasonCode})</li>
-<li><b>Original transaction ID:</b> {settlement.AdnTransactionId}</li>
-</ul>
-<p>The registration remains active. You may wish to contact the customer.</p>";
-
-        await _email.SendAsync(new EmailMessageDto
+        var row = new WatchdogDigestRow
         {
-            FromName = "TSIC System",
-            ToAddresses = [director.Email],
-            Subject = $"eCheck NSF return — ${amountStr}",
-            HtmlBody = body
-        }, sendInDevelopment: false, cancellationToken: ct);
-        return true;
+            JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
+            TransId = settlement.AdnTransactionId,
+            Amount = ra.Payamt ?? 0m,
+            Registrant = reg.UserId,
+            SubmittedAt = settlement.SubmittedAt,
+            Outcome = ""
+        };
+
+        var now = DateTime.Now;
+        var detail = _adn.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, settlement.AdnTransactionId);
+        if (detail?.messages?.resultCode != messageTypeEnum.Ok || detail.transaction == null)
+        {
+            settlement.LastCheckedAt = now;
+            settlement.Modified = now;
+            await _settleRepo.SaveChangesAsync(ct);
+            return row with { Outcome = "status check failed at ADN — will retry next run" };
+        }
+
+        var status = detail.transaction.transactionStatus ?? "";
+
+        if (string.Equals(status, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
+        {
+            // Settled but we never saw the batch (sweep outage / window aged out) — rejoin path ①.
+            var settled = await MarkEcheckSettled(settlement, ct);
+            return row with { Outcome = settled != null ? "settled — batch window missed; stamped Settled" : "settled at ADN but local stamp failed" };
+        }
+
+        var amount = ra.Payamt ?? 0m;
+
+        if (string.Equals(status, "returnedItem", StringComparison.OrdinalIgnoreCase))
+        {
+            // Bounced, and the returnedItem tx aged out of our batch window before a sweep saw
+            // it. Same reversal as the return handler; the terminal Returned status keeps a
+            // late-arriving batch sighting of the return tx from double-processing.
+            settlement.Status = "Returned";
+            settlement.ReturnReasonText = "returned (detected by watchdog; return tx outside batch window)";
+            settlement.LastCheckedAt = now;
+            settlement.Modified = now;
+
+            if (amount <= 0m)
+            {
+                await _settleRepo.SaveChangesAsync(ct);
+                return row with { Outcome = "returned at ADN; original amount non-positive — status stamped, nothing to reverse" };
+            }
+
+            await ReverseEcheckMoneyAsync(settlement, ra, reg, amount,
+                reversalTxId: null,
+                reversalComment: $"eCheck returned (watchdog) — original aID {ra.AId}, txID {settlement.AdnTransactionId}",
+                ct);
+            return row with { Outcome = $"returned at ADN — reversed {amount:C}" };
+        }
+
+        if (DeadTransactionStatuses.Contains(status))
+        {
+            // Died before origination: no return will ever come — THIS is the case only the
+            // watchdog can catch. Reverse the submit-time booking.
+            settlement.Status = "Failed";
+            settlement.ReturnReasonText = $"never originated — gateway status '{status}' (watchdog)";
+            settlement.LastCheckedAt = now;
+            settlement.Modified = now;
+
+            if (amount <= 0m)
+            {
+                await _settleRepo.SaveChangesAsync(ct);
+                return row with { Outcome = $"dead at gateway ({status}); original amount non-positive — status stamped, nothing to reverse" };
+            }
+
+            await ReverseEcheckMoneyAsync(settlement, ra, reg, amount,
+                reversalTxId: null,
+                reversalComment: $"eCheck never originated — gateway status '{status}' (watchdog), original aID {ra.AId}, txID {settlement.AdnTransactionId}",
+                ct);
+            return row with { Outcome = $"never originated ({status}) — reversed {amount:C}" };
+        }
+
+        // Genuinely still in flight (capturedPendingSettlement etc.) or a status we don't
+        // recognize — stamp the check, report, look again next run. No money is touched on
+        // an unrecognized status: report-only, a human decides.
+        settlement.LastCheckedAt = now;
+        settlement.NextCheckAt = now.AddDays(1);
+        settlement.Modified = now;
+        await _settleRepo.SaveChangesAsync(ct);
+        return row with { Outcome = $"still '{status}' at ADN — left Pending, will re-check" };
     }
 
     // ── Orphan charge detection (report-only) ─────────────────────────
@@ -988,6 +1155,8 @@ public sealed class AdnSweepService : IAdnSweepService
         List<EcheckSettledDigestRow> settledRows,
         List<EcheckReturnDigestRow> ecRows,
         List<OrphanDigestRow> orphanRows,
+        List<WatchdogDigestRow> watchdogRows,
+        List<UntrackedEcheckRaDto> untrackedRows,
         Counts counts,
         string? errorMessage)
     {
@@ -1014,7 +1183,26 @@ public sealed class AdnSweepService : IAdnSweepService
                 + $"&#9888; {counts.Errored} transaction(s) errored — the pass completed, but those are not booked.</p>");
         }
 
-        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Errored: {counts.Errored}</p>");
+        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Errored: {counts.Errored}</p>");
+
+        // ── ARB subscription warnings ─────────────────────────────────
+        // A suspended/canceled/terminated subscription stops drafting on its own — pure absence
+        // from our side. The status is synced from ADN during import; this is its alarm.
+        var subWarnings = arbRows
+            .Where(r => !string.IsNullOrEmpty(r.SubscriptionStatus)
+                && !string.Equals(r.SubscriptionStatus, "active", StringComparison.OrdinalIgnoreCase)
+                && !string.Equals(r.SubscriptionStatus, "expired", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (subWarnings.Count > 0)
+        {
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Subscription(s) not healthy — installments will stop arriving on their own:</p>");
+            sb.Append("<ul style='font-size:9px;margin-top:0;'>");
+            foreach (var w in subWarnings)
+            {
+                sb.Append($"<li><b>{w.SubscriptionStatus}</b> — {w.JobName} · sub {w.SubscriptionId} · {w.Registrant} ({w.RegistrantAssignment}) · owed now {w.OwedNow:C}</li>");
+            }
+            sb.Append("</ul>");
+        }
 
         // ── ARB Activity table ────────────────────────────────────────
         sb.Append("<h4 style='margin-bottom:2px;'>ARB Activity</h4>");
@@ -1083,7 +1271,7 @@ public sealed class AdnSweepService : IAdnSweepService
         else
         {
             sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
-            sb.Append("<tr><th>#</th><th>Job</th><th>Original TransId</th><th>Return TransId</th><th>Reason</th><th>Amount Reversed</th><th>Registrant</th><th>Director Notified</th></tr>");
+            sb.Append("<tr><th>#</th><th>Job</th><th>Original TransId</th><th>Return TransId</th><th>Type</th><th>Reason</th><th>Amount Reversed</th><th>Registrant</th></tr>");
             for (int i = 0; i < ecRows.Count; i++)
             {
                 var r = ecRows[i];
@@ -1092,10 +1280,62 @@ public sealed class AdnSweepService : IAdnSweepService
                   .Append($"<td>{r.JobName}</td>")
                   .Append($"<td>{r.OriginalTxId}</td>")
                   .Append($"<td>{r.ReturnTxId}</td>")
+                  .Append($"<td>{r.Kind}</td>")
                   .Append($"<td>{r.Reason}</td>")
                   .Append($"<td>{r.AmountReversed:C}</td>")
                   .Append($"<td>{r.Registrant}</td>")
-                  .Append($"<td>{(r.DirectorNotified ? "yes" : "NO")}</td>")
+                  .Append("</tr>");
+            }
+            sb.Append("</table>");
+        }
+
+        // ── Watchdog table (stale Pending drafts) ─────────────────────
+        sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Watchdog (Pending beyond threshold)</h4>");
+        if (watchdogRows.Count == 0)
+        {
+            sb.Append("<p style='font-size:9px;'>(no stale pending drafts — every draft settled or resolved on time ✓)</p>");
+        }
+        else
+        {
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Draft(s) still Pending past the threshold — status was queried at ADN directly; outcome per row.</p>");
+            sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
+            sb.Append("<tr><th>#</th><th>Job</th><th>TransId</th><th>Amount</th><th>Registrant</th><th>Submitted</th><th>Outcome</th></tr>");
+            for (int i = 0; i < watchdogRows.Count; i++)
+            {
+                var r = watchdogRows[i];
+                sb.Append("<tr>")
+                  .Append($"<td>{i + 1}</td>")
+                  .Append($"<td>{r.JobName}</td>")
+                  .Append($"<td>{r.TransId}</td>")
+                  .Append($"<td>{r.Amount:C}</td>")
+                  .Append($"<td>{r.Registrant}</td>")
+                  .Append($"<td>{r.SubmittedAt:g}</td>")
+                  .Append($"<td>{r.Outcome}</td>")
+                  .Append("</tr>");
+            }
+            sb.Append("</table>");
+        }
+
+        // ── Untracked eCheck payments (integrity net) ─────────────────
+        sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Untracked eCheck Payments (no Settlement return-watcher)</h4>");
+        if (untrackedRows.Count == 0)
+        {
+            sb.Append("<p style='font-size:9px;'>(none — every booked eCheck is registered for return-watching ✓)</p>");
+        }
+        else
+        {
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Booked eCheck money the sweep cannot watch — a bounce on these would be silently dropped. Investigate each; likely a partial write.</p>");
+            sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
+            sb.Append("<tr><th>#</th><th>RA AId</th><th>TransId</th><th>Amount</th><th>Created</th></tr>");
+            for (int i = 0; i < untrackedRows.Count; i++)
+            {
+                var r = untrackedRows[i];
+                sb.Append("<tr>")
+                  .Append($"<td>{i + 1}</td>")
+                  .Append($"<td>{r.AId}</td>")
+                  .Append($"<td>{r.AdnTransactionId}</td>")
+                  .Append($"<td>{r.Payamt:C}</td>")
+                  .Append($"<td>{r.Createdate:g}</td>")
                   .Append("</tr>");
             }
             sb.Append("</table>");
@@ -1178,10 +1418,23 @@ public sealed class AdnSweepService : IAdnSweepService
         public required string JobName { get; init; }
         public required string ReturnTxId { get; init; }
         public required string OriginalTxId { get; init; }
+        /// <summary>Digest-facing failure type: "NSF after settlement" vs "returned before settlement recorded".</summary>
+        public required string Kind { get; init; }
         public required string Reason { get; init; }
         public required decimal AmountReversed { get; init; }
         public required string? Registrant { get; init; }
-        public required bool DirectorNotified { get; init; }
+    }
+
+    // Watchdog finding: a Settlement still Pending past the threshold, with what ADN said and
+    // what was done about it ("never originated — reversed", "settled — window missed", …).
+    private sealed record WatchdogDigestRow
+    {
+        public required string JobName { get; init; }
+        public required string TransId { get; init; }
+        public required decimal Amount { get; init; }
+        public required string? Registrant { get; init; }
+        public required DateTime SubmittedAt { get; init; }
+        public required string Outcome { get; init; }
     }
 
     private sealed record EcheckSettledDigestRow

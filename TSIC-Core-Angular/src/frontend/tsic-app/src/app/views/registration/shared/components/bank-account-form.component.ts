@@ -25,7 +25,8 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
       </h6>
       <div class="alert alert-info border-0 small mb-3" role="status">
         <i class="bi bi-info-circle me-1"></i>
-        Your registration will be marked <strong>pending</strong> until your bank confirms the debit (typically 3–5 business days).
+        eCheck payments are drafted from your bank account. Drafts typically finalize within
+        <strong>3–5 business days</strong>; if your bank returns the draft, your balance is restored automatically.
       </div>
       <form [formGroup]="form" (ngSubmit)="noop()">
         <!-- Personal Information First -->

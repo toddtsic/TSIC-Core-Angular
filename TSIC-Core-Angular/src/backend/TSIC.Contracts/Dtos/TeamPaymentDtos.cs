@@ -157,8 +157,6 @@ public sealed record TeamArbTrialPaymentResponseDto
 {
     /// <summary>true if every team in the batch was registered; false if any team failed (including a partial-success outcome).</summary>
     public required bool Success { get; init; }
-    /// <summary>"FALLBACK_FULL_CHARGE" when balance date is in the past — single CC charge replaces the trial flow.</summary>
-    public string? Mode { get; init; }
     public string? Error { get; init; }
     public string? Message { get; init; }
     /// <summary>Per-team results in the order they were submitted. The first non-Registered entry is the team that stopped the batch.</summary>

@@ -5,7 +5,6 @@
 import type { TeamArbTrialResultDto } from './TeamArbTrialResultDto';
 export type TeamArbTrialPaymentResponseDto = {
     success: boolean;
-    mode?: string | null;
     error?: string | null;
     message?: string | null;
     teams: Array<TeamArbTrialResultDto>;

@@ -25,4 +25,11 @@ public class AdnSweepOptions
     /// the daily sweep keeps running either way.
     /// </summary>
     public bool EmailMonthEndClose { get; set; } = true;
+
+    /// <summary>
+    /// Watchdog threshold: an eCheck Settlement still "Pending" this many days after submission is
+    /// an anomaly (healthy drafts settle in 1–2 business days) — the sweep asks ADN directly what
+    /// became of it. Generous default so weekends/holidays never false-positive.
+    /// </summary>
+    public int WatchdogStalePendingDays { get; set; } = 5;
 }

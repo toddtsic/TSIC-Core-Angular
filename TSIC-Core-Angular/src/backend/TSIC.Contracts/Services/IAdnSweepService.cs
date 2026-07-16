@@ -3,13 +3,19 @@ namespace TSIC.Contracts.Services;
 /// <summary>
 /// Daily reconciliation pass over the TSIC customer's settled ADN batches.
 ///
-/// One sweep handles three paths:
+/// One sweep handles five paths:
 ///   • ARB recurring billing imports (subscription txs → RegistrationAccounting + status sync)
-///   • eCheck Pending → Settled transitions (settledSuccessfully txs that match our pending Settlement rows)
-///   • eCheck return processing (returnedItem txs → reverse payment + email director)
+///   • eCheck Pending → Settled transitions (status-only — money books at submit; this stamp
+///     records that the draft entered the banking network)
+///   • eCheck return processing (returnedItem txs → reverse the booked payment)
+///   • stale-Pending watchdog (drafts that went silent: query ADN directly, settle/reverse/flag)
+///   • integrity net (eCheck RA rows with no Settlement return-watcher — report-only)
 ///
+/// All outcomes land in the support digest; there are no per-incident director emails (the
+/// director NSF notification + inactivate action are one future feature, designed together).
 /// Mirrors the legacy AdnArbSweepService.DoWorkAsync flow with eCheck handling added.
-/// Logs to echeck.SweepLog regardless of outcome.
+/// Logs to echeck.SweepLog regardless of outcome. Concurrent runs are refused: a second
+/// caller while a sweep is in flight gets Succeeded=false with an "already running" message.
 /// </summary>
 public interface IAdnSweepService
 {

@@ -6,11 +6,13 @@
                 Manual ARB Sweep
             </h2>
             <p class="page-subtitle">
-                Pulls Authorize.Net settled batches for the last <em>N</em> days and applies any
-                new ARB charges, eCheck settlements, and eCheck returns to the database.
-                Also <strong>flags orphan charges</strong> &mdash; money settled at Authorize.Net with no
-                local accounting row &mdash; for review only (these are reported, never auto-booked).
-                Mirrors the nightly background sweep but runs on demand.
+                Pulls Authorize.Net settled batches for the last <em>N</em> days: books new ARB
+                charges, stamps eCheck settlement confirmations (status only &mdash; eCheck money
+                books at submit), and reverses eCheck returns. Also runs the stale-draft watchdog,
+                <strong>flags orphan charges</strong> &mdash; money settled at Authorize.Net with no
+                local accounting row &mdash; and reports untracked eCheck payments (review only;
+                never auto-booked). Mirrors the nightly background sweep but runs on demand;
+                refuses to start if a sweep is already running.
             </p>
         </div>
     </div>

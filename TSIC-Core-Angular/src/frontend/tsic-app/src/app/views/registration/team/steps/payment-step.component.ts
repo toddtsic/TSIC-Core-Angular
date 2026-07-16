@@ -379,42 +379,28 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
           <!-- ═══ ARB-TRIAL (Deposit tomorrow + Balance on configured date) ═══ -->
           @if (isArbTrial()) {
             <section class="arb-trial-panel payment-form-panel">
-              @if (arbTrialIsFallback()) {
-                <div class="alert alert-warning border-0 d-flex align-items-start gap-2 mb-3">
-                  <i class="bi bi-exclamation-triangle fs-5"></i>
-                  <div>
-                    <div class="fw-semibold mb-1">Balance date already passed</div>
-                    <div class="small">
-                      Today is on or after the configured balance date
-                      ({{ arbTrialBalanceDate() | date:'mediumDate' }}). Submitting will charge the
-                      full amount now as a single transaction — no payment plan will be created.
-                    </div>
-                  </div>
+              <div class="schedule-banner mb-3">
+                <div class="schedule-row">
+                  <span class="schedule-label">
+                    <i class="bi bi-1-circle me-2"></i>Deposit (charged tomorrow)
+                  </span>
+                  <span class="schedule-value">{{ arbTrialDepositDate() | date:'mediumDate' }}</span>
                 </div>
-              } @else {
-                <div class="schedule-banner mb-3">
-                  <div class="schedule-row">
-                    <span class="schedule-label">
-                      <i class="bi bi-1-circle me-2"></i>Deposit (charged tomorrow)
-                    </span>
-                    <span class="schedule-value">{{ arbTrialDepositDate() | date:'mediumDate' }}</span>
-                  </div>
-                  <div class="schedule-row">
-                    <span class="schedule-label">
-                      <i class="bi bi-2-circle me-2"></i>Balance
-                    </span>
-                    <span class="schedule-value">{{ arbTrialBalanceDate() | date:'mediumDate' }}</span>
-                  </div>
-                  <div class="schedule-row total">
-                    <span class="schedule-label">Total across {{ arbTrialTeamCount() }} team(s)</span>
-                    <span class="schedule-value fw-bold">{{ balanceDue() | currency }}</span>
-                  </div>
+                <div class="schedule-row">
+                  <span class="schedule-label">
+                    <i class="bi bi-2-circle me-2"></i>Balance
+                  </span>
+                  <span class="schedule-value">{{ arbTrialBalanceDate() | date:'mediumDate' }}</span>
                 </div>
-                <div class="text-muted small mb-3">
-                  <i class="bi bi-info-circle me-1"></i>
-                  One subscription per team — refunds and cancellations are handled team-by-team.
+                <div class="schedule-row total">
+                  <span class="schedule-label">Total across {{ arbTrialTeamCount() }} team(s)</span>
+                  <span class="schedule-value fw-bold">{{ balanceDue() | currency }}</span>
                 </div>
-              }
+              </div>
+              <div class="text-muted small mb-3">
+                <i class="bi bi-info-circle me-1"></i>
+                One subscription per team — refunds and cancellations are handled team-by-team.
+              </div>
 
               <!-- Sub-source picker shown only when both CC and eCheck are available for this job. -->
               @if (showArbTrialSourcePicker()) {
@@ -464,9 +450,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                     [disabled]="!canSubmitArbTrial()">
               {{ submitting()
                   ? 'Processing...'
-                  : (arbTrialIsFallback()
-                      ? 'Charge ' + (balanceDue() | currency) + ' Now'
-                      : 'Schedule ' + (balanceDue() | currency) + ' (Deposit + Balance)') }}
+                  : 'Schedule ' + (balanceDue() | currency) + ' (Deposit + Balance)' }}
             </button>
             @if (viPayHintVisible()) {
               <div class="vi-pay-hint mt-2 small d-flex align-items-center gap-1" role="status">
@@ -935,7 +919,6 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
     readonly isEcheck = computed(() => this.state.teamPayment.isEcheckPayment());
     readonly isArbTrial = computed(() => this.state.teamPayment.isArbTrialPayment());
     readonly isCheck = computed(() => this.state.teamPayment.isCheckPayment());
-    readonly arbTrialIsFallback = computed(() => this.state.teamPayment.arbTrialIsFallback());
     readonly arbTrialDepositDate = computed(() => this.state.teamPayment.arbTrialDepositDate());
     readonly arbTrialBalanceDate = computed(() => this.state.teamPayment.adnStartDateAfterTrial());
     readonly arbTrialTeamCount = computed(() => this.state.teamPayment.teamIdsWithBalance().length);
@@ -1459,7 +1442,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                         this.state.teamPaymentState.setLastPayment({
                             transactionId: resp.transactionId || undefined,
                             amount: this.echeckAmount(),
-                            message: resp.message || 'eCheck submitted — pending settlement',
+                            message: resp.message || 'eCheck payment accepted',
                             paymentMethod: 'Echeck',
                         });
                         // Refresh ledger so back-nav to Payment reflects post-submit state.
@@ -1548,9 +1531,7 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
                 next: (resp: TeamArbTrialPaymentResponseDto) => {
                     this.arbTrialResult.set(resp);
                     if (resp.success) {
-                        const baseMessage = resp.message ?? (resp.mode === 'FALLBACK_FULL_CHARGE'
-                            ? 'Payment processed (fallback full charge — balance date had passed)'
-                            : 'Payment plan scheduled — deposit charges tomorrow');
+                        const baseMessage = resp.message ?? 'Payment plan scheduled — deposit charges tomorrow';
                         const paymentMethod: 'CC' | 'Echeck' = this.arbTrialSource() === 'Echeck' ? 'Echeck' : 'CC';
 
                         // Chain VI on success when the sub-source is CC and the rep confirmed.

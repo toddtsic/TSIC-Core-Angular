@@ -294,12 +294,12 @@ public class PaymentService : IPaymentService
                     Dueamt = charge,
                     Paymeth = kind == TeamChargeKind.Cc
                         ? $"paid by cc: {charge:C} on {DateTime.Now:G} txID: {transId}"
-                        : $"eCheck pending settlement: {charge:C} of {serverTotal:C} on {DateTime.Now:G} txID: {transId}",
+                        : $"paid by eCheck: {charge:C} of {serverTotal:C} on {DateTime.Now:G} txID: {transId}",
                     PaymentMethodId = kind == TeamChargeKind.Cc ? CcPaymentMethodId : EcheckPaymentMethodId,
-                    // Pessimistic eCheck: born Active=false (excluded from the PaidTotal sum) until
-                    // the sweep confirms settlement; CC born Active=true. Payamt carries the amount
-                    // for the settle-time credit either way.
-                    Active = kind == TeamChargeKind.Cc,
+                    // Optimistic booking: the gateway accepted the charge, so the row counts from
+                    // birth for both tenders. An eCheck that later bounces is undone by the sweep's
+                    // NSF reversal row (the paired Settlement row below is the return-watcher).
+                    Active = true,
                     Createdate = DateTime.Now,
                     Modified = DateTime.Now,
                     LebUserId = userId,
@@ -313,18 +313,15 @@ public class PaymentService : IPaymentService
                 if (kind == TeamChargeKind.Echeck) pendingSettlements.Add((ra, transId));
 
                 // Convert the CC-rate proc embedded in the balance to the method's rate
-                // (no-op for CC), then book the gross for CC only. Pessimistic eCheck defers the
-                // credit to settlement (sweep), so the balance stays owed-until-cleared; the proc
-                // adjustment and RecalcTotals still run so OwedTotal reflects the eCheck rate.
+                // (no-op for CC), then book the gross for both tenders — money counts when the
+                // charge event is known. An NSF return reverses both the credit and the proc
+                // adjustment via the sweep.
                 if (credit > 0m)
                 {
                     team.FeeProcessing = (team.FeeProcessing ?? 0m) - credit;
                     team.RecalcTotals();
                 }
-                if (kind == TeamChargeKind.Cc)
-                {
-                    team.PaidTotal = (team.PaidTotal ?? 0m) + charge;
-                }
+                team.PaidTotal = (team.PaidTotal ?? 0m) + charge;
                 team.RecalcTotals();
                 team.Modified = DateTime.Now;
                 team.LebUserId = userId;
@@ -358,20 +355,20 @@ public class PaymentService : IPaymentService
         var attempted = plans.Count;
         if (failedCount < attempted)
         {
-            await _teams.SaveChangesAsync();
-            await _acct.SaveChangesAsync();
-
+            // Atomic mint: attach each eCheck tracking row via the RegistrationAccounting
+            // navigation property BEFORE the flush — EF orders the inserts and assigns the
+            // identity FK, so accounting record + return-watcher commit or fail together.
+            // A booked eCheck without its Settlement row would be invisible to the sweep's
+            // settle/return/watchdog steps ("not ours, skipping" on NSF).
             if (kind == TeamChargeKind.Echeck && pendingSettlements.Count > 0)
             {
-                // Settlement.RegistrationAccountingId is the identity-generated AId on RA;
-                // requires the RA inserts above to be saved first.
                 var nextCheckAt = DateTime.Now.AddDays(1);
                 foreach (var (ra, txId) in pendingSettlements)
                 {
                     _settleRepo.Add(new Settlement
                     {
                         SettlementId = Guid.NewGuid(),
-                        RegistrationAccountingId = ra.AId,
+                        RegistrationAccounting = ra,
                         AdnTransactionId = txId,
                         Status = "Pending",
                         SubmittedAt = DateTime.Now,
@@ -383,8 +380,10 @@ public class PaymentService : IPaymentService
                         LebUserId = userId
                     });
                 }
-                await _settleRepo.SaveChangesAsync();
             }
+
+            await _teams.SaveChangesAsync();
+            await _acct.SaveChangesAsync();
 
             // Re-aggregate the rep registration row from the new team financials. One sync
             // covers the batch — every team belongs to the same rep (regId == ClubrepRegistrationid).
@@ -397,7 +396,7 @@ public class PaymentService : IPaymentService
                 Success = true,
                 Message = kind == TeamChargeKind.Cc
                     ? $"All {attempted} team payment(s) processed successfully"
-                    : $"{attempted} team eCheck submission(s) accepted; settlement pending (typically 3–5 business days).",
+                    : $"All {attempted} team eCheck payment(s) accepted.",
                 TransactionId = firstTransactionId,
                 Teams = teamResults
             };
@@ -408,7 +407,7 @@ public class PaymentService : IPaymentService
                 Error = "PARTIAL_SUCCESS",
                 Message = kind == TeamChargeKind.Cc
                     ? $"{attempted - failedCount} of {attempted} team payment(s) succeeded"
-                    : $"{attempted - failedCount} of {attempted} team eCheck submission(s) accepted; rest failed.",
+                    : $"{attempted - failedCount} of {attempted} team eCheck payment(s) accepted; rest failed.",
                 TransactionId = firstTransactionId,
                 Teams = teamResults
             };
@@ -453,6 +452,13 @@ public class PaymentService : IPaymentService
             return FailTrial("ARB_TRIAL_NOT_ENABLED", "ARB-Trial is not enabled for this job.");
         if (!feeSettings.AdnStartDateAfterTrial.HasValue)
             return FailTrial("ARB_TRIAL_BALANCE_DATE_MISSING", "ARB-Trial balance date is not configured.");
+        // Past the balance date there is no future installment left to schedule — the plan no
+        // longer exists as a plan. Reject explicitly (the wizard hides the option in this state;
+        // this guards stale clients) instead of silently converting to a one-shot charge the rep
+        // never consented to. The rep pays via the regular CC/eCheck buttons.
+        if (DateTime.Now.Date >= feeSettings.AdnStartDateAfterTrial.Value.Date)
+            return FailTrial("ARB_TRIAL_WINDOW_PASSED",
+                "The payment plan window has passed — please pay in full by credit card or eCheck.");
         if (bankAccount != null && !feeSettings.BEnableEcheck)
             return FailTrial("ECHECK_NOT_ENABLED", "eCheck payments are not enabled for this job.");
 
@@ -509,14 +515,6 @@ public class PaymentService : IPaymentService
         var processingRate = bankAccount != null
             ? await _feeService.GetEffectiveEcheckProcessingRateAsync(jobIdValue)
             : await _feeService.GetEffectiveProcessingRateAsync(jobIdValue);
-
-        // Fallback: today on/after balance date → single full-amount charge per team.
-        // No subscription is created; the standard CC/eCheck per-team loop runs instead.
-        if (today >= balanceDate)
-        {
-            return await ProcessArbTrialFallbackAsync(
-                regId, userId, teams, jobIdValue, credentials, env, feeSettings, creditCard, bankAccount);
-        }
 
         var intervalDays = (short)(balanceDate - depositDate).Days;
         if (intervalDays < 1)
@@ -723,278 +721,6 @@ public class PaymentService : IPaymentService
                 : (anySuccess
                     ? $"{successCount} of {teamIds.Count} subscription(s) created; batch stopped at first failure"
                     : "All ARB-Trial submissions failed"),
-            Teams = results,
-            NotAttempted = notAttempted
-        };
-    }
-
-    /// <summary>
-    /// Fallback path for ARB-Trial when today is on/after the configured balance date.
-    /// Charges each team the full netBase + processing as a single ADN transaction
-    /// (CC or eCheck depending on which payment method was supplied). No subscription
-    /// is created. Capture-what-you-can semantics mirror the trial loop.
-    ///
-    /// Aligns with the existing team eCheck pattern: stamp team with CC-rate schedule,
-    /// then apply the (CC − EC) processing-fee credit via _feeAdj before charging. This
-    /// keeps NSF reversal in <see cref="AdnSweepService.ProcessEcheckReturnAsync"/>
-    /// uniform with the regular team eCheck flow.
-    /// </summary>
-    private async Task<TeamArbTrialPaymentResponseDto> ProcessArbTrialFallbackAsync(
-        Guid regId,
-        string userId,
-        List<Domain.Entities.Teams> teams,
-        Guid jobId,
-        AdnCredentialsViewModel credentials,
-        AuthorizeNet.Environment env,
-        JobFeeSettings feeSettings,
-        CreditCardInfo? creditCard,
-        BankAccountInfo? bankAccount)
-    {
-        var bAddProcessing = feeSettings.BAddProcessingFees ?? true;
-        var bApplyToDeposit = feeSettings.BApplyProcessingFeesToTeamDeposit ?? false;
-        var ccProcessingRate = await _feeService.GetEffectiveProcessingRateAsync(jobId);
-        var ccExpiryDate = creditCard != null ? FormatExpiry(creditCard.Expiry!) : null;
-        var last4 = bankAccount?.AccountNumber is { Length: >= 4 } an ? an[^4..] : bankAccount?.AccountNumber;
-        var nameOnAcct = bankAccount?.NameOnAccount?.Trim();
-
-        var results = new List<TeamArbTrialResultDto>();
-        var notAttempted = new List<Guid>();
-        var pendingSettlements = new List<(RegistrationAccounting Ra, string TxId)>();
-        var stoppedAt = -1;
-
-        for (int i = 0; i < teams.Count; i++)
-        {
-            var team = teams[i];
-
-            var resolved = await _feeService.ResolveFeeAsync(
-                jobId, RoleConstants.ClubRep, team.AgegroupId, team.TeamId);
-            var rawDeposit = resolved?.EffectiveDeposit ?? 0m;
-            var rawBalance = resolved?.EffectiveBalanceDue ?? 0m;
-            // TotalDiscount() is the same total FeeMath subtracts from FeeTotal, so the split legs
-            // foot to it exactly.
-            var discount = team.TotalDiscount();
-            var lateFee = team.FeeLatefee ?? 0m;
-            var donation = team.FeeDonation ?? 0m;
-
-            // Always splits at CC rate. For eCheck, the (CC−EC) credit is applied below
-            // via _feeAdj so the team row carries the same processing-fee history that
-            // ProcessTeamEcheckPaymentAsync would have written — sweep NSF reversal is
-            // identical for both paths.
-            var split = ArbTrialFeeSplitter.Split(
-                rawDeposit, rawBalance, discount, lateFee, donation, ccProcessingRate,
-                bAddProcessingFees: bAddProcessing,
-                bApplyProcessingFeesToTeamDeposit: bApplyToDeposit);
-
-            var ccFullCharge = split.DepositCharge + split.BalanceCharge;
-            if (ccFullCharge <= 0m)
-            {
-                results.Add(new TeamArbTrialResultDto
-                {
-                    TeamId = team.TeamId,
-                    Registered = false,
-                    FailureReason = "No charge amount derived from team fees"
-                });
-                stoppedAt = i;
-                break;
-            }
-
-            // Stamp full CC schedule on the team.
-            team.FeeBase = rawDeposit + rawBalance;
-            team.FeeProcessing = split.TotalProcessing;
-            // RecalcTotals derives FeeTotal from the frozen components (base + proc − discount
-            // − discountMp + donation + latefee), which == ccFullCharge. Both sides now net the SAME
-            // discount (TotalDiscount() above == what FeeMath subtracts), so there is no divergence.
-            team.RecalcTotals();
-            team.Modified = DateTime.Now;
-            team.LebUserId = userId;
-
-            // For eCheck, drop the (CC − EC) credit onto the team (mutates FeeProcessing,
-            // FeeTotal, OwedTotal in-place) and recompute the charge amount. The
-            // ReverseTeamProcessingFeeForEcheckAsync path runs symmetrically on NSF.
-            decimal chargeAmount = ccFullCharge;
-            if (bankAccount != null)
-            {
-                await _feeAdj.ReduceTeamProcessingFeeForEcheckAsync(team, ccFullCharge, jobId, userId);
-                chargeAmount = (team.FeeTotal ?? ccFullCharge) - (team.PaidTotal ?? 0m);
-            }
-
-            var invoiceNumber = BuildTeamInvoiceNumber(team);
-            var fallbackTeamLabel = team.TeamName ?? team.DisplayName;
-            var fallbackClubName = team.ClubrepRegistration?.ClubName?.Trim();
-            if (!string.IsNullOrWhiteSpace(fallbackClubName))
-                fallbackTeamLabel = $"{fallbackClubName}: {fallbackTeamLabel}";
-            var description = $"Team Registration (ARB-Trial fallback): {fallbackTeamLabel}";
-
-            AdnTxnResult chargeResult;
-            if (creditCard != null)
-            {
-                chargeResult = _adnApiService.ADN_Charge_Result(new AdnChargeRequest
-                {
-                    Env = env,
-                    LoginId = credentials.AdnLoginId!,
-                    TransactionKey = credentials.AdnTransactionKey!,
-                    CardNumber = creditCard.Number!,
-                    CardCode = creditCard.Code!,
-                    Expiry = ccExpiryDate!,
-                    FirstName = creditCard.FirstName!,
-                    LastName = creditCard.LastName!,
-                    Address = creditCard.Address!,
-                    Zip = creditCard.Zip!,
-                    Email = creditCard.Email!,
-                    Phone = creditCard.Phone!,
-                    Amount = chargeAmount,
-                    InvoiceNumber = invoiceNumber,
-                    Description = description
-                });
-            }
-            else
-            {
-                chargeResult = _adnApiService.ADN_ChargeBankAccount_Result(new AdnChargeBankAccountRequest
-                {
-                    Env = env,
-                    LoginId = credentials.AdnLoginId!,
-                    TransactionKey = credentials.AdnTransactionKey!,
-                    AccountType = bankAccount!.AccountType!,
-                    RoutingNumber = bankAccount.RoutingNumber!,
-                    AccountNumber = bankAccount.AccountNumber!,
-                    NameOnAccount = nameOnAcct!,
-                    FirstName = bankAccount.FirstName!,
-                    LastName = bankAccount.LastName!,
-                    Address = bankAccount.Address!,
-                    Zip = bankAccount.Zip!,
-                    Email = bankAccount.Email!,
-                    Phone = bankAccount.Phone!,
-                    Amount = chargeAmount,
-                    InvoiceNumber = invoiceNumber,
-                    Description = description
-                });
-            }
-
-            if (!chargeResult.Success)
-            {
-                results.Add(new TeamArbTrialResultDto
-                {
-                    TeamId = team.TeamId,
-                    Registered = false,
-                    FailureReason = chargeResult.MessageForUser
-                });
-                stoppedAt = i;
-                _logger.LogWarning("ARB-Trial fallback charge failed: Team={TeamId} Error={Err}",
-                    team.TeamId, chargeResult.MessageForUser);
-                break;
-            }
-
-            var transId = chargeResult.TransactionId!;
-
-            // CC books at submit (clears synchronously). Pessimistic eCheck defers the credit to
-            // settlement: the RA below is born Active=false and the sweep credits it when the ACH
-            // draft clears (MarkEcheckSettled), reversing via the NSF path if the bank returns it.
-            if (creditCard != null)
-            {
-                team.PaidTotal = (team.PaidTotal ?? 0m) + chargeAmount;
-                team.RecalcTotals();
-                team.Modified = DateTime.Now;
-                team.LebUserId = userId;
-            }
-
-            var fullCharge = chargeAmount;
-
-            var pmId = creditCard != null
-                ? Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D") // CC payment method
-                : EcheckPaymentMethodId;
-            var paymeth = creditCard != null
-                ? $"paid by cc: {fullCharge:C} on {DateTime.Now:G} txID: {transId}"
-                : $"eCheck pending settlement: {fullCharge:C} on {DateTime.Now:G} txID: {transId}";
-
-            var ra = new RegistrationAccounting
-            {
-                RegistrationId = regId,
-                TeamId = team.TeamId,
-                Payamt = fullCharge,
-                Dueamt = fullCharge,
-                Paymeth = paymeth,
-                PaymentMethodId = pmId,
-                // Pessimistic eCheck: born Active=false (excluded from PaidTotal) until the sweep
-                // settles it; CC born Active=true. Payamt carries the amount for the settle credit.
-                Active = creditCard != null,
-                Createdate = DateTime.Now,
-                Modified = DateTime.Now,
-                LebUserId = userId,
-                AdnTransactionId = transId,
-                AdnInvoiceNo = invoiceNumber,
-                AdnCc4 = creditCard?.Number is { Length: >= 4 } cn ? cn[^4..] : null,
-                AdnCcexpDate = ccExpiryDate,
-                Comment = description
-            };
-            _acct.Add(ra);
-            if (bankAccount != null) pendingSettlements.Add((ra, transId));
-
-            results.Add(new TeamArbTrialResultDto
-            {
-                TeamId = team.TeamId,
-                Registered = true,
-                DepositCharge = fullCharge,
-                BalanceCharge = 0m,
-                DepositDate = DateTime.Now.Date
-            });
-
-            _logger.LogInformation("ARB-Trial fallback charge succeeded: Team={TeamId} Amount={Amount} TransId={TransId}",
-                team.TeamId, fullCharge, transId);
-        }
-
-        if (stoppedAt >= 0)
-        {
-            for (int j = stoppedAt + 1; j < teams.Count; j++)
-                notAttempted.Add(teams[j].TeamId);
-        }
-
-        var anySuccess = results.Any(r => r.Registered);
-        if (anySuccess)
-        {
-            await _teams.SaveChangesAsync();
-            await _acct.SaveChangesAsync();
-
-            if (pendingSettlements.Count > 0)
-            {
-                // Settlement.RegistrationAccountingId = identity-generated AId on the RA;
-                // requires the RA inserts above to be saved first.
-                var nextCheckAt = DateTime.Now.AddDays(1);
-                foreach (var (ra, txId) in pendingSettlements)
-                {
-                    _settleRepo.Add(new Settlement
-                    {
-                        SettlementId = Guid.NewGuid(),
-                        RegistrationAccountingId = ra.AId,
-                        AdnTransactionId = txId,
-                        Status = "Pending",
-                        SubmittedAt = DateTime.Now,
-                        NextCheckAt = nextCheckAt,
-                        AccountLast4 = last4,
-                        AccountType = bankAccount!.AccountType,
-                        NameOnAccount = nameOnAcct,
-                        Modified = DateTime.Now,
-                        LebUserId = userId
-                    });
-                }
-                await _settleRepo.SaveChangesAsync();
-            }
-
-            await _registrations.SynchronizeClubRepFinancialsAsync(regId, userId);
-        }
-
-        var successCount = results.Count(r => r.Registered);
-        var allOk = stoppedAt < 0 && successCount == teams.Count;
-
-        return new TeamArbTrialPaymentResponseDto
-        {
-            Success = allOk,
-            Mode = "FALLBACK_FULL_CHARGE",
-            Error = allOk ? null : (anySuccess ? "PARTIAL_SUCCESS" : "ALL_FAILED"),
-            Message = allOk
-                ? $"All {successCount} team(s) charged in full (balance date already passed)"
-                : (anySuccess
-                    ? $"{successCount} of {teams.Count} team(s) charged; batch stopped at first failure"
-                    : "All ARB-Trial fallback charges failed"),
             Teams = results,
             NotAttempted = notAttempted
         };
@@ -1373,7 +1099,7 @@ public class PaymentService : IPaymentService
         return new PaymentResponseDto
         {
             Success = true,
-            Message = "eCheck submitted; settlement pending (typically 3–5 business days).",
+            Message = "eCheck payment accepted.",
             TransactionId = result.TransactionId
         };
     }
@@ -1544,8 +1270,9 @@ public class PaymentService : IPaymentService
     /// per registration (monthly bank draft) instead of billing a card. No penny-verify — ACH has no
     /// synchronous authorization; a bad/closed account surfaces as a returnedItem at the first draft
     /// and is handled by the sweep's NSF path. Enrollment moves no money; only the schedule is created.
-    /// Each monthly draft is booked pessimistically at settlement by the sweep's ARB import (step 2),
-    /// consistent with the one-shot eCheck model.
+    /// Each monthly draft is booked when the sweep's ARB import first sees it (step 2) — the
+    /// earliest moment the charge event is known, since ADN originates the drafts autonomously.
+    /// The import pairs each draft with a Settlement row so an NSF return reverses it.
     /// </summary>
     private async Task<PaymentResponseDto> ProcessEcheckArbAsync(Guid jobId, string familyUserId, PaymentRequestDto request, string userId, List<Registrations> registrations, JobInfo job, BankAccountInfo bank)
     {
@@ -1725,10 +1452,10 @@ public class PaymentService : IPaymentService
         // Audit trail: placeholder RA rows exist in the DB BEFORE the gateway hit so a
         // declined card leaves a row with Active=false + Comment="FAILED: …" instead of
         // vanishing without record.
-        // Active semantics diverge by tender: CC is born Active=true (credited at submit).
-        // eCheck is born Active=false — PESSIMISTIC: the row carries the real Payamt but is
-        // EXCLUDED from the PaidTotal ledger sum (GetPaymentTotalsByEntityAsync sums Active==true)
-        // until the daily sweep confirms settlement and flips it Active=true (MarkEcheckSettled).
+        // Both tenders are born Active=true — optimistic booking: the row counts as soon as
+        // the gateway accepts the charge. A declined charge flips its row Active=false with a
+        // FAILED comment below; an eCheck that bounces later is undone by the sweep's NSF
+        // reversal row (its paired Settlement row is the return-watcher).
         var methodId = kind == RegistrationChargeKind.Cc ? CcPaymentMethodId : EcheckPaymentMethodId;
         var rasByRegId = new Dictionary<Guid, RegistrationAccounting>(items.Count);
         foreach (var item in items)
@@ -1739,7 +1466,7 @@ public class PaymentService : IPaymentService
                 PaymentMethodId = methodId,
                 Dueamt = plan[item.RegistrationId].Charge,
                 Payamt = 0m,
-                Active = kind == RegistrationChargeKind.Cc,
+                Active = true,
                 Createdate = DateTime.Now,
                 Modified = DateTime.Now,
                 LebUserId = userId
@@ -1849,10 +1576,10 @@ public class PaymentService : IPaymentService
             ra.AdnCcexpDate = expiry;
             ra.Paymeth = kind == RegistrationChargeKind.Cc
                 ? $"paid by cc: {charge:C} on {DateTime.Now:G} txID: {transId}"
-                : $"eCheck pending settlement: {charge:C} on {DateTime.Now:G} txID: {transId} (acct ****{bankLast4})";
+                : $"paid by eCheck: {charge:C} on {DateTime.Now:G} txID: {transId} (acct ****{bankLast4})";
             ra.Comment = kind == RegistrationChargeKind.Cc
                 ? "Registration Payment"
-                : "eCheck Registration Payment (Pending Settlement)";
+                : "eCheck Registration Payment";
             ra.Modified = DateTime.Now;
 
             // eCheck: convert the CC-rate proc embedded in this charge to the eCheck rate by
@@ -1862,15 +1589,10 @@ public class PaymentService : IPaymentService
             {
                 reg.FeeProcessing -= credit;
             }
-            // Pessimistic eCheck: DO NOT credit PaidTotal at submit — the ACH draft has not
-            // cleared. The pending RA above (Active=false) carries the amount; the sweep credits
-            // it at settlement (MarkEcheckSettled flips Active=true + recomputes). CC clears
-            // synchronously, so it books here exactly as before. RecalcTotals still runs for both:
-            // eCheck's OwedTotal reflects the reduced proc fee while the charge stays owed-until-settled.
-            if (kind == RegistrationChargeKind.Cc)
-            {
-                reg.PaidTotal += charge;
-            }
+            // Optimistic booking: both tenders credit PaidTotal at submit — the money counts
+            // when the charge event is known. An eCheck NSF return reverses the credit (and the
+            // proc-fee adjustment) via the sweep's reversal row.
+            reg.PaidTotal += charge;
             reg.RecalcTotals();
             // Flip the registration active. Pre-refactor parent CC went through
             // UpdateRegistrationsForCharge which set this; the canonical engine
@@ -1890,14 +1612,11 @@ public class PaymentService : IPaymentService
             });
         }
 
-        // One flush covers every RA row (captures AND FAILED placeholders) and the
-        // per-reg PaidTotal/OwedTotal bumps from the successful charges.
-        await _acct.SaveChangesAsync();
-        await _registrations.SaveChangesAsync();
-
         // eCheck-only: one Settlement row per captured RA so the daily sweep can detect
-        // clearance and NSF returns PER registration. RA.AId is identity-generated, so the
-        // flush above must precede this.
+        // clearance and NSF returns PER registration. Attached via the RegistrationAccounting
+        // navigation property BEFORE the flush — EF orders the inserts and assigns the identity
+        // FK, so accounting record + return-watcher commit or fail together (a booked eCheck
+        // without its Settlement row would be invisible to the sweep's settle/return/watchdog).
         if (pendingSettlements is { Count: > 0 })
         {
             var nextCheckAt = DateTime.Now.AddDays(1);
@@ -1906,7 +1625,7 @@ public class PaymentService : IPaymentService
                 _settleRepo.Add(new Settlement
                 {
                     SettlementId = Guid.NewGuid(),
-                    RegistrationAccountingId = ra.AId,
+                    RegistrationAccounting = ra,
                     AdnTransactionId = txId,
                     Status = "Pending",
                     SubmittedAt = DateTime.Now,
@@ -1918,8 +1637,12 @@ public class PaymentService : IPaymentService
                     LebUserId = userId
                 });
             }
-            await _settleRepo.SaveChangesAsync();
         }
+
+        // One flush covers every RA row (captures AND FAILED placeholders), their paired
+        // Settlement rows, and the per-reg PaidTotal/OwedTotal bumps from the successful charges.
+        await _acct.SaveChangesAsync();
+        await _registrations.SaveChangesAsync();
 
         var failed = items.Count - succeeded;
         if (failed == 0)
@@ -2529,8 +2252,9 @@ public class PaymentService : IPaymentService
 
     // Builds and sends the registration confirmation email, then marks BConfirmationSent=true for any registrations not yet flagged.
     // This never suppresses sending; flag is purely informational. Guarded against missing optional services.
-    // isEcheckPending=true makes the builder prepend a "settlement pending" banner to set the
-    // 3-to-5-business-day expectation that the standard receipt template doesn't carry.
+    // isEcheckPending=true makes the builder prepend an eCheck note (drafts take 3–5 business
+    // days to finalize; a returned draft restores the balance) that the standard receipt
+    // template doesn't carry. The payment is booked at submit either way.
     private async Task TrySendConfirmationEmailAsync(Guid jobId, string familyUserId, string userId, bool isEcheckPending = false)
     {
         if (_confirmation == null || _email == null) return; // Backward compatibility.

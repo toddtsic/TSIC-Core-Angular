@@ -207,7 +207,6 @@ public class ArbTrialTeamPaymentServiceTests
             regId, ActingUserId, [t1.TeamId, t2.TeamId], ValidCard(), null);
 
         result.Success.Should().BeTrue();
-        result.Mode.Should().BeNull();
         result.Teams.Should().HaveCount(2);
         result.Teams.Should().OnlyContain(r => r.Registered);
         result.NotAttempted.Should().BeEmpty();
@@ -426,72 +425,41 @@ public class ArbTrialTeamPaymentServiceTests
     }
 
     [Fact]
-    public async Task Fallback_whenTodayPastBalanceDate_chargesFullAmountWithModeFlag()
+    public async Task PastBalanceDate_rejectsBeforeAnySideEffect()
     {
+        // Past the balance date no plan exists to schedule — the service rejects outright
+        // (the wizard hides the ARB-Trial option; this guards stale clients). No gateway
+        // call, no late-fee realize, no accounting/settlement rows, no rep sync.
         var jobId = Guid.NewGuid();
         var regId = Guid.NewGuid();
         var team = Team(jobId);
-        // Configured balance date already passed
         StubJobAndCreds(regId, jobId, balanceDate: DateTime.Now.Date.AddDays(-1));
         StubTeams(jobId, [team.TeamId], team);
         StubFeeResolution(jobId, team, deposit: 200m, balance: 300m);
-        AdnChargeRequest? captured = null;
-        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
-            .Callback<AdnChargeRequest>(r => captured = r)
-            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-FB", ResponseCode = "1", MessageForUser = "Approved" });
         var sut = BuildSut();
 
         var result = await sut.ProcessTeamArbTrialPaymentAsync(
             regId, ActingUserId, [team.TeamId], ValidCard(), null);
 
-        result.Success.Should().BeTrue();
-        result.Mode.Should().Be("FALLBACK_FULL_CHARGE");
-        // Single ADN_Charge for the full amount, not an ARB sub create
-        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Once);
+        result.Success.Should().BeFalse();
+        result.Error.Should().Be("ARB_TRIAL_WINDOW_PASSED");
+        _adn.Verify(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()), Times.Never);
+        _adn.Verify(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()), Times.Never);
         _adn.Verify(a => a.ADN_ARB_CreateTrialSubscription_Cc(It.IsAny<AdnArbCreateTrialRequest>()), Times.Never);
         _adn.Verify(a => a.ADN_VerifyCardWithPennyAuth(It.IsAny<AdnAuthorizeRequest>()), Times.Never);
-        captured.Should().NotBeNull();
-        // Full amount = 200 deposit + 300 balance + 10.50 processing (CC rate, balance only)
-        captured!.Amount.Should().Be(510.50m);
-        // Accounting + sync run for the fallback path
-        _addedAccounting.Should().HaveCount(1);
-        _addedAccounting[0].AdnTransactionId.Should().Be("TX-FB");
-        _addedAccounting[0].TeamId.Should().Be(team.TeamId);
-        _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(regId, ActingUserId, It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task Fallback_echeck_appliesProcessingFeeCreditAndWritesSettlement()
-    {
-        var jobId = Guid.NewGuid();
-        var regId = Guid.NewGuid();
-        var team = Team(jobId);
-        StubJobAndCreds(regId, jobId, balanceDate: DateTime.Now.Date.AddDays(-1));
-        StubTeams(jobId, [team.TeamId], team);
-        StubFeeResolution(jobId, team, deposit: 200m, balance: 300m);
-        _adn.Setup(a => a.ADN_ChargeBankAccount_Result(It.IsAny<AdnChargeBankAccountRequest>()))
-            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-FB-EC", ResponseCode = "1", MessageForUser = "Approved" });
-        var sut = BuildSut();
-
-        var result = await sut.ProcessTeamArbTrialPaymentAsync(
-            regId, ActingUserId, [team.TeamId], null, ValidBank());
-
-        result.Success.Should().BeTrue();
-        result.Mode.Should().Be("FALLBACK_FULL_CHARGE");
-        // (CC − EC) credit applied via _feeAdj before charging — uniform with ProcessTeamEcheckPaymentAsync
-        // so sweep NSF reversal works the same way.
-        _feeAdj.Verify(f => f.ReduceTeamProcessingFeeForEcheckAsync(team, It.IsAny<decimal>(), jobId, ActingUserId), Times.Once);
-        // Settlement row written for sweep tracking
-        _addedSettlements.Should().HaveCount(1);
-        _addedSettlements[0].AdnTransactionId.Should().Be("TX-FB-EC");
-        _addedSettlements[0].Status.Should().Be("Pending");
+        _feeService.Verify(f => f.RealizeLateFeeAtChargeAsync(
+            It.IsAny<Teams>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        _addedAccounting.Should().BeEmpty();
+        _addedSettlements.Should().BeEmpty();
+        _regRepo.Verify(r => r.SynchronizeClubRepFinancialsAsync(
+            It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ── Late-fee minting at subscription setup ──────────────────────────
     // Setting up the ARB subscription IS the qualifying payment commitment, so an auto-activated
-    // late-fee window must be minted here (the team-path twin of ChargeTeamsAsync). These two tests
-    // close the gap that the other ARB tests leave open: they let RealizeLateFeeAtChargeAsync set a
-    // late fee on the team (as the real applier would for an in-window owing team) and assert it both
+    // late-fee window must be minted here (the team-path twin of ChargeTeamsAsync). This test
+    // closes the gap that the other ARB tests leave open: it lets RealizeLateFeeAtChargeAsync set a
+    // late fee on the team (as the real applier would for an in-window owing team) and asserts it both
     // gets billed into the schedule AND lands on the row — i.e. the realize is actually wired in
     // before the split, not mocked to nothing.
 
@@ -538,37 +506,6 @@ public class ArbTrialTeamPaymentServiceTests
         captured!.TrialAmount.Should().Be(212m);
         captured.PerIntervalCharge.Should().Be(329.13m);
         // …and the minted late fee is stamped on the row that gets persisted with the schedule.
-        team.FeeLatefee.Should().Be(30m);
-    }
-
-    [Fact]
-    public async Task Fallback_activeLateFeeWindow_mintedIntoChargeAndRow()
-    {
-        var jobId = Guid.NewGuid();
-        var regId = Guid.NewGuid();
-        var team = Team(jobId);
-        // Balance date already passed → fallback single-charge branch (still must mint).
-        StubJobAndCreds(regId, jobId, balanceDate: DateTime.Now.Date.AddDays(-1));
-        StubTeams(jobId, [team.TeamId], team);
-        StubFeeResolution(jobId, team, deposit: 200m, balance: 300m);
-        StubRealizeMintsLateFee(30m);
-        AdnChargeRequest? captured = null;
-        _adn.Setup(a => a.ADN_Charge_Result(It.IsAny<AdnChargeRequest>()))
-            .Callback<AdnChargeRequest>(r => captured = r)
-            .Returns(new AdnTxnResult { Success = true, TransactionId = "TX-FB", ResponseCode = "1", MessageForUser = "Approved" });
-        var sut = BuildSut();
-
-        var result = await sut.ProcessTeamArbTrialPaymentAsync(
-            regId, ActingUserId, [team.TeamId], ValidCard(), null);
-
-        result.Success.Should().BeTrue();
-        result.Mode.Should().Be("FALLBACK_FULL_CHARGE");
-        _feeService.Verify(f => f.RealizeLateFeeAtChargeAsync(
-            It.IsAny<Teams>(), jobId, It.IsAny<CancellationToken>()), Times.Once);
-        // Full single charge = depositCharge + balanceCharge with the late fee folded in:
-        //   212 + 329.13 = 541.13 (baseline without late fee is 510.50).
-        captured.Should().NotBeNull();
-        captured!.Amount.Should().Be(541.13m);
         team.FeeLatefee.Should().Be(30m);
     }
 

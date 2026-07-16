@@ -56,16 +56,19 @@ public sealed class PlayerRegConfirmationService : IPlayerRegConfirmationService
     }
 
     // Inline-styled banner prepended to the confirmation email body when the customer paid by
-    // eCheck. Inline styling only — email clients ignore <style> blocks. Sets the "pending
-    // until bank confirms" expectation that the standard receipt-style template doesn't carry.
+    // eCheck. Inline styling only — email clients ignore <style> blocks. The payment is booked
+    // at submit (optimistic); this note sets the bank-draft expectation the standard
+    // receipt-style template doesn't carry, and makes no contact promises (no per-incident
+    // emails exist — NSF handling surfaces in the support digest).
+    // KEEP IDENTICAL to the literal in TeamRegistrationService.
     private const string EcheckPendingBanner =
         "<div style=\"background:#fff7e6;border:1px solid #ffd591;border-left:4px solid #fa8c16;" +
         "padding:14px 16px;margin:0 0 18px;border-radius:4px;font-family:Arial,sans-serif;color:#612500;\">" +
-        "<div style=\"font-weight:bold;margin-bottom:6px;font-size:14px;\">eCheck submission received — settlement pending</div>" +
+        "<div style=\"font-weight:bold;margin-bottom:6px;font-size:14px;\">Paid by eCheck</div>" +
         "<div style=\"font-size:13px;line-height:1.5;\">" +
-        "Your eCheck has been submitted to the payment processor. " +
-        "<strong>Your registration is pending until your bank confirms the debit — typically 3 to 5 business days.</strong> " +
-        "If the debit is returned (insufficient funds or other), we will email you and your registration's balance will be restored automatically." +
+        "Your payment was made by eCheck (bank draft). " +
+        "<strong>Bank drafts typically finalize within 3 to 5 business days.</strong> " +
+        "In the rare case your bank returns the draft (insufficient funds or other), your balance is restored automatically." +
         "</div></div>";
 
     public async Task<(string Subject, string Html)> BuildEmailAsync(Guid jobId, string familyUserId, CancellationToken ct, bool isEcheckPending = false)

@@ -232,6 +232,9 @@ export class TeamPaymentService {
     showArbTrialButton = computed(() => {
         if (!this.adnArbTrial()) return false;
         if (!this.adnStartDateAfterTrial()) return false;
+        // Past the balance date there is no plan left to schedule — don't offer one.
+        // (The backend rejects ARB_TRIAL_WINDOW_PASSED as a stale-client guard.)
+        if (this.arbTrialIsFallback()) return false;
         // Need at least one electronic source — check-only jobs without eCheck can't run ARB-Trial.
         return this.showCcButton() || this.showEcheckButton();
     });
@@ -240,9 +243,10 @@ export class TeamPaymentService {
     );
 
     /**
-     * True when today is on/after the configured balance date — submitting ARB-Trial
-     * in this state will fall back to a single full charge per team (backend handles
-     * the redirect; this signal lets the UI explain the change up-front).
+     * True when today is on/after the configured balance date — there is no future
+     * installment left to schedule, so the ARB-Trial option is not offered at all
+     * (gates showArbTrialButton; the backend rejects ARB_TRIAL_WINDOW_PASSED as a
+     * stale-client guard). The rep pays via the regular CC/eCheck buttons.
      */
     arbTrialIsFallback = computed(() => {
         const balanceIso = this.adnStartDateAfterTrial();

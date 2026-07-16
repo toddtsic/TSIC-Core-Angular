@@ -80,7 +80,8 @@ public class TeamPaymentController : ControllerBase
 
     /// <summary>
     /// Process team registration payment via eCheck (ACH).
-    /// Per-team gateway call; settlement pending (typically 3–5 business days).
+    /// Per-team gateway call; money books at submit (optimistic). The paired Settlement
+    /// row tracks the draft; an NSF return reverses via the daily sweep.
     /// </summary>
     [HttpPost("process-echeck")]
     [ProducesResponseType(typeof(TeamPaymentResponseDto), 200)]

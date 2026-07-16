@@ -115,14 +115,14 @@ import { JobService } from '@infrastructure/services/job.service';
         </div>
       </div>
 
-      <!-- eCheck pending heads-up (informational — the method is chosen on the next step) -->
+      <!-- eCheck heads-up (informational — the method is chosen on the next step) -->
       @if (state.jobCtx.bEnableEcheck() && baseFeeTotal() > 0) {
         <div class="review-echeck-note">
           <i class="bi bi-bank"></i>
           <div>
             <div class="fw-semibold mb-1">Paying by eCheck?</div>
-            <div>If you pay by eCheck (bank account), your registration stays <strong>pending</strong> until
-              your bank confirms the debit — typically 3–5 business days.</div>
+            <div>eCheck payments are drafted from your bank account and typically finalize
+              within <strong>3–5 business days</strong>. Your registration is complete at checkout.</div>
           </div>
         </div>
       }

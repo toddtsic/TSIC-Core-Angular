@@ -210,19 +210,6 @@ public class EcheckPaymentServiceTests
     }
 
     [Fact]
-    public async Task ArbOption_returnsArbNotEcheck()
-    {
-        var jobId = Guid.NewGuid();
-        var sut = BuildSut();
-
-        var result = await sut.ProcessEcheckPaymentAsync(jobId, FamilyUserId, Req(ValidBank(), PaymentOption.ARB), ActingUserId);
-
-        result.Success.Should().BeFalse();
-        result.ErrorCode.Should().Be("ARB_NOT_ECHECK");
-        _jobs.Verify(j => j.GetJobPaymentInfoAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Fact]
     public async Task MissingBankAccount_returnsBankRequired()
     {
         var jobId = Guid.NewGuid();

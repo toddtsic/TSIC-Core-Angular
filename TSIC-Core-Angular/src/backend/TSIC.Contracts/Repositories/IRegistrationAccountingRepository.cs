@@ -32,17 +32,6 @@ public interface IRegistrationAccountingRepository
     Task RecordPaymentAndRecomputeAsync(RegistrationAccounting row, string userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Re-derive the keyed entity's PaidTotal/OwedTotal from the ledger for a mutation to an
-    /// ALREADY-PERSISTED row — as opposed to <see cref="RecordPaymentAndRecomputeAsync"/>, which
-    /// adds a new row. Used when an existing RA's contribution to the ledger sum changes without a
-    /// new row: the pessimistic eCheck settle flips a pending row's Active flag false→true, and the
-    /// recompute must pick it up. Flushes tracked changes (the caller's flag flip) so the re-sum
-    /// sees them, recomputes, and stamps the entity — the flush and recompute share one transaction
-    /// (joining the caller's if open) so they never commit apart. TeamId set → Team; else Registration.
-    /// </summary>
-    Task RecomputeForRowAsync(RegistrationAccounting row, string userId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Persist changes to the database.
     /// </summary>
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

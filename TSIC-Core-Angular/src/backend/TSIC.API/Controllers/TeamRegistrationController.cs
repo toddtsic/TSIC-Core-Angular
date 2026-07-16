@@ -999,8 +999,8 @@ public class SendConfirmationEmailRequest
     public Guid RegistrationId { get; set; }
     public bool ForceResend { get; set; } = false;
     /// <summary>
-    /// When true, the email body is prefixed with a "settlement pending" banner that
-    /// sets the 3–5 business day expectation. Set this to true ONLY when the just-
+    /// When true, the email body is prefixed with a "paid by eCheck" banner that sets
+    /// the 3–5 business day bank-draft expectation. Set this to true ONLY when the just-
     /// completed payment was an eCheck (ACH) submission.
     /// </summary>
     public bool IsEcheckPending { get; set; } = false;

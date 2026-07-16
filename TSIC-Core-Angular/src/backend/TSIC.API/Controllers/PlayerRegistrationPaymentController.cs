@@ -89,7 +89,8 @@ public class PlayerRegistrationPaymentController : ControllerBase
     }
 
     /// <summary>
-    /// Submit a player-side eCheck (ACH) payment. Settlement pending (typically 3–5 business days).
+    /// Submit a player-side eCheck (ACH) payment. Money books at submit (optimistic); the
+    /// paired Settlement row tracks the draft and an NSF return reverses via the daily sweep.
     /// </summary>
     [HttpPost("submit-echeck")]
     [Authorize]

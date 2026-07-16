@@ -66,4 +66,38 @@ public class EcheckSettlementRepository : IEcheckSettlementRepository
     {
         await _context.SaveChangesAsync(ct);
     }
+
+    public async Task<List<Settlement>> GetStalePendingAsync(DateTime olderThan, CancellationToken ct = default)
+    {
+        // Tracked (the watchdog mutates Status/LastCheckedAt); Job loaded for digest reporting.
+        return await _context.Settlement
+            .Include(s => s.RegistrationAccounting)
+                .ThenInclude(ra => ra.Registration)
+                    .ThenInclude(r => r!.Job)
+            .Where(s => s.Status == "Pending" && s.SubmittedAt < olderThan)
+            .OrderBy(s => s.SubmittedAt)
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<UntrackedEcheckRaDto>> GetUntrackedEcheckAccountingAsync(
+        Guid echeckPaymentMethodId, CancellationToken ct = default)
+    {
+        // Positive eCheck payments with a gateway tx id but no Settlement row — booked money the
+        // sweep cannot watch. The atomic mint makes this unreachable going forward; this query is
+        // the standing alarm for anything that slips through regardless.
+        return await _context.RegistrationAccounting
+            .AsNoTracking()
+            .Where(ra => ra.PaymentMethodId == echeckPaymentMethodId
+                && ra.Payamt > 0
+                && ra.AdnTransactionId != null && ra.AdnTransactionId != ""
+                && !_context.Settlement.Any(s => s.RegistrationAccountingId == ra.AId))
+            .Select(ra => new UntrackedEcheckRaDto
+            {
+                AId = ra.AId,
+                AdnTransactionId = ra.AdnTransactionId,
+                Payamt = ra.Payamt ?? 0m,
+                Createdate = ra.Createdate
+            })
+            .ToListAsync(ct);
+    }
 }

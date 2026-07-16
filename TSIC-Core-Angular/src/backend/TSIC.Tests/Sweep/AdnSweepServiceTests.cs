@@ -23,7 +23,7 @@ namespace TSIC.Tests.Sweep;
 ///   • ARB tx: settled → RA inserted + Reg balances bumped + sub-status synced
 ///   • ARB tx: declined / generalError → RA inserted with $0, no Reg mutation
 ///   • ARB tx: already imported → skipped
-///   • eCheck return: refTransId matches Settlement → reversal lands + director emailed
+///   • eCheck return: refTransId matches Settlement → reversal lands (digest-only reporting)
 ///   • eCheck return: refTransId not in our Settlements → logged, skipped (not ours)
 ///   • eCheck return: already processed → skipped
 ///   • Mixed batch (ARB + eCheck return) → both paths run
@@ -68,6 +68,11 @@ public class AdnSweepServiceTests
     {
         _settleRepo.Setup(r => r.StartSweepLogAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new SweepLog { StartedAt = DateTime.UtcNow, TriggeredBy = "Test" });
+        // Watchdog + integrity-net steps run on every sweep; default to "nothing stale, nothing untracked".
+        _settleRepo.Setup(r => r.GetStalePendingAsync(It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        _settleRepo.Setup(r => r.GetUntrackedEcheckAccountingAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         _adn.Setup(a => a.GetJobAdnCredentials_FromCustomerId(TsicCustomerId))
             .ReturnsAsync(new AdnCredentialsViewModel { AdnLoginId = "login", AdnTransactionKey = "key" });
         _adn.Setup(a => a.GetADNEnvironment()).Returns(AuthorizeNet.Environment.PRODUCTION);
@@ -346,7 +351,7 @@ public class AdnSweepServiceTests
         reg.AdnSubscriptionStatus.Should().Be("canceled");
     }
 
-    [Fact(DisplayName = "eCheck return matches Settlement → reversal lands + director emailed")]
+    [Fact(DisplayName = "eCheck return matches Settlement → reversal lands, digest is the only email")]
     public async Task EcheckReturn_MatchesSettlement_Reverses()
     {
         var settlement = BuildSettlement("ORIG-TX-100", payAmount: 100m);
@@ -360,8 +365,6 @@ public class AdnSweepServiceTests
         _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
                 It.Is<IEnumerable<string>>(ids => ids.Contains("ORIG-TX-100")), It.IsAny<CancellationToken>()))
             .ReturnsAsync([settlement]);
-        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(reg.JobId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DirectorContactInfo { Email = "director@example.com", PaymentPlan = false });
 
         // The reversal lands through the ledger chokepoint (writes the -amount row AND re-derives
         // the registration's totals in one txn; the recompute is proven in
@@ -396,10 +399,9 @@ public class AdnSweepServiceTests
         _feeAdj.Verify(f => f.ReverseProcessingFeeForEcheckAsync(
             reg, 100m, reg.JobId, It.IsAny<string>()), Times.Once);
 
-        _email.Verify(e => e.SendAsync(
-            It.Is<EmailMessageDto>(m => m.ToAddresses!.Contains("director@example.com")
-                                       && m.Subject!.Contains("NSF")),
-            false, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+        // No per-return director alert — returns route to the support digest only.
+        _email.Verify(e => e.SendAsync(It.IsAny<EmailMessageDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Once, "the run's digest is the only email sent");
     }
 
     [Fact(DisplayName = "eCheck return with no matching Settlement → logged + skipped (not ours)")]
@@ -461,8 +463,6 @@ public class AdnSweepServiceTests
         _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
                 It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([settlement]);
-        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((DirectorContactInfo?)null);
 
         var result = await BuildSut().RunAsync("Test");
 
@@ -517,11 +517,10 @@ public class AdnSweepServiceTests
         result.ArbImported.Should().Be(1, "GOOD-TX still imported despite BAD-TX failure");
     }
 
-    [Fact(DisplayName = "Director email throws → reversal still completes")]
+    [Fact(DisplayName = "Digest email throws → reversal still completes, run result intact")]
     public async Task EmailFailure_DoesNotAbortReversal()
     {
         var settlement = BuildSettlement("ORIG-X", payAmount: 75m);
-        var reg = settlement.RegistrationAccounting.Registration!;
         StubSweepLogAndCreds();
         var tx = EcheckReturnSummary("RETURN-X");
         StubBatchListWith(tx);
@@ -531,12 +530,9 @@ public class AdnSweepServiceTests
         _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
                 It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([settlement]);
-        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(reg.JobId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DirectorContactInfo { Email = "director@example.com", PaymentPlan = false });
-        // First email (director alert) throws; digest email succeeds.
-        _email.SetupSequence(e => e.SendAsync(It.IsAny<EmailMessageDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new Exception("smtp down"))
-            .ReturnsAsync(true);
+        // The digest (the run's only email) throws — booked money must not depend on SMTP.
+        _email.Setup(e => e.SendAsync(It.IsAny<EmailMessageDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("smtp down"));
 
         var result = await BuildSut().RunAsync("Test");
 
@@ -550,7 +546,6 @@ public class AdnSweepServiceTests
     {
         var reg = BuildReg(jobName: "Spring Tournament");
         var settlement = BuildSettlement("ORIG-99", payAmount: 60m, jobName: "Bounce Job");
-        var bouncer = settlement.RegistrationAccounting.Registration!;
 
         StubSweepLogAndCreds();
         var arbTx = ArbTxSummary("settledSuccessfully", 25m, "777", "ARB-DIGEST", "TSIC_1_2");
@@ -565,11 +560,8 @@ public class AdnSweepServiceTests
             .ReturnsAsync(reg);
         _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([settlement]);
-        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(bouncer.JobId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new DirectorContactInfo { Email = "director@example.com", PaymentPlan = false });
 
-        // Capture the digest email (last SendAsync call). Director alert uses a job-specific subject;
-        // the digest uses "AdnSweep" subject.
+        // Capture the digest email ("AdnSweep" subject) — the run's only email.
         var sentEmails = new List<EmailMessageDto>();
         _email.Setup(e => e.SendAsync(It.IsAny<EmailMessageDto>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .Callback<EmailMessageDto, bool, CancellationToken>((m, _, _) => sentEmails.Add(m))
@@ -593,7 +585,8 @@ public class AdnSweepServiceTests
         html.Should().Contain("ORIG-99", "the original tx id should appear in the eCheck Returns table");
         html.Should().Contain("NSF", "the return reason should appear in the eCheck Returns table");
         html.Should().Contain("Bounce Job", "JobName should be populated for eCheck rows");
-        html.Should().Contain("yes", "director-notified column should show 'yes' when alert succeeded");
+        html.Should().Contain("returned before settlement recorded",
+            "the Type column classifies the return (this settlement was still Pending when the return arrived)");
     }
 
     // ── eCheck Pending → Settled ──────────────────────────────────────
@@ -938,8 +931,6 @@ public class AdnSweepServiceTests
             .ReturnsAsync([settlement]);
         _teamRepo.Setup(r => r.GetTeamFromTeamId(team.TeamId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(team);
-        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((DirectorContactInfo?)null);
 
         // The reversal is recorded through the ledger chokepoint, keyed to the team (TeamId set),
         // which re-derives the team's PaidTotal/OwedTotal (proven in RecordPaymentAndRecomputeTests).
@@ -991,8 +982,6 @@ public class AdnSweepServiceTests
         _settleRepo.Setup(r => r.GetByAdnTransactionIdsAsync(
                 It.IsAny<IEnumerable<string>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync([settlement]);
-        _regRepo.Setup(r => r.GetDirectorContactForJobAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((DirectorContactInfo?)null);
 
         await BuildSut().RunAsync("Test");
 
