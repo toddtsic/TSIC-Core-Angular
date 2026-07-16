@@ -447,8 +447,11 @@
             </app-accounting-ledger>
           }
 
-          <!-- ── ARB Subscription Card ── -->
-          @if (reg.hasSubscription) {
+          <!-- ── ARB Subscription Card — non-family registrations only. A family player's
+               card(s) render inside app-family-payment, scoped to its player selector (any
+               sibling can carry their own per-registration subscription, not just the anchor
+               this panel was opened on). -->
+          @if (reg.hasSubscription && !isFamilyPlayer()) {
             <div class="accounting-zone">
               <div class="section-title-row">
                 <h4 class="section-title">ARB Subscription</h4>

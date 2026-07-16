@@ -256,6 +256,34 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         // needed. FeeTotal/PaidTotal/OwedTotal already sum all rawPlayers.
         var feeSettings = await _jobRepo.GetJobFeeSettingsAsync(jobId, ct);
 
+        // Stored ARB snapshot per subscribed registration — the same Registrations.AdnSubscription*
+        // projection the detail panel's anchor card gets, repeated across the sibling set so the
+        // family view's subscription card can follow the player selector. ARB mints one ADN
+        // subscription per registration, so any sibling (not just the anchor) may carry one.
+        var subscriptions = rawPlayers
+            .Where(p => !string.IsNullOrWhiteSpace(p.AdnSubscriptionId))
+            .Select(p =>
+            {
+                var perOccurrence = p.AdnSubscriptionAmountPerOccurence ?? 0m;
+                var occurrences = p.AdnSubscriptionBillingOccurences ?? 0;
+                var intervalLength = p.AdnSubscriptionIntervalLength ?? 1;
+                return new FamilyPlayerSubscriptionDto
+                {
+                    RegistrationId = p.RegistrationId,
+                    Subscription = new SubscriptionDetailDto
+                    {
+                        SubscriptionId = p.AdnSubscriptionId!,
+                        Status = p.AdnSubscriptionStatus ?? "unknown",
+                        PerOccurrenceAmount = perOccurrence,
+                        TotalOccurrences = occurrences,
+                        TotalAmount = perOccurrence * occurrences,
+                        StartDate = p.AdnSubscriptionStartDate ?? DateTime.MinValue,
+                        IntervalLabel = intervalLength == 1 ? "every month" : $"every {intervalLength} months"
+                    }
+                };
+            })
+            .ToList();
+
         return new FamilyAccountingDto
         {
             AnchorRegistrationId = registrationId,
@@ -265,6 +293,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             OwedTotal = rawPlayers.Sum(p => p.OwedTotal),
             Players = playerRows,
             AccountingRecords = records.OrderByDescending(r => r.Date).ToList(),
+            Subscriptions = subscriptions,
             PaymentMethodsAllowedCode = feeSettings?.PaymentMethodsAllowedCode ?? PaymentMethodConstants.CreditCardOrCheck
         };
     }

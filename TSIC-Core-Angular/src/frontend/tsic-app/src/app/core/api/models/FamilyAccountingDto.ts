@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 import type { AccountingRecordDto } from './AccountingRecordDto';
+import type { FamilyPlayerSubscriptionDto } from './FamilyPlayerSubscriptionDto';
 import type { RegisteredTeamDto } from './RegisteredTeamDto';
 export type FamilyAccountingDto = {
     anchorRegistrationId: string;
@@ -12,6 +13,7 @@ export type FamilyAccountingDto = {
     owedTotal: number;
     players: Array<RegisteredTeamDto>;
     accountingRecords: Array<AccountingRecordDto>;
+    subscriptions: Array<FamilyPlayerSubscriptionDto>;
     paymentMethodsAllowedCode?: number;
 };
 

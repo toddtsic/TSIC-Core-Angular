@@ -537,7 +537,13 @@ public class RegistrationRepository : IRegistrationRepository
                 FeeLatefee = r.FeeLatefee,
                 FeeTotal = r.FeeTotal,
                 PaidTotal = r.PaidTotal,
-                OwedTotal = r.OwedTotal
+                OwedTotal = r.OwedTotal,
+                AdnSubscriptionId = r.AdnSubscriptionId,
+                AdnSubscriptionStatus = r.AdnSubscriptionStatus,
+                AdnSubscriptionAmountPerOccurence = r.AdnSubscriptionAmountPerOccurence,
+                AdnSubscriptionBillingOccurences = r.AdnSubscriptionBillingOccurences,
+                AdnSubscriptionIntervalLength = r.AdnSubscriptionIntervalLength,
+                AdnSubscriptionStartDate = r.AdnSubscriptionStartDate
             })
             .ToListAsync(cancellationToken);
     }
