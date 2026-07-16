@@ -112,6 +112,12 @@ public interface IScheduleRepository
     Task<Schedule?> GetGameByIdAsync(int gid, CancellationToken ct = default);
 
     /// <summary>
+    /// Get the display keys needed to compose a game-result push notification
+    /// (team names/scores, agegroup/division names, owning job). AsNoTracking.
+    /// </summary>
+    Task<Dtos.Scheduling.GamePushKeysDto?> GetGamePushKeysAsync(int gid, CancellationToken ct = default);
+
+    /// <summary>
     /// Get multiple schedule records by Gids (tracked for batch mutation).
     /// </summary>
     Task<List<Schedule>> GetGamesByIdsAsync(List<int> gids, CancellationToken ct = default);

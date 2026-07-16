@@ -175,12 +175,57 @@ public class ViewScheduleController : ControllerBase
         return Ok(result);
     }
 
+    // ── Mobile deep-link lookups ──
+    // The Events app navigates from a game row or team where it holds only a
+    // gid/teamId and cannot compose a division filter (ViewGameDto carries no divId).
+    // The owning job is resolved server-side from the row itself.
+
+    /// <summary>GET /api/view-schedule/brackets/by-game/{gid} — Brackets for the game's division.</summary>
+    [AllowAnonymous]
+    [HttpGet("brackets/by-game/{gid:int}")]
+    public async Task<ActionResult<List<DivisionBracketResponse>>> GetBracketsByGame(int gid, CancellationToken ct)
+    {
+        var result = await _service.GetBracketsByGameAsync(gid, ct);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    /// <summary>GET /api/view-schedule/brackets/by-team/{teamId} — Brackets for the team's division.</summary>
+    [AllowAnonymous]
+    [HttpGet("brackets/by-team/{teamId:guid}")]
+    public async Task<ActionResult<List<DivisionBracketResponse>>> GetBracketsByTeam(Guid teamId, CancellationToken ct)
+    {
+        var result = await _service.GetBracketsByTeamAsync(teamId, ct);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    /// <summary>GET /api/view-schedule/standings/by-game/{gid} — Pool standings for the game's division.</summary>
+    [AllowAnonymous]
+    [HttpGet("standings/by-game/{gid:int}")]
+    public async Task<ActionResult<StandingsByDivisionResponse>> GetStandingsByGame(int gid, CancellationToken ct)
+    {
+        var result = await _service.GetStandingsByGameAsync(gid, ct);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    /// <summary>GET /api/view-schedule/standings/by-team/{teamId} — Pool standings for the team's division.</summary>
+    [AllowAnonymous]
+    [HttpGet("standings/by-team/{teamId:guid}")]
+    public async Task<ActionResult<StandingsByDivisionResponse>> GetStandingsByTeam(Guid teamId, CancellationToken ct)
+    {
+        var result = await _service.GetStandingsByTeamAsync(teamId, ct);
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
     // ══════════════════════════════════════════════════════════════
     // Admin/Scorer-only endpoints
     // ══════════════════════════════════════════════════════════════
 
-    /// <summary>POST /api/view-schedule/quick-score — Inline score edit.</summary>
-    [Authorize(Policy = "AdminOnly")]
+    /// <summary>POST /api/view-schedule/quick-score — Inline score edit. Admin roles + Scorer.</summary>
+    [Authorize(Policy = "CanScore")]
     [HttpPost("quick-score")]
     public async Task<ActionResult> QuickEditScore(
         [FromBody] EditScoreRequest request, CancellationToken ct)

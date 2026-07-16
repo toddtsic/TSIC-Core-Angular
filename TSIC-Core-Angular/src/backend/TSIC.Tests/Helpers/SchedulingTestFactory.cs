@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using TSIC.API.Services.Scheduling;
+using TSIC.API.Services.Shared.Firebase;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Repositories;
 
@@ -26,7 +27,13 @@ public static class SchedulingTestFactory
         SqlDbContext ctx, ScheduleRepository scheduleRepo, TeamRepository teamRepo) =>
         new(scheduleRepo, teamRepo, new BracketRepository(ctx),
             Advancement(ctx, scheduleRepo), SeedResolution(ctx, scheduleRepo),
-            new JobRepository(ctx));
+            new JobRepository(ctx), new NoOpGameResultPush());
+
+    /// <summary>Inert push stand-in — tests never send FCM messages.</summary>
+    private sealed class NoOpGameResultPush : IGameResultPushService
+    {
+        public Task PushGameResultAsync(int gid, CancellationToken ct = default) => Task.CompletedTask;
+    }
 
     public static ViewScheduleService ViewSchedule(SqlDbContext ctx) =>
         ViewSchedule(ctx, new ScheduleRepository(ctx), new TeamRepository(ctx));

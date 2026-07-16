@@ -1,3 +1,4 @@
+using TSIC.API.Services.Shared.Firebase;
 using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
@@ -17,6 +18,7 @@ public sealed class ViewScheduleService : IViewScheduleService
     private readonly IBracketAdvancementService _bracketAdvancement;
     private readonly IBracketSeedResolutionService _bracketResolution;
     private readonly IJobRepository _jobRepo;
+    private readonly IGameResultPushService _gameResultPush;
 
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
@@ -24,7 +26,8 @@ public sealed class ViewScheduleService : IViewScheduleService
         IBracketRepository bracketRepo,
         IBracketAdvancementService bracketAdvancement,
         IBracketSeedResolutionService bracketResolution,
-        IJobRepository jobRepo)
+        IJobRepository jobRepo,
+        IGameResultPushService gameResultPush)
     {
         _scheduleRepo = scheduleRepo;
         _teamRepo = teamRepo;
@@ -32,6 +35,7 @@ public sealed class ViewScheduleService : IViewScheduleService
         _bracketAdvancement = bracketAdvancement;
         _bracketResolution = bracketResolution;
         _jobRepo = jobRepo;
+        _gameResultPush = gameResultPush;
     }
 
     // A round-robin result can complete a pool and lock its standings — resolve any
@@ -338,6 +342,11 @@ public sealed class ViewScheduleService : IViewScheduleService
         var game = await _scheduleRepo.GetGameByIdAsync(request.Gid, ct);
         if (game == null) return;
 
+        // Job scoping: the caller's JWT resolves to one job — it must own this game.
+        // Without this, a Scorer/Director token for job A could score job B's games.
+        if (game.JobId != jobId)
+            throw new InvalidOperationException("Game does not belong to this event.");
+
         game.T1Score = request.T1Score;
         game.T2Score = request.T2Score;
         // Leagues.GameStatusCodes: 1=scheduled, 3=rescheduled, 4=forfeit, 5=cancelled, 6=final.
@@ -356,6 +365,9 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         // R1: a pool result may lock standings — fill any bracket slots seeded from it.
         await ResolveSeedsIfPoolGameAsync(jobId, userId, game, ct);
+
+        // Notify devices subscribed to either team (best-effort; never throws).
+        await _gameResultPush.PushGameResultAsync(game.Gid, ct);
     }
 
     public async Task EditGameAsync(
@@ -363,6 +375,10 @@ public sealed class ViewScheduleService : IViewScheduleService
     {
         var game = await _scheduleRepo.GetGameByIdAsync(request.Gid, ct);
         if (game == null) return;
+
+        // Job scoping — same guard as QuickEditScoreAsync.
+        if (game.JobId != jobId)
+            throw new InvalidOperationException("Game does not belong to this event.");
 
         if (request.T1Score.HasValue) game.T1Score = request.T1Score;
         if (request.T2Score.HasValue) game.T2Score = request.T2Score;
@@ -387,7 +403,56 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         // R1: a pool result may lock standings — fill any bracket slots seeded from it.
         await ResolveSeedsIfPoolGameAsync(jobId, userId, game, ct);
+
+        // Notify subscribed devices only when this edit changed a score — a pure
+        // reschedule/annotation edit is not a game result.
+        if (request.T1Score.HasValue || request.T2Score.HasValue)
+            await _gameResultPush.PushGameResultAsync(game.Gid, ct);
     }
+
+    // ── Mobile deep-link lookups ──
+    // Resolve the owning job + division from a gid/teamId the mobile app already holds,
+    // then delegate to the matching tab method. Division-less rows fall back to the
+    // agegroup filter (brackets are agegroup-scoped when divisions aren't assigned).
+
+    public async Task<List<DivisionBracketResponse>?> GetBracketsByGameAsync(int gid, CancellationToken ct = default)
+    {
+        var game = await _scheduleRepo.GetGameByIdAsync(gid, ct);
+        if (game == null) return null;
+
+        return await GetBracketsAsync(game.JobId, DivisionOrAgegroupFilter(game.DivId, game.AgegroupId), ct);
+    }
+
+    public async Task<List<DivisionBracketResponse>?> GetBracketsByTeamAsync(Guid teamId, CancellationToken ct = default)
+    {
+        var team = await _teamRepo.GetByIdReadOnlyAsync(teamId, ct);
+        if (team == null) return null;
+
+        return await GetBracketsAsync(team.JobId, DivisionOrAgegroupFilter(team.DivId, team.AgegroupId), ct);
+    }
+
+    public async Task<StandingsByDivisionResponse?> GetStandingsByGameAsync(int gid, CancellationToken ct = default)
+    {
+        var game = await _scheduleRepo.GetGameByIdAsync(gid, ct);
+        if (game == null) return null;
+
+        return await GetStandingsAsync(game.JobId, DivisionOrAgegroupFilter(game.DivId, game.AgegroupId), ct);
+    }
+
+    public async Task<StandingsByDivisionResponse?> GetStandingsByTeamAsync(Guid teamId, CancellationToken ct = default)
+    {
+        var team = await _teamRepo.GetByIdReadOnlyAsync(teamId, ct);
+        if (team == null) return null;
+
+        return await GetStandingsAsync(team.JobId, DivisionOrAgegroupFilter(team.DivId, team.AgegroupId), ct);
+    }
+
+    private static ScheduleFilterRequest DivisionOrAgegroupFilter(Guid? divId, Guid? agegroupId) =>
+        divId != null
+            ? new ScheduleFilterRequest { DivisionIds = [divId.Value] }
+            : agegroupId != null
+                ? new ScheduleFilterRequest { AgegroupIds = [agegroupId.Value] }
+                : new ScheduleFilterRequest();
 
     // ── Private Helpers ──
 

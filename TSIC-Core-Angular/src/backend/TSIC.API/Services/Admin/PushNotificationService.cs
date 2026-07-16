@@ -50,7 +50,7 @@ public class PushNotificationService : IPushNotificationService
 
         // 3. Send via Firebase
         var deviceCount = await _firebasePushService.SendToDevicesAsync(
-            tokens, jobName, pushText, jobLogoUrl, ct);
+            tokens, jobName, pushText, jobLogoUrl, ct: ct);
 
         // 4. Record the broadcast in the audit trail
         var record = new JobPushNotificationsToAll

@@ -37,6 +37,12 @@ public interface IDeviceRepository
     Task AddDeviceJobIfNotExistsAsync(string deviceId, Guid jobId, CancellationToken ct = default);
     Task<bool> ToggleDeviceTeamAsync(string deviceId, Guid teamId, CancellationToken ct = default);
     Task<List<Guid>> GetSubscribedTeamIdsAsync(string deviceToken, Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Distinct active-device tokens subscribed to either of a game's two teams.
+    /// Used for game-result push notifications.
+    /// </summary>
+    Task<List<string>> GetTokensSubscribedToTeamsAsync(Guid? t1Id, Guid? t2Id, CancellationToken ct = default);
     Task SwapDeviceTokensAsync(string oldToken, string newToken, CancellationToken ct = default);
     Task<Devices?> GetDeviceByTokenAsync(string deviceToken, CancellationToken ct = default);
 }

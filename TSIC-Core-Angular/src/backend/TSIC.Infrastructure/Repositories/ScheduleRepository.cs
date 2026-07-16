@@ -357,6 +357,26 @@ public sealed class ScheduleRepository : IScheduleRepository
         return await _context.Schedule.FindAsync(new object[] { gid }, ct);
     }
 
+    public async Task<GamePushKeysDto?> GetGamePushKeysAsync(int gid, CancellationToken ct = default)
+    {
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.Gid == gid)
+            .Select(s => new GamePushKeysDto
+            {
+                JobId = s.JobId,
+                T1Id = s.T1Id,
+                T2Id = s.T2Id,
+                T1Name = s.T1Name,
+                T2Name = s.T2Name,
+                T1Score = s.T1Score,
+                T2Score = s.T2Score,
+                AgegroupName = s.Agegroup != null ? s.Agegroup.AgegroupName : null,
+                DivName = s.Div != null ? s.Div.DivName : null
+            })
+            .SingleOrDefaultAsync(ct);
+    }
+
     public async Task<List<Domain.Entities.Schedule>> GetGamesByIdsAsync(List<int> gids, CancellationToken ct = default)
     {
         return await _context.Schedule

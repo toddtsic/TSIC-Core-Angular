@@ -333,6 +333,7 @@ builder.Services.AddScoped<IChangePasswordService, ChangePasswordService>();
 // Push Notifications (Admin — Firebase Cloud Messaging)
 builder.Services.AddSingleton<IFirebasePushService, FirebasePushService>();
 builder.Services.AddScoped<IPushNotificationService, PushNotificationService>();
+builder.Services.AddScoped<IGameResultPushService, GameResultPushService>();
 // Team Links (Admin — communications/team-links page; legacy MobileTeamLinks port)
 builder.Services.AddScoped<ITeamLinkService, TeamLinkService>();
 // Mobile API — Device Management, Event Browse, Team Management
@@ -601,6 +602,15 @@ builder.Services.AddAuthorization(options =>
             RoleConstants.Names.SuperuserName,
             RoleConstants.Names.DirectorName,
             RoleConstants.Names.SuperDirectorName));
+
+    // Roles that may enter game scores: admin roles + event-day Scorer.
+    // Capability-named (like CanCrossCustomerJobs); same name as the legacy CanScore policy.
+    options.AddPolicy("CanScore", policy =>
+        policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
+            RoleConstants.Names.SuperuserName,
+            RoleConstants.Names.DirectorName,
+            RoleConstants.Names.SuperDirectorName,
+            RoleConstants.Names.ScorerName));
 
     options.AddPolicy("RefAdmin", policy =>
         policy.RequireClaim(System.Security.Claims.ClaimTypes.Role,
@@ -991,9 +1001,10 @@ app.UseSerilogRequestLogging(options =>
 app.UseCors("AllowAngularApp");
 app.UseAuthentication();
 app.UseAuthorization();
-// Explicitly handle preflight requests for any route and ensure CORS headers are applied
-app.MapMethods("{*path}", new[] { "OPTIONS" }, () => Results.Ok())
-    .RequireCors("AllowAngularApp");
+// NOTE: no OPTIONS catch-all endpoint here. UseCors terminates preflights itself
+// (verified: preflight → 204 from the middleware). A previous "{*path}" OPTIONS
+// catch-all made every unknown route return 405 (path matched, method didn't)
+// instead of 404, disguising missing-route errors as CORS/method problems.
 
 app.MapControllers();
 app.MapHub<TSIC.API.Hubs.ChatHub>("/hubs/chat");

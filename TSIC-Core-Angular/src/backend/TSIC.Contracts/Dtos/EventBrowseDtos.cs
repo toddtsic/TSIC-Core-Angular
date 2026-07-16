@@ -8,6 +8,8 @@ public record EventListingDto
 {
     public required Guid JobId { get; init; }
     public required string JobName { get; init; }
+    /// <summary>Key for the anonymous view-schedule endpoints (?jobPath=).</summary>
+    public required string JobPath { get; init; }
     public string? JobLogoUrl { get; init; }
     public string? City { get; init; }
     public string? State { get; init; }

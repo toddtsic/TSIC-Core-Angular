@@ -85,6 +85,16 @@ public class DeviceRepository : IDeviceRepository
             .Select(dt => dt.TeamId).Distinct().ToListAsync(ct);
     }
 
+    public async Task<List<string>> GetTokensSubscribedToTeamsAsync(Guid? t1Id, Guid? t2Id, CancellationToken ct = default)
+    {
+        return await _context.DeviceTeams.AsNoTracking()
+            .Where(dt => (t1Id != null && dt.TeamId == t1Id) || (t2Id != null && dt.TeamId == t2Id))
+            .Where(dt => dt.Device.Active && dt.Device.Token != "")
+            .Select(dt => dt.Device.Token)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
     public async Task SwapDeviceTokensAsync(string oldToken, string newToken, CancellationToken ct = default)
     {
         var oldDevice = await _context.Devices.FirstOrDefaultAsync(d => d.Token == oldToken, ct);

@@ -33,6 +33,7 @@ namespace TSIC.Domain.Constants
             public const string DirectorName = "Director";
             public const string SuperDirectorName = "SuperDirector";
             public const string RefAssignorName = "Ref Assignor";
+            public const string ScorerName = "Scorer";
             public const string StoreAdminName = "Store Admin";
             public const string StaffName = "Staff";
             public const string FamilyName = "Family";

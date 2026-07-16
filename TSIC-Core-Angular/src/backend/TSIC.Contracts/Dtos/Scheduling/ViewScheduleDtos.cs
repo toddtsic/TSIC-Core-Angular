@@ -34,6 +34,23 @@ public record EditScoreRequest
 }
 
 /// <summary>
+/// Keys needed to compose a game-result push notification (winner-first ordering,
+/// agegroup:division context). One AsNoTracking query per score write.
+/// </summary>
+public record GamePushKeysDto
+{
+    public required Guid JobId { get; init; }
+    public Guid? T1Id { get; init; }
+    public Guid? T2Id { get; init; }
+    public string? T1Name { get; init; }
+    public string? T2Name { get; init; }
+    public int? T1Score { get; init; }
+    public int? T2Score { get; init; }
+    public string? AgegroupName { get; init; }
+    public string? DivName { get; init; }
+}
+
+/// <summary>
 /// Full game edit modal — supports overriding teams, annotations, and status.
 /// </summary>
 public record EditGameRequest

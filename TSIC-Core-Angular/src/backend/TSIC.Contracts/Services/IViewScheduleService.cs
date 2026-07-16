@@ -51,6 +51,23 @@ public interface IViewScheduleService
     /// </summary>
     Task<List<ContactDto>> GetContactsAsync(Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default);
 
+    // ── Mobile deep-link lookups ──
+    // The Events app navigates from a game row or team where it holds only a gid/teamId
+    // and cannot compose a division filter. Each resolves the owning job + division,
+    // then delegates to the matching tab method. Null = game/team not found.
+
+    /// <summary>Bracket matches for the division (or agegroup) a game belongs to.</summary>
+    Task<List<DivisionBracketResponse>?> GetBracketsByGameAsync(int gid, CancellationToken ct = default);
+
+    /// <summary>Bracket matches for the division (or agegroup) a team belongs to.</summary>
+    Task<List<DivisionBracketResponse>?> GetBracketsByTeamAsync(Guid teamId, CancellationToken ct = default);
+
+    /// <summary>Pool standings for the division a game belongs to.</summary>
+    Task<StandingsByDivisionResponse?> GetStandingsByGameAsync(int gid, CancellationToken ct = default);
+
+    /// <summary>Pool standings for the division a team belongs to.</summary>
+    Task<StandingsByDivisionResponse?> GetStandingsByTeamAsync(Guid teamId, CancellationToken ct = default);
+
     /// <summary>
     /// Field directions / details for a specific field.
     /// </summary>

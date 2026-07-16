@@ -44,6 +44,7 @@ public class FirebasePushService : IFirebasePushService
         string title,
         string body,
         string? imageUrl = null,
+        IReadOnlyDictionary<string, string>? data = null,
         CancellationToken ct = default)
     {
         if (deviceTokens.Count == 0)
@@ -68,6 +69,7 @@ public class FirebasePushService : IFirebasePushService
             {
                 Notification = notification,
                 Token = token,
+                Data = data,
                 Apns = new ApnsConfig
                 {
                     Aps = new Aps { Sound = "default" }
