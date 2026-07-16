@@ -1947,7 +1947,16 @@ public class PaymentService : IPaymentService
         foreach (var reg in registrations)
         {
             var basis = reg.OwedTotal < 0m ? 0m : reg.OwedTotal;
-            var perOccur = Math.Round(basis / occur, 2, MidpointRounding.AwayFromZero);
+            // FLOOR to cents, never round. An ARB subscription drafts one fixed amount per
+            // occurrence, so whatever perOccur × occur misses of the basis is money the plan
+            // can never reconcile: round-half-up both under-collected (80/6 → 13.33×6 = 79.98,
+            // leaving a phantom $0.02 owed forever) and OVER-collected (80/7 → 11.43×7 = 80.01).
+            // Flooring makes the miss always non-negative (0..occur-1 cents), and that remainder
+            // is forgiven as a Correction credit below — same difference-of-rounds philosophy as
+            // the eCheck proc-fee penny fix — so the ledger closes at exactly zero when the plan
+            // completes.
+            var perOccur = Math.Floor(basis * 100m / occur) / 100m;
+            var residual = basis - perOccur * occur;
             // Zero-basis chokepoint. Every fee modifier (discount code, early-bird, scholarship,
             // late fee, prior payment) has already netted into OwedTotal via FeeMath before we get
             // here, so this single test is modifier-agnostic by construction. When nothing is left
@@ -1956,16 +1965,20 @@ public class PaymentService : IPaymentService
             // it bActive=0 with no subscription id. The registrant owes nothing, so activate it
             // directly, mirroring the "owes nothing -> active" rule already used by the discount
             // endpoint (PlayerRegistrationPaymentController.ApplyDiscount) and the immediate path.
+            // (A basis smaller than one cent per occurrence floors to perOccur = 0 and lands here
+            // too — the sub-plan-cent balance is forgiven by the same credit as the success path.)
             if (perOccur <= 0m)
             {
                 reg.BActive = true;
                 reg.Modified = DateTime.Now;
                 reg.LebUserId = userId;
                 activatedNoCharge.Add(reg.RegistrationId);
+                if (residual > 0m)
+                    await BookArbRoundingCreditAsync(reg, residual, perOccur, occur, subscriptionId: null, userId);
                 _logger.LogInformation("ARB: registration {RegistrationId} owes nothing after modifiers (basis={Basis}); activated without a subscription.", reg.RegistrationId, basis);
                 continue;
             }
-            _logger.LogInformation("Creating ARB subscription for registration {RegistrationId}: perOccurrence={PerOccur} occur={Occur} start={StartDate} basis={Basis}.", reg.RegistrationId, perOccur, occur, startDate, basis);
+            _logger.LogInformation("Creating ARB subscription for registration {RegistrationId}: perOccurrence={PerOccur} occur={Occur} start={StartDate} basis={Basis} residual={Residual}.", reg.RegistrationId, perOccur, occur, startDate, basis, residual);
             var invoiceNumber = await BuildInvoiceNumberForRegistrationAsync(reg.JobId, reg.RegistrationId);
             var description = await BuildArbSubscriptionDescriptionAsync(reg);
             var resp = createSubscription(perOccur, invoiceNumber, description);
@@ -1973,6 +1986,8 @@ public class PaymentService : IPaymentService
             {
                 subs[reg.RegistrationId] = resp.subscriptionId;
                 ApplyArbSuccessToRegistration(reg, resp.subscriptionId, perOccur, occur, intervalLen, startDate, userId);
+                if (residual > 0m)
+                    await BookArbRoundingCreditAsync(reg, residual, perOccur, occur, resp.subscriptionId, userId);
             }
             else
             {
@@ -2135,6 +2150,34 @@ public class PaymentService : IPaymentService
         if (i <= 0) i = 1;
         var s = start ?? DateTime.Now.AddDays(1);
         return (o, i, s);
+    }
+
+    // Books the cent remainder an ARB plan cannot draft (basis − perOccur×occur, 0..occur-1
+    // cents after the floor in CreateArbSubscriptionsCoreAsync) as an "Online Correction By
+    // TSIC" credit, at mint time — one ledger row through the same record-and-recompute path
+    // as real money, so PaidTotal absorbs it immediately and the completed plan closes
+    // OwedTotal at exactly zero. Corrections carry no proc and count as principal in every
+    // ledger re-sum (PaymentMethodIds.Correction), so downstream fee math needs no cases.
+    private async Task BookArbRoundingCreditAsync(Registrations reg, decimal residual, decimal perOccur, short occur, string? subscriptionId, string userId)
+    {
+        var raRow = new RegistrationAccounting
+        {
+            RegistrationId = reg.RegistrationId,
+            Active = true,
+            Dueamt = residual,
+            Payamt = residual,
+            PaymentMethodId = PaymentMethodIds.OnlineCorrectionByTsic,
+            Paymeth = $"ARB rounding credit: {residual:C}",
+            Comment = subscriptionId is null
+                ? $"ARB rounding credit — balance {residual:C} is below one cent per plan occurrence; activated without a subscription"
+                : $"ARB rounding credit — plan drafts {perOccur:C} × {occur} (subscriptionId: {subscriptionId}); cent remainder forgiven",
+            Createdate = DateTime.Now,
+            Modified = DateTime.Now,
+            LebUserId = userId
+        };
+        await _acct.RecordPaymentAndRecomputeAsync(raRow, userId);
+        _logger.LogInformation("ARB rounding credit {Residual} booked for registration {RegistrationId} (perOccur={PerOccur}, occur={Occur}, sub={SubscriptionId}).",
+            residual, reg.RegistrationId, perOccur, occur, subscriptionId ?? "none");
     }
 
     private static void ApplyArbSuccessToRegistration(Registrations reg, string subscriptionId, decimal perOccurrence, short occur, short intervalLen, DateTime start, string userId)
