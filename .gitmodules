@@ -4,3 +4,6 @@
 [submodule "reference/TSIC-Events-2025"]
 	path = reference/TSIC-Events-2025
 	url = https://github.com/toddtsic/TSIC-Events-2025.git
+[submodule "reference/TSIC-TEAMS-2025"]
+	path = reference/TSIC-TEAMS-2025
+	url = https://github.com/toddtsic/TSIC-TEAMS-2025.git
