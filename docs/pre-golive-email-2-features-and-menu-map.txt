@@ -1,0 +1,95 @@
+Subject: TSIC NextGen Coming in August
+
+
+Directors,
+
+For those of you who have been testing the new system on dev.teamsportsinfo.com, I'm betting you've found you have no trouble locating and using your routine functions.
+
+Today I wanted to give you a map of the new menu system for your reference, and introduce you to some of the new features.
+
+
+Directors Menu Summary
+(there can be per job per sports modifications):
+
+  Search            Registrations, Teams
+
+  Configure       Job Settings, Discount Codes, Age Ranges,
+                         Quick Links (on/off switches for your Smart Bulletins)
+
+  Teams & Rosters   L-A-D-T Editor, Roster Swapper, Pool Assignment,
+                    Coach Approvals, Uniform Upload
+
+  Scheduling        Schedule Hub, View Schedule, Bracket Seeds,
+                    Master Schedule, Rescheduler, Tournament Parking,
+                    Fields, Pairings, Timeslots, QA Results,
+                    Mobile Scorers
+
+  Communications    Bulletins, Email Log, Push Notification, Team Links
+
+  Reports           Job Report Library (single location for all your reports)
+
+(This layout is still in final testing, so a few labels or their placement may shift slightly before launch.)
+
+
+New Features
+
+HUGE Payment Options
+  - E-Check is now accepted for any payment.
+  - For tournament team registrations, ARB (Automated Recurring Billing) lets you take a deposit now and auto-charge the balance on a set future date.
+
+HUGE Smart Bulletins 
+  - Many bulletins you had to author and activate now write and activate themselves.
+  - By using Configure > Quick Links you turn on/off registration (player, team, coach) and schedule visibility, whether job is offering registration insurance, whether public rosters are available and more.
+  - Those settings feed the system what to present, so you no longer maintain those bulletins by hand.
+  - They're role-aware -- the page and the top-right menu tailor themselves to who's logged in and where the job stands. A family sees "pay balance" or "manage my registration," a club rep sees "my teams," and the public sees links like "Schedule" and "Player Registration."
+  - Some are purely informational. On a lacrosse job, an informational bulletin spells out the USA Lacrosse validation process and requirements right on the page -- before anyone registers -- heading off the questions your families would otherwise call about.
+  - Use the bulletin system to talk to your audience, and leave the site wiring to Smart Bulletins.
+
+HUGE Discount Codes
+  - You can now offer discount codes to club reps registering teams.
+
+Search Registrations
+  - HUGE Send Invitations to specific user to register for a new event. You can have that future event CLOSED to the public, but link in invite email has security token that ALLOWS ONLY THAT PERSON TO REGISTER.
+  - Can invite players to future player job, and if a tournament site, can invite a club rep to register for a future tournament.
+  - Live Update link for any USA Lacrosse number (re-verifies and saves the expiration date)
+
+L-A-D-T Editor
+  - HUGE Early Bird Discount, Late Fees, now available for both player and team registrations
+
+Register Teams
+  - HUGE Club Team Library.  Using past registration history, we've built a per club team library. This now allows club reps to CHOOSE teams from their library rather than re-enter same team in multiple events.  
+  - Club reps can archive old teams and add new teams as needed.
+  - We can now assess a teams performance across multiple events.
+
+Scheduling
+  - Schedule Hub - one launch point for building and running
+    your schedule.
+  - HUGE Automated national-rankings download -- pull the current national rankings straight into your event.
+  - Tournament Parking Tool -- a graphic and data view of the coming and going of people and cars, based on your schedule.
+
+Reports
+  - Job Report Library - every report for your job in one place,
+    grouped by category with your recent runs kept on top.
+  - HUGE Live report customization - several reports are now built on the
+    fly instead of locked to a fixed layout. The Roster Table and
+    Schedule List designers let you pick and reorder the columns, group
+    and sort, set orientation, or start from a preset - with a live
+    preview of the exact page before you generate the PDF.
+
+That should get your ideas flowing!  Many jobs are already configured for the fall, but consider these new options for future jobs.
+
+Remember, I'm available this month to do training.
+
+Thanks,
+Todd
+
+--
+Team Sports Info - you're receiving this as a director on the new-site
+preview. Questions? Just reply.
+
+-- 
+Todd Greenwald
+President, TeamSportsInfo.com
+tgreenwald@teamsportsinfo.com
+410-280-3272
+ 
