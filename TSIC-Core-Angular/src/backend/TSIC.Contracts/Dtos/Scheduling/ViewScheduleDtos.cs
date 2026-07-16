@@ -335,6 +335,8 @@ public record TeamResultDto
     public string? OpponentRecord { get; init; }
     public double? Latitude { get; init; }
     public double? Longitude { get; init; }
+    /// <summary>Pre-formatted address for map links (e.g. "123 Main St, Allentown, PA 18101"). Null if no address.</summary>
+    public string? FAddress { get; init; }
     public int? GStatusCode { get; init; }
     /// <summary>DB-sourced status label (e.g. "scheduled", "final", "forfeit"). Null when GStatusCode is null.</summary>
     public string? GStatusText { get; init; }
