@@ -3,13 +3,12 @@ Subject: TSIC NextGen Coming in August
 
 Directors,
 
-For those of you who have been testing the new system on dev.teamsportsinfo.com, I'm betting you've found you have no trouble locating and using your routine functions.
+When you access dev.teamsportsinfo.com to test the new system, I bet you will find you have no trouble locating and using your routine functions.
 
 Today I wanted to give you a map of the new menu system for your reference, and introduce you to some of the new features.
 
 
 Directors Menu Summary
-(there can be per job per sports modifications):
 
   Search            Registrations, Teams
 
@@ -24,7 +23,7 @@ Directors Menu Summary
                     Fields, Pairings, Timeslots, QA Results,
                     Mobile Scorers
 
-  Communications    Bulletins, Email Log, Push Notification, Team Links
+  Communications    Bulletins, Email Log, Team Links
 
   Reports           Job Report Library (single location for all your reports)
 
@@ -33,11 +32,17 @@ Directors Menu Summary
 
 New Features
 
-HUGE Payment Options
-  - E-Check is now accepted for any payment.
-  - For tournament team registrations, ARB (Automated Recurring Billing) lets you take a deposit now and auto-charge the balance on a set future date.
+Search Registrations
+  - HUGE Send Invitations to specific user to register for a new event. You can have that future event CLOSED to the public, but link in invite email has security token that ALLOWS ONLY THAT PERSON TO REGISTER.
+  - Can invite players to future player job, and if a tournament site, can invite a club rep to register for a future tournament.
+  - Live Update link for any USA Lacrosse number (re-verifies and saves the expiration date)
 
-HUGE Smart Bulletins 
+Register Teams
+  - HUGE Club Team Library.  Using past registration history, we've built a per club team library. This now allows club reps to CHOOSE teams from their library rather than re-enter same team in multiple events.
+  - Club reps can archive old teams and add new teams as needed.
+  - We can now assess a teams performance across multiple events.
+
+HUGE Smart Bulletins
   - Many bulletins you had to author and activate now write and activate themselves.
   - By using Configure > Quick Links you turn on/off registration (player, team, coach) and schedule visibility, whether job is offering registration insurance, whether public rosters are available and more.
   - Those settings feed the system what to present, so you no longer maintain those bulletins by hand.
@@ -45,21 +50,15 @@ HUGE Smart Bulletins
   - Some are purely informational. On a lacrosse job, an informational bulletin spells out the USA Lacrosse validation process and requirements right on the page -- before anyone registers -- heading off the questions your families would otherwise call about.
   - Use the bulletin system to talk to your audience, and leave the site wiring to Smart Bulletins.
 
-HUGE Discount Codes
-  - You can now offer discount codes to club reps registering teams.
-
-Search Registrations
-  - HUGE Send Invitations to specific user to register for a new event. You can have that future event CLOSED to the public, but link in invite email has security token that ALLOWS ONLY THAT PERSON TO REGISTER.
-  - Can invite players to future player job, and if a tournament site, can invite a club rep to register for a future tournament.
-  - Live Update link for any USA Lacrosse number (re-verifies and saves the expiration date)
+HUGE Payment Options
+  - E-Check is now accepted for any payment.
+  - For tournament team registrations, ARB (Automated Recurring Billing) lets you take a deposit now and auto-charge the balance on a set future date.
 
 L-A-D-T Editor
   - HUGE Early Bird Discount, Late Fees, now available for both player and team registrations
 
-Register Teams
-  - HUGE Club Team Library.  Using past registration history, we've built a per club team library. This now allows club reps to CHOOSE teams from their library rather than re-enter same team in multiple events.  
-  - Club reps can archive old teams and add new teams as needed.
-  - We can now assess a teams performance across multiple events.
+HUGE Discount Codes
+  - You can now offer discount codes to club reps registering teams.
 
 Scheduling
   - Schedule Hub - one launch point for building and running

@@ -1,0 +1,91 @@
+Subject: TSIC NextGen Coming in August
+
+
+Directors,
+
+I'm betting you've learned on dev.teamsportsinfo.com that you'll have no trouble finding and using your routine functions.
+
+Today I want to (1) give you a map of the new menu for reference, and (2) introduce a few of the new features.
+
+
+DIRECTORS MENU SUMMARY
+(there can be per-job / per-sport differences)
+
+Search: Registrations, Teams
+Configure: Job Settings, Discount Codes, Age Ranges, Quick Links
+Teams & Rosters: L-A-D-T Editor, Roster Swapper, Pool Assignment, Coach Approvals, Uniform Upload
+Scheduling: Schedule Hub, View Schedule, Bracket Seeds, Master Schedule, Rescheduler, Tournament Parking, Fields, Pairings, Timeslots, QA Results, Mobile Scorers
+Officials: Referee Assignment, Referee Calendar
+Communications: Bulletins, Email Log, Push Notification, Team Links
+Reports: Job Report Library
+USA Lacrosse: USA Lacrosse Test, Rankings, Membership
+Store / ARB: Direct links (when enabled for your job)
+
+
+NEW FEATURES
+
+
+Payment Options  [HUGE]
+
+E-Check is now available for any payment. And ARB (Automated Recurrent Billing) for tournament team payment - deposit now, balance due on a fixed future date - is also available.
+
+
+Smart Bulletins  [HUGE]
+
+Many bulletins you used to author and activate now write and activate themselves.
+In Configure > Quick Links you turn registrations on/off (player, team, coach, recruiter, referee), schedule visibility, insurance, merchandise sales, public rosters, and more.
+Those switches let the system present the bulletins you used to maintain by hand, and set each visitor's top-right menu to their role and the job's state - a family sees "pay balance" or "manage my registration," a club rep sees "my teams," the public sees "Schedule" and "Player Registration."
+Use the bulletin system to talk to your audience, and leave the site wiring to Smart Bulletins.
+
+
+Search > Registrations
+
+[HUGE] Send Invitations to a specific person to register for a new event. The event can be closed to the public while the invite link carries a token that lets ONLY that person register.
+Invite players to a future player job; on a tournament site, invite a club rep to a future tournament.
+Live Update link for any USA Lacrosse number (re-verifies and saves the expiration date).
+
+
+L-A-D-T Editor
+
+[HUGE] Early Bird discounts and Late Fees, now on both player and team registrations.
+
+
+Register Teams
+
+[HUGE] Club Team Library. Built from past registration history, so club reps choose teams from their library instead of re-entering the same team for every event.
+Club reps can archive old teams and add new ones as needed.
+Assess a team's performance across multiple events.
+
+
+Scheduling
+
+Schedule Hub - one launch point for building and running your schedule.
+[HUGE] Automated national-rankings download.
+Tournament Parking Tool - a graphic and data view of people and cars coming and going, based on your schedule.
+
+
+Officials
+
+Referee Assignment and a Referee Calendar for coverage at a glance.
+
+
+Reports
+
+Job Report Library - every report in one place, grouped by category, with your recent runs kept on top.
+[HUGE] Live report customization - build several reports on the fly instead of a fixed layout. The Roster Table and Schedule List designers let you pick and reorder columns, group and sort, set orientation, or start from a preset - with a live preview before you generate the PDF.
+
+
+USA Lacrosse
+
+USA Lacrosse Number testing tool.
+
+
+That should get your ideas flowing. Many jobs are already set for the fall - but keep these in mind for future jobs.
+
+I'm available this month for training - just reply.
+
+Thanks,
+Todd Greenwald
+President, TeamSportsInfo.com
+tgreenwald@teamsportsinfo.com
+410-280-3272
