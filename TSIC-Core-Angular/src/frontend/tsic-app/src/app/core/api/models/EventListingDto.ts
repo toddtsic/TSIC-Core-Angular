@@ -5,6 +5,7 @@
 export type EventListingDto = {
     jobId: string;
     jobName: string;
+    jobPath: string;
     jobLogoUrl?: string | null;
     city?: string | null;
     state?: string | null;
