@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-07-09 16:02:22 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-07-16 10:48:43 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -128,8 +128,8 @@ INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Age Ranges', N'sl
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Quick Links', N'stars', N'configure/quick-links', 4, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Administrators', N'person-badge', N'configure/administrators', 5, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Dropdown Options', N'list', N'configure/ddl-options', 6, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 7, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Report Catalogue', N'collection', N'reporting/report-catalogue-editor', 9, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Configure', N'gear', 2, N'Theme', N'palette', N'configure/theme', 10, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'L-A-D-T Editor', N'pencil-square', N'ladt/editor', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Roster Swapper', N'arrow-left-right', N'ladt/roster-swapper', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Teams & Rosters', N'diagram-3', 3, N'Pool Assignment', N'people', N'ladt/pool-assignment', 3, 1, 1, 1, NULL, NULL);
@@ -180,8 +180,9 @@ INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Customer
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Nav Editor', N'list', N'configure/nav-editor', 3, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Widget Editor', N'grid', N'configure/widget-editor', 4, 0, 0, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Job Clone', N'copy', N'configure/job-clone', 5, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Profile Editor', N'pencil-square', N'tools/profile-editor', 6, 0, 0, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Change Password', N'key', N'tools/change-password', 7, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Admin Expiry', N'calendar-x', N'tools/admin-expiry', 6, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Profile Migration', N'arrow-right', N'tools/profile-migration', 7, 0, 0, 1, NULL, NULL);
+INSERT INTO #AdminManifest VALUES (N'TSIC Admin', N'shield-lock', 12, N'Change Password', N'key', N'tools/change-password', 8, 0, 0, 1, NULL, NULL);
 
 -- Standalone top-level leaves (direct links, no section dropdown)
 IF OBJECT_ID('tempdb..#AdminLeaves') IS NOT NULL DROP TABLE #AdminLeaves;
