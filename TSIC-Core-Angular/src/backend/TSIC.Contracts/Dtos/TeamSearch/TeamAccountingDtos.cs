@@ -259,4 +259,11 @@ public record ClubRepAccountingDto
     public required decimal OwedTotal { get; init; }
     public required List<RegisteredTeamDto> Teams { get; init; }
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
+
+    /// <summary>
+    /// True when the job accepts eCheck (Jobs.bEnableECheck). Gates the "eCheck Owed"
+    /// scenario column in the breakdown grid — shown only where paying by eCheck is
+    /// actually on offer.
+    /// </summary>
+    public required bool JobOffersEcheck { get; init; }
 }
