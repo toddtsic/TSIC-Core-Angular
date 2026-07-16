@@ -35,4 +35,10 @@ public static class JobExpiry
     /// admins keep after the public door (ExpiryUsers) has closed.</summary>
     public static readonly Expression<Func<Jobs, bool>> NotExpiredForAdmin =
         j => DateTime.Now < j.ExpiryAdmin;
+
+    /// <summary>Job's admin door has closed (ExpiryAdmin &lt;= now). Negation of
+    /// <see cref="NotExpiredForAdmin"/>, used by the Admin Expiry tool's
+    /// expired-jobs listing.</summary>
+    public static readonly Expression<Func<Jobs, bool>> ExpiredForAdmin =
+        j => j.ExpiryAdmin <= DateTime.Now;
 }

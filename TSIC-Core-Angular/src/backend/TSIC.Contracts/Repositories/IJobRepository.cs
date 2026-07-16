@@ -342,6 +342,14 @@ public interface IJobRepository
     Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Cross-customer sweep for the SuperUser Admin Expiry tool: every job whose admin
+    /// door has closed (ExpiryAdmin &lt;= now), grouped by owning customer. Customers and
+    /// jobs are each ordered by name.
+    /// </summary>
+    Task<List<Dtos.AdminExpiry.AdminExpiryCustomerDto>> GetAdminExpiredJobsByCustomerAsync(
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Get real-time availability pulse for a job (player/team reg, store, schedule, coming-soon).
     /// Public endpoint — no authentication required.
     /// </summary>

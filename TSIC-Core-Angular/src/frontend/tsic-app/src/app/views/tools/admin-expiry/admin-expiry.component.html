@@ -1,0 +1,66 @@
+<div class="ae-container">
+	<header class="ae-header">
+		<h2>Admin Expiry</h2>
+		<p class="ae-subtitle">
+			Jobs whose admin access window (ExpiryAdmin) has closed, grouped by customer.
+			Set a new date to reopen admin access without entering the job.
+		</p>
+	</header>
+
+	@if (loading()) {
+		<p class="loading-text">Loading expired jobs…</p>
+	} @else if (customers().length === 0) {
+		<p class="empty-text">No jobs with expired admin access.</p>
+	} @else {
+		<section class="ae-panel">
+			<div class="ae-field">
+				<label class="field-label" for="customerSelect">Customer</label>
+				<select id="customerSelect" class="field-select"
+					[ngModel]="selectedCustomerId()" (ngModelChange)="onCustomerChange($event)">
+					<option value="">-- Select customer --</option>
+					@for (customer of customers(); track customer.customerId) {
+						<option [value]="customer.customerId">
+							{{ customer.customerName }} ({{ customer.jobs.length }})
+						</option>
+					}
+				</select>
+				<p class="field-help">Count = expired jobs for that customer.</p>
+			</div>
+
+			<div class="ae-field">
+				<label class="field-label" for="jobSelect">Job</label>
+				<select id="jobSelect" class="field-select" [disabled]="!selectedCustomerId()"
+					[ngModel]="selectedJobId()" (ngModelChange)="onJobChange($event)">
+					<option value="">-- Select job --</option>
+					@for (job of jobs(); track job.jobId) {
+						<option [value]="job.jobId">
+							{{ job.jobName }} (expired {{ job.expiryAdmin | date: 'M/d/yyyy' }})
+						</option>
+					}
+				</select>
+			</div>
+
+			<div class="ae-field">
+				<label class="field-label" for="newExpiry">New admin expiry</label>
+				<input id="newExpiry" type="date" class="field-input" [disabled]="!selectedJobId()"
+					[ngModel]="newExpiry()" (ngModelChange)="newExpiry.set($event)">
+				@if (selectedJob(); as job) {
+					<p class="field-help">
+						Current expiry: {{ job.expiryAdmin | date: 'M/d/yyyy' }}.
+						Admin access stays open until the start of the new date.
+					</p>
+				}
+			</div>
+
+			<div class="ae-actions">
+				<button type="button" class="ae-btn-primary" [disabled]="!canSave()" (click)="save()">
+					@if (saving()) {
+						<span class="spinner" aria-hidden="true"></span> Saving…
+					} @else {
+						Update expiry
+					}
+				</button>
+			</div>
+		</section>
+	}
+</div>

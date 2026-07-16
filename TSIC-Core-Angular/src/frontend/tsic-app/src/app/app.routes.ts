@@ -347,6 +347,12 @@ export const routes: Routes = [
 						loadComponent: () => import('./views/tools/customer-job-revenue/customer-job-revenue.component').then(m => m.CustomerJobRevenueComponent)
 					},
 					{
+						path: 'admin-expiry',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Superuser] },
+						loadComponent: () => import('./views/tools/admin-expiry/admin-expiry.component').then(m => m.AdminExpiryComponent)
+					},
+					{
 						path: 'uniform-upload',
 						canActivate: [authGuard],
 						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector], helpKey: 'uniform-upload' },

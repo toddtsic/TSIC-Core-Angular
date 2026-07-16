@@ -529,6 +529,43 @@ public class JobRepository : IJobRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<Contracts.Dtos.AdminExpiry.AdminExpiryCustomerDto>> GetAdminExpiredJobsByCustomerAsync(
+        CancellationToken cancellationToken = default)
+    {
+        // One flat SQL pass over expired jobs + owning customer; the per-customer
+        // grouping is cheap and done in memory (result set is small by definition).
+        var expired = await _context.Jobs
+            .AsNoTracking()
+            .Where(JobExpiry.ExpiredForAdmin)
+            .Select(j => new
+            {
+                j.CustomerId,
+                j.Customer.CustomerName,
+                j.JobId,
+                j.JobName,
+                j.ExpiryAdmin
+            })
+            .ToListAsync(cancellationToken);
+
+        return expired
+            .GroupBy(x => new { x.CustomerId, x.CustomerName })
+            .OrderBy(g => g.Key.CustomerName)
+            .Select(g => new Contracts.Dtos.AdminExpiry.AdminExpiryCustomerDto
+            {
+                CustomerId = g.Key.CustomerId,
+                CustomerName = g.Key.CustomerName ?? "(unnamed)",
+                Jobs = g.OrderBy(x => x.JobName)
+                    .Select(x => new Contracts.Dtos.AdminExpiry.AdminExpiryJobDto
+                    {
+                        JobId = x.JobId,
+                        JobName = x.JobName ?? "(unnamed)",
+                        ExpiryAdmin = x.ExpiryAdmin
+                    })
+                    .ToList()
+            })
+            .ToList();
+    }
+
     public async Task<List<Guid>> GetCustomerJobIdsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
         var customerId = await _context.Jobs

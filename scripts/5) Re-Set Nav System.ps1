@@ -170,7 +170,6 @@ $adminManifest = @(
     (New-AdminItem 'Configure' 'gear' 2 'Dropdown Options'    'list'          'configure/ddl-options'             6  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Profile Editor'      'pencil-square' 'tools/profile-editor'              7  0 0 1)
     (New-AdminItem 'Configure' 'gear' 2 'Report Catalogue'    'collection'    'reporting/report-catalogue-editor' 9  0 0 1)
-    (New-AdminItem 'Configure' 'gear' 2 'Theme'               'palette'       'configure/theme'                   10 0 0 1)
 
     # -- 3. Teams & Rosters (formerly LADT; team composition + roster ops) -
     (New-AdminItem 'Teams & Rosters' 'diagram-3' 3 'L-A-D-T Editor'        'pencil-square'    'ladt/editor'          1 1 1 1)
@@ -289,8 +288,9 @@ $adminManifest = @(
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Nav Editor'        'list'        'configure/nav-editor'      3 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Widget Editor'     'grid'        'configure/widget-editor'   4 0 0 1)
     (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Job Clone'         'copy'        'configure/job-clone'       5 0 0 1)
-    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Profile Migration' 'arrow-right' 'tools/profile-migration'   6 0 0 1)
-    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Change Password'   'key'         'tools/change-password'     7 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Admin Expiry'      'calendar-x'  'tools/admin-expiry'        6 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Profile Migration' 'arrow-right' 'tools/profile-migration'   7 0 0 1)
+    (New-AdminItem 'TSIC Admin' 'shield-lock' 12 'Change Password'   'key'         'tools/change-password'     8 0 0 1)
 )
 
 Write-Host "Admin manifest: $($adminManifest.Count) items" -ForegroundColor DarkGray
