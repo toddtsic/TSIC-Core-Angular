@@ -32,14 +32,26 @@ public record PaymentState
 
     // ── Derived: principal vs proc splits per method ──
 
+    // Principal recovery is rounded to cents: a booked gross is itself cent-quantized
+    // (principal + a fee the charge engine rounded to cents), so the raw quotient sits
+    // within a half-cent of the true principal — rounding recovers it EXACTLY, which
+    // puts ProcCollected on exactly the fee collected at charge time and lets
+    // FeeProcessingTarget reproduce the booked fee. Unrounded, the half-cent sliver was
+    // misread as unpaid principal and re-billed at the CC rate, tipping the target
+    // across a rounding boundary (the $75 eCheck penny: 76.12/1.015 = 74.99507 → the
+    // 0.00493 "shortfall" pushed the target from 1.12 to 1.13).
     public decimal CcPrincipalPaid =>
-        BAddProcessingFees && CcRate > 0m ? CcGrossPaid / (1m + CcRate) : CcGrossPaid;
+        BAddProcessingFees && CcRate > 0m
+            ? System.Math.Round(CcGrossPaid / (1m + CcRate), 2, System.MidpointRounding.AwayFromZero)
+            : CcGrossPaid;
 
     public decimal CcProcCollected => CcGrossPaid - CcPrincipalPaid;
 
     // eCheck mirrors CC: gross stored in Payamt, principal reversed out at echeckRate.
     public decimal EcheckPrincipalPaid =>
-        BAddProcessingFees && EcheckRate > 0m ? EcheckGrossPaid / (1m + EcheckRate) : EcheckGrossPaid;
+        BAddProcessingFees && EcheckRate > 0m
+            ? System.Math.Round(EcheckGrossPaid / (1m + EcheckRate), 2, System.MidpointRounding.AwayFromZero)
+            : EcheckGrossPaid;
 
     public decimal EcheckProcCollected => EcheckGrossPaid - EcheckPrincipalPaid;
 

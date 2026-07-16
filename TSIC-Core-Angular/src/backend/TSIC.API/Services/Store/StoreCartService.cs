@@ -419,8 +419,8 @@ public sealed class StoreCartService : IStoreCartService
     private static void RecalculateLineItemFees(StoreCartBatchSkus lineItem, JobStoreConfig config)
     {
         var subtotal = lineItem.UnitPrice * lineItem.Quantity;
-        lineItem.FeeProcessing = Math.Round(subtotal * config.StoreTsicrate / 100m, 2);
-        lineItem.SalesTax = Math.Round(subtotal * config.StoreSalesTax / 100m, 2);
+        lineItem.FeeProcessing = Math.Round(subtotal * config.StoreTsicrate / 100m, 2, MidpointRounding.AwayFromZero);
+        lineItem.SalesTax = Math.Round(subtotal * config.StoreSalesTax / 100m, 2, MidpointRounding.AwayFromZero);
         lineItem.FeeProduct = 0m; // No product fee in current implementation
         lineItem.FeeTotal = lineItem.FeeProcessing + lineItem.SalesTax + lineItem.FeeProduct;
     }

@@ -102,17 +102,19 @@ export class TeamPaymentService {
     resetDonation(): void { this._donation.set(0); }
 
     /** Donation's CC-path contribution: principal + CC processing, at the same effective rate the
-     *  server charges and rounded the same way, so the submitted total matches serverTotal. */
+     *  server charges and rounded the same way, so the submitted total matches serverTotal.
+     *  The 1e-7 nudge mirrors the server's decimal AwayFromZero at true half-cent midpoints,
+     *  which binary doubles store just BELOW the boundary (e.g. 2.845 → 2.84499…). */
     readonly donationCc = computed(() => {
         const d = this._donation();
         if (d <= 0) return 0;
-        return d + (this._bAddProcessingFees() ? Math.round(d * this._effectiveCcRate() * 100) / 100 : 0);
+        return d + (this._bAddProcessingFees() ? Math.round(d * this._effectiveCcRate() * 100 + 1e-7) / 100 : 0);
     });
     /** Donation's eCheck-path contribution: principal + eCheck processing (the lower ACH rate). */
     readonly donationEcheck = computed(() => {
         const d = this._donation();
         if (d <= 0) return 0;
-        return d + (this._bAddProcessingFees() ? Math.round(d * this._effectiveEcheckRate() * 100) / 100 : 0);
+        return d + (this._bAddProcessingFees() ? Math.round(d * this._effectiveEcheckRate() * 100 + 1e-7) / 100 : 0);
     });
     /** Just the CC processing levied on the donation — for the help-text breakdown. */
     readonly donationProcessing = computed(() => Math.max(0, this.donationCc() - this._donation()));

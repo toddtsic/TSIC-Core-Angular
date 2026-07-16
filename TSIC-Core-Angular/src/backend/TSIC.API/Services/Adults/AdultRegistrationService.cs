@@ -861,7 +861,7 @@ public class AdultRegistrationService : IAdultRegistrationService
             ? await _feeService.GetEffectiveProcessingRateAsync(jobId, cancellationToken)
             : 0m;
         var processing = baseTotal > 0m && feeCtx.AddProcessingFees
-            ? Math.Round(baseTotal * rate, 2)
+            ? Math.Round(baseTotal * rate, 2, MidpointRounding.AwayFromZero)
             : 0m;
         var total = baseTotal + processing;
 

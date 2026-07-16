@@ -24,9 +24,12 @@ function toNumber(value: number | string | undefined | null): number {
 }
 
 /** Half-up to cents — mirrors the server's Math.Round(x, 2, MidpointRounding.AwayFromZero) on the
- *  non-negative amounts this file deals in. */
+ *  non-negative amounts this file deals in. The 1e-7 nudge counters binary-double representation
+ *  error: a true half-cent like 38.065 is stored as 38.064999…, which bare Math.round sends DOWN
+ *  while the server's decimal math rounds UP. Real money values sit ≥ 1e-4 (of a cent) from any
+ *  rounding boundary, so the nudge can never flip a non-midpoint value. */
 function roundCents(value: number): number {
-    return Math.round(value * 100) / 100;
+    return Math.round(value * 100 + 1e-7) / 100;
 }
 
 /** Authorize.Net subscription statuses that can no longer draft the card. Mirrors
