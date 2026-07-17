@@ -492,6 +492,7 @@ interface TeamResultDto {
   opponentRecord?: string;      // NEW — opponent's W-L-T
   latitude?: number;            // NEW — field coordinates for maps
   longitude?: number;           // NEW
+  fAddress?: string;            // NEW — pre-formatted field address ("123 Main St, Allentown, PA 18101"); use instead of lat/lng when geolocation is unavailable
   gStatusCode?: number;         // NEW — game status
 }
 ```

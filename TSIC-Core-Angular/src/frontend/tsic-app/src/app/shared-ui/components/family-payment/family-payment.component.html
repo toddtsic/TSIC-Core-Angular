@@ -90,6 +90,75 @@
     (checkSubmitted)="onCheckSubmitted($event)">
   </app-accounting-ledger>
 
+  <!-- ── ARB Subscription Cards — one per subscribed REGISTRATION, following the scope
+       selector exactly like the ledger: family scope shows every player's, person scope only
+       the viewed player's. Stored snapshot everywhere; live Authorize.Net read (and the cancel
+       action it unlocks) is Production-only. -->
+  @for (card of subscriptionCards(); track card.regId) {
+    <div class="accounting-zone">
+      <div class="section-title-row">
+        <h4 class="section-title">
+          ARB Subscription — {{ card.playerName }}
+          @if (card.eventLabel) {
+            <span class="sub-event-label">{{ card.eventLabel }}</span>
+          }
+        </h4>
+        <span class="badge" [class.bg-success]="card.sub.status === 'active'" [class.bg-secondary]="card.sub.status !== 'active'">{{ card.sub.status }}</span>
+      </div>
+      @if (loadingSubRegIds().has(card.regId)) {
+        <div class="text-muted"><span class="spinner-border spinner-border-sm me-1"></span> Loading...</div>
+      } @else {
+        <div class="sub-grid">
+          <div class="sub-field">
+            <span class="sub-label">Subscription ID</span>
+            <span class="sub-value">{{ card.sub.subscriptionId }}</span>
+          </div>
+          <div class="sub-field">
+            <span class="sub-label">Start Date</span>
+            <span class="sub-value">{{ card.sub.startDate | date:'M/d/yy' }}</span>
+          </div>
+          <div class="sub-field">
+            <span class="sub-label">Amount</span>
+            <span class="sub-value">{{ card.sub.perOccurrenceAmount | currency }} / {{ card.sub.intervalLabel }}</span>
+          </div>
+          <div class="sub-field">
+            <span class="sub-label">Occurrences</span>
+            <span class="sub-value">{{ card.sub.totalOccurrences }}</span>
+          </div>
+        </div>
+        @if (!card.isLive) {
+          <p class="sub-stored-note">
+            <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Stored record — live Authorize.Net status is shown in Production.
+          </p>
+        }
+        <!-- Cancel targets live Authorize.Net, so it only appears once a live read has
+             succeeded (Production). Off-Production the stored snapshot is display-only. -->
+        @if (card.isLive && card.sub.status === 'active') {
+          <button type="button" class="btn btn-sm btn-outline-danger mt-3" (click)="confirmCancelSubscription(card.regId)" [disabled]="cancellingSubRegId() === card.regId">
+            @if (cancellingSubRegId() === card.regId) { <span class="spinner-border spinner-border-sm me-1"></span> } Cancel Subscription
+          </button>
+        }
+
+        @if (confirmCancelRegId() === card.regId) {
+          <div class="cancel-sub-confirm mt-3">
+            <div class="alert alert-danger d-flex flex-column gap-2 mb-0">
+              <strong>Are you sure you want to cancel {{ card.playerName }}'s subscription?</strong>
+              <span>This will permanently cancel the recurring billing ({{ card.sub.perOccurrenceAmount | currency }} {{ card.sub.intervalLabel }}) with Authorize.Net. This action cannot be undone.</span>
+              <div class="d-flex gap-2 mt-1">
+                <button type="button" class="btn btn-sm btn-danger" (click)="cancelSubscription(card.regId)">
+                  Yes, Cancel Subscription
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-secondary" (click)="dismissCancelSubscription()">
+                  No, Keep Active
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+
   <!-- Contextual hint -->
   @if (scope() === 'family') {
     <p class="family-scope-hint">

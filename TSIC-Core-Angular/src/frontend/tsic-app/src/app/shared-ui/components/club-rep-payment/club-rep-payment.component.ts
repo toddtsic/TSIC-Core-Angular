@@ -96,6 +96,9 @@ export class ClubRepPaymentComponent {
     this.scope() === 'club' ? this.allTeams() : undefined
   );
 
+  // "eCheck Owed" scenario column — only when the job actually offers eCheck.
+  jobOffersEcheck = computed(() => this.data()?.jobOffersEcheck ?? false);
+
   allAccountingRecords = computed(() => this.data()?.accountingRecords ?? []);
   accountingRecords = computed(() => {
     const records = this.allAccountingRecords();

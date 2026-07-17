@@ -199,6 +199,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                 OpponentRecord = oppId.HasValue ? recordLookup.GetValueOrDefault(oppId.Value) : null,
                 Latitude = g.Field?.Latitude,
                 Longitude = g.Field?.Longitude,
+                FAddress = BuildFieldAddress(g.Field),
                 GStatusCode = g.GStatusCode,
                 GStatusText = g.GStatusCodeNavigation?.GStatusText
             };

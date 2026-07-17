@@ -137,8 +137,17 @@ public class AdnReconciliationService : IAdnReconciliationService
                 && AllowedTransactionStatuses.Contains(p.Tx.transactionStatus))
             .ToList();
 
+        // eCheck returns ride a separate track. A returnedItem is its OWN transaction, dated the
+        // day the bank said no, linked to the draft it reverses via refTransId; the original row
+        // keeps "Settled Successfully" forever. Returns become the negative lines of the returns
+        // .iif — admitted only through the paired-settlement guard below (a bounce whose payment
+        // never shipped in any close is net-zero and stays out of the books entirely).
+        var returnCandidates = pulled
+            .Where(p => string.Equals(p.Tx.transactionStatus, "returnedItem", StringComparison.Ordinal))
+            .ToList();
+
         var existingIds = await _repo.GetExistingTransactionIdsAsync(
-            importable.Select(p => p.Tx.transId),
+            importable.Select(p => p.Tx.transId).Concat(returnCandidates.Select(p => p.Tx.transId)),
             cancellationToken);
 
         var toInsert = new List<Txs>();
@@ -157,10 +166,86 @@ public class AdnReconciliationService : IAdnReconciliationService
                 BOldSysTx = 0,
                 TransactionId = tx.transId,
                 TransactionStatus = MapStatus(tx.transactionStatus),
+                // Tender captured at the chokepoint (Visa/MasterCard/.../eCheck) — the CC-vs-eCheck
+                // signal the sproc can't reconstruct downstream. Lands in adn.Txs.[Transaction Type].
+                TransactionType = tx.accountType,
                 SettlementAmount = tx.settleAmount.ToString(),
                 SettlementDateTime = batch.settlementTimeLocal.ToString("dd-MMM-yyyy hh:mm:ss tt") + " EDT",
                 InvoiceNumber = tx.invoiceNumber,
             });
+        }
+
+        // ── eCheck returns: paired-settlement guard + backstop ────────────────────────────
+        // For each returnedItem: resolve refTransId (one details call each; returns are rare),
+        // then admit it as a 'Returned Item' row ONLY when the original settlement is in the
+        // books — imported by a prior close, or importing right now (intra-month bounce: both
+        // legs land, the pair nets to zero on the client's statement instead of hiding).
+        // Regardless of admission, the sweep backstop runs for every return so the player-side
+        // Failed eCheck record is guaranteed even when the daily sweep missed the bounce — its
+        // own guards make an already-processed return a no-op.
+        var returnsImported = 0;
+        var returnOrphans = 0;
+        var backstopReversals = 0;
+        var thisImportIds = new HashSet<string>(toInsert.Select(t => t.TransactionId), StringComparer.Ordinal);
+
+        foreach (var (batch, tx) in returnCandidates)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Player-ledger guarantee first — independent of whether the row is importable.
+            try
+            {
+                var outcome = await _sweep.EnsureReturnProcessedAsync(tx.transId, cancellationToken);
+                if (outcome != null) backstopReversals++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "AdnReconciliation: return backstop failed for tx {TxId}", tx.transId);
+            }
+
+            if (existingIds.Contains(tx.transId))
+            {
+                skippedDuplicates++;
+                continue;
+            }
+
+            var detail = _adnApi.ADN_GetTransactionDetails(env, loginId, transactionKey, tx.transId);
+            var originalTxId = detail?.messages?.resultCode == messageTypeEnum.Ok
+                ? detail.transaction?.refTransId
+                : null;
+
+            var originalInBooks = !string.IsNullOrEmpty(originalTxId)
+                && (thisImportIds.Contains(originalTxId)
+                    || (await _repo.GetExistingTransactionIdsAsync([originalTxId], cancellationToken)).Count > 0);
+
+            if (!originalInBooks)
+            {
+                returnOrphans++;
+                _logger.LogWarning(
+                    "AdnReconciliation: ORPHAN eCheck return {TxId} (original {OrigTxId}) — no settled row in adn.Txs; " +
+                    "excluded from the returns file (money never counted is never clawed back). Review manually.",
+                    tx.transId, originalTxId ?? "(unresolved)");
+                continue;
+            }
+
+            toInsert.Add(new Txs
+            {
+                BOldSysTx = 0,
+                TransactionId = tx.transId,
+                ReferenceTransactionId = originalTxId,
+                // A bounce books identically to a refund (Checking down, Liability Due to Customers
+                // down), so it rides the existing IIF-Credits path as a negative line — no separate
+                // returns file. Return-vs-refund stays separable via [Transaction Type] = 'eCheck'
+                // and the [Reference Transaction ID] back-link to the original draft.
+                TransactionStatus = "Credited",
+                TransactionType = tx.accountType,
+                SettlementAmount = tx.settleAmount.ToString(),
+                SettlementDateTime = batch.settlementTimeLocal.ToString("dd-MMM-yyyy hh:mm:ss tt") + " EDT",
+                InvoiceNumber = !string.IsNullOrEmpty(tx.invoiceNumber)
+                    ? tx.invoiceNumber
+                    : detail?.transaction?.order?.invoiceNumber,
+            });
+            returnsImported++;
         }
 
         if (toInsert.Count > 0)
@@ -170,10 +255,11 @@ public class AdnReconciliationService : IAdnReconciliationService
         }
 
         _logger.LogInformation(
-            "AdnReconciliation: imported {Imported} new Txs ({Skipped} duplicates skipped) " +
+            "AdnReconciliation: imported {Imported} new Txs ({Skipped} duplicates skipped, {Returns} eCheck returns, " +
+            "{Orphans} orphan returns excluded, {Backstop} backstop reversals) " +
             "from {Batches} batches / {Transactions} transactions for {Year}-{Month:D2}",
-            toInsert.Count, skippedDuplicates, batches.Length, pulled.Count,
-            settlementYear, settlementMonth);
+            toInsert.Count, skippedDuplicates, returnsImported, returnOrphans, backstopReversals,
+            batches.Length, pulled.Count, settlementYear, settlementMonth);
 
         // The month's Txs just changed — drop any persisted close artifacts so the next build/read
         // (the eager Prepare that follows, or a later Step 2/3) regenerates from the fresh data.
@@ -185,6 +271,9 @@ public class AdnReconciliationService : IAdnReconciliationService
             TransactionsPulled = pulled.Count,
             Imported = toInsert.Count,
             SkippedDuplicates = skippedDuplicates,
+            ReturnsImported = returnsImported,
+            ReturnOrphans = returnOrphans,
+            BackstopReversals = backstopReversals,
         };
     }
 
@@ -542,7 +631,14 @@ public class AdnReconciliationService : IAdnReconciliationService
     {
         "settledSuccessfully" => "Settled Successfully",
         "refundSettledSuccessfully" => "Credited",
+        // A bounced eCheck books identically to a refund (Checking down, Liability Due to
+        // Customers down) — so it rides the existing IIF-Credits path. Return-vs-refund stays
+        // separable via [Transaction Type] = 'eCheck' + [Reference Transaction ID].
+        "returnedItem" => "Credited",
         "voided" => "Voided",
-        _ => string.Empty,
+        // Unmapped statuses pass through raw rather than blanking — an unexpected token stays
+        // visible in [Transaction Status] for diagnosis, and still won't match the sproc's
+        // title-case filters, so it can't leak into Payments/Credits.
+        _ => adnStatus,
     };
 }

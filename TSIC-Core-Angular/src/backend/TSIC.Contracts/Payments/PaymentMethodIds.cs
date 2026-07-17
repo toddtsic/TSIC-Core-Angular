@@ -66,10 +66,14 @@ public static class PaymentMethodIds
     // scholarship as a Correction-method row with Comment="Scholarship"
     // (PlayerCheckTests.cs:217); the Scholarship GUID is defensive against
     // any legacy-written rows.
+    // System-issued adjustment rows are stamped with this id directly (e.g. the ARB
+    // rounding credit in PaymentService.CreateArbSubscriptionsCoreAsync).
+    public static readonly Guid OnlineCorrectionByTsic = Guid.Parse("34ECA575-A268-E111-9D56-F04DA202060D");
+
     public static readonly IReadOnlySet<Guid> Correction = new HashSet<Guid>
     {
         Guid.Parse("33ECA575-A268-E111-9D56-F04DA202060D"), // Online Correction By Client
-        Guid.Parse("34ECA575-A268-E111-9D56-F04DA202060D"), // Online Correction By TSIC
+        OnlineCorrectionByTsic,                              // Online Correction By TSIC
         Guid.Parse("2CECA575-A268-E111-9D56-F04DA202060D"), // Scholarship (legacy)
     };
 }

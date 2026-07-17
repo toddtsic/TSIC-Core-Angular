@@ -15,6 +15,7 @@ export type TeamResultDto = {
     opponentRecord?: string | null;
     latitude?: number | null;
     longitude?: number | null;
+    fAddress?: string | null;
     gStatusCode?: number | null;
     gStatusText?: string | null;
 };

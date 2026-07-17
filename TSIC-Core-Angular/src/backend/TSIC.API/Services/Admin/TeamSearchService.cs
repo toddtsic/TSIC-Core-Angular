@@ -291,6 +291,7 @@ public sealed class TeamSearchService : ITeamSearchService
         var rawTeams = await _teamRepo.GetRegisteredTeamsForClubRepAndJobAsync(clubRepRegistrationId: clubRepRegistrationId, jobId: jobId, cancellationToken: ct);
         var teams = await _shaper.ShapeAsync(jobId, rawTeams, ct: ct);
         var accountingRecords = await _accountingRepo.GetByRegistrationIdAsync(clubRepRegistrationId, ct);
+        var jobPaymentInfo = await _jobRepo.GetJobPaymentInfoAsync(jobId, ct);
 
         return new ClubRepAccountingDto
         {
@@ -300,7 +301,8 @@ public sealed class TeamSearchService : ITeamSearchService
             PaidTotal = reg.PaidTotal,
             OwedTotal = reg.OwedTotal,
             Teams = teams,
-            AccountingRecords = accountingRecords
+            AccountingRecords = accountingRecords,
+            JobOffersEcheck = jobPaymentInfo?.BEnableEcheck ?? false
         };
     }
 

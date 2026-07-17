@@ -12,5 +12,6 @@ export type ClubRepAccountingDto = {
     owedTotal: number;
     teams: Array<RegisteredTeamDto>;
     accountingRecords: Array<AccountingRecordDto>;
+    jobOffersEcheck: boolean;
 };
 

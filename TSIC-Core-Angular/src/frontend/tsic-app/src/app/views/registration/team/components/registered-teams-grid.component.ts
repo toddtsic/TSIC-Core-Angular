@@ -133,6 +133,17 @@ import type { RegisteredTeamDto } from '@core/api';
               </span>
             </ng-template>
           </e-column>
+          <!-- eCheck scenario column (search ledgers) — what settling by eCheck would cost.
+               Gated on the job actually offering eCheck (showEkOwed). The wizard grids keep
+               this hidden: there the CC-Owed column itself follows the selected method. -->
+          <e-column field="ekOwedTotal" headerText="eCheck Owed" width="75" textAlign="Right"
+                    [visible]="showEkOwed()">
+            <ng-template #template let-data>
+              <span [style.color]="data.ekOwedTotal > 0 ? 'var(--bs-danger)' : ''" [class.fw-semibold]="data.ekOwedTotal > 0">
+                {{ data.ekOwedTotal | currency }}
+              </span>
+            </ng-template>
+          </e-column>
           <e-column field="ckOwedTotal" headerText="Check Owed" width="75" textAlign="Right"
                     [visible]="showCkOwed()">
             <ng-template #template let-data>
@@ -201,6 +212,13 @@ import type { RegisteredTeamDto } from '@core/api';
                 <ng-template #footerTemplate let-data>
                   <div class="aggregate-value" [style.color]="sumMethodOwed() > 0 ? 'var(--bs-danger)' : 'var(--bs-success)'">
                     {{ sumMethodOwed() | currency }}
+                  </div>
+                </ng-template>
+              </e-column>
+              <e-column field="ekOwedTotal" type="Sum" format="C2">
+                <ng-template #footerTemplate let-data>
+                  <div class="aggregate-value" [style.color]="sumEkOwed() > 0 ? 'var(--bs-danger)' : 'var(--bs-success)'">
+                    {{ sumEkOwed() | currency }}
                   </div>
                 </ng-template>
               </e-column>
@@ -295,6 +313,9 @@ export class RegisteredTeamsGridComponent {
     readonly showProcessing = input(false);
     readonly showPaid = input(true);
     readonly showCcOwed = input(true);
+    // eCheck scenario column — off by default; search ledgers turn it on when the job
+    // offers eCheck (ClubRepAccountingDto.jobOffersEcheck).
+    readonly showEkOwed = input(false);
     readonly showCkOwed = input(true);
     readonly showLop = input(false);
     readonly showAgeGroup = input(true);
@@ -328,9 +349,11 @@ export class RegisteredTeamsGridComponent {
     // non-zero net adjustment (discount, late fee, or correction — any sign).
     readonly showFeeAdj = computed(() => this.alwaysShowFeeAdj() || this.teams().some(t => (t.feeAdj ?? 0) !== 0));
 
-    // Last column-visibility state we rebuilt the header for. Seeded to match the
-    // initial all-hidden render so the first dataBound is a no-op.
-    private lastColVis = { feeAdj: false };
+    // Last column-visibility/header state we rebuilt the header for. feeAdj is seeded to
+    // match the initial all-hidden render so the first dataBound is a no-op; ccOwedHeader
+    // is seeded null (the initial render paints the correct label from the binding) and
+    // recorded on first dataBound.
+    private lastColVis: { feeAdj: boolean; ccOwedHeader: string | null } = { feeAdj: false, ccOwedHeader: null };
 
     // Body-mounted styled popover for the Fee-Adj header "i". See wireFeeAdjInfo.
     private feeAdjPopover: HTMLElement | null = null;
@@ -423,27 +446,34 @@ export class RegisteredTeamsGridComponent {
     /**
      * Runs after every dataBound — i.e. after the grid has finished rendering the
      * current data. Stamps row numbers, then resyncs the header if a conditional
-     * column just toggled.
+     * column just toggled or a header label changed.
      *
      * Why here and not on a reactive binding: frozen-column grids
      * (frozenTeamCol=true) split header and content into separate frozen/movable
      * tables. When a column's `visible` flips at runtime — e.g. Discount turns on
      * after a code is applied — Syncfusion rebuilds the CONTENT but can leave the
      * movable HEADER stale, so header labels drift one column out of step with the
-     * cells. refreshColumns() rebuilds the header, but it MUST run after the data
+     * cells. The same staleness hits `headerText`: a method toggle updates the
+     * ccOwedHeader binding (and the column model), but the rendered header cell
+     * keeps its original text — the wizard showed eCheck amounts under a "CC Owed"
+     * label. refreshColumns() rebuilds the header, but it MUST run after the data
      * render settles; firing it mid-change-detection raced the async data refresh,
-     * which then re-clobbered the header. dataBound is that settled point.
+     * which then re-clobbered the header. dataBound is that settled point (a method
+     * toggle always lands here — gridRows() depends on paymentMethod).
      */
     onDataBound(grid: GridComponent): void {
         this.refreshRowNumbers(grid);
         this.wireFeeAdjInfo(grid);
 
         const feeAdj = this.showFeeAdj();
-        if (feeAdj === this.lastColVis.feeAdj) return;
+        const ccOwedHeader = this.ccOwedHeader();
+        const headerStale = this.lastColVis.ccOwedHeader !== null
+            && ccOwedHeader !== this.lastColVis.ccOwedHeader;
+        const feeAdjStale = feeAdj !== this.lastColVis.feeAdj;
         // Record BEFORE refreshColumns so the dataBound it triggers sees no change
         // and returns early — that's the loop guard.
-        this.lastColVis = { feeAdj };
-        grid.refreshColumns();
+        this.lastColVis = { feeAdj, ccOwedHeader };
+        if (feeAdjStale || headerStale) grid.refreshColumns();
     }
 
     /** Stamp 1-based row numbers in the unbound `#` column. Re-runs on dataBound + sort/page actions. */
@@ -499,6 +529,7 @@ export class RegisteredTeamsGridComponent {
     readonly sumProcessing = computed(() => this.teams().reduce((s, t) => s + this.rowProcFee(t), 0));
     readonly sumFeeAdj = computed(() => this.teams().reduce((s, t) => s + (t.feeAdj ?? 0), 0));
     readonly sumCkOwed = computed(() => this.teams().reduce((s, t) => s + t.ckOwedTotal, 0));
+    readonly sumEkOwed = computed(() => this.teams().reduce((s, t) => s + t.ekOwedTotal, 0));
     readonly sumMethodOwed = computed(() => this.teams().reduce((s, t) => s + this.rowMethodOwed(t), 0));
 
     // Grid dataSource. Depends on paymentMethod so a method toggle yields a NEW array reference —

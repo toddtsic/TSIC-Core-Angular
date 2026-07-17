@@ -124,6 +124,23 @@ public record AdnImportResult
     public required int TransactionsPulled { get; init; }
     public required int Imported { get; init; }
     public required int SkippedDuplicates { get; init; }
+
+    /// <summary>eCheck returnedItem rows imported for the returns file (negative lines).</summary>
+    public int ReturnsImported { get; init; }
+
+    /// <summary>
+    /// Orphan guard hits: returnedItem txs whose original settlement was never imported in any
+    /// close — excluded from the returns file (money never counted is never clawed back) and
+    /// surfaced for a human. Expected 0.
+    /// </summary>
+    public int ReturnOrphans { get; init; }
+
+    /// <summary>
+    /// Returns the daily sweep had MISSED whose Failed-eCheck ledger record the close's backstop
+    /// just wrote. Expected 0 — non-zero means the sweep lost a return (outage / aged window)
+    /// and the backstop did its job.
+    /// </summary>
+    public int BackstopReversals { get; init; }
 }
 
 public record AdnReconciliationRunResult

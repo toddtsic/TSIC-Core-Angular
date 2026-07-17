@@ -31,11 +31,31 @@ public record FamilyAccountingDto
     public required List<AccountingRecordDto> AccountingRecords { get; init; }
 
     /// <summary>
+    /// Stored ARB snapshot (Registrations.AdnSubscription* columns) for every registration in
+    /// the sibling set that carries one — ARB mints ONE Authorize.Net subscription per
+    /// REGISTRATION, so several players (or several events of one player) can each have their
+    /// own. Keyed by RegistrationId (= Players[].TeamId) so the subscription card follows the
+    /// component's player selector. Stored snapshots only: the live ADN read is Production-only
+    /// and fetched per card on demand, exactly like the detail panel's anchor card.
+    /// </summary>
+    public required List<FamilyPlayerSubscriptionDto> Subscriptions { get; init; }
+
+    /// <summary>
     /// Jobs.PaymentMethodsAllowedCode (1=CC only, 2=CC or Check, 3=Check only). Lets the grid
     /// drop the "Check Owed" column when this job takes credit cards only — an amount that can
     /// never be tendered by check is noise. See <see cref="TSIC.Contracts.Constants.PaymentMethodConstants"/>.
     /// </summary>
     public int PaymentMethodsAllowedCode { get; init; }
+}
+
+/// <summary>
+/// A registration's stored ARB snapshot, keyed so the family-payment scope selector can show
+/// the right card(s) for the viewed player. See <see cref="FamilyAccountingDto.Subscriptions"/>.
+/// </summary>
+public record FamilyPlayerSubscriptionDto
+{
+    public required Guid RegistrationId { get; init; }
+    public required SubscriptionDetailDto Subscription { get; init; }
 }
 
 /// <summary>
@@ -73,4 +93,12 @@ public record RegisteredPlayerInfo : TSIC.Contracts.Payments.IFeeDiscountBuckets
     public required decimal FeeTotal { get; init; }
     public required decimal PaidTotal { get; init; }
     public required decimal OwedTotal { get; init; }
+    // Stored ARB snapshot columns — raw Registrations.AdnSubscription* values. The service
+    // shapes non-null ids into FamilyAccountingDto.Subscriptions; the shaper ignores them.
+    public string? AdnSubscriptionId { get; init; }
+    public string? AdnSubscriptionStatus { get; init; }
+    public decimal? AdnSubscriptionAmountPerOccurence { get; init; }
+    public int? AdnSubscriptionBillingOccurences { get; init; }
+    public int? AdnSubscriptionIntervalLength { get; init; }
+    public DateTime? AdnSubscriptionStartDate { get; init; }
 }

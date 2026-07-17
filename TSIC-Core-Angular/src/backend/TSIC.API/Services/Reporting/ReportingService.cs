@@ -9,6 +9,7 @@ using BoldReports.Writer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Syncfusion.XlsIO;
 using TSIC.API.Configuration;
@@ -27,6 +28,7 @@ public sealed class ReportingService : IReportingService
     private readonly IHostEnvironment _hostEnvironment;
     private readonly ReportingSettings _settings;
     private readonly FileStorageOptions _fileStorage;
+    private readonly ILogger<ReportingService> _logger;
 
     private static readonly JsonSerializerOptions MonthEndJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -35,13 +37,15 @@ public sealed class ReportingService : IReportingService
         IHttpClientFactory httpClientFactory,
         IHostEnvironment hostEnvironment,
         IOptions<ReportingSettings> settings,
-        IOptions<FileStorageOptions> fileStorage)
+        IOptions<FileStorageOptions> fileStorage,
+        ILogger<ReportingService> logger)
     {
         _reportingRepository = reportingRepository;
         _httpClientFactory = httpClientFactory;
         _hostEnvironment = hostEnvironment;
         _settings = settings.Value;
         _fileStorage = fileStorage.Value;
+        _logger = logger;
     }
 
     public Task<List<JobReportEntryDto>> GetJobReportsAsync(
@@ -460,14 +464,15 @@ public sealed class ReportingService : IReportingService
         // Non-merch and merch reconcile to DIFFERENT QuickBooks customers even inside the same company
         // file, and staff inspect each ledger on its own — so the close ships two independent .iif files
         // (+ backing .xlsx). The flattened summary is the on-screen ledger for offline review.
-        var zipBytes = BuildReconciliationZip(new (string, byte[])[]
+        var zipEntries = new List<(string, byte[])>
         {
             ($"TSIC-AdnReconciliation-Reg-{monthKey}.xlsx", reg.Xlsx),
             ($"TSIC-AdnReconciliation-Merch-{monthKey}.xlsx", merch.Xlsx),
             ($"TSIC-AdnReconciliation-Summary-{monthKey}.xlsx", summaryXlsx),
             ("reg-consolodated.iif", reg.Iif),
             ("merch-consolodated.iif", merch.Iif),
-        });
+        };
+        var zipBytes = BuildReconciliationZip(zipEntries.ToArray());
 
         var ledger = new MonthEndLedger
         {
@@ -617,7 +622,7 @@ public sealed class ReportingService : IReportingService
 
         foreach (var tab in tabs)
         {
-            var prefix = tab.Stack == "Merch" ? "M " : "R ";
+            var prefix = tab.Stack switch { "Merch" => "M ", "Returns" => "Ret ", _ => "R " };
             var sheet = new SheetData { Name = ToUniqueSheetName(prefix + tab.Name, usedNames) };
 
             if (tab.Kind == "transactions")

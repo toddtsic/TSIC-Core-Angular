@@ -193,3 +193,64 @@
   font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
+
+// ═══════════════════════════════════════════
+// ARB SUBSCRIPTION CARDS
+// ═══════════════════════════════════════════
+// Same visual language as the detail panel's anchor card (.accounting-zone / .sub-grid there) —
+// the card moved in here so it can follow the scope selector like the ledger does.
+
+.accounting-zone {
+  padding: var(--space-4);
+  border: 1px solid var(--bs-primary);
+  border-radius: var(--radius-lg);
+  margin-top: var(--space-4);
+  margin-bottom: var(--space-5);
+  background: var(--surface-elevated-bg);
+}
+
+.section-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+// Event disambiguator beside the player name (multi-registration players).
+.sub-event-label {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+}
+
+.sub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3) var(--space-4);
+}
+
+.sub-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sub-label {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  font-weight: var(--font-weight-medium);
+}
+
+.sub-value {
+  font-size: var(--font-size-sm);
+  color: var(--bs-body-color);
+}
+
+// Muted note shown when a card is rendering the stored snapshot (not a live ADN read).
+.sub-stored-note {
+  margin: var(--space-3) 0 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}

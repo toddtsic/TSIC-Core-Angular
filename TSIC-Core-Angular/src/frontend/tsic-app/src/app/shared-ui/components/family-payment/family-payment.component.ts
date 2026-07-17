@@ -11,9 +11,23 @@ import {
   LedgerGroup,
   LedgerAddTarget
 } from '@shared-ui/components/accounting-ledger/accounting-ledger.component';
-import type { FamilyAccountingDto, RegisteredTeamDto, RefundResponse } from '@core/api';
+import { environment } from '@environments/environment';
+import type { FamilyAccountingDto, RegisteredTeamDto, RefundResponse, SubscriptionDetailDto } from '@core/api';
 
 type Scope = 'family' | 'person';
+
+/**
+ * One ARB card, scoped to the current selection. ARB mints ONE Authorize.Net subscription per
+ * REGISTRATION, so a family can carry several — the card set follows the player selector the
+ * same way the ledger does (family scope = all of them, person scope = that player's).
+ */
+interface SubscriptionCard {
+  regId: string;
+  playerName: string;
+  eventLabel: string | null;
+  sub: SubscriptionDetailDto;
+  isLive: boolean;
+}
 
 /**
  * A player grouped across ALL their registrations in this job. Keyed by name — a child
@@ -231,6 +245,100 @@ export class FamilyPaymentComponent {
     return this.allRecords();
   });
 
+  // ── ARB Subscriptions ──
+  // Only Production talks to live Authorize.Net; every other host is sandboxed and the
+  // subscription lives in an account it can't reach, so we lean on the stored snapshots
+  // that arrive with the family DTO. Mirrors the detail panel's anchor card.
+  private readonly isProdEnv = environment.envName === 'production';
+
+  // Live Authorize.Net overrides / flags, keyed by registrationId. Reset on every data
+  // reload (the stored snapshots refresh, so a stale live read must not outlive them).
+  private liveSubs = signal<ReadonlyMap<string, SubscriptionDetailDto>>(new Map());
+  private liveRegIds = signal<ReadonlySet<string>>(new Set());
+  loadingSubRegIds = signal<ReadonlySet<string>>(new Set());
+  cancellingSubRegId = signal<string | null>(null);
+  confirmCancelRegId = signal<string | null>(null);
+
+  // The card set for the CURRENT scope — family shows every subscribed registration (labeled
+  // by player), person shows only the viewed player's. Live reads override the stored snapshot.
+  subscriptionCards = computed<SubscriptionCard[]>(() => {
+    const d = this.data();
+    if (!d) return [];
+    const person = this.scope() === 'person' ? this.activePerson() : null;
+    const inScope = person ? new Set(person.registrationIds) : null;
+    const live = this.liveSubs();
+    const liveIds = this.liveRegIds();
+    const labels = this.eventLabels();
+    const playersById = new Map(this.allPlayers().map(p => [p.teamId, p]));
+    const cards: SubscriptionCard[] = [];
+    for (const s of d.subscriptions ?? []) {
+      if (inScope && !inScope.has(s.registrationId)) continue;
+      cards.push({
+        regId: s.registrationId,
+        playerName: playersById.get(s.registrationId)?.teamName ?? '',
+        eventLabel: labels.get(s.registrationId) ?? null,
+        sub: live.get(s.registrationId) ?? s.subscription,
+        isLive: liveIds.has(s.registrationId)
+      });
+    }
+    return cards;
+  });
+
+  /** Production only: pull the live Authorize.Net record for every visible card that hasn't
+   *  been live-read yet. Called from the explicit selection callbacks (never an effect). */
+  private refreshVisibleSubscriptions(): void {
+    if (!this.isProdEnv) return;
+    for (const card of this.subscriptionCards()) {
+      if (this.liveRegIds().has(card.regId) || this.loadingSubRegIds().has(card.regId)) continue;
+      this.loadSubscriptionLive(card.regId, card.playerName);
+    }
+  }
+
+  private loadSubscriptionLive(regId: string, playerName: string): void {
+    this.loadingSubRegIds.set(new Set([...this.loadingSubRegIds(), regId]));
+    this.searchService.getSubscription(regId).subscribe({
+      next: (sub) => {
+        const map = new Map(this.liveSubs());
+        map.set(regId, sub);
+        this.liveSubs.set(map);
+        this.liveRegIds.set(new Set([...this.liveRegIds(), regId]));
+        this.clearSubLoading(regId);
+      },
+      error: () => {
+        // Live refresh failed (e.g. ADN outage). Keep the stored snapshot on screen rather than
+        // wiping the card, and stay not-live so the cancel action remains hidden.
+        this.clearSubLoading(regId);
+        this.toast.show(`Live subscription status unavailable for ${playerName}; showing the stored record.`, 'warning', 5000);
+      }
+    });
+  }
+
+  private clearSubLoading(regId: string): void {
+    const next = new Set(this.loadingSubRegIds());
+    next.delete(regId);
+    this.loadingSubRegIds.set(next);
+  }
+
+  confirmCancelSubscription(regId: string): void { this.confirmCancelRegId.set(regId); }
+  dismissCancelSubscription(): void { this.confirmCancelRegId.set(null); }
+
+  cancelSubscription(regId: string): void {
+    this.confirmCancelRegId.set(null);
+    this.cancellingSubRegId.set(regId);
+    this.searchService.cancelSubscription(regId).subscribe({
+      next: () => {
+        this.cancellingSubRegId.set(null);
+        this.toast.show('Subscription cancelled', 'success', 3000);
+        this.loadData();
+        this.paymentComplete.emit();
+      },
+      error: (err) => {
+        this.cancellingSubRegId.set(null);
+        this.toast.show(err?.error?.message || 'Unknown error', 'danger', 0, 'Cancel Subscription Failed');
+      }
+    });
+  }
+
   ngOnInit(): void {
     this.loadData();
   }
@@ -241,9 +349,13 @@ export class FamilyPaymentComponent {
     this.searchService.getFamilyAccounting(this.registrationId()).subscribe({
       next: (dto) => {
         this.data.set(dto);
+        // Fresh stored snapshots supersede any earlier live reads — reset and re-read.
+        this.liveSubs.set(new Map());
+        this.liveRegIds.set(new Set());
         if (!this.initialized) { this.initScope(); this.initialized = true; }
         else this.revalidateSelection();
         this.isLoading.set(false);
+        this.refreshVisibleSubscriptions();
       },
       error: (err) => {
         this.loadError.set(err?.error?.message || 'Failed to load family accounting');
@@ -274,6 +386,7 @@ export class FamilyPaymentComponent {
   setScope(s: Scope): void {
     this.scope.set(s);
     if (s === 'family') { this.activePersonName.set(null); this.activeEventRegId.set(null); }
+    this.refreshVisibleSubscriptions();
   }
 
   /** View a player — their combined ledger across all events. The add-record modal picks which
@@ -282,6 +395,7 @@ export class FamilyPaymentComponent {
     this.activePersonName.set(name);
     this.activeEventRegId.set(null);
     this.scope.set('person');
+    this.refreshVisibleSubscriptions();
   }
 
   /** The add-record picker chose a registration — point the payment/charge actions at it. */

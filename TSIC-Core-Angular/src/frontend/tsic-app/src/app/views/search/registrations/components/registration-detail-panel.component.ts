@@ -318,7 +318,9 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (!changes['detail']) return;
     const d = this.detail();
-    if (d && this.isProdEnv && d.hasSubscription) this.loadSubscription();
+    // Family players are excluded: their card(s) live inside app-family-payment, which does
+    // its own per-registration live refresh — this panel's card is hidden for them.
+    if (d && this.isProdEnv && d.hasSubscription && !this.isFamilyPlayer()) this.loadSubscription();
   }
 
   @HostListener('document:keydown.escape')
@@ -347,7 +349,8 @@ export class RegistrationDetailPanelComponent implements OnChanges {
   setActiveTab(tab: TabType): void {
     this.activeTab.set(tab);
     // Live refresh is Production-only; off-Production the stored snapshot (seeded on load) stands.
-    if (tab === 'accounting' && this.isProdEnv && this.detail()?.hasSubscription && !this.subscriptionIsLive()) {
+    // Family players skip it — app-family-payment owns their card(s) and live refresh.
+    if (tab === 'accounting' && this.isProdEnv && this.detail()?.hasSubscription && !this.isFamilyPlayer() && !this.subscriptionIsLive()) {
       this.loadSubscription();
     }
   }

@@ -261,7 +261,10 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                     <i class="bi bi-credit-card me-2"></i>Credit Card
                   </button>
                 }
-                @if (showEcheckButton()) {
+                <!-- VI premiums are card-only: while coverage is accepted (quotes exist), the
+                     non-card methods are withdrawn — a switch would silently wipe the acceptance
+                     via the widget-sync reset. Declining coverage restores them. -->
+                @if (showEcheckButton() && !viLocksMethods()) {
                   <button type="button" class="method-btn"
                           [class.active]="isEcheck()"
                           (click)="selectMethod('Echeck')">
@@ -275,7 +278,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                     <i class="bi bi-calendar2-range me-2"></i>Pay in 2 (Deposit + Balance)
                   </button>
                 }
-                @if (showCheckButton()) {
+                @if (showCheckButton() && !viLocksMethods()) {
                   <button type="button" class="method-btn"
                           [class.active]="isCheck()"
                           (click)="selectMethod('Check')">
@@ -283,6 +286,11 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                   </button>
                 }
               </div>
+              @if (viLocksMethods()) {
+                <div class="text-muted small mt-2">
+                  <i class="bi bi-info-circle me-1"></i>Insurance premiums require a credit card — other payment methods are unavailable while coverage is selected.
+                </div>
+              }
             </div>
           }
 
@@ -402,8 +410,11 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
                 One subscription per team — refunds and cancellations are handled team-by-team.
               </div>
 
-              <!-- Sub-source picker shown only when both CC and eCheck are available for this job. -->
-              @if (showArbTrialSourcePicker()) {
+              <!-- Sub-source picker shown only when both CC and eCheck are available for this job.
+                   Hidden while VI coverage is accepted (card-only premium): quotes only exist on
+                   the CC source, so hiding the picker pins funding to CC until coverage is
+                   declined or the widget-sync reset clears it. -->
+              @if (showArbTrialSourcePicker() && !viLocksMethods()) {
                 <div class="mb-3">
                   <label class="form-label fw-semibold mb-2">Fund this with:</label>
                   <div class="d-flex gap-2 flex-wrap">
@@ -967,6 +978,14 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
         && this.hasBalance()
         && (this.isCc() || (this.isArbTrial() && this.arbTrialSource() === 'CC'))
     );
+
+    /** VI premiums are card-only — accepted coverage (quotes exist) withdraws the non-card
+     *  method tiles (eCheck / Check / the ARB-Trial eCheck sub-source) so a switch can't
+     *  silently discard the acceptance via the widget-sync reset. Quotes only ever appear
+     *  while a CC path is active (showViSection), so no auto-switch is needed here; declining
+     *  coverage clears quotes and restores the tiles. CC ↔ ARB-Trial stay switchable — both
+     *  are card paths, and that switch already wipes + remounts the widget (lock releases). */
+    readonly viLocksMethods = computed(() => this.insuranceSvc.quotes().length > 0);
 
     /** Standalone VI surface for returning reps who are paid in full but still have
      *  uncovered teams within VI's 14-day window. Backend `BuildTeamOfferAsync`

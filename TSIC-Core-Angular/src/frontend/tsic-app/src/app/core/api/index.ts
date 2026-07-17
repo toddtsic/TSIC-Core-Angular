@@ -302,6 +302,7 @@ export type { FamilyContactDto } from './models/FamilyContactDto';
 export type { FamilyPlayerDto } from './models/FamilyPlayerDto';
 export type { FamilyPlayerRegistrationDto } from './models/FamilyPlayerRegistrationDto';
 export type { FamilyPlayersResponseDto } from './models/FamilyPlayersResponseDto';
+export type { FamilyPlayerSubscriptionDto } from './models/FamilyPlayerSubscriptionDto';
 export type { FamilyProfileResponse } from './models/FamilyProfileResponse';
 export type { FamilyRegistrationItemDto } from './models/FamilyRegistrationItemDto';
 export type { FamilyRegistrationRequest } from './models/FamilyRegistrationRequest';

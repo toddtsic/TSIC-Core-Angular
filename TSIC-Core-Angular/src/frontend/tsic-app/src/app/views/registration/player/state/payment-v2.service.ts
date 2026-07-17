@@ -32,6 +32,15 @@ function roundCents(value: number): number {
     return Math.round(value * 100 + 1e-7) / 100;
 }
 
+/** Floor to cents — mirrors the server's ARB per-occurrence math (PaymentService
+ *  .CreateArbSubscriptionsCoreAsync floors so a plan can never draft more than the owed
+ *  basis; the cent remainder is forgiven server-side as a Correction credit at mint).
+ *  The 1e-7 nudge keeps exact-cent quotients from flooring a cent low on FP dust
+ *  (e.g. 79.98/6 → 1332.9999… must floor to 1333, not 1332). */
+function floorCents(value: number): number {
+    return Math.floor(value * 100 + 1e-7) / 100;
+}
+
 /** Authorize.Net subscription statuses that can no longer draft the card. Mirrors
  *  PaymentService.DeadArbStatuses — "suspended" is NOT here: the gateway resumes a suspended
  *  subscription once the card clears, so it still bills. */
@@ -316,7 +325,7 @@ export class PaymentV2Service {
                 feeAdj: li.feeAdj,
                 feeTotal: li.feeTotal,
                 owed: li.amount,
-                perOccurrence: !enrolled && li.amount > 0 && occ > 0 ? roundCents(li.amount / occ) : 0,
+                perOccurrence: !enrolled && li.amount > 0 && occ > 0 ? floorCents(li.amount / occ) : 0,
                 alreadyEnrolled: enrolled,
                 enrolledPerOccurrence: enrolled ? toNumber(reg?.adnSubscriptionAmountPerOccurence) : 0,
                 enrolledOccurrences: enrolled ? toNumber(reg?.adnSubscriptionBillingOccurences) : 0,
@@ -328,9 +337,9 @@ export class PaymentV2Service {
     readonly arbBilledPlanLines = computed(() => this.arbPlanLines().filter(l => !l.alreadyEnrolled && l.perOccurrence > 0));
 
     /**
-     * What the card is actually charged each cycle: the SUM of the independently-rounded per-player
-     * installments. This is deliberately not round(familyTotal / occurrences) — the server rounds
-     * each subscription on its own, so summing the rounded parts is the only figure that matches the
+     * What the card is actually charged each cycle: the SUM of the independently-floored per-player
+     * installments. This is deliberately not round(familyTotal / occurrences) — the server floors
+     * each subscription on its own, so summing the floored parts is the only figure that matches the
      * gateway. (e.g. two $100 players over 3 payments bill 33.33 + 33.33 = $66.66 per cycle, not the
      * $66.67 a rounded family total would promise.)
      */
