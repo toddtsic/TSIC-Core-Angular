@@ -6,7 +6,7 @@
 -- Source rows: adn.Txs with [Transaction Status] = 'Returned Item' — written by the
 -- month-end import when Authorize.Net reports a bounced eCheck. Each is its OWN
 -- transaction, dated the day the bank said no ([Settlement Date Time] = return-day
--- batch), carrying [Reference_Transaction_ID] = the original draft it reverses.
+-- batch), carrying [Reference Transaction ID] = the original draft it reverses.
 -- The import's paired-settlement guard means every row here has its +amount
 -- counterpart in adn.Txs (this month or a prior close) — an orphan negative is
 -- excluded upstream and never reaches this file.
@@ -55,7 +55,7 @@ from
 		coalesce(j.jobName_QBP, j.jobName) as jobName,
 		-convert(money, [Txs].[Settlement Amount]) as Minus,
 		txs.[Transaction ID],
-		txs.[Reference_Transaction_ID],
+		txs.[Reference Transaction ID],
 		txs.[Invoice Number]
 	from
 		[adn].[txs] as [Txs]
@@ -74,7 +74,7 @@ select 'QA Test: ' + @qaTest
 select
 		r.[customerName] + ':' + r.[jobName] as [Customer:Job]
 	,	r.[Transaction ID] as [Return Tx]
-	,	r.[Reference_Transaction_ID] as [Original Tx]
+	,	r.[Reference Transaction ID] as [Original Tx]
 	,	orig.[Settlement Date Time] as [Original Settled]
 	,	convert(char(10), r.[SettlementTS], 101) as [Returned Day]
 	,	-r.Minus as [Amount]
@@ -82,7 +82,7 @@ select
 from
 	#retRawData r
 	left join [adn].[txs] orig
-		on orig.[Transaction ID] = r.[Reference_Transaction_ID]
+		on orig.[Transaction ID] = r.[Reference Transaction ID]
 		and orig.[Transaction Status] = 'Settled Successfully'
 order by
 		r.[customerName]
