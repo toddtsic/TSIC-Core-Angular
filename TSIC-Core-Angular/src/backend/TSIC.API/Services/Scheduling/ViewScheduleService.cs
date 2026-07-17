@@ -348,11 +348,17 @@ public sealed class ViewScheduleService : IViewScheduleService
         if (game.JobId != jobId)
             throw new InvalidOperationException("Game does not belong to this event.");
 
-        game.T1Score = request.T1Score;
+        game.T1Score = request.T1Score;   // null clears the score back to unscored
         game.T2Score = request.T2Score;
         // Leagues.GameStatusCodes: 1=scheduled, 3=rescheduled, 4=forfeit, 5=cancelled, 6=final.
         // Entering a score implies the game has concluded → default to 6 (final).
-        game.GStatusCode = request.GStatusCode ?? 6;
+        var status = request.GStatusCode ?? 6;
+        // A cleared game (both scores null) cannot be "final" (6) — that pairing is
+        // contradictory. Reset to 1 (scheduled). Only the contradictory final case is
+        // overridden: an explicit forfeit/cancel/reschedule legitimately has no score.
+        if (request.T1Score is null && request.T2Score is null && status == 6)
+            status = 1;
+        game.GStatusCode = status;
         game.LebUserId = userId;
         game.Modified = DateTime.Now;
 

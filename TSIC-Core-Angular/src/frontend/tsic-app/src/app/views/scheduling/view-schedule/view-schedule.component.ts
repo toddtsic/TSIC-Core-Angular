@@ -1892,7 +1892,9 @@ export class ViewScheduleComponent implements OnInit {
         this.loadTabData(this.activeTab());
     }
 
-    onQuickScore(event: { gid: number; t1Score: number; t2Score: number }): void {
+    onQuickScore(event: { gid: number; t1Score: number | null; t2Score: number | null }): void {
+        // null scores clear the game back to unscored; the backend resets a cleared
+        // game's status from Final(6) → Scheduled(1).
         const request: EditScoreRequest = {
             gid: event.gid,
             t1Score: event.t1Score,

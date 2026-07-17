@@ -137,6 +137,14 @@ import type { ViewGameDto } from '@core/api';
                                            (ngModelChange)="editT2Score.set($event)"
                                            (keydown.enter)="saveScore(game.gid)"
                                            (keydown.escape)="cancelEdit()">
+                                    @if (hasScore(game)) {
+                                        <button type="button" class="score-clear"
+                                                title="Clear score — return game to unscored"
+                                                aria-label="Clear score, return game to unscored"
+                                                (click)="clearScore(game.gid)">
+                                            <i class="bi bi-eraser" aria-hidden="true"></i>
+                                        </button>
+                                    }
                                 </span>
                             } @else {
                                 <span class="score-line">
@@ -898,6 +906,37 @@ import type { ViewGameDto } from '@core/api';
         .score-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         .score-input { -moz-appearance: textfield; }
 
+        /* Clear-score (unscore) button — only shown while editing an already-scored game.
+           Neutral by default; reads as a destructive-ish action on hover (danger tint). */
+        .score-clear {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            margin-left: var(--space-1);
+            padding: 0;
+            border: 1px solid var(--bs-border-color);
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--bs-secondary-color);
+            font-size: var(--font-size-sm);
+            cursor: pointer;
+            transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .score-clear:hover {
+            background: var(--bs-danger-bg-subtle);
+            border-color: var(--bs-danger);
+            color: var(--bs-danger);
+        }
+        .score-clear:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .score-clear { transition: none !important; }
+        }
+
         /* ═══ MOBILE CARDS ═══ */
 
         .games-cards {
@@ -1031,8 +1070,8 @@ export class GamesTabComponent {
     // ── Outputs ──
     readonly quickScore = output<{
     gid: number;
-    t1Score: number;
-    t2Score: number;
+    t1Score: number | null;
+    t2Score: number | null;
 }>();
     readonly editGame = output<number>();
     readonly viewTeamResults = output<string>();
@@ -1054,8 +1093,10 @@ export class GamesTabComponent {
 
     // ── Inline edit state ──
     readonly editingGid = signal<number | null>(null);
-    readonly editT1Score = signal<number>(0);
-    readonly editT2Score = signal<number>(0);
+    // Nullable: an emptied number input yields null. A blank box is treated as 0 on
+    // save (see saveScore); an explicit unscore goes through clearScore, not here.
+    readonly editT1Score = signal<number | null>(0);
+    readonly editT2Score = signal<number | null>(0);
 
     // ══════════════════════════════════════════════════════════════════
     // Date / time formatting
@@ -1137,7 +1178,20 @@ export class GamesTabComponent {
     }
 
     saveScore(gid: number): void {
-        this.quickScore.emit({ gid, t1Score: this.editT1Score(), t2Score: this.editT2Score() });
+        // Blank box = 0 (typical "3–0" entry where the loser's box is left empty).
+        // Unscoring is a deliberate act via clearScore, never an accidental blank here.
+        this.quickScore.emit({
+            gid,
+            t1Score: this.editT1Score() ?? 0,
+            t2Score: this.editT2Score() ?? 0
+        });
+        this.editingGid.set(null);
+    }
+
+    /** Return the game to unscored — both scores null. The backend resets a cleared
+     *  game's status from Final(6) back to Scheduled(1). */
+    clearScore(gid: number): void {
+        this.quickScore.emit({ gid, t1Score: null, t2Score: null });
         this.editingGid.set(null);
     }
 
