@@ -201,7 +201,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: All four locked down to SuperUser, matching Legacy
 - **What happened**: All four render unconditionally on their respective tabs — Director can edit any of them today
 - **Severity**: Bug (role visibility)
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: These are cosmetic admin-metadata labels for the underlying regforms — not the core regform identifier (PL-053 covers that separately for `coreRegformPlayer`). Four fields to gate together:
   | Tab | Field | Current location |
   |---|---|---|
@@ -240,7 +240,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Each toggle to either drive real behavior or be removed; placement to match where the behavior actually fires
 - **What happened**: Two are vestigial, one is misplaced (lives on Teams tab but only affects Players), one is functional but needs Director-facing copy
 - **Severity**: Bug (zombie settings) + UX
-- **Status**: Done — Todd's per-toggle calls: (1) `bRestrictPlayerTeamsToAgerange` **keep for now** — not removed; (2) `bUseWaitlists` **already removed** from the Teams tab; (3) `bTeamPushDirectors` **keep for now** — not removed (see PL-066); (4) `bShowTeamNameOnlyInSchedules` **fixed** via PL-065 (moved to Scheduling). No further action pending.
+- **Status**: Fixed — Todd's per-toggle calls: (1) `bRestrictPlayerTeamsToAgerange` **keep for now** — not removed; (2) `bUseWaitlists` **already removed** from the Teams tab; (3) `bTeamPushDirectors` **keep for now** — not removed (see PL-066); (4) `bShowTeamNameOnlyInSchedules` **fixed** via PL-065 (moved to Scheduling). No further action pending.
 - **Note**: Per-toggle findings:
   - **`bRestrictPlayerTeamsToAgerange`** ("Restrict Players to Age Range") — **vestigial**. Only appears in CRUD plumbing (DTO, service, clone, entity); no runtime consumer in the new codebase. Legacy uses it in `PlayerBaseController.cs`. Plus: per Ann's note, this is a Player-tab concern conceptually — and tied to PL-008 (Age Ranges menu visibility, which is gated by the `teamEligibilityByAge` flag derived from `CoreRegformPlayer == 'BYAGERANGE'`). **Recommendation**: remove from UI/DTOs (keep DB column for legacy data). If revived in the future, it belongs on the Player tab and should ride the same `teamEligibilityByAge` flag as the Age Ranges menu.
   - **`bUseWaitlists`** ("Use Waitlists") — **misplaced + likely vestigial for both flows**. Code at [TeamPlacementService.cs:71](TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamPlacementService.cs#L71) explicitly comments: *"BUseWaitlists is a player-registration-only flag and is NOT checked here. Team registration always supports waitlists (driven by MaxTeams per agegroup)."* So for **teams**, the flag is irrelevant — waitlists are always created when agegroup hits max (test "BUseWaitlists OFF → still creates waitlist (teams always waitlist)" confirms). For **players**, I couldn't find any consumer either — likely also vestigial, needs deeper grep against the player registration flow. **Recommendation**: remove from Teams tab regardless. If a player consumer is found, move to Player tab; if not, full removal (keep DB column).
@@ -258,7 +258,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: Some kind of automatic transition — either job-status driven (when reg closes, edit/delete locks) or time-based (toggle expires on a specified date)
 - **What happened**: All three flags are job-wide booleans with no time/status awareness. Set once; they apply forever until manually flipped. If a Director enables Edit/Delete during registration and forgets to flip them off post-close, Club Reps retain those permissions indefinitely.
 - **Severity**: Bug (operational risk) / Feature
-- **Status**: Open
+- **Status**: Fixed — Todd's call: leave as manual toggles; Directors decide when to enable/disable Club Rep edit/delete. No auto-lock or date-gating (options A–D declined).
 - **Note**: Confirmed how the flags work today:
   - **Server-side enforcement**: `TeamRegistrationService` checks `capabilities.ClubRepAllowAdd` ([line 571](TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamRegistrationService.cs#L571)) and `capabilities.ClubRepAllowDelete` ([line 784](TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamRegistrationService.cs#L784)) before allowing Add/Delete; refuses with a clear error message if false.
   - **Single source of truth**: both the Team Registration screen and the Teams Library go through the same backend gate, so the toggles aren't duplicated — moving them to either screen is a UX choice, not a behavior gap.
@@ -628,7 +628,7 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **What I expected**: SuperUsers able to edit Job Path from the SuperUser Only section for cases like typo fixes or rebrand re-slugging
 - **What happened**: No edit path in the UI — SuperUser has to change Job Path via direct SQL today
 - **Severity**: Feature
-- **Status**: Open
+- **Status**: Fixed
 - **Note**: Job Path is load-bearing — it's not just a label, so "make it editable" isn't a one-line UI change. Safety analysis:
   - **Primary URL segment**: `/:jobPath/...` is the top-level route prefix for every job-scoped screen ([app.routes.ts](TSIC-Core-Angular/src/frontend/tsic-app/src/app/app.routes.ts)).
   - **JWT claim**: per CLAUDE.md, jobPath is validated on every request — renaming invalidates every issued token.
