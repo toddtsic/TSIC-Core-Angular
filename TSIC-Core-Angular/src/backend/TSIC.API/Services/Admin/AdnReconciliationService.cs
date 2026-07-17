@@ -166,6 +166,9 @@ public class AdnReconciliationService : IAdnReconciliationService
                 BOldSysTx = 0,
                 TransactionId = tx.transId,
                 TransactionStatus = MapStatus(tx.transactionStatus),
+                // Tender captured at the chokepoint (Visa/MasterCard/.../eCheck) — the CC-vs-eCheck
+                // signal the sproc can't reconstruct downstream. Lands in adn.Txs.[Transaction Type].
+                TransactionType = tx.accountType,
                 SettlementAmount = tx.settleAmount.ToString(),
                 SettlementDateTime = batch.settlementTimeLocal.ToString("dd-MMM-yyyy hh:mm:ss tt") + " EDT",
                 InvoiceNumber = tx.invoiceNumber,
@@ -230,7 +233,12 @@ public class AdnReconciliationService : IAdnReconciliationService
                 BOldSysTx = 0,
                 TransactionId = tx.transId,
                 ReferenceTransactionId = originalTxId,
-                TransactionStatus = "Returned Item",
+                // A bounce books identically to a refund (Checking down, Liability Due to Customers
+                // down), so it rides the existing IIF-Credits path as a negative line — no separate
+                // returns file. Return-vs-refund stays separable via [Transaction Type] = 'eCheck'
+                // and the [Reference Transaction ID] back-link to the original draft.
+                TransactionStatus = "Credited",
+                TransactionType = tx.accountType,
                 SettlementAmount = tx.settleAmount.ToString(),
                 SettlementDateTime = batch.settlementTimeLocal.ToString("dd-MMM-yyyy hh:mm:ss tt") + " EDT",
                 InvoiceNumber = !string.IsNullOrEmpty(tx.invoiceNumber)
@@ -279,26 +287,15 @@ public class AdnReconciliationService : IAdnReconciliationService
             settlementMonth, settlementYear, cancellationToken);
 
         if (bundle.RegSourceTrnsCount != bundle.RegConsolidatedTrnsCount
-            || bundle.MerchSourceTrnsCount != bundle.MerchConsolidatedTrnsCount
-            || bundle.EcheckReturnsSourceTrnsCount != bundle.EcheckReturnsConsolidatedTrnsCount)
+            || bundle.MerchSourceTrnsCount != bundle.MerchConsolidatedTrnsCount)
         {
             _logger.LogWarning(
                 "AdnReconciliation: IIF TRNS count mismatch for {Year}-{Month:D2} — " +
-                "reg source {RegSource}/consolidated {RegConsolidated}, merch source {MerchSource}/consolidated {MerchConsolidated}, " +
-                "eCheck returns source {RetSource}/consolidated {RetConsolidated}. " +
+                "reg source {RegSource}/consolidated {RegConsolidated}, merch source {MerchSource}/consolidated {MerchConsolidated}. " +
                 "The .iif files were still produced; verify before importing to QuickBooks.",
                 settlementYear, settlementMonth,
                 bundle.RegSourceTrnsCount, bundle.RegConsolidatedTrnsCount,
-                bundle.MerchSourceTrnsCount, bundle.MerchConsolidatedTrnsCount,
-                bundle.EcheckReturnsSourceTrnsCount, bundle.EcheckReturnsConsolidatedTrnsCount);
-        }
-
-        if (!bundle.EcheckReturnsFileBuilt)
-        {
-            _logger.LogWarning(
-                "AdnReconciliation: {Year}-{Month:D2} shipped WITHOUT the eCheck returns file — " +
-                "the returns export sproc is missing or failed. Post-close bounces are not clawed back this month.",
-                settlementYear, settlementMonth);
+                bundle.MerchSourceTrnsCount, bundle.MerchConsolidatedTrnsCount);
         }
 
         return bundle;
@@ -634,7 +631,14 @@ public class AdnReconciliationService : IAdnReconciliationService
     {
         "settledSuccessfully" => "Settled Successfully",
         "refundSettledSuccessfully" => "Credited",
+        // A bounced eCheck books identically to a refund (Checking down, Liability Due to
+        // Customers down) — so it rides the existing IIF-Credits path. Return-vs-refund stays
+        // separable via [Transaction Type] = 'eCheck' + [Reference Transaction ID].
+        "returnedItem" => "Credited",
         "voided" => "Voided",
-        _ => string.Empty,
+        // Unmapped statuses pass through raw rather than blanking — an unexpected token stays
+        // visible in [Transaction Status] for diagnosis, and still won't match the sproc's
+        // title-case filters, so it can't leak into Payments/Credits.
+        _ => adnStatus,
     };
 }

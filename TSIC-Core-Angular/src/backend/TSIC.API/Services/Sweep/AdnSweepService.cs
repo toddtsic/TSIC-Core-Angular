@@ -462,7 +462,26 @@ public sealed class AdnSweepService : IAdnSweepService
                 acctLast4 = ba.accountNumber?.Length >= 4 ? ba.accountNumber[^4..] : null;
                 break;
         }
-        var isEcheck = txDetail.transaction.payment?.Item is bankAccountMaskedType;
+        // Tender from the authoritative summary field (also captured to adn.Txs.[Transaction Type]),
+        // falling back to the settled tx's payment shape. If neither identifies it, don't guess:
+        // booking an eCheck as CC would skip the return-watcher below, leaving a later bounce
+        // unreversible. Indeterminate ⇒ skip this pass (logged); the next sweep retries.
+        bool? tender = !string.IsNullOrWhiteSpace(tx.accountType)
+            ? string.Equals(tx.accountType, "eCheck", StringComparison.OrdinalIgnoreCase)
+            : txDetail.transaction.payment?.Item switch
+            {
+                bankAccountMaskedType => true,
+                creditCardMaskedType => false,
+                _ => (bool?)null,
+            };
+        if (tender is null)
+        {
+            _logger.LogWarning(
+                "ARB tx {TxId}: tender indeterminate (accountType='{AccountType}', unrecognized payment shape) — skipping this pass",
+                tx.transId, tx.accountType);
+            return null;
+        }
+        var isEcheck = tender.Value;
 
         var settleAmount = tx.transactionStatus == "settledSuccessfully" ? tx.settleAmount : 0;
 
@@ -589,7 +608,26 @@ public sealed class AdnSweepService : IAdnSweepService
                 acctLast4 = ba.accountNumber?.Length >= 4 ? ba.accountNumber[^4..] : null;
                 break;
         }
-        var isEcheck = txDetail.transaction.payment?.Item is bankAccountMaskedType;
+        // Tender from the authoritative summary field (also captured to adn.Txs.[Transaction Type]),
+        // falling back to the settled tx's payment shape. If neither identifies it, don't guess:
+        // booking an eCheck as CC would skip the return-watcher below, leaving a later bounce
+        // unreversible. Indeterminate ⇒ skip this pass (logged); the next sweep retries.
+        bool? tender = !string.IsNullOrWhiteSpace(tx.accountType)
+            ? string.Equals(tx.accountType, "eCheck", StringComparison.OrdinalIgnoreCase)
+            : txDetail.transaction.payment?.Item switch
+            {
+                bankAccountMaskedType => true,
+                creditCardMaskedType => false,
+                _ => (bool?)null,
+            };
+        if (tender is null)
+        {
+            _logger.LogWarning(
+                "ARB-Trial tx {TxId}: tender indeterminate (accountType='{AccountType}', unrecognized payment shape) — skipping this pass",
+                tx.transId, tx.accountType);
+            return null;
+        }
+        var isEcheck = tender.Value;
 
         var settleAmount = tx.transactionStatus == "settledSuccessfully" ? tx.settleAmount : 0;
         var clubRepRegId = team.ClubrepRegistrationid;

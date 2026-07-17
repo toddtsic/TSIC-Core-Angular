@@ -304,29 +304,6 @@ public class ReportingRepository : IReportingRepository
         return (reader, connection);
     }
 
-    public async Task<(DbDataReader Reader, DbConnection Connection)> ExecuteEcheckReturnsExportAsync(
-        int settlementMonth,
-        int settlementYear,
-        CancellationToken cancellationToken = default)
-    {
-        var connection = _context.Database.GetDbConnection();
-        var cmd = connection.CreateCommand();
-
-        cmd.CommandText = "[adn].[MonthyQBPExport_Automated_EcheckReturns]";
-        cmd.CommandType = CommandType.StoredProcedure;
-
-        cmd.Parameters.Add(new SqlParameter("@settlementMonth", SqlDbType.Int) { Value = settlementMonth });
-        cmd.Parameters.Add(new SqlParameter("@settlementYear", SqlDbType.Int) { Value = settlementYear });
-
-        if (connection.State != ConnectionState.Open)
-        {
-            await connection.OpenAsync(cancellationToken);
-        }
-
-        var reader = await cmd.ExecuteReaderAsync(cancellationToken);
-        return (reader, connection);
-    }
-
     public async Task RecordExportHistoryAsync(
         Guid registrationId,
         string? storedProcedureName,
