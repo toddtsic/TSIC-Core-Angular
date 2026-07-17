@@ -111,7 +111,8 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **Why it matters**: Directors or offices who relied on getting a copy of every registration will quietly stop receiving them. Expect "we're not getting registration copies anymore." Worth deciding whether to bring the director copy back.
 - *Dev evidence: verified — recipients are family+player only (PaymentService.cs:2453-2468), no CC/BCC wiring. Confirm whether dropping director copies was intended.*
 
-#### <span style="color:#c00000">☐ CR-013: The automatic sibling (multi-player) discount isn't being applied</span>
+#### <span style="color:#c00000">☑ CR-013: The automatic sibling (multi-player) discount isn't being applied</span>
+- **✓ RESOLVED 2026-07-16:** Todd retired the multi-player (sibling) discount setting entirely rather than wiring it up — it's gone from config, so it can no longer promise a discount that never charged. Separately, `fee_discount_mp` is now subtracted as a real fee component wherever it applies. (203c1d2d, e94ad30d)
 - **Type**: Bug (needs a decision) · **Audience**: Client support + SuperUser/Admin
 - **What's new**: In the old system, when a family registered more than one child, the 2nd and later children got an automatic multi-player discount. In the new system the setting still shows on the admin screen and gets saved and copied to new jobs — but it is **never actually applied to any charge**. Families are billed full price for every child.
 - **Why it matters**: A director who sets a sibling discount will find it never comes off, and support could promise a discount that never happens. This looks like a defect: either wire the discount back up or remove the setting so it doesn't mislead.
@@ -202,7 +203,8 @@ _From a comparison of the old system and the new one (2026-07-12), each checked 
 - **Say to clients**: "Enter the discount you actually want to give — don't add the processing fee, the system does that now. Carrying a code over from the old system? Drop the extra cents, so $25.90 becomes $25."
 - *Dev evidence: this is the cause behind Accounting PL-025 (UM Summer Camp −$0.88 credits). Next year's codes should be authored at the flat value.*
 
-#### <span style="color:#c00000">☐ CR-027: An already-used discount code's amount and dates can now be edited</span>
+#### <span style="color:#c00000">☑ CR-027: An already-used discount code's amount and dates can now be edited</span>
+- **✓ RESOLVED 2026-07-16:** A redeemed discount code's terms (amount, type, dates) are now frozen once it's been used — and "redeemed" now correctly means actually redeemed. (cf9831bb)
 - **Type**: Bug / hazard (needs a decision) · **Audience**: SuperUser/Admin
 - **What's new**: In the old system, once a discount code had been redeemed, its amount, percent/flat type, and start/end dates were locked — only the on/off flag could change. In the new system all of those can be edited even after the code has been used; only the code's name is locked.
 - **Why it matters**: An admin can change the amount or type of a code parents already redeemed, which can quietly change what users get. The old system prevented this on purpose. Worth deciding whether to restore the lock on used codes.
@@ -430,7 +432,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Status**: Open — pending review with Chelsea.
 - *Dev evidence: NormalizeFromHeader forces From to support@ + branding (EmailService.cs:186-195); real sender on Reply-To (:115-135).*
 
-#### <span style="color:#c00000">☐ CR-061: Two Communications-tab email-list fields do nothing (Always Copy, Reschedule Email List)</span>
+#### <span style="color:#c00000">☑ CR-061: Two Communications-tab email-list fields do nothing (Always Copy, Reschedule Email List)</span>
+- **✓ RESOLVED 2026-07-16:** The Communications-tab copy lists (Always Copy / Reschedule Email List) now actually copy their recipients on the relevant sends. (c471b9c2)
 - **Type**: Bug (needs a decision) · **Audience**: SuperUser/Admin
 - **What's new**: On the Communications tab, the "Always Copy Email List" and the job-level "Reschedule Email List" fields are still shown, saved, and copied to new jobs — but nothing actually uses them. No email-sending code reads either one. (Reschedule notices DO send extra copies, but they pull from a different, league-level "Reschedule Emails To" field, not this one.)
 - **Why it matters**: A director who fills in "Always Copy" (say, to copy the league office on every blast) or the job-level "Reschedule Email List" silently gets nothing — the field looks like it works but doesn't. A support trap. Either wire these up or remove them; and point directors to the League-level "Reschedule Emails To" field for reschedule copies.
@@ -601,7 +604,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: Coaches are free today. If a coach is ever asked to pay, that's a fee-configuration problem, not a broken wizard.
 - *Dev evidence: payment step gated on owed > 0 (adult.component.ts:60-66; adult-wizard-state.service.ts:165); adult fee defaults to $0 (FeeResolutionService.cs:136-141).*
 
-#### <span style="color:#c00000">☐ CR-084: The confirmation screen says an email is on its way — but it never sends</span>
+#### <span style="color:#c00000">☑ CR-084: The confirmation screen says an email is on its way — but it never sends</span>
+- **✓ RESOLVED 2026-07-16:** The coach/adult confirmation email now actually sends on submit, matching what the confirmation screen promises. (01041457)
 - **Type**: Bug · **Audience**: Client support + SuperUser/Admin
 - **What's new**: The old system emailed a coach a confirmation as soon as they registered. The new system shows "a confirmation email is on its way" on the final screen — but **nothing actually sends it**. The only way a coach gets one is if they notice and click "Resend Confirmation Email" themselves.
 - **Why it matters**: Coaches will report "I never got a confirmation," and the screen told them one was coming. A real regression plus a false statement in the UI. (The team-registration flow does send its confirmation, so this is specific to the coach/adult path.)
@@ -667,7 +671,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: Turning on roster view for players hands every parent on the team an offline, bulk copy of every other family's contact details and every child's birthdate. The old system showed it on screen; it didn't hand out a file. Worth a deliberate decision — e.g. redact the contact/DOB fields for the player audience, or make the PDF admin-only.
 - *Dev evidence: verified — roster data carries DOB + Mom/Dad email/phone with no role filter (MyRosterDtos.cs:34-52; RegistrationRepository.cs:2639-2699); the PDF endpoint uses the same visibility gate as the on-screen roster (MyRosterController.cs:36-52; MyRosterPdfService.cs:95-100).*
 
-#### <span style="color:#c00000">☐ CR-095: The per-team "Hide Roster" setting no longer does anything</span>
+#### <span style="color:#c00000">☑ CR-095: The per-team "Hide Roster" setting no longer does anything</span>
+- **✓ RESOLVED 2026-07-16:** The dead per-team "Hide Roster" control was retired, and waitlist rosters are now hidden by age group instead. (a9927809)
 - **Type**: Bug · **Audience**: Client support + SuperUser/Admin
 - **What's new**: In the old system, ticking "Hide Roster" on a team hid the roster from that team's members even when the event-level roster setting was on. In the new system the checkbox is still in the team editor, still saved, still copied on clone — but **nothing reads it**. It has no effect.
 - **Why it matters**: A director who ticks "Hide Roster" gets no result and isn't told. Because it's a *visibility* setting, the failure mode is over-exposure. Note too: auto-created waitlist teams are actually created with Hide Roster set to true — so a waitlisted player is offered "view roster" for a team the old system would have hidden.
@@ -697,13 +702,15 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: The biggest capability change here. Support can now say "yes, that's configurable" instead of "that needs a code change." Note the Profile Editor is **not** an "edit my profile" screen — it's the form *designer*.
 - *Dev evidence: metadata saved at profile-editor.component.ts:323 → ProfileMetadataMigrationService.cs:1091. Legacy read-only viewer: RegformFieldsController.cs:25-43.*
 
-#### <span style="color:#c00000">☐ CR-099: Saving in the Profile Editor rewrites that form for EVERY job using it — not just yours</span>
+#### <span style="color:#c00000">☑ CR-099: Saving in the Profile Editor rewrites that form for EVERY job using it — not just yours</span>
+- **✓ RESOLVED 2026-07-16:** Profile Editor saves are now per-job, with an explicit, loud scope warning — a save no longer silently rewrites the form for every job on that profile type. (401d98d7)
 - **Type**: Bug / hazard (needs a decision) · **Audience**: SuperUser/Admin
 - **What's new**: When you save a form in the Profile Editor, it stamps the new field layout onto **every job that uses that profile type** — with no year filter and no active filter, so past events and other customers' events are rewritten too. The screen only tells you afterwards ("N job(s) affected"). The adult side is worse: there are only two adult profiles, so an adult save fans out very widely.
 - **Why it matters**: This is the easiest way to break another customer's registration form from inside your own tool. The safe workflow is **Clone Profile first** (which forks this job onto its own profile), or use **Copy Forms** (CR-105), which really is job-scoped. This needs to be a loud warning in training, not a footnote — and arguably the tool should warn before saving.
 - *Dev evidence: unfiltered fan-out (ProfileMetadataMigrationService.cs:1097-1129 player, :1736-1760 adult; ProfileMetadataRepository.cs:28-33 — a StartsWith query with no filters). Clone-then-repoint at :1976-1984.*
 
-#### <span style="color:#c00000">☐ CR-100: SECURITY — the family-update endpoint has no login check and trusts a username from the request</span>
+#### <span style="color:#c00000">☑ CR-100: SECURITY — the family-update endpoint has no login check and trusts a username from the request</span>
+- **✓ RESOLVED 2026-07-16:** The endpoint now requires authentication and derives the family from the logged-in token instead of a username in the request body — verified in current code (`[Authorize]` + an Unauthorized() guard, and `UpdateAsync(userId, …)`). (4de587eb)
 - **Type**: Bug (security — escalate) · **Audience**: SuperUser/Admin
 - **What's new**: `PUT /api/Family/update` — used by the "Edit Family Account" screen — has **no authentication requirement at all**, and it identifies the family from a **username sent in the request body** rather than from the logged-in user. So anyone who knows a family's username can rewrite that family's address and phone, both parents' names, emails and cellphones, update the children's details, and even add new children — **without logging in**.
 - **Why it matters**: This is a live security hole, not a training note. The tell that it's an oversight: the sibling endpoints right beside it (add/edit/delete a child) **do** require a login and take the family from the logged-in user — this one skips the exact check its neighbours enforce. **The fix** is to match them: require authentication and derive the family from the logged-in user instead of the request body. (Worth checking first that the edit screen is only used by logged-in families, so the fix doesn't break new-family signup.) It does **not** change the parent's login email, so it isn't a one-step account takeover — but it is unauthenticated tampering with families' and minors' personal data.
@@ -745,7 +752,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: Form design and profile choice now live in one tool. The discard-confirmation on switching profile is a behavior support will get asked about.
 - *Dev evidence: profile-editor.component.ts:84-107, 375-439; ProfileMigrationController.cs:739-808.*
 
-#### <span style="color:#c00000">☐ CR-107: Latent bug — a future profile named PP100 would collide with PP10</span>
+#### <span style="color:#c00000">☑ CR-107: Latent bug — a future profile named PP100 would collide with PP10</span>
+- **✓ RESOLVED 2026-07-16:** Profile-type matching now uses an exact segment match, so a future PP100 can't be swept by an edit to PP10. (709fc644)
 - **Type**: Bug (latent — not firing yet) · **Audience**: SuperUser/Admin
 - **What's new**: The system finds "which jobs use this profile" with a **starts-with** match, and new profiles created by cloning are named **without zero-padding**. Today's names (PP61, PP62…) are all two digits, so nothing collides. But the first clone past 99 creates **PP100** — and from that moment, editing **PP10** would also match and silently overwrite every PP100 job.
 - **Why it matters**: Not firing today, but it's silent cross-job data loss with a known trigger. Cheap to fix now (match the exact profile name), painful to diagnose later.
@@ -757,19 +765,22 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 
 _From a comparison of the old system and the new one (2026-07-13), each checked against the new build. This is internal SuperUser billing/ops. The ADN month-end close is genuinely better than the old one; the invoice half of the cycle has real gaps._
 
-#### <span style="color:#c00000">☐ CR-108: Clients can no longer get their monthly invoice — the whole delivery pipeline is gone</span>
+#### <span style="color:#c00000">☒ CR-108: Clients can no longer get their monthly invoice — the whole delivery pipeline is gone</span>
+- **✗ CLOSED — N/A 2026-07-16:** Not a bug to fix — TSIC no longer uses per-job monthly invoices, so the missing delivery pipeline is by design. No action needed.
 - **Type**: Bug / regression · **Audience**: SuperUser/Admin
 - **What's new**: The old system produced **one invoice per job**, stored it, gave the SuperUser a grid to review the month and flip each job's invoice **Active**, and then let that client's own admin log in and download their invoice — but only once it was marked Active. **None of that exists now.** There's no per-job invoice artifact, no publish/release step, and no way for a client to retrieve their invoice from the app. What exists instead is a single consolidated PDF the operator downloads for themselves.
 - **Why it matters**: The customer-facing half of the billing cycle is missing. Clients have no way to get their monthly invoice, and there's no "release the month" control. Needs a decision on what replaces it.
 - *Dev evidence: no invoice routes (app.routes.ts:409-455); reporting endpoints only produce/download a consolidated PDF (ReportingController.cs:544-568); the Jobinvoices / JobInvoiceNumbers tables are mapped but referenced nowhere in the app.*
 
-#### <span style="color:#c00000">☐ CR-109: e-Check money is invisible to the invoice — wrong money</span>
+#### <span style="color:#c00000">☒ CR-109: e-Check money is invisible to the invoice — wrong money</span>
+- **✗ CLOSED — N/A 2026-07-16:** Not a bug to fix — TSIC no longer uses the per-job invoice, so the invoice's eCheck exclusion no longer matters. (The eCheck *money model* itself was separately reworked — optimistic model + hardened return sweep, 059c577d.)
 - **Type**: Bug (money) · **Audience**: SuperUser/Admin
 - **What's new**: e-Check payments are live for both player and team registration. But the invoice only recognises **"Credit Card Payment"** and **"Credit Card Credit"** as card money. An e-Check therefore gets **no processing fee charged**, is left out of "Credit Card Dollars Received," and so drops out of the **Balance Due Client** calculation entirely. (The separate revenue screen *does* see e-Check — so the two disagree.)
 - **Why it matters**: Real money is wrong. Either the client is under-remitted or TSIC never bills the e-Check processing fee it configured. This should be fixed before the next month-end close.
 - *Dev evidence: verified — only the two CC method names count as card (InvoiceReportPdfService.cs:222); non-CC gets zero fee (:228); Balance Due = (ccReceived + ccRefunded) − totalCharges (:201), so e-Check never lands in it.*
 
-#### <span style="color:#c00000">☐ CR-110: Admin charges can't be added or edited any more — only deleted</span>
+#### <span style="color:#c00000">☑ CR-110: Admin charges can't be added or edited any more — only deleted</span>
+- **✓ RESOLVED 2026-07-16:** Add/edit for job admin charges was restored. (b8ede513)
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: The old system had a full add/edit/delete grid for job admin charges (one-off setup or support fees). In the new system the panel is **read-only with a delete button** — there's no add row and no edit. The "add admin charge" function exists in the code but **nothing calls it**.
 - **Why it matters**: Admin charges are a real billing input that feeds the revenue screen. An operator who needs to bill a one-off fee can't enter one at all, and a mis-keyed charge can only be deleted, not corrected.
@@ -781,7 +792,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: This is the last thread holding the old invoice pipeline (CR-108) together. Retiring Crystal retires the client invoice with it, and nothing in the new app replaces it. Needs a decision alongside CR-108.
 - *Dev evidence: still calls the Crystal service (ReportingService.cs:860-867; ReportingController.cs:544-550); no frontend caller.*
 
-#### <span style="color:#c00000">☐ CR-112: The invoice prints the customer name twice</span>
+#### <span style="color:#c00000">☒ CR-112: The invoice prints the customer name twice</span>
+- **✗ CLOSED — N/A 2026-07-16:** Not a bug to fix — TSIC no longer uses the per-job invoice, so its heading no longer matters.
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: Every venue heading on the invoice reads like "Acme:Acme:Fall 2026" — the customer name is emitted twice. The old invoice printed it once.
 - **Why it matters**: Cosmetic, but it's at the top of the money document a client may be shown. Trivial to fix and obvious to anyone comparing against an old invoice.
@@ -793,7 +805,8 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - **Why it matters**: Not wrong money, but a real workflow regression at exactly the wrong moment — mid-close, per job.
 - *Dev evidence: the stats row carries only the six counts, no QBP name (LastMonthsJobStatsDtos.cs:3-25); QBP name now only in Configure → Job → General.*
 
-#### <span style="color:#c00000">☐ CR-114: A SuperDirector can open Customer Job Revenue but the API refuses them</span>
+#### <span style="color:#c00000">☑ CR-114: A SuperDirector can open Customer Job Revenue but the API refuses them</span>
+- **✓ RESOLVED 2026-07-16:** The Customer Job Revenue API now admits SuperDirector, matching the route, so the page loads instead of erroring. (3e5ad26f)
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: The screen's route lets a SuperDirector in, but the API behind it is SuperUser-only. So a SuperDirector navigates in successfully and gets a bare "Failed to load revenue data."
 - **Why it matters**: Either the page should be SuperUser-only or the API should admit SuperDirectors — someone has to decide. Today it's a broken page instead of a clean "not allowed."
@@ -811,13 +824,15 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 
 _From a comparison of the old system and the new one (2026-07-13), each checked against the new build. Bulletins are covered separately (CR-072–075)._
 
-#### <span style="color:#c00000">☐ CR-116: A LIVE event can be wrongly declared "concluded" — its page goes dark and registration stops</span>
+#### <span style="color:#c00000">☒ CR-116: A LIVE event can be wrongly declared "concluded" — its page goes dark and registration stops</span>
+- **✗ CLOSED 2026-07-16 (per Todd):** Closed at Todd's direction. Note this is a decision, not a code fix — the behavior is unchanged (supersession still driven purely by a live later-year sibling: JobRepository.cs:730, door at :746, landing collapse at job-landing.component.ts:152). Recorded as accepted/known behavior; re-open if it's hit in practice.
 - **Type**: Bug (critical) · **Audience**: Client support + SuperUser/Admin
 - **What's new**: The system decides an event is "superseded" purely by checking whether a **later-year event of the same name exists and is live** (not suspended, registration on, not expired). **It never checks whether the current event is actually over.** When it decides an event is superseded, the entire public landing page collapses to *"This event has concluded — Register for [next year]"* — banner, bulletins, everything — for every visitor including logged-in families and admins. It also **blocks all non-admin registration** on that event.
 - **Why it matters**: A director who opens **next season's early-bird registration while this season is still running** — a completely routine thing to do — instantly takes the current event dark and stops it accepting registrations. There's no admin override on the page and no "continue anyway." This is a live-event outage, and it's the most serious item in this review. The fix is to require the current event to actually be over before treating it as superseded.
 - *Dev evidence: verified — the superseding-sibling query checks only the sibling's state, never the current job's (JobRepository.cs:700-717); the create-door is then closed on supersession alone (:732 — `door = !concluded && SupersededByLaterEvent is null`); the landing page collapses entirely (job-landing.component.html:20-34 — the code comment says "entire landing collapses").*
 
 #### <span style="color:#c00000">☐ CR-117: The Widget Editor's "public" settings do nothing</span>
+- **DEFERRED 2026-07-16 (per Todd):** Revisit later. Unchanged today — the landing page still hard-codes `<app-client-banner>` and `<app-bulletins>` (job-landing.component.html:42, 72) rather than reading the public widget config.
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: The Widget Editor has a **Public** panel with on/off switches for the banner, bulletins, event-contact and job-pulse widgets. **Nothing reads them.** The public landing page hard-codes the banner and bulletins, so toggling a public widget off changes nothing. Two of the widgets (Event Contact, Job Pulse) are never rendered anywhere at all.
 - **Why it matters**: A SuperUser will configure these switches and see no effect whatsoever. Event Contact in particular would be genuinely useful on a public page and simply isn't wired up.
@@ -866,6 +881,7 @@ _From a comparison of the old system and the new one (2026-07-13), each checked 
 - *Dev evidence: registration-panel.component.ts:98-105, 146-161, 209-213, 291-303.*
 
 #### <span style="color:#c00000">☐ CR-125: The Theme editor only saves to the current browser — nobody else sees the change</span>
+- **DEFERRED 2026-07-16 (per Todd):** Revisit later. Unchanged today — the Save button still reads "Save (LocalStorage)" and persists only to the current browser (theme-editor.component.ts:78).
 - **Type**: Bug · **Audience**: SuperUser/Admin
 - **What's new**: The Theme editor (Configure → Theme) looks like it sets an event's colours. Its Save button is literally labelled **"Save (LocalStorage)"** — the colours are stored **in that one browser only**. Nothing is saved to the server, so no visitor, no family, and no other admin ever sees the change. On top of that, three of its five theme targets emit styling that is never applied to anything.
 - **Why it matters**: Per-event colours look configurable but aren't. Anyone who "brands" an event this way will believe they've changed it and be the only person who can see it. (Separately: `/brand-preview` — an internal design showcase — is publicly reachable on every event's URL with no login required. Harmless content, but it shouldn't be on a client's public site.)
