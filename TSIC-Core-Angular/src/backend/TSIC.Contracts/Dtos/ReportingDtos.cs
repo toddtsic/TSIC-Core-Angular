@@ -47,6 +47,11 @@ public record ReconciliationBundleResult
     public required int RegConsolidatedTrnsCount { get; init; }
     public required int MerchSourceTrnsCount { get; init; }
     public required int MerchConsolidatedTrnsCount { get; init; }
+
+    /// <summary>False when the close shipped without the eCheck returns file (sproc unavailable).</summary>
+    public bool EcheckReturnsFileBuilt { get; init; }
+    public int EcheckReturnsSourceTrnsCount { get; init; }
+    public int EcheckReturnsConsolidatedTrnsCount { get; init; }
 }
 
 /// <summary>

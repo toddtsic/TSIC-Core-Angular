@@ -76,4 +76,13 @@ public record MonthEndArtifactsInfo
     public required int RegConsolidatedTrnsCount { get; init; }
     public required int MerchSourceTrnsCount { get; init; }
     public required int MerchConsolidatedTrnsCount { get; init; }
+
+    /// <summary>
+    /// False when the eCheck returns export sproc was unavailable and the close shipped without
+    /// the returns file (bootstrap ordering / sproc failure). Not required — months built before
+    /// the returns file existed deserialize with false.
+    /// </summary>
+    public bool EcheckReturnsFileBuilt { get; init; }
+    public int EcheckReturnsSourceTrnsCount { get; init; }
+    public int EcheckReturnsConsolidatedTrnsCount { get; init; }
 }

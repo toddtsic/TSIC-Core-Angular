@@ -33,6 +33,34 @@ public interface IAdnSweepService
         int daysPrior = 0,
         bool sendDigest = true,
         CancellationToken ct = default);
+
+    /// <summary>
+    /// Month-end backstop: guarantee the Failed eCheck record exists for one returnedItem
+    /// transaction the close's ADN pull discovered. Runs the SAME return path as the daily
+    /// sweep — refTransId resolution, terminal-Returned guard, reversal-row guard — so a
+    /// return the sweep already handled is a no-op, and whichever system fires first, exactly
+    /// one reversal ever exists. Null = nothing done (already processed / not ours / could not
+    /// resolve at the ambient ADN account); non-null = a missed return was just reversed.
+    /// Note the environment asymmetry: the close pulls PRODUCTION by design, but this method
+    /// resolves ADN from the ambient host like every money write — off-Production it queries
+    /// sandbox, finds nothing, and is inert.
+    /// </summary>
+    Task<EcheckReturnBackstopOutcome?> EnsureReturnProcessedAsync(
+        string returnTransId,
+        CancellationToken ct = default);
+}
+
+/// <summary>
+/// What the month-end backstop did for one returnedItem the daily sweep had missed:
+/// the reversal that was just written (negative Failed-eCheck RA + fee restore + recompute).
+/// </summary>
+public sealed record EcheckReturnBackstopOutcome
+{
+    public required string ReturnTxId { get; init; }
+    public required string OriginalTxId { get; init; }
+    public required string JobName { get; init; }
+    public required decimal AmountReversed { get; init; }
+    public required string Reason { get; init; }
 }
 
 public sealed record AdnSweepResult

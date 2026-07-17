@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using AuthorizeNet.Api.Contracts.V1;
 using Microsoft.Extensions.Options;
 using TSIC.API.Configuration;
@@ -24,9 +24,9 @@ public sealed class AdnSweepService : IAdnSweepService
 {
     // Match legacy hard-coded GUIDs (canonical reference.Accounting_PaymentMethods rows).
     private static readonly Guid CcPaymentMethodId = Guid.Parse("30ECA575-A268-E111-9D56-F04DA202060D");
-    // "E-Check Payment" — used for settled eCheck / ACH-ARB draft RA rows.
+    // "E-Check Payment" â€” used for settled eCheck / ACH-ARB draft RA rows.
     private static readonly Guid EcheckPaymentMethodId = Guid.Parse("2EECA575-A268-E111-9D56-F04DA202060D");
-    // "Failed E-Check Payment" — used for NSF reversal RA rows.
+    // "Failed E-Check Payment" â€” used for NSF reversal RA rows.
     private static readonly Guid FailedEcheckPaymentMethodId = Guid.Parse("2FECA575-A268-E111-9D56-F04DA202060D");
     // Stamp system-written rows with TSICSuperUser (FK to dbo.AspNetUsers). Legacy
     // wrote _appSettings.TSICParams.SuperUserId here for the same reason.
@@ -71,7 +71,7 @@ public sealed class AdnSweepService : IAdnSweepService
     }
 
     // One sweep at a time, process-wide. Every idempotency guard in the sweep is unlocked
-    // read-then-write ("already imported? no → book it"), so two concurrent passes could both
+    // read-then-write ("already imported? no â†’ book it"), so two concurrent passes could both
     // clear the same guard and double-book an ARB import or double-write an NSF reversal. The
     // triggers (5 AM background service + the manual SuperUser endpoint) share this API process,
     // so an in-process lock covers every real entry path. Static: the service is resolved per
@@ -88,7 +88,7 @@ public sealed class AdnSweepService : IAdnSweepService
         // so the right behavior for an overlapping request is to not start.
         if (!await RunLock.WaitAsync(0, ct))
         {
-            _logger.LogWarning("ADN sweep already running — {TriggeredBy} request refused", triggeredBy);
+            _logger.LogWarning("ADN sweep already running â€” {TriggeredBy} request refused", triggeredBy);
             return new AdnSweepResult
             {
                 Checked = 0,
@@ -98,7 +98,7 @@ public sealed class AdnSweepService : IAdnSweepService
                 OrphansFound = 0,
                 Errored = 0,
                 Succeeded = false,
-                ErrorMessage = "Sweep already running — request refused.",
+                ErrorMessage = "Sweep already running â€” request refused.",
                 DigestHtml = null
             };
         }
@@ -139,7 +139,7 @@ public sealed class AdnSweepService : IAdnSweepService
             var creds = await _adn.GetJobAdnCredentials_FromCustomerId(_tsicSettings.DefaultCustomerId);
             var env = _adn.GetADNEnvironment();
 
-            // 1) Walk batches, accumulate flat tx list. A batch-list error is NOT an empty day — it used
+            // 1) Walk batches, accumulate flat tx list. A batch-list error is NOT an empty day â€” it used
             // to return [] and sail on, producing a digest of zeros that reads exactly like a quiet
             // morning. Throw instead, so the failure reaches the catch and is reported as a failure.
             var allTxs = FetchBatchTransactions(env, creds.AdnLoginId!, creds.AdnTransactionKey!, daysPrior);
@@ -165,13 +165,13 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
-            // 3) Process eCheck Pending → Settled transitions.
+            // 3) Process eCheck Pending â†’ Settled transitions.
             // Walk batch txs that settled successfully and match against our pending Settlement
-            // rows. No per-tx API call is needed — presence in a settled batch is the proof of
+            // rows. No per-tx API call is needed â€” presence in a settled batch is the proof of
             // settlement. Status-only: the money booked at submit (optimistic); this stamp records
             // that the draft entered the banking network, which the return handler and watchdog
             // key on. subscription == null excludes ARB drafts, which book their RA in step 2
-            // (ImportArbTransactionAsync) — see the ARB/eCheck split there.
+            // (ImportArbTransactionAsync) â€” see the ARB/eCheck split there.
             var settledTxIds = allTxs
                 .Where(t => t.transactionStatus == "settledSuccessfully" && t.subscription == null && !string.IsNullOrEmpty(t.transId))
                 .Select(t => t.transId)
@@ -188,7 +188,7 @@ public sealed class AdnSweepService : IAdnSweepService
                     try
                     {
                         // Each call owns its transaction (status flip + RA Active flip + recompute
-                        // commit together), so there is no batch save after the loop — a batch
+                        // commit together), so there is no batch save after the loop â€” a batch
                         // re-save could re-commit a rolled-back in-memory status without its money.
                         var row = await MarkEcheckSettled(settlement, ct);
                         if (row != null)
@@ -228,7 +228,7 @@ public sealed class AdnSweepService : IAdnSweepService
 
             // 5) Detect orphan charges: one-time txs that settled at ADN but have no local
             // RegistrationAccounting row (the rare "charged the card, app pool died before the
-            // booking write" case). REPORT-ONLY — we flag them in the digest for a human to book
+            // booking write" case). REPORT-ONLY â€” we flag them in the digest for a human to book
             // by hand; the sweep never writes accounting rows here. In ~26 years this has happened
             // about once, so the expected count every run is 0.
             foreach (var tx in allTxs.Where(IsOrphanCandidate))
@@ -250,10 +250,10 @@ public sealed class AdnSweepService : IAdnSweepService
                 }
             }
 
-            // 6) Stale-Pending watchdog: drafts that went silent. Healthy drafts settle in 1–2
+            // 6) Stale-Pending watchdog: drafts that went silent. Healthy drafts settle in 1â€“2
             // business days; a Settlement still Pending past the threshold gets its status
             // queried at ADN directly and is settled, reversed, or flagged. This is the only
-            // detector for a draft that died before origination — that failure produces no
+            // detector for a draft that died before origination â€” that failure produces no
             // batch transaction and no return, ever.
             var staleCutoff = DateTime.Now.AddDays(-_options.WatchdogStalePendingDays);
             foreach (var stale in await _settleRepo.GetStalePendingAsync(staleCutoff, ct))
@@ -291,7 +291,7 @@ public sealed class AdnSweepService : IAdnSweepService
             errorMessage = ex.Flatten();
         }
 
-        // The digest is built and sent OUTSIDE the try — a failed sweep must still mail, and must say so.
+        // The digest is built and sent OUTSIDE the try â€” a failed sweep must still mail, and must say so.
         // It used to be the last statement inside the try, so any throw upstream skipped it entirely and
         // the only signal was the 5am email not arriving. Silence is not a report.
         var html = BuildDigestHtml(arbRows, settledRows, ecRows, orphanRows, watchdogRows, untrackedRows, counts, errorMessage);
@@ -325,7 +325,7 @@ public sealed class AdnSweepService : IAdnSweepService
         };
     }
 
-    // ── Batch fetching ────────────────────────────────────────────────
+    // â”€â”€ Batch fetching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private List<transactionSummaryType> FetchBatchTransactions(
         AuthorizeNet.Environment env, string loginId, string transactionKey, int daysPrior)
@@ -336,7 +336,7 @@ public sealed class AdnSweepService : IAdnSweepService
         var batchResp = _adn.GetSettleBatchList_FromDateRange(env, loginId, transactionKey, first, last, true);
 
         // An error response is a FAILED sweep, not an empty one. Authorize.Net signals "no batches in
-        // this window" with an Ok result and a null batchList — that is the legitimate quiet day, and it
+        // this window" with an Ok result and a null batchList â€” that is the legitimate quiet day, and it
         // returns []. Anything else (credentials rejected, service error) throws: nothing downstream may
         // conclude "nothing settled" from an answer Authorize.Net never actually gave.
         if (batchResp?.messages?.resultCode != messageTypeEnum.Ok)
@@ -377,7 +377,7 @@ public sealed class AdnSweepService : IAdnSweepService
 
     // Orphan candidate = a settled, one-time charge that carries our invoice format.
     // subscription == null excludes ARB txs (handled in step 2). The real orphan test
-    // (no matching accounting row) is done in DetectOrphanAsync, post-dedup — this is
+    // (no matching accounting row) is done in DetectOrphanAsync, post-dedup â€” this is
     // just the cheap pre-filter over the batch list.
     private static bool IsOrphanCandidate(transactionSummaryType tx)
     {
@@ -388,7 +388,7 @@ public sealed class AdnSweepService : IAdnSweepService
             && tx.invoiceNumber.Split('_').Length == 3;
     }
 
-    // ── ARB import (legacy parity) ────────────────────────────────────
+    // â”€â”€ ARB import (legacy parity) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private async Task<ArbDigestRow?> ImportArbTransactionAsync(
         transactionSummaryType tx, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
@@ -403,8 +403,8 @@ public sealed class AdnSweepService : IAdnSweepService
         var subId = tx.subscription.id.ToString();
 
         // Two ARB sub flavors share the same subscription-id namespace at ADN:
-        //   1. Player ARB (legacy) — sub stamped on Registrations.AdnSubscriptionId.
-        //   2. Team ARB-Trial      — sub stamped on Teams.AdnSubscriptionId (per-team).
+        //   1. Player ARB (legacy) â€” sub stamped on Registrations.AdnSubscriptionId.
+        //   2. Team ARB-Trial      â€” sub stamped on Teams.AdnSubscriptionId (per-team).
         // Try registration first (covers the long-standing player flow), then team.
         var reg = await _regRepo.GetByAdnSubscriptionIdAsync(subId, ct);
         if (reg != null)
@@ -494,9 +494,9 @@ public sealed class AdnSweepService : IAdnSweepService
             // NSF on a plan installment would be logged "not ours, skipping" and never reversed.
             // The subscription drafts autonomously (no submit-time Pending row), so THIS is the
             // only place a plan installment's Settlement key is created. Step-3's
-            // subscription==null filter keeps this Settled row out of the Pending→Settled path.
+            // subscription==null filter keeps this Settled row out of the Pendingâ†’Settled path.
             // Attached via the navigation property BEFORE the booking save so RA + return-watcher
-            // commit in ONE transaction — a crash between separate saves would book money no
+            // commit in ONE transaction â€” a crash between separate saves would book money no
             // return could ever find.
             if (isEcheck)
             {
@@ -520,7 +520,7 @@ public sealed class AdnSweepService : IAdnSweepService
             // Record the settled installment and re-derive the registration's totals from
             // the ledger in one transaction (the tracked Settlement above flushes with it).
             // The sweep is the actor, so the registration is stamped with the system superuser
-            // (matches the audit row and the team-side settle) — NOT the registrant's FamilyUserId.
+            // (matches the audit row and the team-side settle) â€” NOT the registrant's FamilyUserId.
             await _accountingRepo.RecordPaymentAndRecomputeAsync(raRow, SystemUserId, ct);
         }
         else
@@ -552,7 +552,7 @@ public sealed class AdnSweepService : IAdnSweepService
         transactionSummaryType tx, Domain.Entities.Teams team, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
     {
         // Sync ADN-known subscription status onto the team row (no separate ARB repo
-        // method for teams — direct mutation on the tracked entity).
+        // method for teams â€” direct mutation on the tracked entity).
         var subStatusResp = _adn.GetSubscriptionStatus(env, creds.AdnLoginId!, creds.AdnTransactionKey!, team.AdnSubscriptionId!);
         if (subStatusResp?.messages?.resultCode == messageTypeEnum.Ok)
         {
@@ -623,7 +623,7 @@ public sealed class AdnSweepService : IAdnSweepService
         if (tx.transactionStatus == "settledSuccessfully")
         {
             // eCheck team-ARB draft: pair the RA with a Settlement row born "Settled", exactly
-            // like the registration-ARB path — without it, an NSF on a team installment hits
+            // like the registration-ARB path â€” without it, an NSF on a team installment hits
             // "not ours, skipping" in ProcessEcheckReturnAsync and the money stays booked
             // forever. Attached via the navigation property so RA + return-watcher commit in
             // ONE transaction with the booking save below.
@@ -692,7 +692,7 @@ public sealed class AdnSweepService : IAdnSweepService
     private Task _registrations_SyncRep(Guid clubRepRegistrationId, CancellationToken ct)
         => _regRepo.SynchronizeClubRepFinancialsAsync(clubRepRegistrationId, SystemUserId, ct);
 
-    // ── eCheck Pending → Settled ─────────────────────────────────────
+    // â”€â”€ eCheck Pending â†’ Settled â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private async Task<EcheckSettledDigestRow?> MarkEcheckSettled(Settlement settlement, CancellationToken ct)
     {
@@ -700,12 +700,12 @@ public sealed class AdnSweepService : IAdnSweepService
         var reg = ra.Registration;
         if (reg == null)
         {
-            _logger.LogWarning("Settlement {Id}: no Registration loaded — corrupt state, skipping",
+            _logger.LogWarning("Settlement {Id}: no Registration loaded â€” corrupt state, skipping",
                 settlement.SettlementId);
             return null;
         }
 
-        // Status-only bookkeeping: the money booked at SUBMIT (optimistic — the RA was born
+        // Status-only bookkeeping: the money booked at SUBMIT (optimistic â€” the RA was born
         // Active=true and PaidTotal moved with it). Presence in a settled batch just means the
         // draft entered the banking network; from here the only possible failure is a future
         // return (handled by ProcessEcheckReturnAsync). No Active flip, no recompute, no rep sync.
@@ -728,30 +728,71 @@ public sealed class AdnSweepService : IAdnSweepService
         };
     }
 
-    // ── eCheck return processing ──────────────────────────────────────
+    // â”€â”€ eCheck return processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-    private async Task<EcheckReturnDigestRow?> ProcessEcheckReturnAsync(
+    /// <summary>
+    /// Month-end backstop entry (see <see cref="IAdnSweepService.EnsureReturnProcessedAsync"/>).
+    /// Same core, same guards as the daily sweep's return path; serialized behind the same
+    /// process-wide lock because those guards are unlocked read-then-write. Waits (rather than
+    /// refusing like RunAsync) â€” in the close flow the lock is free by construction, and a rare
+    /// manual overlap should delay the backstop, never silently skip a missed return.
+    /// </summary>
+    public async Task<EcheckReturnBackstopOutcome?> EnsureReturnProcessedAsync(
+        string returnTransId, CancellationToken ct = default)
+    {
+        await RunLock.WaitAsync(ct);
+        try
+        {
+            var creds = await _adn.GetJobAdnCredentials_FromCustomerId(_tsicSettings.DefaultCustomerId);
+            var env = _adn.GetADNEnvironment();
+            var row = await ProcessEcheckReturnByIdAsync(returnTransId, env, creds, ct);
+            if (row == null) return null;
+
+            _logger.LogWarning(
+                "Month-end backstop: eCheck return {TxId} (original {OrigTxId}) was NOT processed by the daily sweep â€” reversal written now ({Amount:C})",
+                row.ReturnTxId, row.OriginalTxId, row.AmountReversed);
+
+            return new EcheckReturnBackstopOutcome
+            {
+                ReturnTxId = row.ReturnTxId,
+                OriginalTxId = row.OriginalTxId,
+                JobName = row.JobName,
+                AmountReversed = row.AmountReversed,
+                Reason = row.Reason,
+            };
+        }
+        finally
+        {
+            RunLock.Release();
+        }
+    }
+
+    private Task<EcheckReturnDigestRow?> ProcessEcheckReturnAsync(
         transactionSummaryType returnTx, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
+        => ProcessEcheckReturnByIdAsync(returnTx.transId, env, creds, ct);
+
+    private async Task<EcheckReturnDigestRow?> ProcessEcheckReturnByIdAsync(
+        string returnTransId, AuthorizeNet.Environment env, AdnCredentialsViewModel creds, CancellationToken ct)
     {
         // Skip if we already wrote a reversal for this return.
-        if (await _accountingRepo.AnyByAdnTransactionIdAsync(returnTx.transId, ct))
+        if (await _accountingRepo.AnyByAdnTransactionIdAsync(returnTransId, ct))
         {
-            _logger.LogDebug("eCheck return {TxId} already processed, skipping", returnTx.transId);
+            _logger.LogDebug("eCheck return {TxId} already processed, skipping", returnTransId);
             return null;
         }
 
         // GetTransactionDetails to find refTransId (the original we submitted).
-        var detail = _adn.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, returnTx.transId);
+        var detail = _adn.ADN_GetTransactionDetails(env, creds.AdnLoginId!, creds.AdnTransactionKey!, returnTransId);
         if (detail?.messages?.resultCode != messageTypeEnum.Ok || detail.transaction == null)
         {
-            _logger.LogWarning("eCheck return {TxId}: GetTransactionDetails failed", returnTx.transId);
+            _logger.LogWarning("eCheck return {TxId}: GetTransactionDetails failed", returnTransId);
             return null;
         }
 
         var originalTxId = detail.transaction.refTransId;
         if (string.IsNullOrEmpty(originalTxId))
         {
-            _logger.LogWarning("eCheck return {TxId}: no refTransId — cannot link to original", returnTx.transId);
+            _logger.LogWarning("eCheck return {TxId}: no refTransId â€” cannot link to original", returnTransId);
             return null;
         }
 
@@ -760,18 +801,18 @@ public sealed class AdnSweepService : IAdnSweepService
         var settlement = settlements.FirstOrDefault();
         if (settlement == null)
         {
-            _logger.LogWarning("eCheck return {TxId}: original {OrigTxId} not in echeck.Settlement — not ours, skipping",
-                returnTx.transId, originalTxId);
+            _logger.LogWarning("eCheck return {TxId}: original {OrigTxId} not in echeck.Settlement â€” not ours, skipping",
+                returnTransId, originalTxId);
             return null;
         }
 
         // Terminal guard: "Returned" is a final state. The sweep re-reads a trailing window of
-        // batches, so the same returnedItem tx is re-seen on 2–3 consecutive runs — without this
+        // batches, so the same returnedItem tx is re-seen on 2â€“3 consecutive runs â€” without this
         // guard the digest re-counted the return (and re-alerted) every run until it aged out.
         if (settlement.Status == "Returned")
         {
             _logger.LogDebug("eCheck return {TxId}: settlement {Id} already Returned, skipping",
-                returnTx.transId, settlement.SettlementId);
+                returnTransId, settlement.SettlementId);
             return null;
         }
 
@@ -779,7 +820,7 @@ public sealed class AdnSweepService : IAdnSweepService
         var reg = ra.Registration;
         if (reg == null)
         {
-            _logger.LogWarning("Settlement {Id}: no Registration loaded — corrupt state, skipping",
+            _logger.LogWarning("Settlement {Id}: no Registration loaded â€” corrupt state, skipping",
                 settlement.SettlementId);
             return null;
         }
@@ -793,10 +834,10 @@ public sealed class AdnSweepService : IAdnSweepService
         }
 
         // One rule under optimistic booking: the money counted at SUBMIT, so EVERY return
-        // reverses — including originals still "Pending" (bounced before our sweep ever saw
+        // reverses â€” including originals still "Pending" (bounced before our sweep ever saw
         // them settle). Idempotency is the two guards above: a reversal RA carrying the
         // return's transId, and the terminal "Returned" status. The Kind distinction is
-        // digest-facing only — the money handling is identical.
+        // digest-facing only â€” the money handling is identical.
         var kind = settlement.Status == "Settled" ? "NSF after settlement" : "returned before settlement recorded";
         var now = DateTime.Now;
 
@@ -808,14 +849,14 @@ public sealed class AdnSweepService : IAdnSweepService
         settlement.Modified = now;
 
         await ReverseEcheckMoneyAsync(settlement, ra, reg, amount,
-            reversalTxId: returnTx.transId,
-            reversalComment: $"NSF return — original aID {ra.AId}, reason: {settlement.ReturnReasonCode} {settlement.ReturnReasonText}",
+            reversalTxId: returnTransId,
+            reversalComment: $"NSF return â€” original aID {ra.AId}, reason: {settlement.ReturnReasonCode} {settlement.ReturnReasonText}",
             ct);
 
         return new EcheckReturnDigestRow
         {
             JobName = reg.Job?.DisplayName ?? reg.Job?.JobName ?? "",
-            ReturnTxId = returnTx.transId,
+            ReturnTxId = returnTransId,
             OriginalTxId = originalTxId,
             Kind = kind,
             Reason = $"{settlement.ReturnReasonText} ({settlement.ReturnReasonCode})",
@@ -825,10 +866,10 @@ public sealed class AdnSweepService : IAdnSweepService
     }
 
     /// <summary>
-    /// Shared reversal core — the money-undo for a booked eCheck, used by the return handler
+    /// Shared reversal core â€” the money-undo for a booked eCheck, used by the return handler
     /// (NSF) and the stale-Pending watchdog (draft died / return aged out of the window).
-    /// Restores the (CC−EC) processing-fee credit on the keyed entity, writes the negative
-    /// "Failed E-Check Payment" RA row, and re-derives totals — one transaction (the caller's
+    /// Restores the (CCâˆ’EC) processing-fee credit on the keyed entity, writes the negative
+    /// "Failed E-Check Payment" RA row, and re-derives totals â€” one transaction (the caller's
     /// tracked Settlement status flip flushes with it). Team-side rows also roll the delta
     /// onto the rep aggregate. The caller owns idempotency (terminal Settlement status /
     /// reversal-txId guard) and the digest row.
@@ -843,8 +884,8 @@ public sealed class AdnSweepService : IAdnSweepService
         CancellationToken ct)
     {
         // Two flavors share this core:
-        //   - Player eCheck:    RA.TeamId is null → reverse on the player Registration directly.
-        //   - Team eCheck (incl. team-ARB drafts): RA.TeamId is set → reverse on the Teams row,
+        //   - Player eCheck:    RA.TeamId is null â†’ reverse on the player Registration directly.
+        //   - Team eCheck (incl. team-ARB drafts): RA.TeamId is set â†’ reverse on the Teams row,
         //     then re-aggregate onto the rep's Registration via SynchronizeClubRepFinancialsAsync.
         // Restore the processing-fee credit on the reversed entity (save-free; the chokepoint
         // below re-derives FeeTotal/OwedTotal). PaidTotal is recomputed from the ledger once the
@@ -854,7 +895,7 @@ public sealed class AdnSweepService : IAdnSweepService
             var team = await _teamRepo.GetTeamFromTeamId(ra.TeamId.Value, ct);
             if (team == null)
             {
-                _logger.LogWarning("Settlement {Id}: RA.TeamId {TeamId} not found — reversal row written, team totals left as-is",
+                _logger.LogWarning("Settlement {Id}: RA.TeamId {TeamId} not found â€” reversal row written, team totals left as-is",
                     settlement.SettlementId, ra.TeamId);
             }
             else
@@ -898,18 +939,18 @@ public sealed class AdnSweepService : IAdnSweepService
         }
     }
 
-    // ── Stale-Pending watchdog ────────────────────────────────────────
+    // â”€â”€ Stale-Pending watchdog â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     //
     // The one failure mode with NO signal of its own: a draft the gateway accepted that died
     // before entering the banking network (voided / gateway error at batch time). No settlement
-    // will ever come, no return will ever come — under optimistic booking, silence means "money
-    // is good", so somebody has to check. A healthy draft goes Pending → Settled in 1–2 business
+    // will ever come, no return will ever come â€” under optimistic booking, silence means "money
+    // is good", so somebody has to check. A healthy draft goes Pending â†’ Settled in 1â€“2 business
     // days; Pending beyond the configured threshold is an anomaly by definition, and the tx id
     // lets us ask ADN point-blank what became of it. (Director notification is deliberately
-    // absent — everything lands in the support digest; the director-facing NSF alert + inactivate
+    // absent â€” everything lands in the support digest; the director-facing NSF alert + inactivate
     // action are one future feature, designed together.)
 
-    // ADN transaction statuses that mean the draft is dead without ever having originated —
+    // ADN transaction statuses that mean the draft is dead without ever having originated â€”
     // reverse the booked money. Unknown statuses are deliberately NOT here: report-only, a
     // human decides (a wrong reversal is worse than a flagged oddity).
     private static readonly HashSet<string> DeadTransactionStatuses = new(StringComparer.OrdinalIgnoreCase)
@@ -924,7 +965,7 @@ public sealed class AdnSweepService : IAdnSweepService
         var reg = ra.Registration;
         if (reg == null)
         {
-            _logger.LogWarning("Watchdog: settlement {Id} has no Registration loaded — corrupt state, skipping",
+            _logger.LogWarning("Watchdog: settlement {Id} has no Registration loaded â€” corrupt state, skipping",
                 settlement.SettlementId);
             return null;
         }
@@ -946,16 +987,16 @@ public sealed class AdnSweepService : IAdnSweepService
             settlement.LastCheckedAt = now;
             settlement.Modified = now;
             await _settleRepo.SaveChangesAsync(ct);
-            return row with { Outcome = "status check failed at ADN — will retry next run" };
+            return row with { Outcome = "status check failed at ADN â€” will retry next run" };
         }
 
         var status = detail.transaction.transactionStatus ?? "";
 
         if (string.Equals(status, "settledSuccessfully", StringComparison.OrdinalIgnoreCase))
         {
-            // Settled but we never saw the batch (sweep outage / window aged out) — rejoin path ①.
+            // Settled but we never saw the batch (sweep outage / window aged out) â€” rejoin path â‘ .
             var settled = await MarkEcheckSettled(settlement, ct);
-            return row with { Outcome = settled != null ? "settled — batch window missed; stamped Settled" : "settled at ADN but local stamp failed" };
+            return row with { Outcome = settled != null ? "settled â€” batch window missed; stamped Settled" : "settled at ADN but local stamp failed" };
         }
 
         var amount = ra.Payamt ?? 0m;
@@ -973,53 +1014,53 @@ public sealed class AdnSweepService : IAdnSweepService
             if (amount <= 0m)
             {
                 await _settleRepo.SaveChangesAsync(ct);
-                return row with { Outcome = "returned at ADN; original amount non-positive — status stamped, nothing to reverse" };
+                return row with { Outcome = "returned at ADN; original amount non-positive â€” status stamped, nothing to reverse" };
             }
 
             await ReverseEcheckMoneyAsync(settlement, ra, reg, amount,
                 reversalTxId: null,
-                reversalComment: $"eCheck returned (watchdog) — original aID {ra.AId}, txID {settlement.AdnTransactionId}",
+                reversalComment: $"eCheck returned (watchdog) â€” original aID {ra.AId}, txID {settlement.AdnTransactionId}",
                 ct);
-            return row with { Outcome = $"returned at ADN — reversed {amount:C}" };
+            return row with { Outcome = $"returned at ADN â€” reversed {amount:C}" };
         }
 
         if (DeadTransactionStatuses.Contains(status))
         {
-            // Died before origination: no return will ever come — THIS is the case only the
+            // Died before origination: no return will ever come â€” THIS is the case only the
             // watchdog can catch. Reverse the submit-time booking.
             settlement.Status = "Failed";
-            settlement.ReturnReasonText = $"never originated — gateway status '{status}' (watchdog)";
+            settlement.ReturnReasonText = $"never originated â€” gateway status '{status}' (watchdog)";
             settlement.LastCheckedAt = now;
             settlement.Modified = now;
 
             if (amount <= 0m)
             {
                 await _settleRepo.SaveChangesAsync(ct);
-                return row with { Outcome = $"dead at gateway ({status}); original amount non-positive — status stamped, nothing to reverse" };
+                return row with { Outcome = $"dead at gateway ({status}); original amount non-positive â€” status stamped, nothing to reverse" };
             }
 
             await ReverseEcheckMoneyAsync(settlement, ra, reg, amount,
                 reversalTxId: null,
-                reversalComment: $"eCheck never originated — gateway status '{status}' (watchdog), original aID {ra.AId}, txID {settlement.AdnTransactionId}",
+                reversalComment: $"eCheck never originated â€” gateway status '{status}' (watchdog), original aID {ra.AId}, txID {settlement.AdnTransactionId}",
                 ct);
-            return row with { Outcome = $"never originated ({status}) — reversed {amount:C}" };
+            return row with { Outcome = $"never originated ({status}) â€” reversed {amount:C}" };
         }
 
         // Genuinely still in flight (capturedPendingSettlement etc.) or a status we don't
-        // recognize — stamp the check, report, look again next run. No money is touched on
+        // recognize â€” stamp the check, report, look again next run. No money is touched on
         // an unrecognized status: report-only, a human decides.
         settlement.LastCheckedAt = now;
         settlement.NextCheckAt = now.AddDays(1);
         settlement.Modified = now;
         await _settleRepo.SaveChangesAsync(ct);
-        return row with { Outcome = $"still '{status}' at ADN — left Pending, will re-check" };
+        return row with { Outcome = $"still '{status}' at ADN â€” left Pending, will re-check" };
     }
 
-    // ── Orphan charge detection (report-only) ─────────────────────────
+    // â”€â”€ Orphan charge detection (report-only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // A settled one-time charge that we can't find a local accounting row for. This is the
     // "card was charged at ADN but the booking write never landed" failure (app pool stop /
-    // publish mid-request). We only REPORT it — no RegistrationAccounting row is written here.
+    // publish mid-request). We only REPORT it â€” no RegistrationAccounting row is written here.
     // A human reads the digest and books it by hand if it's real.
     private async Task<OrphanDigestRow?> DetectOrphanAsync(transactionSummaryType tx, CancellationToken ct)
     {
@@ -1037,7 +1078,7 @@ public sealed class AdnSweepService : IAdnSweepService
             || !int.TryParse(parts[2], out var regAi))
         {
             _logger.LogWarning(
-                "ORPHAN ADN charge {TxId}: settled with no accounting row and a malformed invoice '{Invoice}' — cannot attribute (report only)",
+                "ORPHAN ADN charge {TxId}: settled with no accounting row and a malformed invoice '{Invoice}' â€” cannot attribute (report only)",
                 tx.transId, tx.invoiceNumber);
             return new OrphanDigestRow
             {
@@ -1047,7 +1088,7 @@ public sealed class AdnSweepService : IAdnSweepService
                 SettleAmount = tx.settleAmount,
                 SubmittedAt = tx.submitTimeLocal,
                 Registrant = null,
-                Note = "malformed invoice number — cannot map to a registration"
+                Note = "malformed invoice number â€” cannot map to a registration"
             };
         }
 
@@ -1069,11 +1110,11 @@ public sealed class AdnSweepService : IAdnSweepService
             };
         }
 
-        // Genuine orphan: money settled at ADN, no local accounting row. REPORT ONLY — we
+        // Genuine orphan: money settled at ADN, no local accounting row. REPORT ONLY â€” we
         // deliberately do NOT write a RegistrationAccounting row. A human reviews the digest
         // and books it by hand if real.
         _logger.LogWarning(
-            "ORPHAN ADN charge {TxId}: settled {Amount:C} for registration {RegId} (invoice {Invoice}) with no local accounting row — REPORT ONLY, not booked",
+            "ORPHAN ADN charge {TxId}: settled {Amount:C} for registration {RegId} (invoice {Invoice}) with no local accounting row â€” REPORT ONLY, not booked",
             tx.transId, tx.settleAmount, reg.RegistrationId, tx.invoiceNumber);
 
         return new OrphanDigestRow
@@ -1084,11 +1125,11 @@ public sealed class AdnSweepService : IAdnSweepService
             SettleAmount = tx.settleAmount,
             SubmittedAt = tx.submitTimeLocal,
             Registrant = reg.UserId,
-            Note = "settled at ADN, no local accounting row — review and book by hand"
+            Note = "settled at ADN, no local accounting row â€” review and book by hand"
         };
     }
 
-    // ── Installment math (legacy parity) ──────────────────────────────
+    // â”€â”€ Installment math (legacy parity) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     // Team ARB-Trial subs run on day-based intervals (deposit today+1, balance on
     // AdnStartDateAfterTrial), so the schedule is always exactly two charges and
@@ -1148,7 +1189,7 @@ public sealed class AdnSweepService : IAdnSweepService
         return (owedNow > 0 ? owedNow : 0m, paymentXofY, nextInstallment);
     }
 
-    // ── Digest email ──────────────────────────────────────────────────
+    // â”€â”€ Digest email â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private string BuildDigestHtml(
         List<ArbDigestRow> arbRows,
@@ -1166,13 +1207,13 @@ public sealed class AdnSweepService : IAdnSweepService
         var envType = "PROD";
 #endif
         var sb = new StringBuilder();
-        sb.Append($"<h3 style='margin-bottom:4px;'>ADN Sweep ({envType}, TSIC) — {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");
+        sb.Append($"<h3 style='margin-bottom:4px;'>ADN Sweep ({envType}, TSIC) â€” {DateTime.Now:dddd, dd MMMM yyyy HH:mm}</h3>");
 
         // Lead with the failure. A digest of zeros reads like a quiet morning; only this says otherwise.
         if (errorMessage != null)
         {
             sb.Append("<p style='font-size:13px;color:#b00;font-weight:bold;margin:8px 0;'>"
-                + "&#9888; SWEEP FAILED — this pass did not complete. Payments settled at Authorize.Net may "
+                + "&#9888; SWEEP FAILED â€” this pass did not complete. Payments settled at Authorize.Net may "
                 + "NOT be booked in the accounting tables. The counts below are whatever was reached before "
                 + "the failure, not a picture of the day.</p>");
             sb.Append($"<p style='font-size:11px;color:#b00;margin:0 0 8px 0;'><b>Error:</b> {errorMessage}</p>");
@@ -1180,13 +1221,13 @@ public sealed class AdnSweepService : IAdnSweepService
         else if (counts.Errored > 0)
         {
             sb.Append($"<p style='font-size:13px;color:#b00;font-weight:bold;margin:8px 0;'>"
-                + $"&#9888; {counts.Errored} transaction(s) errored — the pass completed, but those are not booked.</p>");
+                + $"&#9888; {counts.Errored} transaction(s) errored â€” the pass completed, but those are not booked.</p>");
         }
 
-        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts — Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Errored: {counts.Errored}</p>");
+        sb.Append($"<p style='font-size:9px;margin-top:0;'>Counts â€” Checked: {counts.Checked}, ARB imported: {counts.ArbImported}, eCheck settled: {counts.EcheckSettled}, eCheck returns: {counts.EcheckReturnsProcessed}, Orphans: {counts.OrphansFound}, Watchdog: {watchdogRows.Count}, Untracked eCheck: {untrackedRows.Count}, Errored: {counts.Errored}</p>");
 
-        // ── ARB subscription warnings ─────────────────────────────────
-        // A suspended/canceled/terminated subscription stops drafting on its own — pure absence
+        // â”€â”€ ARB subscription warnings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // A suspended/canceled/terminated subscription stops drafting on its own â€” pure absence
         // from our side. The status is synced from ADN during import; this is its alarm.
         var subWarnings = arbRows
             .Where(r => !string.IsNullOrEmpty(r.SubscriptionStatus)
@@ -1195,16 +1236,16 @@ public sealed class AdnSweepService : IAdnSweepService
             .ToList();
         if (subWarnings.Count > 0)
         {
-            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Subscription(s) not healthy — installments will stop arriving on their own:</p>");
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Subscription(s) not healthy â€” installments will stop arriving on their own:</p>");
             sb.Append("<ul style='font-size:9px;margin-top:0;'>");
             foreach (var w in subWarnings)
             {
-                sb.Append($"<li><b>{w.SubscriptionStatus}</b> — {w.JobName} · sub {w.SubscriptionId} · {w.Registrant} ({w.RegistrantAssignment}) · owed now {w.OwedNow:C}</li>");
+                sb.Append($"<li><b>{w.SubscriptionStatus}</b> â€” {w.JobName} Â· sub {w.SubscriptionId} Â· {w.Registrant} ({w.RegistrantAssignment}) Â· owed now {w.OwedNow:C}</li>");
             }
             sb.Append("</ul>");
         }
 
-        // ── ARB Activity table ────────────────────────────────────────
+        // â”€â”€ ARB Activity table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         sb.Append("<h4 style='margin-bottom:2px;'>ARB Activity</h4>");
         if (arbRows.Count == 0)
         {
@@ -1235,8 +1276,8 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append("</table>");
         }
 
-        // ── eCheck Settled table ──────────────────────────────────────
-        sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Settled (Pending → Settled)</h4>");
+        // â”€â”€ eCheck Settled table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Settled (Pending â†’ Settled)</h4>");
         if (settledRows.Count == 0)
         {
             sb.Append("<p style='font-size:9px;'>(no eCheck settlements transitioned this run)</p>");
@@ -1262,7 +1303,7 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append("</table>");
         }
 
-        // ── eCheck Returns table ──────────────────────────────────────
+        // â”€â”€ eCheck Returns table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Returns</h4>");
         if (ecRows.Count == 0)
         {
@@ -1289,15 +1330,15 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append("</table>");
         }
 
-        // ── Watchdog table (stale Pending drafts) ─────────────────────
+        // â”€â”€ Watchdog table (stale Pending drafts) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>eCheck Watchdog (Pending beyond threshold)</h4>");
         if (watchdogRows.Count == 0)
         {
-            sb.Append("<p style='font-size:9px;'>(no stale pending drafts — every draft settled or resolved on time ✓)</p>");
+            sb.Append("<p style='font-size:9px;'>(no stale pending drafts â€” every draft settled or resolved on time âœ“)</p>");
         }
         else
         {
-            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Draft(s) still Pending past the threshold — status was queried at ADN directly; outcome per row.</p>");
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Draft(s) still Pending past the threshold â€” status was queried at ADN directly; outcome per row.</p>");
             sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
             sb.Append("<tr><th>#</th><th>Job</th><th>TransId</th><th>Amount</th><th>Registrant</th><th>Submitted</th><th>Outcome</th></tr>");
             for (int i = 0; i < watchdogRows.Count; i++)
@@ -1316,15 +1357,15 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append("</table>");
         }
 
-        // ── Untracked eCheck payments (integrity net) ─────────────────
+        // â”€â”€ Untracked eCheck payments (integrity net) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Untracked eCheck Payments (no Settlement return-watcher)</h4>");
         if (untrackedRows.Count == 0)
         {
-            sb.Append("<p style='font-size:9px;'>(none — every booked eCheck is registered for return-watching ✓)</p>");
+            sb.Append("<p style='font-size:9px;'>(none â€” every booked eCheck is registered for return-watching âœ“)</p>");
         }
         else
         {
-            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Booked eCheck money the sweep cannot watch — a bounce on these would be silently dropped. Investigate each; likely a partial write.</p>");
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>&#9888; Booked eCheck money the sweep cannot watch â€” a bounce on these would be silently dropped. Investigate each; likely a partial write.</p>");
             sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
             sb.Append("<tr><th>#</th><th>RA AId</th><th>TransId</th><th>Amount</th><th>Created</th></tr>");
             for (int i = 0; i < untrackedRows.Count; i++)
@@ -1341,15 +1382,15 @@ public sealed class AdnSweepService : IAdnSweepService
             sb.Append("</table>");
         }
 
-        // ── Orphan ADN Charges table (report-only) ────────────────────
+        // â”€â”€ Orphan ADN Charges table (report-only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         sb.Append("<h4 style='margin-bottom:2px;margin-top:14px;'>Orphan ADN Charges (settled at ADN, not booked locally)</h4>");
         if (orphanRows.Count == 0)
         {
-            sb.Append("<p style='font-size:9px;'>(none — every settled charge has a matching accounting row ✓)</p>");
+            sb.Append("<p style='font-size:9px;'>(none â€” every settled charge has a matching accounting row âœ“)</p>");
         }
         else
         {
-            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>⚠️ Money settled at Authorize.Net with no local accounting row. REPORT ONLY — nothing was booked. Review each and enter the payment by hand.</p>");
+            sb.Append("<p style='font-size:10px;color:#b00;font-weight:bold;'>âš ï¸ Money settled at Authorize.Net with no local accounting row. REPORT ONLY â€” nothing was booked. Review each and enter the payment by hand.</p>");
             sb.Append("<table style='border-style:solid;border-collapse:separate;border-spacing:10px;font-size:9px;'>");
             sb.Append("<tr><th>#</th><th>Resolved</th><th>TransId</th><th>Invoice</th><th>Settle Amount</th><th>Submitted (ADN)</th><th>Registrant</th><th>Note</th></tr>");
             for (int i = 0; i < orphanRows.Count; i++)
@@ -1378,15 +1419,15 @@ public sealed class AdnSweepService : IAdnSweepService
         {
             FromName = "",
             ToAddresses = [TsicConstants.SupportEmail],
-            // The verdict rides the subject — this is read on a phone, and a failed sweep must be
+            // The verdict rides the subject â€” this is read on a phone, and a failed sweep must be
             // distinguishable from a quiet one without opening the mail.
             Subject = $"AdnSweep AI {DateTime.Now:dddd, dd MMMM yyyy HH:mm}"
-                + (errorMessage != null ? " — SWEEP FAILED" : errored > 0 ? $" — {errored} ERRORED" : ""),
+                + (errorMessage != null ? " â€” SWEEP FAILED" : errored > 0 ? $" â€” {errored} ERRORED" : ""),
             HtmlBody = html
         }, sendInDevelopment: true, cancellationToken: ct);
     }
 
-    // ── Internal types ────────────────────────────────────────────────
+    // â”€â”€ Internal types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private sealed class Counts
     {
@@ -1426,7 +1467,7 @@ public sealed class AdnSweepService : IAdnSweepService
     }
 
     // Watchdog finding: a Settlement still Pending past the threshold, with what ADN said and
-    // what was done about it ("never originated — reversed", "settled — window missed", …).
+    // what was done about it ("never originated â€” reversed", "settled â€” window missed", â€¦).
     private sealed record WatchdogDigestRow
     {
         public required string JobName { get; init; }

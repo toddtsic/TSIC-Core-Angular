@@ -9,6 +9,7 @@ using BoldReports.Writer;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Syncfusion.XlsIO;
 using TSIC.API.Configuration;
@@ -27,6 +28,7 @@ public sealed class ReportingService : IReportingService
     private readonly IHostEnvironment _hostEnvironment;
     private readonly ReportingSettings _settings;
     private readonly FileStorageOptions _fileStorage;
+    private readonly ILogger<ReportingService> _logger;
 
     private static readonly JsonSerializerOptions MonthEndJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -35,13 +37,15 @@ public sealed class ReportingService : IReportingService
         IHttpClientFactory httpClientFactory,
         IHostEnvironment hostEnvironment,
         IOptions<ReportingSettings> settings,
-        IOptions<FileStorageOptions> fileStorage)
+        IOptions<FileStorageOptions> fileStorage,
+        ILogger<ReportingService> logger)
     {
         _reportingRepository = reportingRepository;
         _httpClientFactory = httpClientFactory;
         _hostEnvironment = hostEnvironment;
         _settings = settings.Value;
         _fileStorage = fileStorage.Value;
+        _logger = logger;
     }
 
     public Task<List<JobReportEntryDto>> GetJobReportsAsync(
@@ -413,6 +417,9 @@ public sealed class ReportingService : IReportingService
             RegConsolidatedTrnsCount = info.RegConsolidatedTrnsCount,
             MerchSourceTrnsCount = info.MerchSourceTrnsCount,
             MerchConsolidatedTrnsCount = info.MerchConsolidatedTrnsCount,
+            EcheckReturnsFileBuilt = info.EcheckReturnsFileBuilt,
+            EcheckReturnsSourceTrnsCount = info.EcheckReturnsSourceTrnsCount,
+            EcheckReturnsConsolidatedTrnsCount = info.EcheckReturnsConsolidatedTrnsCount,
         };
     }
 
@@ -447,12 +454,36 @@ public sealed class ReportingService : IReportingService
         var regSheets = await RunStackSheetsAsync(settlementMonth, settlementYear, isMerchandise: false, cancellationToken);
         var merchSheets = await RunStackSheetsAsync(settlementMonth, settlementYear, isMerchandise: true, cancellationToken);
 
+        // Third stack: eCheck returns — the negative-line mirror of the payments file. Bounces
+        // imported as 'Returned Item' become clawback lines dated the day the bank said no, so a
+        // post-close bounce nets the client's NEXT remittance automatically. Graceful when the
+        // sproc is not yet deployed (code ships before the DDL runs): the reg/merch files must
+        // still ship, so a missing sproc degrades to an absent returns file — loudly logged,
+        // never a dead close.
+        List<SheetData> returnsSheets;
+        var returnsFileBuilt = true;
+        try
+        {
+            returnsSheets = await RunEcheckReturnsSheetsAsync(settlementMonth, settlementYear, cancellationToken);
+        }
+        catch (SqlException ex)
+        {
+            _logger.LogError(ex,
+                "Month-end {Year}-{Month:D2}: eCheck returns export sproc failed or is not deployed — " +
+                "close proceeds WITHOUT the returns file; post-close bounces are not being clawed back this month",
+                settlementYear, settlementMonth);
+            returnsSheets = new List<SheetData>();
+            returnsFileBuilt = false;
+        }
+
         var reg = BuildStackArtifacts(regSheets);
         var merch = BuildStackArtifacts(merchSheets);
+        var returns = returnsFileBuilt ? BuildStackArtifacts(returnsSheets) : default;
 
         var tabs = new List<LedgerTab>();
         foreach (var sheet in regSheets) tabs.Add(ParseSheetToLedgerTab(sheet, "Registration"));
         foreach (var sheet in merchSheets) tabs.Add(ParseSheetToLedgerTab(sheet, "Merch"));
+        foreach (var sheet in returnsSheets) tabs.Add(ParseSheetToLedgerTab(sheet, "Returns"));
 
         var monthKey = $"{settlementYear}-{settlementMonth:D2}";
         var summaryXlsx = BuildFlattenedSummaryXlsx(tabs);
@@ -460,14 +491,20 @@ public sealed class ReportingService : IReportingService
         // Non-merch and merch reconcile to DIFFERENT QuickBooks customers even inside the same company
         // file, and staff inspect each ledger on its own — so the close ships two independent .iif files
         // (+ backing .xlsx). The flattened summary is the on-screen ledger for offline review.
-        var zipBytes = BuildReconciliationZip(new (string, byte[])[]
+        var zipEntries = new List<(string, byte[])>
         {
             ($"TSIC-AdnReconciliation-Reg-{monthKey}.xlsx", reg.Xlsx),
             ($"TSIC-AdnReconciliation-Merch-{monthKey}.xlsx", merch.Xlsx),
             ($"TSIC-AdnReconciliation-Summary-{monthKey}.xlsx", summaryXlsx),
             ("reg-consolodated.iif", reg.Iif),
             ("merch-consolodated.iif", merch.Iif),
-        });
+        };
+        if (returnsFileBuilt)
+        {
+            zipEntries.Add(($"TSIC-AdnReconciliation-EcheckReturns-{monthKey}.xlsx", returns.Xlsx));
+            zipEntries.Add(("echeck-returns-consolodated.iif", returns.Iif));
+        }
+        var zipBytes = BuildReconciliationZip(zipEntries.ToArray());
 
         var ledger = new MonthEndLedger
         {
@@ -486,6 +523,9 @@ public sealed class ReportingService : IReportingService
             RegConsolidatedTrnsCount = reg.ConsolidatedTrns,
             MerchSourceTrnsCount = merch.SourceTrns,
             MerchConsolidatedTrnsCount = merch.ConsolidatedTrns,
+            EcheckReturnsFileBuilt = returnsFileBuilt,
+            EcheckReturnsSourceTrnsCount = returns.SourceTrns,
+            EcheckReturnsConsolidatedTrnsCount = returns.ConsolidatedTrns,
         };
 
         await PersistMonthEndAsync(settlementMonth, settlementYear, zipBytes, ledger, info, cancellationToken);
@@ -593,6 +633,24 @@ public sealed class ReportingService : IReportingService
         }
     }
 
+    private async Task<List<SheetData>> RunEcheckReturnsSheetsAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken)
+    {
+        var (reader, connection) = await _reportingRepository.ExecuteEcheckReturnsExportAsync(
+            settlementMonth, settlementYear, cancellationToken);
+        try
+        {
+            return await ReadReaderIntoSheetsAsync(reader);
+        }
+        finally
+        {
+            await reader.CloseAsync();
+            await connection.CloseAsync();
+        }
+    }
+
     /// <summary>
     /// Projects one stack's already-read sheet model into both artifacts — the backing .xlsx and the
     /// consolidated .iif — so the QuickBooks IIF can never drift from the Excel it was reconciled against.
@@ -617,7 +675,7 @@ public sealed class ReportingService : IReportingService
 
         foreach (var tab in tabs)
         {
-            var prefix = tab.Stack == "Merch" ? "M " : "R ";
+            var prefix = tab.Stack switch { "Merch" => "M ", "Returns" => "Ret ", _ => "R " };
             var sheet = new SheetData { Name = ToUniqueSheetName(prefix + tab.Name, usedNames) };
 
             if (tab.Kind == "transactions")

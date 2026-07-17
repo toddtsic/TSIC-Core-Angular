@@ -122,6 +122,15 @@ public interface IReportingRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Executes the eCheck returns export stored procedure — the negative-line mirror of the
+    /// payments export: 'Returned Item' rows in <c>adn.Txs</c>, dated the day the bank said no.
+    /// </summary>
+    Task<(DbDataReader Reader, DbConnection Connection)> ExecuteEcheckReturnsExportAsync(
+        int settlementMonth,
+        int settlementYear,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Records a report export to the audit trail.
     /// </summary>
     Task RecordExportHistoryAsync(
