@@ -26,7 +26,7 @@ import { ReactiveFormsModule, FormBuilder, Validators, AbstractControl, Validati
       <div class="alert alert-info border-0 small mb-3" role="status">
         <i class="bi bi-info-circle me-1"></i>
         eCheck payments are drafted from your bank account. Drafts typically finalize within
-        <strong>3–5 business days</strong>; if your bank returns the draft, your balance is restored automatically.
+        <strong>3–5 business days</strong>. If your bank denies the draft, you will need to pay the balance due for your registration to remain Active.
       </div>
       <form [formGroup]="form" (ngSubmit)="noop()">
         <!-- Personal Information First -->
