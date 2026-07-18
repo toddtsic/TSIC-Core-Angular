@@ -28,8 +28,10 @@ public record ScheduleFilterRequest
 public record EditScoreRequest
 {
     public required int Gid { get; init; }
-    public required int T1Score { get; init; }
-    public required int T2Score { get; init; }
+    /// <summary>Null clears the score back to unscored (quick-score is full-state, not patch-style).</summary>
+    public int? T1Score { get; init; }
+    /// <summary>Null clears the score back to unscored.</summary>
+    public int? T2Score { get; init; }
     public int? GStatusCode { get; init; }
 }
 

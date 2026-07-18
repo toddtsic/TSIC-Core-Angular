@@ -4,8 +4,8 @@
 /* eslint-disable */
 export type EditScoreRequest = {
     gid: number;
-    t1Score: number;
-    t2Score: number;
+    t1Score?: number | null;
+    t2Score?: number | null;
     gStatusCode?: number | null;
 };
 
