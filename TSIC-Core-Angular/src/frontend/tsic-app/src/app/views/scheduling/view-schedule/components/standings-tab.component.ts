@@ -138,6 +138,7 @@ type StandingsMode = 'all' | 'rr';
         .ag-tabs {
             display: flex;
             gap: var(--space-1);
+            padding: var(--space-1) var(--space-2);   /* reserve room for the active-tab ring (4px) so the first/last tab isn't clipped by overflow */
             overflow-x: auto;
             scrollbar-width: thin;
             flex: 1;
