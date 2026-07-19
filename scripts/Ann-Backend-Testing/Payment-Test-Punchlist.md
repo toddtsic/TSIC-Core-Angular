@@ -266,6 +266,55 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **Finding (verified)**: The admin accounting ledger's `PaymentType` is `check | cc | correction | refund` only ([accounting-ledger.component.ts:175, 387, 501](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/shared-ui/components/accounting-ledger/accounting-ledger.component.ts#L175)); there is no `echeck` type. Consistent with the earlier decision to punt admin-entered eCheck.
 - **For Todd — recommendation**: Likely leave as-is. An eCheck (ACH) is a bank draft that needs the **payer's** bank account/routing + their authorization to draft — an admin doesn't have and shouldn't key a family's bank credentials. A paper check the admin can record (they hold it) and a CC they can key, but an eCheck has no natural admin workflow — it's the family's own action in the registrant flow. Confirm you're comfortable not adding admin eCheck; if you ever do want it, it'd need the family's bank details captured some other way (e.g. a family-initiated eCheck the admin only records after the fact).
 
+### PL-017: 🔴 CRITICAL — migrated player fees can be MISSING from the new fee engine (silently price to $0). Cross-job-type migration risk.
+- **Tested**: Camps & Clinics Registration
+- **Job (found on)**: `Yellow Jackets South:Camps and Clinics 2026` — JobId `CF705E2A-89B5-4203-95AB-02AE8C9A6A90`; team `YJS Pre-Travel Academy: 2033, 2034, 2035, 2036` (legacy fee $300)
+- **Area**: Fee configuration / migration integrity → player self-roster pricing (LADT editor "Balance Due" + registration balance due)
+- **What I found**: Pre-Travel Academy's **$300 player fee did not come forward to the new fee structure**. The LADT editor showed "Balance Due — Agegroup default / Inherits from the age group," and a registration would price the event at **$0**.
+- **Severity**: **Bug — CRITICAL** (money: registrations silently priced at $0)
+- **Status**: Open (the single team was hand-fixed by Ann re-entering $300 to continue testing — see below; the underlying migration gap is unfixed)
+- **Root cause (verified in DB)**: The app has **two parallel fee stores**. The **legacy** `Leagues.teams.perRegistrantFee` held **$300**, but the **new engine reads only `fees.JobFees`** (team → age-group → league `BalanceDue`, `FeeRepository.GetResolvedFeeAsync`) and **never consults `perRegistrantFee`**. There was **no team-scoped `JobFees` row** for this team, so the resolver fell back to the "Programs" age-group default = **$0.00**. First DB query (before any fix) confirmed the team-scoped row was absent; the fee resolved to $0.
+- **Confirmation the mechanism is exactly this**: Ann then entered **300** in the editor's Balance Due override → that **created** the correct team-scoped `JobFees` row (JobId `CF705E2A`, RoleId Player, AgegroupId `12D20BE0` "Programs" ✓, TeamId matches, `BalanceDue = 300`) → the fee now resolves to **$300**. So the editor writes the right row when set, and the resolver reads it once present — the gap was purely that migration never populated it.
+- **THIS IS NOT CAMPS-ONLY — it is a cross-job-type migration risk.** Scanning all jobs for the same signature (legacy `perRegistrantFee > 0` but the cascade-resolved new player fee = $0):
+    - **~1,763 teams across ~139 jobs** historically match the signature.
+    - Job **types** affected (from the broad scan): Camps & Clinics, Tournaments / "Main Event", Fall Signups, Clinics & Leagues, Training Programs, rec-council **Soccer / Basketball / Field Hockey**, Showcase / "Individual Event", Day Camps, Winter League — essentially every type that uses player self-roster fees.
+    - Among **active 2026** jobs (cascade-precise): `Premier Lacrosse:Camps and Clinics 2026` (8 teams), `ODU Lacrosse:Camps and Clinics 2026` (1), `Yellow Jackets North:Camps and Clinics 2026` (1) — **plus** `YJS Camps and Clinics 2026` (dropped out of the scan only because Ann had already hand-fixed Pre-Travel).
+- **For Todd — the migration must guarantee this before going wide**:
+    1. **Backfill (scalable fix):** for every team with `perRegistrantFee > 0` and no resolvable `JobFees` player fee, write a team-scoped `fees.JobFees` row — `JobId = team.JobId`, `RoleId = Player`, `AgegroupId = team.AgegroupId` (BOTH keys are required — the resolver matches team-level on AgegroupId **and** TeamId), `TeamId`, `BalanceDue = perRegistrantFee`, `Deposit = perRegistrantDeposit`. (Same shape the editor wrote for the manual fix.)
+    2. **Or resolver fallback:** have `FeeRepository.GetResolvedFeeAsync` fall back to `team.perRegistrantFee` / `perRegistrantDeposit` when no `JobFees` row resolves — lower-effort but changes resolution semantics, so weigh carefully.
+    3. **Pre-migration validation gate (run per job, must return 0 rows):**
+       ```sql
+       DECLARE @pl UNIQUEIDENTIFIER='DAC0C570-94AA-4A88-8D73-6034F1F72F3A'; -- Player
+       SELECT t.TeamId, t.TeamName, t.perRegistrantFee
+       FROM Leagues.teams t JOIN Leagues.agegroups ag ON t.AgegroupId=ag.AgegroupId
+       WHERE t.JobId=@job AND ISNULL(t.perRegistrantFee,0) > 0
+         AND ISNULL(COALESCE(
+           (SELECT TOP 1 f.BalanceDue FROM fees.JobFees f WHERE f.JobId=t.JobId AND f.RoleId=@pl AND f.AgegroupId=t.AgegroupId AND f.TeamId=t.TeamId),
+           (SELECT TOP 1 f.BalanceDue FROM fees.JobFees f WHERE f.JobId=t.JobId AND f.RoleId=@pl AND f.AgegroupId=t.AgegroupId AND f.TeamId IS NULL),
+           (SELECT TOP 1 f.BalanceDue FROM fees.JobFees f WHERE f.JobId=t.JobId AND f.RoleId=@pl AND f.LeagueId=ag.leagueID AND f.AgegroupId IS NULL AND f.TeamId IS NULL)
+         ),0) = 0;
+       ```
+       Any rows returned = teams that will silently register at $0. Note: for tournament/club-team jobs this can surface club teams legitimately not priced via the Player role — review by job type, but for Camps/Clinics/Showcase (player self-roster) every hit is a real mispricing.
+- **Scope of the audit — all fee dimensions scanned**:
+
+  | Fee dimension | Legacy source → new engine reads | Total (all history) | Active 2026 | Assessment |
+  |---|---|---|---|---|
+  | **Player Balance Due** | `teams.perRegistrantFee` → `JobFees.BalanceDue` | **1,851 teams / 147 jobs** | 3 jobs (see below) + YJS (fixed) | 🔴 the real problem |
+  | Player Deposit | `teams.perRegistrantDeposit` → `JobFees.Deposit` | 19 teams | 0 | minor; none active |
+  | Early-Bird / Late-Fee | `teams.discountFee`/`lateFee` → `FeeModifiers` | 0 in 2026; only 2 `FeeModifiers` rows exist DB-wide | 0 | not a migration risk |
+  | Club-Rep / team-registration | *(no direct legacy per-team column)* | not scanned | — | needs a separate pass |
+
+- **⚠️ KEY PATTERN for Todd — active breakage is C&C-only AND sporadic within a job**: every active (2026) job with the Balance-Due gap is **Camps & Clinics**, and even then only *some* teams break while the rest of the same job is fine:
+
+  | 2026 job | Player-fee teams | Broken |
+  |---|---|---|
+  | Premier Lacrosse:Camps and Clinics 2026 | 32 | **8** |
+  | ODU Lacrosse:Camps and Clinics 2026 | 4 | **1** |
+  | Yellow Jackets North:Camps and Clinics 2026 | 1 | **1** |
+  | Yellow Jackets South:Camps and Clinics 2026 | 34 | 0 (hand-fixed) |
+
+  Every **non-C&C** 2026 job is clean — incl. `American Select:Main Event 2026` with **132** player-fee teams, 0 broken — and **most** C&C jobs are clean too (All American, Hero's, StateOne, YJ Mid-Atlantic/Midwest = 0). So this is **not** a whole-job-type clone failure; it's **specific teams** that received a legacy `perRegistrantFee` without a matching `JobFees` row. Diagnostic thread: find the **team-creation/edit path used for ad-hoc C&C event teams** that writes `perRegistrantFee` but skips the `JobFees` write (manual add / partial clone / import) — that's where the gap is minted. The rest of the 147-job / 1,851-team total is overwhelmingly **historical (2021–2024) jobs** — affected but **likely not critical** (completed, won't be re-registered) — plus club-team false positives in tournament jobs (priced via ClubRep, not Player). The critical, actionable set is the active C&C jobs in the table above.
+
 ### PL-015: "Check Owed" column — behavior confirmed correct; discuss its appearance with Todd
 - **Tested**: Showcase Registration
 - **Area**: Player popup → Accounting → Account Summary (per-method owed columns; eCheck enabled)
