@@ -168,3 +168,121 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
     2. **Copy**: reword the payment-step message to match the real behavior — either "stays active until we receive your check" (no auto-release) or, if you add an expiry, state the deadline.
     3. **Enhancement**: add a "check pending" marker (Ann's suggested **P** badge + hover, e.g. "Opted to pay by check — payment not yet received") on the Search Registrations row.
 - **Note (dev)**: Pay-by-check → `POST /player-registration/submit-by-check` → `PlayerRegistrationService.SubmitByCheckAsync` stamps `PaymentMethodChosen = 3 (Check)` + claims the seat and sets `BActive = true` (`:768-807`); no expiry field is written. No hosted/scheduled service inactivates check-payers — the only `BackgroundService` is `AdnSweepService` (Authorize.Net settlement reconciliation). Message source: `payment-step.component.ts:604` (player) / `payment-step.component.ts:552` (team). A pending-check badge is derivable from `PaymentMethodChosen == 3 && active && owed > 0`; Search Registrations currently renders only `active-badge` / `dc-badge` (`search-registrations.component.html:782, 765`).
+
+### PL-009: Intermittent "Player registration is not currently open" toast — despite the job being fully open
+- **Tested**: Showcase Registration
+- **Job**: `American Select Lacrosse:INDIVIDUAL Showcase 2026` — JobId `31284005-8A6D-44FE-ACAB-85675BF7F65B`
+- **Area**: Public landing → Register Player (route guard) → the job pulse
+- **Where**: The warning toast "Player registration is not currently open for this event."
+- **What I did**: Tried to enter Player Registration for the Showcase. Sometimes it lets me in, sometimes the toast fires and bounces me back to the landing — same job, no config change. It flapped repeatedly (couldn't get in → could → after registering a player, couldn't → then couldn't even without registering).
+- **What I expected**: Consistent behavior — the job is open, so it should let me in every time.
+- **What happened**: Intermittent "registration not currently open" toast even though registration is open.
+- **Severity**: Bug (intermittent / race)
+- **Status**: Open
+- **Root cause (verified against the live DB for this job)**: Every gate is **open** — nothing in the saved config should close it:
+    - `BRegistrationAllowPlayer = 1` (QL toggle on)
+    - 7 Player-role fee rows exist (role `DAC0C570` = Player) → `PlayerRegistrationOpen` = true
+    - 6 real events (2028/2029/2030 Field/Goalie) Active, self-rostering enabled on the age group, window `2025-09-09 → 2026-07-31` contains today → `PlayerTeamsAvailableForRegistration` = true
+    - `EventConcluded` = false (EventEndDate 2026-07-22 > today; no schedule), not superseded (2026 is newest)
+    - `BplayerRegRequiresToken = 0` (no invite token)
+  So the correct behavior is "let you in." The toast is [registration-invite.guard.ts:68](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/infrastructure/guards/registration-invite.guard.ts#L68); it fires **only** when the pulse it fetched reports `playerRegistrationOpen === false` OR `playerTeamsAvailableForRegistration === false`. So at the moments it fires, the guard received a **stale/closed pulse snapshot** even though the live config is open.
+- **For Todd — the fix**:
+    1. **Primary (backend):** the `/pulse` endpoint ([JobsController.cs:273](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/JobsController.cs#L273)) ships with **no `Cache-Control` and no `Vary: Authorization`**, yet its body varies by auth (the `My*` fields) and by config. So a "closed" pulse can be cached and reused. The sibling endpoint right above it already sets `private, no-cache` + `Vary: Authorization` ([JobsController.cs:258-261](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/JobsController.cs#L258)) — apply the same to the pulse endpoint. Almost certainly the real cure.
+    2. **Contributing:** the guard bypasses the whole check for authenticated users (`if (auth.isAuthenticated()) return true`, [registration-invite.guard.ts:65](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/infrastructure/guards/registration-invite.guard.ts#L65)). If the JWT lapses / hasn't rehydrated (cold load, time passing while registering), you drop to the anonymous path and act on whatever pulse comes back — matches "after registering a player, couldn't get in." Consider cache-busting the guard's pulse GET too.
+    3. **Config note (not a code bug):** this job is currently `BSuspendPublic = 1` (public page suspended) and freshly configured (event start 07-22 is imminent) — exactly the state that would have produced "closed" pulses that then linger in cache. Confirm the page is meant to be live for parents.
+
+### PL-010: Waitlist option lingers after Max is raised — real event (with fee) AND its $0 WL twin both show
+- **Tested**: Showcase Registration
+- **Job**: `American Select Lacrosse:INDIVIDUAL Showcase 2026` — JobId `31284005-8A6D-44FE-ACAB-85675BF7F65B`
+- **Area**: Player registration → event/team selection
+- **Where**: The selectable event list (the real event carrying its fee, and the `WAITLIST - {age}` twin at $0)
+- **What I did**: An age group had hit its Max Number, so a Waitlist option was created and shown. I then **raised Max Number above the current registrant count** so the event is no longer full, and reopened the registration event list.
+- **What I expected**: The Waitlist option to disappear once Max is no longer reached — only the real event (with fee) should remain.
+- **What happened**: **Both** show — the real event *with its fee* AND the WL option at $0.
+- **Severity**: Bug
+- **Status**: Open
+- **Root cause (verified against the live DB for this job)**: `RosterIsFull = current >= MaxCount && MaxCount > 0` ([TeamLookupService.cs:67](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Teams/TeamLookupService.cs#L67)) is computed **live**, so raising Max correctly flips the *real* event's `rosterIsFull` back to false — good. But when the event was full, a **WAITLIST twin was minted as a real `Teams` row** (agegroup `WAITLIST - {name}`, MaxCount 100000). That twin **persists** — I confirmed `WAITLIST - 2028 / 2029 / 2030` rows exist for this job alongside the open real teams. `GetAvailableTeamsQueryResultsAsync` deliberately surfaces WAITLIST agegroups ([TeamRepository.cs:147-149](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/TeamRepository.cs#L147)) so a pending waitlisted player can resume, and nothing hides the twin once the parent regains capacity. So the leftover $0 twin shows next to the now-open real event.
+- **Design note**: The intended model (per the code's own comment) is that a waitlist is just a **badge on the full real team** ("⚠ WAITLIST · $0"), with the twin minted only at payment — NOT a standalone pickable option ([team-selection-step.component.ts:869-872](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L869)). A standalone twin appearing next to its real parent already deviates from that; showing it once the parent isn't even full is the visible bug.
+- **For Todd — the fix**: Suppress a `WAITLIST - {name}` twin from the *new-selection* list whenever its parent real event has open seats (`rosterIsFull === false`), while still keeping it visible/resumable for a player already registered onto that twin (so pending waitlisted players aren't stranded). The age-group picker already does exactly this collapse — `availableAgegroupOptions()` shows the real name when any team `hasOpenSeat`, else the `WAITLIST -` name ([team.service.ts:162-181](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/services/team.service.ts#L162)). The team/event-level list (`getAvailableTeamDtos` → `filterByEligibility`, [team-selection-step.component.ts:864](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L864)) applies no such collapse. Cleanest is to filter in the backend (`TeamLookupService` / `GetAvailableTeamsQueryResultsAsync`) so every consumer benefits, plus optionally retire an **empty** minted twin when its parent's capacity is restored so stale twins don't accumulate.
+
+### PL-011: Full FP/Goalie shows TWO waitlist entries each (one with ⚠ icon, one without) — should be one per team
+- **Tested**: Showcase Registration
+- **Job**: `American Select Lacrosse:INDIVIDUAL Showcase 2026` — JobId `31284005-8A6D-44FE-ACAB-85675BF7F65B`
+- **Area**: Player registration → event/team selection (waitlist display)
+- **Where**: The event list for an age group where both Field Player and Goalie are full
+- **What I did**: Looked at an age group whose FP and Goalie positions have reached Max (waitlist engaged).
+- **What I expected**: One waitlist option per full team (no icon).
+- **What happened**: **Four** options — each full team (FP and Goalie) shows up **twice**: one entry with the yellow ⚠ triangle icon and one without.
+- **Severity**: Bug
+- **Status**: Open
+- **Root cause (same as PL-010 — the persistent minted twin)**: For each full team the list carries two rows:
+    1. the **real** team, `rosterIsFull=true` → badged `⚠ WAITLIST · {name} ($0)` — the ⚠ icon ([team-selection-step.component.ts:792-794](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L792));
+    2. the **minted twin** (`Teams` row whose agegroup is `WAITLIST - {name}`, MaxCount 100000 so `rosterIsFull=false`) → falls to the `else` branch, plain `WAITLIST - {name} ($0)`, **no icon** ([:795-800](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L795)).
+  Both are surfaced because `GetAvailableTeamsQueryResultsAsync` emits the WAITLIST twin agegroups alongside the real teams and nothing dedupes the two representations. (Confirmed twins exist for this job: `WAITLIST - 2028/2029/2030` positions.)
+- **For Todd — decision + fix**: Collapse to **one** waitlist entry per full team. Which representation to keep is a display call:
+    - **Ann's preference**: keep the plain `WAITLIST - {name}` (no icon), drop the badged duplicate.
+    - **Code's intended model**: the badged `⚠ WAITLIST · {name}` on the real team is canonical, and the standalone twin isn't meant to be a selectable option at all (it's supposed to be minted only at payment — see comment [team-selection-step.component.ts:869-872](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L869)). By that model the fix is to hide the standalone twin — which also fixes PL-010.
+  Recommend picking one representation and suppressing the other where the available-teams list is built (backend `TeamLookupService` / `GetAvailableTeamsQueryResultsAsync`, so every consumer is consistent), keeping the twin resumable for a player already registered onto it. Resolving this together with PL-010 is natural — they're the same duplicate-twin root cause.
+
+### PL-012: 2nd Discount Code for the same player shows generic "No discounts were applied" — should say only one code per player
+- **Tested**: Showcase Registration
+- **Area**: Player registration → payment → Apply Discount Code
+- **Where**: The error banner after entering a second Discount Code for a player who already has one (before payment)
+- **What I did**: Entered a Discount Code for a player, then entered a **second** Discount Code for the same player before completing payment.
+- **What I expected**: A message telling me only one code can be applied per player.
+- **What happened**: The message reads **"No discounts were applied"** — generic and doesn't explain why.
+- **Severity**: UX (copy)
+- **Status**: Open
+- **Recommended text (Ann)**: "Only one Discount Code can be applied per player."
+- **For Todd — where/how**: The backend already detects this exact case — the one-use guard `if (reg.DiscountCodeId != null)` sets a per-player result message **"Discount already applied to this player"** ([PlayerRegistrationPaymentController.cs:247-256](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/PlayerRegistrationPaymentController.cs#L247)). But the frontend shows the **aggregate** `resp.message` ([payment-v2.service.ts:499-500](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/state/payment-v2.service.ts#L499)), which when nothing applied is the generic **"No discounts were applied"** ([PlayerRegistrationPaymentController.cs:369](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/PlayerRegistrationPaymentController.cs#L369)) — so the specific reason never surfaces. Fix by surfacing the specific reason, e.g. update the per-player message at `:254` to Ann's wording AND have the failure path reflect it (either the aggregate Message picks up the common failure reason when `successCount == 0`, or the frontend renders `resp.Results[].message`). **Do NOT** simply relabel line 369 — it's a catch-all that also fires for an invalid code and the "No discount applicable" ($0 balance) case at `:282`, which Ann's wording would mislabel.
+
+### PL-013: Vertical Insure doesn't reliably re-quote after a Discount Code — $ code stale until re-login; 100% not cleanly gated (relates to PL-007)
+- **Tested**: Showcase Registration
+- **Area**: Player registration → payment → Apply Discount Code + Vertical Insure (RegSaver) offer
+- **Where**: The VI offer/premium as it should track the discounted insurable amount
+- **What I did / saw** (three codes on the payment screen):
+    - **$ (fixed) code** — VI did **not** adjust; it only corrected after I logged back in.
+    - **50% code** — VI adjusted **immediately** on the payment screen.
+    - **100% code** — **no** VI offered (correct outcome). (In Tryouts / PL-007 a 100% code showed the **full** amount — the opposite — which is why this felt inconsistent / "was it fixed?")
+- **What I expected**: VI to re-quote consistently and immediately whenever a code changes the insurable amount.
+- **Severity**: Bug (intermittent refresh + inconsistent 100% gating)
+- **Status**: Open
+- **Findings (verified in code)** — two separate causes:
+    1. **Server not cleanly gating a net-$0 offer (this is PL-007's exact root cause).** On every successful discount the server DOES rebuild the offer (`BuildOfferAsync`, [VerticalInsureService.cs:64](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/VerticalInsure/VerticalInsureService.cs#L64)) and returns it, and the offer is only marked `Available=false` when **zero products** are built ([:83-89](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/VerticalInsure/VerticalInsureService.cs#L83)). BUT `BuildProductsAsync` skips a reg **only when the *configured* team fee is $0** ([:315](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/VerticalInsure/VerticalInsureService.cs#L315)); it does **not** skip when the net-of-discount `insurable` computed at [:326](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/VerticalInsure/VerticalInsureService.cs#L326) is $0. So a **100% code on a paid reg** yields a product with `InsurableAmount = 0` and `Available=true` — the offer is not hidden server-side; it only "disappears" because VerticalInsure rejects a $0 policy (incidental). That's why 100% showed the full amount in Tryouts (stale offer) but nothing here — timing, not clean gating.
+    2. **Client remount race ($ vs %).** After a successful discount the client remounts the widget: `refreshViAfterDiscount()` → `reset()` + `setTimeout(tryInitVerticalInsure, 0)` + a 150ms×20 poll for the `#dVIOffer` host ([payment-step.component.ts:1314-1359](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/payment-step.component.ts#L1314)). Both `$` and `%` take this SAME path — nothing branches on code type — so the "$ didn't refresh until re-login" is that fire-and-forget remount losing the race (a small fixed-$ change is also easy to miss vs a 50% swing). Re-login rebuilds the offer at preSubmit → correct.
+- **For Todd — fix**:
+    1. **Server (also closes PL-007):** add a `if (insurable <= 0) continue;` right after [VerticalInsureService.cs:326](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/VerticalInsure/VerticalInsureService.cs#L326) so a net-$0 reg builds no product → `products.Count == 0` → `Available=false` → clean hide. This makes the 100% (and any balance-zeroing code) deterministically drop the offer instead of leaning on VI's $0 rejection.
+    2. **Client:** make the post-discount VI refresh deterministic instead of a fire-and-forget `setTimeout` + poll — e.g. key the widget host off the offer/insurable identity so Angular tears down and recreates it on change, or await a widget-ready signal before clearing the spinner — so a `$` code re-quotes reliably without a re-login.
+- **Note**: This supersedes PL-007's analysis (which suspected the preSubmit build + configured-fee gate). PL-007's instinct was right; the precise cause is the missing net-insurable skip here plus the remount race. Resolve PL-007 and PL-013 together.
+
+### PL-014: Admin can't record an eCheck payment (when eCheck is enabled) — confirm this is intentional
+- **Tested**: Showcase Registration
+- **Area**: Player Details → Accounting → Add Accounting Record
+- **Where**: The admin payment-method choices on a job that has eCheck enabled
+- **What I did**: On a job with eCheck turned on, opened Add Accounting Record as Admin.
+- **What I noticed**: The admin can enter **Credit Card, Check, Correction, Refund** — but there is **no eCheck option**. Just confirming we don't want to add it.
+- **Severity**: Question
+- **Status**: Open
+- **Finding (verified)**: The admin accounting ledger's `PaymentType` is `check | cc | correction | refund` only ([accounting-ledger.component.ts:175, 387, 501](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/shared-ui/components/accounting-ledger/accounting-ledger.component.ts#L175)); there is no `echeck` type. Consistent with the earlier decision to punt admin-entered eCheck.
+- **For Todd — recommendation**: Likely leave as-is. An eCheck (ACH) is a bank draft that needs the **payer's** bank account/routing + their authorization to draft — an admin doesn't have and shouldn't key a family's bank credentials. A paper check the admin can record (they hold it) and a CC they can key, but an eCheck has no natural admin workflow — it's the family's own action in the registrant flow. Confirm you're comfortable not adding admin eCheck; if you ever do want it, it'd need the family's bank details captured some other way (e.g. a family-initiated eCheck the admin only records after the fact).
+
+### PL-015: "Check Owed" column — behavior confirmed correct; discuss its appearance with Todd
+- **Tested**: Showcase Registration
+- **Area**: Player popup → Accounting → Account Summary (per-method owed columns; eCheck enabled)
+- **Where**: The "Check Owed" column that appears alongside CC Owed / eCheck Owed when eCheck is activated
+- **What I did**: Reviewed the Account Summary on a job with eCheck on.
+- **Behavior — confirmed CORRECT**: "Check Owed" is proc-free — it's the amount owed for a physical check, and it correctly excludes **eCheck processing AND CC processing**. It flows from the single canonical resolver `PaymentState.ResolveOwed`: `Check = OwedFor(0m)`, documented "Check == Cash == Correction — all proc-free" ([PaymentState.cs:325-337, 353-354](../../TSIC-Core-Angular/src/backend/TSIC.Contracts/Payments/PaymentState.cs#L325)). Order is Check < eCheck < CC owed, as intended.
+- **Severity**: UX (discussion — no math/logic change)
+- **Status**: Open
+- **For Todd (discussion)**: The math is right; this is purely about **presentation** of the three owed columns (CC Owed / eCheck Owed / Check Owed) when eCheck is on. Ann wants to review the column's appearance with you — e.g. label clarity ("Check Owed" vs "eCheck Owed" read similarly), whether all three columns should always show or be consolidated, and visual treatment/width. No behavior change intended — a display decision.
+
+### PL-016: Account Summary — show a Fee-Adj that includes a Late Fee in RED (mirror the green used for decreases)
+- **Tested**: Showcase Registration
+- **Area**: Player popup → Accounting → Account Summary (registered-teams / event breakdown grid) → Fee-Adj column
+- **Where**: The Fee-Adj amount when it reflects a **late fee** (a net increase)
+- **What I did**: Looked at the Fee-Adj value on a registration carrying a Late Fee.
+- **What I expected**: A Fee-Adj that increases the amount (late fee) shown in **red**, symmetric with how a decrease (discount) shows in **green**.
+- **What happened**: A negative Fee-Adj (decrease) is green; a positive Fee-Adj (late-fee increase) shows in the **default color**, not red.
+- **Severity**: UX (color)
+- **Status**: Open
+- **For Todd — the change**: The cell colors green only on a decrease: `<span [class.text-success]="data.feeAdj < 0">{{ data.feeAdj | currency }}</span>` ([registered-teams-grid.component.ts:125](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/team/components/registered-teams-grid.component.ts#L125)). Add the symmetric red for an increase — `[class.text-danger]="data.feeAdj > 0"` — and do the same on the column sum at [:208](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/team/components/registered-teams-grid.component.ts#L208) (`[class.text-danger]="sumFeeAdj() > 0"`). Note this grid is shared (family-payment + club-rep views), so the change applies everywhere the Fee-Adj column shows — confirm that's desired (it should be — same decrease-green/increase-red convention).
