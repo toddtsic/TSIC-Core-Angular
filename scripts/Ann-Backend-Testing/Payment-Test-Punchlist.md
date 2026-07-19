@@ -160,10 +160,9 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
     - **Active is indefinite.** There is **no timer, no expiry, no background job** that ever flips an unpaid check-payer to Inactive. They stay Active until an admin manually records the check or voids/removes the registration. So "held pending receipt of payment" implies a hold that could lapse, but nothing lapses.
     - **No indicator** in Search Registrations that a registrant chose pay-by-check and it hasn't been received — the table shows only Active/Inactive and a discount-code badge.
 - **Severity**: Question + UX enhancement
-- **Status**: Fixed (copy) — badge deferred
+- **Status**: Fixed
 - **Decision (Todd)**: A check-payer is **Active** on submit, so there is no "hold" and nothing to auto-expire — the policy is correct as-is (no timer). The honest consequence is discretionary: the director may drop the registration if the check never arrives. Fix is the copy only.
 - **Resolved**: Reworded both pay-by-check confirmations — player (payment-step.component.ts:604) and team (:552) — from "…will be held pending receipt of payment" to "Your registration is active. Please mail your check to complete payment — if it isn't received, the director may drop your registration." (team: "Your teams are registered. …"). No hold/expiry language.
-- **Deferred**: The "check balance due" marker (Ann's **P** badge) in Search Registrations — its own small item, not part of this copy fix.
 - **For Todd** — three decisions:
     1. **Policy**: is an unpaid check-hold meant to be indefinite, or should there be an N-day window after which it auto-inactivates? (Today it's indefinite.)
     2. **Copy**: reword the payment-step message to match the real behavior — either "stays active until we receive your check" (no auto-release) or, if you add an expiry, state the deadline.
