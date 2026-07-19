@@ -7,5 +7,6 @@ export type RegistrationCcChargeRequest = {
     registrationId: string;
     creditCard: CreditCardInfo;
     amount: number;
+    comment?: string | null;
 };
 

@@ -1577,9 +1577,11 @@ public class PaymentService : IPaymentService
             ra.Paymeth = kind == RegistrationChargeKind.Cc
                 ? $"paid by cc: {charge:C} on {DateTime.Now:G} txID: {transId}"
                 : $"paid by eCheck: {charge:C} on {DateTime.Now:G} txID: {transId} (acct ****{bankLast4})";
-            ra.Comment = kind == RegistrationChargeKind.Cc
-                ? "Registration Payment"
-                : "eCheck Registration Payment";
+            ra.Comment = !string.IsNullOrWhiteSpace(item.Comment)
+                ? item.Comment
+                : kind == RegistrationChargeKind.Cc
+                    ? "Registration Payment"
+                    : "eCheck Registration Payment";
             ra.Modified = DateTime.Now;
 
             // eCheck: convert the CC-rate proc embedded in this charge to the eCheck rate by

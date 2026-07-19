@@ -10,6 +10,7 @@ type PaymentType = 'cc' | 'check' | 'correction' | 'refund';
 export interface CcChargeEvent {
 	creditCard: CreditCardInfo;
 	amount: number;
+	comment: string | null;
 }
 
 /** Emitted when user submits a check or correction. Parent handles the API call. */
@@ -184,8 +185,6 @@ export class AccountingLedgerComponent {
 
 	/** Owed used by the modal — the picked add-target's, else the scope input. */
 	modalOwed = computed(() => this.selectedAddTarget()?.owed ?? this.owedTotal());
-	/** Paid used by the modal — the picked add-target's, else the scope input. */
-	modalPaid = computed(() => this.selectedAddTarget()?.paid ?? this.paidTotal());
 
 	// ── Refund mode state ──
 	refundRecord = signal<AccountingRecordDto | null>(null);
@@ -304,14 +303,11 @@ export class AccountingLedgerComponent {
 		this.paymentType() === 'check' && this.amount() > this.checkBalanceDue()
 	);
 
-	/** Correction bounds — functionally a two-way check: a positive correction can't
-	 *  "pay" more than the balance due (same cap as a check — CkOwedTotal, processing
-	 *  fees removed), and a negative correction can't "refund" more than they've paid.
-	 *  Upper = checkBalanceDue, lower = -PaidTotal. */
+	/** Correction bounds — corrections are positive-only and can't "pay" more than the
+	 *  balance due (same cap as a check — CkOwedTotal, processing fees removed). */
 	correctionExceedsBounds = computed(() => {
 		if (this.paymentType() !== 'correction') return false;
-		const amt = this.amount();
-		return amt > this.checkBalanceDue() || amt < -this.modalPaid();
+		return this.amount() > this.checkBalanceDue();
 	});
 
 	/** Add-record entry point. With more than one target, ask which registration first; otherwise
@@ -335,7 +331,7 @@ export class AccountingLedgerComponent {
 	}
 
 	/** Pick which registration a new record applies to, then advance to the form. The target's
-	 *  balances now bound the amount caps (checkBalanceDue / modalOwed / modalPaid). */
+	 *  balances now bound the amount caps (checkBalanceDue / modalOwed). */
 	chooseAddTarget(target: LedgerAddTarget): void {
 		this.selectedAddTarget.set(target);
 		this.addTargetSelected.emit(target.key);
@@ -439,7 +435,7 @@ export class AccountingLedgerComponent {
 			return amt > 0 && amt <= maxRefund;
 		}
 		if (type === 'correction') {
-			return amt !== 0 && amt <= this.checkBalanceDue() && amt >= -this.modalPaid();
+			return amt > 0 && amt <= this.checkBalanceDue();
 		}
 		return amt !== 0;
 	}
@@ -491,7 +487,8 @@ export class AccountingLedgerComponent {
 					email: this.ccEmail() || null,
 					phone: this.ccPhone() || null
 				},
-				amount: amt
+				amount: amt,
+				comment: this.comment() || null
 			});
 		} else {
 			this.checkSubmitted.emit({

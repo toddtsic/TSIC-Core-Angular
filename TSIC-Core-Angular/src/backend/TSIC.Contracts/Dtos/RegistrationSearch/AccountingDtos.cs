@@ -106,6 +106,7 @@ public record RegistrationCcChargeRequest
     public required Guid RegistrationId { get; init; }
     public required CreditCardInfo CreditCard { get; init; }
     public required decimal Amount { get; init; }
+    public string? Comment { get; init; }
 }
 
 /// <summary>

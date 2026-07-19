@@ -549,7 +549,7 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
               }
 
               <div class="text-muted small mt-3">
-                <i class="bi bi-info-circle me-1"></i>Your teams are registered. Your registration will be held pending receipt of payment.
+                <i class="bi bi-info-circle me-1"></i>Your teams are registered. Please mail your check to complete payment &mdash; if it isn't received, the director may drop your registration.
               </div>
             </section>
 

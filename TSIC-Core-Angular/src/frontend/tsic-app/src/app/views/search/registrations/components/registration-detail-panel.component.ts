@@ -758,7 +758,8 @@ export class RegistrationDetailPanelComponent implements OnChanges {
     this.searchService.chargeCc(d.registrationId, {
       registrationId: d.registrationId,
       creditCard: event.creditCard,
-      amount: event.amount
+      amount: event.amount,
+      comment: event.comment
     }).subscribe({
       next: (response) => {
         if (response.success) {

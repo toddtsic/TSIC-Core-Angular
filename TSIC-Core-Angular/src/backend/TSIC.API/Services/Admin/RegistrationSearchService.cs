@@ -529,8 +529,8 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         if (isCheck && request.Amount <= 0)
             return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A check payment must be > $0.00." };
-        if (isCorrection && request.Amount == 0)
-            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A correction amount cannot be $0.00." };
+        if (isCorrection && request.Amount <= 0)
+            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = "A correction amount must be greater than $0.00." };
 
         // Overpayment guard — check/correction cannot exceed what is owed
         var regForValidation = await _registrationRepo.GetByIdAsync(request.RegistrationId, ct);
@@ -539,7 +539,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
 
         // Check-specific cap — CkOwed (CC owed minus the processing-fee credit that
         // a check would skip). Tighter than the OwedTotal cap above; mirrors the FE
-        // balance-due. Corrections keep the OwedTotal cap (intentional ± adjustments).
+        // balance-due. Corrections keep the OwedTotal cap (positive-only adjustments).
         if (isCheck && regForValidation != null)
         {
             var state = await _paymentState.ForRegistrationAsync(request.RegistrationId, jobId, ct);
@@ -553,12 +553,6 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
             if (request.Amount > owed.Check)
                 return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Check payment ${request.Amount:F2} exceeds the check balance owed of ${owed.Check:F2}." };
         }
-
-        // Correction lower-floor — invariant: balance stays in [0, FeeTotal]. Upper
-        // bound covered by the OwedTotal cap above ("can't charge more than owed");
-        // this adds the symmetric floor ("can't credit more than paid").
-        if (isCorrection && regForValidation != null && request.Amount < -regForValidation.PaidTotal)
-            return new RegistrationCheckOrCorrectionResponse { Success = false, Error = $"Correction ${request.Amount:F2} exceeds the amount paid (${regForValidation.PaidTotal:F2} refundable)." };
 
         var paymentMethodId = isCheck ? CheckMethodId : CorrectionMethodId;
 
@@ -607,7 +601,7 @@ public sealed class RegistrationSearchService : IRegistrationSearchService
         // Admin admin-charges a single registration at a time. The canonical engine
         // owns ownership/job validation, the per-method owed tripwire (ResolveOwed.Cc),
         // the placeholder-RA audit trail, the ADN call, and the success/failure-update.
-        var items = new[] { new RegistrationChargeItem { RegistrationId = request.RegistrationId, Amount = request.Amount } };
+        var items = new[] { new RegistrationChargeItem { RegistrationId = request.RegistrationId, Amount = request.Amount, Comment = request.Comment } };
         var result = await _paymentService.ChargeRegistrationsCcAsync(jobId, items, request.CreditCard, userId, ct);
 
         if (!result.Success)

@@ -457,7 +457,9 @@ export interface ParentBreadcrumb {
       font-weight: 500;
       color: var(--bs-body-color);
     }
-    .fee-inherited {
+    /* Dim the pill's text only — NOT via container opacity, which would cascade onto the
+       position:fixed <app-info-tooltip> panel (a descendant) and render it translucent. */
+    .fee-inherited > :not(app-info-tooltip) {
       opacity: 0.55;
       font-style: italic;
     }

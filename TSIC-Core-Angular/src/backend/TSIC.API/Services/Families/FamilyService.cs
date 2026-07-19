@@ -796,7 +796,7 @@ public sealed class FamilyService : IFamilyService
         var formFieldValues = BuildVisibleFieldValues(fv, visibleFieldNames);
 
         // A prior reg is "pending" (abandoned mid-payment, safe to rehydrate from) when it is
-        // inactive, nothing has been paid against it, and it is NOT in a Dropped division.
+        // inactive and NOT in a Dropped division (a non-activating Correction may leave PaidTotal > 0).
         // Genuinely-pending regs are created at PreSubmit with paid_total = 0; if the player
         // completes payment (even on a free event via ActivateIfFree), bActive is set to 1 — so
         // bActive=0 + paid_total=0 is the abandoned fingerprint regardless of division.
@@ -810,9 +810,11 @@ public sealed class FamilyService : IFamilyService
             && teamDivNameMap.TryGetValue(r.AssignedTeamId.Value, out var dn) ? dn?.Trim() : null;
         var isParkedDivision = divName != null
             && divName.StartsWith("Dropped", StringComparison.OrdinalIgnoreCase);
+        // No PaidTotal gate: real tender (CC/check/eCheck) always sets BActive=true, so an
+        // inactive reg with PaidTotal > 0 can only be a non-activating Correction — which must
+        // still read as Pending. Gating on PaidTotal <= 0 wrongly dropped correction-only regs.
         var isPending = r.BActive != true
             && r.AssignedTeamId.HasValue
-            && r.PaidTotal <= 0m
             && !isParkedDivision;
 
         // Per-method owed from the single canonical resolver (== OwedTotal when proc fees

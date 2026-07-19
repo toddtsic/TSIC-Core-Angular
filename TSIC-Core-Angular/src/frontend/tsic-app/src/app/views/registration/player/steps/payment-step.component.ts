@@ -601,7 +601,7 @@ import type { LineItem } from '../state/payment-v2.service';
             }
 
             <div class="text-muted small mt-3">
-              <i class="bi bi-info-circle me-1"></i>Your registration will be held pending receipt of payment.
+              <i class="bi bi-info-circle me-1"></i>Your registration is active. Please mail your check to complete payment &mdash; if it isn't received, the director may drop your registration.
             </div>
           </section>
         }

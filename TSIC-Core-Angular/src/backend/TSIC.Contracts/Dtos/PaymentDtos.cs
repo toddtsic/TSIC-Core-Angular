@@ -131,6 +131,9 @@ public sealed record RegistrationChargeItem
 {
     public required Guid RegistrationId { get; init; }
     public required decimal Amount { get; init; }
+    /// <summary>Optional admin-entered note persisted onto the accounting row; when null the
+    /// engine stamps its default "Registration Payment" description. Registrant self-pay leaves this null.</summary>
+    public string? Comment { get; init; }
 }
 
 // Per-registration outcome from ChargeRegistrationsCcAsync. Each registration is

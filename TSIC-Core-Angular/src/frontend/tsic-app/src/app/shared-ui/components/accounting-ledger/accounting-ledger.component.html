@@ -375,7 +375,7 @@
                 <span class="input-group-text">$</span>
                 <input type="number" id="ledger-amount" class="form-control form-control-sm"
                   [ngModel]="amount()" (ngModelChange)="setAmount($event)" step="1"
-                  [min]="paymentType() === 'correction' ? -modalPaid() : 0"
+                  [min]="0"
                   [max]="paymentType() === 'cc' ? null : checkBalanceDue()" />
               </div>
               <div class="owed-badge" [class.text-danger]="checkBalanceDue() > 0" [class.text-success]="checkBalanceDue() <= 0">
@@ -391,13 +391,7 @@
               }
               @if (correctionExceedsBounds()) {
                 <div class="form-text text-danger">
-                  <small>
-                    @if (amount() > checkBalanceDue()) {
-                      Correction cannot exceed Balance Due of {{ checkBalanceDue() | currency }}.
-                    } @else {
-                      Correction cannot exceed amount paid ({{ modalPaid() | currency }} refundable).
-                    }
-                  </small>
+                  <small>Correction cannot exceed Balance Due of {{ checkBalanceDue() | currency }}.</small>
                 </div>
               }
             </div>
@@ -415,15 +409,12 @@
               @if (paymentType() === 'correction') {
                 <div class="correction-note">
                   <i class="bi bi-info-circle me-1"></i>
-                  <ul class="correction-hints">
-                    <li>A positive (+) amount <strong>decreases</strong> the amount owed.</li>
-                    <li>A negative (&ndash;) amount <strong>increases</strong> the amount owed.</li>
-                  </ul>
+                  <span>A correction <strong>reduces</strong> the amount owed &mdash; for example, to waive a charge or fix an overcharge. It can't exceed the balance due.</span>
                 </div>
                 @if (showActivationNotes()) {
                   <div class="correction-note">
                     <i class="bi bi-info-circle me-1"></i>
-                    <span>After recording a correction record for an Inactive registration, you may want to toggle them <strong>Active</strong> above.</span>
+                    <span>A correction doesn't make the player <strong>Active</strong>. To activate them, go to the Search Registrations table, select that player, and set them Active.</span>
                   </div>
                 }
               }
@@ -470,7 +461,7 @@
             <p class="cc-confirm-detail">
               Charging <strong>{{ amount() | currency }}</strong> to card ending in <strong>{{ ccLast4() }}</strong>.
             </p>
-            <p class="cc-confirm-warning">Processes immediately via Authorize.Net. Cannot be undone.</p>
+            <p class="cc-confirm-warning">Processes immediately via Authorize.Net.</p>
             <div class="cc-confirm-actions">
               <button type="button" class="btn btn-sm btn-danger" (click)="confirmCcCharge()">
                 Yes, Charge {{ amount() | currency }}

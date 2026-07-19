@@ -324,6 +324,20 @@ public sealed partial class VerticalInsureService : IVerticalInsureService
             // early-bird/discount-code + multi-player), plus late fees (processing surcharge and
             // donation excluded).
             var insurable = InsurableAmountCalculator.ComputeNetInsurableAmount(configuredTeamFee, r.TotalDiscount(), r.FeeLatefee);
+
+            // Gate: nothing forfeitable left to insure once discounts net the fee to $0 (e.g. a
+            // 100%-off code). Distinct from the free-team gate above — the team fee IS configured,
+            // it's the per-registration net that's zero. Skip so the rebuilt offer comes back with
+            // no product for this reg (Available=false → the widget hides), and to avoid VI's own
+            // guaranteed rejection of a $0 policy. A partially-discounted reg (insurable > 0) still offers.
+            if (insurable <= 0m)
+            {
+                _logger.LogInformation(
+                    "[VerticalInsure] Skipping registration {RegistrationId}: net insurable is $0 after discounts — no RegSaver offer.",
+                    r.RegistrationId);
+                continue;
+            }
+
             var product = new VIPlayerProductDto
             {
                 Customer = new VICustomerDto
