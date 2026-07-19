@@ -237,6 +237,8 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **For Todd — where/how**: The backend already detects this exact case — the one-use guard `if (reg.DiscountCodeId != null)` sets a per-player result message **"Discount already applied to this player"** ([PlayerRegistrationPaymentController.cs:247-256](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/PlayerRegistrationPaymentController.cs#L247)). But the frontend shows the **aggregate** `resp.message` ([payment-v2.service.ts:499-500](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/state/payment-v2.service.ts#L499)), which when nothing applied is the generic **"No discounts were applied"** ([PlayerRegistrationPaymentController.cs:369](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/PlayerRegistrationPaymentController.cs#L369)) — so the specific reason never surfaces. Fix by surfacing the specific reason, e.g. update the per-player message at `:254` to Ann's wording AND have the failure path reflect it (either the aggregate Message picks up the common failure reason when `successCount == 0`, or the frontend renders `resp.Results[].message`). **Do NOT** simply relabel line 369 — it's a catch-all that also fires for an invalid code and the "No discount applicable" ($0 balance) case at `:282`, which Ann's wording would mislabel.
 
 ### PL-013: Vertical Insure doesn't reliably re-quote after a Discount Code — $ code stale until re-login; 100% not cleanly gated (relates to PL-007)
+- **Status**: **Fixed** (verified 2026-07-19, retested on Camps & Clinics — all Discount Code types adjust VI correctly, no re-login needed)
+- **Resolved**: The server-side net-$0 gate is now in place — `VerticalInsureService.BuildProductsAsync` skips a registration whose net insurable is ≤ $0 after discounts (`if (insurable <= 0m) continue;`, [VerticalInsureService.cs:333-339](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/VerticalInsure/VerticalInsureService.cs#L333)). A 100%/balance-zeroing code → no product → `Available=false` → widget hides cleanly (closes PL-007's phantom full-amount offer); partial $/% codes rebuild with the reduced premium. Retest confirms the client remount race no longer reproduces (all code types refresh immediately). **This also closes PL-007** (same root cause).
 - **Tested**: Showcase Registration
 - **Area**: Player registration → payment → Apply Discount Code + Vertical Insure (RegSaver) offer
 - **Where**: The VI offer/premium as it should track the discounted insurable amount
@@ -314,6 +316,56 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
   | Yellow Jackets South:Camps and Clinics 2026 | 34 | 0 (hand-fixed) |
 
   Every **non-C&C** 2026 job is clean — incl. `American Select:Main Event 2026` with **132** player-fee teams, 0 broken — and **most** C&C jobs are clean too (All American, Hero's, StateOne, YJ Mid-Atlantic/Midwest = 0). So this is **not** a whole-job-type clone failure; it's **specific teams** that received a legacy `perRegistrantFee` without a matching `JobFees` row. Diagnostic thread: find the **team-creation/edit path used for ad-hoc C&C event teams** that writes `perRegistrantFee` but skips the `JobFees` write (manual add / partial clone / import) — that's where the gap is minted. The rest of the 147-job / 1,851-team total is overwhelmingly **historical (2021–2024) jobs** — affected but **likely not critical** (completed, won't be re-registered) — plus club-team false positives in tournament jobs (priced via ClubRep, not Player). The critical, actionable set is the active C&C jobs in the table above.
+
+### PL-018: Re-open of PL-003 — Admin CC Optional Comment STILL doesn't show on retest (source looks correctly wired)
+- **Tested**: Camps & Clinics Registration (re-test of a Tryouts item)
+- **Area**: Player Details → Accounting → Add Accounting Record → Credit Card → Optional Comment
+- **Relates to**: **PL-003** (marked Fixed). On retest the comment **still does not appear** in the Payment Ledger for an admin CC entry.
+- **Severity**: Bug (regression / not-resolved on retest)
+- **Status**: Open — for Claude + Todd to close out together
+- **What Claude found (full end-to-end source trace — every link is correct in current master)**:
+
+  | Link | Location | Status |
+  |---|---|---|
+  | Comment input rendered + bound for CC (un-gated "Common Fields") | `accounting-ledger.component.html:370, 399-402` | ✓ |
+  | CC emit includes `comment` | `accounting-ledger.component.ts:491` | ✓ |
+  | `onCcCharge` → `request.comment` | `registration-detail-panel.component.ts:762, 786` | ✓ |
+  | Generated model carries `comment` | `RegistrationCcChargeRequest.ts:10` | ✓ |
+  | `ChargeCcAsync` sets `item.Comment = request.Comment` | `RegistrationSearchService.cs:604` | ✓ |
+  | Forwards items intact to core engine | `PaymentService.cs:1333` | ✓ |
+  | Persists `ra.Comment = item.Comment` (admin comment wins over default) | `PaymentService.cs:1580` | ✓ |
+  | Ledger displays non-auto comment | `accounting-ledger.component.ts:258` + `.html:67` | ✓ |
+
+- **Interpretation**: There is **no wiring gap in the source** — the PL-003 fix is complete and correct. So the retest failure is most likely **(a)** the tested build predates the fix (deployment/rebuild lag or a stale cached frontend bundle), or **(b)** a runtime discrepancy static tracing can't see.
+- **Next steps (Claude + Todd)**:
+    1. **Confirm the env under test actually has the fix** — check the deployed commit against PL-003's fix commit; hard-refresh / rebuild the Angular bundle (the model change needs a fresh FE build).
+    2. **If it's deployed and still fails**, instrument the runtime: log the `request.Comment` received in `ChargeCcAsync`, and inspect the new CC row's `record.comment` + `ownerName` returned by the ledger query — to rule out (i) the comment arriving null despite the field being filled, or (ii) `isAutoChargeDescription` suppressing it (fires when `comment.includes(':' + ownerName)`; a normal comment shouldn't, but confirm on the actual saved value).
+    3. Confirm the exact entry point Ann used is the search-registrations **registration-detail-panel** host of the ledger (→ `ChargeCcAsync`), not a different host with its own CC handler.
+- **Ann's diagnostic observation (narrows it further)**: the CC row currently shows the **default "Registration Payment"** in the same spot where Check/Correction show the optional comment. That default is the **blank-comment fallback** at `PaymentService.cs:1580` (`item.Comment` non-blank → use it; else `"Registration Payment"`). So the display works and the backend writes *a* comment — but it's writing the **default**, which means **`item.Comment` arrived blank**. ⇒ The comment is lost **upstream of the backend** (capture / emit / transport, or the fix isn't in the tested build) — **not** in persistence or display. Runtime step 2 above should log `request.Comment` at the controller boundary to catch exactly where it goes null.
+- **Secondary (separate, easy) UX fix**: `displayComment` / `isAutoChargeDescription` suppress the auto `{Job}:{Player}:…` description but **not** the `"Registration Payment"` / `"eCheck Registration Payment"` defaults, so a comment-less CC/eCheck row shows that boilerplate while Check/Correction show blank. Extend the suppression to treat those two default strings as "no comment" — a comment-less row then renders blank (matching Check/Correction), and a genuine admin comment stands out. (`accounting-ledger.component.ts:249-258`.)
+
+### PL-019: Events screen — a $0 camp/clinic shows no amount; should display "$0" in blue like priced events
+- **Tested**: Camps & Clinics Registration
+- **Area**: Player registration → Events screen (Camps & Clinics event list) → per-event fee
+- **Where**: The per-event fee shown on each camp/clinic card
+- **What I did**: Viewed a camp/clinic whose balance due is **$0** on the Events screen.
+- **What I expected**: The amount to show as **$0 in blue**, consistent with how priced events display their fee per event.
+- **What happened**: A $0 event shows **no amount at all** (blank), while priced events show their fee in blue.
+- **Severity**: UX
+- **Status**: Open
+- **For Todd — the fix (one token, two spots)**: The blue `camp-fee` span renders only when `effectiveFee > 0`, so a configured $0 falls through to nothing. Change `@else if (team.effectiveFee != null && team.effectiveFee > 0)` → `@else if (team.effectiveFee != null)` in **both** the selected-camps list ([team-selection-step.component.ts:140](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L140)) and the available-camps list ([:183](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/team-selection-step.component.ts#L183)). A configured $0 event then renders `{{ 0 | currency }}` = **$0** in the existing blue `camp-fee` class — no CSS change. The `feeConfigured === false` → "Fee not set" branch stays first (an *unset* fee is different from a configured $0), and the `!= null` guard still hides a genuinely unresolved fee.
+
+### PL-020: "Successfully applied discount" message lingers on the payment screen with no code entered
+- **Tested**: Camps & Clinics Registration (job: YJS:Camps and Clinics 2026)
+- **Area**: Player registration → payment step → Discount Code section
+- **Where**: The green "Successfully applied discount to N registration(s)" message under the (empty) Discount Code field
+- **What I did**: Reached the payment screen where a **late fee** applied. The Discount Code field is empty and I did **not** enter a code, yet "Successfully applied discount to 2 registration(s)" shows.
+- **What I expected**: No discount message when no code has been applied to the current registration.
+- **What happened**: The success message displays even though the code field is empty and no code was entered for this view.
+- **Severity**: Bug (misleading stale message)
+- **Status**: Open
+- **Root cause**: `PaymentV2Service` is `@Injectable({ providedIn: 'root' })` — a **singleton** ([payment-v2.service.ts:123](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/state/payment-v2.service.ts#L123)) — so `_discountMessage` / `_discountAppliedOk` persist across registrations and navigations. The message is cleared **only** in `resetDiscount()` and at the start of a new `applyDiscount()`, and `resetDiscount()` is called from **just one place**: `chooseOption()` (PIF/Deposit/ARB pick, [payment-step.component.ts:1294](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/payment-step.component.ts#L1294)). It is **not** reset when the payment step is entered or when the billable line items change. So a success message from an **earlier** discount apply in the same page session lingers, and the template shows it whenever it's non-null ([payment-step.component.ts:464](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/player/steps/payment-step.component.ts#L464)). (The late fee is **incidental** — the message originates from an earlier successful apply, not the late fee; `applyDiscount` won't fire on an empty code — guarded at `payment-step.component.ts:1299`.)
+- **For Todd — the fix**: Reset the discount UI state when it's no longer relevant to the current view — e.g. call `paySvc.resetDiscount()` on payment-step init (and/or when `billableLineItems()` changes / a new family context loads), mirroring what `chooseOption()` already does. Optionally also clear it when the code input is emptied. Net: each fresh payment view starts with no stale discount message.
 
 ### PL-015: "Check Owed" column — behavior confirmed correct; discuss its appearance with Todd
 - **Tested**: Showcase Registration
