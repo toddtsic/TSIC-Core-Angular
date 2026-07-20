@@ -178,7 +178,8 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: Consistent behavior — the job is open, so it should let me in every time.
 - **What happened**: Intermittent "registration not currently open" toast even though registration is open.
 - **Severity**: Bug (intermittent / race)
-- **Status**: Open
+- **Status**: Fixed
+- **Resolved**: The `/pulse` endpoint ([JobsController.cs:322](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/JobsController.cs#L322)) now sends `Cache-Control: private, no-cache` + `Vary: Authorization` — the same headers the sibling menu endpoint already used. Its body varies by auth (the `My*` overlay) and by live config, so a "closed" pulse can no longer be cached and replayed, which was the stale-snapshot source of the intermittent toast. FE guard bypass-for-authenticated (contributing item 2) left as-is; revisit only if the flap survives the header fix.
 - **Root cause (verified against the live DB for this job)**: Every gate is **open** — nothing in the saved config should close it:
     - `BRegistrationAllowPlayer = 1` (QL toggle on)
     - 7 Player-role fee rows exist (role `DAC0C570` = Player) → `PlayerRegistrationOpen` = true
