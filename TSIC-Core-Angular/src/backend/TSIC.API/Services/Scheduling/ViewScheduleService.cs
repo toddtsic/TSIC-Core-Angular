@@ -218,31 +218,31 @@ public sealed class ViewScheduleService : IViewScheduleService
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {
         var bracketGames = await _scheduleRepo.GetBracketGamesAsync(jobId, request, ct);
+        var consolationGames = await _scheduleRepo.GetConsolationGamesAsync(jobId, request, ct);
 
         // Agegroups with BChampionsByDivision = true get per-division brackets;
         // all others (false / null) get per-agegroup brackets (the common case).
-        var distinctAgIds = bracketGames
+        var distinctAgIds = bracketGames.Concat(consolationGames)
             .Where(g => g.AgegroupId.HasValue)
             .Select(g => g.AgegroupId!.Value)
             .Distinct();
         var byDivAgIds = await _scheduleRepo.GetChampionsByDivisionAgegroupIdsAsync(distinctAgIds, ct);
 
-        var grouped = bracketGames
-            .GroupBy(g => new
-            {
-                AgName = g.AgegroupName ?? "",
-                DivName = g.AgegroupId.HasValue && byDivAgIds.Contains(g.AgegroupId.Value)
-                    ? (g.DivName ?? "")
-                    : ""
-            })
-            .OrderBy(grp => grp.Key.AgName)
-            .ThenBy(grp => grp.Key.DivName);
+        // Group key: agegroup name, plus division name ONLY for champions-by-division agegroups.
+        (string AgName, string DivName) KeyOf(Domain.Entities.Schedule g) => (
+            g.AgegroupName ?? "",
+            g.AgegroupId.HasValue && byDivAgIds.Contains(g.AgegroupId.Value) ? (g.DivName ?? "") : "");
+
+        var bracketByKey = bracketGames.GroupBy(KeyOf).ToDictionary(grp => grp.Key, grp => grp.ToList());
+        var consolationByKey = consolationGames.GroupBy(KeyOf).ToDictionary(grp => grp.Key, grp => grp.ToList());
 
         var result = new List<DivisionBracketResponse>();
 
-        foreach (var group in grouped)
+        // Union of keys so a consolation-only division still surfaces (with empty Matches).
+        foreach (var key in bracketByKey.Keys.Union(consolationByKey.Keys)
+            .OrderBy(k => k.AgName).ThenBy(k => k.DivName))
         {
-            var gameList = group.ToList();
+            var gameList = bracketByKey.GetValueOrDefault(key, []);
 
             // Compute ParentGid using legacy's proven algorithm:
             // For each game, find the game in the SAME division, NEXT round (Rnd+1),
@@ -299,6 +299,8 @@ public sealed class ViewScheduleService : IViewScheduleService
                     T1Css = t1Css,
                     T2Css = t2Css,
                     LocationTime = locationTime,
+                    GDate = g.GDate,
+                    FName = g.Field?.FName ?? g.FName,
                     FieldId = g.FieldId,
                     RoundType = roundType,
                     ParentGid = parentGid
@@ -318,12 +320,32 @@ public sealed class ViewScheduleService : IViewScheduleService
                     : null;
             }
 
+            // Consolation games ride alongside the ladder, never inside Matches.
+            var consolation = consolationByKey.GetValueOrDefault(key, [])
+                .Select(g => new ConsolationGameDto
+                {
+                    Gid = g.Gid,
+                    AgegroupName = g.AgegroupName ?? "",
+                    AgegroupId = g.AgegroupId ?? Guid.Empty,
+                    FName = g.Field?.FName ?? g.FName,
+                    GDate = g.GDate,
+                    T1Name = g.T1Name ?? "",
+                    T2Name = g.T2Name ?? "",
+                    T1Id = g.T1Id,
+                    T2Id = g.T2Id,
+                    T1Score = g.T1Score,
+                    T2Score = g.T2Score,
+                    FAddress = BuildFieldAddress(g.Field)
+                })
+                .ToList();
+
             result.Add(new DivisionBracketResponse
             {
-                AgegroupName = group.Key.AgName,
-                DivName = group.Key.DivName,
+                AgegroupName = key.AgName,
+                DivName = key.DivName,
                 Champion = champion,
-                Matches = matches
+                Matches = matches,
+                ConsolationGames = consolation
             });
         }
 

@@ -227,9 +227,15 @@ public interface IScheduleRepository
 
     /// <summary>
     /// Get bracket games for a job, optionally filtered by agegroup/division.
-    /// Returns games where T1Type or T2Type is a bracket type (Q, S, F, X, Y, Z).
+    /// Returns games in the bracket topology (GameRoundTypes.Bracket: Z, Y, X, Q, S, F, B).
     /// </summary>
     Task<List<Schedule>> GetBracketGamesAsync(Guid jobId, Dtos.Scheduling.ScheduleFilterRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Get consolation/placement games for a job (T1Type == T2Type == "C"), optionally filtered
+    /// by agegroup/division. These are standalone games, not part of the bracket ladder.
+    /// </summary>
+    Task<List<Schedule>> GetConsolationGamesAsync(Guid jobId, Dtos.Scheduling.ScheduleFilterRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Get staff contacts for teams in the filtered schedule.

@@ -364,13 +364,46 @@ public record BracketMatchDto
     public required string T1Css { get; init; }
     /// <summary>"winner", "loser", or "pending" — determines CSS styling.</summary>
     public required string T2Css { get; init; }
+    /// <summary>
+    /// Pre-formatted "Field — ddd M/d h:mm tt" display string. Retained for backward
+    /// compatibility; new clients should format from <see cref="GDate"/> + <see cref="FName"/>.
+    /// </summary>
     public string? LocationTime { get; init; }
+    /// <summary>
+    /// The game's scheduled time as a discrete timestamp (local wall-clock, no offset), so
+    /// clients can sort/group/format it instead of parsing <see cref="LocationTime"/>.
+    /// </summary>
+    public DateTime? GDate { get; init; }
+    /// <summary>Bare field name, paired with <see cref="GDate"/>.</summary>
+    public string? FName { get; init; }
     /// <summary>Field ID for linking to field directions.</summary>
     public Guid? FieldId { get; init; }
-    /// <summary>Round type: Z, Y, X, Q, S, F.</summary>
+    /// <summary>Round type: Z, Y, X, Q, S, F, B.</summary>
     public required string RoundType { get; init; }
     /// <summary>Parent game ID (the game this feeds into). Null for the final.</summary>
     public int? ParentGid { get; init; }
+}
+
+/// <summary>
+/// A standalone placement game (T1Type == T2Type == "C") — 5th vs 6th, etc. It never feeds
+/// another game and is not part of the ladder, so it is delivered alongside the bracket
+/// matches rather than inside them.
+/// </summary>
+public record ConsolationGameDto
+{
+    public required int Gid { get; init; }
+    public required string AgegroupName { get; init; }
+    public required Guid AgegroupId { get; init; }
+    public string? FName { get; init; }
+    public DateTime? GDate { get; init; }
+    public required string T1Name { get; init; }
+    public required string T2Name { get; init; }
+    public Guid? T1Id { get; init; }
+    public Guid? T2Id { get; init; }
+    public int? T1Score { get; init; }
+    public int? T2Score { get; init; }
+    /// <summary>Google Maps-friendly field address, for directions.</summary>
+    public string? FAddress { get; init; }
 }
 
 /// <summary>
@@ -382,6 +415,11 @@ public record DivisionBracketResponse
     public required string DivName { get; init; }
     public string? Champion { get; init; }
     public required List<BracketMatchDto> Matches { get; init; }
+    /// <summary>
+    /// Consolation/placement games for this group, delivered alongside the ladder (never inside
+    /// <see cref="Matches"/>). Empty when the group has none.
+    /// </summary>
+    public List<ConsolationGameDto> ConsolationGames { get; init; } = [];
 }
 
 // ══════════════════════════════════════════════════════════════════════

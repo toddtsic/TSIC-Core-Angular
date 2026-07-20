@@ -882,7 +882,26 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (request.DivisionIds is { Count: > 0 })
             query = query.Where(s => s.DivId.HasValue && request.DivisionIds.Contains(s.DivId.Value));
 
-        return await query.OrderBy(s => s.GDate).ToListAsync(ct);
+        return await query.OrderBy(s => s.GDate).ThenBy(s => s.FName).ToListAsync(ct);
+    }
+
+    public async Task<List<Domain.Entities.Schedule>> GetConsolationGamesAsync(
+        Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
+    {
+        var query = _context.Schedule
+            .AsNoTracking()
+            .Include(s => s.Field)
+            .Where(s => s.JobId == jobId
+                && s.T1Type == GameRoundTypes.Consolation
+                && s.T2Type == GameRoundTypes.Consolation);
+
+        if (request.AgegroupIds is { Count: > 0 })
+            query = query.Where(s => s.AgegroupId.HasValue && request.AgegroupIds.Contains(s.AgegroupId.Value));
+
+        if (request.DivisionIds is { Count: > 0 })
+            query = query.Where(s => s.DivId.HasValue && request.DivisionIds.Contains(s.DivId.Value));
+
+        return await query.OrderBy(s => s.GDate).ThenBy(s => s.FName).ToListAsync(ct);
     }
 
     public async Task<List<ContactDto>> GetContactsAsync(
