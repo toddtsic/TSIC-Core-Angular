@@ -584,3 +584,15 @@ Use these as a guide for what to walk through. You don't have to go in order.
 - **Severity**: UX
 - **Status**: Open
 
+### SP-024: Adding a new entity (e.g. House Team) doesn't scroll the sibling table to it — new row is highlighted but off-screen at the bottom
+- **Area**: Team Settings / all level grids (League / Age Group / Division / Team sibling tables)
+- **What I did**: Added a **House Team** under LADT; the teams table came up.
+- **What I expected**: The table to jump to the newly-added team with it highlighted/selected so I can edit it right away.
+- **What happened**: The new team was appended at the **bottom** of the list and off-screen — I couldn't see it without scrolling down manually.
+- **Severity**: UX
+- **Status**: Open
+- **Root cause (confirmed)**: The add flow **already selects and highlights** the new entity — after the tree reloads, [ladt.component.ts:323-328](../../../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/ladt.component.ts#L323) finds the new node and calls `expandAncestors` + `selectNode`, and the sibling grid stamps the `row-selected` class in `onRowDataBound` ([ladt-sibling-grid.component.ts:670-683](../../../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/components/ladt-sibling-grid.component.ts#L670)). **What's missing is scroll-into-view**: the grid has *no* scroll logic anywhere — `syncSelectedRow` toggles the highlight in place, and its own comment says "no scroll reset" ([:685-691](../../../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/components/ladt-sibling-grid.component.ts#L685)). So a new row that sorts to the bottom is highlighted but never brought into the viewport. (The highlight already works — only the scroll is absent.)
+- **For Todd — the fix**: After the selection is applied, scroll the selected row into view. Two ways:
+  - **Targeted (preferred)**: add a one-shot "scroll to newly-added entity" trigger the parent sets only after an **add** (not on ▲/▼ sibling nav), so the deliberate "no scroll on in-place nav" behavior at [:685-691](../../../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/components/ladt-sibling-grid.component.ts#L685) is preserved. In `syncSelectedRow`, once the matching row element is found, call `rowEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' })`.
+  - **Simpler**: always `scrollIntoView({ block: 'nearest' })` the selected row on selection change — `block:'nearest'` no-ops when the row is already visible, so ▲/▼ nav to an on-screen sibling won't jump; only off-screen selections scroll. Todd to decide if the gentle always-scroll is acceptable vs. the add-only trigger.
+  - Note the row rebinds on add (data changes → `onRowDataBound` fires per row), so the scroll can also be driven from a "pending scroll" flag drained in `ngAfterViewChecked` (mirrors the existing `pendingSelectionSync` pattern) to guarantee it runs after the new rows render. A brief highlight pulse (e.g. a fade animation on `.row-selected`) would make the target even easier to spot, per Ann's "highlighted in some way."
