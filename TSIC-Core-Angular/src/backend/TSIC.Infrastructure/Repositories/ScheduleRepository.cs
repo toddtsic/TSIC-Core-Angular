@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
@@ -818,9 +819,9 @@ public sealed class ScheduleRepository : IScheduleRepository
             .Select(m => $"{m / 60:D2}:{m % 60:D2}")
             .ToList();
 
-        // 9. Does this job have any bracket games? Mirrors the bracket-type set used by
-        //    GetBracketGamesAsync — a round-robin-only job has none, so the Brackets tab hides.
-        var bracketTypes = new[] { "Q", "S", "F", "X", "Y", "Z" };
+        // 9. Does this job have any bracket games? Uses GameRoundTypes.Bracket (the ladder
+        //    rounds PLUS bronze) — a round-robin-only job has none, so the Brackets tab hides.
+        var bracketTypes = GameRoundTypes.Bracket;
         var jobHasBrackets = await _context.Schedule
             .AsNoTracking()
             .AnyAsync(s => s.JobId == jobId
@@ -867,7 +868,7 @@ public sealed class ScheduleRepository : IScheduleRepository
     public async Task<List<Domain.Entities.Schedule>> GetBracketGamesAsync(
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {
-        var bracketTypes = new[] { "Q", "S", "F", "X", "Y", "Z" };
+        var bracketTypes = GameRoundTypes.Bracket;
         var query = _context.Schedule
             .AsNoTracking()
             .Include(s => s.Field)

@@ -272,12 +272,16 @@ public sealed class ViewScheduleService : IViewScheduleService
                     var t1Rank = g.T1No ?? 0;
                     var nextRnd = (byte)(g.Rnd.Value + 1);
 
+                    // FirstOrDefault (over a deterministic order), NOT SingleOrDefault: a data
+                    // anomaly with two candidate parents (e.g. bronze sharing Rnd with the final
+                    // and a null seed no. coalescing to 0) must not throw and 500 the whole tab.
                     parentGid = gameList
                         .Where(p => p.DivId == g.DivId
                                     && p.Rnd == nextRnd
                                     && ((p.T1No ?? 0) == t1Rank || (p.T2No ?? 0) == t1Rank))
+                        .OrderBy(p => p.Gid)
                         .Select(p => (int?)p.Gid)
-                        .SingleOrDefault();
+                        .FirstOrDefault();
 
                     // Legacy: Pgid == 0 means no parent → null
                     if (parentGid == 0) parentGid = null;
@@ -673,6 +677,8 @@ public sealed class ViewScheduleService : IViewScheduleService
         "Q" => "Quarterfinals",
         "S" => "Semifinals",
         "F" => "Finals",
+        "B" => "Bronze",
+        "C" => "Consolation",
         _ => type ?? "Playoff"
     };
 
@@ -684,6 +690,7 @@ public sealed class ViewScheduleService : IViewScheduleService
         "Q" => 4,
         "S" => 5,
         "F" => 6,
+        "B" => 6, // Bronze (3rd place) sits at the same level as Finals; Gid breaks the tie.
         _ => 0
     };
 
