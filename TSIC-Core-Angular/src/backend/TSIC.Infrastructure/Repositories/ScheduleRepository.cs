@@ -645,7 +645,9 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (request.UnscoredOnly == true)
             query = query.Where(s => s.T1Score == null && s.T2Score == null);
 
-        return await query.OrderBy(s => s.GDate).ToListAsync(ct);
+        // Total order: GDate then FName. Without a tiebreaker, same-kickoff rows (many fields
+        // at one time) come back in unstable plan order — toggling UnscoredOnly reshuffles them.
+        return await query.OrderBy(s => s.GDate).ThenBy(s => s.FName).ToListAsync(ct);
     }
 
     public async Task<ScheduleFilterOptionsDto> GetScheduleFilterOptionsAsync(
@@ -849,6 +851,7 @@ public sealed class ScheduleRepository : IScheduleRepository
             .Include(s => s.T2TypeNavigation)
             .Where(s => (s.T1Id == teamId || s.T2Id == teamId) && s.GDate.HasValue)
             .OrderBy(s => s.GDate)
+            .ThenBy(s => s.FName)
             .ToListAsync(ct);
     }
 
