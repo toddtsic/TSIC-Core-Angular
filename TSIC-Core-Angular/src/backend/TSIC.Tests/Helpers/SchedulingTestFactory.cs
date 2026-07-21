@@ -27,7 +27,7 @@ public static class SchedulingTestFactory
         SqlDbContext ctx, ScheduleRepository scheduleRepo, TeamRepository teamRepo) =>
         new(scheduleRepo, teamRepo, new BracketRepository(ctx),
             Advancement(ctx, scheduleRepo), SeedResolution(ctx, scheduleRepo),
-            new JobRepository(ctx), new NoOpGameResultPush());
+            new JobRepository(ctx), new NoOpGameResultPush(), new DeviceRepository(ctx));
 
     /// <summary>Inert push stand-in — tests never send FCM messages.</summary>
     private sealed class NoOpGameResultPush : IGameResultPushService
