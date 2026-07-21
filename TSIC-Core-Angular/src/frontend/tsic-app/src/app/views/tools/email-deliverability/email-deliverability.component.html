@@ -48,6 +48,18 @@
 			}
 
 			@if (entries().length > 0) {
+				<!-- Single at-a-glance verdict — the shared explanation lives here, not on every row. -->
+				@if (summary(); as s) {
+					<div class="summary" [class.is-ok]="s.tone === 'ok'" [class.is-warn]="s.tone === 'warn'">
+						<i
+							class="bi"
+							[class.bi-check-circle-fill]="s.tone === 'ok'"
+							[class.bi-exclamation-triangle-fill]="s.tone === 'warn'"
+							aria-hidden="true"></i>
+						<span>{{ s.text }}</span>
+					</div>
+				}
+
 				<div class="result-list">
 					@for (row of entries(); track row.email) {
 						@let meta = metaFor(row.status);
@@ -67,31 +79,24 @@
 								</span>
 							</div>
 
-							<!-- One-line, status-specific note from the STATUS_META dictionary. -->
-							<p
-								class="row-note"
-								[class.note-warn]="meta.tone === 'suppressed'"
-								[class.note-muted]="meta.tone === 'unknown'">
-								{{ meta.note }}
-								@if (row.status === 'Suppressed') {
+							<!-- Rows carry ONLY per-row facts that differ: the reason/date a suppressed address
+							     was blocked. No generic prose — that's in the summary + disclaimer. -->
+							@if (row.status === 'Suppressed' && (row.reason || row.lastUpdate)) {
+								<p class="row-meta">
+									@if (row.lastUpdate) { <span class="detail-chip">Suppressed {{ row.lastUpdate | date:'mediumDate' }}</span> }
 									@if (row.reason) { <span class="detail-chip">Reason: {{ row.reason }}</span> }
-									@if (row.lastUpdate) { <span class="detail-chip">Suppressed since: {{ row.lastUpdate | date:'mediumDate' }}</span> }
-								}
-							</p>
+								</p>
+							}
 
-							<!-- Result of a test send, if one was run -->
+							<!-- Result of a test send, if one was run (transient, action-triggered — not redundant). -->
 							@if (testResultFor(row.email); as res) {
 								@switch (res.side) {
 									@case ('Recipient') {
-										<p class="row-note note-ok">
-											✓ We sent a test message and Amazon AWS Email Services accepted it for
-											delivery. The problem isn't on our end. If you don't see it, check junk/spam
-											and your mailbox quota, and add support&#64;teamsportsinfo.com to your contacts.
-										</p>
+										<p class="row-note note-ok">✓ Sent — Amazon AWS Email Services accepted it for delivery.</p>
 									}
 									@case ('Inconclusive') {
 										<p class="row-note note-danger">
-											Something went wrong on our end sending this test. Please contact
+											Something went wrong on our end. Please contact
 											<strong>support&#64;teamsportsinfo.com</strong>.
 										</p>
 									}

@@ -144,12 +144,51 @@
 	background: color-mix(in srgb, var(--bs-primary) 2%, var(--bs-card-bg));
 }
 
+// ── Summary verdict (stated once, above the rows) ──
+
+.summary {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--space-3);
+	padding: var(--space-3) var(--space-4);
+	border: 1px solid var(--bs-border-color);
+	border-radius: var(--radius-lg);
+	box-shadow: var(--shadow-sm);
+	font-size: var(--font-size-sm);
+	font-weight: 500;
+	line-height: 1.5;
+
+	i { font-size: 1.15rem; line-height: 1.35; flex: 0 0 auto; }
+
+	&.is-ok {
+		color: var(--bs-success-text-emphasis, var(--bs-success));
+		background: color-mix(in srgb, var(--bs-success) 10%, var(--bs-card-bg));
+		border-color: color-mix(in srgb, var(--bs-success) 30%, transparent);
+		i { color: var(--bs-success); }
+	}
+
+	&.is-warn {
+		color: var(--bs-danger-text-emphasis, var(--bs-danger));
+		background: color-mix(in srgb, var(--bs-danger) 10%, var(--bs-card-bg));
+		border-color: color-mix(in srgb, var(--bs-danger) 30%, transparent);
+		i { color: var(--bs-danger); }
+	}
+}
+
 // ── Status rows (elevated cards, status-accented left rail) ──
 
 .result-list {
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-3);
+}
+
+// Per-row facts (suppression date/reason) — compact chip row, no prose.
+.row-meta {
+	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2);
 }
 
 .email-row {

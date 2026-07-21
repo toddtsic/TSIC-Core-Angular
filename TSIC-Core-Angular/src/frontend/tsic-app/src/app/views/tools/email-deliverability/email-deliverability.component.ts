@@ -18,32 +18,18 @@ type StatusTone = 'ok' | 'suppressed' | 'unknown';
 interface StatusMeta {
 	/** Pill label. */
 	pill: string;
-	/** Drives the row accent + note colour. */
+	/** Drives the row accent + pill colour. */
 	tone: StatusTone;
-	/** One-line per-row note. The full "check spam / mailbox full / contact support" litany is NOT
-	 *  repeated here — it lives once in the page disclaimer, so identical rows don't restate it. */
-	note: string;
 }
 
-// Single source of the per-status copy, keyed by the server's SuppressionEntryDto.status. Keeps the
-// three-way branch out of the template and guarantees every row/pill/accent stays consistent.
+// Single source of the per-status pill + tone, keyed by the server's SuppressionEntryDto.status.
+// No prose lives here: the "is my email OK?" verdict is stated once in the adaptive summary and the
+// "accepted ≠ received" caveat once in the disclaimer — rows never repeat a shared explanation.
 const STATUS_META: Record<string, StatusMeta> = {
-	NotSuppressed: {
-		pill: 'Not suppressed',
-		tone: 'ok',
-		note: 'Delivery to this address is not being stopped. If mail still doesn’t arrive, the causes below apply — not a problem on our side.'
-	},
-	Suppressed: {
-		pill: 'Suppressed',
-		tone: 'suppressed',
-		note: 'Amazon AWS Email Services has stopped delivering to this address after a message bounced or was marked as spam. Make sure the mailbox works, then remove the suppression below to restore delivery.'
-	}
+	NotSuppressed: { pill: 'Not suppressed', tone: 'ok' },
+	Suppressed: { pill: 'Suppressed', tone: 'suppressed' }
 };
-const STATUS_META_FALLBACK: StatusMeta = {
-	pill: 'Couldn’t check',
-	tone: 'unknown',
-	note: 'We couldn’t check this address just now — try again in a moment.'
-};
+const STATUS_META_FALLBACK: StatusMeta = { pill: 'Couldn’t check', tone: 'unknown' };
 
 @Component({
 	selector: 'app-email-deliverability',
@@ -72,6 +58,32 @@ export class EmailDeliverabilityComponent implements OnInit {
 	readonly testing = signal<string[]>([]);
 	readonly cooling = signal<string[]>([]);
 	readonly testResults = signal<Record<string, EmailInvestigateResultDto>>({});
+
+	/** How many of the checked addresses are suppressed — drives the summary verdict. */
+	readonly suppressedCount = computed(() => this.entries().filter(r => r.status === 'Suppressed').length);
+
+	/**
+	 * The single at-a-glance verdict shown above the rows, so the "is my email OK?" answer and the
+	 * shared explanation are stated ONCE instead of repeated on every same-status row. Null until
+	 * there is something to summarize.
+	 */
+	readonly summary = computed<{ tone: 'ok' | 'warn'; text: string } | null>(() => {
+		const total = this.entries().length;
+		if (total === 0) return null;
+		const suppressed = this.suppressedCount();
+		if (suppressed === 0) {
+			return {
+				tone: 'ok',
+				text: total === 1
+					? 'Good news — your email address is not suppressed. Amazon AWS Email Services isn’t stopping delivery to it.'
+					: `Good news — none of your ${total} email addresses is suppressed. Amazon AWS Email Services isn’t stopping delivery to any of them.`
+			};
+		}
+		return {
+			tone: 'warn',
+			text: `${suppressed} of your ${total} email addresses ${suppressed === 1 ? 'is' : 'are'} suppressed — restore delivery below to start receiving our email again.`
+		};
+	});
 
 	// ── Tab 2: E-Mail History (this job only) ──
 	readonly sentEmails = signal<PlayerSentEmailDto[]>([]);
