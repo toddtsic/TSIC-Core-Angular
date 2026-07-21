@@ -1712,8 +1712,10 @@ public class RegistrationRepository : IRegistrationRepository
         // Sort: honor request SortField/SortDir (grid sends camelCase DTO field names), default
         // LastName, FirstName ascending. Every branch ends with a RegistrationId tiebreaker so the
         // total order is deterministic — REQUIRED for stable server-side paging (ties must not
-        // reshuffle between page fetches, or rows could duplicate/skip across pages). The computed
-        // Assignment column is not DB-backed, so it falls through to the default sort.
+        // reshuffle between page fetches, or rows could duplicate/skip across pages). The Assignment
+        // column's display STRING is composed post-materialization, but its components
+        // (ClubRepClubName, AgegroupName, TeamName) are projected scalars, so "assignment" sorts on
+        // those same components server-side (below).
         var desc = string.Equals(request.SortDir, "desc", StringComparison.OrdinalIgnoreCase);
         var sortField = request.SortField?.ToLowerInvariant();
         var ordered = sortField switch
@@ -1742,6 +1744,9 @@ public class RegistrationRepository : IRegistrationRepository
             "owedtotal" => desc
                 ? projected.OrderByDescending(r => r.Dto.OwedTotal).ThenBy(r => r.Dto.RegistrationId)
                 : projected.OrderBy(r => r.Dto.OwedTotal).ThenBy(r => r.Dto.RegistrationId),
+            "assignment" => desc
+                ? projected.OrderByDescending(r => r.Dto.ClubRepClubName).ThenByDescending(r => r.Dto.AgegroupName).ThenByDescending(r => r.Dto.TeamName).ThenBy(r => r.Dto.RegistrationId)
+                : projected.OrderBy(r => r.Dto.ClubRepClubName).ThenBy(r => r.Dto.AgegroupName).ThenBy(r => r.Dto.TeamName).ThenBy(r => r.Dto.RegistrationId),
             "lastname" when desc
                 => projected.OrderByDescending(r => r.Dto.LastName).ThenByDescending(r => r.Dto.FirstName).ThenBy(r => r.Dto.RegistrationId),
             _ => projected.OrderBy(r => r.Dto.LastName).ThenBy(r => r.Dto.FirstName).ThenBy(r => r.Dto.RegistrationId)
