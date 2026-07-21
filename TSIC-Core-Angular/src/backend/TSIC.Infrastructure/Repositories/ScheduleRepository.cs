@@ -3,6 +3,7 @@ using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Constants;
+using TSIC.Domain.Helpers;
 using TSIC.Infrastructure.Data.SqlDbContext;
 using TSIC.Infrastructure.Data.SqlDbContext.Helpers;
 using TSIC.Infrastructure.Utilities;
@@ -759,8 +760,9 @@ public sealed class ScheduleRepository : IScheduleRepository
             .OrderBy(d => d)
             .ToListAsync(ct);
 
-        // 6. Get distinct fields used in games
-        var fields = await _context.Schedule
+        // 6. Get distinct fields used in games. Materialize the field rows, then compose the
+        //    display address in memory — FieldAddressFormatter is a C# helper EF can't translate.
+        var fieldRows = await _context.Schedule
             .AsNoTracking()
             .Where(s => s.JobId == jobId && s.FieldId.HasValue && s.GDate.HasValue)
             .Select(s => s.FieldId!.Value)
@@ -768,13 +770,18 @@ public sealed class ScheduleRepository : IScheduleRepository
             .Join(_context.Fields.AsNoTracking(),
                 fid => fid,
                 f => f.FieldId,
-                (fid, f) => new FieldSummaryDto
-                {
-                    FieldId = f.FieldId,
-                    FName = f.FName ?? ""
-                })
-            .OrderBy(f => f.FName)
+                (fid, f) => f)
             .ToListAsync(ct);
+
+        var fields = fieldRows
+            .Select(f => new FieldSummaryDto
+            {
+                FieldId = f.FieldId,
+                FName = f.FName ?? "",
+                FAddress = FieldAddressFormatter.Build(f)
+            })
+            .OrderBy(f => f.FName)
+            .ToList();
 
         // 7. Build LADT tree (Agegroup → Division → Team) from same data, ignoring club
         var ladtTree = teamRows

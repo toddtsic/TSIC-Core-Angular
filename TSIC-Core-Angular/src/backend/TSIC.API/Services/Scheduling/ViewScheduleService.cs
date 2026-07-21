@@ -3,6 +3,7 @@ using TSIC.Contracts.Constants;
 using TSIC.Contracts.Dtos.Scheduling;
 using TSIC.Contracts.Repositories;
 using TSIC.Contracts.Services;
+using TSIC.Domain.Helpers;
 
 namespace TSIC.API.Services.Scheduling;
 
@@ -105,7 +106,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                 FieldId = g.FieldId ?? Guid.Empty,
                 Latitude = g.Field?.Latitude,
                 Longitude = g.Field?.Longitude,
-                FAddress = BuildFieldAddress(g.Field),
+                FAddress = FieldAddressFormatter.Build(g.Field),
                 AgDiv = $"{g.AgegroupName}:{g.DivName}",
                 T1Name = g.T1Name ?? "",
                 T2Name = g.T2Name ?? "",
@@ -199,7 +200,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                 OpponentRecord = oppId.HasValue ? recordLookup.GetValueOrDefault(oppId.Value) : null,
                 Latitude = g.Field?.Latitude,
                 Longitude = g.Field?.Longitude,
-                FAddress = BuildFieldAddress(g.Field),
+                FAddress = FieldAddressFormatter.Build(g.Field),
                 GStatusCode = g.GStatusCode,
                 GStatusText = g.GStatusCodeNavigation?.GStatusText
             };
@@ -210,6 +211,8 @@ public sealed class ViewScheduleService : IViewScheduleService
             TeamName = detail?.TeamName ?? "Unknown Team",
             AgegroupName = detail?.AgegroupName ?? "",
             ClubName = detail?.ClubName,
+            // Subject team's own record, already sitting in the lookup built for OpponentRecord.
+            TeamRecord = recordLookup.GetValueOrDefault(teamId),
             Games = gameResults
         };
     }
@@ -335,7 +338,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                     T2Id = g.T2Id,
                     T1Score = g.T1Score,
                     T2Score = g.T2Score,
-                    FAddress = BuildFieldAddress(g.Field)
+                    FAddress = FieldAddressFormatter.Build(g.Field)
                 })
                 .ToList();
 
@@ -715,20 +718,6 @@ public sealed class ViewScheduleService : IViewScheduleService
         "B" => 6, // Bronze (3rd place) sits at the same level as Finals; Gid breaks the tie.
         _ => 0
     };
-
-    /// <summary>Concatenates field address parts into a Google Maps-friendly string.</summary>
-    private static string? BuildFieldAddress(Domain.Entities.Fields? field)
-    {
-        if (field == null) return null;
-        var parts = new List<string>(4);
-        if (!string.IsNullOrWhiteSpace(field.Address)) parts.Add(field.Address.Trim());
-        if (!string.IsNullOrWhiteSpace(field.City)) parts.Add(field.City.Trim());
-        var stateZip = string.Join(" ",
-            new[] { field.State?.Trim(), field.Zip?.Trim() }
-            .Where(s => !string.IsNullOrWhiteSpace(s)));
-        if (stateZip.Length > 0) parts.Add(stateZip);
-        return parts.Count > 0 ? string.Join(", ", parts) : null;
-    }
 
     /// <summary>Internal accumulator for building standings.</summary>
     private sealed class TeamStatsAccumulator

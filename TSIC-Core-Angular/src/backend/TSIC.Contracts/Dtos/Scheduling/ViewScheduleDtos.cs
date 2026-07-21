@@ -196,6 +196,8 @@ public record FieldSummaryDto
 {
     public required Guid FieldId { get; init; }
     public required string FName { get; init; }
+    /// <summary>Google Maps-friendly field address, for the directions launcher.</summary>
+    public string? FAddress { get; init; }
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -315,6 +317,11 @@ public record TeamResultsResponse
     public required string TeamName { get; init; }
     public required string AgegroupName { get; init; }
     public string? ClubName { get; init; }
+    /// <summary>
+    /// The subject team's own W-L-T over round-robin games only (matches T1Record/T2Record on
+    /// the games grid). Null when the team has no scored pool-play games yet.
+    /// </summary>
+    public string? TeamRecord { get; init; }
     public required List<TeamResultDto> Games { get; init; }
 }
 
