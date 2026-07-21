@@ -776,6 +776,9 @@ builder.Services.AddCors(options =>
               .AllowCredentials()
               .WithExposedHeaders(
                   "Content-Disposition",
+                  // View-schedule server-side paging: total matches before Skip/Take (games) /
+                  // total division count (standings). Read by the Events app for "showing N of M".
+                  "X-Total-Count",
                   // ADN reconciliation run-monthly counts (read by frontend after blob download)
                   "X-Imported-Count",
                   "X-Skipped-Duplicates",

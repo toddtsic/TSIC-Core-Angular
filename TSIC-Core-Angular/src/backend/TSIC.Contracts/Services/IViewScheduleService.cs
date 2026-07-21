@@ -26,10 +26,25 @@ public interface IViewScheduleService
     Task<List<ViewGameDto>> GetGamesAsync(Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Games tab, server-side paged. Applies request.Skip/Take and also returns the total match
+    /// count (before paging) for the X-Total-Count header. Skip/Take both absent ⇒ identical body
+    /// to <see cref="GetGamesAsync"/> with TotalCount = the full row count.
+    /// </summary>
+    Task<(List<ViewGameDto> Games, int TotalCount)> GetGamesPagedAsync(Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default);
+
+    /// <summary>
     /// Standings tab — pool play standings grouped by division.
     /// Only includes games where T1Type == "T" AND T2Type == "T".
     /// </summary>
     Task<StandingsByDivisionResponse> GetStandingsAsync(Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Standings tab, server-side paged over the ORDERED divisions list (a division is the
+    /// standings unit). Applies request.Skip/Take to the divisions and returns the total division
+    /// count for the filter. Records are still computed from the full game set, so paging never
+    /// distorts W-L-T. Skip/Take both absent ⇒ identical body to <see cref="GetStandingsAsync"/>.
+    /// </summary>
+    Task<(StandingsByDivisionResponse Response, int TotalCount)> GetStandingsPagedAsync(Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Records tab — full season records (all game types) grouped by division.

@@ -96,6 +96,22 @@ public sealed class ViewScheduleService : IViewScheduleService
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {
         var games = await _scheduleRepo.GetFilteredGamesAsync(jobId, request, ct);
+        return await ProjectGamesAsync(jobId, request, games, ct);
+    }
+
+    public async Task<(List<ViewGameDto> Games, int TotalCount)> GetGamesPagedAsync(
+        Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
+    {
+        // Paging is applied in the repository at the SQL level (bounded fetch / first paint).
+        // The record lookup below is job-wide, so a paged request stays correct — it just projects
+        // the page's rows against the same whole-job records.
+        var (games, total) = await _scheduleRepo.GetFilteredGamesPagedAsync(jobId, request, ct);
+        return (await ProjectGamesAsync(jobId, request, games, ct), total);
+    }
+
+    private async Task<List<ViewGameDto>> ProjectGamesAsync(
+        Guid jobId, ScheduleFilterRequest request, List<Domain.Entities.Schedule> games, CancellationToken ct)
+    {
         var recordLookup = await BuildTeamRecordLookupAsync(jobId, ct);
         var bracketAgegroupIds = (await _scheduleRepo.GetBracketAgegroupIdsAsync(jobId, ct)).ToHashSet();
         var hideScoresAgegroupIds = (await _scheduleRepo.GetHideScoresAgegroupIdsAsync(jobId, ct)).ToHashSet();
@@ -155,6 +171,22 @@ public sealed class ViewScheduleService : IViewScheduleService
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {
         return await BuildStandingsAsync(jobId, request, poolPlayOnly: true, ct);
+    }
+
+    public async Task<(StandingsByDivisionResponse Response, int TotalCount)> GetStandingsPagedAsync(
+        Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
+    {
+        // Build the full, ordered standings (records computed from every game), THEN page the
+        // divisions list — a division is the standings unit. Paging over the already-aggregated
+        // divisions keeps every team's W-L-T correct regardless of which page is requested.
+        var full = await BuildStandingsAsync(jobId, request, poolPlayOnly: true, ct);
+        var total = full.Divisions.Count;
+
+        IEnumerable<DivisionStandingsDto> divisions = full.Divisions;
+        if (request.Skip is int skip and > 0) divisions = divisions.Skip(skip);
+        if (request.Take is int take and > 0) divisions = divisions.Take(take);
+
+        return (full with { Divisions = divisions.ToList() }, total);
     }
 
     public async Task<StandingsByDivisionResponse> GetTeamRecordsAsync(

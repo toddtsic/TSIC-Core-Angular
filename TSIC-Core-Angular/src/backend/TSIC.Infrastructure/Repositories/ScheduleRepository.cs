@@ -611,6 +611,39 @@ public sealed class ScheduleRepository : IScheduleRepository
     public async Task<List<Domain.Entities.Schedule>> GetFilteredGamesAsync(
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {
+        return await BuildFilteredGamesQuery(jobId, request).ToListAsync(ct);
+    }
+
+    public async Task<(List<Domain.Entities.Schedule> Games, int TotalCount)> GetFilteredGamesPagedAsync(
+        Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
+    {
+        var query = BuildFilteredGamesQuery(jobId, request);
+
+        // Fully-unpaged request (web grid / standings-style callers): one round-trip, and the
+        // materialized count IS the total — no separate CountAsync, so the existing path is unchanged.
+        if (request.Take is null && request.Skip is null or 0)
+        {
+            var all = await query.ToListAsync(ct);
+            return (all, all.Count);
+        }
+
+        // Paged: total = filtered rows BEFORE skip/take (drives X-Total-Count). CountAsync ignores
+        // the ORDER BY, so the extra round-trip is only paid when a page is actually requested.
+        var total = await query.CountAsync(ct);
+        if (request.Skip is int skip and > 0) query = query.Skip(skip);
+        if (request.Take is int take and > 0) query = query.Take(take);
+        var page = await query.ToListAsync(ct);
+        return (page, total);
+    }
+
+    /// <summary>
+    /// Shared filtered + ordered games query (no Skip/Take). The ordering (GDate → FName) is a
+    /// TOTAL order so paged Skip/Take is stable across requests — without the FName tiebreaker,
+    /// same-kickoff rows come back in unstable plan order and would duplicate/vanish between pages.
+    /// </summary>
+    private IQueryable<Domain.Entities.Schedule> BuildFilteredGamesQuery(
+        Guid jobId, ScheduleFilterRequest request)
+    {
         var query = _context.Schedule
             .AsNoTracking()
             .Include(s => s.Field)
@@ -646,9 +679,7 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (request.UnscoredOnly == true)
             query = query.Where(s => s.T1Score == null && s.T2Score == null);
 
-        // Total order: GDate then FName. Without a tiebreaker, same-kickoff rows (many fields
-        // at one time) come back in unstable plan order — toggling UnscoredOnly reshuffles them.
-        return await query.OrderBy(s => s.GDate).ThenBy(s => s.FName).ToListAsync(ct);
+        return query.OrderBy(s => s.GDate).ThenBy(s => s.FName);
     }
 
     public async Task<ScheduleFilterOptionsDto> GetScheduleFilterOptionsAsync(

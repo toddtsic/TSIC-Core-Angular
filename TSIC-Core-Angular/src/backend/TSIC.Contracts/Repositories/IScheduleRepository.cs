@@ -208,6 +208,14 @@ public interface IScheduleRepository
     Task<List<Schedule>> GetFilteredGamesAsync(Guid jobId, Dtos.Scheduling.ScheduleFilterRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Server-side paged variant of <see cref="GetFilteredGamesAsync"/> for the Games tab.
+    /// Applies request.Skip/Take AFTER the same filtering + ordering, and returns the total
+    /// row count for the filter (before Skip/Take) for the X-Total-Count header. Skip/Take both
+    /// absent ⇒ the full ordered set in a single round-trip, identical to GetFilteredGamesAsync.
+    /// </summary>
+    Task<(List<Schedule> Games, int TotalCount)> GetFilteredGamesPagedAsync(Guid jobId, Dtos.Scheduling.ScheduleFilterRequest request, CancellationToken ct = default);
+
+    /// <summary>
     /// Get the CADT filter tree (Club → Agegroup → Division → Team) for a job.
     /// Only includes teams that appear in at least one scheduled game.
     /// </summary>

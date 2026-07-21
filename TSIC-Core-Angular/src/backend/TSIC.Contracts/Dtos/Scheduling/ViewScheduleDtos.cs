@@ -25,6 +25,12 @@ public record ScheduleFilterRequest
     /// are resolved for THIS device. Null on public/web calls → flags stay false. Not auth.
     /// </summary>
     public string? DeviceToken { get; init; }
+
+    /// <summary>Rows to skip (server-side paging). Null/0 = from the start.</summary>
+    public int? Skip { get; init; }
+
+    /// <summary>Max rows to return. Null = no limit (unchanged legacy behavior).</summary>
+    public int? Take { get; init; }
 }
 
 /// <summary>

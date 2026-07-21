@@ -108,8 +108,13 @@ public class ViewScheduleController : ControllerBase
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
 
-        var result = await _service.GetGamesAsync(jobId!.Value, request, ct);
-        return Ok(result);
+        // Server-side paging is opt-in via request.Skip/Take. Take omitted ⇒ full unpaginated
+        // body (identical to before). X-Total-Count = total matches before paging; the client
+        // uses it for a "showing N of M" affordance and end-of-list detection. Exposed via CORS
+        // (Program.cs WithExposedHeaders) so the browser can read it cross-origin.
+        var (games, total) = await _service.GetGamesPagedAsync(jobId!.Value, request, ct);
+        Response.Headers["X-Total-Count"] = total.ToString();
+        return Ok(games);
     }
 
     /// <summary>POST /api/view-schedule/standings?jobPath= — Pool play standings by division.</summary>
@@ -121,7 +126,10 @@ public class ViewScheduleController : ControllerBase
         var (jobId, _, _, error) = await ResolveContext(jobPath);
         if (error != null) return error;
 
-        var result = await _service.GetStandingsAsync(jobId!.Value, request, ct);
+        // Paged over DIVISIONS (the standings unit). X-Total-Count = total division count for the
+        // filter. Take omitted ⇒ full response, identical to before.
+        var (result, total) = await _service.GetStandingsPagedAsync(jobId!.Value, request, ct);
+        Response.Headers["X-Total-Count"] = total.ToString();
         return Ok(result);
     }
 
