@@ -251,7 +251,7 @@ public class PlayerRegistrationPaymentController : ControllerBase
                     PlayerId = item.PlayerId,
                     PlayerName = reg.InsuredName ?? "Unknown",
                     Success = false,
-                    Message = "Discount already applied to this player",
+                    Message = "Only one Discount Code can be applied per player",
                     DiscountAmount = 0m
                 });
                 continue;
@@ -363,10 +363,26 @@ public class PlayerRegistrationPaymentController : ControllerBase
             insuranceOffer = await _verticalInsure.BuildOfferAsync(jobId.Value, familyUserId);
         }
 
+        // When nothing applied, surface the specific per-player reason (e.g. "Only one Discount Code
+        // can be applied per player") instead of the generic catch-all — but ONLY when every failure
+        // agrees on the reason; mixed reasons stay generic to avoid mislabeling. Invalid/expired code,
+        // zero-amount, and no-valid-players cases already returned earlier, so the reasons reaching
+        // here are the loop-level ones (already applied / no discount applicable / reg not found).
+        string aggregateMessage;
+        if (successCount > 0)
+        {
+            aggregateMessage = $"Successfully applied discount to {successCount} registration(s)";
+        }
+        else
+        {
+            var distinctReasons = results.Where(r => !r.Success).Select(r => r.Message).Distinct().ToList();
+            aggregateMessage = distinctReasons.Count == 1 ? distinctReasons[0] : "No discounts were applied";
+        }
+
         var response = new ApplyDiscountResponseDto
         {
             Success = successCount > 0,
-            Message = successCount > 0 ? $"Successfully applied discount to {successCount} registration(s)" : "No discounts were applied",
+            Message = aggregateMessage,
             TotalDiscount = totalDiscount,
             TotalPlayersProcessed = results.Count,
             SuccessCount = successCount,
