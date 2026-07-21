@@ -238,6 +238,12 @@ public interface IScheduleRepository
     Task<List<Schedule>> GetConsolationGamesAsync(Guid jobId, Dtos.Scheduling.ScheduleFilterRequest request, CancellationToken ct = default);
 
     /// <summary>
+    /// Distinct agegroup IDs that have at least one bracket game (GameRoundTypes.Bracket) — drives
+    /// the per-agegroup "has brackets" shortcut on standings rows and game rows.
+    /// </summary>
+    Task<List<Guid>> GetBracketAgegroupIdsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get staff contacts for teams in the filtered schedule.
     /// Returns registrations with Staff role assigned to teams that appear in games.
     /// </summary>

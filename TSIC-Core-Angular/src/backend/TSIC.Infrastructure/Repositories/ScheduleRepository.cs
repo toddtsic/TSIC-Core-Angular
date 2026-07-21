@@ -914,6 +914,18 @@ public sealed class ScheduleRepository : IScheduleRepository
         return await query.OrderBy(s => s.GDate).ThenBy(s => s.FName).ToListAsync(ct);
     }
 
+    public async Task<List<Guid>> GetBracketAgegroupIdsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        var bracketTypes = GameRoundTypes.Bracket;
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.AgegroupId.HasValue
+                && (bracketTypes.Contains(s.T1Type) || bracketTypes.Contains(s.T2Type)))
+            .Select(s => s.AgegroupId!.Value)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
     public async Task<List<ContactDto>> GetContactsAsync(
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {

@@ -250,7 +250,6 @@ public record ViewGameDto
     public bool T1IsSubscribed { get; init; }
     public bool T2IsSubscribed { get; init; }
     public bool GameAgegroupHasBrackets { get; init; }
-    public bool MobileScorerCanEdit { get; init; }
     public bool BHideScores { get; init; }
 }
 
@@ -289,9 +288,12 @@ public record StandingsDto
 public record DivisionStandingsDto
 {
     public required Guid DivId { get; init; }
+    /// <summary>Agegroup ID — lets clients match the ID-keyed "has brackets" set without name matching.</summary>
+    public Guid AgegroupId { get; init; }
     public required string AgegroupName { get; init; }
     public required string DivName { get; init; }
     public required List<StandingsDto> Teams { get; init; }
+    /// <summary>True when this agegroup has any bracket game — drives the per-agegroup brackets shortcut.</summary>
     public bool AgegroupHasBrackets { get; init; }
 }
 
@@ -490,6 +492,11 @@ public record ScheduleCapabilitiesDto
     /// the sandbox event-seed test strip in View Schedule.
     /// </summary>
     public bool IsReseedTournament { get; init; }
+    /// <summary>
+    /// True when Jobs.BRestrictPublicRosters is set — the app hides the roster button so it
+    /// never opens an empty card. Mirrors PublicRosterController's server-side enforcement.
+    /// </summary>
+    public bool RestrictPublicRosters { get; init; }
 }
 
 /// <summary>A single row from Leagues.GameStatusCodes — the source of truth for game status labels.</summary>

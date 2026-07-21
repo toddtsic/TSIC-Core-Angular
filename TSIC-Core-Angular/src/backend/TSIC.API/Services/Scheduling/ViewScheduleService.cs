@@ -75,6 +75,7 @@ public sealed class ViewScheduleService : IViewScheduleService
         // Only meaningful for admins in a sandbox — the seed strip is gated on both anyway —
         // but cheap to always resolve so the flag is available wherever capabilities is read.
         var isReseedTournament = await _jobRepo.GetReseedTournamentFlagAsync(jobId, ct);
+        var restrictPublicRosters = await _jobRepo.IsPublicRostersRestrictedAsync(jobId, ct);
 
         return new ScheduleCapabilitiesDto
         {
@@ -83,7 +84,8 @@ public sealed class ViewScheduleService : IViewScheduleService
             IsPublicAccess = allowPublicAccess,
             SportName = sportName,
             GameStatusOptions = statusOptions,
-            IsReseedTournament = isReseedTournament
+            IsReseedTournament = isReseedTournament,
+            RestrictPublicRosters = restrictPublicRosters
         };
     }
 
@@ -92,6 +94,7 @@ public sealed class ViewScheduleService : IViewScheduleService
     {
         var games = await _scheduleRepo.GetFilteredGamesAsync(jobId, request, ct);
         var recordLookup = await BuildTeamRecordLookupAsync(jobId, ct);
+        var bracketAgegroupIds = (await _scheduleRepo.GetBracketAgegroupIdsAsync(jobId, ct)).ToHashSet();
 
         return games.Select(g =>
         {
@@ -134,7 +137,8 @@ public sealed class ViewScheduleService : IViewScheduleService
                     ? recordLookup.GetValueOrDefault(g.T1Id.Value) : null,
                 T2Record = t2Type == "T" && g.T2Id.HasValue
                     ? recordLookup.GetValueOrDefault(g.T2Id.Value) : null,
-                DivName = g.DivName
+                DivName = g.DivName,
+                GameAgegroupHasBrackets = bracketAgegroupIds.Contains(g.AgegroupId ?? Guid.Empty)
             };
         }).ToList();
     }
@@ -526,6 +530,7 @@ public sealed class ViewScheduleService : IViewScheduleService
     {
         var games = await _scheduleRepo.GetFilteredGamesAsync(jobId, request, ct);
         var sportName = await _scheduleRepo.GetSportNameAsync(jobId, ct);
+        var bracketAgegroupIds = (await _scheduleRepo.GetBracketAgegroupIdsAsync(jobId, ct)).ToHashSet();
 
         // Filter to pool play if needed
         if (poolPlayOnly)
@@ -543,6 +548,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                     TeamId = g.T1Id.Value,
                     TeamName = g.T1Name ?? "",
                     AgegroupName = g.AgegroupName ?? "",
+                    AgegroupId = g.AgegroupId ?? Guid.Empty,
                     DivName = g.DivName ?? "",
                     DivId = g.DivId ?? Guid.Empty
                 };
@@ -554,6 +560,7 @@ public sealed class ViewScheduleService : IViewScheduleService
                     TeamId = g.T2Id.Value,
                     TeamName = g.T2Name ?? "",
                     AgegroupName = g.AgegroupName ?? "",
+                    AgegroupId = g.AgegroupId ?? Guid.Empty,
                     DivName = g.DivName ?? "",
                     DivId = g.DivId ?? Guid.Empty
                 };
@@ -639,12 +646,15 @@ public sealed class ViewScheduleService : IViewScheduleService
                 for (var i = 0; i < teams.Count; i++)
                     teams[i] = teams[i] with { RankOrder = i + 1 };
 
+                var agegroupId = divGroup.First().AgegroupId;
                 return new DivisionStandingsDto
                 {
                     DivId = divGroup.Key.DivId,
+                    AgegroupId = agegroupId,
                     AgegroupName = divGroup.Key.AgegroupName,
                     DivName = divGroup.Key.DivName,
-                    Teams = teams
+                    Teams = teams,
+                    AgegroupHasBrackets = bracketAgegroupIds.Contains(agegroupId)
                 };
             })
             .ToList();
@@ -725,6 +735,7 @@ public sealed class ViewScheduleService : IViewScheduleService
         public Guid TeamId { get; set; }
         public string TeamName { get; set; } = "";
         public string AgegroupName { get; set; } = "";
+        public Guid AgegroupId { get; set; }
         public string DivName { get; set; } = "";
         public Guid DivId { get; set; }
         public int Games { get; set; }
