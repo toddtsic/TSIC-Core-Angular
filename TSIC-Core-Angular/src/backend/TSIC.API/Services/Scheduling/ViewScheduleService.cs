@@ -20,6 +20,7 @@ public sealed class ViewScheduleService : IViewScheduleService
     private readonly IBracketSeedResolutionService _bracketResolution;
     private readonly IJobRepository _jobRepo;
     private readonly IGameResultPushService _gameResultPush;
+    private readonly IDeviceRepository _deviceRepo;
 
     public ViewScheduleService(
         IScheduleRepository scheduleRepo,
@@ -28,7 +29,8 @@ public sealed class ViewScheduleService : IViewScheduleService
         IBracketAdvancementService bracketAdvancement,
         IBracketSeedResolutionService bracketResolution,
         IJobRepository jobRepo,
-        IGameResultPushService gameResultPush)
+        IGameResultPushService gameResultPush,
+        IDeviceRepository deviceRepo)
     {
         _scheduleRepo = scheduleRepo;
         _teamRepo = teamRepo;
@@ -37,6 +39,7 @@ public sealed class ViewScheduleService : IViewScheduleService
         _bracketResolution = bracketResolution;
         _jobRepo = jobRepo;
         _gameResultPush = gameResultPush;
+        _deviceRepo = deviceRepo;
     }
 
     // A round-robin result can complete a pool and lock its standings — resolve any
@@ -95,6 +98,8 @@ public sealed class ViewScheduleService : IViewScheduleService
         var games = await _scheduleRepo.GetFilteredGamesAsync(jobId, request, ct);
         var recordLookup = await BuildTeamRecordLookupAsync(jobId, ct);
         var bracketAgegroupIds = (await _scheduleRepo.GetBracketAgegroupIdsAsync(jobId, ct)).ToHashSet();
+        var hideScoresAgegroupIds = (await _scheduleRepo.GetHideScoresAgegroupIdsAsync(jobId, ct)).ToHashSet();
+        var subscribedTeamIds = await GetSubscribedTeamIdSetAsync(request.DeviceToken, jobId, ct);
 
         return games.Select(g =>
         {
@@ -138,7 +143,10 @@ public sealed class ViewScheduleService : IViewScheduleService
                 T2Record = t2Type == "T" && g.T2Id.HasValue
                     ? recordLookup.GetValueOrDefault(g.T2Id.Value) : null,
                 DivName = g.DivName,
-                GameAgegroupHasBrackets = bracketAgegroupIds.Contains(g.AgegroupId ?? Guid.Empty)
+                GameAgegroupHasBrackets = bracketAgegroupIds.Contains(g.AgegroupId ?? Guid.Empty),
+                BHideScores = hideScoresAgegroupIds.Contains(g.AgegroupId ?? Guid.Empty),
+                T1IsSubscribed = g.T1Id.HasValue && subscribedTeamIds.Contains(g.T1Id.Value),
+                T2IsSubscribed = g.T2Id.HasValue && subscribedTeamIds.Contains(g.T2Id.Value)
             };
         }).ToList();
     }
@@ -531,6 +539,7 @@ public sealed class ViewScheduleService : IViewScheduleService
         var games = await _scheduleRepo.GetFilteredGamesAsync(jobId, request, ct);
         var sportName = await _scheduleRepo.GetSportNameAsync(jobId, ct);
         var bracketAgegroupIds = (await _scheduleRepo.GetBracketAgegroupIdsAsync(jobId, ct)).ToHashSet();
+        var subscribedTeamIds = await GetSubscribedTeamIdSetAsync(request.DeviceToken, jobId, ct);
 
         // Filter to pool play if needed
         if (poolPlayOnly)
@@ -614,7 +623,8 @@ public sealed class ViewScheduleService : IViewScheduleService
                         GoalDiffMax9 = goalDiffMax9,
                         Points = points,
                         PointsPerGame = ppg,
-                        TiePoints = t.Ties
+                        TiePoints = t.Ties,
+                        IsFavorited = subscribedTeamIds.Contains(t.TeamId)
                     };
                 }).ToList();
 
@@ -664,6 +674,19 @@ public sealed class ViewScheduleService : IViewScheduleService
             Divisions = divisions,
             SportName = sportName
         };
+    }
+
+    /// <summary>
+    /// Device favorites are an anonymous-device feature: the client passes its own push token,
+    /// and the schedule marks the teams that token has favorited (star state). Empty when no
+    /// token is supplied — the web app never sends one, so the flag stays false there.
+    /// </summary>
+    private async Task<HashSet<Guid>> GetSubscribedTeamIdSetAsync(
+        string? deviceToken, Guid jobId, CancellationToken ct)
+    {
+        if (string.IsNullOrEmpty(deviceToken))
+            return new HashSet<Guid>();
+        return (await _deviceRepo.GetSubscribedTeamIdsAsync(deviceToken, jobId, ct)).ToHashSet();
     }
 
     private static void AccumulateStats(

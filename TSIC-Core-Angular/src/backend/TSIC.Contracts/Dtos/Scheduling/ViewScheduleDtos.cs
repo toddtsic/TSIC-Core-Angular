@@ -20,6 +20,11 @@ public record ScheduleFilterRequest
     public bool? UnscoredOnly { get; init; }
     /// <summary>Filter by game time-of-day (e.g. ["08:00","14:30"]). Null = no time filter.</summary>
     public List<string>? Times { get; init; }
+    /// <summary>
+    /// Anonymous device identifier (push token). When present, subscribed/favorited team flags
+    /// are resolved for THIS device. Null on public/web calls → flags stay false. Not auth.
+    /// </summary>
+    public string? DeviceToken { get; init; }
 }
 
 /// <summary>

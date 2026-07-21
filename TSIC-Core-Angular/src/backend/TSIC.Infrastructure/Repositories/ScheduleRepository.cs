@@ -926,6 +926,19 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<Guid>> GetHideScoresAgegroupIdsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        return await _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId && s.AgegroupId.HasValue)
+            .Select(s => s.AgegroupId!.Value)
+            .Distinct()
+            .Join(_context.Agegroups.AsNoTracking().Where(a => a.BHideStandings == true),
+                id => id, a => a.AgegroupId, (id, a) => id)
+            .Distinct()
+            .ToListAsync(ct);
+    }
+
     public async Task<List<ContactDto>> GetContactsAsync(
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {

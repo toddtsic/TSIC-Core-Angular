@@ -244,6 +244,12 @@ public interface IScheduleRepository
     Task<List<Guid>> GetBracketAgegroupIdsAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Distinct agegroup IDs used in this job whose Agegroups.BHideStandings is set — the agegroups
+    /// whose scores are not published (typically the youngest divisions).
+    /// </summary>
+    Task<List<Guid>> GetHideScoresAgegroupIdsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get staff contacts for teams in the filtered schedule.
     /// Returns registrations with Staff role assigned to teams that appear in games.
     /// </summary>
