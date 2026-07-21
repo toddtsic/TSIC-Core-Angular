@@ -437,7 +437,7 @@ public class ProfileMetadataMigrationService : IProfileMetadataMigrationService
             var escapedJson = job.PlayerProfileMetadataJson!.Replace("'", "''");
             sb.AppendLine($"-- {job.JobName ?? "Unnamed"} (Job ID: {job.JobId})");
             sb.AppendLine("UPDATE [Jobs].[Jobs]");
-            sb.AppendLine($"SET [PlayerProfileMetadataJson] = '{escapedJson}'");
+            sb.AppendLine($"SET [PlayerProfileMetadataJson] = N'{escapedJson}'");
             sb.AppendLine($"WHERE [jobID] = '{job.JobId}';");
             sb.AppendLine();
         }
