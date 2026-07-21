@@ -529,7 +529,12 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: Only the **Waitlist** option for that camp should be selectable at that point — not the real (now-full) camp as well.
 - **What happened**: The event list shows **BOTH** the actual camp **and** its "WAITLIST -" twin as options.
 - **Severity**: Bug
-- **Status**: ✅ Reported symptom RESOLVED (retest) + a deeper bug it exposed FIXED (CAC & PP) — see resolution
+- **Status**: 🔁 Fixed in code (built green, pushed) — **awaiting Ann retest** (not yet run E2E)
+- **ANN — retest (deploy + API restart first), one camp job AND one single-team job**:
+  1. Set a team/camp max = 1. Register player A (takes the seat), then player B → B is waitlisted.
+  2. Re-enter registration as B → **confirm** you see B's placement badged **"Waitlisted · $0"** (not a phantom empty "1 selected").
+  3. Switch B to a team that has an open seat, Submit.
+  4. **The thing that must be true:** B lands **pending/unpaid** on the new team — owes the fee, NOT confirmed at $0. If B shows confirmed without paying, flag it (the BActive reset didn't take).
 - **RESOLUTION (2026-07-21)**:
   - **The reported "both rows show" symptom is already gone** — our PL-010/011 fix filters any `WAITLIST`-agegroup team out of `GetAvailableTeamsQueryResultsAsync` ([TeamRepository.cs:154-155](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/TeamRepository.cs#L154)), the single query feeding BOTH the agegroup dropdown and the C&C event list. The twin can no longer appear as a second row. **Ann: retest on the deployed build.**
   - **The deeper bug that filter exposed (now FIXED):** a **previously-registered player who was moved to a WAITLIST team** is stranded. Their registration's `assignedTeamId` is the waitlist team — which the list now excludes — so the picker seeds a selection it can't resolve: a phantom "1 selected" that renders nothing, their real placement invisible, and their team re-offered as if new. It's *just a team the player is on*; the picker simply refused to show any team not also offerable as a fresh pick.
