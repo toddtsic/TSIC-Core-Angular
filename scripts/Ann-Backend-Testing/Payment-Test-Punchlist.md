@@ -329,7 +329,8 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **Area**: Player Details → Accounting → Add Accounting Record → Credit Card → Optional Comment
 - **Relates to**: **PL-003** (marked Fixed). On retest the comment **still does not appear** in the Payment Ledger for an admin CC entry.
 - **Severity**: Bug (regression / not-resolved on retest)
-- **Status**: Open — for Claude + Todd to close out together
+- **Status**: Awaiting Ann retest (source confirmed correct — likely a stale build)
+- **Decision (Todd)**: No code defect. Re-verified [accounting-ledger.component.ts:491](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/shared-ui/components/accounting-ledger/accounting-ledger.component.ts#L491) — the CC emit carries `comment: this.comment() || null` — so the PL-003 fix is present and complete in master. Ann's retest showing the default "Registration Payment" means the comment reached the backend blank, which on correct source points to the **tested build predating the fix** (the model + emit change needs a fresh Angular bundle). **Action → Ann**: confirm the tested env is at/after the PL-003 commit (hard-refresh / rebuilt FE bundle), then retest the admin CC Optional Comment. If it still fails on a confirmed-fresh build, reopen and we'll instrument the controller boundary. Optional display cleanup (suppress the "Registration Payment"/"eCheck Registration Payment" defaults so comment-less rows render blank like Check/Correction) deferred — separate from this retest.
 - **What Claude found (full end-to-end source trace — every link is correct in current master)**:
 
   | Link | Location | Status |
