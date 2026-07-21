@@ -3,7 +3,7 @@
 		<h1 class="page-title">Check My Email</h1>
 		<p class="page-sub">
 			See whether the email addresses on your account can receive our messages, send yourself a
-			test, and review what we've sent you.
+			test, and review what we've sent you for {{ programName() }}.
 		</p>
 	</header>
 
@@ -65,17 +65,19 @@
 							@switch (row.status) {
 								@case ('Suppressed') {
 									<p class="row-note note-warn">
-										Our email provider is blocking this address after a message bounced or was
-										marked as spam. Make sure this mailbox works, then restore delivery.
+										Amazon AWS Email Services — the service that delivers our email — is blocking
+										this address after a message bounced or was marked as spam. Make sure this
+										mailbox works, then restore delivery.
 										@if (row.reason) { <span class="detail-chip">Reason: {{ row.reason }}</span> }
 										@if (row.lastUpdate) { <span class="detail-chip">Blocked since: {{ row.lastUpdate | date:'mediumDate' }}</span> }
 									</p>
 								}
 								@case ('NotSuppressed') {
 									<p class="row-note">
-										This address is not blocked on our end. If a message doesn't arrive, the problem
-										is not on our side — check your junk/spam folder, make sure the mailbox isn't
-										full, and add <strong>support&#64;teamsportsinfo.com</strong> to your contacts.
+										Amazon AWS Email Services — the service that delivers our email — is not blocking
+										this address. If a message doesn't arrive, the problem is not on our side: check
+										your junk/spam folder, make sure the mailbox isn't full, and add
+										<strong>support&#64;teamsportsinfo.com</strong> to your contacts.
 									</p>
 								}
 								@default {
@@ -90,9 +92,9 @@
 								@switch (res.side) {
 									@case ('Recipient') {
 										<p class="row-note note-ok">
-											✓ We sent a test message and Amazon SES accepted it for delivery. The problem
-											isn't on our end. If you don't see it, check junk/spam and your mailbox
-											quota, and allowlist support&#64;teamsportsinfo.com.
+											✓ We sent a test message and Amazon AWS Email Services accepted it for
+											delivery. The problem isn't on our end. If you don't see it, check junk/spam
+											and your mailbox quota, and add support&#64;teamsportsinfo.com to your contacts.
 										</p>
 									}
 									@case ('Inconclusive') {
@@ -132,9 +134,9 @@
 				<div class="disclaimer" role="note">
 					<p class="disclaimer-title">What this can and can't tell you</p>
 					<p class="disclaimer-text">
-						"Not blocked" means the address isn't on our email provider's block list, and a
-						successful test means Amazon SES accepted the message — that's the most any sender can
-						confirm, and it means the problem isn't on our end. It does <strong>not</strong>
+						"Not blocked" means the address isn't on the Amazon AWS Email Services block list, and a
+						successful test means Amazon AWS Email Services accepted the message — that's the most any
+						sender can confirm, and it means the problem isn't on our end. It does <strong>not</strong>
 						guarantee a message reached your inbox: it can still land in <strong>junk/spam</strong>,
 						be held or silently dropped by your <strong>mail provider or security filter</strong>,
 						or be rejected if the <strong>mailbox is full</strong>. If you're missing something,
@@ -145,7 +147,7 @@
 		</section>
 	}
 
-	<!-- ─────────────── Tab 2: E-Mail History ─────────────── -->
+	<!-- ─────────────── Tab 2: E-Mail History (this program) ─────────────── -->
 	@if (activeTab() === 'history') {
 		<section class="tab-panel" role="tabpanel">
 			@if (!sentLoaded()) {
@@ -154,33 +156,28 @@
 
 			@if (sentLoaded() && sentEmails().length === 0) {
 				<div class="empty-state">
-					We don't have a record of sending email to your current address(es). A message you were
-					copied on, one sent to a former address, or a send that failed may not appear here — that
-					doesn't mean we never contacted you.
+					We don't have a record of sending email to your current address(es) for
+					{{ programName() }}. A message you were copied on, one sent to a former address, or a
+					send that failed may not appear here — that doesn't mean we never contacted you.
 				</div>
 			}
 
 			@if (sentLoaded() && sentEmails().length > 0) {
 				<p class="tab-help">
-					Messages we dispatched to your address(es), across all your programs. Click a column to
-					sort. Dispatched isn't a guarantee of delivery — see the note on the Current Status tab.
+					Messages we've sent you for <strong>{{ programName() }}</strong>. Click a column to sort.
+					Amazon AWS Email Services accepted these for delivery — that isn't a guarantee they reached
+					your inbox (see the note on the Current Status tab).
 				</p>
 				<ejs-grid
 					[dataSource]="sentEmails()"
 					cssClass="tsic-grid-tight"
 					[allowSorting]="true"
-					[allowMultiSorting]="true"
 					[sortSettings]="sortSettings">
 					<e-columns>
-						<e-column field="jobName" headerText="Program" width="200">
-							<ng-template #template let-data>
-								<span class="text-truncate d-inline-block" style="max-width: 180px;">{{ data.jobName || '—' }}</span>
-							</ng-template>
-						</e-column>
-						<e-column field="sentAt" headerText="Sent" width="150" type="date" format="M/d/yy h:mm a"></e-column>
+						<e-column field="sentAt" headerText="Sent" width="160" type="date" format="M/d/yy h:mm a"></e-column>
 						<e-column field="subject" headerText="Subject">
 							<ng-template #template let-data>
-								<span class="text-truncate d-inline-block" style="max-width: 320px;">{{ data.subject || '(no subject)' }}</span>
+								<span class="text-truncate d-inline-block" style="max-width: 420px;">{{ data.subject || '(no subject)' }}</span>
 							</ng-template>
 						</e-column>
 					</e-columns>

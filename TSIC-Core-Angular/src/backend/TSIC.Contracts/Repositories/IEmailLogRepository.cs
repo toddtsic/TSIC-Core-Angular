@@ -11,14 +11,14 @@ public interface IEmailLogRepository
     Task LogAsync(EmailLogs entry, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Batches (newest first) ACROSS ALL JOBS whose recipient list (emailLogs.sendTo, a ';'-joined
-    /// address string) contains ANY of the given addresses, each tagged with its job name. Matching
-    /// is delimiter-anchored and case-insensitive so "bob@x.com" cannot match inside
-    /// "bob@x.comcast.net". Batch-level: a hit means the address was in that send, not a
-    /// per-recipient delivery time/status.
+    /// Batches (newest first) IN ONE JOB whose recipient list (emailLogs.sendTo, a ';'-joined
+    /// address string) contains ANY of the given addresses. The JobId filter is an index seek, so
+    /// the non-sargable sendTo LIKE only runs over that job's rows. Matching is delimiter-anchored
+    /// and case-insensitive so "bob@x.com" cannot match inside "bob@x.comcast.net". Batch-level:
+    /// a hit means the address was in that send, not a per-recipient delivery time/status.
     /// </summary>
-    Task<List<PlayerSentEmailDto>> GetSentToAddressesAllJobsAsync(
-        IReadOnlyList<string> addresses, CancellationToken cancellationToken = default);
+    Task<List<PlayerSentEmailDto>> GetSentToAddressesAsync(
+        Guid jobId, IReadOnlyList<string> addresses, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Incrementally update a batch's audit row (created by LogAsync) as the send progresses.

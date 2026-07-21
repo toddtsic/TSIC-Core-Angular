@@ -46,30 +46,6 @@ public class FamiliesRepository : IFamiliesRepository
             .ToList();
     }
 
-    public async Task<List<string>> GetAllSendableEmailsForFamilyAsync(string familyUserId, CancellationToken cancellationToken = default)
-    {
-        var recipients = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fam = await _context.Families.AsNoTracking().FirstOrDefaultAsync(f => f.FamilyUserId == familyUserId, cancellationToken);
-        if (!string.IsNullOrWhiteSpace(fam?.MomEmail)) recipients.Add(fam!.MomEmail!.Trim());
-        if (!string.IsNullOrWhiteSpace(fam?.DadEmail)) recipients.Add(fam!.DadEmail!.Trim());
-
-        // All the family's players, ACROSS ALL JOBS (no JobId filter), by their login email.
-        var playerEmails = await _context.Registrations.AsNoTracking()
-            .Where(r => r.FamilyUserId == familyUserId)
-            .Select(r => r.User!.Email)
-            .ToListAsync(cancellationToken);
-        foreach (var e in playerEmails)
-        {
-            var norm = e?.Trim();
-            if (!string.IsNullOrWhiteSpace(norm)) recipients.Add(norm!);
-        }
-        return recipients
-            .Select(x => x.Trim())
-            .Where(EmailAddressRules.IsSendable)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-    }
-
     public async Task<List<BatchFamilyEmailsDto>> GetByFamilyUserIdsAsync(
         IEnumerable<string> familyUserIds, CancellationToken cancellationToken = default)
     {

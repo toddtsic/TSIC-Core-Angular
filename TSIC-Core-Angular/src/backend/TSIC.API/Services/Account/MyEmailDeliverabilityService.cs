@@ -5,11 +5,11 @@ using TSIC.Contracts.Services;
 namespace TSIC.API.Services.Account;
 
 /// <summary>
-/// Player-facing email deliverability self-service: suppression self-check/unsuppress, a real
-/// test send, and own send history — all scoped to the family's own sendable emails
-/// (<see cref="IFamiliesRepository.GetAllSendableEmailsForFamilyAsync"/>, which already excludes
-/// null and the not@given.com sentinel). SES suppression/test-send are delegated to the existing
-/// <see cref="IEmailTroubleshooterService"/>; the family set is the trust boundary, so an
+/// Player-facing email deliverability self-service: Amazon SES suppression self-check/unsuppress,
+/// a real test send, and this job's send history — all scoped to the family's own sendable emails
+/// for the job (<see cref="IFamiliesRepository.GetEmailsForFamilyAndPlayersAsync"/>, which already
+/// excludes null and the not@given.com sentinel). SES suppression/test-send are delegated to the
+/// existing <see cref="IEmailTroubleshooterService"/>; the family set is the trust boundary, so an
 /// unsuppress or a test send is refused for any address not in it.
 /// </summary>
 public sealed class MyEmailDeliverabilityService : IMyEmailDeliverabilityService
@@ -29,9 +29,9 @@ public sealed class MyEmailDeliverabilityService : IMyEmailDeliverabilityService
     }
 
     public async Task<IReadOnlyList<SuppressionEntryDto>> GetStatusAsync(
-        string familyUserId, CancellationToken cancellationToken = default)
+        Guid jobId, string familyUserId, CancellationToken cancellationToken = default)
     {
-        var emails = await _families.GetAllSendableEmailsForFamilyAsync(familyUserId, cancellationToken);
+        var emails = await _families.GetEmailsForFamilyAndPlayersAsync(jobId, familyUserId, cancellationToken);
         if (emails.Count == 0)
         {
             return Array.Empty<SuppressionEntryDto>();
@@ -40,9 +40,9 @@ public sealed class MyEmailDeliverabilityService : IMyEmailDeliverabilityService
     }
 
     public async Task<SuppressionRemoveResultDto?> UnsuppressAsync(
-        string familyUserId, string email, CancellationToken cancellationToken = default)
+        Guid jobId, string familyUserId, string email, CancellationToken cancellationToken = default)
     {
-        var target = await AuthorizeOwnAddressAsync(familyUserId, email, cancellationToken);
+        var target = await AuthorizeOwnAddressAsync(jobId, familyUserId, email, cancellationToken);
         if (target is null)
         {
             return null;
@@ -55,9 +55,9 @@ public sealed class MyEmailDeliverabilityService : IMyEmailDeliverabilityService
     }
 
     public async Task<EmailInvestigateResultDto?> TestSendAsync(
-        string familyUserId, string email, CancellationToken cancellationToken = default)
+        Guid jobId, string familyUserId, string email, CancellationToken cancellationToken = default)
     {
-        var target = await AuthorizeOwnAddressAsync(familyUserId, email, cancellationToken);
+        var target = await AuthorizeOwnAddressAsync(jobId, familyUserId, email, cancellationToken);
         if (target is null)
         {
             return null;
@@ -77,22 +77,23 @@ public sealed class MyEmailDeliverabilityService : IMyEmailDeliverabilityService
     }
 
     public async Task<IReadOnlyList<PlayerSentEmailDto>> GetSentHistoryAsync(
-        string familyUserId, CancellationToken cancellationToken = default)
+        Guid jobId, string familyUserId, CancellationToken cancellationToken = default)
     {
-        var emails = await _families.GetAllSendableEmailsForFamilyAsync(familyUserId, cancellationToken);
+        var emails = await _families.GetEmailsForFamilyAndPlayersAsync(jobId, familyUserId, cancellationToken);
         if (emails.Count == 0)
         {
             return Array.Empty<PlayerSentEmailDto>();
         }
-        return await _emailLogs.GetSentToAddressesAllJobsAsync(emails, cancellationToken);
+        return await _emailLogs.GetSentToAddressesAsync(jobId, emails, cancellationToken);
     }
 
     /// <summary>
-    /// Returns the trimmed address only if it belongs to this family's sendable set; otherwise null.
-    /// The single gate that authorizes touching the account-wide SES list / sending through our SES.
+    /// Returns the trimmed address only if it belongs to this family's sendable set for the job;
+    /// otherwise null. The single gate that authorizes touching the account-wide Amazon SES list /
+    /// sending through our SES.
     /// </summary>
     private async Task<string?> AuthorizeOwnAddressAsync(
-        string familyUserId, string email, CancellationToken cancellationToken)
+        Guid jobId, string familyUserId, string email, CancellationToken cancellationToken)
     {
         var target = email?.Trim();
         if (string.IsNullOrWhiteSpace(target))
@@ -100,7 +101,7 @@ public sealed class MyEmailDeliverabilityService : IMyEmailDeliverabilityService
             return null;
         }
 
-        var family = await _families.GetAllSendableEmailsForFamilyAsync(familyUserId, cancellationToken);
+        var family = await _families.GetEmailsForFamilyAndPlayersAsync(jobId, familyUserId, cancellationToken);
         return family.Any(e => string.Equals(e, target, StringComparison.OrdinalIgnoreCase))
             ? target
             : null;

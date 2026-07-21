@@ -52,7 +52,8 @@ public class EmailLogRepository : IEmailLogRepository
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public async Task<List<PlayerSentEmailDto>> GetSentToAddressesAllJobsAsync(
+    public async Task<List<PlayerSentEmailDto>> GetSentToAddressesAsync(
+        Guid jobId,
         IReadOnlyList<string> addresses,
         CancellationToken cancellationToken = default)
     {
@@ -68,11 +69,11 @@ public class EmailLogRepository : IEmailLogRepository
             return new List<PlayerSentEmailDto>();
         }
 
-        // Cross-job: no JobId filter. Job name comes from the (nullable) Job navigation via a LEFT
-        // JOIN, so orphaned/null-job rows still surface with a null name.
+        // Scoped to ONE job: the JobId filter is an index seek on the FK, so the non-sargable
+        // sendTo LIKE only ever runs over this job's handful of batch rows — never the whole table.
         var baseQuery = _context.EmailLogs
             .AsNoTracking()
-            .Where(e => e.SendTo != null);
+            .Where(e => e.JobId == jobId && e.SendTo != null);
 
         // One LIKE per address, OR-combined via Union so the query translates for any address
         // count. Project to a small keyed shape BEFORE the Union so the nvarchar(max) msg/sendTo
@@ -80,12 +81,12 @@ public class EmailLogRepository : IEmailLogRepository
         var union = lowered
             .Select(addr => baseQuery
                 .Where(e => EF.Functions.Like(";" + e.SendTo!.ToLower() + ";", "%;" + addr + ";%"))
-                .Select(e => new { e.EmailId, JobName = e.Job!.JobName, e.Subject, e.SendTs }))
+                .Select(e => new { e.EmailId, e.Subject, e.SendTs }))
             .Aggregate((a, b) => a.Union(b));
 
         return await union
             .OrderByDescending(x => x.SendTs)
-            .Select(x => new PlayerSentEmailDto { JobName = x.JobName, Subject = x.Subject, SentAt = x.SendTs })
+            .Select(x => new PlayerSentEmailDto { Subject = x.Subject, SentAt = x.SendTs })
             .ToListAsync(cancellationToken);
     }
 

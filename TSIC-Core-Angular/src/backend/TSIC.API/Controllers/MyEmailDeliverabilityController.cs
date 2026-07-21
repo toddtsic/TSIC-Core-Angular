@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TSIC.API.Extensions;
+using TSIC.API.Services.Shared.Jobs;
 using TSIC.Contracts.Dtos.EmailTroubleshooter;
 using TSIC.Contracts.Services;
 
@@ -8,15 +10,14 @@ namespace TSIC.API.Controllers;
 
 /// <summary>
 /// Player-facing email deliverability self-service (companion to the admin
-/// EmailTroubleshooterController). A logged-in family can, for their own emails only (mom/dad/each
-/// player, across all jobs): check SES suppression status, self-unsuppress, send a real test
-/// message, and review send history.
+/// EmailTroubleshooterController). A logged-in family can, for their own emails in the current job
+/// only (mom/dad/each player): check Amazon SES suppression status, self-unsuppress, send a real
+/// test message, and review this job's send history.
 ///
-/// Security: the caller never supplies an address to act on. The family login (JWT subject)
-/// resolves the sendable set server-side; unsuppress and test-send are refused for any address
-/// outside it. Bare [Authorize] — the token is the boundary, matching AccountController/
-/// FamilyController "self" endpoints. Suppression and history are account/cross-job wide, so no
-/// job context is needed.
+/// Security: the caller never supplies an address to act on. The family login (JWT subject) and
+/// job (derived from the immutable regId claim) resolve the sendable set server-side; unsuppress
+/// and test-send are refused for any address outside it. Bare [Authorize] — the token is the
+/// boundary, matching AccountController/FamilyController "self" endpoints.
 /// </summary>
 [ApiController]
 [Route("api/my-email-deliverability")]
@@ -24,10 +25,14 @@ namespace TSIC.API.Controllers;
 public class MyEmailDeliverabilityController : ControllerBase
 {
     private readonly IMyEmailDeliverabilityService _service;
+    private readonly IJobLookupService _jobLookup;
 
-    public MyEmailDeliverabilityController(IMyEmailDeliverabilityService service)
+    public MyEmailDeliverabilityController(
+        IMyEmailDeliverabilityService service,
+        IJobLookupService jobLookup)
     {
         _service = service;
+        _jobLookup = jobLookup;
     }
 
     [HttpGet("status")]
@@ -35,13 +40,10 @@ public class MyEmailDeliverabilityController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<SuppressionEntryDto>>> GetStatus(
         CancellationToken cancellationToken)
     {
-        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(familyUserId))
-        {
-            return Unauthorized();
-        }
+        var (familyUserId, jobId, fail) = await ResolveContextAsync();
+        if (fail is not null) return fail;
 
-        var results = await _service.GetStatusAsync(familyUserId, cancellationToken);
+        var results = await _service.GetStatusAsync(jobId, familyUserId, cancellationToken);
         return Ok(results);
     }
 
@@ -52,13 +54,10 @@ public class MyEmailDeliverabilityController : ControllerBase
         [FromBody] MyEmailAddressRequest request,
         CancellationToken cancellationToken)
     {
-        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(familyUserId))
-        {
-            return Unauthorized();
-        }
+        var (familyUserId, jobId, fail) = await ResolveContextAsync();
+        if (fail is not null) return fail;
 
-        var result = await _service.UnsuppressAsync(familyUserId, request.Email, cancellationToken);
+        var result = await _service.UnsuppressAsync(jobId, familyUserId, request.Email, cancellationToken);
         if (result is null)
         {
             // Address is not one of the caller's own — never touched SES.
@@ -75,13 +74,10 @@ public class MyEmailDeliverabilityController : ControllerBase
         [FromBody] MyEmailAddressRequest request,
         CancellationToken cancellationToken)
     {
-        var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(familyUserId))
-        {
-            return Unauthorized();
-        }
+        var (familyUserId, jobId, fail) = await ResolveContextAsync();
+        if (fail is not null) return fail;
 
-        var result = await _service.TestSendAsync(familyUserId, request.Email, cancellationToken);
+        var result = await _service.TestSendAsync(jobId, familyUserId, request.Email, cancellationToken);
         if (result is null)
         {
             // Address is not one of the caller's own — never sent.
@@ -96,13 +92,28 @@ public class MyEmailDeliverabilityController : ControllerBase
     public async Task<ActionResult<IReadOnlyList<PlayerSentEmailDto>>> GetSentHistory(
         CancellationToken cancellationToken)
     {
+        var (familyUserId, jobId, fail) = await ResolveContextAsync();
+        if (fail is not null) return fail;
+
+        var results = await _service.GetSentHistoryAsync(jobId, familyUserId, cancellationToken);
+        return Ok(results);
+    }
+
+    /// <summary>Resolve the family login (JWT subject) and job (from the immutable regId claim).</summary>
+    private async Task<(string FamilyUserId, Guid JobId, ActionResult? Fail)> ResolveContextAsync()
+    {
         var familyUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (string.IsNullOrEmpty(familyUserId))
         {
-            return Unauthorized();
+            return (string.Empty, Guid.Empty, Unauthorized());
         }
 
-        var results = await _service.GetSentHistoryAsync(familyUserId, cancellationToken);
-        return Ok(results);
+        var jobId = await User.GetJobIdFromRegistrationAsync(_jobLookup);
+        if (jobId is null)
+        {
+            return (string.Empty, Guid.Empty, BadRequest("No job context on this session."));
+        }
+
+        return (familyUserId, jobId.Value, null);
     }
 }

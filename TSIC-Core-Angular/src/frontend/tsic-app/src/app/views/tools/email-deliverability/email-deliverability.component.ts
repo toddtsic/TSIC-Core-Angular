@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { GridAllModule, SortSettingsModel } from '@syncfusion/ej2-angular-grids';
+import { JobService } from '@infrastructure/services/job.service';
 import {
 	EmailDeliverabilityService,
 	type SuppressionEntryDto,
@@ -23,6 +24,10 @@ const TEST_COOLDOWN_MS = 60_000;
 })
 export class EmailDeliverabilityComponent implements OnInit {
 	private readonly service = inject(EmailDeliverabilityService);
+	private readonly jobService = inject(JobService);
+
+	/** Current program name for "this program" labeling; falls back to a generic phrase. */
+	readonly programName = computed(() => this.jobService.currentJob()?.jobName || 'this program');
 
 	readonly activeTab = signal<TabKey>('status');
 
@@ -37,15 +42,12 @@ export class EmailDeliverabilityComponent implements OnInit {
 	readonly cooling = signal<string[]>([]);
 	readonly testResults = signal<Record<string, EmailInvestigateResultDto>>({});
 
-	// ── Tab 2: E-Mail History ──
+	// ── Tab 2: E-Mail History (this job only) ──
 	readonly sentEmails = signal<PlayerSentEmailDto[]>([]);
 	readonly sentLoaded = signal(false);
-	// Default sort: newest first, then grouped by job.
+	// Default sort: newest first.
 	readonly sortSettings: SortSettingsModel = {
-		columns: [
-			{ field: 'sentAt', direction: 'Descending' },
-			{ field: 'jobName', direction: 'Ascending' }
-		]
+		columns: [{ field: 'sentAt', direction: 'Descending' }]
 	};
 
 	ngOnInit(): void {

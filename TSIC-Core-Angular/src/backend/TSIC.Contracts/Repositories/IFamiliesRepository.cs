@@ -20,14 +20,6 @@ public interface IFamiliesRepository
     Task<List<string>> GetEmailsForFamilyAndPlayersAsync(Guid jobId, string familyUserId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Every sendable email tied to a family across ALL jobs: mom/dad (family-wide) plus each of
-    /// the family's players' login emails from any job. Filtered to sendable (not null, not the
-    /// not@given.com sentinel, well-formed) and de-duplicated. Job-agnostic — used by the player
-    /// self-service email tool, where suppression is account-wide and history spans jobs.
-    /// </summary>
-    Task<List<string>> GetAllSendableEmailsForFamilyAsync(string familyUserId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Bulk-load parent (mom/dad) contact emails for a set of FamilyUserIds in a single AsNoTracking
     /// projection. Used by the batch-email engine to resolve player recipients from memory rather than
     /// one Families query per recipient.
