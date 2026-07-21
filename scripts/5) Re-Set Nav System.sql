@@ -1,6 +1,6 @@
 ﻿-- ============================================================================
 -- 5) Re-Set Nav System.sql
--- Generated: 2026-07-16 10:48:43 by 5) Re-Set Nav System.ps1
+-- Generated: 2026-07-21 09:08:39 by 5) Re-Set Nav System.ps1
 -- Role-scoped manifest; VisibilityRules seeded on L1 section parents where
 -- the section is JobType/sport/customer-conditional (e.g. Scheduling).
 -- Preserves: job-level overrides, reporting items, hand-authored L2 rules.
@@ -152,7 +152,7 @@ INSERT INTO #AdminManifest VALUES (N'Officials', N'person-check', 5, N'Referee A
 INSERT INTO #AdminManifest VALUES (N'Officials', N'person-check', 5, N'Referee Calendar', N'calendar-week', N'scheduling/referee-calendar', 2, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Bulletins', N'megaphone', N'communications/bulletins', 1, 1, 1, 1, NULL, NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Email Log', N'envelope-open', N'communications/email-log', 2, 1, 1, 1, NULL, NULL);
-INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'E-Mail Troubleshooter', N'envelope-exclamation', N'tools/email-troubleshooter', 3, 0, 0, 1, NULL, N'NEW');
+INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'E-Mail Troubleshooter', N'envelope-exclamation', N'tools/email-troubleshooter', 3, 1, 1, 1, NULL, N'NEW');
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Push Notification', N'bell', N'communications/push-notification', 4, 1, 1, 1, N'{"requiresFlags":["mobileEnabled"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Communications', N'megaphone', 6, N'Team Links', N'link-45deg', N'communications/team-links', 5, 1, 1, 1, N'{"requiresFlags":["playerSiteOnly"]}', NULL);
 INSERT INTO #AdminManifest VALUES (N'Reports', N'file-earmark-bar-graph', 7, N'Job Report Library', N'collection', N'reporting/reports-library', 1, 1, 1, 1, NULL, NULL);
