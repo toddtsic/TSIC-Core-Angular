@@ -75,13 +75,13 @@ export class EmailDeliverabilityComponent implements OnInit {
 			return {
 				tone: 'ok',
 				text: total === 1
-					? 'Good news — your email address is not suppressed. Amazon AWS Email Services isn’t stopping delivery to it.'
-					: `Good news — none of your ${total} email addresses is suppressed. Amazon AWS Email Services isn’t stopping delivery to any of them.`
+					? 'Amazon AWS Email Services does not suppress your email address and sends to it successfully.'
+					: `Amazon AWS Email Services does not suppress any of your ${total} email addresses and sends to them successfully.`
 			};
 		}
 		return {
 			tone: 'warn',
-			text: `${suppressed} of your ${total} email addresses ${suppressed === 1 ? 'is' : 'are'} suppressed — restore delivery below to start receiving our email again.`
+			text: `Amazon AWS Email Services is suppressing ${suppressed} of your ${total} email addresses and will not send to ${suppressed === 1 ? 'it' : 'them'} until you restore delivery below.`
 		};
 	});
 
@@ -123,7 +123,7 @@ export class EmailDeliverabilityComponent implements OnInit {
 				this.loaded.set(true);
 			},
 			error: () => {
-				this.error.set('We could not check your email right now. Please try again in a moment.');
+				this.error.set('Your Amazon AWS Email Services status could not be checked right now. Please try again in a moment.');
 				this.loading.set(false);
 				this.loaded.set(true);
 			}
@@ -151,7 +151,7 @@ export class EmailDeliverabilityComponent implements OnInit {
 						)
 					);
 				} else {
-					this.error.set(`We could not restore ${email}: ${result.error ?? 'unknown error'}`);
+					this.error.set(`Amazon AWS Email Services could not restore ${email}: ${result.error ?? 'unknown error'}`);
 				}
 				this.removing.set(this.removing().filter(e => e !== email));
 			},
@@ -256,7 +256,7 @@ export class EmailDeliverabilityComponent implements OnInit {
 				this.templateLoading.set(false);
 			},
 			error: () => {
-				this.templateError.set('We could not load this template. Please try again.');
+				this.templateError.set('The template could not be loaded. Please try again.');
 				this.templateLoading.set(false);
 			}
 		});

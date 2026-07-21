@@ -4,8 +4,8 @@
 		<div class="head-text">
 			<h1 class="page-title">Check My Email</h1>
 			<p class="page-sub">
-				See whether the email addresses on your account can receive our messages, send yourself a
-				test, and review what we've sent you for {{ programName() }}.
+				See whether Amazon AWS Email Services can deliver to the email addresses on your account,
+				send yourself a test, and review the email sent to you for {{ programName() }}.
 			</p>
 		</div>
 	</header>
@@ -92,11 +92,11 @@
 							@if (testResultFor(row.email); as res) {
 								@switch (res.side) {
 									@case ('Recipient') {
-										<p class="row-note note-ok">✓ Sent — Amazon AWS Email Services accepted it for delivery.</p>
+										<p class="row-note note-ok">✓ Amazon AWS Email Services accepted and sent this test successfully.</p>
 									}
 									@case ('Inconclusive') {
 										<p class="row-note note-danger">
-											Something went wrong on our end. Please contact
+											The test could not be sent. Please contact
 											<strong>support&#64;teamsportsinfo.com</strong>.
 										</p>
 									}
@@ -135,13 +135,14 @@
 					<div class="disclaimer-body">
 						<p class="disclaimer-title">What this can and can't tell you</p>
 						<p class="disclaimer-text">
-							"Not suppressed" means the address isn't on the Amazon AWS Email Services suppression list,
-							and a successful test means Amazon AWS Email Services accepted the message — that's the most
-							any sender can confirm, and it means the problem isn't on our end. It does <strong>not</strong>
-							guarantee a message reached your inbox: it can still land in <strong>junk/spam</strong>,
-							be held or silently dropped by your <strong>mail provider or security filter</strong>,
-							or be rejected if the <strong>mailbox is full</strong>. If you're missing something,
-							check spam/junk and add <strong>support&#64;teamsportsinfo.com</strong> to your contacts.
+							"Not suppressed" means Amazon AWS Email Services is not blocking the address and will send
+							to it, and a successful test means Amazon AWS Email Services accepted and sent the message —
+							that's the most any sender can confirm. It does <strong>not</strong> guarantee the message
+							reached your inbox: once Amazon AWS Email Services has sent it, it can still land in
+							<strong>junk/spam</strong>, be held or silently dropped by <strong>your mail provider or
+							security filter</strong>, or be rejected if <strong>your mailbox is full</strong>. If you're
+							missing something, check spam/junk and add <strong>support&#64;teamsportsinfo.com</strong> to
+							your contacts.
 						</p>
 					</div>
 				</div>
@@ -158,9 +159,9 @@
 
 			@if (sentLoaded() && sentEmails().length === 0) {
 				<div class="empty-state">
-					We don't have a record of sending email to your current address(es) for
+					There's no record of email sent to your current address(es) for
 					{{ programName() }}. A message you were copied on, one sent to a former address, or a
-					send that failed may not appear here — that doesn't mean we never contacted you.
+					send that failed may not appear here — so this doesn't mean you were never contacted.
 				</div>
 			}
 
@@ -216,7 +217,7 @@
 				</header>
 
 				<p class="tmpl-note">
-					This is the template we sent. The spots for your name, team, amounts, dates and links are
+					This is the template the message was built from. The spots for your name, team, amounts, dates and links are
 					filled in for each family when the message goes out — so your copy showed your own details
 					in place of any codes (like <code>!F-PLAYERS</code>) you may see below.
 				</p>
