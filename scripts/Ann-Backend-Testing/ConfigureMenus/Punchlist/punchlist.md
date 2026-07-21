@@ -38,6 +38,11 @@ Use these as a guide for what to walk through. You don't have to go in order.
 
 ## Punch List Items
 
+### PL-074 & PL-075 — MOVED → Payment-Test-Punchlist (PL-033, PL-034)
+These surfaced during payment testing and were consolidated into **Payment-Test-Punchlist.md** so Todd sees them in his active review. See there:
+- **PL-033** — Job Settings → Players: move "Player Settings (SuperUser)" up, above the text boxes (findability of the Player Profile field).
+- **PL-034** — ARB Subscription Health page exists but has no menu entry; add it for Director / SuperDirector / SuperUser.
+
 ### PL-073: ISP:2026-2027 Branding — Overlay Headline shows stale "CLONE 2022"; define fallback display when a cloned job has no Banner Background image
 - **Area**: Job Settings → Configure / Branding
 - **Where**: ISP:2026-2027 → Branding → Overlay Headline (reads "CLONE 2022"), Banner Background image
