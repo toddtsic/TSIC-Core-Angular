@@ -5,5 +5,6 @@
 export type FieldSummaryDto = {
     fieldId: string;
     fName: string;
+    fAddress?: string | null;
 };
 

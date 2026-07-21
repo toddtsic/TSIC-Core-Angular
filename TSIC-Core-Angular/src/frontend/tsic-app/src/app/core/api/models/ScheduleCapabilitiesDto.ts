@@ -10,5 +10,6 @@ export type ScheduleCapabilitiesDto = {
     sportName: string;
     gameStatusOptions: Array<GameStatusOptionDto>;
     isReseedTournament?: boolean;
+    restrictPublicRosters?: boolean;
 };
 

@@ -5,6 +5,7 @@
 import type { StandingsDto } from './StandingsDto';
 export type DivisionStandingsDto = {
     divId: string;
+    agegroupId?: string;
     agegroupName: string;
     divName: string;
     teams: Array<StandingsDto>;

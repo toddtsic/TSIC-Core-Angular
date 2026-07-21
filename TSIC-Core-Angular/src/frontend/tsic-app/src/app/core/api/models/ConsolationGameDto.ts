@@ -2,21 +2,18 @@
 /* istanbul ignore file */
 /* tslint:disable */
 /* eslint-disable */
-export type BracketMatchDto = {
+export type ConsolationGameDto = {
     gid: number;
+    agegroupName: string;
+    agegroupId: string;
+    fName?: string | null;
+    gDate?: string | null;
     t1Name: string;
     t2Name: string;
     t1Id?: string | null;
     t2Id?: string | null;
     t1Score?: number | null;
     t2Score?: number | null;
-    t1Css: string;
-    t2Css: string;
-    locationTime?: string | null;
-    gDate?: string | null;
-    fName?: string | null;
-    fieldId?: string | null;
-    roundType: string;
-    parentGid?: number | null;
+    fAddress?: string | null;
 };
 

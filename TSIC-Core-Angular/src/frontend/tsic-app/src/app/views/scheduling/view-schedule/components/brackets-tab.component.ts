@@ -13,7 +13,26 @@ import {
     HierarchicalTree, DataBinding
 } from '@syncfusion/ej2-diagrams';
 import { DataManager } from '@syncfusion/ej2-data';
-import { contrastText, agBg } from '../../shared/utils/scheduling-helpers';
+import { contrastText, agBg, formatTime } from '../../shared/utils/scheduling-helpers';
+
+// A game that is NOT part of the single-elimination ladder: the bronze (3rd-place) match, which
+// has no parent to advance into, and consolation (placement) games, which were never in the tree.
+// Both are rendered as flat cards in a strip beneath the diagram.
+interface OutsideCard {
+    kind: 'Bronze' | 'Consolation';
+    gid: number;
+    t1Name: string;
+    t2Name: string;
+    t1Id: string | null;
+    t2Id: string | null;
+    t1Score: number | null;
+    t2Score: number | null;
+    location: string | null;
+    fieldId: string | null;
+    bothScored: boolean;
+    t1Win: boolean;
+    t2Win: boolean;
+}
 
 // Register Syncfusion modules for imperative Diagram creation
 Diagram.Inject(HierarchicalTree, DataBinding);
@@ -63,10 +82,71 @@ interface BracketNode {
                 }
             </div>
 
-            <!-- Diagram rendered imperatively -->
-            <div class="diagram-container">
+            <!-- Diagram rendered imperatively. Hidden for consolation-only divisions (no ladder). -->
+            <div class="diagram-container" [class.is-hidden]="!hasLadder()">
                 <div #diagramHost></div>
             </div>
+
+            <!-- Games outside the ladder: bronze (no parent) + consolation (never in the tree) -->
+            @if (outsideCards().length > 0) {
+                <div class="outside-ladder">
+                    @for (group of outsideGroups(); track group.kind) {
+                        <div class="ol-group">
+                            <div class="ol-group__label">{{ group.kind }}</div>
+                            <div class="ol-cards">
+                                @for (card of group.cards; track card.gid) {
+                                    <div class="ol-card"
+                                         [style.background]="cardBg()"
+                                         [style.border-left-color]="stripeColor()">
+                                        @if (canScore()) {
+                                            <button type="button" class="ol-card__edit"
+                                                    title="Edit Score"
+                                                    (click)="emitScoreEdit(card)">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M15.502 1.94a.5.5 0 0 1 0 .706L14.459 3.69l-2-2L13.502.646a.5.5 0 0 1 .707 0l1.293 1.293zm-1.75 2.456-2-2L4.939 9.21a.5.5 0 0 0-.121.196l-.805 2.414a.25.25 0 0 0 .316.316l2.414-.805a.5.5 0 0 0 .196-.12l6.813-6.814z"/><path fill-rule="evenodd" d="M1 13.5A1.5 1.5 0 0 0 2.5 15h11a1.5 1.5 0 0 0 1.5-1.5v-6a.5.5 0 0 0-1 0v6a.5.5 0 0 1-.5.5h-11a.5.5 0 0 1-.5-.5v-11a.5.5 0 0 1 .5-.5H9a.5.5 0 0 0 0-1H2.5A1.5 1.5 0 0 0 1 2.5v11z"/></svg>
+                                            </button>
+                                        }
+                                        @if (card.location) {
+                                            <div class="ol-card__loc">
+                                                @if (card.fieldId) {
+                                                    <button type="button" class="ol-card__link"
+                                                            (click)="viewFieldInfo.emit(card.fieldId!)">{{ card.location }}</button>
+                                                } @else {
+                                                    {{ card.location }}
+                                                }
+                                            </div>
+                                        }
+                                        <div class="ol-card__row"
+                                             [class.win]="card.t1Win"
+                                             [class.lose]="card.bothScored && !card.t1Win">
+                                            @if (card.t1Id) {
+                                                <button type="button" class="ol-card__team"
+                                                        [class.followed]="isFollowed(card.t1Id)"
+                                                        (click)="viewTeamResults.emit(card.t1Id!)">{{ card.t1Name }}</button>
+                                            } @else {
+                                                <span class="ol-card__team">{{ card.t1Name }}</span>
+                                            }
+                                            <span class="ol-card__score">{{ card.t1Score }}</span>
+                                        </div>
+                                        <div class="ol-card__divider"></div>
+                                        <div class="ol-card__row"
+                                             [class.win]="card.t2Win"
+                                             [class.lose]="card.bothScored && !card.t2Win">
+                                            @if (card.t2Id) {
+                                                <button type="button" class="ol-card__team"
+                                                        [class.followed]="isFollowed(card.t2Id)"
+                                                        (click)="viewTeamResults.emit(card.t2Id!)">{{ card.t2Name }}</button>
+                                            } @else {
+                                                <span class="ol-card__team">{{ card.t2Name }}</span>
+                                            }
+                                            <span class="ol-card__score">{{ card.t2Score }}</span>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
         }
     `,
     styles: [`
@@ -153,6 +233,130 @@ interface BracketNode {
             overflow: hidden;
             background: var(--bs-body-bg);
         }
+
+        /* Consolation-only divisions have no ladder — collapse the empty diagram box. */
+        .diagram-container.is-hidden { display: none; }
+
+        /* ── Outside-the-ladder strip (bronze + consolation) ── */
+
+        .outside-ladder {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-4);
+            padding: var(--space-3);
+        }
+
+        .ol-group { flex: 1 1 auto; min-width: 260px; }
+
+        .ol-group__label {
+            font-size: var(--font-size-sm);
+            font-weight: 700;
+            color: var(--bs-secondary-color);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: var(--space-2);
+        }
+
+        .ol-cards {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+        }
+
+        .ol-card {
+            position: relative;
+            width: 260px;
+            border: 1px solid var(--bs-border-color);
+            border-left: 5px solid var(--bs-border-color);
+            border-radius: 6px;
+            padding: 6px 8px;
+            box-sizing: border-box;
+        }
+
+        .ol-card__loc {
+            text-align: center;
+            font-size: 10px;
+            color: var(--bs-secondary-color);
+            margin-bottom: 3px;
+            line-height: 1.2;
+        }
+
+        .ol-card__row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 6px;
+            padding: 2px 4px;
+            color: var(--bs-body-color);
+            font-size: 12px;
+        }
+        .ol-card__row.win { font-weight: 700; }
+        .ol-card__row.lose { opacity: 0.7; }
+        .ol-card__row.win .ol-card__score { color: var(--bs-success); }
+        .ol-card__row.lose .ol-card__score { color: var(--bs-danger); }
+
+        .ol-card__divider {
+            height: 1px;
+            background: var(--bs-border-color);
+            margin: 2px 0;
+        }
+
+        .ol-card__team {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
+            font-size: 12px;
+            background: none;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font-family: inherit;
+        }
+        .ol-card__team.followed { font-weight: 700; }
+        button.ol-card__team { cursor: pointer; text-decoration: underline; }
+
+        .ol-card__score {
+            font-weight: 700;
+            font-size: 12px;
+            min-width: 1.2rem;
+            text-align: right;
+        }
+
+        .ol-card__link {
+            background: none;
+            border: none;
+            padding: 0;
+            color: inherit;
+            font: inherit;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .ol-card__edit {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            width: 22px;
+            height: 22px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            background: var(--bs-secondary-bg);
+            border: 1px solid var(--bs-border-color);
+            color: var(--bs-primary);
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .ol-card__team:focus-visible,
+        .ol-card__link:focus-visible,
+        .ol-card__edit:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
     `]
 })
 export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDestroy {
@@ -205,6 +409,75 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
         return data[idx] ?? null;
     });
 
+    // Agegroup tint for the active division — shared by the diagram cards and the strip cards.
+    private readonly activeAgColor = computed(() =>
+        this.agegroupColors()[this.activeBracket()?.agegroupName ?? ''] ?? null);
+    readonly cardBg = computed(() => agBg(this.activeAgColor()));
+    readonly stripeColor = computed(() => this.activeAgColor() ?? 'var(--bs-border-color)');
+
+    // The single-elimination tree excludes bronze (roundType 'B'): it has no parent to advance
+    // into, so it would render as a second, disconnected root and distort the layout.
+    readonly hasLadder = computed(() =>
+        (this.activeBracket()?.matches ?? []).some(m => m.roundType !== 'B'));
+
+    // Cards for games that are not in the ladder, grouped: bronze first, then consolation.
+    readonly outsideGroups = computed<{ kind: OutsideCard['kind']; cards: OutsideCard[] }[]>(() => {
+        const b = this.activeBracket();
+        if (!b) return [];
+
+        const bronze = b.matches
+            .filter(m => m.roundType === 'B')
+            .map(m => this.toCard('Bronze', m.gid, m.t1Name, m.t2Name, m.t1Id ?? null, m.t2Id ?? null,
+                m.t1Score ?? null, m.t2Score ?? null,
+                m.locationTime ?? this.composeLocation(m.fName, m.gDate), m.fieldId ?? null));
+
+        const consolation = (b.consolationGames ?? [])
+            // Consolation carries an address (item 6), not a fieldId — no field-info modal to wire.
+            .map(c => this.toCard('Consolation', c.gid, c.t1Name, c.t2Name, c.t1Id ?? null, c.t2Id ?? null,
+                c.t1Score ?? null, c.t2Score ?? null,
+                this.composeLocation(c.fName, c.gDate), null));
+
+        const groups: { kind: OutsideCard['kind']; cards: OutsideCard[] }[] = [];
+        if (bronze.length) groups.push({ kind: 'Bronze', cards: bronze });
+        if (consolation.length) groups.push({ kind: 'Consolation', cards: consolation });
+        return groups;
+    });
+
+    readonly outsideCards = computed(() => this.outsideGroups().flatMap(g => g.cards));
+
+    isFollowed(teamId: string | null): boolean {
+        return !!teamId && this.followedSet().has(teamId);
+    }
+
+    emitScoreEdit(card: OutsideCard): void {
+        this.editBracketScore.emit({
+            gid: card.gid,
+            t1Name: card.t1Name,
+            t2Name: card.t2Name,
+            t1Score: card.t1Score,
+            t2Score: card.t2Score
+        });
+    }
+
+    private composeLocation(fName?: string | null, gDate?: string | null): string | null {
+        if (fName && gDate) return `${fName} — ${formatTime(gDate)}`;
+        if (gDate) return formatTime(gDate);
+        return fName ?? null;
+    }
+
+    private toCard(
+        kind: OutsideCard['kind'], gid: number, t1Name: string, t2Name: string,
+        t1Id: string | null, t2Id: string | null, t1Score: number | null, t2Score: number | null,
+        location: string | null, fieldId: string | null): OutsideCard {
+        const bothScored = t1Score != null && t2Score != null;
+        return {
+            kind, gid, t1Name, t2Name, t1Id, t2Id, t1Score, t2Score, location, fieldId,
+            bothScored,
+            t1Win: bothScored && t1Score! > t2Score!,
+            t2Win: bothScored && t2Score! > t1Score!
+        };
+    }
+
     // The diagram is imperative Syncfusion DOM, not a template binding, so it is rebuilt
     // from an explicit request rather than reactively. Requests come from exactly two
     // places: an input changing (ngOnChanges) and the user picking a tab (selectTab).
@@ -252,7 +525,10 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
         this.destroyDiagram();
 
         const diagramHost = this.diagramHost();
-        if (!bracket || bracket.matches.length === 0 || !diagramHost) return;
+        // Bronze is rendered in the strip, never in the tree — exclude it before anything else so
+        // it can't become a second root or throw off the leaf-count/height math below.
+        const ladderMatches = bracket ? bracket.matches.filter(m => m.roundType !== 'B') : [];
+        if (!bracket || ladderMatches.length === 0 || !diagramHost) return;
 
         const host = diagramHost.nativeElement;
         // Clear any previous content and create a fresh div
@@ -265,7 +541,7 @@ export class BracketsTabComponent implements OnChanges, AfterViewChecked, OnDest
         const stripeColor = agColor ?? 'var(--bs-border-color)';
 
         // Normalize parentGid: 0 → null (legacy: Pgid == 0 ? null : Pgid)
-        const games: BracketNode[] = bracket.matches.map(m => ({
+        const games: BracketNode[] = ladderMatches.map(m => ({
             gid: m.gid,
             parentGid: (m.parentGid && m.parentGid !== 0) ? m.parentGid : null,
             t1Name: m.t1Name,

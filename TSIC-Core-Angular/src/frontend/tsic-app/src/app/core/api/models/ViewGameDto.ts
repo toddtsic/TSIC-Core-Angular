@@ -35,7 +35,6 @@ export type ViewGameDto = {
     t1IsSubscribed?: boolean;
     t2IsSubscribed?: boolean;
     gameAgegroupHasBrackets?: boolean;
-    mobileScorerCanEdit?: boolean;
     bHideScores?: boolean;
 };
 

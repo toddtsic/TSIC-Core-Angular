@@ -7,6 +7,7 @@ export type TeamResultsResponse = {
     teamName: string;
     agegroupName: string;
     clubName?: string | null;
+    teamRecord?: string | null;
     games: Array<TeamResultDto>;
 };
 
