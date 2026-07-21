@@ -93,6 +93,17 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
                 ready.Select(s => s.Gid).Distinct().ToList(), ct))
             .ToDictionary(g => g.Gid);
 
+        // Age-group per division, for both the source pools and the target games. The reseed
+        // decision is per SLOT, not per job: twin-copy is correct only when a slot's source pool
+        // is in a DIFFERENT age group than the bracket game it fills. A bracket/consolation game
+        // placed inside a real pool (same age group) must seed normally, or ApplyReseedAsync would
+        // overwrite that pool's LIVE teams. Compare Divisions.AgegroupId (non-nullable) on both
+        // sides — never the nullable Schedule.AgegroupId.
+        var agegroupDivIds = ready.Select(s => s.SeedDivId)
+            .Concat(targets.Values.Where(t => t.DivId.HasValue).Select(t => t.DivId!.Value))
+            .Distinct().ToList();
+        var agegroupByDiv = await _bracketRepo.GetAgegroupIdsByDivIdsAsync(agegroupDivIds, ct);
+
         var now = DateTime.Now;
         var resolved = 0;
         foreach (var slot in ready)
@@ -105,7 +116,17 @@ public sealed class BracketSeedResolutionService : IBracketSeedResolutionService
             // R3 guard: never overwrite a bracket game that has already been played.
             if (target.T1Score.HasValue || target.T2Score.HasValue) continue;
 
-            bool changed = isReseed
+            // Divert to normal seeding ONLY when both sides are PROVABLY the same age group.
+            // Every unknown (null target.DivId, or a div missing from the map) falls through to
+            // today's behavior — ApplyReseedAsync on a reseed job — rather than risk reference-
+            // seating a foreign-agegroup team. This is why we test !sameAgegroup, not isCrossAgegroup.
+            bool sameAgegroup =
+                target.DivId is Guid tDiv
+                && agegroupByDiv.TryGetValue(slot.SeedDivId, out var srcAg)
+                && agegroupByDiv.TryGetValue(tDiv, out var tgtAg)
+                && srcAg == tgtAg;
+
+            bool changed = (isReseed && !sameAgegroup)
                 ? await ApplyReseedAsync(target, slot.TargetSlot, team, sourceIdentities, ct)
                 : ApplyReference(target, slot.TargetSlot, team);
 

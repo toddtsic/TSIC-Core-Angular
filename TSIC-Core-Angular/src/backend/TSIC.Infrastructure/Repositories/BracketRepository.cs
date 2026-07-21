@@ -140,6 +140,16 @@ public class BracketRepository : IBracketRepository
         return slots;
     }
 
+    public async Task<Dictionary<Guid, Guid>> GetAgegroupIdsByDivIdsAsync(
+        IReadOnlyCollection<Guid> divIds, CancellationToken ct = default)
+    {
+        if (divIds.Count == 0) return [];
+        return await _context.Divisions
+            .AsNoTracking()
+            .Where(d => divIds.Contains(d.DivId))
+            .ToDictionaryAsync(d => d.DivId, d => d.AgegroupId, ct);
+    }
+
     public async Task<HashSet<Guid>> GetIncompletePoolDivIdsAsync(
         Guid jobId, CancellationToken ct = default)
     {

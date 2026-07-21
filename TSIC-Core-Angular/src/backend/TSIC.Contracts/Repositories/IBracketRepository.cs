@@ -89,6 +89,14 @@ public interface IBracketRepository
     Task<int> GetActiveTeamCountByDivAsync(Guid divId, CancellationToken ct = default);
 
     /// <summary>
+    /// AgegroupId for each of the given division ids (Divisions.AgegroupId is non-nullable).
+    /// Used by seed resolution to decide, per slot, whether the source pool and the target
+    /// bracket game share an age-group — twin-copy reseeding is correct only when they differ.
+    /// </summary>
+    Task<Dictionary<Guid, Guid>> GetAgegroupIdsByDivIdsAsync(
+        IReadOnlyCollection<Guid> divIds, CancellationToken ct = default);
+
+    /// <summary>
     /// The flight's INTERNAL placeholder team seated at a bracket seed line: the active team in
     /// <paramref name="divId"/> whose DivRank matches the slot's TxNo. Tracked, for reseed
     /// impersonation (rename + clubrep). Derived rather than read off Schedule.TxId, which a
