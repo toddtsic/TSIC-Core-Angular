@@ -369,12 +369,13 @@ export class PlayerFormsService {
         if (tctype === 'BYAGERANGE' && (hasAllParts(lname, ['age', 'range']) || hasAllParts(llabel, ['age', 'range']))) return false;
         if (tctype === 'BYCLUBNAME' && (hasAllParts(lname, ['club']) || hasAllParts(llabel, ['club']))) return false;
         if (RECRUITING_FIELD_NAMES.has(lname)) {
-            // No recruiting grad years configured ⇒ no restriction ⇒ always show. Only when a
-            // List_RecruitingGradYears IS configured do we gate to the matching team grad year.
-            // (Legacy AdjustRecruittingInfoVisibility hid these on an empty list, which silently
-            // dropped required-but-hidden fields like heightInches on showcase forms such as PP35;
-            // empty = "no restriction" is the intended behavior.)
-            if (recruitingGradYears.length === 0) return true;
+            // The List_RecruitingGradYears list IS the source of truth for "is this a recruiting
+            // event." Empty ⇒ NOT a recruiting event ⇒ hide the recruiting fields (they were
+            // leaking onto non-recruiting jobs like festivals, PL-021). When it IS configured, gate
+            // to the matching team grad year. Config invariant: a genuine recruiting job (e.g. PP35/
+            // PP27 with required recruiting fields) MUST have its grad years valued — otherwise its
+            // required recruiting fields are hidden here and won't collect.
+            if (recruitingGradYears.length === 0) return false;
             if (!teamGradYear) return false;
             return recruitingGradYears.includes(teamGradYear);
         }
