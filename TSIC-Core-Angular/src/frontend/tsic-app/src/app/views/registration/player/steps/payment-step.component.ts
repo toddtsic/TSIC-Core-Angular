@@ -1206,6 +1206,10 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
     ngOnInit(): void {
         this.paySvc.initPaymentMethod();
         this.paySvc.resetDonation();
+        // PaymentV2Service is a root singleton, so a discount message from an earlier
+        // registration/navigation survives into a fresh payment view. Clear it on entry —
+        // mirrors resetDonation above; an actual apply during this view re-sets it.
+        this.paySvc.resetDiscount();
     }
 
     ngAfterViewInit(): void {
