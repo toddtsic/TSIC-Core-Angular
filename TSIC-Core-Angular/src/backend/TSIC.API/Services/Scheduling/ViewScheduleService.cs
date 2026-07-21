@@ -615,6 +615,10 @@ public sealed class ViewScheduleService : IViewScheduleService
             .GroupBy(t => new { t.DivId, t.AgegroupName, t.DivName })
             .OrderBy(d => d.Key.AgegroupName)
             .ThenBy(d => d.Key.DivName)
+            // DivId tiebreaker → total order. Two divisions can share Agegroup+Div display names
+            // (distinct DivIds); without a unique final key, GetStandingsPagedAsync's Skip/Take
+            // over this list could duplicate or drop a division block between page fetches.
+            .ThenBy(d => d.Key.DivId)
             .Select(divGroup =>
             {
                 var teams = divGroup.Select(t =>

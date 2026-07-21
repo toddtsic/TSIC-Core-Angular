@@ -637,9 +637,10 @@ public sealed class ScheduleRepository : IScheduleRepository
     }
 
     /// <summary>
-    /// Shared filtered + ordered games query (no Skip/Take). The ordering (GDate → FName) is a
-    /// TOTAL order so paged Skip/Take is stable across requests — without the FName tiebreaker,
-    /// same-kickoff rows come back in unstable plan order and would duplicate/vanish between pages.
+    /// Shared filtered + ordered games query (no Skip/Take). Ordered GDate → FName → Gid. The Gid
+    /// (PK) tiebreaker makes it a TOTAL order: GDate+FName alone is not unique (two games can share
+    /// a field and kickoff), and a non-unique final key lets rows duplicate/vanish between paged
+    /// requests. Mirrors the RegistrationRepository search paging, which ends every sort on the PK.
     /// </summary>
     private IQueryable<Domain.Entities.Schedule> BuildFilteredGamesQuery(
         Guid jobId, ScheduleFilterRequest request)
@@ -679,7 +680,7 @@ public sealed class ScheduleRepository : IScheduleRepository
         if (request.UnscoredOnly == true)
             query = query.Where(s => s.T1Score == null && s.T2Score == null);
 
-        return query.OrderBy(s => s.GDate).ThenBy(s => s.FName);
+        return query.OrderBy(s => s.GDate).ThenBy(s => s.FName).ThenBy(s => s.Gid);
     }
 
     public async Task<ScheduleFilterOptionsDto> GetScheduleFilterOptionsAsync(
