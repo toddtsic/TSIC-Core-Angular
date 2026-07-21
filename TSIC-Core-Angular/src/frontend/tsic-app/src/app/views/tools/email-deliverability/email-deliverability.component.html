@@ -1,34 +1,33 @@
 <div class="email-check">
 	<header class="page-head">
-		<h1 class="page-title">Check My Email</h1>
-		<p class="page-sub">
-			See whether the email addresses on your account can receive our messages, send yourself a
-			test, and review what we've sent you for {{ programName() }}.
-		</p>
+		<span class="head-icon" aria-hidden="true"><i class="bi bi-envelope-check"></i></span>
+		<div class="head-text">
+			<h1 class="page-title">Check My Email</h1>
+			<p class="page-sub">
+				See whether the email addresses on your account can receive our messages, send yourself a
+				test, and review what we've sent you for {{ programName() }}.
+			</p>
+		</div>
 	</header>
 
-	<ul class="nav nav-tabs" role="tablist">
-		<li class="nav-item" role="presentation">
-			<button
-				type="button"
-				class="nav-link"
-				[class.active]="activeTab() === 'status'"
-				(click)="setTab('status')"
-				role="tab">
-				Current Status
-			</button>
-		</li>
-		<li class="nav-item" role="presentation">
-			<button
-				type="button"
-				class="nav-link"
-				[class.active]="activeTab() === 'history'"
-				(click)="setTab('history')"
-				role="tab">
-				E-Mail History
-			</button>
-		</li>
-	</ul>
+	<div class="tab-card" role="tablist">
+		<button
+			type="button"
+			class="tab-btn"
+			[class.active]="activeTab() === 'status'"
+			(click)="setTab('status')"
+			role="tab">
+			<i class="bi bi-shield-check" aria-hidden="true"></i> Current Status
+		</button>
+		<button
+			type="button"
+			class="tab-btn"
+			[class.active]="activeTab() === 'history'"
+			(click)="setTab('history')"
+			role="tab">
+			<i class="bi bi-clock-history" aria-hidden="true"></i> E-Mail History
+		</button>
+	</div>
 
 	<!-- ─────────────── Tab 1: Current Status ─────────────── -->
 	@if (activeTab() === 'status') {
@@ -51,41 +50,34 @@
 			@if (entries().length > 0) {
 				<div class="result-list">
 					@for (row of entries(); track row.email) {
-						<div class="email-row">
+						@let meta = metaFor(row.status);
+						<div
+							class="email-row"
+							[class.is-ok]="meta.tone === 'ok'"
+							[class.is-suppressed]="meta.tone === 'suppressed'"
+							[class.is-unknown]="meta.tone === 'unknown'">
 							<div class="row-main">
 								<span class="row-email">{{ row.email }}</span>
-								@switch (row.status) {
-									@case ('Suppressed') { <span class="badge bg-danger">Blocked</span> }
-									@case ('NotSuppressed') { <span class="badge bg-success">Not blocked</span> }
-									@default { <span class="badge bg-secondary">Couldn't check</span> }
-								}
+								<span
+									class="status-pill"
+									[class.is-ok]="meta.tone === 'ok'"
+									[class.is-suppressed]="meta.tone === 'suppressed'"
+									[class.is-unknown]="meta.tone === 'unknown'">
+									<span class="dot"></span>{{ meta.pill }}
+								</span>
 							</div>
 
-							<!-- Strong, status-appropriate language -->
-							@switch (row.status) {
-								@case ('Suppressed') {
-									<p class="row-note note-warn">
-										Amazon AWS Email Services — the service that delivers our email — is blocking
-										this address after a message bounced or was marked as spam. Make sure this
-										mailbox works, then restore delivery.
-										@if (row.reason) { <span class="detail-chip">Reason: {{ row.reason }}</span> }
-										@if (row.lastUpdate) { <span class="detail-chip">Blocked since: {{ row.lastUpdate | date:'mediumDate' }}</span> }
-									</p>
+							<!-- One-line, status-specific note from the STATUS_META dictionary. -->
+							<p
+								class="row-note"
+								[class.note-warn]="meta.tone === 'suppressed'"
+								[class.note-muted]="meta.tone === 'unknown'">
+								{{ meta.note }}
+								@if (row.status === 'Suppressed') {
+									@if (row.reason) { <span class="detail-chip">Reason: {{ row.reason }}</span> }
+									@if (row.lastUpdate) { <span class="detail-chip">Suppressed since: {{ row.lastUpdate | date:'mediumDate' }}</span> }
 								}
-								@case ('NotSuppressed') {
-									<p class="row-note">
-										Amazon AWS Email Services — the service that delivers our email — is not blocking
-										this address. If a message doesn't arrive, the problem is not on our side: check
-										your junk/spam folder, make sure the mailbox isn't full, and add
-										<strong>support&#64;teamsportsinfo.com</strong> to your contacts.
-									</p>
-								}
-								@default {
-									<p class="row-note note-muted">
-										We couldn't check this address just now. Try again in a moment.
-									</p>
-								}
-							}
+							</p>
 
 							<!-- Result of a test send, if one was run -->
 							@if (testResultFor(row.email); as res) {
@@ -110,9 +102,10 @@
 								@if (row.status === 'Suppressed') {
 									<button
 										type="button"
-										class="btn btn-sm btn-outline-primary"
+										class="btn btn-sm btn-primary"
 										(click)="unsuppress(row.email)"
 										[disabled]="isRemoving(row.email)">
+										<i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
 										{{ isRemoving(row.email) ? 'Restoring…' : 'Restore delivery' }}
 									</button>
 								}
@@ -121,6 +114,7 @@
 									class="btn btn-sm btn-outline-secondary"
 									(click)="sendTest(row.email)"
 									[disabled]="isTesting(row.email) || isCoolingDown(row.email)">
+									<i class="bi bi-send" aria-hidden="true"></i>
 									@if (isTesting(row.email)) { Sending… }
 									@else if (isCoolingDown(row.email)) { Sent ✓ — wait a minute }
 									@else { Send test email }
@@ -130,18 +124,21 @@
 					}
 				</div>
 
-				<!-- The honest limit of what "not blocked" / "sent" can promise. -->
+				<!-- The honest limit of what "not suppressed" / "sent" can promise. -->
 				<div class="disclaimer" role="note">
-					<p class="disclaimer-title">What this can and can't tell you</p>
-					<p class="disclaimer-text">
-						"Not blocked" means the address isn't on the Amazon AWS Email Services block list, and a
-						successful test means Amazon AWS Email Services accepted the message — that's the most any
-						sender can confirm, and it means the problem isn't on our end. It does <strong>not</strong>
-						guarantee a message reached your inbox: it can still land in <strong>junk/spam</strong>,
-						be held or silently dropped by your <strong>mail provider or security filter</strong>,
-						or be rejected if the <strong>mailbox is full</strong>. If you're missing something,
-						check spam/junk and add <strong>support&#64;teamsportsinfo.com</strong> to your contacts.
-					</p>
+					<span class="disclaimer-icon" aria-hidden="true"><i class="bi bi-info-circle"></i></span>
+					<div class="disclaimer-body">
+						<p class="disclaimer-title">What this can and can't tell you</p>
+						<p class="disclaimer-text">
+							"Not suppressed" means the address isn't on the Amazon AWS Email Services suppression list,
+							and a successful test means Amazon AWS Email Services accepted the message — that's the most
+							any sender can confirm, and it means the problem isn't on our end. It does <strong>not</strong>
+							guarantee a message reached your inbox: it can still land in <strong>junk/spam</strong>,
+							be held or silently dropped by your <strong>mail provider or security filter</strong>,
+							or be rejected if the <strong>mailbox is full</strong>. If you're missing something,
+							check spam/junk and add <strong>support&#64;teamsportsinfo.com</strong> to your contacts.
+						</p>
+					</div>
 				</div>
 			}
 		</section>

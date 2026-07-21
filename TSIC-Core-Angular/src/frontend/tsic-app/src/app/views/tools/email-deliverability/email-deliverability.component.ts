@@ -14,6 +14,37 @@ type TabKey = 'status' | 'history';
 // Seconds a player must wait between test sends to the same address (client-side throttle).
 const TEST_COOLDOWN_MS = 60_000;
 
+type StatusTone = 'ok' | 'suppressed' | 'unknown';
+interface StatusMeta {
+	/** Pill label. */
+	pill: string;
+	/** Drives the row accent + note colour. */
+	tone: StatusTone;
+	/** One-line per-row note. The full "check spam / mailbox full / contact support" litany is NOT
+	 *  repeated here — it lives once in the page disclaimer, so identical rows don't restate it. */
+	note: string;
+}
+
+// Single source of the per-status copy, keyed by the server's SuppressionEntryDto.status. Keeps the
+// three-way branch out of the template and guarantees every row/pill/accent stays consistent.
+const STATUS_META: Record<string, StatusMeta> = {
+	NotSuppressed: {
+		pill: 'Not suppressed',
+		tone: 'ok',
+		note: 'Delivery to this address is not being stopped. If mail still doesn’t arrive, the causes below apply — not a problem on our side.'
+	},
+	Suppressed: {
+		pill: 'Suppressed',
+		tone: 'suppressed',
+		note: 'Amazon AWS Email Services has stopped delivering to this address after a message bounced or was marked as spam. Make sure the mailbox works, then remove the suppression below to restore delivery.'
+	}
+};
+const STATUS_META_FALLBACK: StatusMeta = {
+	pill: 'Couldn’t check',
+	tone: 'unknown',
+	note: 'We couldn’t check this address just now — try again in a moment.'
+};
+
 @Component({
 	selector: 'app-email-deliverability',
 	standalone: true,
@@ -90,9 +121,9 @@ export class EmailDeliverabilityComponent implements OnInit {
 	unsuppress(email: string): void {
 		const ok = window.confirm(
 			`Restore delivery to ${email}?\n\n` +
-			`This address was blocked after mail to it bounced or was marked as spam. ` +
+			`This address was suppressed after mail to it bounced or was marked as spam. ` +
 			`Make sure the mailbox exists and can receive mail before you restore it — ` +
-			`otherwise it will just be blocked again.`
+			`otherwise it will just be suppressed again.`
 		);
 		if (!ok) return;
 
@@ -178,8 +209,9 @@ export class EmailDeliverabilityComponent implements OnInit {
 		return this.testResults()[email];
 	}
 
-	hasBlocked(): boolean {
-		return this.entries().some(r => r.status === 'Suppressed');
+	/** Copy + tone for a row's status, from the STATUS_META dictionary (unknown → fallback). */
+	metaFor(status: string): StatusMeta {
+		return STATUS_META[status] ?? STATUS_META_FALLBACK;
 	}
 
 	// ── Tab 2 ──
