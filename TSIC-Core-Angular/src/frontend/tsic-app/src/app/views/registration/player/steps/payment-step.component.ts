@@ -1593,17 +1593,10 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
             this.lastIdemKey = null;
             // Some players' teams filled up before this payment landed: the server did NOT charge
             // them, moved them to the waitlist twin at $0, and listed them here. The seatable players
-            // in the same cart WERE charged and advance to confirmation (which — server-rendered —
-            // already shows the waitlisted players as waitlist entries). Surface them plainly now so
-            // the family knows which kids weren't charged and need to finish waitlist signup.
+            // in the same cart WERE charged and advance to confirmation. Instead of a transient toast
+            // that auto-dismisses (a family can miss it), carry the waitlisted players into lastPayment
+            // so the confirmation screen shows a persistent notice they must acknowledge.
             const waitlisted = (response.needsWaitlist ?? []) as PaymentWaitlistedDto[];
-            if (waitlisted.length > 0) {
-                const teams = [...new Set(waitlisted.map(w => w.teamName).filter(Boolean))].join(', ');
-                this.toast.show(
-                    `${waitlisted.length} player(s) couldn't be seated — their team(s) filled up first (${teams}). ` +
-                    `They were NOT charged and were moved to the waitlist. The others were charged successfully.`,
-                    'warning', 12000);
-            }
             // Receipt reflects the method actually charged: eCheck pays echeckTotal (lower proc,
             // incl. any donation at the ACH rate); CC pays currentTotal. Both include the donation.
             const chargedAmount = this.paySvc.isEcheckPayment() ? this.echeckTotal() : this.currentTotal();
@@ -1616,6 +1609,7 @@ export class PaymentStepComponent implements OnInit, AfterViewInit, OnDestroy {
                     viPolicyNumber: rs?.policyNumber ?? null,
                     viPolicyCreateDate: rs?.policyCreateDate ?? null,
                     message: response.message ?? null,
+                    waitlisted: waitlisted.length > 0 ? waitlisted : undefined,
                 });
             } catch (e) { console.warn('[Payment] setLastPayment failed', e); }
             // Refresh the family snapshot the wizard was holding BEFORE this charge. The server has

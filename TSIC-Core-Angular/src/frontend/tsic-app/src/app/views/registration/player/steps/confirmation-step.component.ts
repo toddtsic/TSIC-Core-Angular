@@ -39,6 +39,34 @@ import type { JobPulseDto } from '@core/api';
       </p>
     </div>
 
+    <!-- Persistent waitlist notice: any players the server couldn't seat (their team filled up
+         before this payment) were moved to the waitlist at $0 and NOT charged. Unlike the old
+         auto-dismissing toast, this stays on screen so the family can't miss which kids still
+         need to finish waitlist signup. -->
+    @if (waitlisted().length > 0) {
+      <div class="alert alert-warning d-flex align-items-start gap-2 mb-3" role="alert">
+        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+        <div class="flex-grow-1">
+          <div class="fw-semibold mb-1">
+            {{ waitlisted().length }} player(s) were moved to the waitlist
+          </div>
+          <div class="small mb-2">
+            These team(s) filled up before your payment was processed, so these player(s)
+            were <strong>not charged</strong> and were placed on the waitlist. Everyone else
+            in your cart was registered and charged successfully.
+          </div>
+          <ul class="list-unstyled mb-0">
+            @for (w of waitlisted(); track w.registrationId) {
+              <li class="d-flex align-items-center gap-2 py-1">
+                <span class="badge text-bg-warning">WAITLISTED</span>
+                <span>{{ w.playerName }} &mdash; {{ w.teamName }}</span>
+              </li>
+            }
+          </ul>
+        </div>
+      </div>
+    }
+
     <div class="card shadow border-0 card-rounded">
       <div class="card-body">
         @if (loadError()) {
@@ -93,6 +121,9 @@ export class ConfirmationStepComponent implements OnInit, OnDestroy {
 
     readonly conf = computed(() => this.state.confirmation());
     readonly confirmationLoaded = computed(() => !!this.conf());
+    // Players the server couldn't seat at payment time (team filled up) — placed on the
+    // waitlist twin at $0 and not charged. Rendered as a persistent notice above the receipt.
+    readonly waitlisted = computed(() => this.state.lastPayment()?.waitlisted ?? []);
     readonly loadError = signal(false);
     readonly resending = signal(false);
     readonly resendMessage = signal('');

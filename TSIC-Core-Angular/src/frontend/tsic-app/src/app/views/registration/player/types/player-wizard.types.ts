@@ -6,6 +6,8 @@
  * payment options) are defined directly.
  */
 
+import type { PaymentWaitlistedDto } from '@core/api';
+
 // ── Re-exports from generated API models ──────────────────────────────
 export type {
     AvailableTeamDto,
@@ -26,6 +28,7 @@ export type {
     AuthTokenResponse,
     JobMetadataResponse,
     RegistrationFinancialsDto,
+    PaymentWaitlistedDto,
 } from '@core/api';
 
 // ── Payment option (job-level) ────────────────────────────────────────
@@ -102,6 +105,10 @@ export interface PaymentSummary {
     viPolicyCreateDate?: string | null;
     message?: string | null;
     paymentMethod?: 'CC' | 'Check';
+    // Players who could not be seated on a full team and were placed on the
+    // waitlist twin at payment time. Surfaced as a persistent notice on the
+    // confirmation screen (replaces the transient post-Submit toast).
+    waitlisted?: PaymentWaitlistedDto[];
 }
 
 // ── JSON helper type (avoids `any`/`unknown` in public fields) ────────
