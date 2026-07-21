@@ -268,7 +268,8 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I did**: On a job with eCheck turned on, opened Add Accounting Record as Admin.
 - **What I noticed**: The admin can enter **Credit Card, Check, Correction, Refund** — but there is **no eCheck option**. Just confirming we don't want to add it.
 - **Severity**: Question
-- **Status**: Open
+- **Status**: Won't Fix
+- **Decision (Todd)**: Leave as-is — no admin eCheck. An eCheck (ACH) is a bank draft that requires the payer's own bank account/routing + authorization to draft; an admin doesn't have and shouldn't key a family's bank credentials. A paper check the admin physically holds and records, and a CC they can key, but an eCheck has no natural admin workflow — it's the family's own action in the registrant flow. Intentional behavior, not changing.
 - **Finding (verified)**: The admin accounting ledger's `PaymentType` is `check | cc | correction | refund` only ([accounting-ledger.component.ts:175, 387, 501](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/shared-ui/components/accounting-ledger/accounting-ledger.component.ts#L175)); there is no `echeck` type. Consistent with the earlier decision to punt admin-entered eCheck.
 - **For Todd — recommendation**: Likely leave as-is. An eCheck (ACH) is a bank draft that needs the **payer's** bank account/routing + their authorization to draft — an admin doesn't have and shouldn't key a family's bank credentials. A paper check the admin can record (they hold it) and a CC they can key, but an eCheck has no natural admin workflow — it's the family's own action in the registrant flow. Confirm you're comfortable not adding admin eCheck; if you ever do want it, it'd need the family's bank details captured some other way (e.g. a family-initiated eCheck the admin only records after the fact).
 
