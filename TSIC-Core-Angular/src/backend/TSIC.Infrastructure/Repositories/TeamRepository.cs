@@ -144,9 +144,15 @@ public class TeamRepository : ITeamRepository
                         || t.Expireondate == null
                         || t.Expireondate <= t.Effectiveasofdate.Value.AddSeconds(1)
                         || (t.Effectiveasofdate <= now && t.Expireondate >= now))
-            // Waitlist mirror agegroups (WAITLIST - ...) ARE surfaced: a pending player placed on a
-            // full team's $0 twin must see + resume into that agegroup. Only Dropped stays hidden.
-            .Where(t => !(t.Agegroup.AgegroupName ?? "").StartsWith("Dropped"))
+            // System holding buckets are NOT bookable options. Waitlisting is expressed on the REAL
+            // team via RosterIsFull (the UI badges it "WAITLIST"); the "WAITLIST - {agegroup}" twin is
+            // a payment-time artifact only (PaymentService cart-split moves seat-gone players onto the
+            // $0 twin when they pay) and must never appear as a separate pickable row. A resuming player
+            // sits on the real team until payment, so they still match the real entry — nothing stranded.
+            // Surfacing the twin here produced a duplicate next to the full team (PL-011) and a leftover
+            // option after Max was raised (PL-010). Mirrors AgegroupConstants system-bucket checks inline.
+            .Where(t => !(t.Agegroup.AgegroupName ?? "").StartsWith(AgegroupConstants.DroppedTeams)
+                        && !(t.Agegroup.AgegroupName ?? "").StartsWith(AgegroupConstants.WaitlistPrefix))
             .Select(t => new AvailableTeamQueryResult
             {
                 TeamId = t.TeamId,
