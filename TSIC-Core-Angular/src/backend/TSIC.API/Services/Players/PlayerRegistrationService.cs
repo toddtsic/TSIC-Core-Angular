@@ -41,6 +41,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
         public Dictionary<string, List<Registrations>> ExistingByPlayer { get; init; } = new();
         public Dictionary<(string PlayerId, Guid TeamId), Registrations> ExistingByPlayerTeam { get; init; } = new();
 
+        // Existing-registration teams that are WAITLIST placements (canonical agegroup test). A
+        // registration sitting on one of these is a $0 queue placement, not a confirmed seat: the
+        // player may switch off it (it must NOT trip the paid/active team-change lock).
+        public HashSet<Guid> WaitlistTeamIds { get; init; } = new();
+
         // Every registration created or mutated this PreSubmit (i.e. every row that had form
         // values — including SportAssnId — applied to it). Populated at each ApplyFormValues site;
         // consumed by ApplyUsLaxPlayerValidationAsync to stamp SportAssnIdexpDate before the save.
@@ -187,6 +192,16 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             .GroupBy(r => (r.UserId!, r.AssignedTeamId!.Value))
             .ToDictionary(g => (g.Key.Item1, g.Key.Value), g => g.OrderByDescending(x => x.Modified).First());
 
+        // Which of the players' current placements sit on a WAITLIST team — resolved canonically
+        // by agegroup, one batched query, so the team-change lock can tell a switchable $0 waitlist
+        // placement from a confirmed seat without inspecting names.
+        var existingTeamIds = existingRegs
+            .Where(r => r.AssignedTeamId.HasValue)
+            .Select(r => r.AssignedTeamId!.Value)
+            .Distinct()
+            .ToList();
+        var waitlistTeamIds = await _teams.GetWaitlistTeamIdsAsync(jobId, existingTeamIds);
+
         return new PreSubmitContext
         {
             JobId = jobId,
@@ -198,7 +213,8 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             NameToProperty = nameToProperty,
             WritableProps = writableProps,
             ExistingByPlayer = existingByPlayer,
-            ExistingByPlayerTeam = existingByPlayerTeam
+            ExistingByPlayerTeam = existingByPlayerTeam,
+            WaitlistTeamIds = waitlistTeamIds
         };
     }
 
@@ -366,10 +382,13 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
     private async Task UpdateExistingPPModeAsync(PreSubmitContext ctx, Registrations regToUpdate, TSIC.Domain.Entities.Teams team, PreSubmitTeamSelectionDto sel, string playerId, List<PreSubmitTeamResultDto> teamResults)
     {
-        // Active registrations are locked to their team — the wizard renders an active player's
-        // team as a label, not a dropdown. Defense-in-depth: if a flip reaches the server anyway,
-        // keep the player on their committed team. A same-team resubmit (form edits) still passes.
-        if (regToUpdate.BActive == true && regToUpdate.AssignedTeamId.HasValue && regToUpdate.AssignedTeamId.Value != team.TeamId)
+        // A CONFIRMED registration is locked to its team — the wizard renders it as a label, not a
+        // dropdown. Defense-in-depth: if a flip reaches the server anyway, keep the player on their
+        // committed team. A same-team resubmit (form edits) still passes. The lock keys on "active on
+        // a REAL team", NOT raw BActive: a $0 WAITLIST placement is activated (BActive=true) yet is a
+        // switchable queue spot, so it's excepted here and falls through to the re-price + reset below.
+        if (regToUpdate.BActive == true && regToUpdate.AssignedTeamId.HasValue && regToUpdate.AssignedTeamId.Value != team.TeamId
+            && !ctx.WaitlistTeamIds.Contains(regToUpdate.AssignedTeamId.Value))
         {
             var locked = ctx.Teams.Find(x => x.TeamId == regToUpdate.AssignedTeamId.Value);
             AddResult(teamResults, playerId, regToUpdate.AssignedTeamId.Value, false,
@@ -387,6 +406,11 @@ public class PlayerRegistrationService : IPlayerRegistrationService
             ctx.TouchedRegs.Add(regToUpdate);
             if (teamChanged)
             {
+                // Switching teams means the new seat is not yet earned. Reset BActive so the
+                // registration is pending until payment — a $0 WAITLIST placement (activated at
+                // BActive=true) must not carry "confirmed" onto a real, fee'd team unpaid. Post-reconcile
+                // ActivateIfFree re-activates only if the new team is genuinely $0.
+                regToUpdate.BActive = false;
                 // Team changed before any payment (e.g. parent went back from Payment, re-picked a
                 // different team). The previously-stamped fee belongs to the OLD team, and
                 // ApplyInitialFeesAsync no-ops once FeeBase>0 — which would leave the old team's
@@ -477,6 +501,12 @@ public class PlayerRegistrationService : IPlayerRegistrationService
 
         regToUpdate.AssignedTeamId = team.TeamId;
         regToUpdate.Assignment = $"Player: {team.TeamName}";
+        // A team change means the seat on the NEW team is not yet earned. Reset BActive so the
+        // registration is pending until payment — otherwise a $0 WAITLIST placement (activated at
+        // BActive=true) would carry "confirmed" status onto a real, fee'd team the player hasn't paid
+        // for, handing them a free confirmed seat. Post-reconcile ActivateIfFree re-activates it only
+        // if the new team is genuinely $0. A normal unpaid reg is already BActive=false (no-op).
+        regToUpdate.BActive = false;
         FormValueMapper.ApplyFormValues(regToUpdate, sel.FormValues, ctx.NameToProperty, ctx.WritableProps);
         ctx.TouchedRegs.Add(regToUpdate);
         await ApplyInitialFeesAsync(regToUpdate, team.JobId, team.AgegroupId, team.TeamId, ctx.BPlayersFullPaymentRequired);

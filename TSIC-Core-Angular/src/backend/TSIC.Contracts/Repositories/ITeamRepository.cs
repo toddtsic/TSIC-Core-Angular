@@ -119,6 +119,15 @@ public interface ITeamRepository
     Task<List<Teams>> GetTeamsForJobAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// From the supplied team IDs, return the subset that are WAITLIST placements — i.e. whose
+    /// agegroup is a "WAITLIST - …" system bucket. This is the canonical waitlist test
+    /// (<see cref="TSIC.Domain.Constants.AgegroupConstants.WaitlistPrefix"/>), the same one the
+    /// available-teams query filters on, so callers never sniff display strings to identify a
+    /// waitlist placement.
+    /// </summary>
+    Task<HashSet<Guid>> GetWaitlistTeamIdsAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Map assigned team IDs to their division name (Teams.DivId → Divisions.DivName).
     /// Used to distinguish genuinely "pending" registrations (Unassigned division) from
     /// dropped/waitlist registrations, which use other division names. Value is null when

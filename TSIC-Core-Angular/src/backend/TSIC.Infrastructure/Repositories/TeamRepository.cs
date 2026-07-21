@@ -41,6 +41,20 @@ public class TeamRepository : ITeamRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<HashSet<Guid>> GetWaitlistTeamIdsAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        if (teamIds.Count == 0) return new HashSet<Guid>();
+
+        var ids = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId)
+                        && (t.Agegroup.AgegroupName ?? "").StartsWith(AgegroupConstants.WaitlistPrefix))
+            .Select(t => t.TeamId)
+            .ToListAsync(cancellationToken);
+
+        return ids.ToHashSet();
+    }
+
     public async Task<Dictionary<Guid, string?>> GetTeamDivisionNamesAsync(Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
     {
         // Div is a nullable nav → EF emits a LEFT JOIN; DivName is null when the team has no division.

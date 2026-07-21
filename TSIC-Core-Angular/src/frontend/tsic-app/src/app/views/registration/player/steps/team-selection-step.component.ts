@@ -125,7 +125,7 @@ const JOB_TYPE_TOURNAMENT = 2;
                                    [disabled]="isCampAlreadyRegistered(pid, team.teamId)"
                                    (change)="toggleCampSelection(pid, team.teamId)">
                             <div class="camp-info">
-                              <span class="camp-name">{{ team.teamName }}</span>
+                              <span class="camp-name">{{ campDisplayName(team) }}</span>
                               @if (team.divisionName) {
                                 <span class="camp-division">{{ team.divisionName }}</span>
                               }
@@ -141,7 +141,11 @@ const JOB_TYPE_TOURNAMENT = 2;
                                   <span class="camp-fee">{{ team.effectiveFee | currency }}</span>
                                 }
                               </div>
-                              @if (isCampAlreadyRegistered(pid, team.teamId)) {
+                              @if (isWaitlistPlacementName(team.teamName)) {
+                                <span class="camp-waitlist-badge">
+                                  <i class="bi bi-hourglass-split me-1"></i>Waitlisted &middot; $0
+                                </span>
+                              } @else if (isCampAlreadyRegistered(pid, team.teamId)) {
                                 <span class="camp-registered-badge">
                                   <i class="bi bi-check-circle-fill me-1"></i>Registered
                                 </span>
@@ -683,6 +687,12 @@ const JOB_TYPE_TOURNAMENT = 2;
         color: var(--bs-danger);
       }
 
+      .camp-waitlist-badge {
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-semibold);
+        color: var(--bs-warning-emphasis);
+      }
+
       .waitlist-alert {
         display: flex;
         align-items: flex-start;
@@ -757,7 +767,7 @@ export class TeamSelectionStepComponent {
     readonly isTournament = computed(() => this.jobService.currentJob()?.jobTypeId === JOB_TYPE_TOURNAMENT);
 
     getTeamDropdownItems(playerId: string): { text: string; value: string; status: string }[] {
-        return this.getAvailableTeamDtos(playerId).map(team => {
+        const items = this.getAvailableTeamDtos(playerId).map(team => {
             // Identity reads clubName:agegroupName:teamName (club optional). Agegroup leads
             // the team name because self-roster "free agent" teams share a generic name
             // across agegroups — the agegroup is what disambiguates them in the list.
@@ -801,6 +811,12 @@ export class TeamSelectionStepComponent {
 
             return { text: label, value: team.teamId, status };
         });
+        // Re-add the player's own WAITLIST placement (kept out of the base list) so the dropdown can
+        // render their current value and they can switch off it — the PP mirror of getSelectedCamps.
+        for (const p of this.getWaitlistPlacementCamps(playerId)) {
+            items.push({ text: `⚠ WAITLIST · ${this.campDisplayName(p)} (${this.formatCurrency(0)})`, value: p.teamId, status: 'waitlist' });
+        }
+        return items;
     }
 
     private formatCurrency(amount: number): string {
@@ -842,9 +858,18 @@ export class TeamSelectionStepComponent {
         return this.state.eligibility.getEligibilityForPlayer(playerId);
     }
 
+    /** A registered player whose current placement is a WAITLIST spot — switchable, so not locked. */
+    isPlayerOnWaitlistPlacement(playerId: string): boolean {
+        const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
+        return player?.priorRegistrations?.some(r => this.isWaitlistPlacementName(r.assignedTeamName)) ?? false;
+    }
+
     isPlayerLocked(playerId: string): boolean {
         // CAC: players are never fully locked — they can always add more camps
         if (this.state.jobCtx.isCacMode()) return false;
+        // A confirmed real-team registration locks (renders as a label). A $0 WAITLIST placement is
+        // switchable, so it drops through to the dropdown just like a new registration.
+        if (this.isPlayerOnWaitlistPlacement(playerId)) return false;
         return this.state.familyPlayers.isPlayerLocked(playerId);
     }
 
@@ -1025,15 +1050,71 @@ export class TeamSelectionStepComponent {
         return start || end;
     }
 
+    /**
+     * A registration whose assigned team is a WAITLIST placement — recognized by the team-name
+     * prefix the backend mints ("WAITLIST - {team}"). These are $0 queue placements, NOT confirmed
+     * seats: the player CAN switch off them, so they must never be locked like a paid registration.
+     */
+    isWaitlistPlacementName(name: string | null | undefined): boolean {
+        return /^\s*WAITLIST\s*-\s*/i.test(name ?? '');
+    }
+
+    /** Display name with the "WAITLIST - " mint prefix stripped — the badge conveys the status. */
+    campDisplayName(team: AvailableTeamDto): string {
+        return team.teamName.replace(/^\s*WAITLIST\s*-\s*/i, '').trim() || team.teamName;
+    }
+
     isCampAlreadyRegistered(playerId: string, teamId: string): boolean {
         const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
         if (!player?.registered) return false;
-        return player.priorRegistrations?.some(r => r.assignedTeamId === teamId) ?? false;
+        // A WAITLIST placement is switchable, not a locked commitment — exclude it so the card stays
+        // deselectable. Only a real, confirmed placement locks the camp.
+        return player.priorRegistrations?.some(
+            r => r.assignedTeamId === teamId && !this.isWaitlistPlacementName(r.assignedTeamName),
+        ) ?? false;
+    }
+
+    /**
+     * A previously-registered player who was moved to a WAITLIST team sits on a team the backend
+     * filters out of the available-teams list, so their own current placement can't otherwise render.
+     * Rebuild it from the registration itself (id + name, $0) and surface it ONLY through
+     * getSelectedCamps — never in the base available list. Skips any placement whose team is already
+     * visible in the list (nothing to re-add).
+     */
+    getWaitlistPlacementCamps(playerId: string): AvailableTeamDto[] {
+        const player = this.state.familyPlayers.familyPlayers().find(fp => fp.playerId === playerId);
+        if (!player?.registered) return [];
+        const visible = new Set(this.getAvailableTeamDtos(playerId).map(t => t.teamId));
+        const out: AvailableTeamDto[] = [];
+        for (const r of player.priorRegistrations ?? []) {
+            if (!r.assignedTeamId || visible.has(r.assignedTeamId)) continue;
+            if (!this.isWaitlistPlacementName(r.assignedTeamName)) continue;
+            out.push({
+                teamId: r.assignedTeamId,
+                teamName: r.assignedTeamName ?? 'Waitlist',
+                agegroupId: '',
+                maxRosterSize: 0,
+                currentRosterSize: 0,
+                rosterIsFull: true,
+                feeConfigured: true,
+                fullPaymentRequired: false,
+                jobUsesWaitlists: true,
+                effectiveFee: 0,
+                deposit: 0,
+                divisionName: null,
+                startDate: null,
+                endDate: null,
+            });
+        }
+        return out;
     }
 
     getSelectedCamps(playerId: string): AvailableTeamDto[] {
         const selected = new Set(this.getSelectedTeamIds(playerId));
-        return this.getAvailableTeamDtos(playerId).filter(t => selected.has(t.teamId));
+        const fromList = this.getAvailableTeamDtos(playerId).filter(t => selected.has(t.teamId));
+        // Re-add the player's own waitlist placement, which the backend keeps out of the base list.
+        const fromPlacements = this.getWaitlistPlacementCamps(playerId).filter(t => selected.has(t.teamId));
+        return [...fromList, ...fromPlacements];
     }
 
     getUnselectedCamps(playerId: string): AvailableTeamDto[] {
