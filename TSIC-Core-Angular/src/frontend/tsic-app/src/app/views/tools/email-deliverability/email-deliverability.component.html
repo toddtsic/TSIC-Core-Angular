@@ -164,9 +164,12 @@
 
 			@if (sentLoaded() && sentEmails().length > 0) {
 				<p class="tab-help">
-					Messages we've sent you for <strong>{{ programName() }}</strong>. Click a column to sort.
-					Amazon AWS Email Services accepted these for delivery — that isn't a guarantee they reached
-					your inbox (see the note on the Current Status tab).
+					Every message on this list <strong>was sent to your contact email address(es) by Amazon AWS
+					Email Services</strong> for <strong>{{ programName() }}</strong>. Click a column to sort.
+					If one of these didn't reach you, the problem is on the receiving end — check your
+					<strong>junk/spam</strong> folder, make sure the <strong>mailbox isn't full</strong>, add
+					<strong>support&#64;teamsportsinfo.com</strong> to your contacts, and if it still doesn't
+					arrive, contact <strong>your email provider</strong>.
 				</p>
 				<ejs-grid
 					[dataSource]="sentEmails()"
