@@ -122,7 +122,7 @@ import type { RegisteredTeamDto } from '@core/api';
                               data-help="Correction Record, Early Bird Discount, Late Fee or Discount Code amount applied"></i></span>
             </ng-template>
             <ng-template #template let-data>
-              <span [class.text-success]="data.feeAdj < 0">{{ data.feeAdj | currency }}</span>
+              <span [style.color]="data.feeAdj < 0 ? 'var(--brand-success)' : data.feeAdj > 0 ? 'var(--brand-danger)' : ''">{{ data.feeAdj | currency }}</span>
             </ng-template>
           </e-column>
           <e-column field="ccOwedTotal" [headerText]="ccOwedHeader()" width="75" textAlign="Right"
@@ -205,7 +205,7 @@ import type { RegisteredTeamDto } from '@core/api';
               </e-column>
               <e-column field="feeAdj" type="Sum" format="C2">
                 <ng-template #footerTemplate let-data>
-                  <div class="aggregate-value" [class.text-success]="sumFeeAdj() < 0">{{ sumFeeAdj() | currency }}</div>
+                  <div class="aggregate-value" [style.color]="sumFeeAdj() < 0 ? 'var(--brand-success)' : sumFeeAdj() > 0 ? 'var(--brand-danger)' : ''">{{ sumFeeAdj() | currency }}</div>
                 </ng-template>
               </e-column>
               <e-column field="ccOwedTotal" type="Sum" format="C2">
