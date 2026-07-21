@@ -524,6 +524,12 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
         if (propertyType == "int" || propertyType == "int?" || propertyType == "decimal" || propertyType == "decimal?" || propertyType == "double" || propertyType == "double?")
             return "NUMBER";
 
+        // HeightInches is captured as raw inches (legacy [Range(36,84)] numeric), NOT a dropdown.
+        // Keep it a NUMBER input so a stored raw-inch value (e.g. 70) renders and prefills directly,
+        // instead of being force-cast to a feet-inches <select> whose options never match the number.
+        if (propertyName.Equals("HeightInches", StringComparison.OrdinalIgnoreCase))
+            return "NUMBER";
+
         // Infer based on property name
         if (propertyName.EndsWith("Email", StringComparison.OrdinalIgnoreCase))
             return "EMAIL";
@@ -551,7 +557,7 @@ public class CSharpToMetadataParser : ICSharpToMetadataParser
             "SportYearsExp" => "List_YearsExperience",
             "StrongHand" => "List_StrongHand",
             "WhoReferred" => "List_WhoReferred",
-            "HeightInches" => "List_HeightInches",
+            // HeightInches is a raw-inches NUMBER input (see InferInputType) — no dropdown data source.
             "Gloves" or "GlovesSize" => "ListSizes_Gloves",
             "JerseySize" => "ListSizes_Jersey",
             "Kilt" or "KiltSize" => "ListSizes_Kilt",
