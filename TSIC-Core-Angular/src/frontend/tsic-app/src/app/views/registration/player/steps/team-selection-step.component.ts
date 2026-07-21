@@ -137,7 +137,7 @@ const JOB_TYPE_TOURNAMENT = 2;
                                 }
                                 @if (team.feeConfigured === false) {
                                   <span class="camp-fee-unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
-                                } @else if (team.effectiveFee != null && team.effectiveFee > 0) {
+                                } @else if (team.effectiveFee != null) {
                                   <span class="camp-fee">{{ team.effectiveFee | currency }}</span>
                                 }
                               </div>
@@ -180,7 +180,7 @@ const JOB_TYPE_TOURNAMENT = 2;
                                 }
                                 @if (team.feeConfigured === false) {
                                   <span class="camp-fee-unset"><i class="bi bi-exclamation-triangle me-1"></i>Fee not set</span>
-                                } @else if (team.effectiveFee != null && team.effectiveFee > 0) {
+                                } @else if (team.effectiveFee != null) {
                                   <span class="camp-fee">{{ team.effectiveFee | currency }}</span>
                                 }
                               </div>
