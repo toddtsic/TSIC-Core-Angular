@@ -201,7 +201,7 @@ $adminManifest = @(
     # -- 6. Communications -------------------------------------------------
     (New-AdminItem 'Communications' 'megaphone' 6 'Bulletins'             'megaphone'            'communications/bulletins'         1 1 1 1)
     (New-AdminItem 'Communications' 'megaphone' 6 'Email Log'             'envelope-open'        'communications/email-log'         2 1 1 1)
-    (New-AdminItem 'Communications' 'megaphone' 6 'E-Mail Troubleshooter' 'envelope-exclamation' 'tools/email-troubleshooter'       3 0 0 1 $null 'NEW')
+    (New-AdminItem 'Communications' 'megaphone' 6 'E-Mail Troubleshooter' 'envelope-exclamation' 'tools/email-troubleshooter'       3 1 1 1 $null 'NEW')
     (New-AdminItem 'Communications' 'megaphone' 6 'Push Notification'     'bell'                 'communications/push-notification' 4 1 1 1 $rulesMobileEnabled)
     (New-AdminItem 'Communications' 'megaphone' 6 'Team Links'            'link-45deg'           'communications/team-links'        5 1 1 1 $rulesPlayerSite)
 

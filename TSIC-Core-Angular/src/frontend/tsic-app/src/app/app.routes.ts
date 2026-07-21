@@ -301,8 +301,16 @@ export const routes: Routes = [
 					{
 						path: 'email-troubleshooter',
 						canActivate: [authGuard],
-						data: { roles: [Roles.Superuser] },
+						data: { roles: [Roles.Superuser, Roles.Director, Roles.SuperDirector] },
 						loadComponent: () => import('./views/tools/e-mail-troubleshooter/e-mail-troubleshooter.component').then(m => m.EmailTroubleshooterComponent)
+					},
+					{
+						// Player-facing companion: check/restore only the caller's own family emails.
+						// Server derives the address set from the JWT and gates every action.
+						path: 'email-deliverability',
+						canActivate: [authGuard],
+						data: { roles: [Roles.Player] },
+						loadComponent: () => import('./views/tools/email-deliverability/email-deliverability.component').then(m => m.EmailDeliverabilityComponent)
 					},
 					{
 						path: 'uslax-test',

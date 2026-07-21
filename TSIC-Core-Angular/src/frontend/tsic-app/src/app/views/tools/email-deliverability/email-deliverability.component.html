@@ -1,0 +1,191 @@
+<div class="email-check">
+	<header class="page-head">
+		<h1 class="page-title">Check My Email</h1>
+		<p class="page-sub">
+			See whether the email addresses on your account can receive our messages, send yourself a
+			test, and review what we've sent you.
+		</p>
+	</header>
+
+	<ul class="nav nav-tabs" role="tablist">
+		<li class="nav-item" role="presentation">
+			<button
+				type="button"
+				class="nav-link"
+				[class.active]="activeTab() === 'status'"
+				(click)="setTab('status')"
+				role="tab">
+				Current Status
+			</button>
+		</li>
+		<li class="nav-item" role="presentation">
+			<button
+				type="button"
+				class="nav-link"
+				[class.active]="activeTab() === 'history'"
+				(click)="setTab('history')"
+				role="tab">
+				E-Mail History
+			</button>
+		</li>
+	</ul>
+
+	<!-- ─────────────── Tab 1: Current Status ─────────────── -->
+	@if (activeTab() === 'status') {
+		<section class="tab-panel" role="tabpanel">
+			@if (loading()) {
+				<div class="status-line" role="status">Checking your email addresses…</div>
+			}
+
+			@if (error()) {
+				<div class="alert alert-danger" role="alert">{{ error() }}</div>
+			}
+
+			@if (loaded() && !loading() && entries().length === 0 && !error()) {
+				<div class="empty-state">
+					We couldn't find any email addresses on your account to check. If you expected to see
+					one, please update your family or player profile.
+				</div>
+			}
+
+			@if (entries().length > 0) {
+				<div class="result-list">
+					@for (row of entries(); track row.email) {
+						<div class="email-row">
+							<div class="row-main">
+								<span class="row-email">{{ row.email }}</span>
+								@switch (row.status) {
+									@case ('Suppressed') { <span class="badge bg-danger">Blocked</span> }
+									@case ('NotSuppressed') { <span class="badge bg-success">Not blocked</span> }
+									@default { <span class="badge bg-secondary">Couldn't check</span> }
+								}
+							</div>
+
+							<!-- Strong, status-appropriate language -->
+							@switch (row.status) {
+								@case ('Suppressed') {
+									<p class="row-note note-warn">
+										Our email provider is blocking this address after a message bounced or was
+										marked as spam. Make sure this mailbox works, then restore delivery.
+										@if (row.reason) { <span class="detail-chip">Reason: {{ row.reason }}</span> }
+										@if (row.lastUpdate) { <span class="detail-chip">Blocked since: {{ row.lastUpdate | date:'mediumDate' }}</span> }
+									</p>
+								}
+								@case ('NotSuppressed') {
+									<p class="row-note">
+										This address is not blocked on our end. If a message doesn't arrive, the problem
+										is not on our side — check your junk/spam folder, make sure the mailbox isn't
+										full, and add <strong>support&#64;teamsportsinfo.com</strong> to your contacts.
+									</p>
+								}
+								@default {
+									<p class="row-note note-muted">
+										We couldn't check this address just now. Try again in a moment.
+									</p>
+								}
+							}
+
+							<!-- Result of a test send, if one was run -->
+							@if (testResultFor(row.email); as res) {
+								@switch (res.side) {
+									@case ('Recipient') {
+										<p class="row-note note-ok">
+											✓ We sent a test message and Amazon SES accepted it for delivery. The problem
+											isn't on our end. If you don't see it, check junk/spam and your mailbox
+											quota, and allowlist support&#64;teamsportsinfo.com.
+										</p>
+									}
+									@case ('Inconclusive') {
+										<p class="row-note note-danger">
+											Something went wrong on our end sending this test. Please contact
+											<strong>support&#64;teamsportsinfo.com</strong>.
+										</p>
+									}
+								}
+							}
+
+							<div class="row-action">
+								@if (row.status === 'Suppressed') {
+									<button
+										type="button"
+										class="btn btn-sm btn-outline-primary"
+										(click)="unsuppress(row.email)"
+										[disabled]="isRemoving(row.email)">
+										{{ isRemoving(row.email) ? 'Restoring…' : 'Restore delivery' }}
+									</button>
+								}
+								<button
+									type="button"
+									class="btn btn-sm btn-outline-secondary"
+									(click)="sendTest(row.email)"
+									[disabled]="isTesting(row.email) || isCoolingDown(row.email)">
+									@if (isTesting(row.email)) { Sending… }
+									@else if (isCoolingDown(row.email)) { Sent ✓ — wait a minute }
+									@else { Send test email }
+								</button>
+							</div>
+						</div>
+					}
+				</div>
+
+				<!-- The honest limit of what "not blocked" / "sent" can promise. -->
+				<div class="disclaimer" role="note">
+					<p class="disclaimer-title">What this can and can't tell you</p>
+					<p class="disclaimer-text">
+						"Not blocked" means the address isn't on our email provider's block list, and a
+						successful test means Amazon SES accepted the message — that's the most any sender can
+						confirm, and it means the problem isn't on our end. It does <strong>not</strong>
+						guarantee a message reached your inbox: it can still land in <strong>junk/spam</strong>,
+						be held or silently dropped by your <strong>mail provider or security filter</strong>,
+						or be rejected if the <strong>mailbox is full</strong>. If you're missing something,
+						check spam/junk and add <strong>support&#64;teamsportsinfo.com</strong> to your contacts.
+					</p>
+				</div>
+			}
+		</section>
+	}
+
+	<!-- ─────────────── Tab 2: E-Mail History ─────────────── -->
+	@if (activeTab() === 'history') {
+		<section class="tab-panel" role="tabpanel">
+			@if (!sentLoaded()) {
+				<div class="status-line" role="status">Loading your email history…</div>
+			}
+
+			@if (sentLoaded() && sentEmails().length === 0) {
+				<div class="empty-state">
+					We don't have a record of sending email to your current address(es). A message you were
+					copied on, one sent to a former address, or a send that failed may not appear here — that
+					doesn't mean we never contacted you.
+				</div>
+			}
+
+			@if (sentLoaded() && sentEmails().length > 0) {
+				<p class="tab-help">
+					Messages we dispatched to your address(es), across all your programs. Click a column to
+					sort. Dispatched isn't a guarantee of delivery — see the note on the Current Status tab.
+				</p>
+				<ejs-grid
+					[dataSource]="sentEmails()"
+					cssClass="tsic-grid-tight"
+					[allowSorting]="true"
+					[allowMultiSorting]="true"
+					[sortSettings]="sortSettings">
+					<e-columns>
+						<e-column field="jobName" headerText="Program" width="200">
+							<ng-template #template let-data>
+								<span class="text-truncate d-inline-block" style="max-width: 180px;">{{ data.jobName || '—' }}</span>
+							</ng-template>
+						</e-column>
+						<e-column field="sentAt" headerText="Sent" width="150" type="date" format="M/d/yy h:mm a"></e-column>
+						<e-column field="subject" headerText="Subject">
+							<ng-template #template let-data>
+								<span class="text-truncate d-inline-block" style="max-width: 320px;">{{ data.subject || '(no subject)' }}</span>
+							</ng-template>
+						</e-column>
+					</e-columns>
+				</ejs-grid>
+			}
+		</section>
+	}
+</div>

@@ -35,6 +35,7 @@ using TSIC.API.Services.Shared.Email;
 using TSIC.API.Services.Shared.Registration;
 using TSIC.Application.Services.DiscountCode;
 using TSIC.API.Services.Admin;
+using TSIC.API.Services.Account;
 using TSIC.API.Services.Scheduling;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.TextSubstitution;
@@ -449,6 +450,8 @@ builder.Services.AddSingleton<Amazon.SimpleEmailV2.IAmazonSimpleEmailServiceV2>(
 });
 builder.Services.AddSingleton<IEmailService, EmailService>();
 builder.Services.AddScoped<IEmailTroubleshooterService, EmailTroubleshooterService>();
+// Player-facing companion: check/unsuppress only the caller's own family emails (reuses the troubleshooter's SES ops).
+builder.Services.AddScoped<IMyEmailDeliverabilityService, MyEmailDeliverabilityService>();
 // Batch-email engine: background orchestration above the SES transport. Both singletons
 // (engine owns no scoped state; render workers create their own scopes per IEmailBatchService).
 builder.Services.AddSingleton<IEmailBatchJobRegistry, EmailBatchJobRegistry>();

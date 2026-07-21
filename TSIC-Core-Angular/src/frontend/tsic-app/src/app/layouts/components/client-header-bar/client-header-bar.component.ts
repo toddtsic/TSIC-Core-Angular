@@ -152,6 +152,10 @@ export class ClientHeaderBarComponent {
             if (pulse.myAdnSubscriptionId && user.regId) {
                 items.push({ icon: 'bi-credit-card', label: 'Update CC Info', route: `arb/update-cc/${user.regId}` });
             }
+            // Player-only self-service: check whether our email reaches them, and unblock it.
+            if (role === Roles.Player) {
+                items.push({ icon: 'bi-envelope-check', label: 'Check My Email', route: 'tools/email-deliverability' });
+            }
         } else if (role === Roles.Staff) {
             // Staff = a self-rostered coach; the adult wizard REQUIRES ?role=<key> or it
             // shows an "incomplete link" error, so the coach roleKey must ride the URL.

@@ -9,12 +9,13 @@ namespace TSIC.API.Controllers;
 /// SuperUser diagnostics for email-delivery complaints. Two capabilities:
 ///  - suppression list lookup/removal (SES v2)
 ///  - "investigate" = check suppression + forced test send + which-side conclusion.
-/// Cross-job SuperUser tool: no :jobPath in the route (mirrors AdministratorsController/MenuAdminController).
-/// SuperUser-only (SES suppression edits are platform-wide, not job-scoped).
+/// Cross-job admin tool: no :jobPath in the route (mirrors AdministratorsController/MenuAdminController).
+/// AdminOnly (Superuser/Director/SuperDirector). NOTE: SES suppression edits are account-wide, not
+/// job-scoped — a Director acting here can remove ANY address from the platform suppression list.
 /// </summary>
 [ApiController]
 [Route("api/email-troubleshooter")]
-[Authorize(Policy = "SuperUserOnly")]
+[Authorize(Policy = "AdminOnly")]
 public class EmailTroubleshooterController : ControllerBase
 {
     private readonly IEmailTroubleshooterService _service;

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TSIC.Contracts.Dtos;
+using TSIC.Contracts.Dtos.EmailTroubleshooter;
 using TSIC.Contracts.Repositories;
 using TSIC.Domain.Entities;
 using TSIC.Infrastructure.Data.SqlDbContext;
@@ -49,6 +50,43 @@ public class EmailLogRepository : IEmailLogRepository
                 Msg = e.Msg
             })
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<List<PlayerSentEmailDto>> GetSentToAddressesAllJobsAsync(
+        IReadOnlyList<string> addresses,
+        CancellationToken cancellationToken = default)
+    {
+        // Delimiter-anchored, case-insensitive: wrap the stored ';'-joined recipient list in ';'
+        // and match "%;addr;%" so an address can't match as a substring of a longer one.
+        var lowered = (addresses ?? Array.Empty<string>())
+            .Where(a => !string.IsNullOrWhiteSpace(a))
+            .Select(a => a.Trim().ToLower())
+            .Distinct()
+            .ToList();
+        if (lowered.Count == 0)
+        {
+            return new List<PlayerSentEmailDto>();
+        }
+
+        // Cross-job: no JobId filter. Job name comes from the (nullable) Job navigation via a LEFT
+        // JOIN, so orphaned/null-job rows still surface with a null name.
+        var baseQuery = _context.EmailLogs
+            .AsNoTracking()
+            .Where(e => e.SendTo != null);
+
+        // One LIKE per address, OR-combined via Union so the query translates for any address
+        // count. Project to a small keyed shape BEFORE the Union so the nvarchar(max) msg/sendTo
+        // columns are never pulled into the DISTINCT; EmailId keeps distinct batches separate.
+        var union = lowered
+            .Select(addr => baseQuery
+                .Where(e => EF.Functions.Like(";" + e.SendTo!.ToLower() + ";", "%;" + addr + ";%"))
+                .Select(e => new { e.EmailId, JobName = e.Job!.JobName, e.Subject, e.SendTs }))
+            .Aggregate((a, b) => a.Union(b));
+
+        return await union
+            .OrderByDescending(x => x.SendTs)
+            .Select(x => new PlayerSentEmailDto { JobName = x.JobName, Subject = x.Subject, SentAt = x.SendTs })
+            .ToListAsync(cancellationToken);
     }
 
     public async Task LogAsync(
