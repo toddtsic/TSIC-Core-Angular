@@ -23,17 +23,25 @@ public class BulletinService : IBulletinService
     private readonly BulletinTokenRegistry _tokenRegistry;
     private readonly ILogger<BulletinService> _logger;
 
+    // Go-live cutover switch (appsettings "bGoLive"): false in Production, true elsewhere.
+    // When true, legacy-link bulletins are auto-retired on read (smart bulletins have
+    // superseded them). Distinct from IHostEnvironment.IsSandbox() on purpose — this flag
+    // is meant to be flipped to true in Production at cutover; env identity can't express that.
+    private readonly bool _bGoLive;
+
     public BulletinService(
         IJobLookupService jobLookupService,
         IJobRepository jobRepository,
         IBulletinRepository bulletinRepository,
         BulletinTokenRegistry tokenRegistry,
+        IConfiguration configuration,
         ILogger<BulletinService> logger)
     {
         _jobLookupService = jobLookupService;
         _jobRepository = jobRepository;
         _bulletinRepository = bulletinRepository;
         _tokenRegistry = tokenRegistry;
+        _bGoLive = configuration.GetValue<bool>("bGoLive");
         _logger = logger;
     }
 
@@ -72,8 +80,21 @@ public class BulletinService : IBulletinService
         }
 
         var processedBulletins = new List<BulletinDto>();
+        List<Guid>? legacyBulletinIds = null;
         foreach (var bulletin in bulletins)
         {
+            // Go-live cutover: smart bulletins have superseded the hand-authored bulletins
+            // whose links point at legacy MVC routes. In go-live environments (bGoLive=true)
+            // retire those (Active = 0) and drop them from the response; Production (false)
+            // is untouched. Detection mirrors the frontend TranslateLegacyUrlsPipe — see
+            // LegacyBulletinPatterns. Runs on the raw body, before !TOKEN resolution (which
+            // emits new-route links and would never match a legacy fragment).
+            if (_bGoLive && LegacyBulletinPatterns.HasLegacyLink(bulletin.Text))
+            {
+                (legacyBulletinIds ??= new List<Guid>()).Add(bulletin.BulletinId);
+                continue;
+            }
+
             var title = ReplaceTextTokens(bulletin.Title ?? string.Empty, jobName, uslaxDate);
             var text = ReplaceTextTokens(bulletin.Text ?? string.Empty, jobName, uslaxDate);
 
@@ -92,6 +113,17 @@ public class BulletinService : IBulletinService
                 EndDate = bulletin.EndDate,
                 CreateDate = bulletin.CreateDate
             });
+        }
+
+        // Lazy one-time retirement: after the first fetch flips them, the repository's
+        // Active filter excludes them on every subsequent fetch. Single atomic UPDATE.
+        if (legacyBulletinIds is { Count: > 0 })
+        {
+            var retired = await _bulletinRepository.DeactivateBulletinsAsync(
+                jobMetadata.JobId, legacyBulletinIds, cancellationToken);
+            _logger.LogInformation(
+                "Retired {Count} legacy-link bulletin(s) for job {JobPath} (bGoLive).",
+                retired, jobPath);
         }
 
         return processedBulletins;

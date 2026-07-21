@@ -923,6 +923,10 @@ builder.Host.UseSerilog();
         cfg["AdnSweep:SweepHourLocal"] ?? "(unset)");
 
     bootLog.Information(
+        "[STARTUP-CONFIG] bGoLive: {BGoLive} (true = auto-retire legacy-link bulletins)",
+        cfg["bGoLive"] ?? "(unset)");
+
+    bootLog.Information(
         "[STARTUP-CONFIG] anthropic: model={Model} apiKeyFp={Fp}",
         cfg["Anthropic:Model"] ?? "(unset)",
         Fp4(cfg["Anthropic:ApiKey"] ?? Environment.GetEnvironmentVariable("ANTHROPIC_API_KEY")));

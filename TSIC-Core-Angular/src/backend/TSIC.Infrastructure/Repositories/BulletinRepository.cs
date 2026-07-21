@@ -96,6 +96,26 @@ public class BulletinRepository : IBulletinRepository
         return await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<int> DeactivateBulletinsAsync(
+        Guid jobId,
+        IReadOnlyCollection<Guid> bulletinIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (bulletinIds.Count == 0)
+        {
+            return 0;
+        }
+
+        // Single atomic UPDATE; the Active filter makes concurrent re-runs a no-op.
+        return await _context.Bulletins
+            .Where(b => b.JobId == jobId && b.Active == true && bulletinIds.Contains(b.BulletinId))
+            .ExecuteUpdateAsync(
+                s => s
+                    .SetProperty(b => b.Active, false)
+                    .SetProperty(b => b.Modified, DateTime.Now),
+                cancellationToken);
+    }
+
     public void Add(Bulletins bulletin)
     {
         _context.Bulletins.Add(bulletin);
