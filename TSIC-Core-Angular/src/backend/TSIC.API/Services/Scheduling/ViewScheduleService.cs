@@ -510,27 +510,12 @@ public sealed class ViewScheduleService : IViewScheduleService
     private async Task<Dictionary<Guid, string>> BuildTeamRecordLookupAsync(
         Guid jobId, CancellationToken ct)
     {
-        var allGames = await _scheduleRepo.GetFilteredGamesAsync(jobId, new ScheduleFilterRequest(), ct);
-
-        var scoredPoolPlay = allGames
-            .Where(g => g.T1Type == "T" && g.T2Type == "T"
-                && g.T1Score.HasValue && g.T2Score.HasValue
-                && g.T1Id.HasValue && g.T2Id.HasValue)
-            .ToList();
-
-        var teamStats = new Dictionary<Guid, TeamStatsAccumulator>();
-
-        foreach (var g in scoredPoolPlay)
-        {
-            AccumulateStats(teamStats, g.T1Id!.Value, g.T1Name ?? "", g.AgegroupName ?? "",
-                g.DivName ?? "", g.DivId ?? Guid.Empty, g.T1Score!.Value, g.T2Score!.Value);
-            AccumulateStats(teamStats, g.T2Id!.Value, g.T2Name ?? "", g.AgegroupName ?? "",
-                g.DivName ?? "", g.DivId ?? Guid.Empty, g.T2Score!.Value, g.T1Score!.Value);
-        }
-
-        return teamStats.ToDictionary(
-            kvp => kvp.Key,
-            kvp => $"{kvp.Value.Wins}-{kvp.Value.Losses}-{kvp.Value.Ties}");
+        // Server-side GROUP BY — the record strings are the only thing this lookup needs, so we
+        // never re-load the whole job's games as tracked entities just to count them.
+        var records = await _scheduleRepo.GetTeamRecordsAsync(jobId, ct);
+        return records.ToDictionary(
+            r => r.TeamId,
+            r => $"{r.Wins}-{r.Losses}-{r.Ties}");
     }
 
     private async Task<StandingsByDivisionResponse> BuildStandingsAsync(

@@ -28,6 +28,19 @@ public record ScheduleFilterRequest
 }
 
 /// <summary>
+/// Server-aggregated round-robin record for one team (job-wide). Built by a single GROUP BY in
+/// the repository — replaces re-fetching every game as a tracked entity just to count W-L-T.
+/// Round-robin only (T1Type == T2Type == "T"); bracket/bronze/consolation never affect a record.
+/// </summary>
+public record TeamRecordAggregate
+{
+    public required Guid TeamId { get; init; }
+    public required int Wins { get; init; }
+    public required int Losses { get; init; }
+    public required int Ties { get; init; }
+}
+
+/// <summary>
 /// Quick inline score edit — the most common use case.
 /// </summary>
 public record EditScoreRequest

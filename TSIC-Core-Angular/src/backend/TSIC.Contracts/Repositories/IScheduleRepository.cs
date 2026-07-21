@@ -250,6 +250,12 @@ public interface IScheduleRepository
     Task<List<Guid>> GetHideScoresAgegroupIdsAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
+    /// Job-wide round-robin W-L-T per team, aggregated in one GROUP BY. Replaces re-loading every
+    /// game as a tracked entity solely to count records. Round-robin only, both scores present.
+    /// </summary>
+    Task<List<Dtos.Scheduling.TeamRecordAggregate>> GetTeamRecordsAsync(Guid jobId, CancellationToken ct = default);
+
+    /// <summary>
     /// Get staff contacts for teams in the filtered schedule.
     /// Returns registrations with Staff role assigned to teams that appear in games.
     /// </summary>

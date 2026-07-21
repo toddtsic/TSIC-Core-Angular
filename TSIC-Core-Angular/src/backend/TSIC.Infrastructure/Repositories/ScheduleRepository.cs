@@ -939,6 +939,32 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToListAsync(ct);
     }
 
+    public async Task<List<TeamRecordAggregate>> GetTeamRecordsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Round-robin, scored, both teams present. Each game counts once per team, so we union the
+        // T1 and T2 perspectives and GROUP BY teamId — one aggregate query, no entity materialization.
+        var scored = _context.Schedule
+            .AsNoTracking()
+            .Where(s => s.JobId == jobId
+                && s.T1Type == GameRoundTypes.RoundRobin && s.T2Type == GameRoundTypes.RoundRobin
+                && s.T1Score.HasValue && s.T2Score.HasValue
+                && s.T1Id.HasValue && s.T2Id.HasValue);
+
+        var t1 = scored.Select(s => new { TeamId = s.T1Id!.Value, Mine = s.T1Score!.Value, Opp = s.T2Score!.Value });
+        var t2 = scored.Select(s => new { TeamId = s.T2Id!.Value, Mine = s.T2Score!.Value, Opp = s.T1Score!.Value });
+
+        return await t1.Concat(t2)
+            .GroupBy(r => r.TeamId)
+            .Select(g => new TeamRecordAggregate
+            {
+                TeamId = g.Key,
+                Wins = g.Count(x => x.Mine > x.Opp),
+                Losses = g.Count(x => x.Mine < x.Opp),
+                Ties = g.Count(x => x.Mine == x.Opp)
+            })
+            .ToListAsync(ct);
+    }
+
     public async Task<List<ContactDto>> GetContactsAsync(
         Guid jobId, ScheduleFilterRequest request, CancellationToken ct = default)
     {
