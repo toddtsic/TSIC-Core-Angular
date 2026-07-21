@@ -40,4 +40,13 @@ public interface IMyEmailDeliverabilityService
     /// </summary>
     Task<IReadOnlyList<PlayerSentEmailDto>> GetSentHistoryAsync(
         Guid jobId, string familyUserId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The unresolved body template of one send in the history, only when that batch was dispatched
+    /// to one of this family's own addresses in the job. Returns <c>null</c> when the batch is not
+    /// the caller's (surface as 404). The template still contains substitution tokens — it is what
+    /// produced the message, not the personalized copy any one recipient received.
+    /// </summary>
+    Task<string?> GetSentTemplateAsync(
+        Guid jobId, string familyUserId, int emailId, CancellationToken cancellationToken = default);
 }

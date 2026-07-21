@@ -41,4 +41,13 @@ export class EmailDeliverabilityService {
 	getSentHistory(): Observable<PlayerSentEmailDto[]> {
 		return this.http.get<PlayerSentEmailDto[]>(`${this.apiUrl}/sent-history`);
 	}
+
+	/**
+	 * The raw body template (substitution tokens unresolved) for one send in the history. Server
+	 * returns it only when that batch was dispatched to one of the caller's own addresses (404 otherwise).
+	 * responseType 'text' — the body is an HTML string, not JSON.
+	 */
+	getSentTemplate(emailId: number): Observable<string> {
+		return this.http.get(`${this.apiUrl}/sent-history/${emailId}/template`, { responseType: 'text' });
+	}
 }

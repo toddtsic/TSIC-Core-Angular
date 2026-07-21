@@ -3,6 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export type PlayerSentEmailDto = {
+    emailId: number;
     subject: string | null;
     sentAt: string;
 };

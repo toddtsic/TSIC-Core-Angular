@@ -87,6 +87,19 @@ public sealed class MyEmailDeliverabilityService : IMyEmailDeliverabilityService
         return await _emailLogs.GetSentToAddressesAsync(jobId, emails, cancellationToken);
     }
 
+    public async Task<string?> GetSentTemplateAsync(
+        Guid jobId, string familyUserId, int emailId, CancellationToken cancellationToken = default)
+    {
+        var emails = await _families.GetEmailsForFamilyAndPlayersAsync(jobId, familyUserId, cancellationToken);
+        if (emails.Count == 0)
+        {
+            return null;
+        }
+        // The repo returns the template only if this batch was sent to one of these addresses —
+        // that same membership check is the authorization gate.
+        return await _emailLogs.GetSentTemplateForAddressesAsync(jobId, emailId, emails, cancellationToken);
+    }
+
     /// <summary>
     /// Returns the trimmed address only if it belongs to this family's sendable set for the job;
     /// otherwise null. The single gate that authorizes touching the account-wide Amazon SES list /

@@ -183,9 +183,52 @@
 								<span class="text-truncate d-inline-block" style="max-width: 420px;">{{ data.subject || '(no subject)' }}</span>
 							</ng-template>
 						</e-column>
+						<e-column headerText="Template" width="140" [allowSorting]="false">
+							<ng-template #template let-data>
+								<button type="button" class="btn btn-sm btn-link p-0" (click)="openTemplate(data)">
+									View template
+								</button>
+							</ng-template>
+						</e-column>
 					</e-columns>
 				</ejs-grid>
 			}
 		</section>
+	}
+
+	<!-- ─────────────── Template preview modal ─────────────── -->
+	@if (templateOpen()) {
+		<div class="tmpl-backdrop" (click)="closeTemplate()">
+			<div
+				class="tmpl-modal"
+				role="dialog"
+				aria-modal="true"
+				aria-labelledby="tmpl-title"
+				(click)="$event.stopPropagation()">
+				<header class="tmpl-head">
+					<div class="tmpl-head-text">
+						<p class="tmpl-eyebrow">This was the template used to produce the email</p>
+						<h2 id="tmpl-title" class="tmpl-title">{{ templateSubject() }}</h2>
+					</div>
+					<button type="button" class="tmpl-close" aria-label="Close" (click)="closeTemplate()">×</button>
+				</header>
+
+				<p class="tmpl-note">
+					This is the template we sent. The spots for your name, team, amounts, dates and links are
+					filled in for each family when the message goes out — so your copy showed your own details
+					in place of any codes (like <code>!F-PLAYERS</code>) you may see below.
+				</p>
+
+				<div class="tmpl-body">
+					@if (templateLoading()) {
+						<div class="status-line" role="status">Loading template…</div>
+					} @else if (templateError()) {
+						<div class="alert alert-danger" role="alert">{{ templateError() }}</div>
+					} @else {
+						<div class="tmpl-render" [innerHTML]="templateHtml()"></div>
+					}
+				</div>
+			</div>
+		</div>
 	}
 </div>

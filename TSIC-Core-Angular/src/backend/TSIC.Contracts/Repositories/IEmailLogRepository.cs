@@ -21,6 +21,16 @@ public interface IEmailLogRepository
         Guid jobId, IReadOnlyList<string> addresses, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// The raw body template (emailLogs.Msg, substitution tokens unresolved) for one batch — but
+    /// ONLY when that batch is in the job AND its recipient list contained one of the given
+    /// addresses. Returns null when it is not the caller's (surface as 404); empty string when the
+    /// batch is theirs but had no body. Membership match is the same delimiter-anchored LIKE as
+    /// <see cref="GetSentToAddressesAsync"/>, so it is the authorization boundary, not just a filter.
+    /// </summary>
+    Task<string?> GetSentTemplateForAddressesAsync(
+        Guid jobId, int emailId, IReadOnlyList<string> addresses, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Incrementally update a batch's audit row (created by LogAsync) as the send progresses.
     /// Re-fetches by EmailId on the caller's scope so it is safe to call from a periodic flush.
     /// No-op if the row is gone.

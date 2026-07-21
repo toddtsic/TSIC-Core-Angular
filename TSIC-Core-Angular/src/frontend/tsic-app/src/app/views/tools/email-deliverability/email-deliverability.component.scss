@@ -157,6 +157,108 @@
 	color: var(--bs-secondary-color);
 }
 
+// ── Template preview modal ──
+// No backdrop-filter (banned project-wide): solid scrim + box-shadow for depth.
+
+.tmpl-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 1050;
+	background: rgba(0, 0, 0, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--space-4);
+}
+
+.tmpl-modal {
+	background: var(--bs-body-bg);
+	border: 1px solid var(--border-color);
+	border-radius: var(--radius-md);
+	box-shadow: var(--shadow-lg, 0 10px 40px rgba(0, 0, 0, 0.3));
+	width: 100%;
+	max-width: 760px;
+	max-height: 85vh;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.tmpl-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: var(--space-3);
+	padding: var(--space-4);
+	border-bottom: 1px solid var(--border-color);
+}
+
+.tmpl-eyebrow {
+	margin: 0 0 var(--space-1);
+	font-size: var(--font-size-sm);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--bs-secondary-color);
+}
+
+.tmpl-title {
+	margin: 0;
+	font-size: var(--font-size-lg, 1.25rem);
+	font-weight: 600;
+	word-break: break-word;
+}
+
+.tmpl-close {
+	flex: 0 0 auto;
+	background: none;
+	border: none;
+	font-size: 1.75rem;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--bs-secondary-color);
+	padding: 0 var(--space-1);
+
+	&:hover { color: var(--bs-body-color); }
+
+	&:focus-visible {
+		outline: none;
+		box-shadow: var(--shadow-focus);
+		border-radius: var(--radius-sm);
+	}
+}
+
+.tmpl-note {
+	margin: 0;
+	padding: var(--space-3) var(--space-4);
+	font-size: var(--font-size-sm);
+	line-height: 1.5;
+	color: var(--bs-secondary-color);
+	background: var(--bg-elevated);
+	border-bottom: 1px solid var(--border-color);
+
+	code {
+		font-size: 0.85em;
+		padding: 0 var(--space-1);
+		border-radius: var(--radius-sm);
+		background: var(--bs-tertiary-bg, rgba(0, 0, 0, 0.06));
+	}
+}
+
+.tmpl-body {
+	padding: var(--space-4);
+	overflow: auto;
+}
+
+// The rendered template is arbitrary email HTML — contain it so it can't break the modal box.
+.tmpl-render {
+	font-size: var(--font-size-sm);
+	line-height: 1.5;
+
+	:where(img) { max-width: 100%; height: auto; }
+	:where(table) { max-width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
 	* {
 		animation: none !important;

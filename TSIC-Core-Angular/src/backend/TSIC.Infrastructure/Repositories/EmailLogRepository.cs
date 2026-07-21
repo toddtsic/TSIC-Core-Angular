@@ -86,8 +86,40 @@ public class EmailLogRepository : IEmailLogRepository
 
         return await union
             .OrderByDescending(x => x.SendTs)
-            .Select(x => new PlayerSentEmailDto { Subject = x.Subject, SentAt = x.SendTs })
+            .Select(x => new PlayerSentEmailDto { EmailId = x.EmailId, Subject = x.Subject, SentAt = x.SendTs })
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<string?> GetSentTemplateForAddressesAsync(
+        Guid jobId,
+        int emailId,
+        IReadOnlyList<string> addresses,
+        CancellationToken cancellationToken = default)
+    {
+        // Authorization lives in the query: return the template ONLY when this batch is in this job
+        // AND its recipient list contained one of the caller's own addresses. Same delimiter-anchored
+        // match as the list, so membership can't be spoofed by a substring. No match => null (the
+        // caller surfaces 404), so a player can never read a batch that wasn't sent to them.
+        var lowered = (addresses ?? Array.Empty<string>())
+            .Where(a => !string.IsNullOrWhiteSpace(a))
+            .Select(a => a.Trim().ToLower())
+            .Distinct()
+            .ToList();
+        if (lowered.Count == 0)
+        {
+            return null;
+        }
+
+        var row = await _context.EmailLogs
+            .AsNoTracking()
+            .Where(e => e.EmailId == emailId && e.JobId == jobId && e.SendTo != null)
+            .Where(e => lowered.Any(addr =>
+                EF.Functions.Like(";" + e.SendTo!.ToLower() + ";", "%;" + addr + ";%")))
+            .Select(e => new { e.Msg })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // Distinguish "not yours / not found" (null row) from "template was empty" (row, null Msg).
+        return row is null ? null : (row.Msg ?? string.Empty);
     }
 
     public async Task LogAsync(

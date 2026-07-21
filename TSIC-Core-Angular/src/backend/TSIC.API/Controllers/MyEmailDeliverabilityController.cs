@@ -99,6 +99,28 @@ public class MyEmailDeliverabilityController : ControllerBase
         return Ok(results);
     }
 
+    [HttpGet("sent-history/{emailId:int}/template")]
+    [Produces("text/html")]
+    [ProducesResponseType(typeof(string), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetSentTemplate(
+        int emailId,
+        CancellationToken cancellationToken)
+    {
+        var (familyUserId, jobId, fail) = await ResolveContextAsync();
+        if (fail is not null) return fail;
+
+        var template = await _service.GetSentTemplateAsync(jobId, familyUserId, emailId, cancellationToken);
+        if (template is null)
+        {
+            // Not a batch dispatched to one of the caller's own addresses in this job.
+            return NotFound();
+        }
+
+        // Raw HTML body (client renders it, sanitized) — return as content, not a JSON-quoted string.
+        return Content(template, "text/html");
+    }
+
     /// <summary>Resolve the family login (JWT subject) and job (from the immutable regId claim).</summary>
     private async Task<(string FamilyUserId, Guid JobId, ActionResult? Fail)> ResolveContextAsync()
     {

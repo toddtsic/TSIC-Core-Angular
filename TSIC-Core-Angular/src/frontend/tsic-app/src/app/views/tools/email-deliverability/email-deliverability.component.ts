@@ -50,6 +50,14 @@ export class EmailDeliverabilityComponent implements OnInit {
 		columns: [{ field: 'sentAt', direction: 'Descending' }]
 	};
 
+	// ── Template preview modal ──
+	readonly templateOpen = signal(false);
+	readonly templateLoading = signal(false);
+	readonly templateError = signal<string | null>(null);
+	readonly templateSubject = signal<string>('');
+	// Raw HTML string; the template binds it via [innerHTML], which Angular sanitizes.
+	readonly templateHtml = signal<string>('');
+
 	ngOnInit(): void {
 		this.load();
 		this.loadSentHistory();
@@ -188,5 +196,31 @@ export class EmailDeliverabilityComponent implements OnInit {
 				this.sentLoaded.set(true);
 			}
 		});
+	}
+
+	/** Open the modal and fetch this send's raw template (tokens unresolved). */
+	openTemplate(row: PlayerSentEmailDto): void {
+		this.templateOpen.set(true);
+		this.templateLoading.set(true);
+		this.templateError.set(null);
+		this.templateSubject.set(row.subject || '(no subject)');
+		this.templateHtml.set('');
+
+		this.service.getSentTemplate(row.emailId).subscribe({
+			next: html => {
+				this.templateHtml.set(html || '');
+				this.templateLoading.set(false);
+			},
+			error: () => {
+				this.templateError.set('We could not load this template. Please try again.');
+				this.templateLoading.set(false);
+			}
+		});
+	}
+
+	closeTemplate(): void {
+		this.templateOpen.set(false);
+		this.templateHtml.set('');
+		this.templateError.set(null);
 	}
 }

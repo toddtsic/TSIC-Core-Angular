@@ -8,6 +8,8 @@ namespace TSIC.Contracts.Dtos.EmailTroubleshooter;
 /// </summary>
 public record PlayerSentEmailDto
 {
+    /// <summary>Batch id (emailLogs.EmailId) — the key to fetch this send's template on demand.</summary>
+    public required int EmailId { get; init; }
     public required string? Subject { get; init; }
     public required DateTime SentAt { get; init; }
 }
