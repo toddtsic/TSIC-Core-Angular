@@ -26,6 +26,11 @@ public static class AgegroupConstants
     /// <summary>Prefix of the mirror agegroup minted on overflow ("WAITLIST - {agegroup}").</summary>
     public const string WaitlistPrefix = "WAITLIST";
 
+    /// <summary>The exact prefix TeamPlacementService mints on the mirror agegroup name,
+    /// including the separator ("WAITLIST - "). Match/strip against this so a hypothetical
+    /// real agegroup merely containing "WAITLIST" is never mistaken for a waitlist mirror.</summary>
+    public const string WaitlistMintedPrefix = WaitlistPrefix + " - ";
+
     /// <summary>Graveyard agegroup for dropped teams.</summary>
     public const string DroppedTeams = "Dropped";
 
@@ -45,4 +50,26 @@ public static class AgegroupConstants
         && (agegroupName.Contains(WaitlistPrefix, StringComparison.OrdinalIgnoreCase)
             || agegroupName.Contains(DroppedTeams, StringComparison.OrdinalIgnoreCase)
             || agegroupName.Contains(Registration, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// True when the agegroup is a waitlist mirror ("WAITLIST - {agegroup}"). This is the
+    /// single, canonical waitlist test — the load-bearing signal is the minted agegroup name,
+    /// so DTOs and UI read this instead of re-parsing the prefix string per consumer.
+    /// </summary>
+    public static bool IsWaitlist(string? agegroupName) =>
+        !string.IsNullOrEmpty(agegroupName)
+        && agegroupName.StartsWith(WaitlistMintedPrefix, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// The real agegroup a waitlisted team is waiting on — the minted "WAITLIST - " prefix
+    /// removed for display. Returns the name unchanged when it is not a waitlist mirror,
+    /// and an empty string for a null/empty name.
+    /// </summary>
+    public static string StripWaitlistPrefix(string? agegroupName)
+    {
+        if (string.IsNullOrEmpty(agegroupName)) return string.Empty;
+        return agegroupName.StartsWith(WaitlistMintedPrefix, StringComparison.OrdinalIgnoreCase)
+            ? agegroupName[WaitlistMintedPrefix.Length..]
+            : agegroupName;
+    }
 }

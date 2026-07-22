@@ -669,11 +669,13 @@ export class TeamTeamsStepComponent implements OnInit {
      * Registered AND to display *which* age group + LOP each is registered as.
      */
     readonly enteredTeamsMap = computed(() => {
-        const map = new Map<number, { ageGroupName: string; levelOfPlay: string }>();
+        const map = new Map<number, { ageGroupName: string; ageGroupDisplayName: string; isWaitlisted: boolean; levelOfPlay: string }>();
         for (const r of this._registeredTeams()) {
             if (r.clubTeamId != null) {
                 map.set(r.clubTeamId, {
                     ageGroupName: r.ageGroupName ?? '',
+                    ageGroupDisplayName: r.ageGroupDisplayName ?? '',
+                    isWaitlisted: r.isWaitlisted ?? false,
                     levelOfPlay: r.levelOfPlay ?? '',
                 });
             }

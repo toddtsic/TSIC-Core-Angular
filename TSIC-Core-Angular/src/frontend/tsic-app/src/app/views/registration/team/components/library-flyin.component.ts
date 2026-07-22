@@ -8,7 +8,12 @@ import { resolveRecommendedAgeGroupId } from './event-age-group.util';
 import { ResizablePanelDirective } from '@shared-ui/directives/resizable-panel.directive';
 
 export interface RegisteredInfo {
+    // Raw agegroup name (may be "WAITLIST - {agegroup}") — kept for the functional
+    // ageGroupIdByName lookup that pre-selects the picker. Display uses the fields below.
     ageGroupName: string;
+    // Display name (prefix stripped) + waitlist flag, resolved once on the backend DTO.
+    ageGroupDisplayName: string;
+    isWaitlisted: boolean;
     levelOfPlay: string;
 }
 
@@ -184,7 +189,7 @@ interface LibraryGroup {
                           @if (registered) {
                             <span class="lib-identity">
                               @if (registered.ageGroupName) {
-                                <span class="lib-id-pair"><span class="lib-id-label">AG</span><span class="lib-id-value">{{ registered.ageGroupName }}</span></span>
+                                <span class="lib-id-pair"><span class="lib-id-label">AG</span><span class="lib-id-value">{{ registered.ageGroupDisplayName }}@if (registered.isWaitlisted) {<span class="wl-badge" tabindex="0" title="Waitlisted under {{ registered.ageGroupDisplayName }} — placed when a roster spot opens">WL</span>}</span></span>
                               }
                               @if (registered.levelOfPlay) {
                                 <span class="lib-id-pair"><span class="lib-id-label">LOP</span><span class="lib-id-value">{{ formatLop(registered.levelOfPlay) }}</span></span>
@@ -928,6 +933,24 @@ interface LibraryGroup {
         font-weight: var(--font-weight-bold);
         color: var(--brand-text);
         font-variant-numeric: tabular-nums;
+      }
+
+      /* Waitlist marker on the registered identity's age group — same treatment as the
+         registered-teams grid, driven by the backend isWaitlisted flag. */
+      .wl-badge {
+        margin-left: var(--space-1);
+        font-size: var(--font-size-xs);
+        font-weight: var(--font-weight-bold);
+        line-height: 1;
+        letter-spacing: 0.02em;
+        padding: 2px var(--space-1);
+        border-radius: var(--radius-sm);
+        color: var(--bs-warning-text-emphasis);
+        background: rgba(var(--bs-warning-rgb), 0.15);
+        border: 1px solid rgba(var(--bs-warning-rgb), 0.4);
+        cursor: default;
+
+        &:focus-visible { outline: none; box-shadow: var(--shadow-focus); }
       }
 
       /* Closed-event trailing pill (registration disabled). */

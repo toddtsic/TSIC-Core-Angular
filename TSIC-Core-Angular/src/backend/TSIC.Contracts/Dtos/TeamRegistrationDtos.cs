@@ -1,4 +1,5 @@
 using FluentValidation;
+using TSIC.Domain.Constants;
 
 namespace TSIC.Contracts.Dtos;
 
@@ -164,6 +165,13 @@ public sealed record RegisteredTeamDto
     public required string TeamName { get; init; }
     public required Guid AgeGroupId { get; init; }
     public required string AgeGroupName { get; init; }
+    // Waitlist status + clean display name, resolved ONCE here from the minted
+    // "WAITLIST - {agegroup}" mirror name (AgegroupConstants) — the single load-bearing
+    // signal. Every consumer (teams / payment / family-payment grids, club library fly-in)
+    // reads these instead of re-parsing the prefix string, so the WL indicator can no longer
+    // drift between views or vanish when a screen hides the age-group column (PL-037).
+    public bool IsWaitlisted => AgegroupConstants.IsWaitlist(AgeGroupName);
+    public string AgeGroupDisplayName => AgegroupConstants.StripWaitlistPrefix(AgeGroupName);
     public required string? LevelOfPlay { get; init; }
     public int? ClubTeamId { get; init; }
     // Mirrors ClubTeamDto.BHasBeenScheduled — true if the team's ClubTeamId has ever

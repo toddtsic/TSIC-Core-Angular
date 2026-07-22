@@ -7,6 +7,8 @@ export type RegisteredTeamDto = {
     teamName: string;
     ageGroupId: string;
     ageGroupName: string;
+    isWaitlisted?: boolean;
+    ageGroupDisplayName?: string | null;
     levelOfPlay: string | null;
     clubTeamId?: number | null;
     bHasBeenScheduled: boolean;
