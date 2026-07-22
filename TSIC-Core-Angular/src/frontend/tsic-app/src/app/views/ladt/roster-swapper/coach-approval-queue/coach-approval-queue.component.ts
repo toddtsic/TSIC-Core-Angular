@@ -104,9 +104,6 @@ export class CoachApprovalQueueComponent implements OnInit {
     /** Active status lens. */
     readonly activeFilter = signal<CoachStatus | 'all'>('all');
     readonly searchTerm = signal('');
-    /** Active sort column field, or null for the default stable alpha-by-name order. */
-    readonly sortField = signal<string | null>(null);
-    readonly sortDir = signal<'asc' | 'desc'>('asc');
     /**
      * Non-destructive filter: the set of rows currently shown. Snapshotted when a chip or
      * search is applied, NOT recomputed on every grant — so a coach you just acted on stays
@@ -197,22 +194,14 @@ export class CoachApprovalQueueComponent implements OnInit {
     });
 
     /**
-     * Rows shown in the grid = pinned set ∩ current rows, then sorted. Default (no active
-     * sort) keeps the stable alpha-by-name order from rows(); a clicked header sorts by that
-     * column (status semantically, teams by label). Sorting composes with the pin filter.
+     * Rows shown in the grid = pinned set ∩ current rows, in the stable alpha-by-name order
+     * from rows(). Sorting is owned natively by Syncfusion via the columns' bound fields
+     * (playerName, teamSortKey) and composes with this filter for free — SF sorts whatever
+     * dataSource it's handed, i.e. this already-filtered set.
      */
-    readonly gridData = computed<QueueRow[]>(() => {
-        const pin = this.pinnedIds();
-        const visible = this.rows().filter(r => pin.has(r.registrationId));
-        const field = this.sortField();
-        if (!field) return visible;
-        const dir = this.sortDir() === 'asc' ? 1 : -1;
-        return [...visible].sort((a, b) => {
-            const va = field === 'teamSortKey' ? a.teamSortKey : a.playerName;
-            const vb = field === 'teamSortKey' ? b.teamSortKey : b.playerName;
-            return va.localeCompare(vb) * dir;
-        });
-    });
+    readonly gridData = computed<QueueRow[]>(() =>
+        this.rows().filter(r => this.pinnedIds().has(r.registrationId))
+    );
 
     ngOnInit(): void {
         this.load();
@@ -346,39 +335,11 @@ export class CoachApprovalQueueComponent implements OnInit {
         return [row.email, row.cellphone, cityState].filter(Boolean).join(' · ');
     }
 
-    /**
-     * Sort-arrow glyph for a sortable header. We cancel SF's native sort (so it never paints
-     * its own indicator), so the header templates render this instead: a faint up/down idle
-     * hint on inactive columns, a solid caret showing the active direction on the sorted one.
-     */
-    sortIcon(field: string): string {
-        if (this.sortField() !== field) return 'bi-arrow-down-up sort-idle';
-        return this.sortDir() === 'asc' ? 'bi-caret-up-fill sort-active' : 'bi-caret-down-fill sort-active';
-    }
-
     /** Paint a status class on the row so the left-border color tracks status in place. */
     onRowDataBound(args: { data?: QueueRow; row?: HTMLElement }): void {
         const row = args.data;
         if (!row || !args.row) return;
         args.row.classList.add(`status-${row.status}`);
-    }
-
-    /** Intercept SF's sort: cancel its in-place sort and drive our own signal instead, so
-     *  sorting composes with the pin filter (which lives in the gridData computed). */
-    onActionBegin(args: { requestType?: string; columnName?: string; direction?: string; cancel?: boolean }): void {
-        if (args.requestType === 'sorting') {
-            args.cancel = true;
-            if (args.columnName) {
-                // We cancel SF's sort, so it never tracks direction — it reports "Ascending"
-                // on every click. Own the toggle: same column flips dir, a new column starts asc.
-                if (this.sortField() === args.columnName) {
-                    this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
-                } else {
-                    this.sortField.set(args.columnName);
-                    this.sortDir.set('asc');
-                }
-            }
-        }
     }
 
     /** Stamp 1-based row numbers in the unbound `#` column (re-runs on every rebind). */

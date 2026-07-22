@@ -126,16 +126,6 @@
    Syncfusion grid chrome (keyed by .coach-grid) is global in
    styles/_component-overrides.scss — the .e-* DOM has no ng-content attr. */
 
-/* Manual sort indicator (SF's native sort is canceled, so we paint our own arrow). */
-.sort-head {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-
-    .sort-idle { opacity: 0.35; font-size: 0.85em; }
-    .sort-active { color: var(--bs-primary); font-size: 0.9em; }
-}
-
 /* ── Coach identity cell ── */
 
 .coach-cell {

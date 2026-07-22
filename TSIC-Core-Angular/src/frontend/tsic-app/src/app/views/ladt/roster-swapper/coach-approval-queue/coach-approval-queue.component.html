@@ -50,7 +50,6 @@
             [allowSorting]="true"
             [allowTextWrap]="true"
             [enableStickyHeader]="true"
-            (actionBegin)="onActionBegin($event)"
             (rowDataBound)="onRowDataBound($event)"
             (dataBound)="refreshRowNumbers(grid)"
             cssClass="coach-grid">
@@ -61,9 +60,6 @@
 
                 <!-- Coach identity -->
                 <e-column field="playerName" headerText="Coach" [width]="320">
-                    <ng-template #headerTemplate>
-                        <span class="sort-head">Coach <i class="bi" [ngClass]="sortIcon('playerName')"></i></span>
-                    </ng-template>
                     <ng-template #template let-data>
                         <div class="coach-cell">
                             <div class="coach-name">
@@ -132,9 +128,6 @@
 
                 <!-- Teams: the grant control. Check a request to assign, uncheck to remove. -->
                 <e-column field="teamSortKey" headerText="Teams" [width]="330">
-                    <ng-template #headerTemplate>
-                        <span class="sort-head">Teams <i class="bi" [ngClass]="sortIcon('teamSortKey')"></i></span>
-                    </ng-template>
                     <ng-template #template let-data>
                         <div class="team-ctl">
                             @if (data.checklist.length > 0) {
