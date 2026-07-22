@@ -282,6 +282,76 @@ public class TeamRepository : ITeamRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<List<TeamRecordAggregate>> GetStoredTeamRecordsAsync(
+        Guid jobId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId)
+            .Select(t => new TeamRecordAggregate
+            {
+                TeamId = t.TeamId,
+                Games = t.Games ?? 0,
+                Wins = t.Wins ?? 0,
+                Losses = t.Losses ?? 0,
+                Ties = t.Ties ?? 0,
+                GoalsFor = t.GoalsFor ?? 0,
+                GoalsVs = t.GoalsVs ?? 0,
+                Points = t.Points ?? 0
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task UpdateTeamRecordsAsync(
+        IReadOnlyDictionary<Guid, TeamRecordAggregate> records,
+        CancellationToken cancellationToken = default)
+    {
+        if (records.Count == 0) return;
+
+        var ids = records.Keys.ToList();
+        // Tracking query so in-place column mutations persist. Never UpdateRange — it would mark
+        // the TeamAi identity column Modified and SQL would reject the write.
+        var teams = await _context.Teams
+            .Where(t => ids.Contains(t.TeamId))
+            .ToListAsync(cancellationToken);
+
+        foreach (var team in teams)
+        {
+            var r = records[team.TeamId];
+            team.Games = r.Games;
+            team.Wins = r.Wins;
+            team.Losses = r.Losses;
+            team.Ties = r.Ties;
+            team.Points = r.Points;
+            team.GoalsFor = r.GoalsFor;
+            team.GoalsVs = r.GoalsVs;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<Dictionary<Guid, (int WinPts, int DrawPts, int LossPts)>> GetSportPointsByTeamAsync(
+        Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default)
+    {
+        if (teamIds.Count == 0) return [];
+
+        var rows = await _context.Teams
+            .AsNoTracking()
+            .Where(t => t.JobId == jobId && teamIds.Contains(t.TeamId))
+            .Select(t => new
+            {
+                t.TeamId,
+                t.League.Sport.WinPts,
+                t.League.Sport.DrawPts,
+                t.League.Sport.LossPts
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows.ToDictionary(
+            r => r.TeamId,
+            r => (r.WinPts, r.DrawPts, r.LossPts));
+    }
+
     public Task<List<RegisteredTeamInfo>> GetRegisteredTeamsForUserAndJobAsync(
         Guid jobId,
         string userId,

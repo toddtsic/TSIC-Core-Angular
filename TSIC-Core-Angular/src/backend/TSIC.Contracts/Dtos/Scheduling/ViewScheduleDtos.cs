@@ -34,16 +34,63 @@ public record ScheduleFilterRequest
 }
 
 /// <summary>
-/// Server-aggregated round-robin record for one team (job-wide). Built by a single GROUP BY in
-/// the repository — replaces re-fetching every game as a tracked entity just to count W-L-T.
-/// Round-robin only (T1Type == T2Type == "T"); bracket/bronze/consolation never affect a record.
+/// The canonical team record — the single source of truth for a team's W-L-T, goals, and games,
+/// produced by <c>IScheduleRepository.GetTeamRecord(s)Async</c>. Determined over the team's SCORED
+/// games (both scores present), from the team's own perspective:
+/// <list type="bullet">
+///   <item><c>bIncludeNonTGames == false</c> → pool record: round-robin games only
+///     (<c>T1Type == T2Type == "T"</c>). Drives standings + bracket seeding. This is what is
+///     PERSISTED to the <c>Teams</c> columns at score entry.</item>
+///   <item><c>bIncludeNonTGames == true</c> → full-season record: every scored game the team
+///     played, any type (incl. bracket and consolation — no <c>C</c> carve-out). Drives the
+///     Records tab; never stored.</item>
+/// </list>
+/// Forfeits count (the scorer enters the sport's convention score). A scored game always counts —
+/// there is no concept of cancelling a game that has a recorded score. <see cref="Points"/> is an
+/// OUTPUT: <c>Wins*WinPts + Ties*DrawPts + Losses*LossPts</c> from <c>reference.Sports</c>.
+/// GoalDiff and its cap are derived on the fly at read (cross-team ordering), never here.
 /// </summary>
 public record TeamRecordAggregate
 {
     public required Guid TeamId { get; init; }
+    public required int Games { get; init; }
     public required int Wins { get; init; }
     public required int Losses { get; init; }
     public required int Ties { get; init; }
+    public required int GoalsFor { get; init; }
+    public required int GoalsVs { get; init; }
+    /// <summary>Sport-weighted points. Populated once the sport's Win/Draw/Loss values are known;
+    /// the raw tally from the DB GROUP BY leaves this 0 until <see cref="WithPoints"/> is applied.</summary>
+    public int Points { get; init; }
+
+    /// <summary>Return a copy with <see cref="Points"/> computed from the sport's point values.</summary>
+    public TeamRecordAggregate WithPoints(int winPts, int drawPts, int lossPts) =>
+        this with { Points = (Wins * winPts) + (Ties * drawPts) + (Losses * lossPts) };
+}
+
+/// <summary>
+/// A division's resolved standings-ordering configuration: the sport's point values plus the
+/// league's ordered tiebreak rule chain (from <c>Leagues.StandingsSortProfileId</c>). An empty
+/// <see cref="Rules"/> list means the league has no profile → the engine applies the default
+/// order (points → goal-diff → goals-for). Resolved once per division; the sort executes in the
+/// service, never in SQL.
+/// </summary>
+public record StandingsSortConfig
+{
+    public required int WinPts { get; init; }
+    public required int DrawPts { get; init; }
+    public required int LossPts { get; init; }
+    /// <summary>Tiebreak rules in <c>SortOrder</c>. Empty = default order.</summary>
+    public required List<StandingsSortRuleDto> Rules { get; init; }
+}
+
+/// <summary>One rule in a <see cref="StandingsSortConfig"/> chain. <see cref="RuleName"/> is the
+/// canonical vocabulary key (e.g. <c>GoalDiff9Max</c>); <see cref="Constraint"/> supplies a cap
+/// where the rule uses one (the ±goal-diff cap).</summary>
+public record StandingsSortRuleDto
+{
+    public required string RuleName { get; init; }
+    public int? Constraint { get; init; }
 }
 
 /// <summary>

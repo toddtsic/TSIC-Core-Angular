@@ -272,6 +272,21 @@ public class ViewScheduleController : ControllerBase
         return Ok();
     }
 
+    /// <summary>
+    /// POST /api/view-schedule/rebuild-records — one-time deploy-time backfill of the stored pool
+    /// record columns for this job's teams. Idempotent; safe to re-run. Returns the count written.
+    /// </summary>
+    [Authorize(Policy = "AdminOnly")]
+    [HttpPost("rebuild-records")]
+    public async Task<ActionResult> RebuildRecords(CancellationToken ct)
+    {
+        var (jobId, _, _, error) = await ResolveContext();
+        if (error != null) return error;
+
+        var written = await _service.RebuildTeamRecordsAsync(jobId!.Value, ct);
+        return Ok(new { TeamsUpdated = written });
+    }
+
     // ══════════════════════════════════════════════════════════════
     // Authenticated-only endpoints
     // ══════════════════════════════════════════════════════════════

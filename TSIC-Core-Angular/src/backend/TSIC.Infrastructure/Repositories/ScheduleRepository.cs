@@ -971,16 +971,63 @@ public sealed class ScheduleRepository : IScheduleRepository
             .ToListAsync(ct);
     }
 
-    public async Task<List<TeamRecordAggregate>> GetTeamRecordsAsync(Guid jobId, CancellationToken ct = default)
+    public async Task<TeamRecordAggregate> GetTeamRecordAsync(
+        Guid teamId, bool includeNonTGames, CancellationToken ct = default)
     {
-        // Round-robin, scored, both teams present. Each game counts once per team, so we union the
-        // T1 and T2 perspectives and GROUP BY teamId — one aggregate query, no entity materialization.
+        // The team's own scored games, from its perspective. Same tally as the job-wide GROUP BY
+        // below, scoped to one team — the single determination logic, one filter toggle.
+        var scored = _context.Schedule
+            .AsNoTracking()
+            .Where(s => (s.T1Id == teamId || s.T2Id == teamId)
+                && s.T1Score.HasValue && s.T2Score.HasValue);
+        if (!includeNonTGames)
+            scored = scored.Where(s =>
+                s.T1Type == GameRoundTypes.RoundRobin && s.T2Type == GameRoundTypes.RoundRobin);
+
+        var mine = scored.Select(s => new
+        {
+            Mine = s.T1Id == teamId ? s.T1Score!.Value : s.T2Score!.Value,
+            Opp = s.T1Id == teamId ? s.T2Score!.Value : s.T1Score!.Value
+        });
+
+        var agg = await mine
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Games = g.Count(),
+                Wins = g.Count(x => x.Mine > x.Opp),
+                Losses = g.Count(x => x.Mine < x.Opp),
+                Ties = g.Count(x => x.Mine == x.Opp),
+                GoalsFor = g.Sum(x => x.Mine),
+                GoalsVs = g.Sum(x => x.Opp)
+            })
+            .FirstOrDefaultAsync(ct);
+
+        return new TeamRecordAggregate
+        {
+            TeamId = teamId,
+            Games = agg?.Games ?? 0,
+            Wins = agg?.Wins ?? 0,
+            Losses = agg?.Losses ?? 0,
+            Ties = agg?.Ties ?? 0,
+            GoalsFor = agg?.GoalsFor ?? 0,
+            GoalsVs = agg?.GoalsVs ?? 0
+        };
+    }
+
+    public async Task<List<TeamRecordAggregate>> GetTeamRecordsAsync(
+        Guid jobId, bool includeNonTGames = false, CancellationToken ct = default)
+    {
+        // Scored, both teams present. Each game counts once per team, so we union the T1 and T2
+        // perspectives and GROUP BY teamId — one aggregate query, no entity materialization.
         var scored = _context.Schedule
             .AsNoTracking()
             .Where(s => s.JobId == jobId
-                && s.T1Type == GameRoundTypes.RoundRobin && s.T2Type == GameRoundTypes.RoundRobin
                 && s.T1Score.HasValue && s.T2Score.HasValue
                 && s.T1Id.HasValue && s.T2Id.HasValue);
+        if (!includeNonTGames)
+            scored = scored.Where(s =>
+                s.T1Type == GameRoundTypes.RoundRobin && s.T2Type == GameRoundTypes.RoundRobin);
 
         var t1 = scored.Select(s => new { TeamId = s.T1Id!.Value, Mine = s.T1Score!.Value, Opp = s.T2Score!.Value });
         var t2 = scored.Select(s => new { TeamId = s.T2Id!.Value, Mine = s.T2Score!.Value, Opp = s.T1Score!.Value });
@@ -990,11 +1037,53 @@ public sealed class ScheduleRepository : IScheduleRepository
             .Select(g => new TeamRecordAggregate
             {
                 TeamId = g.Key,
+                Games = g.Count(),
                 Wins = g.Count(x => x.Mine > x.Opp),
                 Losses = g.Count(x => x.Mine < x.Opp),
-                Ties = g.Count(x => x.Mine == x.Opp)
+                Ties = g.Count(x => x.Mine == x.Opp),
+                GoalsFor = g.Sum(x => x.Mine),
+                GoalsVs = g.Sum(x => x.Opp)
             })
             .ToListAsync(ct);
+    }
+
+    public async Task<Dictionary<Guid, StandingsSortConfig>> GetStandingsSortConfigByDivisionAsync(
+        IReadOnlyCollection<Guid> divIds, CancellationToken ct = default)
+    {
+        if (divIds.Count == 0) return [];
+
+        // division → agegroup → league → { sport points, ordered profile rules }.
+        var rows = await _context.Divisions
+            .AsNoTracking()
+            .Where(d => divIds.Contains(d.DivId))
+            .Select(d => new
+            {
+                d.DivId,
+                d.Agegroup.League.Sport.WinPts,
+                d.Agegroup.League.Sport.DrawPts,
+                d.Agegroup.League.Sport.LossPts,
+                Rules = d.Agegroup.League.StandingsSortProfile == null
+                    ? null
+                    : d.Agegroup.League.StandingsSortProfile.StandingsSortProfileRules
+                        .OrderBy(r => r.SortOrder)
+                        .Select(r => new StandingsSortRuleDto
+                        {
+                            RuleName = r.StandingsSortRule.StandingsSortRuleName,
+                            Constraint = r.StandingsSortRule.StandingsSortRuleConstraint
+                        })
+                        .ToList()
+            })
+            .ToListAsync(ct);
+
+        return rows.ToDictionary(
+            r => r.DivId,
+            r => new StandingsSortConfig
+            {
+                WinPts = r.WinPts,
+                DrawPts = r.DrawPts,
+                LossPts = r.LossPts,
+                Rules = r.Rules ?? []
+            });
     }
 
     public async Task<List<ContactDto>> GetContactsAsync(

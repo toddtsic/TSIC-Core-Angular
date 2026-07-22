@@ -440,6 +440,13 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         await _scheduleRepo.SaveChangesAsync(ct);
 
+        // Maintain the two teams' stored pool record from the committed score (recompute-and-
+        // overwrite via the canonical method — a clear drops the game, an edit re-tallies). Pool
+        // games only: the stored record is pool-only, so a bracket/consolation score changes nothing
+        // here. MUST run before seed resolution, which ranks off the pool standings these columns feed.
+        if (game.T1Type == GameRoundTypes.RoundRobin)
+            await MaintainTeamRecordsAsync(jobId, game, ct);
+
         // R2: write the winner (and loser, for a bronze feed) forward into the next game.
         await _bracketAdvancement.AdvanceWinnerAsync(game.Gid, userId, ct);
 
@@ -478,6 +485,12 @@ public sealed class ViewScheduleService : IViewScheduleService
 
         await _scheduleRepo.SaveChangesAsync(ct);
 
+        // Maintain the stored pool record when this edit changed a pool game's score (see
+        // QuickEditScoreAsync). Annotation/reschedule-only edits leave the record untouched.
+        if (game.T1Type == GameRoundTypes.RoundRobin
+            && (request.T1Score.HasValue || request.T2Score.HasValue))
+            await MaintainTeamRecordsAsync(jobId, game, ct);
+
         // R2: write the winner (and loser, for a bronze feed) forward into the next game.
         await _bracketAdvancement.AdvanceWinnerAsync(game.Gid, userId, ct);
 
@@ -488,6 +501,33 @@ public sealed class ViewScheduleService : IViewScheduleService
         // reschedule/annotation edit is not a game result.
         if (request.T1Score.HasValue || request.T2Score.HasValue)
             await _gameResultPush.PushGameResultAsync(game.Gid, ct);
+    }
+
+    public async Task<int> RebuildTeamRecordsAsync(Guid jobId, CancellationToken ct = default)
+    {
+        // Canonical pool record for every team that has scored pool games.
+        var computed = (await _scheduleRepo.GetTeamRecordsAsync(jobId, includeNonTGames: false, ct))
+            .ToDictionary(r => r.TeamId);
+
+        // Universe = every team in the job, so teams with no scored games are ZEROED, not left stale.
+        var allTeamIds = (await _teamRepo.GetStoredTeamRecordsAsync(jobId, ct)).Select(r => r.TeamId).ToList();
+        if (allTeamIds.Count == 0) return 0;
+
+        var points = await _teamRepo.GetSportPointsByTeamAsync(jobId, allTeamIds, ct);
+        var records = new Dictionary<Guid, TeamRecordAggregate>(allTeamIds.Count);
+        foreach (var teamId in allTeamIds)
+        {
+            var rec = computed.GetValueOrDefault(teamId)
+                ?? new TeamRecordAggregate
+                {
+                    TeamId = teamId, Games = 0, Wins = 0, Losses = 0, Ties = 0, GoalsFor = 0, GoalsVs = 0
+                };
+            if (points.TryGetValue(teamId, out var p))
+                rec = rec.WithPoints(p.WinPts, p.DrawPts, p.LossPts);
+            records[teamId] = rec;
+        }
+        await _teamRepo.UpdateTeamRecordsAsync(records, ct);
+        return records.Count;
     }
 
     // ── Mobile deep-link lookups ──
@@ -537,17 +577,44 @@ public sealed class ViewScheduleService : IViewScheduleService
     // ── Private Helpers ──
 
     /// <summary>
-    /// Builds a lookup of teamId → "W-L-T" from all scored pool-play games in the job.
+    /// Builds a lookup of teamId → "W-L-T" pool record for the games-grid record buttons and
+    /// opponent-record drill-down.
     /// </summary>
     private async Task<Dictionary<Guid, string>> BuildTeamRecordLookupAsync(
         Guid jobId, CancellationToken ct)
     {
-        // Server-side GROUP BY — the record strings are the only thing this lookup needs, so we
-        // never re-load the whole job's games as tracked entities just to count them.
-        var records = await _scheduleRepo.GetTeamRecordsAsync(jobId, ct);
+        // Hot path: read the stored, score-entry-maintained pool record columns — no per-request
+        // job-wide games GROUP BY. Stale/zero until the deploy-time backfill seeds them.
+        var records = await _teamRepo.GetStoredTeamRecordsAsync(jobId, ct);
         return records.ToDictionary(
             r => r.TeamId,
             r => $"{r.Wins}-{r.Losses}-{r.Ties}");
+    }
+
+    /// <summary>
+    /// Recompute-and-overwrite the stored pool record for the two teams a pool-game score write
+    /// touched, from the committed schedule state via the canonical method. Autocorrecting: an
+    /// edit re-tallies, a clear drops the game. Points are resolved from each team's sport. The
+    /// per-team recomputes are awaited sequentially — never Task.WhenAll on one scoped DbContext.
+    /// </summary>
+    private async Task MaintainTeamRecordsAsync(
+        Guid jobId, Domain.Entities.Schedule game, CancellationToken ct)
+    {
+        var teamIds = new List<Guid>(2);
+        if (game.T1Id.HasValue) teamIds.Add(game.T1Id.Value);
+        if (game.T2Id.HasValue) teamIds.Add(game.T2Id.Value);
+        if (teamIds.Count == 0) return;
+
+        var points = await _teamRepo.GetSportPointsByTeamAsync(jobId, teamIds, ct);
+        var records = new Dictionary<Guid, TeamRecordAggregate>(teamIds.Count);
+        foreach (var teamId in teamIds)
+        {
+            var rec = await _scheduleRepo.GetTeamRecordAsync(teamId, includeNonTGames: false, ct);
+            if (points.TryGetValue(teamId, out var p))
+                rec = rec.WithPoints(p.WinPts, p.DrawPts, p.LossPts);
+            records[teamId] = rec;
+        }
+        await _teamRepo.UpdateTeamRecordsAsync(records, ct);
     }
 
     private async Task<StandingsByDivisionResponse> BuildStandingsAsync(
@@ -558,61 +625,45 @@ public sealed class ViewScheduleService : IViewScheduleService
         var bracketAgegroupIds = (await _scheduleRepo.GetBracketAgegroupIdsAsync(jobId, ct)).ToHashSet();
         var subscribedTeamIds = await GetSubscribedTeamIdSetAsync(request.DeviceToken, jobId, ct);
 
-        // Filter to pool play if needed
+        // Standings = pool play (T/T) only; Records = every game type.
         if (poolPlayOnly)
-            games = games.Where(g => g.T1Type == "T" && g.T2Type == "T").ToList();
+            games = games.Where(g => g.T1Type == GameRoundTypes.RoundRobin && g.T2Type == GameRoundTypes.RoundRobin).ToList();
 
-        // Seed every team that appears in the schedule so unscored teams show as 0-0-0
-        var teamStats = new Dictionary<Guid, TeamStatsAccumulator>();
-
+        // Membership + identity from the schedule rows (unchanged): every team appearing in a game
+        // in scope is listed, even at 0-0-0. Names/division come off the denormalized game row.
+        var identity = new Dictionary<Guid, (string TeamName, string AgegroupName, Guid AgegroupId, string DivName, Guid DivId)>();
         foreach (var g in games)
         {
-            if (g.T1Id.HasValue && !teamStats.ContainsKey(g.T1Id.Value))
-            {
-                teamStats[g.T1Id.Value] = new TeamStatsAccumulator
-                {
-                    TeamId = g.T1Id.Value,
-                    TeamName = g.T1Name ?? "",
-                    AgegroupName = g.AgegroupName ?? "",
-                    AgegroupId = g.AgegroupId ?? Guid.Empty,
-                    DivName = g.DivName ?? "",
-                    DivId = g.DivId ?? Guid.Empty
-                };
-            }
-            if (g.T2Id.HasValue && !teamStats.ContainsKey(g.T2Id.Value))
-            {
-                teamStats[g.T2Id.Value] = new TeamStatsAccumulator
-                {
-                    TeamId = g.T2Id.Value,
-                    TeamName = g.T2Name ?? "",
-                    AgegroupName = g.AgegroupName ?? "",
-                    AgegroupId = g.AgegroupId ?? Guid.Empty,
-                    DivName = g.DivName ?? "",
-                    DivId = g.DivId ?? Guid.Empty
-                };
-            }
+            if (g.T1Id.HasValue)
+                identity.TryAdd(g.T1Id.Value,
+                    (g.T1Name ?? "", g.AgegroupName ?? "", g.AgegroupId ?? Guid.Empty, g.DivName ?? "", g.DivId ?? Guid.Empty));
+            if (g.T2Id.HasValue)
+                identity.TryAdd(g.T2Id.Value,
+                    (g.T2Name ?? "", g.AgegroupName ?? "", g.AgegroupId ?? Guid.Empty, g.DivName ?? "", g.DivId ?? Guid.Empty));
         }
 
-        // Accumulate stats from scored games only
-        var scoredGames = games
-            .Where(g => g.T1Score.HasValue && g.T2Score.HasValue
-                && g.T1Id.HasValue && g.T2Id.HasValue)
-            .ToList();
+        // NUMBERS come from the canonical record — never a re-tally here. Pool play reads the stored,
+        // score-entry-maintained columns (the hybrid cache); full-season is computed live (not stored).
+        var records = poolPlayOnly
+            ? (await _teamRepo.GetStoredTeamRecordsAsync(jobId, ct)).ToDictionary(r => r.TeamId)
+            : (await _scheduleRepo.GetTeamRecordsAsync(jobId, includeNonTGames: true, ct)).ToDictionary(r => r.TeamId);
 
-        foreach (var g in scoredGames)
-        {
-            // T1 perspective
-            AccumulateStats(teamStats, g.T1Id!.Value, g.T1Name ?? "", g.AgegroupName ?? "",
-                g.DivName ?? "", g.DivId ?? Guid.Empty, g.T1Score!.Value, g.T2Score!.Value);
+        // Per-division ordering config: sport point values + the league's tiebreak rule chain.
+        var divIds = identity.Values.Select(v => v.DivId).Where(d => d != Guid.Empty).Distinct().ToList();
+        var sortConfig = await _scheduleRepo.GetStandingsSortConfigByDivisionAsync(divIds, ct);
 
-            // T2 perspective
-            AccumulateStats(teamStats, g.T2Id!.Value, g.T2Name ?? "", g.AgegroupName ?? "",
-                g.DivName ?? "", g.DivId ?? Guid.Empty, g.T2Score!.Value, g.T1Score!.Value);
-        }
+        // Head-to-head from decisive games in scope — only ever consulted by the points rule to
+        // break a tie between exactly two teams.
+        var h2h = new HeadToHead(games
+            .Where(g => g.T1Score.HasValue && g.T2Score.HasValue && g.T1Id.HasValue && g.T2Id.HasValue
+                && g.T1Score!.Value != g.T2Score!.Value)
+            .Select(g => g.T1Score!.Value > g.T2Score!.Value
+                ? (g.T1Id!.Value, g.T2Id!.Value)
+                : (g.T2Id!.Value, g.T1Id!.Value)));
 
-        // Convert to DTOs grouped by division
-        var divisions = teamStats.Values
-            .GroupBy(t => new { t.DivId, t.AgegroupName, t.DivName })
+        var divisions = identity
+            .Select(kv => new { TeamId = kv.Key, Info = kv.Value })
+            .GroupBy(t => new { t.Info.DivId, t.Info.AgegroupName, t.Info.DivName })
             .OrderBy(d => d.Key.AgegroupName)
             .ThenBy(d => d.Key.DivName)
             // DivId tiebreaker → total order. Two divisions can share Agegroup+Div display names
@@ -621,63 +672,54 @@ public sealed class ViewScheduleService : IViewScheduleService
             .ThenBy(d => d.Key.DivId)
             .Select(divGroup =>
             {
+                var config = sortConfig.GetValueOrDefault(divGroup.Key.DivId);
+
                 var teams = divGroup.Select(t =>
                 {
-                    var goalDiff = t.GoalsFor - t.GoalsAgainst;
-                    var goalDiffMax9 = Math.Clamp(goalDiff, -9, 9);
-                    var points = (t.Wins * 3) + t.Ties;
-                    var ppg = t.Games > 0 ? Math.Round((decimal)points / t.Games, 2) : 0m;
+                    var rec = records.GetValueOrDefault(t.TeamId);
+                    var wins = rec?.Wins ?? 0;
+                    var losses = rec?.Losses ?? 0;
+                    var ties = rec?.Ties ?? 0;
+                    var gamesPlayed = rec?.Games ?? 0;
+                    var goalsFor = rec?.GoalsFor ?? 0;
+                    var goalsVs = rec?.GoalsVs ?? 0;
+                    // Pool points are the stored value; full-season points compute from the sport.
+                    var points = poolPlayOnly
+                        ? (rec?.Points ?? 0)
+                        : config is null
+                            ? (wins * 3) + ties
+                            : (wins * config.WinPts) + (ties * config.DrawPts) + (losses * config.LossPts);
+                    var ppg = gamesPlayed > 0 ? Math.Round((decimal)points / gamesPlayed, 2) : 0m;
 
                     return new StandingsDto
                     {
                         TeamId = t.TeamId,
-                        TeamName = t.TeamName,
-                        AgegroupName = t.AgegroupName,
-                        DivName = t.DivName,
-                        DivId = t.DivId,
-                        Games = t.Games,
-                        Wins = t.Wins,
-                        Losses = t.Losses,
-                        Ties = t.Ties,
-                        GoalsFor = t.GoalsFor,
-                        GoalsAgainst = t.GoalsAgainst,
-                        GoalDiffMax9 = goalDiffMax9,
+                        TeamName = t.Info.TeamName,
+                        AgegroupName = t.Info.AgegroupName,
+                        DivName = t.Info.DivName,
+                        DivId = t.Info.DivId,
+                        Games = gamesPlayed,
+                        Wins = wins,
+                        Losses = losses,
+                        Ties = ties,
+                        GoalsFor = goalsFor,
+                        GoalsAgainst = goalsVs,
+                        GoalDiffMax9 = Math.Clamp(goalsFor - goalsVs, -9, 9),
                         Points = points,
                         PointsPerGame = ppg,
-                        TiePoints = t.Ties,
+                        TiePoints = ties,
                         IsFavorited = subscribedTeamIds.Contains(t.TeamId)
                     };
                 }).ToList();
 
-                // Sort based on sport
-                var isLacrosse = sportName.Contains("lacrosse", StringComparison.OrdinalIgnoreCase);
-                if (isLacrosse)
-                {
-                    teams = teams
-                        .OrderByDescending(t => t.Wins)
-                        .ThenBy(t => t.Losses)
-                        .ThenByDescending(t => t.GoalDiffMax9)
-                        .ThenByDescending(t => t.GoalsFor)
-                        .ThenBy(t => t.TeamName)
-                        .ToList();
-                }
-                else
-                {
-                    // Soccer sort (default)
-                    teams = teams
-                        .OrderByDescending(t => t.Points)
-                        .ThenByDescending(t => t.Wins)
-                        .ThenByDescending(t => t.GoalDiffMax9)
-                        .ThenByDescending(t => t.GoalsFor)
-                        .ThenBy(t => t.TeamName)
-                        .ToList();
-                }
-
-                // Assign rank order
+                // Config-driven order (default = points → goal-diff → goals-for). The league's
+                // StandingsSortProfile, when present, overrides the tiebreak chain; head-to-head
+                // resolves a 2-team points tie. Replaces the hardcoded soccer/lacrosse branches.
+                teams = ResolveGroup(teams, BuildSortRules(config), 0, h2h);
                 for (var i = 0; i < teams.Count; i++)
                     teams[i] = teams[i] with { RankOrder = i + 1 };
 
-                var agegroupId = divGroup.First().AgegroupId;
+                var agegroupId = divGroup.First().Info.AgegroupId;
                 return new DivisionStandingsDto
                 {
                     DivId = divGroup.Key.DivId,
@@ -710,30 +752,123 @@ public sealed class ViewScheduleService : IViewScheduleService
         return (await _deviceRepo.GetSubscribedTeamIdsAsync(deviceToken, jobId, ct)).ToHashSet();
     }
 
-    private static void AccumulateStats(
-        Dictionary<Guid, TeamStatsAccumulator> stats,
-        Guid teamId, string teamName, string agegroupName, string divName, Guid divId,
-        int teamScore, int opponentScore)
+    // ── Config-driven standings sort engine ──
+    // Canonical StandingsSortRules vocabulary (reference.StandingsSortRules.StandingsSortRuleName).
+    // The engine knows how to execute each named rule; the constraint (cap) travels on the rule.
+    private static class SortRuleNames
     {
-        if (!stats.TryGetValue(teamId, out var acc))
+        public const string PointsWithH2H = "Points310With2TeamTieRule";
+        public const string GoalsAgainst = "GoalsVs";
+        public const string GoalDiffUncapped = "GoalDiffNoMax";
+        public const string GoalDiffCapped = "GoalDiff9Max";
+        public const string GoalsFor = "GoalsFor";
+    }
+
+    /// <summary>One tiebreak step: a key selector, its direction, and whether it is the points
+    /// rule that additionally applies head-to-head to a 2-team tie.</summary>
+    private sealed record SortRule(Func<StandingsDto, int> Key, bool Descending, bool PointsWithH2H);
+
+    /// <summary>
+    /// Translate a league's resolved config into an ordered rule chain. No profile (or an empty
+    /// chain) → the default order: points → goal-diff (uncapped) → goals-for. Unknown rule names
+    /// are skipped so a future DB rule never throws.
+    /// </summary>
+    private static List<SortRule> BuildSortRules(StandingsSortConfig? config)
+    {
+        if (config is null || config.Rules.Count == 0)
+            return
+            [
+                new(t => t.Points, true, false),
+                new(t => t.GoalsFor - t.GoalsAgainst, true, false),
+                new(t => t.GoalsFor, true, false),
+            ];
+
+        var rules = new List<SortRule>(config.Rules.Count);
+        foreach (var r in config.Rules)
         {
-            acc = new TeamStatsAccumulator
+            switch (r.RuleName)
             {
-                TeamId = teamId,
-                TeamName = teamName,
-                AgegroupName = agegroupName,
-                DivName = divName,
-                DivId = divId
-            };
-            stats[teamId] = acc;
+                case SortRuleNames.PointsWithH2H:
+                    rules.Add(new(t => t.Points, true, true)); break;
+                case SortRuleNames.GoalsAgainst:
+                    rules.Add(new(t => t.GoalsAgainst, false, false)); break;   // fewer goals against is better
+                case SortRuleNames.GoalDiffUncapped:
+                    rules.Add(new(t => t.GoalsFor - t.GoalsAgainst, true, false)); break;
+                case SortRuleNames.GoalDiffCapped:
+                    var cap = r.Constraint ?? 9;
+                    rules.Add(new(t => Math.Clamp(t.GoalsFor - t.GoalsAgainst, -cap, cap), true, false)); break;
+                case SortRuleNames.GoalsFor:
+                    rules.Add(new(t => t.GoalsFor, true, false)); break;
+                // Unknown → skip.
+            }
+        }
+        // Guarantee a deterministic primary key if a profile resolved to nothing usable.
+        if (rules.Count == 0) rules.Add(new(t => t.Points, true, false));
+        return rules;
+    }
+
+    /// <summary>
+    /// Order a division's teams by the rule chain, refining tie-groups rule by rule. A rule
+    /// subdivides each remaining tie-group by its key; the points rule additionally resolves an
+    /// exactly-two-team tie by head-to-head (a split / never-played / 3+-way tie falls through to
+    /// the next rule). Remaining ties break on team name for a stable, deterministic order.
+    /// </summary>
+    private static List<StandingsDto> ResolveGroup(
+        List<StandingsDto> group, IReadOnlyList<SortRule> rules, int ruleIndex, HeadToHead h2h)
+    {
+        if (group.Count <= 1) return group;
+        if (ruleIndex >= rules.Count)
+            return group.OrderBy(t => t.TeamName, StringComparer.OrdinalIgnoreCase).ToList();
+
+        var rule = rules[ruleIndex];
+        var ordered = (rule.Descending
+            ? group.OrderByDescending(rule.Key)
+            : group.OrderBy(rule.Key)).ToList();
+
+        var result = new List<StandingsDto>(group.Count);
+        var i = 0;
+        while (i < ordered.Count)
+        {
+            var key = rule.Key(ordered[i]);
+            var j = i + 1;
+            while (j < ordered.Count && rule.Key(ordered[j]) == key) j++;
+            var tie = ordered.GetRange(i, j - i);
+
+            if (tie.Count == 1)
+                result.Add(tie[0]);
+            else if (rule.PointsWithH2H && tie.Count == 2 && h2h.TryOrder(tie[0], tie[1], out var byH2H))
+                result.AddRange(byH2H);                               // decisive head-to-head
+            else
+                result.AddRange(ResolveGroup(tie, rules, ruleIndex + 1, h2h));  // fall through
+
+            i = j;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Head-to-head record over the games in scope. Net = (times a beat b) − (times b beat a).
+    /// Ordering is decisive only when the net is non-zero for exactly the two teams asked about.
+    /// </summary>
+    private sealed class HeadToHead
+    {
+        private readonly Dictionary<(Guid, Guid), int> _net = [];
+
+        public HeadToHead(IEnumerable<(Guid Winner, Guid Loser)> decisiveResults)
+        {
+            foreach (var (w, l) in decisiveResults)
+            {
+                _net[(w, l)] = _net.GetValueOrDefault((w, l)) + 1;
+                _net[(l, w)] = _net.GetValueOrDefault((l, w)) - 1;
+            }
         }
 
-        acc.Games++;
-        if (teamScore > opponentScore) acc.Wins++;
-        else if (teamScore < opponentScore) acc.Losses++;
-        else acc.Ties++;
-        acc.GoalsFor += teamScore;
-        acc.GoalsAgainst += opponentScore;
+        public bool TryOrder(StandingsDto a, StandingsDto b, out List<StandingsDto> ordered)
+        {
+            var net = _net.GetValueOrDefault((a.TeamId, b.TeamId));
+            ordered = net >= 0 ? [a, b] : [b, a];
+            return net != 0;   // 0 → never played / split / only tied → not decisive
+        }
     }
 
     private static string GetTeamCss(int? teamScore, int? opponentScore)
@@ -773,20 +908,4 @@ public sealed class ViewScheduleService : IViewScheduleService
         _ => 0
     };
 
-    /// <summary>Internal accumulator for building standings.</summary>
-    private sealed class TeamStatsAccumulator
-    {
-        public Guid TeamId { get; set; }
-        public string TeamName { get; set; } = "";
-        public string AgegroupName { get; set; } = "";
-        public Guid AgegroupId { get; set; }
-        public string DivName { get; set; } = "";
-        public Guid DivId { get; set; }
-        public int Games { get; set; }
-        public int Wins { get; set; }
-        public int Losses { get; set; }
-        public int Ties { get; set; }
-        public int GoalsFor { get; set; }
-        public int GoalsAgainst { get; set; }
-    }
 }

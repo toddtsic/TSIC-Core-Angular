@@ -97,4 +97,13 @@ public interface IViewScheduleService
     /// Full game edit — supports overriding teams, annotations, scores, and status.
     /// </summary>
     Task EditGameAsync(Guid jobId, string userId, EditGameRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// One-time deploy-time backfill: recompute every team's stored pool record from scratch via
+    /// the canonical method and overwrite the Teams columns (teams with no scored games are zeroed).
+    /// Must run once at cutover before the stored-column read paths (games-grid records, pool
+    /// standings, seeding) are trusted; thereafter score entry keeps the columns fresh. Returns the
+    /// number of teams written.
+    /// </summary>
+    Task<int> RebuildTeamRecordsAsync(Guid jobId, CancellationToken ct = default);
 }

@@ -281,6 +281,35 @@ public interface ITeamRepository
     /// </summary>
     Task UpdateTeamFeesAsync(List<Teams> teams, CancellationToken cancellationToken = default);
 
+    // ── Standings record (hybrid persistence) ──
+
+    /// <summary>
+    /// Read the stored pool record (Games/Wins/Losses/Ties/Points/GoalsFor/GoalsVs) for every team
+    /// in a job — the authoritative, score-entry-maintained columns. Replaces the job-wide games
+    /// GROUP BY on the hot read paths (games-grid record buttons, pool standings). Stale/zero until
+    /// the deploy-time backfill seeds them; kept fresh thereafter at every score write.
+    /// </summary>
+    Task<List<Dtos.Scheduling.TeamRecordAggregate>> GetStoredTeamRecordsAsync(
+        Guid jobId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Recompute-and-overwrite the stored pool record on the given teams. Loads them tracked and
+    /// mutates the seven columns in place (never Update/UpdateRange — that touches the TeamAi
+    /// identity column). One SaveChanges. Used by score-entry maintenance and the deploy-time
+    /// backfill. Teams absent from <paramref name="records"/> are untouched.
+    /// </summary>
+    Task UpdateTeamRecordsAsync(
+        IReadOnlyDictionary<Guid, Dtos.Scheduling.TeamRecordAggregate> records,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Resolve the sport's Win/Draw/Loss point values for each team (Teams.LeagueId → Sport), so a
+    /// record's Points column can be computed at persist time. Teams may span leagues, so this is
+    /// per-team, not per-job.
+    /// </summary>
+    Task<Dictionary<Guid, (int WinPts, int DrawPts, int LossPts)>> GetSportPointsByTeamAsync(
+        Guid jobId, IReadOnlyCollection<Guid> teamIds, CancellationToken cancellationToken = default);
+
     // ── LADT Admin methods ──
 
     /// <summary>

@@ -258,10 +258,33 @@ public interface IScheduleRepository
     Task<List<Guid>> GetHideScoresAgegroupIdsAsync(Guid jobId, CancellationToken ct = default);
 
     /// <summary>
-    /// Job-wide round-robin W-L-T per team, aggregated in one GROUP BY. Replaces re-loading every
-    /// game as a tracked entity solely to count records. Round-robin only, both scores present.
+    /// THE canonical record method for a single team — the cornerstone the standings/seeding/record
+    /// surfaces all derive from. Tallies the team's SCORED games (both scores present) from its own
+    /// perspective. <paramref name="includeNonTGames"/> == false → pool record (round-robin only,
+    /// <c>T1Type == T2Type == "T"</c>), the value PERSISTED to the Teams columns at score entry;
+    /// true → full-season (every scored game, any type). Points is left 0 here — apply
+    /// <see cref="Dtos.Scheduling.TeamRecordAggregate.WithPoints"/> once the sport's values are known.
     /// </summary>
-    Task<List<Dtos.Scheduling.TeamRecordAggregate>> GetTeamRecordsAsync(Guid jobId, CancellationToken ct = default);
+    Task<Dtos.Scheduling.TeamRecordAggregate> GetTeamRecordAsync(
+        Guid teamId, bool includeNonTGames, CancellationToken ct = default);
+
+    /// <summary>
+    /// Job-wide sibling of <see cref="GetTeamRecordAsync"/> — one GROUP BY over every team.
+    /// <paramref name="includeNonTGames"/> == false → pool records (drives the deploy-time backfill
+    /// of the Teams columns); true → full-season records (drives the Records tab). Points left 0.
+    /// </summary>
+    Task<List<Dtos.Scheduling.TeamRecordAggregate>> GetTeamRecordsAsync(
+        Guid jobId, bool includeNonTGames = false, CancellationToken ct = default);
+
+    /// <summary>
+    /// Resolve each division's standings-ordering config — the sport's Win/Draw/Loss point values
+    /// (via division → agegroup → league → sport) and the league's ordered tiebreak rule chain
+    /// (<c>Leagues.StandingsSortProfileId</c> → StandingsSortProfileRules → StandingsSortRules,
+    /// ordered by SortOrder). Divisions whose league has no profile return an empty rule list
+    /// (default order). One read for every division in view.
+    /// </summary>
+    Task<Dictionary<Guid, Dtos.Scheduling.StandingsSortConfig>> GetStandingsSortConfigByDivisionAsync(
+        IReadOnlyCollection<Guid> divIds, CancellationToken ct = default);
 
     /// <summary>
     /// Get staff contacts for teams in the filtered schedule.
