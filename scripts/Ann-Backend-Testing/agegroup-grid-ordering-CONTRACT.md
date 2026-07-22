@@ -2,7 +2,7 @@
 
 **Origin:** PL-031 (LADT sibling grids moved to native Syncfusion sort). When the grid stopped doing its own sorting, the age-group grid lost its default ordering (system/holding buckets no longer sink to the bottom; no longer alphabetical). The fix belongs at the endpoint, so the rows **arrive** in the right order and the grid stays purely native.
 
-**Status:** proposed — review and execute if reasonable.
+**Status:** IMPLEMENTED (build green) — NOT deployed, restart pending.
 
 ---
 
