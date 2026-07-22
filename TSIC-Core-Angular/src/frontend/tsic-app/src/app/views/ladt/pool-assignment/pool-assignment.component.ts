@@ -92,7 +92,7 @@ export class PoolAssignmentComponent {
         const preview = this.transferPreview();
         if (!preview || this.isTransferring()) return false;
         if (preview.requiresSymmetricalSwap) {
-            return preview.teams.some(t => t.direction === 'reverse');
+            return preview.teams.some(t => t.direction === 'target-to-source');
         }
         return true;
     });
