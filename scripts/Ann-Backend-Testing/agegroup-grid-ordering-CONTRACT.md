@@ -15,13 +15,13 @@ Chain:
 - Service: `LadtService.GetAgegroupsByLeagueAsync` — [LadtService.cs:1398](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/LadtService.cs#L1398)
 - Repo (shared): `_agegroupRepo.GetByLeagueIdAsync`
 
-## What's already correct (verified against the code)
+## Ordering key (CORRECTED)
 
-The repo `GetByLeagueIdAsync` **already** orders the age-groups: `.OrderBy(a => a.SortAge).ThenBy(a => a.AgegroupName)` ([AgeGroupRepository.cs:48-56](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/AgeGroupRepository.cs#L48)). So the rows already arrive age-ordered (`SortAge` is the purpose-built key — alphabetical would mis-order U8/U10/U12). **Do not touch the repo** — it is shared by 6 callers and already correct.
+The repo `GetByLeagueIdAsync` orders by `.OrderBy(a => a.SortAge).ThenBy(a => a.AgegroupName)` ([AgeGroupRepository.cs:48-56](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/AgeGroupRepository.cs#L48)). **`SortAge` is an unmaintained legacy field** (Todd, 07-22) — ordering on it produces a wrong, effectively-descending order. **The grid must order by `AgegroupName` ascending, not `SortAge`.** The shared repo is still **not touched** (6 callers); the LADT grid's single-caller service method re-sorts by name in memory.
 
-## The only missing behavior
+## The behavior
 
-The grid lost **one** thing when it stopped self-sorting: the system/holding buckets (WAITLIST / Dropped / Registration) no longer sink to the bottom. By `SortAge` alone they fall wherever their sort value places them. So the fix is just: **push system buckets to the bottom, preserving the existing order otherwise.**
+Two things: (1) order the real age-groups by **`AgegroupName` ascending**, and (2) sink the system/holding buckets (WAITLIST / Dropped / Registration) to the bottom.
 
 ## Where to put it
 
@@ -41,15 +41,16 @@ public async Task<List<AgegroupDetailDto>> GetAgegroupsByLeagueAsync(
     var agegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, cancellationToken);
     return agegroups
         .Select(MapAgegroup)
-        .OrderBy(a => AgegroupConstants.IsSystemBucket(a.AgegroupName))  // stable: real first, system buckets last
+        .OrderBy(a => AgegroupConstants.IsSystemBucket(a.AgegroupName))  // real first, system buckets last
+        .ThenBy(a => a.AgegroupName)                                     // alpha ascending within each band
         .ToList();
 }
 ```
 
-## Corrections from the first draft (why this is smaller than it looked)
+## Notes
 
-- **No `Active` tier** — age-groups have no active/inactive concept; neither `Agegroups` nor `AgegroupDetailDto` has an `Active` field. The original `.ThenByDescending(a => a.Active)` would not compile.
-- **No name/SortAge re-sort** — the repo already does `SortAge` then name for everyone; re-doing it in the service is redundant. Only the system-bucket partition is new.
+- **No `Active` tier** — age-groups have no active/inactive concept; neither `Agegroups` nor `AgegroupDetailDto` has an `Active` field.
+- **Do NOT order by `SortAge`** — it is unmaintained and yields the wrong order. Name-ascending is the intended order.
 
 ## Risk
 

@@ -1399,12 +1399,14 @@ public sealed class LadtService : ILadtService
     {
         await ValidateLeagueOwnershipAsync(leagueId, jobId, cancellationToken);
         var agegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, cancellationToken);
-        // Repo already orders by SortAge then name. Push the system/holding buckets
-        // (WAITLIST / Dropped / Registration) to the bottom of the grid — OrderBy is a
-        // stable sort, so the repo's order is preserved within each band.
+        // Order the grid by AgegroupName ascending, with the system/holding buckets
+        // (WAITLIST / Dropped / Registration) sunk to the bottom. Do NOT order by SortAge —
+        // it is an unmaintained legacy field and produces a wrong (effectively descending)
+        // order. Re-sort here in the single-caller grid method; the shared repo is untouched.
         return agegroups
             .Select(MapAgegroup)
             .OrderBy(a => AgegroupConstants.IsSystemBucket(a.AgegroupName))
+            .ThenBy(a => a.AgegroupName)
             .ToList();
     }
 
