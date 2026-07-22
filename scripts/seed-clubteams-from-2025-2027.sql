@@ -1,20 +1,45 @@
+/*##############################################################################
+  ##  READ ME FIRST  ##  THIS SCRIPT RUNS IN TWO STEPS  ##  DON'T SKIP STEP 2
+  ##############################################################################
+
+  STEP 1 -- INSTALL (this is all that "running the file" does):
+     Executing this whole file ONLY (re)creates the helper function and the
+     stored procedure. It touches NO DATA and returns INSTANTLY.
+     >>>>>  THIS IS *NOT* THE SEEDING RUN.  <<<<<
+
+  STEP 2 -- ACTUALLY RUN IT (you must do this yourself, in a new query window):
+
+         EXEC Clubs.SeedClubTeamsFrom2025 @bCleanOutFirst = 0;
+
+     Defaults are @StartYear = 2025, @EndYear = 2027, so this ONE call covers
+     all three years and back-fills orphaned Teams.ClubTeamId (waitlisted teams
+     included). STEP 2 is the part that prints the progress, summary stats, and
+     BURN diagnostics -- it is the step that does the work.
+
+  !!!!!  IF THE FILE "FINISHED INSTANTLY," YOU DID STEP 1 ONLY -- DO STEP 2.  !!!!!
+
+  ****  WARNING: @bCleanOutFirst = 1 is DESTRUCTIVE -- it DELETES ALL Clubs,  ****
+  ****  ClubReps, and ClubTeams before rebuilding. Use ONLY for a full        ****
+  ****  rebuild, never for a routine back-fill.                               ****
+##############################################################################*/
+
 /*******************************************************************************
- * Seed ClubTeams Library from 2025/2026 Teams Data
- * 
- * Purpose: Create Clubs, ClubReps, and ClubTeams from existing Teams records 
- *          in 2025/2026 jobs and link Teams.ClubTeamId to ClubTeams.
+ * Seed ClubTeams Library from 2025-2027 Teams Data
+ *
+ * Purpose: Create Clubs, ClubReps, and ClubTeams from existing Teams records
+ *          in 2025-2027 jobs and link Teams.ClubTeamId to ClubTeams.
  * 
  * Parameters:
  *   @bCleanOutFirst - If 1, clears all existing Club data before building
  *   @StartYear      - Starting year (inclusive, default 2025)
- *   @EndYear        - Ending year (inclusive, default 2026)
+ *   @EndYear        - Ending year (inclusive, default 2027)
  * 
  * Usage:
  *   -- Incremental mode (default - preserve existing Club data):
- *   EXEC Clubs.SeedClubTeamsFrom2025 @bCleanOutFirst = 0, @StartYear = 2025, @EndYear = 2026;
- *   
+ *   EXEC Clubs.SeedClubTeamsFrom2025 @bCleanOutFirst = 0, @StartYear = 2025, @EndYear = 2027;
+ *
  *   -- Clean mode (delete all existing Club data first):
- *   EXEC Clubs.SeedClubTeamsFrom2025 @bCleanOutFirst = 1, @StartYear = 2025, @EndYear = 2026;
+ *   EXEC Clubs.SeedClubTeamsFrom2025 @bCleanOutFirst = 1, @StartYear = 2025, @EndYear = 2027;
  *   
  *   -- Custom year range:
  *   EXEC Clubs.SeedClubTeamsFrom2025 @StartYear = 2024, @EndYear = 2027;
@@ -190,7 +215,7 @@ GO
 CREATE PROCEDURE Clubs.SeedClubTeamsFrom2025
     @bCleanOutFirst BIT = 0,
     @StartYear INT = 2025,
-    @EndYear INT = 2026
+    @EndYear INT = 2027
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -342,7 +367,7 @@ PRINT '';
 -- ============================================================================
 -- STEP 3: Create Clubs from unique club representatives
 -- ============================================================================
-PRINT 'STEP 3: Creating Clubs from 2025/2026 Teams data...';
+PRINT 'STEP 3: Creating Clubs from 2025-2027 Teams data...';
 PRINT '';
 
 BEGIN TRANSACTION;
