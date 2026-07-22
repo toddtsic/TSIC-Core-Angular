@@ -790,7 +790,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What happened**: EBD only discounts teams **registered on/after** the discount is actually in effect — a **backdated start date has no effect on already-registered teams**, even ones inside the window. So the past date is accepted but silently does nothing (misleading).
 - **Recommendation (Ann)**: **Don't allow a start date earlier than today** for this discount.
 - **Severity**: UX / data-integrity (misleading setup — implies retroactivity it doesn't have)
-- **Status**: Open
+- **Status**: **Won't Fix (Todd 07-22).** A backdated start is **inert, not harmful** — it simply doesn't reach already-registered teams; it never mischarges anyone. A hard block (Ann's rec) would strand a legitimately-active discount whose start is genuinely in the past when a Director edits it later, and a soft warning isn't worth the churn for a no-harm case. Leave as-is.
 - **VERIFIED**:
   - The EBD **Start Date** input has **no `min` and no validation** — plain `type="date"` bound to `mod.startDate` ([fee-card.component.ts:136-137](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/components/fee-card.component.ts#L136); `addModifier` seeds it null, [:398](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/components/fee-card.component.ts#L398)) — so any past date is accepted.
   - **Why backdating can't work retroactively**: EBD is a **fee modifier evaluated at registration time** (`EvaluateModifiersAsync(..., asOf)`); an already-registered team's fee was computed/charged when it registered, so adding/backdating an EBD later doesn't recompute it. The discount only reaches teams that register while it's live — matching Ann's observation.
