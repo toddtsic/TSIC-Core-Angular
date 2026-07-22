@@ -728,7 +728,7 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What happened**: The hint reads **"Locked — club teams registered in this or other events."**
 - **Requested change (Ann)**: reword to **"Club Name Locked — club teams are registered in this or other events."** (prepend "Club Name", and "registered" → "are registered").
 - **Severity**: UX / copy
-- **Status**: Open
+- **Status**: Resolved — NOT deployed, F5 pending. Reworded [login-step.component.ts:327](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/team/steps/login-step.component.ts#L327) to "Club Name Locked — club teams are registered in this or other events". Copy-only, no logic change.
 - **For Todd — the change**: one-line copy edit at [login-step.component.ts:327](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/registration/team/steps/login-step.component.ts#L327):
   - from: `Locked — club teams registered in this or other events`
   - to: `Club Name Locked — club teams are registered in this or other events`
