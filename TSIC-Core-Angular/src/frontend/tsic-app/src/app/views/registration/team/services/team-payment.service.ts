@@ -40,6 +40,9 @@ export class TeamPaymentService {
 
     // --- Signal encapsulation: private backing + public readonly + controlled mutators ---
     private readonly _teams = signal<RegisteredTeamDto[]>([]);
+    /** False until the first setTeams() lands. Lets the payment screen hold a spinner instead of
+     *  flashing "No payment due" while the async teams/balance fetch is still in flight (PL-038). */
+    private readonly _teamsLoaded = signal<boolean>(false);
     private readonly _paymentMethodsAllowedCode = signal<number>(1);
     private readonly _bAddProcessingFees = signal<boolean>(false);
     private readonly _bApplyProcessingFeesToTeamDeposit = signal<boolean>(false);
@@ -73,6 +76,7 @@ export class TeamPaymentService {
     private readonly _effectiveEcheckRate = signal(0);
 
     readonly teams = this._teams.asReadonly();
+    readonly teamsLoaded = this._teamsLoaded.asReadonly();
     readonly paymentMethodsAllowedCode = this._paymentMethodsAllowedCode.asReadonly();
     readonly bAddProcessingFees = this._bAddProcessingFees.asReadonly();
     readonly bApplyProcessingFeesToTeamDeposit = this._bApplyProcessingFeesToTeamDeposit.asReadonly();
@@ -120,7 +124,7 @@ export class TeamPaymentService {
     readonly donationProcessing = computed(() => Math.max(0, this.donationCc() - this._donation()));
 
     // Controlled mutators
-    setTeams(value: RegisteredTeamDto[]): void { this._teams.set(value); }
+    setTeams(value: RegisteredTeamDto[]): void { this._teams.set(value); this._teamsLoaded.set(true); }
     setPaymentConfig(code: number, addFees: boolean, applyToDeposit: boolean,
         payTo?: string | null, mailTo?: string | null, mailinPaymentWarning?: string | null,
         enableEcheck = false, adnArbTrial = false, adnStartDateAfterTrial: string | null = null,
@@ -379,6 +383,7 @@ export class TeamPaymentService {
 
     reset(): void {
         this._teams.set([]);
+        this._teamsLoaded.set(false);
         this._paymentMethodsAllowedCode.set(1);
         this._bAddProcessingFees.set(false);
         this._bApplyProcessingFeesToTeamDeposit.set(false);

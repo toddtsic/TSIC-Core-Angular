@@ -102,7 +102,14 @@ import { RegisteredTeamsGridComponent } from '../components/registered-teams-gri
           </section>
         }
 
-        @if (!hasBalance()) {
+        @if (!teamsLoaded()) {
+          <div class="py-4 text-center" role="status">
+            <div class="spinner-border spinner-border-sm text-primary">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="text-muted mt-2 small mb-0">Loading your teams...</p>
+          </div>
+        } @else if (!hasBalance()) {
           <div class="alert alert-success border-0 mb-3" role="status">
             <div class="d-flex align-items-center gap-2">
               <span class="badge bg-success">No Balance</span>
@@ -882,6 +889,9 @@ export class TeamPaymentStepV2Component implements AfterViewInit, OnDestroy {
 
     readonly clubRepContact = computed(() => this.state.clubRepContact());
     readonly hasBalance = computed(() => this.state.teamPayment.hasBalance());
+    /** False until the teams/balance fetch lands — gates the empty-state message so it can't
+     *  flash "No payment due" before the ledger data arrives (PL-038). */
+    readonly teamsLoaded = computed(() => this.state.teamPayment.teamsLoaded());
     readonly balanceDue = computed(() => this.state.teamPayment.balanceDue());
     readonly registeredTeams = computed(() => this.state.teamPayment.teams());
     /**
