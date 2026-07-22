@@ -249,7 +249,9 @@ export class FamilyPaymentComponent {
   // Only Production talks to live Authorize.Net; every other host is sandboxed and the
   // subscription lives in an account it can't reach, so we lean on the stored snapshots
   // that arrive with the family DTO. Mirrors the detail panel's anchor card.
-  private readonly isProdEnv = environment.envName === 'production';
+  // Public so the template can gate the dev-only "stored record" note on the environment itself
+  // (see the ARB note fix in registration-detail-panel) rather than on the per-card live-read flag.
+  readonly isProdEnv = environment.envName === 'production';
 
   // Live Authorize.Net overrides / flags, keyed by registrationId. Reset on every data
   // reload (the stored snapshots refresh, so a stale live read must not outlive them).

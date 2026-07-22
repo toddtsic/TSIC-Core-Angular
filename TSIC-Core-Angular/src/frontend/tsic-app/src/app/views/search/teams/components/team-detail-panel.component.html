@@ -282,7 +282,7 @@
                     <span class="sub-value">{{ sub.totalOccurrences }}</span>
                   </div>
                 </div>
-                @if (!subscriptionIsLive()) {
+                @if (!isProdEnv) {
                   <p class="sub-stored-note">
                     <i class="bi bi-clock-history me-1" aria-hidden="true"></i>Stored record — check live Authorize.Net status to enable Cancel.
                   </p>

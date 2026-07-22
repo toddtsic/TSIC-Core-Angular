@@ -801,7 +801,9 @@ export class RegistrationDetailPanelComponent implements OnChanges {
 
   // Only Production talks to live Authorize.Net; every other host is sandboxed and the
   // subscription lives in an account it can't reach, so we lean on the stored snapshot.
-  private readonly isProdEnv = environment.envName === 'production';
+  // Public so the template can gate the dev-only "stored record" note on the environment itself
+  // rather than on subscriptionIsLive (which flashes on open and sticks on a failed live read).
+  readonly isProdEnv = environment.envName === 'production';
 
   // Seeded synchronously from the stored ARB snapshot (Registrations.AdnSubscription* columns) so the
   // card shows in EVERY environment with no gateway call. loadSubscription() (Production only) later
