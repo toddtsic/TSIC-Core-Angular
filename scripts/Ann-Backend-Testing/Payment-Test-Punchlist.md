@@ -598,7 +598,8 @@ _Ordered oldest → newest (newest at bottom). Item IDs are PL-### within this f
 - **What I expected**: This notice to apply only to **installment (ARB)** payers — a **PIF** (pay-in-full) player is charged at registration, so it doesn't apply to them.
 - **What happened**: The notice shows regardless of payment choice, so a PIF player is told their payment "will not show / is charged the day after," which is wrong for them.
 - **Severity**: UX / copy (misleading for PIF)
-- **Status**: Open
+- **Status**: Open — content fix (Todd/Ann), no code
+- **INVESTIGATED (2026-07-21)**: The substitution engine is **token-replacement only — no if/conditional blocks** ([TextSubstitutionService.cs:527-534](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Shared/TextSubstitution/TextSubstitutionService.cs#L527)); the "conditional-token" idea below is **not feasible** without new code. The red block is static text in the per-job template. → **Fix = Ann's reworded self-qualifying copy** (reads correctly for both PIF and ARB), applied as a **bulk content update** to the affected templates + the new-job default. Data/content update, not code.
 - **Requested reword (Ann)** — make it installment-conditional and fix the last sentence:
   > **If you are paying with an installment subscription, the first payment** WILL NOT SHOW BELOW because it is charged the day after registration.
   > You will receive a transaction receipt **when each installment is processed.**
