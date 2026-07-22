@@ -52,6 +52,46 @@
       </div>
     </div>
 
+    @if (svc.isSuperUser()) {
+      <div class="form-section form-section--super">
+        <h6 class="section-title">
+          <i class="bi bi-shield-lock me-2"></i>
+          Player Settings (SuperUser)
+        </h6>
+        <div class="row g-2">
+          <div class="col-md-6">
+            <label class="field-label">Registration Form</label>
+            <input type="text" class="field-input"
+              [ngModel]="coreRegformPlayer()"
+              (ngModelChange)="coreRegformPlayer.set($event); onFieldChange()" />
+          </div>
+        </div>
+        <div class="row g-2">
+          <div class="col-md-4">
+            <label class="field-check">
+              <input type="checkbox"
+                [ngModel]="bOfferPlayerRegsaverInsurance()"
+                (ngModelChange)="bOfferPlayerRegsaverInsurance.set($event); onFieldChange()"
+                [disabled]="true" />
+              <span class="field-label">Offer RegSaver Insurance</span>
+            </label>
+          </div>
+          <div class="col-md-4">
+            <label class="field-label">Mom Label</label>
+            <input type="text" class="field-input"
+              [ngModel]="momLabel()"
+              (ngModelChange)="momLabel.set($event); onFieldChange()" />
+          </div>
+          <div class="col-md-4">
+            <label class="field-label">Dad Label</label>
+            <input type="text" class="field-input"
+              [ngModel]="dadLabel()"
+              (ngModelChange)="dadLabel.set($event); onFieldChange()" />
+          </div>
+        </div>
+      </div>
+    }
+
     <div class="form-section">
       <h6 class="section-title"><i class="bi bi-file-earmark-text me-2"></i>PLAYER Confirmation, Liability Waiver &amp; Code of Conduct Text</h6>
       <div class="row g-2">
@@ -117,46 +157,6 @@
         </div>
       </div>
     </div>
-
-    @if (svc.isSuperUser()) {
-      <div class="form-section form-section--super">
-        <h6 class="section-title">
-          <i class="bi bi-shield-lock me-2"></i>
-          Player Settings (SuperUser)
-        </h6>
-        <div class="row g-2">
-          <div class="col-md-6">
-            <label class="field-label">Registration Form</label>
-            <input type="text" class="field-input"
-              [ngModel]="coreRegformPlayer()"
-              (ngModelChange)="coreRegformPlayer.set($event); onFieldChange()" />
-          </div>
-        </div>
-        <div class="row g-2">
-          <div class="col-md-4">
-            <label class="field-check">
-              <input type="checkbox"
-                [ngModel]="bOfferPlayerRegsaverInsurance()"
-                (ngModelChange)="bOfferPlayerRegsaverInsurance.set($event); onFieldChange()"
-                [disabled]="true" />
-              <span class="field-label">Offer RegSaver Insurance</span>
-            </label>
-          </div>
-          <div class="col-md-4">
-            <label class="field-label">Mom Label</label>
-            <input type="text" class="field-input"
-              [ngModel]="momLabel()"
-              (ngModelChange)="momLabel.set($event); onFieldChange()" />
-          </div>
-          <div class="col-md-4">
-            <label class="field-label">Dad Label</label>
-            <input type="text" class="field-input"
-              [ngModel]="dadLabel()"
-              (ngModelChange)="dadLabel.set($event); onFieldChange()" />
-          </div>
-        </div>
-      </div>
-    }
 
   </div>
 }
