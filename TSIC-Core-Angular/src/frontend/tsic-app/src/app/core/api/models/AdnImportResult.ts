@@ -7,5 +7,8 @@ export type AdnImportResult = {
     transactionsPulled: number;
     imported: number;
     skippedDuplicates: number;
+    returnsImported?: number;
+    returnOrphans?: number;
+    backstopReversals?: number;
 };
 

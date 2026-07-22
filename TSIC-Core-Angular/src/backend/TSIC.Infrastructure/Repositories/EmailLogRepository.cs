@@ -81,12 +81,12 @@ public class EmailLogRepository : IEmailLogRepository
         var union = lowered
             .Select(addr => baseQuery
                 .Where(e => EF.Functions.Like(";" + e.SendTo!.ToLower() + ";", "%;" + addr + ";%"))
-                .Select(e => new { e.EmailId, e.Subject, e.SendTs }))
+                .Select(e => new { e.EmailId, e.Subject, e.SendFrom, e.SendTs }))
             .Aggregate((a, b) => a.Union(b));
 
         return await union
             .OrderByDescending(x => x.SendTs)
-            .Select(x => new PlayerSentEmailDto { EmailId = x.EmailId, Subject = x.Subject, SentAt = x.SendTs })
+            .Select(x => new PlayerSentEmailDto { EmailId = x.EmailId, Subject = x.Subject, EmailFrom = x.SendFrom, SentAt = x.SendTs })
             .ToListAsync(cancellationToken);
     }
 

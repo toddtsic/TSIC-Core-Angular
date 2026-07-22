@@ -181,6 +181,11 @@
 					[sortSettings]="sortSettings">
 					<e-columns>
 						<e-column field="sentAt" headerText="Sent" width="160" type="date" format="M/d/yy h:mm a"></e-column>
+						<e-column field="emailFrom" headerText="From" width="220">
+							<ng-template #template let-data>
+								<span class="text-truncate d-inline-block" style="max-width: 200px;">{{ data.emailFrom || '—' }}</span>
+							</ng-template>
+						</e-column>
 						<e-column field="subject" headerText="Subject">
 							<ng-template #template let-data>
 								<span class="text-truncate d-inline-block" style="max-width: 420px;">{{ data.subject || '(no subject)' }}</span>

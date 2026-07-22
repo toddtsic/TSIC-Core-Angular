@@ -5,6 +5,7 @@
 export type PlayerSentEmailDto = {
     emailId: number;
     subject: string | null;
+    emailFrom: string | null;
     sentAt: string;
 };
 

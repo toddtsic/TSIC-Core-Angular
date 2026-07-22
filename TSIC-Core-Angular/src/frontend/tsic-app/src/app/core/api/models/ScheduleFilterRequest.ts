@@ -11,5 +11,8 @@ export type ScheduleFilterRequest = {
     fieldIds?: any[] | null;
     unscoredOnly?: boolean | null;
     times?: any[] | null;
+    deviceToken?: string | null;
+    skip?: number | null;
+    take?: number | null;
 };
 
