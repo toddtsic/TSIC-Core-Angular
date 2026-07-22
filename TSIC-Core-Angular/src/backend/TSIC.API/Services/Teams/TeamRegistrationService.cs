@@ -710,25 +710,30 @@ public class TeamRegistrationService : ITeamRegistrationService
             throw new InvalidOperationException("Invalid age group selected");
         }
 
-        // Enforce MaxTeamsPerClub
-        if (ageGroup.MaxTeamsPerClub > 0)
-        {
-            var clubTeamCount = await _teams.GetRegisteredCountForClubRepAndAgegroupAsync(
-                jobId, request.AgeGroupId, clubRepRegistration.RegistrationId);
-            if (clubTeamCount >= ageGroup.MaxTeamsPerClub)
-            {
-                _logger.LogWarning(
-                    "MaxTeamsPerClub exceeded: club {ClubName} has {Count}/{Max} teams in agegroup {AgeGroupName}",
-                    clubName, clubTeamCount, ageGroup.MaxTeamsPerClub, ageGroup.AgegroupName);
-                return new RegisterTeamResponse
-                {
-                    Success = false,
-                    TeamId = Guid.Empty,
-                    Message = $"Your club has reached the maximum of {ageGroup.MaxTeamsPerClub} team(s) allowed in {ageGroup.AgegroupName}.",
-                    IsWaitlisted = false
-                };
-            }
-        }
+        // MaxTeamsPerClub enforcement RETIRED 2026-07-22 (PL-041). The per-club cap was retired in
+        // favor of the per-age-group "Max Teams" cap only; its director UI was removed, so the value
+        // is unsettable and dormant (all stored values are effectively unlimited). Enforcing a stray
+        // low legacy value here would silently block a club with no UI to diagnose why, so the
+        // processing is disabled. The Agegroups.MaxTeamsPerClub field and its DTOs are intentionally
+        // LEFT INTACT so Configure Job models keep round-tripping; only this check is commented out.
+        // if (ageGroup.MaxTeamsPerClub > 0)
+        // {
+        //     var clubTeamCount = await _teams.GetRegisteredCountForClubRepAndAgegroupAsync(
+        //         jobId, request.AgeGroupId, clubRepRegistration.RegistrationId);
+        //     if (clubTeamCount >= ageGroup.MaxTeamsPerClub)
+        //     {
+        //         _logger.LogWarning(
+        //             "MaxTeamsPerClub exceeded: club {ClubName} has {Count}/{Max} teams in agegroup {AgeGroupName}",
+        //             clubName, clubTeamCount, ageGroup.MaxTeamsPerClub, ageGroup.AgegroupName);
+        //         return new RegisterTeamResponse
+        //         {
+        //             Success = false,
+        //             TeamId = Guid.Empty,
+        //             Message = $"Your club has reached the maximum of {ageGroup.MaxTeamsPerClub} team(s) allowed in {ageGroup.AgegroupName}.",
+        //             IsWaitlisted = false
+        //         };
+        //     }
+        // }
 
         // Resolve or create ClubTeam
         int clubTeamId;
