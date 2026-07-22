@@ -1,4 +1,4 @@
-import { Component, Input, ChangeDetectionStrategy, signal, computed, AfterViewChecked, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
+import { Component, Input, ChangeDetectionStrategy, signal, computed, OnChanges, SimpleChanges, CUSTOM_ELEMENTS_SCHEMA, input, output, viewChild } from '@angular/core';
 import { DecimalPipe, NgClass } from '@angular/common';
 import { GridAllModule, GridComponent } from '@syncfusion/ej2-angular-grids';
 import type { LadtColumnDef } from '../configs/ladt-grid-columns';
@@ -37,11 +37,11 @@ export interface ParentBreadcrumb {
           <i class="bi bi-plus-circle me-1"></i>Add New {{ levelLabel() }}
         </span>
       }
-      <span class="badge bg-primary-subtle text-primary-emphasis" [class.ms-auto]="level() === 0" [class.ms-2]="level() > 0">{{ dataSignal().length }}</span>
+      <span class="badge bg-primary-subtle text-primary-emphasis" [class.ms-auto]="level() === 0" [class.ms-2]="level() > 0">{{ data().length }}</span>
     </div>
 
     <ejs-grid #grid
-      [dataSource]="sortedData()"
+      [dataSource]="data()"
       [allowSorting]="true"
       [allowResizing]="true"
       [allowTextWrap]="true"
@@ -50,9 +50,9 @@ export interface ParentBreadcrumb {
       [enableStickyHeader]="true"
       [rowHeight]="32"
       [allowSelection]="true"
-      (actionBegin)="onActionBegin($event)"
       (rowDataBound)="onRowDataBound($event)"
       (rowSelected)="onRowSelect($event)"
+      (dataBound)="onDataBound()"
       cssClass="tsic-grid-tight">
 
       <e-columns>
@@ -276,12 +276,15 @@ export interface ParentBreadcrumb {
       padding-right: 4px !important;
     }
 
-    /* Row states */
-    :host ::ng-deep .e-grid .e-row.row-selected .e-rowcell {
+    /* Row states — selection is Syncfusion-native (.e-active on the row,
+       .e-selectionbackground on its cells); brand the native classes rather than
+       a hand-rolled one. */
+    :host ::ng-deep .e-grid .e-row.e-active .e-rowcell,
+    :host ::ng-deep .e-grid .e-row.e-active .e-selectionbackground {
       background: var(--bs-primary-bg-subtle) !important;
       font-weight: 500;
     }
-    :host ::ng-deep .e-grid .e-row.row-selected .e-freezeleftborder {
+    :host ::ng-deep .e-grid .e-row.e-active .e-freezeleftborder {
       background: var(--bs-primary-bg-subtle) !important;
       font-weight: 600;
       color: var(--bs-primary);
@@ -482,7 +485,7 @@ export interface ParentBreadcrumb {
     }
   `]
 })
-export class LadtSiblingGridComponent implements OnChanges, AfterViewChecked {
+export class LadtSiblingGridComponent implements OnChanges {
   readonly columns = input<LadtColumnDef[]>([]);
   readonly data = input<any[]>([]);
   readonly selectedId = input('');
@@ -503,16 +506,6 @@ export class LadtSiblingGridComponent implements OnChanges, AfterViewChecked {
   readonly navigateTo = output<string>();
 
   readonly grid = viewChild<GridComponent>('grid');
-
-  /** Set when selectedId changes; drained once the view is checked. */
-  private pendingSelectionSync = false;
-
-  // Sort state
-  sortField = signal<string | null>(null);
-  sortDirection = signal<'asc' | 'desc'>('asc');
-
-  // Internal signal for data (bridges @Input to computed)
-  dataSignal = signal<any[]>([]);
 
   // Frozen column count (action col + frozen data cols)
   frozenCount = computed(() => countFrozenColumns(this.columns()));
@@ -599,81 +592,21 @@ export class LadtSiblingGridComponent implements OnChanges, AfterViewChecked {
     this.closeMenu();
   }
 
-  sortedData = computed(() => {
-    const rows = this.dataSignal();
-    const field = this.sortField();
-
-    return [...rows].sort((a, b) => {
-      // Always push special/inactive/Unassigned rows to the bottom
-      const aUnassigned = (a['divName'] ?? a['agegroupName'] ?? '').toUpperCase() === 'UNASSIGNED';
-      const bUnassigned = (b['divName'] ?? b['agegroupName'] ?? '').toUpperCase() === 'UNASSIGNED';
-      if (aUnassigned !== bUnassigned) return aUnassigned ? 1 : -1;
-
-      const aBottom = a['_isSpecial'] === true || a['active'] === false;
-      const bBottom = b['_isSpecial'] === true || b['active'] === false;
-      if (aBottom !== bBottom) return aBottom ? 1 : -1;
-
-      // Default order (no column actively sorted): the age-group grid sorts
-      // alphabetically by name. WAITLIST/DROPPED holding groups already fall to
-      // the bottom via the _isSpecial push above, so this orders within each band.
-      if (!field) {
-        if (this.level() === 1) {
-          return String(a['agegroupName'] ?? '').localeCompare(String(b['agegroupName'] ?? ''));
-        }
-        return 0;
-      }
-      const dir = this.sortDirection() === 'asc' ? 1 : -1;
-      const va = a[field];
-      const vb = b[field];
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-      if (typeof va === 'boolean') return (va === vb ? 0 : va ? -1 : 1) * dir;
-      if (typeof va === 'number') return (va - vb) * dir;
-      return String(va).localeCompare(String(vb)) * dir;
-    });
-  });
-
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['data']) {
-      this.dataSignal.set(this.data());
-      // Reset sort when data source changes (different entity selected)
-      this.sortField.set(null);
-      this.sortDirection.set('asc');
-    }
     // A selection-only change — ▲/▼ sibling navigation from the fly-in — doesn't rebind
-    // data, so onRowDataBound won't fire. Repaint the highlight once the view is checked.
+    // data, so (dataBound) won't fire. The rows are already rendered from the prior bind,
+    // so drive SF's selection directly: it highlights AND scrolls the row into view.
     if (changes['selectedId']) {
-      this.pendingSelectionSync = true;
+      this.selectRowById();
     }
-  }
-
-  ngAfterViewChecked(): void {
-    if (!this.pendingSelectionSync) return;
-    this.pendingSelectionSync = false;
-    this.syncSelectedRow();  // safe pre-render: getRows() is guarded internally
   }
 
   // ── Syncfusion event handlers ──
-
-  onActionBegin(args: any): void {
-    if (args.requestType === 'sorting') {
-      args.cancel = true; // prevent SF default sort — we sort via computed signal
-      if (args.columnName) {
-        const newDir = args.direction === 'Ascending' ? 'asc' : 'desc';
-        this.sortField.set(args.columnName);
-        this.sortDirection.set(newDir as 'asc' | 'desc');
-      }
-    }
-  }
 
   onRowDataBound(args: any): void {
     const row = args.data;
     if (!row || !args.row) return;
 
-    if (row[this.idField()] === this.selectedId()) {
-      args.row.classList.add('row-selected');
-    }
     if (row['active'] === false) {
       args.row.classList.add('inactive-row');
     }
@@ -682,35 +615,40 @@ export class LadtSiblingGridComponent implements OnChanges, AfterViewChecked {
     }
   }
 
+  /** Fires after every rebind (add/drill/data swap) — re-assert the selected row once
+   *  the new rows are rendered, using SF's own selection (highlight + scroll into view). */
+  onDataBound(): void {
+    this.selectRowById();
+  }
+
   /**
-   * Re-apply the `row-selected` class to the already-rendered rows when the
-   * selection changes without a data rebind (▲/▼ sibling navigation from the
-   * fly-in). Toggles in place — no grid refresh, no scroll reset. getRows() and
-   * getCurrentViewRecords() are index-aligned in display order.
+   * Reflect the externally-driven `selectedId` onto the grid via Syncfusion's native
+   * selection engine (`selectRow`), which highlights the row and scrolls it into view.
+   * No-ops when that row is already selected, so redundant rebinds don't re-scroll or
+   * re-fire selection events.
    */
-  private syncSelectedRow(): void {
+  private selectRowById(): void {
     const grid = this.grid();
     if (!grid) return;
-    let rows: HTMLElement[] | null;
+    const id = this.selectedId();
+    if (!id) return;
     let records: any[] | null;
     try {
-      // getRows() throws if the grid's content module isn't rendered yet — this can
-      // run at init before the first bind (and during teardown).
-      // Initial highlight is handled by onRowDataBound, so skipping is safe.
-      rows = grid.getRows() as HTMLElement[] | null;
+      // getCurrentViewRecords() throws before the first bind (init/teardown) — skip then.
       records = grid.getCurrentViewRecords() as any[] | null;
     } catch {
       return;
     }
-    if (!rows || !records) return;
-    const id = this.selectedId();
-    const field = this.idField();
-    rows.forEach((tr, i) => {
-      tr.classList.toggle('row-selected', records[i]?.[field] === id);
-    });
+    if (!records) return;
+    const index = records.findIndex((r) => r?.[this.idField()] === id);
+    if (index < 0 || grid.selectedRowIndex === index) return;
+    grid.selectRow(index);
   }
 
   onRowSelect(args: any): void {
+    // Only user clicks bubble up. Programmatic selectRow (driven by selectedId) reports
+    // isInteracted=false — ignoring it prevents a select→emit→re-select echo loop.
+    if (!args?.isInteracted) return;
     const id = args.data?.[this.idField()];
     if (id) {
       this.rowSelected.emit(id);
