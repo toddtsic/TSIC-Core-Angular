@@ -15,27 +15,23 @@ Chain:
 - Service: `LadtService.GetAgegroupsByLeagueAsync` — [LadtService.cs:1398](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/LadtService.cs#L1398)
 - Repo (shared): `_agegroupRepo.GetByLeagueIdAsync`
 
-## Required ordering (default, ascending)
+## What's already correct (verified against the code)
 
-1. **Real playing age-groups first; system/holding buckets last.** System bucket = WAITLIST / Dropped / Registration.
-2. **Active before inactive.**
-3. Within each band, **alphabetical by `AgegroupName`**.
+The repo `GetByLeagueIdAsync` **already** orders the age-groups: `.OrderBy(a => a.SortAge).ThenBy(a => a.AgegroupName)` ([AgeGroupRepository.cs:48-56](../../TSIC-Core-Angular/src/backend/TSIC.Infrastructure/Repositories/AgeGroupRepository.cs#L48)). So the rows already arrive age-ordered (`SortAge` is the purpose-built key — alphabetical would mis-order U8/U10/U12). **Do not touch the repo** — it is shared by 6 callers and already correct.
 
-This restores the behavior the front end still documents at [ladt.component.ts:686-689](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/ladt.component.ts#L686) and mirrors the tree's own sort at [ladt.component.ts:350-357](../../TSIC-Core-Angular/src/frontend/tsic-app/src/app/views/ladt/editor/ladt.component.ts#L350).
+## The only missing behavior
 
-## Where to put it — and where NOT to
+The grid lost **one** thing when it stopped self-sorting: the system/holding buckets (WAITLIST / Dropped / Registration) no longer sink to the bottom. By `SortAge` alone they fall wherever their sort value places them. So the fix is just: **push system buckets to the bottom, preserving the existing order otherwise.**
 
-Put the ordering in the **service method `GetAgegroupsByLeagueAsync`**, applied **in-memory after projection** ([LadtService.cs:1402](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/LadtService.cs#L1402), the `.Select(MapAgegroup).ToList()`).
+## Where to put it
 
-**Do NOT** put it in the repo `GetByLeagueIdAsync` — it is **shared by 6 callers** (LadtService lines 84, 362, 830, 1006, 1398, 1600). Ordering there would ripple to consumers that don't want it. The service method above is dedicated to this grid endpoint.
+The dedicated service method **`GetAgegroupsByLeagueAsync`** ([LadtService.cs:1398-1403](../../TSIC-Core-Angular/src/backend/TSIC.API/Services/Admin/LadtService.cs#L1398)) — its **only caller** is the grid controller ([LadtController.cs:439](../../TSIC-Core-Angular/src/backend/TSIC.API/Controllers/LadtController.cs#L439)), so nothing else is affected. Add a **stable** partition after projection; LINQ `OrderBy` is a stable sort, so the repo's `SortAge`/name order is preserved within each band.
 
 ## Use the canonical helper (do not name-sniff)
 
-`AgegroupConstants.IsSystemBucket(string? agegroupName)` — [AgegroupConstants.cs:43](../../TSIC-Core-Angular/src/backend/TSIC.Domain/Constants/AgegroupConstants.cs#L43). It already encodes WAITLIST / Dropped / Registration and is explicitly meant for **in-memory** use (its doc-comment notes EF can't translate it to SQL — which is fine here, we order after `ToList()`).
+`AgegroupConstants.IsSystemBucket(string? agegroupName)` — [AgegroupConstants.cs:43](../../TSIC-Core-Angular/src/backend/TSIC.Domain/Constants/AgegroupConstants.cs#L43). It encodes WAITLIST / Dropped / Registration and is meant for in-memory use (post-`ToList()`). `using TSIC.Domain.Constants;` is already imported in LadtService.
 
-Note: the FE's ad-hoc check only looked at WAITLIST + Dropped; the canonical helper also includes **Registration**, which is correct — use the helper.
-
-## Suggested implementation
+## Suggested implementation (one line added)
 
 ```csharp
 public async Task<List<AgegroupDetailDto>> GetAgegroupsByLeagueAsync(
@@ -45,20 +41,19 @@ public async Task<List<AgegroupDetailDto>> GetAgegroupsByLeagueAsync(
     var agegroups = await _agegroupRepo.GetByLeagueIdAsync(leagueId, cancellationToken);
     return agegroups
         .Select(MapAgegroup)
-        .OrderBy(a => AgegroupConstants.IsSystemBucket(a.AgegroupName))  // false (real) before true (system)
-        .ThenByDescending(a => a.Active)                                 // active before inactive
-        .ThenBy(a => a.AgegroupName, StringComparer.OrdinalIgnoreCase)
+        .OrderBy(a => AgegroupConstants.IsSystemBucket(a.AgegroupName))  // stable: real first, system buckets last
         .ToList();
 }
 ```
 
-## Precondition to confirm
+## Corrections from the first draft (why this is smaller than it looked)
 
-`AgegroupDetailDto` must expose **`AgegroupName`** and **`Active`** for the sort keys (the grid already renders both, so this is expected — confirm `MapAgegroup` carries them).
+- **No `Active` tier** — age-groups have no active/inactive concept; neither `Agegroups` nor `AgegroupDetailDto` has an `Active` field. The original `.ThenByDescending(a => a.Active)` would not compile.
+- **No name/SortAge re-sort** — the repo already does `SortAge` then name for everyone; re-doing it in the service is redundant. Only the system-bucket partition is new.
 
 ## Risk
 
-Additive, presentation-only, single dedicated endpoint. No schema change, no write path, no other consumers touched. Header-click sorting in the grid still works natively on top of this default order.
+One added line, presentation-only, single dedicated endpoint. No schema change, no write path, repo untouched, no other consumers affected. Header-click sorting still works natively on top of this default order.
 
 ## Front-end follow-up (only if this ships)
 
