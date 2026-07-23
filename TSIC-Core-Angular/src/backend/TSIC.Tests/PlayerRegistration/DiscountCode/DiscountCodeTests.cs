@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using System.Security.Claims;
 using TSIC.API.Controllers;
+using TSIC.API.Services.Fees;
 using TSIC.API.Services.Payments;
 using TSIC.API.Services.Shared.Jobs;
 using TSIC.API.Services.Shared.VerticalInsure;
@@ -83,12 +84,18 @@ public class DiscountCodeTests
                 BTeamsFullPaymentRequired = false,
                 PaymentMethodsAllowedCode = 7
             });
+        jobRepo.Setup(j => j.GetProcessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(processingFeePercent);
+        jobRepo.Setup(j => j.GetEcprocessingFeePercentAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(1.5m);
 
-        var feeService = new Mock<IFeeResolutionService>();
-        feeService.Setup(f => f.GetEffectiveProcessingRateAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(processingFeePercent / 100m);
-
-        var feeAdjustment = new RegistrationFeeAdjustmentService(jobRepo.Object, feeService.Object);
+        // Real FeeResolutionService — the discount handler recomputes proc + totals through the
+        // canonical ApplyRegistrationProcessingAndTotalsAsync (via RecomputeRegistrationFinancialsAsync),
+        // the SAME path the display shaper and the at-charge realize use, so a checkout code can never
+        // stamp a proc that disagrees with the charge (the deposit-discount penny). A mocked fee service
+        // would no-op the recompute and leave proc/totals stale.
+        var feeStatePaymentState = new PaymentStateService(new RegistrationAccountingRepository(ctx), jobRepo.Object);
+        var feeService = new FeeResolutionService(new FeeRepository(ctx), jobRepo.Object, feeStatePaymentState);
 
         var jobLookup = new Mock<IJobLookupService>();
         jobLookup.Setup(j => j.GetJobIdByPathAsync(JobPath))
@@ -117,7 +124,7 @@ public class DiscountCodeTests
             paymentService.Object,
             discountCodeRepo,
             registrationRepo,
-            feeAdjustment,
+            feeService,
             paymentState.Object,
             verticalInsure.Object,
             logger.Object);
@@ -668,7 +675,7 @@ public class DiscountCodeTests
     //     The original bug: 50% of $615.83 owed (= $307.92) instead of 50% of $595 base.
     // ────────────────────────────────────────────────────────────────────────
 
-    [Fact(DisplayName = "Regression: 50% off $595 base ignores client's $615.83 amount → discount=$297.50, total=$307.92")]
+    [Fact(DisplayName = "Regression: 50% off $595 base ignores client's $615.83 amount → discount=$297.50, total=$307.91")]
     public async Task Percent_UsesFeeBase_NotClientAmount()
     {
         var (controller, ctx, _) = await CreateControllerAsync(
@@ -689,13 +696,16 @@ public class DiscountCodeTests
         dto.Success.Should().BeTrue();
         dto.TotalDiscount.Should().Be(297.50m);
 
-        // 50% of FeeBase 595 = 297.50. ReduceProcessingFee: 297.50 * 0.035 = 10.41, proc 20.83 → 10.42.
-        // FeeMath(base 595, proc 10.42, disc 297.50): total = 595 + 10.42 - 297.50 = 307.92.
+        // 50% of FeeBase 595 = 297.50. Proc is recomputed CANONICALLY off the net principal:
+        // Round((595 − 297.50) × 0.035) = Round(297.50 × 0.035) = Round(10.4125) = 10.41 — the SAME
+        // value the display + at-charge realize produce. (The old proportional shave gave 10.42 by
+        // rounding the reduction separately, which stranded a penny at charge.)
+        // FeeMath(base 595, proc 10.41, disc 297.50): total = 595 + 10.41 − 297.50 = 307.91.
         var dbReg = await ctx.Registrations.FirstAsync(r => r.RegistrationId == reg.RegistrationId);
         dbReg.FeeDiscount.Should().Be(297.50m);
-        dbReg.FeeProcessing.Should().Be(10.42m);
-        dbReg.FeeTotal.Should().Be(307.92m);
-        dbReg.OwedTotal.Should().Be(307.92m);
+        dbReg.FeeProcessing.Should().Be(10.41m);
+        dbReg.FeeTotal.Should().Be(307.91m);
+        dbReg.OwedTotal.Should().Be(307.91m);
         dbReg.PaidTotal.Should().Be(0m);
 
         var acctRows = await ctx.RegistrationAccounting.Where(a => a.RegistrationId == reg.RegistrationId).ToListAsync();
