@@ -440,6 +440,15 @@
   }
 }
 
+.correction-note--warning {
+  background: color-mix(in srgb, var(--bs-warning) 14%, var(--bs-card-bg));
+  border-color: color-mix(in srgb, var(--bs-warning) 45%, transparent);
+
+  .bi {
+    color: var(--bs-warning);
+  }
+}
+
 // ── Club Breakdown ──
 
 .club-breakdown {
