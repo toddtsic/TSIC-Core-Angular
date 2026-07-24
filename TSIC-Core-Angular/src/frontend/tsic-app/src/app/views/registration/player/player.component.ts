@@ -59,6 +59,7 @@ import { isPlayerRegistrationEffectivelyOpen } from '@shared/landing/landing-pha
         [config]="shellConfig()"
         [canContinue]="canContinue()"
         [busy]="transitioning()"
+        [busyMessage]="'Submitting registration…'"
         [showBack]="showBack()"
         [showContinue]="showContinue()"
         [continueLabel]="continueLabel()"

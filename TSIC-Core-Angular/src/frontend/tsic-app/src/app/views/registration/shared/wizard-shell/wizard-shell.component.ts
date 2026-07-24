@@ -49,6 +49,8 @@ export class WizardShellComponent {
     readonly canContinue = input(false);
     /** When true, Continue shows a spinner and is disabled — an async step transition is in flight. */
     readonly busy = input(false);
+    /** Message under the large busy overlay spinner (shown while busy). */
+    readonly busyMessage = input('Working…');
     /** Label for the Continue button. */
     readonly continueLabel = input('Continue');
     /** Whether to show the Continue button at all. */

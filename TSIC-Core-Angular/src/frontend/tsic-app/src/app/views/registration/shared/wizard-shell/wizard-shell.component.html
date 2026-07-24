@@ -72,4 +72,16 @@
     }
   </div>
 
+  <!-- Centralized busy overlay — the small button spinner is easy to miss on a
+       phone during a long round-trip (submit = several seconds). The overlay
+       makes the wait unmissable and blocks stray taps until it resolves. -->
+  @if (busy()) {
+  <div class="wz-busy-overlay" role="status" aria-live="polite">
+    <div class="wz-busy-card">
+      <span class="spinner-border wz-busy-spinner" aria-hidden="true"></span>
+      <span class="wz-busy-message">{{ busyMessage() }}</span>
+    </div>
+  </div>
+  }
+
 </main>

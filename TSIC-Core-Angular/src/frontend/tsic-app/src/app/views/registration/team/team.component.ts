@@ -47,6 +47,7 @@ import type { WizardStepDef, WizardShellConfig } from '../shared/types/wizard-sh
       [config]="shellConfig()"
       [canContinue]="canContinue()"
       [busy]="transitioning()"
+      [busyMessage]="'Submitting registration…'"
       [showContinue]="showContinue()"
       [showBack]="showBack()"
       [showActionBarOnFirstStep]="hasWizardSession()"
