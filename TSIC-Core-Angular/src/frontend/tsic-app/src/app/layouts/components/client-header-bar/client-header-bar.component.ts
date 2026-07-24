@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
 import { NavigationStart, Router } from '@angular/router';
 import { combineLatest, debounceTime, filter } from 'rxjs';
@@ -212,8 +212,31 @@ export class ClientHeaderBarComponent {
     mobileMenuRight = signal(0);
 
     private readonly destroyRef = inject(DestroyRef);
+    private readonly host = inject(ElementRef<HTMLElement>);
 
     constructor() {
+        // Publish the header's MEASURED height into the shared flyin anchor token.
+        // The token's static 48px is only a fallback: job names wrap the mobile header
+        // taller than 48px, and flyins anchored to the guess sliced through the subtitle.
+        // Pure DOM measurement (afterNextRender + ResizeObserver) — no signals, and the
+        // header's own min-height deliberately does NOT read this token (see .scss).
+        afterNextRender(() => {
+            const el = this.host.nativeElement;
+            const publish = () => {
+                const h = el.offsetHeight;
+                if (h > 0) {
+                    document.documentElement.style.setProperty('--app-header-height-mobile', `${Math.round(h)}px`);
+                }
+            };
+            const ro = new ResizeObserver(publish);
+            ro.observe(el);
+            publish();
+            this.destroyRef.onDestroy(() => {
+                ro.disconnect();
+                document.documentElement.style.removeProperty('--app-header-height-mobile');
+            });
+        });
+
         // Close all menus when requested (e.g. after role selection navigates away)
         toObservable(this.menuState.closeAllMenusRequested).pipe(
             filter(requested => requested),

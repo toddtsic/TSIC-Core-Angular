@@ -6,8 +6,11 @@
     min-height: 60px; // Component-specific: fixed header height
 
     @media (max-width: 767.98px) {
-        // Single-row mobile header — shared token so flyin panels anchor exactly below
-        min-height: var(--app-header-height-mobile, 48px);
+        // Static floor ONLY — must NOT read --app-header-height-mobile. The component
+        // publishes its MEASURED height into that token (see .ts) for flyins to anchor
+        // below the real header; reading it back here would ratchet (min-height pins the
+        // old height, so the header could grow but never shrink).
+        min-height: 48px;
     }
 }
 
