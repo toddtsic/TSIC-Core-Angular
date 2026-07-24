@@ -509,54 +509,66 @@
     }
 }
 
-// Modern mobile sidebar
-.offcanvas {
+// ── Mobile icon rail ────────────────────────────────────────────────────────
+// The hamburger reveals the COLLAPSED desktop rail, slid in over content:
+// icon-only level 1 (64px, same as .admin-rail--collapsed), category flyouts
+// via the shared fixed-position .dropdown-panel. Starts below the app header
+// per the mobile flyin contract so job identity stays visible.
+.offcanvas-rail {
     position: fixed !important;
-    width: 280px !important;
-    max-width: 85vw;
+    width: 64px !important; // match .admin-rail--collapsed
+    max-width: none;
+    top: var(--app-header-height-mobile, 48px) !important;
+    height: calc(100vh - var(--app-header-height-mobile, 48px)) !important;
+    height: calc(100dvh - var(--app-header-height-mobile, 48px)) !important;
     background: var(--brand-surface);
     border: none;
+    border-right: 1px solid var(--brand-border);
     box-shadow: var(--shadow-2xl);
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-2) 0 var(--space-4);
+    overflow-y: auto;
 
-    &-header {
-        border-bottom: 1px solid var(--brand-border);
-        padding: var(--space-5) var(--space-6) var(--space-4);
-        background: var(--brand-surface);
+    .offcanvas-nav {
+        padding: 0 var(--space-2) var(--space-3);
+    }
+}
 
-        .offcanvas-title {
-            font-weight: var(--font-weight-semibold);
-            font-size: var(--font-size-lg);
-            color: var(--brand-text);
-            margin: 0;
-        }
+.offcanvas-rail__close {
+    align-self: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--space-8);
+    height: var(--space-8);
+    margin-bottom: var(--space-1);
+    background: none;
+    border: none;
+    border-radius: var(--radius-md);
+    color: var(--brand-text-muted);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
 
-        .btn-close {
-            background: none;
-            border: none;
-            width: var(--space-8);
-            height: var(--space-8);
-            border-radius: var(--radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s ease;
-
-            &:hover {
-                background: rgba(var(--bs-danger-rgb), 0.1);
-            }
-        }
+    &:hover {
+        background: rgba(var(--bs-danger-rgb), 0.1);
+        color: var(--bs-danger);
     }
 
-    &-body {
-        padding: var(--space-2) var(--space-3) var(--space-6);
-        overflow-y: auto;
-
-        // Rail-language rows (admin-rail__item / dropdown-panel__item) do their
-        // own spacing; the list just resets its docked-rail padding.
-        .offcanvas-nav {
-            padding: 0;
-        }
+    &:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus);
     }
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+}
+
+// Icon-only rows: center the icon in the 64px rail (labels aren't rendered).
+.offcanvas-rail__item {
+    justify-content: center;
+    padding: var(--space-3) 0;
 }
 
 // Enhanced backdrop

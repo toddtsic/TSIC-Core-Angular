@@ -61,18 +61,6 @@ export class MenuStateService {
         this.offcanvasOpen.update(open => !open);
     }
 
-    /**
-     * Which top-level category is expanded inside the full-menu offcanvas accordion
-     * (the header hamburger). Single-open. Toggled by tapping a parent in the offcanvas.
-     */
-    offcanvasExpandedId = signal<string | null>(null);
-
-    /** Toggle a category open/closed inside the offcanvas (single-open accordion) */
-    toggleOffcanvasCategory(navItemId: string | number): void {
-        const id = String(navItemId);
-        this.offcanvasExpandedId.update(cur => (cur === id ? null : id));
-    }
-
     /** Close offcanvas */
     closeOffcanvas(): void {
         this.offcanvasOpen.set(false);

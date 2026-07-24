@@ -96,9 +96,21 @@ export class ClientMenuComponent {
         this.expandedItems.set(new Set());
     }
 
-    /** Close offcanvas (mobile sidebar) */
+    /** Close offcanvas (mobile icon rail). Also collapses any open flyout so the
+     *  next open always greets with plain level-1 icons. */
     closeOffcanvas(): void {
         this.menuState.closeOffcanvas();
+        this.collapseAll();
+    }
+
+    /** Mobile icon-rail parent tap — the collapsed-rail behavior verbatim:
+     *  toggle this category's fixed flyout beside the tapped icon. */
+    onOffcanvasParentClick(event: MouseEvent, item: NavItemDto): void {
+        if (this.isExpanded(item.navItemId)) {
+            this.collapseAll();
+            return;
+        }
+        this.openRailFlyout(event.currentTarget as HTMLElement, item.navItemId);
     }
 
     /** Close the mobile focused sheet (backdrop tap, or after navigating a child). */
@@ -248,19 +260,6 @@ export class ClientMenuComponent {
 
     isExpanded(menuItemId: string | number): boolean {
         return this.expandedItems().has(String(menuItemId));
-    }
-
-    /**
-     * Mobile offcanvas accordion expansion — backed by MenuStateService so the
-     * bottom-nav can pre-expand a category. Kept separate from the desktop rail's
-     * expandedItems (they never render at the same time, but the source differs).
-     */
-    isOffcanvasExpanded(item: NavItemDto): boolean {
-        return this.menuState.offcanvasExpandedId() === String(item.navItemId);
-    }
-
-    toggleOffcanvasExpanded(item: NavItemDto): void {
-        this.menuState.toggleOffcanvasCategory(item.navItemId);
     }
 
     /**

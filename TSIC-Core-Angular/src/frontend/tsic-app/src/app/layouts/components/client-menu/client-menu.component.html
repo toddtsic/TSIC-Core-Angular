@@ -240,77 +240,75 @@
 <!-- Mobile Toggle Button and Offcanvas (visible on small/medium screens) -->
 @if (menus() && menus().length > 0) {
 <div class="d-lg-none">
-    <!-- Offcanvas sidebar (position fixed, doesn't affect layout) -->
-    <div class="offcanvas offcanvas-start" [class.show]="offcanvasOpen()"
-        [style.visibility]="offcanvasOpen() ? 'visible' : 'hidden'" tabindex="-1">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title">Menu</h5>
-            <button type="button" class="btn-close" (click)="closeOffcanvas()" aria-label="Close"></button>
-        </div>
-        <div class="offcanvas-body">
-            @if (menusLoading()) {
-            <p>Loading menu...</p>
-            } @else if (menusError()) {
-            <p class="text-danger">{{ menusError() }}</p>
-            } @else if (menus() && menus().length > 0) {
-            <!-- Same visual language as the desktop rail (admin-rail__* rows +
-                 shared #childList child renderer) — the hamburger reveals the web
-                 sidebar, just slid in over content instead of docked. -->
-            <ul class="admin-rail__list offcanvas-nav">
-                @for (item of menus(); track item.navItemId) {
-                <li class="admin-rail__group">
-                    @if (hasChildren(item)) {
-                    <button type="button" class="admin-rail__item"
-                        [class.admin-rail__item--open]="isOffcanvasExpanded(item)"
-                        [class.admin-rail__item--active]="isParentActive(item)"
-                        [attr.aria-expanded]="isOffcanvasExpanded(item)"
-                        (click)="toggleOffcanvasExpanded(item)">
-                        <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
-                        <span class="admin-rail__label">{{ item.text }}</span>
-                        <i class="bi bi-chevron-down admin-rail__chevron"
-                            [class.admin-rail__chevron--open]="isOffcanvasExpanded(item)"
-                            aria-hidden="true"></i>
-                    </button>
-                    @if (isOffcanvasExpanded(item)) {
-                    <div class="admin-rail__children dropdown-panel__items">
+    <!-- Offcanvas icon rail (position fixed, doesn't affect layout). The mobile
+         menu IS the collapsed desktop rail: icon-only level 1; tapping a category
+         opens the same fixed .dropdown-panel flyout beside the icon (shared
+         openRailFlyout positioning + viewport clamp). -->
+    <div class="offcanvas offcanvas-start offcanvas-rail" [class.show]="offcanvasOpen()"
+        [style.visibility]="offcanvasOpen() ? 'visible' : 'hidden'" tabindex="-1"
+        aria-label="Admin navigation">
+        <button type="button" class="offcanvas-rail__close" (click)="closeOffcanvas()" aria-label="Close menu">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+        @if (menusLoading()) {
+        <span class="admin-rail__status">…</span>
+        } @else if (menusError()) {
+        <span class="admin-rail__status admin-rail__status--error" [title]="menusError()">!</span>
+        } @else if (menus() && menus().length > 0) {
+        <ul class="admin-rail__list offcanvas-nav">
+            @for (item of menus(); track item.navItemId) {
+            <li class="admin-rail__group">
+                @if (hasChildren(item)) {
+                <button type="button" class="admin-rail__item offcanvas-rail__item"
+                    [class.admin-rail__item--open]="isExpanded(item.navItemId)"
+                    [class.admin-rail__item--active]="isParentActive(item)"
+                    [attr.aria-expanded]="isExpanded(item.navItemId)"
+                    [attr.aria-haspopup]="true"
+                    [title]="item.text"
+                    (click)="onOffcanvasParentClick($event, item)">
+                    <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                </button>
+                @if (isExpanded(item.navItemId)) {
+                <div class="dropdown-panel" [style.top.px]="dropdownPanelTop()"
+                    [style.left.px]="dropdownPanelLeft()" role="menu">
+                    <div class="dropdown-panel__title">{{ item.text }}</div>
+                    <div class="dropdown-panel__items">
                         <ng-container *ngTemplateOutlet="childList; context: { $implicit: item }"></ng-container>
                     </div>
-                    }
-                    } @else {
-                    <!-- Standalone leaf -->
-                    @if (!isRouteImplemented(item)) {
-                    <span class="admin-rail__item admin-rail__item--disabled" aria-disabled="true">
-                        <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
-                        <span class="admin-rail__label">{{ item.text }}</span>
-                        <span class="admin-rail__badge">Soon</span>
-                    </span>
-                    } @else if (isExternalLink(item)) {
-                    <a class="admin-rail__item" [href]="getLink(item)" [target]="item.target || '_self'"
-                        (click)="closeOffcanvas()">
-                        <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
-                        <span class="admin-rail__label">{{ item.text }}</span>
-                    </a>
-                    } @else if (getLink(item)) {
-                    <a class="admin-rail__item"
-                        [routerLink]="isReportDownload(item) ? null : getLink(item)"
-                        [queryParams]="isReportDownload(item) ? null : getQueryParams(item)"
-                        routerLinkActive="admin-rail__item--active"
-                        (click)="onLinkClick($event, item); closeOffcanvas()">
-                        <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
-                        <span class="admin-rail__label">{{ item.text }}</span>
-                    </a>
-                    } @else {
-                    <span class="admin-rail__item admin-rail__item--disabled">
-                        <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
-                        <span class="admin-rail__label">{{ item.text }}</span>
-                    </span>
-                    }
-                    }
-                </li>
+                </div>
                 }
-            </ul>
+                } @else {
+                <!-- Standalone leaf -->
+                @if (!isRouteImplemented(item)) {
+                <span class="admin-rail__item offcanvas-rail__item admin-rail__item--disabled"
+                    aria-disabled="true" [title]="item.text + ' (coming soon)'">
+                    <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                </span>
+                } @else if (isExternalLink(item)) {
+                <a class="admin-rail__item offcanvas-rail__item" [href]="getLink(item)"
+                    [target]="item.target || '_self'" [title]="item.text"
+                    (click)="closeOffcanvas()">
+                    <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                </a>
+                } @else if (getLink(item)) {
+                <a class="admin-rail__item offcanvas-rail__item"
+                    [routerLink]="isReportDownload(item) ? null : getLink(item)"
+                    [queryParams]="isReportDownload(item) ? null : getQueryParams(item)"
+                    routerLinkActive="admin-rail__item--active"
+                    [title]="item.text"
+                    (click)="onLinkClick($event, item); closeOffcanvas()">
+                    <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                </a>
+                } @else {
+                <span class="admin-rail__item offcanvas-rail__item admin-rail__item--disabled" [title]="item.text">
+                    <i class="bi bi-{{ getMenuIcon(item) }} admin-rail__icon" aria-hidden="true"></i>
+                </span>
+                }
+                }
+            </li>
             }
-        </div>
+        </ul>
+        }
     </div>
 
     <!-- Offcanvas backdrop -->
